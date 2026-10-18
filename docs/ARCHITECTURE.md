@@ -29,10 +29,14 @@ kassensturz/
 │   ├── kassensturz-mobile-bridge/  # post-1.0: Rust↔Kotlin FFI exposing core+receipts to the native Android app — see D-019, Q-018
 │   ├── kassensturz-sync/           # post-1.0: shared-host ↔ thin-client access for multi-user (Member-scoped) — see D-022, Q-021/Q-022
 │   ├── kassensturz-cli/            # CLI front end (testing, scripting)
-│   └── kassensturz-ui-bridge/      # cxx-qt bindings exposing the core to QML
-├── ui/qml/                         # Kirigami UI: overview, register, reports, settings, plugins
+│   └── kassensturz-ui-bridge/      # the desktop app: cxx-qt bindings exposing the core to QML
+│       ├── qml/                    # Kirigami UI: overview, register, reports, settings, plugins
+│       └── cpp/                    # small C++ helpers, e.g. Qt's locale data for formatting (D-065)
+├── data/                           # desktop file and AppStream metadata
+├── po/                             # translations, one folder per language (D-034)
 ├── plugins/examples/               # sample importer, report, automation (after 1.0)
-├── packaging/                      # flatpak/, windows/, macos/
+├── packaging/                      # flatpak/ (manifest and its offline crate list), windows/, macos/
+├── tools/                          # sdk.sh: runs commands in the build environment (D-063)
 ├── docs/
 └── .github/
 ```
@@ -41,6 +45,9 @@ kassensturz/
 
 - CMake (with KDE's Extra CMake Modules) drives Cargo: Cargo builds the Rust crates, CMake installs the desktop file, AppStream data, icons and translations (D-063).
 - Development, CI and the Flatpak use one environment, the KDE Flatpak SDK with the Rust extension; Flatpak builds use vendored Cargo dependencies (D-063).
+- `tools/sdk.sh <command>` runs any command in that environment, e.g. `tools/sdk.sh cargo test --workspace`; CI uses the same script. Versions are pinned in D-073.
+- CMake runs `cargo build --locked` as a custom target, as KDE's guide does, and installs the program it builds. QML files live in `crates/kassensturz-ui-bridge/qml/` because cxx-qt-build registers QML files by their path inside the crate.
+- The Flatpak manifest (`packaging/flatpak/`) builds offline from `cargo-sources.json`, which is regenerated from `Cargo.lock` whenever that changes (`README.md`, "Building").
 - The first code is a walking skeleton through every layer, kept as real code (D-068).
 
 ## Dependency rules
@@ -146,7 +153,8 @@ kassensturz/
 - `kassensturz-core` never produces user-facing text: it returns structured error codes (with parameters), and the UI owns every string (D-034).
 - Translations use KDE's KI18n (gettext). v1 ships in English (source language) and German.
 - Numbers are shown in the user's regional format by default (100,00 € in Germany, $100.00 in the US); the user can change the format and the number of decimal places shown. Display settings live in the app's settings, not in the book, and never change stored amounts or calculations (D-002).
-- Amounts reach QML only as text: Rust formats them from the exact value, with separators and currency symbol from Qt's locale data, and parses what the user types. Sorting and totals happen in Rust models; floating point appears only as chart drawing coordinates (D-065).
+- Amounts reach QML only as text: Rust formats them from the exact value, with separators and currency symbol from Qt's locale data, and parses what the user types. Sorting and totals happen in Rust models; floating point appears only as chart drawing coordinates (D-065). How the pieces are taken from Qt: D-075.
+- QML gets its translations through KI18n's `KI18nContext`, created in QML, so the Rust program links no KDE Frameworks library (D-074).
 - Plain-language terms come from `docs/GLOSSARY.md`; for example, the other side of a transaction is shown as "From"/"To" and is called "Other party" in the Rule editor.
 
 ## Data and portability
@@ -159,6 +167,6 @@ kassensturz/
 - Everything in a book is identified by a UUIDv7, not a running number (D-067).
 - Each book stores the decimal places of every currency it uses, fixed when the currency is first used (D-027).
 - Export: CSV plus a complete export of the book in an open format (D-029). It is the stable way to move data.
-- The book's layout is documented in `docs/BOOK_FORMAT.md` (from M1) so other programs can read books. It can change in any version, and writing into a book from outside isn't supported (D-046).
+- The book's layout is documented in `docs/BOOK_FORMAT.md` so other programs can read books. It can change in any version, and writing into a book from outside isn't supported (D-046).
 - Paths and keychain access go through `kassensturz-platform`, so Plasma, GNOME, Windows and macOS conventions are handled in one place. Data and config folders are named after the app ID `io.github.vondor.KassenSturz` (D-049).
 - All database code for the book lives in `kassensturz-store`; no other crate touches the book's database directly. SQLite is the only database until 1.0. When another one (PostgreSQL, MySQL/MariaDB, …) is scheduled after 1.0, a storage trait is extracted from the existing code, without changing `kassensturz-core`. See D-016, D-072, Q-012.

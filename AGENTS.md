@@ -80,7 +80,7 @@ Direct bank connections are **in scope for v1**, via AqBanking (see §4, D-012).
 | Storage | **SQLite**, versioned migrations from day one |
 | Plugins | **WASM** (primary, sandboxed) and **out-of-process JSON-RPC** (secondary) |
 | Secrets | Platform keychain via an abstraction (KWallet / libsecret / Windows Credential Manager / macOS Keychain) |
-| Bank connections | **AqBanking** (+ Gwenhywfar) for HBCI/FinTS and EBICS, behind an abstraction so other backends can be added later. We aim to fully support what AqBanking offers. License and Rust binding approach pending verification (see D-012, Q-009) |
+| Bank connections | **AqBanking** (+ Gwenhywfar) for HBCI/FinTS and EBICS, behind an abstraction so other backends can be added later. We aim to fully support what AqBanking offers. License verified (D-012, `docs/THIRD_PARTY.md`); Rust binding approach pending (Q-009) |
 | Charts | Behind a `ChartProvider` interface. Initial implementation uses Qt's charting. LibreOffice chart code is a *later, approval-gated* option (see D-008) |
 | AI | Provider abstraction (`kassensturz-ai`) and a local MCP server (`kassensturz-mcp`), see §8 |
 | Packaging | Flatpak (KDE runtime, covers Plasma and GNOME), Windows installer/MSIX, macOS signed `.dmg` |

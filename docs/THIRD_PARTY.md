@@ -11,15 +11,16 @@ Tracks every third-party dependency (license, purpose, compatibility) and every 
 | `regex` (rust-lang) | Regex matching for Rule conditions (see D-014/D-015 in `docs/DECISIONS.md`) | Dual MIT / Apache-2.0 | Yes — permissive, no conflict | Planned, not yet added as a Cargo dependency |
 | Qt 6 | UI toolkit (D-005); Qt Charts or Qt Graphs for the first `ChartProvider` (D-008) | Most modules: LGPL-3.0 (or commercial). Some modules are GPL-3.0 only (or commercial), among them **Qt Charts and Qt Graphs** (doc.qt.io, checked 2026-10-18) | Yes. A build that includes Qt Charts or Qt Graphs is distributable as a whole under GPL-3.0 only (D-001) | **Approved by the maintainer** (2026-10-18, D-061); versions per D-025 (LTS preferred) |
 | Kirigami (KDE Frameworks 6) | QML UI components (D-005) | LGPL-2.0-or-later (develop.kde.org) | Yes | **Approved by the maintainer** (2026-10-18, D-061) |
-| KI18n (KDE Frameworks 6) | Translations with gettext (D-034) | Upstream `LICENSES/` holds LGPL-2.0-or-later, LGPL-2.1-only, LGPL-3.0-only, LicenseRef-KDE-Accepted-LGPL, BSD-3-Clause, CC0-1.0 and ODbL-1.0 | Yes. ODbL-1.0 covers only the country and time-zone data in `src/localedata`, built as the separate library `KF6::I18nLocaleData`; `KF6::I18n` doesn't link it (checked 2026-10-18, see the log below) | **Approved by the maintainer** (2026-10-18, D-061) for `KF6::I18n` only; linking `KF6::I18nLocaleData` needs its own check |
-| `cxx-qt` (KDAB) | Rust ↔ Qt/QML binding (D-005) | MIT OR Apache-2.0 | Yes | **Approved by the maintainer** (2026-10-18, D-061); newest release 0.10.0 (2026-08-24) |
-| `rusqlite` | SQLite access from Rust (D-005, D-016); SQLite itself is public domain | MIT | Yes | **Approved by the maintainer** (2026-10-18, D-061); newest release 0.40.2 (2026-08-08); built with its bundled SQLite by default, with a build option for distributions to use the system's SQLite (D-061) |
+| KI18n (KDE Frameworks 6) | Translations with gettext (D-034) | Upstream `LICENSES/` holds LGPL-2.0-or-later, LGPL-2.1-only, LGPL-3.0-only, LicenseRef-KDE-Accepted-LGPL, BSD-3-Clause, CC0-1.0 and ODbL-1.0 | Yes. ODbL-1.0 covers only the country and time-zone data in `src/localedata`, built as the separate library `KF6::I18nLocaleData`; `KF6::I18n` doesn't link it (checked 2026-10-18, see the log below) | **Approved by the maintainer**: `KF6::I18n` (2026-10-18, D-061) and its QML part `KF6::I18nQml` (2026-10-19, D-076), which the walking skeleton uses from QML only (QML module `org.kde.ki18n`, D-074): its sources carry the same licenses as `KF6::I18n` and no ODbL-1.0, and it links only `KF6::I18n`, Qt Core and Qt Qml (checked 2026-10-18, see the log below). Linking `KF6::I18nLocaleData` needs its own check |
+| `cxx-qt` (KDAB) | Rust ↔ Qt/QML binding (D-005) | MIT OR Apache-2.0 | Yes | **Approved by the maintainer** (2026-10-18, D-061). Added in M0 at 0.10.0 (2026-08-24) with three companion crates from the same repository and license: `cxx-qt-lib` (Qt types), `cxx-qt-build` (build script only) and `cxx-qt-lib-extras` (`QApplication`, which D-054 needs); the maintainer confirmed that the approval covers them (2026-10-19, D-076) |
+| `cxx` (dtolnay) | The Rust ↔ C++ bridge that cxx-qt is built on. The code cxx-qt generates refers to it, so it is a direct dependency of every cxx-qt app (cxx-qt book, "Building with Cargo") | MIT OR Apache-2.0 | Yes | **Approved by the maintainer** (2026-10-19, D-076). Added in M0 at 1.0.205 (2026-10-11) |
+| `rusqlite` | SQLite access from Rust (D-005, D-016); SQLite itself is public domain | MIT | Yes | **Approved by the maintainer** (2026-10-18, D-061). Added in M0 at 0.40.2 (2026-08-08), default features off. Built with its bundled SQLite by default; the CMake option `KASSENSTURZ_BUNDLED_SQLITE=OFF` (Cargo: `--no-default-features`) uses the system's SQLite instead, which CI tests too (D-061) |
 | `wasmtime` (Bytecode Alliance) | Host for WASM plugins (D-007) | Apache-2.0 WITH LLVM-exception | Yes (Apache-2.0 is compatible with GPL-3.0) | Proposed, awaiting maintainer approval; needed only after 1.0 (D-071); newest release 49.0.3 (2026-10-14) |
 | `rust_decimal` | Exact fixed-point decimals for exchange rates, prices and quantities (D-051) | MIT | Yes | **Approved by the maintainer** (Q-027, 2026-10-18); not yet added; newest release 1.43.0 (2026-09-02), version pinned when it is added in M1 |
 | `bindgen` (rust-lang) | Developer tool that generates the AqBanking/Gwenhywfar declarations once; the output is committed (D-060) | BSD-3-Clause | Yes | Developer tool only, not a build dependency; newest release 0.73.2 (2026-09-08) |
 | `libloading` | Loading AqBanking at runtime, so KassenSturz works without it (D-054, D-060) | ISC | Yes | Proposed; the maintainer approves it when M4 starts; newest release 0.9.0 (2025-11-05) |
-| `uuid` (uuid-rs) | UUIDv7 IDs for everything in a book (D-067) | MIT OR Apache-2.0 | Yes | **Approved by the maintainer** (2026-10-18, D-061); newest release 1.28.0 (2026-10-10), needs its `v7` feature |
-| `jiff` | Calendar dates without time zone (AGENTS.md §5), business days (D-030) | Unlicense OR MIT | Yes | **Approved by the maintainer** (2026-10-18, D-061; comparison in `docs/proposals/date-library.md`); used without time-zone data (`default-features = false, features = ["std"]`); newest release 0.2.38 (2026-10-06) |
+| `uuid` (uuid-rs) | UUIDv7 IDs for everything in a book (D-067) | MIT OR Apache-2.0 | Yes | **Approved by the maintainer** (2026-10-18, D-061). Added in M0 at 1.28.0 (2026-10-10) with its `v7` feature |
+| `jiff` | Calendar dates without time zone (AGENTS.md §5), business days (D-030) | Unlicense OR MIT | Yes | **Approved by the maintainer** (2026-10-18, D-061; comparison in `docs/proposals/date-library.md`); used without time-zone data (`default-features = false, features = ["std"]`). Added in M0 at 0.2.38 (2026-10-06); its floating-point methods are blocked in `clippy.toml` |
 | ISO 4217 currency list (data, not code) | Our own currency table with each currency's decimal places (D-062) | Official list published by SIX, the ISO 4217 maintenance agency; terms of use checked when the table is made | To be checked | Planned for M1 |
 
 ## License allowlist for indirect and test-only dependencies (D-026)
@@ -30,6 +31,21 @@ Tracks every third-party dependency (license, purpose, compatibility) and every 
 
 Copyleft licenses (GPL, LGPL, AGPL) are deliberately left off: each such crate is approved individually, because some of them (for example GPL-3.0-only) remove the "or later" option for the whole build (D-001). The list covers Rust crates only; C and C++ libraries such as Qt, KDE Frameworks, AqBanking and Gwenhywfar always get their own row above.
 
+`deny.toml` holds the same list, and CI checks every crate in `Cargo.lock` against it with cargo-deny, test-only crates included. Test-only crates in use: `proptest` 1.12.0 (MIT OR Apache-2.0) for the property-based tests (AGENTS.md §9).
+
+## Build and CI tools
+
+Used to build or check KassenSturz, never shipped with it, and pinned to exact versions.
+
+| Tool | Used for | License | Version |
+|---|---|---|---|
+| KDE Flatpak SDK with the Rust SDK extension | The one build environment for development, CI and the Flatpak (D-063) | Mixed free licenses (runtime: GPL-2.0+ and others) | `org.kde.Sdk//6.11`, `org.freedesktop.Sdk.Extension.rust-stable//25.08` (Rust 1.98.1); in CI the container `ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11`, pinned by digest |
+| flatpak-builder | Builds the Flatpak (`packaging/flatpak/`) | LGPL-2.1-only (Flathub's metadata) | Locally the Flathub app `org.flatpak.Builder`; in CI the action `flatpak/flatpak-github-actions/flatpak-builder` v6.8, pinned by commit |
+| `flatpak-cargo-generator.py` (flatpak-builder-tools) | Generates `packaging/flatpak/cargo-sources.json` from `Cargo.lock`, so the Flatpak builds offline (D-063) | MIT | Commit `74697c75b630d7330e77250fc13cb5ea688d9479` (2026-09-30) |
+| cargo-deny | Checks the licenses and sources of all crates (D-026) | MIT OR Apache-2.0 | 0.20.2, in CI through `EmbarkStudios/cargo-deny-action` v2.1.1, pinned by commit |
+| reuse | Checks SPDX headers (D-024) | GPL-3.0-or-later and others | 6.2.0 |
+| GNU gettext (`xgettext`, `msgmerge`, `msgfmt`) | Extracts, merges and checks translations (D-034); part of the KDE SDK | GPL-3.0-or-later | 0.26, from the SDK |
+
 ## Verification log
 
 | Date | Checked | Source | SHA-256 of the file checked |
@@ -37,6 +53,7 @@ Copyleft licenses (GPL, LGPL, AGPL) are deliberately left off: each such crate i
 | 2026-10-18 | AqBanking 6.9.2 (released 2026-05-22): COPYING and the license notes in the source files | `https://www.aquamaniac.de/rdm/attachments/download/654/aqbanking-6.9.2.tar.gz` | `244b5f7a139f829928f5cdc3f5f7488517b3e8aa63625a92741c3efc1892bb3f` |
 | 2026-10-18 | Gwenhywfar 5.14.1 (released 2025-12-07): COPYING and the license notes in the source files | `https://www.aquamaniac.de/rdm/attachments/download/630/gwenhywfar-5.14.1.tar.gz` | `8916feaa99cb954f963f2cba8dd2dffe57cacf7f284daf00eab071aad6fe2ab3` |
 | 2026-10-18 | KI18n (git `master`, commit dated 2026-10-16): which files use ODbL-1.0 (only `src/localedata`, built as `KF6::I18nLocaleData`) and whether `KF6::I18n` links that library (it doesn't) | `https://invent.kde.org/frameworks/ki18n.git` | Git commit, not a file: `59ca2ae11fdb9f24633dd9d7ce8d74be4c45700e` |
+| 2026-10-18 | KI18n 6.30.0, the version in the KDE runtime 6.11: the SPDX headers in `src/i18n-qml`, the sources of `KF6::I18nQml` (LGPL-2.0-or-later; LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL; BSD-3-Clause for the build file), and what that library links (`KF6::I18n`, Qt Core, Qt Qml) | `https://invent.kde.org/frameworks/ki18n.git`, tag `v6.30.0` | Git commit, not a file: `dd9a8bed3ca7770d8a92815f83abebeaf6fc54d3` |
 
 The GPG signatures (the `.asc` files next to each tarball) were not checked. Also checked on 2026-10-18: crates.io has no AqBanking crate, so KassenSturz needs its own binding (D-060).
 

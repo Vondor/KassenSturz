@@ -40,6 +40,7 @@ kassensturz/
 - `kassensturz-store`, `kassensturz-import`, `kassensturz-charts`, `kassensturz-ai`, `kassensturz-plugin-host` depend on `kassensturz-core`.
 - Front ends (`kassensturz-cli`, `kassensturz-ui-bridge`, `kassensturz-mcp`) depend on core, store and plugin host. **Core never knows about a UI.**
 - OS-specific behavior lives only in `kassensturz-platform` behind traits.
+- AI code lives only in `kassensturz-ai` and `kassensturz-mcp`. Front ends use them only behind one build feature (`ai`, on by default), so KassenSturz can be built without any AI code (D-039). `kassensturz-core` never depends on AI code.
 - Built-in importers and exporters use the public plugin API.
 
 ## Plugin model

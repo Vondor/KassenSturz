@@ -129,6 +129,7 @@ kassensturz/
 
 - `kassensturz-core` never produces user-facing text: it returns structured error codes (with parameters), and the UI owns every string (D-034).
 - Translations use KDE's KI18n (gettext). v1 ships in English (source language) and German.
+- Numbers are shown in the user's regional format by default (100,00 € in Germany, $100.00 in the US); the user can change the format and the number of decimal places shown. Display settings live in the app's settings, not in the book, and never change stored amounts or calculations (D-002).
 - Plain-language terms come from `docs/GLOSSARY.md`; for example, the other side of a transaction is shown as "From"/"To" and is called "Other party" in the Rule editor.
 
 ## Data and portability

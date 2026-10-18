@@ -97,8 +97,8 @@ Becoming an official KDE project is a goal (D-041), so keep code, licensing and 
 **Money**
 - Amounts are stored as **64-bit integer minor units** plus an **ISO 4217** currency code. The number of decimal places comes from ISO 4217, not from hard-coded assumptions, and each book stores it per currency when the currency is first used, so an app update can never rescale stored amounts (D-027).
 - Use one `Money` type everywhere. Arithmetic is overflow-checked. No raw integers for money in public APIs.
-- **Rounding mode and number/money display options are user-configurable** (D-002). Rounding is applied only where the domain requires it (conversions, percentages, splits), and the rule used is always explicit in code. The rounding setting is stored in the book, defaults to round half away from zero, and changing it affects only future calculations (D-027).
-- Formatting (decimal comma/point, grouping, currency symbol position) comes from the user's locale (CLDR). It is presentation only and is never stored.
+- **Users choose how money is shown, never how it is stored** (D-002). Number format (decimal comma or point, digit grouping, currency symbol position) comes from the user's locale (CLDR) by default and can be changed, and so can the number of decimal places shown (e.g. 100 or 100,00). This is presentation only: it never changes stored amounts or calculations, and totals are computed from the exact amounts before they are rounded for display.
+- Rounding in calculations is applied only where the domain requires it (conversions, percentages, splits), and the rule used is always explicit in code. That rounding setting is stored in the book, defaults to round half away from zero, and changing it affects only future calculations (D-027).
 
 **Multi-currency (required from the start)**
 - Every split keeps its **original amount and currency**. Conversions record the **rate, date and source** used. Never discard the original amount.

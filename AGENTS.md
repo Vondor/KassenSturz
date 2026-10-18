@@ -78,16 +78,19 @@ Direct bank connections are **in scope for v1**, via AqBanking (see §4, D-012).
 | Core | **Rust**, Cargo workspace, headless library with no UI code |
 | Toolchain | Rust **2024 edition**; Qt 6, KDE Frameworks 6 and the Flatpak KDE runtime in LTS releases where available, otherwise the current stable release (D-025) |
 | UI | **Qt 6 + QML + Kirigami**, bound to the core via **cxx-qt** |
-| Storage | **SQLite**, versioned migrations from day one |
+| Storage | **SQLite**, versioned migrations from day one; development migrations are merged into one starting layout before 0.1 (D-045) |
 | Plugins | **WASM** modules, sandboxed. Out-of-process plugins are not part of v1 (D-007) |
 | Secrets | Platform keychain via an abstraction (KWallet / libsecret / Windows Credential Manager / macOS Keychain) |
 | Bank connections | **AqBanking** (+ Gwenhywfar) for HBCI/FinTS and EBICS, behind an abstraction so other backends can be added later. We aim to fully support what AqBanking offers. License verified (D-012, `docs/THIRD_PARTY.md`); Rust binding approach pending (Q-009) |
 | Charts | Behind a `ChartProvider` interface. Initial implementation uses Qt's charting. A LibreOffice chart prototype is part of the 1.0 work; adopting LibreOffice code stays approval-gated (see D-008) |
 | AI | Provider abstraction (`kassensturz-ai`; v1 ships the OpenAI-compatible adapter only, D-035) and a local MCP server (`kassensturz-mcp`), see §8 |
 | Packaging | Flatpak (KDE runtime, covers Plasma and GNOME), Windows installer/MSIX, macOS signed `.dmg` |
+| Hosting | **GitHub**: the code, GitHub Actions for CI, GitHub Issues (D-042) |
 | i18n | All UI strings translatable from day one, using KDE's **KI18n** (gettext); v1 ships in English and German. No hard-coded user-facing text: the core returns error codes, never text (D-034) |
 
 Platform priority is **KDE Plasma → GNOME → Windows → macOS**. A feature that works only on a lower-priority platform is a bug. A feature that works only on a higher-priority one is acceptable temporarily, if documented.
+
+Becoming an official KDE project is a goal (D-041), so keep code, licensing and tooling KDE-compatible.
 
 ## 5. Domain rules
 
@@ -100,7 +103,7 @@ Platform priority is **KDE Plasma → GNOME → Windows → macOS**. A feature t
 **Multi-currency (required from the start)**
 - Every split keeps its **original amount and currency**. Conversions record the **rate, date and source** used. Never discard the original amount.
 - Exchange rates and security prices live in a dated price table. In v1, exchange rates are entered by hand (D-028); their number format is Q-027.
-- The balancing approach is an open question (Q-003). Do not decide it silently.
+- A transaction balances in one currency: a part in another currency keeps its original amount plus its value in the transaction's currency, i.e. the rate used (D-043). There are no trading accounts.
 
 **Accounting model**
 - Internally **double-entry**: every transaction balances. Users never have to know this (see §6).
@@ -111,7 +114,8 @@ Platform priority is **KDE Plasma → GNOME → Windows → macOS**. A feature t
 
 **Database**
 - Orient the schema on KMyMoney's *concepts* (accounts, transactions, splits, payees, institutions, securities, prices, schedules). Do not copy its source code or blindly copy its table layout (D-003).
-- Provide an **importer** for KMyMoney files (`.kmy` and SQLite). Treat input files as untrusted.
+- Provide an **importer** for KMyMoney files (`.kmy` and SQLite), built clean-room from sample files and public documentation only (D-044). Treat input files as untrusted.
+- The book's own layout is documented in `docs/BOOK_FORMAT.md` so other programs can read it, without any stability promise; update that document with every migration (D-046).
 
 ## 6. Simplicity rules (UI and UX)
 
@@ -156,8 +160,8 @@ KassenSturz has a **native way to connect AI**, including **locally running mode
    - unit tests for all core logic
    - property-based tests for `Money` and rounding
    - golden-file tests for every importer (synthetic files only)
-   - migration tests: upgrade from every earlier schema version
-5. **Definition of done:** builds in CI · formatted and lint-clean · tests pass · docs updated · `docs/DECISIONS.md` updated if you made or changed a decision · no `TODO` without an issue reference · SPDX license and copyright header on every source file (`GPL-3.0-or-later`, `KassenSturz contributors`, D-024).
+   - migration tests: upgrade from every earlier schema version since 0.1 (development migrations are merged before 0.1, D-045)
+5. **Definition of done:** builds in CI · formatted and lint-clean · tests pass · docs updated · `docs/DECISIONS.md` updated if you made or changed a decision · no `TODO` without an issue reference · SPDX license and copyright header on every source file (`GPL-3.0-or-later`, `KassenSturz contributors`, checked by REUSE, D-024) · commits signed off under the DCO by the person who submits them; agents never add the sign-off themselves (D-040).
 6. **Verify, don't guess.** Check APIs, crate versions and file formats against real documentation or source. Pin dependency versions. Do not invent function names.
 7. **Leave breadcrumbs.** Update roadmap status, record decisions, and write commit messages for an agent with no memory of this session.
 

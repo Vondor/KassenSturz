@@ -57,6 +57,7 @@ kassensturz/
 - A transaction can be broken down into multiple categorized **Parts** (UI term for `Split`, see `docs/GLOSSARY.md`) at any time, not only at import — see D-017.
 - Editing Parts auto-calculates one remaining Part's amount as "total minus what's already entered." Saving is rejected unless all Parts sum exactly to the transaction's original amount — enforced in `kassensturz-core`, not just in the UI.
 - Manual entry only in this decision; deriving Parts from a scanned receipt (OCR) is taken up separately in D-018.
+- A Part in another currency keeps its original amount and currency plus its value in the transaction's currency (the rate used), so every transaction adds up to zero in its own currency (D-043).
 
 ## Multiple accounts and Transfers
 
@@ -64,7 +65,7 @@ kassensturz/
 - When import sees a debit in one of the user's accounts and a matching credit in another account **already in the same book**, it proposes merging them into one double-entry **Transfer** (both splits are real asset/liability accounts, no income/expense category) instead of recording them as two unrelated transactions. See D-021.
 - Matching: amount (same currency) or a plausible exchange rate for cross-currency transfers (D-004) + date-proximity + both accounts already present in the book. External IBANs are never candidates.
 - Date window: up to 3 business days between the two sides; same currency only for now (D-030; cross-currency tolerances are Q-020).
-- Always a suggestion the user confirms, never a silent merge (Q-019 covers whether a "trust this pair" setting should reduce that friction later).
+- Always a suggestion the user confirms, every time, in v1; a "trust this pair of accounts" option may come later (D-030).
 - Reports exclude confirmed Transfers from income/expense totals — a direct consequence of the existing double-entry model (§5), not a separate reporting rule.
 
 ## Import pipeline
@@ -72,7 +73,8 @@ kassensturz/
 - Steps run in this order: duplicate check, then Transfer matching, then Rules (D-030).
 - Duplicates: a transaction whose bank-provided transaction ID is already in the book is skipped automatically and counted in the import summary; uncertain cases are shown to the user to decide.
 - Both booking date and value date are stored; the booking date is the one shown.
-- The KMyMoney importer skips data KassenSturz can't hold yet (investments, schedules, loans, …) and reports what it skipped (D-029).
+- Only booked transactions are imported in v1; pending ones (not yet booked by the bank) are skipped (D-030).
+- The KMyMoney importer is built clean-room, from sample files and public documentation only (D-044). It skips data KassenSturz can't hold yet (investments, schedules, loans, …) and reports what it skipped (D-029).
 
 ## Multi-user support (post-1.0)
 
@@ -134,9 +136,10 @@ kassensturz/
 - One SQLite file per book in v1, managed by the app; "Open another book…" exists for power users. SQLite runs with the rollback journal, not WAL, so no lasting side files sit next to the book (D-033).
 - Book files use the extension `.ksz` and carry a SQLite application ID, so KassenSturz recognizes its own books whatever they're called (D-037).
 - A book is open in only one place at a time: a lock file next to it (computer name, time) travels with sync tools, so a second computer shows a clear message instead of editing its own copy. SQLite's locks only work within one computer (D-038). Sharing a book between people comes after 1.0 (D-022).
-- Versioned migrations with an automatic backup before every migration, kept in KassenSturz's own data folder (the last 10, D-033).
+- Versioned migrations with an automatic backup before every migration, kept in KassenSturz's own data folder (the last 10, D-033). Before 0.1, development migrations are merged into one starting layout (D-045).
 - Every change is recorded in a change history inside the book: undo/redo and an audit trail (D-032).
 - Each book stores the decimal places of every currency it uses, fixed when the currency is first used (D-027).
-- Export: CSV plus a complete export of the book in an open format (D-029).
+- Export: CSV plus a complete export of the book in an open format (D-029). It is the stable way to move data.
+- The book's layout is documented in `docs/BOOK_FORMAT.md` (from M1) so other programs can read books. It can change in any version, and writing into a book from outside isn't supported (D-046).
 - Paths and keychain access go through `kassensturz-platform`, so Plasma, GNOME, Windows and macOS conventions are handled in one place.
 - `kassensturz-store` exposes a backend-agnostic storage trait; SQLite is the only implementation for v1. Post-1.0, PostgreSQL, MySQL/MariaDB and other well-known SQL engines may be added as further implementations without changing `kassensturz-core`. See D-016, Q-012.

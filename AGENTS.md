@@ -147,7 +147,8 @@ KassenSturz has a **native way to connect AI**, including **locally running mode
 - **Explicit consent for any data leaving the machine**: per provider, with a clear statement of what is sent. The user can preview and redact. A model on another computer, even one at home, counts as leaving the machine (D-035).
 - **AI proposes, the user confirms.** Anything that changes data (categorizing, creating transactions, editing) is shown as a reviewable change set and applied only after confirmation.
 - **Numbers come from code, not from the model.** Balances, totals and conversions are always computed by deterministic code. A model may explain or suggest, never be the source of a figure.
-- **Local MCP server** (`kassensturz-mcp`) exposes the core to the user's own AI tools. It is **read-only by default**; write tools are separately enabled and always require confirmation in the KassenSturz window (D-035).
+- **Chat panel in the app** (D-047): the user asks questions and lets the AI prepare changes (e.g. categories, Rules, charts); every change is a change set the user confirms. The chat is part of the built-in AI, not of the MCP server.
+- **Local MCP server** (`kassensturz-mcp`) exposes the core to the user's own AI tools outside KassenSturz. It is **read-only by default**; write tools are separately enabled and always require confirmation in the KassenSturz window (D-035).
 - **Untrusted text.** Payees, memos, imported files and plugin output can contain prompt injection. Treat them as data, never as instructions.
 - AI output is labeled as such in the UI. No authoritative financial, tax or legal advice (see 3.1 rule 11).
 

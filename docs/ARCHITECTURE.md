@@ -108,10 +108,10 @@ kassensturz/
 ## AI model
 
 - `kassensturz-ai` defines a provider trait. v1 adapter: OpenAI-compatible HTTP only (Ollama, llama.cpp server, LM Studio, vLLM, and cloud services offering the same API); dedicated cloud adapters may follow later (D-035).
-- Built-in AI features (D-023), all on demand: category suggestions, answers to questions and summaries the user asks for (every figure computed by code, Q-028), and proposals to turn recurring patterns into Rules or saved reports.
+- Built-in AI features (D-023), all on demand and used through a chat panel in the app (D-047): category suggestions, answers to questions and summaries the user asks for (every figure computed by code, Q-028), changes the AI prepares, such as new categories, Rules or charts, and proposals to turn recurring patterns into Rules or saved reports.
 - A consent layer decides what data may leave the machine, per provider, with preview and redaction. A model on another computer, even one at home, counts as leaving the machine (D-035).
 - Changes proposed by AI are represented as reviewable change sets and applied only after user confirmation. Writes requested through `kassensturz-mcp` are confirmed in the KassenSturz window (D-035).
-- `kassensturz-mcp` serves the core to the user's own AI tools. Read-only by default.
+- `kassensturz-mcp` serves the core to the user's own AI tools outside KassenSturz (e.g. Claude Desktop, LM Studio). Read-only by default; write tools can be switched on separately, and every write is confirmed in the KassenSturz window (D-035). The chat panel doesn't use it.
 - A global AI-off switch is a kill switch: `kassensturz-mcp` does not bind its listening port at all while AI is off, and `kassensturz-ai` runs no provider code. The UI layer hides (not disables) every AI-related element in that state, except one "AI features" toggle in Settings. See AGENTS.md §8, D-013.
 
 ## AI memory

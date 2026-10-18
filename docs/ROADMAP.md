@@ -14,7 +14,7 @@ Status values: `todo` · `doing` · `done`. Agents update the status of what the
 | **M7 Packaging** | Flatpak (Plasma + GNOME), Windows, macOS, each registering the `.ksz` file type so books open with a double-click (D-037); CI for all four platforms | todo |
 | **Later (post-1.0)** | Investment tracking, scheduled and recurring transactions, loans, a GnuCash importer (D-029); cryptocurrencies, tracked like securities (D-027); dedicated cloud AI adapters (D-035); budgeting extras, optional at-rest encryption (Q-007), additional SQL storage backends (PostgreSQL, MySQL/MariaDB, ...) behind the existing storage trait (D-016, Q-012), receipt capture and auto-matching via `kassensturz-receipts` plus a separate native Android companion app via `kassensturz-mobile-bridge` (D-018, D-019, Q-015/Q-017/Q-018), multi-user support — Members, per-Account sharing, shared-host/thin-client sync via `kassensturz-sync` (D-022, Q-021/Q-022/Q-023) | todo |
 
-First usable release: **0.1, Linux only, after M0–M3** (D-036).
+Releases (D-036): the first usable release is **0.1, Linux only, after M0–M3**. **1.0** is reached when M0–M7 are done; everything under "Later (post-1.0)" comes after it.
 
 ## How to pick work
 

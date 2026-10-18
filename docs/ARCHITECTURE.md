@@ -74,7 +74,7 @@ kassensturz/
 - Duplicates: a transaction whose bank-provided transaction ID is already in the book is skipped automatically and counted in the import summary; uncertain cases are shown to the user to decide.
 - Both booking date and value date are stored; the booking date is the one shown.
 - Only booked transactions are imported in v1; pending ones (not yet booked by the bank) are skipped (D-030).
-- Bank connections through AqBanking only read balances and booked transactions; KassenSturz never sends payments (D-053). AqBanking comes from the system in distro packages and is bundled in the Flatpak, Windows and macOS builds; KassenSturz detects it at runtime and works without it. Bank setup, PIN and TAN entry use Gwenhywfar's Qt 6 dialogs (D-054). Tests run against a fake bank backend (D-055).
+- Bank connections through AqBanking only read balances and booked transactions; KassenSturz never sends payments (D-053). AqBanking comes from the system in distro packages and is bundled in the Flatpak, Windows and macOS builds; KassenSturz detects it at runtime and works without it. Bank setup, PIN and TAN entry use Gwenhywfar's Qt 6 dialogs (D-054). The PIN is asked each time unless the user chooses to remember it until KassenSturz closes (memory only) or to save it in the system keychain through `kassensturz-platform` (D-057). Tests run against a fake bank backend (D-055).
 - The KMyMoney importer is built clean-room, from sample files and public documentation only (D-044). It skips data KassenSturz can't hold yet (investments, schedules, loans, …) and reports what it skipped (D-029).
 
 ## Multi-user support (post-1.0)

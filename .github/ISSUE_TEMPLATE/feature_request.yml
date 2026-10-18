@@ -1,0 +1,34 @@
+name: Feature request
+description: Suggest an idea for KassenSturz.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: check `docs/ROADMAP.md` and `docs/DECISIONS.md` — your idea may
+        already be planned, decided against, or listed as an open question. Business
+        accounting, investment advice, a hosted sync service and similar are non-goals
+        (AGENTS.md §3.3) and won't be accepted as-is.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Who runs into this, and when?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: false
+  - type: textarea
+    id: everyday-user-test
+    attributes:
+      label: Everyday-user test
+      description: >-
+        Could someone with no finance background use this correctly on the first try
+        (AGENTS.md §6)? If not, how would it be simplified or hidden behind progressive
+        disclosure?
+    validations:
+      required: false

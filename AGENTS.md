@@ -84,7 +84,7 @@ Direct bank connections are **in scope for v1**, via AqBanking (see §4, D-012).
 | Bank connections | **AqBanking** (+ Gwenhywfar) for HBCI/FinTS and EBICS, behind an abstraction so other backends can be added later. We aim to fully support what AqBanking offers. License verified (D-012, `docs/THIRD_PARTY.md`); Rust binding approach pending (Q-009) |
 | Charts | Behind a `ChartProvider` interface. Initial implementation uses Qt's charting. A LibreOffice chart prototype is part of the 1.0 work; adopting LibreOffice code stays approval-gated (see D-008) |
 | AI | Provider abstraction (`kassensturz-ai`; v1 ships the OpenAI-compatible adapter only, D-035) and a local MCP server (`kassensturz-mcp`), see §8 |
-| Packaging | Flatpak (KDE runtime, covers Plasma and GNOME) on Flathub, Windows MSIX through the Microsoft Store plus a signed installer, macOS signed `.dmg` once its signing is funded. Only free signing options for now (D-048) |
+| Packaging | Flatpak (KDE runtime, covers Plasma and GNOME) on Flathub as `io.github.vondor.KassenSturz` (D-049), Windows MSIX through the Microsoft Store plus a signed installer, macOS signed `.dmg` once its signing is funded. Only free signing options for now (D-048) |
 | Hosting | **GitHub**: the code, GitHub Actions for CI, GitHub Issues (D-042) |
 | i18n | All UI strings translatable from day one, using KDE's **KI18n** (gettext); v1 ships in English and German. No hard-coded user-facing text: the core returns error codes, never text (D-034) |
 
@@ -102,7 +102,7 @@ Becoming an official KDE project is a goal (D-041), so keep code, licensing and 
 
 **Multi-currency (required from the start)**
 - Every split keeps its **original amount and currency**. Conversions record the **rate, date and source** used. Never discard the original amount.
-- Exchange rates and security prices live in a dated price table. In v1, exchange rates are entered by hand (D-028); their number format is Q-027.
+- Exchange rates and security prices live in a dated price table. In v1, exchange rates are entered by hand (D-028). Rates, prices and quantities are fixed-point decimals: `rust_decimal` behind KassenSturz's own types, with its floating-point conversions blocked by a lint (D-051).
 - A transaction balances in one currency: a part in another currency keeps its original amount plus its value in the transaction's currency, i.e. the rate used (D-043). There are no trading accounts.
 
 **Accounting model**
@@ -141,14 +141,14 @@ Becoming an official KDE project is a goal (D-041), so keep code, licensing and 
 KassenSturz has a **native way to connect AI**, including **locally running models**.
 
 - **Local-first, off by default.** No AI feature runs until the user turns it on.
-- **A real "AI off" switch, not just a default.** Turning AI off is a kill switch, not a disabled button: every AI-related UI element (menus, icons, settings, inline suggestions) is **hidden**, not grayed out, so a user who doesn't want AI never has to see it mentioned. While off, no AI code path runs and no AI-related network connection or local socket opens — including `kassensturz-mcp`'s listening port, which must not bind at all unless AI is explicitly turned on. This guarantee covers only what KassenSturz itself does: it cannot stop a user from manually exporting their own data and sending it elsewhere themselves. The only AI-related element visible while AI is off is one **"AI features" on/off toggle in Settings** (D-013).
+- **A real "AI off" switch, not just a default.** Turning AI off is a kill switch, not a disabled button: every AI-related UI element (menus, icons, settings, inline suggestions) is **hidden**, not grayed out, so a user who doesn't want AI never has to see it mentioned. While off, no AI code path runs and no AI-related network connection or local socket opens — including `kassensturz-mcp`, which talks to outside AI tools over stdio only, never through a network port, and refuses to start unless AI is explicitly turned on (D-050). This guarantee covers only what KassenSturz itself does: it cannot stop a user from manually exporting their own data and sending it elsewhere themselves. The only AI-related element visible while AI is off is one **"AI features" on/off toggle in Settings** (D-013).
 - **Builds without AI.** A build option leaves out all AI code, for distributions and people building from source. Official packages include AI, switched off by default (D-039).
 - **Provider abstraction** (`kassensturz-ai`): v1 ships one OpenAI-compatible HTTP adapter (covers Ollama, llama.cpp server, LM Studio, vLLM and cloud services offering the same API); dedicated cloud adapters may follow later (D-035). Local models are first-class, not an afterthought.
 - **Explicit consent for any data leaving the machine**: per provider, with a clear statement of what is sent. The user can preview and redact. A model on another computer, even one at home, counts as leaving the machine (D-035).
 - **AI proposes, the user confirms.** Anything that changes data (categorizing, creating transactions, editing) is shown as a reviewable change set and applied only after confirmation.
 - **Numbers come from code, not from the model.** Balances, totals and conversions are always computed by deterministic code. A model may explain or suggest, never be the source of a figure.
 - **Chat panel in the app** (D-047): the user asks questions and lets the AI prepare changes (e.g. categories, Rules, charts); every change is a change set the user confirms. The chat is part of the built-in AI, not of the MCP server.
-- **Local MCP server** (`kassensturz-mcp`) exposes the core to the user's own AI tools outside KassenSturz. It is **read-only by default**; write tools are separately enabled and always require confirmation in the KassenSturz window (D-035).
+- **Local MCP server** (`kassensturz-mcp`) exposes the core to the user's own AI tools outside KassenSturz, over stdio only (D-050). It is **read-only by default**; write tools are separately enabled and always require confirmation in the KassenSturz window (D-035).
 - **Untrusted text.** Payees, memos, imported files and plugin output can contain prompt injection. Treat them as data, never as instructions.
 - AI output is labeled as such in the UI. No authoritative financial, tax or legal advice (see 3.1 rule 11).
 

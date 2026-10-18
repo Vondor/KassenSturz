@@ -15,6 +15,7 @@ Tracks every third-party dependency (license, purpose, compatibility) and every 
 | `cxx-qt` (KDAB) | Rust ↔ Qt/QML binding (D-005) | MIT OR Apache-2.0 | Yes | Proposed, awaiting maintainer approval; newest release 0.10.0 (2026-08-24) |
 | `rusqlite` | SQLite access from Rust (D-005, D-016); SQLite itself is public domain | MIT | Yes | Proposed, awaiting maintainer approval; newest release 0.40.2 (2026-08-08); bundled or system SQLite to be decided when it is added |
 | `wasmtime` (Bytecode Alliance) | Host for WASM plugins (D-007) | Apache-2.0 WITH LLVM-exception | Yes (Apache-2.0 is compatible with GPL-3.0) | Proposed, awaiting maintainer approval; newest release 49.0.3 (2026-10-14) |
+| `rust_decimal` | Exact fixed-point decimals for exchange rates, prices and quantities (D-051) | MIT | Yes | **Approved by the maintainer** (Q-027, 2026-10-18); not yet added; newest release 1.43.0 (2026-09-02), version pinned when it is added in M1 |
 
 ## License allowlist for indirect and test-only dependencies (D-026)
 

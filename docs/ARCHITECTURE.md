@@ -57,7 +57,7 @@ kassensturz/
 - A transaction can be broken down into multiple categorized **Parts** (UI term for `Split`, see `docs/GLOSSARY.md`) at any time, not only at import — see D-017.
 - Editing Parts auto-calculates one remaining Part's amount as "total minus what's already entered." Saving is rejected unless all Parts sum exactly to the transaction's original amount — enforced in `kassensturz-core`, not just in the UI.
 - Manual entry only in this decision; deriving Parts from a scanned receipt (OCR) is taken up separately in D-018.
-- A Part in another currency keeps its original amount and currency plus its value in the transaction's currency (the rate used), so every transaction adds up to zero in its own currency (D-043).
+- A Part in another currency keeps its original amount and currency plus its value in the transaction's currency (the rate used, stored as a fixed-point decimal, D-051), so every transaction adds up to zero in its own currency (D-043).
 
 ## Multiple accounts and Transfers
 
@@ -111,8 +111,8 @@ kassensturz/
 - Built-in AI features (D-023), all on demand and used through a chat panel in the app (D-047): category suggestions, answers to questions and summaries the user asks for (every figure computed by code, Q-028), changes the AI prepares, such as new categories, Rules or charts, and proposals to turn recurring patterns into Rules or saved reports.
 - A consent layer decides what data may leave the machine, per provider, with preview and redaction. A model on another computer, even one at home, counts as leaving the machine (D-035).
 - Changes proposed by AI are represented as reviewable change sets and applied only after user confirmation. Writes requested through `kassensturz-mcp` are confirmed in the KassenSturz window (D-035).
-- `kassensturz-mcp` serves the core to the user's own AI tools outside KassenSturz (e.g. Claude Desktop, LM Studio). Read-only by default; write tools can be switched on separately, and every write is confirmed in the KassenSturz window (D-035). The chat panel doesn't use it.
-- A global AI-off switch is a kill switch: `kassensturz-mcp` does not bind its listening port at all while AI is off, and `kassensturz-ai` runs no provider code. The UI layer hides (not disables) every AI-related element in that state, except one "AI features" toggle in Settings. See AGENTS.md §8, D-013.
+- `kassensturz-mcp` serves the core to the user's own AI tools outside KassenSturz (e.g. Claude Desktop, LM Studio), over stdio only: the outside tool starts it, and no network port is opened (D-050). Read-only by default; write tools can be switched on separately, and every write is confirmed in the KassenSturz window (D-035). The chat panel doesn't use it.
+- A global AI-off switch is a kill switch: `kassensturz-mcp` refuses to start while AI is off, and `kassensturz-ai` runs no provider code. The UI layer hides (not disables) every AI-related element in that state, except one "AI features" toggle in Settings. See AGENTS.md §8, D-013.
 
 ## AI memory
 
@@ -136,11 +136,11 @@ kassensturz/
 
 - One SQLite file per book in v1, managed by the app; "Open another book…" exists for power users. SQLite runs with the rollback journal, not WAL, so no lasting side files sit next to the book (D-033).
 - Book files use the extension `.ksz` and carry a SQLite application ID, so KassenSturz recognizes its own books whatever they're called (D-037).
-- A book is open in only one place at a time: a lock file next to it (computer name, time) travels with sync tools, so a second computer shows a clear message instead of editing its own copy. SQLite's locks only work within one computer (D-038). Sharing a book between people comes after 1.0 (D-022).
+- A book is open in only one place at a time: a lock file next to it (computer name, time) travels with sync tools, so a second computer shows a clear message instead of editing its own copy. SQLite's locks only work within one computer (D-038). A book on a network drive opens with a clear warning (D-038). Sharing a book between people comes after 1.0 (D-022).
 - Versioned migrations with an automatic backup before every migration, kept in KassenSturz's own data folder (the last 10, D-033). Before 0.1, development migrations are merged into one starting layout (D-045).
 - Every change is recorded in a change history inside the book: undo/redo and an audit trail (D-032).
 - Each book stores the decimal places of every currency it uses, fixed when the currency is first used (D-027).
 - Export: CSV plus a complete export of the book in an open format (D-029). It is the stable way to move data.
 - The book's layout is documented in `docs/BOOK_FORMAT.md` (from M1) so other programs can read books. It can change in any version, and writing into a book from outside isn't supported (D-046).
-- Paths and keychain access go through `kassensturz-platform`, so Plasma, GNOME, Windows and macOS conventions are handled in one place.
+- Paths and keychain access go through `kassensturz-platform`, so Plasma, GNOME, Windows and macOS conventions are handled in one place. Data and config folders are named after the app ID `io.github.vondor.KassenSturz` (D-049).
 - `kassensturz-store` exposes a backend-agnostic storage trait; SQLite is the only implementation for v1. Post-1.0, PostgreSQL, MySQL/MariaDB and other well-known SQL engines may be added as further implementations without changing `kassensturz-core`. See D-016, Q-012.

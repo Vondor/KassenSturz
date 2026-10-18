@@ -1,6 +1,6 @@
 # Proposal: number format for exchange rates, prices and quantities
 
-**Status:** Proposed. Answers Q-027 in `docs/DECISIONS.md` once the maintainer decides.
+**Status:** Decided on 2026-10-18: option B, implemented with `rust_decimal` (D-051 in `docs/DECISIONS.md`). Kept as the background for that decision.
 
 ## Why this needs deciding before M1
 

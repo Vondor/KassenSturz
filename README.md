@@ -1,4 +1,4 @@
-# Kashflow
+# KassenSturz
 
 A free, open-source personal finance app for the desktop, **simpler than KMyMoney and GnuCash**, made for everyday people who have never taken an economics class.
 

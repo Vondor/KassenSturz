@@ -31,6 +31,6 @@ ui_*.h
 .DS_Store
 Thumbs.db
 
-# Local book files a developer might open while testing (never real data, D-040/§3.1)
+# Local book files a developer might open while testing (never real data, AGENTS.md §3.1 rule 2)
 *.ksz
 *.ksz-lock

@@ -32,8 +32,8 @@ Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and work
 
 ## Contributing
 
-Sign off every commit (`git commit -s`) to confirm the [Developer Certificate of Origin](https://developercertificate.org/): you wrote the change, or have the right to submit it under GPL-3.0-or-later. That includes code made with AI tools. See D-040 in [`docs/DECISIONS.md`](docs/DECISIONS.md).
+Sign off every commit (`git commit -s`) to confirm the [Developer Certificate of Origin](https://developercertificate.org/): you wrote the change, or have the right to submit it under the license of the files it changes. That includes code made with AI tools. See D-040 in [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
 ## License
 
-GPL-3.0-or-later. See [`LICENSE`](LICENSE).
+Code: GPL-3.0-or-later, see [`LICENSE`](LICENSE). Documentation: CC-BY-SA-4.0. CMake files: BSD-2-Clause. Small configuration files and templates: CC0-1.0. [`REUSE.toml`](REUSE.toml) and the [`LICENSES/`](LICENSES/) folder say which license covers which file (D-064 in [`docs/DECISIONS.md`](docs/DECISIONS.md)).

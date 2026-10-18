@@ -3,17 +3,30 @@ SPDX-PackageName = "KassenSturz"
 SPDX-PackageSupplier = "KassenSturz contributors"
 SPDX-PackageDownloadLocation = "https://github.com/Vondor/KassenSturz"
 
-# Documentation, project meta files and GitHub configuration are covered here
-# rather than with per-file headers (D-024). Source code added from M0 onward
-# carries its own SPDX-License-Identifier / SPDX-FileCopyrightText header and
-# is checked by `reuse lint` the same way.
+# Files covered here rather than with per-file headers (D-024). Licenses
+# follow KDE's licensing policy (D-064): documentation CC-BY-SA-4.0, small
+# configuration files and templates CC0-1.0. Source code carries its own
+# GPL-3.0-or-later header and CMake files their own BSD-2-Clause header,
+# both checked by `reuse lint` the same way.
+[[annotations]]
+path = ["**/*.md"]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+# Listed after the documentation on purpose: the last matching entry wins,
+# so the Markdown templates under .github/ are CC0-1.0 too.
 [[annotations]]
 path = [
-  "**/*.md",
-  "LICENSE",
   ".gitignore",
   "CODEOWNERS",
   ".github/**",
 ]
-SPDX-FileCopyrightText = "KassenSturz contributors"
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC0-1.0"
+
+# CI workflows contain scripts of their own (e.g. the DCO check), so they are
+# code and use the project's code license.
+[[annotations]]
+path = [".github/workflows/**"]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "GPL-3.0-or-later"

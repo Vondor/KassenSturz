@@ -7,7 +7,7 @@ A free, open-source personal finance app for the desktop, **simpler than KMyMone
 - Simple, plain-language interface with progressive disclosure
 - Correct money handling with multi-currency support and European standards
 - Local-first and private. Your data stays on your machine
-- Open plugin system (WASM and out-of-process)
+- Open plugin system (WASM)
 - Native AI connection, including locally running models, with the user always in control
 - First-class on **KDE Plasma**, then **GNOME**, **Windows**, **macOS**
 
@@ -25,6 +25,9 @@ Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and work
 - [`docs/DECISIONS.md`](docs/DECISIONS.md): decisions and open questions
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): repository and module layout
 - [`docs/ROADMAP.md`](docs/ROADMAP.md): milestones
+- [`docs/GLOSSARY.md`](docs/GLOSSARY.md): plain-language UI terms and what they mean internally
+- [`docs/THIRD_PARTY.md`](docs/THIRD_PARTY.md): third-party dependencies, licenses and reused code
+- [`docs/proposals/`](docs/proposals/): proposals waiting for a decision
 
 ## License
 

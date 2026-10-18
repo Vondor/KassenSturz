@@ -4,32 +4,32 @@ Headless core, thin UIs, everything extensible through one plugin API.
 
 ```
 kassensturz/
-├── Cargo.toml                  # workspace root
+├── Cargo.toml                      # workspace root
 ├── crates/
-│   ├── kassensturz-core/            # domain model + logic; no UI, no I/O specifics
-│   │   ├── money               # integer minor units + ISO 4217, rounding modes
-│   │   ├── account             # accounts, categories, payees
-│   │   ├── transaction         # double-entry transactions + splits
-│   │   ├── currency            # currencies, exchange rates, prices
-│   │   ├── budget
-│   │   ├── rules               # auto-categorization: conditions, actions, Rule tree with sub-Rules
-│   │   └── events              # event bus (TransactionAdded, ...)
-│   ├── kassensturz-store/           # storage trait + SQLite impl (v1), migrations, backups — see D-016
-│   ├── kassensturz-import/          # CSV, OFX, MT940, CAMT.053, KMyMoney (.kmy / SQLite)
-│   ├── kassensturz-plugin-api/      # stable, versioned plugin interface
-│   ├── kassensturz-plugin-host/     # loads and sandboxes plugins (WASM / JSON-RPC)
-│   ├── kassensturz-platform/        # keychain, config paths, notifications behind traits
-│   ├── kassensturz-charts/          # ChartProvider interface + implementations
-│   ├── kassensturz-ai/              # LLM provider abstraction (local + cloud), consent, redaction
-│   ├── kassensturz-mcp/             # local MCP server exposing the core (read-only by default)
-│   ├── kassensturz-receipts/        # post-1.0: OCR + transaction-matching for photographed/scanned receipts
-│   ├── kassensturz-mobile-bridge/   # post-1.0: Rust↔Kotlin FFI exposing core+receipts to the native Android app — see D-019, Q-018
-│   ├── kassensturz-sync/            # post-1.0: shared-host ↔ thin-client access for multi-user (Member-scoped) — see D-022, Q-021/Q-022
-│   ├── kassensturz-cli/             # CLI front end (testing, scripting)
-│   └── kassensturz-ui-bridge/       # cxx-qt bindings exposing the core to QML
-├── ui/qml/                     # Kirigami UI: overview, register, reports, settings
-├── plugins/examples/           # sample importer, report, automation
-├── packaging/                  # flatpak/, windows/, macos/
+│   ├── kassensturz-core/           # domain model + logic; no UI, no I/O specifics
+│   │   ├── money                   # 64-bit integer minor units + ISO 4217, rounding modes (D-027)
+│   │   ├── account                 # accounts (incl. credit cards), categories, payees
+│   │   ├── transaction             # double-entry transactions + splits, booking and value date
+│   │   ├── currency                # currencies (decimal places stored per book), exchange rates, prices
+│   │   ├── budget                  # basic budgets: a monthly limit per category (D-029)
+│   │   ├── rules                   # auto-categorization: conditions, actions, Rule tree with sub-Rules
+│   │   └── events                  # event bus (TransactionAdded, ...)
+│   ├── kassensturz-store/          # storage trait + SQLite impl (v1), migrations, backups, change history — see D-016, D-032, D-033
+│   ├── kassensturz-import/         # CSV, OFX, MT940, CAMT.053, KMyMoney (.kmy / SQLite)
+│   ├── kassensturz-plugin-api/     # stable, versioned plugin interface
+│   ├── kassensturz-plugin-host/    # loads and sandboxes WASM plugins (D-007)
+│   ├── kassensturz-platform/       # keychain, config paths, notifications behind traits
+│   ├── kassensturz-charts/         # ChartProvider interface + implementations
+│   ├── kassensturz-ai/             # LLM provider abstraction (OpenAI-compatible adapter in v1), consent, redaction
+│   ├── kassensturz-mcp/            # local MCP server exposing the core (read-only by default)
+│   ├── kassensturz-receipts/       # post-1.0: OCR + transaction-matching for photographed/scanned receipts
+│   ├── kassensturz-mobile-bridge/  # post-1.0: Rust↔Kotlin FFI exposing core+receipts to the native Android app — see D-019, Q-018
+│   ├── kassensturz-sync/           # post-1.0: shared-host ↔ thin-client access for multi-user (Member-scoped) — see D-022, Q-021/Q-022
+│   ├── kassensturz-cli/            # CLI front end (testing, scripting)
+│   └── kassensturz-ui-bridge/      # cxx-qt bindings exposing the core to QML
+├── ui/qml/                         # Kirigami UI: overview, register, reports, settings, plugins
+├── plugins/examples/               # sample importer, report, automation
+├── packaging/                      # flatpak/, windows/, macos/
 ├── docs/
 └── .github/
 ```
@@ -47,7 +47,9 @@ kassensturz/
 - Extension points: Importer, Exporter, Report, Automation.
 - Versioned API. Manifest declares name, version, target API version, permissions.
 - Narrow, permission-checked data access. No raw SQL access.
-- WASM for sandboxing and cross-platform portability. JSON-RPC for plugins that need full OS access or other languages.
+- WASM only, for sandboxing and cross-platform portability. Out-of-process (JSON-RPC) plugins are not part of v1: they can't be sandboxed, so the permission model couldn't be enforced for them (D-007).
+- Users add a downloaded plugin file, in KassenSturz's plugin package format (defined in M4), in the **Plugins** tab, which shows the permissions it requests. No plugin store in v1: a store run by the project would be a hosted service (AGENTS.md §3.3).
+- The Importer part of the plugin interface is defined during M1–M2, so the built-in importers use it from the start.
 
 ## Transactions and Parts (splits)
 
@@ -60,8 +62,16 @@ kassensturz/
 - Multiple accounts live side by side in one book (D-003); the UI shows an overview across all of them, not one account at a time — see M3 in `docs/ROADMAP.md`.
 - When import sees a debit in one of the user's accounts and a matching credit in another account **already in the same book**, it proposes merging them into one double-entry **Transfer** (both splits are real asset/liability accounts, no income/expense category) instead of recording them as two unrelated transactions. See D-021.
 - Matching: amount (same currency) or a plausible exchange rate for cross-currency transfers (D-004) + date-proximity + both accounts already present in the book. External IBANs are never candidates.
-- Always a suggestion the user confirms, never a silent merge (Q-019 covers whether a "trust this pair" setting should reduce that friction later; Q-020 covers the exact tolerances).
+- Date window: up to 3 business days between the two sides; same currency only for now (D-030; cross-currency tolerances are Q-020).
+- Always a suggestion the user confirms, never a silent merge (Q-019 covers whether a "trust this pair" setting should reduce that friction later).
 - Reports exclude confirmed Transfers from income/expense totals — a direct consequence of the existing double-entry model (§5), not a separate reporting rule.
+
+## Import pipeline
+
+- Steps run in this order: duplicate check, then Transfer matching, then Rules (D-030).
+- Duplicates: a transaction whose bank-provided transaction ID is already in the book is skipped automatically and counted in the import summary; uncertain cases are shown to the user to decide.
+- Both booking date and value date are stored; the booking date is the one shown.
+- The KMyMoney importer skips data KassenSturz can't hold yet (investments, schedules, loans, …) and reports what it skipped (D-029).
 
 ## Multi-user support (post-1.0)
 
@@ -76,11 +86,11 @@ kassensturz/
 ## Rules (auto-categorization)
 
 - Modeled on email-client filters (Thunderbird/Outlook), not KMyMoney's name-only matching. See D-014.
-- A Rule = conditions (field + operator + value, matched ALL or ANY) + actions (set category, set payee — see Q-011).
-- Field registry is extensible, not hardcoded: at minimum Sender/Payee name, Sender IBAN, Amount, Remittance information, Date, Currency.
+- A Rule = conditions (field + operator + value, matched ALL or ANY) + actions (v1: set category, set payee, make it a Transfer — D-031).
+- Field registry is extensible, not hardcoded: at minimum Other party name, Other party IBAN, Amount, Remittance information, Date, Currency.
 - Regex is an explicit opt-in per condition, backed by Rust's `regex` crate for guaranteed linear-time (ReDoS-safe) matching. See D-015.
-- Rules form a tree. A sub-Rule is only evaluated if its parent matched; a matching sub-Rule's action overrides the parent's. See Q-010 for ordering between top-level Rules.
-- Applied automatically to newly imported transactions; a manual "re-run Rules" action can re-apply them to existing transactions, always undoable.
+- Rules form a tree. A sub-Rule is only evaluated if its parent matched; a matching sub-Rule's action overrides the parent's. Between top-level Rules, the first match in the user's order wins (D-031).
+- Applied automatically to newly imported transactions, after the duplicate check and Transfer matching (D-030); a manual "re-run Rules" action can re-apply them to existing transactions. It never changes a category set by hand or a transaction broken into Parts (D-031), and it can be undone through the change history (D-032).
 - Deterministic and code-driven — entirely separate from the AI model below (§8 of AGENTS.md does not apply to Rules).
 
 ## Receipt capture (post-1.0)
@@ -94,11 +104,11 @@ kassensturz/
 
 ## AI model
 
-- `kassensturz-ai` defines a provider trait. Adapters: OpenAI-compatible HTTP (Ollama, llama.cpp server, LM Studio, vLLM), plus cloud providers.
-- A consent layer decides what data may leave the machine, per provider, with preview and redaction.
-- Changes proposed by AI are represented as reviewable change sets and applied only after user confirmation.
+- `kassensturz-ai` defines a provider trait. v1 adapter: OpenAI-compatible HTTP only (Ollama, llama.cpp server, LM Studio, vLLM, and cloud services offering the same API); dedicated cloud adapters may follow later (D-035).
+- A consent layer decides what data may leave the machine, per provider, with preview and redaction. A model on another computer, even one at home, counts as leaving the machine (D-035).
+- Changes proposed by AI are represented as reviewable change sets and applied only after user confirmation. Writes requested through `kassensturz-mcp` are confirmed in the KassenSturz window (D-035).
 - `kassensturz-mcp` serves the core to the user's own AI tools. Read-only by default.
-- A global AI-off switch is a kill switch: `kassensturz-mcp` does not bind its listening port at all while AI is off, and `kassensturz-ai` runs no provider code. The UI layer hides (not disables) every AI-related element in that state. See AGENTS.md §8, D-013.
+- A global AI-off switch is a kill switch: `kassensturz-mcp` does not bind its listening port at all while AI is off, and `kassensturz-ai` runs no provider code. The UI layer hides (not disables) every AI-related element in that state, except one "AI features" toggle in Settings. See AGENTS.md §8, D-013.
 
 ## AI memory
 
@@ -111,8 +121,18 @@ kassensturz/
 - Once Members exist (D-022), scoped the same way Account visibility already is — inherited, not reimplemented.
 - Whether `kassensturz-mcp` exposes any of this to external AI tools is open (Q-025); retention/frequency tuning is open (Q-026).
 
+## User-facing text
+
+- `kassensturz-core` never produces user-facing text: it returns structured error codes (with parameters), and the UI owns every string (D-034).
+- Translations use KDE's KI18n (gettext). v1 ships in English (source language) and German.
+- Plain-language terms come from `docs/GLOSSARY.md`; for example, the other side of a transaction is shown as "From"/"To" and is called "Other party" in the Rule editor.
+
 ## Data and portability
 
-- One SQLite file per user "book" in v1. Versioned migrations with automatic backup before every migration.
+- One SQLite file per book in v1, managed by the app; "Open another book…" exists for power users. SQLite runs with the rollback journal, not WAL, so no lasting side files sit next to the book (D-033).
+- Versioned migrations with an automatic backup before every migration, kept in KassenSturz's own data folder (the last 10, D-033).
+- Every change is recorded in a change history inside the book: undo/redo and an audit trail (D-032).
+- Each book stores the decimal places of every currency it uses, fixed when the currency is first used (D-027).
+- Export: CSV plus a complete export of the book in an open format (D-029).
 - Paths and keychain access go through `kassensturz-platform`, so Plasma, GNOME, Windows and macOS conventions are handled in one place.
 - `kassensturz-store` exposes a backend-agnostic storage trait; SQLite is the only implementation for v1. Post-1.0, PostgreSQL, MySQL/MariaDB and other well-known SQL engines may be added as further implementations without changing `kassensturz-core`. See D-016, Q-012.

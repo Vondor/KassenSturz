@@ -11,7 +11,10 @@ GitHub-specific checklist; it doesn't duplicate AGENTS.md's rules.
 2. Pick one small, single-purpose piece of work, ideally one roadmap item.
 3. Use [Conventional Commits](https://www.conventionalcommits.org/) and explain **why**, not just what.
 4. **Sign off every commit under the DCO**: `git commit -s` (see [D-040](docs/DECISIONS.md)).
-   A pull request whose commits aren't signed off will fail CI and can't be merged.
+   A pull request whose commits aren't signed off will fail CI and can't be merged. The sign-off has to
+   be by the commit's author or committer, which `git commit -s` takes care of. If an AI agent made your
+   commits, it won't sign them off for you: review them, then sign them off with the `git rebase --signoff`
+   command that the failing check prints.
 5. Add tests for anything in `kassensturz-core` or other logic crates (AGENTS.md §9.4).
 6. Run formatting, lint and tests locally before opening the pull request, in the same
    environment CI uses (see "Building" in [README.md](README.md)):

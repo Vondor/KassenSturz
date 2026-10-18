@@ -131,6 +131,7 @@ kassensturz/
 
 - One SQLite file per book in v1, managed by the app; "Open another book…" exists for power users. SQLite runs with the rollback journal, not WAL, so no lasting side files sit next to the book (D-033).
 - Book files use the extension `.ksz` and carry a SQLite application ID, so KassenSturz recognizes its own books whatever they're called (D-037).
+- A book is open in only one place at a time: a lock file next to it (computer name, time) travels with sync tools, so a second computer shows a clear message instead of editing its own copy. SQLite's locks only work within one computer (D-038). Sharing a book between people comes after 1.0 (D-022).
 - Versioned migrations with an automatic backup before every migration, kept in KassenSturz's own data folder (the last 10, D-033).
 - Every change is recorded in a change history inside the book: undo/redo and an audit trail (D-032).
 - Each book stores the decimal places of every currency it uses, fixed when the currency is first used (D-027).

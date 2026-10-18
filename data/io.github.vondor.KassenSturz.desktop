@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+[Desktop Entry]
+Type=Application
+Name=KassenSturz
+GenericName=Household Book
+GenericName[de]=Haushaltsbuch
+Comment=Keep track of your household's money
+Comment[de]=Das Geld des Haushalts im Blick behalten
+Exec=kassensturz
+Terminal=false
+Categories=Qt;KDE;Office;Finance;
+Keywords=money;finance;budget;bank;account;household;
+Keywords[de]=Geld;Finanzen;Budget;Bank;Konto;Haushalt;

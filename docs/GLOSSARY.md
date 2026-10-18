@@ -7,6 +7,7 @@ Plain-language terms used in the UI, and the accounting/technical concept each o
 | Account | A place where your money is: a checking account, a savings account, a credit card, or the cash in your wallet. German: *Konto*. Internal concept: an asset or liability account. Not the same thing as a Member (D-022). |
 | Category | What money was spent on or came from, e.g. Groceries, Rent, Salary. New users start with a built-in set (D-029). German: *Kategorie*. Internal concept: an income or expense account. |
 | Household book | Everything KassenSturz keeps about your money, in one place: accounts, categories, transactions, Rules. German: *Haushaltsbuch*. Internal concept: the book (one SQLite file with the extension `.ksz` in v1, D-033, D-037). |
+| Balance | How much money is in an account right now. For a debt it reads "You owe" (D-067). German: *Kontostand*. Internal concept: the sum of all parts booked to the account. |
 | Starting balance | How much was in an account on the day you started tracking it in KassenSturz. German: *Anfangsbestand*. Internal concept: the opening balance, booked against an internal equity account the user never sees. |
 | You owe | How a debt is shown, e.g. a credit card balance: "You owe €300" instead of "−€300" (D-067). Internal concept: the balance of a liability account. |
 | Rule | A user-defined condition-and-action pair that auto-categorizes transactions, modeled on email-client filters. Internal concept: `Rule` (conditions, actions, optional sub-Rules forming a tree). See D-014 in `docs/DECISIONS.md`. |

@@ -15,6 +15,7 @@ cmake_install.cmake
 compile_commands.json
 
 # Qt / QML tooling artifacts
+.qmlls.ini
 *.qmlc
 *.jsc
 moc_*.cpp

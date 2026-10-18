@@ -24,6 +24,13 @@ path = [
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"
 
+# Generated from the dependency list, so there's nothing creative in it:
+# Cargo's lock file.
+[[annotations]]
+path = ["Cargo.lock"]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC0-1.0"
+
 # CI workflows contain scripts of their own (e.g. the DCO check), so they are
 # code and use the project's code license.
 [[annotations]]

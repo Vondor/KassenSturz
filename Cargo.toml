@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+# The Rust in the KDE Flatpak SDK's Rust extension, KassenSturz's one build
+# environment (D-063). Raised only deliberately, never as a side effect of a
+# dependency update (D-025).
+rust-version = "1.98"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/Vondor/KassenSturz"
+publish = false
+
+[workspace.dependencies]
+# Direct dependencies. Each one is approved by the maintainer and listed in
+# docs/THIRD_PARTY.md before it is added here (AGENTS.md §3.1 rule 6, D-026).
+# Versions are pinned exactly, so updating one is always a deliberate change.
+# Without time-zone data: transaction dates are calendar dates (D-061).
+jiff = { version = "=0.2.38", default-features = false, features = ["std"] }
+uuid = { version = "=1.28.0", features = ["v7"] }
+
+# Test-only dependencies, covered by the license allowlist (D-026).
+proptest = { version = "=1.12.0", default-features = false, features = ["std"] }
+
+[workspace.lints.rust]
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+# Hard rule 1 (AGENTS.md §3.1): no floating point for money, prices, exchange
+# rates or quantities. clippy.toml blocks the libraries' floating-point methods.
+float_arithmetic = "deny"
+disallowed_methods = "deny"

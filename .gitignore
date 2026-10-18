@@ -3,6 +3,9 @@
 **/target/
 Cargo.lock.bak
 
+# Cargo's downloads when building in the KDE SDK with tools/sdk.sh
+/.sdk-cache/
+
 # cxx-qt / CMake build output
 /build/
 **/build/

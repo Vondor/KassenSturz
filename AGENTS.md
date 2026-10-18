@@ -84,7 +84,7 @@ Direct bank connections are **in scope for v1**, via AqBanking (see §4, D-012).
 | Bank connections | **AqBanking** (+ Gwenhywfar) for HBCI/FinTS and EBICS, behind an abstraction so other backends can be added later. We aim to fully support what AqBanking offers. License verified (D-012, `docs/THIRD_PARTY.md`); Rust binding approach pending (Q-009) |
 | Charts | Behind a `ChartProvider` interface. Initial implementation uses Qt's charting. A LibreOffice chart prototype is part of the 1.0 work; adopting LibreOffice code stays approval-gated (see D-008) |
 | AI | Provider abstraction (`kassensturz-ai`; v1 ships the OpenAI-compatible adapter only, D-035) and a local MCP server (`kassensturz-mcp`), see §8 |
-| Packaging | Flatpak (KDE runtime, covers Plasma and GNOME), Windows installer/MSIX, macOS signed `.dmg` |
+| Packaging | Flatpak (KDE runtime, covers Plasma and GNOME) on Flathub, Windows MSIX through the Microsoft Store plus a signed installer, macOS signed `.dmg` once its signing is funded. Only free signing options for now (D-048) |
 | Hosting | **GitHub**: the code, GitHub Actions for CI, GitHub Issues (D-042) |
 | i18n | All UI strings translatable from day one, using KDE's **KI18n** (gettext); v1 ships in English and German. No hard-coded user-facing text: the core returns error codes, never text (D-034) |
 

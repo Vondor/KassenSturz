@@ -13,7 +13,10 @@ GitHub-specific checklist; it doesn't duplicate AGENTS.md's rules.
 4. **Sign off every commit under the DCO**: `git commit -s` (see [D-040](docs/DECISIONS.md)).
    A pull request whose commits aren't signed off will fail CI and can't be merged.
 5. Add tests for anything in `kassensturz-core` or other logic crates (AGENTS.md §9.4).
-6. Run formatting, lint and tests locally before opening the pull request.
+6. Run formatting, lint and tests locally before opening the pull request, in the same
+   environment CI uses (see "Building" in [README.md](README.md)):
+   `tools/sdk.sh cargo fmt --all`, `tools/sdk.sh cargo clippy --workspace --all-targets -- -D warnings`
+   and `tools/sdk.sh cargo test --workspace`.
 7. Make sure every new source file carries an SPDX header
    (`SPDX-License-Identifier: GPL-3.0-or-later`, `SPDX-FileCopyrightText: <year> KassenSturz contributors`)
    — checked by `reuse lint` in CI (D-024). CMake files use `BSD-2-Clause` instead; documentation and small

@@ -3,6 +3,12 @@
 **/target/
 Cargo.lock.bak
 
+# Cargo's downloads when building in the KDE SDK with tools/sdk.sh
+/.sdk-cache/
+
+# flatpak-builder's state
+/.flatpak-builder/
+
 # cxx-qt / CMake build output
 /build/
 **/build/
@@ -12,6 +18,7 @@ cmake_install.cmake
 compile_commands.json
 
 # Qt / QML tooling artifacts
+.qmlls.ini
 *.qmlc
 *.jsc
 moc_*.cpp

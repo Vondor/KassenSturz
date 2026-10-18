@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: BSD-2-Clause
+
+# CMake drives Cargo (D-063): Cargo builds the program, CMake installs what a
+# desktop app needs besides it (desktop file, AppStream data, translations).
+
+cmake_minimum_required(VERSION 3.27)
+
+project(kassensturz VERSION 0.0.0 LANGUAGES CXX)
+
+# The versions in KassenSturz's build environment, the KDE Flatpak runtime
+# 6.11 (D-025, D-063). Only these are tested.
+set(QT_MIN_VERSION "6.11.0")
+set(KF_MIN_VERSION "6.30.0")
+
+find_package(ECM ${KF_MIN_VERSION} REQUIRED NO_MODULE)
+set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
+
+include(KDEInstallDirs)
+include(ECMUninstallTarget)
+include(ECMFindQmlModule)
+include(FeatureSummary)
+
+find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Widgets)
+find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS I18n)
+find_package(KF6QQC2DesktopStyle ${KF_MIN_VERSION})
+set_package_properties(KF6QQC2DesktopStyle PROPERTIES
+    TYPE RUNTIME
+    PURPOSE "Gives the window Plasma's look"
+)
+# The QML code loads these at run time.
+ecm_find_qmlmodule(org.kde.kirigami REQUIRED)
+ecm_find_qmlmodule(org.kde.ki18n REQUIRED)
+
+find_program(CARGO_EXECUTABLE cargo REQUIRED)
+
+option(KASSENSTURZ_BUNDLED_SQLITE
+    "Build the SQLite that rusqlite bundles; OFF uses the system's SQLite (D-061)" ON)
+
+set(cargo_target_dir "${CMAKE_CURRENT_BINARY_DIR}/cargo")
+set(cargo_args build --locked --package kassensturz-ui-bridge --bin kassensturz)
+if(NOT KASSENSTURZ_BUNDLED_SQLITE)
+    list(APPEND cargo_args --no-default-features)
+endif()
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(cargo_profile_dir debug)
+else()
+    list(APPEND cargo_args --release)
+    set(cargo_profile_dir release)
+endif()
+
+# Cargo decides itself what needs rebuilding, so it runs on every build.
+add_custom_target(kassensturz ALL
+    COMMAND ${CMAKE_COMMAND} -E env
+        QMAKE=$<TARGET_FILE:Qt6::qmake>
+        CARGO_TARGET_DIR=${cargo_target_dir}
+        ${CARGO_EXECUTABLE} ${cargo_args}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    USES_TERMINAL
+    COMMENT "Building KassenSturz with Cargo"
+    VERBATIM
+)
+
+install(PROGRAMS "${cargo_target_dir}/${cargo_profile_dir}/kassensturz" DESTINATION ${KDE_INSTALL_BINDIR})
+install(FILES data/io.github.vondor.KassenSturz.desktop DESTINATION ${KDE_INSTALL_APPDIR})
+install(FILES data/io.github.vondor.KassenSturz.metainfo.xml DESTINATION ${KDE_INSTALL_METAINFODIR})
+ki18n_install(po)
+
+feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)

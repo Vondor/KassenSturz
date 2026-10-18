@@ -14,7 +14,45 @@ A free, open-source personal finance app for the desktop, **simpler than KMyMone
 
 ## Status
 
-Pre-alpha. The repository currently contains only the project charter and planning documents.
+Pre-alpha. The walking skeleton (D-068 in [`docs/DECISIONS.md`](docs/DECISIONS.md)) runs through every layer: one account's transactions, stored in SQLite and shown in a Kirigami window, with every amount formatted in Rust. It shows made-up sample data only and saves nothing.
+
+## Building
+
+KassenSturz is developed, tested and packaged in one environment: the KDE Flatpak SDK with the Rust extension (D-063). Install it from Flathub:
+
+```sh
+flatpak install flathub org.kde.Sdk//6.11 org.kde.Platform//6.11 \
+    org.freedesktop.Sdk.Extension.rust-stable//25.08 org.flatpak.Builder
+```
+
+`tools/sdk.sh` runs any command in that environment, the same way CI does:
+
+```sh
+tools/sdk.sh cargo fmt --all
+tools/sdk.sh cargo clippy --workspace --all-targets -- -D warnings
+tools/sdk.sh cargo test --workspace
+tools/sdk.sh cargo run --bin kassensturz    # starts the app
+```
+
+`cargo run` shows the text in English: the translations are found only once they are installed, as in the Flatpak.
+
+Build and install the Flatpak, offline as on Flathub, and start it (it also appears in the app menu):
+
+```sh
+flatpak run org.flatpak.Builder --user --install --force-clean --disable-rofiles-fuse \
+    --repo=build/flatpak-repo build/flatpak packaging/flatpak/io.github.vondor.KassenSturz.yml
+flatpak run io.github.vondor.KassenSturz
+```
+
+When `Cargo.lock` changes, regenerate the Flatpak's crate list with `flatpak-cargo-generator.py` from [flatpak-builder-tools](https://github.com/flatpak/flatpak-builder-tools) (Python with `aiohttp` and `tomlkit`):
+
+```sh
+python3 flatpak-cargo-generator.py Cargo.lock -o packaging/flatpak/cargo-sources.json
+```
+
+When strings in the UI change, update the translations with `tools/sdk.sh tools/update-translations.sh`.
+
+Building without Flatpak works too, with CMake, Extra CMake Modules, Qt 6.11, KDE Frameworks 6.30 and Rust 1.98 or newer: `cmake -B build/cmake && cmake --build build/cmake`.
 
 ## For AI agents
 
@@ -27,6 +65,7 @@ Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and work
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): repository and module layout
 - [`docs/ROADMAP.md`](docs/ROADMAP.md): milestones
 - [`docs/GLOSSARY.md`](docs/GLOSSARY.md): plain-language UI terms and what they mean internally
+- [`docs/BOOK_FORMAT.md`](docs/BOOK_FORMAT.md): how a household book is stored, for programs that read it
 - [`docs/THIRD_PARTY.md`](docs/THIRD_PARTY.md): third-party dependencies, licenses and reused code
 - [`docs/proposals/`](docs/proposals/): proposals waiting for a decision
 

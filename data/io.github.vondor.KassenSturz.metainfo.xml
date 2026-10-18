@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2026 KassenSturz contributors
+SPDX-License-Identifier: CC0-1.0
+-->
+<component type="desktop-application">
+  <id>io.github.vondor.KassenSturz</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>KassenSturz</name>
+  <summary>Keep track of your household's money</summary>
+  <summary xml:lang="de">Das Geld des Haushalts im Blick behalten</summary>
+  <description>
+    <p>
+      KassenSturz is a simple household book for the desktop: record your
+      accounts, see where your money goes and trust the numbers, without
+      having to know anything about accounting. Your data stays on your
+      computer.
+    </p>
+    <p xml:lang="de">
+      KassenSturz ist ein einfaches Haushaltsbuch für den Desktop: Konten
+      erfassen, sehen, wohin das Geld geht, und sich auf die Zahlen verlassen,
+      ganz ohne Buchhaltungswissen. Die Daten bleiben auf dem eigenen Computer.
+    </p>
+    <p>
+      This is an early prototype. It only shows sample data and saves nothing.
+    </p>
+    <p xml:lang="de">
+      Dies ist ein früher Prototyp. Er zeigt nur Beispieldaten und speichert nichts.
+    </p>
+  </description>
+  <developer id="io.github.vondor">
+    <name>KassenSturz contributors</name>
+  </developer>
+  <launchable type="desktop-id">io.github.vondor.KassenSturz.desktop</launchable>
+  <url type="homepage">https://github.com/Vondor/KassenSturz</url>
+  <url type="bugtracker">https://github.com/Vondor/KassenSturz/issues</url>
+  <url type="vcs-browser">https://github.com/Vondor/KassenSturz</url>
+  <content_rating type="oars-1.1"/>
+  <provides>
+    <binary>kassensturz</binary>
+  </provides>
+</component>

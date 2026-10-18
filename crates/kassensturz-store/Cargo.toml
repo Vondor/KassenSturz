@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+
+[package]
+name = "kassensturz-store"
+description = "All of KassenSturz's database code: household books stored in SQLite."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = ["bundled-sqlite"]
+# Builds the SQLite that rusqlite bundles, so every platform runs the same
+# SQLite version. Distributions can leave it out to use the system's SQLite
+# (D-061).
+bundled-sqlite = ["rusqlite/bundled"]
+
+[dependencies]
+kassensturz-core.workspace = true
+rusqlite.workspace = true
+
+[lints]
+workspace = true

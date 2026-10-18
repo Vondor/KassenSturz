@@ -24,10 +24,11 @@ path = [
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"
 
-# Generated from the dependency list, so there's nothing creative in it:
-# Cargo's lock file.
+# Generated from the dependency list, so there's nothing creative in them:
+# Cargo's lock file, and the crate list for offline Flatpak builds that
+# flatpak-cargo-generator makes from it.
 [[annotations]]
-path = ["Cargo.lock"]
+path = ["Cargo.lock", "packaging/flatpak/cargo-sources.json"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"
 

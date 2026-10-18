@@ -6,6 +6,9 @@ Cargo.lock.bak
 # Cargo's downloads when building in the KDE SDK with tools/sdk.sh
 /.sdk-cache/
 
+# flatpak-builder's state
+/.flatpak-builder/
+
 # cxx-qt / CMake build output
 /build/
 **/build/

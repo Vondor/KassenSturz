@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+#
+# Builds KassenSturz from this working copy as a Flatpak (D-068), in the same
+# KDE SDK and Rust extension as development and CI (D-063). Cargo works
+# offline here: every crate comes from cargo-sources.json, which is generated
+# from Cargo.lock (see README.md, "Building").
+
+id: io.github.vondor.KassenSturz
+runtime: org.kde.Platform
+runtime-version: "6.11"
+sdk: org.kde.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: kassensturz
+finish-args:
+  # A window on Wayland, or on X11 where there's no Wayland, drawn with the GPU.
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+  # Deliberately nothing else: no network (AGENTS.md §3.1 rule 4) and no
+  # access to the user's files. The household book lives in the app's own
+  # data folder (D-033).
+modules:
+  - name: kassensturz
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin
+      env:
+        # The module's folder holds the crates from cargo-sources.json.
+        CARGO_HOME: /run/build/kassensturz/cargo
+        CARGO_NET_OFFLINE: "true"
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - .flatpak-builder
+          - .git
+          - .sdk-cache
+          - build
+          - target
+      - cargo-sources.json

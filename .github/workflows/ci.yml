@@ -66,6 +66,8 @@ jobs:
         run: tools/sdk.sh cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Tests
         run: tools/sdk.sh cargo test --workspace --locked
+      - name: Tests with the system's SQLite instead of the bundled one (D-061)
+        run: tools/sdk.sh cargo test --package kassensturz-store --no-default-features --locked
 
   licenses:
     name: Dependency licenses and sources (D-026)

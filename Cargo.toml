@@ -17,11 +17,14 @@ repository = "https://github.com/Vondor/KassenSturz"
 publish = false
 
 [workspace.dependencies]
+kassensturz-core = { path = "crates/kassensturz-core" }
+
 # Direct dependencies. Each one is approved by the maintainer and listed in
 # docs/THIRD_PARTY.md before it is added here (AGENTS.md §3.1 rule 6, D-026).
 # Versions are pinned exactly, so updating one is always a deliberate change.
 # Without time-zone data: transaction dates are calendar dates (D-061).
 jiff = { version = "=0.2.38", default-features = false, features = ["std"] }
+rusqlite = { version = "=0.40.2", default-features = false }
 uuid = { version = "=1.28.0", features = ["v7"] }
 
 # Test-only dependencies, covered by the license allowlist (D-026).

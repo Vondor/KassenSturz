@@ -82,7 +82,7 @@ Direct bank connections for reading balances and statements are **in scope for v
 | Storage | **SQLite**, versioned migrations from day one; development migrations are merged into one starting layout before 0.1 (D-045) |
 | Plugins | **WASM** modules, sandboxed. Out-of-process plugins are not part of v1 (D-007) |
 | Secrets | Platform keychain via an abstraction (KWallet / libsecret / Windows Credential Manager / macOS Keychain). The banking PIN is saved there only if the user chooses; otherwise it's asked each time or remembered in memory until the app closes (D-057) |
-| Bank connections | **AqBanking** (+ Gwenhywfar) for HBCI/FinTS and EBICS, behind an abstraction so other backends can be added later. Used only to read balances and statements, never to send payments (D-053). Distro packages use the system's AqBanking; Flatpak, Windows and macOS bundle it, and the app works without it (D-054). Live FinTS needs KassenSturz's own product registration, never another program's number (D-058). License verified (D-012, `docs/THIRD_PARTY.md`); Rust binding approach pending (Q-009) |
+| Bank connections | **AqBanking** (+ Gwenhywfar) for HBCI/FinTS with PIN/TAN or chip card (no key files, so no EBICS, D-059), behind an abstraction so other backends can be added later. Used only to read balances and statements, never to send payments (D-053). Distro packages use the system's AqBanking; Flatpak, Windows and macOS bundle it, and the app works without it (D-054). Live FinTS needs KassenSturz's own product registration, never another program's number (D-058). License verified (D-012, `docs/THIRD_PARTY.md`); binding through `kassensturz-aqbanking-sys` and the safe `kassensturz-bank` (D-060) |
 | Charts | Behind a `ChartProvider` interface. Initial implementation uses Qt's charting. A LibreOffice chart prototype is part of the 1.0 work; adopting LibreOffice code stays approval-gated (see D-008) |
 | AI | Provider abstraction (`kassensturz-ai`; v1 ships the OpenAI-compatible adapter only, D-035) and a local MCP server (`kassensturz-mcp`), see §8 |
 | Packaging | Flatpak (KDE runtime, covers Plasma and GNOME) on Flathub as `io.github.vondor.KassenSturz` (D-049), Windows MSIX through the Microsoft Store plus a signed installer, macOS signed `.dmg` once its signing is funded. Only free signing options for now (D-048) |
@@ -110,7 +110,7 @@ Becoming an official KDE project is a goal (D-041), so keep code, licensing and 
 - Internally **double-entry**: every transaction balances. Users never have to know this (see §6).
 
 **European standards (backend)**
-- Currencies ISO 4217 · IBAN ISO 13616 and BIC · SEPA · dates ISO 8601 · bank data formats ISO 20022 (CAMT.053, CAMT.052, PAIN) plus legacy MT940 and OFX for file-based import · live bank connections via AqBanking (HBCI/FinTS, EBICS), see §4.
+- Currencies ISO 4217 · IBAN ISO 13616 and BIC · SEPA · dates ISO 8601 · bank data formats ISO 20022 (CAMT.053, CAMT.052, PAIN) plus legacy MT940 and OFX for file-based import · live bank connections via AqBanking (HBCI/FinTS), see §4.
 - Transaction dates are **calendar dates without time zone**.
 
 **Database**

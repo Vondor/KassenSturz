@@ -16,6 +16,8 @@ kassensturz/
 │   │   └── events                  # event bus (TransactionAdded, ...)
 │   ├── kassensturz-store/          # storage trait + SQLite impl (v1), migrations, backups, change history — see D-016, D-032, D-033
 │   ├── kassensturz-import/         # CSV, OFX, MT940, CAMT.053, KMyMoney (.kmy / SQLite)
+│   ├── kassensturz-bank/           # read-only bank connections over AqBanking, fake backend for tests — see D-053, D-060
+│   ├── kassensturz-aqbanking-sys/  # raw AqBanking/Gwenhywfar declarations (bindgen, committed, loaded at runtime) — see D-060
 │   ├── kassensturz-plugin-api/     # stable, versioned plugin interface
 │   ├── kassensturz-plugin-host/    # loads and sandboxes WASM plugins (D-007)
 │   ├── kassensturz-platform/       # keychain, config paths, notifications behind traits
@@ -37,7 +39,8 @@ kassensturz/
 ## Dependency rules
 
 - `kassensturz-core` depends on **no other workspace crate**.
-- `kassensturz-store`, `kassensturz-import`, `kassensturz-charts`, `kassensturz-ai`, `kassensturz-plugin-host` depend on `kassensturz-core`.
+- `kassensturz-store`, `kassensturz-import`, `kassensturz-bank`, `kassensturz-charts`, `kassensturz-ai`, `kassensturz-plugin-host` depend on `kassensturz-core`.
+- Only `kassensturz-bank` uses `kassensturz-aqbanking-sys`; no other crate calls AqBanking's C code (D-060).
 - Front ends (`kassensturz-cli`, `kassensturz-ui-bridge`, `kassensturz-mcp`) depend on core, store and plugin host. **Core never knows about a UI.**
 - OS-specific behavior lives only in `kassensturz-platform` behind traits.
 - AI code lives only in `kassensturz-ai` and `kassensturz-mcp`. Front ends use them only behind one build feature (`ai`, on by default), so KassenSturz can be built without any AI code (D-039). `kassensturz-core` never depends on AI code.
@@ -74,7 +77,7 @@ kassensturz/
 - Duplicates: a transaction whose bank-provided transaction ID is already in the book is skipped automatically and counted in the import summary; uncertain cases are shown to the user to decide.
 - Both booking date and value date are stored; the booking date is the one shown.
 - Only booked transactions are imported in v1; pending ones (not yet booked by the bank) are skipped (D-030).
-- Bank connections through AqBanking only read balances and booked transactions; KassenSturz never sends payments (D-053). AqBanking comes from the system in distro packages and is bundled in the Flatpak, Windows and macOS builds; KassenSturz detects it at runtime and works without it. Bank setup, PIN and TAN entry use Gwenhywfar's Qt 6 dialogs (D-054). The PIN is asked each time unless the user chooses to remember it until KassenSturz closes (memory only) or to save it in the system keychain through `kassensturz-platform` (D-057). Tests run against a fake bank backend (D-055). Live FinTS connections need KassenSturz's own FinTS product registration, passed to AqBanking as `fintsRegistrationKey`; never another program's number (D-058).
+- Bank connections through AqBanking only read balances and booked transactions; KassenSturz never sends payments (D-053). AqBanking comes from the system in distro packages and is bundled in the Flatpak, Windows and macOS builds; KassenSturz detects it at runtime and works without it. Bank setup, PIN and TAN entry use Gwenhywfar's Qt 6 dialogs (D-054). Logins: PIN/TAN or a bank chip card; no key files, so no EBICS (D-059). The code lives in `kassensturz-bank`, on top of the raw `kassensturz-aqbanking-sys` declarations (D-060). The PIN is asked each time unless the user chooses to remember it until KassenSturz closes (memory only) or to save it in the system keychain through `kassensturz-platform` (D-057). Tests run against a fake bank backend (D-055). Live FinTS connections need KassenSturz's own FinTS product registration, passed to AqBanking as `fintsRegistrationKey`; never another program's number (D-058).
 - The KMyMoney importer is built clean-room, from sample files and public documentation only (D-044). It skips data KassenSturz can't hold yet (investments, schedules, loans, …) and reports what it skipped (D-029).
 
 ## Multi-user support (post-1.0)

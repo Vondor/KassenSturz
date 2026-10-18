@@ -67,9 +67,10 @@ Do not merge your own pull requests.
 - **A hosted cloud or sync service run by the project.**
 - **Mobile apps.** (Post-1.0 exception: a separate native Android companion app for receipt capture — see D-018/D-019. Still a v1 non-goal.)
 - **Tax filing.** KassenSturz is not meant to do your taxes.
+- **Sending payments.** KassenSturz only reads balances and statements from banks; it never starts transfers, standing orders or direct debits itself. This isn't time-boxed to v1 either: other apps can do that, or perhaps a plugin later (D-053).
 - **Ads or any monetization of user data.** This one isn't time-boxed to v1: KassenSturz is open source and **will never** be monetized via user data or ads from its own built-in features, now or later.
 
-Direct bank connections are **in scope for v1**, via AqBanking (see §4, D-012).
+Direct bank connections for reading balances and statements are **in scope for v1**, via AqBanking (see §4, D-012, D-053).
 
 ## 4. Technology stack (decided)
 
@@ -81,7 +82,7 @@ Direct bank connections are **in scope for v1**, via AqBanking (see §4, D-012).
 | Storage | **SQLite**, versioned migrations from day one; development migrations are merged into one starting layout before 0.1 (D-045) |
 | Plugins | **WASM** modules, sandboxed. Out-of-process plugins are not part of v1 (D-007) |
 | Secrets | Platform keychain via an abstraction (KWallet / libsecret / Windows Credential Manager / macOS Keychain) |
-| Bank connections | **AqBanking** (+ Gwenhywfar) for HBCI/FinTS and EBICS, behind an abstraction so other backends can be added later. We aim to fully support what AqBanking offers. License verified (D-012, `docs/THIRD_PARTY.md`); Rust binding approach pending (Q-009) |
+| Bank connections | **AqBanking** (+ Gwenhywfar) for HBCI/FinTS and EBICS, behind an abstraction so other backends can be added later. Used only to read balances and statements, never to send payments (D-053). License verified (D-012, `docs/THIRD_PARTY.md`); Rust binding approach pending (Q-009) |
 | Charts | Behind a `ChartProvider` interface. Initial implementation uses Qt's charting. A LibreOffice chart prototype is part of the 1.0 work; adopting LibreOffice code stays approval-gated (see D-008) |
 | AI | Provider abstraction (`kassensturz-ai`; v1 ships the OpenAI-compatible adapter only, D-035) and a local MCP server (`kassensturz-mcp`), see §8 |
 | Packaging | Flatpak (KDE runtime, covers Plasma and GNOME) on Flathub as `io.github.vondor.KassenSturz` (D-049), Windows MSIX through the Microsoft Store plus a signed installer, macOS signed `.dmg` once its signing is funded. Only free signing options for now (D-048) |

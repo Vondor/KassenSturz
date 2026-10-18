@@ -74,6 +74,7 @@ kassensturz/
 - Duplicates: a transaction whose bank-provided transaction ID is already in the book is skipped automatically and counted in the import summary; uncertain cases are shown to the user to decide.
 - Both booking date and value date are stored; the booking date is the one shown.
 - Only booked transactions are imported in v1; pending ones (not yet booked by the bank) are skipped (D-030).
+- Bank connections through AqBanking only read balances and booked transactions; KassenSturz never sends payments (D-053).
 - The KMyMoney importer is built clean-room, from sample files and public documentation only (D-044). It skips data KassenSturz can't hold yet (investments, schedules, loans, …) and reports what it skipped (D-029).
 
 ## Multi-user support (post-1.0)

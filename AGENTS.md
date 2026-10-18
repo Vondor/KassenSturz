@@ -78,12 +78,13 @@ Direct bank connections for reading balances and statements are **in scope for v
 |---|---|
 | Core | **Rust**, Cargo workspace, headless library with no UI code |
 | Toolchain | Rust **2024 edition**; Qt 6, KDE Frameworks 6 and the Flatpak KDE runtime in LTS releases where available, otherwise the current stable release (D-025) |
+| Build | **CMake** (with KDE's Extra CMake Modules) drives **Cargo**. Development, CI and the Flatpak share one environment: the KDE Flatpak SDK with the Rust extension (D-063) |
 | UI | **Qt 6 + QML + Kirigami**, bound to the core via **cxx-qt** |
 | Storage | **SQLite**, versioned migrations from day one; development migrations are merged into one starting layout before 0.1 (D-045) |
-| Plugins | **WASM** modules, sandboxed. Out-of-process plugins are not part of v1 (D-007) |
+| Plugins | **WASM** modules, sandboxed; the plugin host comes after 1.0 (D-071). Out-of-process plugins are not part of v1 (D-007) |
 | Secrets | Platform keychain via an abstraction (KWallet / libsecret / Windows Credential Manager / macOS Keychain). The banking PIN is saved there only if the user chooses; otherwise it's asked each time or remembered in memory until the app closes (D-057) |
 | Bank connections | **AqBanking** (+ Gwenhywfar) for HBCI/FinTS with PIN/TAN or chip card (no key files, so no EBICS, D-059), behind an abstraction so other backends can be added later. Used only to read balances and statements, never to send payments (D-053). Distro packages use the system's AqBanking; Flatpak, Windows and macOS bundle it, and the app works without it (D-054). Live FinTS needs KassenSturz's own product registration, never another program's number (D-058). License verified (D-012, `docs/THIRD_PARTY.md`); binding through `kassensturz-aqbanking-sys` and the safe `kassensturz-bank` (D-060) |
-| Charts | Behind a `ChartProvider` interface. Initial implementation uses Qt's charting. A LibreOffice chart prototype is part of the 1.0 work; adopting LibreOffice code stays approval-gated (see D-008) |
+| Charts | Behind a `ChartProvider` interface. Initial implementation uses Qt's charting. A LibreOffice chart prototype may be tried on its own branch but isn't part of 1.0 (D-071); adopting LibreOffice code stays approval-gated (see D-008) |
 | AI | Provider abstraction (`kassensturz-ai`; v1 ships the OpenAI-compatible adapter only, D-035) and a local MCP server (`kassensturz-mcp`), see §8 |
 | Packaging | Flatpak (KDE runtime, covers Plasma and GNOME) on Flathub as `io.github.vondor.KassenSturz` (D-049), Windows MSIX through the Microsoft Store plus a signed installer, macOS signed `.dmg` once its signing is funded. Only free signing options for now (D-048) |
 | Hosting | **GitHub**: the code, GitHub Actions for CI, GitHub Issues (D-042) |
@@ -99,6 +100,7 @@ Becoming an official KDE project is a goal (D-041), so keep code, licensing and 
 - Amounts are stored as **64-bit integer minor units** plus an **ISO 4217** currency code. The number of decimal places comes from ISO 4217, not from hard-coded assumptions, and each book stores it per currency when the currency is first used, so an app update can never rescale stored amounts (D-027).
 - Use one `Money` type everywhere. Arithmetic is overflow-checked. No raw integers for money in public APIs.
 - **Users choose how money is shown, never how it is stored** (D-002). Number format (decimal comma or point, digit grouping, currency symbol position) comes from the user's locale (CLDR) by default and can be changed, and so can the number of decimal places shown (e.g. 100 or 100,00). This is presentation only: it never changes stored amounts or calculations, and totals are computed from the exact amounts before they are rounded for display.
+- **Amounts reach the UI only as text** (D-065). Numbers in QML are JavaScript numbers, i.e. floating point, so Rust formats every amount, rate and quantity for display and parses what the user types; sorting and totals happen in Rust models. Floating point appears only as chart drawing coordinates computed from exact values, never read back.
 - Rounding in calculations is applied only where the domain requires it (conversions, percentages, splits), and the rule used is always explicit in code. That rounding setting is stored in the book, defaults to round half away from zero, and changing it affects only future calculations (D-027).
 
 **Multi-currency (required from the start)**
@@ -111,7 +113,7 @@ Becoming an official KDE project is a goal (D-041), so keep code, licensing and 
 
 **European standards (backend)**
 - Currencies ISO 4217 · IBAN ISO 13616 and BIC · SEPA · dates ISO 8601 · bank data formats ISO 20022 (CAMT.053, CAMT.052, PAIN) plus legacy MT940 and OFX for file-based import · live bank connections via AqBanking (HBCI/FinTS), see §4.
-- Transaction dates are **calendar dates without time zone**.
+- Transaction dates are **calendar dates without time zone** (`jiff::civil::Date`, D-061).
 
 **Database**
 - Orient the schema on KMyMoney's *concepts* (accounts, transactions, splits, payees, institutions, securities, prices, schedules). Do not copy its source code or blindly copy its table layout (D-003).
@@ -134,7 +136,7 @@ Becoming an official KDE project is a goal (D-041), so keep code, licensing and 
 - The plugin API is **versioned** from day one. Plugins declare the API version they target.
 - Each plugin has a **manifest** with name, version and requested **permissions** (e.g. read transactions, write transactions, network, filesystem).
 - Plugins get a narrow, permission-checked view of the data, **never raw database access**.
-- Built-in importers and exporters use the same API as third-party plugins; the Importer part is defined during M1–M2 so they use it from the start (D-007).
+- Built-in importers and exporters use the same interface as third-party plugins: a native Rust trait, defined during M1–M2, which the WASM plugin API mirrors once the plugin host comes after 1.0 (D-007, D-069, D-071).
 - Plugins are **WASM** modules. Users add a downloaded plugin file in the **Plugins** tab, which shows the permissions it requests; there is no plugin store (D-007).
 
 ## 8. AI features (product feature, not development process)
@@ -164,7 +166,7 @@ KassenSturz has a **native way to connect AI**, including **locally running mode
    - golden-file tests for every importer (synthetic files only)
    - bank connections: tested against a fake bank backend, never against a real bank in CI; test data uses only the example IBANs from SWIFT's IBAN Registry (D-055)
    - migration tests: upgrade from every earlier schema version since 0.1 (development migrations are merged before 0.1, D-045)
-5. **Definition of done:** builds in CI · formatted and lint-clean · tests pass · docs updated · `docs/DECISIONS.md` updated if you made or changed a decision · no `TODO` without an issue reference · SPDX license and copyright header on every source file (`GPL-3.0-or-later`, `KassenSturz contributors`, checked by REUSE, D-024) · commits signed off under the DCO by the person who submits them; agents never add the sign-off themselves (D-040).
+5. **Definition of done:** builds in CI · formatted and lint-clean · tests pass · docs updated · `docs/DECISIONS.md` updated if you made or changed a decision · no `TODO` without an issue reference · SPDX license and copyright header on every source file (`GPL-3.0-or-later`, `<year> KassenSturz contributors`, checked by REUSE, D-024; CMake files `BSD-2-Clause`; documentation and small configuration files are covered by `REUSE.toml`, D-064) · commits signed off under the DCO by the person who submits them; agents never add the sign-off themselves (D-040).
 6. **Verify, don't guess.** Check APIs, crate versions and file formats against real documentation or source. Pin dependency versions. Do not invent function names.
 7. **Leave breadcrumbs.** Update roadmap status, record decisions, and write commit messages for an agent with no memory of this session.
 

@@ -16,7 +16,8 @@ GitHub-specific checklist; it doesn't duplicate AGENTS.md's rules.
 6. Run formatting, lint and tests locally before opening the pull request.
 7. Make sure every new source file carries an SPDX header
    (`SPDX-License-Identifier: GPL-3.0-or-later`, `SPDX-FileCopyrightText: <year> KassenSturz contributors`)
-   — checked by `reuse lint` in CI (D-024).
+   — checked by `reuse lint` in CI (D-024). CMake files use `BSD-2-Clause` instead; documentation and small
+   configuration files are covered by `REUSE.toml` (D-064).
 
 ## What needs the maintainer's sign-off first
 
@@ -32,5 +33,6 @@ Until then, please open a private report via GitHub's security advisories rather
 
 ## License
 
-By contributing, you agree your contribution is licensed under GPL-3.0-or-later (see [LICENSE](LICENSE)),
-and that your DCO sign-off (above) is accurate.
+By contributing, you agree your contribution is licensed under the license of the files it changes:
+GPL-3.0-or-later for code (see [LICENSE](LICENSE)), CC-BY-SA-4.0 for documentation, BSD-2-Clause for
+CMake files and CC0-1.0 for small configuration files (D-064), and that your DCO sign-off (above) is accurate.

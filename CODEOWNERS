@@ -1,0 +1,4 @@
+# Every change needs a review from the maintainer before merge (AGENTS.md §3.2:
+# "Do not merge your own pull requests."). This also makes review mandatory once
+# branch protection requires CODEOWNERS approval.
+* @Vondor

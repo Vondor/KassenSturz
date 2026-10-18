@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  reuse:
+    name: REUSE (SPDX headers, D-024)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "reuse==6.2.0"
+      - run: reuse lint
+
+  dco:
+    name: DCO sign-off (D-040)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check every commit in this PR is signed off
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          missing=0
+          for sha in $(git log --no-merges --format=%H "$base..$head"); do
+            if ! git log -1 --format=%B "$sha" | grep -qE '^Signed-off-by: .+ <.+>$'; then
+              echo "::error::Commit $sha has no 'Signed-off-by' trailer (DCO, D-040). Run: git rebase --signoff $base"
+              missing=1
+            fi
+          done
+          exit $missing
+
+  # Cargo build/lint/test steps are added once the Cargo workspace exists (M0,
+  # docs/ROADMAP.md). This workflow only covers the GitHub-specific checks that
+  # don't depend on any code existing yet.

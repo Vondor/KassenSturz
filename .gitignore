@@ -1,0 +1,36 @@
+# Rust / Cargo
+/target/
+**/target/
+Cargo.lock.bak
+
+# cxx-qt / CMake build output
+/build/
+**/build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+
+# Qt / QML tooling artifacts
+*.qmlc
+*.jsc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.pro.user
+*.pro.user.*
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Local book files a developer might open while testing (never real data, D-040/§3.1)
+*.ksz
+*.ksz-lock

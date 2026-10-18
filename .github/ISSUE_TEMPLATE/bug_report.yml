@@ -1,0 +1,45 @@
+name: Bug report
+description: Something in KassenSturz doesn't work as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please do **not** include real personal or financial
+        data, screenshots of real account numbers, or real IBANs — use synthetic examples
+        (AGENTS.md hard rule 3.1.2). For a security vulnerability, use a private report
+        instead of a public issue (see SECURITY.md once it exists, D-056).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: KassenSturz version
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - KDE Plasma
+        - GNOME
+        - Windows
+        - macOS
+        - Other Linux desktop
+    validations:
+      required: true

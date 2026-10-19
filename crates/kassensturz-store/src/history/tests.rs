@@ -317,6 +317,17 @@ fn every_change_can_be_undone_and_redone() {
     let run = book.run_rules().expect("run");
     assert_eq!(run.changed.len(), 1);
     steps.did(&book, Action::RunRules);
+    // Changed once more, with what it booked following the change (Q-044).
+    let grocer = Rule {
+        actions: Actions {
+            payee: Some("Grocer".into()),
+            ..smaller.actions.clone()
+        },
+        ..smaller.clone()
+    };
+    let rebooked = book.update_rule_and_rebook(&grocer).expect("changed");
+    assert_eq!(rebooked.changed.len(), 1);
+    steps.did(&book, Action::EditRule);
     book.remove_rule(shops.id).expect("removed");
     steps.did(&book, Action::RemoveRule);
 
@@ -360,7 +371,13 @@ fn every_change_can_be_undone_and_redone() {
 
     // What was written back reads as it was.
     book.undo().expect("undone");
+    assert_eq!(book.rules().expect("Rules")[0].sub_rules[0].rule, grocer);
+    let rebooked_payee = book.transaction(bought.id()).expect("read");
+    assert_eq!(rebooked_payee.payee(), Some("Grocer"));
+    book.undo().expect("undone");
     assert_eq!(book.rules().expect("Rules")[0].sub_rules[0].rule, smaller);
+    let booked = book.transaction(bought.id()).expect("read");
+    assert_eq!(booked.payee(), Some("Grocery store"));
     book.undo().expect("undone");
     assert_eq!(book.transaction(bought.id()).expect("back"), bought);
     for _ in 0..6 {

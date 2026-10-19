@@ -68,13 +68,34 @@ pub(crate) fn rule(book: &mut Book, args: &[String], out: &mut dyn Write) -> Res
         "change" => {
             let mut options = RULE_OPTIONS.to_vec();
             options.push("name");
-            let args = Arguments::parse(rest, &options, &RULE_FLAGS)?;
+            let mut flags = RULE_FLAGS.to_vec();
+            flags.extend(["rebook", "dry-run"]);
+            let args = Arguments::parse(rest, &options, &flags)?;
             let [name] = args.exactly(["name"])?;
             let old = find_rule(book, name)?;
             let new_name = args.value("name")?.unwrap_or(&old.name).to_owned();
             let rule = read_rule(book, &args, old.id, &new_name)?;
-            book.update_rule(&rule)?;
-            writeln!(out, "Changed the Rule {}.", plain(rule.name.trim()))?;
+            // What the Rule booked earlier keeps its booking, unless the user
+            // asks for it to follow the change (Q-044).
+            match (args.flag("rebook"), args.flag("dry-run")) {
+                (false, false) => {
+                    book.update_rule(&rule)?;
+                    writeln!(out, "Changed the Rule {}.", plain(rule.name.trim()))?;
+                }
+                (true, false) => {
+                    let run = book.update_rule_and_rebook(&rule)?;
+                    writeln!(out, "Changed the Rule {}.", plain(rule.name.trim()))?;
+                    report(book, &run, "Changed", out)?;
+                }
+                (true, true) => {
+                    let run = book.preview_rebook(&rule)?;
+                    report(book, &run, "Would change", out)?;
+                    writeln!(out, "Nothing was changed.")?;
+                }
+                (false, true) => {
+                    return Err(CliError::usage("--dry-run goes with --rebook"));
+                }
+            }
         }
         "list" => {
             Arguments::parse(rest, &[], &[])?.exactly([])?;

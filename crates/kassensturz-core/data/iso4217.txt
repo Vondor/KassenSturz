@@ -6,9 +6,10 @@
 # currency's decimal places from here when it first uses the currency, and
 # keeps them from then on (D-027).
 #
-# Made from ISO 4217 list one, published 2026-09-17 by SIX, the ISO 4217
-# maintenance agency (docs/THIRD_PARTY.md). Left out, because the list gives
-# them no decimal places: XAG XAU XBA XBB XBC XBD XDR XPD XPT XSU XTS XUA XXX.
+# The codes are those Debian's iso-codes 4.20.1 lists (docs/THIRD_PARTY.md).
+# It has no decimal places, so they are kept here, as ISO 4217 gives them.
+# Left out, because ISO 4217 gives them no decimal places:
+# XAG XAU XBA XBB XBC XBD XDR XPD XPT XSU XTS XUA XXX.
 #
 # Written by tools/update-currency-table.py; don't edit it by hand. Each line
 # below is a currency code and its number of decimal places.

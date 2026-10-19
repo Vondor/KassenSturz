@@ -44,8 +44,9 @@ impl CurrencyCode {
     ///
     /// Only for a currency's first use in a book: from then on the decimal
     /// places stored in the book count, so a newer table can never rescale
-    /// amounts already stored (D-027). The table is KassenSturz's own copy of
-    /// the official list, in `data/iso4217.txt` (D-062).
+    /// amounts already stored (D-027). The table is KassenSturz's own, in
+    /// `data/iso4217.txt`: the codes Debian's iso-codes lists, with the decimal
+    /// places ISO 4217 gives them (D-062, D-077).
     pub fn iso_minor_digits(self) -> Option<u8> {
         TABLE
             .binary_search_by(|&(code, _)| code.cmp(&self))
@@ -110,7 +111,8 @@ pub enum CurrencyCodeError {
 /// KassenSturz's ISO 4217 table as text: comment lines starting with `#`,
 /// then one line per currency with its code and its decimal places, e.g.
 /// `EUR 2`, sorted by code. `tools/update-currency-table.py` writes it from
-/// the official list (D-062).
+/// the codes Debian's iso-codes lists, keeping the decimal places the table
+/// already has (D-062, D-077).
 const TABLE_TEXT: &[u8] = include_bytes!("../data/iso4217.txt");
 
 /// The table, read while compiling: a mistake in the file stops the build.

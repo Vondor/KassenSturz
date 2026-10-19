@@ -713,8 +713,8 @@ fn rules_book_new_transactions_and_leave_the_users_choices_alone() {
         "The Rules change no transaction.\n"
     );
 
-    // A changed Rule rebooks what it booked before.
-    session.ok(&[
+    // A changed Rule keeps what it booked before (Q-044)...
+    let to_other = [
         "rule",
         "change",
         "Supermarket",
@@ -722,17 +722,39 @@ fn rules_book_new_transactions_and_leave_the_users_choices_alone() {
         "payee contains market",
         "--category",
         "Food/Other",
-    ]);
-    let run = session.ok(&["rule", "run"]);
-    assert!(run.starts_with("Changed 2 transaction(s):\n"), "{run}");
+    ];
+    assert_eq!(session.ok(&to_other), "Changed the Rule Supermarket.\n");
+    assert_eq!(
+        session.ok(&["rule", "run"]),
+        "The Rules change no transaction.\n"
+    );
+    assert!(
+        session
+            .ok(&["transaction", "show", &small])
+            .contains("Groceries          23.40 EUR")
+    );
+    // ...unless it is asked to book that again.
+    let preview = session.ok(&[&to_other[..], &["--rebook", "--dry-run"][..]].concat());
+    assert!(
+        preview.starts_with("Would change 2 transaction(s):\n"),
+        "{preview}"
+    );
+    assert!(preview.ends_with("Nothing was changed.\n"), "{preview}");
+    let rebooked = session.ok(&[&to_other[..], &["--rebook"][..]].concat());
+    assert!(
+        rebooked.starts_with("Changed the Rule Supermarket.\nChanged 2 transaction(s):\n"),
+        "{rebooked}"
+    );
     assert!(
         session
             .ok(&["transaction", "show", &small])
             .contains("Other              23.40 EUR")
     );
+    let outcome = session.cli(&[&to_other[..], &["--dry-run"][..]].concat());
+    assert_eq!(outcome.status, 2, "{}", outcome.err);
 
-    // The whole run is one change.
-    assert_eq!(session.ok(&["undo"]), "Undid the change: ran the Rules.\n");
+    // The change and what it booked again are one change.
+    assert_eq!(session.ok(&["undo"]), "Undid the change: changed a Rule.\n");
     assert!(
         session
             .ok(&["transaction", "show", &small])

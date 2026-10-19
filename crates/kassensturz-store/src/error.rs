@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Errors. They are structured codes with parameters; the UI turns them into
-//! translated messages (D-034).
+//! translated messages (D-034). [`Report`] gives each one's code and
+//! parameters, listed in `docs/ERROR_CODES.md`.
 
 use std::io::ErrorKind;
 
 use kassensturz_core::{
-    AccountId, AccountKind, AccountType, CurrencyCode, Date, DatedRateId, Money, SplitId,
-    TransactionError, TransactionId,
+    AccountId, AccountKind, AccountType, CurrencyCode, Date, DatedRateId, ErrorParam, ErrorReport,
+    Money, Report, SplitId, TransactionError, TransactionId,
 };
 
 use crate::Lock;
+use crate::layout;
 
 /// Why a book couldn't be opened, read or changed.
 #[derive(Debug)]
@@ -231,3 +233,174 @@ impl From<rusqlite::Error> for StoreError {
         }
     }
 }
+
+impl Report for StoreError {
+    fn report(&self) -> ErrorReport {
+        use ErrorParam as P;
+        let new = ErrorReport::new;
+        match self {
+            Self::AlreadyExists => new("store.already-exists"),
+            Self::NotFound => new("store.not-found"),
+            Self::NotABook => new("store.not-a-book"),
+            Self::UnsupportedLayout { found } => new("store.unsupported-layout")
+                .with("found", P::Number((*found).into()))
+                .with("current", P::Number(layout::VERSION.into())),
+            Self::Locked(lock) => {
+                let mut report = new("store.locked");
+                if let Some(computer) = &lock.computer {
+                    report = report.with("computer", P::Text(computer.clone()));
+                }
+                if let Some(since) = lock.since {
+                    report = report.with("since", P::Timestamp(since));
+                }
+                report
+            }
+            Self::BackupFailed(cause) => new("store.backup-failed").caused_by(cause.report()),
+            Self::JournalModeRefused { mode } => {
+                new("store.journal-mode-refused").with("mode", P::Text(mode.clone()))
+            }
+            Self::UnlistedCurrency(currency) => {
+                new("store.unlisted-currency").with("currency", P::Currency(*currency))
+            }
+            Self::UnknownCurrency(currency) => {
+                new("store.unknown-currency").with("currency", P::Currency(*currency))
+            }
+            Self::UnknownAccount(account) => {
+                new("store.unknown-account").with("account", P::Account(*account))
+            }
+            Self::EmptyAccountName => new("store.empty-account-name"),
+            Self::DuplicateAccountName { existing } => {
+                new("store.duplicate-account-name").with("existing", P::Account(*existing))
+            }
+            Self::AccountTypeMismatch { account_type, kind } => new("store.account-type-mismatch")
+                .with("account_type", P::AccountType(*account_type))
+                .with("kind", P::AccountKind(*kind)),
+            Self::NotAnAccount(account) => {
+                new("store.not-an-account").with("account", P::Account(*account))
+            }
+            Self::AccountClosed(account) => {
+                new("store.account-closed").with("account", P::Account(*account))
+            }
+            Self::AccountNotEmpty { account, balance } => new("store.account-not-empty")
+                .with("account", P::Account(*account))
+                .with("balance", P::Money(*balance)),
+            Self::NotACategory(account) => {
+                new("store.not-a-category").with("account", P::Account(*account))
+            }
+            Self::ParentNotACategory(parent) => {
+                new("store.parent-not-a-category").with("parent", P::Account(*parent))
+            }
+            Self::ParentKindMismatch {
+                parent,
+                parent_kind,
+                kind,
+            } => new("store.parent-kind-mismatch")
+                .with("parent", P::Account(*parent))
+                .with("parent_kind", P::AccountKind(*parent_kind))
+                .with("kind", P::AccountKind(*kind)),
+            Self::ParentCurrencyMismatch {
+                parent,
+                parent_currency,
+                currency,
+            } => new("store.parent-currency-mismatch")
+                .with("parent", P::Account(*parent))
+                .with("parent_currency", P::Currency(*parent_currency))
+                .with("currency", P::Currency(*currency)),
+            Self::CategoryInsideItself(account) => {
+                new("store.category-inside-itself").with("account", P::Account(*account))
+            }
+            Self::UnknownTransaction(transaction) => {
+                new("store.unknown-transaction").with("transaction", P::Transaction(*transaction))
+            }
+            Self::TransactionIdInUse(transaction) => {
+                new("store.transaction-id-in-use").with("transaction", P::Transaction(*transaction))
+            }
+            Self::SplitIdInUse(split) => {
+                new("store.split-id-in-use").with("split", P::Split(*split))
+            }
+            Self::SplitCurrencyMismatch {
+                account,
+                account_currency,
+                split_currency,
+            } => new("store.split-currency-mismatch")
+                .with("account", P::Account(*account))
+                .with("account_currency", P::Currency(*account_currency))
+                .with("split_currency", P::Currency(*split_currency)),
+            Self::ImportedSplitChanged(split) => {
+                new("store.imported-split-changed").with("split", P::Split(*split))
+            }
+            Self::UnknownRate(rate) => new("store.unknown-rate").with("rate", P::Rate(*rate)),
+            Self::RateWithinOneCurrency(currency) => {
+                new("store.rate-within-one-currency").with("currency", P::Currency(*currency))
+            }
+            Self::NoRate { from, to, date } => new("store.no-rate")
+                .with("from", P::Currency(*from))
+                .with("to", P::Currency(*to))
+                .with("date", P::Date(*date)),
+            Self::DuplicateRate { existing } => {
+                new("store.duplicate-rate").with("existing", P::Rate(*existing))
+            }
+            Self::DateOutOfRange(date) => {
+                new("store.date-out-of-range").with("date", P::Date(*date))
+            }
+            Self::AmountOverflow => new("store.amount-overflow"),
+            Self::Corrupt(corruption) => corruption.report(),
+            Self::Io(kind) => new("store.io").with("kind", P::Keyword(io_keyword(*kind))),
+            Self::Database(_) => new("store.database"),
+        }
+    }
+}
+
+impl Report for Corruption {
+    fn report(&self) -> ErrorReport {
+        use ErrorParam as P;
+        let new = ErrorReport::new;
+        let found = |code, text: &String| new(code).with("found", P::Text(text.clone()));
+        match self {
+            Self::BadAccountKind(text) => found("store.corrupt.bad-account-kind", text),
+            Self::BadAccountType(text) => found("store.corrupt.bad-account-type", text),
+            Self::AccountTypeMismatch(account) => {
+                new("store.corrupt.account-type-mismatch").with("account", P::Account(*account))
+            }
+            Self::BadCategoryTree(account) => {
+                new("store.corrupt.bad-category-tree").with("account", P::Account(*account))
+            }
+            Self::BadCurrencyCode(text) => found("store.corrupt.bad-currency-code", text),
+            Self::BadDate(text) => found("store.corrupt.bad-date", text),
+            Self::BadMinorDigits(digits) => {
+                new("store.corrupt.bad-minor-digits").with("found", P::Number(*digits))
+            }
+            Self::BadRate(rate) => new("store.corrupt.bad-rate").with("rate", P::Rate(*rate)),
+            Self::BadRateSource(text) => found("store.corrupt.bad-rate-source", text),
+            Self::MissingSettings => new("store.corrupt.missing-settings"),
+            Self::BadRoundingMode(text) => found("store.corrupt.bad-rounding-mode", text),
+            Self::CurrencyMismatch { transaction } => new("store.corrupt.currency-mismatch")
+                .with("transaction", P::Transaction(*transaction)),
+            Self::BadSplit(split) => new("store.corrupt.bad-split").with("split", P::Split(*split)),
+            Self::InvalidTransaction { transaction, error } => {
+                new("store.corrupt.invalid-transaction")
+                    .with("transaction", P::Transaction(*transaction))
+                    .caused_by(error.report())
+            }
+            Self::BrokenReferences => new("store.corrupt.broken-references"),
+        }
+    }
+}
+
+/// What went wrong in the file system, as one of the keywords of `store.io`
+/// in `docs/ERROR_CODES.md`.
+fn io_keyword(kind: ErrorKind) -> &'static str {
+    match kind {
+        ErrorKind::NotFound => "not-found",
+        ErrorKind::PermissionDenied => "permission-denied",
+        ErrorKind::AlreadyExists => "already-exists",
+        ErrorKind::ReadOnlyFilesystem => "read-only",
+        ErrorKind::StorageFull => "storage-full",
+        ErrorKind::QuotaExceeded => "quota-exceeded",
+        ErrorKind::FileTooLarge => "file-too-large",
+        _ => "other",
+    }
+}
+
+#[cfg(test)]
+mod tests;

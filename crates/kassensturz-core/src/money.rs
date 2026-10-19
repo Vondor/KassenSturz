@@ -4,64 +4,16 @@
 //! Amounts of money: 64-bit integers in minor units plus an ISO 4217 currency
 //! code (AGENTS.md §5, D-027).
 
-use core::fmt;
-
-/// An ISO 4217 currency code such as `EUR`: exactly three ASCII capital
-/// letters.
-///
-/// Only the form is checked here. Which currencies a book uses, and how many
-/// decimal places each one has, is stored in the book (D-027).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct CurrencyCode([u8; 3]);
-
-impl CurrencyCode {
-    /// Checks and wraps a currency code.
-    pub const fn new(code: &str) -> Result<Self, CurrencyCodeError> {
-        let bytes = code.as_bytes();
-        if bytes.len() != 3 {
-            return Err(CurrencyCodeError::Malformed);
-        }
-        let mut i = 0;
-        while i < bytes.len() {
-            if !bytes[i].is_ascii_uppercase() {
-                return Err(CurrencyCodeError::Malformed);
-            }
-            i += 1;
-        }
-        Ok(Self([bytes[0], bytes[1], bytes[2]]))
-    }
-
-    /// The code as text, e.g. `"EUR"`.
-    pub fn as_str(&self) -> &str {
-        core::str::from_utf8(&self.0).expect("CurrencyCode::new accepts only ASCII letters")
-    }
-}
-
-impl fmt::Debug for CurrencyCode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "CurrencyCode({})", self.as_str())
-    }
-}
-
-impl fmt::Display for CurrencyCode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-/// Why a text isn't a currency code.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CurrencyCodeError {
-    /// The text isn't exactly three ASCII capital letters.
-    Malformed,
-}
+use crate::currency::CurrencyCode;
+use crate::rounding::RoundingMode;
 
 /// An amount of money: a whole number of the currency's minor units (cents,
 /// for the euro) and the currency.
 ///
 /// All arithmetic is checked: it fails on overflow or when the currencies
-/// differ, and it never rounds. That's why there are no `+` and `-`
-/// operators, only `checked_*` methods that return a [`Result`].
+/// differ. That's why there are no `+` and `-` operators, only `checked_*`
+/// methods that return a [`Result`]. Only [`Money::checked_mul_ratio`]
+/// rounds, in the mode its caller names; everything else is exact.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Money {
     minor_units: i64,
@@ -128,6 +80,31 @@ impl Money {
         Ok(Self::from_minor_units(minor_units, self.currency))
     }
 
+    /// `self × numerator ÷ denominator`, rounded once to whole minor units in
+    /// `rounding`: for example 19 % of an amount (19 ÷ 100), or a third of it
+    /// (1 ÷ 3).
+    ///
+    /// The calculation is exact in 128 bits, so only its result is rounded,
+    /// in the mode the caller names, usually the book's (D-027). Fails if
+    /// `denominator` is zero or the result doesn't fit into 64 bits.
+    pub fn checked_mul_ratio(
+        self,
+        numerator: i64,
+        denominator: i64,
+        rounding: RoundingMode,
+    ) -> Result<Self, MoneyError> {
+        if denominator == 0 {
+            return Err(MoneyError::DivisionByZero);
+        }
+        // Two 64-bit factors always fit into 128 bits.
+        let product = i128::from(self.minor_units) * i128::from(numerator);
+        let rounded = rounding
+            .divide(product, i128::from(denominator))
+            .ok_or(MoneyError::Overflow)?;
+        let minor_units = i64::try_from(rounded).map_err(|_| MoneyError::Overflow)?;
+        Ok(Self::from_minor_units(minor_units, self.currency))
+    }
+
     /// The sum of `amounts`, all of which must be in `currency`.
     ///
     /// The sum is computed exactly, so it only fails if the final result
@@ -177,6 +154,9 @@ pub enum MoneyError {
     },
     /// The result doesn't fit into 64 bits.
     Overflow,
+    /// A calculation would divide by zero, e.g. split an amount into zero
+    /// shares.
+    DivisionByZero,
 }
 
 #[cfg(test)]
@@ -191,25 +171,6 @@ mod tests {
         Ok(code) => code,
         Err(_) => panic!("USD is a valid code"),
     };
-
-    #[test]
-    fn currency_code_accepts_three_capital_letters() {
-        assert_eq!(
-            CurrencyCode::new("EUR").map(|c| c.to_string()),
-            Ok("EUR".into())
-        );
-    }
-
-    #[test]
-    fn currency_code_rejects_anything_else() {
-        for text in ["", "EU", "EURO", "eur", "E1R", "EÜR", " EU"] {
-            assert_eq!(
-                CurrencyCode::new(text),
-                Err(CurrencyCodeError::Malformed),
-                "{text:?}"
-            );
-        }
-    }
 
     #[test]
     fn adds_and_subtracts_exactly() {
@@ -263,5 +224,65 @@ mod tests {
     #[test]
     fn sum_of_nothing_is_zero() {
         assert_eq!(Money::checked_sum(EUR, []), Ok(Money::zero(EUR)));
+    }
+
+    #[test]
+    fn takes_a_share_rounded_once() {
+        let rounding = RoundingMode::HalfAwayFromZero;
+        let hundred = Money::from_minor_units(10_000, EUR);
+        assert_eq!(
+            hundred.checked_mul_ratio(1, 3, rounding),
+            Ok(Money::from_minor_units(3333, EUR))
+        );
+        assert_eq!(
+            hundred.checked_mul_ratio(2, 3, rounding),
+            Ok(Money::from_minor_units(6667, EUR))
+        );
+        // 19 % of €1.50 is 28.5 cents: exactly halfway.
+        let price = Money::from_minor_units(150, EUR);
+        let refund = Money::from_minor_units(-150, EUR);
+        for (rounding, cents) in [
+            (RoundingMode::HalfAwayFromZero, 29),
+            (RoundingMode::HalfEven, 28),
+            (RoundingMode::HalfTowardZero, 28),
+        ] {
+            assert_eq!(
+                price.checked_mul_ratio(19, 100, rounding),
+                Ok(Money::from_minor_units(cents, EUR)),
+                "{rounding:?}"
+            );
+            assert_eq!(
+                refund.checked_mul_ratio(19, 100, rounding),
+                Ok(Money::from_minor_units(-cents, EUR)),
+                "{rounding:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_ratio_overflows_only_if_the_result_does() {
+        let max = Money::from_minor_units(i64::MAX, EUR);
+        let rounding = RoundingMode::default();
+        // Doubling and then halving stays exact, although the doubled amount
+        // doesn't fit into 64 bits.
+        assert_eq!(max.checked_mul_ratio(2, 2, rounding), Ok(max));
+        assert_eq!(
+            max.checked_mul_ratio(2, 1, rounding),
+            Err(MoneyError::Overflow)
+        );
+        let min = Money::from_minor_units(i64::MIN, EUR);
+        assert_eq!(
+            min.checked_mul_ratio(-1, 1, rounding),
+            Err(MoneyError::Overflow)
+        );
+    }
+
+    #[test]
+    fn a_ratio_never_divides_by_zero() {
+        let amount = Money::from_minor_units(100, EUR);
+        assert_eq!(
+            amount.checked_mul_ratio(1, 0, RoundingMode::default()),
+            Err(MoneyError::DivisionByZero)
+        );
     }
 }

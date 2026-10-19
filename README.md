@@ -52,6 +52,8 @@ python3 flatpak-cargo-generator.py Cargo.lock -o packaging/flatpak/cargo-sources
 
 When strings in the UI change, update the translations with `tools/sdk.sh tools/update-translations.sh`.
 
+When SIX publishes a new ISO 4217 list, download list one and update KassenSturz's currency table with `python3 tools/update-currency-table.py list-one.xml` (D-077 in [`docs/DECISIONS.md`](docs/DECISIONS.md)).
+
 Building without Flatpak works too, with CMake, Extra CMake Modules, Qt 6.11, KDE Frameworks 6.30 and Rust 1.98 or newer: `cmake -B build/cmake && cmake --build build/cmake`.
 
 ## For AI agents

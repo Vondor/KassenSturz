@@ -27,7 +27,7 @@ pub struct SampleBook {
 /// and two trips to the grocery store.
 pub fn create() -> Result<SampleBook, StoreError> {
     let mut book = Book::create_in_memory()?;
-    book.add_currency(EUR, 2)?;
+    book.use_currency(EUR)?;
     let checking = add_account(&mut book, "Checking account", AccountKind::Asset)?;
     let salary = add_account(&mut book, "Salary", AccountKind::Income)?;
     let rent = add_account(&mut book, "Rent", AccountKind::Expense)?;

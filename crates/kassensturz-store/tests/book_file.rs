@@ -6,8 +6,8 @@
 use std::path::{Path, PathBuf};
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, CurrencyCode, Date, Money, Split, SplitId, Transaction,
-    TransactionId,
+    Account, AccountId, AccountKind, CurrencyCode, Date, Money, RoundingMode, Split, SplitId,
+    Transaction, TransactionId,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -38,7 +38,7 @@ fn eur() -> CurrencyCode {
 
 /// Fills a new book with one account and one transaction; returns the account.
 fn fill(book: &mut Book) -> AccountId {
-    book.add_currency(eur(), 2).expect("currency added");
+    book.use_currency(eur()).expect("currency used");
     let checking = Account {
         id: AccountId::generate(),
         name: "Checking account".into(),
@@ -100,6 +100,22 @@ fn a_book_keeps_its_data_after_closing() {
     assert_eq!(
         book.balance(checking).expect("balance"),
         Money::from_minor_units(-5320, eur())
+    );
+}
+
+#[test]
+fn a_book_keeps_its_rounding_mode() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    {
+        let mut book = Book::create(&path).expect("book created");
+        book.set_rounding_mode(RoundingMode::HalfEven)
+            .expect("rounding mode set");
+    }
+    let book = Book::open(&path).expect("book opened again");
+    assert_eq!(
+        book.rounding_mode().expect("rounding mode"),
+        RoundingMode::HalfEven
     );
 }
 

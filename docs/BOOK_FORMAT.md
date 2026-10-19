@@ -2,12 +2,12 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029). Every change to the layout updates this document.
 
-**Status: development layout 1, from the M0 walking skeleton (D-068).** Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds the application ID (D-037), backups (D-033), the lock file (D-038), the change history (D-032, D-066) and much more.
+**Status: development layout 2.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), and books with layout 1 are turned away. Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds the application ID (D-037), backups (D-033), the lock file (D-038), the change history (D-032, D-066) and much more.
 
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).
-- `PRAGMA user_version` holds the layout version: currently `1`. A file with `0` isn't treated as a book.
+- `PRAGMA user_version` holds the layout version: currently `2`. A file with `0` isn't treated as a book.
 - The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033).
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
 
@@ -21,9 +21,18 @@ How a KassenSturz household book is stored, so other programs can read it (D-046
 
 ## Tables
 
+### `settings`
+
+The book's settings: exactly one row. They are stored in the book, not in the app, so every computer calculates the same way.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | INTEGER, primary key | Always `1` |
+| `rounding_mode` | TEXT | How calculations round a result that falls between two minor units, e.g. a third of €1.00 (D-027). One of `half_away_from_zero` (the default: 2.5 → 3, −2.5 → −3), `half_even` (2.5 → 2, 3.5 → 4), `half_toward_zero` (2.5 → 2), `toward_zero` (2.9 → 2), `away_from_zero` (2.1 → 3), `floor` (−2.1 → −3) or `ceiling` (2.1 → 3). Changing it never changes stored amounts, only later calculations |
+
 ### `currencies`
 
-The currencies the book uses. A currency's decimal places are fixed when it is first used, so an update to KassenSturz's currency table can never rescale stored amounts (D-027).
+The currencies the book uses. A currency's decimal places are taken from KassenSturz's ISO 4217 table when the book first uses it (D-062) and stay fixed from then on, so an update to that table can never rescale stored amounts (D-027).
 
 | Column | Type | Meaning |
 |---|---|---|

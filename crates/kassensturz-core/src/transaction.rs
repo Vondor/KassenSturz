@@ -5,8 +5,9 @@
 
 use crate::Date;
 use crate::account::AccountId;
+use crate::currency::CurrencyCode;
 use crate::id::define_id;
-use crate::money::{CurrencyCode, Money};
+use crate::money::Money;
 
 define_id!(
     /// Identifies a transaction within a book.

@@ -6,7 +6,7 @@
 use std::io::Write;
 
 use kassensturz_core::{Account, AccountId, Money};
-use kassensturz_store::Book;
+use kassensturz_store::{Action, Book};
 
 use crate::amount::{format_minor, money_text};
 use crate::args::Arguments;
@@ -34,15 +34,19 @@ pub(crate) fn account(
             let [name] = args.exactly(["name"])?;
             let account_type = parse_account_type(args.required("type")?)?;
             let currency = parse_currency(args.required("currency")?)?;
-            book.use_currency(currency)?;
-            book.add_account(&Account {
-                id: AccountId::generate(),
-                name: name.trim().to_owned(),
-                kind: account_type.kind(),
-                currency,
-                account_type: Some(account_type),
-                parent: None,
-                closed: false,
+            // One change, which undo takes back as a whole, and none at all
+            // if the account is refused.
+            book.as_one_action(Action::AddAccount, |book| {
+                book.use_currency(currency)?;
+                book.add_account(&Account {
+                    id: AccountId::generate(),
+                    name: name.trim().to_owned(),
+                    kind: account_type.kind(),
+                    currency,
+                    account_type: Some(account_type),
+                    parent: None,
+                    closed: false,
+                })
             })?;
             writeln!(out, "Added the account {}.", plain(name.trim()))?;
         }
@@ -136,15 +140,17 @@ pub(crate) fn category(
                 (None, Some(parent)) => parent.currency,
                 (None, None) => return Err(CliError::usage("--currency is needed")),
             };
-            book.use_currency(currency)?;
-            book.add_account(&Account {
-                id: AccountId::generate(),
-                name: name.trim().to_owned(),
-                kind,
-                currency,
-                account_type: None,
-                parent: parent.map(|parent| parent.id),
-                closed: false,
+            book.as_one_action(Action::AddCategory, |book| {
+                book.use_currency(currency)?;
+                book.add_account(&Account {
+                    id: AccountId::generate(),
+                    name: name.trim().to_owned(),
+                    kind,
+                    currency,
+                    account_type: None,
+                    parent: parent.map(|parent| parent.id),
+                    closed: false,
+                })
             })?;
             writeln!(out, "Added the category {}.", plain(name.trim()))?;
         }

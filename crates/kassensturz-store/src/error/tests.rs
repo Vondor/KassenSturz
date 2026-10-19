@@ -85,6 +85,10 @@ fn examples() -> Vec<ErrorReport> {
             error: TransactionError::Overflow,
         },
         Corruption::BrokenReferences,
+        Corruption::BadAction(text("import_file")),
+        Corruption::BadTimestamp(text("2026-10-19 11:04")),
+        Corruption::BadHistoryRetention(-1),
+        Corruption::HistoryMismatch,
     ];
     let store_errors = [
         StoreError::AlreadyExists,

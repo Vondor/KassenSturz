@@ -2,15 +2,16 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029). Every change to the layout updates this document.
 
-**Status: development layout 6.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2), layout 4 the type and closed flag of accounts (M1.4), layout 5 the category tree (M1.5) and layout 6 parts without a category, parts in another currency with their rates, and what a bank or file delivered (M1.6). Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds the change history (D-032, D-066) and much more.
+**Status: development layout 7.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2), layout 4 the type and closed flag of accounts (M1.4), layout 5 the category tree (M1.5), layout 6 parts without a category, parts in another currency with their rates, and what a bank or file delivered (M1.6), and layout 7 the [change history](#the-change-history) (M1.9). Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds much more.
 
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).
 - `PRAGMA application_id` is `0x4B535A42` (1263753794), the letters `KSZB` for KassenSturz book (D-037, D-080). KassenSturz reads it, and SQLite's header, from the file's first bytes before SQLite opens the file. Only a file with both is opened, so another program's SQLite file is never changed, not even its journal mode.
-- `PRAGMA user_version` holds the layout version: currently `6`.
+- `PRAGMA user_version` holds the layout version: currently `7`.
 - The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033). While the book is open, its [lock file](#the-lock-file) sits next to it.
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
+- Deleted content is overwritten (`PRAGMA secure_delete = ON` on every connection), so what KassenSturz deletes, such as a change history the user cleans up, is gone from the file too, though not from copies of it such as backups (D-066, D-086).
 
 ## Conventions
 
@@ -135,13 +136,57 @@ The book's price table: exchange rates, each for one day (D-028). In v1 they are
 
 One unit of `from_currency` costs `rate_digits` × 10^−`rate_decimal_places` units of `to_currency`. There is at most one rate per `from_currency`, `to_currency` and `date` (a unique index); the other direction is a separate rate, and converting that way divides by the rate instead.
 
+### `history_settings`
+
+How long the book keeps its [change history](#the-change-history): exactly one row (D-066). Like the settings, it is stored in the book, so every computer keeps the same history.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | INTEGER, primary key | Always `1` |
+| `keep_days` | INTEGER, 0 to 4294967295, may be NULL | For how many days changes are kept: `30` for a new book and for books from earlier layouts. NULL keeps them forever. `0` keeps no history in the book: KassenSturz keeps it in memory while the book is open |
+
+### `changes`
+
+The change history (D-032, D-066): one row per user action, e.g. adding an account or changing a transaction.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | BLOB (16 bytes), primary key | UUIDv7 |
+| `sequence` | INTEGER, from 1, unique | The order the changes were made in. Undo and redo follow it, not `made_at`, since a computer's clock can be wrong |
+| `action` | TEXT | What the user did: `set_rounding_mode`, `use_currency`, `add_account`, `rename_account`, `close_account`, `reopen_account`, `add_category`, `rename_category`, `move_category`, `add_rate`, `remove_rate`, `add_transaction`, `edit_transaction` or `remove_transaction` |
+| `made_at` | TEXT | When, ISO 8601 in UTC, in whole seconds, e.g. `2026-10-19T11:04:02Z`, by the clock of the computer it was made on |
+| `undone` | INTEGER, 0 or 1 | `1` if it is undone, so redo can make it again |
+
+### `changed_settings`, `changed_currencies` and the other `changed_` tables
+
+For each table that holds the book's data (`settings`, `currencies`, `accounts`, `transactions`, `splits`, `split_rates`, `split_imports` and `prices`), a table named `changed_` plus its name, e.g. `changed_accounts`, holds copies of the rows each change touched.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `change_id` | BLOB → `changes.id` | The change; deleting it deletes these rows |
+| `side` | TEXT | `before`: the row's values before the change; `after`: its values after it |
+| *every column of the table, in its order* | its type, may be NULL | The row's values. The column that identifies a row (`id`, `code` or `split_id`) is never NULL |
+
+Primary key: `change_id`, the column that identifies the row, and `side`.
+
+A row the change added has only an `after` copy, a row it removed only a `before` copy. A row it changed has both, and they differ: a row changed and then changed back within the same action isn't recorded. The copies have no checks of their own; the table's checks apply when they are written back.
+
 ## Reading a book
 
 An account's balance is the sum of its parts' amounts in its currency, `coalesce(foreign_amount, amount)` for its `account_id`. Its register joins `splits` with `transactions` and orders by `booking_date`, then `id`. Add amounts in 64-bit integers or wider, never as floating point. Parts with a NULL `account_id` count in no account's balance; they are the amounts that have no category yet. The rate from one currency into another on a day is the row with the latest `date` on or before that day.
 
+## The change history
+
+Every change KassenSturz makes to a book's data is a user action, recorded as one row of `changes` in the same transaction (D-066, D-086). KassenSturz records it itself, with temporary triggers on its own connection to the book, which aren't stored in the book, and refuses any change outside a user action, so none escapes the history. Changes made by another program aren't recorded.
+
+- **Undo** writes the `before` copies of the newest change that isn't undone back into their tables: the rows it touched get their old values back, rows it added are removed and rows it removed come back. **Redo** writes the `after` copies of the oldest undone change. Changes are undone newest first and redone oldest first, so the book is always as it was at some moment, also after a restart or on another computer. A new change deletes the undone ones: they can't be redone anymore.
+- Before writing back, KassenSturz checks that the book holds exactly what the other copies say, and afterwards that every reference and every check of the book still holds. If not, e.g. because another program changed the book, nothing is changed and the change can't be undone or redone (`store.corrupt.history-mismatch`); cleaning up the history removes it.
+- **How long it is kept:** `history_settings.keep_days`. When the book is opened, when a change is made and when the setting changes, the changes made longer ago are deleted, from the oldest change up to the newest one that is that old, so the history has no gaps even if a clock was wrong. With `0`, the book holds no history: KassenSturz keeps it in memory, where it is lost when the book is closed. **Clean up history** deletes all of it (D-066).
+- A migration that changes one of the data tables changes its `changed_` table the same way and converts the copies kept there, so changes made before an update can still be undone (D-066).
+
 ## Migrations
 
-Every book is built by the same migrations, oldest first: a new book runs all of them on an empty database, and a book with an older layout runs the ones it lacks (D-045). They run in one transaction, which also sets the application ID and `user_version`, so an update either finishes or leaves the book exactly as it was. Foreign keys are off while they run, so a migration can rebuild a table without deleting the rows that refer to it; every reference is checked before the transaction is committed. A book is updated only after a [backup](#backups) of it was made (AGENTS.md §3.1 rule 8). A book with a newer layout, or with a layout older than the first migration KassenSturz still has, is turned away.
+Every book is built by the same migrations, oldest first: a new book runs all of them on an empty database, and a book with an older layout runs the ones it lacks (D-045). They run in one transaction, which also sets the application ID and `user_version`, so an update either finishes or leaves the book exactly as it was. Foreign keys are off while they run, so a migration can rebuild a table without deleting the rows that refer to it; every reference is checked before the transaction is committed. A book is updated only after a [backup](#backups) of it was made (AGENTS.md §3.1 rule 8). A book with a newer layout, or with a layout older than the first migration KassenSturz still has, is turned away. A migration isn't a change in the [change history](#the-change-history): the backup made before it is the way back.
 
 ## Backups
 

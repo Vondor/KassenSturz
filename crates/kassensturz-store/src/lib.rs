@@ -11,6 +11,7 @@
 
 mod backup;
 mod error;
+mod history;
 mod layout;
 mod lock;
 mod transactions;
@@ -27,6 +28,7 @@ use kassensturz_core::{
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
 pub use error::{Corruption, DatabaseError, StoreError};
+pub use history::{Action, Change, ChangeId, HistoryRetention};
 pub use lock::Lock;
 pub use transactions::RegisterEntry;
 
@@ -46,8 +48,13 @@ pub struct Computer {
 }
 
 /// An open household book.
+///
+/// Every change to it is recorded in its change history, one entry per user
+/// action, and can be undone and redone (D-066, [`Book::undo`]).
 pub struct Book {
     conn: Connection,
+    /// Whether a user action is under way ([`Book::as_one_action`]).
+    recording: bool,
     /// The book's lock file, removed when the book is closed. Declared after
     /// `conn`, so the database is closed first. Books in memory have none.
     _lock: Option<HeldLock>,
@@ -160,7 +167,23 @@ impl Book {
     fn finish(conn: Connection, lock: Option<HeldLock>) -> Result<Self, StoreError> {
         // SQLite checks foreign keys only if asked to, on every connection.
         conn.pragma_update(None, "foreign_keys", true)?;
-        Ok(Self { conn, _lock: lock })
+        // SQLite overwrites what is deleted, so a change history that is
+        // cleaned up or too old is gone from the file too (D-066).
+        conn.pragma_update(None, "secure_delete", true)?;
+        // The history's temporary tables are kept in memory, never in a file.
+        // Set before they are made: changing it drops temporary tables.
+        conn.pragma_update(None, "temp_store", "MEMORY")?;
+        // Without it, a row that a REPLACE deletes fires no trigger, so the
+        // history would miss it. The history's triggers fire no others.
+        conn.pragma_update(None, "recursive_triggers", true)?;
+        history::prepare(&conn)?;
+        let mut book = Self {
+            conn,
+            recording: false,
+            _lock: lock,
+        };
+        book.prune_history()?;
+        Ok(book)
     }
 
     /// The rounding mode of this book's calculations (D-027). New books round
@@ -182,15 +205,17 @@ impl Book {
     /// It applies only to calculations from now on: amounts already stored
     /// are never recalculated (D-027).
     pub fn set_rounding_mode(&mut self, rounding: RoundingMode) -> Result<(), StoreError> {
-        let changed = self.conn.execute(
-            "UPDATE settings SET rounding_mode = ?1 WHERE id = 1",
-            [rounding_mode_to_text(rounding)],
-        )?;
-        if changed == 1 {
-            Ok(())
-        } else {
-            Err(StoreError::Corrupt(Corruption::MissingSettings))
-        }
+        self.as_one_action(Action::SetRoundingMode, |book| {
+            let changed = book.conn.execute(
+                "UPDATE settings SET rounding_mode = ?1 WHERE id = 1",
+                [rounding_mode_to_text(rounding)],
+            )?;
+            if changed == 1 {
+                Ok(())
+            } else {
+                Err(StoreError::Corrupt(Corruption::MissingSettings))
+            }
+        })
     }
 
     /// Starts using `currency` in this book, unless it's in use already, and
@@ -207,11 +232,13 @@ impl Book {
         let minor_digits = currency
             .iso_minor_digits()
             .ok_or(StoreError::UnlistedCurrency(currency))?;
-        self.conn.execute(
-            "INSERT INTO currencies (code, minor_digits) VALUES (?1, ?2)",
-            params![currency.as_str(), minor_digits],
-        )?;
-        Ok(minor_digits)
+        self.as_one_action(Action::UseCurrency, |book| {
+            book.conn.execute(
+                "INSERT INTO currencies (code, minor_digits) VALUES (?1, ?2)",
+                params![currency.as_str(), minor_digits],
+            )?;
+            Ok(minor_digits)
+        })
     }
 
     /// How many decimal places `currency` has in this book.
@@ -257,20 +284,27 @@ impl Book {
     pub fn add_account(&mut self, account: &Account) -> Result<(), StoreError> {
         self.currency_minor_digits(account.currency)?;
         self.check_account(account)?;
-        self.conn.execute(
-            "INSERT INTO accounts (id, name, kind, currency, account_type, closed, parent_id)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![
-                account.id.to_bytes(),
-                account.name,
-                kind_to_text(account.kind),
-                account.currency.as_str(),
-                account.account_type.map(type_to_text),
-                account.closed,
-                account.parent.map(AccountId::to_bytes),
-            ],
-        )?;
-        Ok(())
+        let action = if account.kind.is_category() {
+            Action::AddCategory
+        } else {
+            Action::AddAccount
+        };
+        self.as_one_action(action, |book| {
+            book.conn.execute(
+                "INSERT INTO accounts (id, name, kind, currency, account_type, closed, parent_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    account.id.to_bytes(),
+                    account.name,
+                    kind_to_text(account.kind),
+                    account.currency.as_str(),
+                    account.account_type.map(type_to_text),
+                    account.closed,
+                    account.parent.map(AccountId::to_bytes),
+                ],
+            )?;
+            Ok(())
+        })
     }
 
     /// The checks `add_account`, `rename_account` and `move_category` share,
@@ -402,11 +436,18 @@ impl Book {
             ..self.account(id)?
         };
         self.check_account(&account)?;
-        self.conn.execute(
-            "UPDATE accounts SET name = ?2 WHERE id = ?1",
-            params![id.to_bytes(), name],
-        )?;
-        Ok(())
+        let action = if account.kind.is_category() {
+            Action::RenameCategory
+        } else {
+            Action::RenameAccount
+        };
+        self.as_one_action(action, |book| {
+            book.conn.execute(
+                "UPDATE accounts SET name = ?2 WHERE id = ?1",
+                params![id.to_bytes(), name],
+            )?;
+            Ok(())
+        })
     }
 
     /// Moves a category inside `parent`, or to the top level if `parent` is
@@ -425,11 +466,13 @@ impl Book {
         }
         let moved = Account { parent, ..account };
         self.check_account(&moved)?;
-        self.conn.execute(
-            "UPDATE accounts SET parent_id = ?2 WHERE id = ?1",
-            params![id.to_bytes(), parent.map(AccountId::to_bytes)],
-        )?;
-        Ok(())
+        self.as_one_action(Action::MoveCategory, |book| {
+            book.conn.execute(
+                "UPDATE accounts SET parent_id = ?2 WHERE id = ?1",
+                params![id.to_bytes(), parent.map(AccountId::to_bytes)],
+            )?;
+            Ok(())
+        })
     }
 
     /// Every income and spending category as a tree, flattened: income
@@ -528,11 +571,18 @@ impl Book {
     }
 
     fn set_closed(&mut self, id: AccountId, closed: bool) -> Result<(), StoreError> {
-        self.conn.execute(
-            "UPDATE accounts SET closed = ?2 WHERE id = ?1",
-            params![id.to_bytes(), closed],
-        )?;
-        Ok(())
+        let action = if closed {
+            Action::CloseAccount
+        } else {
+            Action::ReopenAccount
+        };
+        self.as_one_action(action, |book| {
+            book.conn.execute(
+                "UPDATE accounts SET closed = ?2 WHERE id = ?1",
+                params![id.to_bytes(), closed],
+            )?;
+            Ok(())
+        })
     }
 
     /// Adds an exchange rate to the book's price table (D-028).
@@ -562,35 +612,39 @@ impl Book {
                 existing: DatedRateId::from_bytes(existing),
             });
         }
-        self.conn.execute(
-            "INSERT INTO prices
-                 (id, date, from_currency, to_currency, rate_digits, rate_decimal_places, source)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![
-                rate.id.to_bytes(),
-                date,
-                rate.from.as_str(),
-                rate.to.as_str(),
-                rate.rate.digits(),
-                rate.rate.decimal_places(),
-                source_to_text(rate.source),
-            ],
-        )?;
-        Ok(())
+        self.as_one_action(Action::AddRate, |book| {
+            book.conn.execute(
+                "INSERT INTO prices
+                     (id, date, from_currency, to_currency, rate_digits, rate_decimal_places, source)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    rate.id.to_bytes(),
+                    date,
+                    rate.from.as_str(),
+                    rate.to.as_str(),
+                    rate.rate.digits(),
+                    rate.rate.decimal_places(),
+                    source_to_text(rate.source),
+                ],
+            )?;
+            Ok(())
+        })
     }
 
     /// Removes an exchange rate from the price table. Amounts converted with
     /// it keep their values: each conversion stores the amounts it produced
     /// (D-043).
     pub fn remove_rate(&mut self, id: DatedRateId) -> Result<(), StoreError> {
-        let removed = self
-            .conn
-            .execute("DELETE FROM prices WHERE id = ?1", [id.to_bytes()])?;
-        if removed == 1 {
-            Ok(())
-        } else {
-            Err(StoreError::UnknownRate(id))
-        }
+        self.as_one_action(Action::RemoveRate, |book| {
+            let removed = book
+                .conn
+                .execute("DELETE FROM prices WHERE id = ?1", [id.to_bytes()])?;
+            if removed == 1 {
+                Ok(())
+            } else {
+                Err(StoreError::UnknownRate(id))
+            }
+        })
     }
 
     /// The exchange rate with this ID.

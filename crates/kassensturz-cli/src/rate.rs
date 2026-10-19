@@ -7,7 +7,7 @@ use std::io::Write;
 use std::str::FromStr;
 
 use kassensturz_core::{DatedRate, DatedRateId, ExchangeRate, RateSource};
-use kassensturz_store::Book;
+use kassensturz_store::{Action, Book};
 
 use crate::args::Arguments;
 use crate::error::CliError;
@@ -28,16 +28,19 @@ pub(crate) fn rate(book: &mut Book, args: &[String], out: &mut dyn Write) -> Res
             let date = parse_date(args.required("date")?)?;
             let rate = ExchangeRate::from_str(args.required("rate")?)?;
             // Both currencies are in use from now on, so a rate can come
-            // before the first account in the currency.
-            book.use_currency(from)?;
-            book.use_currency(to)?;
-            book.add_rate(&DatedRate {
-                id: DatedRateId::generate(),
-                date,
-                from,
-                to,
-                rate,
-                source: RateSource::Manual,
+            // before the first account in the currency. One change, which
+            // undo takes back as a whole.
+            book.as_one_action(Action::AddRate, |book| {
+                book.use_currency(from)?;
+                book.use_currency(to)?;
+                book.add_rate(&DatedRate {
+                    id: DatedRateId::generate(),
+                    date,
+                    from,
+                    to,
+                    rate,
+                    source: RateSource::Manual,
+                })
             })?;
             writeln!(out, "Added the rate: 1 {from} = {rate} {to} on {date}.")?;
         }

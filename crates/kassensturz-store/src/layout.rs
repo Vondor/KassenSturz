@@ -29,8 +29,14 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// gets the same layout whether it was created today or upgraded later.
 /// Before 0.1 the development migrations are merged into one (D-045), and
 /// `FIRST_VERSION` moves past them, so development books are turned away.
-pub(crate) const MIGRATIONS: [&str; 6] =
-    [LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4, LAYOUT_5, LAYOUT_6];
+///
+/// A migration that changes a table the change history records also changes
+/// its `changed_` table the same way and converts the rows kept there, so
+/// changes made before the update can still be undone (D-066); so does the
+/// list of recorded tables in `history.rs`.
+pub(crate) const MIGRATIONS: [&str; 7] = [
+    LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4, LAYOUT_5, LAYOUT_6, LAYOUT_7,
+];
 
 /// The layout version the first migration creates.
 pub(crate) const FIRST_VERSION: i32 = 1;
@@ -183,6 +189,130 @@ CREATE TABLE split_imports (
 ) STRICT;
 ";
 
+/// Layout 7 (M1.9): the change history (D-066, D-086). How long it is kept
+/// is a setting of the book: a number of days, or forever (`NULL`); new and
+/// updated books keep it for 30 days. Each user action is one row of
+/// `changes`, numbered in the order the actions were made. The rows it
+/// touched are copied into the `changed_` table of their table, once with
+/// their values before the action and once with those after it; a row it
+/// added has no values before, one it removed none after. The copies have
+/// the same columns as the table, without its checks, which apply when the
+/// values are written back.
+const LAYOUT_7: &str = "
+CREATE TABLE history_settings (
+    id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+    keep_days INTEGER CHECK (keep_days BETWEEN 0 AND 4294967295)
+) STRICT;
+
+INSERT INTO history_settings (id, keep_days) VALUES (1, 30);
+
+CREATE TABLE changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1))
+) STRICT;
+
+CREATE TABLE changed_settings (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id INTEGER NOT NULL,
+    rounding_mode TEXT,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE changed_currencies (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    code TEXT NOT NULL,
+    minor_digits INTEGER,
+    PRIMARY KEY (change_id, code, side)
+) STRICT;
+
+CREATE TABLE changed_accounts (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    name TEXT,
+    kind TEXT,
+    currency TEXT,
+    account_type TEXT,
+    closed INTEGER,
+    parent_id BLOB,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE changed_transactions (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    booking_date TEXT,
+    payee TEXT,
+    currency TEXT,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE changed_splits (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    transaction_id BLOB,
+    position INTEGER,
+    account_id BLOB,
+    amount INTEGER,
+    foreign_amount INTEGER,
+    foreign_currency TEXT,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE changed_split_rates (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    split_id BLOB NOT NULL,
+    rate_id BLOB,
+    date TEXT,
+    from_currency TEXT,
+    to_currency TEXT,
+    rate_digits INTEGER,
+    rate_decimal_places INTEGER,
+    source TEXT,
+    PRIMARY KEY (change_id, split_id, side)
+) STRICT;
+
+CREATE TABLE changed_split_imports (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    split_id BLOB NOT NULL,
+    bank_id TEXT,
+    booking_date TEXT,
+    value_date TEXT,
+    other_party_name TEXT,
+    other_party_iban TEXT,
+    remittance_information TEXT,
+    PRIMARY KEY (change_id, split_id, side)
+) STRICT;
+
+CREATE TABLE changed_prices (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    date TEXT,
+    from_currency TEXT,
+    to_currency TEXT,
+    rate_digits INTEGER,
+    rate_decimal_places INTEGER,
+    source TEXT,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -244,7 +374,7 @@ mod tests {
     use super::*;
     use crate::lock::lock_path;
     use crate::test_folder::TempFolder;
-    use crate::{Book, Computer};
+    use crate::{Book, Computer, HistoryRetention};
 
     const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
         Ok(code) => code,
@@ -369,6 +499,13 @@ mod tests {
             assert_eq!(
                 book.rounding_mode().expect("rounding mode"),
                 RoundingMode::HalfAwayFromZero
+            );
+            // The change history starts empty, kept for 30 days, and the
+            // update itself is no change the user could undo.
+            assert_eq!(book.history().expect("history"), Vec::new());
+            assert_eq!(
+                book.history_retention().expect("retention"),
+                HistoryRetention::Days(30)
             );
             drop(book);
 

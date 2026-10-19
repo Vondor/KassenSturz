@@ -6,6 +6,37 @@
 use super::*;
 use kassensturz_core::{Money, Split, Transaction, TransactionError, TransactionId};
 
+/// The book's database, for a test to change it as another program could
+/// (D-046): past KassenSturz's checks and outside the change history, which
+/// otherwise refuses every change outside a user action. The history records
+/// again once it is dropped, at the end of the statement that uses it.
+pub(crate) struct AnotherProgram<'a>(&'a Connection);
+
+impl Book {
+    pub(crate) fn as_another_program(&self) -> AnotherProgram<'_> {
+        self.conn
+            .execute("INSERT INTO temp.history_state (recording) VALUES (0)", [])
+            .expect("recording paused");
+        AnotherProgram(&self.conn)
+    }
+}
+
+impl std::ops::Deref for AnotherProgram<'_> {
+    type Target = Connection;
+
+    fn deref(&self) -> &Connection {
+        self.0
+    }
+}
+
+impl Drop for AnotherProgram<'_> {
+    fn drop(&mut self) {
+        self.0
+            .execute("DELETE FROM temp.history_state", [])
+            .expect("recording resumed");
+    }
+}
+
 pub(crate) const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
     Err(_) => panic!("EUR is a valid code"),
@@ -200,7 +231,7 @@ fn a_currencys_decimal_places_stay_fixed() {
     );
     book.add_transaction(&shopping).expect("added");
     // As if the book had started using the euro with a table that said 3.
-    book.conn
+    book.as_another_program()
         .execute(
             "UPDATE currencies SET minor_digits = 3 WHERE code = 'EUR'",
             [],
@@ -269,7 +300,7 @@ fn changing_the_rounding_mode_changes_no_stored_amount() {
 fn missing_or_unknown_settings_are_reported() {
     let mut book = Book::create_in_memory().expect("book created");
     // As if another program had changed the book (D-046).
-    book.conn
+    book.as_another_program()
         .execute("DELETE FROM settings", [])
         .expect("settings deleted");
     assert!(matches!(
@@ -280,7 +311,7 @@ fn missing_or_unknown_settings_are_reported() {
         book.set_rounding_mode(RoundingMode::HalfEven),
         Err(StoreError::Corrupt(Corruption::MissingSettings))
     ));
-    book.conn
+    book.as_another_program()
         .execute_batch(
             "PRAGMA ignore_check_constraints = ON;
              INSERT INTO settings (id, rounding_mode) VALUES (1, 'bankers');",
@@ -402,7 +433,7 @@ fn an_unbalanced_transaction_in_the_file_is_reported() {
     );
     book.add_transaction(&shopping).expect("added");
     // As if another program had changed the book (D-046).
-    book.conn
+    book.as_another_program()
         .execute("UPDATE splits SET amount = 5300 WHERE amount = 5320", [])
         .expect("changed behind KassenSturz's back");
     assert!(matches!(
@@ -430,7 +461,7 @@ fn the_book_refuses_floating_point_amounts() {
     book.add_transaction(&shopping).expect("added");
     // STRICT tables reject a REAL amount instead of storing it (AGENTS.md
     // §3.1 rule 1). Everything else about this part is valid.
-    let result = book.conn.execute(
+    let result = book.as_another_program().execute(
         "INSERT INTO splits (id, transaction_id, position, account_id, amount)
          VALUES (randomblob(16), ?1, 2, ?2, 53.2)",
         params![shopping.id().to_bytes(), checking.to_bytes()],
@@ -601,13 +632,13 @@ fn bad_rates_in_the_file_are_reported() {
         ("to_currency", "'EUR'"),
     ] {
         let result = book
-            .conn
+            .as_another_program()
             .execute(&format!("UPDATE prices SET {column} = {value}"), []);
         assert!(result.is_err(), "{column} = {value} was accepted");
     }
     // Without them, e.g. in a file changed by another program (D-046), the
     // rate is reported, never returned.
-    book.conn
+    book.as_another_program()
         .execute_batch(
             "PRAGMA ignore_check_constraints = ON;
              UPDATE prices SET rate_decimal_places = 40;",
@@ -617,7 +648,7 @@ fn bad_rates_in_the_file_are_reported() {
         book.rate(rate.id),
         Err(StoreError::Corrupt(Corruption::BadRate(id))) if id == rate.id
     ));
-    book.conn
+    book.as_another_program()
         .execute(
             "UPDATE prices SET rate_decimal_places = 2, source = 'download'",
             [],
@@ -852,11 +883,14 @@ fn bad_account_types_in_the_file_are_reported() {
         "UPDATE accounts SET closed = 2",
         "UPDATE accounts SET closed = NULL",
     ] {
-        assert!(book.conn.execute(update, []).is_err(), "{update}");
+        assert!(
+            book.as_another_program().execute(update, []).is_err(),
+            "{update}"
+        );
     }
     // Without them, e.g. in a file changed by another program (D-046), the
     // account is reported, never returned.
-    book.conn
+    book.as_another_program()
         .execute_batch(
             "PRAGMA ignore_check_constraints = ON;
              UPDATE accounts SET account_type = 'wallet';",
@@ -866,7 +900,7 @@ fn bad_account_types_in_the_file_are_reported() {
         book.account(checking),
         Err(StoreError::Corrupt(Corruption::BadAccountType(text))) if text == "wallet"
     ));
-    book.conn
+    book.as_another_program()
         .execute_batch("UPDATE accounts SET account_type = 'credit_card';")
         .expect("changed behind KassenSturz's back");
     assert!(matches!(
@@ -1148,13 +1182,16 @@ fn a_category_tree_that_is_wrong_in_the_file_is_reported() {
         "UPDATE accounts SET parent_id = zeroblob(16) WHERE name = 'Food'",
         "UPDATE accounts SET parent_id = x'00' WHERE name = 'Food'",
     ] {
-        assert!(book.conn.execute(update, []).is_err(), "{update}");
+        assert!(
+            book.as_another_program().execute(update, []).is_err(),
+            "{update}"
+        );
     }
     assert_eq!(tree(&book), ["Food", "Food > Groceries"]);
 
     // Without the checks, e.g. in a file changed by another program (D-046),
     // a loop is reported, never followed...
-    book.conn
+    book.as_another_program()
         .execute(
             "UPDATE accounts SET parent_id = ?1 WHERE id = ?2",
             params![groceries.to_bytes(), food.to_bytes()],
@@ -1164,7 +1201,7 @@ fn a_category_tree_that_is_wrong_in_the_file_is_reported() {
         book.categories(),
         Err(StoreError::Corrupt(Corruption::BadCategoryTree(_)))
     ));
-    book.conn
+    book.as_another_program()
         .execute(
             "UPDATE accounts SET parent_id = NULL WHERE id = ?1",
             [food.to_bytes()],
@@ -1172,7 +1209,7 @@ fn a_category_tree_that_is_wrong_in_the_file_is_reported() {
         .expect("loop undone");
     assert_eq!(tree(&book), ["Food", "Food > Groceries"]);
     // ...and so is a category inside one of another kind or currency.
-    book.conn
+    book.as_another_program()
         .execute(
             "UPDATE accounts SET kind = 'income' WHERE id = ?1",
             [groceries.to_bytes()],
@@ -1182,7 +1219,7 @@ fn a_category_tree_that_is_wrong_in_the_file_is_reported() {
         book.categories(),
         Err(StoreError::Corrupt(Corruption::BadCategoryTree(id))) if id == groceries
     ));
-    book.conn
+    book.as_another_program()
         .execute(
             "UPDATE accounts SET kind = 'expense', currency = 'USD' WHERE id = ?1",
             [groceries.to_bytes()],
@@ -1201,7 +1238,7 @@ fn a_loop_in_the_file_does_not_hang_new_categories() {
     let food = category(&mut book, "Food", AccountKind::Expense, None).expect("added");
     let groceries =
         category(&mut book, "Groceries", AccountKind::Expense, Some(food)).expect("added");
-    book.conn
+    book.as_another_program()
         .execute(
             "UPDATE accounts SET parent_id = ?1 WHERE id = ?2",
             params![groceries.to_bytes(), food.to_bytes()],

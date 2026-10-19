@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use kassensturz_cli::{Environment, run};
-use kassensturz_core::AccountId;
+use kassensturz_core::{AccountId, Timestamp};
 use kassensturz_store::{Book, Computer};
 
 /// A folder of its own for one test, removed again afterwards, with a book
@@ -493,6 +493,12 @@ fn wrong_command_lines_end_with_status_2() {
         &["register"],
         &["balances", "--nope"],
         &["transaction", "add", "--date", "2026-10-02"],
+        &["undo", "twice"],
+        &["redo", "--all"],
+        &["history"],
+        &["history", "forget"],
+        &["history", "keep"],
+        &["history", "list", "--all"],
     ] {
         let outcome = session.cli(line);
         assert_eq!(outcome.status, 2, "{line:?}: {}", outcome.err);
@@ -515,6 +521,154 @@ fn wrong_command_lines_end_with_status_2() {
     let outcome = run_line(&["balances".to_owned()], &Environment::default());
     assert_eq!(outcome.status, 2);
     assert!(outcome.err.contains("no book"));
+}
+
+#[test]
+fn changes_can_be_undone_and_redone_by_later_commands() {
+    let session = household();
+    session.ok(&["account", "rename", "Savings", "Holiday fund"]);
+    assert_eq!(
+        session.ok(&["undo"]),
+        "Undid the change: renamed an account.\n"
+    );
+    assert!(session.ok(&["account", "list"]).contains("Savings"));
+    assert_eq!(
+        session.ok(&["redo"]),
+        "Redid the change: renamed an account.\n"
+    );
+    assert!(session.ok(&["account", "list"]).contains("Holiday fund"));
+    assert_eq!(session.ok(&["redo"]), "There is nothing to redo.\n");
+
+    // A transaction removed by mistake comes back with its parts.
+    let added = session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-05",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-53.20",
+        "--category",
+        "Food/Groceries",
+        "--payee",
+        "Corner Grocery",
+    ]);
+    let shopping = last_added(&added);
+    session.ok(&["transaction", "remove", &shopping]);
+    assert_eq!(
+        session.ok(&["undo"]),
+        "Undid the change: removed a transaction.\n"
+    );
+    assert!(
+        session
+            .ok(&["register", "Food/Groceries"])
+            .contains("Corner Grocery")
+    );
+    assert!(session.ok(&["balances"]).contains("-53.20 EUR"));
+
+    // An account in a currency the book doesn't use yet is one change, and
+    // so is a rate between two new currencies.
+    session.ok(&[
+        "account",
+        "add",
+        "Dollar account",
+        "--type",
+        "checking",
+        "--currency",
+        "USD",
+    ]);
+    session.ok(&[
+        "rate",
+        "add",
+        "--date",
+        "2026-10-01",
+        "--from",
+        "CHF",
+        "--to",
+        "JPY",
+        "--rate",
+        "170",
+    ]);
+    assert_eq!(
+        session.ok(&["undo"]),
+        "Undid the change: added an exchange rate.\n"
+    );
+    assert_eq!(
+        session.ok(&["undo"]),
+        "Undid the change: added an account.\n"
+    );
+    assert!(!session.ok(&["account", "list"]).contains("Dollar account"));
+    assert!(
+        session
+            .ok(&["history", "list"])
+            .lines()
+            .take(3)
+            .skip(1)
+            .all(|line| line.ends_with("undone"))
+    );
+}
+
+#[test]
+fn the_history_lists_every_change_and_is_kept_as_long_as_the_user_says() {
+    let session = Session::new();
+    session.ok(&["create"]);
+    session.ok(&[
+        "account",
+        "add",
+        "Cash",
+        "--type",
+        "cash",
+        "--currency",
+        "EUR",
+    ]);
+    session.ok(&["account", "rename", "Cash", "Wallet"]);
+    session.ok(&["undo"]);
+    let list = session.ok(&["history", "list"]);
+    let lines: Vec<&str> = list.lines().collect();
+    assert_eq!(lines.len(), 4, "{list}");
+    assert_eq!(lines[0], "Made at (UTC)         Change              State");
+    for (line, rest) in [
+        (lines[1], "renamed an account  undone"),
+        (lines[2], "added an account    done"),
+    ] {
+        let (made_at, change) = line.split_at(20);
+        assert!(made_at.parse::<Timestamp>().is_ok(), "{line}");
+        assert_eq!(change, format!("  {rest}"));
+    }
+    assert_eq!(lines[3], "The book keeps its history for 30 days.");
+
+    assert_eq!(
+        session.ok(&["history", "keep", "forever"]),
+        "The book keeps its history forever.\n"
+    );
+    assert!(
+        session
+            .ok(&["history", "list"])
+            .ends_with("The book keeps its history forever.\n")
+    );
+    let wrong = session.cli(&["history", "keep", "-1"]);
+    assert_eq!(wrong.status, 1);
+    assert_eq!(
+        wrong.err,
+        "error: `-1` isn't a number of days from 0 to 4294967295, or forever\n"
+    );
+
+    // With 0 days, every command starts without a history.
+    session.ok(&["history", "keep", "0"]);
+    session.ok(&["account", "rename", "Cash", "Wallet"]);
+    assert_eq!(session.ok(&["undo"]), "There is nothing to undo.\n");
+    session.ok(&["history", "keep", "7"]);
+    session.ok(&["account", "rename", "Wallet", "Cash"]);
+    assert_eq!(
+        session.ok(&["history", "clean-up"]),
+        "Deleted the whole history: nothing done so far can be undone.\n"
+    );
+    assert_eq!(session.ok(&["undo"]), "There is nothing to undo.\n");
+    assert_eq!(
+        session.ok(&["history", "list"]),
+        "Made at (UTC)  Change  State\nThe book keeps its history for 7 days.\n"
+    );
 }
 
 #[test]

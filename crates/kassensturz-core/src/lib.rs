@@ -25,7 +25,9 @@ pub use decimal::{DecimalError, ExchangeRate, MAX_DECIMAL_PLACES, MAX_DIGITS, Pr
 pub use money::{Money, MoneyError};
 pub use rates::{DatedRate, DatedRateId, RateSource};
 pub use rounding::RoundingMode;
-pub use transaction::{Split, SplitId, Transaction, TransactionError, TransactionId};
+pub use transaction::{
+    ForeignAmount, ImportedDetails, Split, SplitId, Transaction, TransactionError, TransactionId,
+};
 
 /// A calendar date without time or time zone, used for booking dates
 /// (AGENTS.md §5, D-061).

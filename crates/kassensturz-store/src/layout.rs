@@ -29,7 +29,8 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// gets the same layout whether it was created today or upgraded later.
 /// Before 0.1 the development migrations are merged into one (D-045), and
 /// `FIRST_VERSION` moves past them, so development books are turned away.
-pub(crate) const MIGRATIONS: [&str; 5] = [LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4, LAYOUT_5];
+pub(crate) const MIGRATIONS: [&str; 6] =
+    [LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4, LAYOUT_5, LAYOUT_6];
 
 /// The layout version the first migration creates.
 pub(crate) const FIRST_VERSION: i32 = 1;
@@ -129,6 +130,57 @@ ALTER TABLE accounts ADD COLUMN parent_id BLOB REFERENCES accounts (id)
         length(parent_id) = 16 AND parent_id <> id AND kind IN ('income', 'expense')
     ));
 CREATE INDEX accounts_by_parent ON accounts (parent_id);
+";
+
+/// Layout 6 (M1.6): transactions and their parts in full (D-083). A part can
+/// be without a category yet, so `splits.account_id` may be NULL, which
+/// needs the table to be rebuilt (sqlite.org/lang_altertable.html); its rows
+/// are copied unchanged. A part in another currency keeps its amount there,
+/// with the rate it was converted with in `split_rates` (D-043). What a bank
+/// or file delivered for a part is kept in `split_imports` (D-067).
+const LAYOUT_6: &str = "
+CREATE TABLE new_splits (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    transaction_id BLOB NOT NULL REFERENCES transactions (id) ON DELETE CASCADE,
+    position INTEGER NOT NULL CHECK (position >= 0),
+    account_id BLOB REFERENCES accounts (id),
+    amount INTEGER NOT NULL,
+    foreign_amount INTEGER,
+    foreign_currency TEXT REFERENCES currencies (code),
+    CHECK ((foreign_amount IS NULL) = (foreign_currency IS NULL)),
+    CHECK (foreign_amount IS NULL OR account_id IS NOT NULL),
+    UNIQUE (transaction_id, position)
+) STRICT;
+INSERT INTO new_splits (id, transaction_id, position, account_id, amount)
+    SELECT id, transaction_id, position, account_id, amount FROM splits;
+DROP TABLE splits;
+ALTER TABLE new_splits RENAME TO splits;
+CREATE INDEX splits_by_account ON splits (account_id);
+
+CREATE TABLE split_rates (
+    split_id BLOB PRIMARY KEY NOT NULL REFERENCES splits (id) ON DELETE CASCADE,
+    rate_id BLOB NOT NULL CHECK (length(rate_id) = 16),
+    date TEXT NOT NULL
+        CHECK (date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    from_currency TEXT NOT NULL REFERENCES currencies (code),
+    to_currency TEXT NOT NULL REFERENCES currencies (code),
+    rate_digits INTEGER NOT NULL CHECK (rate_digits BETWEEN 1 AND 999999999999999999),
+    rate_decimal_places INTEGER NOT NULL CHECK (rate_decimal_places BETWEEN 0 AND 18),
+    source TEXT NOT NULL CHECK (source IN ('manual')),
+    CHECK (from_currency <> to_currency)
+) STRICT;
+
+CREATE TABLE split_imports (
+    split_id BLOB PRIMARY KEY NOT NULL REFERENCES splits (id) ON DELETE CASCADE,
+    bank_id TEXT,
+    booking_date TEXT
+        CHECK (booking_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    value_date TEXT
+        CHECK (value_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    other_party_name TEXT,
+    other_party_iban TEXT,
+    remittance_information TEXT
+) STRICT;
 ";
 
 /// Brings a book from layout `from` to the current one, or a new, empty
@@ -299,7 +351,15 @@ mod tests {
                 book.balance(checking).expect("balance"),
                 Money::from_minor_units(-5320, EUR)
             );
-            assert_eq!(book.register(checking).expect("register").len(), 1);
+            let register = book.register(checking).expect("register");
+            assert_eq!(register.len(), 1);
+            // Parts from before layout 6 keep their accounts and are in
+            // their transaction's currency, with nothing imported.
+            let shopping = book.transaction(register[0].transaction).expect("read");
+            for part in shopping.splits() {
+                assert!(part.account.is_some(), "layout {version}");
+                assert_eq!((&part.foreign, &part.imported), (&None, &None));
+            }
             // Accounts from before layout 4 have no type and are open.
             let account = book.account(checking).expect("account");
             assert_eq!(

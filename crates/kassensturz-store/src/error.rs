@@ -7,8 +7,8 @@
 use std::io::ErrorKind;
 
 use kassensturz_core::{
-    AccountId, AccountKind, AccountType, CurrencyCode, Date, DatedRateId, Money, TransactionError,
-    TransactionId,
+    AccountId, AccountKind, AccountType, CurrencyCode, Date, DatedRateId, Money, SplitId,
+    TransactionError, TransactionId,
 };
 
 use crate::Lock;
@@ -108,20 +108,40 @@ pub enum StoreError {
     CategoryInsideItself(AccountId),
     /// There's no transaction with this ID.
     UnknownTransaction(TransactionId),
-    /// A part is booked to an account whose currency differs from the
-    /// transaction's. Parts in other currencies come with D-043.
+    /// A transaction with this ID is in the book already.
+    TransactionIdInUse(TransactionId),
+    /// A part with this ID belongs to another transaction already.
+    SplitIdInUse(SplitId),
+    /// A part is booked to an account in another currency than the part's:
+    /// the transaction's currency, or the one of its foreign amount. A part
+    /// booked to an account in another currency than the transaction's
+    /// needs its amount in that currency as well (D-043).
     SplitCurrencyMismatch {
         /// The account the part is booked to.
         account: AccountId,
         /// The account's currency.
         account_currency: CurrencyCode,
-        /// The transaction's currency.
-        transaction_currency: CurrencyCode,
+        /// The part's currency.
+        split_currency: CurrencyCode,
     },
+    /// A change would alter a part that a bank or file delivered: its
+    /// account, its amount or what was delivered with it, or it would add
+    /// or remove such a part (D-067). The user can change the other parts.
+    ImportedSplitChanged(SplitId),
     /// There's no exchange rate with this ID.
     UnknownRate(DatedRateId),
     /// An exchange rate from a currency into the same currency.
     RateWithinOneCurrency(CurrencyCode),
+    /// The book has no exchange rate between the two currencies on or before
+    /// the date, in either direction. The user can enter one (D-028).
+    NoRate {
+        /// The currency of the amount to convert.
+        from: CurrencyCode,
+        /// The currency to convert it into.
+        to: CurrencyCode,
+        /// The date of the conversion.
+        date: Date,
+    },
     /// The book already has a rate between these currencies, in this
     /// direction, on that date. The user can change or remove that one.
     DuplicateRate {
@@ -173,6 +193,10 @@ pub enum Corruption {
         /// The transaction the part belongs to.
         transaction: TransactionId,
     },
+    /// A part whose columns don't fit together: a foreign amount without
+    /// its currency or the other way round, or a rate for a part that isn't
+    /// in another currency.
+    BadSplit(SplitId),
     /// A transaction's parts don't form a valid transaction, e.g. they don't
     /// add up to zero.
     InvalidTransaction {
@@ -182,7 +206,8 @@ pub enum Corruption {
         error: TransactionError,
     },
     /// Something refers to a row that doesn't exist, e.g. a part to a missing
-    /// account. Checked when the book's layout is updated.
+    /// account. Checked when the book's layout is updated, and for the
+    /// accounts of a transaction when it is read.
     BrokenReferences,
 }
 

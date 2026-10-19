@@ -62,7 +62,7 @@ struct Sample {
 
 fn sample() -> Sample {
     let mut book = Book::create_in_memory().expect("book created");
-    book.add_currency(EUR, 2).expect("currency added");
+    book.use_currency(EUR).expect("currency used");
     let checking = account(&mut book, "Checking account", AccountKind::Asset, EUR);
     let groceries = account(&mut book, "Groceries", AccountKind::Expense, EUR);
     let salary = account(&mut book, "Salary", AccountKind::Income, EUR);
@@ -166,28 +166,121 @@ fn an_account_in_several_parts_appears_once_in_its_register() {
 }
 
 #[test]
-fn a_currencys_decimal_places_stay_fixed() {
+fn a_currency_gets_its_decimal_places_from_the_iso_4217_table() {
     let mut book = Book::create_in_memory().expect("book created");
-    book.add_currency(EUR, 2).expect("first use");
-    book.add_currency(EUR, 2)
-        .expect("same decimal places again");
-    assert!(matches!(
-        book.add_currency(EUR, 3),
-        Err(StoreError::CurrencyDigitsConflict {
-            stored: 2,
-            requested: 3,
-            ..
-        })
-    ));
-    assert_eq!(book.currency_minor_digits(EUR).expect("stored"), 2);
+    let yen = CurrencyCode::new("JPY").expect("valid code");
+    let dinar = CurrencyCode::new("BHD").expect("valid code");
+    assert_eq!(book.use_currency(EUR).expect("first use"), 2);
+    assert_eq!(book.use_currency(yen).expect("first use"), 0);
+    assert_eq!(book.use_currency(dinar).expect("first use"), 3);
+    assert_eq!(book.use_currency(EUR).expect("used again"), 2);
+    assert_eq!(book.currency_minor_digits(yen).expect("stored"), 0);
 }
 
 #[test]
-fn a_currency_has_at_most_18_decimal_places() {
+fn a_currencys_decimal_places_stay_fixed() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let shopping = transaction(
+        date(2026, 10, 5),
+        "Corner Grocery",
+        &[(checking, eur(-5320)), (groceries, eur(5320))],
+    );
+    book.add_transaction(&shopping).expect("added");
+    // As if the book had started using the euro with a table that said 3.
+    book.conn
+        .execute(
+            "UPDATE currencies SET minor_digits = 3 WHERE code = 'EUR'",
+            [],
+        )
+        .expect("decimal places changed");
+    // The stored decimal places count, not today's table, and the stored
+    // amounts are never rescaled (D-027).
+    assert_eq!(book.use_currency(EUR).expect("used again"), 3);
+    assert_eq!(book.currency_minor_digits(EUR).expect("stored"), 3);
+    assert_eq!(
+        book.transaction(shopping.id()).expect("read back"),
+        shopping
+    );
+}
+
+#[test]
+fn currencies_the_table_does_not_list_are_refused() {
     let mut book = Book::create_in_memory().expect("book created");
+    // Gold has no decimal places in ISO 4217; the mark ended in 2002.
+    for text in ["XAU", "DEM"] {
+        let currency = CurrencyCode::new(text).expect("valid code");
+        assert!(matches!(
+            book.use_currency(currency),
+            Err(StoreError::UnlistedCurrency(found)) if found == currency
+        ));
+        assert!(matches!(
+            book.currency_minor_digits(currency),
+            Err(StoreError::UnknownCurrency(_))
+        ));
+    }
+}
+
+#[test]
+fn new_books_round_half_away_from_zero() {
+    let book = Book::create_in_memory().expect("book created");
+    assert_eq!(
+        book.rounding_mode().expect("rounding mode"),
+        RoundingMode::HalfAwayFromZero
+    );
+}
+
+#[test]
+fn changing_the_rounding_mode_changes_no_stored_amount() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let shopping = transaction(
+        date(2026, 10, 5),
+        "Corner Grocery",
+        &[(checking, eur(-5320)), (groceries, eur(5320))],
+    );
+    book.add_transaction(&shopping).expect("added");
+    let register = book.register(checking).expect("register");
+    for rounding in RoundingMode::ALL {
+        book.set_rounding_mode(rounding).expect("rounding mode set");
+        assert_eq!(book.rounding_mode().expect("rounding mode"), rounding);
+        assert_eq!(book.register(checking).expect("register"), register);
+        assert_eq!(book.balance(checking).expect("balance"), eur(-5320));
+    }
+}
+
+#[test]
+fn missing_or_unknown_settings_are_reported() {
+    let mut book = Book::create_in_memory().expect("book created");
+    // As if another program had changed the book (D-046).
+    book.conn
+        .execute("DELETE FROM settings", [])
+        .expect("settings deleted");
     assert!(matches!(
-        book.add_currency(EUR, 19),
-        Err(StoreError::InvalidMinorDigits(19))
+        book.rounding_mode(),
+        Err(StoreError::Corrupt(Corruption::MissingSettings))
+    ));
+    assert!(matches!(
+        book.set_rounding_mode(RoundingMode::HalfEven),
+        Err(StoreError::Corrupt(Corruption::MissingSettings))
+    ));
+    book.conn
+        .execute_batch(
+            "PRAGMA ignore_check_constraints = ON;
+             INSERT INTO settings (id, rounding_mode) VALUES (1, 'bankers');",
+        )
+        .expect("unknown rounding mode written");
+    assert!(matches!(
+        book.rounding_mode(),
+        Err(StoreError::Corrupt(Corruption::BadRoundingMode(text))) if text == "bankers"
     ));
 }
 
@@ -229,7 +322,7 @@ fn parts_must_be_in_their_accounts_currency() {
     let Sample {
         mut book, checking, ..
     } = sample();
-    book.add_currency(USD, 2).expect("currency added");
+    book.use_currency(USD).expect("currency used");
     let travel = account(&mut book, "Travel", AccountKind::Expense, USD);
     let hotel = transaction(
         date(2026, 10, 7),

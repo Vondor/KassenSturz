@@ -17,8 +17,8 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, CurrencyCode, Date, Money, Split, SplitId, Transaction,
-    TransactionId,
+    Account, AccountId, AccountKind, CurrencyCode, Date, Money, RoundingMode, Split, SplitId,
+    Transaction, TransactionId,
 };
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
@@ -115,6 +115,10 @@ impl Book {
     fn create_layout(&mut self) -> Result<(), StoreError> {
         let transaction = self.conn.transaction()?;
         transaction.execute_batch(layout::CREATE)?;
+        transaction.execute(
+            "INSERT INTO settings (id, rounding_mode) VALUES (1, ?1)",
+            [rounding_mode_to_text(RoundingMode::default())],
+        )?;
         transaction.pragma_update(None, "user_version", layout::VERSION)?;
         transaction.commit()?;
         Ok(())
@@ -133,35 +137,55 @@ impl Book {
         }
     }
 
-    /// Starts using `currency` in this book, with `minor_digits` decimal
-    /// places (2 for the euro).
+    /// The rounding mode of this book's calculations (D-027). New books round
+    /// half away from zero, [`RoundingMode`]'s default.
+    pub fn rounding_mode(&self) -> Result<RoundingMode, StoreError> {
+        let text: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT rounding_mode FROM settings WHERE id = 1",
+                [],
+                |row| row.get(0),
+            )
+            .optional()?;
+        rounding_mode_from_text(&text.ok_or(StoreError::Corrupt(Corruption::MissingSettings))?)
+    }
+
+    /// Sets the rounding mode of this book's calculations.
     ///
-    /// The decimal places are fixed when a currency is first used (D-027).
-    /// Adding a currency again with the same decimal places changes nothing;
-    /// with other ones it fails.
-    pub fn add_currency(
-        &mut self,
-        currency: CurrencyCode,
-        minor_digits: u8,
-    ) -> Result<(), StoreError> {
-        if minor_digits > layout::MAX_MINOR_DIGITS {
-            return Err(StoreError::InvalidMinorDigits(minor_digits));
+    /// It applies only to calculations from now on: amounts already stored
+    /// are never recalculated (D-027).
+    pub fn set_rounding_mode(&mut self, rounding: RoundingMode) -> Result<(), StoreError> {
+        let changed = self.conn.execute(
+            "UPDATE settings SET rounding_mode = ?1 WHERE id = 1",
+            [rounding_mode_to_text(rounding)],
+        )?;
+        if changed == 1 {
+            Ok(())
+        } else {
+            Err(StoreError::Corrupt(Corruption::MissingSettings))
         }
-        match self.stored_minor_digits(currency)? {
-            None => {
-                self.conn.execute(
-                    "INSERT INTO currencies (code, minor_digits) VALUES (?1, ?2)",
-                    params![currency.as_str(), minor_digits],
-                )?;
-                Ok(())
-            }
-            Some(stored) if stored == minor_digits => Ok(()),
-            Some(stored) => Err(StoreError::CurrencyDigitsConflict {
-                currency,
-                stored,
-                requested: minor_digits,
-            }),
+    }
+
+    /// Starts using `currency` in this book, unless it's in use already, and
+    /// returns its number of decimal places (2 for the euro).
+    ///
+    /// The first time, the decimal places come from KassenSturz's ISO 4217
+    /// table (D-062) and are stored in the book. From then on the stored ones
+    /// count, even if a newer table says otherwise, so amounts are never
+    /// rescaled (D-027). A currency the table doesn't list can't be used.
+    pub fn use_currency(&mut self, currency: CurrencyCode) -> Result<u8, StoreError> {
+        if let Some(stored) = self.stored_minor_digits(currency)? {
+            return Ok(stored);
         }
+        let minor_digits = currency
+            .iso_minor_digits()
+            .ok_or(StoreError::UnlistedCurrency(currency))?;
+        self.conn.execute(
+            "INSERT INTO currencies (code, minor_digits) VALUES (?1, ?2)",
+            params![currency.as_str(), minor_digits],
+        )?;
+        Ok(minor_digits)
     }
 
     /// How many decimal places `currency` has in this book.
@@ -376,6 +400,25 @@ fn kind_from_text(text: &str) -> Result<AccountKind, StoreError> {
             other.into(),
         ))),
     }
+}
+
+fn rounding_mode_to_text(rounding: RoundingMode) -> &'static str {
+    match rounding {
+        RoundingMode::HalfAwayFromZero => "half_away_from_zero",
+        RoundingMode::HalfEven => "half_even",
+        RoundingMode::HalfTowardZero => "half_toward_zero",
+        RoundingMode::TowardZero => "toward_zero",
+        RoundingMode::AwayFromZero => "away_from_zero",
+        RoundingMode::Floor => "floor",
+        RoundingMode::Ceiling => "ceiling",
+    }
+}
+
+fn rounding_mode_from_text(text: &str) -> Result<RoundingMode, StoreError> {
+    RoundingMode::ALL
+        .into_iter()
+        .find(|&rounding| rounding_mode_to_text(rounding) == text)
+        .ok_or_else(|| StoreError::Corrupt(Corruption::BadRoundingMode(text.into())))
 }
 
 fn currency_from_text(text: &str) -> Result<CurrencyCode, StoreError> {

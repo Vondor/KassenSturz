@@ -29,20 +29,12 @@ pub enum StoreError {
         /// The journal mode SQLite kept.
         mode: String,
     },
-    /// A currency can have at most 18 decimal places.
-    InvalidMinorDigits(u8),
+    /// The currency isn't in KassenSturz's ISO 4217 table, so its number of
+    /// decimal places isn't known (D-062): it isn't a current currency, or
+    /// ISO 4217 gives it no decimal places, as for gold (XAU).
+    UnlistedCurrency(CurrencyCode),
     /// The currency isn't used in this book yet.
     UnknownCurrency(CurrencyCode),
-    /// The currency is already used with other decimal places, and those stay
-    /// fixed (D-027).
-    CurrencyDigitsConflict {
-        /// The currency.
-        currency: CurrencyCode,
-        /// The decimal places stored in the book.
-        stored: u8,
-        /// The decimal places that were asked for.
-        requested: u8,
-    },
     /// There's no account or category with this ID.
     UnknownAccount(AccountId),
     /// There's no transaction with this ID.
@@ -81,6 +73,10 @@ pub enum Corruption {
     BadDate(String),
     /// A currency's number of decimal places is out of range.
     BadMinorDigits(i64),
+    /// The book's settings are missing.
+    MissingSettings,
+    /// A rounding mode that doesn't exist.
+    BadRoundingMode(String),
     /// A part's currency differs from its account's.
     CurrencyMismatch {
         /// The transaction the part belongs to.

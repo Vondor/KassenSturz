@@ -6,8 +6,9 @@
 //! Until 0.1 this is a development layout that may change freely; before 0.1
 //! all development changes are merged into one starting layout (D-045).
 
-/// The layout version, stored in SQLite's `user_version`.
-pub(crate) const VERSION: i32 = 1;
+/// The layout version, stored in SQLite's `user_version`. Version 2 added the
+/// book's settings (M1.1).
+pub(crate) const VERSION: i32 = 2;
 
 /// The highest number of decimal places a currency may have. 10^18 still fits
 /// into 64 bits; ISO 4217 currencies use at most 4.
@@ -19,7 +20,18 @@ pub(crate) const MAX_MINOR_DIGITS: u8 = 18;
 /// instead of converting them. Amounts are INTEGER minor units, never REAL
 /// (AGENTS.md §3.1 rule 1). IDs are the 16 bytes of a UUIDv7 (D-067), dates
 /// ISO 8601 text (D-061).
+///
+/// The one row of `settings` is added by the code that creates a book, with
+/// KassenSturz's defaults.
 pub(crate) const CREATE: &str = "
+CREATE TABLE settings (
+    id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+    rounding_mode TEXT NOT NULL CHECK (rounding_mode IN (
+        'half_away_from_zero', 'half_even', 'half_toward_zero',
+        'toward_zero', 'away_from_zero', 'floor', 'ceiling'
+    ))
+) STRICT;
+
 CREATE TABLE currencies (
     code TEXT PRIMARY KEY NOT NULL
         CHECK (length(code) = 3 AND code NOT GLOB '*[^A-Z]*'),

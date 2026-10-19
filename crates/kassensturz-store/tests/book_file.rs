@@ -6,8 +6,8 @@
 use std::path::{Path, PathBuf};
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, CurrencyCode, Date, Money, RoundingMode, Split, SplitId,
-    Transaction, TransactionId,
+    Account, AccountId, AccountKind, CurrencyCode, Date, DatedRate, DatedRateId, Money, RateSource,
+    RoundingMode, Split, SplitId, Transaction, TransactionId,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -117,6 +117,31 @@ fn a_book_keeps_its_rounding_mode() {
         book.rounding_mode().expect("rounding mode"),
         RoundingMode::HalfEven
     );
+}
+
+#[test]
+fn a_book_keeps_its_rates() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let usd = CurrencyCode::new("USD").expect("valid code");
+    let rate = DatedRate {
+        id: DatedRateId::generate(),
+        date: Date::new(2026, 10, 5).expect("valid date"),
+        from: eur(),
+        to: usd,
+        rate: "1.0850".parse().expect("valid rate"),
+        source: RateSource::Manual,
+    };
+    {
+        let mut book = Book::create(&path).expect("book created");
+        book.use_currency(eur()).expect("currency used");
+        book.use_currency(usd).expect("currency used");
+        book.add_rate(&rate).expect("rate added");
+    }
+    let book = Book::open(&path).expect("book opened again");
+    let stored = book.rate(rate.id).expect("rate found");
+    assert_eq!(stored, rate);
+    assert_eq!(stored.rate.to_string(), "1.0850");
 }
 
 #[test]

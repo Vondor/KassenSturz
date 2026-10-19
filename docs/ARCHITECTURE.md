@@ -8,11 +8,13 @@ kassensturz/
 ├── Cargo.toml                      # workspace root
 ├── crates/
 │   ├── kassensturz-core/           # domain model + logic; no UI, no I/O specifics
-│   │   ├── money                   # 64-bit integer minor units + ISO 4217 code; amount × ratio, rounded once (D-027)
+│   │   ├── money                   # 64-bit integer minor units + ISO 4217 code; amount × ratio and amount × or ÷ rate, rounded once (D-027, D-051)
 │   │   ├── rounding                # rounding modes; the book stores which one it uses (D-027, D-078)
 │   │   ├── account                 # accounts (incl. credit cards), categories, payees
 │   │   ├── transaction             # double-entry transactions + splits, booking and value date
-│   │   ├── currency                # ISO 4217 codes and KassenSturz's own ISO 4217 table, read from data/ (D-062, D-077); exchange rates, prices
+│   │   ├── currency                # ISO 4217 codes and KassenSturz's own ISO 4217 table, read from data/ (D-062, D-077); a currency with its decimal places in a book
+│   │   ├── decimal                 # exchange rates, prices and quantities as fixed-point decimals, rust_decimal kept private (D-051, D-079)
+│   │   ├── rates                   # exchange rates on a date: the rows of the book's price table, entered by hand (D-028)
 │   │   ├── budget                  # basic budgets: a monthly limit per category (D-029)
 │   │   ├── rules                   # auto-categorization: conditions, actions, Rule tree with sub-Rules
 │   │   └── events                  # event bus (TransactionAdded, ...)
@@ -167,6 +169,7 @@ kassensturz/
 - Every change is recorded in a change history inside the book: undo/redo and an audit trail (D-032). It stores the before and after values of every row a user action touched; undo works after a restart, and the user sets how long the history is kept: 30 days by default, or forever; 0 stores none, though undo still works while the book is open. "Erase permanently" actions (wiping AI memory, Clean up history) also remove data from the history (D-066).
 - Everything in a book is identified by a UUIDv7, not a running number (D-067).
 - Each book stores the decimal places of every currency it uses, taken from KassenSturz's own ISO 4217 table when the currency is first used and fixed from then on (D-027, D-062). The table is a data file in `kassensturz-core`, written from the official list by `tools/update-currency-table.py` (D-077).
+- Exchange rates live in the book's dated price table, one per pair of currencies, direction and day, entered by hand in v1 (D-028). A conversion uses the newest rate on or before its date, multiplies by it or divides by it for the other direction, computes exactly in 128 bits and rounds once with the book's rounding mode (D-051, D-079).
 - The rounding mode of a book's calculations is stored in the book, so every computer calculates the same way; changing it affects only later calculations (D-027, D-078).
 - Export: CSV plus a complete export of the book in an open format (D-029). It is the stable way to move data.
 - The book's layout is documented in `docs/BOOK_FORMAT.md` so other programs can read books. It can change in any version, and writing into a book from outside isn't supported (D-046).

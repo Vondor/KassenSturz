@@ -6,7 +6,9 @@
 
 use std::io::ErrorKind;
 
-use kassensturz_core::{AccountId, CurrencyCode, Date, TransactionError, TransactionId};
+use kassensturz_core::{
+    AccountId, CurrencyCode, Date, DatedRateId, TransactionError, TransactionId,
+};
 
 /// Why a book couldn't be opened, read or changed.
 #[derive(Debug)]
@@ -49,6 +51,16 @@ pub enum StoreError {
         /// The transaction's currency.
         transaction_currency: CurrencyCode,
     },
+    /// There's no exchange rate with this ID.
+    UnknownRate(DatedRateId),
+    /// An exchange rate from a currency into the same currency.
+    RateWithinOneCurrency(CurrencyCode),
+    /// The book already has a rate between these currencies, in this
+    /// direction, on that date. The user can change or remove that one.
+    DuplicateRate {
+        /// The rate already in the book.
+        existing: DatedRateId,
+    },
     /// Dates before the year 1 can't be stored.
     DateOutOfRange(Date),
     /// Adding up amounts gave more than 64 bits can hold.
@@ -73,6 +85,10 @@ pub enum Corruption {
     BadDate(String),
     /// A currency's number of decimal places is out of range.
     BadMinorDigits(i64),
+    /// An exchange rate whose digits or decimal places are out of range.
+    BadRate(DatedRateId),
+    /// An exchange rate's source that doesn't exist.
+    BadRateSource(String),
     /// The book's settings are missing.
     MissingSettings,
     /// A rounding mode that doesn't exist.

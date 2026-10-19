@@ -17,8 +17,8 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, CurrencyCode, Date, Money, RoundingMode, Split, SplitId,
-    Transaction, TransactionId,
+    Account, AccountId, AccountKind, Currency, CurrencyCode, Date, DatedRate, DatedRateId,
+    ExchangeRate, Money, RateSource, RoundingMode, Split, SplitId, Transaction, TransactionId,
 };
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
@@ -194,6 +194,14 @@ impl Book {
             .ok_or(StoreError::UnknownCurrency(currency))
     }
 
+    /// `currency` with the decimal places this book stores for it, as the
+    /// conversions with an exchange rate need it
+    /// ([`Money::checked_mul_rate`]).
+    pub fn currency(&self, currency: CurrencyCode) -> Result<Currency, StoreError> {
+        let minor_digits = self.currency_minor_digits(currency)?;
+        Ok(Currency::new(currency, minor_digits).expect("checked when read"))
+    }
+
     fn stored_minor_digits(&self, currency: CurrencyCode) -> Result<Option<u8>, StoreError> {
         let digits: Option<i64> = self
             .conn
@@ -207,7 +215,8 @@ impl Book {
             .map(|digits| {
                 u8::try_from(digits)
                     .ok()
-                    .filter(|&digits| digits <= layout::MAX_MINOR_DIGITS)
+                    .and_then(|minor_digits| Currency::new(currency, minor_digits))
+                    .map(Currency::minor_digits)
                     .ok_or(StoreError::Corrupt(Corruption::BadMinorDigits(digits)))
             })
             .transpose()
@@ -376,6 +385,180 @@ impl Book {
             .into_iter()
             .map(|minor_units| Money::from_minor_units(minor_units, account.currency));
         Money::checked_sum(account.currency, amounts).map_err(|_| StoreError::AmountOverflow)
+    }
+
+    /// Adds an exchange rate to the book's price table (D-028).
+    ///
+    /// Both currencies must be in use in this book and differ. A book holds
+    /// one rate per pair of currencies, direction and date; adding a second
+    /// fails with [`StoreError::DuplicateRate`], so the user changes or
+    /// removes the first one instead of having two that disagree.
+    pub fn add_rate(&mut self, rate: &DatedRate) -> Result<(), StoreError> {
+        if rate.from == rate.to {
+            return Err(StoreError::RateWithinOneCurrency(rate.from));
+        }
+        self.currency_minor_digits(rate.from)?;
+        self.currency_minor_digits(rate.to)?;
+        let date = date_to_text(rate.date)?;
+        let existing: Option<[u8; 16]> = self
+            .conn
+            .query_row(
+                "SELECT id FROM prices
+                 WHERE from_currency = ?1 AND to_currency = ?2 AND date = ?3",
+                params![rate.from.as_str(), rate.to.as_str(), date],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if let Some(existing) = existing {
+            return Err(StoreError::DuplicateRate {
+                existing: DatedRateId::from_bytes(existing),
+            });
+        }
+        self.conn.execute(
+            "INSERT INTO prices
+                 (id, date, from_currency, to_currency, rate_digits, rate_decimal_places, source)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                rate.id.to_bytes(),
+                date,
+                rate.from.as_str(),
+                rate.to.as_str(),
+                rate.rate.digits(),
+                rate.rate.decimal_places(),
+                source_to_text(rate.source),
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Removes an exchange rate from the price table. Amounts converted with
+    /// it keep their values: each conversion stores the amounts it produced
+    /// (D-043).
+    pub fn remove_rate(&mut self, id: DatedRateId) -> Result<(), StoreError> {
+        let removed = self
+            .conn
+            .execute("DELETE FROM prices WHERE id = ?1", [id.to_bytes()])?;
+        if removed == 1 {
+            Ok(())
+        } else {
+            Err(StoreError::UnknownRate(id))
+        }
+    }
+
+    /// The exchange rate with this ID.
+    pub fn rate(&self, id: DatedRateId) -> Result<DatedRate, StoreError> {
+        self.conn
+            .query_row(
+                &format!("SELECT {RATE_COLUMNS} FROM prices WHERE id = ?1"),
+                [id.to_bytes()],
+                RateRow::read,
+            )
+            .optional()?
+            .ok_or(StoreError::UnknownRate(id))?
+            .into_rate()
+    }
+
+    /// Every rate from `from` into `to`, oldest first. Rates the other way,
+    /// from `to` into `from`, aren't included.
+    pub fn rates(
+        &self,
+        from: CurrencyCode,
+        to: CurrencyCode,
+    ) -> Result<Vec<DatedRate>, StoreError> {
+        let mut statement = self.conn.prepare(&format!(
+            "SELECT {RATE_COLUMNS} FROM prices
+             WHERE from_currency = ?1 AND to_currency = ?2
+             ORDER BY date"
+        ))?;
+        let rows = statement
+            .query_map([from.as_str(), to.as_str()], RateRow::read)?
+            .collect::<Result<Vec<_>, _>>()?;
+        rows.into_iter().map(RateRow::into_rate).collect()
+    }
+
+    /// The rate from `from` into `to` that applies on `date`: the newest one
+    /// on or before it. `None` if there's none yet.
+    ///
+    /// Only rates in this direction count. A conversion the other way divides
+    /// by the rate ([`Money::checked_div_rate`]), so the caller decides which
+    /// direction to look up.
+    pub fn rate_on(
+        &self,
+        from: CurrencyCode,
+        to: CurrencyCode,
+        date: Date,
+    ) -> Result<Option<DatedRate>, StoreError> {
+        let row = self
+            .conn
+            .query_row(
+                &format!(
+                    "SELECT {RATE_COLUMNS} FROM prices
+                     WHERE from_currency = ?1 AND to_currency = ?2 AND date <= ?3
+                     ORDER BY date DESC LIMIT 1"
+                ),
+                params![from.as_str(), to.as_str(), date_to_text(date)?],
+                RateRow::read,
+            )
+            .optional()?;
+        row.map(RateRow::into_rate).transpose()
+    }
+}
+
+/// The columns [`RateRow::read`] expects, in its order.
+const RATE_COLUMNS: &str =
+    "id, date, from_currency, to_currency, rate_digits, rate_decimal_places, source";
+
+/// A row of the price table as SQLite returns it, before KassenSturz's
+/// checks.
+struct RateRow {
+    id: DatedRateId,
+    date: String,
+    from: String,
+    to: String,
+    digits: i64,
+    decimal_places: i64,
+    source: String,
+}
+
+impl RateRow {
+    fn read(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            id: DatedRateId::from_bytes(row.get(0)?),
+            date: row.get(1)?,
+            from: row.get(2)?,
+            to: row.get(3)?,
+            digits: row.get(4)?,
+            decimal_places: row.get(5)?,
+            source: row.get(6)?,
+        })
+    }
+
+    fn into_rate(self) -> Result<DatedRate, StoreError> {
+        let rate = u8::try_from(self.decimal_places)
+            .ok()
+            .and_then(|places| ExchangeRate::from_digits(self.digits, places).ok())
+            .ok_or(StoreError::Corrupt(Corruption::BadRate(self.id)))?;
+        Ok(DatedRate {
+            id: self.id,
+            date: date_from_text(&self.date)?,
+            from: currency_from_text(&self.from)?,
+            to: currency_from_text(&self.to)?,
+            rate,
+            source: source_from_text(&self.source)?,
+        })
+    }
+}
+
+fn source_to_text(source: RateSource) -> &'static str {
+    match source {
+        RateSource::Manual => "manual",
+    }
+}
+
+fn source_from_text(text: &str) -> Result<RateSource, StoreError> {
+    match text {
+        "manual" => Ok(RateSource::Manual),
+        other => Err(StoreError::Corrupt(Corruption::BadRateSource(other.into()))),
     }
 }
 

@@ -14,6 +14,7 @@ Plain-language terms used in the UI, and the accounting/technical concept each o
 | Sub-Rule | A Rule nested under another. Only checked once its parent already matched; if it also matches, it refines/overrides the parent's result. |
 | Pattern matching (advanced) | Regular expressions (regex), offered as an opt-in per Rule condition for users who want it — never required for basic use. See D-015. |
 | From / To | The other side of a transaction: shown as **From** on money you receive and **To** on money you pay. In the Rule editor the field is called **Other party**. Replaces the earlier term "Sender", which was wrong for payments. Internal concept: the payee/counterparty (name and IBAN). See D-034. |
+| Exchange rate *(proposed)* | How much one unit of one currency costs in another, e.g. 1 EUR = 1.0856 USD, on a given day. Entered by hand in v1 (D-028). German: *Wechselkurs*. Internal concept: a row of the book's price table (`DatedRate`, D-079). |
 | Part | One piece of a transaction broken down by what it was actually for (e.g. one €53.20 grocery charge split into Food, Household, Fast food Parts). Internal concept: `Split`. See D-017. |
 | Break down (a purchase) | The action of adding/editing a transaction's Parts. Available any time, not just at import. |
 | Scan a receipt | Post-1.0: photograph (Android companion app) or import an existing scan/photo of a receipt, so KassenSturz can suggest which transaction it belongs to and propose its Parts. Internal concept: `kassensturz-receipts` pipeline. See D-018. |

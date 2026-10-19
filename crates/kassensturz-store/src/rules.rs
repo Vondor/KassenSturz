@@ -4,12 +4,15 @@
 //! Rules in a book: keeping the user's tree of Rules, and running it on the
 //! book's transactions (D-014, D-031, D-088).
 //!
-//! Rules only touch what nobody decided by hand. A transaction is theirs to
-//! change when it has two parts, one for one of the user's accounts and one
-//! without a category yet, or one that a Rule booked earlier: `split_rules`
-//! marks those. When the user changes such a transaction, its parts are
-//! written again without the mark, so later runs leave it alone; and a
-//! transaction broken into more Parts is never theirs (D-031).
+//! Rules only touch what nobody decided by hand, and book a transaction
+//! once (Q-044). A run books a transaction that has two parts, one for one
+//! of the user's accounts and one without a category yet; `split_rules`
+//! marks the part a Rule booked. What a Rule booked keeps its booking when
+//! the Rules change later, unless the user changes that Rule and asks for
+//! what it booked to follow ([`Book::update_rule_and_rebook`]). When the
+//! user changes such a transaction, its parts are written again without the
+//! mark, so no Rule changes it again; and a transaction broken into more
+//! Parts is never theirs (D-031).
 
 use std::collections::{HashMap, HashSet};
 
@@ -24,7 +27,8 @@ use crate::error::{Corruption, StoreError};
 use crate::transactions::insert_split_rate;
 use crate::{Action, Book, currency_from_text, date_from_text, date_to_text};
 
-/// What running the Rules does, or would do, to a book's transactions.
+/// What running the Rules, or rebooking what a changed Rule booked, does or
+/// would do to a book's transactions.
 #[derive(Debug, Default)]
 pub struct RuleRun {
     /// The transactions whose category, Transfer account or payee the Rules
@@ -61,8 +65,9 @@ pub struct RuleSkip {
 }
 
 /// Which part of a transaction a Rule booked, and which Rule. A transaction
-/// with a mark is one the Rules may change again; one the user changed has
-/// none.
+/// with a mark is one a Rule booked and the user didn't change since, so
+/// changing that Rule can book it again when the user asks for it
+/// ([`Book::update_rule_and_rebook`]); one the user changed has none.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuleMark {
     /// The part the Rule booked, or left without a category while it set
@@ -77,6 +82,16 @@ struct Planned {
     transaction: Transaction,
     part: SplitId,
     rule: RuleId,
+}
+
+/// Which transactions the Rules look at.
+#[derive(Clone, Copy)]
+enum Scope<'a> {
+    /// The ones without a category yet, which a run books (Q-044).
+    Uncategorized,
+    /// The ones these Rules booked and the user didn't change since, which
+    /// changing one of the Rules books again when the user asks for it.
+    BookedBy(&'a HashSet<RuleId>),
 }
 
 impl Book {
@@ -118,12 +133,41 @@ impl Book {
 
     /// Changes a Rule: its name, whether all or any conditions count, its
     /// conditions and its actions, checked as in [`Book::add_rule`]. Its
-    /// place and its sub-Rules stay. Transactions it already changed keep
-    /// what it did until the Rules run again.
+    /// place and its sub-Rules stay. What it booked earlier keeps its
+    /// booking (Q-044); [`Book::update_rule_and_rebook`] books it again.
     pub fn update_rule(&mut self, rule: &Rule) -> Result<(), StoreError> {
         let parent = self.rule_parent(rule.id)?;
         self.check_rule(rule, parent)?;
         self.as_one_action(Action::EditRule, |book| book.write_rule(rule))
+    }
+
+    /// Changes a Rule as [`Book::update_rule`] does and, in the same user
+    /// action, books again what it and its sub-Rules booked earlier, for
+    /// when the user wants their earlier bookings to follow the change
+    /// (Q-044).
+    ///
+    /// Those transactions get what the Rules give them now, as in a run
+    /// ([`Book::run_rules`]): the first matching top-level Rule decides,
+    /// which may now be another one. A transaction the user changed since
+    /// has no mark and isn't touched (D-031). When no Rule matches it
+    /// anymore, what the Rule did earlier stays (Q-046). One that can't be
+    /// booked again, e.g. because an exchange rate is missing, stays as it is
+    /// and is reported as skipped.
+    pub fn update_rule_and_rebook(&mut self, rule: &Rule) -> Result<RuleRun, StoreError> {
+        let (run, planned) = self.plan_rebook(rule)?;
+        self.as_one_action(Action::EditRule, |book| {
+            book.write_rule(rule)?;
+            for change in &planned {
+                book.write_planned(change)?;
+            }
+            Ok(run)
+        })
+    }
+
+    /// What [`Book::update_rule_and_rebook`] would do to the transactions the
+    /// Rule booked earlier, without changing anything, the Rule included.
+    pub fn preview_rebook(&self, rule: &Rule) -> Result<RuleRun, StoreError> {
+        self.plan_rebook(rule).map(|(run, _)| run)
     }
 
     /// Removes a Rule with all its sub-Rules. Transactions they changed keep
@@ -282,15 +326,19 @@ impl Book {
     /// What running the Rules would do, without changing anything: see
     /// [`Book::run_rules`].
     pub fn preview_rules(&self) -> Result<RuleRun, StoreError> {
-        self.plan_rules().map(|(run, _)| run)
+        self.plan(&self.rules()?, Scope::Uncategorized)
+            .map(|(run, _)| run)
     }
 
-    /// Runs the Rules on every transaction they may change, as one user
-    /// action, which undo takes back as a whole (D-031, D-088).
+    /// Runs the Rules on every transaction without a category yet, as one
+    /// user action, which undo takes back as a whole (D-031, D-088).
     ///
     /// A transaction is theirs when it has two parts: one for one of the
     /// user's accounts, which the Rules look at, and one without a category
-    /// yet or booked by a Rule earlier, which they book. A transaction the
+    /// yet, which they book. A Rule books a transaction once: what a Rule
+    /// booked earlier keeps its booking, even after the Rules changed,
+    /// unless the user changes that Rule and asks for what it booked to
+    /// follow ([`Book::update_rule_and_rebook`], Q-044). A transaction the
     /// user categorized, changed or broke into Parts stays as it is, and so
     /// does one that looks like one side of a Transfer, since Transfers come
     /// first (D-030). For each, the first matching top-level Rule decides,
@@ -299,9 +347,10 @@ impl Book {
     /// sets the payee. A category or account in another currency gets the
     /// amount converted with the book's rate for the booking date (D-043).
     /// When no Rule matches, or one matches without actions, the
-    /// transaction stays as it is.
+    /// transaction stays as it is. A Rule that only set the payee left the
+    /// category open, so a later run can still book that transaction.
     pub fn run_rules(&mut self) -> Result<RuleRun, StoreError> {
-        let (run, planned) = self.plan_rules()?;
+        let (run, planned) = self.plan(&self.rules()?, Scope::Uncategorized)?;
         if planned.is_empty() {
             return Ok(run);
         }
@@ -313,8 +362,24 @@ impl Book {
         })
     }
 
-    fn plan_rules(&self) -> Result<(RuleRun, Vec<Planned>), StoreError> {
-        let rules = RuleSet::new(&self.rules()?).map_err(StoreError::Rule)?;
+    /// What changing `rule` does to what it and its sub-Rules booked
+    /// earlier, with the Rules as they are going to be.
+    fn plan_rebook(&self, rule: &Rule) -> Result<(RuleRun, Vec<Planned>), StoreError> {
+        let parent = self.rule_parent(rule.id)?;
+        self.check_rule(rule, parent)?;
+        let mut tree = self.rules()?;
+        let booked_by = replace_rule(&mut tree, rule).expect("a Rule of the book is in its tree");
+        self.plan(&tree, Scope::BookedBy(&booked_by))
+    }
+
+    /// What the Rules in `tree` do to the transactions `scope` names: what
+    /// to report, and what to write.
+    fn plan(
+        &self,
+        tree: &[RuleNode],
+        scope: Scope<'_>,
+    ) -> Result<(RuleRun, Vec<Planned>), StoreError> {
+        let rules = RuleSet::new(tree).map_err(StoreError::Rule)?;
         let accounts: HashMap<AccountId, Account> = self
             .all_accounts()?
             .into_iter()
@@ -327,14 +392,8 @@ impl Book {
             .flat_map(|found| [found.outgoing.transaction, found.incoming.transaction])
             .collect();
         let marks = self.marks()?;
-        let mut statement = self.conn.prepare(
-            "SELECT transaction_id FROM splits GROUP BY transaction_id HAVING count(*) = 2",
-        )?;
-        let ids = statement
-            .query_map([], |row| Ok(TransactionId::from_bytes(row.get(0)?)))?
-            .collect::<Result<Vec<_>, _>>()?;
-        drop(statement);
-        let mut transactions = ids
+        let mut transactions = self
+            .candidates(scope)?
             .into_iter()
             .map(|id| self.transaction(id))
             .collect::<Result<Vec<_>, _>>()?;
@@ -356,6 +415,17 @@ impl Book {
                     _ => continue,
                 },
             };
+            // A Rule books a transaction once; what it booked changes only
+            // when the user asks for that with a change of the Rule (Q-044).
+            let wanted = match scope {
+                Scope::Uncategorized => part.account.is_none(),
+                Scope::BookedBy(booked_by) => {
+                    mark.flatten().is_some_and(|rule| booked_by.contains(&rule))
+                }
+            };
+            if !wanted {
+                continue;
+            }
             let Some(account) = own.account.filter(|&id| is_account(id)) else {
                 continue;
             };
@@ -549,6 +619,45 @@ impl Book {
             })?
             .collect::<Result<_, _>>()?;
         Ok(rows)
+    }
+
+    /// The transactions `scope` may name, each once: those with two parts,
+    /// one of them without a category, or those with a part one of the
+    /// Rules booked. [`Book::plan`] checks each one further.
+    fn candidates(&self, scope: Scope<'_>) -> Result<Vec<TransactionId>, StoreError> {
+        let mut ids = match scope {
+            Scope::Uncategorized => {
+                let mut statement = self.conn.prepare(
+                    "SELECT transaction_id FROM splits GROUP BY transaction_id
+                     HAVING count(*) = 2 AND count(account_id) = 1",
+                )?;
+                statement
+                    .query_map([], |row| Ok(TransactionId::from_bytes(row.get(0)?)))?
+                    .collect::<Result<Vec<_>, _>>()?
+            }
+            Scope::BookedBy(booked_by) => {
+                let mut statement = self.conn.prepare(
+                    "SELECT s.transaction_id, m.rule_id
+                     FROM split_rules AS m JOIN splits AS s ON s.id = m.split_id
+                     WHERE m.rule_id IS NOT NULL",
+                )?;
+                statement
+                    .query_map([], |row| {
+                        Ok((
+                            TransactionId::from_bytes(row.get(0)?),
+                            RuleId::from_bytes(row.get(1)?),
+                        ))
+                    })?
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
+                    .filter(|(_, rule)| booked_by.contains(rule))
+                    .map(|(id, _)| id)
+                    .collect()
+            }
+        };
+        ids.sort_unstable();
+        ids.dedup();
+        Ok(ids)
     }
 
     /// The checks `add_rule`, `update_rule` and `move_rule` share, on the
@@ -753,6 +862,31 @@ fn build_tree(
             RuleNode { rule, sub_rules }
         })
         .collect()
+}
+
+/// Puts `rule` in `nodes` in place of the Rule with its ID, and returns that
+/// ID with the IDs of all its sub-Rules, or `None` if it isn't there.
+fn replace_rule(nodes: &mut [RuleNode], rule: &Rule) -> Option<HashSet<RuleId>> {
+    for node in nodes {
+        if node.rule.id == rule.id {
+            node.rule = rule.clone();
+            let mut ids = HashSet::new();
+            collect_ids(node, &mut ids);
+            return Some(ids);
+        }
+        if let Some(ids) = replace_rule(&mut node.sub_rules, rule) {
+            return Some(ids);
+        }
+    }
+    None
+}
+
+/// Adds the ID of `node`'s Rule and of all its sub-Rules to `ids`.
+fn collect_ids(node: &RuleNode, ids: &mut HashSet<RuleId>) {
+    ids.insert(node.rule.id);
+    for sub in &node.sub_rules {
+        collect_ids(sub, ids);
+    }
 }
 
 /// The columns [`RuleRow::read`] expects, in its order.

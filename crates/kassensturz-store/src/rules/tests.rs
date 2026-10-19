@@ -318,6 +318,14 @@ fn a_rule_can_be_changed_in_place() {
         book.update_rule(&missing),
         Err(StoreError::UnknownRule(id)) if id == missing.id
     ));
+    assert!(matches!(
+        book.update_rule_and_rebook(&missing),
+        Err(StoreError::UnknownRule(id)) if id == missing.id
+    ));
+    assert!(matches!(
+        book.preview_rebook(&missing),
+        Err(StoreError::UnknownRule(id)) if id == missing.id
+    ));
     let mut clash = sub.clone();
     clash.name = "food".into();
     let other = add(&mut book, "Other", "Other", None, Some(first.id));
@@ -326,6 +334,17 @@ fn a_rule_can_be_changed_in_place() {
         book.update_rule(&clash),
         Err(StoreError::DuplicateRuleName { existing }) if existing == sub.id
     ));
+    assert!(matches!(
+        book.update_rule_and_rebook(&clash),
+        Err(StoreError::DuplicateRuleName { existing }) if existing == sub.id
+    ));
+    let mut no_conditions = changed.clone();
+    no_conditions.conditions.clear();
+    assert!(matches!(
+        book.preview_rebook(&no_conditions),
+        Err(StoreError::Rule(RuleError::NoConditions(id))) if id == changed.id
+    ));
+    assert_eq!(book.rule(first.id).expect("read"), changed);
 }
 
 #[test]
@@ -593,7 +612,7 @@ fn manual_choices_win() {
 }
 
 #[test]
-fn running_again_follows_changed_rules() {
+fn a_rule_books_a_transaction_once() {
     let Sample {
         mut book,
         checking,
@@ -612,17 +631,125 @@ fn running_again_follows_changed_rules() {
     book.run_rules().expect("run");
     assert_eq!(other_side(&book, &purchase, checking), Some(groceries));
 
-    // The user decides REWE is household shopping after all.
+    // The user decides REWE is household shopping after all. What the Rule
+    // booked earlier keeps its booking (Q-044).
     shops.actions.book_to = Some(BookTo::Category(household));
     book.update_rule(&shops).expect("changed");
-    let run = book.run_rules().expect("run again");
-    assert_eq!(changed(&run), [(purchase.id(), shops.id)]);
+    assert!(book.preview_rules().expect("preview").changed.is_empty());
+    assert!(book.run_rules().expect("run again").changed.is_empty());
+    assert_eq!(other_side(&book, &purchase, checking), Some(groceries));
+    // A new purchase gets the changed Rule's category.
+    let later = imported(&mut book, checking, -1999, 6, "REWE Markt");
+    assert_eq!(
+        changed(&book.run_rules().expect("run")),
+        [(later.id(), shops.id)]
+    );
+    assert_eq!(other_side(&book, &later, checking), Some(household));
+    assert_eq!(other_side(&book, &purchase, checking), Some(groceries));
+}
+
+#[test]
+fn changing_a_rule_can_rebook_what_it_booked() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let household = account(&mut book, "Household", AccountKind::Expense, EUR);
+    let food = Some(BookTo::Category(groceries));
+    let mut shops = add(&mut book, "Shops", "REWE", food, None);
+    // A sub-Rule that leaves the category to its parent.
+    let mut drinks = rule("Drinks", vec![name_contains("Getränke")], None);
+    drinks.actions.payee = Some("Drinks shop".into());
+    book.add_rule(&drinks, Some(shops.id)).expect("added");
+    let bakery = add(&mut book, "Bakery", "Bakery", food, None);
+    let purchase = imported(&mut book, checking, -5320, 5, "REWE Markt");
+    let water = imported(&mut book, checking, -699, 6, "REWE Getränke");
+    let bread = imported(&mut book, checking, -350, 7, "Bakery");
+    let by_hand = imported(&mut book, checking, -1250, 8, "REWE Markt");
+    book.run_rules().expect("run");
+    // Changed by the user after a Rule booked it: their choice wins (D-031).
+    let mut edited = book.transaction(by_hand.id()).expect("read");
+    edited = Transaction::new(
+        edited.id(),
+        edited.booking_date(),
+        Some("Corner shop".into()),
+        edited.splits().to_vec(),
+    )
+    .expect("balanced");
+    book.update_transaction(&edited).expect("edited");
+    let before = history_length(&book);
+
+    shops.actions.book_to = Some(BookTo::Category(household));
+    let preview = book.preview_rebook(&shops).expect("preview");
+    assert_eq!(
+        changed(&preview),
+        [(purchase.id(), shops.id), (water.id(), drinks.id)]
+    );
+    assert!(preview.skipped.is_empty());
+    assert_eq!(
+        book.rule(shops.id).expect("read").actions.book_to,
+        food,
+        "a preview changes nothing"
+    );
+    assert_eq!(other_side(&book, &purchase, checking), Some(groceries));
+    assert_eq!(history_length(&book), before);
+
+    let run = book.update_rule_and_rebook(&shops).expect("changed");
+    assert_eq!(changed(&run), changed(&preview));
+    assert_eq!(book.rule(shops.id).expect("read"), shops);
+    assert_eq!(other_side(&book, &purchase, checking), Some(household));
+    assert_eq!(other_side(&book, &water, checking), Some(household));
+    let water_now = book.transaction(water.id()).expect("read");
+    assert_eq!(water_now.payee(), Some("Drinks shop"));
+    // What another Rule booked, and what the user changed, stay as they are.
+    assert_eq!(other_side(&book, &bread, checking), Some(groceries));
+    assert_eq!(book.transaction(by_hand.id()).expect("read"), edited);
+    // One user action, the change of the Rule with what it booked again.
+    assert_eq!(history_length(&book), before + 1);
+    assert_eq!(
+        book.change_to_undo().expect("read").map(|c| c.action),
+        Some(Action::EditRule)
+    );
+    book.undo().expect("undone");
+    assert_eq!(book.rule(shops.id).expect("read").actions.book_to, food);
+    assert_eq!(other_side(&book, &purchase, checking), Some(groceries));
+    assert_eq!(other_side(&book, &water, checking), Some(groceries));
+    book.redo().expect("redone");
     assert_eq!(other_side(&book, &purchase, checking), Some(household));
 
-    // Without a matching Rule, what an earlier one did stays.
-    book.remove_rule(shops.id).expect("removed");
-    assert!(book.run_rules().expect("run").changed.is_empty());
-    assert_eq!(other_side(&book, &purchase, checking), Some(household));
+    // The first matching Rule decides, as in a run, which may now be one
+    // added since.
+    let market_food = account(&mut book, "Market food", AccountKind::Expense, EUR);
+    let markets = rule(
+        "Markets",
+        vec![name_contains("Markt")],
+        Some(BookTo::Category(market_food)),
+    );
+    book.add_rule(&markets, None).expect("added");
+    book.move_rule(markets.id, None, 0).expect("first");
+    let run = book.update_rule_and_rebook(&shops).expect("unchanged Rule");
+    assert_eq!(changed(&run), [(purchase.id(), markets.id)]);
+    assert_eq!(other_side(&book, &purchase, checking), Some(market_food));
+    assert_eq!(
+        book.rule_mark(purchase.id()).expect("mark").map(|m| m.rule),
+        Some(Some(markets.id))
+    );
+    assert_eq!(other_side(&book, &water, checking), Some(household));
+
+    // When a Rule no longer matches, what it booked stays (Q-046).
+    let mut elsewhere = shops.clone();
+    elsewhere.conditions = vec![name_contains("EDEKA")];
+    let run = book.update_rule_and_rebook(&elsewhere).expect("changed");
+    assert!(run.changed.is_empty());
+    assert_eq!(other_side(&book, &water, checking), Some(household));
+    assert_eq!(book.rule(shops.id).expect("read"), elsewhere);
+    assert_eq!(other_side(&book, &bread, checking), Some(groceries));
+    assert_eq!(
+        book.rule_mark(bread.id()).expect("mark").map(|m| m.rule),
+        Some(Some(bakery.id))
+    );
 }
 
 #[test]
@@ -685,7 +812,7 @@ fn a_rule_that_only_sets_the_payee_leaves_the_category_open() {
     let read = book.transaction(purchase.id()).expect("read");
     assert_eq!(read.payee(), Some("Supermarket"));
     assert_eq!(other_side(&book, &purchase, checking), None);
-    // It is still the Rules' to change: a later Rule can add the category.
+    // It still has no category, so a later run can book it.
     let mark = book
         .rule_mark(purchase.id())
         .expect("mark")
@@ -785,7 +912,8 @@ fn a_category_in_another_currency_gets_the_amount_converted() {
         Money::from_minor_units(10_042, USD)
     );
 
-    // A newer rate doesn't change what is booked already.
+    // A newer rate doesn't change what is booked already, not even when
+    // what the Rule booked follows a change of the Rule.
     let newer = DatedRate {
         id: DatedRateId::generate(),
         date: date(2026, 10, 2),
@@ -794,6 +922,11 @@ fn a_category_in_another_currency_gets_the_amount_converted() {
     };
     book.add_rate(&newer).expect("rate added");
     assert!(book.run_rules().expect("run").changed.is_empty());
+    let mut renamed = hotel.clone();
+    renamed.name = "Hotels".into();
+    let run = book.update_rule_and_rebook(&renamed).expect("changed");
+    assert!(run.changed.is_empty());
+    assert!(run.skipped.is_empty());
     assert_eq!(book.transaction(bill.id()).expect("read"), booked);
 }
 
@@ -830,14 +963,20 @@ fn closed_accounts_stay_as_they_are() {
     book.close_account(cash).expect("closed");
     let mut groceries_instead = atm.clone();
     groceries_instead.actions.book_to = Some(BookTo::Category(groceries));
-    book.update_rule(&groceries_instead).expect("changed");
-    let run = book.run_rules().expect("run");
+    let run = book
+        .update_rule_and_rebook(&groceries_instead)
+        .expect("changed");
     assert!(run.changed.is_empty());
     assert!(matches!(
         run.skipped[0].reason,
         StoreError::AccountClosed(id) if id == cash
     ));
     assert_eq!(other_side(&book, &withdrawal, checking), Some(cash));
+    assert_eq!(
+        book.rule(atm.id).expect("read"),
+        groceries_instead,
+        "the Rule changes all the same"
+    );
 }
 
 #[test]

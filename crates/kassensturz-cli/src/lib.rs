@@ -146,16 +146,20 @@ Commands:
                                  All conditions must match, or one with --any.
                                  The first matching Rule wins; its matching
                                  sub-Rules (--inside) can say more
-  rule change NAME [--name NEW-NAME] --if CONDITION ...
+  rule change NAME [--name NEW-NAME] --if CONDITION ... [--rebook [--dry-run]]
                                  replaces the Rule's conditions and actions;
-                                 takes the options of rule add
+                                 takes the options of rule add. What the Rule
+                                 booked before keeps its booking; --rebook
+                                 books it again with the changed Rules,
+                                 except what you changed yourself, and
+                                 --dry-run only shows what that would change
   rule list                      the Rules in the order they are tried
   rule move NAME [--inside PARENT] [--position N]
                                  N counts from 1; without it, last
   rule remove NAME               also removes its sub-Rules
-  rule run [--dry-run]           apply the Rules; a choice you made yourself
-                                 is never changed. --dry-run only shows what
-                                 would change
+  rule run [--dry-run]           apply the Rules to what has no category yet;
+                                 a choice you made yourself is never changed.
+                                 --dry-run only shows what would change
   undo                           undo the last change, also one made by an
                                  earlier command
   redo                           make the change undone last again

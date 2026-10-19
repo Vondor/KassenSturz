@@ -179,7 +179,7 @@ A text field that a transaction doesn't have, such as the purpose of one entered
 
 ### `split_rules`
 
-Marks the parts a Rule booked (D-088). A transaction is one the Rules may change when it has two parts, one booked to one of the user's accounts and the other without a category yet or with a row here. When the user changes or joins such a transaction, KassenSturz writes its parts again without this row, so later runs leave it alone (D-031).
+Marks the parts a Rule booked (D-088). A run of the Rules books a transaction that has two parts, one booked to one of the user's accounts and the other without a category yet. A Rule books a transaction once: a part with a row here is booked again only when the user changes the Rule the row names, or one of that Rule's parents, and asks for what it booked to follow (Q-044). When the user changes or joins such a transaction, KassenSturz writes its parts again without this row, so the Rules leave it alone (D-031).
 
 | Column | Type | Meaning |
 |---|---|---|

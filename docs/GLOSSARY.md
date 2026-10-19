@@ -5,6 +5,7 @@ Plain-language terms used in the UI, and the accounting/technical concept each o
 | UI term | Means (technical/internal concept) |
 |---|---|
 | Account | A place where your money is: a checking account, a savings account, a credit card, or the cash in your wallet. German: *Konto*. Internal concept: an asset or liability account. Not the same thing as a Member (D-022). |
+| Closed account | An account you no longer use, e.g. a card the bank replaced. It keeps its history but takes no new transactions and is hidden from the lists, until you open it again. It can be closed only when nothing is left in it. German: *Geschlossenes Konto*. Internal concept: an asset or liability account with the closed flag (D-081). |
 | Category | What money was spent on or came from, e.g. Groceries, Rent, Salary. New users start with a built-in set (D-029). German: *Kategorie*. Internal concept: an income or expense account. |
 | Household book | Everything KassenSturz keeps about your money, in one place: accounts, categories, transactions, Rules. German: *Haushaltsbuch*. Internal concept: the book (one SQLite file with the extension `.ksz` in v1, D-033, D-037). |
 | Balance | How much money is in an account right now. For a debt it reads "You owe" (D-067). German: *Kontostand*. Internal concept: the sum of all parts booked to the account. |

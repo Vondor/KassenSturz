@@ -31,6 +31,44 @@ pub enum AccountKind {
     Equity,
 }
 
+/// The sort of account the user sees: a checking account, cash, a credit
+/// card. It tells later steps what an account is for, e.g. a "make it a
+/// Transfer" Rule into a cash account (D-031) or a bank's credit card
+/// statements (D-029). Categories have none.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum AccountType {
+    /// A checking account (German: Girokonto).
+    Checking,
+    /// A savings account.
+    Savings,
+    /// Cash, e.g. the money in a wallet.
+    Cash,
+    /// A credit card. Its balance is what the user owes (D-067).
+    CreditCard,
+}
+
+impl AccountType {
+    /// Every type, in the order the UI lists them.
+    pub const ALL: [Self; 4] = [Self::Checking, Self::Savings, Self::Cash, Self::CreditCard];
+
+    /// The kind of account this type is: money the user has, or money the user
+    /// owes.
+    pub const fn kind(self) -> AccountKind {
+        match self {
+            Self::Checking | Self::Savings | Self::Cash => AccountKind::Asset,
+            Self::CreditCard => AccountKind::Liability,
+        }
+    }
+}
+
+impl AccountKind {
+    /// Whether users see this kind as an account, as opposed to a category or
+    /// an internal account.
+    pub const fn is_account(self) -> bool {
+        matches!(self, Self::Asset | Self::Liability)
+    }
+}
+
 /// An account or a category.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Account {
@@ -42,4 +80,10 @@ pub struct Account {
     pub kind: AccountKind,
     /// The currency its amounts are in.
     pub currency: CurrencyCode,
+    /// What sort of account it is, if the user said. Only accounts have one
+    /// (see [`AccountType::kind`]), and old books have none.
+    pub account_type: Option<AccountType>,
+    /// Whether the user closed it. A closed account keeps its history but
+    /// takes no new transactions and is hidden from the lists.
+    pub closed: bool,
 }

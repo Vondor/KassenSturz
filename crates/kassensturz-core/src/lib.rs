@@ -19,7 +19,7 @@ mod rates;
 mod rounding;
 mod transaction;
 
-pub use account::{Account, AccountId, AccountKind};
+pub use account::{Account, AccountId, AccountKind, AccountType};
 pub use currency::{Currency, CurrencyCode, CurrencyCodeError};
 pub use decimal::{DecimalError, ExchangeRate, MAX_DECIMAL_PLACES, MAX_DIGITS, Price, Quantity};
 pub use money::{Money, MoneyError};

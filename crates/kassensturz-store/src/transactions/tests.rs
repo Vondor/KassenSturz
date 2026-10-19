@@ -755,7 +755,7 @@ fn a_damaged_transaction_can_still_be_removed() {
     );
     book.add_transaction(&shopping).expect("added");
     // As if another program had changed the book (D-046).
-    book.conn
+    book.as_another_program()
         .execute("UPDATE splits SET amount = 5300 WHERE amount = 5320", [])
         .expect("changed behind KassenSturz's back");
     assert!(matches!(
@@ -809,7 +809,7 @@ fn parts_in_the_wrong_currency_in_the_file_are_reported() {
     book.use_currency(CurrencyCode::new("JPY").expect("valid code"))
         .expect("currency used");
     // As if another program had changed the book (D-046).
-    book.conn
+    book.as_another_program()
         .execute(
             "UPDATE splits SET foreign_currency = 'JPY' WHERE foreign_currency = 'USD'",
             [],
@@ -839,10 +839,10 @@ fn parts_that_do_not_fit_together_in_the_file_are_reported() {
     let received = moved.splits()[1].id;
 
     // A foreign amount without its currency.
-    book.conn
+    book.as_another_program()
         .execute_batch("PRAGMA ignore_check_constraints = ON;")
         .expect("checks off");
-    book.conn
+    book.as_another_program()
         .execute(
             "UPDATE splits SET foreign_currency = NULL WHERE id = ?1",
             [received.to_bytes()],
@@ -858,7 +858,7 @@ fn parts_that_do_not_fit_together_in_the_file_are_reported() {
     ));
 
     // A rate for a part that isn't in another currency.
-    book.conn
+    book.as_another_program()
         .execute(
             "UPDATE splits SET foreign_amount = NULL WHERE id = ?1",
             [received.to_bytes()],
@@ -866,7 +866,7 @@ fn parts_that_do_not_fit_together_in_the_file_are_reported() {
         .expect("changed behind KassenSturz's back");
     let checking_part = moved.splits()[0].id;
     let stray = rate(1, EUR, USD, "1.0856");
-    book.conn
+    book.as_another_program()
         .execute(
             "INSERT INTO split_rates
                  (split_id, rate_id, date, from_currency, to_currency,
@@ -889,7 +889,7 @@ fn delivered_details_that_are_wrong_in_the_file_are_reported() {
     let purchase = imported_purchase(&mut book, checking);
     let open_part = purchase.splits()[1].id;
     // What a bank delivered, on the part without a category.
-    book.conn
+    book.as_another_program()
         .execute(
             "INSERT INTO split_imports (split_id, bank_id) VALUES (?1, 'X')",
             [open_part.to_bytes()],
@@ -902,14 +902,14 @@ fn delivered_details_that_are_wrong_in_the_file_are_reported() {
             ..
         })) if id == open_part
     ));
-    book.conn
+    book.as_another_program()
         .execute(
             "DELETE FROM split_imports WHERE split_id = ?1",
             [open_part.to_bytes()],
         )
         .expect("removed again");
     // A date that looks like one but isn't.
-    book.conn
+    book.as_another_program()
         .execute("UPDATE split_imports SET value_date = '2026-13-45'", [])
         .expect("changed behind KassenSturz's back");
     assert!(matches!(

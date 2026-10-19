@@ -11,10 +11,12 @@ use kassensturz_core::{
     Account, AccountId, CurrencyCode, Date, DatedRate, DatedRateId, ForeignAmount, ImportedDetails,
     Money, Split, SplitId, Transaction, TransactionId,
 };
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::error::{Corruption, StoreError};
-use crate::{Book, RateRow, currency_from_text, date_from_text, date_to_text, source_to_text};
+use crate::{
+    Action, Book, RateRow, currency_from_text, date_from_text, date_to_text, source_to_text,
+};
 
 /// One line of an account's register: a transaction as seen from that
 /// account.
@@ -59,19 +61,19 @@ impl Book {
                 return Err(StoreError::AccountClosed(account.id));
             }
         }
-        let sql = self.conn.transaction()?;
-        sql.execute(
-            "INSERT INTO transactions (id, booking_date, payee, currency) VALUES (?1, ?2, ?3, ?4)",
-            params![
-                transaction.id().to_bytes(),
-                date_to_text(transaction.booking_date())?,
-                transaction.payee(),
-                transaction.currency().as_str()
-            ],
-        )?;
-        insert_splits(&sql, transaction)?;
-        sql.commit()?;
-        Ok(())
+        self.as_one_action(Action::AddTransaction, |book| {
+            book.conn.execute(
+                "INSERT INTO transactions (id, booking_date, payee, currency)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![
+                    transaction.id().to_bytes(),
+                    date_to_text(transaction.booking_date())?,
+                    transaction.payee(),
+                    transaction.currency().as_str()
+                ],
+            )?;
+            insert_splits(&book.conn, transaction)
+        })
     }
 
     /// Replaces the transaction with `transaction`'s ID by `transaction`:
@@ -110,22 +112,24 @@ impl Book {
             }
         }
         let id = transaction.id().to_bytes();
-        let sql = self.conn.transaction()?;
-        sql.execute(
-            "UPDATE transactions SET booking_date = ?2, payee = ?3, currency = ?4 WHERE id = ?1",
-            params![
-                id,
-                date_to_text(transaction.booking_date())?,
-                transaction.payee(),
-                transaction.currency().as_str()
-            ],
-        )?;
-        // Their rates and imported details go with them, and come back with
-        // the new parts.
-        sql.execute("DELETE FROM splits WHERE transaction_id = ?1", [id])?;
-        insert_splits(&sql, transaction)?;
-        sql.commit()?;
-        Ok(())
+        self.as_one_action(Action::EditTransaction, |book| {
+            book.conn.execute(
+                "UPDATE transactions SET booking_date = ?2, payee = ?3, currency = ?4
+                 WHERE id = ?1",
+                params![
+                    id,
+                    date_to_text(transaction.booking_date())?,
+                    transaction.payee(),
+                    transaction.currency().as_str()
+                ],
+            )?;
+            // Their rates and imported details go with them, and come back
+            // with the new parts. The history records only the parts that
+            // really changed.
+            book.conn
+                .execute("DELETE FROM splits WHERE transaction_id = ?1", [id])?;
+            insert_splits(&book.conn, transaction)
+        })
     }
 
     /// Removes a transaction with all its parts, also one delivered by a
@@ -148,6 +152,7 @@ impl Book {
                 Ok((AccountId::from_bytes(row.get(0)?), row.get::<_, i64>(1)?))
             })?
             .collect::<Result<Vec<_>, _>>()?;
+        drop(statement);
         let mut totals: Vec<(AccountId, i128)> = Vec::new();
         for (account, amount) in rows {
             match totals.iter_mut().find(|(id, _)| *id == account) {
@@ -158,15 +163,18 @@ impl Book {
         if let Some(&(account, _)) = totals.iter().find(|(_, total)| *total != 0) {
             return Err(StoreError::AccountClosed(account));
         }
-        // Its parts, their rates and imported details go with it.
-        let removed = self
-            .conn
-            .execute("DELETE FROM transactions WHERE id = ?1", [id.to_bytes()])?;
-        if removed == 1 {
-            Ok(())
-        } else {
-            Err(StoreError::UnknownTransaction(id))
-        }
+        // Its parts, their rates and imported details go with it, and come
+        // back with it when the removal is undone.
+        self.as_one_action(Action::RemoveTransaction, |book| {
+            let removed = book
+                .conn
+                .execute("DELETE FROM transactions WHERE id = ?1", [id.to_bytes()])?;
+            if removed == 1 {
+                Ok(())
+            } else {
+                Err(StoreError::UnknownTransaction(id))
+            }
+        })
     }
 
     /// The transaction with this ID. It's checked again on the way out, so a
@@ -417,22 +425,19 @@ fn account_totals(transaction: &Transaction) -> Result<HashMap<AccountId, Money>
 }
 
 /// Writes the parts of `transaction`, with their rates and imported details.
-fn insert_splits(
-    sql: &rusqlite::Transaction<'_>,
-    transaction: &Transaction,
-) -> Result<(), StoreError> {
-    let mut insert = sql.prepare(
+fn insert_splits(conn: &Connection, transaction: &Transaction) -> Result<(), StoreError> {
+    let mut insert = conn.prepare(
         "INSERT INTO splits
              (id, transaction_id, position, account_id, amount, foreign_amount, foreign_currency)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
     )?;
-    let mut insert_rate = sql.prepare(
+    let mut insert_rate = conn.prepare(
         "INSERT INTO split_rates
              (split_id, rate_id, date, from_currency, to_currency,
               rate_digits, rate_decimal_places, source)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
     )?;
-    let mut insert_imported = sql.prepare(
+    let mut insert_imported = conn.prepare(
         "INSERT INTO split_imports
              (split_id, bank_id, booking_date, value_date,
               other_party_name, other_party_iban, remittance_information)

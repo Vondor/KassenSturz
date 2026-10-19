@@ -113,3 +113,7 @@ Data in the book breaks one of KassenSturz's rules, for example because another 
 | `store.corrupt.bad-split` | `split` | | A part of a transaction is incomplete. |
 | `store.corrupt.invalid-transaction` | `transaction` | | {transaction} doesn't add up. The detail below says why. |
 | `store.corrupt.broken-references` | | | Something in the book refers to an account or a transaction that isn't there. |
+| `store.corrupt.bad-action` | `found` | | The change history names a change that doesn't exist. |
+| `store.corrupt.bad-timestamp` | `found` | | A time in the change history isn't a valid time. |
+| `store.corrupt.bad-history-retention` | `found` | | The book keeps its change history for an impossible number of days. |
+| `store.corrupt.history-mismatch` | | | The change history doesn't fit what is in the book, e.g. because another program changed the book, so the change can't be undone or redone. Nothing was changed; Clean up history removes the history that doesn't fit. |

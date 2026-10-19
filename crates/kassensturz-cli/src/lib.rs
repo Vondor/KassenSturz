@@ -3,8 +3,8 @@
 
 //! KassenSturz's command-line tool: a front end for trying out the core and
 //! the store without the UI (M1.8). It creates and opens books, adds
-//! accounts, categories, transactions and exchange rates, and shows
-//! registers and balances.
+//! accounts, categories, transactions and exchange rates, shows registers
+//! and balances, and undoes and redoes changes (M1.9).
 //!
 //! The tool is for developers and testers. It writes English text and plain
 //! amounts (`-12.50 EUR`), shows errors as their code and parameters, and is
@@ -17,6 +17,7 @@ mod accounts;
 mod amount;
 mod args;
 mod error;
+mod history;
 mod input;
 mod lookup;
 mod rate;
@@ -118,6 +119,14 @@ Commands:
   rate add --date DATE --from CODE --to CODE --rate RATE
   rate list --from CODE --to CODE
   rate remove --date DATE --from CODE --to CODE
+  undo                           undo the last change, also one made by an
+                                 earlier command
+  redo                           make the change undone last again
+  history list                   every change, newest first
+  history keep DAYS|forever      how long the book keeps its history (30 days
+                                 for a new book); with 0, a change can be
+                                 undone only until the book is closed
+  history clean-up               delete the whole history for good
   help                           this text
 
 A book that is open somewhere else is refused; --open-anyway opens it after
@@ -207,16 +216,18 @@ impl<'a> CommandLine<'a> {
         })
     }
 
-    /// Fails if the command is unknown or, for `create`, has arguments.
+    /// Fails if the command is unknown or, for `create`, `undo` and `redo`,
+    /// has arguments.
     fn check_command(&self) -> Result<(), CliError> {
         match self.command {
-            Some("create") => {
+            Some("create" | "undo" | "redo") => {
                 Arguments::parse(self.rest, &[], &[])?.exactly([])?;
                 Ok(())
             }
-            Some("account" | "category" | "transaction" | "rate" | "balances" | "register") => {
-                Ok(())
-            }
+            Some(
+                "account" | "category" | "transaction" | "rate" | "balances" | "register"
+                | "history",
+            ) => Ok(()),
             Some(other) => Err(CliError::usage(format!("`{other}` isn't a command"))),
             None => Ok(()),
         }
@@ -236,6 +247,9 @@ impl<'a> CommandLine<'a> {
             Some("rate") => rate::rate(book, rest, out),
             Some("balances") => accounts::balances(book, rest, out),
             Some("register") => accounts::register(book, rest, out),
+            Some("undo") => history::undo(book, out),
+            Some("redo") => history::redo(book, out),
+            Some("history") => history::history(book, rest, out),
             Some(other) => unreachable!("`{other}` was checked before"),
             None => unreachable!("without a command the help text is shown"),
         }

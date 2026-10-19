@@ -211,6 +211,19 @@ pub enum Corruption {
     /// account. Checked when the book's layout is updated, and for the
     /// accounts of a transaction when it is read.
     BrokenReferences,
+    /// The change history names an action that doesn't exist.
+    BadAction(String),
+    /// A time in the change history that isn't a valid ISO 8601 time in UTC,
+    /// in whole seconds.
+    BadTimestamp(String),
+    /// How long the book keeps its change history is out of range: a number
+    /// of days below 0 or above what fits in 32 bits.
+    BadHistoryRetention(i64),
+    /// The book doesn't hold what the change history says a change left in
+    /// it, or writing the change's values back would break the book's rules,
+    /// e.g. because another program changed the book (D-066). The change
+    /// can't be undone or redone; nothing was changed.
+    HistoryMismatch,
 }
 
 /// An error reported by SQLite. Its details are for logs, not for users.
@@ -383,6 +396,12 @@ impl Report for Corruption {
                     .caused_by(error.report())
             }
             Self::BrokenReferences => new("store.corrupt.broken-references"),
+            Self::BadAction(text) => found("store.corrupt.bad-action", text),
+            Self::BadTimestamp(text) => found("store.corrupt.bad-timestamp", text),
+            Self::BadHistoryRetention(days) => {
+                new("store.corrupt.bad-history-retention").with("found", P::Number(*days))
+            }
+            Self::HistoryMismatch => new("store.corrupt.history-mismatch"),
         }
     }
 }

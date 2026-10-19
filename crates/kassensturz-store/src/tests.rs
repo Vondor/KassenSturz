@@ -32,6 +32,7 @@ fn account(book: &mut Book, name: &str, kind: AccountKind, currency: CurrencyCod
         currency,
         account_type: None,
         closed: false,
+        parent: None,
     };
     book.add_account(&account).expect("account added");
     id
@@ -296,6 +297,7 @@ fn accounts_need_a_currency_in_use() {
         currency: EUR,
         account_type: None,
         closed: false,
+        parent: None,
     };
     assert!(matches!(
         book.add_account(&account),
@@ -635,6 +637,7 @@ fn typed_account(
         currency: EUR,
         account_type: Some(account_type),
         closed: false,
+        parent: None,
     })?;
     Ok(id)
 }
@@ -672,6 +675,7 @@ fn an_accounts_type_must_fit_its_kind() {
             currency: EUR,
             account_type: Some(account_type),
             closed: false,
+            parent: None,
         });
         assert!(
             matches!(result, Err(StoreError::AccountTypeMismatch { .. })),
@@ -863,5 +867,343 @@ fn bad_account_types_in_the_file_are_reported() {
     assert!(matches!(
         book.accounts(true),
         Err(StoreError::Corrupt(Corruption::AccountTypeMismatch(id))) if id == checking
+    ));
+}
+
+fn category(
+    book: &mut Book,
+    name: &str,
+    kind: AccountKind,
+    parent: Option<AccountId>,
+) -> Result<AccountId, StoreError> {
+    let id = AccountId::generate();
+    book.add_account(&Account {
+        id,
+        name: name.into(),
+        kind,
+        currency: EUR,
+        account_type: None,
+        closed: false,
+        parent,
+    })?;
+    Ok(id)
+}
+
+fn tree(book: &Book) -> Vec<String> {
+    book.categories()
+        .expect("categories")
+        .into_iter()
+        .map(|entry| entry.path.join(" > "))
+        .collect()
+}
+
+fn book_in_euros() -> Book {
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    book
+}
+
+#[test]
+fn categories_form_a_tree_of_any_depth() {
+    let mut book = book_in_euros();
+    let food = category(&mut book, "Food", AccountKind::Expense, None).expect("added");
+    let groceries =
+        category(&mut book, "groceries", AccountKind::Expense, Some(food)).expect("added");
+    category(&mut book, "Restaurants", AccountKind::Expense, Some(food)).expect("added");
+    let organic =
+        category(&mut book, "Organic", AccountKind::Expense, Some(groceries)).expect("added");
+    category(&mut book, "Baby food", AccountKind::Expense, Some(organic)).expect("added");
+    category(&mut book, "Home", AccountKind::Expense, None).expect("added");
+    let salary = category(&mut book, "Salary", AccountKind::Income, None).expect("added");
+    category(&mut book, "Bonus", AccountKind::Income, Some(salary)).expect("added");
+    // Accounts and internal accounts aren't categories.
+    account(&mut book, "Checking account", AccountKind::Asset, EUR);
+    account(&mut book, "Opening balances", AccountKind::Equity, EUR);
+
+    // Income first, each category followed by what is inside it, siblings by
+    // name.
+    assert_eq!(
+        tree(&book),
+        [
+            "Salary",
+            "Salary > Bonus",
+            "Food",
+            "Food > groceries",
+            "Food > groceries > Organic",
+            "Food > groceries > Organic > Baby food",
+            "Food > Restaurants",
+            "Home",
+        ]
+    );
+    assert_eq!(
+        book.account(organic).expect("account").parent,
+        Some(groceries)
+    );
+    assert_eq!(book.account(food).expect("account").parent, None);
+}
+
+#[test]
+fn a_category_sits_inside_a_category_of_its_own_kind_and_currency() {
+    let mut book = book_in_euros();
+    book.use_currency(USD).expect("currency used");
+    let food = category(&mut book, "Food", AccountKind::Expense, None).expect("added");
+    let checking = account(&mut book, "Checking account", AccountKind::Asset, EUR);
+    let opening = account(&mut book, "Opening balances", AccountKind::Equity, EUR);
+
+    assert!(matches!(
+        category(&mut book, "Salary", AccountKind::Income, Some(food)),
+        Err(StoreError::ParentKindMismatch { parent, .. }) if parent == food
+    ));
+    for parent in [checking, opening] {
+        assert!(matches!(
+            category(&mut book, "Fees", AccountKind::Expense, Some(parent)),
+            Err(StoreError::ParentNotACategory(id)) if id == parent
+        ));
+    }
+    assert!(matches!(
+        category(
+            &mut book,
+            "Fees",
+            AccountKind::Expense,
+            Some(AccountId::generate())
+        ),
+        Err(StoreError::UnknownAccount(_))
+    ));
+    let dollars = Account {
+        id: AccountId::generate(),
+        name: "Souvenirs".into(),
+        kind: AccountKind::Expense,
+        currency: USD,
+        account_type: None,
+        closed: false,
+        parent: Some(food),
+    };
+    assert!(matches!(
+        book.add_account(&dollars),
+        Err(StoreError::ParentCurrencyMismatch { parent, parent_currency, currency })
+            if parent == food && parent_currency == EUR && currency == USD
+    ));
+    // Only categories sit inside categories.
+    for kind in [
+        AccountKind::Asset,
+        AccountKind::Liability,
+        AccountKind::Equity,
+    ] {
+        let result = book.add_account(&Account {
+            kind,
+            name: "Inside".into(),
+            currency: EUR,
+            parent: Some(food),
+            ..dollars.clone()
+        });
+        assert!(
+            matches!(result, Err(StoreError::NotACategory(_))),
+            "{kind:?}"
+        );
+    }
+    assert_eq!(tree(&book), ["Food"]);
+}
+
+#[test]
+fn siblings_do_not_share_a_name() {
+    let mut book = book_in_euros();
+    let food = category(&mut book, "Food", AccountKind::Expense, None).expect("added");
+    let home = category(&mut book, "Home", AccountKind::Expense, None).expect("added");
+    let other = category(&mut book, "Other", AccountKind::Expense, Some(food)).expect("added");
+
+    // Capitals and spaces don't make another name.
+    for name in ["other", " OTHER "] {
+        assert!(matches!(
+            category(&mut book, name, AccountKind::Expense, Some(food)),
+            Err(StoreError::DuplicateAccountName { existing }) if existing == other
+        ));
+    }
+    assert!(matches!(
+        category(&mut book, "food", AccountKind::Expense, None),
+        Err(StoreError::DuplicateAccountName { existing }) if existing == food
+    ));
+    // The same name elsewhere, or as income, is another category.
+    category(&mut book, "Other", AccountKind::Expense, Some(home)).expect("added");
+    category(&mut book, "Other", AccountKind::Expense, None).expect("added");
+    category(&mut book, "Food", AccountKind::Income, None).expect("added");
+    // Renaming follows the same rule.
+    let treats = category(&mut book, "Treats", AccountKind::Expense, Some(food)).expect("added");
+    assert!(matches!(
+        book.rename_account(treats, "Other"),
+        Err(StoreError::DuplicateAccountName { existing }) if existing == other
+    ));
+    book.rename_account(treats, "Sweets").expect("renamed");
+}
+
+#[test]
+fn a_category_moves_with_what_is_inside_it() {
+    let mut book = book_in_euros();
+    let food = category(&mut book, "Food", AccountKind::Expense, None).expect("added");
+    let home = category(&mut book, "Home", AccountKind::Expense, None).expect("added");
+    let groceries =
+        category(&mut book, "Groceries", AccountKind::Expense, Some(food)).expect("added");
+    category(&mut book, "Organic", AccountKind::Expense, Some(groceries)).expect("added");
+
+    book.move_category(groceries, Some(home)).expect("moved");
+    assert_eq!(
+        tree(&book),
+        [
+            "Food",
+            "Home",
+            "Home > Groceries",
+            "Home > Groceries > Organic"
+        ]
+    );
+    book.move_category(groceries, None)
+        .expect("moved to the top");
+    assert_eq!(
+        tree(&book),
+        ["Food", "Groceries", "Groceries > Organic", "Home"]
+    );
+    // Moving where it is already does nothing.
+    book.move_category(groceries, None).expect("moved");
+}
+
+#[test]
+fn a_category_cannot_move_inside_itself_or_where_it_does_not_fit() {
+    let mut book = book_in_euros();
+    let food = category(&mut book, "Food", AccountKind::Expense, None).expect("added");
+    let groceries =
+        category(&mut book, "Groceries", AccountKind::Expense, Some(food)).expect("added");
+    let organic =
+        category(&mut book, "Organic", AccountKind::Expense, Some(groceries)).expect("added");
+    let salary = category(&mut book, "Salary", AccountKind::Income, None).expect("added");
+    let checking = account(&mut book, "Checking account", AccountKind::Asset, EUR);
+    category(&mut book, "Organic", AccountKind::Expense, None).expect("added");
+    let before = tree(&book);
+
+    for inside in [food, groceries, organic] {
+        assert!(matches!(
+            book.move_category(food, Some(inside)),
+            Err(StoreError::CategoryInsideItself(id)) if id == food
+        ));
+    }
+    assert!(matches!(
+        book.move_category(organic, Some(salary)),
+        Err(StoreError::ParentKindMismatch { .. })
+    ));
+    assert!(matches!(
+        book.move_category(organic, Some(checking)),
+        Err(StoreError::ParentNotACategory(_))
+    ));
+    // A top-level "Organic" exists already.
+    assert!(matches!(
+        book.move_category(organic, None),
+        Err(StoreError::DuplicateAccountName { .. })
+    ));
+    assert!(matches!(
+        book.move_category(checking, Some(food)),
+        Err(StoreError::NotACategory(id)) if id == checking
+    ));
+    assert!(matches!(
+        book.move_category(AccountId::generate(), None),
+        Err(StoreError::UnknownAccount(_))
+    ));
+    assert_eq!(tree(&book), before);
+}
+
+#[test]
+fn categories_keep_their_transactions_when_they_move() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let food = category(&mut book, "Food", AccountKind::Expense, None).expect("added");
+    let shopping = transaction(
+        date(2026, 10, 5),
+        "Corner Grocery",
+        &[(checking, eur(-5320)), (groceries, eur(5320))],
+    );
+    book.add_transaction(&shopping).expect("added");
+    book.move_category(groceries, Some(food)).expect("moved");
+    assert_eq!(book.balance(groceries).expect("balance"), eur(5320));
+    assert_eq!(book.register(groceries).expect("register").len(), 1);
+}
+
+#[test]
+fn a_category_tree_that_is_wrong_in_the_file_is_reported() {
+    let mut book = book_in_euros();
+    book.use_currency(USD).expect("currency used");
+    let food = category(&mut book, "Food", AccountKind::Expense, None).expect("added");
+    let groceries =
+        category(&mut book, "Groceries", AccountKind::Expense, Some(food)).expect("added");
+    let checking = account(&mut book, "Checking account", AccountKind::Asset, EUR);
+    // The table's checks refuse a category inside itself, an account inside
+    // a category and a parent that doesn't exist.
+    for update in [
+        "UPDATE accounts SET parent_id = id WHERE name = 'Food'",
+        "UPDATE accounts SET parent_id = (SELECT id FROM accounts WHERE name = 'Food') WHERE name = 'Checking account'",
+        "UPDATE accounts SET parent_id = zeroblob(16) WHERE name = 'Food'",
+        "UPDATE accounts SET parent_id = x'00' WHERE name = 'Food'",
+    ] {
+        assert!(book.conn.execute(update, []).is_err(), "{update}");
+    }
+    assert_eq!(tree(&book), ["Food", "Food > Groceries"]);
+
+    // Without the checks, e.g. in a file changed by another program (D-046),
+    // a loop is reported, never followed...
+    book.conn
+        .execute(
+            "UPDATE accounts SET parent_id = ?1 WHERE id = ?2",
+            params![groceries.to_bytes(), food.to_bytes()],
+        )
+        .expect("loop made");
+    assert!(matches!(
+        book.categories(),
+        Err(StoreError::Corrupt(Corruption::BadCategoryTree(_)))
+    ));
+    book.conn
+        .execute(
+            "UPDATE accounts SET parent_id = NULL WHERE id = ?1",
+            [food.to_bytes()],
+        )
+        .expect("loop undone");
+    assert_eq!(tree(&book), ["Food", "Food > Groceries"]);
+    // ...and so is a category inside one of another kind or currency.
+    book.conn
+        .execute(
+            "UPDATE accounts SET kind = 'income' WHERE id = ?1",
+            [groceries.to_bytes()],
+        )
+        .expect("kind changed");
+    assert!(matches!(
+        book.categories(),
+        Err(StoreError::Corrupt(Corruption::BadCategoryTree(id))) if id == groceries
+    ));
+    book.conn
+        .execute(
+            "UPDATE accounts SET kind = 'expense', currency = 'USD' WHERE id = ?1",
+            [groceries.to_bytes()],
+        )
+        .expect("currency changed");
+    assert!(matches!(
+        book.categories(),
+        Err(StoreError::Corrupt(Corruption::BadCategoryTree(id))) if id == groceries
+    ));
+    let _ = checking;
+}
+
+#[test]
+fn a_loop_in_the_file_does_not_hang_new_categories() {
+    let mut book = book_in_euros();
+    let food = category(&mut book, "Food", AccountKind::Expense, None).expect("added");
+    let groceries =
+        category(&mut book, "Groceries", AccountKind::Expense, Some(food)).expect("added");
+    book.conn
+        .execute(
+            "UPDATE accounts SET parent_id = ?1 WHERE id = ?2",
+            params![groceries.to_bytes(), food.to_bytes()],
+        )
+        .expect("loop made behind KassenSturz's back");
+    assert!(matches!(
+        category(&mut book, "Organic", AccountKind::Expense, Some(food)),
+        Err(StoreError::Corrupt(Corruption::BadCategoryTree(_)))
     ));
 }

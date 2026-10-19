@@ -67,6 +67,11 @@ impl AccountKind {
     pub const fn is_account(self) -> bool {
         matches!(self, Self::Asset | Self::Liability)
     }
+
+    /// Whether users see this kind as a category: income or spending.
+    pub const fn is_category(self) -> bool {
+        matches!(self, Self::Income | Self::Expense)
+    }
 }
 
 /// An account or a category.
@@ -83,6 +88,9 @@ pub struct Account {
     /// What sort of account it is, if the user said. Only accounts have one
     /// (see [`AccountType::kind`]), and old books have none.
     pub account_type: Option<AccountType>,
+    /// For a category: the category it sits inside, e.g. Groceries inside
+    /// Food (D-067). `None` for a top-level category and for every account.
+    pub parent: Option<AccountId>,
     /// Whether the user closed it. A closed account keeps its history but
     /// takes no new transactions and is hidden from the lists.
     pub closed: bool,

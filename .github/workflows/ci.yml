@@ -28,15 +28,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Check every commit in this PR is signed off
+      - name: Check every commit in this PR is signed off by its author or committer
         run: |
           set -euo pipefail
           base="${{ github.event.pull_request.base.sha }}"
           head="${{ github.event.pull_request.head.sha }}"
           missing=0
           for sha in $(git log --no-merges --format=%H "$base..$head"); do
-            if ! git log -1 --format=%B "$sha" | grep -qE '^Signed-off-by: .+ <.+>$'; then
-              echo "::error::Commit $sha has no 'Signed-off-by' trailer (DCO, D-040). Run: git rebase --signoff $base"
+            # The sign-off has to be by the commit's author or committer, so nobody
+            # signs off in someone else's name, not even by mistake (D-040).
+            signoffs=$(git log -1 --format=%B "$sha" | sed -n 's/^Signed-off-by: *\(.*[^[:space:]]\)[[:space:]]*$/\1/p')
+            author=$(git log -1 --format='%an <%ae>' "$sha")
+            committer=$(git log -1 --format='%cn <%ce>' "$sha")
+            if ! grep -qixF -e "$author" -e "$committer" <<< "$signoffs"; then
+              echo "::error::Commit $sha has no 'Signed-off-by' trailer by its author ($author) or committer ($committer) (DCO, D-040). Run: git rebase --signoff $base"
               missing=1
             fi
           done

@@ -14,7 +14,7 @@ A free, open-source personal finance app for the desktop, **simpler than KMyMone
 
 ## Status
 
-Pre-alpha. The walking skeleton (D-068 in [`docs/DECISIONS.md`](docs/DECISIONS.md)) runs through every layer: one account's transactions, stored in SQLite and shown in a Kirigami window, with every amount formatted in Rust. It shows made-up sample data only and saves nothing.
+Pre-alpha. The core and the book file are being built (milestone M1 in [`docs/ROADMAP.md`](docs/ROADMAP.md)). The app opens with a clickable mock of the first start (D-068, D-089 in [`docs/DECISIONS.md`](docs/DECISIONS.md)): add an account, add a transaction, see the overview. Try it with made-up numbers: it keeps them in memory only and saves nothing.
 
 ## Building
 

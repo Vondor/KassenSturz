@@ -604,6 +604,7 @@ dependencies = [
  "cxx-qt-lib-extras",
  "kassensturz-core",
  "kassensturz-store",
+ "proptest",
 ]
 
 [[package]]

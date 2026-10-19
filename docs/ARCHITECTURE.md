@@ -52,7 +52,15 @@ kassensturz/
 - `tools/sdk.sh <command>` runs any command in that environment, e.g. `tools/sdk.sh cargo test --workspace`; CI uses the same script. Versions are pinned in D-073.
 - CMake runs `cargo build --locked` as a custom target, as KDE's guide does, and installs the program it builds. QML files live in `crates/kassensturz-ui-bridge/qml/` because cxx-qt-build registers QML files by their path inside the crate.
 - The Flatpak manifest (`packaging/flatpak/`) builds offline from `cargo-sources.json`, which is regenerated from `Cargo.lock` whenever that changes (`README.md`, "Building").
-- The first code is a walking skeleton through every layer, kept as real code (D-068).
+- The first code is a walking skeleton through every layer, kept as real code (D-068). Since M1.M the app opens with the first-run mock instead of the skeleton's sample account (D-089).
+
+## First-run mock (M1.M)
+
+- A clickable mock of the first start: welcome, add an account, add a transaction, see the overview (D-068, D-089). It tests the simplicity goal (AGENTS.md §1, §6) before the real first-run flow in M3.
+- `kassensturz-ui-bridge/src/first_run.rs` keeps the mock's book in memory (`Book::create_in_memory`) and turns what the user typed into accounts and transactions through the public functions of core and store, so every balance and total is the real one. Nothing is saved.
+- `src/first_run_model.rs` is its QML object, `FirstRunMock`. Its few lists go to QML as lists of maps of text, which QML views take as models; the real register in M3 uses list models.
+- `src/parse.rs` reads typed amounts in the user's regional format (D-065); `src/register.rs` writes an account's register and balances, a debt as "You owe" (D-067).
+- Mistakes in what the user typed come back as codes starting with `input.` plus parameters as text; the QML (`FormError.qml`) writes the message (D-034). They belong to the app, not to core or store, so `docs/ERROR_CODES.md` doesn't list them; store errors keep their codes from there.
 
 ## Dependency rules
 

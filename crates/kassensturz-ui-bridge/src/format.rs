@@ -17,8 +17,15 @@ pub trait Locale {
     fn amount_format(&self, currency: CurrencyCode) -> AmountFormat;
     /// `value` with the locale's digit grouping, e.g. "1.234.567" in German.
     fn group_digits(&self, value: u64) -> String;
+    /// What separates groups of digits, e.g. "." in German.
+    fn group_separator(&self) -> String;
     /// `date` in the locale's short format.
     fn short_date(&self, date: Date) -> String;
+    /// A date the user typed in the locale's short format, or as ISO 8601
+    /// (2026-10-05); `None` if it isn't a date.
+    fn read_date(&self, text: &str) -> Option<Date>;
+    /// Today's date on this computer.
+    fn today(&self) -> Date;
 }
 
 /// The text before and after an amount's digits, e.g. "-" and " €".

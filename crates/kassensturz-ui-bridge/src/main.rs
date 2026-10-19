@@ -3,14 +3,15 @@
 
 //! KassenSturz's desktop app.
 //!
-//! For now this is the walking skeleton (D-068): one account's transactions,
-//! read from a sample book in SQLite and shown in a Kirigami window.
+//! For now this is the first-run mock (M1.M, D-068): add an account, add a
+//! transaction and see the overview, in a book in memory that is never saved.
 
+mod first_run;
+mod first_run_model;
 mod format;
 mod locale;
+mod parse;
 mod register;
-mod sample_book;
-mod transaction_model;
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQuickStyle, QString, QUrl};
 use cxx_qt_lib_extras::QApplication;

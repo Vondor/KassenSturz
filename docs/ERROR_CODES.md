@@ -8,6 +8,8 @@ KassenSturz's Rust crates never produce user-facing text (D-034). Every error in
 
 The UI keeps one translated message per code and fills in the parameters (D-084).
 
+The app's own checks of what the user typed, e.g. an amount in the wrong regional format, aren't errors of core or store: their codes start with `input.`, they live in `kassensturz-ui-bridge` and aren't listed here (D-089).
+
 This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code, so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
 
 ## Rules

@@ -432,3 +432,188 @@ fn the_book_refuses_floating_point_amounts() {
     const SQLITE_CONSTRAINT_DATATYPE: i32 = 3091;
     assert_eq!(error.extended_code, SQLITE_CONSTRAINT_DATATYPE);
 }
+
+fn dated_rate(date: Date, from: CurrencyCode, to: CurrencyCode, rate: &str) -> DatedRate {
+    DatedRate {
+        id: DatedRateId::generate(),
+        date,
+        from,
+        to,
+        rate: rate.parse().expect("valid rate"),
+        source: RateSource::Manual,
+    }
+}
+
+/// A book using euros and US dollars.
+fn two_currencies() -> Book {
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    book.use_currency(USD).expect("currency used");
+    book
+}
+
+#[test]
+fn rates_come_back_unchanged() {
+    let mut book = two_currencies();
+    // Trailing zeros are kept as typed.
+    let rate = dated_rate(date(2026, 10, 5), EUR, USD, "1.0850");
+    book.add_rate(&rate).expect("added");
+    let stored = book.rate(rate.id).expect("found");
+    assert_eq!(stored, rate);
+    assert_eq!(stored.rate.to_string(), "1.0850");
+    assert_eq!(book.rates(EUR, USD).expect("listed"), vec![rate]);
+    // The other direction is a different list.
+    assert_eq!(book.rates(USD, EUR).expect("listed"), vec![]);
+}
+
+#[test]
+fn the_rate_on_a_date_is_the_newest_on_or_before_it() {
+    let mut book = two_currencies();
+    let early = dated_rate(date(2026, 10, 1), EUR, USD, "1.08");
+    let late = dated_rate(date(2026, 10, 15), EUR, USD, "1.09");
+    // Added out of order; listed by date.
+    book.add_rate(&late).expect("added");
+    book.add_rate(&early).expect("added");
+    assert_eq!(book.rates(EUR, USD).expect("listed"), vec![early, late]);
+    for (day, expected) in [
+        (date(2026, 9, 30), None),
+        (date(2026, 10, 1), Some(early)),
+        (date(2026, 10, 14), Some(early)),
+        (date(2026, 10, 15), Some(late)),
+        (date(2027, 1, 1), Some(late)),
+    ] {
+        assert_eq!(
+            book.rate_on(EUR, USD, day).expect("looked up"),
+            expected,
+            "{day}"
+        );
+    }
+    assert_eq!(
+        book.rate_on(USD, EUR, date(2027, 1, 1)).expect("looked up"),
+        None
+    );
+}
+
+#[test]
+fn a_rate_converts_amounts_in_the_books_currencies() {
+    let mut book = two_currencies();
+    // D-043's example: a 100 USD hotel bill charged as 92.50 EUR.
+    let rate = dated_rate(date(2026, 10, 5), USD, EUR, "0.925");
+    book.add_rate(&rate).expect("added");
+    let found = book
+        .rate_on(USD, EUR, date(2026, 10, 6))
+        .expect("looked up")
+        .expect("there is one");
+    let dollars = book.currency(USD).expect("in use");
+    let euros = book.currency(EUR).expect("in use");
+    let bill = Money::from_minor_units(10_000, USD);
+    let rounding = book.rounding_mode().expect("read");
+    assert_eq!(
+        bill.checked_mul_rate(dollars, found.rate, euros, rounding),
+        Ok(eur(9250))
+    );
+    assert_eq!(
+        eur(9250).checked_div_rate(euros, found.rate, dollars, rounding),
+        Ok(bill)
+    );
+}
+
+#[test]
+fn one_rate_per_pair_direction_and_date() {
+    let mut book = two_currencies();
+    let day = date(2026, 10, 5);
+    let first = dated_rate(day, EUR, USD, "1.08");
+    book.add_rate(&first).expect("added");
+    assert!(matches!(
+        book.add_rate(&dated_rate(day, EUR, USD, "1.09")),
+        Err(StoreError::DuplicateRate { existing }) if existing == first.id
+    ));
+    // The other direction and another day are fine.
+    book.add_rate(&dated_rate(day, USD, EUR, "0.92"))
+        .expect("added");
+    book.add_rate(&dated_rate(date(2026, 10, 6), EUR, USD, "1.09"))
+        .expect("added");
+    // Removing the first one makes room for a corrected rate.
+    book.remove_rate(first.id).expect("removed");
+    assert!(matches!(
+        book.rate(first.id),
+        Err(StoreError::UnknownRate(id)) if id == first.id
+    ));
+    assert!(matches!(
+        book.remove_rate(first.id),
+        Err(StoreError::UnknownRate(id)) if id == first.id
+    ));
+    book.add_rate(&dated_rate(day, EUR, USD, "1.09"))
+        .expect("added");
+}
+
+#[test]
+fn rates_need_two_different_currencies_in_use() {
+    let mut book = two_currencies();
+    let day = date(2026, 10, 5);
+    assert!(matches!(
+        book.add_rate(&dated_rate(day, EUR, EUR, "1")),
+        Err(StoreError::RateWithinOneCurrency(code)) if code == EUR
+    ));
+    let chf = CurrencyCode::new("CHF").expect("valid code");
+    assert!(matches!(
+        book.add_rate(&dated_rate(day, EUR, chf, "0.94")),
+        Err(StoreError::UnknownCurrency(code)) if code == chf
+    ));
+    assert!(matches!(
+        book.add_rate(&dated_rate(day, chf, EUR, "1.06")),
+        Err(StoreError::UnknownCurrency(code)) if code == chf
+    ));
+    assert!(matches!(
+        book.add_rate(&dated_rate(date(0, 1, 1), EUR, USD, "1.08")),
+        Err(StoreError::DateOutOfRange(_))
+    ));
+    assert!(matches!(
+        book.currency(chf),
+        Err(StoreError::UnknownCurrency(code)) if code == chf
+    ));
+}
+
+#[test]
+fn bad_rates_in_the_file_are_reported() {
+    let mut book = two_currencies();
+    let rate = dated_rate(date(2026, 10, 5), EUR, USD, "1.08");
+    book.add_rate(&rate).expect("added");
+    // The table's checks refuse what KassenSturz couldn't read back.
+    for (column, value) in [
+        ("rate_digits", "0"),
+        ("rate_digits", "-108"),
+        ("rate_digits", "1000000000000000000"),
+        ("rate_decimal_places", "19"),
+        ("rate_digits", "1.08"),
+        ("source", "'download'"),
+        ("to_currency", "'EUR'"),
+    ] {
+        let result = book
+            .conn
+            .execute(&format!("UPDATE prices SET {column} = {value}"), []);
+        assert!(result.is_err(), "{column} = {value} was accepted");
+    }
+    // Without them, e.g. in a file changed by another program (D-046), the
+    // rate is reported, never returned.
+    book.conn
+        .execute_batch(
+            "PRAGMA ignore_check_constraints = ON;
+             UPDATE prices SET rate_decimal_places = 40;",
+        )
+        .expect("changed behind KassenSturz's back");
+    assert!(matches!(
+        book.rate(rate.id),
+        Err(StoreError::Corrupt(Corruption::BadRate(id))) if id == rate.id
+    ));
+    book.conn
+        .execute(
+            "UPDATE prices SET rate_decimal_places = 2, source = 'download'",
+            [],
+        )
+        .expect("changed behind KassenSturz's back");
+    assert!(matches!(
+        book.rates(EUR, USD),
+        Err(StoreError::Corrupt(Corruption::BadRateSource(source))) if source == "download"
+    ));
+}

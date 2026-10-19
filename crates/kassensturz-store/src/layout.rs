@@ -7,19 +7,16 @@
 //! all development changes are merged into one starting layout (D-045).
 
 /// The layout version, stored in SQLite's `user_version`. Version 2 added the
-/// book's settings (M1.1).
-pub(crate) const VERSION: i32 = 2;
-
-/// The highest number of decimal places a currency may have. 10^18 still fits
-/// into 64 bits; ISO 4217 currencies use at most 4.
-pub(crate) const MAX_MINOR_DIGITS: u8 = 18;
+/// book's settings (M1.1), version 3 the price table (M1.2).
+pub(crate) const VERSION: i32 = 3;
 
 /// Creates all tables of an empty book.
 ///
 /// Every table is `STRICT`, so SQLite refuses values of the wrong type
 /// instead of converting them. Amounts are INTEGER minor units, never REAL
 /// (AGENTS.md §3.1 rule 1). IDs are the 16 bytes of a UUIDv7 (D-067), dates
-/// ISO 8601 text (D-061).
+/// ISO 8601 text (D-061). Exchange rates are two INTEGERs, their digits and
+/// decimal places (D-051).
 ///
 /// The one row of `settings` is added by the code that creates a book, with
 /// KassenSturz's defaults.
@@ -64,4 +61,17 @@ CREATE TABLE splits (
 ) STRICT;
 
 CREATE INDEX splits_by_account ON splits (account_id);
+
+CREATE TABLE prices (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    date TEXT NOT NULL
+        CHECK (date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    from_currency TEXT NOT NULL REFERENCES currencies (code),
+    to_currency TEXT NOT NULL REFERENCES currencies (code),
+    rate_digits INTEGER NOT NULL CHECK (rate_digits BETWEEN 1 AND 999999999999999999),
+    rate_decimal_places INTEGER NOT NULL CHECK (rate_decimal_places BETWEEN 0 AND 18),
+    source TEXT NOT NULL CHECK (source IN ('manual')),
+    CHECK (from_currency <> to_currency),
+    UNIQUE (from_currency, to_currency, date)
+) STRICT;
 ";

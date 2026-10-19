@@ -2,12 +2,12 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029). Every change to the layout updates this document.
 
-**Status: development layout 2.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), and books with layout 1 are turned away. Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds the application ID (D-037), backups (D-033), the lock file (D-038), the change history (D-032, D-066) and much more.
+**Status: development layout 3.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1) and layout 3 the price table (M1.2). Books with an earlier layout are turned away. Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds the application ID (D-037), backups (D-033), the lock file (D-038), the change history (D-032, D-066) and much more.
 
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).
-- `PRAGMA user_version` holds the layout version: currently `2`. A file with `0` isn't treated as a book.
+- `PRAGMA user_version` holds the layout version: currently `3`. A file with `0` isn't treated as a book.
 - The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033).
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
 
@@ -18,6 +18,7 @@ How a KassenSturz household book is stored, so other programs can read it (D-046
 - **Amounts** are `INTEGER`s in the currency's minor units, e.g. `5320` for €53.20, never `REAL` (AGENTS.md §3.1 rule 1). Positive amounts flow into an account, negative ones out of it.
 - **Dates** are ISO 8601 calendar dates as `TEXT`, e.g. `2026-10-05`, without time or time zone (D-061).
 - **Currencies** are ISO 4217 codes as `TEXT`, e.g. `EUR`.
+- **Exchange rates** are fixed-point decimals in two `INTEGER` columns: their digits and their number of decimal places, e.g. `10856` and `4` for 1.0856 (D-051). The decimal places are kept as entered, so 1.0850 is `10850` and `4`. Never `REAL`.
 
 ## Tables
 
@@ -73,6 +74,22 @@ The parts of each transaction (shown to users as "Parts", D-017). A transaction'
 
 Index: `splits_by_account` on `splits (account_id)`, for an account's register and balance.
 
+### `prices`
+
+The book's price table: exchange rates, each for one day (D-028). In v1 they are entered by hand. Security prices will join this table when securities come, after 1.0 (D-029).
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | BLOB (16 bytes), primary key | UUIDv7 |
+| `date` | TEXT | ISO 8601 date the rate applies to |
+| `from_currency` | TEXT → `currencies.code` | The currency one unit of which is priced |
+| `to_currency` | TEXT → `currencies.code` | The currency the price is in; never the same as `from_currency` |
+| `rate_digits` | INTEGER, 1 to 999999999999999999 | The rate's digits: `10856` for 1.0856. Rates are always above zero |
+| `rate_decimal_places` | INTEGER, 0–18 | The rate's decimal places: `4` for 1.0856 |
+| `source` | TEXT | Where the rate came from: `manual` (entered by hand) is the only source so far |
+
+One unit of `from_currency` costs `rate_digits` × 10^−`rate_decimal_places` units of `to_currency`. There is at most one rate per `from_currency`, `to_currency` and `date` (a unique index); the other direction is a separate rate, and converting that way divides by the rate instead.
+
 ## Reading a book
 
-An account's balance is the sum of `splits.amount` for its `account_id`. Its register joins `splits` with `transactions` and orders by `booking_date`, then `id`. Add amounts in 64-bit integers or wider, never as floating point.
+An account's balance is the sum of `splits.amount` for its `account_id`. Its register joins `splits` with `transactions` and orders by `booking_date`, then `id`. Add amounts in 64-bit integers or wider, never as floating point. The rate from one currency into another on a day is the row with the latest `date` on or before that day.

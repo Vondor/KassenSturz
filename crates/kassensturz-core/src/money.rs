@@ -4,7 +4,8 @@
 //! Amounts of money: 64-bit integers in minor units plus an ISO 4217 currency
 //! code (AGENTS.md §5, D-027).
 
-use crate::currency::CurrencyCode;
+use crate::currency::{Currency, CurrencyCode};
+use crate::decimal::ExchangeRate;
 use crate::rounding::RoundingMode;
 
 /// An amount of money: a whole number of the currency's minor units (cents,
@@ -105,6 +106,79 @@ impl Money {
         Ok(Self::from_minor_units(minor_units, self.currency))
     }
 
+    /// `self × rate`, converted from `from` into `to` and rounded once to
+    /// whole minor units of `to` in `rounding`: 100.00 EUR at 1.0856 USD per
+    /// euro is 108.56 USD.
+    ///
+    /// The calculation is exact in 128 bits, so only its result is rounded
+    /// (D-051). `from` must be `self`'s currency, with the decimal places the
+    /// book stores for it (D-027). Fails only if the result doesn't fit into
+    /// 64 bits.
+    pub fn checked_mul_rate(
+        self,
+        from: Currency,
+        rate: ExchangeRate,
+        to: Currency,
+        rounding: RoundingMode,
+    ) -> Result<Self, MoneyError> {
+        self.expect_currency(from.code())?;
+        let (digits, decimal_places) = rate.normalized();
+        // result = minor units × digits × 10^(to's places − from's places −
+        // the rate's places). Both factors are below 2^63, so the product
+        // fits into 128 bits.
+        let product = i128::from(self.minor_units) * i128::from(digits);
+        let exponent = i32::from(to.minor_digits())
+            - i32::from(from.minor_digits())
+            - i32::from(decimal_places);
+        let result = if exponent >= 0 {
+            // Exact; if it overflows 128 bits, the result can't fit 64 either.
+            product.checked_mul(power_of_ten(exponent))
+        } else {
+            rounding.divide(product, power_of_ten(-exponent))
+        };
+        Self::from_exact(result, to.code())
+    }
+
+    /// `self ÷ rate`, converted from `from` into `to` and rounded once to
+    /// whole minor units of `to` in `rounding`: 108.56 USD at 1.0856 USD per
+    /// euro is 100.00 EUR. This converts back with the same rate, so no
+    /// inverse rate is ever stored.
+    ///
+    /// The calculation is exact in 128 bits, so only its result is rounded
+    /// (D-051). `from` must be `self`'s currency, with the decimal places the
+    /// book stores for it (D-027). Fails if the result doesn't fit into 64
+    /// bits, and for amounts beyond any household's when the rate has many
+    /// decimal places: the minor units times 10^(the rate's places + `to`'s
+    /// places − `from`'s places) must fit into 128 bits. Between currencies
+    /// with the same places that always holds; the worst case among ISO 4217
+    /// currencies, from yen (0 places) into one with 4 at a rate with 18
+    /// places, handles up to about 1.7 × 10^16 yen.
+    pub fn checked_div_rate(
+        self,
+        from: Currency,
+        rate: ExchangeRate,
+        to: Currency,
+        rounding: RoundingMode,
+    ) -> Result<Self, MoneyError> {
+        self.expect_currency(from.code())?;
+        let (digits, decimal_places) = rate.normalized();
+        // result = minor units × 10^(the rate's places + to's places −
+        // from's places) ÷ digits.
+        let exponent = i32::from(decimal_places) + i32::from(to.minor_digits())
+            - i32::from(from.minor_digits());
+        let minor_units = i128::from(self.minor_units);
+        let digits = i128::from(digits);
+        let result = if exponent >= 0 {
+            minor_units
+                .checked_mul(power_of_ten(exponent))
+                .and_then(|numerator| rounding.divide(numerator, digits))
+        } else {
+            // Below 10^18 × 10^18, so it fits into 128 bits.
+            rounding.divide(minor_units, digits * power_of_ten(-exponent))
+        };
+        Self::from_exact(result, to.code())
+    }
+
     /// The sum of `amounts`, all of which must be in `currency`.
     ///
     /// The sum is computed exactly, so it only fails if the final result
@@ -129,6 +203,15 @@ impl Money {
         Ok(Self::from_minor_units(minor_units, currency))
     }
 
+    /// A whole number of minor units computed in 128 bits, or `Overflow` if
+    /// there is none or it doesn't fit into 64 bits.
+    fn from_exact(minor_units: Option<i128>, currency: CurrencyCode) -> Result<Self, MoneyError> {
+        let minor_units = minor_units
+            .and_then(|minor_units| i64::try_from(minor_units).ok())
+            .ok_or(MoneyError::Overflow)?;
+        Ok(Self::from_minor_units(minor_units, currency))
+    }
+
     fn expect_currency(self, found: CurrencyCode) -> Result<(), MoneyError> {
         if self.currency == found {
             Ok(())
@@ -139,6 +222,14 @@ impl Money {
             })
         }
     }
+}
+
+/// 10^`exponent`, for exponents from 0 to 36: the most the conversions need,
+/// with at most 18 decimal places in a rate and in a currency.
+fn power_of_ten(exponent: i32) -> i128 {
+    let exponent = u32::try_from(exponent).expect("never negative");
+    debug_assert!(exponent <= 36, "10^{exponent} isn't needed");
+    10_i128.pow(exponent)
 }
 
 /// Why a calculation with money failed.
@@ -274,6 +365,121 @@ mod tests {
         assert_eq!(
             min.checked_mul_ratio(-1, 1, rounding),
             Err(MoneyError::Overflow)
+        );
+    }
+
+    fn currency(code: CurrencyCode) -> Currency {
+        let digits = code.iso_minor_digits().expect("listed currency");
+        Currency::new(code, digits).expect("valid currency")
+    }
+
+    fn rate(text: &str) -> ExchangeRate {
+        text.parse().expect("valid rate")
+    }
+
+    #[test]
+    fn converts_with_a_rate_and_back() {
+        let rounding = RoundingMode::default();
+        let (eur, usd) = (currency(EUR), currency(USD));
+        let hundred_euros = Money::from_minor_units(10_000, EUR);
+        let dollars = Money::from_minor_units(10_856, USD);
+        assert_eq!(
+            hundred_euros.checked_mul_rate(eur, rate("1.0856"), usd, rounding),
+            Ok(dollars)
+        );
+        assert_eq!(
+            dollars.checked_div_rate(usd, rate("1.0856"), eur, rounding),
+            Ok(hundred_euros)
+        );
+        // Trailing zeros in the rate change nothing.
+        assert_eq!(
+            hundred_euros.checked_mul_rate(eur, rate("1.085600"), usd, rounding),
+            Ok(dollars)
+        );
+    }
+
+    #[test]
+    fn converts_between_different_decimal_places() {
+        let rounding = RoundingMode::default();
+        let jpy = currency(CurrencyCode::new("JPY").expect("valid code"));
+        let bhd = currency(CurrencyCode::new("BHD").expect("valid code"));
+        let eur = currency(EUR);
+        let euros = Money::from_minor_units(10_000, EUR);
+        assert_eq!(
+            euros.checked_mul_rate(eur, rate("160.25"), jpy, rounding),
+            Ok(Money::from_minor_units(16_025, jpy.code()))
+        );
+        assert_eq!(
+            Money::from_minor_units(16_025, jpy.code()).checked_div_rate(
+                jpy,
+                rate("160.25"),
+                eur,
+                rounding
+            ),
+            Ok(euros)
+        );
+        // 100.00 EUR at 0.4105 BHD is 41.050 BHD, three decimal places.
+        assert_eq!(
+            euros.checked_mul_rate(eur, rate("0.4105"), bhd, rounding),
+            Ok(Money::from_minor_units(41_050, bhd.code()))
+        );
+    }
+
+    #[test]
+    fn rounds_a_conversion_once() {
+        let (eur, usd) = (currency(EUR), currency(USD));
+        // 0.01 EUR × 1.5 = 0.015 USD: exactly halfway.
+        let cent = Money::from_minor_units(1, EUR);
+        for (rounding, cents) in [
+            (RoundingMode::HalfAwayFromZero, 2),
+            (RoundingMode::HalfEven, 2),
+            (RoundingMode::HalfTowardZero, 1),
+            (RoundingMode::Floor, 1),
+        ] {
+            assert_eq!(
+                cent.checked_mul_rate(eur, rate("1.5"), usd, rounding),
+                Ok(Money::from_minor_units(cents, USD)),
+                "{rounding:?}"
+            );
+        }
+        // 1.00 USD ÷ 3 = 0.333… EUR.
+        let dollar = Money::from_minor_units(100, USD);
+        assert_eq!(
+            dollar.checked_div_rate(usd, rate("3"), eur, RoundingMode::default()),
+            Ok(Money::from_minor_units(33, EUR))
+        );
+    }
+
+    #[test]
+    fn a_conversion_checks_the_currency_and_overflow() {
+        let rounding = RoundingMode::default();
+        let (eur, usd) = (currency(EUR), currency(USD));
+        let dollars = Money::from_minor_units(100, USD);
+        let mismatch = Err(MoneyError::CurrencyMismatch {
+            expected: USD,
+            found: EUR,
+        });
+        assert_eq!(
+            dollars.checked_mul_rate(eur, rate("2"), usd, rounding),
+            mismatch
+        );
+        assert_eq!(
+            dollars.checked_div_rate(eur, rate("2"), usd, rounding),
+            mismatch
+        );
+        let max = Money::from_minor_units(i64::MAX, EUR);
+        assert_eq!(
+            max.checked_mul_rate(eur, rate("2"), usd, rounding),
+            Err(MoneyError::Overflow)
+        );
+        assert_eq!(
+            max.checked_div_rate(eur, rate("0.5"), usd, rounding),
+            Err(MoneyError::Overflow)
+        );
+        // Halving the largest amount fits, although doubling it wouldn't.
+        assert_eq!(
+            max.checked_mul_rate(eur, rate("0.5"), usd, rounding),
+            Ok(Money::from_minor_units(i64::MAX / 2 + 1, USD))
         );
     }
 

@@ -3,12 +3,13 @@
 
 //! Property-based tests for rounding (AGENTS.md §9, D-027).
 //!
-//! `Money::checked_mul_ratio` is compared with a reference that rounds by a
-//! different route: it finds the whole numbers on either side of the exact
-//! result with Euclidean division, then picks one by comparing the exact
-//! distances to both.
+//! `Money::checked_mul_ratio` and the conversions with an exchange rate
+//! (`checked_mul_rate`, `checked_div_rate`, D-051) are compared with a
+//! reference that rounds by a different route: it finds the whole numbers on
+//! either side of the exact result with Euclidean division, then picks one by
+//! comparing the exact distances to both.
 
-use kassensturz_core::{CurrencyCode, Money, MoneyError, RoundingMode};
+use kassensturz_core::{Currency, CurrencyCode, ExchangeRate, Money, MoneyError, RoundingMode};
 use proptest::prelude::*;
 
 fn currency() -> impl Strategy<Value = CurrencyCode> {
@@ -228,5 +229,128 @@ proptest! {
             Money::from_minor_units(a, currency).checked_mul_ratio(n, 0, mode),
             Err(MoneyError::DivisionByZero)
         );
+    }
+}
+
+/// A currency with the decimal places ISO 4217 gives it: 0, 2, 3 or 4.
+fn book_currency() -> impl Strategy<Value = Currency> {
+    prop::sample::select(vec!["JPY", "EUR", "USD", "BHD", "CLF"]).prop_map(|code| {
+        let code = CurrencyCode::new(code).expect("valid code");
+        Currency::new(code, code.iso_minor_digits().expect("listed")).expect("valid currency")
+    })
+}
+
+/// Any rate KassenSturz can hold: 1 to 18 digits, 0 to 18 decimal places,
+/// sometimes with trailing zeros.
+fn rate() -> impl Strategy<Value = ExchangeRate> {
+    (
+        prop_oneof![
+            2 => 1_i64..=100,
+            3 => 1_i64..=10_000_000,
+            1 => 1_i64..=999_999_999_999_999_999,
+        ],
+        0_u8..=18,
+        0_u32..=6,
+    )
+        .prop_filter_map(
+            "fits into 18 digits and places",
+            |(digits, places, zeros)| {
+                let digits = digits.checked_mul(10_i64.checked_pow(zeros)?)?;
+                ExchangeRate::from_digits(digits, places.checked_add(u8::try_from(zeros).ok()?)?)
+                    .ok()
+            },
+        )
+}
+
+/// Amounts up to 10^15 minor units, so the reference's products stay inside
+/// 128 bits.
+fn convertible_amount() -> impl Strategy<Value = i64> {
+    prop_oneof![
+        3 => -100_000_000_i64..=100_000_000,
+        1 => -1_000_000_000_000_000_i64..=1_000_000_000_000_000,
+    ]
+}
+
+fn pow10(exponent: u8) -> i128 {
+    10_i128.pow(u32::from(exponent))
+}
+
+proptest! {
+    #[test]
+    fn mul_rate_matches_the_reference(
+        a in convertible_amount(),
+        rate in rate(),
+        from in book_currency(),
+        to in book_currency(),
+        mode in mode(),
+    ) {
+        // a × rate in `to`'s minor units: a × digits × 10^to ÷ 10^(places + from),
+        // with the rate's digits as given, trailing zeros included.
+        let numerator = i128::from(a) * i128::from(rate.digits()) * pow10(to.minor_digits());
+        let denominator = pow10(rate.decimal_places()) * pow10(from.minor_digits());
+        let result = Money::from_minor_units(a, from.code()).checked_mul_rate(from, rate, to, mode);
+        prop_assert_eq!(result, exact(reference(numerator, denominator, mode), to.code()));
+    }
+
+    #[test]
+    fn div_rate_matches_the_reference(
+        a in convertible_amount(),
+        rate in rate(),
+        from in book_currency(),
+        to in book_currency(),
+        mode in mode(),
+    ) {
+        // a ÷ rate in `to`'s minor units: a × 10^(places + to) ÷ (digits × 10^from).
+        let numerator = i128::from(a) * pow10(rate.decimal_places()) * pow10(to.minor_digits());
+        let denominator = i128::from(rate.digits()) * pow10(from.minor_digits());
+        let result = Money::from_minor_units(a, from.code()).checked_div_rate(from, rate, to, mode);
+        prop_assert_eq!(result, exact(reference(numerator, denominator, mode), to.code()));
+    }
+
+    #[test]
+    fn conversions_overflow_only_if_the_result_does(
+        a: i64,
+        rate in rate(),
+        from in book_currency(),
+        to in book_currency(),
+        mode in mode(),
+    ) {
+        // Any 64-bit amount: compared with the reference wherever its products
+        // fit into 128 bits.
+        let amount = Money::from_minor_units(a, from.code());
+        let numerator = i128::from(a)
+            .checked_mul(i128::from(rate.digits()))
+            .and_then(|n| n.checked_mul(pow10(to.minor_digits())));
+        if let Some(numerator) = numerator {
+            let denominator = pow10(rate.decimal_places()) * pow10(from.minor_digits());
+            prop_assert_eq!(
+                amount.checked_mul_rate(from, rate, to, mode),
+                exact(reference(numerator, denominator, mode), to.code())
+            );
+        }
+        // Dividing by a rate between currencies with the same decimal places
+        // never needs more than 128 bits on the way.
+        let same = Currency::new(to.code(), from.minor_digits()).expect("valid currency");
+        let numerator = i128::from(a) * pow10(rate.decimal_places());
+        let denominator = i128::from(rate.digits());
+        prop_assert_eq!(
+            amount.checked_div_rate(from, rate, same, mode),
+            exact(reference(numerator, denominator, mode), to.code())
+        );
+    }
+
+    #[test]
+    fn a_rate_of_one_changes_nothing(
+        a: i64,
+        currency in book_currency(),
+        places in 0_u8..=17,
+        mode in mode(),
+    ) {
+        // 1, 1.0, 1.00, … are all one; 17 places are the most, with 18 digits.
+        let one = ExchangeRate::from_digits(10_i64.pow(u32::from(places)), places)
+            .expect("valid rate");
+        let amount = Money::from_minor_units(a, currency.code());
+        prop_assert_eq!(amount.checked_mul_rate(currency, one, currency, mode), Ok(amount));
+        prop_assert_eq!(amount.checked_div_rate(currency, one, currency, mode), Ok(amount));
     }
 }

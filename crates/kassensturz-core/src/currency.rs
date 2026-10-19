@@ -66,6 +66,40 @@ impl fmt::Display for CurrencyCode {
     }
 }
 
+/// A currency as a book uses it: its code and its number of decimal places,
+/// fixed when the book first used it (D-027).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Currency {
+    code: CurrencyCode,
+    minor_digits: u8,
+}
+
+impl Currency {
+    /// The most decimal places a currency may have: 10^18 still fits into 64
+    /// bits. ISO 4217 currencies use at most 4.
+    pub const MAX_MINOR_DIGITS: u8 = 18;
+
+    /// `code` with `minor_digits` decimal places, e.g. EUR with 2. `None` if
+    /// `minor_digits` is above [`Currency::MAX_MINOR_DIGITS`].
+    pub const fn new(code: CurrencyCode, minor_digits: u8) -> Option<Self> {
+        if minor_digits > Self::MAX_MINOR_DIGITS {
+            None
+        } else {
+            Some(Self { code, minor_digits })
+        }
+    }
+
+    /// The ISO 4217 code.
+    pub const fn code(self) -> CurrencyCode {
+        self.code
+    }
+
+    /// The number of decimal places: 2 for the euro, 0 for the yen.
+    pub const fn minor_digits(self) -> u8 {
+        self.minor_digits
+    }
+}
+
 /// Why a text isn't a currency code.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CurrencyCodeError {

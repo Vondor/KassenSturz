@@ -77,6 +77,7 @@ fn add_account(book: &mut Book, name: &str, kind: AccountKind) -> Result<Account
         currency: EUR,
         account_type: None,
         closed: false,
+        parent: None,
     })?;
     Ok(id)
 }

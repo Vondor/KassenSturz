@@ -79,6 +79,33 @@ pub enum StoreError {
         /// What is left in it.
         balance: Money,
     },
+    /// Only a category can sit inside another one; an account can't.
+    NotACategory(AccountId),
+    /// The category to put something inside isn't a category (it is an
+    /// account or an internal account).
+    ParentNotACategory(AccountId),
+    /// Income can only sit inside income, and spending inside spending.
+    ParentKindMismatch {
+        /// The category to sit inside.
+        parent: AccountId,
+        /// Its kind.
+        parent_kind: AccountKind,
+        /// The kind of the category that was to sit inside it.
+        kind: AccountKind,
+    },
+    /// A category sits in the same currency as the category it is inside, so
+    /// the totals of a category add up.
+    ParentCurrencyMismatch {
+        /// The category to sit inside.
+        parent: AccountId,
+        /// Its currency.
+        parent_currency: CurrencyCode,
+        /// The currency of the category that was to sit inside it.
+        currency: CurrencyCode,
+    },
+    /// A category can't sit inside itself or inside one of its own
+    /// subcategories.
+    CategoryInsideItself(AccountId),
     /// There's no transaction with this ID.
     UnknownTransaction(TransactionId),
     /// A part is booked to an account whose currency differs from the
@@ -123,6 +150,10 @@ pub enum Corruption {
     BadAccountType(String),
     /// An account whose type doesn't fit its kind.
     AccountTypeMismatch(AccountId),
+    /// A category whose place in the tree is wrong: it sits inside something
+    /// that isn't a category of the same kind and currency, or inside
+    /// itself.
+    BadCategoryTree(AccountId),
     /// A currency code that isn't three capital letters.
     BadCurrencyCode(String),
     /// A date that isn't a valid ISO 8601 calendar date.

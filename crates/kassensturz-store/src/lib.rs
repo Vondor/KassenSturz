@@ -14,6 +14,7 @@ mod error;
 mod layout;
 mod lock;
 
+use std::collections::{HashMap, HashSet};
 use std::fs::{File, OpenOptions};
 use std::io::{ErrorKind, Read};
 use std::path::{Path, PathBuf};
@@ -49,6 +50,16 @@ pub struct Book {
     /// The book's lock file, removed when the book is closed. Declared after
     /// `conn`, so the database is closed first. Books in memory have none.
     _lock: Option<HeldLock>,
+}
+
+/// One category in the category tree, as [`Book::categories`] lists them.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CategoryEntry {
+    /// The category.
+    pub category: Account,
+    /// The names from the top-level category down to this one, e.g.
+    /// `["Food", "Groceries"]`. Its length minus one is how deep it sits.
+    pub path: Vec<String>,
 }
 
 /// One line of an account's register: a transaction as seen from that
@@ -259,15 +270,10 @@ impl Book {
     /// them apart. Categories are checked when they become a tree (M1.5).
     pub fn add_account(&mut self, account: &Account) -> Result<(), StoreError> {
         self.currency_minor_digits(account.currency)?;
-        self.check_account_fields(
-            account.id,
-            &account.name,
-            account.kind,
-            account.account_type,
-        )?;
+        self.check_account(account)?;
         self.conn.execute(
-            "INSERT INTO accounts (id, name, kind, currency, account_type, closed)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO accounts (id, name, kind, currency, account_type, closed, parent_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 account.id.to_bytes(),
                 account.name,
@@ -275,38 +281,94 @@ impl Book {
                 account.currency.as_str(),
                 account.account_type.map(type_to_text),
                 account.closed,
+                account.parent.map(AccountId::to_bytes),
             ],
         )?;
         Ok(())
     }
 
-    /// The checks `add_account` and `rename_account` share.
-    fn check_account_fields(
-        &self,
-        id: AccountId,
-        name: &str,
-        kind: AccountKind,
-        account_type: Option<AccountType>,
-    ) -> Result<(), StoreError> {
-        if name.trim().is_empty() {
+    /// The checks `add_account`, `rename_account` and `move_category` share,
+    /// on the account as it is going to be.
+    fn check_account(&self, account: &Account) -> Result<(), StoreError> {
+        if account.name.trim().is_empty() {
             return Err(StoreError::EmptyAccountName);
         }
-        if let Some(account_type) = account_type
-            && account_type.kind() != kind
+        if let Some(account_type) = account.account_type
+            && account_type.kind() != account.kind
         {
-            return Err(StoreError::AccountTypeMismatch { account_type, kind });
+            return Err(StoreError::AccountTypeMismatch {
+                account_type,
+                kind: account.kind,
+            });
         }
-        if kind.is_account() {
-            let wanted = name.trim().to_lowercase();
-            if let Some(existing) = self.all_accounts()?.into_iter().find(|other| {
-                other.id != id
-                    && other.kind.is_account()
-                    && other.name.trim().to_lowercase() == wanted
-            }) {
-                return Err(StoreError::DuplicateAccountName {
-                    existing: existing.id,
+        let others: Vec<Account> = self
+            .all_accounts()?
+            .into_iter()
+            .filter(|other| other.id != account.id)
+            .collect();
+        if let Some(parent) = account.parent {
+            if !account.kind.is_category() {
+                return Err(StoreError::NotACategory(account.id));
+            }
+            if parent == account.id {
+                return Err(StoreError::CategoryInsideItself(account.id));
+            }
+            let parent = others
+                .iter()
+                .find(|other| other.id == parent)
+                .ok_or(StoreError::UnknownAccount(parent))?;
+            if !parent.kind.is_category() {
+                return Err(StoreError::ParentNotACategory(parent.id));
+            }
+            if parent.kind != account.kind {
+                return Err(StoreError::ParentKindMismatch {
+                    parent: parent.id,
+                    parent_kind: parent.kind,
+                    kind: account.kind,
                 });
             }
+            if parent.currency != account.currency {
+                return Err(StoreError::ParentCurrencyMismatch {
+                    parent: parent.id,
+                    parent_currency: parent.currency,
+                    currency: account.currency,
+                });
+            }
+            // Walking up from the parent must not meet the category itself.
+            // A file with a loop that doesn't include it would never end
+            // otherwise, so the walk takes at most as many steps as there are
+            // categories.
+            let mut above = parent;
+            let mut steps = 0;
+            while let Some(next) = above.parent {
+                if next == account.id {
+                    return Err(StoreError::CategoryInsideItself(account.id));
+                }
+                steps += 1;
+                match others.iter().find(|other| other.id == next) {
+                    Some(next) if steps <= others.len() => above = next,
+                    Some(_) => {
+                        return Err(StoreError::Corrupt(Corruption::BadCategoryTree(parent.id)));
+                    }
+                    None => break,
+                }
+            }
+        }
+        // Accounts share one list; categories share one with their siblings,
+        // the categories of the same kind inside the same category.
+        let wanted = account.name.trim().to_lowercase();
+        let clash = others.iter().find(|other| {
+            let same_list = if account.kind.is_account() {
+                other.kind.is_account()
+            } else {
+                other.kind == account.kind && other.parent == account.parent
+            };
+            same_list && other.name.trim().to_lowercase() == wanted
+        });
+        if let Some(existing) = clash {
+            return Err(StoreError::DuplicateAccountName {
+                existing: existing.id,
+            });
         }
         Ok(())
     }
@@ -349,13 +411,109 @@ impl Book {
     /// Gives an account or category a new name, under the same rules as
     /// [`Book::add_account`].
     pub fn rename_account(&mut self, id: AccountId, name: &str) -> Result<(), StoreError> {
-        let account = self.account(id)?;
-        self.check_account_fields(id, name, account.kind, account.account_type)?;
+        let account = Account {
+            name: name.into(),
+            ..self.account(id)?
+        };
+        self.check_account(&account)?;
         self.conn.execute(
             "UPDATE accounts SET name = ?2 WHERE id = ?1",
             params![id.to_bytes(), name],
         )?;
         Ok(())
+    }
+
+    /// Moves a category inside `parent`, or to the top level if `parent` is
+    /// `None`. Its subcategories and its transactions go with it. The new
+    /// place must follow the same rules as in [`Book::add_account`]: the same
+    /// kind and currency, no clash of names there, and no moving a category
+    /// inside itself or its own subcategories.
+    pub fn move_category(
+        &mut self,
+        id: AccountId,
+        parent: Option<AccountId>,
+    ) -> Result<(), StoreError> {
+        let account = self.account(id)?;
+        if !account.kind.is_category() {
+            return Err(StoreError::NotACategory(id));
+        }
+        let moved = Account { parent, ..account };
+        self.check_account(&moved)?;
+        self.conn.execute(
+            "UPDATE accounts SET parent_id = ?2 WHERE id = ?1",
+            params![id.to_bytes(), parent.map(AccountId::to_bytes)],
+        )?;
+        Ok(())
+    }
+
+    /// Every income and spending category as a tree, flattened: income
+    /// before spending, each category followed by its subcategories, siblings
+    /// sorted by name.
+    pub fn categories(&self) -> Result<Vec<CategoryEntry>, StoreError> {
+        let categories: Vec<Account> = self
+            .all_accounts()?
+            .into_iter()
+            .filter(|account| account.kind.is_category())
+            .collect();
+        let mut children: HashMap<Option<AccountId>, Vec<&Account>> = HashMap::new();
+        for category in &categories {
+            // Whatever is in the file, a category sits inside a category of
+            // its own kind and currency.
+            if let Some(parent) = category.parent {
+                let fits = categories.iter().any(|other| {
+                    other.id == parent
+                        && other.kind == category.kind
+                        && other.currency == category.currency
+                });
+                if !fits {
+                    return Err(StoreError::Corrupt(Corruption::BadCategoryTree(
+                        category.id,
+                    )));
+                }
+            }
+            children.entry(category.parent).or_default().push(category);
+        }
+        for siblings in children.values_mut() {
+            siblings.sort_by_cached_key(|category| {
+                (
+                    category.kind == AccountKind::Expense,
+                    category.name.to_lowercase(),
+                    category.id,
+                )
+            });
+        }
+        let mut entries = Vec::with_capacity(categories.len());
+        // Depth first, with a stack of what is still to visit.
+        let mut to_visit: Vec<(&Account, Vec<String>)> = children
+            .get(&None)
+            .into_iter()
+            .flatten()
+            .rev()
+            .map(|&category| (category, Vec::new()))
+            .collect();
+        while let Some((category, mut path)) = to_visit.pop() {
+            path.push(category.name.clone());
+            for &child in children.get(&Some(category.id)).into_iter().flatten().rev() {
+                to_visit.push((child, path.clone()));
+            }
+            entries.push(CategoryEntry {
+                category: category.clone(),
+                path,
+            });
+        }
+        // Categories that no top-level category leads to sit in a loop.
+        if entries.len() != categories.len() {
+            let reached: HashSet<AccountId> =
+                entries.iter().map(|entry| entry.category.id).collect();
+            let lost = categories
+                .iter()
+                .map(|category| category.id)
+                .filter(|id| !reached.contains(id))
+                .min()
+                .expect("a category was not reached");
+            return Err(StoreError::Corrupt(Corruption::BadCategoryTree(lost)));
+        }
+        Ok(entries)
     }
 
     /// Closes an account: it keeps its history, but takes no new
@@ -675,7 +833,7 @@ fn is_book_file(path: &Path) -> Result<bool, StoreError> {
 }
 
 /// The columns [`AccountRow::read`] expects, in its order.
-const ACCOUNT_COLUMNS: &str = "id, name, kind, currency, account_type, closed";
+const ACCOUNT_COLUMNS: &str = "id, name, kind, currency, account_type, closed, parent_id";
 
 /// A row of the accounts table as SQLite returns it, before KassenSturz's
 /// checks.
@@ -686,6 +844,7 @@ struct AccountRow {
     currency: String,
     account_type: Option<String>,
     closed: i64,
+    parent: Option<[u8; 16]>,
 }
 
 impl AccountRow {
@@ -697,6 +856,7 @@ impl AccountRow {
             currency: row.get(3)?,
             account_type: row.get(4)?,
             closed: row.get(5)?,
+            parent: row.get(6)?,
         })
     }
 
@@ -719,6 +879,7 @@ impl AccountRow {
             currency: currency_from_text(&self.currency)?,
             account_type,
             closed: self.closed != 0,
+            parent: self.parent.map(AccountId::from_bytes),
         })
     }
 }

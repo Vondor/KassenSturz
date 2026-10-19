@@ -34,6 +34,18 @@ tools/sdk.sh cargo test --workspace
 tools/sdk.sh cargo run --bin kassensturz    # starts the app
 ```
 
+`kassensturz-cli`, a command-line tool for trying out the core without the app (D-085), works on a book file of your choice. It is for developers and testers, writes English only and isn't installed with the app:
+
+```sh
+export KASSENSTURZ_BOOK=/tmp/Household.ksz
+tools/sdk.sh cargo run --bin kassensturz-cli -- help
+tools/sdk.sh cargo run --bin kassensturz-cli -- create
+tools/sdk.sh cargo run --bin kassensturz-cli -- account add "Checking account" --type checking --currency EUR
+tools/sdk.sh cargo run --bin kassensturz-cli -- category add Groceries --kind expense --currency EUR
+tools/sdk.sh cargo run --bin kassensturz-cli -- transaction add --date 2026-10-05 --account "Checking account" --amount -53.20 --category Groceries
+tools/sdk.sh cargo run --bin kassensturz-cli -- register "Checking account"
+```
+
 `cargo run` shows the text in English: the translations are found only once they are installed, as in the Flatpak.
 
 Build and install the Flatpak, offline as on Flathub, and start it (it also appears in the app menu):

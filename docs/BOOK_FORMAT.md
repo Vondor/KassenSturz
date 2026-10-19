@@ -2,13 +2,13 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029). Every change to the layout updates this document.
 
-**Status: development layout 8.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2), layout 4 the type and closed flag of accounts (M1.4), layout 5 the category tree (M1.5), layout 6 parts without a category, parts in another currency with their rates, and what a bank or file delivered (M1.6), layout 7 the [change history](#the-change-history) (M1.9), and layout 8 the action that joins the two sides of a Transfer (M1.10). Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds much more.
+**Status: development layout 9.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2), layout 4 the type and closed flag of accounts (M1.4), layout 5 the category tree (M1.5), layout 6 parts without a category, parts in another currency with their rates, and what a bank or file delivered (M1.6), layout 7 the [change history](#the-change-history) (M1.9), layout 8 the action that joins the two sides of a Transfer (M1.10), and layout 9 the [Rules](#rules) and the actions that change and run them (M1.11). Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds much more.
 
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).
 - `PRAGMA application_id` is `0x4B535A42` (1263753794), the letters `KSZB` for KassenSturz book (D-037, D-080). KassenSturz reads it, and SQLite's header, from the file's first bytes before SQLite opens the file. Only a file with both is opened, so another program's SQLite file is never changed, not even its journal mode.
-- `PRAGMA user_version` holds the layout version: currently `7`.
+- `PRAGMA user_version` holds the layout version: currently `9`.
 - The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033). While the book is open, its [lock file](#the-lock-file) sits next to it.
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
 - Deleted content is overwritten (`PRAGMA secure_delete = ON` on every connection), so what KassenSturz deletes, such as a change history the user cleans up, is gone from the file too, though not from copies of it such as backups (D-066, D-086).
@@ -136,6 +136,58 @@ The book's price table: exchange rates, each for one day (D-028). In v1 they are
 
 One unit of `from_currency` costs `rate_digits` × 10^−`rate_decimal_places` units of `to_currency`. There is at most one rate per `from_currency`, `to_currency` and `date` (a unique index); the other direction is a separate rate, and converting that way divides by the rate instead.
 
+### `rules`
+
+The user's Rules for categorizing transactions, like an email client's filters (D-014, D-031, D-088). They form a tree: a sub-Rule is checked only when its parent matched.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | BLOB (16 bytes), primary key | UUIDv7 |
+| `parent_id` | BLOB → `rules.id`, may be NULL | The Rule it is a sub-Rule of; NULL for a top-level Rule. Never the Rule itself. Deleting a Rule deletes its sub-Rules |
+| `position` | INTEGER, from 0 | Its place among its siblings: the top-level Rules, or the parent's sub-Rules. The first one that matches decides (D-031). KassenSturz keeps them numbered 0, 1, 2, … |
+| `name` | TEXT | The name the user gave it. Never empty, and never the same as a sibling's, ignoring capitals and spaces around it |
+| `match_mode` | TEXT | `all` if every condition must hold, `any` if one is enough |
+| `category_id` | BLOB → `accounts.id`, may be NULL | The category it books to: an `income` or `expense` account |
+| `transfer_account_id` | BLOB → `accounts.id`, may be NULL | The account it books to instead, which makes the transaction a Transfer: an `asset` or `liability` account. At most one of the two is set; with neither, the Rule leaves the category alone, e.g. to its sub-Rules |
+| `payee` | TEXT, may be NULL | The payee it sets. Never empty |
+
+Index: `rules_by_parent` on `rules (parent_id)`.
+
+The tree has no loops and every parent exists; KassenSturz checks this when it writes and again when it reads the Rules.
+
+### `rule_conditions`
+
+The conditions of each Rule, at least one per Rule. Which other columns are set depends on `field` and `operator`; all others are NULL.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | BLOB (16 bytes), primary key | UUIDv7 |
+| `rule_id` | BLOB → `rules.id` | The Rule; deleting it deletes its conditions |
+| `position` | INTEGER, from 0 | The order the user entered them in; unique per Rule |
+| `field` | TEXT | What is tested: `other_party_name`, `other_party_iban`, `remittance_information` (what the bank delivered for the part booked to the user's account, see [`split_imports`](#split_imports)), `payee` (the transaction's), `amount`, `booking_date`, `currency` (the transaction's) or `account` (the user's account the money moves in or out of) |
+| `operator` | TEXT | For the four text fields: `contains`, `equals`, `starts_with`, `ends_with` or `matches` (a regular expression in the syntax of Rust's `regex` crate, D-015). For `amount`: `equals`, `between`, `money_in` or `money_out`. For `booking_date`: `between`. For `currency` and `account`: `is` |
+| `text_value` | TEXT, may be NULL | For a text field: the text or pattern. Never empty |
+| `case_sensitive` | INTEGER, 0 or 1, may be NULL | For a text field: `1` if capitals count, `0` if not (the default) |
+| `amount_min` | INTEGER, may be NULL | For `amount` `equals` or `between`: the lowest amount that matches, in minor units of `currency`. As everywhere, positive for money coming into the account, negative for money going out |
+| `amount_max` | INTEGER, may be NULL | The highest amount that matches, never below `amount_min`. Equal to it for `equals` |
+| `currency` | TEXT → `currencies.code`, may be NULL | For `amount` `equals` or `between`: the amounts' currency. For `currency`: the currency tested |
+| `date_first` | TEXT, may be NULL | For `booking_date`: the first ISO 8601 date that matches |
+| `date_last` | TEXT, may be NULL | For `booking_date`: the last one, never before `date_first` |
+| `account_id` | BLOB → `accounts.id`, may be NULL | For `account`: an `asset` or `liability` account |
+
+A text field that a transaction doesn't have, such as the purpose of one entered by hand, fails every condition on it. IBANs are compared without their spaces.
+
+### `split_rules`
+
+Marks the parts a Rule booked (D-088). A transaction is one the Rules may change when it has two parts, one booked to one of the user's accounts and the other without a category yet or with a row here. When the user changes or joins such a transaction, KassenSturz writes its parts again without this row, so later runs leave it alone (D-031).
+
+| Column | Type | Meaning |
+|---|---|---|
+| `split_id` | BLOB → `splits.id`, primary key | The part the Rule booked, or left without a category while it set the payee; deleting the part deletes this row |
+| `rule_id` | BLOB → `rules.id`, may be NULL | The Rule that decided: the deepest sub-Rule that matched. Set to NULL when that Rule is removed |
+
+Index: `split_rules_by_rule` on `split_rules (rule_id)`.
+
 ### `history_settings`
 
 How long the book keeps its [change history](#the-change-history): exactly one row (D-066). Like the settings, it is stored in the book, so every computer keeps the same history.
@@ -153,13 +205,13 @@ The change history (D-032, D-066): one row per user action, e.g. adding an accou
 |---|---|---|
 | `id` | BLOB (16 bytes), primary key | UUIDv7 |
 | `sequence` | INTEGER, from 1, unique | The order the changes were made in. Undo and redo follow it, not `made_at`, since a computer's clock can be wrong |
-| `action` | TEXT | What the user did: `set_rounding_mode`, `use_currency`, `add_account`, `rename_account`, `close_account`, `reopen_account`, `add_category`, `rename_category`, `move_category`, `add_rate`, `remove_rate`, `add_transaction`, `edit_transaction`, `remove_transaction` or `join_transfer` (joining the two sides of a Transfer into one transaction, D-087) |
+| `action` | TEXT | What the user did: `set_rounding_mode`, `use_currency`, `add_account`, `rename_account`, `close_account`, `reopen_account`, `add_category`, `rename_category`, `move_category`, `add_rate`, `remove_rate`, `add_transaction`, `edit_transaction`, `remove_transaction`, `join_transfer` (joining the two sides of a Transfer into one transaction, D-087), `add_rule`, `edit_rule`, `move_rule`, `remove_rule` or `run_rules` (running the Rules on the book's transactions, D-088) |
 | `made_at` | TEXT | When, ISO 8601 in UTC, in whole seconds, e.g. `2026-10-19T11:04:02Z`, by the clock of the computer it was made on |
 | `undone` | INTEGER, 0 or 1 | `1` if it is undone, so redo can make it again |
 
 ### `changed_settings`, `changed_currencies` and the other `changed_` tables
 
-For each table that holds the book's data (`settings`, `currencies`, `accounts`, `transactions`, `splits`, `split_rates`, `split_imports` and `prices`), a table named `changed_` plus its name, e.g. `changed_accounts`, holds copies of the rows each change touched.
+For each table that holds the book's data (`settings`, `currencies`, `accounts`, `transactions`, `splits`, `split_rates`, `split_imports`, `prices`, `rules`, `rule_conditions` and `split_rules`), a table named `changed_` plus its name, e.g. `changed_accounts`, holds copies of the rows each change touched.
 
 | Column | Type | Meaning |
 |---|---|---|

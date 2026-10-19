@@ -434,12 +434,6 @@ pub(crate) fn insert_splits(
              (id, transaction_id, position, account_id, amount, foreign_amount, foreign_currency)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
     )?;
-    let mut insert_rate = conn.prepare(
-        "INSERT INTO split_rates
-             (split_id, rate_id, date, from_currency, to_currency,
-              rate_digits, rate_decimal_places, source)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-    )?;
     let mut insert_imported = conn.prepare(
         "INSERT INTO split_imports
              (split_id, bank_id, booking_date, value_date,
@@ -461,16 +455,7 @@ pub(crate) fn insert_splits(
                 .map(|foreign| foreign.amount.currency().as_str().to_owned()),
         ])?;
         if let Some(rate) = split.foreign.and_then(|foreign| foreign.rate) {
-            insert_rate.execute(params![
-                id,
-                rate.id.to_bytes(),
-                date_to_text(rate.date)?,
-                rate.from.as_str(),
-                rate.to.as_str(),
-                rate.rate.digits(),
-                rate.rate.decimal_places(),
-                source_to_text(rate.source),
-            ])?;
+            insert_split_rate(conn, split.id, &rate)?;
         }
         if let Some(imported) = &split.imported {
             insert_imported.execute(params![
@@ -484,6 +469,31 @@ pub(crate) fn insert_splits(
             ])?;
         }
     }
+    Ok(())
+}
+
+/// Writes the copy of the rate the part `split` was converted with.
+pub(crate) fn insert_split_rate(
+    conn: &Connection,
+    split: SplitId,
+    rate: &DatedRate,
+) -> Result<(), StoreError> {
+    conn.prepare(
+        "INSERT INTO split_rates
+             (split_id, rate_id, date, from_currency, to_currency,
+              rate_digits, rate_decimal_places, source)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+    )?
+    .execute(params![
+        split.to_bytes(),
+        rate.id.to_bytes(),
+        date_to_text(rate.date)?,
+        rate.from.as_str(),
+        rate.to.as_str(),
+        rate.rate.digits(),
+        rate.rate.decimal_places(),
+        source_to_text(rate.source),
+    ])?;
     Ok(())
 }
 

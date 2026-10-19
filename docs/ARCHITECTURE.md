@@ -126,11 +126,12 @@ kassensturz/
 
 - Modeled on email-client filters (Thunderbird/Outlook), not KMyMoney's name-only matching. See D-014.
 - A Rule = conditions (field + operator + value, matched ALL or ANY) + actions (v1: set category, set payee, make it a Transfer — D-031).
-- Field registry is extensible, not hardcoded: at minimum Other party name, Other party IBAN, Amount, Remittance information, Date, Currency.
+- Fields, extensible as KassenSturz learns more about a transaction: Other party name, Other party IBAN, Purpose (remittance information), Payee, Amount (exact, a range, money in or out), Booking date, Currency and the user's account (D-088). A new text field is one more `TextField` entry.
 - Regex is an explicit opt-in per condition, backed by Rust's `regex` crate for guaranteed linear-time (ReDoS-safe) matching. See D-015.
 - Rules form a tree. A sub-Rule is only evaluated if its parent matched; a matching sub-Rule's action overrides the parent's. Between top-level Rules, the first match in the user's order wins (D-031).
 - Applied automatically to newly imported transactions, after the duplicate check and Transfer matching (D-030); a manual "re-run Rules" action can re-apply them to existing transactions. It never changes a category set by hand or a transaction broken into Parts (D-031), and it can be undone through the change history (D-032).
 - Rule suggestion: when the user has given transactions from the same payee the same category by hand several times, KassenSturz offers to create a Rule. Plain code that works with AI off; the user confirms (D-071).
+- `kassensturz_core::RuleSet` checks a tree of Rules, compiles its patterns once and evaluates a transaction's facts (`RuleFacts`). `kassensturz-store` keeps the tree in the book (layout 9) and runs it: `Book::preview_rules` changes nothing, `Book::run_rules` is one user action. Rules book only a transaction with two parts, one for the user's account and one without a category yet or booked by a Rule earlier, marked in `split_rules`; changing a transaction by hand drops the mark, so manual edits win (D-031, D-088).
 - Deterministic and code-driven — entirely separate from the AI model below (§8 of AGENTS.md does not apply to Rules).
 
 ## Receipt capture (post-1.0)

@@ -34,8 +34,8 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 8] = [
-    LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4, LAYOUT_5, LAYOUT_6, LAYOUT_7, LAYOUT_8,
+pub(crate) const MIGRATIONS: [&str; 9] = [
+    LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4, LAYOUT_5, LAYOUT_6, LAYOUT_7, LAYOUT_8, LAYOUT_9,
 ];
 
 /// The layout version the first migration creates.
@@ -337,6 +337,120 @@ DROP TABLE changes;
 ALTER TABLE new_changes RENAME TO changes;
 ";
 
+/// Layout 9 (M1.11): Rules (D-014, D-031, D-088). `rules` holds the tree of
+/// Rules with their actions, `rule_conditions` their conditions, and
+/// `split_rules` marks each part whose category a Rule set, so running the
+/// Rules again may change it while a part the user set stays as it is. All
+/// three are recorded by the change history, so their `changed_` tables come
+/// too, and `changes` is rebuilt with the new actions in its list (D-086);
+/// its rows stay.
+const LAYOUT_9: &str = "
+CREATE TABLE rules (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    parent_id BLOB REFERENCES rules (id) ON DELETE CASCADE
+        CHECK (parent_id IS NULL OR (length(parent_id) = 16 AND parent_id <> id)),
+    position INTEGER NOT NULL CHECK (position >= 0),
+    name TEXT NOT NULL,
+    match_mode TEXT NOT NULL CHECK (match_mode IN ('all', 'any')),
+    category_id BLOB REFERENCES accounts (id),
+    transfer_account_id BLOB REFERENCES accounts (id),
+    payee TEXT,
+    CHECK (category_id IS NULL OR transfer_account_id IS NULL)
+) STRICT;
+CREATE INDEX rules_by_parent ON rules (parent_id);
+
+CREATE TABLE rule_conditions (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    rule_id BLOB NOT NULL REFERENCES rules (id) ON DELETE CASCADE,
+    position INTEGER NOT NULL CHECK (position >= 0),
+    field TEXT NOT NULL CHECK (field IN (
+        'other_party_name', 'other_party_iban', 'remittance_information', 'payee',
+        'amount', 'booking_date', 'currency', 'account'
+    )),
+    operator TEXT NOT NULL CHECK (operator IN (
+        'contains', 'equals', 'starts_with', 'ends_with', 'matches',
+        'between', 'money_in', 'money_out', 'is'
+    )),
+    text_value TEXT,
+    case_sensitive INTEGER CHECK (case_sensitive IN (0, 1)),
+    amount_min INTEGER,
+    amount_max INTEGER,
+    currency TEXT REFERENCES currencies (code),
+    date_first TEXT
+        CHECK (date_first GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    date_last TEXT
+        CHECK (date_last GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    account_id BLOB REFERENCES accounts (id),
+    UNIQUE (rule_id, position)
+) STRICT;
+
+CREATE TABLE split_rules (
+    split_id BLOB PRIMARY KEY NOT NULL REFERENCES splits (id) ON DELETE CASCADE,
+    rule_id BLOB REFERENCES rules (id) ON DELETE SET NULL
+) STRICT;
+CREATE INDEX split_rules_by_rule ON split_rules (rule_id);
+
+CREATE TABLE changed_rules (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    parent_id BLOB,
+    position INTEGER,
+    name TEXT,
+    match_mode TEXT,
+    category_id BLOB,
+    transfer_account_id BLOB,
+    payee TEXT,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE changed_rule_conditions (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    rule_id BLOB,
+    position INTEGER,
+    field TEXT,
+    operator TEXT,
+    text_value TEXT,
+    case_sensitive INTEGER,
+    amount_min INTEGER,
+    amount_max INTEGER,
+    currency TEXT,
+    date_first TEXT,
+    date_last TEXT,
+    account_id BLOB,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE changed_split_rules (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    split_id BLOB NOT NULL,
+    rule_id BLOB,
+    PRIMARY KEY (change_id, split_id, side)
+) STRICT;
+
+CREATE TABLE new_changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction', 'join_transfer',
+        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1))
+) STRICT;
+INSERT INTO new_changes (id, sequence, action, made_at, undone)
+    SELECT id, sequence, action, made_at, undone FROM changes;
+DROP TABLE changes;
+ALTER TABLE new_changes RENAME TO changes;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -551,11 +665,18 @@ mod tests {
     }
 
     #[test]
-    fn changes_made_before_layout_8_can_still_be_undone() {
-        // Layout 8 rebuilds `changes`; what a layout 7 book recorded stays.
+    fn changes_made_before_changes_was_rebuilt_can_still_be_undone() {
+        // Layouts 8 and 9 rebuild `changes`; what a book recorded before
+        // stays.
+        for version in 7..VERSION {
+            undo_after_update(version);
+        }
+    }
+
+    fn undo_after_update(version: i32) {
         let folder = TempFolder::new();
         let path = folder.join("Household.ksz");
-        let checking = old_book(&path, 7);
+        let checking = old_book(&path, version);
         let conn = Connection::open(&path).expect("book opened");
         let change = uuid::Uuid::now_v7().into_bytes();
         let made_at = kassensturz_core::Timestamp::from_second(

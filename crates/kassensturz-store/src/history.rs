@@ -58,11 +58,21 @@ pub enum Action {
     /// Joined the two sides of a Transfer between the user's own accounts
     /// into one transaction (D-021, D-087).
     JoinTransfer,
+    /// Added a Rule or a sub-Rule (D-014).
+    AddRule,
+    /// Changed a Rule: its name, conditions or actions.
+    EditRule,
+    /// Moved a Rule to another place in the list, or inside another Rule.
+    MoveRule,
+    /// Removed a Rule, with its sub-Rules.
+    RemoveRule,
+    /// Ran the Rules on the book's transactions (D-031, D-088).
+    RunRules,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 20] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -78,6 +88,11 @@ impl Action {
         Self::EditTransaction,
         Self::RemoveTransaction,
         Self::JoinTransfer,
+        Self::AddRule,
+        Self::EditRule,
+        Self::MoveRule,
+        Self::RemoveRule,
+        Self::RunRules,
     ];
 }
 
@@ -154,7 +169,7 @@ pub(crate) struct Recorded {
 
 /// Every table that holds the book's data. Only the history's own tables
 /// aren't recorded: `changes`, the `changed_` tables and `history_settings`.
-pub(crate) const RECORDED: [Recorded; 8] = [
+pub(crate) const RECORDED: [Recorded; 11] = [
     Recorded {
         name: "settings",
         key: "id",
@@ -240,6 +255,44 @@ pub(crate) const RECORDED: [Recorded; 8] = [
             ("rate_decimal_places", "INTEGER"),
             ("source", "TEXT"),
         ],
+    },
+    Recorded {
+        name: "rules",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("parent_id", "BLOB"),
+            ("position", "INTEGER"),
+            ("name", "TEXT"),
+            ("match_mode", "TEXT"),
+            ("category_id", "BLOB"),
+            ("transfer_account_id", "BLOB"),
+            ("payee", "TEXT"),
+        ],
+    },
+    Recorded {
+        name: "rule_conditions",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("rule_id", "BLOB"),
+            ("position", "INTEGER"),
+            ("field", "TEXT"),
+            ("operator", "TEXT"),
+            ("text_value", "TEXT"),
+            ("case_sensitive", "INTEGER"),
+            ("amount_min", "INTEGER"),
+            ("amount_max", "INTEGER"),
+            ("currency", "TEXT"),
+            ("date_first", "TEXT"),
+            ("date_last", "TEXT"),
+            ("account_id", "BLOB"),
+        ],
+    },
+    Recorded {
+        name: "split_rules",
+        key: "split_id",
+        columns: &[("split_id", "BLOB"), ("rule_id", "BLOB")],
     },
 ];
 
@@ -936,6 +989,11 @@ fn action_to_text(action: Action) -> &'static str {
         Action::EditTransaction => "edit_transaction",
         Action::RemoveTransaction => "remove_transaction",
         Action::JoinTransfer => "join_transfer",
+        Action::AddRule => "add_rule",
+        Action::EditRule => "edit_rule",
+        Action::MoveRule => "move_rule",
+        Action::RemoveRule => "remove_rule",
+        Action::RunRules => "run_rules",
     }
 }
 

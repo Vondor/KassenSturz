@@ -209,5 +209,12 @@ fn show(book: &Book, id: TransactionId, out: &mut dyn Write) -> Result<(), CliEr
     for line in table(&rows, &[1]).lines() {
         writeln!(out, "  {line}")?;
     }
+    // A part a Rule booked may be changed by the Rules again (D-088).
+    if let Some(mark) = book.rule_mark(id)? {
+        match mark.rule {
+            Some(rule) => writeln!(out, "Booked by the Rule {}.", plain(&book.rule(rule)?.name))?,
+            None => writeln!(out, "Booked by a Rule that was removed since.")?,
+        }
+    }
     Ok(())
 }

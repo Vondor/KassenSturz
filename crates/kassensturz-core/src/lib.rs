@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! KassenSturz's domain model: money, currencies, accounts and transactions.
+//! KassenSturz's domain model: money, currencies, accounts, transactions and
+//! Rules.
 //!
 //! This crate knows nothing about storage or user interfaces and depends on no
 //! other KassenSturz crate (`docs/ARCHITECTURE.md`). It never produces
@@ -18,6 +19,7 @@ mod id;
 mod money;
 mod rates;
 mod rounding;
+mod rules;
 mod transaction;
 mod transfer;
 
@@ -28,6 +30,10 @@ pub use error::{ErrorParam, ErrorReport, Report};
 pub use money::{Money, MoneyError};
 pub use rates::{DatedRate, DatedRateId, RateSource};
 pub use rounding::RoundingMode;
+pub use rules::{
+    Actions, AmountTest, BookTo, Condition, MatchMode, Rule, RuleError, RuleFacts, RuleId,
+    RuleNode, RuleOutcome, RuleSet, TextField, TextOperator,
+};
 pub use transaction::{
     ForeignAmount, ImportedDetails, Split, SplitId, Transaction, TransactionError, TransactionId,
 };

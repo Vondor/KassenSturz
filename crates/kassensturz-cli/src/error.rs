@@ -11,7 +11,8 @@
 use std::io::{self, Write};
 
 use kassensturz_core::{
-    CurrencyCodeError, DecimalError, ErrorParam, ErrorReport, MoneyError, Report, TransactionError,
+    CurrencyCodeError, DecimalError, ErrorParam, ErrorReport, MoneyError, Report, RuleError,
+    TransactionError,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -57,7 +58,8 @@ from_report!(
     TransactionError,
     MoneyError,
     DecimalError,
-    CurrencyCodeError
+    CurrencyCodeError,
+    RuleError
 );
 
 impl From<io::Error> for CliError {
@@ -118,6 +120,9 @@ fn param_text(param: &ErrorParam, book: Option<&Book>) -> String {
         ErrorParam::Transaction(id) => id.to_string(),
         ErrorParam::Split(id) => id.to_string(),
         ErrorParam::Rate(id) => id.to_string(),
+        ErrorParam::Rule(id) => book
+            .and_then(|book| book.rule(*id).ok())
+            .map_or_else(|| id.to_string(), |rule| plain(&rule.name)),
         ErrorParam::Keyword(word) => (*word).to_owned(),
         ErrorParam::Text(text) => format!("{text:?}"),
     }

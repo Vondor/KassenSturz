@@ -19,6 +19,7 @@ use crate::currency::{CurrencyCode, CurrencyCodeError};
 use crate::decimal::{DecimalError, MAX_DECIMAL_PLACES, MAX_DIGITS};
 use crate::money::{Money, MoneyError};
 use crate::rates::DatedRateId;
+use crate::rules::{RuleError, RuleId};
 use crate::transaction::{SplitId, TransactionError, TransactionId};
 use crate::transfer::TransferError;
 
@@ -99,6 +100,8 @@ pub enum ErrorParam {
     Split(SplitId),
     /// An exchange rate.
     Rate(DatedRateId),
+    /// A Rule, which the UI shows by its name.
+    Rule(RuleId),
     /// One word from a fixed list that `docs/ERROR_CODES.md` gives with the
     /// code, e.g. what went wrong in the file system. The UI translates it
     /// like a code.
@@ -205,6 +208,40 @@ impl Report for TransferError {
     }
 }
 
+impl Report for RuleError {
+    fn report(&self) -> ErrorReport {
+        let rule = |code, id| ErrorReport::new(code).with("rule", ErrorParam::Rule(id));
+        // Counted from 1, as the user sees the list of conditions.
+        let condition = |code, id, index: usize| {
+            rule(code, id).with("condition", ErrorParam::count(index.saturating_add(1)))
+        };
+        match *self {
+            Self::NoConditions(id) => rule("rule.no-conditions", id),
+            Self::EmptyText {
+                rule,
+                condition: index,
+            } => condition("rule.empty-text", rule, index),
+            Self::BadPattern {
+                rule,
+                condition: index,
+            } => condition("rule.bad-pattern", rule, index),
+            Self::AmountRangeReversed {
+                rule,
+                condition: index,
+            } => condition("rule.amount-range-reversed", rule, index),
+            Self::AmountRangeCurrencies {
+                rule,
+                condition: index,
+            } => condition("rule.amount-range-currencies", rule, index),
+            Self::DateRangeReversed {
+                rule,
+                condition: index,
+            } => condition("rule.date-range-reversed", rule, index),
+            Self::EmptyPayee(id) => rule("rule.empty-payee", id),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -261,6 +298,14 @@ mod tests {
     fn a_count_too_large_for_64_bits_is_capped() {
         assert_eq!(ErrorParam::count(3), ErrorParam::Number(3));
         assert_eq!(ErrorParam::count(usize::MAX), ErrorParam::Number(i64::MAX));
+    }
+
+    #[test]
+    fn conditions_are_counted_from_one() {
+        let rule = RuleId::generate();
+        let report = RuleError::EmptyText { rule, condition: 0 }.report();
+        assert_eq!(report.param("rule"), Some(&ErrorParam::Rule(rule)));
+        assert_eq!(report.param("condition"), Some(&ErrorParam::Number(1)));
     }
 
     #[test]

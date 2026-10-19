@@ -13,11 +13,11 @@ This list is the reference for that. A test in `kassensturz-store` (`src/error/t
 ## Rules
 
 - **Codes are stable.** A code keeps its meaning. One that is no longer needed is retired, never given to another error. Before 0.1, codes can still change, like the book's layout (D-045).
-- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer` (core) or `store`. Damage found in a book starts with `store.corrupt`.
+- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core) or `store`. Damage found in a book starts with `store.corrupt`.
 - **Parameters** are listed in the order the report gives them. A name ending in `?` is optional: the report leaves it out when it isn't known.
 - **Parameter types** (`ErrorParam`):
   - Amounts (`Money`), currencies, dates and timestamps stay typed. The UI formats them for the user's locale (D-002, D-065) and shows timestamps in the user's time zone.
-  - IDs of accounts, transactions, parts and rates stay IDs. The UI shows the account's name, or the transaction's date and payee.
+  - IDs of accounts, transactions, parts, rates and Rules stay IDs. The UI shows the account's or Rule's name, or the transaction's date and payee.
   - A **keyword** is one word from the list in the third column. The UI translates it like a code.
   - **Text** comes from a book or a file, e.g. a damaged date or the name of the computer a book is open on. It is data, may contain anything and is never part of a message. The UI shows it as plain text, never as markup or instructions (AGENTS.md §8).
 - **Messages.** The fourth column is a suggested English message in the UI's words (`docs/GLOSSARY.md`, AGENTS.md §6: say what happened and what to do next). It isn't translated from here. The UI writes its own message in its source, where KI18n's tools extract it (D-034). Placeholders in braces are parameters.
@@ -66,6 +66,20 @@ Joining the two sides of a Transfer between the user's own accounts into one tra
 
 A joined transaction that wouldn't add up is reported with its `transaction` code.
 
+## Auto-categorization Rules (`kassensturz-core`)
+
+A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of its own: the store reports these codes as they are. `condition` counts the Rule's conditions from 1, as the user sees them.
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `rule.no-conditions` | `rule` | | {rule} has no conditions, so it would apply to every transaction. Add at least one condition. |
+| `rule.empty-text` | `rule`, `condition` | | Condition {condition} of {rule} has no text to look for. Type some, or remove the condition. |
+| `rule.bad-pattern` | `rule`, `condition` | | The pattern in condition {condition} of {rule} isn't one KassenSturz can use. Check its brackets and special characters, or look for plain text instead. |
+| `rule.amount-range-reversed` | `rule`, `condition` | | In condition {condition} of {rule}, the lowest amount is above the highest. Swap them. For money going out, both are negative, such as −50.00 to −10.00. |
+| `rule.amount-range-currencies` | `rule`, `condition` | | The two amounts in condition {condition} of {rule} are in different currencies. Use one currency for both. |
+| `rule.date-range-reversed` | `rule`, `condition` | | In condition {condition} of {rule}, the last day is before the first. Swap them. |
+| `rule.empty-payee` | `rule` | | {rule} would set an empty payee. Type the payee, or leave that action out. |
+
 ## Books (`kassensturz-store`)
 
 | Code | Parameters | Keywords | What happened, and what the user can do |
@@ -96,6 +110,13 @@ A joined transaction that wouldn't add up is reported with its `transaction` cod
 | `store.split-id-in-use` | `split` | | This part belongs to another transaction already. |
 | `store.split-currency-mismatch` | `account`, `account_currency`, `split_currency` | | {account} counts in {account_currency}, but this part's amount is in {split_currency}. Enter the amount in {account_currency} as well. |
 | `store.imported-split-changed` | `split` | | This part came from your bank or a file, so its account, amount and details stay as they were delivered. You can change the other parts. |
+| `store.unknown-rule` | `rule` | | This Rule isn't in the book anymore. It may have just been removed. |
+| `store.rule-id-in-use` | `rule` | | This Rule is in the book already. |
+| `store.empty-rule-name` | | | Give the Rule a name. |
+| `store.duplicate-rule-name` | `existing` | | {existing} already has this name here. Choose another one, so you can tell them apart. |
+| `store.rule-inside-itself` | `rule` | | {rule} can't go inside itself or one of its own sub-Rules. Choose another place. |
+| `store.rule-needs-category` | `account` | | {account} isn't a category. Choose a category, or let the Rule make a Transfer to move the money into one of your accounts. |
+| `store.transfer-suggested` | `transaction` | | {transaction} looks like one side of a Transfer between your accounts, so the Rules left it alone. Decide on the Transfer first, then run the Rules again. |
 | `store.unknown-rate` | `rate` | | This exchange rate isn't in the book anymore. It may have just been removed. |
 | `store.rate-within-one-currency` | `currency` | | An exchange rate is between two different currencies. Choose another currency than {currency}. |
 | `store.no-rate` | `from`, `to`, `date` | | There is no exchange rate from {from} to {to} on or before {date}. Enter one. |
@@ -129,4 +150,6 @@ Data in the book breaks one of KassenSturz's rules, for example because another 
 | `store.corrupt.bad-action` | `found` | | The change history names a change that doesn't exist. |
 | `store.corrupt.bad-timestamp` | `found` | | A time in the change history isn't a valid time. |
 | `store.corrupt.bad-history-retention` | `found` | | The book keeps its change history for an impossible number of days. |
+| `store.corrupt.bad-rule` | `rule` | | {rule} or one of its conditions has values that don't fit together. |
+| `store.corrupt.bad-rule-tree` | `rule` | | {rule} sits in the wrong place in the list of Rules. |
 | `store.corrupt.history-mismatch` | | | The change history doesn't fit what is in the book, e.g. because another program changed the book, so the change can't be undone or redone. Nothing was changed; Clean up history removes the history that doesn't fit. |

@@ -8,8 +8,9 @@
 use std::collections::HashSet;
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, CurrencyCode, DatedRate, DatedRateId, ForeignAmount,
-    ImportedDetails, Money, RateSource, RoundingMode, Split, Transaction, TransactionId,
+    Account, AccountId, AccountKind, Actions, BookTo, Condition, CurrencyCode, DatedRate,
+    DatedRateId, ForeignAmount, ImportedDetails, MatchMode, Money, RateSource, RoundingMode, Rule,
+    RuleId, Split, TextField, TextOperator, Transaction, TransactionId,
 };
 
 use super::*;
@@ -271,6 +272,53 @@ fn every_change_can_be_undone_and_redone() {
     steps.did(&book, Action::AddTransaction);
     book.join_transfer(out.id(), into.id()).expect("joined");
     steps.did(&book, Action::JoinTransfer);
+    // Rules: a Rule with a sub-Rule, changed, moved, run on an imported
+    // purchase and removed (D-088).
+    let mut shops = Rule {
+        id: RuleId::generate(),
+        name: "Shops".into(),
+        match_mode: MatchMode::All,
+        conditions: vec![Condition::Text {
+            field: TextField::OtherPartyName,
+            operator: TextOperator::Contains,
+            value: "grocery".into(),
+            case_sensitive: false,
+        }],
+        actions: Actions {
+            book_to: Some(BookTo::Category(food)),
+            payee: None,
+        },
+    };
+    book.add_rule(&shops, None).expect("added");
+    steps.did(&book, Action::AddRule);
+    let smaller = Rule {
+        id: RuleId::generate(),
+        name: "Groceries".into(),
+        conditions: vec![Condition::Amount(kassensturz_core::AmountTest::MoneyOut)],
+        actions: Actions {
+            book_to: Some(BookTo::Category(groceries)),
+            payee: Some("Grocery store".into()),
+        },
+        ..shops.clone()
+    };
+    book.add_rule(&smaller, Some(shops.id)).expect("added");
+    steps.did(&book, Action::AddRule);
+    shops.match_mode = MatchMode::Any;
+    book.update_rule(&shops).expect("changed");
+    steps.did(&book, Action::EditRule);
+    book.move_rule(smaller.id, None, 0).expect("moved");
+    steps.did(&book, Action::MoveRule);
+    book.move_rule(smaller.id, Some(shops.id), 0)
+        .expect("moved back");
+    steps.did(&book, Action::MoveRule);
+    let bought = imported_purchase(checking);
+    book.add_transaction(&bought).expect("added");
+    steps.did(&book, Action::AddTransaction);
+    let run = book.run_rules().expect("run");
+    assert_eq!(run.changed.len(), 1);
+    steps.did(&book, Action::RunRules);
+    book.remove_rule(shops.id).expect("removed");
+    steps.did(&book, Action::RemoveRule);
 
     let expected: Vec<(Action, bool)> = steps
         .actions
@@ -311,6 +359,13 @@ fn every_change_can_be_undone_and_redone() {
     assert_eq!(actions(&book), expected);
 
     // What was written back reads as it was.
+    book.undo().expect("undone");
+    assert_eq!(book.rules().expect("Rules")[0].sub_rules[0].rule, smaller);
+    book.undo().expect("undone");
+    assert_eq!(book.transaction(bought.id()).expect("back"), bought);
+    for _ in 0..6 {
+        book.undo().expect("undone");
+    }
     assert_eq!(
         book.undo().expect("undone").map(|c| c.action),
         Some(Action::JoinTransfer)

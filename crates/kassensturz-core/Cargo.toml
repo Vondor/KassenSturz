@@ -3,7 +3,7 @@
 
 [package]
 name = "kassensturz-core"
-description = "KassenSturz's domain model: money, currencies, accounts and transactions. No UI, no storage."
+description = "KassenSturz's domain model: money, currencies, accounts, transactions and Rules. No UI, no storage."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -13,6 +13,7 @@ publish.workspace = true
 
 [dependencies]
 jiff.workspace = true
+regex.workspace = true
 rust_decimal.workspace = true
 uuid.workspace = true
 

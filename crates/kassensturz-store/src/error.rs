@@ -9,7 +9,7 @@ use std::io::ErrorKind;
 
 use kassensturz_core::{
     AccountId, AccountKind, AccountType, CurrencyCode, Date, DatedRateId, ErrorParam, ErrorReport,
-    Money, Report, SplitId, TransactionError, TransactionId, TransferError,
+    Money, Report, RuleError, RuleId, SplitId, TransactionError, TransactionId, TransferError,
 };
 
 use crate::Lock;
@@ -132,6 +132,30 @@ pub enum StoreError {
     ImportedSplitChanged(SplitId),
     /// The two transactions can't be joined into a Transfer (D-087).
     Transfer(TransferError),
+    /// There's no Rule with this ID.
+    UnknownRule(RuleId),
+    /// A Rule with this ID is in the book already.
+    RuleIdInUse(RuleId),
+    /// The Rule's name is empty.
+    EmptyRuleName,
+    /// Another Rule in the same place, the top level or inside the same
+    /// Rule, already has this name, ignoring capitals.
+    DuplicateRuleName {
+        /// The Rule that has it.
+        existing: RuleId,
+    },
+    /// A Rule can't sit inside itself or inside one of its own sub-Rules.
+    RuleInsideItself(RuleId),
+    /// A Rule books transactions to a category, but this is an account or
+    /// an internal account. To move money into one of the user's accounts,
+    /// a Rule makes a Transfer instead (D-031).
+    RuleNeedsCategory(AccountId),
+    /// The Rule can't be used as it is (D-014).
+    Rule(RuleError),
+    /// Running the Rules left this transaction alone, since it looks like
+    /// one side of a Transfer, which the user decides on first (D-030,
+    /// D-088).
+    TransferSuggested(TransactionId),
     /// There's no exchange rate with this ID.
     UnknownRate(DatedRateId),
     /// An exchange rate from a currency into the same currency.
@@ -226,6 +250,12 @@ pub enum Corruption {
     /// e.g. because another program changed the book (D-066). The change
     /// can't be undone or redone; nothing was changed.
     HistoryMismatch,
+    /// A Rule or one of its conditions has values that don't fit together,
+    /// e.g. a field it can't compare in this way.
+    BadRule(RuleId),
+    /// A Rule sits in the wrong place in the tree of Rules: inside a Rule
+    /// that doesn't exist, or inside itself.
+    BadRuleTree(RuleId),
 }
 
 /// An error reported by SQLite. Its details are for logs, not for users.
@@ -346,6 +376,23 @@ impl Report for StoreError {
             }
             // The transfer's own error says what doesn't fit.
             Self::Transfer(error) => error.report(),
+            Self::UnknownRule(rule) => new("store.unknown-rule").with("rule", P::Rule(*rule)),
+            Self::RuleIdInUse(rule) => new("store.rule-id-in-use").with("rule", P::Rule(*rule)),
+            Self::EmptyRuleName => new("store.empty-rule-name"),
+            Self::DuplicateRuleName { existing } => {
+                new("store.duplicate-rule-name").with("existing", P::Rule(*existing))
+            }
+            Self::RuleInsideItself(rule) => {
+                new("store.rule-inside-itself").with("rule", P::Rule(*rule))
+            }
+            Self::RuleNeedsCategory(account) => {
+                new("store.rule-needs-category").with("account", P::Account(*account))
+            }
+            // The Rule's own error says what is wrong with it.
+            Self::Rule(error) => error.report(),
+            Self::TransferSuggested(transaction) => {
+                new("store.transfer-suggested").with("transaction", P::Transaction(*transaction))
+            }
             Self::UnknownRate(rate) => new("store.unknown-rate").with("rate", P::Rate(*rate)),
             Self::RateWithinOneCurrency(currency) => {
                 new("store.rate-within-one-currency").with("currency", P::Currency(*currency))
@@ -406,6 +453,10 @@ impl Report for Corruption {
                 new("store.corrupt.bad-history-retention").with("found", P::Number(*days))
             }
             Self::HistoryMismatch => new("store.corrupt.history-mismatch"),
+            Self::BadRule(rule) => new("store.corrupt.bad-rule").with("rule", P::Rule(*rule)),
+            Self::BadRuleTree(rule) => {
+                new("store.corrupt.bad-rule-tree").with("rule", P::Rule(*rule))
+            }
         }
     }
 }

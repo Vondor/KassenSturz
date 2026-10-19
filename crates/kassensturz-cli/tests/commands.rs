@@ -571,6 +571,248 @@ fn both_sides_of_a_transfer_are_suggested_and_joined() {
 }
 
 #[test]
+fn rules_book_new_transactions_and_leave_the_users_choices_alone() {
+    let session = household();
+    session.ok(&[
+        "rule",
+        "add",
+        "Supermarket",
+        "--if",
+        "payee contains market",
+        "--if",
+        "amount out",
+        "--category",
+        "Food/Groceries",
+    ]);
+    session.ok(&[
+        "rule",
+        "add",
+        "Big shop",
+        "--inside",
+        "Supermarket",
+        "--if",
+        "amount between -1000 -100 EUR",
+        "--payee",
+        "Supermarket (big shop)",
+    ]);
+    session.ok(&[
+        "rule",
+        "add",
+        "Savings plan",
+        "--if",
+        "payee is Monthly savings",
+        "--to",
+        "Savings",
+    ]);
+    let listed = session.ok(&["rule", "list"]);
+    let lines: Vec<&str> = listed.lines().collect();
+    assert_eq!(lines.len(), 9, "{listed}");
+    assert!(lines[0].starts_with("1. Supermarket  (ID "), "{listed}");
+    assert_eq!(
+        lines[1],
+        "   when all of: payee contains \"market\"; amount out"
+    );
+    assert_eq!(lines[2], "   then: category Groceries");
+    assert!(lines[3].starts_with("  1. Big shop  (ID "), "{listed}");
+    assert_eq!(
+        lines[4],
+        "     when all of: amount between -1000.00 EUR and -100.00 EUR"
+    );
+    assert_eq!(lines[5], "     then: payee \"Supermarket (big shop)\"");
+    assert_eq!(lines[8], "   then: Transfer to Savings");
+
+    let small = last_added(&session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-02",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-23.40",
+        "--payee",
+        "Corner Market",
+    ]));
+    let big = last_added(&session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-03",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-120",
+        "--payee",
+        "Corner Market",
+    ]));
+    let saved = last_added(&session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-05",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-50",
+        "--payee",
+        "Monthly savings",
+    ]));
+    // Booked by the user, so no Rule may change it.
+    let chosen = last_added(&session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-06",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-8",
+        "--payee",
+        "Corner Market",
+        "--category",
+        "Food/Other",
+    ]));
+
+    let preview = session.ok(&["rule", "run", "--dry-run"]);
+    assert!(
+        preview.starts_with("Would change 3 transaction(s):\n"),
+        "{preview}"
+    );
+    assert!(preview.ends_with("Nothing was changed.\n"), "{preview}");
+    assert!(!preview.contains(&chosen), "{preview}");
+    assert!(
+        session
+            .ok(&["transaction", "show", &small])
+            .contains("(no category yet)")
+    );
+
+    let run = session.ok(&["rule", "run"]);
+    assert!(run.starts_with("Changed 3 transaction(s):\n"), "{run}");
+    let row = run
+        .lines()
+        .find(|line| line.contains(&big))
+        .expect("big shop");
+    assert!(row.contains("Supermarket (big shop)"), "{run}");
+    assert!(row.contains("Big shop"), "{run}");
+
+    let shown = session.ok(&["transaction", "show", &small]);
+    assert!(shown.contains("Groceries          23.40 EUR"), "{shown}");
+    assert!(
+        shown.ends_with("Booked by the Rule Supermarket.\n"),
+        "{shown}"
+    );
+    let shown = session.ok(&["transaction", "show", &big]);
+    assert!(shown.contains("Payee: Supermarket (big shop)"), "{shown}");
+    let shown = session.ok(&["transaction", "show", &saved]);
+    assert!(shown.contains("Savings            50.00 EUR"), "{shown}");
+    let shown = session.ok(&["transaction", "show", &chosen]);
+    assert!(shown.contains("Other"), "{shown}");
+    assert!(!shown.contains("Booked by"), "{shown}");
+    assert_eq!(
+        session.ok(&["rule", "run"]),
+        "The Rules change no transaction.\n"
+    );
+
+    // A changed Rule rebooks what it booked before.
+    session.ok(&[
+        "rule",
+        "change",
+        "Supermarket",
+        "--if",
+        "payee contains market",
+        "--category",
+        "Food/Other",
+    ]);
+    let run = session.ok(&["rule", "run"]);
+    assert!(run.starts_with("Changed 2 transaction(s):\n"), "{run}");
+    assert!(
+        session
+            .ok(&["transaction", "show", &small])
+            .contains("Other              23.40 EUR")
+    );
+
+    // The whole run is one change.
+    assert_eq!(session.ok(&["undo"]), "Undid the change: ran the Rules.\n");
+    assert!(
+        session
+            .ok(&["transaction", "show", &small])
+            .contains("Groceries          23.40 EUR")
+    );
+
+    session.ok(&["rule", "move", "Savings plan", "--position", "1"]);
+    assert!(
+        session
+            .ok(&["rule", "list"])
+            .starts_with("1. Savings plan  (ID ")
+    );
+    assert_eq!(
+        session.ok(&["rule", "move", "Big shop", "--inside", "Savings plan"]),
+        "Moved Big shop inside Savings plan.\n"
+    );
+    assert!(
+        session
+            .ok(&["rule", "list"])
+            .contains("  1. Big shop  (ID ")
+    );
+    assert_eq!(
+        session.ok(&["rule", "remove", "Supermarket"]),
+        "Removed the Rule Supermarket and its sub-Rules.\n"
+    );
+    let shown = session.ok(&["transaction", "show", &small]);
+    assert!(
+        shown.ends_with("Booked by a Rule that was removed since.\n"),
+        "{shown}"
+    );
+}
+
+#[test]
+fn mistakes_in_a_rule_are_refused() {
+    let session = household();
+    session.ok(&["rule", "add", "Shop", "--if", "payee is Shop"]);
+    for (line, code) in [
+        (
+            &["rule", "add", "Shop", "--if", "payee is Other shop"][..],
+            "store.duplicate-rule-name",
+        ),
+        (
+            &["rule", "add", "Broken", "--if", "purpose matches (unclosed"],
+            "rule.bad-pattern",
+        ),
+        (
+            &["rule", "add", "Empty", "--if", "payee contains "],
+            "rule.empty-text",
+        ),
+        (
+            &["rule", "add", "Range", "--if", "amount between 10 5 EUR"],
+            "rule.amount-range-reversed",
+        ),
+        (
+            &["rule", "move", "Shop", "--inside", "Shop"],
+            "store.rule-inside-itself",
+        ),
+    ] {
+        let outcome = session.cli(line);
+        assert_eq!(outcome.status, 1, "{line:?}: {}", outcome.err);
+        assert!(
+            outcome.err.starts_with(&format!("error: {code}\n")),
+            "{line:?}: {}",
+            outcome.err
+        );
+    }
+    let outcome = session.cli(&["rule", "add", "Range", "--if", "amount between 10 5 EUR"]);
+    assert!(outcome.err.contains("  rule: "), "{}", outcome.err);
+    assert!(outcome.err.contains("  condition: 1\n"), "{}", outcome.err);
+    let unknown = session.cli(&["rule", "remove", "Nothing"]);
+    assert_eq!(unknown.status, 1);
+    assert!(
+        unknown.err.contains("no Rule called `Nothing`"),
+        "{}",
+        unknown.err
+    );
+    assert_eq!(session.ok(&["rule", "list"]).lines().count(), 3);
+}
+
+#[test]
 fn wrong_command_lines_end_with_status_2() {
     let session = household();
     for line in [
@@ -591,6 +833,25 @@ fn wrong_command_lines_end_with_status_2() {
         &["transfer", "match"],
         &["transfer", "suggest", "--all"],
         &["transfer", "join", "123456"],
+        &["rule"],
+        &["rule", "sort"],
+        &["rule", "add", "Shop"],
+        &["rule", "add", "Shop", "--if", "payee"],
+        &["rule", "add", "Shop", "--if", "payee sounds-like Shop"],
+        &["rule", "add", "Shop", "--if", "amount is 5"],
+        &[
+            "rule",
+            "add",
+            "Shop",
+            "--if",
+            "x",
+            "--category",
+            "Food",
+            "--to",
+            "Savings",
+        ],
+        &["rule", "list", "--all"],
+        &["rule", "run", "now"],
     ] {
         let outcome = session.cli(line);
         assert_eq!(outcome.status, 2, "{line:?}: {}", outcome.err);

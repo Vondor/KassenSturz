@@ -14,6 +14,7 @@ mod error;
 mod history;
 mod layout;
 mod lock;
+mod rules;
 mod transactions;
 mod transfers;
 
@@ -31,6 +32,7 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 pub use error::{Corruption, DatabaseError, StoreError};
 pub use history::{Action, Change, ChangeId, HistoryRetention};
 pub use lock::Lock;
+pub use rules::{RuleChange, RuleMark, RuleRun, RuleSkip};
 pub use transactions::RegisterEntry;
 
 use lock::HeldLock;

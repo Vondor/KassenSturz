@@ -77,6 +77,17 @@ fn examples() -> Vec<ErrorReport> {
         // `TransferError::Transaction` and `StoreError::Transfer` report
         // the code of the error they hold, like `StoreError::Corrupt`.
     ];
+    let rule = RuleId::generate();
+    let rule_errors = [
+        RuleError::NoConditions(rule),
+        RuleError::EmptyText { rule, condition: 0 },
+        RuleError::BadPattern { rule, condition: 0 },
+        RuleError::AmountRangeReversed { rule, condition: 0 },
+        RuleError::AmountRangeCurrencies { rule, condition: 0 },
+        RuleError::DateRangeReversed { rule, condition: 0 },
+        RuleError::EmptyPayee(rule),
+        // `StoreError::Rule` reports the code of the error it holds.
+    ];
     let corruptions = [
         Corruption::BadAccountKind(text("assets")),
         Corruption::BadAccountType(text("giro")),
@@ -100,6 +111,8 @@ fn examples() -> Vec<ErrorReport> {
         Corruption::BadTimestamp(text("2026-10-19 11:04")),
         Corruption::BadHistoryRetention(-1),
         Corruption::HistoryMismatch,
+        Corruption::BadRule(rule),
+        Corruption::BadRuleTree(rule),
     ];
     let store_errors = [
         StoreError::AlreadyExists,
@@ -146,6 +159,13 @@ fn examples() -> Vec<ErrorReport> {
             split_currency: EUR,
         },
         StoreError::ImportedSplitChanged(split),
+        StoreError::UnknownRule(rule),
+        StoreError::RuleIdInUse(rule),
+        StoreError::EmptyRuleName,
+        StoreError::DuplicateRuleName { existing: rule },
+        StoreError::RuleInsideItself(rule),
+        StoreError::RuleNeedsCategory(account),
+        StoreError::TransferSuggested(transaction),
         StoreError::UnknownRate(rate),
         StoreError::RateWithinOneCurrency(EUR),
         StoreError::NoRate {
@@ -176,6 +196,7 @@ fn examples() -> Vec<ErrorReport> {
     ];
     reports.extend(transaction_errors.iter().map(Report::report));
     reports.extend(transfer_errors.iter().map(Report::report));
+    reports.extend(rule_errors.iter().map(Report::report));
     reports.extend(corruptions.iter().map(Report::report));
     reports.extend(store_errors.iter().map(Report::report));
     reports
@@ -369,6 +390,19 @@ fn a_transfer_that_cannot_be_joined_reports_its_own_code() {
     assert_eq!(
         StoreError::Transfer(TransferError::Transaction(invalid)).report(),
         invalid.report()
+    );
+}
+
+#[test]
+fn a_rule_that_cannot_be_used_reports_its_own_code() {
+    let error = RuleError::BadPattern {
+        rule: RuleId::generate(),
+        condition: 2,
+    };
+    assert_eq!(StoreError::Rule(error).report(), error.report());
+    assert_eq!(
+        error.report().param("condition"),
+        Some(&ErrorParam::Number(3))
     );
 }
 

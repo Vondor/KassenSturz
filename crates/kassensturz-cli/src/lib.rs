@@ -4,8 +4,8 @@
 //! KassenSturz's command-line tool: a front end for trying out the core and
 //! the store without the UI (M1.8). It creates and opens books, adds
 //! accounts, categories, transactions and exchange rates, shows registers
-//! and balances, suggests and joins Transfers (M1.10), and undoes and
-//! redoes changes (M1.9).
+//! and balances, suggests and joins Transfers (M1.10), runs auto-categorization
+//! Rules (M1.11), and undoes and redoes changes (M1.9).
 //!
 //! The tool is for developers and testers. It writes English text and plain
 //! amounts (`-12.50 EUR`), shows errors as their code and parameters, and is
@@ -22,6 +22,7 @@ mod history;
 mod input;
 mod lookup;
 mod rate;
+mod rule;
 mod text;
 mod transaction;
 mod transfer;
@@ -127,6 +128,34 @@ Commands:
   rate add --date DATE --from CODE --to CODE --rate RATE
   rate list --from CODE --to CODE
   rate remove --date DATE --from CODE --to CODE
+  rule add NAME --if CONDITION ... [--any] [--case-sensitive]
+           [--category NAME | --to ACCOUNT] [--payee TEXT] [--inside PARENT]
+                                 a Rule books matching transactions that have
+                                 no category yet. CONDITION is one argument:
+                                   FIELD contains|is|starts-with|ends-with|
+                                     matches TEXT, FIELD being other-party,
+                                     iban, purpose or payee (matches takes a
+                                     regular expression; capitals are ignored
+                                     unless --case-sensitive)
+                                   amount is AMOUNT CODE
+                                   amount between MIN MAX CODE
+                                   amount in | amount out
+                                   date between DATE DATE
+                                   currency is CODE
+                                   account is NAME
+                                 All conditions must match, or one with --any.
+                                 The first matching Rule wins; its matching
+                                 sub-Rules (--inside) can say more
+  rule change NAME [--name NEW-NAME] --if CONDITION ...
+                                 replaces the Rule's conditions and actions;
+                                 takes the options of rule add
+  rule list                      the Rules in the order they are tried
+  rule move NAME [--inside PARENT] [--position N]
+                                 N counts from 1; without it, last
+  rule remove NAME               also removes its sub-Rules
+  rule run [--dry-run]           apply the Rules; a choice you made yourself
+                                 is never changed. --dry-run only shows what
+                                 would change
   undo                           undo the last change, also one made by an
                                  earlier command
   redo                           make the change undone last again
@@ -233,7 +262,7 @@ impl<'a> CommandLine<'a> {
                 Ok(())
             }
             Some(
-                "account" | "category" | "transaction" | "transfer" | "rate" | "balances"
+                "account" | "category" | "transaction" | "transfer" | "rate" | "rule" | "balances"
                 | "register" | "history",
             ) => Ok(()),
             Some(other) => Err(CliError::usage(format!("`{other}` isn't a command"))),
@@ -254,6 +283,7 @@ impl<'a> CommandLine<'a> {
             Some("transaction") => transaction::transaction(book, rest, out),
             Some("transfer") => transfer::transfer(book, rest, out),
             Some("rate") => rate::rate(book, rest, out),
+            Some("rule") => rule::rule(book, rest, out),
             Some("balances") => accounts::balances(book, rest, out),
             Some("register") => accounts::register(book, rest, out),
             Some("undo") => history::undo(book, out),

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! KassenSturz's domain model: money, accounts and transactions.
+//! KassenSturz's domain model: money, currencies, accounts and transactions.
 //!
 //! This crate knows nothing about storage or user interfaces and depends on no
 //! other KassenSturz crate (`docs/ARCHITECTURE.md`). It never produces
@@ -11,12 +11,14 @@
 #![forbid(unsafe_code)]
 
 mod account;
+mod currency;
 mod id;
 mod money;
 mod transaction;
 
 pub use account::{Account, AccountId, AccountKind};
-pub use money::{CurrencyCode, CurrencyCodeError, Money, MoneyError};
+pub use currency::{CurrencyCode, CurrencyCodeError};
+pub use money::{Money, MoneyError};
 pub use transaction::{Split, SplitId, Transaction, TransactionError, TransactionId};
 
 /// A calendar date without time or time zone, used for booking dates

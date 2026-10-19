@@ -3,8 +3,8 @@
 
 //! Accounts and categories.
 
+use crate::currency::CurrencyCode;
 use crate::id::define_id;
-use crate::money::CurrencyCode;
 
 define_id!(
     /// Identifies an account or a category within a book.

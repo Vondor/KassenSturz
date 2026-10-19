@@ -3,7 +3,7 @@
 
 [package]
 name = "kassensturz-core"
-description = "KassenSturz's domain model: money, accounts and transactions. No UI, no storage."
+description = "KassenSturz's domain model: money, currencies, accounts and transactions. No UI, no storage."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -11,7 +11,7 @@ kassensturz/
 │   │   ├── money                   # 64-bit integer minor units + ISO 4217, rounding modes (D-027)
 │   │   ├── account                 # accounts (incl. credit cards), categories, payees
 │   │   ├── transaction             # double-entry transactions + splits, booking and value date
-│   │   ├── currency                # currencies (decimal places stored per book), exchange rates, prices
+│   │   ├── currency                # ISO 4217 codes and KassenSturz's own ISO 4217 table, read from data/ (D-062, D-077); exchange rates, prices
 │   │   ├── budget                  # basic budgets: a monthly limit per category (D-029)
 │   │   ├── rules                   # auto-categorization: conditions, actions, Rule tree with sub-Rules
 │   │   └── events                  # event bus (TransactionAdded, ...)
@@ -36,7 +36,7 @@ kassensturz/
 ├── po/                             # translations, one folder per language (D-034)
 ├── plugins/examples/               # sample importer, report, automation (after 1.0)
 ├── packaging/                      # flatpak/ (manifest and its offline crate list), windows/, macos/
-├── tools/                          # sdk.sh: runs commands in the build environment (D-063)
+├── tools/                          # sdk.sh: runs commands in the build environment (D-063); update-currency-table.py (D-077)
 ├── docs/
 └── .github/
 ```

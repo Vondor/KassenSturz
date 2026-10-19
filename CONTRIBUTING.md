@@ -15,6 +15,7 @@ GitHub-specific checklist; it doesn't duplicate AGENTS.md's rules.
    be by the commit's author or committer, which `git commit -s` takes care of. If an AI agent made your
    commits, it won't sign them off for you: review them, then sign them off with the `git rebase --signoff`
    command that the failing check prints.
+   (The maintainer's own pull requests are the exception for agent commits, see D-040.)
 5. Add tests for anything in `kassensturz-core` or other logic crates (AGENTS.md §9.4).
 6. Run formatting, lint and tests locally before opening the pull request, in the same
    environment CI uses (see "Building" in [README.md](README.md)):

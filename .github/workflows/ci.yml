@@ -29,12 +29,25 @@ jobs:
         with:
           fetch-depth: 0
       - name: Check every commit in this PR is signed off by its author or committer
+        env:
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          REPO_OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
           base="${{ github.event.pull_request.base.sha }}"
           head="${{ github.event.pull_request.head.sha }}"
           missing=0
           for sha in $(git log --no-merges --format=%H "$base..$head"); do
+            # The maintainer's promise covers the agent commits in a pull request
+            # they opened themselves (D-040). Only the PR's author is trusted here,
+            # not trailers: anyone can write "Co-Authored-By" in a commit message,
+            # but nobody else can open a pull request as the maintainer.
+            if [ "${PR_AUTHOR,,}" = "${REPO_OWNER,,}" ] \
+              && [ "$(git log -1 --format='%ae' "$sha")" = "noreply@anthropic.com" ] \
+              && git log -1 --format=%B "$sha" | grep -qiE '^Co-Authored-By: Claude .*<noreply@anthropic.com>$'; then
+              echo "Commit $sha is an agent commit in a pull request by the maintainer ($PR_AUTHOR): covered by the maintainer's promise (D-040)."
+              continue
+            fi
             # The sign-off has to be by the commit's author or committer, so nobody
             # signs off in someone else's name, not even by mistake (D-040).
             signoffs=$(git log -1 --format=%B "$sha" | sed -n 's/^Signed-off-by: *\(.*[^[:space:]]\)[[:space:]]*$/\1/p')

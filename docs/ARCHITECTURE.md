@@ -31,7 +31,7 @@ kassensturz/
 │   ├── kassensturz-receipts/       # post-1.0: OCR + transaction-matching for photographed/scanned receipts
 │   ├── kassensturz-mobile-bridge/  # post-1.0: Rust↔Kotlin FFI exposing core+receipts to the native Android app — see D-019, Q-018
 │   ├── kassensturz-sync/           # post-1.0: shared-host ↔ thin-client access for multi-user (Member-scoped) — see D-022, Q-021/Q-022
-│   ├── kassensturz-cli/            # CLI front end (testing, scripting)
+│   ├── kassensturz-cli/            # CLI front end for testing the core and the store: English only, errors as codes, not installed (D-085)
 │   └── kassensturz-ui-bridge/      # the desktop app: cxx-qt bindings exposing the core to QML
 │       ├── qml/                    # Kirigami UI: overview, register, reports, settings, plugins
 │       └── cpp/                    # small C++ helpers, e.g. Qt's locale data for formatting (D-065)
@@ -83,6 +83,13 @@ kassensturz/
 - A Part can have no category yet: an import adds the bank's entry plus such a Part, which a Rule or the user then categorizes (D-083).
 - What a bank or file delivered is kept with the Part booked to the account the statement is for, so a Transfer matched from two statements keeps both (D-083). That Part's account and amount never change; the other Parts, the payee and the date can.
 - A transaction is changed by replacing it as a whole, with the same ID (`Book::update_transaction`), and checked like a new one. Undo comes with the change history (D-032, M1.9).
+
+## Command-line tool
+
+- `kassensturz-cli` is a front end like the app, so it uses only the public functions of `kassensturz-core` and `kassensturz-store` (D-072, D-085). It is for developers and testers: it isn't installed by the Flatpak or CMake and isn't translated (Q-040).
+- It was the first front end to open book files, so it supplies the computer's name and the backup folder (`Computer`, D-080) from options or a best guess, until `kassensturz-platform` takes that over.
+- Amounts go in and out as plain text (`-12.50`) with the currency's decimal places, never rounded; errors are written as their code and parameters (D-084).
+- Run it with `tools/sdk.sh cargo run --bin kassensturz-cli -- help`.
 
 ## Multiple accounts and Transfers
 

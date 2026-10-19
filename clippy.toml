@@ -3,9 +3,15 @@
 
 # Hard rule 1 (AGENTS.md §3.1): no floating point for money, prices, exchange
 # rates or quantities. These are the floating-point methods of the libraries
-# KassenSturz uses (jiff: D-061, checked against jiff 0.2.38). rust_decimal's
-# join them when it is added in M1 (D-051). The workspace lints make every
+# KassenSturz uses (jiff: D-061, checked against jiff 0.2.38; rust_decimal:
+# D-051, checked against rust_decimal 1.43.0). The workspace lints make every
 # use an error.
+#
+# rust_decimal's `TryFrom<f32>`/`TryFrom<f64>` conversions can't be listed
+# here, since `TryFrom::try_from` is shared by every type. They are covered by
+# keeping `rust_decimal::Decimal` private to `kassensturz-core`'s decimal
+# module (D-051), and Clippy's `float_arithmetic` stops any calculation with
+# the result.
 disallowed-methods = [
     { path = "jiff::SignedDuration::as_secs_f64", reason = "floating point (AGENTS.md §3.1 rule 1)" },
     { path = "jiff::SignedDuration::as_secs_f32", reason = "floating point (AGENTS.md §3.1 rule 1)" },
@@ -22,4 +28,13 @@ disallowed-methods = [
     { path = "jiff::SignedDuration::div_duration_f64", reason = "floating point (AGENTS.md §3.1 rule 1)" },
     { path = "jiff::SignedDuration::div_duration_f32", reason = "floating point (AGENTS.md §3.1 rule 1)" },
     { path = "jiff::Span::total", reason = "returns floating point (AGENTS.md §3.1 rule 1)" },
+    { path = "rust_decimal::Decimal::from_f32_retain", reason = "floating point (AGENTS.md §3.1 rule 1)" },
+    { path = "rust_decimal::Decimal::from_f64_retain", reason = "floating point (AGENTS.md §3.1 rule 1)" },
+    { path = "rust_decimal::Decimal::as_f64", reason = "floating point (AGENTS.md §3.1 rule 1)" },
+    # rust_decimal implements these num-traits conversions for Decimal; listed
+    # through rust_decimal's re-export, they're blocked for every type.
+    { path = "rust_decimal::prelude::FromPrimitive::from_f32", reason = "floating point (AGENTS.md §3.1 rule 1)" },
+    { path = "rust_decimal::prelude::FromPrimitive::from_f64", reason = "floating point (AGENTS.md §3.1 rule 1)" },
+    { path = "rust_decimal::prelude::ToPrimitive::to_f32", reason = "floating point (AGENTS.md §3.1 rule 1)" },
+    { path = "rust_decimal::prelude::ToPrimitive::to_f64", reason = "floating point (AGENTS.md §3.1 rule 1)" },
 ]

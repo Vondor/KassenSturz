@@ -12,14 +12,18 @@
 
 mod account;
 mod currency;
+mod decimal;
 mod id;
 mod money;
+mod rates;
 mod rounding;
 mod transaction;
 
 pub use account::{Account, AccountId, AccountKind};
-pub use currency::{CurrencyCode, CurrencyCodeError};
+pub use currency::{Currency, CurrencyCode, CurrencyCodeError};
+pub use decimal::{DecimalError, ExchangeRate, MAX_DECIMAL_PLACES, MAX_DIGITS, Price, Quantity};
 pub use money::{Money, MoneyError};
+pub use rates::{DatedRate, DatedRateId, RateSource};
 pub use rounding::RoundingMode;
 pub use transaction::{Split, SplitId, Transaction, TransactionError, TransactionId};
 

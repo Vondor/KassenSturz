@@ -31,6 +31,8 @@ cxx-qt-lib-extras = "=0.10.0"
 # Without time-zone data: transaction dates are calendar dates (D-061).
 jiff = { version = "=0.2.38", default-features = false, features = ["std"] }
 rusqlite = { version = "=0.40.2", default-features = false }
+# Without serde: KassenSturz stores rates as two INTEGER columns (D-051).
+rust_decimal = { version = "=1.43.0", default-features = false, features = ["std"] }
 uuid = { version = "=1.28.0", features = ["v7"] }
 
 # Test-only dependencies, covered by the license allowlist (D-026).

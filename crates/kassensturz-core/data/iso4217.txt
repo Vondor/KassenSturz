@@ -6,7 +6,7 @@
 # currency's decimal places from here when it first uses the currency, and
 # keeps them from then on (D-027).
 #
-# Made from ISO 4217 list one, published 2026-01-01 by SIX, the ISO 4217
+# Made from ISO 4217 list one, published 2026-09-17 by SIX, the ISO 4217
 # maintenance agency (docs/THIRD_PARTY.md). Left out, because the list gives
 # them no decimal places: XAG XAU XBA XBB XBC XBD XDR XPD XPT XSU XTS XUA XXX.
 #

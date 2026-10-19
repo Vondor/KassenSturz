@@ -1,0 +1,653 @@
+// SPDX-FileCopyrightText: 2026 KassenSturz contributors
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+//! Runs whole command lines against book files in a temporary folder. All
+//! names and amounts are made up (AGENTS.md §3.1 rule 2).
+
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+use kassensturz_cli::{Environment, run};
+use kassensturz_core::AccountId;
+use kassensturz_store::{Book, Computer};
+
+/// A folder of its own for one test, removed again afterwards, with a book
+/// path and a backup folder in it.
+struct Session(PathBuf);
+
+/// What one command line printed and returned.
+struct Outcome {
+    status: u8,
+    out: String,
+    err: String,
+}
+
+impl Session {
+    fn new() -> Self {
+        let path =
+            std::env::temp_dir().join(format!("kassensturz-cli-test-{}", AccountId::generate()));
+        std::fs::create_dir(&path).expect("temporary folder created");
+        Self(path)
+    }
+
+    fn book(&self) -> PathBuf {
+        self.0.join("Household.ksz")
+    }
+
+    fn backups(&self) -> PathBuf {
+        self.0.join("Backups")
+    }
+
+    /// Runs the command with this session's book on a computer called
+    /// "Laptop".
+    fn cli(&self, args: &[&str]) -> Outcome {
+        let mut line = vec![
+            "--book".to_owned(),
+            self.book().display().to_string(),
+            "--backup-folder".to_owned(),
+            self.backups().display().to_string(),
+            "--computer".to_owned(),
+            "Laptop".to_owned(),
+        ];
+        line.extend(args.iter().map(|arg| (*arg).to_owned()));
+        run_line(&line, &Environment::default())
+    }
+
+    /// Runs the command, which must succeed, and returns what it printed.
+    fn ok(&self, args: &[&str]) -> String {
+        let outcome = self.cli(args);
+        assert_eq!(outcome.status, 0, "{args:?} failed: {}", outcome.err);
+        assert_eq!(outcome.err, "", "{args:?} printed an error");
+        outcome.out
+    }
+}
+
+impl Drop for Session {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn run_line(line: &[String], environment: &Environment) -> Outcome {
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    let status = run(line, environment, &mut out, &mut err);
+    Outcome {
+        status,
+        out: String::from_utf8(out).expect("UTF-8 output"),
+        err: String::from_utf8(err).expect("UTF-8 errors"),
+    }
+}
+
+/// A book with two accounts and a few categories, as the first steps of a
+/// household would make it.
+fn household() -> Session {
+    let session = Session::new();
+    session.ok(&["create"]);
+    session.ok(&[
+        "account",
+        "add",
+        "Checking account",
+        "--type",
+        "checking",
+        "--currency",
+        "EUR",
+    ]);
+    session.ok(&[
+        "account",
+        "add",
+        "Savings",
+        "--type",
+        "savings",
+        "--currency",
+        "eur",
+    ]);
+    session.ok(&[
+        "category",
+        "add",
+        "Salary",
+        "--kind",
+        "income",
+        "--currency",
+        "EUR",
+    ]);
+    session.ok(&[
+        "category",
+        "add",
+        "Food",
+        "--kind",
+        "expense",
+        "--currency",
+        "EUR",
+    ]);
+    session.ok(&["category", "add", "Groceries", "--inside", "Food"]);
+    session.ok(&["category", "add", "Other", "--inside", "Food"]);
+    session.ok(&[
+        "category",
+        "add",
+        "Home",
+        "--kind",
+        "expense",
+        "--currency",
+        "EUR",
+    ]);
+    session.ok(&["category", "add", "Other", "--inside", "Home"]);
+    session
+}
+
+#[test]
+fn a_household_from_an_empty_book_to_its_register_and_balances() {
+    let session = household();
+    assert_eq!(
+        session.ok(&["account", "list"]),
+        "Name              Type      Currency  Status\n\
+         Checking account  checking  EUR       open\n\
+         Savings           savings   EUR       open\n"
+    );
+    assert_eq!(
+        session.ok(&["category", "list"]),
+        "Category     Kind     Currency\n\
+         Salary       income   EUR\n\
+         Food         expense  EUR\n\
+         \x20 Groceries  expense  EUR\n\
+         \x20 Other      expense  EUR\n\
+         Home         expense  EUR\n\
+         \x20 Other      expense  EUR\n"
+    );
+
+    let args = |date: &'static str, amount: &'static str| {
+        [
+            "transaction",
+            "add",
+            "--date",
+            date,
+            "--account",
+            "Checking account",
+            "--amount",
+            amount,
+        ]
+    };
+    let mut pay = args("2026-10-01", "2500.00").to_vec();
+    pay.extend(["--category", "Salary", "--payee", "Example Employer"]);
+    session.ok(&pay);
+    let mut shop = args("2026-10-05", "-53.20").to_vec();
+    shop.extend(["--category", "Food/Groceries", "--payee", "Corner Grocery"]);
+    session.ok(&shop);
+    let mut save = args("2026-10-06", "-100").to_vec();
+    save.extend(["--to", "Savings"]);
+    session.ok(&save);
+    // Split in two Parts, one of them left open for the remainder (D-017).
+    let mut split = args("2026-10-07", "-60.00").to_vec();
+    split.extend([
+        "--part",
+        "groceries=-35.50",
+        "--part",
+        "home/other=",
+        "--payee",
+        "Big Store",
+    ]);
+    let split_id = last_added(&session.ok(&split));
+    // No category yet (D-083).
+    session.ok(&args("2026-10-08", "-9.99"));
+
+    let register = session.ok(&["register", "Checking account"]);
+    assert_eq!(
+        without_ids(&register),
+        "Checking account\n\
+         Date        Payee             Amount (EUR)  Balance (EUR)\n\
+         2026-10-01  Example Employer       2500.00        2500.00\n\
+         2026-10-05  Corner Grocery          -53.20        2446.80\n\
+         2026-10-06                         -100.00        2346.80\n\
+         2026-10-07  Big Store               -60.00        2286.80\n\
+         2026-10-08                           -9.99        2276.81\n"
+    );
+    assert_eq!(
+        session.ok(&["balances"]),
+        "Account               Balance\n\
+         Checking account  2276.81 EUR\n\
+         Savings            100.00 EUR\n\
+         Total             2376.81 EUR\n"
+    );
+    // Both Parts of the split show up in their categories.
+    assert!(
+        session
+            .ok(&["register", "Food/Groceries"])
+            .contains("35.50")
+    );
+    assert!(session.ok(&["register", "Home/Other"]).contains("24.50"));
+    assert_eq!(
+        session
+            .ok(&["transaction", "show", &split_id])
+            .lines()
+            .skip(1)
+            .collect::<Vec<_>>(),
+        [
+            "Date:  2026-10-07",
+            "Payee: Big Store",
+            "Parts:",
+            "  Checking account  -60.00 EUR",
+            "  Groceries          35.50 EUR",
+            "  Other              24.50 EUR",
+        ]
+    );
+
+    // Removing a transaction takes it out of every register and balance.
+    session.ok(&["transaction", "remove", &split_id]);
+    assert!(
+        !session
+            .ok(&["register", "Checking account"])
+            .contains("Big Store")
+    );
+    assert!(session.ok(&["balances"]).contains("2336.81 EUR"));
+}
+
+/// The ID in "Added the transaction <id>."
+fn last_added(output: &str) -> String {
+    output
+        .trim_end_matches(".\n")
+        .rsplit(' ')
+        .next()
+        .expect("an ID")
+        .to_owned()
+}
+
+/// The register without its last column, which holds the random IDs.
+fn without_ids(register: &str) -> String {
+    register
+        .lines()
+        .map(|line| match line.rsplit_once("  ") {
+            Some((rest, id)) if id.len() == 12 => rest.trim_end().to_owned(),
+            _ if line.ends_with("ID") => line.trim_end_matches("ID").trim_end().to_owned(),
+            _ => line.to_owned(),
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n"
+}
+
+#[test]
+fn a_part_in_another_currency_is_converted_with_the_price_table() {
+    let session = household();
+    session.ok(&[
+        "category",
+        "add",
+        "Travel",
+        "--kind",
+        "expense",
+        "--currency",
+        "USD",
+    ]);
+    let add = [
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-02",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-100.00",
+        "--category",
+        "Travel",
+        "--payee",
+        "Hotel",
+    ];
+    // Without a rate there is nothing to convert with, and nothing is added.
+    let missing = session.cli(&add);
+    assert_eq!(missing.status, 1);
+    assert!(
+        missing.err.starts_with("error: store.no-rate\n"),
+        "{}",
+        missing.err
+    );
+    assert!(
+        missing
+            .err
+            .contains("from: EUR\n  to: USD\n  date: 2026-10-02\n")
+    );
+
+    session.ok(&[
+        "rate",
+        "add",
+        "--date",
+        "2026-10-01",
+        "--from",
+        "EUR",
+        "--to",
+        "USD",
+        "--rate",
+        "1.0856",
+    ]);
+    let duplicate = session.cli(&[
+        "rate",
+        "add",
+        "--date",
+        "2026-10-01",
+        "--from",
+        "EUR",
+        "--to",
+        "USD",
+        "--rate",
+        "1.1",
+    ]);
+    assert_eq!(duplicate.status, 1);
+    assert!(duplicate.err.starts_with("error: store.duplicate-rate\n"));
+    assert_eq!(
+        session.ok(&["rate", "list", "--from", "EUR", "--to", "USD"]),
+        "Date        1 EUR in USD  Source\n2026-10-01        1.0856  entered by hand\n"
+    );
+
+    let added = session.ok(&add);
+    // The category counts in dollars, the account in euros.
+    let travel = session.ok(&["register", "Travel"]);
+    assert!(
+        travel.contains("Amount (USD)") && travel.contains("108.56"),
+        "{travel}"
+    );
+    assert!(
+        session
+            .ok(&["register", "Checking account"])
+            .contains("-100.00")
+    );
+    let shown = session.ok(&["transaction", "show", &last_added(&added)]);
+    assert!(
+        shown.contains(
+            "  Travel             100.00 EUR  = 108.56 USD at 1 EUR = 1.0856 USD (2026-10-01, entered by hand)"
+        ),
+        "{shown}"
+    );
+
+    session.ok(&[
+        "rate",
+        "remove",
+        "--date",
+        "2026-10-01",
+        "--from",
+        "EUR",
+        "--to",
+        "USD",
+    ]);
+    assert_eq!(
+        session.ok(&["rate", "list", "--from", "EUR", "--to", "USD"]),
+        "Date  1 EUR in USD  Source\n"
+    );
+    // The transaction keeps the rate it was made with (D-043).
+    assert!(session.ok(&["register", "Travel"]).contains("108.56"));
+}
+
+#[test]
+fn accounts_can_be_renamed_closed_and_reopened() {
+    let session = household();
+    session.ok(&["account", "rename", "savings", "Holiday fund"]);
+    session.ok(&["account", "close", "Holiday fund"]);
+    assert!(!session.ok(&["account", "list"]).contains("Holiday"));
+    assert!(
+        session
+            .ok(&["account", "list", "--all"])
+            .contains("Holiday fund      savings   EUR       closed")
+    );
+    // A closed account takes no new transactions.
+    let refused = session.cli(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-02",
+        "--account",
+        "Holiday fund",
+        "--amount",
+        "5",
+    ]);
+    assert_eq!(refused.status, 1);
+    assert_eq!(
+        refused.err,
+        "error: store.account-closed\n  account: Holiday fund\n"
+    );
+    session.ok(&["account", "reopen", "Holiday fund"]);
+    assert!(session.ok(&["balances"]).contains("Holiday fund"));
+}
+
+#[test]
+fn categories_can_be_moved() {
+    let session = household();
+    session.ok(&["category", "move", "Home/Other", "--inside", "Food/Other"]);
+    assert!(
+        session
+            .ok(&["category", "list"])
+            .contains("\n    Other    expense  EUR\n")
+    );
+    session.ok(&["category", "move", "Food/Other/Other", "--inside", "Home"]);
+    let refused = session.cli(&["category", "move", "Food", "--inside", "Food/Groceries"]);
+    assert_eq!(refused.status, 1);
+    assert!(
+        refused
+            .err
+            .starts_with("error: store.category-inside-itself\n")
+    );
+}
+
+#[test]
+fn mistakes_in_a_transaction_are_refused_without_changing_the_book() {
+    let session = household();
+    let add = |date: &str, amount: &str, extra: &[&str]| {
+        let mut line = vec![
+            "transaction",
+            "add",
+            "--date",
+            date,
+            "--account",
+            "Savings",
+            "--amount",
+            amount,
+        ];
+        line.extend(extra);
+        session.cli(&line)
+    };
+    // The parts must add up to the amount (D-017): 3 of 9 isn't all of it.
+    let unbalanced = add("2026-10-02", "-9", &["--part", "Groceries=-3"]);
+    assert_eq!(unbalanced.status, 1);
+    assert_eq!(
+        unbalanced.err,
+        "error: transaction.unbalanced\n  total: -6.00 EUR\n"
+    );
+    // Names that fit more than one category must be spelled out.
+    let ambiguous = add("2026-10-02", "-9", &["--category", "Other"]);
+    assert_eq!(ambiguous.status, 1);
+    assert!(
+        ambiguous.err.contains("Food/Other, Home/Other"),
+        "{}",
+        ambiguous.err
+    );
+    // Only one part can be left open, and the ways to name the other side
+    // don't mix.
+    let two_open = add(
+        "2026-10-02",
+        "-9",
+        &["--part", "Groceries=", "--part", "Home/Other="],
+    );
+    assert_eq!(two_open.status, 2);
+    let mixed = add(
+        "2026-10-02",
+        "-9",
+        &["--part", "Groceries=-9", "--category", "Salary"],
+    );
+    assert_eq!(mixed.status, 2);
+    // Amounts are never rounded for the user, and dates have one form only.
+    assert_eq!(add("2026-10-02", "-9.999", &[]).status, 1);
+    assert_eq!(add("02.10.2026", "-9", &[]).status, 1);
+
+    assert_eq!(session.ok(&["register", "Savings"]).lines().count(), 2);
+    let balances = session.ok(&["balances"]);
+    let total = balances.lines().last().expect("a total line");
+    assert_eq!(
+        total.split_whitespace().collect::<Vec<_>>(),
+        ["Total", "0.00", "EUR"]
+    );
+}
+
+#[test]
+fn wrong_command_lines_end_with_status_2() {
+    let session = household();
+    for line in [
+        &["bogus"][..],
+        &["account"],
+        &["account", "add", "Cash"],
+        &["account", "frobnicate"],
+        &["register"],
+        &["balances", "--nope"],
+        &["transaction", "add", "--date", "2026-10-02"],
+    ] {
+        let outcome = session.cli(line);
+        assert_eq!(outcome.status, 2, "{line:?}: {}", outcome.err);
+        assert!(outcome.err.starts_with("error: "), "{line:?}");
+        assert!(outcome.err.contains("kassensturz-cli help"), "{line:?}");
+        assert_eq!(outcome.out, "");
+    }
+    // Wrong values are failures of the command, not of the command line.
+    let wallet = session.cli(&[
+        "account",
+        "add",
+        "Cash",
+        "--type",
+        "wallet",
+        "--currency",
+        "EUR",
+    ]);
+    assert_eq!(wallet.status, 1);
+    // No book to use.
+    let outcome = run_line(&["balances".to_owned()], &Environment::default());
+    assert_eq!(outcome.status, 2);
+    assert!(outcome.err.contains("no book"));
+}
+
+#[test]
+fn help_is_shown_without_a_book() {
+    for line in [&[][..], &["help"], &["--help"], &["-h"]] {
+        let line: Vec<String> = line.iter().map(|arg| (*arg).to_owned()).collect();
+        let outcome = run_line(&line, &Environment::default());
+        assert_eq!(outcome.status, 0);
+        assert!(
+            outcome
+                .out
+                .starts_with("kassensturz-cli: try out KassenSturz's core")
+        );
+        assert_eq!(outcome.err, "");
+    }
+}
+
+#[test]
+fn text_from_the_book_cannot_move_the_terminal() {
+    let session = household();
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-02",
+        "--account",
+        "Savings",
+        "--amount",
+        "1",
+        "--payee",
+        "Sneaky \u{1b}[2J shop",
+    ]);
+    let register = session.ok(&["register", "Savings"]);
+    assert!(register.contains("Sneaky ?[2J shop"));
+    assert!(!register.contains('\u{1b}'));
+}
+
+#[test]
+fn a_book_open_elsewhere_is_refused_unless_opened_anyway() {
+    let session = household();
+    let elsewhere = Computer {
+        name: "Desktop".into(),
+        backup_folder: session.backups(),
+    };
+    let held = Book::open(&session.book(), &elsewhere).expect("opened elsewhere");
+
+    let refused = session.cli(&["balances"]);
+    assert_eq!(refused.status, 1);
+    assert!(
+        refused
+            .err
+            .starts_with("error: store.locked\n  computer: \"Desktop\"\n  since: "),
+        "{}",
+        refused.err
+    );
+
+    let anyway = session.cli(&["--open-anyway", "balances"]);
+    assert_eq!(anyway.status, 0, "{}", anyway.err);
+    assert!(anyway.err.starts_with(
+        "warning: opening the book anyway, although it says it is open on Desktop since "
+    ));
+    assert!(anyway.out.contains("Checking account"));
+    drop(held);
+}
+
+#[test]
+fn a_mistake_in_the_command_is_found_before_the_book_is_touched() {
+    let session = Session::new();
+    assert_eq!(session.cli(&["create", "extra"]).status, 2);
+    assert_eq!(session.cli(&["bogus"]).status, 2);
+    // Neither created the book, and neither looked for one.
+    assert!(!session.book().exists());
+}
+
+#[test]
+fn creating_a_book_never_replaces_an_existing_file() {
+    let session = Session::new();
+    session.ok(&["create"]);
+    let again = session.cli(&["create"]);
+    assert_eq!(again.status, 1);
+    assert_eq!(again.err, "error: store.already-exists\n");
+    let missing = run_line(
+        &[
+            "--book".into(),
+            session.0.join("Nothing.ksz").display().to_string(),
+            "--backup-folder".into(),
+            session.backups().display().to_string(),
+            "balances".into(),
+        ],
+        &Environment::default(),
+    );
+    assert_eq!(missing.status, 1);
+    assert_eq!(missing.err, "error: store.not-found\n");
+}
+
+#[test]
+fn the_environment_supplies_the_book_and_the_backup_folder() {
+    let session = Session::new();
+    let environment = Environment {
+        book: Some(session.book()),
+        computer_name: "Laptop".into(),
+        backup_folder: Some(session.backups()),
+    };
+    let create = run_line(&["create".to_owned()], &environment);
+    assert_eq!(create.status, 0, "{}", create.err);
+    let list = run_line(&["account".to_owned(), "list".to_owned()], &environment);
+    assert_eq!(
+        (list.status, list.out.as_str()),
+        (0, "Name  Type  Currency  Status\n")
+    );
+}
+
+/// The real program, started the way a user starts it.
+#[test]
+fn the_program_reads_the_book_from_the_environment() {
+    let session = Session::new();
+    let program = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_kassensturz-cli"))
+            .args(args)
+            .env("KASSENSTURZ_BOOK", session.book())
+            .env("XDG_DATA_HOME", &session.0)
+            .env("HOME", &session.0)
+            .output()
+            .expect("the program starts")
+    };
+    let created = program(&["create"]);
+    assert!(
+        created.status.success(),
+        "{}",
+        String::from_utf8_lossy(&created.stderr)
+    );
+    let failed = program(&["transaction", "show", "123456"]);
+    assert_eq!(failed.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&failed.stderr).starts_with("error: no transaction"));
+    assert!(Path::new(&session.book()).exists());
+}

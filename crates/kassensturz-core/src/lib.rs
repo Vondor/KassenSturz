@@ -5,14 +5,15 @@
 //!
 //! This crate knows nothing about storage or user interfaces and depends on no
 //! other KassenSturz crate (`docs/ARCHITECTURE.md`). It never produces
-//! user-facing text: errors are structured codes with parameters, which the UI
-//! turns into translated messages (D-034).
+//! user-facing text: errors are structured codes with parameters
+//! ([`ErrorReport`]), which the UI turns into translated messages (D-034).
 
 #![forbid(unsafe_code)]
 
 mod account;
 mod currency;
 mod decimal;
+mod error;
 mod id;
 mod money;
 mod rates;
@@ -22,6 +23,7 @@ mod transaction;
 pub use account::{Account, AccountId, AccountKind, AccountType};
 pub use currency::{Currency, CurrencyCode, CurrencyCodeError};
 pub use decimal::{DecimalError, ExchangeRate, MAX_DECIMAL_PLACES, MAX_DIGITS, Price, Quantity};
+pub use error::{ErrorParam, ErrorReport, Report};
 pub use money::{Money, MoneyError};
 pub use rates::{DatedRate, DatedRateId, RateSource};
 pub use rounding::RoundingMode;

@@ -156,7 +156,7 @@ kassensturz/
 
 ## User-facing text
 
-- `kassensturz-core` never produces user-facing text: it returns structured error codes (with parameters), and the UI owns every string (D-034).
+- `kassensturz-core` never produces user-facing text: it returns structured error codes (with parameters), and the UI owns every string (D-034). Every error of core and store turns into an `ErrorReport`: a stable code, typed parameters and its cause. `docs/ERROR_CODES.md` lists every code and suggests an English message for it (D-084).
 - Translations use KDE's KI18n (gettext). v1 ships in English (source language) and German.
 - Numbers are shown in the user's regional format by default (100,00 € in Germany, $100.00 in the US); the user can change the format and the number of decimal places shown. Display settings live in the app's settings, not in the book, and never change stored amounts or calculations (D-002).
 - Amounts reach QML only as text: Rust formats them from the exact value, with separators and currency symbol from Qt's locale data, and parses what the user types. Sorting and totals happen in Rust models; floating point appears only as chart drawing coordinates (D-065). How the pieces are taken from Qt: D-075.

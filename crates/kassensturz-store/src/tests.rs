@@ -30,6 +30,8 @@ fn account(book: &mut Book, name: &str, kind: AccountKind, currency: CurrencyCod
         name: name.into(),
         kind,
         currency,
+        account_type: None,
+        closed: false,
     };
     book.add_account(&account).expect("account added");
     id
@@ -292,6 +294,8 @@ fn accounts_need_a_currency_in_use() {
         name: "Checking account".into(),
         kind: AccountKind::Asset,
         currency: EUR,
+        account_type: None,
+        closed: false,
     };
     assert!(matches!(
         book.add_account(&account),
@@ -615,5 +619,249 @@ fn bad_rates_in_the_file_are_reported() {
     assert!(matches!(
         book.rates(EUR, USD),
         Err(StoreError::Corrupt(Corruption::BadRateSource(source))) if source == "download"
+    ));
+}
+
+fn typed_account(
+    book: &mut Book,
+    name: &str,
+    account_type: AccountType,
+) -> Result<AccountId, StoreError> {
+    let id = AccountId::generate();
+    book.add_account(&Account {
+        id,
+        name: name.into(),
+        kind: account_type.kind(),
+        currency: EUR,
+        account_type: Some(account_type),
+        closed: false,
+    })?;
+    Ok(id)
+}
+
+#[test]
+fn every_account_type_belongs_to_one_kind() {
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    for account_type in AccountType::ALL {
+        let id = typed_account(&mut book, &format!("{account_type:?}"), account_type)
+            .expect("account added");
+        let stored = book.account(id).expect("account found");
+        assert_eq!(stored.account_type, Some(account_type));
+        assert_eq!(stored.kind, account_type.kind());
+    }
+    // A credit card is money the user owes; the others are money they have.
+    assert_eq!(AccountType::CreditCard.kind(), AccountKind::Liability);
+    assert_eq!(AccountType::Cash.kind(), AccountKind::Asset);
+}
+
+#[test]
+fn an_accounts_type_must_fit_its_kind() {
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    for (kind, account_type) in [
+        (AccountKind::Asset, AccountType::CreditCard),
+        (AccountKind::Liability, AccountType::Checking),
+        (AccountKind::Expense, AccountType::Cash),
+        (AccountKind::Income, AccountType::Savings),
+    ] {
+        let result = book.add_account(&Account {
+            id: AccountId::generate(),
+            name: "Mismatch".into(),
+            kind,
+            currency: EUR,
+            account_type: Some(account_type),
+            closed: false,
+        });
+        assert!(
+            matches!(result, Err(StoreError::AccountTypeMismatch { .. })),
+            "{kind:?} {account_type:?}"
+        );
+    }
+    assert!(book.accounts(true).expect("accounts").is_empty());
+}
+
+#[test]
+fn accounts_are_listed_by_name_without_categories_or_closed_ones() {
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    let visa = typed_account(&mut book, "visa", AccountType::CreditCard).expect("added");
+    let cash = typed_account(&mut book, "Cash", AccountType::Cash).expect("added");
+    let old = typed_account(&mut book, "Old savings", AccountType::Savings).expect("added");
+    account(&mut book, "Groceries", AccountKind::Expense, EUR);
+    account(&mut book, "Opening balances", AccountKind::Equity, EUR);
+    book.close_account(old).expect("closed");
+
+    let names = |include_closed| -> Vec<String> {
+        book.accounts(include_closed)
+            .expect("accounts")
+            .into_iter()
+            .map(|account| account.name)
+            .collect()
+    };
+    assert_eq!(names(false), ["Cash", "visa"]);
+    assert_eq!(names(true), ["Cash", "Old savings", "visa"]);
+    let ids: Vec<_> = book
+        .accounts(false)
+        .expect("accounts")
+        .into_iter()
+        .map(|account| account.id)
+        .collect();
+    assert_eq!(ids, [cash, visa]);
+}
+
+#[test]
+fn account_names_are_not_empty_and_not_shared() {
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    let checking = typed_account(&mut book, "Checking", AccountType::Checking).expect("added");
+    for name in ["", "   ", "\t\n"] {
+        assert!(matches!(
+            typed_account(&mut book, name, AccountType::Cash),
+            Err(StoreError::EmptyAccountName)
+        ));
+    }
+    // Capitals and spaces around the name don't make another name, closed
+    // accounts count, and the type doesn't matter.
+    for name in ["checking", "CHECKING ", " Checking"] {
+        assert!(
+            matches!(
+                typed_account(&mut book, name, AccountType::CreditCard),
+                Err(StoreError::DuplicateAccountName { existing }) if existing == checking
+            ),
+            "{name:?}"
+        );
+    }
+    book.close_account(checking).expect("closed");
+    assert!(matches!(
+        typed_account(&mut book, "Checking", AccountType::Checking),
+        Err(StoreError::DuplicateAccountName { .. })
+    ));
+    // Categories can share names with accounts: they get their own rules
+    // with the category tree (M1.5).
+    account(&mut book, "Checking", AccountKind::Expense, EUR);
+}
+
+#[test]
+fn renaming_follows_the_rules_for_names() {
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    let checking = typed_account(&mut book, "Checking", AccountType::Checking).expect("added");
+    let savings = typed_account(&mut book, "Savings", AccountType::Savings).expect("added");
+
+    book.rename_account(checking, "Household checking")
+        .expect("renamed");
+    assert_eq!(
+        book.account(checking).expect("account").name,
+        "Household checking"
+    );
+    // Only the capitals change: it isn't a clash with itself.
+    book.rename_account(checking, "HOUSEHOLD CHECKING")
+        .expect("renamed");
+    assert!(matches!(
+        book.rename_account(savings, "household checking"),
+        Err(StoreError::DuplicateAccountName { existing }) if existing == checking
+    ));
+    assert!(matches!(
+        book.rename_account(savings, " "),
+        Err(StoreError::EmptyAccountName)
+    ));
+    assert!(matches!(
+        book.rename_account(AccountId::generate(), "Nobody"),
+        Err(StoreError::UnknownAccount(_))
+    ));
+    assert_eq!(book.account(savings).expect("account").name, "Savings");
+}
+
+#[test]
+fn an_account_closes_only_when_empty_and_takes_no_transactions_then() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let shopping = transaction(
+        date(2026, 10, 5),
+        "Corner Grocery",
+        &[(checking, eur(-5320)), (groceries, eur(5320))],
+    );
+    book.add_transaction(&shopping).expect("added");
+
+    // Money is still in it, or owed from it; categories aren't accounts.
+    assert!(matches!(
+        book.close_account(checking),
+        Err(StoreError::AccountNotEmpty { account, balance })
+            if account == checking && balance == eur(-5320)
+    ));
+    assert!(matches!(
+        book.close_account(groceries),
+        Err(StoreError::NotAnAccount(id)) if id == groceries
+    ));
+    assert!(!book.account(checking).expect("account").closed);
+
+    let paid_back = transaction(
+        date(2026, 10, 6),
+        "Refund",
+        &[(checking, eur(5320)), (groceries, eur(-5320))],
+    );
+    book.add_transaction(&paid_back).expect("added");
+    book.close_account(checking).expect("closed");
+    book.close_account(checking).expect("closing twice is fine");
+    assert!(book.account(checking).expect("account").closed);
+
+    // The history stays; new transactions are refused until it's opened again.
+    assert_eq!(book.register(checking).expect("register").len(), 2);
+    let another = transaction(
+        date(2026, 10, 7),
+        "Corner Grocery",
+        &[(checking, eur(-100)), (groceries, eur(100))],
+    );
+    assert!(matches!(
+        book.add_transaction(&another),
+        Err(StoreError::AccountClosed(id)) if id == checking
+    ));
+    assert!(matches!(
+        book.transaction(another.id()),
+        Err(StoreError::UnknownTransaction(_))
+    ));
+    book.reopen_account(checking).expect("opened again");
+    book.reopen_account(checking)
+        .expect("opening twice is fine");
+    book.add_transaction(&another).expect("added");
+}
+
+#[test]
+fn bad_account_types_in_the_file_are_reported() {
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    let checking = typed_account(&mut book, "Checking", AccountType::Checking).expect("added");
+    // The table's checks refuse a type that doesn't exist or a closed flag
+    // that isn't 0 or 1.
+    for update in [
+        "UPDATE accounts SET account_type = 'wallet'",
+        "UPDATE accounts SET closed = 2",
+        "UPDATE accounts SET closed = NULL",
+    ] {
+        assert!(book.conn.execute(update, []).is_err(), "{update}");
+    }
+    // Without them, e.g. in a file changed by another program (D-046), the
+    // account is reported, never returned.
+    book.conn
+        .execute_batch(
+            "PRAGMA ignore_check_constraints = ON;
+             UPDATE accounts SET account_type = 'wallet';",
+        )
+        .expect("changed behind KassenSturz's back");
+    assert!(matches!(
+        book.account(checking),
+        Err(StoreError::Corrupt(Corruption::BadAccountType(text))) if text == "wallet"
+    ));
+    book.conn
+        .execute_batch("UPDATE accounts SET account_type = 'credit_card';")
+        .expect("changed behind KassenSturz's back");
+    assert!(matches!(
+        book.accounts(true),
+        Err(StoreError::Corrupt(Corruption::AccountTypeMismatch(id))) if id == checking
     ));
 }

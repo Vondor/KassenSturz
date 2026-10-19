@@ -19,8 +19,9 @@ use std::io::{ErrorKind, Read};
 use std::path::{Path, PathBuf};
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, Currency, CurrencyCode, Date, DatedRate, DatedRateId,
-    ExchangeRate, Money, RateSource, RoundingMode, Split, SplitId, Transaction, TransactionId,
+    Account, AccountId, AccountKind, AccountType, Currency, CurrencyCode, Date, DatedRate,
+    DatedRateId, ExchangeRate, Money, RateSource, RoundingMode, Split, SplitId, Transaction,
+    TransactionId,
 };
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
@@ -251,37 +252,143 @@ impl Book {
     }
 
     /// Adds an account or category. Its currency must be in use in this book.
+    ///
+    /// The name can't be empty, and an account's type must fit its kind (a
+    /// credit card is money the user owes). No two accounts share a name,
+    /// ignoring capitals, closed ones included, so the user can always tell
+    /// them apart. Categories are checked when they become a tree (M1.5).
     pub fn add_account(&mut self, account: &Account) -> Result<(), StoreError> {
         self.currency_minor_digits(account.currency)?;
+        self.check_account_fields(
+            account.id,
+            &account.name,
+            account.kind,
+            account.account_type,
+        )?;
         self.conn.execute(
-            "INSERT INTO accounts (id, name, kind, currency) VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO accounts (id, name, kind, currency, account_type, closed)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
                 account.id.to_bytes(),
                 account.name,
                 kind_to_text(account.kind),
-                account.currency.as_str()
+                account.currency.as_str(),
+                account.account_type.map(type_to_text),
+                account.closed,
             ],
         )?;
         Ok(())
     }
 
+    /// The checks `add_account` and `rename_account` share.
+    fn check_account_fields(
+        &self,
+        id: AccountId,
+        name: &str,
+        kind: AccountKind,
+        account_type: Option<AccountType>,
+    ) -> Result<(), StoreError> {
+        if name.trim().is_empty() {
+            return Err(StoreError::EmptyAccountName);
+        }
+        if let Some(account_type) = account_type
+            && account_type.kind() != kind
+        {
+            return Err(StoreError::AccountTypeMismatch { account_type, kind });
+        }
+        if kind.is_account() {
+            let wanted = name.trim().to_lowercase();
+            if let Some(existing) = self.all_accounts()?.into_iter().find(|other| {
+                other.id != id
+                    && other.kind.is_account()
+                    && other.name.trim().to_lowercase() == wanted
+            }) {
+                return Err(StoreError::DuplicateAccountName {
+                    existing: existing.id,
+                });
+            }
+        }
+        Ok(())
+    }
+
     /// The account or category with this ID.
     pub fn account(&self, id: AccountId) -> Result<Account, StoreError> {
-        let row: Option<(String, String, String)> = self
-            .conn
+        self.conn
             .query_row(
-                "SELECT name, kind, currency FROM accounts WHERE id = ?1",
+                &format!("SELECT {ACCOUNT_COLUMNS} FROM accounts WHERE id = ?1"),
                 [id.to_bytes()],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                AccountRow::read,
             )
-            .optional()?;
-        let (name, kind, currency) = row.ok_or(StoreError::UnknownAccount(id))?;
-        Ok(Account {
-            id,
-            name,
-            kind: kind_from_text(&kind)?,
-            currency: currency_from_text(&currency)?,
-        })
+            .optional()?
+            .ok_or(StoreError::UnknownAccount(id))?
+            .into_account()
+    }
+
+    /// The user's accounts (not categories), sorted by name. Closed accounts
+    /// are left out unless `include_closed` is set.
+    pub fn accounts(&self, include_closed: bool) -> Result<Vec<Account>, StoreError> {
+        let mut accounts: Vec<Account> = self
+            .all_accounts()?
+            .into_iter()
+            .filter(|account| account.kind.is_account() && (include_closed || !account.closed))
+            .collect();
+        accounts.sort_by_cached_key(|account| (account.name.to_lowercase(), account.id));
+        Ok(accounts)
+    }
+
+    fn all_accounts(&self) -> Result<Vec<Account>, StoreError> {
+        let mut statement = self
+            .conn
+            .prepare(&format!("SELECT {ACCOUNT_COLUMNS} FROM accounts"))?;
+        let rows = statement
+            .query_map([], AccountRow::read)?
+            .collect::<Result<Vec<_>, _>>()?;
+        rows.into_iter().map(AccountRow::into_account).collect()
+    }
+
+    /// Gives an account or category a new name, under the same rules as
+    /// [`Book::add_account`].
+    pub fn rename_account(&mut self, id: AccountId, name: &str) -> Result<(), StoreError> {
+        let account = self.account(id)?;
+        self.check_account_fields(id, name, account.kind, account.account_type)?;
+        self.conn.execute(
+            "UPDATE accounts SET name = ?2 WHERE id = ?1",
+            params![id.to_bytes(), name],
+        )?;
+        Ok(())
+    }
+
+    /// Closes an account: it keeps its history, but takes no new
+    /// transactions and drops out of [`Book::accounts`]. Its balance must be
+    /// zero (otherwise [`StoreError::AccountNotEmpty`]), so no money is
+    /// hidden. Closing a closed account does nothing.
+    pub fn close_account(&mut self, id: AccountId) -> Result<(), StoreError> {
+        let account = self.account(id)?;
+        if !account.kind.is_account() {
+            return Err(StoreError::NotAnAccount(id));
+        }
+        let balance = self.balance(id)?;
+        if balance.minor_units() != 0 {
+            return Err(StoreError::AccountNotEmpty {
+                account: id,
+                balance,
+            });
+        }
+        self.set_closed(id, true)
+    }
+
+    /// Opens a closed account again. Opening an open account does nothing.
+    pub fn reopen_account(&mut self, id: AccountId) -> Result<(), StoreError> {
+        self.account(id)?;
+        self.set_closed(id, false)
+    }
+
+    fn set_closed(&mut self, id: AccountId, closed: bool) -> Result<(), StoreError> {
+        self.conn.execute(
+            "UPDATE accounts SET closed = ?2 WHERE id = ?1",
+            params![id.to_bytes(), closed],
+        )?;
+        Ok(())
     }
 
     /// Adds a transaction. Every part must be booked to an existing account in
@@ -292,6 +399,9 @@ impl Book {
         self.currency_minor_digits(currency)?;
         for split in transaction.splits() {
             let account = self.account(split.account)?;
+            if account.closed {
+                return Err(StoreError::AccountClosed(account.id));
+            }
             if account.currency != currency {
                 return Err(StoreError::SplitCurrencyMismatch {
                     account: account.id,
@@ -564,6 +674,55 @@ fn is_book_file(path: &Path) -> Result<bool, StoreError> {
     }
 }
 
+/// The columns [`AccountRow::read`] expects, in its order.
+const ACCOUNT_COLUMNS: &str = "id, name, kind, currency, account_type, closed";
+
+/// A row of the accounts table as SQLite returns it, before KassenSturz's
+/// checks.
+struct AccountRow {
+    id: AccountId,
+    name: String,
+    kind: String,
+    currency: String,
+    account_type: Option<String>,
+    closed: i64,
+}
+
+impl AccountRow {
+    fn read(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            id: AccountId::from_bytes(row.get(0)?),
+            name: row.get(1)?,
+            kind: row.get(2)?,
+            currency: row.get(3)?,
+            account_type: row.get(4)?,
+            closed: row.get(5)?,
+        })
+    }
+
+    fn into_account(self) -> Result<Account, StoreError> {
+        let kind = kind_from_text(&self.kind)?;
+        let account_type = self
+            .account_type
+            .as_deref()
+            .map(type_from_text)
+            .transpose()?;
+        if account_type.is_some_and(|account_type| account_type.kind() != kind) {
+            return Err(StoreError::Corrupt(Corruption::AccountTypeMismatch(
+                self.id,
+            )));
+        }
+        Ok(Account {
+            id: self.id,
+            name: self.name,
+            kind,
+            currency: currency_from_text(&self.currency)?,
+            account_type,
+            closed: self.closed != 0,
+        })
+    }
+}
+
 /// The columns [`RateRow::read`] expects, in its order.
 const RATE_COLUMNS: &str =
     "id, date, from_currency, to_currency, rate_digits, rate_decimal_places, source";
@@ -643,6 +802,22 @@ fn kind_from_text(text: &str) -> Result<AccountKind, StoreError> {
             other.into(),
         ))),
     }
+}
+
+fn type_to_text(account_type: AccountType) -> &'static str {
+    match account_type {
+        AccountType::Checking => "checking",
+        AccountType::Savings => "savings",
+        AccountType::Cash => "cash",
+        AccountType::CreditCard => "credit_card",
+    }
+}
+
+fn type_from_text(text: &str) -> Result<AccountType, StoreError> {
+    AccountType::ALL
+        .into_iter()
+        .find(|&account_type| type_to_text(account_type) == text)
+        .ok_or_else(|| StoreError::Corrupt(Corruption::BadAccountType(text.into())))
 }
 
 fn rounding_mode_to_text(rounding: RoundingMode) -> &'static str {

@@ -75,6 +75,8 @@ fn add_account(book: &mut Book, name: &str, kind: AccountKind) -> Result<Account
         name: name.into(),
         kind,
         currency: EUR,
+        account_type: None,
+        closed: false,
     })?;
     Ok(id)
 }

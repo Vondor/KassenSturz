@@ -7,7 +7,8 @@
 use std::io::ErrorKind;
 
 use kassensturz_core::{
-    AccountId, CurrencyCode, Date, DatedRateId, TransactionError, TransactionId,
+    AccountId, AccountKind, AccountType, CurrencyCode, Date, DatedRateId, Money, TransactionError,
+    TransactionId,
 };
 
 use crate::Lock;
@@ -49,6 +50,35 @@ pub enum StoreError {
     UnknownCurrency(CurrencyCode),
     /// There's no account or category with this ID.
     UnknownAccount(AccountId),
+    /// The account's name is empty.
+    EmptyAccountName,
+    /// Another account already has this name, ignoring capitals. The user
+    /// can pick another name.
+    DuplicateAccountName {
+        /// The account that has it.
+        existing: AccountId,
+    },
+    /// The account's type doesn't fit its kind, e.g. a credit card that
+    /// isn't money the user owes.
+    AccountTypeMismatch {
+        /// The type.
+        account_type: AccountType,
+        /// The kind it was given.
+        kind: AccountKind,
+    },
+    /// The ID belongs to a category or an internal account, not to an
+    /// account the user sees.
+    NotAnAccount(AccountId),
+    /// A closed account takes no new transactions. The user can open it
+    /// again.
+    AccountClosed(AccountId),
+    /// An account can only be closed when its balance is zero.
+    AccountNotEmpty {
+        /// The account.
+        account: AccountId,
+        /// What is left in it.
+        balance: Money,
+    },
     /// There's no transaction with this ID.
     UnknownTransaction(TransactionId),
     /// A part is booked to an account whose currency differs from the
@@ -89,6 +119,10 @@ pub enum StoreError {
 pub enum Corruption {
     /// An account kind that doesn't exist.
     BadAccountKind(String),
+    /// An account type that doesn't exist.
+    BadAccountType(String),
+    /// An account whose type doesn't fit its kind.
+    AccountTypeMismatch(AccountId),
     /// A currency code that isn't three capital letters.
     BadCurrencyCode(String),
     /// A date that isn't a valid ISO 8601 calendar date.

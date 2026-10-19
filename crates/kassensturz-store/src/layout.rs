@@ -29,7 +29,7 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// gets the same layout whether it was created today or upgraded later.
 /// Before 0.1 the development migrations are merged into one (D-045), and
 /// `FIRST_VERSION` moves past them, so development books are turned away.
-pub(crate) const MIGRATIONS: [&str; 3] = [LAYOUT_1, LAYOUT_2, LAYOUT_3];
+pub(crate) const MIGRATIONS: [&str; 4] = [LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4];
 
 /// The layout version the first migration creates.
 pub(crate) const FIRST_VERSION: i32 = 1;
@@ -109,6 +109,16 @@ CREATE TABLE prices (
     CHECK (from_currency <> to_currency),
     UNIQUE (from_currency, to_currency, date)
 ) STRICT;
+";
+
+/// Layout 4 (M1.4): what sort of account an account is, and whether it is
+/// closed. The first migration of a book that already exists; the old
+/// accounts get no type and stay open.
+const LAYOUT_4: &str = "
+ALTER TABLE accounts ADD COLUMN account_type TEXT
+    CHECK (account_type IN ('checking', 'savings', 'cash', 'credit_card'));
+ALTER TABLE accounts ADD COLUMN closed INTEGER NOT NULL DEFAULT 0
+    CHECK (closed IN (0, 1));
 ";
 
 /// Brings a book from layout `from` to the current one, or a new, empty
@@ -280,6 +290,9 @@ mod tests {
                 Money::from_minor_units(-5320, EUR)
             );
             assert_eq!(book.register(checking).expect("register").len(), 1);
+            // Accounts from before layout 4 have no type and are open.
+            let account = book.account(checking).expect("account");
+            assert_eq!((account.account_type, account.closed), (None, false));
             assert_eq!(
                 book.rounding_mode().expect("rounding mode"),
                 RoundingMode::HalfAwayFromZero

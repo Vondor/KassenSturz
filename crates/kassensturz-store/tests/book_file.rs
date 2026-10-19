@@ -56,12 +56,16 @@ fn fill(book: &mut Book) -> AccountId {
         name: "Checking account".into(),
         kind: AccountKind::Asset,
         currency: eur(),
+        account_type: None,
+        closed: false,
     };
     let groceries = Account {
         id: AccountId::generate(),
         name: "Groceries".into(),
         kind: AccountKind::Expense,
         currency: eur(),
+        account_type: None,
+        closed: false,
     };
     book.add_account(&checking).expect("account added");
     book.add_account(&groceries).expect("category added");

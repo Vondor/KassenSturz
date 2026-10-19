@@ -2,13 +2,13 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029). Every change to the layout updates this document.
 
-**Status: development layout 3.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1) and layout 3 the price table (M1.2). Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds the change history (D-032, D-066) and much more.
+**Status: development layout 4.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2) and layout 4 the type and closed flag of accounts (M1.4). Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds the change history (D-032, D-066) and much more.
 
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).
 - `PRAGMA application_id` is `0x4B535A42` (1263753794), the letters `KSZB` for KassenSturz book (D-037, D-080). KassenSturz reads it, and SQLite's header, from the file's first bytes before SQLite opens the file. Only a file with both is opened, so another program's SQLite file is never changed, not even its journal mode.
-- `PRAGMA user_version` holds the layout version: currently `3`.
+- `PRAGMA user_version` holds the layout version: currently `4`.
 - The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033). While the book is open, its [lock file](#the-lock-file) sits next to it.
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
 
@@ -51,6 +51,10 @@ Accounts and categories (`docs/GLOSSARY.md`).
 | `name` | TEXT | The name the user gave it |
 | `kind` | TEXT | `asset` or `liability` (shown as accounts), `income` or `expense` (shown as categories), `equity` (internal, for starting balances) |
 | `currency` | TEXT → `currencies.code` | The currency of its amounts |
+| `account_type` | TEXT, may be NULL | What sort of account it is, if known: `checking`, `savings`, `cash` or `credit_card`. Only accounts have one, never categories. `checking`, `savings` and `cash` need `kind` `asset`, `credit_card` needs `liability`. Books from before layout 4 have none (D-081) |
+| `closed` | INTEGER, 0 or 1 | `1` if the user closed the account: its history stays, but it takes no new transactions and is hidden from the lists. Only an account whose balance is zero can be closed |
+
+Account names are never empty. No two accounts (kind `asset` or `liability`) share a name, ignoring capitals and spaces around it, closed ones included. KassenSturz checks this when it writes, not the database (D-081).
 
 ### `transactions`
 

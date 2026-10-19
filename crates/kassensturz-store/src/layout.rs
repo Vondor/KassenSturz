@@ -34,8 +34,8 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 7] = [
-    LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4, LAYOUT_5, LAYOUT_6, LAYOUT_7,
+pub(crate) const MIGRATIONS: [&str; 8] = [
+    LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4, LAYOUT_5, LAYOUT_6, LAYOUT_7, LAYOUT_8,
 ];
 
 /// The layout version the first migration creates.
@@ -313,6 +313,30 @@ CREATE TABLE changed_prices (
 ) STRICT;
 ";
 
+/// Layout 8 (M1.10): joining the two sides of a Transfer is a user action
+/// of its own (D-087), so `changes` is rebuilt with `join_transfer` in its
+/// list of actions. Its rows stay as they were; the `changed_` tables refer
+/// to it by name and keep their rows too.
+const LAYOUT_8: &str = "
+CREATE TABLE new_changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction', 'join_transfer'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1))
+) STRICT;
+INSERT INTO new_changes (id, sequence, action, made_at, undone)
+    SELECT id, sequence, action, made_at, undone FROM changes;
+DROP TABLE changes;
+ALTER TABLE new_changes RENAME TO changes;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -524,6 +548,44 @@ mod tests {
             drop(Book::open(&path, &computer).expect("book opened again"));
             assert_eq!(files_in(&computer.backup_folder).len(), 1);
         }
+    }
+
+    #[test]
+    fn changes_made_before_layout_8_can_still_be_undone() {
+        // Layout 8 rebuilds `changes`; what a layout 7 book recorded stays.
+        let folder = TempFolder::new();
+        let path = folder.join("Household.ksz");
+        let checking = old_book(&path, 7);
+        let conn = Connection::open(&path).expect("book opened");
+        let change = uuid::Uuid::now_v7().into_bytes();
+        let made_at = kassensturz_core::Timestamp::from_second(
+            kassensturz_core::Timestamp::now().as_second(),
+        )
+        .expect("now");
+        conn.execute(
+            "INSERT INTO changes (id, sequence, action, made_at, undone)
+             VALUES (?1, 1, 'rename_account', ?2, 0)",
+            params![change, made_at.to_string()],
+        )
+        .expect("change written");
+        conn.execute(
+            "INSERT INTO changed_accounts (change_id, side, id, name, kind, currency, closed)
+             VALUES (?1, 'before', ?2, 'Main account', 'asset', 'EUR', 0),
+                    (?1, 'after', ?2, 'Checking account', 'asset', 'EUR', 0)",
+            params![change, checking.to_bytes()],
+        )
+        .expect("rows written");
+        drop(conn);
+
+        let mut book = Book::open(&path, &computer(&folder)).expect("book updated");
+        let history = book.history().expect("history");
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].action, crate::Action::RenameAccount);
+        book.undo().expect("undone");
+        assert_eq!(
+            book.account(checking).expect("account").name,
+            "Main account"
+        );
     }
 
     #[test]

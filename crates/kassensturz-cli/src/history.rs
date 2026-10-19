@@ -121,5 +121,6 @@ fn action_text(action: Action) -> &'static str {
         Action::AddTransaction => "added a transaction",
         Action::EditTransaction => "changed a transaction",
         Action::RemoveTransaction => "removed a transaction",
+        Action::JoinTransfer => "joined two transactions into a Transfer",
     }
 }

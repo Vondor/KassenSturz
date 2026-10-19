@@ -9,7 +9,7 @@ use std::io::ErrorKind;
 
 use kassensturz_core::{
     AccountId, AccountKind, AccountType, CurrencyCode, Date, DatedRateId, ErrorParam, ErrorReport,
-    Money, Report, SplitId, TransactionError, TransactionId,
+    Money, Report, SplitId, TransactionError, TransactionId, TransferError,
 };
 
 use crate::Lock;
@@ -130,6 +130,8 @@ pub enum StoreError {
     /// account, its amount or what was delivered with it, or it would add
     /// or remove such a part (D-067). The user can change the other parts.
     ImportedSplitChanged(SplitId),
+    /// The two transactions can't be joined into a Transfer (D-087).
+    Transfer(TransferError),
     /// There's no exchange rate with this ID.
     UnknownRate(DatedRateId),
     /// An exchange rate from a currency into the same currency.
@@ -342,6 +344,8 @@ impl Report for StoreError {
             Self::ImportedSplitChanged(split) => {
                 new("store.imported-split-changed").with("split", P::Split(*split))
             }
+            // The transfer's own error says what doesn't fit.
+            Self::Transfer(error) => error.report(),
             Self::UnknownRate(rate) => new("store.unknown-rate").with("rate", P::Rate(*rate)),
             Self::RateWithinOneCurrency(currency) => {
                 new("store.rate-within-one-currency").with("currency", P::Currency(*currency))

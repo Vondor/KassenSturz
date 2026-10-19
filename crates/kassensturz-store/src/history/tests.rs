@@ -237,6 +237,40 @@ fn every_change_can_be_undone_and_redone() {
     steps.did(&book, Action::CloseAccount);
     book.reopen_account(savings).expect("opened again");
     steps.did(&book, Action::ReopenAccount);
+    // The two sides of a move into savings, joined into one Transfer: one
+    // transaction goes, the other gets the savings part (D-087).
+    let out = Transaction::new(
+        TransactionId::generate(),
+        date(2026, 10, 9),
+        None,
+        vec![
+            Split {
+                imported: Some(delivered()),
+                ..Split::new(checking, eur(-20_000))
+            },
+            Split::uncategorized(eur(20_000)),
+        ],
+    )
+    .expect("balanced");
+    book.add_transaction(&out).expect("added");
+    steps.did(&book, Action::AddTransaction);
+    let into = Transaction::new(
+        TransactionId::generate(),
+        date(2026, 10, 12),
+        Some("From checking".into()),
+        vec![
+            Split {
+                imported: Some(delivered()),
+                ..Split::new(savings, eur(20_000))
+            },
+            Split::uncategorized(eur(-20_000)),
+        ],
+    )
+    .expect("balanced");
+    book.add_transaction(&into).expect("added");
+    steps.did(&book, Action::AddTransaction);
+    book.join_transfer(out.id(), into.id()).expect("joined");
+    steps.did(&book, Action::JoinTransfer);
 
     let expected: Vec<(Action, bool)> = steps
         .actions
@@ -277,6 +311,14 @@ fn every_change_can_be_undone_and_redone() {
     assert_eq!(actions(&book), expected);
 
     // What was written back reads as it was.
+    assert_eq!(
+        book.undo().expect("undone").map(|c| c.action),
+        Some(Action::JoinTransfer)
+    );
+    assert_eq!(book.transaction(out.id()).expect("back"), out);
+    assert_eq!(book.transaction(into.id()).expect("back"), into);
+    book.undo().expect("undone");
+    book.undo().expect("undone");
     assert_eq!(
         book.undo().expect("undone").map(|c| c.action),
         Some(Action::ReopenAccount)

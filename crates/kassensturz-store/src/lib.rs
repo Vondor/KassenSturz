@@ -15,6 +15,7 @@ mod history;
 mod layout;
 mod lock;
 mod transactions;
+mod transfers;
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{File, OpenOptions};

@@ -19,6 +19,7 @@ mod money;
 mod rates;
 mod rounding;
 mod transaction;
+mod transfer;
 
 pub use account::{Account, AccountId, AccountKind, AccountType};
 pub use currency::{Currency, CurrencyCode, CurrencyCodeError};
@@ -29,6 +30,9 @@ pub use rates::{DatedRate, DatedRateId, RateSource};
 pub use rounding::RoundingMode;
 pub use transaction::{
     ForeignAmount, ImportedDetails, Split, SplitId, Transaction, TransactionError, TransactionId,
+};
+pub use transfer::{
+    MAX_BUSINESS_DAYS, TransferError, TransferMatch, TransferSide, find_transfers, join_transfer,
 };
 
 /// A calendar date without time or time zone, used for booking dates

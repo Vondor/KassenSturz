@@ -483,6 +483,94 @@ fn mistakes_in_a_transaction_are_refused_without_changing_the_book() {
 }
 
 #[test]
+fn both_sides_of_a_transfer_are_suggested_and_joined() {
+    let session = household();
+    // Each account's side, with no category yet, as two bank statements
+    // would show them: out on Friday, in on Monday.
+    let out = last_added(&session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-09",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-200",
+        "--payee",
+        "To savings",
+    ]));
+    let into = last_added(&session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-12",
+        "--account",
+        "Savings",
+        "--amount",
+        "200",
+    ]));
+    // A purchase of the same amount, a week later, doesn't fit.
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-19",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-200",
+    ]);
+    let suggested = session.ok(&["transfer", "suggest"]);
+    let lines: Vec<&str> = suggested.lines().collect();
+    assert_eq!(lines.len(), 3, "{suggested}");
+    assert_eq!(
+        lines[1].split_whitespace().collect::<Vec<_>>(),
+        [
+            "2026-10-09",
+            "Checking",
+            "account",
+            "2026-10-12",
+            "Savings",
+            "200.00",
+            "EUR",
+            out.as_str(),
+            into.as_str()
+        ]
+    );
+
+    // Joining needs the two sides of one Transfer.
+    let refused = session.cli(&["transfer", "join", &out, &out]);
+    assert_eq!(refused.status, 1);
+    assert!(
+        refused
+            .err
+            .starts_with("error: transfer.same-transaction\n"),
+        "{}",
+        refused.err
+    );
+    assert_eq!(
+        session.ok(&["transfer", "join", &into, &out]),
+        format!("Joined them into the Transfer {out}.\n")
+    );
+    assert_eq!(
+        session.ok(&["transfer", "suggest"]),
+        "No transactions look like the two sides of a Transfer.\n"
+    );
+    let shown = session.ok(&["transaction", "show", &out]);
+    assert!(shown.contains("Checking account  -200.00 EUR"), "{shown}");
+    assert!(shown.contains("Savings            200.00 EUR"), "{shown}");
+    assert!(!shown.contains("no category yet"), "{shown}");
+    assert_eq!(session.ok(&["register", "Savings"]).lines().count(), 3);
+
+    // Undo brings back both sides.
+    assert_eq!(
+        session.ok(&["undo"]),
+        "Undid the change: joined two transactions into a Transfer.\n"
+    );
+    assert_eq!(session.ok(&["transfer", "suggest"]), suggested);
+}
+
+#[test]
 fn wrong_command_lines_end_with_status_2() {
     let session = household();
     for line in [
@@ -499,6 +587,10 @@ fn wrong_command_lines_end_with_status_2() {
         &["history", "forget"],
         &["history", "keep"],
         &["history", "list", "--all"],
+        &["transfer"],
+        &["transfer", "match"],
+        &["transfer", "suggest", "--all"],
+        &["transfer", "join", "123456"],
     ] {
         let outcome = session.cli(line);
         assert_eq!(outcome.status, 2, "{line:?}: {}", outcome.err);

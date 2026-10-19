@@ -55,11 +55,14 @@ pub enum Action {
     EditTransaction,
     /// Removed a transaction.
     RemoveTransaction,
+    /// Joined the two sides of a Transfer between the user's own accounts
+    /// into one transaction (D-021, D-087).
+    JoinTransfer,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -74,6 +77,7 @@ impl Action {
         Self::AddTransaction,
         Self::EditTransaction,
         Self::RemoveTransaction,
+        Self::JoinTransfer,
     ];
 }
 
@@ -931,6 +935,7 @@ fn action_to_text(action: Action) -> &'static str {
         Action::AddTransaction => "add_transaction",
         Action::EditTransaction => "edit_transaction",
         Action::RemoveTransaction => "remove_transaction",
+        Action::JoinTransfer => "join_transfer",
     }
 }
 

@@ -425,7 +425,10 @@ fn account_totals(transaction: &Transaction) -> Result<HashMap<AccountId, Money>
 }
 
 /// Writes the parts of `transaction`, with their rates and imported details.
-fn insert_splits(conn: &Connection, transaction: &Transaction) -> Result<(), StoreError> {
+pub(crate) fn insert_splits(
+    conn: &Connection,
+    transaction: &Transaction,
+) -> Result<(), StoreError> {
     let mut insert = conn.prepare(
         "INSERT INTO splits
              (id, transaction_id, position, account_id, amount, foreign_amount, foreign_currency)

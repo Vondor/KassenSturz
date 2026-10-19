@@ -20,6 +20,7 @@ use crate::decimal::{DecimalError, MAX_DECIMAL_PLACES, MAX_DIGITS};
 use crate::money::{Money, MoneyError};
 use crate::rates::DatedRateId;
 use crate::transaction::{SplitId, TransactionError, TransactionId};
+use crate::transfer::TransferError;
 
 /// An error as the UI shows it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -182,6 +183,24 @@ impl Report for TransactionError {
             }
             Self::ForeignSignMismatch(id) => split("transaction.foreign-sign-mismatch", id),
             Self::RateCurrencyMismatch(id) => split("transaction.rate-currency-mismatch", id),
+        }
+    }
+}
+
+impl Report for TransferError {
+    fn report(&self) -> ErrorReport {
+        match *self {
+            Self::NotASide(transaction) => ErrorReport::new("transfer.not-a-side")
+                .with("transaction", ErrorParam::Transaction(transaction)),
+            Self::SameTransaction(transaction) => ErrorReport::new("transfer.same-transaction")
+                .with("transaction", ErrorParam::Transaction(transaction)),
+            Self::SameAccount(account) => ErrorReport::new("transfer.same-account")
+                .with("account", ErrorParam::Account(account)),
+            Self::AmountsDiffer { first, second } => ErrorReport::new("transfer.amounts-differ")
+                .with("first", ErrorParam::Money(first))
+                .with("second", ErrorParam::Money(second)),
+            // A transaction's own error says what is wrong.
+            Self::Transaction(error) => error.report(),
         }
     }
 }

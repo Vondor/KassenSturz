@@ -66,6 +66,17 @@ fn examples() -> Vec<ErrorReport> {
         TransactionError::ForeignSignMismatch(split),
         TransactionError::RateCurrencyMismatch(split),
     ];
+    let transfer_errors = [
+        TransferError::NotASide(transaction),
+        TransferError::SameTransaction(transaction),
+        TransferError::SameAccount(account),
+        TransferError::AmountsDiffer {
+            first: money,
+            second: money,
+        },
+        // `TransferError::Transaction` and `StoreError::Transfer` report
+        // the code of the error they hold, like `StoreError::Corrupt`.
+    ];
     let corruptions = [
         Corruption::BadAccountKind(text("assets")),
         Corruption::BadAccountType(text("giro")),
@@ -164,6 +175,7 @@ fn examples() -> Vec<ErrorReport> {
         CurrencyCodeError::Malformed.report(),
     ];
     reports.extend(transaction_errors.iter().map(Report::report));
+    reports.extend(transfer_errors.iter().map(Report::report));
     reports.extend(corruptions.iter().map(Report::report));
     reports.extend(store_errors.iter().map(Report::report));
     reports
@@ -345,6 +357,19 @@ fn a_damaged_book_reports_the_damage_and_what_caused_it() {
     let cause = report.cause.expect("the transaction's error");
     assert_eq!(cause.code, "transaction.too-few-splits");
     assert_eq!(cause.param("found"), Some(&ErrorParam::Number(1)));
+}
+
+#[test]
+fn a_transfer_that_cannot_be_joined_reports_its_own_code() {
+    let transaction = TransactionId::generate();
+    let error = TransferError::NotASide(transaction);
+    assert_eq!(StoreError::Transfer(error).report(), error.report());
+    let split = SplitId::generate();
+    let invalid = TransactionError::DuplicateSplitId(split);
+    assert_eq!(
+        StoreError::Transfer(TransferError::Transaction(invalid)).report(),
+        invalid.report()
+    );
 }
 
 #[test]

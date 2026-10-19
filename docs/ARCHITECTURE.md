@@ -12,6 +12,7 @@ kassensturz/
 │   │   ├── rounding                # rounding modes; the book stores which one it uses (D-027, D-078)
 │   │   ├── account                 # accounts (incl. credit cards), categories, payees
 │   │   ├── transaction             # double-entry transactions + splits (Parts): no category yet, foreign amounts, what a bank delivered; the remainder (D-083)
+│   │   ├── transfer                # Transfer matching between the user's own accounts, and joining both sides into one transaction (D-021, D-087)
 │   │   ├── currency                # ISO 4217 codes and KassenSturz's own ISO 4217 table, read from data/ (D-062, D-077); a currency with its decimal places in a book
 │   │   ├── decimal                 # exchange rates, prices and quantities as fixed-point decimals, rust_decimal kept private (D-051, D-079)
 │   │   ├── rates                   # exchange rates on a date: the rows of the book's price table, entered by hand (D-028)
@@ -98,6 +99,7 @@ kassensturz/
 - Matching: amount (same currency) or a plausible exchange rate for cross-currency transfers (D-004) + date-proximity + both accounts already present in the book. External IBANs are never candidates.
 - Date window: up to 3 business days between the two sides; same currency only for now (D-030; cross-currency tolerances are Q-020).
 - Always a suggestion the user confirms, every time, in v1; a "trust this pair of accounts" option may come later (D-030).
+- The heuristic is `kassensturz_core::find_transfers`; `Book::transfer_suggestions` runs it on the transactions whose other part has no category yet, and `Book::join_transfer` turns a confirmed pair into one Transfer: the outgoing transaction gets the incoming account's part, with what its bank delivered, and the incoming transaction goes (D-087).
 - Reports exclude confirmed Transfers from income/expense totals — a direct consequence of the existing double-entry model (§5), not a separate reporting rule.
 
 ## Import pipeline

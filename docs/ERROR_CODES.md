@@ -13,7 +13,7 @@ This list is the reference for that. A test in `kassensturz-store` (`src/error/t
 ## Rules
 
 - **Codes are stable.** A code keeps its meaning. One that is no longer needed is retired, never given to another error. Before 0.1, codes can still change, like the book's layout (D-045).
-- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction` (core) or `store`. Damage found in a book starts with `store.corrupt`.
+- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer` (core) or `store`. Damage found in a book starts with `store.corrupt`.
 - **Parameters** are listed in the order the report gives them. A name ending in `?` is optional: the report leaves it out when it isn't known.
 - **Parameter types** (`ErrorParam`):
   - Amounts (`Money`), currencies, dates and timestamps stay typed. The UI formats them for the user's locale (D-002, D-065) and shows timestamps in the user's time zone.
@@ -52,6 +52,19 @@ This list is the reference for that. A test in `kassensturz-store` (`src/error/t
 | `transaction.foreign-in-transaction-currency` | `split` | | The part's second amount is in the transaction's own currency. Remove it, or enter it in the account's currency. |
 | `transaction.foreign-sign-mismatch` | `split` | | The part's two amounts point in different directions: one is money in, the other money out. Check the sign of one of them. |
 | `transaction.rate-currency-mismatch` | `split` | | The exchange rate used for this part isn't between its two currencies. Choose a rate for these currencies. |
+
+## Transfers (`kassensturz-core`)
+
+Joining the two sides of a Transfer between the user's own accounts into one transaction (D-087). `store.transfer` isn't a code of its own: the store reports these codes as they are.
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `transfer.not-a-side` | `transaction` | | {transaction} can't be one side of a Transfer: it needs one part for one of your accounts and one part without a category yet. Choose a transaction from your bank that has no category. |
+| `transfer.same-transaction` | `transaction` | | A Transfer needs two transactions: money out of one account and into another. Choose the other side. |
+| `transfer.same-account` | `account` | | Both transactions are in {account}. A Transfer moves money between two of your accounts. Choose the other account's transaction. |
+| `transfer.amounts-differ` | `first`, `second` | | One side says {first}, the other {second}. The money taken out of one account has to be what arrived in the other. Choose the matching transaction. |
+
+A joined transaction that wouldn't add up is reported with its `transaction` code.
 
 ## Books (`kassensturz-store`)
 

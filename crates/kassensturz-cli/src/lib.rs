@@ -4,7 +4,8 @@
 //! KassenSturz's command-line tool: a front end for trying out the core and
 //! the store without the UI (M1.8). It creates and opens books, adds
 //! accounts, categories, transactions and exchange rates, shows registers
-//! and balances, and undoes and redoes changes (M1.9).
+//! and balances, suggests and joins Transfers (M1.10), and undoes and
+//! redoes changes (M1.9).
 //!
 //! The tool is for developers and testers. It writes English text and plain
 //! amounts (`-12.50 EUR`), shows errors as their code and parameters, and is
@@ -23,6 +24,7 @@ mod lookup;
 mod rate;
 mod text;
 mod transaction;
+mod transfer;
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -114,6 +116,12 @@ Commands:
                                  Without any of them, it has no category yet.
   transaction show ID            ID is the end of the ID the register shows
   transaction remove ID
+  transfer suggest               pairs of transactions that look like the two
+                                 sides of one Transfer between your accounts:
+                                 the same amount out of one and into another,
+                                 at most 3 business days apart, the other side
+                                 without a category yet. Nothing is changed
+  transfer join ID ID            join two such transactions into one Transfer
   register NAME                  an account's or category's transactions
   balances [--all]               every account's balance, and the totals
   rate add --date DATE --from CODE --to CODE --rate RATE
@@ -225,8 +233,8 @@ impl<'a> CommandLine<'a> {
                 Ok(())
             }
             Some(
-                "account" | "category" | "transaction" | "rate" | "balances" | "register"
-                | "history",
+                "account" | "category" | "transaction" | "transfer" | "rate" | "balances"
+                | "register" | "history",
             ) => Ok(()),
             Some(other) => Err(CliError::usage(format!("`{other}` isn't a command"))),
             None => Ok(()),
@@ -244,6 +252,7 @@ impl<'a> CommandLine<'a> {
             Some("account") => accounts::account(book, rest, out),
             Some("category") => accounts::category(book, rest, out),
             Some("transaction") => transaction::transaction(book, rest, out),
+            Some("transfer") => transfer::transfer(book, rest, out),
             Some("rate") => rate::rate(book, rest, out),
             Some("balances") => accounts::balances(book, rest, out),
             Some("register") => accounts::register(book, rest, out),

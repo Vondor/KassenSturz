@@ -44,6 +44,7 @@ tools/sdk.sh cargo run --bin kassensturz-cli -- account add "Checking account" -
 tools/sdk.sh cargo run --bin kassensturz-cli -- category add Groceries --kind expense --currency EUR
 tools/sdk.sh cargo run --bin kassensturz-cli -- transaction add --date 2026-10-05 --account "Checking account" --amount -53.20 --category Groceries
 tools/sdk.sh cargo run --bin kassensturz-cli -- register "Checking account"
+tools/sdk.sh cargo run --bin kassensturz-cli -- transfer suggest
 tools/sdk.sh cargo run --bin kassensturz-cli -- undo
 ```
 

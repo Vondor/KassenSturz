@@ -20,7 +20,7 @@ kassensturz/
 │   │   ├── rules                   # auto-categorization: conditions, actions, Rule tree with sub-Rules
 │   │   └── events                  # event bus (TransactionAdded, ...)
 │   ├── kassensturz-store/          # all SQLite code: store, migrations, backups, change history — see D-016, D-032, D-033, D-072
-│   ├── kassensturz-import/         # CSV, OFX, MT940, CAMT.053, KMyMoney (.kmy / SQLite)
+│   ├── kassensturz-import/         # the Importer interface, statements and limits for untrusted files (D-091); CSV, OFX, MT940, CAMT.053, KMyMoney (.kmy / SQLite)
 │   ├── kassensturz-bank/           # read-only bank connections over AqBanking, fake backend for tests — see D-053, D-060
 │   ├── kassensturz-aqbanking-sys/  # raw AqBanking/Gwenhywfar declarations (bindgen, committed, loaded at runtime) — see D-060
 │   ├── kassensturz-plugin-api/     # stable, versioned plugin interface (after 1.0, D-071)
@@ -110,6 +110,15 @@ kassensturz/
 - Always a suggestion the user confirms, every time, in v1; a "trust this pair of accounts" option may come later (D-030).
 - The heuristic is `kassensturz_core::find_transfers`; `Book::transfer_suggestions` runs it on the transactions whose other part has no category yet, and `Book::join_transfer` turns a confirmed pair into one Transfer: the outgoing transaction gets the incoming account's part, with what its bank delivered, and the incoming transaction goes (D-087).
 - Reports exclude confirmed Transfers from income/expense totals — a direct consequence of the existing double-entry model (§5), not a separate reporting rule.
+
+## Importers
+
+- Every format implements `kassensturz_import::Importer` (D-069, D-091): `info` (a stable ID such as `camt053`, what reading gives, the usual extensions), `recognize` (yes, maybe or no from the first 4096 bytes) and `read` (the file's bytes into `Imported` data). An importer only reads; it never sees a book. Settings a format needs, such as CSV columns, belong to the importer's own value.
+- `Imported` holds bank statements (`Statement`: the account as the file names it, the currency with its decimal places, opening and closing balance, entries). A whole book from another program (KMyMoney, M2.9) becomes a second variant; both `Imported` and `ImportKind` are `#[non_exhaustive]`.
+- An `Entry` is booked or pending, with the bank's ID, booking date (always there), value date, amount as it changes the account, the other party's name and IBAN and the remittance information, all text as delivered (D-067).
+- Files are untrusted (AGENTS.md §8): front ends call `import` or `import_file`, which enforce `Limits` (size, nesting, entries, text length) and check what the importer returned, e.g. that every amount is in its statement's currency. Text is passed on only as data.
+- Amounts are read exactly by `parse_amount` (decimal point or comma, no rounding, AGENTS.md §3.1 rule 1).
+- Golden-file tests: `crates/kassensturz-import/tests/golden/<importer id>/` holds synthetic files, each with a `.expected` file of what importing it gives, written by `tests/import/harness.rs`; `KASSENSTURZ_BLESS=1 cargo test -p kassensturz-import --test import` writes them. A new importer adds one test to `tests/import/main.rs`.
 
 ## Import pipeline
 

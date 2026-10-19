@@ -1,0 +1,31 @@
+recognized: yes
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: -
+  closing balance: -
+  entry 1
+    status: booked
+    bank id: "KS-1"
+    booking date: 2026-10-01
+    value date: -
+    amount: -1.00 EUR
+    other party name: -
+    other party iban: -
+    remittance information: -
+statement 2
+  account iban: "GB29NWBK60161331926819"
+  account number: -
+  currency: GBP with 2 decimal places
+  opening balance: -300.00 GBP on 2026-09-30
+  closing balance: -
+  entry 1
+    status: booked
+    bank id: "KS-2"
+    booking date: 2026-10-01
+    value date: -
+    amount: 12.34 GBP
+    other party name: -
+    other party iban: -
+    remittance information: -

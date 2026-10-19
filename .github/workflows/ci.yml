@@ -76,6 +76,25 @@ jobs:
       - name: Translations are valid
         run: tools/sdk.sh sh -c 'for po in po/*/kassensturz.po; do msgfmt --check --output-file=/dev/null "$po"; done'
 
+  # Windows is the next platform after KDE Plasma and GNOME (D-006). Qt and
+  # KDE Frameworks aren't set up on this runner yet, so it covers everything
+  # except the app crate (kassensturz-ui-bridge); the Qt build joins in when
+  # Windows packaging does (M7). The Rust version is the one in the KDE SDK's
+  # Rust extension (D-073).
+  windows:
+    name: Windows lints and tests (D-090)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal --component clippy
+          rustup default 1.98.1
+      - name: Lints
+        run: cargo clippy --workspace --exclude kassensturz-ui-bridge --all-targets --locked -- -D warnings
+      - name: Tests
+        run: cargo test --workspace --exclude kassensturz-ui-bridge --locked
+
   licenses:
     name: Dependency licenses and sources (D-026)
     runs-on: ubuntu-latest

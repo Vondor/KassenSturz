@@ -50,6 +50,7 @@ kassensturz/
 - CMake (with KDE's Extra CMake Modules) drives Cargo: Cargo builds the Rust crates, CMake installs the desktop file, AppStream data, icons and translations (D-063).
 - Development, CI and the Flatpak use one environment, the KDE Flatpak SDK with the Rust extension; Flatpak builds use vendored Cargo dependencies (D-063).
 - `tools/sdk.sh <command>` runs any command in that environment, e.g. `tools/sdk.sh cargo test --workspace`; CI uses the same script. Versions are pinned in D-073.
+- A second CI job lints and tests every crate except the app crate on Windows, with `rustup` installing the same Rust version; the Qt build on Windows comes with Windows packaging (M7, D-090).
 - CMake runs `cargo build --locked` as a custom target, as KDE's guide does, and installs the program it builds. QML files live in `crates/kassensturz-ui-bridge/qml/` because cxx-qt-build registers QML files by their path inside the crate.
 - The Flatpak manifest (`packaging/flatpak/`) builds offline from `cargo-sources.json`, which is regenerated from `Cargo.lock` whenever that changes (`README.md`, "Building").
 - The first code is a walking skeleton through every layer, kept as real code (D-068). Since M1.M the app opens with the first-run mock instead of the skeleton's sample account (D-089).

@@ -21,6 +21,7 @@ bundled-sqlite = ["rusqlite/bundled"]
 [dependencies]
 kassensturz-core.workspace = true
 rusqlite.workspace = true
+uuid.workspace = true
 
 [lints]
 workspace = true

@@ -10,6 +10,8 @@ use kassensturz_core::{
     AccountId, CurrencyCode, Date, DatedRateId, TransactionError, TransactionId,
 };
 
+use crate::Lock;
+
 /// Why a book couldn't be opened, read or changed.
 #[derive(Debug)]
 pub enum StoreError {
@@ -18,7 +20,7 @@ pub enum StoreError {
     AlreadyExists,
     /// Opening a book failed because there's no file at the path.
     NotFound,
-    /// The file isn't a KassenSturz book.
+    /// The file isn't a KassenSturz book. It was left untouched.
     NotABook,
     /// The book's layout is a different version: it was made by a newer
     /// KassenSturz, or by a development build from before 0.1 (D-045).
@@ -26,6 +28,14 @@ pub enum StoreError {
         /// The layout version stored in the file.
         found: i32,
     },
+    /// The book's lock file says it is open somewhere else: on another
+    /// computer or in another running KassenSturz, or it wasn't closed
+    /// properly there, e.g. after a crash (D-038). After warning the user, the
+    /// UI can open it anyway with [`Book::open_anyway`](crate::Book::open_anyway).
+    Locked(Lock),
+    /// The automatic backup before an update of the book's layout failed, so
+    /// the book wasn't changed (AGENTS.md §3.1 rule 8, D-033).
+    BackupFailed(Box<StoreError>),
     /// SQLite wouldn't switch the book to the rollback journal (D-033).
     JournalModeRefused {
         /// The journal mode SQLite kept.
@@ -106,6 +116,9 @@ pub enum Corruption {
         /// What's wrong with it.
         error: TransactionError,
     },
+    /// Something refers to a row that doesn't exist, e.g. a part to a missing
+    /// account. Checked when the book's layout is updated.
+    BrokenReferences,
 }
 
 /// An error reported by SQLite. Its details are for logs, not for users.
@@ -113,6 +126,12 @@ pub enum Corruption {
 pub struct DatabaseError(
     #[expect(dead_code, reason = "only read through Debug, for logs")] rusqlite::Error,
 );
+
+impl From<std::io::Error> for StoreError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Io(error.kind())
+    }
+}
 
 impl From<rusqlite::Error> for StoreError {
     fn from(error: rusqlite::Error) -> Self {

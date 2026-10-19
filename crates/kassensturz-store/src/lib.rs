@@ -9,12 +9,14 @@
 
 #![forbid(unsafe_code)]
 
+mod backup;
 mod error;
 mod layout;
+mod lock;
 
-use std::fs::OpenOptions;
-use std::io::ErrorKind;
-use std::path::Path;
+use std::fs::{File, OpenOptions};
+use std::io::{ErrorKind, Read};
+use std::path::{Path, PathBuf};
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, Currency, CurrencyCode, Date, DatedRate, DatedRateId,
@@ -23,10 +25,29 @@ use kassensturz_core::{
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
 pub use error::{Corruption, DatabaseError, StoreError};
+pub use lock::Lock;
+
+use lock::HeldLock;
+
+/// What opening a book needs to know about the computer it runs on. Finding
+/// these differs between Plasma, GNOME, Windows and macOS, so the front end
+/// fills them in, through `kassensturz-platform` (`docs/ARCHITECTURE.md`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Computer {
+    /// The computer's name, e.g. "Laptop". While a book is open here, other
+    /// computers are told it's open on this one (D-038).
+    pub name: String,
+    /// The folder for automatic backups, in KassenSturz's own data folder
+    /// (D-033). It is created when the first backup is made.
+    pub backup_folder: PathBuf,
+}
 
 /// An open household book.
 pub struct Book {
     conn: Connection,
+    /// The book's lock file, removed when the book is closed. Declared after
+    /// `conn`, so the database is closed first. Books in memory have none.
+    _lock: Option<HeldLock>,
 }
 
 /// One line of an account's register: a transaction as seen from that
@@ -45,96 +66,103 @@ pub struct RegisterEntry {
 }
 
 impl Book {
-    /// Creates a new, empty book at `path`.
+    /// Creates a new, empty book at `path` and opens it on `computer`.
     ///
     /// Fails with [`StoreError::AlreadyExists`] if something is at `path`
     /// already, and never touches an existing file.
-    pub fn create(path: &Path) -> Result<Self, StoreError> {
+    pub fn create(path: &Path, computer: &Computer) -> Result<Self, StoreError> {
+        let path = std::path::absolute(path)?;
         // Claim the path first: `create_new` fails if anything exists there,
         // so SQLite can never open an existing file by mistake.
         OpenOptions::new()
             .write(true)
             .create_new(true)
-            .open(path)
+            .open(&path)
             .map_err(|error| match error.kind() {
                 ErrorKind::AlreadyExists => StoreError::AlreadyExists,
                 kind => StoreError::Io(kind),
             })?;
-        let book = Self::connect(path).and_then(|mut book| {
-            book.create_layout()?;
-            Ok(book)
-        });
+        let book = Self::create_at(&path, computer);
         if book.is_err() {
             // Don't leave a half-made book behind. If removing it fails too,
             // the error that stopped the creation is the one worth reporting.
-            let _ = std::fs::remove_file(path);
+            let _ = std::fs::remove_file(&path);
         }
         book
     }
 
-    /// Opens the existing book at `path`.
-    pub fn open(path: &Path) -> Result<Self, StoreError> {
-        std::fs::metadata(path).map_err(|error| match error.kind() {
+    fn create_at(path: &Path, computer: &Computer) -> Result<Self, StoreError> {
+        let lock = HeldLock::acquire(path, &computer.name)?;
+        let mut conn = connect(path)?;
+        layout::migrate(&mut conn, 0)?;
+        Self::finish(conn, Some(lock))
+    }
+
+    /// Opens the existing book at `path` on `computer`.
+    ///
+    /// Fails with [`StoreError::Locked`] if the book is open somewhere else
+    /// (D-038). A book with an older layout is updated to the current one,
+    /// after a backup into `computer`'s backup folder (D-033).
+    pub fn open(path: &Path, computer: &Computer) -> Result<Self, StoreError> {
+        Self::open_with(path, computer, |book| {
+            HeldLock::acquire(book, &computer.name)
+        })
+    }
+
+    /// Opens the book at `path` like [`Book::open`], although its lock file
+    /// says it is open somewhere else, after the user was warned about that
+    /// lock, `seen` (D-038). The book is then locked for `computer`.
+    ///
+    /// Fails with [`StoreError::Locked`] and the current lock if it changed
+    /// since, e.g. because the book was opened on yet another computer, so
+    /// the user can be warned again.
+    pub fn open_anyway(path: &Path, computer: &Computer, seen: &Lock) -> Result<Self, StoreError> {
+        Self::open_with(path, computer, |book| {
+            HeldLock::take_over(book, &computer.name, seen)
+        })
+    }
+
+    fn open_with(
+        path: &Path,
+        computer: &Computer,
+        lock: impl FnOnce(&Path) -> Result<HeldLock, StoreError>,
+    ) -> Result<Self, StoreError> {
+        let path = std::path::absolute(path)?;
+        let metadata = std::fs::metadata(&path).map_err(|error| match error.kind() {
             ErrorKind::NotFound => StoreError::NotFound,
             kind => StoreError::Io(kind),
         })?;
-        let book = Self::connect(path)?;
-        book.check_layout()?;
-        Ok(book)
+        // Before SQLite opens the file, so another program's SQLite file is
+        // never changed, not even its journal mode.
+        if !metadata.is_file() || !is_book_file(&path)? {
+            return Err(StoreError::NotABook);
+        }
+        let lock = lock(&path)?;
+        let mut conn = connect(&path)?;
+        let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        match version {
+            layout::VERSION => {}
+            older if (layout::FIRST_VERSION..layout::VERSION).contains(&older) => {
+                backup::back_up(&conn, &path, &computer.backup_folder)
+                    .map_err(|error| StoreError::BackupFailed(Box::new(error)))?;
+                layout::migrate(&mut conn, older)?;
+            }
+            found => return Err(StoreError::UnsupportedLayout { found }),
+        }
+        Self::finish(conn, Some(lock))
     }
 
     /// Creates a new, empty book that lives in memory only: nothing is saved.
     pub fn create_in_memory() -> Result<Self, StoreError> {
-        let mut book = Self::configure(Connection::open_in_memory()?)?;
-        book.create_layout()?;
-        Ok(book)
+        let mut conn = Connection::open_in_memory()?;
+        layout::migrate(&mut conn, 0)?;
+        Self::finish(conn, None)
     }
 
-    fn connect(path: &Path) -> Result<Self, StoreError> {
-        // Without SQLITE_OPEN_URI a path is always a file name, never a URI,
-        // and without SQLITE_OPEN_CREATE SQLite never creates a file.
-        let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
-        let book = Self::configure(Connection::open_with_flags(path, flags)?)?;
-        // The classic rollback journal, not WAL, so no lasting side files sit
-        // next to the book, e.g. in a sync folder (D-033).
-        let mode: String =
-            book.conn
-                .pragma_update_and_check(None, "journal_mode", "DELETE", |row| row.get(0))?;
-        if !mode.eq_ignore_ascii_case("delete") {
-            return Err(StoreError::JournalModeRefused { mode });
-        }
-        Ok(book)
-    }
-
-    fn configure(conn: Connection) -> Result<Self, StoreError> {
+    fn finish(conn: Connection, lock: Option<HeldLock>) -> Result<Self, StoreError> {
         // SQLite checks foreign keys only if asked to, on every connection.
         conn.pragma_update(None, "foreign_keys", true)?;
-        Ok(Self { conn })
-    }
-
-    fn create_layout(&mut self) -> Result<(), StoreError> {
-        let transaction = self.conn.transaction()?;
-        transaction.execute_batch(layout::CREATE)?;
-        transaction.execute(
-            "INSERT INTO settings (id, rounding_mode) VALUES (1, ?1)",
-            [rounding_mode_to_text(RoundingMode::default())],
-        )?;
-        transaction.pragma_update(None, "user_version", layout::VERSION)?;
-        transaction.commit()?;
-        Ok(())
-    }
-
-    fn check_layout(&self) -> Result<(), StoreError> {
-        let version: i32 = self
-            .conn
-            .pragma_query_value(None, "user_version", |row| row.get(0))?;
-        match version {
-            layout::VERSION => Ok(()),
-            // Other programs' SQLite files usually leave user_version at 0.
-            // KassenSturz's own application ID comes with M1 (D-037).
-            0 => Err(StoreError::NotABook),
-            found => Err(StoreError::UnsupportedLayout { found }),
-        }
+        Ok(Self { conn, _lock: lock })
     }
 
     /// The rounding mode of this book's calculations (D-027). New books round
@@ -504,6 +532,38 @@ impl Book {
     }
 }
 
+/// Opens the SQLite database of the book at `path`, which must exist.
+fn connect(path: &Path) -> Result<Connection, StoreError> {
+    // `path` is absolute, so it never begins with `file:` and SQLite never
+    // takes it for a URI, as the bundled SQLite otherwise would whatever the
+    // flags say. Without SQLITE_OPEN_CREATE, SQLite never creates a file.
+    let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+    let conn = Connection::open_with_flags(path, flags)?;
+    // The classic rollback journal, not WAL, so no lasting side files sit
+    // next to the book, e.g. in a sync folder (D-033).
+    let mode: String =
+        conn.pragma_update_and_check(None, "journal_mode", "DELETE", |row| row.get(0))?;
+    if !mode.eq_ignore_ascii_case("delete") {
+        return Err(StoreError::JournalModeRefused { mode });
+    }
+    Ok(conn)
+}
+
+/// Whether the file at `path` begins like a book, read without SQLite: with
+/// SQLite's header and KassenSturz's application ID (D-037).
+fn is_book_file(path: &Path) -> Result<bool, StoreError> {
+    // The header's first 16 bytes name the format, and bytes 68 to 71 hold
+    // the application ID, most significant byte first
+    // (sqlite.org/fileformat.html).
+    let mut header = [0; 72];
+    match File::open(path)?.read_exact(&mut header) {
+        Ok(()) => Ok(header[..16] == *b"SQLite format 3\0"
+            && header[68..] == layout::APPLICATION_ID.to_be_bytes()),
+        Err(error) if error.kind() == ErrorKind::UnexpectedEof => Ok(false),
+        Err(error) => Err(error.into()),
+    }
+}
+
 /// The columns [`RateRow::read`] expects, in its order.
 const RATE_COLUMNS: &str =
     "id, date, from_currency, to_currency, rate_digits, rate_decimal_places, source";
@@ -623,5 +683,7 @@ fn date_from_text(text: &str) -> Result<Date, StoreError> {
         .map_err(|_| StoreError::Corrupt(Corruption::BadDate(text.into())))
 }
 
+#[cfg(test)]
+mod test_folder;
 #[cfg(test)]
 mod tests;

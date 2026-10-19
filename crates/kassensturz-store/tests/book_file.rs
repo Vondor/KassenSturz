@@ -6,8 +6,8 @@
 use std::path::{Path, PathBuf};
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, CurrencyCode, Date, DatedRate, DatedRateId, Money, RateSource,
-    RoundingMode, Split, SplitId, Timestamp, Transaction, TransactionId,
+    Account, AccountId, AccountKind, CurrencyCode, Date, DatedRate, DatedRateId, ForeignAmount,
+    ImportedDetails, Money, RateSource, RoundingMode, Split, Timestamp, Transaction, TransactionId,
 };
 use kassensturz_store::{Book, Computer, StoreError};
 
@@ -76,16 +76,8 @@ fn fill(book: &mut Book) -> AccountId {
         Date::new(2026, 10, 5).expect("valid date"),
         Some("Corner Grocery".into()),
         vec![
-            Split {
-                id: SplitId::generate(),
-                account: checking.id,
-                amount: Money::from_minor_units(-5320, eur()),
-            },
-            Split {
-                id: SplitId::generate(),
-                account: groceries.id,
-                amount: Money::from_minor_units(5320, eur()),
-            },
+            Split::new(checking.id, Money::from_minor_units(-5320, eur())),
+            Split::new(groceries.id, Money::from_minor_units(5320, eur())),
         ],
     )
     .expect("balanced");
@@ -134,6 +126,86 @@ fn a_book_keeps_its_data_after_closing() {
         book.balance(checking).expect("balance"),
         Money::from_minor_units(-5320, eur())
     );
+}
+
+#[test]
+fn a_book_keeps_its_transactions_in_full() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let laptop = folder.computer("Laptop");
+    let usd = CurrencyCode::new("USD").expect("valid code");
+    let (transfer, purchase) = {
+        let mut book = Book::create(&path, &laptop).expect("book created");
+        let checking = fill(&mut book);
+        book.use_currency(usd).expect("currency used");
+        let dollars = Account {
+            id: AccountId::generate(),
+            name: "Dollar account".into(),
+            kind: AccountKind::Asset,
+            currency: usd,
+            account_type: None,
+            closed: false,
+            parent: None,
+        };
+        book.add_account(&dollars).expect("account added");
+        book.add_rate(&DatedRate {
+            id: DatedRateId::generate(),
+            date: Date::new(2026, 10, 1).expect("valid date"),
+            from: eur(),
+            to: usd,
+            rate: "1.0856".parse().expect("valid rate"),
+            source: RateSource::Manual,
+        })
+        .expect("rate added");
+        let date = Date::new(2026, 10, 7).expect("valid date");
+        let (received, rate) = book
+            .convert(Money::from_minor_units(100_000, eur()), usd, date)
+            .expect("converted");
+        let transfer = Transaction::new(
+            TransactionId::generate(),
+            date,
+            Some("To the dollar account".into()),
+            vec![
+                Split::new(checking, Money::from_minor_units(-100_000, eur())),
+                Split {
+                    foreign: Some(ForeignAmount {
+                        amount: received,
+                        rate: Some(rate),
+                    }),
+                    ..Split::new(dollars.id, Money::from_minor_units(100_000, eur()))
+                },
+            ],
+        )
+        .expect("balanced");
+        // The IBAN is the example for Germany in SWIFT's IBAN Registry
+        // (D-055).
+        let purchase = Transaction::new(
+            TransactionId::generate(),
+            date,
+            None,
+            vec![
+                Split {
+                    imported: Some(ImportedDetails {
+                        bank_id: Some("2026100700042".into()),
+                        booking_date: Some(date),
+                        value_date: Some(date),
+                        other_party_name: Some("Example Shop".into()),
+                        other_party_iban: Some("DE89370400440532013000".into()),
+                        remittance_information: Some("Order 4711".into()),
+                    }),
+                    ..Split::new(checking, Money::from_minor_units(-1999, eur()))
+                },
+                Split::uncategorized(Money::from_minor_units(1999, eur())),
+            ],
+        )
+        .expect("balanced");
+        book.add_transaction(&transfer).expect("transfer added");
+        book.add_transaction(&purchase).expect("purchase added");
+        (transfer, purchase)
+    };
+    let book = Book::open(&path, &laptop).expect("book opened again");
+    assert_eq!(book.transaction(transfer.id()).expect("kept"), transfer);
+    assert_eq!(book.transaction(purchase.id()).expect("kept"), purchase);
 }
 
 #[test]

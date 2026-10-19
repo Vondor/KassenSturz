@@ -11,7 +11,7 @@ kassensturz/
 │   │   ├── money                   # 64-bit integer minor units + ISO 4217 code; amount × ratio and amount × or ÷ rate, rounded once (D-027, D-051)
 │   │   ├── rounding                # rounding modes; the book stores which one it uses (D-027, D-078)
 │   │   ├── account                 # accounts (incl. credit cards), categories, payees
-│   │   ├── transaction             # double-entry transactions + splits, booking and value date
+│   │   ├── transaction             # double-entry transactions + splits (Parts): no category yet, foreign amounts, what a bank delivered; the remainder (D-083)
 │   │   ├── currency                # ISO 4217 codes and KassenSturz's own ISO 4217 table, read from data/ (D-062, D-077); a currency with its decimal places in a book
 │   │   ├── decimal                 # exchange rates, prices and quantities as fixed-point decimals, rust_decimal kept private (D-051, D-079)
 │   │   ├── rates                   # exchange rates on a date: the rows of the book's price table, entered by hand (D-028)
@@ -79,7 +79,10 @@ kassensturz/
 - A transaction can be broken down into multiple categorized **Parts** (UI term for `Split`, see `docs/GLOSSARY.md`) at any time, not only at import — see D-017.
 - Editing Parts auto-calculates one remaining Part's amount as "total minus what's already entered." Saving is rejected unless all Parts sum exactly to the transaction's original amount — enforced in `kassensturz-core`, not just in the UI.
 - Manual entry only in this decision; deriving Parts from a scanned receipt (OCR) is taken up separately in D-018.
-- A Part in another currency keeps its original amount and currency plus its value in the transaction's currency (the rate used, stored as a fixed-point decimal, D-051), so every transaction adds up to zero in its own currency (D-043).
+- A Part in another currency keeps its original amount and currency plus its value in the transaction's currency (the rate used, stored as a fixed-point decimal, D-051), so every transaction adds up to zero in its own currency (D-043). Every Part is in its account's currency; when an amount was converted with a rate from the price table, the Part keeps a copy of that rate (D-083).
+- A Part can have no category yet: an import adds the bank's entry plus such a Part, which a Rule or the user then categorizes (D-083).
+- What a bank or file delivered is kept with the Part booked to the account the statement is for, so a Transfer matched from two statements keeps both (D-083). That Part's account and amount never change; the other Parts, the payee and the date can.
+- A transaction is changed by replacing it as a whole, with the same ID (`Book::update_transaction`), and checked like a new one. Undo comes with the change history (D-032, M1.9).
 
 ## Multiple accounts and Transfers
 
@@ -94,7 +97,7 @@ kassensturz/
 
 - Steps run in this order: duplicate check, then Transfer matching, then Rules (D-030).
 - Duplicates: a transaction whose bank-provided transaction ID is already in the book is skipped automatically and counted in the import summary; uncertain cases are shown to the user to decide.
-- Both booking date and value date are stored; the booking date is the one shown.
+- Both booking date and value date are stored, with the Part the bank delivered; the transaction's booking date is the one shown, and the user can change it (D-083).
 - What a bank or file delivers (other party name and IBAN, remittance information, bank transaction ID) is stored unchanged next to the payee and category the user can edit, so Rules can be re-run and duplicates recognized later (D-067).
 - Only booked transactions are imported in v1; pending ones (not yet booked by the bank) are skipped (D-030).
 - Bank connections through AqBanking only read balances and booked transactions; KassenSturz never sends payments (D-053). AqBanking comes from the system in distro packages and is bundled in the Flatpak, Windows and macOS builds; KassenSturz detects it at runtime and works without it. Bank setup, PIN and TAN entry use Gwenhywfar's Qt 6 dialogs (D-054). Logins: PIN/TAN or a bank chip card; no key files, so no EBICS (D-059). The code lives in `kassensturz-bank`, on top of the raw `kassensturz-aqbanking-sys` declarations (D-060). The PIN is asked each time unless the user chooses to remember it until KassenSturz closes (memory only) or to save it in the system keychain through `kassensturz-platform` (D-057). Tests run against a fake bank backend (D-055). Live FinTS connections need KassenSturz's own FinTS product registration, passed to AqBanking as `fintsRegistrationKey`; never another program's number (D-058).

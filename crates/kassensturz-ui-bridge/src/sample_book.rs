@@ -5,8 +5,7 @@
 //! data (AGENTS.md §3.1 rule 2) and never saved: the book lives in memory.
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, CurrencyCode, Date, Money, Split, SplitId, Transaction,
-    TransactionId,
+    Account, AccountId, AccountKind, CurrencyCode, Date, Money, Split, Transaction, TransactionId,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -50,16 +49,8 @@ pub fn create() -> Result<SampleBook, StoreError> {
             Date::constant(2026, 10, day),
             Some(payee.into()),
             vec![
-                Split {
-                    id: SplitId::generate(),
-                    account: checking,
-                    amount,
-                },
-                Split {
-                    id: SplitId::generate(),
-                    account: category,
-                    amount: other_side,
-                },
+                Split::new(checking, amount),
+                Split::new(category, other_side),
             ],
         )
         .expect("both parts cancel out, so the transaction balances");

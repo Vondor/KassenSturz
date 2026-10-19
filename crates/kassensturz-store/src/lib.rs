@@ -13,6 +13,7 @@ mod backup;
 mod error;
 mod layout;
 mod lock;
+mod transactions;
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{File, OpenOptions};
@@ -21,13 +22,13 @@ use std::path::{Path, PathBuf};
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, Currency, CurrencyCode, Date, DatedRate,
-    DatedRateId, ExchangeRate, Money, RateSource, RoundingMode, Split, SplitId, Transaction,
-    TransactionId,
+    DatedRateId, ExchangeRate, RateSource, RoundingMode,
 };
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
 pub use error::{Corruption, DatabaseError, StoreError};
 pub use lock::Lock;
+pub use transactions::RegisterEntry;
 
 use lock::HeldLock;
 
@@ -60,21 +61,6 @@ pub struct CategoryEntry {
     /// The names from the top-level category down to this one, e.g.
     /// `["Food", "Groceries"]`. Its length minus one is how deep it sits.
     pub path: Vec<String>,
-}
-
-/// One line of an account's register: a transaction as seen from that
-/// account.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RegisterEntry {
-    /// The transaction.
-    pub transaction: TransactionId,
-    /// Its booking date.
-    pub booking_date: Date,
-    /// Who the money came from or went to.
-    pub payee: Option<String>,
-    /// What it did to this account: positive amounts came in, negative ones
-    /// went out.
-    pub amount: Money,
 }
 
 impl Book {
@@ -236,7 +222,7 @@ impl Book {
 
     /// `currency` with the decimal places this book stores for it, as the
     /// conversions with an exchange rate need it
-    /// ([`Money::checked_mul_rate`]).
+    /// ([`Money::checked_mul_rate`](kassensturz_core::Money::checked_mul_rate)).
     pub fn currency(&self, currency: CurrencyCode) -> Result<Currency, StoreError> {
         let minor_digits = self.currency_minor_digits(currency)?;
         Ok(Currency::new(currency, minor_digits).expect("checked when read"))
@@ -549,140 +535,6 @@ impl Book {
         Ok(())
     }
 
-    /// Adds a transaction. Every part must be booked to an existing account in
-    /// the transaction's currency.
-    pub fn add_transaction(&mut self, transaction: &Transaction) -> Result<(), StoreError> {
-        let booking_date = date_to_text(transaction.booking_date())?;
-        let currency = transaction.currency();
-        self.currency_minor_digits(currency)?;
-        for split in transaction.splits() {
-            let account = self.account(split.account)?;
-            if account.closed {
-                return Err(StoreError::AccountClosed(account.id));
-            }
-            if account.currency != currency {
-                return Err(StoreError::SplitCurrencyMismatch {
-                    account: account.id,
-                    account_currency: account.currency,
-                    transaction_currency: currency,
-                });
-            }
-        }
-
-        let id = transaction.id().to_bytes();
-        let sql = self.conn.transaction()?;
-        sql.execute(
-            "INSERT INTO transactions (id, booking_date, payee, currency) VALUES (?1, ?2, ?3, ?4)",
-            params![id, booking_date, transaction.payee(), currency.as_str()],
-        )?;
-        {
-            let mut insert = sql.prepare(
-                "INSERT INTO splits (id, transaction_id, position, account_id, amount)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-            )?;
-            for (position, split) in (0_i64..).zip(transaction.splits()) {
-                insert.execute(params![
-                    split.id.to_bytes(),
-                    id,
-                    position,
-                    split.account.to_bytes(),
-                    split.amount.minor_units()
-                ])?;
-            }
-        }
-        sql.commit()?;
-        Ok(())
-    }
-
-    /// The transaction with this ID. It's checked again on the way out, so a
-    /// transaction that doesn't balance is reported, never returned.
-    pub fn transaction(&self, id: TransactionId) -> Result<Transaction, StoreError> {
-        let row: Option<(String, Option<String>, String)> = self
-            .conn
-            .query_row(
-                "SELECT booking_date, payee, currency FROM transactions WHERE id = ?1",
-                [id.to_bytes()],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .optional()?;
-        let (booking_date, payee, currency) = row.ok_or(StoreError::UnknownTransaction(id))?;
-        let booking_date = date_from_text(&booking_date)?;
-        let currency = currency_from_text(&currency)?;
-
-        let mut statement = self.conn.prepare(
-            "SELECT id, account_id, amount FROM splits WHERE transaction_id = ?1 ORDER BY position",
-        )?;
-        let splits = statement
-            .query_map([id.to_bytes()], |row| {
-                Ok(Split {
-                    id: SplitId::from_bytes(row.get(0)?),
-                    account: AccountId::from_bytes(row.get(1)?),
-                    amount: Money::from_minor_units(row.get(2)?, currency),
-                })
-            })?
-            .collect::<Result<Vec<_>, _>>()?;
-        Transaction::new(id, booking_date, payee, splits).map_err(|error| {
-            StoreError::Corrupt(Corruption::InvalidTransaction {
-                transaction: id,
-                error,
-            })
-        })
-    }
-
-    /// The transactions that touch `account`, oldest first, each as seen from
-    /// that account.
-    pub fn register(&self, account: AccountId) -> Result<Vec<RegisterEntry>, StoreError> {
-        let account = self.account(account)?;
-        let mut statement = self.conn.prepare(
-            "SELECT t.id, t.booking_date, t.payee, t.currency, s.amount
-             FROM splits AS s JOIN transactions AS t ON t.id = s.transaction_id
-             WHERE s.account_id = ?1
-             ORDER BY t.booking_date, t.id, s.position",
-        )?;
-        let mut rows = statement.query([account.id.to_bytes()])?;
-        let mut entries: Vec<RegisterEntry> = Vec::new();
-        while let Some(row) = rows.next()? {
-            let transaction = TransactionId::from_bytes(row.get(0)?);
-            if currency_from_text(&row.get::<_, String>(3)?)? != account.currency {
-                return Err(StoreError::Corrupt(Corruption::CurrencyMismatch {
-                    transaction,
-                }));
-            }
-            let amount = Money::from_minor_units(row.get(4)?, account.currency);
-            match entries.last_mut() {
-                // One account can appear in several parts of a transaction.
-                Some(last) if last.transaction == transaction => {
-                    last.amount = last
-                        .amount
-                        .checked_add(amount)
-                        .map_err(|_| StoreError::AmountOverflow)?;
-                }
-                _ => entries.push(RegisterEntry {
-                    transaction,
-                    booking_date: date_from_text(&row.get::<_, String>(1)?)?,
-                    payee: row.get(2)?,
-                    amount,
-                }),
-            }
-        }
-        Ok(entries)
-    }
-
-    /// The balance of `account`: everything booked to it, added up exactly.
-    pub fn balance(&self, account: AccountId) -> Result<Money, StoreError> {
-        let account = self.account(account)?;
-        let mut statement = self
-            .conn
-            .prepare("SELECT amount FROM splits WHERE account_id = ?1")?;
-        let amounts = statement
-            .query_map([account.id.to_bytes()], |row| row.get::<_, i64>(0))?
-            .collect::<Result<Vec<_>, _>>()?;
-        let amounts = amounts
-            .into_iter()
-            .map(|minor_units| Money::from_minor_units(minor_units, account.currency));
-        Money::checked_sum(account.currency, amounts).map_err(|_| StoreError::AmountOverflow)
-    }
-
     /// Adds an exchange rate to the book's price table (D-028).
     ///
     /// Both currencies must be in use in this book and differ. A book holds
@@ -775,9 +627,9 @@ impl Book {
     /// The rate from `from` into `to` that applies on `date`: the newest one
     /// on or before it. `None` if there's none yet.
     ///
-    /// Only rates in this direction count. A conversion the other way divides
-    /// by the rate ([`Money::checked_div_rate`]), so the caller decides which
-    /// direction to look up.
+    /// Only rates in this direction count. [`Book::convert`] looks in both
+    /// directions and divides by a rate the other way
+    /// ([`Money::checked_div_rate`](kassensturz_core::Money::checked_div_rate)).
     pub fn rate_on(
         &self,
         from: CurrencyCode,

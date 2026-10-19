@@ -4,26 +4,31 @@
 //! Tests on books in memory. All data is made up (AGENTS.md §3.1 rule 2).
 
 use super::*;
-use kassensturz_core::TransactionError;
+use kassensturz_core::{Money, Split, Transaction, TransactionError, TransactionId};
 
-const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
+pub(crate) const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
     Err(_) => panic!("EUR is a valid code"),
 };
-const USD: CurrencyCode = match CurrencyCode::new("USD") {
+pub(crate) const USD: CurrencyCode = match CurrencyCode::new("USD") {
     Ok(code) => code,
     Err(_) => panic!("USD is a valid code"),
 };
 
-fn eur(minor_units: i64) -> Money {
+pub(crate) fn eur(minor_units: i64) -> Money {
     Money::from_minor_units(minor_units, EUR)
 }
 
-fn date(year: i16, month: i8, day: i8) -> Date {
+pub(crate) fn date(year: i16, month: i8, day: i8) -> Date {
     Date::new(year, month, day).expect("valid date")
 }
 
-fn account(book: &mut Book, name: &str, kind: AccountKind, currency: CurrencyCode) -> AccountId {
+pub(crate) fn account(
+    book: &mut Book,
+    name: &str,
+    kind: AccountKind,
+    currency: CurrencyCode,
+) -> AccountId {
     let id = AccountId::generate();
     let account = Account {
         id,
@@ -38,14 +43,14 @@ fn account(book: &mut Book, name: &str, kind: AccountKind, currency: CurrencyCod
     id
 }
 
-fn transaction(booking_date: Date, payee: &str, parts: &[(AccountId, Money)]) -> Transaction {
+pub(crate) fn transaction(
+    booking_date: Date,
+    payee: &str,
+    parts: &[(AccountId, Money)],
+) -> Transaction {
     let splits = parts
         .iter()
-        .map(|&(account, amount)| Split {
-            id: SplitId::generate(),
-            account,
-            amount,
-        })
+        .map(|&(account, amount)| Split::new(account, amount))
         .collect();
     Transaction::new(
         TransactionId::generate(),
@@ -56,14 +61,14 @@ fn transaction(booking_date: Date, payee: &str, parts: &[(AccountId, Money)]) ->
     .expect("balanced")
 }
 
-struct Sample {
-    book: Book,
-    checking: AccountId,
-    groceries: AccountId,
-    salary: AccountId,
+pub(crate) struct Sample {
+    pub(crate) book: Book,
+    pub(crate) checking: AccountId,
+    pub(crate) groceries: AccountId,
+    pub(crate) salary: AccountId,
 }
 
-fn sample() -> Sample {
+pub(crate) fn sample() -> Sample {
     let mut book = Book::create_in_memory().expect("book created");
     book.use_currency(EUR).expect("currency used");
     let checking = account(&mut book, "Checking account", AccountKind::Asset, EUR);

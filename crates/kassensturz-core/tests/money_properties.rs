@@ -7,8 +7,8 @@
 //! these tests catch wrapping, silent truncation and lost overflow.
 
 use kassensturz_core::{
-    AccountId, CurrencyCode, Date, Money, MoneyError, Split, SplitId, Transaction,
-    TransactionError, TransactionId,
+    AccountId, CurrencyCode, Date, Money, MoneyError, Split, Transaction, TransactionError,
+    TransactionId,
 };
 use proptest::prelude::*;
 
@@ -27,10 +27,11 @@ fn exact(minor_units: i128, currency: CurrencyCode) -> Result<Money, MoneyError>
 fn transaction(amounts: &[i64], currency: CurrencyCode) -> Result<Transaction, TransactionError> {
     let splits = amounts
         .iter()
-        .map(|&minor_units| Split {
-            id: SplitId::generate(),
-            account: AccountId::generate(),
-            amount: Money::from_minor_units(minor_units, currency),
+        .map(|&minor_units| {
+            Split::new(
+                AccountId::generate(),
+                Money::from_minor_units(minor_units, currency),
+            )
         })
         .collect();
     let date = Date::new(2026, 10, 18).expect("valid date");
@@ -113,6 +114,41 @@ proptest! {
         amounts.push(-rest);
         let transaction = transaction(&amounts, currency);
         prop_assert!(transaction.is_ok(), "{:?}", transaction);
+    }
+
+    #[test]
+    fn the_remainder_balances_the_parts_or_overflows(
+        amounts in prop::collection::vec(any::<i64>(), 1..10),
+        open in any::<prop::sample::Index>(),
+        currency in currency(),
+    ) {
+        // Whatever the open part holds before, the remainder replaces it
+        // (D-017).
+        let mut parts: Vec<Split> = amounts
+            .iter()
+            .map(|&minor_units| {
+                Split::new(AccountId::generate(), Money::from_minor_units(minor_units, currency))
+            })
+            .collect();
+        parts.push(Split::uncategorized(Money::zero(currency)));
+        let open = open.index(parts.len());
+        let id = parts[open].id;
+        let others: i128 = parts
+            .iter()
+            .filter(|part| part.id != id)
+            .map(|part| i128::from(part.amount.minor_units()))
+            .sum();
+        let remainder = Transaction::remainder(&parts, id);
+        match exact(-others, currency) {
+            Ok(expected) => {
+                prop_assert_eq!(remainder, Ok(expected));
+                parts[open].amount = expected;
+                let date = Date::new(2026, 10, 19).expect("valid date");
+                let transaction = Transaction::new(TransactionId::generate(), date, None, parts);
+                prop_assert!(transaction.is_ok(), "{:?}", transaction);
+            }
+            Err(_) => prop_assert_eq!(remainder, Err(TransactionError::Overflow)),
+        }
     }
 
     #[test]

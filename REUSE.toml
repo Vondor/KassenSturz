@@ -17,6 +17,7 @@ SPDX-License-Identifier = "CC-BY-SA-4.0"
 # so the Markdown templates under .github/ are CC0-1.0 too.
 [[annotations]]
 path = [
+  ".gitattributes",
   ".gitignore",
   "CODEOWNERS",
   ".github/**",
@@ -38,3 +39,11 @@ SPDX-License-Identifier = "CC0-1.0"
 path = [".github/workflows/**"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "GPL-3.0-or-later"
+
+# Synthetic test files for the importers' golden-file tests and what they
+# must give: made-up data in the formats of banks and other programs, which
+# can't carry a header of their own (AGENTS.md §9, D-091).
+[[annotations]]
+path = ["crates/kassensturz-import/tests/golden/**"]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC0-1.0"

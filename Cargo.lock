@@ -585,6 +585,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "kassensturz-import"
+version = "0.0.0"
+dependencies = [
+ "kassensturz-core",
+ "proptest",
+]
+
+[[package]]
 name = "kassensturz-store"
 version = "0.0.0"
 dependencies = [

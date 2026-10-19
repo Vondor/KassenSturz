@@ -1,6 +1,6 @@
 # Error codes
 
-KassenSturz's Rust crates never produce user-facing text (D-034). Every error in `kassensturz-core` and `kassensturz-store` turns into an error report (`kassensturz_core::ErrorReport`, through the `Report` trait):
+KassenSturz's Rust crates never produce user-facing text (D-034). Every error in `kassensturz-core`, `kassensturz-store` and `kassensturz-import` turns into an error report (`kassensturz_core::ErrorReport`, through the `Report` trait):
 
 - a **code**, such as `store.account-closed`;
 - named, typed **parameters**, such as the account that is closed;
@@ -10,12 +10,12 @@ The UI keeps one translated message per code and fills in the parameters (D-084)
 
 The app's own checks of what the user typed, e.g. an amount in the wrong regional format, aren't errors of core or store: their codes start with `input.`, they live in `kassensturz-ui-bridge` and aren't listed here (D-089).
 
-This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code, so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
+This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, both with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
 
 ## Rules
 
 - **Codes are stable.** A code keeps its meaning. One that is no longer needed is retired, never given to another error. Before 0.1, codes can still change, like the book's layout (D-045).
-- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core) or `store`. Damage found in a book starts with `store.corrupt`.
+- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store` or `import`. Damage found in a book starts with `store.corrupt`.
 - **Parameters** are listed in the order the report gives them. A name ending in `?` is optional: the report leaves it out when it isn't known.
 - **Parameter types** (`ErrorParam`):
   - Amounts (`Money`), currencies, dates and timestamps stay typed. The UI formats them for the user's locale (D-002, D-065) and shows timestamps in the user's time zone.
@@ -155,3 +155,21 @@ Data in the book breaks one of KassenSturz's rules, for example because another 
 | `store.corrupt.bad-rule` | `rule` | | {rule} or one of its conditions has values that don't fit together. |
 | `store.corrupt.bad-rule-tree` | `rule` | | {rule} sits in the wrong place in the list of Rules. |
 | `store.corrupt.history-mismatch` | | | The change history doesn't fit what is in the book, e.g. because another program changed the book, so the change can't be undone or redone. Nothing was changed; Clean up history removes the history that doesn't fit. |
+
+## Importing files (`kassensturz-import`)
+
+A file from a bank or another program couldn't be read (D-091). Nothing was imported, so the book is unchanged. Where a code has `line?`, it is the line of the file the problem is on, counted from 1, if the importer knows it; the UI adds "on line {line}" to the message. Text in `found` is what the file says, shown as data (AGENTS.md §8).
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `import.io` | `kind` | `not-found`, `permission-denied`, `is-a-directory`, `other` | The file couldn't be read. Not found: it was moved or removed. Permission denied: choose a file you may read. Is a directory: choose a file inside the folder. Nothing was imported. |
+| `import.file-too-large` | `max_bytes` | | The file is larger than {max_bytes}, too large to be a statement or a book KassenSturz can read safely. Check that it's the right file. Nothing was imported. |
+| `import.too-deeply-nested` | `max`, `line?` | | The file nests more than {max} levels deep, which no bank file does. It may be damaged. Download it again. Nothing was imported. |
+| `import.too-many-entries` | `max` | | The file has more than {max} entries. Download a shorter period and import each part. Nothing was imported. |
+| `import.text-too-long` | `max_bytes`, `line?` | | A text in the file is longer than {max_bytes}, which no bank file has. It may be damaged. Download it again. Nothing was imported. |
+| `import.malformed` | `line?` | | The file isn't in the format chosen, or it is damaged. Check the format, or download the file again. Nothing was imported. |
+| `import.bad-amount` | `found`, `line?` | | {found} should be an amount, but it isn't one KassenSturz can read. Check the format, or download the file again. Nothing was imported. |
+| `import.too-many-decimal-places` | `found`, `currency`, `line?` | | The amount {found} has more decimal places than {currency} has. KassenSturz never rounds what a bank delivered, so nothing was imported. Check the file's currency. |
+| `import.amount-too-large` | `found`, `line?` | | The amount {found} is too large for KassenSturz to work with. The file may be damaged. Nothing was imported. |
+| `import.unknown-currency` | `currency`, `line?` | | The file uses the currency {currency}, which KassenSturz doesn't know. Nothing was imported. |
+| `import.currency-mismatch` | `expected`, `found` | | The file has an amount in {found} in a statement for an account in {expected}, so its entries can't be added up. Nothing was imported. |

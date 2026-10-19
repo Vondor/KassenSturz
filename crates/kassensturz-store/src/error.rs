@@ -477,4 +477,6 @@ fn io_keyword(kind: ErrorKind) -> &'static str {
 }
 
 #[cfg(test)]
+mod list;
+#[cfg(test)]
 mod tests;

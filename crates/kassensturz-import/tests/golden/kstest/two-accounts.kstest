@@ -1,0 +1,6 @@
+KSTEST
+account;DE89370400440532013000;;EUR
+entry;booked;2026-10-01;;-1.00;KS-1;;;
+account;GB29NWBK60161331926819;;GBP
+opening;2026-09-30;-300.00
+entry;booked;2026-10-01;;12.34;KS-2;;;

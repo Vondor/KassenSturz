@@ -35,6 +35,9 @@ mod ffi {
         #[cxx_name = "groupDigits"]
         fn group_digits(value: u64) -> QString;
 
+        #[cxx_name = "groupSeparator"]
+        fn group_separator() -> QString;
+
         #[cxx_name = "currencyPrefix"]
         fn currency_prefix(negative: bool, symbol: &QString) -> QString;
 
@@ -43,6 +46,11 @@ mod ffi {
 
         #[cxx_name = "shortDate"]
         fn short_date(year: i32, month: i32, day: i32) -> QString;
+
+        #[cxx_name = "readShortDate"]
+        fn read_short_date(text: &QString) -> QString;
+
+        fn today() -> QString;
 
         #[cxx_name = "setDefaultLocale"]
         fn set_default_locale(name: &QString);
@@ -60,6 +68,11 @@ impl QtLocale {
     )]
     pub fn set_default(name: &str) {
         ffi::set_default_locale(&ffi::QString::from(name));
+    }
+
+    /// The locale's own currency, e.g. EUR in Germany, if it has one.
+    pub fn currency() -> Option<CurrencyCode> {
+        CurrencyCode::new(&ffi::currency_iso_code().to_string()).ok()
     }
 }
 
@@ -90,9 +103,32 @@ impl Locale for QtLocale {
         ffi::group_digits(value).to_string()
     }
 
+    fn group_separator(&self) -> String {
+        ffi::group_separator().to_string()
+    }
+
     fn short_date(&self, date: Date) -> String {
         let (year, month, day) = (date.year(), date.month(), date.day());
         ffi::short_date(year.into(), month.into(), day.into()).to_string()
+    }
+
+    fn read_date(&self, text: &str) -> Option<Date> {
+        if let Ok(date) = text.trim().parse() {
+            return Some(date);
+        }
+        ffi::read_short_date(&ffi::QString::from(text))
+            .to_string()
+            .parse()
+            .ok()
+    }
+
+    fn today(&self) -> Date {
+        // Qt always gives a valid date; the fallback only keeps a broken
+        // clock from stopping the app.
+        ffi::today()
+            .to_string()
+            .parse()
+            .unwrap_or(Date::constant(2026, 1, 1))
     }
 }
 
@@ -122,6 +158,11 @@ mod tests {
         assert_eq!(format(&locale, 1200, "USD"), "12,00\u{a0}USD");
         let date = Date::new(2026, 10, 5).expect("valid date");
         assert_eq!(locale.short_date(date), "05.10.2026");
+        assert_eq!(locale.group_separator(), ".");
+        assert_eq!(locale.read_date("05.10.2026"), Some(date));
+        assert_eq!(locale.read_date("5.10.26"), Some(date));
+        assert_eq!(locale.read_date("2026-10-05"), Some(date));
+        assert_eq!(locale.read_date("10/5/2026"), None);
 
         QtLocale::set_default("en_US");
         assert_eq!(format(&locale, 123_456, "USD"), "$1,234.56");
@@ -129,5 +170,8 @@ mod tests {
         assert_eq!(format(&locale, -5320, "USD"), "($53.20)");
         assert_eq!(format(&locale, 123_456, "EUR"), "EUR\u{a0}1,234.56");
         assert_eq!(locale.short_date(date), "10/5/2026");
+        assert_eq!(locale.read_date("10/5/2026"), Some(date));
+        assert_eq!(locale.read_date("10/5/26"), Some(date));
+        assert_eq!(locale.read_date("31/12/2026"), None);
     }
 }

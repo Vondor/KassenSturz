@@ -1,13 +1,11 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// The walking skeleton's window (D-068): one account's transactions from the
-// sample book. Amounts and dates arrive as finished text (D-065), so nothing
-// here calculates with them.
+// The first-run mock (M1.M, D-068): welcome, add an account, add a
+// transaction, see the overview. Amounts and dates arrive as finished text
+// and go back as typed text (D-065), so nothing here calculates with them.
 
 import QtQuick
-import QtQuick.Controls as Controls
-import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
 import io.github.vondor.kassensturz
@@ -27,82 +25,91 @@ Kirigami.ApplicationWindow {
 
     // The app's name; it isn't translated.
     title: "KassenSturz"
-    width: Kirigami.Units.gridUnit * 32
-    height: Kirigami.Units.gridUnit * 36
+    width: Kirigami.Units.gridUnit * 40
+    height: Kirigami.Units.gridUnit * 38
     minimumWidth: Kirigami.Units.gridUnit * 20
     minimumHeight: Kirigami.Units.gridUnit * 20
 
-    TransactionListModel {
-        id: transactions
+    FirstRunMock {
+        id: mockBook
     }
 
-    pageStack.initialPage: Kirigami.ScrollablePage {
-        title: transactions.accountName
+    // Made-up categories for trying the flow. The real default set comes with
+    // the first-run flow in M3 (D-029); like it, these are stored in the
+    // language the book is started in (D-067).
+    Component.onCompleted: mockBook.start([
+        i18nContext.i18nc("@item a spending category", "Groceries"),
+        i18nContext.i18nc("@item a spending category", "Rent"),
+        i18nContext.i18nc("@item a spending category", "Eating out"),
+        i18nContext.i18nc("@item a spending category", "Getting around"),
+        i18nContext.i18nc("@item a spending category", "Clothes"),
+        i18nContext.i18nc("@item a spending category", "Free time"),
+        i18nContext.i18nc("@item a spending category", "Other spending"),
+    ], [
+        i18nContext.i18nc("@item an income category", "Salary"),
+        i18nContext.i18nc("@item an income category", "Other income"),
+    ])
 
-        header: Kirigami.InlineMessage {
-            position: Kirigami.InlineMessage.Position.Header
-            type: Kirigami.MessageType.Information
-            visible: true
-            text: root.i18nContext.i18nc("@info", "This is sample data. Nothing you see here is saved.")
+    function addAccount(firstRun: bool) {
+        pageStack.push(accountPage, { firstRun: firstRun });
+    }
+
+    function addTransaction(firstRun: bool) {
+        if (firstRun) {
+            // The account is there now: going back to add it again would
+            // only add a second one, so the first-run steps are replaced.
+            pageStack.pop(pageStack.get(0));
+            pageStack.replace(transactionPage, { firstRun: true });
+        } else {
+            pageStack.push(transactionPage, { firstRun: false });
         }
+    }
 
-        footer: Controls.ToolBar {
-            contentItem: Controls.Label {
-                text: root.i18nContext.i18nc("@label %1 is an amount of money", "Balance: %1", transactions.balance)
-                font.bold: true
-                horizontalAlignment: Text.AlignRight
-            }
+    function showOverview() {
+        pageStack.replace(overviewPage);
+    }
+
+    // One page at a time, also in a wide window: the first start is a
+    // sequence of steps.
+    pageStack.columnView.columnResizeMode: Kirigami.ColumnView.SingleColumn
+    pageStack.initialPage: WelcomePage {
+        onAddAccountClicked: root.addAccount(true)
+    }
+
+    Component {
+        id: accountPage
+
+        AccountPage {
+            mock: mockBook
+            onAdded: firstRun ? root.addTransaction(true) : root.pageStack.pop()
         }
+    }
 
-        ListView {
-            model: transactions
-            reuseItems: true
+    Component {
+        id: transactionPage
 
-            delegate: Controls.ItemDelegate {
-                id: delegate
+        TransactionPage {
+            mock: mockBook
+            onDone: firstRun ? root.showOverview() : root.pageStack.pop()
+        }
+    }
 
-                required property string date
-                required property string otherParty
-                required property string amount
-                required property bool incoming
+    Component {
+        id: overviewPage
 
-                // Money that came in shows who it came from, money paid shows
-                // who it went to (D-034).
-                readonly property string otherPartyText: otherParty === ""
-                    ? ""
-                    : incoming
-                        ? root.i18nContext.i18nc("@label %1 is who the money came from", "From: %1", otherParty)
-                        : root.i18nContext.i18nc("@label %1 is who the money went to", "To: %1", otherParty)
+        OverviewPage {
+            mock: mockBook
+            onAddAccountClicked: root.addAccount(false)
+            onAddTransactionClicked: root.addTransaction(false)
+            onAccountClicked: index => root.pageStack.push(registerPage, { account: index })
+        }
+    }
 
-                width: ListView.view.width
-                Accessible.name: [otherPartyText, date, amount].filter(text => text !== "").join(", ")
+    Component {
+        id: registerPage
 
-                contentItem: RowLayout {
-                    spacing: Kirigami.Units.largeSpacing
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 0
-
-                        Controls.Label {
-                            Layout.fillWidth: true
-                            text: delegate.otherPartyText
-                            elide: Text.ElideRight
-                        }
-
-                        Controls.Label {
-                            Layout.fillWidth: true
-                            text: delegate.date
-                            font: Kirigami.Theme.smallFont
-                        }
-                    }
-
-                    Controls.Label {
-                        text: delegate.amount
-                        color: delegate.incoming ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.textColor
-                    }
-                }
-            }
+        RegisterPage {
+            mock: mockBook
         }
     }
 }

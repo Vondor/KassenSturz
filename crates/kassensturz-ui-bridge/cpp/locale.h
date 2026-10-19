@@ -31,6 +31,9 @@ QString currencySymbol();
 // German.
 QString groupDigits(std::uint64_t value);
 
+// What separates groups of digits, e.g. "." in German.
+QString groupSeparator();
+
 // The text before the digits of an amount written with `symbol`, e.g. "-" for
 // a negative amount in German, or "-€" in American English.
 QString currencyPrefix(bool negative, const QString &symbol);
@@ -41,6 +44,13 @@ QString currencySuffix(bool negative, const QString &symbol);
 
 // A date in the locale's short format, always with a four-digit year.
 QString shortDate(std::int32_t year, std::int32_t month, std::int32_t day);
+
+// A date typed in the locale's short format, with a four- or two-digit year,
+// as ISO 8601 ("2026-10-05"). Empty if the text isn't such a date.
+QString readShortDate(const QString &text);
+
+// Today's date on this computer, as ISO 8601.
+QString today();
 
 // Makes the locale `name` (e.g. "de_DE") the one used from now on.
 void setDefaultLocale(const QString &name);

@@ -362,12 +362,15 @@ fn changes_are_undone_in_the_order_they_were_made_whatever_the_clock_said() {
     book.rename_account(checking, "Main account")
         .expect("renamed");
     // As if this computer's clock had been a year ahead, or the next change
-    // had been made on a computer whose clock is behind.
+    // had been made on a computer whose clock is behind. A year from today,
+    // not a fixed date, which would one day be too old to be kept.
+    let ahead =
+        Timestamp::from_second(Timestamp::now().as_second() + 365 * 86_400).expect("a year ahead");
     book.conn
         .execute(
-            "UPDATE main.changes SET made_at = '2027-10-19T12:00:00Z'
+            "UPDATE main.changes SET made_at = ?1
              WHERE sequence = (SELECT max(sequence) FROM main.changes)",
-            [],
+            [ahead.to_string()],
         )
         .expect("time changed");
     book.rename_account(checking, "Everyday account")

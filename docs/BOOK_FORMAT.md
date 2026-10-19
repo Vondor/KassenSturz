@@ -2,13 +2,13 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029). Every change to the layout updates this document.
 
-**Status: development layout 5.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2) and layout 4 the type and closed flag of accounts (M1.4) and layout 5 the category tree (M1.5). Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds the change history (D-032, D-066) and much more.
+**Status: development layout 6.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2), layout 4 the type and closed flag of accounts (M1.4), layout 5 the category tree (M1.5) and layout 6 parts without a category, parts in another currency with their rates, and what a bank or file delivered (M1.6). Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds the change history (D-032, D-066) and much more.
 
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).
 - `PRAGMA application_id` is `0x4B535A42` (1263753794), the letters `KSZB` for KassenSturz book (D-037, D-080). KassenSturz reads it, and SQLite's header, from the file's first bytes before SQLite opens the file. Only a file with both is opened, so another program's SQLite file is never changed, not even its journal mode.
-- `PRAGMA user_version` holds the layout version: currently `5`.
+- `PRAGMA user_version` holds the layout version: currently `6`.
 - The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033). While the book is open, its [lock file](#the-lock-file) sits next to it.
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
 
@@ -66,23 +66,58 @@ Account names are never empty. No two accounts (kind `asset` or `liability`) sha
 | Column | Type | Meaning |
 |---|---|---|
 | `id` | BLOB (16 bytes), primary key | UUIDv7 |
-| `booking_date` | TEXT | ISO 8601 date the bank booked it, or the user entered (D-030) |
+| `booking_date` | TEXT | ISO 8601 date the transaction is shown with: the date the bank booked it, or the user entered. The user can change it; what the bank delivered is kept in [`split_imports`](#split_imports) (D-030, D-083) |
 | `payee` | TEXT, may be NULL | Who the money came from or went to, as the user wants it shown |
-| `currency` | TEXT → `currencies.code` | The currency all its parts are in |
+| `currency` | TEXT → `currencies.code` | The currency the transaction counts in: the `amount` of every part is in it |
 
 ### `splits`
 
-The parts of each transaction (shown to users as "Parts", D-017). A transaction's parts add up to exactly zero; KassenSturz checks this when it writes a transaction and again when it reads one.
+The parts of each transaction (shown to users as "Parts", D-017). A transaction's parts add up to exactly zero in its currency; KassenSturz checks this when it writes a transaction and again when it reads one.
 
 | Column | Type | Meaning |
 |---|---|---|
 | `id` | BLOB (16 bytes), primary key | UUIDv7 |
 | `transaction_id` | BLOB → `transactions.id` | The transaction; deleting it deletes its parts |
 | `position` | INTEGER, from 0 | The order the parts were entered in; unique per transaction |
-| `account_id` | BLOB → `accounts.id` | The account or category the amount is booked to |
-| `amount` | INTEGER | Minor units in the transaction's currency, which in layout 1 is also the account's currency |
+| `account_id` | BLOB → `accounts.id`, may be NULL | The account or category the amount is booked to. NULL for a part that has no category yet, e.g. what an imported purchase was for until a Rule or the user picks one (D-017, D-083) |
+| `amount` | INTEGER | Minor units in the transaction's currency |
+| `foreign_amount` | INTEGER, may be NULL | For a part booked to an account in another currency than the transaction's: its amount in minor units of that currency, e.g. `10856` for 108.56 USD in a transaction in euros (D-043). It has the same sign as `amount`, unless one of them is zero. NULL otherwise |
+| `foreign_currency` | TEXT → `currencies.code`, may be NULL | The currency of `foreign_amount`: the account's currency, never the transaction's. Set exactly when `foreign_amount` is |
+
+A part with a `foreign_amount` always has an `account_id`. Every part is in its account's currency: `foreign_currency` if it has one, otherwise the transaction's currency. KassenSturz checks this, not the database.
 
 Index: `splits_by_account` on `splits (account_id)`, for an account's register and balance.
+
+### `split_rates`
+
+The exchange rate a part in another currency was converted with, when one amount was calculated from the other with a rate from the [price table](#prices) (D-043). It is a copy: the part keeps it when the rate in the price table is changed or removed. A part whose two amounts were both given, e.g. by the bank or the user, has no row here: their ratio is the rate.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `split_id` | BLOB → `splits.id`, primary key | The part; deleting it deletes this row |
+| `rate_id` | BLOB (16 bytes) | The ID the rate had in the price table. It may no longer be there |
+| `date` | TEXT | The ISO 8601 date the rate applies to |
+| `from_currency` | TEXT → `currencies.code` | As in `prices` |
+| `to_currency` | TEXT → `currencies.code` | As in `prices`. The two currencies are the part's two currencies, in either order |
+| `rate_digits` | INTEGER, 1 to 999999999999999999 | As in `prices` |
+| `rate_decimal_places` | INTEGER, 0–18 | As in `prices` |
+| `source` | TEXT | As in `prices`: `manual` |
+
+KassenSturz converts with the newest rate on or before the date it converts for, usually the transaction's, in either direction, multiplying by a rate from the amount's currency and dividing by one the other way; on a day with a rate in each direction, the one from the amount's currency counts. It rounds once, in the book's rounding mode (D-027, D-083).
+
+### `split_imports`
+
+What a bank or file delivered for a part, exactly as received (D-067). Only a part booked to the account the statement is for has a row, so a Transfer matched from two statements keeps what both delivered (D-021). The user can't change it, nor that part's account and amount.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `split_id` | BLOB → `splits.id`, primary key | The part; deleting it deletes this row. Its `account_id` is never NULL |
+| `bank_id` | TEXT, may be NULL | The bank's own ID for this entry of the statement, used to recognize it when it's delivered again (D-030) |
+| `booking_date` | TEXT, may be NULL | The ISO 8601 date the bank booked it |
+| `value_date` | TEXT, may be NULL | The ISO 8601 date the money counts from or until, for interest (German: Wertstellung, D-030) |
+| `other_party_name` | TEXT, may be NULL | Who paid, or who was paid |
+| `other_party_iban` | TEXT, may be NULL | Their IBAN, or whatever account number the bank gave. Not checked |
+| `remittance_information` | TEXT, may be NULL | The text the payment came with (German: Verwendungszweck) |
 
 ### `prices`
 
@@ -102,7 +137,7 @@ One unit of `from_currency` costs `rate_digits` × 10^−`rate_decimal_places` u
 
 ## Reading a book
 
-An account's balance is the sum of `splits.amount` for its `account_id`. Its register joins `splits` with `transactions` and orders by `booking_date`, then `id`. Add amounts in 64-bit integers or wider, never as floating point. The rate from one currency into another on a day is the row with the latest `date` on or before that day.
+An account's balance is the sum of its parts' amounts in its currency, `coalesce(foreign_amount, amount)` for its `account_id`. Its register joins `splits` with `transactions` and orders by `booking_date`, then `id`. Add amounts in 64-bit integers or wider, never as floating point. Parts with a NULL `account_id` count in no account's balance; they are the amounts that have no category yet. The rate from one currency into another on a day is the row with the latest `date` on or before that day.
 
 ## Migrations
 

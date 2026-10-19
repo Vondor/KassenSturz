@@ -2,13 +2,14 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029). Every change to the layout updates this document.
 
-**Status: development layout 3.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1) and layout 3 the price table (M1.2). Books with an earlier layout are turned away. Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds the application ID (D-037), backups (D-033), the lock file (D-038), the change history (D-032, D-066) and much more.
+**Status: development layout 3.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1) and layout 3 the price table (M1.2). Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds the change history (D-032, D-066) and much more.
 
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).
-- `PRAGMA user_version` holds the layout version: currently `3`. A file with `0` isn't treated as a book.
-- The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033).
+- `PRAGMA application_id` is `0x4B535A42` (1263753794), the letters `KSZB` for KassenSturz book (D-037, D-080). KassenSturz reads it, and SQLite's header, from the file's first bytes before SQLite opens the file. Only a file with both is opened, so another program's SQLite file is never changed, not even its journal mode.
+- `PRAGMA user_version` holds the layout version: currently `3`.
+- The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033). While the book is open, its [lock file](#the-lock-file) sits next to it.
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
 
 ## Conventions
@@ -93,3 +94,27 @@ One unit of `from_currency` costs `rate_digits` × 10^−`rate_decimal_places` u
 ## Reading a book
 
 An account's balance is the sum of `splits.amount` for its `account_id`. Its register joins `splits` with `transactions` and orders by `booking_date`, then `id`. Add amounts in 64-bit integers or wider, never as floating point. The rate from one currency into another on a day is the row with the latest `date` on or before that day.
+
+## Migrations
+
+Every book is built by the same migrations, oldest first: a new book runs all of them on an empty database, and a book with an older layout runs the ones it lacks (D-045). They run in one transaction, which also sets the application ID and `user_version`, so an update either finishes or leaves the book exactly as it was. Foreign keys are off while they run, so a migration can rebuild a table without deleting the rows that refer to it; every reference is checked before the transaction is committed. A book is updated only after a [backup](#backups) of it was made (AGENTS.md §3.1 rule 8). A book with a newer layout, or with a layout older than the first migration KassenSturz still has, is turned away.
+
+## Backups
+
+Before a migration, KassenSturz copies the whole book into a folder in its own data folder (D-033), with SQLite's `VACUUM INTO`. A backup is itself a book, at the old layout, so restoring one means opening it (D-037).
+
+- **Name:** the book's name and the time in UTC, e.g. `Household 2026-10-19 11-04-02 UTC.ksz` for `Household.ksz`. A second backup in the same second is `Household 2026-10-19 11-04-02 UTC 2.ksz`, then `… 3.ksz`, so a backup never replaces another.
+- **Complete or not there:** the copy is written as `<name>.partial`, synced to the disk and then renamed. If making it fails, the book isn't updated. A `.partial` file left behind by a crash is an incomplete copy and can be deleted.
+- **Kept:** the last 10 backups of each book name. Making a new one removes the oldest beyond that, never the new one, and leaves every other file alone. Books with the same name in different folders share these 10 (D-080).
+
+## The lock file
+
+While a book is open, a lock file sits next to it: the book's file name plus `.lock`, e.g. `Household.ksz.lock` (D-038). Sync tools carry it to the other computers along with the book, so they can tell that the book is open. It is UTF-8 text, one `key=value` per line:
+
+| Key | Value |
+|---|---|
+| `computer` | The name of the computer the book is open on: one line of at most 255 characters |
+| `since` | When it was opened there: ISO 8601 in UTC, in whole seconds, e.g. `2026-10-19T11:04:02Z` |
+| `token` | A UUIDv7 that tells this lock apart from any other |
+
+KassenSturz creates the lock file only if there is none, and removes it when it closes the book, but only while it still holds its own token. Any lock file, even an empty or damaged one, means the book is open somewhere. After a warning, the user can open the book anyway: KassenSturz then replaces the lock file, but only if it is still exactly the one the user was warned about (D-080). A program that reads books can use the lock file to tell whether a book is open somewhere.

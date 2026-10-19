@@ -14,11 +14,13 @@ mod account;
 mod currency;
 mod id;
 mod money;
+mod rounding;
 mod transaction;
 
 pub use account::{Account, AccountId, AccountKind};
 pub use currency::{CurrencyCode, CurrencyCodeError};
 pub use money::{Money, MoneyError};
+pub use rounding::RoundingMode;
 pub use transaction::{Split, SplitId, Transaction, TransactionError, TransactionId};
 
 /// A calendar date without time or time zone, used for booking dates

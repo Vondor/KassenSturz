@@ -8,7 +8,8 @@ kassensturz/
 ├── Cargo.toml                      # workspace root
 ├── crates/
 │   ├── kassensturz-core/           # domain model + logic; no UI, no I/O specifics
-│   │   ├── money                   # 64-bit integer minor units + ISO 4217, rounding modes (D-027)
+│   │   ├── money                   # 64-bit integer minor units + ISO 4217 code; amount × ratio, rounded once (D-027)
+│   │   ├── rounding                # rounding modes; the book stores which one it uses (D-027, D-078)
 │   │   ├── account                 # accounts (incl. credit cards), categories, payees
 │   │   ├── transaction             # double-entry transactions + splits, booking and value date
 │   │   ├── currency                # ISO 4217 codes and KassenSturz's own ISO 4217 table, read from data/ (D-062, D-077); exchange rates, prices

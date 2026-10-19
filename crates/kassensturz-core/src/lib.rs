@@ -30,3 +30,7 @@ pub use transaction::{Split, SplitId, Transaction, TransactionError, Transaction
 /// A calendar date without time or time zone, used for booking dates
 /// (AGENTS.md §5, D-061).
 pub use jiff::civil::Date;
+
+/// A moment in time, kept in UTC, e.g. since when a book is open on another
+/// computer (D-038). The UI shows it in the user's time zone.
+pub use jiff::Timestamp;

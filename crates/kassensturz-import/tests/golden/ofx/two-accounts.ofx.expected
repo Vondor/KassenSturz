@@ -1,0 +1,31 @@
+recognized: yes
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: -
+  closing balance: 90.00 EUR on 2026-10-31
+  entry 1
+    status: booked
+    bank id: "A-1"
+    booking date: 2026-10-02
+    value date: -
+    amount: -10.00 EUR
+    other party name: "Shop One"
+    other party iban: -
+    remittance information: -
+statement 2
+  account iban: "GB82WEST12345698765432"
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: -
+  closing balance: 120.00 EUR on 2026-10-31
+  entry 1
+    status: booked
+    bank id: "B-1"
+    booking date: 2026-10-03
+    value date: -
+    amount: 20.00 EUR
+    other party name: "Shop Two"
+    other party iban: -
+    remittance information: -

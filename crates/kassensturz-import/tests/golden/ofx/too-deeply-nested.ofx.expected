@@ -1,0 +1,4 @@
+recognized: yes
+error: import.too-deeply-nested
+  max: 64
+  line: 97

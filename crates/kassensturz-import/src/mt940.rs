@@ -500,7 +500,7 @@ fn parse_mt940_amount(
 /// Whether `text` looks like an IBAN: two capital letters, two digits and
 /// 11 to 30 capital letters or digits. The check digits are not tested; the
 /// file's text is passed on as delivered (D-067).
-fn looks_like_iban(text: &str) -> bool {
+pub(crate) fn looks_like_iban(text: &str) -> bool {
     let bytes = text.as_bytes();
     (15..=34).contains(&bytes.len())
         && bytes[..2].iter().all(u8::is_ascii_uppercase)
@@ -511,7 +511,7 @@ fn looks_like_iban(text: &str) -> bool {
 }
 
 /// `text`, or none if it is empty or only spaces (D-095).
-fn some_text(text: &str) -> Option<String> {
+pub(crate) fn some_text(text: &str) -> Option<String> {
     (!text.trim().is_empty()).then(|| text.to_owned())
 }
 

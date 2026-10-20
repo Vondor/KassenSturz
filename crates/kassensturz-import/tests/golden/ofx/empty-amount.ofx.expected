@@ -1,0 +1,4 @@
+recognized: yes
+error: import.bad-amount
+  found: ""
+  line: 26

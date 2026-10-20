@@ -10,9 +10,14 @@
 mod files;
 mod harness;
 
-use kassensturz_import::TestFormat;
+use kassensturz_import::{Camt053, TestFormat};
 
 #[test]
 fn golden_test_format() {
     harness::check_folder(&TestFormat);
+}
+
+#[test]
+fn golden_camt053() {
+    harness::check_folder(&Camt053);
 }

@@ -918,6 +918,97 @@ fn a_statement_file_is_imported_once_and_undone_as_a_whole() {
     assert_eq!(register(), before);
 }
 
+/// A CAMT.053 statement for the example IBAN, in this session's folder.
+fn camt053_file(session: &Session, name: &str, entries: &str) -> String {
+    let path = session.0.join(name);
+    let xml = format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+         <Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.053.001.02\"><BkToCstmrStmt><Stmt>\
+         <Acct><Id><IBAN>DE89370400440532013000</IBAN></Id><Ccy>EUR</Ccy></Acct>{entries}\
+         </Stmt></BkToCstmrStmt></Document>"
+    );
+    std::fs::write(&path, xml).expect("file written");
+    path.display().to_string()
+}
+
+#[test]
+fn a_camt053_file_goes_through_the_whole_pipeline() {
+    let session = household();
+    let entry = |amount: &str, indicator: &str, status: &str, reference: &str, name: &str| {
+        format!(
+            "<Ntry><Amt Ccy=\"EUR\">{amount}</Amt><CdtDbtInd>{indicator}</CdtDbtInd>\
+             <Sts>{status}</Sts><BookgDt><Dt>2026-10-05</Dt></BookgDt>\
+             <AcctSvcrRef>{reference}</AcctSvcrRef><NtryDtls><TxDtls><RltdPties>\
+             <Cdtr><Nm>{name}</Nm></Cdtr><Dbtr><Nm>{name}</Nm></Dbtr></RltdPties>\
+             </TxDtls></NtryDtls></Ntry>"
+        )
+    };
+    let entries = [
+        entry("53.20", "DBIT", "BOOK", "C1", "REWE Markt"),
+        entry("9.99", "DBIT", "PDNG", "C2", "Kiosk"),
+        entry("1500.00", "CRDT", "BOOK", "C3", "Example Employer"),
+    ]
+    .concat();
+    // The wrong closing balance shows that the check reads the file's.
+    let closing = "<Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp><Amt Ccy=\"EUR\">1.00</Amt>\
+                   <CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-10-31</Dt></Dt></Bal>";
+    let file = camt053_file(&session, "october.xml", &format!("{closing}{entries}"));
+    let register = || {
+        session
+            .ok(&["register", "Checking account"])
+            .lines()
+            .count()
+    };
+    let before = register();
+    // The format is recognized by the file's namespace.
+    let imported = session.ok(&["import", &file, "--account", "Checking account"]);
+    assert!(
+        imported.starts_with("Imported 2 of 3 entries into Checking account.\n"),
+        "{imported}"
+    );
+    assert!(
+        imported.contains("Left out 1 the bank hasn't booked yet: 1.2.\n"),
+        "{imported}"
+    );
+    assert!(
+        imported.contains("The balance on 2026-10-31 is ")
+            && imported.contains("but the bank says 1.00 EUR."),
+        "{imported}"
+    );
+    assert_eq!(register(), before + 2);
+    // The bank's references recognize the entries the second time.
+    let again = session.ok(&["import", &file, "--account", "Checking account"]);
+    assert!(
+        again.contains("Skipped 2 already in the book: 1.1, 1.3.\n"),
+        "{again}"
+    );
+    assert_eq!(register(), before + 2);
+    // Importing nothing new changed nothing, so one undo takes it all back.
+    assert_eq!(
+        session.ok(&["undo"]),
+        "Undid the change: imported a statement.\n"
+    );
+    assert_eq!(register(), before);
+    // A file that isn't CAMT.053 says so, and the format can be named.
+    let csv = session.0.join("bank.csv");
+    std::fs::write(&csv, "Date;Amount\n2026-10-01;1,00\n").expect("file written");
+    let csv = csv.display().to_string();
+    let refused = session.cli(&[
+        "import",
+        &csv,
+        "--account",
+        "Checking account",
+        "--format",
+        "camt053",
+    ]);
+    assert_eq!(refused.status, 1);
+    assert!(
+        refused.err.starts_with("error: import.malformed\n"),
+        "{}",
+        refused.err
+    );
+}
+
 #[test]
 fn statement_files_that_do_not_fit_are_refused() {
     let session = household();

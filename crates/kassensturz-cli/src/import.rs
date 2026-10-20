@@ -10,8 +10,8 @@ use std::path::Path;
 
 use kassensturz_core::{Report, TransactionId};
 use kassensturz_import::{
-    Imported, Importer, Limits, RECOGNITION_BYTES, Recognition, Statement, TestFormat, import,
-    read_file,
+    Camt053, Imported, Importer, Limits, RECOGNITION_BYTES, Recognition, Statement, TestFormat,
+    import, read_file,
 };
 use kassensturz_pipeline::{
     Choices, EntryOutcome, EntryRef, ImportReport, import_statements, preview_import,
@@ -24,9 +24,9 @@ use crate::error::CliError;
 use crate::lookup::{find_account, short_id};
 use crate::text::{plain, table};
 
-/// The formats the tool reads: only the made-up test format so far. The
-/// real ones come in M2.3 to M2.10.
-const IMPORTERS: &[&dyn Importer] = &[&TestFormat];
+/// The formats the tool reads: CAMT.053 and the made-up test format so far.
+/// The other real ones come in M2.4 to M2.10.
+const IMPORTERS: &[&dyn Importer] = &[&Camt053, &TestFormat];
 
 /// `import FILE --account NAME`.
 pub(crate) fn import_file(

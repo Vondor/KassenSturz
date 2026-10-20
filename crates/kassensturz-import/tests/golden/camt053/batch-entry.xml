@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+  <BkToCstmrStmt>
+    <Stmt>
+      <Acct>
+        <Id><IBAN>DE89370400440532013000</IBAN></Id>
+        <Ccy>EUR</Ccy>
+      </Acct>
+      <Ntry>
+        <Amt Ccy="EUR">150.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-20</Dt></BookgDt>
+        <AcctSvcrRef>BATCH-1</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Example Landlord</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>AT611904300234573201</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Rent part one</Ustrd></RmtInf>
+          </TxDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Example Landlord</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>AT611904300234573201</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Rent part two</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">80.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-21</Dt></BookgDt>
+        <AcctSvcrRef>BATCH-2</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Example Plumber</Nm></Cdtr>
+            </RltdPties>
+            <RmtInf><Ustrd>Invoice 1</Ustrd></RmtInf>
+          </TxDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Example Electrician</Nm></Cdtr>
+            </RltdPties>
+            <RmtInf><Ustrd>Invoice 2</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

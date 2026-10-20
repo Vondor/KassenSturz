@@ -1,0 +1,25 @@
+recognized: yes
+statement 1
+  account iban: -
+  account number: "4000-0000-0000-0002"
+  currency: EUR with 2 decimal places
+  opening balance: -310.40 EUR on 2026-09-30
+  closing balance: -345.65 EUR on 2026-10-31
+  entry 1
+    status: booked
+    bank id: "CARD-0001"
+    booking date: 2026-10-12
+    value date: 2026-10-13
+    amount: -35.25 EUR
+    other party name: "Example Bookshop"
+    other party iban: "SHOP-4711"
+    remittance information: "RF18539007547034"
+  entry 2
+    status: pending
+    bank id: "CARD-0002-TX"
+    booking date: 2026-10-14
+    value date: -
+    amount: 0.00 EUR
+    other party name: -
+    other party iban: -
+    remittance information: -

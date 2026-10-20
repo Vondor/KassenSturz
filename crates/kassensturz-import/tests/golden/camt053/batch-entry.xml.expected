@@ -1,0 +1,25 @@
+recognized: yes
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: -
+  closing balance: -
+  entry 1
+    status: booked
+    bank id: "BATCH-1"
+    booking date: 2026-10-20
+    value date: -
+    amount: -150.00 EUR
+    other party name: "Example Landlord"
+    other party iban: "AT611904300234573201"
+    remittance information: "Rent part one\nRent part two"
+  entry 2
+    status: booked
+    bank id: "BATCH-2"
+    booking date: 2026-10-21
+    value date: -
+    amount: -80.00 EUR
+    other party name: -
+    other party iban: -
+    remittance information: "Invoice 1\nInvoice 2"

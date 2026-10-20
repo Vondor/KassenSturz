@@ -21,13 +21,14 @@
 //! ([`ImportError`], D-034, D-084), like everywhere else in KassenSturz.
 //!
 //! [`TestFormat`] is a made-up format for tests and the command-line tool;
-//! the real formats come in M2.3 to M2.10.
+//! the real formats come in M2.3 to M2.10: CAMT.053 is [`Camt053`].
 //!
 //! This crate depends only on `kassensturz-core` (`docs/ARCHITECTURE.md`).
 
 #![forbid(unsafe_code)]
 
 mod amount;
+mod camt053;
 mod check;
 mod error;
 mod importer;
@@ -36,6 +37,7 @@ mod statement;
 mod test_format;
 
 pub use amount::{DecimalMark, currency, parse_amount};
+pub use camt053::Camt053;
 pub use error::ImportError;
 pub use importer::{
     ImportKind, Imported, Importer, ImporterInfo, RECOGNITION_BYTES, Recognition, import,

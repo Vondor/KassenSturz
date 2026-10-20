@@ -179,8 +179,9 @@ Commands:
                                  against the bank's. A file with statements
                                  for several accounts needs --statement N.
                                  --dry-run only shows what would happen.
-                                 The only format yet is kstest, made up for
-                                 testing
+                                 The formats yet are camt053 (the XML
+                                 statement of most European banks) and
+                                 kstest, made up for testing
   undo                           undo the last change, also one made by an
                                  earlier command
   redo                           make the change undone last again

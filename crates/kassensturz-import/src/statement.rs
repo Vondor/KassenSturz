@@ -50,6 +50,10 @@ pub struct StatementAccount {
 
 /// A balance the bank reported: how much was in the account at the end of a
 /// day. Money the user owes, such as a credit card's debt, is negative.
+///
+/// The date is the one the file gives. For an opening balance that is the
+/// day the file dates it with, which in CAMT.053 is the first day of the
+/// period, so the amount is the one before that day's entries (Q-053).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Balance {
     /// The amount, in the statement's currency.

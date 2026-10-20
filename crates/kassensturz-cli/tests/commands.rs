@@ -1768,3 +1768,145 @@ fn the_program_reads_the_book_from_the_environment() {
     assert!(String::from_utf8_lossy(&failed.stderr).starts_with("error: no transaction"));
     assert!(Path::new(&session.book()).exists());
 }
+
+#[test]
+fn transactions_are_exported_as_csv_into_a_new_file() {
+    let session = household();
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-01",
+        "--account",
+        "Checking account",
+        "--amount",
+        "2500.00",
+        "--payee",
+        "Employer",
+        "--category",
+        "Salary",
+    ]);
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-05",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-12.50",
+        "--payee",
+        "=HYPERLINK(\"x\")",
+        "--category",
+        "Food/Groceries",
+    ]);
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-06",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-300.00",
+        "--to",
+        "Savings",
+    ]);
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-07",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-40.00",
+        "--payee",
+        "Market",
+        "--part",
+        "Food/Groceries=-25.00",
+        "--part",
+        "Home/Other=",
+    ]);
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-08",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-1.00",
+        "--payee",
+        "Kiosk",
+    ]);
+
+    // All accounts, closed ones too, in the order of the list.
+    let file = session.0.join("all.csv");
+    let file_text = file.display().to_string();
+    let said = session.ok(&["export", &file_text]);
+    assert_eq!(
+        said,
+        format!("Exported 6 transactions of 2 accounts to {file_text} as csv.\n")
+    );
+    let csv = std::fs::read_to_string(&file).expect("file written");
+    assert_eq!(
+        csv,
+        "date,account,payee,category,transfer,memo,amount,currency,parts\r\n\
+         2026-10-01,Checking account,Employer,Salary,,,2500.00,EUR,\r\n\
+         2026-10-05,Checking account,\"'=HYPERLINK(\"\"x\"\")\",Food/Groceries,,,-12.50,EUR,\r\n\
+         2026-10-06,Checking account,,,Savings,,-300.00,EUR,\r\n\
+         2026-10-07,Checking account,Market,,,,-40.00,EUR,2\r\n\
+         2026-10-08,Checking account,Kiosk,,,,-1.00,EUR,\r\n\
+         2026-10-06,Savings,,,Checking account,,300.00,EUR,\r\n"
+    );
+
+    // One account, with Excel-friendly settings.
+    let one = session.0.join("savings.csv");
+    let one_text = one.display().to_string();
+    session.ok(&[
+        "export",
+        &one_text,
+        "--account",
+        "savings",
+        "--separator",
+        "semicolon",
+        "--decimal-mark",
+        "comma",
+        "--byte-order-mark",
+        "--no-header",
+    ]);
+    assert_eq!(
+        std::fs::read(&one).expect("file written"),
+        "\u{feff}2026-10-06;Savings;;;Checking account;;300,00;EUR;\r\n".as_bytes()
+    );
+
+    // A file is never overwritten.
+    let again = session.cli(&["export", &file_text]);
+    assert_eq!(again.status, 1);
+    assert_eq!(again.err, "error: export.already-exists\n");
+    assert_eq!(std::fs::read_to_string(&file).expect("kept"), csv);
+
+    // Mistakes in the command, and a comma that is both separator and mark.
+    for (args, message) in [
+        (vec!["--format", "xml"], "`xml` isn't a format to export"),
+        (vec!["--separator", "pipe"], "`pipe` isn't a separator"),
+        (vec!["--decimal-mark", "dot"], "`dot` isn't a decimal mark"),
+    ] {
+        let target = session.0.join("never.csv").display().to_string();
+        let mut line = vec!["export", target.as_str()];
+        line.extend(args);
+        let refused = session.cli(&line);
+        assert_eq!(refused.status, 2, "{line:?}");
+        assert!(refused.err.contains(message), "{}", refused.err);
+        assert!(!session.0.join("never.csv").exists());
+    }
+    let target = session.0.join("never.csv").display().to_string();
+    let clash = session.cli(&["export", &target, "--decimal-mark", "comma"]);
+    assert_eq!(clash.status, 1);
+    assert_eq!(clash.err, "error: export.bad-settings\n");
+    let unknown = session.cli(&["export", &target, "--account", "Nowhere"]);
+    assert_eq!(unknown.status, 1);
+    assert!(unknown.err.contains("there is no account called `Nowhere`"));
+    assert!(!session.0.join("never.csv").exists());
+}

@@ -32,14 +32,19 @@
 //! command-line tool now, the app from M3, bank connections from M4), so
 //! none of them has to repeat the order.
 //!
-//! This crate depends on `kassensturz-core`, `kassensturz-import` and
-//! `kassensturz-store`, which may not depend on each other
-//! (`docs/ARCHITECTURE.md`).
+//! The other way round, [`export_transactions`] gathers a book's transactions
+//! for an exporter (`kassensturz-export`), so no front end has to repeat how
+//! a row's category or Transfer is found (D-099).
+//!
+//! This crate depends on `kassensturz-core`, `kassensturz-import`,
+//! `kassensturz-export` and `kassensturz-store`, which may not depend on
+//! each other (`docs/ARCHITECTURE.md`).
 
 #![forbid(unsafe_code)]
 
 mod entries;
 mod error;
+mod export;
 mod report;
 
 use std::collections::HashSet;
@@ -51,6 +56,7 @@ use kassensturz_store::{Action, Book, RuleRun, StoreError};
 use entries::{Decision, bank_date, decide};
 
 pub use error::PipelineError;
+pub use export::export_transactions;
 pub use report::{
     BalanceCheck, Duplicate, EntryOutcome, EntryRef, EntryResult, ImportReport, Summary,
 };

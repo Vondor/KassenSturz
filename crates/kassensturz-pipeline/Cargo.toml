@@ -3,7 +3,7 @@
 
 [package]
 name = "kassensturz-pipeline"
-description = "KassenSturz's import pipeline: bank statements into an account of a book, with the duplicate check, Transfer suggestions, Rules and the balance check."
+description = "KassenSturz's import pipeline: bank statements into an account of a book, with the duplicate check, Transfer suggestions, Rules and the balance check; and gathering a book's transactions for export."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -18,6 +18,7 @@ bundled-sqlite = ["kassensturz-store/bundled-sqlite"]
 
 [dependencies]
 kassensturz-core.workspace = true
+kassensturz-export.workspace = true
 kassensturz-import.workspace = true
 kassensturz-store.workspace = true
 

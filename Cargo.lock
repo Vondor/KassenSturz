@@ -569,6 +569,7 @@ name = "kassensturz-cli"
 version = "0.0.0"
 dependencies = [
  "kassensturz-core",
+ "kassensturz-export",
  "kassensturz-import",
  "kassensturz-pipeline",
  "kassensturz-store",
@@ -587,6 +588,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "kassensturz-export"
+version = "0.0.0"
+dependencies = [
+ "kassensturz-core",
+ "proptest",
+]
+
+[[package]]
 name = "kassensturz-import"
 version = "0.0.0"
 dependencies = [
@@ -600,6 +609,7 @@ name = "kassensturz-pipeline"
 version = "0.0.0"
 dependencies = [
  "kassensturz-core",
+ "kassensturz-export",
  "kassensturz-import",
  "kassensturz-store",
 ]

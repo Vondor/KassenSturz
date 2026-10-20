@@ -1,3 +1,5 @@
 # Golden files are compared byte for byte, and bank files' line endings are
-# part of their format, so Git never converts them (D-091).
+# part of their format, so Git never converts them (D-091). The same goes
+# for the exporters' golden files (D-099).
 crates/kassensturz-import/tests/golden/** -text
+crates/kassensturz-export/tests/golden/** -text

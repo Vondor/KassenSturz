@@ -116,12 +116,12 @@ kassensturz/
 
 ## Importers
 
-- Every format implements `kassensturz_import::Importer` (D-069, D-091): `info` (a stable ID such as `camt053`, what reading gives, the usual extensions), `recognize` (yes, maybe or no from the first 4096 bytes) and `read` (the file's bytes into `Imported` data). An importer only reads; it never sees a book. Settings a format needs, such as CSV columns, belong to the importer's own value.
+- Every format implements `kassensturz_import::Importer` (D-069, D-091): `info` (a stable ID such as `camt053`, what reading gives, the usual extensions), `recognize` (yes, maybe or no from the first 4096 bytes) and `read` (the file's bytes into `Imported` data). An importer only reads; it never sees a book. Settings a format needs, such as CSV columns, belong to the importer's own value. `Csv` is made from the user's `CsvSettings` (encoding, separator, decimal mark, date order, which column holds what) and the account's currency, and guesses nothing (D-095); the settings have a text form, `key = value` per line, for keeping them.
 - `Imported` holds bank statements (`Statement`: the account as the file names it, the currency with its decimal places, opening and closing balance, entries). A whole book from another program (KMyMoney, M2.9) becomes a second variant; both `Imported` and `ImportKind` are `#[non_exhaustive]`.
 - An `Entry` is booked or pending, with the bank's ID, booking date (always there), value date, amount as it changes the account, the other party's name and IBAN and the remittance information, all text as delivered (D-067).
 - Files are untrusted (AGENTS.md §8): front ends call `import` or `import_file`, which enforce `Limits` (size, nesting, entries, text length) and check what the importer returned, e.g. that every amount is in its statement's currency. Text is passed on only as data.
 - Amounts are read exactly by `parse_amount` (decimal point or comma, no rounding, AGENTS.md §3.1 rule 1).
-- Golden-file tests: `crates/kassensturz-import/tests/golden/<importer id>/` holds synthetic files, each with a `.expected` file of what importing it gives, written by `tests/import/harness.rs`; `KASSENSTURZ_BLESS=1 cargo test -p kassensturz-import --test import` writes them. A new importer adds one test to `tests/import/main.rs`.
+- Golden-file tests: `crates/kassensturz-import/tests/golden/<importer id>/` holds synthetic files, each with a `.expected` file of what importing it gives and, for an importer that needs settings (CSV), a `.settings` file it reads the file with, written by `tests/import/harness.rs`; `KASSENSTURZ_BLESS=1 cargo test -p kassensturz-import --test import` writes them. A new importer adds one test to `tests/import/main.rs`.
 
 ## Import pipeline
 

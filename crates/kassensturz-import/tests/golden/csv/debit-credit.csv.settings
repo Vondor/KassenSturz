@@ -1,0 +1,15 @@
+# An online bank: account details first, money out and in in two columns
+encoding = utf-8
+delimiter = ";"
+skip-lines = 4
+skip-last-lines = 1
+decimal-mark = comma
+date-order = day-month-year
+booking-date = "Buchungsdatum"
+value-date = "Wertstellung"
+debit = "Soll"
+credit = "Haben"
+other-party-name = "Zahlungsempfänger*in"
+other-party-iban = "IBAN"
+remittance-information = "Verwendungszweck"
+remittance-information = "Kundenreferenz"

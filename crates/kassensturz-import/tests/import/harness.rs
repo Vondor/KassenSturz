@@ -13,9 +13,10 @@
 //! KASSENSTURZ_BLESS=1 cargo test -p kassensturz-import --test import
 //! ```
 //!
-//! which writes the `.expected` files instead of comparing them. Read every
-//! line of a new or changed `.expected` file before committing it: it is
-//! the test.
+//! which writes the `.expected` files instead of comparing them. An
+//! importer that needs settings for each file, such as CSV's, reads them
+//! from the file's `.settings` file next to it. Read every line of a new
+//! or changed `.expected` file before committing it: it is the test.
 
 use std::fmt::Write as _;
 use std::fs;
@@ -23,35 +24,48 @@ use std::path::{Path, PathBuf};
 
 use kassensturz_core::{ErrorParam, ErrorReport, Money, Report};
 use kassensturz_import::{
-    Balance, Entry, EntryStatus, Imported, Importer, Limits, RECOGNITION_BYTES, Recognition,
-    Statement, import,
+    Balance, Entry, EntryStatus, ImportError, Imported, Importer, Limits, RECOGNITION_BYTES,
+    Recognition, Statement, import,
 };
 
 /// The extension of the files holding what an import must give.
 const EXPECTED: &str = "expected";
 
+/// The extension of the files holding the settings an importer reads a
+/// file with, such as a CSV file's columns.
+const SETTINGS: &str = "settings";
+
 /// Imports every file in `tests/golden/<id>/`, where `<id>` is the
 /// importer's ID, and compares the result with its `.expected` file, or
 /// writes that file when `KASSENSTURZ_BLESS` is set.
 pub fn check_folder(importer: &dyn Importer) {
+    check_folder_with(importer.info().id, &|_| Ok(Box::new(Shared(importer))));
+}
+
+/// Like [`check_folder`] for an importer that needs settings for each file:
+/// `importer_for` makes the importer for a file from the file's path,
+/// usually from its `.settings` file next to it. If it fails, the error is
+/// what the file gives.
+pub fn check_folder_with(id: &str, importer_for: &ImporterFor<'_>) {
     let folder = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/golden")
-        .join(importer.info().id);
+        .join(id);
     let bless = std::env::var_os("KASSENSTURZ_BLESS").is_some();
     let mut inputs: Vec<PathBuf> = fs::read_dir(&folder)
         .unwrap_or_else(|error| panic!("{}: {error}", folder.display()))
         .map(|entry| entry.expect("folder entry").path())
         .collect();
     inputs.sort();
-    let (expected, inputs): (Vec<PathBuf>, Vec<PathBuf>) = inputs
-        .into_iter()
-        .partition(|path| path.extension().is_some_and(|ext| ext == EXPECTED));
+    let (companions, inputs): (Vec<PathBuf>, Vec<PathBuf>) = inputs.into_iter().partition(|path| {
+        path.extension()
+            .is_some_and(|ext| ext == EXPECTED || ext == SETTINGS)
+    });
     assert!(
         !inputs.is_empty(),
         "{} has no golden files",
         folder.display()
     );
-    for path in &expected {
+    for path in &companions {
         assert!(
             inputs.contains(&path.with_extension("")),
             "{} belongs to no file; remove it",
@@ -60,8 +74,8 @@ pub fn check_folder(importer: &dyn Importer) {
     }
     let mut failures = Vec::new();
     for input in &inputs {
-        let actual = render_file(importer, input);
-        let expected_path = expected_path(input);
+        let actual = render_file(importer_for, input);
+        let expected_path = companion(input, EXPECTED);
         if bless {
             fs::write(&expected_path, &actual).expect("expected file written");
             continue;
@@ -88,18 +102,48 @@ pub fn check_folder(importer: &dyn Importer) {
     );
 }
 
-/// `input`'s `.expected` file: its name with `.expected` added.
-fn expected_path(input: &Path) -> PathBuf {
+/// Makes the importer for a golden file from its path.
+pub type ImporterFor<'a> = dyn Fn(&Path) -> Result<Box<dyn Importer + 'a>, ImportError> + 'a;
+
+/// An importer borrowed, for [`check_folder`].
+struct Shared<'a>(&'a dyn Importer);
+
+impl Importer for Shared<'_> {
+    fn info(&self) -> kassensturz_import::ImporterInfo {
+        self.0.info()
+    }
+
+    fn recognize(&self, start: &[u8]) -> Recognition {
+        self.0.recognize(start)
+    }
+
+    fn read(&self, input: &[u8], limits: &Limits) -> Result<Imported, ImportError> {
+        self.0.read(input, limits)
+    }
+}
+
+/// The file next to `input` with `extension` added to its name, such as
+/// its `.expected` or `.settings` file.
+pub fn companion(input: &Path, extension: &str) -> PathBuf {
     let mut name = input.file_name().expect("a file name").to_owned();
     name.push(".");
-    name.push(EXPECTED);
+    name.push(extension);
     input.with_file_name(name)
 }
 
 /// What importing the file at `path` gives, as text: whether the importer
 /// recognizes it, then what it read or the error.
-fn render_file(importer: &dyn Importer, path: &Path) -> String {
+fn render_file(importer_for: &ImporterFor<'_>, path: &Path) -> String {
     let input = fs::read(path).expect("golden file read");
+    let importer = match importer_for(path) {
+        Ok(importer) => importer,
+        Err(error) => {
+            let mut out = String::new();
+            render_error(&mut out, &error.report(), "");
+            return out;
+        }
+    };
+    let importer = importer.as_ref();
     let start = &input[..input.len().min(RECOGNITION_BYTES)];
     let recognized = match importer.recognize(start) {
         Recognition::Yes => "yes",

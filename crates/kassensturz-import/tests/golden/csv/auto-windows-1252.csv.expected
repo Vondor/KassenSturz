@@ -1,0 +1,16 @@
+recognized: yes
+statement 1
+  account iban: -
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: -
+  closing balance: -
+  entry 1
+    status: booked
+    bank id: -
+    booking date: 2026-10-01
+    value date: -
+    amount: -3.10 EUR
+    other party name: "Bäckerei – Café"
+    other party iban: -
+    remittance information: -

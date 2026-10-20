@@ -1,0 +1,43 @@
+recognized: yes
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: -
+  closing balance: -
+  entry 1
+    status: booked
+    bank id: -
+    booking date: 2026-10-01
+    value date: 2026-10-01
+    amount: -4.20 EUR
+    other party name: "Bäckerei Sonnenschein"
+    other party iban: -
+    remittance information: "Bäckerei 30.09. 14:02"
+  entry 2
+    status: booked
+    bank id: -
+    booking date: 2026-10-02
+    value date: 2026-10-01
+    amount: 2300.00 EUR
+    other party name: "Example Employer Ltd"
+    other party iban: "GB29NWBK60161331926819"
+    remittance information: "Gehalt Oktober"
+  entry 3
+    status: booked
+    bank id: -
+    booking date: 2026-10-05
+    value date: 2026-10-05
+    amount: -1050.00 EUR
+    other party name: "Hausverwaltung Müller & Söhne"
+    other party iban: "FR1420041010050500013M02606"
+    remittance information: "Miete Oktober\nWohnung 3 \"links\""
+  entry 4
+    status: pending
+    bank id: -
+    booking date: 2026-10-06
+    value date: 2026-10-06
+    amount: -50.00 EUR
+    other party name: "Tankstelle Nord"
+    other party iban: -
+    remittance information: "Tankstelle € 50"

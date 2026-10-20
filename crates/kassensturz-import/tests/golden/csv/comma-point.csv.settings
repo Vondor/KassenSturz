@@ -1,0 +1,9 @@
+# A bank in the United States, read for an account in euros
+delimiter = ","
+header = no
+decimal-mark = point
+date-order = month-day-year
+booking-date = 1
+amount = 3
+other-party-name = 2
+remittance-information = 4

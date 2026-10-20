@@ -1,0 +1,43 @@
+recognized: yes
+statement 1
+  account iban: -
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: -
+  closing balance: -
+  entry 1
+    status: booked
+    bank id: -
+    booking date: 2026-10-31
+    value date: 2026-10-31
+    amount: 1234.56 EUR
+    other party name: "Example Employer Ltd"
+    other party iban: "GB29NWBK60161331926819"
+    remittance information: "Gehalt"
+  entry 2
+    status: booked
+    bank id: -
+    booking date: 2026-10-30
+    value date: 2026-10-29
+    amount: -87.30 EUR
+    other party name: "Stadtwerke"
+    other party iban: "AT611904300234573201"
+    remittance information: "Strom Oktober\nKD-4711"
+  entry 3
+    status: booked
+    bank id: -
+    booking date: 2026-10-28
+    value date: 2026-10-28
+    amount: -12.50 EUR
+    other party name: "Kiosk"
+    other party iban: -
+    remittance information: -
+  entry 4
+    status: booked
+    bank id: -
+    booking date: 2026-10-27
+    value date: -
+    amount: 0.00 EUR
+    other party name: "Zinsen"
+    other party iban: -
+    remittance information: -

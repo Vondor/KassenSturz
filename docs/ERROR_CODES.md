@@ -88,6 +88,7 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 |---|---|---|---|
 | `store.already-exists` | | | There is already a file with this name. Choose another name or another folder. Nothing was changed. |
 | `store.not-found` | | | There is no book at this place. It may have been moved or renamed. Choose it again. |
+| `store.book-not-empty` | | | A complete export can only be read into a new, empty book, and this one has something in it already. It wasn't changed. Choose a new book to read the export into. |
 | `store.not-a-book` | | | This file isn't a KassenSturz book. It wasn't changed. Choose another file, or import it if it comes from another program. |
 | `store.unsupported-layout` | `found`, `current` | | This book was made by a newer KassenSturz, or by a test version. Update KassenSturz to open it. |
 | `store.locked` | `computer?`, `since?` | | This book is open on {computer} since {since}, or wasn't closed properly there. Close it there first. If that computer crashed, you can open it here anyway. |
@@ -183,7 +184,7 @@ A file from a bank or another program couldn't be read (D-091), or what it holds
 
 ## Exporting files (`kassensturz-export`)
 
-Data couldn't be written to a file (D-099). `kassensturz-pipeline` gathers the data and adds no codes of its own; its store errors keep their `store.` codes.
+Data couldn't be written to a file (D-099), or a complete export couldn't be read back (D-100, `docs/EXPORT_FORMAT.md`). The `path` of a reading error names the place in the file, e.g. `transactions[3].parts[0].amount`, counting from 0. `kassensturz-pipeline` gathers the data and fills a new book with what was read, and adds no codes of its own; its store errors keep their `store.` codes.
 
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
@@ -192,3 +193,16 @@ Data couldn't be written to a file (D-099). `kassensturz-pipeline` gathers the d
 | `export.bad-settings` | | | The settings for the file contradict each other, e.g. a comma as both the separator and the decimal mark. Choose a semicolon or a tab as the separator, or a point as the decimal mark. Nothing was exported. |
 | `export.currency-mismatch` | `expected`, `found` | | An amount in {found} was to be written for an account in {expected}, so the file would add up wrongly. This is a mistake in KassenSturz; please report it. Nothing was exported. |
 | `export.bad-decimal-places` | `currency`, `digits` | | {currency} has {digits} decimal places in this book, more than an amount can have, so it can't be written exactly. This is a mistake in KassenSturz or in the book; please report it. Nothing was exported. |
+| `export.wrong-kind` | | | The chosen format can't hold this data, e.g. a whole book as CSV. This is a mistake in KassenSturz; please report it. Nothing was exported. |
+| `export.unlisted-currency` | `currency`, `path?` | | An amount is in {currency}, but the book's list of currencies doesn't have it, so its decimal places aren't known. In a complete export being read, {path} says where. Correct the file, or report it if KassenSturz wrote it. Nothing was exported or read. |
+| `export.mark-without-part` | `split` | | A part is marked as booked by a Rule, but no transaction has it. This is a mistake in KassenSturz; please report it. Nothing was exported. |
+| `export.rules-too-deep` | `max` | | Rules sit inside each other more than {max} levels deep, more than a complete export can hold. Move some of them up a level and try again. Nothing was exported or read. |
+| `export.too-large` | `max` | | The file is larger than a complete export can be ({max} bytes), so it wasn't read. Check that it is the right file. |
+| `export.not-json` | `line`, `column` | | This file isn't a complete export: it isn't JSON, or it is cut off, at line {line}, column {column}. Choose the file KassenSturz exported, or export the book again. Nothing was read. |
+| `export.not-a-book` | | | This file isn't a complete export of a KassenSturz book. Choose a file that KassenSturz exported with "Export the whole book". Nothing was read. |
+| `export.newer-version` | `version` | | This complete export was written by a newer KassenSturz (format version {version}). Update KassenSturz to read it. Nothing was read. |
+| `export.missing-value` | `path` | | The complete export lacks {path}, which every export has. The file may have been changed by hand or by another program. Correct it, or export the book again. Nothing was read. |
+| `export.unknown-value` | `path` | | The complete export has {path}, which KassenSturz doesn't know, so reading it would leave something out. Remove it, or update KassenSturz if a newer one wrote the file. Nothing was read. |
+| `export.bad-value` | `path`, `expected` | `object`, `list`, `text`, `number`, `yes-or-no`, `null`, `id`, `date`, `amount`, `currency`, `rate`, `keyword` | In the complete export, {path} isn't what it should be: an object, a list, text, a whole number in its range, true or false, null (because another value rules it out), an ID, a date like 2026-10-05, an amount like -12.50 with at most the currency's decimal places, a currency code like EUR, an exchange rate like 1.0856, or one of the words the format lists for it (`docs/EXPORT_FORMAT.md`). Correct it, or export the book again. Nothing was read. |
+| `export.duplicate` | `path` | | In the complete export, {path} has the same ID as an entry before it, or names a currency twice. Correct it, or export the book again. Nothing was read. |
+| `export.invalid-transaction` | `path` | | In the complete export, the transaction at {path} doesn't add up or contradicts itself; the detail below says how. Correct it, or export the book again. Nothing was read. |

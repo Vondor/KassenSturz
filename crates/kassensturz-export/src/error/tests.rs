@@ -31,7 +31,75 @@ fn examples() -> Vec<ExportError> {
             currency: EUR,
             digits: 40,
         },
+        ExportError::WrongKind,
+        ExportError::UnlistedCurrency {
+            currency: USD,
+            path: Some("transactions[0].parts[1].amount".into()),
+        },
+        ExportError::MarkWithoutPart(SplitId::generate()),
+        ExportError::RulesTooDeep { max: 32 },
+        ExportError::TooLarge { max: 1024 },
+        ExportError::NotJson { line: 3, column: 7 },
+        ExportError::NotABook,
+        ExportError::NewerVersion { version: 2 },
+        ExportError::MissingValue {
+            path: "accounts[0].name".into(),
+        },
+        ExportError::UnknownValue {
+            path: "accounts[0].colour".into(),
+        },
+        ExportError::BadValue {
+            path: "accounts[0].closed".into(),
+            expected: Expected::YesOrNo,
+        },
+        ExportError::Duplicate {
+            path: "accounts[1].id".into(),
+        },
+        ExportError::InvalidTransaction {
+            path: "transactions[4]".into(),
+            error: TransactionError::TooFewSplits { found: 1 },
+        },
     ]
+}
+
+#[test]
+fn every_expected_value_is_a_listed_keyword() {
+    let rows = documented();
+    let listed = &rows["export.bad-value"].keywords;
+    for expected in [
+        Expected::Object,
+        Expected::List,
+        Expected::Text,
+        Expected::Number,
+        Expected::YesOrNo,
+        Expected::Null,
+        Expected::Id,
+        Expected::Date,
+        Expected::Amount,
+        Expected::Currency,
+        Expected::Rate,
+        Expected::Keyword,
+    ] {
+        assert!(
+            listed.iter().any(|listed| listed == expected.keyword()),
+            "{}",
+            expected.keyword()
+        );
+    }
+    assert_eq!(listed.len(), 12, "every keyword has a value");
+}
+
+#[test]
+fn an_invalid_transaction_names_its_cause() {
+    let report = ExportError::InvalidTransaction {
+        path: "transactions[4]".into(),
+        error: TransactionError::TooFewSplits { found: 1 },
+    }
+    .report();
+    assert_eq!(
+        report.cause.map(|cause| cause.code),
+        Some("transaction.too-few-splits")
+    );
 }
 
 #[test]

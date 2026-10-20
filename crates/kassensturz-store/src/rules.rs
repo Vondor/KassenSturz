@@ -326,6 +326,18 @@ impl Book {
         }))
     }
 
+    /// Every part a Rule booked that the Rules may change again, with that
+    /// Rule ([`RuleMark`]), sorted by part, e.g. for the complete export.
+    pub fn rule_marks(&self) -> Result<Vec<RuleMark>, StoreError> {
+        let mut marks: Vec<RuleMark> = self
+            .marks()?
+            .into_iter()
+            .map(|(split, rule)| RuleMark { split, rule })
+            .collect();
+        marks.sort_by_key(|mark| mark.split);
+        Ok(marks)
+    }
+
     /// What running the Rules would do, without changing anything: see
     /// [`Book::run_rules`].
     pub fn preview_rules(&self) -> Result<RuleRun, StoreError> {

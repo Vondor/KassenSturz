@@ -7,8 +7,9 @@
 //! and balances, suggests and joins Transfers (M1.10), runs auto-categorization
 //! Rules (M1.11), undoes and redoes changes (M1.9), and imports bank
 //! statements through the import pipeline (M2.2), from CAMT.053 (M2.3),
-//! CSV files (M2.4), MT940 (M2.5) and OFX (M2.6), and writes transactions
-//! as CSV (M2.7).
+//! CSV files (M2.4), MT940 (M2.5) and OFX (M2.6), writes transactions as
+//! CSV (M2.7), and writes the whole book into one file and makes a new book
+//! from such a file (M2.8).
 //!
 //! The tool is for developers and testers. It writes English text and plain
 //! amounts (`-12.50 EUR`), shows errors as their code and parameters, and is
@@ -34,8 +35,10 @@ mod transaction;
 mod transfer;
 
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use kassensturz_export::read_book_file;
+use kassensturz_pipeline::fill_book;
 use kassensturz_store::{Book, Computer, StoreError};
 
 use args::Arguments;
@@ -104,7 +107,9 @@ money out of the account. Dates are written 2026-10-05. Names ignore capitals.
 Categories can be named by their path, like Food/Groceries.
 
 Commands:
-  create                         make a new, empty book
+  create [--from FILE]           make a new, empty book; with --from, a new
+                                 book holding what a complete export (export
+                                 --format book) holds, with the same IDs
   account add NAME --type TYPE --currency CODE
                                  TYPE is checking, savings, cash or credit-card
   account list [--all]           --all includes closed accounts
@@ -195,18 +200,23 @@ Commands:
   export FILE [--format ID] [--account NAME ...] [--separator SEP]
          [--decimal-mark MARK] [--no-header] [--byte-order-mark]
                                  write transactions into a new file; it
-                                 never overwrites one. Each account's
-                                 transactions follow each other, as its
-                                 register shows them. Without --account, all
-                                 accounts, closed ones too. The format yet
-                                 is csv, one row per transaction and
-                                 account: date, account, payee, category,
-                                 transfer, memo, amount, currency and parts.
+                                 never overwrites one. The formats are csv
+                                 (the default) and book.
+                                 csv: one row per transaction and account:
+                                 date, account, payee, category, transfer,
+                                 memo, amount, currency and parts. Each
+                                 account's transactions follow each other,
+                                 as its register shows them. Without
+                                 --account, all accounts, closed ones too.
                                  SEP is comma (the default), semicolon or
                                  tab, MARK is point (the default) or comma;
                                  --byte-order-mark helps Excel read umlauts.
                                  A text that a spreadsheet would run as a
-                                 formula gets a ' in front (D-099)
+                                 formula gets a ' in front (D-099).
+                                 book: the complete export, everything in
+                                 the book but its history, as JSON
+                                 (docs/EXPORT_FORMAT.md, D-100); it takes
+                                 none of the csv options
   undo                           undo the last change, also one made by an
                                  earlier command
   redo                           make the change undone last again
@@ -305,10 +315,14 @@ impl<'a> CommandLine<'a> {
     }
 
     /// Fails if the command is unknown or, for `create`, `undo` and `redo`,
-    /// has arguments.
+    /// has arguments they don't take.
     fn check_command(&self) -> Result<(), CliError> {
         match self.command {
-            Some("create" | "undo" | "redo") => {
+            Some("create") => {
+                self.create_from()?;
+                Ok(())
+            }
+            Some("undo" | "redo") => {
                 Arguments::parse(self.rest, &[], &[])?.exactly([])?;
                 Ok(())
             }
@@ -321,12 +335,29 @@ impl<'a> CommandLine<'a> {
         }
     }
 
+    /// The complete export that `create --from FILE` makes the book from.
+    fn create_from(&self) -> Result<Option<PathBuf>, CliError> {
+        let args = Arguments::parse(self.rest, &["from"], &[])?;
+        args.exactly([])?;
+        Ok(args.value("from")?.map(PathBuf::from))
+    }
+
     fn execute(&self, book: &mut Book, out: &mut dyn Write) -> Result<(), CliError> {
         let rest = self.rest;
         match self.command {
             Some("create") => {
-                // `open` made the book; saying so is all that is left.
-                writeln!(out, "Created the book.")?;
+                // `open` made the book, and filled it; saying so is all that
+                // is left.
+                match self.create_from()? {
+                    None => writeln!(out, "Created the book.")?,
+                    Some(file) => writeln!(
+                        out,
+                        "Created the book from {}: {} accounts and categories, {} transactions.",
+                        text::plain(&file.display().to_string()),
+                        book.all_accounts()?.len(),
+                        book.transactions()?.len()
+                    )?,
+                }
                 Ok(())
             }
             Some("account") => accounts::account(book, rest, out),
@@ -372,7 +403,10 @@ fn open(
         backup_folder,
     };
     if command_line.command == Some("create") {
-        return Ok(Book::create(&path, &computer)?);
+        return match command_line.create_from()? {
+            None => Ok(Book::create(&path, &computer)?),
+            Some(file) => create_from(&path, &computer, &file),
+        };
     }
     match Book::open(&path, &computer) {
         Err(StoreError::Locked(seen)) if command_line.open_anyway => {
@@ -391,4 +425,21 @@ fn open(
         }
         other => Ok(other?),
     }
+}
+
+/// Creates the book at `path` and fills it with the complete export in
+/// `file`. The file is read first, so a file that isn't one leaves nothing
+/// behind; if the book refuses what it holds, the new book is removed again.
+fn create_from(path: &Path, computer: &Computer, file: &Path) -> Result<Book, CliError> {
+    let data = read_book_file(file)?;
+    let mut book = Book::create(path, computer)?;
+    if let Err(error) = fill_book(&mut book, &data) {
+        // Closing it first lets go of its lock. The book is empty and was
+        // only just made, so nothing is lost; if removing it fails, the
+        // refusal is still the error worth reporting.
+        drop(book);
+        let _ = std::fs::remove_file(path);
+        return Err(error.into());
+    }
+    Ok(book)
 }

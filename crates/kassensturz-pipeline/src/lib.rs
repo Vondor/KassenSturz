@@ -34,7 +34,9 @@
 //!
 //! The other way round, [`export_transactions`] gathers a book's transactions
 //! for an exporter (`kassensturz-export`), so no front end has to repeat how
-//! a row's category or Transfer is found (D-099).
+//! a row's category or Transfer is found (D-099). [`export_book`] gathers a
+//! whole book for the complete export, and [`fill_book`] fills a new book
+//! with one read back (D-029, D-046).
 //!
 //! This crate depends on `kassensturz-core`, `kassensturz-import`,
 //! `kassensturz-export` and `kassensturz-store`, which may not depend on
@@ -42,6 +44,7 @@
 
 #![forbid(unsafe_code)]
 
+mod book;
 mod entries;
 mod error;
 mod export;
@@ -55,6 +58,7 @@ use kassensturz_store::{Action, Book, RuleRun, StoreError};
 
 use entries::{Decision, bank_date, decide};
 
+pub use book::{export_book, fill_book};
 pub use error::PipelineError;
 pub use export::export_transactions;
 pub use report::{

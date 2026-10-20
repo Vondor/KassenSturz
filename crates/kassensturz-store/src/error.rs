@@ -23,6 +23,10 @@ pub enum StoreError {
     AlreadyExists,
     /// Opening a book failed because there's no file at the path.
     NotFound,
+    /// Only a new, empty book can be filled in one go
+    /// ([`Book::fill_new`](crate::Book::fill_new)), e.g. with a complete
+    /// export, and this one holds something already. It wasn't changed.
+    NotEmpty,
     /// The file isn't a KassenSturz book. It was left untouched.
     NotABook,
     /// The book's layout is a different version: it was made by a newer
@@ -286,6 +290,7 @@ impl Report for StoreError {
         match self {
             Self::AlreadyExists => new("store.already-exists"),
             Self::NotFound => new("store.not-found"),
+            Self::NotEmpty => new("store.book-not-empty"),
             Self::NotABook => new("store.not-a-book"),
             Self::UnsupportedLayout { found } => new("store.unsupported-layout")
                 .with("found", P::Number((*found).into()))

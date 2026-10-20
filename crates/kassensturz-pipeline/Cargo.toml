@@ -3,7 +3,7 @@
 
 [package]
 name = "kassensturz-pipeline"
-description = "KassenSturz's import pipeline: bank statements into an account of a book, with the duplicate check, Transfer suggestions, Rules and the balance check; and gathering a book's transactions for export."
+description = "KassenSturz's import pipeline: bank statements into an account of a book, with the duplicate check, Transfer suggestions, Rules and the balance check; gathering a book's transactions or the whole book for export, and filling a new book from a complete export."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

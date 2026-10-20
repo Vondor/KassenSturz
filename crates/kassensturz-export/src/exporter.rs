@@ -56,6 +56,8 @@ pub struct ExporterInfo {
 pub enum ExportKind {
     /// The transactions of accounts ([`ExportData::Transactions`]).
     Transactions,
+    /// A whole book ([`ExportData::Book`]).
+    Book,
 }
 
 /// Writes `data` with `exporter` and returns the bytes of the file.

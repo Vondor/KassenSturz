@@ -7,13 +7,14 @@
 //! and balances, suggests and joins Transfers (M1.10), runs auto-categorization
 //! Rules (M1.11), undoes and redoes changes (M1.9), and imports bank
 //! statements through the import pipeline (M2.2), from CAMT.053 (M2.3),
-//! CSV files (M2.4), MT940 (M2.5) and OFX (M2.6).
+//! CSV files (M2.4), MT940 (M2.5) and OFX (M2.6), and writes transactions
+//! as CSV (M2.7).
 //!
 //! The tool is for developers and testers. It writes English text and plain
 //! amounts (`-12.50 EUR`), shows errors as their code and parameters, and is
 //! not translated or installed with the app (D-085). Everything it does goes
 //! through the public functions of `kassensturz-core`, `kassensturz-store`,
-//! `kassensturz-import` and `kassensturz-pipeline`.
+//! `kassensturz-import`, `kassensturz-export` and `kassensturz-pipeline`.
 
 #![forbid(unsafe_code)]
 
@@ -21,6 +22,7 @@ mod accounts;
 mod amount;
 mod args;
 mod error;
+mod export;
 mod history;
 mod import;
 mod input;
@@ -190,6 +192,21 @@ Commands:
                                  how dates and amounts are written, one
                                  `key = value` per line (see D-095 in
                                  docs/DECISIONS.md)
+  export FILE [--format ID] [--account NAME ...] [--separator SEP]
+         [--decimal-mark MARK] [--no-header] [--byte-order-mark]
+                                 write transactions into a new file; it
+                                 never overwrites one. Each account's
+                                 transactions follow each other, as its
+                                 register shows them. Without --account, all
+                                 accounts, closed ones too. The format yet
+                                 is csv, one row per transaction and
+                                 account: date, account, payee, category,
+                                 transfer, memo, amount, currency and parts.
+                                 SEP is comma (the default), semicolon or
+                                 tab, MARK is point (the default) or comma;
+                                 --byte-order-mark helps Excel read umlauts.
+                                 A text that a spreadsheet would run as a
+                                 formula gets a ' in front (D-099)
   undo                           undo the last change, also one made by an
                                  earlier command
   redo                           make the change undone last again
@@ -297,7 +314,7 @@ impl<'a> CommandLine<'a> {
             }
             Some(
                 "account" | "category" | "transaction" | "transfer" | "rate" | "rule" | "balances"
-                | "register" | "history" | "import",
+                | "register" | "history" | "import" | "export",
             ) => Ok(()),
             Some(other) => Err(CliError::usage(format!("`{other}` isn't a command"))),
             None => Ok(()),
@@ -319,6 +336,7 @@ impl<'a> CommandLine<'a> {
             Some("rate") => rate::rate(book, rest, out),
             Some("rule") => rule::rule(book, rest, out),
             Some("import") => import::import_file(book, rest, out),
+            Some("export") => export::export(book, rest, out),
             Some("balances") => accounts::balances(book, rest, out),
             Some("register") => accounts::register(book, rest, out),
             Some("undo") => history::undo(book, out),

@@ -21,7 +21,8 @@ kassensturz/
 │   │   └── events                  # event bus (TransactionAdded, ...)
 │   ├── kassensturz-store/          # all SQLite code: store, migrations, backups, change history — see D-016, D-032, D-033, D-072
 │   ├── kassensturz-import/         # the Importer interface, statements and limits for untrusted files (D-091); CSV, OFX, MT940, CAMT.053, KMyMoney (.kmy / SQLite)
-│   ├── kassensturz-pipeline/       # the import pipeline: statements into an account, with the duplicate check, Transfer suggestions, Rules and the balance check (D-030, D-092)
+│   ├── kassensturz-export/         # the Exporter interface, the data an export is made from, and the formats it writes: CSV (D-099); the complete export (M2.8)
+│   ├── kassensturz-pipeline/       # the import pipeline: statements into an account, with the duplicate check, Transfer suggestions, Rules and the balance check (D-030, D-092); gathering a book's transactions for export (D-099)
 │   ├── kassensturz-bank/           # read-only bank connections over AqBanking, fake backend for tests — see D-053, D-060
 │   ├── kassensturz-aqbanking-sys/  # raw AqBanking/Gwenhywfar declarations (bindgen, committed, loaded at runtime) — see D-060
 │   ├── kassensturz-plugin-api/     # stable, versioned plugin interface (after 1.0, D-071)
@@ -69,11 +70,11 @@ kassensturz/
 ## Dependency rules
 
 - `kassensturz-core` depends on **no other workspace crate**.
-- `kassensturz-store`, `kassensturz-import`, `kassensturz-bank`, `kassensturz-charts`, `kassensturz-ai`, `kassensturz-plugin-host` depend on `kassensturz-core`.
-- `kassensturz-store` and `kassensturz-import` don't depend on each other: a file format knows no database, and the book knows no file format (D-091). `kassensturz-pipeline` depends on core, import and store and joins them (D-092).
+- `kassensturz-store`, `kassensturz-import`, `kassensturz-export`, `kassensturz-bank`, `kassensturz-charts`, `kassensturz-ai`, `kassensturz-plugin-host` depend on `kassensturz-core`.
+- `kassensturz-store`, `kassensturz-import` and `kassensturz-export` don't depend on each other: a file format knows no database, and the book knows no file format (D-091, D-099). `kassensturz-pipeline` depends on core, import, export and store and joins them (D-092, D-099).
 - Only `kassensturz-store` touches the book's database; every other crate calls its functions (D-072). Reading another program's files, such as KMyMoney's SQLite format in `kassensturz-import`, isn't affected.
 - Only `kassensturz-bank` uses `kassensturz-aqbanking-sys`; no other crate calls AqBanking's C code (D-060).
-- Front ends (`kassensturz-cli`, `kassensturz-ui-bridge`, `kassensturz-mcp`) depend on core, store and plugin host, and on import and pipeline to import files. **Core never knows about a UI.**
+- Front ends (`kassensturz-cli`, `kassensturz-ui-bridge`, `kassensturz-mcp`) depend on core, store and plugin host, and on import, export and pipeline to import and export files. **Core never knows about a UI.**
 - OS-specific behavior lives only in `kassensturz-platform` behind traits.
 - AI code lives only in `kassensturz-ai` and `kassensturz-mcp`. Front ends use them only behind one build feature (`ai`, on by default), so KassenSturz can be built without any AI code (D-039). `kassensturz-core` never depends on AI code.
 - Built-in importers and exporters implement the native Rust interface that the plugin API mirrors (D-069).

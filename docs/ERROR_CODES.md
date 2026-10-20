@@ -1,6 +1,6 @@
 # Error codes
 
-KassenSturz's Rust crates never produce user-facing text (D-034). Every error in `kassensturz-core`, `kassensturz-store` and `kassensturz-import` turns into an error report (`kassensturz_core::ErrorReport`, through the `Report` trait):
+KassenSturz's Rust crates never produce user-facing text (D-034). Every error in `kassensturz-core`, `kassensturz-store`, `kassensturz-import` and `kassensturz-export` turns into an error report (`kassensturz_core::ErrorReport`, through the `Report` trait):
 
 - a **code**, such as `store.account-closed`;
 - named, typed **parameters**, such as the account that is closed;
@@ -10,12 +10,12 @@ The UI keeps one translated message per code and fills in the parameters (D-084)
 
 The app's own checks of what the user typed, e.g. an amount in the wrong regional format, aren't errors of core or store: their codes start with `input.`, they live in `kassensturz-ui-bridge` and aren't listed here (D-089).
 
-This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, both with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
+This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, and one in `kassensturz-export` (`src/error/tests.rs`) against the `export.` codes, all with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
 
 ## Rules
 
 - **Codes are stable.** A code keeps its meaning. One that is no longer needed is retired, never given to another error. Before 0.1, codes can still change, like the book's layout (D-045).
-- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store` or `import`. Damage found in a book starts with `store.corrupt`.
+- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import` or `export`. Damage found in a book starts with `store.corrupt`.
 - **Parameters** are listed in the order the report gives them. A name ending in `?` is optional: the report leaves it out when it isn't known.
 - **Parameter types** (`ErrorParam`):
   - Amounts (`Money`), currencies, dates and timestamps stay typed. The UI formats them for the user's locale (D-002, D-065) and shows timestamps in the user's time zone.
@@ -180,3 +180,15 @@ A file from a bank or another program couldn't be read (D-091), or what it holds
 | `import.currency-mismatch` | `expected`, `found` | | The file has an amount in {found} in a statement for an account in {expected}, so its entries can't be added up. Nothing was imported. |
 | `import.account-currency-differs` | `account`, `account_currency`, `statement_currency` | | The statement is in {statement_currency}, but {account} counts in {account_currency}. Choose an account in {statement_currency}. Nothing was imported. |
 | `import.decimal-places-differ` | `currency`, `book`, `file` | | The file counts {currency} with {file} decimal places, your book with {book}, so its amounts can't be read safely. KassenSturz never moves the decimal point of what a bank delivered, so nothing was imported. |
+
+## Exporting files (`kassensturz-export`)
+
+Data couldn't be written to a file (D-099). `kassensturz-pipeline` gathers the data and adds no codes of its own; its store errors keep their `store.` codes.
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `export.io` | `kind` | `not-found`, `permission-denied`, `is-a-directory`, `disk-full`, `other` | The file couldn't be written. Not found: the folder doesn't exist, so choose another. Permission denied: choose a folder you may write to. Is a directory: type a file name after the folder. Disk full: free some space or choose another drive. No file was left behind. |
+| `export.already-exists` | | | A file with this name exists already. KassenSturz never overwrites a file, so choose another name, or move the old file away first. Nothing was exported. |
+| `export.bad-settings` | | | The settings for the file contradict each other, e.g. a comma as both the separator and the decimal mark. Choose a semicolon or a tab as the separator, or a point as the decimal mark. Nothing was exported. |
+| `export.currency-mismatch` | `expected`, `found` | | An amount in {found} was to be written for an account in {expected}, so the file would add up wrongly. This is a mistake in KassenSturz; please report it. Nothing was exported. |
+| `export.bad-decimal-places` | `currency`, `digits` | | {currency} has {digits} decimal places in this book, more than an amount can have, so it can't be written exactly. This is a mistake in KassenSturz or in the book; please report it. Nothing was exported. |

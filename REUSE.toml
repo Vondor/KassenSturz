@@ -47,3 +47,10 @@ SPDX-License-Identifier = "GPL-3.0-or-later"
 path = ["crates/kassensturz-import/tests/golden/**"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"
+
+# What the exporters must write for made-up data, compared byte for byte
+# (AGENTS.md §9, D-099).
+[[annotations]]
+path = ["crates/kassensturz-export/tests/golden/**"]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC0-1.0"

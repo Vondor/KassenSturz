@@ -1,0 +1,31 @@
+recognized: yes
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: -
+  closing balance: -
+  entry 1
+    status: booked
+    bank id: "A-1"
+    booking date: 2026-10-01
+    value date: -
+    amount: 10.00 EUR
+    other party name: -
+    other party iban: -
+    remittance information: -
+statement 2
+  account iban: "CH9300762011623852957"
+  account number: -
+  currency: CHF with 2 decimal places
+  opening balance: -
+  closing balance: 1000.00 CHF on 2026-10-31
+  entry 1
+    status: booked
+    bank id: -
+    booking date: 2026-10-02
+    value date: 2026-10-02
+    amount: -99.95 CHF
+    other party name: -
+    other party iban: -
+    remittance information: -

@@ -1,0 +1,4 @@
+recognized: yes
+error: import.currency-mismatch
+  expected: EUR
+  found: USD

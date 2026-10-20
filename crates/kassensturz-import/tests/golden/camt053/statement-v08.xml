@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<c:Document xmlns:c="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+  <c:BkToCstmrStmt>
+    <c:GrpHdr>
+      <c:MsgId>KS-SYNTHETIC-0002</c:MsgId>
+      <c:CreDtTm>2026-10-31T23:30:00+01:00</c:CreDtTm>
+    </c:GrpHdr>
+    <c:Stmt>
+      <c:Id>CARD-2026-10</c:Id>
+      <c:Acct>
+        <c:Id>
+          <c:Othr>
+            <c:Id>4000-0000-0000-0002</c:Id>
+          </c:Othr>
+        </c:Id>
+        <c:Ccy>EUR</c:Ccy>
+      </c:Acct>
+      <c:Bal>
+        <c:Tp><c:CdOrPrtry><c:Cd>PRCD</c:Cd></c:CdOrPrtry></c:Tp>
+        <c:Amt Ccy="EUR">310.40</c:Amt>
+        <c:CdtDbtInd>DBIT</c:CdtDbtInd>
+        <c:Dt><c:DtTm>2026-09-30T00:00:00</c:DtTm></c:Dt>
+      </c:Bal>
+      <c:Bal>
+        <c:Tp><c:CdOrPrtry><c:Cd>CLBD</c:Cd></c:CdOrPrtry></c:Tp>
+        <c:Amt Ccy="EUR">345.65</c:Amt>
+        <c:CdtDbtInd>DBIT</c:CdtDbtInd>
+        <c:Dt><c:Dt>2026-10-31</c:Dt></c:Dt>
+      </c:Bal>
+      <c:Ntry>
+        <c:Amt Ccy="EUR">35.25</c:Amt>
+        <c:CdtDbtInd>DBIT</c:CdtDbtInd>
+        <c:Sts><c:Cd>BOOK</c:Cd></c:Sts>
+        <c:BookgDt><c:Dt>2026-10-12</c:Dt></c:BookgDt>
+        <c:ValDt><c:Dt>2026-10-13</c:Dt></c:ValDt>
+        <c:AcctSvcrRef>CARD-0001</c:AcctSvcrRef>
+        <c:NtryDtls>
+          <c:TxDtls>
+            <c:Refs>
+              <c:AcctSvcrRef>CARD-0001-TX</c:AcctSvcrRef>
+            </c:Refs>
+            <c:RltdPties>
+              <c:Cdtr>
+                <c:Pty>
+                  <c:Nm>Example Bookshop</c:Nm>
+                </c:Pty>
+              </c:Cdtr>
+              <c:CdtrAcct>
+                <c:Id>
+                  <c:Othr>
+                    <c:Id>SHOP-4711</c:Id>
+                  </c:Othr>
+                </c:Id>
+              </c:CdtrAcct>
+            </c:RltdPties>
+            <c:RmtInf>
+              <c:Strd>
+                <c:CdtrRefInf>
+                  <c:Ref>RF18539007547034</c:Ref>
+                </c:CdtrRefInf>
+              </c:Strd>
+            </c:RmtInf>
+          </c:TxDtls>
+        </c:NtryDtls>
+      </c:Ntry>
+      <c:Ntry>
+        <c:Amt Ccy="EUR">0.00</c:Amt>
+        <c:CdtDbtInd>CRDT</c:CdtDbtInd>
+        <c:Sts><c:Prtry>BOOK</c:Prtry></c:Sts>
+        <c:BookgDt><c:Dt>2026-10-14</c:Dt></c:BookgDt>
+        <c:NtryDtls>
+          <c:TxDtls>
+            <c:Refs>
+              <c:AcctSvcrRef>CARD-0002-TX</c:AcctSvcrRef>
+            </c:Refs>
+          </c:TxDtls>
+        </c:NtryDtls>
+      </c:Ntry>
+    </c:Stmt>
+  </c:BkToCstmrStmt>
+</c:Document>

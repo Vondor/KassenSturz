@@ -1,0 +1,4 @@
+recognized: yes
+error: import.text-too-long
+  max_bytes: 16384
+  line: 14

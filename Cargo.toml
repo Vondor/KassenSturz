@@ -32,6 +32,10 @@ cxx-qt-lib = { version = "=0.10.0", features = ["qt_gui", "qt_qml", "qt_quickcon
 cxx-qt-lib-extras = "=0.10.0"
 # Without time-zone data: transaction dates are calendar dates (D-061).
 jiff = { version = "=0.2.38", default-features = false, features = ["std"] }
+# XML for CAMT.053 (D-093), OFX 2.x (M2.6) and KMyMoney (M2.9): a pull parser
+# that never expands entities or fetches anything, without its optional
+# encoding and serde features.
+quick-xml = { version = "=0.42.0", default-features = false }
 # Patterns in Rules (D-015): linear-time matching, so no pattern can hang the
 # app.
 regex = "=1.13.1"

@@ -53,6 +53,7 @@ kassensturz/
 - `tools/sdk.sh <command>` runs any command in that environment, e.g. `tools/sdk.sh cargo test --workspace`; CI uses the same script. Versions are pinned in D-073.
 - Two more CI jobs lint and test every crate except the app crate, one on Windows and one on macOS, with `rustup` installing the same Rust version; the Qt builds on Windows and macOS come with their packaging (M7, D-090).
 - A `kubuntu` CI job builds, tests and starts the whole app, Qt part included, on Kubuntu 26.10 from the distribution's own Qt, KDE Frameworks and SQLite (installed with `-DCMAKE_INSTALL_PREFIX=/usr` into a staging folder), as groundwork for a `.deb` next to the Flatpak. Kubuntu 26.10's KDE Frameworks 6.29 is the minimum in `CMakeLists.txt` (D-094).
+- A `fedora` CI job does the same on Fedora 44, the current stable release, from Fedora's own packages, as groundwork for an RPM (D-097).
 - CMake runs `cargo build --locked` as a custom target, as KDE's guide does, and installs the program it builds. QML files live in `crates/kassensturz-ui-bridge/qml/` because cxx-qt-build registers QML files by their path inside the crate.
 - The Flatpak manifest (`packaging/flatpak/`) builds offline from `cargo-sources.json`, which is regenerated from `Cargo.lock` whenever that changes (`README.md`, "Building").
 - The first code is a walking skeleton through every layer, kept as real code (D-068). Since M1.M the app opens with the first-run mock instead of the skeleton's sample account (D-089).

@@ -8,12 +8,11 @@ cmake_minimum_required(VERSION 3.27)
 
 project(kassensturz VERSION 0.0.0 LANGUAGES CXX)
 
-# The versions in KassenSturz's build environment, the KDE Flatpak runtime
-# 6.11 (D-025, D-063). Only these are tested by default. They are cache
-# variables so a build against a distribution's packages can ask for different
-# ones with -DKF_MIN_VERSION=...; CI's Kubuntu job does (D-094).
-set(QT_MIN_VERSION "6.11.0" CACHE STRING "Oldest Qt 6 that may be used")
-set(KF_MIN_VERSION "6.30.0" CACHE STRING "Oldest KDE Frameworks 6 that may be used")
+# The oldest versions that are tested: Qt 6.11 from the KDE Flatpak runtime
+# 6.11 (D-025, D-063), and KDE Frameworks 6.29, the version in Kubuntu 26.10,
+# which CI's Kubuntu job builds against (D-094). The Flatpak has 6.30.
+set(QT_MIN_VERSION "6.11.0")
+set(KF_MIN_VERSION "6.29.0")
 
 find_package(ECM ${KF_MIN_VERSION} REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})

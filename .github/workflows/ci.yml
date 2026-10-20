@@ -142,11 +142,10 @@ jobs:
         run: |
           rustup toolchain install 1.98.1 --profile minimal
           rustup default 1.98.1
-      # Kubuntu 26.10 has Qt 6.11.2 but KDE Frameworks 6.29.0, one release
-      # short of the 6.30.0 that CMakeLists.txt asks for by default, so this
-      # job asks for 6.29.0 (D-094). It uses the system's SQLite (D-061).
+      # Kubuntu 26.10 has Qt 6.11.2 and KDE Frameworks 6.29.0, the minimums in
+      # CMakeLists.txt (D-094). It uses the system's SQLite (D-061).
       - name: Configure
-        run: cmake -S . -B build/cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DKASSENSTURZ_BUNDLED_SQLITE=OFF -DKF_MIN_VERSION=6.29.0
+        run: cmake -S . -B build/cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DKASSENSTURZ_BUNDLED_SQLITE=OFF
       - name: Build
         run: cmake --build build/cmake
       - name: Install into a staging folder

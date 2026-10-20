@@ -1,0 +1,4 @@
+recognized: yes
+error: import.bad-date
+  found: "1302"
+  line: 4

@@ -1,0 +1,4 @@
+recognized: yes
+error: import.amount-too-large
+  found: "99999999999999999,99"
+  line: 4

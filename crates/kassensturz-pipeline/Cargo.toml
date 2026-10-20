@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+
+[package]
+name = "kassensturz-pipeline"
+description = "KassenSturz's import pipeline: bank statements into an account of a book, with the duplicate check, Transfer suggestions, Rules and the balance check."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = ["bundled-sqlite"]
+# See kassensturz-store (D-061).
+bundled-sqlite = ["kassensturz-store/bundled-sqlite"]
+
+[dependencies]
+kassensturz-core.workspace = true
+kassensturz-import.workspace = true
+kassensturz-store.workspace = true
+
+[lints]
+workspace = true

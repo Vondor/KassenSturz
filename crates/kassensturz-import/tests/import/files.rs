@@ -9,10 +9,8 @@ use std::path::PathBuf;
 use kassensturz_core::{Currency, CurrencyCode, Date, Money, Report};
 use kassensturz_import::{
     Entry, ImportError, ImportKind, Imported, Importer, ImporterInfo, Limits, Recognition,
-    Statement, StatementAccount, import, import_file, read_file,
+    Statement, StatementAccount, TestFormat, import, import_file, read_file,
 };
-
-use crate::test_format::TestFormat;
 
 /// A file of its own for a test, in Cargo's folder for test files.
 fn file(name: &str, content: &[u8]) -> PathBuf {

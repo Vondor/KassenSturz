@@ -535,6 +535,48 @@ fn running_the_rules_books_what_has_no_category_yet() {
 }
 
 #[test]
+fn the_rules_can_run_on_some_transactions_only() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let shops = add(
+        &mut book,
+        "Shops",
+        "REWE",
+        Some(BookTo::Category(groceries)),
+        None,
+    );
+    let earlier = imported(&mut book, checking, -5320, 5, "REWE Markt");
+    let new = imported(&mut book, checking, -1999, 6, "REWE City");
+    let before = history_length(&book);
+
+    let run = book.run_rules_on(&[new.id()]).expect("run");
+    assert_eq!(changed(&run), [(new.id(), shops.id)]);
+    assert_eq!(other_side(&book, &new, checking), Some(groceries));
+    assert_eq!(
+        other_side(&book, &earlier, checking),
+        None,
+        "not among them"
+    );
+    assert_eq!(history_length(&book), before + 1);
+    assert_eq!(
+        book.change_to_undo().expect("read").map(|c| c.action),
+        Some(Action::RunRules)
+    );
+
+    // What has a category already stays, and an ID the book doesn't have
+    // changes nothing.
+    let again = book
+        .run_rules_on(&[new.id(), TransactionId::generate()])
+        .expect("run");
+    assert!(again.changed.is_empty());
+    assert_eq!(history_length(&book), before + 1);
+}
+
+#[test]
 fn manual_choices_win() {
     let Sample {
         mut book,

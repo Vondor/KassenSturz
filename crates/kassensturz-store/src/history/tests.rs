@@ -658,6 +658,69 @@ fn a_failed_user_action_changes_and_records_nothing() {
 }
 
 #[test]
+fn a_dry_run_shows_what_a_change_would_do_and_keeps_nothing() {
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    let before = contents(&book);
+    let history = book.history().expect("history read");
+    let added = book
+        .dry_run(|book| {
+            book.use_currency(USD)?;
+            let id = account(book, "Dollar account", AccountKind::Asset, USD);
+            // Inside, it is there, as in a real action.
+            assert_eq!(book.account(id)?.currency, USD);
+            Ok::<_, StoreError>(id)
+        })
+        .expect("ran");
+    assert!(matches!(
+        book.account(added),
+        Err(StoreError::UnknownAccount(_))
+    ));
+    assert_eq!(contents(&book), before);
+    assert_eq!(book.history().expect("history read"), history);
+    // Afterwards, changes outside a user action are refused again.
+    assert!(
+        book.conn
+            .execute(
+                "UPDATE accounts SET name = 'Renamed' WHERE id = ?1",
+                [checking.to_bytes()],
+            )
+            .is_err()
+    );
+
+    // What comes next is recorded on its own, as if there had been no dry
+    // run.
+    account(&mut book, "Second account", AccountKind::Asset, EUR);
+    assert_eq!(history.len() + 1, book.history().expect("read").len());
+    book.undo().expect("undone");
+    assert_eq!(contents(&book), before);
+
+    let failed: Result<(), StoreError> = book.dry_run(|book| {
+        book.use_currency(USD)?;
+        Err(StoreError::EmptyAccountName)
+    });
+    assert!(matches!(failed, Err(StoreError::EmptyAccountName)));
+    assert_eq!(contents(&book), before);
+
+    // Inside a user action, only what the dry run did is taken back.
+    let jpy = CurrencyCode::new("JPY").expect("valid code");
+    book.as_one_action(Action::UseCurrency, |book| {
+        book.use_currency(jpy)?;
+        book.dry_run(|book| book.use_currency(USD))?;
+        Ok::<_, StoreError>(())
+    })
+    .expect("changed");
+    assert_eq!(book.currency_minor_digits(jpy).expect("used"), 0);
+    assert!(matches!(
+        book.currency_minor_digits(USD),
+        Err(StoreError::UnknownCurrency(_))
+    ));
+    book.undo().expect("undone");
+    assert_eq!(contents(&book), before);
+}
+
+#[test]
 fn an_edit_records_only_the_rows_it_changed() {
     let Sample {
         mut book,

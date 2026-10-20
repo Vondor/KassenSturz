@@ -787,6 +787,231 @@ fn rules_book_new_transactions_and_leave_the_users_choices_alone() {
     );
 }
 
+/// A statement file in the made-up test format, in this session's folder.
+fn statement_file(session: &Session, name: &str, records: &[&str]) -> String {
+    let path = session.0.join(name);
+    std::fs::write(&path, format!("KSTEST\n{}\n", records.join("\n"))).expect("file written");
+    path.display().to_string()
+}
+
+#[test]
+fn a_statement_file_is_imported_once_and_undone_as_a_whole() {
+    let session = household();
+    // Typed in on Friday, before the statement came.
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-09",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-25",
+        "--payee",
+        "Bakery",
+    ]);
+    session.ok(&[
+        "rule",
+        "add",
+        "Shops",
+        "--if",
+        "other-party contains REWE",
+        "--category",
+        "Food/Groceries",
+    ]);
+    // The IBAN is the example for Germany in SWIFT's IBAN Registry (D-055).
+    let file = statement_file(
+        &session,
+        "october.kstest",
+        &[
+            "account;DE89370400440532013000;;EUR",
+            "entry;booked;2026-10-05;2026-10-05;-53.20;B1;REWE Markt;;Card payment",
+            "entry;booked;2026-10-12;;-25.00;;Bakery;;",
+            "entry;pending;2026-10-13;;-9.99;P1;Kiosk;;",
+            "entry;booked;2026-10-14;;1500.00;B2;Example Employer;;Salary",
+            "closing;2026-10-14;1421.80",
+        ],
+    );
+    let register = || {
+        session
+            .ok(&["register", "Checking account"])
+            .lines()
+            .count()
+    };
+    let before = register();
+    let import = |extra: &[&str]| {
+        let mut line = vec!["import", file.as_str(), "--account", "Checking account"];
+        line.extend(extra);
+        session.ok(&line)
+    };
+
+    let preview = import(&["--dry-run"]);
+    let lines: Vec<&str> = preview.lines().collect();
+    assert_eq!(
+        lines[0], "Would import 2 of 4 entries into Checking account.",
+        "{preview}"
+    );
+    assert_eq!(
+        lines[1].split_whitespace().collect::<Vec<_>>(),
+        ["Entry", "Date", "Payee", "Amount"]
+    );
+    assert!(
+        preview.contains("Left out 1 the bank hasn't booked yet: 1.3.\n"),
+        "{preview}"
+    );
+    assert!(
+        preview.contains("Left out 1 that may be in the book already."),
+        "{preview}"
+    );
+    let similar = lines
+        .iter()
+        .find(|line| line.trim_start().starts_with("1.2 "))
+        .expect("the bakery is listed");
+    assert!(similar.contains("2026-10-09 Bakery ("), "{similar}");
+    assert!(preview.contains("The Rules would change 1 of the new transactions:"));
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.split_whitespace().collect::<Vec<_>>() == ["entry", "1.1", "Shops"]),
+        "{preview}"
+    );
+    assert!(preview.contains("The balance on 2026-10-14 is 1421.80 EUR, as the bank says.\n"));
+    assert!(preview.ends_with("Nothing was changed.\n"), "{preview}");
+    assert_eq!(register(), before);
+
+    let imported = import(&[]);
+    assert!(
+        imported.starts_with("Imported 2 of 4 entries into Checking account.\n"),
+        "{imported}"
+    );
+    assert!(!imported.contains("Nothing was changed."), "{imported}");
+    assert_eq!(register(), before + 2);
+    let groceries = session.ok(&["register", "Food/Groceries"]);
+    assert!(groceries.contains("REWE Markt"), "{groceries}");
+
+    // The same file again: what has a bank ID is skipped, the rest waits.
+    let again = import(&[]);
+    assert!(
+        again.starts_with("Imported 0 of 4 entries into Checking account.\n"),
+        "{again}"
+    );
+    assert!(
+        again.contains("Skipped 2 already in the book: 1.1, 1.4.\n"),
+        "{again}"
+    );
+    // The bakery was already typed in; importing it anyway counts it twice,
+    // which the balance check shows.
+    let twice = import(&["--also", "1.2"]);
+    assert!(twice.starts_with("Imported 1 of 4 entries"), "{twice}");
+    assert!(
+        twice.contains("The balance on 2026-10-14 is 1396.80 EUR, but the bank says 1421.80 EUR."),
+        "{twice}"
+    );
+    // Importing nothing new changed nothing, so two undos take back both
+    // imports, each as a whole.
+    for _ in 0..2 {
+        assert_eq!(
+            session.ok(&["undo"]),
+            "Undid the change: imported a statement.\n"
+        );
+    }
+    assert_eq!(register(), before);
+}
+
+#[test]
+fn statement_files_that_do_not_fit_are_refused() {
+    let session = household();
+    let dollars = statement_file(
+        &session,
+        "dollars.kstest",
+        &[
+            "account;;12345;USD",
+            "entry;booked;2026-10-05;;-5.00;;Kiosk;;",
+        ],
+    );
+    let refused = session.cli(&["import", &dollars, "--account", "Checking account"]);
+    assert_eq!(refused.status, 1);
+    assert!(
+        refused
+            .err
+            .starts_with("error: import.account-currency-differs\n  account: Checking account\n"),
+        "{}",
+        refused.err
+    );
+
+    let two = statement_file(
+        &session,
+        "two.kstest",
+        &[
+            "account;DE89370400440532013000;;EUR",
+            "entry;booked;2026-10-05;;-5.00;A1;Kiosk;;",
+            "account;GB82WEST12345698765432;;EUR",
+            "entry;booked;2026-10-05;;-7.00;A1;Kiosk;;",
+        ],
+    );
+    let refused = session.cli(&["import", &two, "--account", "Checking account"]);
+    assert_eq!(refused.status, 1);
+    assert!(refused.err.contains("--statement N"), "{}", refused.err);
+    let second = session.ok(&[
+        "import",
+        &two,
+        "--account",
+        "Checking account",
+        "--statement",
+        "2",
+    ]);
+    assert!(second.contains("  2.1 "), "{second}");
+    assert!(second.contains("-7.00 EUR"), "{second}");
+
+    let missing = session.cli(&["import", "no-such-file.kstest", "--account", "Savings"]);
+    assert_eq!(missing.status, 1);
+    assert!(
+        missing.err.starts_with("error: import.io\n"),
+        "{}",
+        missing.err
+    );
+    let notes = session.0.join("notes.txt");
+    std::fs::write(&notes, "Just some notes\n").expect("file written");
+    let unknown = session.cli(&[
+        "import",
+        &notes.display().to_string(),
+        "--account",
+        "Savings",
+    ]);
+    assert_eq!(unknown.status, 1);
+    assert!(
+        unknown.err.contains("doesn't recognize the file's format"),
+        "{}",
+        unknown.err
+    );
+    for wrong in [
+        vec!["import", &two, "--account", "Savings", "--format", "csv"],
+        vec!["import", &two, "--account", "Savings", "--statement", "3"],
+        vec![
+            "import",
+            &two,
+            "--account",
+            "Savings",
+            "--statement",
+            "1",
+            "--also",
+            "1",
+        ],
+        vec![
+            "import",
+            &two,
+            "--account",
+            "Savings",
+            "--statement",
+            "1",
+            "--also",
+            "2.1",
+        ],
+    ] {
+        assert_eq!(session.cli(&wrong).status, 2, "{wrong:?}");
+    }
+}
+
 #[test]
 fn mistakes_in_a_rule_are_refused() {
     let session = household();

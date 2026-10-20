@@ -10,7 +10,8 @@
 //! importer only reads: it turns a file into [`Imported`] data, here bank
 //! [`Statement`]s, and never touches a book. What happens to a statement
 //! afterwards (only booked entries, the duplicate check, Transfers, Rules,
-//! D-030) is the import pipeline's job (M2.2).
+//! D-030) is the job of the import pipeline, `kassensturz-pipeline`
+//! (D-092).
 //!
 //! Files are untrusted (AGENTS.md §8, D-091): [`import`] and [`read_file`]
 //! enforce [`Limits`] on size, nesting, entries and text, and check what an
@@ -18,6 +19,9 @@
 //! exactly as it was delivered (D-067) and is only ever data, never part of
 //! a message or an instruction. Errors are codes with parameters
 //! ([`ImportError`], D-034, D-084), like everywhere else in KassenSturz.
+//!
+//! [`TestFormat`] is a made-up format for tests and the command-line tool;
+//! the real formats come in M2.3 to M2.10.
 //!
 //! This crate depends only on `kassensturz-core` (`docs/ARCHITECTURE.md`).
 
@@ -29,6 +33,7 @@ mod error;
 mod importer;
 mod limits;
 mod statement;
+mod test_format;
 
 pub use amount::{DecimalMark, currency, parse_amount};
 pub use error::ImportError;
@@ -38,3 +43,4 @@ pub use importer::{
 };
 pub use limits::{Limits, read_file};
 pub use statement::{Balance, Entry, EntryStatus, Statement, StatementAccount};
+pub use test_format::TestFormat;

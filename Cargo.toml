@@ -19,6 +19,7 @@ publish = false
 [workspace.dependencies]
 kassensturz-core = { path = "crates/kassensturz-core" }
 kassensturz-import = { path = "crates/kassensturz-import" }
+kassensturz-pipeline = { path = "crates/kassensturz-pipeline", default-features = false }
 kassensturz-store = { path = "crates/kassensturz-store", default-features = false }
 
 # Direct dependencies. Each one is approved by the maintainer and listed in

@@ -273,6 +273,16 @@ fn match_order(a: &TransferMatch, b: &TransferMatch) -> Ordering {
     side_order(&a.outgoing, &b.outgoing).then_with(|| side_order(&a.incoming, &b.incoming))
 }
 
+/// How many business days `a` and `b` are apart, in either order, if at
+/// most `limit`: counted as for Transfers (D-030), the Mondays to Fridays
+/// after the earlier date up to and including the later one. The import
+/// pipeline uses the same window for an entry that looks like a transaction
+/// the account already has (D-092).
+pub fn business_days_apart(a: Date, b: Date, limit: u32) -> Option<u32> {
+    let (earlier, later) = if a <= b { (a, b) } else { (b, a) };
+    days_apart(earlier, later, limit).map(|(business_days, _)| business_days)
+}
+
 /// How far `earlier` and `later` are apart, as business days and calendar
 /// days, if at most `limit` business days: the number of Mondays to Fridays
 /// after `earlier` up to and including `later`. Friday to Monday is one
@@ -369,6 +379,10 @@ mod tests {
         // Far apart is quickly too far, and the last date there is ends it.
         assert_eq!(days_apart(Date::MIN, Date::MAX, 3), None);
         assert_eq!(days_apart(Date::MAX, Date::MAX, 3), Some((0, 0)));
+        // In either order.
+        assert_eq!(business_days_apart(october(12), october(9), 3), Some(1));
+        assert_eq!(business_days_apart(october(9), october(12), 3), Some(1));
+        assert_eq!(business_days_apart(october(15), october(9), 3), None);
     }
 
     #[test]

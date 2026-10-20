@@ -38,7 +38,8 @@ pub use transaction::{
     ForeignAmount, ImportedDetails, Split, SplitId, Transaction, TransactionError, TransactionId,
 };
 pub use transfer::{
-    MAX_BUSINESS_DAYS, TransferError, TransferMatch, TransferSide, find_transfers, join_transfer,
+    MAX_BUSINESS_DAYS, TransferError, TransferMatch, TransferSide, business_days_apart,
+    find_transfers, join_transfer,
 };
 
 /// A calendar date without time or time zone, used for booking dates

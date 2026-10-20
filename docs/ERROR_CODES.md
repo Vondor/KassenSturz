@@ -158,7 +158,7 @@ Data in the book breaks one of KassenSturz's rules, for example because another 
 
 ## Importing files (`kassensturz-import`)
 
-A file from a bank or another program couldn't be read (D-091). Nothing was imported, so the book is unchanged. Where a code has `line?`, it is the line of the file the problem is on, counted from 1, if the importer knows it; the UI adds "on line {line}" to the message. Text in `found` is what the file says, shown as data (AGENTS.md §8).
+A file from a bank or another program couldn't be read (D-091), or what it holds doesn't fit the account it was to go into (`kassensturz-pipeline`, which adds no codes of its own and passes on those of the store, D-092). Nothing was imported, so the book is unchanged. Where a code has `line?`, it is the line of the file the problem is on, counted from 1, if the importer knows it; the UI adds "on line {line}" to the message. Text in `found` is what the file says, shown as data (AGENTS.md §8).
 
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
@@ -173,3 +173,5 @@ A file from a bank or another program couldn't be read (D-091). Nothing was impo
 | `import.amount-too-large` | `found`, `line?` | | The amount {found} is too large for KassenSturz to work with. The file may be damaged. Nothing was imported. |
 | `import.unknown-currency` | `currency`, `line?` | | The file uses the currency {currency}, which KassenSturz doesn't know. Nothing was imported. |
 | `import.currency-mismatch` | `expected`, `found` | | The file has an amount in {found} in a statement for an account in {expected}, so its entries can't be added up. Nothing was imported. |
+| `import.account-currency-differs` | `account`, `account_currency`, `statement_currency` | | The statement is in {statement_currency}, but {account} counts in {account_currency}. Choose an account in {statement_currency}. Nothing was imported. |
+| `import.decimal-places-differ` | `currency`, `book`, `file` | | The file counts {currency} with {file} decimal places, your book with {book}, so its amounts can't be read safely. KassenSturz never moves the decimal point of what a bank delivered, so nothing was imported. |

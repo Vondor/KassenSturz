@@ -2,13 +2,13 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029). Every change to the layout updates this document.
 
-**Status: development layout 9.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2), layout 4 the type and closed flag of accounts (M1.4), layout 5 the category tree (M1.5), layout 6 parts without a category, parts in another currency with their rates, and what a bank or file delivered (M1.6), layout 7 the [change history](#the-change-history) (M1.9), layout 8 the action that joins the two sides of a Transfer (M1.10), and layout 9 the [Rules](#rules) and the actions that change and run them (M1.11). Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds much more.
+**Status: development layout 10.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2), layout 4 the type and closed flag of accounts (M1.4), layout 5 the category tree (M1.5), layout 6 parts without a category, parts in another currency with their rates, and what a bank or file delivered (M1.6), layout 7 the [change history](#the-change-history) (M1.9), layout 8 the action that joins the two sides of a Transfer (M1.10), layout 9 the [Rules](#rules) and the actions that change and run them (M1.11), and layout 10 the action that imports a statement into an account (M2.2). Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds much more.
 
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).
 - `PRAGMA application_id` is `0x4B535A42` (1263753794), the letters `KSZB` for KassenSturz book (D-037, D-080). KassenSturz reads it, and SQLite's header, from the file's first bytes before SQLite opens the file. Only a file with both is opened, so another program's SQLite file is never changed, not even its journal mode.
-- `PRAGMA user_version` holds the layout version: currently `9`.
+- `PRAGMA user_version` holds the layout version: currently `10`.
 - The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033). While the book is open, its [lock file](#the-lock-file) sits next to it.
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
 - Deleted content is overwritten (`PRAGMA secure_delete = ON` on every connection), so what KassenSturz deletes, such as a change history the user cleans up, is gone from the file too, though not from copies of it such as backups (D-066, D-086).
@@ -205,7 +205,7 @@ The change history (D-032, D-066): one row per user action, e.g. adding an accou
 |---|---|---|
 | `id` | BLOB (16 bytes), primary key | UUIDv7 |
 | `sequence` | INTEGER, from 1, unique | The order the changes were made in. Undo and redo follow it, not `made_at`, since a computer's clock can be wrong |
-| `action` | TEXT | What the user did: `set_rounding_mode`, `use_currency`, `add_account`, `rename_account`, `close_account`, `reopen_account`, `add_category`, `rename_category`, `move_category`, `add_rate`, `remove_rate`, `add_transaction`, `edit_transaction`, `remove_transaction`, `join_transfer` (joining the two sides of a Transfer into one transaction, D-087), `add_rule`, `edit_rule`, `move_rule`, `remove_rule` or `run_rules` (running the Rules on the book's transactions, D-088) |
+| `action` | TEXT | What the user did: `set_rounding_mode`, `use_currency`, `add_account`, `rename_account`, `close_account`, `reopen_account`, `add_category`, `rename_category`, `move_category`, `add_rate`, `remove_rate`, `add_transaction`, `edit_transaction`, `remove_transaction`, `join_transfer` (joining the two sides of a Transfer into one transaction, D-087), `add_rule`, `edit_rule`, `move_rule`, `remove_rule`, `run_rules` (running the Rules on the book's transactions, D-088) or `import_statement` (importing bank statements into one account, with the Rules run on what it added, D-092) |
 | `made_at` | TEXT | When, ISO 8601 in UTC, in whole seconds, e.g. `2026-10-19T11:04:02Z`, by the clock of the computer it was made on |
 | `undone` | INTEGER, 0 or 1 | `1` if it is undone, so redo can make it again |
 

@@ -1910,3 +1910,192 @@ fn transactions_are_exported_as_csv_into_a_new_file() {
     assert!(unknown.err.contains("there is no account called `Nowhere`"));
     assert!(!session.0.join("never.csv").exists());
 }
+
+#[test]
+fn the_whole_book_is_exported_and_read_back_into_a_new_book() {
+    let session = household();
+    session.ok(&[
+        "rule",
+        "add",
+        "Market",
+        "--if",
+        "payee is Market",
+        "--category",
+        "Food/Groceries",
+    ]);
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-01",
+        "--account",
+        "Checking account",
+        "--amount",
+        "2500.00",
+        "--payee",
+        "Employer",
+        "--category",
+        "Salary",
+    ]);
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-06",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-300.00",
+        "--to",
+        "Savings",
+    ]);
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-07",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-40.00",
+        "--payee",
+        "Market",
+    ]);
+    session.ok(&["rule", "run"]);
+    session.ok(&[
+        "account",
+        "add",
+        "Old account",
+        "--type",
+        "cash",
+        "--currency",
+        "EUR",
+    ]);
+    session.ok(&["account", "close", "Old account"]);
+    session.ok(&["history", "keep", "forever"]);
+
+    let file = session.0.join("household.json");
+    let file_text = file.display().to_string();
+    assert_eq!(
+        session.ok(&["export", &file_text, "--format", "book"]),
+        format!(
+            "Exported the book to {file_text} as book: 9 accounts and categories, 3 transactions.\n"
+        )
+    );
+
+    // A new book from the file holds the same, and writes the same file.
+    let copy = Session::new();
+    assert_eq!(
+        copy.ok(&["create", "--from", &file_text]),
+        format!("Created the book from {file_text}: 9 accounts and categories, 3 transactions.\n")
+    );
+    for command in [
+        &["balances", "--all"][..],
+        &["register", "Checking account"],
+        &["register", "Food/Groceries"],
+        &["category", "list"],
+        &["rule", "list"],
+    ] {
+        assert_eq!(copy.ok(command), session.ok(command), "{command:?}");
+    }
+    // Reading the file isn't a change that could be undone.
+    assert_eq!(
+        copy.ok(&["history", "list"]),
+        "Made at (UTC)  Change  State\nThe book keeps its history forever.\n"
+    );
+    let again = copy.0.join("again.json");
+    copy.ok(&["export", &again.display().to_string(), "--format", "book"]);
+    assert_eq!(
+        std::fs::read(&again).expect("written"),
+        std::fs::read(&file).expect("written")
+    );
+
+    // The complete export takes none of the CSV options.
+    let target = session.0.join("never.json").display().to_string();
+    for option in [
+        &["--account", "Savings"][..],
+        &["--separator", "tab"],
+        &["--no-header"],
+    ] {
+        let mut line = vec!["export", target.as_str(), "--format", "book"];
+        line.extend(option);
+        let refused = session.cli(&line);
+        assert_eq!(refused.status, 2, "{line:?}");
+        assert!(
+            refused.err.contains("is only for the csv format"),
+            "{}",
+            refused.err
+        );
+    }
+    assert!(!session.0.join("never.json").exists());
+}
+
+#[test]
+fn a_file_that_does_not_make_a_book_leaves_nothing_behind() {
+    let session = household();
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-01",
+        "--account",
+        "Checking account",
+        "--amount",
+        "10.00",
+    ]);
+    let file = session.0.join("household.json");
+    let file_text = file.display().to_string();
+    session.ok(&["export", &file_text, "--format", "book"]);
+    let written = std::fs::read_to_string(&file).expect("written");
+
+    let new = Session::new();
+    let not_json = new.0.join("notes.txt");
+    std::fs::write(&not_json, "Not a book\n").expect("written");
+    // A balance that isn't zero in an account the file says is closed: the
+    // file reads, but the book refuses it.
+    let closed = new.0.join("closed.json");
+    std::fs::write(
+        &closed,
+        written.replacen("\"closed\": false", "\"closed\": true", 1),
+    )
+    .expect("written");
+    std::fs::write(
+        new.0.join("busy.json"),
+        written.replace("\"version\": 1", "\"version\": 2"),
+    )
+    .expect("written");
+    for (from, code) in [
+        (new.0.join("missing.json"), "export.io"),
+        (not_json, "export.not-json"),
+        (new.0.join("busy.json"), "export.newer-version"),
+    ] {
+        let refused = new.cli(&["create", "--from", &from.display().to_string()]);
+        assert_eq!(refused.status, 1, "{from:?}");
+        assert!(
+            refused.err.starts_with(&format!("error: {code}\n")),
+            "{from:?}: {}",
+            refused.err
+        );
+        assert!(!new.book().exists(), "{from:?}");
+    }
+    let refused = new.cli(&["create", "--from", &closed.display().to_string()]);
+    assert_eq!(refused.status, 1);
+    assert!(
+        refused.err.starts_with("error: store.account-not-empty\n"),
+        "{}",
+        refused.err
+    );
+    assert!(!new.book().exists());
+    assert!(!new.0.join("Household.ksz.lock").exists());
+
+    // An existing book is never replaced by one from a file.
+    let kept = session.cli(&["create", "--from", &file_text]);
+    assert_eq!(kept.status, 1);
+    assert!(session.ok(&["category", "list"]).contains("Groceries"));
+    // And `create` takes nothing else.
+    assert_eq!(
+        new.cli(&["create", "--from", &file_text, "extra"]).status,
+        2
+    );
+    assert!(!new.book().exists());
+}

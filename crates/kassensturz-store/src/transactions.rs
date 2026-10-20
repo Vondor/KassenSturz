@@ -208,8 +208,6 @@ impl Book {
             )
             .optional()?;
         let (booking_date, payee, currency) = row.ok_or(StoreError::UnknownTransaction(id))?;
-        let booking_date = date_from_text(&booking_date)?;
-        let currency = currency_from_text(&currency)?;
 
         let mut statement = self.conn.prepare(&format!(
             "SELECT {SPLIT_COLUMNS}, {IMPORTED_COLUMNS} {SPLIT_TABLES}
@@ -218,21 +216,8 @@ impl Book {
         let rows = statement
             .query_map([id.to_bytes()], SplitRow::read)?
             .collect::<Result<Vec<_>, _>>()?;
-        let splits = rows
-            .into_iter()
-            .map(|row| row.into_split(currency))
-            .collect::<Result<Vec<_>, _>>()?;
-        let transaction = Transaction::new(id, booking_date, payee, splits).map_err(|error| {
-            StoreError::Corrupt(Corruption::InvalidTransaction {
-                transaction: id,
-                error,
-            })
-        })?;
-        for split in transaction.splits() {
-            let Some(account) = split.account else {
-                continue;
-            };
-            let account_currency: Option<String> = self
+        assemble(id, &booking_date, payee, &currency, rows, |account| {
+            let currency: Option<String> = self
                 .conn
                 .query_row(
                     "SELECT currency FROM accounts WHERE id = ?1",
@@ -240,15 +225,59 @@ impl Book {
                     |row| row.get(0),
                 )
                 .optional()?;
-            let account_currency =
-                account_currency.ok_or(StoreError::Corrupt(Corruption::BrokenReferences))?;
-            if currency_from_text(&account_currency)? != split.account_amount().currency() {
-                return Err(StoreError::Corrupt(Corruption::CurrencyMismatch {
-                    transaction: id,
-                }));
-            }
+            currency.as_deref().map(currency_from_text).transpose()
+        })
+    }
+
+    /// Every transaction in the book, sorted by booking date and then by ID,
+    /// each checked as [`Book::transaction`] checks it. Reads the book once,
+    /// e.g. for the complete export (D-029).
+    pub fn transactions(&self) -> Result<Vec<Transaction>, StoreError> {
+        let accounts: HashMap<AccountId, CurrencyCode> = self
+            .all_accounts()?
+            .into_iter()
+            .map(|account| (account.id, account.currency))
+            .collect();
+        let mut statement = self.conn.prepare(&format!(
+            "SELECT {SPLIT_COLUMNS}, {IMPORTED_COLUMNS}, s.transaction_id {SPLIT_TABLES}
+             ORDER BY s.transaction_id, s.position"
+        ))?;
+        let mut parts: HashMap<[u8; 16], Vec<SplitRow>> = HashMap::new();
+        let mut rows = statement.query([])?;
+        while let Some(row) = rows.next()? {
+            let transaction: [u8; 16] = row.get(SPLIT_ROW_COLUMNS)?;
+            parts
+                .entry(transaction)
+                .or_default()
+                .push(SplitRow::read(row)?);
         }
-        Ok(transaction)
+        drop(rows);
+        let mut statement = self.conn.prepare(
+            "SELECT id, booking_date, payee, currency FROM transactions ORDER BY booking_date, id",
+        )?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, [u8; 16]>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, String>(3)?,
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        rows.into_iter()
+            .map(|(id, booking_date, payee, currency)| {
+                let own = parts.remove(&id).unwrap_or_default();
+                assemble(
+                    TransactionId::from_bytes(id),
+                    &booking_date,
+                    payee,
+                    &currency,
+                    own,
+                    |account| Ok(accounts.get(&account).copied()),
+                )
+            })
+            .collect()
     }
 
     /// The transactions that touch `account`, oldest first, each as seen from
@@ -428,6 +457,44 @@ impl Book {
     }
 }
 
+/// A transaction from its row and its parts' rows, checked: it balances,
+/// and every part is in its account's currency, which `account_currency`
+/// looks up (`None` for an account that isn't in the book).
+fn assemble(
+    id: TransactionId,
+    booking_date: &str,
+    payee: Option<String>,
+    currency: &str,
+    rows: Vec<SplitRow>,
+    account_currency: impl Fn(AccountId) -> Result<Option<CurrencyCode>, StoreError>,
+) -> Result<Transaction, StoreError> {
+    let booking_date = date_from_text(booking_date)?;
+    let currency = currency_from_text(currency)?;
+    let splits = rows
+        .into_iter()
+        .map(|row| row.into_split(currency))
+        .collect::<Result<Vec<_>, _>>()?;
+    let transaction = Transaction::new(id, booking_date, payee, splits).map_err(|error| {
+        StoreError::Corrupt(Corruption::InvalidTransaction {
+            transaction: id,
+            error,
+        })
+    })?;
+    for split in transaction.splits() {
+        let Some(account) = split.account else {
+            continue;
+        };
+        let account_currency =
+            account_currency(account)?.ok_or(StoreError::Corrupt(Corruption::BrokenReferences))?;
+        if account_currency != split.account_amount().currency() {
+            return Err(StoreError::Corrupt(Corruption::CurrencyMismatch {
+                transaction: id,
+            }));
+        }
+    }
+    Ok(transaction)
+}
+
 /// Fails if `changed` changes a part of `stored` that a bank or file
 /// delivered, or claims that a part was delivered that wasn't (D-067).
 fn check_imported_unchanged(stored: &Transaction, changed: &Transaction) -> Result<(), StoreError> {
@@ -590,7 +657,7 @@ fn foreign_columns(
 }
 
 /// The columns [`SplitRow::read`] expects, in its order, followed by
-/// [`IMPORTED_COLUMNS`].
+/// [`IMPORTED_COLUMNS`]: [`SPLIT_ROW_COLUMNS`] together.
 const SPLIT_COLUMNS: &str = "
     s.id, s.account_id, s.amount, s.foreign_amount, s.foreign_currency,
     r.rate_id, r.date, r.from_currency, r.to_currency, r.rate_digits,
@@ -601,6 +668,9 @@ const SPLIT_COLUMNS: &str = "
 const IMPORTED_COLUMNS: &str = "
     i.split_id, i.bank_id, i.booking_date, i.value_date,
     i.other_party_name, i.other_party_iban, i.remittance_information";
+
+/// How many columns [`SplitRow::read`] reads.
+const SPLIT_ROW_COLUMNS: usize = 19;
 
 /// The tables behind [`SPLIT_COLUMNS`].
 const SPLIT_TABLES: &str = "

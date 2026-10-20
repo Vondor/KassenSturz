@@ -219,7 +219,9 @@ fn an_account_without_rows_gives_only_the_header() {
 #[test]
 fn data_that_contradicts_itself_is_refused() {
     let mut data = account(vec![row(100, None)]);
-    let ExportData::Transactions(accounts) = &mut data;
+    let ExportData::Transactions(accounts) = &mut data else {
+        unreachable!("transactions")
+    };
     accounts[0].rows[0].amount = Money::from_minor_units(100, JPY);
     assert_eq!(
         export(&CsvExport::default(), &data),
@@ -228,7 +230,9 @@ fn data_that_contradicts_itself_is_refused() {
             found: JPY
         })
     );
-    let ExportData::Transactions(accounts) = &mut data;
+    let ExportData::Transactions(accounts) = &mut data else {
+        unreachable!("transactions")
+    };
     accounts[0].rows[0].amount = Money::from_minor_units(100, EUR);
     accounts[0].minor_digits = 19;
     assert_eq!(

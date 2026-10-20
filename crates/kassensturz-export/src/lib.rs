@@ -17,19 +17,30 @@
 //! for a formula (D-099). Errors are codes with parameters
 //! ([`ExportError`], D-034, D-084), like everywhere else in KassenSturz.
 //!
-//! The formats so far are [`CsvExport`] (M2.7); the complete export of a
-//! book comes in M2.8.
+//! The formats are [`CsvExport`], the transactions of accounts (M2.7), and
+//! [`BookExport`], the complete export of a book as JSON (M2.8). The
+//! complete export is the stable way to move a book's data, so this crate
+//! reads it back too ([`read_book`]); the format is documented in
+//! `docs/EXPORT_FORMAT.md` for other programs (D-046).
 //!
 //! This crate depends only on `kassensturz-core` (`docs/ARCHITECTURE.md`).
 
 #![forbid(unsafe_code)]
 
+mod book;
 mod csv;
 mod data;
+mod decimal;
 mod error;
 mod exporter;
 
+pub use book::{
+    BookData, BookExport, BookedByRule, FORMAT, MAX_FILE_BYTES, MAX_RULE_DEPTH, VERSION, read_book,
+    read_book_file,
+};
 pub use csv::{CsvExport, CsvExportSettings, DecimalMark, Separator};
 pub use data::{AccountTransactions, Counterpart, ExportData, TransactionRow};
-pub use error::ExportError;
+pub use error::{Expected, ExportError};
 pub use exporter::{ExportKind, Exporter, ExporterInfo, export, export_file};
+
+use decimal::decimal_text;

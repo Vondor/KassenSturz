@@ -11,6 +11,7 @@
 
 mod backup;
 mod error;
+mod fill;
 mod history;
 mod layout;
 mod lock;
@@ -58,6 +59,8 @@ pub struct Book {
     conn: Connection,
     /// Whether a user action is under way ([`Book::as_one_action`]).
     recording: bool,
+    /// Whether a new book is being filled ([`Book::fill_new`]).
+    filling: bool,
     /// The book's lock file, removed when the book is closed. Declared after
     /// `conn`, so the database is closed first. Books in memory have none.
     _lock: Option<HeldLock>,
@@ -183,6 +186,7 @@ impl Book {
         let mut book = Self {
             conn,
             recording: false,
+            filling: false,
             _lock: lock,
         };
         book.prune_history()?;
@@ -256,6 +260,28 @@ impl Book {
     pub fn currency(&self, currency: CurrencyCode) -> Result<Currency, StoreError> {
         let minor_digits = self.currency_minor_digits(currency)?;
         Ok(Currency::new(currency, minor_digits).expect("checked when read"))
+    }
+
+    /// Every currency in use in this book, with the decimal places it stores
+    /// for each, sorted by code.
+    pub fn currencies(&self) -> Result<Vec<Currency>, StoreError> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT code, minor_digits FROM currencies ORDER BY code")?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        rows.into_iter()
+            .map(|(code, digits)| {
+                let code = currency_from_text(&code)?;
+                u8::try_from(digits)
+                    .ok()
+                    .and_then(|minor_digits| Currency::new(code, minor_digits))
+                    .ok_or(StoreError::Corrupt(Corruption::BadMinorDigits(digits)))
+            })
+            .collect()
     }
 
     fn stored_minor_digits(&self, currency: CurrencyCode) -> Result<Option<u8>, StoreError> {
@@ -421,10 +447,13 @@ impl Book {
         Ok(accounts)
     }
 
-    fn all_accounts(&self) -> Result<Vec<Account>, StoreError> {
-        let mut statement = self
-            .conn
-            .prepare(&format!("SELECT {ACCOUNT_COLUMNS} FROM accounts"))?;
+    /// Every account and category, the internal account for starting
+    /// balances included, sorted by ID. [`Book::accounts`] and
+    /// [`Book::categories`] give the lists the user sees.
+    pub fn all_accounts(&self) -> Result<Vec<Account>, StoreError> {
+        let mut statement = self.conn.prepare(&format!(
+            "SELECT {ACCOUNT_COLUMNS} FROM accounts ORDER BY id"
+        ))?;
         let rows = statement
             .query_map([], AccountRow::read)?
             .collect::<Result<Vec<_>, _>>()?;
@@ -677,6 +706,18 @@ impl Book {
         ))?;
         let rows = statement
             .query_map([from.as_str(), to.as_str()], RateRow::read)?
+            .collect::<Result<Vec<_>, _>>()?;
+        rows.into_iter().map(RateRow::into_rate).collect()
+    }
+
+    /// Every rate in the price table, sorted by the currency priced, the
+    /// currency it is priced in and the date.
+    pub fn all_rates(&self) -> Result<Vec<DatedRate>, StoreError> {
+        let mut statement = self.conn.prepare(&format!(
+            "SELECT {RATE_COLUMNS} FROM prices ORDER BY from_currency, to_currency, date"
+        ))?;
+        let rows = statement
+            .query_map([], RateRow::read)?
             .collect::<Result<Vec<_>, _>>()?;
         rows.into_iter().map(RateRow::into_rate).collect()
     }

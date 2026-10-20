@@ -21,8 +21,8 @@ kassensturz/
 │   │   └── events                  # event bus (TransactionAdded, ...)
 │   ├── kassensturz-store/          # all SQLite code: store, migrations, backups, change history — see D-016, D-032, D-033, D-072
 │   ├── kassensturz-import/         # the Importer interface, statements and limits for untrusted files (D-091); CSV, OFX, MT940, CAMT.053, KMyMoney (.kmy / SQLite)
-│   ├── kassensturz-export/         # the Exporter interface, the data an export is made from, and the formats it writes: CSV (D-099); the complete export (M2.8)
-│   ├── kassensturz-pipeline/       # the import pipeline: statements into an account, with the duplicate check, Transfer suggestions, Rules and the balance check (D-030, D-092); gathering a book's transactions for export (D-099)
+│   ├── kassensturz-export/         # the Exporter interface, the data an export is made from, and the formats it writes: CSV (D-099) and the complete export of a book, which it also reads back (D-100)
+│   ├── kassensturz-pipeline/       # the import pipeline: statements into an account, with the duplicate check, Transfer suggestions, Rules and the balance check (D-030, D-092); gathering a book's transactions or the whole book for export, and filling a new book from a complete export (D-099, D-100)
 │   ├── kassensturz-bank/           # read-only bank connections over AqBanking, fake backend for tests — see D-053, D-060
 │   ├── kassensturz-aqbanking-sys/  # raw AqBanking/Gwenhywfar declarations (bindgen, committed, loaded at runtime) — see D-060
 │   ├── kassensturz-plugin-api/     # stable, versioned plugin interface (after 1.0, D-071)
@@ -216,7 +216,7 @@ kassensturz/
 - Each book stores the decimal places of every currency it uses, taken from KassenSturz's own ISO 4217 table when the currency is first used and fixed from then on (D-027, D-062). The table is a data file in `kassensturz-core`, written by `tools/update-currency-table.py` from the codes Debian's iso-codes lists, with the decimal places kept in the table itself (D-062, D-077). A withdrawn currency, such as the Deutsche Mark, isn't in it; the importers convert it into the currency that replaced it, keeping the original amounts (D-077).
 - Exchange rates live in the book's dated price table, one per pair of currencies, direction and day, entered by hand in v1 (D-028). A conversion uses the newest rate on or before its date, multiplies by it or divides by it for the other direction, computes exactly in 128 bits and rounds once with the book's rounding mode (D-051, D-079).
 - The rounding mode of a book's calculations is stored in the book, so every computer calculates the same way; changing it affects only later calculations (D-027, D-078).
-- Export: CSV plus a complete export of the book in an open format (D-029). It is the stable way to move data.
+- Export: CSV plus a complete export of the book in an open format (D-029): one JSON file, described in `docs/EXPORT_FORMAT.md` (D-100). It is the stable way to move data.
 - The book's layout is documented in `docs/BOOK_FORMAT.md` so other programs can read books. It can change in any version, and writing into a book from outside isn't supported (D-046).
 - Paths and keychain access go through `kassensturz-platform`, so Plasma, GNOME, Windows and macOS conventions are handled in one place. Data and config folders are named after the app ID `io.github.vondor.KassenSturz` (D-049). The store doesn't look these up itself: a front end passes it the computer's name and the backup folder when it opens a book (`Computer`, D-080).
 - All database code for the book lives in `kassensturz-store`; no other crate touches the book's database directly. SQLite is the only database until 1.0. When another one (PostgreSQL, MySQL/MariaDB, …) is scheduled after 1.0, a storage trait is extracted from the existing code, without changing `kassensturz-core`. See D-016, D-072, Q-012.

@@ -1,16 +1,17 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! The `export` command: the transactions of accounts into a new file
-//! (D-029, D-099).
+//! The `export` command: the transactions of accounts, or the whole book,
+//! into a new file (D-029, D-099, D-100).
 
 use std::io::Write;
 use std::path::Path;
 
 use kassensturz_export::{
-    CsvExport, CsvExportSettings, DecimalMark, ExportData, Exporter, Separator, export_file,
+    BookExport, CsvExport, CsvExportSettings, DecimalMark, ExportData, Exporter, Separator,
+    export_file,
 };
-use kassensturz_pipeline::export_transactions;
+use kassensturz_pipeline::{export_book, export_transactions};
 use kassensturz_store::Book;
 
 use crate::args::Arguments;
@@ -18,25 +19,74 @@ use crate::error::CliError;
 use crate::lookup::find_account;
 use crate::text::plain;
 
-/// The ID of the only format so far; the complete export (M2.8) joins it.
+/// The IDs of the formats: transactions as CSV, the default, and the
+/// complete export of the whole book.
 const CSV: &str = "csv";
+const BOOK: &str = "book";
 
-/// `export FILE [--account NAME ...]`.
+/// The options only the CSV format takes.
+const CSV_OPTIONS: [&str; 3] = ["account", "separator", "decimal-mark"];
+const CSV_FLAGS: [&str; 2] = ["no-header", "byte-order-mark"];
+
+/// `export FILE [--format csv|book] [--account NAME ...] ...`.
 pub(crate) fn export(book: &Book, args: &[String], out: &mut dyn Write) -> Result<(), CliError> {
-    let args = Arguments::parse(
-        args,
-        &["format", "account", "separator", "decimal-mark"],
-        &["no-header", "byte-order-mark"],
-    )?;
+    let mut options = vec!["format"];
+    options.extend(CSV_OPTIONS);
+    let args = Arguments::parse(args, &options, &CSV_FLAGS)?;
     let [file] = args.exactly(["file"])?;
-    if let Some(format) = args.value("format")?
-        && format != CSV
-    {
+    match args.value("format")? {
+        None | Some(CSV) => export_csv(book, &args, file, out),
+        Some(BOOK) => export_whole_book(book, &args, file, out),
+        Some(other) => Err(CliError::usage(format!(
+            "`{}` isn't a format to export: use csv or book",
+            plain(other)
+        ))),
+    }
+}
+
+/// The complete export: everything in the book, in the open format of
+/// `docs/EXPORT_FORMAT.md`, which `create --from` reads back.
+fn export_whole_book(
+    book: &Book,
+    args: &Arguments,
+    file: &str,
+    out: &mut dyn Write,
+) -> Result<(), CliError> {
+    // The whole book goes into the file, so nothing chooses parts of it.
+    for option in CSV_OPTIONS {
+        if !args.all(option).is_empty() {
+            return Err(CliError::usage(format!(
+                "--{option} is only for the csv format"
+            )));
+        }
+    }
+    if let Some(flag) = CSV_FLAGS.into_iter().find(|flag| args.flag(flag)) {
         return Err(CliError::usage(format!(
-            "`{}` isn't a format to export. The format yet is csv",
-            plain(format)
+            "--{flag} is only for the csv format"
         )));
     }
+    let data = export_book(book)?;
+    let ExportData::Book(exported) = &data else {
+        unreachable!("export_book gathers the book")
+    };
+    export_file(&BookExport, &data, Path::new(file))?;
+    writeln!(
+        out,
+        "Exported the book to {} as {BOOK}: {} accounts and categories, {} transactions.",
+        plain(file),
+        exported.accounts.len(),
+        exported.transactions.len()
+    )?;
+    Ok(())
+}
+
+/// Transactions of accounts, one row each, as CSV.
+fn export_csv(
+    book: &Book,
+    args: &Arguments,
+    file: &str,
+    out: &mut dyn Write,
+) -> Result<(), CliError> {
     let settings = CsvExportSettings {
         separator: match args.value("separator")? {
             None | Some("comma") => Separator::Comma,

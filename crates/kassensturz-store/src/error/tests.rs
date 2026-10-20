@@ -130,6 +130,7 @@ fn examples() -> Vec<ErrorReport> {
     let store_errors = [
         StoreError::AlreadyExists,
         StoreError::NotFound,
+        StoreError::NotEmpty,
         StoreError::NotABook,
         StoreError::UnsupportedLayout { found: 99 },
         locked(),

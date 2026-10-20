@@ -8,6 +8,7 @@ use std::io::Write;
 use kassensturz_core::Money;
 
 use crate::data::{AccountTransactions, Counterpart, ExportData, TransactionRow};
+use crate::decimal_text;
 use crate::error::ExportError;
 use crate::exporter::{ExportKind, Exporter, ExporterInfo};
 
@@ -142,7 +143,9 @@ impl Exporter for CsvExport {
 
     fn write(&self, data: &ExportData, out: &mut dyn Write) -> Result<(), ExportError> {
         data.check()?;
-        let ExportData::Transactions(accounts) = data;
+        let ExportData::Transactions(accounts) = data else {
+            return Err(ExportError::WrongKind);
+        };
         if self.settings.byte_order_mark {
             out.write_all(BYTE_ORDER_MARK)?;
         }
@@ -188,26 +191,15 @@ impl CsvExport {
     /// `amount` with `digits` decimal places: 1234 and 2 give `12.34`, -5
     /// and 2 give `-0.05`. Exact integer arithmetic (AGENTS.md §3.1 rule 1).
     fn amount(&self, amount: Money, digits: u8) -> Result<String, ExportError> {
-        let units = amount.minor_units();
-        let magnitude = u128::from(units.unsigned_abs());
-        let sign = if units < 0 { "-" } else { "" };
-        if digits == 0 {
-            return Ok(format!("{sign}{magnitude}"));
-        }
-        let scale =
-            10_u128
-                .checked_pow(u32::from(digits))
-                .ok_or(ExportError::BadDecimalPlaces {
-                    currency: amount.currency(),
-                    digits,
-                })?;
-        Ok(format!(
-            "{sign}{}{}{:0width$}",
-            magnitude / scale,
+        decimal_text(
+            amount.minor_units(),
+            digits,
             self.settings.decimal_mark.character(),
-            magnitude % scale,
-            width = usize::from(digits)
-        ))
+        )
+        .ok_or(ExportError::BadDecimalPlaces {
+            currency: amount.currency(),
+            digits,
+        })
     }
 
     fn write_row(&self, out: &mut dyn Write, fields: &[String]) -> Result<(), ExportError> {

@@ -6,16 +6,19 @@
 
 use kassensturz_core::{CurrencyCode, Date, Money};
 
+use crate::book::BookData;
+
 /// What an exporter writes. The caller gathers it from a book.
 ///
-/// The complete export of a book (M2.8) adds a variant. Code that handles
-/// one variant has to say what it does with the others, so a new one is
-/// never ignored silently.
+/// Code that handles one variant has to say what it does with the others,
+/// so a new one is never ignored silently.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ExportData {
     /// The transactions of one or more accounts, one list per account.
     Transactions(Vec<AccountTransactions>),
+    /// A whole book, for the complete export (D-029).
+    Book(BookData),
 }
 
 /// One account's transactions, as its register shows them.
@@ -71,7 +74,10 @@ const MAX_MINOR_DIGITS: u8 = 18;
 
 impl ExportData {
     /// Fails if the data contradicts itself: a row in another currency than
-    /// its account, or more decimal places than an amount can have.
+    /// its account, or more decimal places than an amount can have; for a
+    /// book, see [`BookData`]'s checks: an amount in a currency the book
+    /// doesn't list, a mark for a part no transaction has, or Rules nested
+    /// too deep.
     /// [`export`](crate::export) and [`export_file`](crate::export_file)
     /// call it first, so nothing is written for data that can't be written
     /// exactly (AGENTS.md §2).
@@ -98,6 +104,7 @@ impl ExportData {
                 }
                 Ok(())
             }
+            Self::Book(book) => book.check(),
         }
     }
 }

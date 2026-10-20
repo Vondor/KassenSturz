@@ -13,7 +13,7 @@ mod harness;
 use std::fs;
 
 use kassensturz_core::CurrencyCode;
-use kassensturz_import::{Camt053, Csv, CsvSettings, TestFormat, currency};
+use kassensturz_import::{Camt053, Csv, CsvSettings, Mt940, TestFormat, currency};
 
 #[test]
 fn golden_test_format() {
@@ -23,6 +23,11 @@ fn golden_test_format() {
 #[test]
 fn golden_camt053() {
     harness::check_folder(&Camt053);
+}
+
+#[test]
+fn golden_mt940() {
+    harness::check_folder(&Mt940);
 }
 
 /// Each CSV file is read with the settings in its `.settings` file, for an

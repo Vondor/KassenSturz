@@ -1,0 +1,41 @@
+recognized: yes
+book
+  account "A000001": "Checking", asset, type checking, EUR with 2 decimal places, inside -
+  account "A000002": "Card", liability, type -, EUR with 2 decimal places, inside -
+  account "A000003": "Brokerage", asset, type -, EUR with 2 decimal places, inside -
+  account "A000005": "Food", expense, type -, EUR with 2 decimal places, inside -
+  account "A000006": "Groceries", expense, type -, EUR with 2 decimal places, inside "A000005"
+  account "A000007": "Travel", expense, type -, USD with 2 decimal places, inside "A000005"
+  account "A000008": "Salary", income, type -, EUR with 2 decimal places, inside -
+  account "A000009": "Opening Balances", equity, type -, EUR with 2 decimal places, inside -
+  transaction 1 on 2020-01-01, payee -
+    part "A000001": 1500.00 EUR, in the account -
+    part "A000009": -1500.00 EUR, in the account -
+  transaction 2 on 2020-01-03, payee "Corner Grocery"
+    part "A000001": -24.75 EUR, in the account -, bank id "REF-0001", other party - -, text "Weekly shop"
+    part "A000006": 24.75 EUR, in the account -
+  transaction 3 on 2020-02-10, payee "Hotel Example"
+    part "A000002": -185.00 EUR, in the account -, bank id -, other party - -, text "Hotel\nTwo nights"
+    part "A000007": 185.00 EUR, in the account 200.00 USD
+  transaction 4 on 2020-02-28, payee -
+    part "A000001": 2100.00 EUR, in the account -
+    part "A000008": -2100.00 EUR, in the account -
+  transaction 5 on 2020-03-02, payee -
+    part "A000001": -500.00 EUR, in the account -
+    part "A000003": 500.00 EUR, in the account -
+  transaction 6 on 2020-03-03, payee -
+    part "A000003": -500.00 EUR, in the account -
+    part -: 500.00 EUR, in the account -
+  rate on 2020-02-11: 1 EUR = 1.0811 USD
+  rate on 2020-02-11: 1 USD = 0.925 EUR
+  skipped investments: 1
+  skipped schedules: 1
+  skipped budgets: 1
+  skipped reports: 1
+  skipped payees: 2
+  skipped tags: 1
+  skipped notes: 5
+  skipped reconciliation: 2
+  skipped rates: 3
+  skipped owner: 1
+  skipped other: 2

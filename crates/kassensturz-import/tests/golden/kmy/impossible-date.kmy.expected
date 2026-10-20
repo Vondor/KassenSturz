@@ -1,0 +1,4 @@
+recognized: yes
+error: import.bad-date
+  found: "2020-02-30"
+  line: 14

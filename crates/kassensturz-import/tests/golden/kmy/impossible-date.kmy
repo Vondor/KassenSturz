@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE KMYMONEY-FILE>
+<KMYMONEY-FILE>
+  <FILEINFO>
+    <VERSION id="1"/>
+  </FILEINFO>
+  <ACCOUNTS>
+    <ACCOUNT id="AStd::Asset" parentaccount="" type="9" name="Anlagen" currency="EUR"/>
+    <ACCOUNT id="AStd::Expense" parentaccount="" type="13" name="Ausgabe" currency="EUR"/>
+    <ACCOUNT id="A000001" parentaccount="AStd::Asset" type="1" name="Checking" currency="EUR"/>
+    <ACCOUNT id="A000002" parentaccount="AStd::Expense" type="13" name="Groceries" currency="EUR"/>
+  </ACCOUNTS>
+  <TRANSACTIONS>
+    <TRANSACTION id="T000000000000000001" postdate="2020-02-30" memo="" commodity="EUR">
+      <SPLITS>
+        <SPLIT id="S0001" payee="" reconcileflag="0" value="-2475/100" shares="-2475/100" memo="" account="A000001" bankid=""/>
+        <SPLIT id="S0002" payee="" reconcileflag="0" value="2475/100" shares="2475/100" memo="" account="A000002" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+  </TRANSACTIONS>
+</KMYMONEY-FILE>

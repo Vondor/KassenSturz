@@ -22,7 +22,7 @@ kassensturz/
 │   ├── kassensturz-store/          # all SQLite code: store, migrations, backups, change history — see D-016, D-032, D-033, D-072
 │   ├── kassensturz-import/         # the Importer interface, statements and limits for untrusted files (D-091); CSV, OFX, MT940, CAMT.053, KMyMoney (.kmy / SQLite)
 │   ├── kassensturz-export/         # the Exporter interface, the data an export is made from, and the formats it writes: CSV (D-099) and the complete export of a book, which it also reads back (D-100)
-│   ├── kassensturz-pipeline/       # the import pipeline: statements into an account, with the duplicate check, Transfer suggestions, Rules and the balance check (D-030, D-092); gathering a book's transactions or the whole book for export, and filling a new book from a complete export (D-099, D-100)
+│   ├── kassensturz-pipeline/       # the import pipeline: statements into an account, with the duplicate check, Transfer suggestions, Rules and the balance check (D-030, D-092); gathering a book's transactions or the whole book for export, filling a new book from a complete export (D-099, D-100), and filling one from another program's book, such as KMyMoney's (D-101)
 │   ├── kassensturz-bank/           # read-only bank connections over AqBanking, fake backend for tests — see D-053, D-060
 │   ├── kassensturz-aqbanking-sys/  # raw AqBanking/Gwenhywfar declarations (bindgen, committed, loaded at runtime) — see D-060
 │   ├── kassensturz-plugin-api/     # stable, versioned plugin interface (after 1.0, D-071)
@@ -119,7 +119,7 @@ kassensturz/
 ## Importers
 
 - Every format implements `kassensturz_import::Importer` (D-069, D-091): `info` (a stable ID such as `camt053`, what reading gives, the usual extensions), `recognize` (yes, maybe or no from the first 4096 bytes) and `read` (the file's bytes into `Imported` data). An importer only reads; it never sees a book. Settings a format needs, such as CSV columns, belong to the importer's own value. `Csv` is made from the user's `CsvSettings` (encoding, separator, decimal mark, date order, which column holds what) and the account's currency, and guesses nothing (D-095); the settings have a text form, `key = value` per line, for keeping them.
-- `Imported` holds bank statements (`Statement`: the account as the file names it, the currency with its decimal places, opening and closing balance, entries). A whole book from another program (KMyMoney, M2.9) becomes a second variant; both `Imported` and `ImportKind` are `#[non_exhaustive]`.
+- `Imported` holds bank statements (`Statement`: the account as the file names it, the currency with its decimal places, opening and closing balance, entries). A whole book another program kept is the second variant, `ImportedBook`: accounts and categories named by the file's own keys, transactions whose parts needn't add up, the rates, and how many of each kind of data was left out (`SkippedData`, D-029). `Kmy` reads KMyMoney's `.kmy` files into it (D-101). Both `Imported` and `ImportKind` are `#[non_exhaustive]`.
 - An `Entry` is booked or pending, with the bank's ID, booking date (always there), value date, amount as it changes the account, the other party's name and IBAN and the remittance information, all text as delivered (D-067).
 - Files are untrusted (AGENTS.md §8): front ends call `import` or `import_file`, which enforce `Limits` (size, nesting, entries, text length) and check what the importer returned, e.g. that every amount is in its statement's currency. Text is passed on only as data.
 - Amounts are read exactly by `parse_amount` (decimal point or comma, no rounding, AGENTS.md §3.1 rule 1).
@@ -128,7 +128,7 @@ kassensturz/
 ## Import pipeline
 
 - `kassensturz-pipeline` puts statements into one account of the book (D-092). `import_statements` is one user action, `import_statement` (layout 10), which undo takes back as a whole (D-086). `preview_import` runs the very same steps inside `Book::dry_run` and takes them back, so the preview shows exactly what the import would do, Rules and Transfers included. Every front end calls these two, so the order of the steps lives in one place.
-- The account must be one of the user's open accounts, and each statement in its currency with the decimal places the book stores for it (D-027); otherwise nothing is imported (`import.account-currency-differs`, `import.decimal-places-differ`). A statement in a withdrawn currency such as the Mark is refused until M2.9 converts it (D-077).
+- The account must be one of the user's open accounts, and each statement in its currency with the decimal places the book stores for it (D-027); otherwise nothing is imported (`import.account-currency-differs`, `import.decimal-places-differ`). A statement in a withdrawn currency such as the Mark is refused until M2.9b converts it (D-077).
 - Steps run in this order: only booked entries, the duplicate check, then Transfer matching, then Rules (D-030):
   - Entries the bank hasn't booked are left out and counted.
   - Duplicates: an entry whose bank ID the account already holds, or that an earlier entry of the same import has, is skipped and counted in the import summary (Q-039, D-083). Other accounts' IDs don't count, and an empty ID is no ID.
@@ -137,6 +137,7 @@ kassensturz/
   - The Transfers to suggest that involve a new transaction (`Book::transfer_suggestions`, D-087), for the user to confirm.
   - The Rules, on the new transactions only (`Book::run_rules_on`, D-088). A side of a suggested Transfer waits for the user's decision.
 - The balance check: for each statement with a closing balance, KassenSturz's balance of the account at the end of that day, everything booked to it up to then by the day the bank booked it where it says so, against the bank's (D-029). A difference is shown, never corrected automatically.
+- A whole book (`ImportedBook`) only ever goes into a new, empty book: `fill_book_from` gives everything new IDs, makes names unique where the book needs them to be, adds a part without a category to a transaction whose parts don't add up, and fills the book through `fill_book`, the same way as a complete export, so every check of the store applies and the change history stays empty (D-100, D-101). Its report says what it changed, what was left out, and which Transfers to suggest.
 - Both booking date and value date are stored, with the Part the bank delivered; the transaction's booking date is the one shown, and the user can change it (D-083).
 - What a bank or file delivers (other party name and IBAN, remittance information, bank transaction ID) is stored unchanged next to the payee and category the user can edit, so Rules can be re-run and duplicates recognized later (D-067).
 - Only booked transactions are imported in v1; pending ones (not yet booked by the bank) are skipped (D-030).

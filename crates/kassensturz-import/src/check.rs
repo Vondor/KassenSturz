@@ -4,17 +4,23 @@
 //! Checks what an importer returns, so the import pipeline can rely on it
 //! whichever importer read the file, a plugin's included later (D-091).
 
-use kassensturz_core::Money;
+use std::collections::HashMap;
 
+use kassensturz_core::{Currency, CurrencyCode, ImportedDetails, Money};
+
+use crate::book::{BookAccount, BookTransaction, ImportedBook};
 use crate::error::ImportError;
 use crate::importer::Imported;
 use crate::limits::Limits;
 use crate::statement::Statement;
 
-/// Checks that `imported` keeps `limits` and that every amount of a
-/// statement is in the statement's currency.
+/// Checks that `imported` keeps `limits`, and that its amounts are where
+/// they belong: every amount of a statement in the statement's currency;
+/// for a book, every part's amount in its transaction's currency and in
+/// its account's, every key unique and every reference to one found.
 pub(crate) fn check(imported: &Imported, limits: &Limits) -> Result<(), ImportError> {
     match imported {
+        Imported::Book(book) => check_book(book, limits),
         Imported::Statements(statements) => {
             let entries = statements
                 .iter()
@@ -57,6 +63,131 @@ fn check_statement(statement: &Statement, limits: &Limits) -> Result<(), ImportE
         }
     }
     Ok(())
+}
+
+/// The checks of a whole book. A mistake an importer could only make by
+/// not keeping to [`ImportedBook`]'s rules, such as a part booked to a key
+/// no account has, is `import.malformed`: the file or the importer is
+/// broken, and the pipeline mustn't guess.
+fn check_book(book: &ImportedBook, limits: &Limits) -> Result<(), ImportError> {
+    let malformed = || ImportError::Malformed { line: None };
+    limits.check_entries(book.transactions.len())?;
+    // Each currency is read in one number of decimal places throughout.
+    let mut currencies: HashMap<CurrencyCode, u8> = HashMap::new();
+    let mut uses =
+        |currency: Currency| match currencies.insert(currency.code(), currency.minor_digits()) {
+            Some(earlier) if earlier != currency.minor_digits() => {
+                Err(ImportError::DecimalPlacesDiffer {
+                    currency: currency.code(),
+                    book: earlier,
+                    file: currency.minor_digits(),
+                })
+            }
+            _ => Ok(()),
+        };
+    let mut accounts: HashMap<&str, &BookAccount> = HashMap::new();
+    for account in &book.accounts {
+        limits.check_text(&account.key, None)?;
+        limits.check_text(&account.name, None)?;
+        uses(account.currency)?;
+        let fits_kind = match account.account_type {
+            Some(account_type) => account_type.kind() == account.kind,
+            None => true,
+        };
+        if !fits_kind || accounts.insert(&account.key, account).is_some() {
+            return Err(malformed());
+        }
+    }
+    for account in &book.accounts {
+        if let Some(parent) = &account.parent {
+            let parent = accounts.get(parent.as_str()).ok_or_else(malformed)?;
+            if !account.kind.is_category() || parent.kind != account.kind {
+                return Err(malformed());
+            }
+        }
+    }
+    for transaction in &book.transactions {
+        uses(transaction.currency)?;
+        check_transaction(transaction, &accounts, limits)?;
+    }
+    for rate in &book.rates {
+        if rate.from == rate.to {
+            return Err(malformed());
+        }
+    }
+    Ok(())
+}
+
+/// One transaction of a book: its texts within the limits, every amount in
+/// the transaction's currency, and every part's account known, with its
+/// amount in that account's currency where it differs.
+fn check_transaction(
+    transaction: &BookTransaction,
+    accounts: &HashMap<&str, &BookAccount>,
+    limits: &Limits,
+) -> Result<(), ImportError> {
+    let malformed = || ImportError::Malformed { line: None };
+    let currency = transaction.currency.code();
+    if let Some(payee) = &transaction.payee {
+        limits.check_text(payee, None)?;
+    }
+    for part in &transaction.parts {
+        if part.amount.currency() != currency {
+            return Err(ImportError::CurrencyMismatch {
+                expected: currency,
+                found: part.amount.currency(),
+            });
+        }
+        let Some(key) = &part.account else {
+            // A part without a category counts in the transaction's
+            // currency and has no bank behind it (D-083).
+            if part.account_amount.is_some() || part.details.is_some() {
+                return Err(malformed());
+            }
+            continue;
+        };
+        let account = accounts.get(key.as_str()).ok_or_else(malformed)?;
+        let account_currency = account.currency.code();
+        match part.account_amount {
+            None if account_currency == currency => {}
+            Some(amount)
+                if account_currency != currency && amount.currency() == account_currency =>
+            {
+                // Both amounts point the same way: rates are above zero.
+                let opposite = (part.amount.is_negative() && amount.minor_units() > 0)
+                    || (part.amount.minor_units() > 0 && amount.is_negative());
+                if opposite {
+                    return Err(malformed());
+                }
+            }
+            _ => {
+                return Err(ImportError::CurrencyMismatch {
+                    expected: account_currency,
+                    found: part
+                        .account_amount
+                        .map_or(currency, |amount| amount.currency()),
+                });
+            }
+        }
+        if let Some(details) = &part.details {
+            for text in detail_texts(details) {
+                limits.check_text(text, None)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Every text of what a file delivered for a part.
+fn detail_texts(details: &ImportedDetails) -> impl Iterator<Item = &str> {
+    [
+        &details.bank_id,
+        &details.other_party_name,
+        &details.other_party_iban,
+        &details.remittance_information,
+    ]
+    .into_iter()
+    .filter_map(|text| text.as_deref())
 }
 
 #[cfg(test)]

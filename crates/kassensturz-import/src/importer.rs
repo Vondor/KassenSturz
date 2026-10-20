@@ -5,6 +5,7 @@
 
 use std::path::Path;
 
+use crate::book::ImportedBook;
 use crate::check::check;
 use crate::error::ImportError;
 use crate::limits::{Limits, read_file};
@@ -68,12 +69,15 @@ pub struct ImporterInfo {
 
 /// What reading a file gives, known before the file is read, so the UI can
 /// ask the right question first: which account the entries go into, or,
-/// for a whole book (M2.9), where the new book goes.
+/// for a whole book, where the new book goes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum ImportKind {
     /// Bank statements, which go into accounts of an open book.
     Statements,
+    /// A whole book another program kept, such as KMyMoney's, which goes
+    /// into a new book (M2.9).
+    Book,
 }
 
 /// How sure an importer is that a file is in its format.
@@ -90,21 +94,23 @@ pub enum Recognition {
 
 /// What an importer read from a file.
 ///
-/// Importing a whole book from another program, such as KMyMoney (M2.9),
-/// adds a variant with the book's accounts, categories, transactions and a
-/// report of what was skipped (D-029). Code that handles one variant has to
-/// say what it does with the others, so a new one is never ignored silently.
+/// Code that handles one variant has to say what it does with the others,
+/// so a new one is never ignored silently.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Imported {
     /// Bank statements, in the order of the file. A file can hold several,
     /// e.g. one per account or per day.
     Statements(Vec<Statement>),
+    /// A whole book another program kept, such as KMyMoney's: its accounts,
+    /// categories, transactions and rates, and what was left out (D-029).
+    Book(ImportedBook),
 }
 
 /// Reads `input` with `importer`, within `limits`, and checks what the
 /// importer returns before anyone uses it: that it keeps the limits on
-/// entries and text, and that each statement's amounts are in its currency.
+/// entries and text, that each statement's amounts are in its currency,
+/// and that a book's parts are booked to its accounts in their currencies.
 pub fn import(
     importer: &dyn Importer,
     input: &[u8],

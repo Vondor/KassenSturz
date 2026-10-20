@@ -29,11 +29,13 @@
 #![forbid(unsafe_code)]
 
 mod amount;
+mod book;
 mod camt053;
 mod check;
 mod csv;
 mod error;
 mod importer;
+mod kmy;
 mod limits;
 mod mt940;
 mod ofx;
@@ -41,6 +43,9 @@ mod statement;
 mod test_format;
 
 pub use amount::{DecimalMark, currency, parse_amount};
+pub use book::{
+    BookAccount, BookPart, BookRate, BookTransaction, ImportedBook, Skipped, SkippedData,
+};
 pub use camt053::Camt053;
 pub use csv::{
     AmountColumns, Column, Csv, CsvSettings, DateOrder, MAX_COLUMNS, StatusColumn, TextEncoding,
@@ -50,6 +55,7 @@ pub use importer::{
     ImportKind, Imported, Importer, ImporterInfo, RECOGNITION_BYTES, Recognition, import,
     import_file,
 };
+pub use kmy::Kmy;
 pub use limits::{Limits, read_file};
 pub use mt940::Mt940;
 pub use ofx::Ofx;

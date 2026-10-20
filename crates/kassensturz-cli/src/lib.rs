@@ -22,6 +22,7 @@
 mod accounts;
 mod amount;
 mod args;
+mod create;
 mod error;
 mod export;
 mod history;
@@ -35,13 +36,12 @@ mod transaction;
 mod transfer;
 
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use kassensturz_export::read_book_file;
-use kassensturz_pipeline::fill_book;
 use kassensturz_store::{Book, Computer, StoreError};
 
 use args::Arguments;
+use create::Created;
 use error::{CliError, print_error};
 
 /// The app ID, which names KassenSturz's folders (D-049).
@@ -107,9 +107,14 @@ money out of the account. Dates are written 2026-10-05. Names ignore capitals.
 Categories can be named by their path, like Food/Groceries.
 
 Commands:
-  create [--from FILE]           make a new, empty book; with --from, a new
+  create [--from FILE [--format ID]]
+                                 make a new, empty book; with --from, a new
                                  book holding what a complete export (export
-                                 --format book) holds, with the same IDs
+                                 --format book) holds, with the same IDs, or
+                                 what a KMyMoney file (.kmy) holds, with new
+                                 IDs and a list of what KassenSturz can't
+                                 hold yet. The format is recognized; ID is
+                                 book or kmy
   account add NAME --type TYPE --currency CODE
                                  TYPE is checking, savings, cash or credit-card
   account list [--all]           --all includes closed accounts
@@ -257,11 +262,11 @@ pub fn run(
     if let Err(error) = command_line.check_command() {
         return fail(&error, None, err);
     }
-    let mut book = match open(&command_line, environment, err) {
-        Ok(book) => book,
+    let (mut book, created) = match open(&command_line, environment, err) {
+        Ok(opened) => opened,
         Err(error) => return fail(&error, None, err),
     };
-    match command_line.execute(&mut book, out) {
+    match command_line.execute(&mut book, created.as_ref(), out) {
         Ok(()) => 0,
         Err(error) => fail(&error, Some(&book), err),
     }
@@ -335,30 +340,33 @@ impl<'a> CommandLine<'a> {
         }
     }
 
-    /// The complete export that `create --from FILE` makes the book from.
-    fn create_from(&self) -> Result<Option<PathBuf>, CliError> {
-        let args = Arguments::parse(self.rest, &["from"], &[])?;
+    /// The file `create --from FILE` makes the book from, and the format
+    /// `--format ID` names for it.
+    fn create_from(&self) -> Result<(Option<PathBuf>, Option<String>), CliError> {
+        let args = Arguments::parse(self.rest, &["from", "format"], &[])?;
         args.exactly([])?;
-        Ok(args.value("from")?.map(PathBuf::from))
+        let from = args.value("from")?.map(PathBuf::from);
+        let format = args.value("format")?.map(str::to_owned);
+        if format.is_some() && from.is_none() {
+            return Err(CliError::usage("--format needs --from FILE"));
+        }
+        Ok((from, format))
     }
 
-    fn execute(&self, book: &mut Book, out: &mut dyn Write) -> Result<(), CliError> {
+    fn execute(
+        &self,
+        book: &mut Book,
+        created: Option<&Created>,
+        out: &mut dyn Write,
+    ) -> Result<(), CliError> {
         let rest = self.rest;
         match self.command {
             Some("create") => {
                 // `open` made the book, and filled it; saying so is all that
                 // is left.
-                match self.create_from()? {
-                    None => writeln!(out, "Created the book.")?,
-                    Some(file) => writeln!(
-                        out,
-                        "Created the book from {}: {} accounts and categories, {} transactions.",
-                        text::plain(&file.display().to_string()),
-                        book.all_accounts()?.len(),
-                        book.transactions()?.len()
-                    )?,
-                }
-                Ok(())
+                let (from, _) = self.create_from()?;
+                let created = created.expect("`open` creates the book for `create`");
+                create::write_created(book, from.as_deref(), created, out)
             }
             Some("account") => accounts::account(book, rest, out),
             Some("category") => accounts::category(book, rest, out),
@@ -379,12 +387,13 @@ impl<'a> CommandLine<'a> {
     }
 }
 
-/// Creates or opens the book the command line asks for.
+/// Creates or opens the book the command line asks for; for `create`, also
+/// what the new book was made from.
 fn open(
     command_line: &CommandLine<'_>,
     environment: &Environment,
     err: &mut dyn Write,
-) -> Result<Book, CliError> {
+) -> Result<(Book, Option<Created>), CliError> {
     let path = command_line
         .book
         .clone()
@@ -403,12 +412,11 @@ fn open(
         backup_folder,
     };
     if command_line.command == Some("create") {
-        return match command_line.create_from()? {
-            None => Ok(Book::create(&path, &computer)?),
-            Some(file) => create_from(&path, &computer, &file),
-        };
+        let (from, format) = command_line.create_from()?;
+        let (book, created) = create::create(&path, &computer, from.as_deref(), format.as_deref())?;
+        return Ok((book, Some(created)));
     }
-    match Book::open(&path, &computer) {
+    let book = match Book::open(&path, &computer) {
         Err(StoreError::Locked(seen)) if command_line.open_anyway => {
             // The user asked for this on the command line, which is the
             // warning's answer in a tool without dialogs (D-038, D-085).
@@ -421,25 +429,9 @@ fn open(
                 seen.since
                     .map_or_else(|| "an unknown time".to_owned(), |since| since.to_string()),
             )?;
-            Ok(Book::open_anyway(&path, &computer, &seen)?)
+            Book::open_anyway(&path, &computer, &seen)?
         }
-        other => Ok(other?),
-    }
-}
-
-/// Creates the book at `path` and fills it with the complete export in
-/// `file`. The file is read first, so a file that isn't one leaves nothing
-/// behind; if the book refuses what it holds, the new book is removed again.
-fn create_from(path: &Path, computer: &Computer, file: &Path) -> Result<Book, CliError> {
-    let data = read_book_file(file)?;
-    let mut book = Book::create(path, computer)?;
-    if let Err(error) = fill_book(&mut book, &data) {
-        // Closing it first lets go of its lock. The book is empty and was
-        // only just made, so nothing is lost; if removing it fails, the
-        // refusal is still the error worth reporting.
-        drop(book);
-        let _ = std::fs::remove_file(path);
-        return Err(error.into());
-    }
-    Ok(book)
+        other => other?,
+    };
+    Ok((book, None))
 }

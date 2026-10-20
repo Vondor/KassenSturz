@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE KMYMONEY-FILE>
+<KMYMONEY-FILE>
+  <FILEINFO>
+    <VERSION id="1"/>
+  </FILEINFO>
+  <ACCOUNTS>
+    <ACCOUNT id="AStd::Asset" parentaccount="" type="9" name="Anlagen" currency="EUR"/>
+    <ACCOUNT id="AStd::Expense" parentaccount="" type="13" name="Ausgabe" currency="EUR"/>
+    <ACCOUNT id="A000001" parentaccount="AStd::Asset" type="1" name="Checking" currency="EUR"/>
+    <ACCOUNT id="A000002" parentaccount="AStd::Expense" type="13" name="Groceries" currency="EUR"/>
+    <ACCOUNT id="A000003" parentaccount="A000004" type="13" name="Loop one" currency="EUR"/>
+    <ACCOUNT id="A000004" parentaccount="A000003" type="13" name="Loop two" currency="EUR"/>
+  </ACCOUNTS>
+  <TRANSACTIONS>
+  </TRANSACTIONS>
+</KMYMONEY-FILE>

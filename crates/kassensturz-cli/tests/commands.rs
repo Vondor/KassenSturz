@@ -2099,3 +2099,102 @@ fn a_file_that_does_not_make_a_book_leaves_nothing_behind() {
     );
     assert!(!new.book().exists());
 }
+
+/// The project's KMyMoney sample (D-102), the golden file of the importer.
+fn kmymoney_sample() -> String {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../kassensturz-import/tests/golden/kmy/kassensturz-sample.kmy")
+        .display()
+        .to_string()
+}
+
+#[test]
+fn a_kmymoney_file_makes_a_new_book() {
+    let session = Session::new();
+    let sample = kmymoney_sample();
+    assert_eq!(
+        session.ok(&["create", "--from", &sample]),
+        format!(
+            "Created the book from {sample}: 5 accounts, 51 categories, 538 transactions, 0 rates.\n\
+             536 transactions didn't add up and got a part without a category for the rest.\n\
+             Not imported, because KassenSturz can't hold it yet:\n  \
+             institutions: 1\n  \
+             account-numbers: 2\n  \
+             account-groups: 3\n  \
+             reconciliation: 73\n  \
+             rates: 20\n  \
+             online-banking: 2\n\
+             8 pairs of transactions look like Transfers between your accounts; \
+             see `transfer suggest`.\n"
+        )
+    );
+    // The balances KMyMoney itself keeps for the sample's accounts.
+    assert_eq!(
+        session.ok(&["balances"]),
+        "Account           Balance\n\
+         Besitz Wofenn    0.00 EUR\n\
+         Kelmarl          0.00 EUR\n\
+         Konto Wodübex   83.70 EUR\n\
+         Loturdros        8.05 EUR\n\
+         Schulden Never   0.00 EUR\n\
+         Total           91.75 EUR\n"
+    );
+    // The eight transfers between the two bank accounts, each kept by
+    // KMyMoney as one entry in each account.
+    let suggested = session.ok(&["transfer", "suggest"]);
+    assert_eq!(
+        suggested
+            .lines()
+            .filter(|line| line.starts_with("20"))
+            .count(),
+        8,
+        "{suggested}"
+    );
+    // Nothing to undo: the book was made this way, with the settings of a
+    // new book.
+    assert_eq!(
+        session.ok(&["history", "list"]),
+        "Made at (UTC)  Change  State\nThe book keeps its history for 30 days.\n"
+    );
+}
+
+#[test]
+fn a_kmymoney_file_is_read_as_one_when_asked() {
+    let session = Session::new();
+    let sample = kmymoney_sample();
+    // Named, it is read even when it doesn't start like one.
+    let notes = session.0.join("notes.kmy");
+    std::fs::write(&notes, "Not a book\n").expect("written");
+    let refused = session.cli(&[
+        "create",
+        "--from",
+        &notes.display().to_string(),
+        "--format",
+        "kmy",
+    ]);
+    assert_eq!(refused.status, 1);
+    assert!(
+        refused.err.starts_with("error: import.malformed\n"),
+        "{}",
+        refused.err
+    );
+    assert!(!session.book().exists());
+    // A KMyMoney file isn't a complete export.
+    let refused = session.cli(&["create", "--from", &sample, "--format", "book"]);
+    assert_eq!(refused.status, 1);
+    assert!(!session.book().exists());
+    // Only the two formats make a book, and only from a file.
+    assert_eq!(
+        session
+            .cli(&["create", "--from", &sample, "--format", "csv"])
+            .status,
+        2
+    );
+    assert_eq!(session.cli(&["create", "--format", "kmy"]).status, 2);
+    assert!(!session.book().exists());
+    assert!(
+        session
+            .ok(&["create", "--from", &sample, "--format", "kmy"])
+            .starts_with("Created the book from ")
+    );
+}

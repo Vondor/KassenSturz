@@ -1,0 +1,4 @@
+recognized: yes
+error: import.bad-amount
+  found: "12.5.0"
+  line: 26

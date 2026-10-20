@@ -22,7 +22,7 @@
 //!
 //! [`TestFormat`] is a made-up format for tests and the command-line tool;
 //! the real formats come in M2.3 to M2.10: CAMT.053 is [`Camt053`], CSV
-//! files from online banking [`Csv`], MT940 [`Mt940`].
+//! files from online banking [`Csv`], MT940 [`Mt940`], OFX [`Ofx`].
 //!
 //! This crate depends only on `kassensturz-core` (`docs/ARCHITECTURE.md`).
 
@@ -36,6 +36,7 @@ mod error;
 mod importer;
 mod limits;
 mod mt940;
+mod ofx;
 mod statement;
 mod test_format;
 
@@ -51,5 +52,6 @@ pub use importer::{
 };
 pub use limits::{Limits, read_file};
 pub use mt940::Mt940;
+pub use ofx::Ofx;
 pub use statement::{Balance, Entry, EntryStatus, Statement, StatementAccount};
 pub use test_format::TestFormat;

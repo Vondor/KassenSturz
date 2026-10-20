@@ -1,0 +1,16 @@
+recognized: yes
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: -
+  closing balance: 1802.21 EUR on 2026-10-31
+  entry 1
+    status: booked
+    bank id: "U-1"
+    booking date: 2026-10-02
+    value date: -
+    amount: -12.00 EUR
+    other party name: "Bäckerei Müller"
+    other party iban: -
+    remittance information: "Brötchen für 3€ ß"

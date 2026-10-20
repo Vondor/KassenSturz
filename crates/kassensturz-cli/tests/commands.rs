@@ -1087,6 +1087,88 @@ fn an_mt940_file_goes_through_the_whole_pipeline() {
 }
 
 #[test]
+fn an_ofx_file_goes_through_the_whole_pipeline() {
+    let session = household();
+    let path = session.0.join("october.ofx");
+    // The wrong closing balance shows that the check reads the file's.
+    std::fs::write(
+        &path,
+        "OFXHEADER:100\nDATA:OFXSGML\nVERSION:102\nSECURITY:NONE\nENCODING:USASCII\n\
+         CHARSET:1252\nCOMPRESSION:NONE\nOLDFILEUID:NONE\nNEWFILEUID:NONE\n\n\
+         <OFX>\n<BANKMSGSRSV1>\n<STMTTRNRS>\n<TRNUID>1\n<STMTRS>\n<CURDEF>EUR\n\
+         <BANKACCTFROM>\n<BANKID>COBADEFF\n<ACCTID>DE89370400440532013000\n\
+         <ACCTTYPE>CHECKING\n</BANKACCTFROM>\n<BANKTRANLIST>\n\
+         <STMTTRN>\n<TRNTYPE>DEBIT\n<DTPOSTED>20261005\n<TRNAMT>-53.20\n<FITID>M1\n\
+         <NAME>REWE Markt\n<MEMO>Einkauf\n</STMTTRN>\n\
+         <STMTTRN>\n<TRNTYPE>CREDIT\n<DTPOSTED>20261006\n<TRNAMT>1500.00\n<FITID>M2\n\
+         <NAME>Example Employer\n<MEMO>Gehalt\n</STMTTRN>\n\
+         </BANKTRANLIST>\n<LEDGERBAL><BALAMT>1.00<DTASOF>20261031</LEDGERBAL>\n\
+         </STMTRS>\n</STMTTRNRS>\n</BANKMSGSRSV1>\n</OFX>\n",
+    )
+    .expect("file written");
+    let file = path.display().to_string();
+    let register = || {
+        session
+            .ok(&["register", "Checking account"])
+            .lines()
+            .count()
+    };
+    let before = register();
+    // The format is recognized by the file's header.
+    let imported = session.ok(&["import", &file, "--account", "Checking account"]);
+    assert!(
+        imported.starts_with("Imported 2 of 2 entries into Checking account.\n"),
+        "{imported}"
+    );
+    assert!(
+        imported.contains("The balance on 2026-10-31 is ")
+            && imported.contains("but the bank says 1.00 EUR."),
+        "{imported}"
+    );
+    assert_eq!(register(), before + 2);
+    // The bank's transaction IDs recognize the entries the second time.
+    let again = session.ok(&["import", &file, "--account", "Checking account"]);
+    assert!(
+        again.contains("Skipped 2 already in the book: 1.1, 1.2.\n"),
+        "{again}"
+    );
+    assert_eq!(register(), before + 2);
+    assert_eq!(
+        session.ok(&["undo"]),
+        "Undid the change: imported a statement.\n"
+    );
+    assert_eq!(register(), before);
+    // The format can be named, and a file of another format is refused.
+    let named = session.ok(&[
+        "import",
+        &file,
+        "--account",
+        "Checking account",
+        "--format",
+        "ofx",
+        "--dry-run",
+    ]);
+    assert!(named.contains("Would import 2 of 2 entries"), "{named}");
+    let csv = session.0.join("bank.csv");
+    std::fs::write(&csv, "Date;Amount\n2026-10-01;1,00\n").expect("file written");
+    let csv = csv.display().to_string();
+    let refused = session.cli(&[
+        "import",
+        &csv,
+        "--account",
+        "Checking account",
+        "--format",
+        "ofx",
+    ]);
+    assert_eq!(refused.status, 1);
+    assert!(
+        refused.err.starts_with("error: import.malformed\n"),
+        "{}",
+        refused.err
+    );
+}
+
+#[test]
 fn a_csv_file_is_read_with_its_settings() {
     let session = household();
     let write = |name: &str, content: &[u8]| {

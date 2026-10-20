@@ -1,0 +1,52 @@
+recognized: yes
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: -
+  closing balance: 1802.21 EUR on 2026-10-31
+  entry 1
+    status: booked
+    bank id: "FIT-1001"
+    booking date: 2026-10-02
+    value date: -
+    amount: -25.50 EUR
+    other party name: "Muster Energie AG"
+    other party iban: -
+    remittance information: "Stromabschlag Oktober 2026"
+  entry 2
+    status: booked
+    bank id: "FIT-1002"
+    booking date: 2026-10-03
+    value date: -
+    amount: 1500.00 EUR
+    other party name: "Beispiel Verwaltungs- und Gesellschaft mbH"
+    other party iban: -
+    remittance information: "Gehalt Oktober"
+  entry 3
+    status: booked
+    bank id: "FIT-1003"
+    booking date: 2026-10-05
+    value date: -
+    amount: -9.99 EUR
+    other party name: -
+    other party iban: -
+    remittance information: "Entgelt"
+  entry 4
+    status: booked
+    bank id: "FIT-1004"
+    booking date: 2026-10-09
+    value date: -
+    amount: -650.00 EUR
+    other party name: "Vermieter Beispiel"
+    other party iban: "DE89370400440532013000"
+    remittance information: "Miete Oktober 2026"
+  entry 5
+    status: booked
+    bank id: "FIT-1005"
+    booking date: 2026-10-12
+    value date: -
+    amount: 0.50 EUR
+    other party name: "SUPERMARKT 4711 MUSTERSTADT"
+    other party iban: -
+    remittance information: -

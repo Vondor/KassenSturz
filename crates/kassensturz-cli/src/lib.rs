@@ -7,7 +7,7 @@
 //! and balances, suggests and joins Transfers (M1.10), runs auto-categorization
 //! Rules (M1.11), undoes and redoes changes (M1.9), and imports bank
 //! statements through the import pipeline (M2.2), from CAMT.053 (M2.3),
-//! CSV files (M2.4) and MT940 (M2.5).
+//! CSV files (M2.4), MT940 (M2.5) and OFX (M2.6).
 //!
 //! The tool is for developers and testers. It writes English text and plain
 //! amounts (`-12.50 EUR`), shows errors as their code and parameters, and is
@@ -182,8 +182,9 @@ Commands:
                                  --dry-run only shows what would happen.
                                  The formats yet are camt053 (the XML
                                  statement of most European banks), mt940
-                                 (the older SWIFT text statement), csv
-                                 and kstest, made up for testing. A CSV
+                                 (the older SWIFT text statement), ofx
+                                 (also .qfx), csv and kstest, made up for
+                                 testing. A CSV
                                  file needs --csv-settings FILE: a text
                                  file saying which column holds what and
                                  how dates and amounts are written, one

@@ -1,0 +1,25 @@
+recognized: yes
+statement 1
+  account iban: -
+  account number: "37040044/0532013000"
+  currency: EUR with 2 decimal places
+  opening balance: -
+  closing balance: 1474.50 EUR on 2026-10-31
+  entry 1
+    status: booked
+    bank id: "FIT-1001"
+    booking date: 2026-10-02
+    value date: -
+    amount: -25.50 EUR
+    other party name: "Müller & Söhne"
+    other party iban: -
+    remittance information: "Stromabschlag Oktober 2026"
+  entry 2
+    status: booked
+    bank id: "FIT-1002"
+    booking date: 2026-10-03
+    value date: -
+    amount: 1500.00 EUR
+    other party name: "Beispiel Verwaltungs- und Gesellschaft mbH"
+    other party iban: -
+    remittance information: -

@@ -1,0 +1,25 @@
+recognized: yes
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: JPY with 0 decimal places
+  opening balance: -
+  closing balance: 500 JPY on 2026-10-31
+  entry 1
+    status: booked
+    bank id: "J-1"
+    booking date: 2026-10-02
+    value date: -
+    amount: -1500 JPY
+    other party name: "Example Shop"
+    other party iban: -
+    remittance information: -
+  entry 2
+    status: booked
+    bank id: "J-2"
+    booking date: 2026-10-03
+    value date: -
+    amount: 2000 JPY
+    other party name: -
+    other party iban: -
+    remittance information: -

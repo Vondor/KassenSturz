@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-16" standalone="no"?>
+<?OFX OFXHEADER="200" VERSION="211" SECURITY="NONE" OLDFILEUID="NONE" NEWFILEUID="NONE"?>
+<OFX>
+  <SIGNONMSGSRSV1>
+    <SONRS>
+      <STATUS><CODE>0</CODE><SEVERITY>INFO</SEVERITY></STATUS>
+      <DTSERVER>20261101120000</DTSERVER>
+      <LANGUAGE>ENG</LANGUAGE>
+    </SONRS>
+  </SIGNONMSGSRSV1>
+  <BANKMSGSRSV1>
+    <STMTTRNRS>
+      <TRNUID>1</TRNUID>
+      <STATUS><CODE>0</CODE><SEVERITY>INFO</SEVERITY></STATUS>
+      <STMTRS>
+        <CURDEF>EUR</CURDEF>
+        <BANKACCTFROM>
+          <BANKID>37040044</BANKID>
+          <ACCTID>0532013000</ACCTID>
+          <ACCTTYPE>CHECKING</ACCTTYPE>
+        </BANKACCTFROM>
+        <BANKTRANLIST>
+          <DTSTART>20261001</DTSTART>
+          <DTEND>20261031</DTEND>
+          <STMTTRN>
+            <TRNTYPE>DEBIT</TRNTYPE>
+            <DTPOSTED>20261002</DTPOSTED>
+            <TRNAMT>-25.50</TRNAMT>
+            <FITID>FIT-1001</FITID>
+            <NAME>Muster Energie AG</NAME>
+            <MEMO>Stromabschlag Oktober 2026</MEMO>
+          </STMTTRN>
+          <STMTTRN>
+            <TRNTYPE>CREDIT</TRNTYPE>
+            <DTPOSTED>20261003</DTPOSTED>
+            <TRNAMT>1500.00</TRNAMT>
+            <FITID>FIT-1002</FITID>
+            <PAYEE>
+              <NAME>Beispiel Verwaltungs- und Gesellschaft mbH</NAME>
+              <ADDR1>Musterstrasse 1</ADDR1>
+              <CITY>Musterstadt</CITY>
+              <STATE>XX</STATE>
+              <POSTALCODE>12345</POSTALCODE>
+              <PHONE>000</PHONE>
+            </PAYEE>
+            <MEMO/>
+          </STMTTRN>
+        </BANKTRANLIST>
+        <LEDGERBAL>
+          <BALAMT>1474.50</BALAMT>
+          <DTASOF>20261031</DTASOF>
+        </LEDGERBAL>
+        <AVAILBAL>
+          <BALAMT>1400.00</BALAMT>
+          <DTASOF>20261031</DTASOF>
+        </AVAILBAL>
+      </STMTRS>
+    </STMTTRNRS>
+  </BANKMSGSRSV1>
+</OFX>

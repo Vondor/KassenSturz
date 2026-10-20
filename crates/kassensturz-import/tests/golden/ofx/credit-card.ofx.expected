@@ -1,0 +1,25 @@
+recognized: yes
+statement 1
+  account iban: -
+  account number: "4111111111111111"
+  currency: EUR with 2 decimal places
+  opening balance: -
+  closing balance: -120.00 EUR on 2026-10-31
+  entry 1
+    status: booked
+    bank id: "CC-1"
+    booking date: 2026-10-04
+    value date: -
+    amount: -89.90 EUR
+    other party name: "ONLINE SHOP EXAMPLE"
+    other party iban: -
+    remittance information: -
+  entry 2
+    status: booked
+    bank id: "CC-2"
+    booking date: 2026-10-20
+    value date: -
+    amount: 89.90 EUR
+    other party name: "PAYMENT THANK YOU"
+    other party iban: -
+    remittance information: -

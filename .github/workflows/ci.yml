@@ -162,6 +162,54 @@ jobs:
           timeout 10 build/stage/usr/bin/kassensturz || status=$?
           test "$status" -eq 124
 
+  # The same build with Fedora's packages, groundwork for an RPM (D-097).
+  # Fedora 44 is the current stable release; Fedora 45 is not out yet. Qt, KDE
+  # Frameworks and SQLite come from Fedora's repositories; only Rust comes
+  # from elsewhere, as on Kubuntu: the distribution's `rustup` package
+  # installs 1.98.1 (D-073).
+  fedora:
+    name: Fedora 44 with distribution packages (D-097)
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:44
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - name: Install the distribution's build tools, Qt, KDE Frameworks and SQLite
+        run: |
+          dnf install -y --setopt=install_weak_deps=False \
+            cmake dejavu-sans-fonts extra-cmake-modules gcc-c++ gettext git \
+            kf6-ki18n kf6-ki18n-devel kf6-kirigami kf6-kirigami-devel \
+            kf6-qqc2-desktop-style kf6-qqc2-desktop-style-devel ninja-build \
+            pkgconf-pkg-config qt6-qtbase-devel qt6-qtdeclarative \
+            qt6-qtdeclarative-devel rustup sqlite-devel tar
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Fedora's rustup package only has the installer, which puts cargo and
+      # rustc in ~/.cargo/bin.
+      - name: Install Rust
+        run: |
+          rustup-init -y --profile minimal --default-toolchain 1.98.1
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      # Fedora 44 has Qt 6.11 and KDE Frameworks 6.29 or newer, the minimums in
+      # CMakeLists.txt (D-094). It uses the system's SQLite (D-061).
+      - name: Configure
+        run: cmake -S . -B build/cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DKASSENSTURZ_BUNDLED_SQLITE=OFF
+      - name: Build
+        run: cmake --build build/cmake
+      - name: Install into a staging folder
+        run: DESTDIR="$PWD/build/stage" cmake --install build/cmake
+      - name: Tests, with the system's SQLite
+        run: cargo test --workspace --no-default-features --locked
+        env:
+          QMAKE: /usr/bin/qmake6
+      # The window opens and keeps running; timeout ends it with status 124.
+      # A missing QML module or a crash at start-up ends it sooner.
+      - name: The installed app starts
+        run: |
+          status=0
+          timeout 10 build/stage/usr/bin/kassensturz || status=$?
+          test "$status" -eq 124
+
   licenses:
     name: Dependency licenses and sources (D-026)
     runs-on: ubuntu-latest

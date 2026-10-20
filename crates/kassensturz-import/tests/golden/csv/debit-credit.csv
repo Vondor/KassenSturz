@@ -1,0 +1,12 @@
+﻿"Konto:";"DE89 3704 0044 0532 0130 00"
+"Zeitraum:";"01.10.2026 - 31.10.2026"
+"Kontostand vom 31.10.2026:";"3.307,83 €"
+
+Buchungsdatum;Wertstellung;Zahlungsempfänger*in;IBAN;Verwendungszweck;Kundenreferenz;Soll;Haben
+31.10.2026;31.10.2026;Example Employer Ltd;GB29NWBK60161331926819;Gehalt;;;1.234,56
+30.10.2026;29.10.2026;Stadtwerke;AT611904300234573201;Strom Oktober;KD-4711;-87,30;
+28.10.2026;28.10.2026;Kiosk;;;;12,5;0,00
+27.10.2026;;Zinsen;;;;0,00;0,00
+
+"Kontostand vom 01.10.2026:";"2.200,00 €"
+

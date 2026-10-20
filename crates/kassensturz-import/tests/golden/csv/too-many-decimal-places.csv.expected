@@ -1,0 +1,5 @@
+recognized: yes
+error: import.too-many-decimal-places
+  found: "-1,005"
+  currency: EUR
+  line: 2

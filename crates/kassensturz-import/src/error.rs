@@ -7,6 +7,8 @@ use std::io::ErrorKind;
 
 use kassensturz_core::{AccountId, CurrencyCode, ErrorParam, ErrorReport, Report};
 
+use crate::csv::TextEncoding;
+
 /// Why a file can't be imported.
 ///
 /// Every variant turns into an [`ErrorReport`] whose code starts with
@@ -52,6 +54,43 @@ pub enum ImportError {
         /// The amount as the file wrote it.
         found: String,
         /// Where, if known.
+        line: Option<u64>,
+    },
+    /// A date in the file isn't one the importer can read, e.g. not in the
+    /// order of day, month and year chosen for a CSV file.
+    BadDate {
+        /// The date as the file wrote it.
+        found: String,
+        /// Where, if known.
+        line: Option<u64>,
+    },
+    /// The file has a byte the chosen text encoding has no character for,
+    /// so it is in another one.
+    WrongEncoding {
+        /// The encoding the file was read in.
+        encoding: TextEncoding,
+        /// Where, if known.
+        line: Option<u64>,
+    },
+    /// The file's header row has no column of the name the settings give.
+    ColumnNotFound {
+        /// The name.
+        column: String,
+        /// The header row's line, if known.
+        line: Option<u64>,
+    },
+    /// The file's header row has more than one column of the name the
+    /// settings give, so it isn't clear which one is meant.
+    ColumnNotUnique {
+        /// The name.
+        column: String,
+        /// The header row's line, if known.
+        line: Option<u64>,
+    },
+    /// The settings for reading a file, such as a CSV file's columns, are
+    /// incomplete or contradict each other.
+    BadSettings {
+        /// The line of the settings' text form, if they were read from one.
         line: Option<u64>,
     },
     /// An amount has more decimal places than its currency, so it can't be
@@ -119,6 +158,11 @@ impl ImportError {
             | Self::TextTooLong { line, .. }
             | Self::Malformed { line }
             | Self::BadAmount { line, .. }
+            | Self::BadDate { line, .. }
+            | Self::WrongEncoding { line, .. }
+            | Self::ColumnNotFound { line, .. }
+            | Self::ColumnNotUnique { line, .. }
+            | Self::BadSettings { line }
             | Self::TooManyDecimalPlaces { line, .. }
             | Self::AmountTooLarge { line, .. }
             | Self::UnknownCurrency { line, .. } => *line = Some(at),
@@ -168,6 +212,24 @@ impl Report for ImportError {
                 ErrorReport::new("import.bad-amount").with("found", text(found)),
                 line,
             ),
+            Self::BadDate { found, line } => with_line(
+                ErrorReport::new("import.bad-date").with("found", text(found)),
+                line,
+            ),
+            Self::WrongEncoding { encoding, line } => with_line(
+                ErrorReport::new("import.wrong-encoding")
+                    .with("encoding", ErrorParam::Keyword(encoding.keyword())),
+                line,
+            ),
+            Self::ColumnNotFound { column, line } => with_line(
+                ErrorReport::new("import.column-not-found").with("column", text(column)),
+                line,
+            ),
+            Self::ColumnNotUnique { column, line } => with_line(
+                ErrorReport::new("import.column-not-unique").with("column", text(column)),
+                line,
+            ),
+            Self::BadSettings { line } => with_line(ErrorReport::new("import.bad-settings"), line),
             Self::TooManyDecimalPlaces {
                 found,
                 currency,

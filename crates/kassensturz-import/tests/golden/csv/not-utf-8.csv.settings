@@ -1,0 +1,7 @@
+encoding = utf-8
+delimiter = ";"
+decimal-mark = comma
+date-order = day-month-year
+booking-date = "Datum"
+amount = "Betrag"
+other-party-name = "Name"

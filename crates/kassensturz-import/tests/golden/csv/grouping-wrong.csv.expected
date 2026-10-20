@@ -1,0 +1,4 @@
+recognized: yes
+error: import.bad-amount
+  found: "-1.23,00"
+  line: 2

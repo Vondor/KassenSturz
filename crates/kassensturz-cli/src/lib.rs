@@ -6,7 +6,8 @@
 //! accounts, categories, transactions and exchange rates, shows registers
 //! and balances, suggests and joins Transfers (M1.10), runs auto-categorization
 //! Rules (M1.11), undoes and redoes changes (M1.9), and imports bank
-//! statements through the import pipeline (M2.2).
+//! statements through the import pipeline (M2.2), from CAMT.053 (M2.3) and
+//! CSV files (M2.4).
 //!
 //! The tool is for developers and testers. It writes English text and plain
 //! amounts (`-12.50 EUR`), shows errors as their code and parameters, and is
@@ -163,8 +164,8 @@ Commands:
   rule run [--dry-run]           apply the Rules to what has no category yet;
                                  a choice you made yourself is never changed.
                                  --dry-run only shows what would change
-  import FILE --account NAME [--format ID] [--statement N]
-         [--also ENTRY ...] [--dry-run]
+  import FILE --account NAME [--format ID] [--csv-settings FILE]
+         [--statement N] [--also ENTRY ...] [--dry-run]
                                  put a bank statement file into an account.
                                  Entries the bank hasn't booked are left
                                  out, and so is one whose bank ID the
@@ -180,8 +181,13 @@ Commands:
                                  for several accounts needs --statement N.
                                  --dry-run only shows what would happen.
                                  The formats yet are camt053 (the XML
-                                 statement of most European banks) and
-                                 kstest, made up for testing
+                                 statement of most European banks), csv
+                                 and kstest, made up for testing. A CSV
+                                 file needs --csv-settings FILE: a text
+                                 file saying which column holds what and
+                                 how dates and amounts are written, one
+                                 `key = value` per line (see D-095 in
+                                 docs/DECISIONS.md)
   undo                           undo the last change, also one made by an
                                  earlier command
   redo                           make the change undone last again

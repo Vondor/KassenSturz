@@ -1,0 +1,43 @@
+recognized: maybe
+statement 1
+  account iban: -
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: -
+  closing balance: -
+  entry 1
+    status: booked
+    bank id: -
+    booking date: 2026-10-05
+    value date: -
+    amount: -12.50 EUR
+    other party name: "Corner Store"
+    other party iban: -
+    remittance information: "Snacks, drinks"
+  entry 2
+    status: booked
+    bank id: -
+    booking date: 2026-10-06
+    value date: -
+    amount: 1234.56 EUR
+    other party name: "Example Employer, Inc."
+    other party iban: -
+    remittance information: "Pay \"October\"\r\nsecond line"
+  entry 3
+    status: booked
+    bank id: -
+    booking date: 2026-10-07
+    value date: -
+    amount: 3.00 EUR
+    other party name: "Refund"
+    other party iban: -
+    remittance information: -
+  entry 4
+    status: booked
+    bank id: -
+    booking date: 2026-01-08
+    value date: -
+    amount: -0.99 EUR
+    other party name: "Short date"
+    other party iban: -
+    remittance information: -

@@ -1,0 +1,6 @@
+"Auftragskonto";"Buchungstag";"Valutadatum";"Buchungstext";"Verwendungszweck";"Beguenstigter/Zahlungspflichtiger";"Kontonummer/IBAN";"Betrag";"Waehrung";"Info"
+"DE89370400440532013000";"01.10.26";"01.10.26";"KARTENZAHLUNG";"Bäckerei 30.09. 14:02";"Bäckerei Sonnenschein";"";"-4,20";"EUR";"Umsatz gebucht"
+"DE89370400440532013000";"02.10.26";"01.10.26";"GUTSCHRIFT";"Gehalt Oktober";"Example Employer Ltd";"GB29NWBK60161331926819";"2.300,00";"EUR";"Umsatz gebucht"
+"DE89370400440532013000";"05.10.26";"05.10.26";"LASTSCHRIFT";"Miete Oktober
+Wohnung 3 ""links""";"Hausverwaltung Müller & Söhne";"FR1420041010050500013M02606";"-1.050,00";"EUR";"Umsatz gebucht"
+"DE89370400440532013000";"06.10.26";"06.10.26";"KARTENZAHLUNG";"Tankstelle € 50";"Tankstelle Nord";"";"-50,00";"EUR";"Umsatz vorgemerkt"

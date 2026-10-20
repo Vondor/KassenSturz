@@ -73,7 +73,7 @@ const ISO_8859_15: [(u8, char); 8] = [
 /// `import.wrong-encoding` and its line, so the user can choose another;
 /// a NUL character, which no text file has but UTF-16 and binary files
 /// have plenty of, fails with `import.malformed`.
-pub(super) fn decode(
+pub(crate) fn decode(
     input: &[u8],
     encoding: Option<TextEncoding>,
 ) -> Result<Cow<'_, str>, ImportError> {

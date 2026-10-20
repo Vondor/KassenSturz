@@ -1,0 +1,16 @@
+recognized: yes
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: 0.00 EUR on 2026-10-01
+  closing balance: 10.00 EUR on 2026-10-01
+  entry 1
+    status: booked
+    bank id: -
+    booking date: 2026-10-01
+    value date: 2026-10-01
+    amount: 10.00 EUR
+    other party name: "Jürgen Müller"
+    other party iban: -
+    remittance information: "Grüße aus Köln, 5 €"

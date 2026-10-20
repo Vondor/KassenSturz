@@ -1,0 +1,43 @@
+recognized: yes
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: 0.00 EUR on 2026-10-01
+  closing balance: -6.00 EUR on 2026-10-04
+  entry 1
+    status: booked
+    bank id: -
+    booking date: 2026-10-01
+    value date: 2026-10-01
+    amount: 10.00 EUR
+    other party name: -
+    other party iban: -
+    remittance information: "Zahlung von Max Beispiel\nVerwendungszweck: Geschenk"
+  entry 2
+    status: booked
+    bank id: -
+    booking date: 2026-10-02
+    value date: 2026-10-02
+    amount: -3.00 EUR
+    other party name: -
+    other party iban: -
+    remittance information: "Was kostet das? Nur 3,00 EUR ?5 ?x"
+  entry 3
+    status: booked
+    bank id: -
+    booking date: 2026-10-03
+    value date: 2026-10-03
+    amount: -1.00 EUR
+    other party name: -
+    other party iban: -
+    remittance information: -
+  entry 4
+    status: booked
+    bank id: -
+    booking date: 2026-10-04
+    value date: 2026-10-04
+    amount: -2.00 EUR
+    other party name: "Frau Beispiel"
+    other party iban: -
+    remittance information: "Zweck ohne Schluessel"

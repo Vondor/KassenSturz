@@ -1,0 +1,5 @@
+recognized: yes
+error: import.too-many-decimal-places
+  found: "12,505"
+  currency: EUR
+  line: 4

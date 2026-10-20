@@ -1,0 +1,61 @@
+recognized: yes
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: 0.00 EUR on 2026-10-01
+  closing balance: 210.00 EUR on 2026-10-06
+  entry 1
+    status: booked
+    bank id: -
+    booking date: 2026-10-01
+    value date: 2026-10-01
+    amount: 10.00 EUR
+    other party name: -
+    other party iban: "DE89370400440532013000"
+    remittance information: "Rate 3 von 12"
+  entry 2
+    status: booked
+    bank id: -
+    booking date: 2026-10-02
+    value date: 2026-10-02
+    amount: 20.00 EUR
+    other party name: -
+    other party iban: -
+    remittance information: "Gutschrift"
+  entry 3
+    status: booked
+    bank id: -
+    booking date: 2026-10-03
+    value date: 2026-10-03
+    amount: 30.00 EUR
+    other party name: -
+    other party iban: -
+    remittance information: "Text before tags"
+  entry 4
+    status: booked
+    bank id: -
+    booking date: 2026-10-04
+    value date: 2026-10-04
+    amount: 40.00 EUR
+    other party name: "Absender"
+    other party iban: "FR1420041010050500013M02606"
+    remittance information: "Rueckerstattung"
+  entry 5
+    status: booked
+    bank id: -
+    booking date: 2026-10-05
+    value date: 2026-10-05
+    amount: 50.00 EUR
+    other party name: -
+    other party iban: "NL91ABNA0417164300"
+    remittance information: "Kein IBAN dabei"
+  entry 6
+    status: booked
+    bank id: -
+    booking date: 2026-10-06
+    value date: 2026-10-06
+    amount: 60.00 EUR
+    other party name: "Alter Absender"
+    other party iban: "37040044/0532013000"
+    remittance information: "Alte Kontonummer"

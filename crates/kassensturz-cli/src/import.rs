@@ -10,7 +10,7 @@ use std::path::Path;
 
 use kassensturz_core::{CurrencyCode, Report, TransactionId};
 use kassensturz_import::{
-    Camt053, Csv, CsvSettings, ImportError, Imported, Importer, Limits, RECOGNITION_BYTES,
+    Camt053, Csv, CsvSettings, ImportError, Imported, Importer, Limits, Mt940, RECOGNITION_BYTES,
     Recognition, Statement, TestFormat, currency, import, read_file,
 };
 use kassensturz_pipeline::{
@@ -24,10 +24,10 @@ use crate::error::CliError;
 use crate::lookup::{find_account, short_id};
 use crate::text::{plain, table};
 
-/// The formats the tool recognizes by themselves: CAMT.053 and the made-up
-/// test format so far. CSV files need settings (`--csv-settings`); the
-/// other real formats come in M2.5 to M2.10.
-const IMPORTERS: &[&dyn Importer] = &[&Camt053, &TestFormat];
+/// The formats the tool recognizes by themselves: CAMT.053, MT940 and the
+/// made-up test format so far. CSV files need settings (`--csv-settings`);
+/// the other real formats come in M2.6 to M2.10.
+const IMPORTERS: &[&dyn Importer] = &[&Camt053, &Mt940, &TestFormat];
 
 /// The ID of the CSV importer, which `--format` takes only together with
 /// `--csv-settings`.

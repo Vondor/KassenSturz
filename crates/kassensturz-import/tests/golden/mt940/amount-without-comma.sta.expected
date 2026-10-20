@@ -1,0 +1,4 @@
+recognized: yes
+error: import.bad-amount
+  found: "1250"
+  line: 4

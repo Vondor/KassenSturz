@@ -1,0 +1,52 @@
+recognized: yes
+statement 1
+  account iban: -
+  account number: "37040044/0532013000"
+  currency: EUR with 2 decimal places
+  opening balance: 1000.00 EUR on 2026-10-01
+  closing balance: 1802.21 EUR on 2026-10-31
+  entry 1
+    status: booked
+    bank id: -
+    booking date: 2026-10-02
+    value date: 2026-10-02
+    amount: -25.50 EUR
+    other party name: "Muster Energie AG"
+    other party iban: "DE02120300000000202051"
+    remittance information: "Stromabschlag Oktober 2026"
+  entry 2
+    status: booked
+    bank id: "BK2610030001"
+    booking date: 2026-10-03
+    value date: 2026-10-03
+    amount: 1500.00 EUR
+    other party name: "Beispiel Verwaltungs- und Gesellschaft mbH"
+    other party iban: -
+    remittance information: "Gehalt Oktober"
+  entry 3
+    status: booked
+    bank id: -
+    booking date: 2026-10-05
+    value date: 2026-10-05
+    amount: -9.99 EUR
+    other party name: -
+    other party iban: -
+    remittance information: "Entgelt"
+  entry 4
+    status: booked
+    bank id: "ID-9"
+    booking date: 2026-10-09
+    value date: 2026-10-09
+    amount: -650.00 EUR
+    other party name: "Vermieter Beispiel"
+    other party iban: "DE89370400440532013000"
+    remittance information: "Miete Oktober 2026 Wohnung 12 Musterstrasse 5"
+  entry 5
+    status: booked
+    bank id: -
+    booking date: 2026-10-12
+    value date: 2026-10-12
+    amount: -12.30 EUR
+    other party name: "SUPERMARKT 4711 MUSTERSTADT"
+    other party iban: -
+    remittance information: "Einkauf 12.10. 15:42 Uhr"

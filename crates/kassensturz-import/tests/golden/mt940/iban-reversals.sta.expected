@@ -1,0 +1,43 @@
+recognized: yes
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: -100.50 EUR on 2026-12-29
+  closing balance: -85.25 EUR on 2026-12-31
+  entry 1
+    status: booked
+    bank id: "ID-1"
+    booking date: 2027-01-02
+    value date: 2026-12-30
+    amount: 20.25 EUR
+    other party name: -
+    other party iban: -
+    remittance information: "Free text first line\nsecond line"
+  entry 2
+    status: booked
+    bank id: -
+    booking date: 2026-12-31
+    value date: 2026-12-31
+    amount: -5.00 EUR
+    other party name: -
+    other party iban: -
+    remittance information: -
+  entry 3
+    status: booked
+    bank id: -
+    booking date: 2026-12-31
+    value date: 2026-12-31
+    amount: -7.50 EUR
+    other party name: -
+    other party iban: -
+    remittance information: -
+  entry 4
+    status: booked
+    bank id: -
+    booking date: 2026-12-31
+    value date: 2026-12-31
+    amount: 7.50 EUR
+    other party name: -
+    other party iban: -
+    remittance information: -

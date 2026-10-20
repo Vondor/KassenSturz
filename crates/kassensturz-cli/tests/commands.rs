@@ -1010,6 +1010,83 @@ fn a_camt053_file_goes_through_the_whole_pipeline() {
 }
 
 #[test]
+fn an_mt940_file_goes_through_the_whole_pipeline() {
+    let session = household();
+    let path = session.0.join("october.sta");
+    // The wrong closing balance shows that the check reads the file's.
+    std::fs::write(
+        &path,
+        ":20:STARTUMS\n:25:DE89370400440532013000\n:60F:C261001EUR100,00\n\
+         :61:2610051005D53,20NMSCNONREF//M1\n\
+         :86:177?00Kartenzahlung?20SVWZ+Einkauf?32REWE Markt\n\
+         :61:2610061006C1500,00NTRFNONREF//M2\n\
+         :86:166?00Gutschrift?20SVWZ+Gehalt?32Example Employer\n\
+         :62F:C261031EUR1,00\n-\n",
+    )
+    .expect("file written");
+    let file = path.display().to_string();
+    let register = || {
+        session
+            .ok(&["register", "Checking account"])
+            .lines()
+            .count()
+    };
+    let before = register();
+    // The format is recognized by the file's first fields.
+    let imported = session.ok(&["import", &file, "--account", "Checking account"]);
+    assert!(
+        imported.starts_with("Imported 2 of 2 entries into Checking account.\n"),
+        "{imported}"
+    );
+    assert!(
+        imported.contains("The balance on 2026-10-31 is ")
+            && imported.contains("but the bank says 1.00 EUR."),
+        "{imported}"
+    );
+    assert_eq!(register(), before + 2);
+    // The bank's references recognize the entries the second time.
+    let again = session.ok(&["import", &file, "--account", "Checking account"]);
+    assert!(
+        again.contains("Skipped 2 already in the book: 1.1, 1.2.\n"),
+        "{again}"
+    );
+    assert_eq!(register(), before + 2);
+    assert_eq!(
+        session.ok(&["undo"]),
+        "Undid the change: imported a statement.\n"
+    );
+    assert_eq!(register(), before);
+    // The format can be named, and a file of another format is refused.
+    let named = session.ok(&[
+        "import",
+        &file,
+        "--account",
+        "Checking account",
+        "--format",
+        "mt940",
+        "--dry-run",
+    ]);
+    assert!(named.contains("Would import 2 of 2 entries"), "{named}");
+    let csv = session.0.join("bank.csv");
+    std::fs::write(&csv, "Date;Amount\n2026-10-01;1,00\n").expect("file written");
+    let csv = csv.display().to_string();
+    let refused = session.cli(&[
+        "import",
+        &csv,
+        "--account",
+        "Checking account",
+        "--format",
+        "mt940",
+    ]);
+    assert_eq!(refused.status, 1);
+    assert!(
+        refused.err.starts_with("error: import.malformed\n"),
+        "{}",
+        refused.err
+    );
+}
+
+#[test]
 fn a_csv_file_is_read_with_its_settings() {
     let session = household();
     let write = |name: &str, content: &[u8]| {

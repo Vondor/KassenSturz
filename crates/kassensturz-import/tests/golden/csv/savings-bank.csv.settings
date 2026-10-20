@@ -1,0 +1,15 @@
+# A German savings bank's export: Windows-1252, quoted fields
+encoding = windows-1252
+delimiter = ";"
+decimal-mark = comma
+date-order = day-month-year
+booking-date = "Buchungstag"
+value-date = "Valutadatum"
+amount = "Betrag"
+other-party-name = "Beguenstigter/Zahlungspflichtiger"
+other-party-iban = "Kontonummer/IBAN"
+remittance-information = "Verwendungszweck"
+status = "Info"
+booked = "Umsatz gebucht"
+currency = "Waehrung"
+account = "Auftragskonto"

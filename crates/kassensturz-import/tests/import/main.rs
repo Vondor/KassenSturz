@@ -10,7 +10,10 @@
 mod files;
 mod harness;
 
-use kassensturz_import::{Camt053, TestFormat};
+use std::fs;
+
+use kassensturz_core::CurrencyCode;
+use kassensturz_import::{Camt053, Csv, CsvSettings, TestFormat, currency};
 
 #[test]
 fn golden_test_format() {
@@ -20,4 +23,19 @@ fn golden_test_format() {
 #[test]
 fn golden_camt053() {
     harness::check_folder(&Camt053);
+}
+
+/// Each CSV file is read with the settings in its `.settings` file, for an
+/// account in euros.
+#[test]
+fn golden_csv() {
+    harness::check_folder_with("csv", &|path| {
+        let settings = fs::read_to_string(harness::companion(path, "settings"))
+            .expect("every CSV golden file has a .settings file");
+        let euro = currency(CurrencyCode::new("EUR").expect("a valid code"))?;
+        Ok(Box::new(Csv::new(
+            CsvSettings::from_text(&settings)?,
+            euro,
+        )?))
+    });
 }

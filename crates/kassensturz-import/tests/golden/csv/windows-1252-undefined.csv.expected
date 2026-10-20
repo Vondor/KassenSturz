@@ -1,0 +1,4 @@
+recognized: no
+error: import.wrong-encoding
+  encoding: windows-1252
+  line: 2

@@ -8,10 +8,10 @@ use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::Path;
 
-use kassensturz_core::{Report, TransactionId};
+use kassensturz_core::{CurrencyCode, Report, TransactionId};
 use kassensturz_import::{
-    Camt053, Imported, Importer, Limits, RECOGNITION_BYTES, Recognition, Statement, TestFormat,
-    import, read_file,
+    Camt053, Csv, CsvSettings, ImportError, Imported, Importer, Limits, RECOGNITION_BYTES,
+    Recognition, Statement, TestFormat, currency, import, read_file,
 };
 use kassensturz_pipeline::{
     Choices, EntryOutcome, EntryRef, ImportReport, import_statements, preview_import,
@@ -24,9 +24,14 @@ use crate::error::CliError;
 use crate::lookup::{find_account, short_id};
 use crate::text::{plain, table};
 
-/// The formats the tool reads: CAMT.053 and the made-up test format so far.
-/// The other real ones come in M2.4 to M2.10.
+/// The formats the tool recognizes by themselves: CAMT.053 and the made-up
+/// test format so far. CSV files need settings (`--csv-settings`); the
+/// other real formats come in M2.5 to M2.10.
 const IMPORTERS: &[&dyn Importer] = &[&Camt053, &TestFormat];
+
+/// The ID of the CSV importer, which `--format` takes only together with
+/// `--csv-settings`.
+const CSV: &str = "csv";
 
 /// `import FILE --account NAME`.
 pub(crate) fn import_file(
@@ -36,14 +41,35 @@ pub(crate) fn import_file(
 ) -> Result<(), CliError> {
     let args = Arguments::parse(
         args,
-        &["account", "format", "statement", "also"],
+        &["account", "format", "csv-settings", "statement", "also"],
         &["dry-run"],
     )?;
     let [file] = args.exactly(["file"])?;
     let account = find_account(book, args.required("account")?)?;
     let limits = Limits::default();
     let input = read_file(Path::new(file), &limits)?;
-    let importer = choose_importer(args.value("format")?, &input)?;
+    let format = args.value("format")?;
+    let csv = match args.value("csv-settings")? {
+        Some(path) => {
+            if format.is_some_and(|format| format != CSV) {
+                return Err(CliError::usage(
+                    "--csv-settings is for CSV files; leave out --format or give --format csv",
+                ));
+            }
+            Some(csv_importer(Path::new(path), account.currency)?)
+        }
+        None if format == Some(CSV) => {
+            return Err(CliError::usage(
+                "a CSV file needs --csv-settings FILE, which says how to read your bank's \
+                 files: which column holds what, and how dates and amounts are written",
+            ));
+        }
+        None => None,
+    };
+    let importer: &dyn Importer = match &csv {
+        Some(csv) => csv,
+        None => choose_importer(format, &input)?,
+    };
     let statements = match import(importer, &input, &limits)? {
         Imported::Statements(statements) => statements,
         _ => {
@@ -133,10 +159,20 @@ fn choose_importer(format: Option<&str>, input: &[u8]) -> Result<&'static dyn Im
     }
     best.map(|(_, importer)| importer).ok_or_else(|| {
         CliError::message(format!(
-            "KassenSturz doesn't recognize the file's format; give it with --format ({})",
+            "KassenSturz doesn't recognize the file's format; give it with --format ({}), \
+             or for a CSV file give --csv-settings FILE",
             ids()
         ))
     })
+}
+
+/// The CSV importer for an account in `account_currency`, reading files as
+/// the settings file at `path` says (D-095).
+fn csv_importer(path: &Path, account_currency: CurrencyCode) -> Result<Csv, CliError> {
+    let text = read_file(path, &Limits::default())?;
+    let text = String::from_utf8(text).map_err(|_| ImportError::BadSettings { line: None })?;
+    let settings = CsvSettings::from_text(&text)?;
+    Ok(Csv::new(settings, currency(account_currency)?)?)
 }
 
 /// The statement `--statement` names, counted from 1.

@@ -1,0 +1,4 @@
+recognized: no
+error: import.column-not-found
+  column: "Name"
+  line: 1

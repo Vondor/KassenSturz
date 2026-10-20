@@ -1,0 +1,6 @@
+delimiter = ";"
+decimal-mark = comma
+date-order = day-month-year
+booking-date = 1
+debit = 2
+credit = 3

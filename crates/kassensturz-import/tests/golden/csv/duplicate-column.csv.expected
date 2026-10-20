@@ -1,0 +1,4 @@
+recognized: no
+error: import.column-not-unique
+  column: "Betrag"
+  line: 1

@@ -1,0 +1,4 @@
+recognized: no
+error: import.wrong-encoding
+  encoding: utf-8
+  line: 2

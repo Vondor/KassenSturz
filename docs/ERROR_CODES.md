@@ -169,6 +169,11 @@ A file from a bank or another program couldn't be read (D-091), or what it holds
 | `import.text-too-long` | `max_bytes`, `line?` | | A text in the file is longer than {max_bytes}, which no bank file has. It may be damaged. Download it again. Nothing was imported. |
 | `import.malformed` | `line?` | | The file isn't in the format chosen, or it is damaged. Check the format, or download the file again. Nothing was imported. |
 | `import.bad-amount` | `found`, `line?` | | {found} should be an amount, but it isn't one KassenSturz can read. Check the format, or download the file again. Nothing was imported. |
+| `import.bad-date` | `found`, `line?` | | {found} should be a date, but it isn't one KassenSturz can read in the order of day, month and year chosen for the file. Check that order, or download the file again. Nothing was imported. |
+| `import.wrong-encoding` | `encoding`, `line?` | `utf-8`, `windows-1252`, `iso-8859-15` | The file has a character that doesn't exist in {encoding}, so it is written in another text encoding. Choose the one your bank names for the file; for German banks it is often Windows-1252. Nothing was imported. |
+| `import.column-not-found` | `column`, `line?` | | The file has no column called {column}. Your bank may have changed its file: check which column holds what. Nothing was imported. |
+| `import.column-not-unique` | `column`, `line?` | | The file has more than one column called {column}, so KassenSturz can't tell which one is meant. Choose the column by its number. Nothing was imported. |
+| `import.bad-settings` | `line?` | | The settings for reading the file are incomplete or contradict each other, e.g. no column for the amount. Check which column holds what; {line} is the line of the settings file. Nothing was imported. |
 | `import.too-many-decimal-places` | `found`, `currency`, `line?` | | The amount {found} has more decimal places than {currency} has. KassenSturz never rounds what a bank delivered, so nothing was imported. Check the file's currency. |
 | `import.amount-too-large` | `found`, `line?` | | The amount {found} is too large for KassenSturz to work with. The file may be damaged. Nothing was imported. |
 | `import.unknown-currency` | `currency`, `line?` | | The file uses the currency {currency}, which KassenSturz doesn't know. Nothing was imported. |

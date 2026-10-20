@@ -1,0 +1,4 @@
+recognized: maybe
+error: import.bad-amount
+  found: "-2,00"
+  line: 2

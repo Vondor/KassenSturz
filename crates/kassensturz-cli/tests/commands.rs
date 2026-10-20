@@ -1010,6 +1010,119 @@ fn a_camt053_file_goes_through_the_whole_pipeline() {
 }
 
 #[test]
+fn a_csv_file_is_read_with_its_settings() {
+    let session = household();
+    let write = |name: &str, content: &[u8]| {
+        let path = session.0.join(name);
+        std::fs::write(&path, content).expect("file written");
+        path.display().to_string()
+    };
+    let settings = write(
+        "bank.settings",
+        b"# Example Bank\n\
+          encoding = windows-1252\n\
+          delimiter = \";\"\n\
+          skip-lines = 1\n\
+          decimal-mark = comma\n\
+          date-order = day-month-year\n\
+          booking-date = \"Buchungstag\"\n\
+          amount = \"Betrag\"\n\
+          other-party-name = \"Empf\xc3\xa4nger\"\n\
+          status = \"Status\"\n\
+          booked = \"Gebucht\"\n",
+    );
+    // Windows-1252, as many German banks write it: \xe4 is ä.
+    let file = write(
+        "umsaetze.csv",
+        b"Konto DE89370400440532013000\r\n\
+          Buchungstag;Empf\xe4nger;Betrag;Status\r\n\
+          05.10.2026;REWE Markt;-53,20;Gebucht\r\n\
+          06.10.2026;Kiosk;-9,99;Vorgemerkt\r\n\
+          07.10.2026;B\xe4ckerei;-1.003,50;Gebucht\r\n",
+    );
+    let import = |extra: &[&str]| {
+        let mut line = vec![
+            "import",
+            file.as_str(),
+            "--account",
+            "Checking account",
+            "--csv-settings",
+            settings.as_str(),
+        ];
+        line.extend(extra);
+        session.cli(&line)
+    };
+    let imported = import(&[]);
+    assert_eq!(imported.status, 0, "{}", imported.err);
+    assert!(
+        imported
+            .out
+            .starts_with("Imported 2 of 3 entries into Checking account.\n"),
+        "{}",
+        imported.out
+    );
+    assert!(imported.out.contains("B\u{e4}ckerei"), "{}", imported.out);
+    assert!(imported.out.contains("-1003.50 EUR"), "{}", imported.out);
+    assert!(
+        imported
+            .out
+            .contains("Left out 1 the bank hasn't booked yet: 1.2.\n"),
+        "{}",
+        imported.out
+    );
+    // CSV files have no bank IDs: the second time, the check for similar
+    // entries holds both back for the user to decide.
+    let again = import(&[]);
+    assert!(
+        again
+            .out
+            .starts_with("Imported 0 of 3 entries into Checking account.\n"),
+        "{}",
+        again.out
+    );
+    assert!(
+        again
+            .out
+            .contains("Left out 2 that may be in the book already."),
+        "{}",
+        again.out
+    );
+    assert_eq!(
+        session.ok(&["undo"]),
+        "Undid the change: imported a statement.\n"
+    );
+
+    // --format csv needs the settings, which are for CSV files only.
+    let without = session.cli(&[
+        "import",
+        &file,
+        "--account",
+        "Checking account",
+        "--format",
+        "csv",
+    ]);
+    assert_eq!(without.status, 2);
+    assert!(without.err.contains("--csv-settings"), "{}", without.err);
+    let other = import(&["--format", "camt053"]);
+    assert_eq!(other.status, 2);
+    // Settings that don't say where the amount is are refused with the line.
+    let broken = write(
+        "broken.settings",
+        b"delimiter = \";\"\ndecimal-mark = comma\nbetrag = 3\n",
+    );
+    let refused = session.cli(&[
+        "import",
+        &file,
+        "--account",
+        "Checking account",
+        "--csv-settings",
+        &broken,
+    ]);
+    assert_eq!(refused.status, 1);
+    assert_eq!(refused.err, "error: import.bad-settings\n  line: 3\n");
+}
+
+#[test]
 fn statement_files_that_do_not_fit_are_refused() {
     let session = household();
     let dollars = statement_file(

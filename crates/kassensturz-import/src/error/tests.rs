@@ -39,6 +39,23 @@ fn examples() -> Vec<ImportError> {
             found: text("12,3,4"),
             line,
         },
+        ImportError::BadDate {
+            found: text("31.02.2026"),
+            line,
+        },
+        ImportError::WrongEncoding {
+            encoding: TextEncoding::Windows1252,
+            line,
+        },
+        ImportError::ColumnNotFound {
+            column: text("Betrag"),
+            line,
+        },
+        ImportError::ColumnNotUnique {
+            column: text("Betrag"),
+            line,
+        },
+        ImportError::BadSettings { line },
         ImportError::TooManyDecimalPlaces {
             found: text("1.005"),
             currency: EUR,
@@ -123,6 +140,16 @@ fn every_file_system_keyword_is_listed() {
         ErrorKind::Interrupted,
     ] {
         let keyword = io_keyword(kind);
+        assert!(listed.iter().any(|word| word == keyword), "{keyword}");
+    }
+}
+
+#[test]
+fn every_text_encoding_is_listed() {
+    let rows = documented();
+    let listed = &rows["import.wrong-encoding"].keywords;
+    for encoding in TextEncoding::ALL {
+        let keyword = encoding.keyword();
         assert!(listed.iter().any(|word| word == keyword), "{keyword}");
     }
 }

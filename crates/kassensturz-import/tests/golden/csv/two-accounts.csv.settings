@@ -1,0 +1,7 @@
+delimiter = ";"
+decimal-mark = comma
+date-order = day-month-year
+booking-date = "Datum"
+amount = "Betrag"
+account = "Konto"
+other-party-name = "Name"

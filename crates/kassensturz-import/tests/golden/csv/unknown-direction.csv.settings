@@ -1,0 +1,8 @@
+delimiter = ";"
+decimal-mark = comma
+date-order = day-month-year
+booking-date = 1
+amount = 2
+direction = 3
+money-out = "S"
+money-in = "H"

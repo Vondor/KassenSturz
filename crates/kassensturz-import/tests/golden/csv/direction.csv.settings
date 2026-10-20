@@ -1,0 +1,12 @@
+# An older export: an amount without sign and a column with S or H
+encoding = iso-8859-15
+delimiter = "\t"
+decimal-mark = comma
+date-order = year-month-day
+booking-date = "Datum"
+amount = "Umsatz"
+direction = "S/H"
+money-out = "S"
+money-in = "H"
+other-party-name = "Name"
+remittance-information = "Text"

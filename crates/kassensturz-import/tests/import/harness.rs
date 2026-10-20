@@ -22,10 +22,10 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use kassensturz_core::{ErrorParam, ErrorReport, Money, Report};
+use kassensturz_core::{AccountKind, AccountType, ErrorParam, ErrorReport, Money, Report};
 use kassensturz_import::{
-    Balance, Entry, EntryStatus, ImportError, Imported, Importer, Limits, RECOGNITION_BYTES,
-    Recognition, Statement, import,
+    Balance, BookPart, BookTransaction, Entry, EntryStatus, ImportError, Imported, ImportedBook,
+    Importer, Limits, RECOGNITION_BYTES, Recognition, Statement, import,
 };
 
 /// The extension of the files holding what an import must give.
@@ -167,8 +167,103 @@ pub fn render_imported(out: &mut String, imported: &Imported) {
                 render_statement(out, number, statement);
             }
         }
+        Imported::Book(book) => render_book(out, book),
         _ => panic!("the harness can't write {imported:?} yet"),
     }
+}
+
+/// A whole book: one line per account, one per transaction and one per
+/// part below it, one per rate and one per kind of data left out, so a
+/// book of a few hundred transactions stays readable.
+fn render_book(out: &mut String, book: &ImportedBook) {
+    let _ = writeln!(out, "book");
+    for account in &book.accounts {
+        let kind = match account.kind {
+            AccountKind::Asset => "asset",
+            AccountKind::Liability => "liability",
+            AccountKind::Income => "income",
+            AccountKind::Expense => "expense",
+            AccountKind::Equity => "equity",
+        };
+        let account_type = match account.account_type {
+            None => "-",
+            Some(AccountType::Checking) => "checking",
+            Some(AccountType::Savings) => "savings",
+            Some(AccountType::Cash) => "cash",
+            Some(AccountType::CreditCard) => "credit card",
+        };
+        let _ = writeln!(
+            out,
+            "  account {:?}: {:?}, {kind}, type {account_type}, {} with {} decimal places, \
+             inside {}{}",
+            account.key,
+            account.name,
+            account.currency.code(),
+            account.currency.minor_digits(),
+            text(&account.parent),
+            if account.closed { ", closed" } else { "" },
+        );
+    }
+    for (number, transaction) in (1..).zip(&book.transactions) {
+        render_book_transaction(out, number, transaction);
+    }
+    for rate in &book.rates {
+        let _ = writeln!(
+            out,
+            "  rate on {}: 1 {} = {} {}",
+            rate.date, rate.from, rate.rate, rate.to
+        );
+    }
+    for skipped in &book.skipped {
+        let _ = writeln!(
+            out,
+            "  skipped {}: {}",
+            skipped.what.keyword(),
+            skipped.count
+        );
+    }
+}
+
+fn render_book_transaction(out: &mut String, number: usize, transaction: &BookTransaction) {
+    let digits = transaction.currency.minor_digits();
+    let _ = writeln!(
+        out,
+        "  transaction {number} on {}, payee {}",
+        transaction.date,
+        text(&transaction.payee)
+    );
+    for part in &transaction.parts {
+        render_book_part(out, part, digits);
+    }
+}
+
+fn render_book_part(out: &mut String, part: &BookPart, digits: u8) {
+    let account_amount = part.account_amount.map_or_else(
+        || "-".to_owned(),
+        |money| {
+            amount(
+                money,
+                money.currency().iso_minor_digits().unwrap_or_default(),
+            )
+        },
+    );
+    let _ = write!(
+        out,
+        "    part {}: {}, in the account {account_amount}",
+        text(&part.account),
+        amount(part.amount, digits),
+    );
+    if let Some(details) = &part.details {
+        let _ = write!(
+            out,
+            ", bank id {}, other party {} {}, text {}",
+            text(&details.bank_id),
+            text(&details.other_party_name),
+            text(&details.other_party_iban),
+            text(&details.remittance_information),
+        );
+    }
+    let _ = writeln!(out);
 }
 
 fn render_statement(out: &mut String, number: usize, statement: &Statement) {

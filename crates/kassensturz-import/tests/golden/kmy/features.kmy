@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE KMYMONEY-FILE>
+<!-- Written by hand from the layout of kassensturz-sample.kmy (D-102), with
+     made-up data, for what the sample doesn't have: another currency, an
+     investment, and the kinds of data a book leaves out. -->
+<KMYMONEY-FILE>
+  <FILEINFO>
+    <CREATION_DATE date="2020-01-01"/>
+    <LAST_MODIFIED_DATE date="2026-10-20T10:00:00+02:00"/>
+    <VERSION id="1"/>
+    <FIXVERSION id="10"/>
+    <APPVERSION id="5.2.2"/>
+  </FILEINFO>
+  <USER name="Erika Example" email="">
+    <ADDRESS street="" city="" state="" zip="" telephone="" country="" county="" zipcode="" postcode=""/>
+  </USER>
+  <INSTITUTIONS/>
+  <PAYEES>
+    <PAYEE id="P000001" name="Corner Grocery" reference="" email="" matchingenabled="1" usingmatchkey="0" matchignorecase="1" matchkey="">
+      <ADDRESS street="" city="" state="" zip="" telephone="" country="" county="" zipcode="" postcode=""/>
+    </PAYEE>
+    <PAYEE id="P000002" name="Hotel Example" reference="" email="" matchingenabled="1" usingmatchkey="0" matchignorecase="1" matchkey="">
+      <ADDRESS street="Example Street 1" city="" state="" zip="" telephone="" country="" county="" zipcode="" postcode=""/>
+    </PAYEE>
+    <PAYEE id="P000003" name="Nobody Paid" reference="" email="" matchingenabled="1" usingmatchkey="0" matchignorecase="1" matchkey=""/>
+  </PAYEES>
+  <COSTCENTERS>
+    <COSTCENTER id="C000001" name="Household"/>
+  </COSTCENTERS>
+  <TAGS>
+    <TAG id="G000001" name="Holiday"/>
+  </TAGS>
+  <ACCOUNTS>
+    <ACCOUNT id="AStd::Asset" parentaccount="" lastreconciled="" lastmodified="" institution="" opened="" number="" type="9" name="Anlagen" description="" currency="EUR"/>
+    <ACCOUNT id="AStd::Liability" parentaccount="" lastreconciled="" lastmodified="" institution="" opened="" number="" type="10" name="Verbindlichkeiten" description="" currency="EUR"/>
+    <ACCOUNT id="AStd::Expense" parentaccount="" lastreconciled="" lastmodified="" institution="" opened="" number="" type="13" name="Ausgabe" description="" currency="EUR"/>
+    <ACCOUNT id="AStd::Income" parentaccount="" lastreconciled="" lastmodified="" institution="" opened="" number="" type="12" name="Einnahme" description="" currency="EUR"/>
+    <ACCOUNT id="AStd::Equity" parentaccount="" lastreconciled="" lastmodified="" institution="" opened="" number="" type="16" name="Eigenkapital" description="" currency="EUR"/>
+    <ACCOUNT id="A000001" parentaccount="AStd::Asset" lastreconciled="" lastmodified="" institution="" opened="2020-01-01" number="" type="1" name="Checking" description="The everyday account" currency="EUR"/>
+    <ACCOUNT id="A000002" parentaccount="AStd::Liability" lastreconciled="" lastmodified="" institution="" opened="2020-01-01" number="" type="4" name="Card" description="" currency="EUR"/>
+    <ACCOUNT id="A000003" parentaccount="AStd::Asset" lastreconciled="" lastmodified="" institution="" opened="2020-01-01" number="" type="7" name="Brokerage" description="" currency="EUR"/>
+    <ACCOUNT id="A000004" parentaccount="A000003" lastreconciled="" lastmodified="" institution="" opened="2020-01-01" number="" type="15" name="Example Fund" description="" currency="E000001"/>
+    <ACCOUNT id="A000005" parentaccount="AStd::Expense" lastreconciled="" lastmodified="" institution="" opened="1900-01-01" number="" type="13" name="Food" description="" currency="EUR"/>
+    <ACCOUNT id="A000006" parentaccount="A000005" lastreconciled="" lastmodified="" institution="" opened="1900-01-01" number="" type="13" name="Groceries" description="" currency="EUR"/>
+    <ACCOUNT id="A000007" parentaccount="A000005" lastreconciled="" lastmodified="" institution="" opened="1900-01-01" number="" type="13" name="Travel" description="" currency="USD"/>
+    <ACCOUNT id="A000008" parentaccount="AStd::Income" lastreconciled="" lastmodified="" institution="" opened="1900-01-01" number="" type="12" name="Salary" description="" currency="EUR"/>
+    <ACCOUNT id="A000009" parentaccount="AStd::Equity" lastreconciled="" lastmodified="" institution="" opened="2020-01-01" number="" type="16" name="Opening Balances" description="" currency="EUR"/>
+  </ACCOUNTS>
+  <TRANSACTIONS>
+    <TRANSACTION id="T000000000000000001" postdate="2020-01-01" memo="" entrydate="2020-01-01" commodity="EUR">
+      <SPLITS>
+        <SPLIT id="S0001" payee="" reconciledate="" action="" reconcileflag="0" value="1500/1" shares="1500/1" price="1/1" memo="" account="A000001" number="" bankid=""/>
+        <SPLIT id="S0002" payee="" reconciledate="" action="" reconcileflag="0" value="-1500/1" shares="-1500/1" price="1/1" memo="" account="A000009" number="" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+    <TRANSACTION id="T000000000000000002" postdate="2020-01-03" memo="Weekly shop" entrydate="2020-01-03" commodity="EUR">
+      <SPLITS>
+        <SPLIT id="S0001" payee="P000001" reconciledate="" action="" reconcileflag="1" value="-2475/100" shares="-2475/100" price="1/1" memo="Weekly shop" account="A000001" number="" bankid="REF-0001"/>
+        <SPLIT id="S0002" payee="P000001" reconciledate="" action="" reconcileflag="0" value="2475/100" shares="2475/100" price="1/1" memo="Fruit and bread" account="A000006" number="" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+    <TRANSACTION id="T000000000000000003" postdate="2020-02-10" memo="Two nights" entrydate="2020-02-10" commodity="EUR">
+      <SPLITS>
+        <SPLIT id="S0001" payee="P000002" reconciledate="" action="" reconcileflag="0" value="-185/1" shares="-185/1" price="1/1" memo="Hotel&#xa;Two nights" account="A000002" number="" bankid=""/>
+        <SPLIT id="S0002" payee="" reconciledate="" action="" reconcileflag="0" value="185/1" shares="200/1" price="40/37" memo="" account="A000007" number="" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+    <TRANSACTION id="T000000000000000004" postdate="2020-02-28" memo="" entrydate="2020-02-28" commodity="EUR">
+      <SPLITS>
+        <SPLIT id="S0001" payee="" reconciledate="" action="" reconcileflag="2" value="2100/1" shares="2100/1" price="1/1" memo="" account="A000001" number="1042" bankid=""/>
+        <SPLIT id="S0002" payee="" reconciledate="" action="" reconcileflag="0" value="-2100/1" shares="-2100/1" price="1/1" memo="" account="A000008" number="" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+    <TRANSACTION id="T000000000000000005" postdate="2020-03-02" memo="" entrydate="2020-03-02" commodity="EUR">
+      <SPLITS>
+        <SPLIT id="S0001" payee="" reconciledate="" action="" reconcileflag="0" value="-500/1" shares="-500/1" price="1/1" memo="" account="A000001" number="" bankid=""/>
+        <SPLIT id="S0002" payee="" reconciledate="" action="" reconcileflag="0" value="500/1" shares="500/1" price="1/1" memo="" account="A000003" number="" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+    <TRANSACTION id="T000000000000000006" postdate="2020-03-03" memo="" entrydate="2020-03-03" commodity="EUR">
+      <SPLITS>
+        <SPLIT id="S0001" payee="" reconciledate="" action="" reconcileflag="0" value="-500/1" shares="-500/1" price="1/1" memo="" account="A000003" number="" bankid=""/>
+        <SPLIT id="S0002" payee="" reconciledate="" action="Buy" reconcileflag="0" value="500/1" shares="25/2" price="40/1" memo="Bought shares" account="A000004" number="" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+  </TRANSACTIONS>
+  <KEYVALUEPAIRS>
+    <PAIR key="kmm-baseCurrency" value="EUR"/>
+  </KEYVALUEPAIRS>
+  <SCHEDULES>
+    <SCHEDULED_TX id="SCH000001" name="Rent">
+      <TRANSACTION id="" postdate="2020-04-01" memo="" entrydate="" commodity="EUR">
+        <SPLITS>
+          <SPLIT id="S0001" payee="" reconciledate="" action="" reconcileflag="0" value="-700/1" shares="-700/1" price="1/1" memo="" account="A000001" number="" bankid=""/>
+        </SPLITS>
+      </TRANSACTION>
+    </SCHEDULED_TX>
+  </SCHEDULES>
+  <SECURITIES>
+    <SECURITY id="E000001" name="Example Fund" symbol="EXF" type="4" saf="1000" pp="4" trading-currency="EUR"/>
+  </SECURITIES>
+  <CURRENCIES>
+    <CURRENCY id="DEM" name="Deutsche Mark" symbol="DM" type="3" rounding-method="0" saf="100" pp="4" scf="100"/>
+    <CURRENCY id="EUR" name="Euro" symbol="€" type="3" rounding-method="0" saf="100" pp="4" scf="100"/>
+    <CURRENCY id="USD" name="US-Dollar" symbol="$" type="3" rounding-method="0" saf="100" pp="4" scf="100"/>
+  </CURRENCIES>
+  <PRICES>
+    <PRICEPAIR from="DEM" to="EUR">
+      <PRICE date="1998-12-31" price="100000/195583" source="KMyMoney"/>
+    </PRICEPAIR>
+    <PRICEPAIR from="E000001" to="EUR">
+      <PRICE date="2020-03-03" price="40/1" source="Transaction"/>
+    </PRICEPAIR>
+    <PRICEPAIR from="EUR" to="USD">
+      <PRICE date="2020-02-10" price="40/37" source="Transaction"/>
+      <PRICE date="2020-02-11" price="10811/10000" source="User"/>
+    </PRICEPAIR>
+    <PRICEPAIR from="USD" to="EUR">
+      <PRICE date="2020-02-11" price="925/1000" source="User"/>
+    </PRICEPAIR>
+  </PRICES>
+  <REPORTS>
+    <REPORT id="R000001" name="Spending by month"/>
+  </REPORTS>
+  <BUDGETS>
+    <BUDGET id="B000001" name="2020"/>
+  </BUDGETS>
+  <ONLINEJOBS/>
+  <PLUGINS/>
+</KMYMONEY-FILE>

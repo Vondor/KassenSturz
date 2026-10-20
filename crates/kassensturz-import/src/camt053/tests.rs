@@ -31,8 +31,10 @@ fn read(xml: &str) -> Result<Vec<Statement>, ImportError> {
 }
 
 fn read_with(input: &[u8], limits: &Limits) -> Result<Vec<Statement>, ImportError> {
-    let Imported::Statements(statements) = import(&Camt053, input, limits)?;
-    Ok(statements)
+    match import(&Camt053, input, limits)? {
+        Imported::Statements(statements) => Ok(statements),
+        other => panic!("a statement importer read {other:?}"),
+    }
 }
 
 fn only_entry(xml: &str) -> Entry {

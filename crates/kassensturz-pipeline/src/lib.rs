@@ -48,6 +48,7 @@ mod book;
 mod entries;
 mod error;
 mod export;
+mod imported_book;
 mod report;
 
 use std::collections::HashSet;
@@ -61,6 +62,7 @@ use entries::{Decision, bank_date, decide};
 pub use book::{export_book, fill_book};
 pub use error::PipelineError;
 pub use export::export_transactions;
+pub use imported_book::{BookImportReport, fill_book_from};
 pub use report::{
     BalanceCheck, Duplicate, EntryOutcome, EntryRef, EntryResult, ImportReport, Summary,
 };

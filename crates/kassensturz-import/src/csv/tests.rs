@@ -42,6 +42,7 @@ fn read(settings: CsvSettings, input: &str) -> Result<Vec<Statement>, ImportErro
     let importer = Csv::new(settings, eur())?;
     match import(&importer, input.as_bytes(), &Limits::default())? {
         Imported::Statements(statements) => Ok(statements),
+        other => panic!("a statement importer read {other:?}"),
     }
 }
 

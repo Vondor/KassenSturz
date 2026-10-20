@@ -41,8 +41,9 @@ SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 # Synthetic test files for the importers' golden-file tests and what they
-# must give: made-up data in the formats of banks and other programs, which
-# can't carry a header of their own (AGENTS.md §9, D-091).
+# must give: made-up data in the formats of banks and other programs, and
+# the KMyMoney sample randomized from a real book (D-102), which can't carry
+# a header of their own (AGENTS.md §9, D-091).
 [[annotations]]
 path = ["crates/kassensturz-import/tests/golden/**"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"

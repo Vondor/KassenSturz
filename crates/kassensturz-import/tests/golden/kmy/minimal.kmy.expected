@@ -1,0 +1,7 @@
+recognized: yes
+book
+  account "A000001": "Checking", asset, type checking, EUR with 2 decimal places, inside -
+  account "A000002": "Groceries", expense, type -, EUR with 2 decimal places, inside -
+  transaction 1 on 2020-01-03, payee -
+    part "A000001": -24.75 EUR, in the account -
+    part "A000002": 24.75 EUR, in the account -

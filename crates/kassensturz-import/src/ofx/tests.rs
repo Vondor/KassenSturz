@@ -30,8 +30,10 @@ fn read(text: &str) -> Result<Vec<Statement>, ImportError> {
 }
 
 fn read_with(input: &[u8], limits: &Limits) -> Result<Vec<Statement>, ImportError> {
-    let Imported::Statements(statements) = import(&Ofx, input, limits)?;
-    Ok(statements)
+    match import(&Ofx, input, limits)? {
+        Imported::Statements(statements) => Ok(statements),
+        other => panic!("a statement importer read {other:?}"),
+    }
 }
 
 fn entries(body: &str) -> Vec<Entry> {

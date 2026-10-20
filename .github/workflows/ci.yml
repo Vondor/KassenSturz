@@ -114,6 +114,55 @@ jobs:
       - name: Tests
         run: cargo test --workspace --exclude kassensturz-ui-bridge --locked
 
+  # The app built the way a Debian-style package is: Kubuntu's own Qt, KDE
+  # Frameworks and SQLite from the distribution's archive, installed into a
+  # staging folder (D-094). Only Rust comes from elsewhere: the distribution's
+  # rustc is older than the project's 1.98 (D-073), so the distribution's
+  # `rustup` package installs 1.98.1. Kubuntu is Ubuntu plus the KDE packages,
+  # all of them in the same archive, so Ubuntu's image is enough.
+  kubuntu:
+    name: Kubuntu 26.10 with distribution packages (D-094)
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:26.10@sha256:93e29beff5257b2cdf1c024d831f6d2997e53655a653ff76a811fc9e6564a719
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - name: Install the distribution's build tools, Qt, KDE Frameworks and SQLite
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential ca-certificates cmake curl extra-cmake-modules gettext git \
+            libkf6i18n-dev libkf6qqc2desktopstyle-dev libsqlite3-dev ninja-build pkgconf \
+            qml6-module-org-kde-desktop qml6-module-org-kde-ki18n qml6-module-org-kde-kirigami \
+            qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools rustup
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          rustup default 1.98.1
+      # Kubuntu 26.10 has Qt 6.11.2 but KDE Frameworks 6.29.0, one release
+      # short of the 6.30.0 that CMakeLists.txt asks for by default, so this
+      # job asks for 6.29.0 (D-094). It uses the system's SQLite (D-061).
+      - name: Configure
+        run: cmake -S . -B build/cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DKASSENSTURZ_BUNDLED_SQLITE=OFF -DKF_MIN_VERSION=6.29.0
+      - name: Build
+        run: cmake --build build/cmake
+      - name: Install into a staging folder
+        run: DESTDIR="$PWD/build/stage" cmake --install build/cmake
+      - name: Tests, with the system's SQLite
+        run: cargo test --workspace --no-default-features --locked
+        env:
+          QMAKE: /usr/bin/qmake6
+      # The window opens and keeps running; timeout ends it with status 124.
+      # A missing QML module or a crash at start-up ends it sooner.
+      - name: The installed app starts
+        run: |
+          status=0
+          timeout 10 build/stage/usr/bin/kassensturz || status=$?
+          test "$status" -eq 124
+
   licenses:
     name: Dependency licenses and sources (D-026)
     runs-on: ubuntu-latest

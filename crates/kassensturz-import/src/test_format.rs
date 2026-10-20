@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! A made-up statement format, only for testing the interface and the
-//! golden-file harness, and as a small example of an importer. No bank
-//! writes it.
+//! A made-up statement format, for tests and for trying out the import
+//! with the command-line tool before a real format exists (D-092), and a
+//! small example of an importer. No bank writes it, and the app never
+//! offers it.
 //!
 //! The first line is `KSTEST`, then one record per line, its fields
 //! separated by `;`, an empty field meaning none:
@@ -19,14 +20,17 @@
 //! Each `account` line starts a statement. Amounts have a decimal point.
 
 use kassensturz_core::{CurrencyCode, Date};
-use kassensturz_import::{
-    Balance, DecimalMark, Entry, EntryStatus, ImportError, ImportKind, Imported, Importer,
-    ImporterInfo, Limits, Recognition, Statement, StatementAccount, currency, parse_amount,
-};
+
+use crate::amount::{DecimalMark, currency, parse_amount};
+use crate::error::ImportError;
+use crate::importer::{ImportKind, Imported, Importer, ImporterInfo, Recognition};
+use crate::limits::Limits;
+use crate::statement::{Balance, Entry, EntryStatus, Statement, StatementAccount};
 
 const MAGIC: &[u8] = b"KSTEST";
 
-/// The importer for the made-up format.
+/// The importer for the made-up format, with the ID `kstest`.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct TestFormat;
 
 impl Importer for TestFormat {

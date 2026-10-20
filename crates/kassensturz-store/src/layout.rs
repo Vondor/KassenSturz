@@ -34,8 +34,9 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 9] = [
+pub(crate) const MIGRATIONS: [&str; 10] = [
     LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4, LAYOUT_5, LAYOUT_6, LAYOUT_7, LAYOUT_8, LAYOUT_9,
+    LAYOUT_10,
 ];
 
 /// The layout version the first migration creates.
@@ -451,6 +452,31 @@ DROP TABLE changes;
 ALTER TABLE new_changes RENAME TO changes;
 ";
 
+/// Layout 10 (M2.2): importing a statement into an account is a user action
+/// of its own (D-092), so `changes` is rebuilt with `import_statement` in its
+/// list of actions, as in layouts 8 and 9. Its rows stay as they were.
+const LAYOUT_10: &str = "
+CREATE TABLE new_changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction', 'join_transfer',
+        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
+        'import_statement'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1))
+) STRICT;
+INSERT INTO new_changes (id, sequence, action, made_at, undone)
+    SELECT id, sequence, action, made_at, undone FROM changes;
+DROP TABLE changes;
+ALTER TABLE new_changes RENAME TO changes;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -666,8 +692,8 @@ mod tests {
 
     #[test]
     fn changes_made_before_changes_was_rebuilt_can_still_be_undone() {
-        // Layouts 8 and 9 rebuild `changes`; what a book recorded before
-        // stays.
+        // Layouts 8, 9 and 10 rebuild `changes`; what a book recorded
+        // before stays.
         for version in 7..VERSION {
             undo_after_update(version);
         }

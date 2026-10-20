@@ -21,6 +21,7 @@ kassensturz/
 │   │   └── events                  # event bus (TransactionAdded, ...)
 │   ├── kassensturz-store/          # all SQLite code: store, migrations, backups, change history — see D-016, D-032, D-033, D-072
 │   ├── kassensturz-import/         # the Importer interface, statements and limits for untrusted files (D-091); CSV, OFX, MT940, CAMT.053, KMyMoney (.kmy / SQLite)
+│   ├── kassensturz-pipeline/       # the import pipeline: statements into an account, with the duplicate check, Transfer suggestions, Rules and the balance check (D-030, D-092)
 │   ├── kassensturz-bank/           # read-only bank connections over AqBanking, fake backend for tests — see D-053, D-060
 │   ├── kassensturz-aqbanking-sys/  # raw AqBanking/Gwenhywfar declarations (bindgen, committed, loaded at runtime) — see D-060
 │   ├── kassensturz-plugin-api/     # stable, versioned plugin interface (after 1.0, D-071)
@@ -67,9 +68,10 @@ kassensturz/
 
 - `kassensturz-core` depends on **no other workspace crate**.
 - `kassensturz-store`, `kassensturz-import`, `kassensturz-bank`, `kassensturz-charts`, `kassensturz-ai`, `kassensturz-plugin-host` depend on `kassensturz-core`.
+- `kassensturz-store` and `kassensturz-import` don't depend on each other: a file format knows no database, and the book knows no file format (D-091). `kassensturz-pipeline` depends on core, import and store and joins them (D-092).
 - Only `kassensturz-store` touches the book's database; every other crate calls its functions (D-072). Reading another program's files, such as KMyMoney's SQLite format in `kassensturz-import`, isn't affected.
 - Only `kassensturz-bank` uses `kassensturz-aqbanking-sys`; no other crate calls AqBanking's C code (D-060).
-- Front ends (`kassensturz-cli`, `kassensturz-ui-bridge`, `kassensturz-mcp`) depend on core, store and plugin host. **Core never knows about a UI.**
+- Front ends (`kassensturz-cli`, `kassensturz-ui-bridge`, `kassensturz-mcp`) depend on core, store and plugin host, and on import and pipeline to import files. **Core never knows about a UI.**
 - OS-specific behavior lives only in `kassensturz-platform` behind traits.
 - AI code lives only in `kassensturz-ai` and `kassensturz-mcp`. Front ends use them only behind one build feature (`ai`, on by default), so KassenSturz can be built without any AI code (D-039). `kassensturz-core` never depends on AI code.
 - Built-in importers and exporters implement the native Rust interface that the plugin API mirrors (D-069).
@@ -96,7 +98,7 @@ kassensturz/
 
 ## Command-line tool
 
-- `kassensturz-cli` is a front end like the app, so it uses only the public functions of `kassensturz-core` and `kassensturz-store` (D-072, D-085). It is for developers and testers: it isn't installed by the Flatpak or CMake and isn't translated (Q-040).
+- `kassensturz-cli` is a front end like the app, so it uses only the public functions of `kassensturz-core`, `kassensturz-store`, `kassensturz-import` and `kassensturz-pipeline` (D-072, D-085). Until the first real format comes (M2.3), its `import` command reads `kstest`, a made-up format for tests that the app never offers (D-092). It is for developers and testers: it isn't installed by the Flatpak or CMake and isn't translated (Q-040).
 - It was the first front end to open book files, so it supplies the computer's name and the backup folder (`Computer`, D-080) from options or a best guess, until `kassensturz-platform` takes that over.
 - Amounts go in and out as plain text (`-12.50`) with the currency's decimal places, never rounded; errors are written as their code and parameters (D-084).
 - Run it with `tools/sdk.sh cargo run --bin kassensturz-cli -- help`.
@@ -122,8 +124,16 @@ kassensturz/
 
 ## Import pipeline
 
-- Steps run in this order: duplicate check, then Transfer matching, then Rules (D-030).
-- Duplicates: a transaction whose bank-provided transaction ID is already in the book is skipped automatically and counted in the import summary; uncertain cases are shown to the user to decide.
+- `kassensturz-pipeline` puts statements into one account of the book (D-092). `import_statements` is one user action, `import_statement` (layout 10), which undo takes back as a whole (D-086). `preview_import` runs the very same steps inside `Book::dry_run` and takes them back, so the preview shows exactly what the import would do, Rules and Transfers included. Every front end calls these two, so the order of the steps lives in one place.
+- The account must be one of the user's open accounts, and each statement in its currency with the decimal places the book stores for it (D-027); otherwise nothing is imported (`import.account-currency-differs`, `import.decimal-places-differ`). A statement in a withdrawn currency such as the Mark is refused until M2.9 converts it (D-077).
+- Steps run in this order: only booked entries, the duplicate check, then Transfer matching, then Rules (D-030):
+  - Entries the bank hasn't booked are left out and counted.
+  - Duplicates: an entry whose bank ID the account already holds, or that an earlier entry of the same import has, is skipped and counted in the import summary (Q-039, D-083). Other accounts' IDs don't count, and an empty ID is no ID.
+  - Uncertain cases are left out until the user chooses to import them (`Choices`): an entry that has the same amount as a part the account already has, at most 3 business days apart by the day the bank booked it, unless both have bank IDs and they differ (D-092). Transactions typed in by hand count, so a purchase entered before the statement came is caught. Entries of one import are never compared with each other: two coffees of the same price on one day are two coffees.
+  - Each other entry becomes a transaction: the account's part, with everything the bank delivered, plus one part without a category (D-083). The payee is the other party's name, which the user can change.
+  - The Transfers to suggest that involve a new transaction (`Book::transfer_suggestions`, D-087), for the user to confirm.
+  - The Rules, on the new transactions only (`Book::run_rules_on`, D-088). A side of a suggested Transfer waits for the user's decision.
+- The balance check: for each statement with a closing balance, KassenSturz's balance of the account at the end of that day, everything booked to it up to then by the day the bank booked it where it says so, against the bank's (D-029). A difference is shown, never corrected automatically.
 - Both booking date and value date are stored, with the Part the bank delivered; the transaction's booking date is the one shown, and the user can change it (D-083).
 - What a bank or file delivers (other party name and IBAN, remittance information, bank transaction ID) is stored unchanged next to the payee and category the user can edit, so Rules can be re-run and duplicates recognized later (D-067).
 - Only booked transactions are imported in v1; pending ones (not yet booked by the bank) are skipped (D-030).

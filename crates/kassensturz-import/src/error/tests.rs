@@ -56,6 +56,16 @@ fn examples() -> Vec<ImportError> {
             expected: EUR,
             found: USD,
         },
+        ImportError::AccountCurrencyDiffers {
+            account: AccountId::generate(),
+            account_currency: EUR,
+            statement_currency: USD,
+        },
+        ImportError::DecimalPlacesDiffer {
+            currency: EUR,
+            book: 2,
+            file: 3,
+        },
     ]
 }
 

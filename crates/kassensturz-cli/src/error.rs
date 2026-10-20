@@ -14,6 +14,8 @@ use kassensturz_core::{
     CurrencyCodeError, DecimalError, ErrorParam, ErrorReport, MoneyError, Report, RuleError,
     TransactionError,
 };
+use kassensturz_import::ImportError;
+use kassensturz_pipeline::PipelineError;
 use kassensturz_store::{Book, StoreError};
 
 use crate::amount::money_text;
@@ -27,7 +29,8 @@ pub(crate) enum CliError {
     /// Something the tool itself found wrong, e.g. a name that no account
     /// has, in plain English.
     Message(String),
-    /// An error of the core or the store.
+    /// An error of the core, the store, the importers or the import
+    /// pipeline.
     Report(ErrorReport),
     /// Writing the result failed, e.g. because the reader closed the pipe.
     Output(io::Error),
@@ -55,6 +58,8 @@ macro_rules! from_report {
 
 from_report!(
     StoreError,
+    ImportError,
+    PipelineError,
     TransactionError,
     MoneyError,
     DecimalError,

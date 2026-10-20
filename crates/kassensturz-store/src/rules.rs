@@ -89,6 +89,9 @@ struct Planned {
 enum Scope<'a> {
     /// The ones without a category yet, which a run books (Q-044).
     Uncategorized,
+    /// The ones among these without a category yet, e.g. what an import
+    /// just added (D-030).
+    Only(&'a HashSet<TransactionId>),
     /// The ones these Rules booked and the user didn't change since, which
     /// changing one of the Rules books again when the user asks for it.
     BookedBy(&'a HashSet<RuleId>),
@@ -362,6 +365,25 @@ impl Book {
         })
     }
 
+    /// Runs the Rules on `transactions` only, as [`Book::run_rules`] runs
+    /// them on every transaction without a category yet, and as one user
+    /// action too. The import runs them on the transactions it just added
+    /// this way, so the rest of the book stays as it is (D-030, D-088).
+    /// Among `transactions`, the Rules book only what has no category yet.
+    pub fn run_rules_on(&mut self, transactions: &[TransactionId]) -> Result<RuleRun, StoreError> {
+        let only: HashSet<TransactionId> = transactions.iter().copied().collect();
+        let (run, planned) = self.plan(&self.rules()?, Scope::Only(&only))?;
+        if planned.is_empty() {
+            return Ok(run);
+        }
+        self.as_one_action(Action::RunRules, |book| {
+            for change in &planned {
+                book.write_planned(change)?;
+            }
+            Ok(run)
+        })
+    }
+
     /// What changing `rule` does to what it and its sub-Rules booked
     /// earlier, with the Rules as they are going to be.
     fn plan_rebook(&self, rule: &Rule) -> Result<(RuleRun, Vec<Planned>), StoreError> {
@@ -418,7 +440,7 @@ impl Book {
             // A Rule books a transaction once; what it booked changes only
             // when the user asks for that with a change of the Rule (Q-044).
             let wanted = match scope {
-                Scope::Uncategorized => part.account.is_none(),
+                Scope::Uncategorized | Scope::Only(_) => part.account.is_none(),
                 Scope::BookedBy(booked_by) => {
                     mark.flatten().is_some_and(|rule| booked_by.contains(&rule))
                 }
@@ -622,11 +644,12 @@ impl Book {
     }
 
     /// The transactions `scope` may name, each once: those with two parts,
-    /// one of them without a category, or those with a part one of the
-    /// Rules booked. [`Book::plan`] checks each one further.
+    /// one of them without a category, all or only the ones it names, or
+    /// those with a part one of the Rules booked. [`Book::plan`] checks each
+    /// one further.
     fn candidates(&self, scope: Scope<'_>) -> Result<Vec<TransactionId>, StoreError> {
         let mut ids = match scope {
-            Scope::Uncategorized => {
+            Scope::Uncategorized | Scope::Only(_) => {
                 let mut statement = self.conn.prepare(
                     "SELECT transaction_id FROM splits GROUP BY transaction_id
                      HAVING count(*) = 2 AND count(account_id) = 1",
@@ -655,6 +678,9 @@ impl Book {
                     .collect()
             }
         };
+        if let Scope::Only(only) = scope {
+            ids.retain(|id| only.contains(id));
+        }
         ids.sort_unstable();
         ids.dedup();
         Ok(ids)

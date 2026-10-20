@@ -321,6 +321,10 @@ fn a_part_in_another_currency_counts_in_its_accounts_currency() {
     let register = book.register(dollars).expect("register");
     assert_eq!(register.len(), 1);
     assert_eq!(register[0].amount, usd(108_560));
+    assert_eq!(
+        book.account_parts(dollars).expect("parts")[0].amount,
+        usd(108_560)
+    );
 }
 
 #[test]
@@ -535,6 +539,57 @@ fn what_a_bank_delivered_comes_back_unchanged() {
     book.add_transaction(&transfer_in).expect("added");
     let stored = book.transaction(transfer_in.id()).expect("read");
     assert_eq!(stored.splits()[0].imported, Some(sparse));
+}
+
+#[test]
+fn an_accounts_parts_come_with_what_was_delivered() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let purchase = imported_purchase(&mut book, checking);
+    // Typed in by hand, with the account in two parts.
+    let market = transaction(
+        date(2026, 10, 1),
+        "Market",
+        &[
+            (checking, eur(-700)),
+            (checking, eur(-300)),
+            (groceries, eur(1000)),
+        ],
+    );
+    book.add_transaction(&market).expect("added");
+
+    let parts = book.account_parts(checking).expect("parts");
+    let found: Vec<(TransactionId, SplitId, Date, Money)> = parts
+        .iter()
+        .map(|part| (part.transaction, part.split, part.booking_date, part.amount))
+        .collect();
+    let first = date(2026, 10, 1);
+    assert_eq!(
+        found,
+        [
+            (market.id(), market.splits()[0].id, first, eur(-700)),
+            (market.id(), market.splits()[1].id, first, eur(-300)),
+            (
+                purchase.id(),
+                purchase.splits()[0].id,
+                date(2026, 10, 5),
+                eur(-5320)
+            ),
+        ],
+        "oldest first, one per part"
+    );
+    assert_eq!(parts[0].imported, None);
+    assert_eq!(parts[2].imported, Some(delivered()));
+
+    assert_eq!(book.account_parts(groceries).expect("parts").len(), 1);
+    assert!(matches!(
+        book.account_parts(AccountId::generate()),
+        Err(StoreError::UnknownAccount(_))
+    ));
 }
 
 #[test]

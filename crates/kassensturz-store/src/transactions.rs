@@ -33,6 +33,24 @@ pub struct RegisterEntry {
     pub amount: Money,
 }
 
+/// One part booked to an account, with what a bank or file delivered for
+/// it, e.g. for comparing a statement's entries with what the account
+/// already holds (D-030, D-092).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AccountPart {
+    /// The transaction it belongs to.
+    pub transaction: TransactionId,
+    /// The part.
+    pub split: SplitId,
+    /// The transaction's booking date, the one the user sees.
+    pub booking_date: Date,
+    /// What it does to the account, in the account's currency: positive
+    /// amounts came in, negative ones went out.
+    pub amount: Money,
+    /// What a bank or file delivered for it, if it came from one (D-067).
+    pub imported: Option<ImportedDetails>,
+}
+
 impl Book {
     /// Adds a transaction.
     ///
@@ -194,7 +212,7 @@ impl Book {
         let currency = currency_from_text(&currency)?;
 
         let mut statement = self.conn.prepare(&format!(
-            "SELECT {SPLIT_COLUMNS} {SPLIT_TABLES}
+            "SELECT {SPLIT_COLUMNS}, {IMPORTED_COLUMNS} {SPLIT_TABLES}
              WHERE s.transaction_id = ?1 ORDER BY s.position"
         ))?;
         let rows = statement
@@ -266,6 +284,37 @@ impl Book {
             }
         }
         Ok(entries)
+    }
+
+    /// The parts booked to `account`, oldest first, each with its amount in
+    /// the account's currency and what a bank or file delivered for it.
+    /// Unlike [`Book::register`], a transaction with several parts in the
+    /// account gives one entry per part.
+    pub fn account_parts(&self, account: AccountId) -> Result<Vec<AccountPart>, StoreError> {
+        let account = self.account(account)?;
+        let mut statement = self.conn.prepare(&format!(
+            "SELECT t.id, t.booking_date, t.currency,
+                    s.id, s.amount, s.foreign_amount, s.foreign_currency, {IMPORTED_COLUMNS}
+             FROM splits AS s JOIN transactions AS t ON t.id = s.transaction_id
+             LEFT JOIN split_imports AS i ON i.split_id = s.id
+             WHERE s.account_id = ?1
+             ORDER BY t.booking_date, t.id, s.position"
+        ))?;
+        let mut rows = statement.query([account.id.to_bytes()])?;
+        let mut parts = Vec::new();
+        while let Some(row) = rows.next()? {
+            let transaction = TransactionId::from_bytes(row.get(0)?);
+            parts.push(AccountPart {
+                transaction,
+                split: SplitId::from_bytes(row.get(3)?),
+                booking_date: date_from_text(&row.get::<_, String>(1)?)?,
+                amount: account_amount(&account, transaction, row, 2)?,
+                imported: ImportedRow::read(row, 7)?
+                    .map(ImportedRow::into_details)
+                    .transpose()?,
+            });
+        }
+        Ok(parts)
     }
 
     /// The balance of `account`, in its currency: everything booked to it,
@@ -540,11 +589,16 @@ fn foreign_columns(
     }
 }
 
-/// The columns [`SplitRow::read`] expects, in its order.
+/// The columns [`SplitRow::read`] expects, in its order, followed by
+/// [`IMPORTED_COLUMNS`].
 const SPLIT_COLUMNS: &str = "
     s.id, s.account_id, s.amount, s.foreign_amount, s.foreign_currency,
     r.rate_id, r.date, r.from_currency, r.to_currency, r.rate_digits,
-    r.rate_decimal_places, r.source,
+    r.rate_decimal_places, r.source";
+
+/// The columns of `split_imports` (as `i`) [`ImportedRow::read`] expects, in
+/// its order.
+const IMPORTED_COLUMNS: &str = "
     i.split_id, i.bank_id, i.booking_date, i.value_date,
     i.other_party_name, i.other_party_iban, i.remittance_information";
 
@@ -589,17 +643,7 @@ impl SplitRow {
             }),
             None => None,
         };
-        let imported = match row.get::<_, Option<[u8; 16]>>(12)? {
-            Some(_) => Some(ImportedRow {
-                bank_id: row.get(13)?,
-                booking_date: row.get(14)?,
-                value_date: row.get(15)?,
-                other_party_name: row.get(16)?,
-                other_party_iban: row.get(17)?,
-                remittance_information: row.get(18)?,
-            }),
-            None => None,
-        };
+        let imported = ImportedRow::read(row, 12)?;
         Ok(Self {
             id: SplitId::from_bytes(row.get(0)?),
             account: row.get(1)?,
@@ -621,24 +665,43 @@ impl SplitRow {
             // A rate belongs to a part in another currency.
             (None, Some(_)) => return Err(StoreError::Corrupt(Corruption::BadSplit(self.id))),
         };
-        let optional_date = |text: Option<String>| text.as_deref().map(date_from_text).transpose();
-        let imported = match self.imported {
-            Some(row) => Some(ImportedDetails {
-                bank_id: row.bank_id,
-                booking_date: optional_date(row.booking_date)?,
-                value_date: optional_date(row.value_date)?,
-                other_party_name: row.other_party_name,
-                other_party_iban: row.other_party_iban,
-                remittance_information: row.remittance_information,
-            }),
-            None => None,
-        };
+        let imported = self.imported.map(ImportedRow::into_details).transpose()?;
         Ok(Split {
             id: self.id,
             account: self.account.map(AccountId::from_bytes),
             amount: Money::from_minor_units(self.amount, currency),
             foreign,
             imported,
+        })
+    }
+}
+
+impl ImportedRow {
+    /// What was delivered for a part, from the columns of
+    /// [`IMPORTED_COLUMNS`] starting at `first`, or `None` if nothing was.
+    fn read(row: &rusqlite::Row<'_>, first: usize) -> rusqlite::Result<Option<Self>> {
+        if row.get::<_, Option<[u8; 16]>>(first)?.is_none() {
+            return Ok(None);
+        }
+        Ok(Some(Self {
+            bank_id: row.get(first + 1)?,
+            booking_date: row.get(first + 2)?,
+            value_date: row.get(first + 3)?,
+            other_party_name: row.get(first + 4)?,
+            other_party_iban: row.get(first + 5)?,
+            remittance_information: row.get(first + 6)?,
+        }))
+    }
+
+    fn into_details(self) -> Result<ImportedDetails, StoreError> {
+        let optional_date = |text: Option<String>| text.as_deref().map(date_from_text).transpose();
+        Ok(ImportedDetails {
+            bank_id: self.bank_id,
+            booking_date: optional_date(self.booking_date)?,
+            value_date: optional_date(self.value_date)?,
+            other_party_name: self.other_party_name,
+            other_party_iban: self.other_party_iban,
+            remittance_information: self.remittance_information,
         })
     }
 }

@@ -5,12 +5,14 @@
 //! the store without the UI (M1.8). It creates and opens books, adds
 //! accounts, categories, transactions and exchange rates, shows registers
 //! and balances, suggests and joins Transfers (M1.10), runs auto-categorization
-//! Rules (M1.11), and undoes and redoes changes (M1.9).
+//! Rules (M1.11), undoes and redoes changes (M1.9), and imports bank
+//! statements through the import pipeline (M2.2).
 //!
 //! The tool is for developers and testers. It writes English text and plain
 //! amounts (`-12.50 EUR`), shows errors as their code and parameters, and is
 //! not translated or installed with the app (D-085). Everything it does goes
-//! through the public functions of `kassensturz-core` and `kassensturz-store`.
+//! through the public functions of `kassensturz-core`, `kassensturz-store`,
+//! `kassensturz-import` and `kassensturz-pipeline`.
 
 #![forbid(unsafe_code)]
 
@@ -19,6 +21,7 @@ mod amount;
 mod args;
 mod error;
 mod history;
+mod import;
 mod input;
 mod lookup;
 mod rate;
@@ -160,6 +163,24 @@ Commands:
   rule run [--dry-run]           apply the Rules to what has no category yet;
                                  a choice you made yourself is never changed.
                                  --dry-run only shows what would change
+  import FILE --account NAME [--format ID] [--statement N]
+         [--also ENTRY ...] [--dry-run]
+                                 put a bank statement file into an account.
+                                 Entries the bank hasn't booked are left
+                                 out, and so is one whose bank ID the
+                                 account has already. One that looks like a
+                                 transaction the account has (the same
+                                 amount, at most 3 business days apart) is
+                                 listed and left out; --also ENTRY imports
+                                 it anyway, ENTRY being its number in the
+                                 list, like 1.4. Then Transfers are
+                                 suggested, the Rules run on the new
+                                 transactions, and the balance is checked
+                                 against the bank's. A file with statements
+                                 for several accounts needs --statement N.
+                                 --dry-run only shows what would happen.
+                                 The only format yet is kstest, made up for
+                                 testing
   undo                           undo the last change, also one made by an
                                  earlier command
   redo                           make the change undone last again
@@ -267,7 +288,7 @@ impl<'a> CommandLine<'a> {
             }
             Some(
                 "account" | "category" | "transaction" | "transfer" | "rate" | "rule" | "balances"
-                | "register" | "history",
+                | "register" | "history" | "import",
             ) => Ok(()),
             Some(other) => Err(CliError::usage(format!("`{other}` isn't a command"))),
             None => Ok(()),
@@ -288,6 +309,7 @@ impl<'a> CommandLine<'a> {
             Some("transfer") => transfer::transfer(book, rest, out),
             Some("rate") => rate::rate(book, rest, out),
             Some("rule") => rule::rule(book, rest, out),
+            Some("import") => import::import_file(book, rest, out),
             Some("balances") => accounts::balances(book, rest, out),
             Some("register") => accounts::register(book, rest, out),
             Some("undo") => history::undo(book, out),

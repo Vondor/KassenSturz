@@ -9,9 +9,8 @@
 
 mod files;
 mod harness;
-mod test_format;
 
-use test_format::TestFormat;
+use kassensturz_import::TestFormat;
 
 #[test]
 fn golden_test_format() {

@@ -22,6 +22,8 @@ bundled-sqlite = ["kassensturz-store/bundled-sqlite"]
 
 [dependencies]
 kassensturz-core.workspace = true
+kassensturz-import.workspace = true
+kassensturz-pipeline.workspace = true
 kassensturz-store.workspace = true
 
 [dev-dependencies]

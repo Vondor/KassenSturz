@@ -5,7 +5,7 @@
 
 use std::io::ErrorKind;
 
-use kassensturz_core::{CurrencyCode, ErrorParam, ErrorReport, Report};
+use kassensturz_core::{AccountId, CurrencyCode, ErrorParam, ErrorReport, Report};
 
 /// Why a file can't be imported.
 ///
@@ -85,6 +85,28 @@ pub enum ImportError {
         /// The amount's currency.
         found: CurrencyCode,
     },
+    /// A statement is in another currency than the account it is to go
+    /// into. The import pipeline refuses it, also for a withdrawn currency
+    /// such as the Mark, until converting one comes (M2.9, D-077, D-092).
+    AccountCurrencyDiffers {
+        /// The account.
+        account: AccountId,
+        /// The account's currency.
+        account_currency: CurrencyCode,
+        /// The statement's currency.
+        statement_currency: CurrencyCode,
+    },
+    /// The file counts a currency in other decimal places than the book
+    /// does (D-027), so its amounts would be read with the decimal point in
+    /// another place.
+    DecimalPlacesDiffer {
+        /// The currency.
+        currency: CurrencyCode,
+        /// The decimal places the book stores for it.
+        book: u8,
+        /// The decimal places the file's amounts are counted in.
+        file: u8,
+    },
 }
 
 impl ImportError {
@@ -103,7 +125,9 @@ impl ImportError {
             Self::Io(_)
             | Self::FileTooLarge { .. }
             | Self::TooManyEntries { .. }
-            | Self::CurrencyMismatch { .. } => {}
+            | Self::CurrencyMismatch { .. }
+            | Self::AccountCurrencyDiffers { .. }
+            | Self::DecimalPlacesDiffer { .. } => {}
         }
         self
     }
@@ -168,6 +192,25 @@ impl Report for ImportError {
                     .with("expected", ErrorParam::Currency(*expected))
                     .with("found", ErrorParam::Currency(*found))
             }
+            Self::AccountCurrencyDiffers {
+                account,
+                account_currency,
+                statement_currency,
+            } => ErrorReport::new("import.account-currency-differs")
+                .with("account", ErrorParam::Account(*account))
+                .with("account_currency", ErrorParam::Currency(*account_currency))
+                .with(
+                    "statement_currency",
+                    ErrorParam::Currency(*statement_currency),
+                ),
+            Self::DecimalPlacesDiffer {
+                currency,
+                book,
+                file,
+            } => ErrorReport::new("import.decimal-places-differ")
+                .with("currency", ErrorParam::Currency(*currency))
+                .with("book", ErrorParam::Number((*book).into()))
+                .with("file", ErrorParam::Number((*file).into())),
         }
     }
 }

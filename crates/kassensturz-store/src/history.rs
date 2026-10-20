@@ -68,11 +68,14 @@ pub enum Action {
     RemoveRule,
     /// Ran the Rules on the book's transactions (D-031, D-088).
     RunRules,
+    /// Imported a bank statement, or the statements of one file, into one
+    /// account (D-030, D-092).
+    ImportStatement,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 20] = [
+    pub const ALL: [Self; 21] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -93,6 +96,7 @@ impl Action {
         Self::MoveRule,
         Self::RemoveRule,
         Self::RunRules,
+        Self::ImportStatement,
     ];
 }
 
@@ -495,6 +499,49 @@ impl Book {
             book.record(action)?;
             Ok(value)
         })
+    }
+
+    /// Runs `change` as [`Book::as_one_action`] would, then takes back
+    /// everything it changed: the book stays exactly as it was, and nothing
+    /// is recorded. Returns what `change` returned, e.g. what an import
+    /// would do, so the user can check it first (D-092).
+    ///
+    /// Inside a user action, only what `change` did is taken back. IDs that
+    /// `change` gave new rows don't exist in the book afterwards.
+    ///
+    /// # Panics
+    ///
+    /// If `change` calls [`Book::undo`], [`Book::redo`],
+    /// [`Book::set_history_retention`] or [`Book::clean_up_history`], as in
+    /// [`Book::as_one_action`].
+    pub fn dry_run<T, E>(&mut self, change: impl FnOnce(&mut Self) -> Result<T, E>) -> Result<T, E>
+    where
+        E: From<StoreError>,
+    {
+        self.conn
+            .execute_batch("SAVEPOINT book")
+            .map_err(StoreError::from)?;
+        let outer = self.recording;
+        let started = if outer {
+            Ok(())
+        } else {
+            // Recorded like a real action, so it fails where that would.
+            self.conn
+                .execute("INSERT INTO temp.history_state (recording) VALUES (1)", [])
+                .map(|_| ())
+        };
+        let result = match started {
+            Ok(()) => {
+                self.recording = true;
+                let result = change(self);
+                self.recording = outer;
+                result
+            }
+            Err(error) => Err(StoreError::from(error).into()),
+        };
+        // Also takes back the staged rows and the state of the action.
+        self.roll_back();
+        result
     }
 
     /// Ends the user action under way: what it changed becomes one entry of
@@ -994,6 +1041,7 @@ fn action_to_text(action: Action) -> &'static str {
         Action::MoveRule => "move_rule",
         Action::RemoveRule => "remove_rule",
         Action::RunRules => "run_rules",
+        Action::ImportStatement => "import_statement",
     }
 }
 

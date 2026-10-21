@@ -16,6 +16,30 @@ A free, open-source personal finance app for the desktop, **simpler than KMyMone
 
 Pre-alpha. The core and the book file are being built (milestone M1 in [`docs/ROADMAP.md`](docs/ROADMAP.md)). The app opens with a clickable mock of the first start (D-068, D-089 in [`docs/DECISIONS.md`](docs/DECISIONS.md)): add an account, add a transaction, see the overview. Try it with made-up numbers: it keeps them in memory only and saves nothing.
 
+## Trying a build from CI
+
+Every pull request and every push to `main` that changes code builds an installable Flatpak bundle, `KassenSturz.flatpak` (D-068). To try it, nothing has to be built on your computer. A pull request that only changes documentation builds none (D-110).
+
+Once per computer, add Flathub and install the KDE runtime the app runs on:
+
+```sh
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak install --user flathub org.kde.Platform//6.11
+```
+
+Then, for each build you want to try:
+
+1. Open the pull request's **Checks** tab (or the CI run on `main`), choose the run of the **CI** workflow, and download the artifact `KassenSturz-x86_64.flatpak` under **Artifacts** at the bottom of its summary. Downloading needs a GitHub login; GitHub keeps an artifact for 90 days.
+2. Unpack the downloaded zip file and install the bundle in it. `--reinstall` replaces a build installed before:
+
+   ```sh
+   unzip KassenSturz-x86_64.flatpak.zip
+   flatpak install --user --reinstall KassenSturz.flatpak
+   flatpak run io.github.vondor.KassenSturz
+   ```
+
+The app also appears in the app menu. Books and settings stay in `~/.var/app/io.github.vondor.KassenSturz/` when a build is replaced or removed; until 0.1, a development build may not open a book made by a later one (D-045). Try builds with synthetic data only, never with your own (AGENTS.md §3.1 rule 2). To remove the build: `flatpak uninstall --user io.github.vondor.KassenSturz`.
+
 ## Building
 
 KassenSturz is developed, tested and packaged in one environment: the KDE Flatpak SDK with the Rust extension (D-063). Install it from Flathub:

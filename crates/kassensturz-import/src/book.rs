@@ -20,7 +20,7 @@ use kassensturz_core::{
 /// stayed behind (D-029).
 ///
 /// Its currencies can include withdrawn ones, such as the German mark,
-/// with the decimal places they had ([`crate::book_currency`]): the
+/// with the decimal places they had ([`crate::currency`]): the
 /// pipeline converts their amounts into the currencies that replaced them,
 /// and each converted part keeps the amount it had (D-077, D-104).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

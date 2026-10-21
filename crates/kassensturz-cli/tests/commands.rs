@@ -1282,6 +1282,39 @@ fn a_csv_file_is_read_with_its_settings() {
 }
 
 #[test]
+fn a_statement_in_marks_comes_into_an_account_in_euros() {
+    let session = household();
+    let marks = statement_file(
+        &session,
+        "marks.kstest",
+        &[
+            "account;DE89370400440532013000;;DEM",
+            "opening;2001-10-01;0.00",
+            "entry;booked;2001-10-05;;100.00;M1;Employer;;",
+            "entry;booked;2001-10-06;;-10.00;M2;Kiosk;;",
+            "closing;2001-10-06;90.00",
+        ],
+    );
+    let imported = session.ok(&["import", &marks, "--account", "Checking account"]);
+    assert!(
+        imported.contains(
+            "Converted the entries in DEM into EUR, which replaced it at 1 EUR = 1.95583 DEM \
+             on 1999-01-01. Each transaction keeps its amount in DEM.\n"
+        ),
+        "{imported}"
+    );
+    // 90.00 DEM are 46.02 EUR, as the account's balance converted once.
+    assert!(
+        imported
+            .contains("The balance on 2001-10-06 is 46.02 EUR, as the bank says (90.00 DEM).\n"),
+        "{imported}"
+    );
+    let register = session.ok(&["register", "Checking account"]);
+    assert!(register.contains("51.13"), "{register}");
+    assert!(register.contains("-5.11"), "{register}");
+}
+
+#[test]
 fn statement_files_that_do_not_fit_are_refused() {
     let session = household();
     let dollars = statement_file(

@@ -47,6 +47,10 @@ pub struct AccountPart {
     /// What it does to the account, in the account's currency: positive
     /// amounts came in, negative ones went out.
     pub amount: Money,
+    /// The amount it had in a withdrawn currency before it was converted
+    /// into `amount`'s, if it was (D-104), e.g. as an entry of a statement
+    /// in German marks.
+    pub original: Option<Money>,
     /// What a bank or file delivered for it, if it came from one (D-067).
     pub imported: Option<ImportedDetails>,
 }
@@ -331,7 +335,8 @@ impl Book {
         let account = self.account(account)?;
         let mut statement = self.conn.prepare(&format!(
             "SELECT t.id, t.booking_date, t.currency,
-                    s.id, s.amount, s.foreign_amount, s.foreign_currency, {IMPORTED_COLUMNS}
+                    s.id, s.amount, s.foreign_amount, s.foreign_currency,
+                    s.original_amount, s.original_currency, {IMPORTED_COLUMNS}
              FROM splits AS s JOIN transactions AS t ON t.id = s.transaction_id
              LEFT JOIN split_imports AS i ON i.split_id = s.id
              WHERE s.account_id = ?1
@@ -341,12 +346,14 @@ impl Book {
         let mut parts = Vec::new();
         while let Some(row) = rows.next()? {
             let transaction = TransactionId::from_bytes(row.get(0)?);
+            let split = SplitId::from_bytes(row.get(3)?);
             parts.push(AccountPart {
                 transaction,
-                split: SplitId::from_bytes(row.get(3)?),
+                split,
                 booking_date: date_from_text(&row.get::<_, String>(1)?)?,
                 amount: account_amount(&account, transaction, row, 2)?,
-                imported: ImportedRow::read(row, 7)?
+                original: foreign_columns(split, row.get(7)?, row.get(8)?)?,
+                imported: ImportedRow::read(row, 9)?
                     .map(ImportedRow::into_details)
                     .transpose()?,
             });

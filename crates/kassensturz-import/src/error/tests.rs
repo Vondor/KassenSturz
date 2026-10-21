@@ -17,6 +17,11 @@ const USD: CurrencyCode = match CurrencyCode::new("USD") {
     Err(_) => panic!("USD is a valid code"),
 };
 
+const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
+    Ok(code) => code,
+    Err(_) => panic!("DEM is a valid code"),
+};
+
 fn text(value: &str) -> String {
     value.to_owned()
 }
@@ -77,6 +82,12 @@ fn examples() -> Vec<ImportError> {
             account: AccountId::generate(),
             account_currency: EUR,
             statement_currency: USD,
+        },
+        ImportError::ReplacedCurrencyDiffers {
+            account: AccountId::generate(),
+            account_currency: USD,
+            statement_currency: DEM,
+            successor: EUR,
         },
         ImportError::DecimalPlacesDiffer {
             currency: EUR,

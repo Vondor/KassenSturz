@@ -258,6 +258,17 @@ impl Shown<'_> {
             }
             write!(out, "{}", indented(&table(&rows, &[3])))?;
         }
+        for withdrawn in &report.converted_from {
+            writeln!(
+                out,
+                "Converted the entries in {old} into {new}, which replaced it at 1 {new} = \
+                 {rate} {old} on {date}. Each transaction keeps its amount in {old}.",
+                old = withdrawn.currency().code(),
+                new = withdrawn.successor(),
+                rate = withdrawn.rate(),
+                date = withdrawn.date(),
+            )?;
+        }
         let pending = self.with(|outcome| matches!(outcome, EntryOutcome::Pending));
         if !pending.is_empty() {
             writeln!(
@@ -289,12 +300,16 @@ impl Shown<'_> {
                 format!("The balance on {}", check.date)
             };
             let book = money_text(Some(self.book), check.book);
+            // The bank's balance in the currency the statement was in.
+            let was = check.bank_original.map_or_else(String::new, |original| {
+                format!(" ({})", money_text(Some(self.book), original))
+            });
             if check.matches() {
-                writeln!(out, "{on} is {book}, as the bank says.")?;
+                writeln!(out, "{on} is {book}, as the bank says{was}.")?;
             } else {
                 writeln!(
                     out,
-                    "{on} is {book}, but the bank says {}. Look for a missing or extra \
+                    "{on} is {book}, but the bank says {}{was}. Look for a missing or extra \
                      transaction.",
                     money_text(Some(self.book), check.bank)
                 )?;

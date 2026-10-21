@@ -53,8 +53,11 @@ mod report;
 
 use std::collections::HashSet;
 
-use kassensturz_core::{AccountId, ImportedDetails, Money, Split, Transaction, TransactionId};
-use kassensturz_import::{Entry, ImportError, Statement};
+use kassensturz_core::{
+    AccountId, Changeover, Currency, CurrencyCode, DatedRateId, ImportedDetails, Money,
+    OriginalAmount, RoundingMode, Split, Transaction, TransactionId, Withdrawn,
+};
+use kassensturz_import::{Entry, EntryStatus, ImportError, Statement};
 use kassensturz_store::{Action, Book, RuleRun, StoreError};
 
 use entries::{Decision, bank_date, decide};
@@ -98,9 +101,12 @@ pub fn preview_import(
 ///
 /// `account` must be one of the user's accounts, not a category, and open,
 /// and every statement must be in its currency, with the decimal places the
-/// book stores for it (D-027); otherwise nothing is imported. A statement in
-/// a withdrawn currency such as the Mark is refused until M2.9 converts it
-/// (D-077). If anything fails, the book stays as it was.
+/// book stores for it (D-027); otherwise nothing is imported. A statement
+/// may also be in a withdrawn currency that the account's replaced, such as
+/// the German mark for an account in euros: its entries are converted at the
+/// fixed rate, and each new transaction keeps the amount in the withdrawn
+/// currency with its account's part (D-077, D-105). If anything fails, the
+/// book stays as it was.
 pub fn import_statements(
     book: &mut Book,
     account: AccountId,
@@ -126,26 +132,60 @@ fn run(
     if account.closed {
         return Err(StoreError::AccountClosed(account.id).into());
     }
-    let digits = book.currency_minor_digits(account.currency)?;
+    let account_currency = book.currency(account.currency)?;
+    let currencies = book.currencies()?;
+    let mut withdrawn = Vec::with_capacity(statements.len());
     for statement in statements {
         let currency = statement.currency;
-        if currency.code() != account.currency {
-            return Err(ImportError::AccountCurrencyDiffers {
-                account: account.id,
-                account_currency: account.currency,
-                statement_currency: currency.code(),
-            }
-            .into());
+        // A statement from before its currency was replaced by the
+        // account's (D-105).
+        let replaced = currency
+            .code()
+            .withdrawn()
+            .filter(|replaced| replaced.successor() == account.currency);
+        if currency.code() != account.currency && replaced.is_none() {
+            let error = match currency.code().withdrawn() {
+                Some(withdrawn) => ImportError::ReplacedCurrencyDiffers {
+                    account: account.id,
+                    account_currency: account.currency,
+                    statement_currency: currency.code(),
+                    successor: withdrawn.successor(),
+                },
+                None => ImportError::AccountCurrencyDiffers {
+                    account: account.id,
+                    account_currency: account.currency,
+                    statement_currency: currency.code(),
+                },
+            };
+            return Err(error.into());
         }
-        if currency.minor_digits() != digits {
+        // The decimal places the book stores, or for a withdrawn currency
+        // it doesn't list yet, those of KassenSturz's table.
+        let digits = currencies
+            .iter()
+            .find(|known| known.code() == currency.code())
+            .map_or_else(
+                || replaced.map(|replaced| replaced.currency().minor_digits()),
+                |known| Some(known.minor_digits()),
+            );
+        if digits != Some(currency.minor_digits()) {
             return Err(ImportError::DecimalPlacesDiffer {
-                currency: account.currency,
-                book: digits,
+                currency: currency.code(),
+                book: digits.unwrap_or(account_currency.minor_digits()),
                 file: currency.minor_digits(),
             }
             .into());
         }
+        withdrawn.push(replaced);
     }
+    let rounding = book.rounding_mode()?;
+    let converted = convert(
+        account.id,
+        account_currency,
+        statements,
+        &withdrawn,
+        rounding,
+    )?;
 
     let held = book.account_parts(account.id)?;
     let mut entries = Vec::new();
@@ -154,7 +194,13 @@ fn run(
         let outcome = match decision {
             Decision::Import { similar } => {
                 let entry = &statements[at.statement].entries[at.entry];
-                let transaction = transaction_for(account.id, entry)?;
+                let converted = converted[at.statement][at.entry];
+                if let Some((_, replaced)) = converted {
+                    // The part keeps its amount in the withdrawn currency,
+                    // which the book lists then.
+                    book.use_currency(replaced.currency().code())?;
+                }
+                let transaction = transaction_for(account.id, entry, converted)?;
                 book.add_transaction(&transaction)?;
                 added.push(transaction.id());
                 EntryOutcome::Imported {
@@ -194,25 +240,108 @@ fn run(
             .map(|part| part.amount);
         let balance =
             Money::checked_sum(account.currency, booked).map_err(|_| StoreError::AmountOverflow)?;
+        let bank = match withdrawn[index] {
+            Some(replaced) => replaced
+                .convert(closing.amount, account_currency, rounding)
+                .map_err(|_| StoreError::AmountOverflow)?,
+            None => closing.amount,
+        };
         balances.push(BalanceCheck {
             statement: index,
             date: closing.date,
-            bank: closing.amount,
+            bank,
+            bank_original: withdrawn[index].map(|_| closing.amount),
             book: balance,
         });
     }
 
+    let mut converted_from: Vec<Withdrawn> = Vec::new();
+    for replaced in withdrawn.into_iter().flatten() {
+        if !converted_from.contains(&replaced) {
+            converted_from.push(replaced);
+        }
+    }
     Ok(ImportReport {
         entries,
         transfers,
         rules,
         balances,
+        converted_from,
     })
 }
 
+/// An entry's amount in the account's currency, and the withdrawn currency
+/// it was converted from (D-105).
+type Converted = (Money, Withdrawn);
+
+/// The amount each entry of `statements` comes to in `account_currency`,
+/// for the statements in a `withdrawn` currency, with that currency (D-105).
+///
+/// As when a book in such a currency is converted (D-104), the account's
+/// balance is converted once, as a bank converted it, and each entry comes
+/// to the step between the converted balances before and after it: from the
+/// statement's opening balance where it gives one, otherwise from where the
+/// previous statement in the same currency ended, or from zero. Every entry
+/// the bank booked counts, the ones already in the book too, since the
+/// bank's balances include them; one it hasn't booked has no amount here.
+fn convert(
+    account: AccountId,
+    account_currency: Currency,
+    statements: &[Statement],
+    withdrawn: &[Option<Withdrawn>],
+    rounding: RoundingMode,
+) -> Result<Vec<Vec<Option<Converted>>>, StoreError> {
+    let overflow = |_| StoreError::AmountOverflow;
+    let mut running: Option<(CurrencyCode, Changeover)> = None;
+    let mut converted = Vec::with_capacity(statements.len());
+    for (statement, replaced) in statements.iter().zip(withdrawn) {
+        let Some(replaced) = *replaced else {
+            running = None;
+            converted.push(vec![None; statement.entries.len()]);
+            continue;
+        };
+        let code = replaced.currency().code();
+        let continues = matches!(&running, Some((earlier, _)) if *earlier == code);
+        if statement.opening_balance.is_some() || !continues {
+            let mut changeover = Changeover::new(rounding);
+            if let Some(opening) = statement.opening_balance {
+                let at_rate = replaced
+                    .convert(opening.amount, account_currency, rounding)
+                    .map_err(overflow)?;
+                changeover
+                    .book_given(account, opening.amount, at_rate)
+                    .map_err(overflow)?;
+            }
+            running = Some((code, changeover));
+        }
+        let (_, changeover) = running.as_mut().expect("set above");
+        let mut amounts = Vec::with_capacity(statement.entries.len());
+        for entry in &statement.entries {
+            amounts.push(if entry.status == EntryStatus::Pending {
+                None
+            } else {
+                let step = changeover
+                    .book(account, entry.amount, replaced, account_currency)
+                    .map_err(overflow)?;
+                Some((step, replaced))
+            });
+        }
+        converted.push(amounts);
+    }
+    Ok(converted)
+}
+
 /// The transaction an entry becomes: the account's part, with everything
-/// the bank delivered, and one part without a category (D-083).
-fn transaction_for(account: AccountId, entry: &Entry) -> Result<Transaction, PipelineError> {
+/// the bank delivered, and one part without a category (D-083). An entry
+/// in a withdrawn currency comes to the `converted` amount, and the
+/// account's part keeps the entry's amount as its original amount with the
+/// fixed rate (D-105); the part without a category has none, so the user
+/// can break it down freely.
+fn transaction_for(
+    account: AccountId,
+    entry: &Entry,
+    converted: Option<Converted>,
+) -> Result<Transaction, PipelineError> {
     let delivered = ImportedDetails {
         bank_id: entry.bank_id.clone(),
         booking_date: Some(entry.booking_date),
@@ -221,12 +350,22 @@ fn transaction_for(account: AccountId, entry: &Entry) -> Result<Transaction, Pip
         other_party_iban: entry.other_party_iban.clone(),
         remittance_information: entry.remittance_information.clone(),
     };
+    let (amount, original) = match converted {
+        Some((amount, replaced)) => (
+            amount,
+            Some(OriginalAmount {
+                amount: entry.amount,
+                rate: replaced.dated_rate(DatedRateId::generate()),
+            }),
+        ),
+        None => (entry.amount, None),
+    };
     let own = Split {
         imported: Some(delivered),
-        ..Split::new(account, entry.amount)
+        original,
+        ..Split::new(account, amount)
     };
-    let open = entry
-        .amount
+    let open = amount
         .checked_neg()
         .map_err(|_| StoreError::AmountOverflow)?;
     let transaction = Transaction::new(
@@ -235,7 +374,8 @@ fn transaction_for(account: AccountId, entry: &Entry) -> Result<Transaction, Pip
         entry.other_party_name.clone(),
         vec![own, Split::uncategorized(open)],
     )
-    // Two parts in one currency that cancel out, the first with an account.
+    // Two parts in one currency that cancel out, the first with an account,
+    // and an original amount the way the converted one points.
     .expect("an entry and its opposite form a transaction");
     Ok(transaction)
 }

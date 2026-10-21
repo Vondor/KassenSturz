@@ -37,6 +37,11 @@ pub(crate) fn decide(
             in_book.entry(id).or_insert(part.transaction);
         }
         by_amount.entry(part.amount).or_default().push(part);
+        // An entry of a statement in a withdrawn currency compares with
+        // what a part had in it (D-105).
+        if let Some(original) = part.original {
+            by_amount.entry(original).or_default().push(part);
+        }
     }
     let mut in_statements: HashMap<&str, EntryRef> = HashMap::new();
     let mut decisions = Vec::new();
@@ -81,7 +86,8 @@ pub(crate) fn decide(
 }
 
 /// The transactions the account already has that `entry` looks like,
-/// oldest first: a part with the same amount, at most
+/// oldest first: a part with the same amount, or the same original amount
+/// in a withdrawn currency, at most
 /// [`MAX_BUSINESS_DAYS`] apart, unless both have bank IDs and they differ
 /// (D-092). Entries of the same import are never compared with each other:
 /// two coffees of the same price on one day are two coffees.

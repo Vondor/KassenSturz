@@ -1,4 +1,7 @@
 recognized: yes
-error: import.unknown-currency
-  currency: DEM
-  line: 2
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: DEM with 2 decimal places
+  opening balance: -
+  closing balance: -

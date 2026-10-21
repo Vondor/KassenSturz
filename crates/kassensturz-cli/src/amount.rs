@@ -30,12 +30,18 @@ pub(crate) fn format_minor(minor_units: i64, digits: u8) -> String {
 }
 
 /// `money` with its currency, e.g. `-53.20 EUR`. The decimal places are the
-/// book's, or ISO 4217's if the book doesn't use the currency yet.
+/// book's, or ISO 4217's if the book doesn't use the currency yet, or for a
+/// withdrawn currency, those it had (D-104).
 pub(crate) fn money_text(book: Option<&Book>, money: Money) -> String {
     let currency = money.currency();
     let digits = book
         .and_then(|book| book.currency_minor_digits(currency).ok())
-        .or_else(|| currency.iso_minor_digits());
+        .or_else(|| currency.iso_minor_digits())
+        .or_else(|| {
+            currency
+                .withdrawn()
+                .map(|withdrawn| withdrawn.currency().minor_digits())
+        });
     match digits {
         Some(digits) => format!("{} {currency}", format_minor(money.minor_units(), digits)),
         // Better no decimal point than one in the wrong place.

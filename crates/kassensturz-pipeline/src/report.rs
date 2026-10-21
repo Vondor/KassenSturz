@@ -4,7 +4,7 @@
 //! What an import did, or a preview would do: the import summary (D-030)
 //! and the balance check (D-029).
 
-use kassensturz_core::{Date, Money, TransactionId, TransferMatch};
+use kassensturz_core::{Date, Money, TransactionId, TransferMatch, Withdrawn};
 use kassensturz_store::RuleRun;
 
 /// One entry of the statements given to the pipeline: the statement's
@@ -34,6 +34,10 @@ pub struct ImportReport {
     /// The balance check for each statement with a closing balance, in the
     /// statements' order (D-029).
     pub balances: Vec<BalanceCheck>,
+    /// The withdrawn currencies statements were in, such as the German mark,
+    /// whose entries were converted into the account's currency, in the
+    /// order of the statements (D-105).
+    pub converted_from: Vec<Withdrawn>,
 }
 
 impl ImportReport {
@@ -128,8 +132,13 @@ pub struct BalanceCheck {
     pub statement: usize,
     /// The day the bank's balance is for.
     pub date: Date,
-    /// The bank's balance at the end of that day.
+    /// The bank's balance at the end of that day, in the account's
+    /// currency: for a statement in a withdrawn currency, converted at the
+    /// fixed rate (D-105).
     pub bank: Money,
+    /// For a statement in a withdrawn currency, the bank's balance as the
+    /// statement gives it, which `bank` was converted from.
+    pub bank_original: Option<Money>,
     /// KassenSturz's balance at the end of that day: everything booked to
     /// the account on or before it, by the day the bank booked it where it
     /// says so, otherwise by the transaction's booking date.

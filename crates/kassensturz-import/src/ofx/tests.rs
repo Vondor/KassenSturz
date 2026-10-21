@@ -421,17 +421,20 @@ fn a_whole_currency_has_no_decimal_places() {
 }
 
 #[test]
-fn a_withdrawn_or_unknown_currency_is_refused_on_its_line() {
-    for code in ["DEM", "XYZ"] {
-        let found = CurrencyCode::new(code).expect("a code");
-        assert_eq!(
-            read(&file("").replace("EUR", code)),
-            Err(ImportError::UnknownCurrency {
-                currency: found,
-                line: Some(16)
-            })
-        );
-    }
+fn an_unknown_currency_is_refused_on_its_line() {
+    assert_eq!(
+        read(&file("").replace("EUR", "XYZ")),
+        Err(ImportError::UnknownCurrency {
+            currency: CurrencyCode::new("XYZ").expect("a code"),
+            line: Some(16)
+        })
+    );
+    // A withdrawn one is read, with its decimal places (D-105).
+    let statement = read(&file("").replace("EUR", "DEM"))
+        .expect("read")
+        .remove(0);
+    assert_eq!(statement.currency.code().as_str(), "DEM");
+    assert_eq!(statement.currency.minor_digits(), 2);
     assert_eq!(
         read(&file("").replace("<CURDEF>EUR\n", "")),
         Err(malformed(15))

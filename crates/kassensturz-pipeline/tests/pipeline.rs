@@ -10,8 +10,8 @@ use std::collections::HashSet;
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, Actions, BookTo, Condition, Currency, CurrencyCode, Date,
-    ImportedDetails, MatchMode, Money, Report, Rule, RuleId, Split, TextField, TextOperator,
-    Transaction, TransactionId,
+    ExchangeRate, ImportedDetails, MatchMode, Money, RateSource, Report, Rule, RuleId, Split,
+    TextField, TextOperator, Transaction, TransactionId,
 };
 use kassensturz_import::{Balance, Entry, EntryStatus, ImportError, Statement, StatementAccount};
 use kassensturz_pipeline::{
@@ -24,12 +24,20 @@ const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
     Err(_) => panic!("EUR is a valid code"),
 };
+const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
+    Ok(code) => code,
+    Err(_) => panic!("DEM is a valid code"),
+};
 
 /// The IBAN for Germany in SWIFT's IBAN Registry.
 const IBAN: &str = "DE89370400440532013000";
 
 fn eur(minor_units: i64) -> Money {
     Money::from_minor_units(minor_units, EUR)
+}
+
+fn dem(minor_units: i64) -> Money {
+    Money::from_minor_units(minor_units, DEM)
 }
 
 /// A day in October 2026: the 5th is a Monday, the 9th a Friday.
@@ -468,12 +476,14 @@ fn the_balance_is_checked_against_the_statements_closing_balance() {
                 statement: 0,
                 date: october(6),
                 bank: eur(147_500),
+                bank_original: None,
                 book: eur(147_500),
             },
             BalanceCheck {
                 statement: 2,
                 date: october(9),
                 bank: eur(146_000),
+                bank_original: None,
                 book: eur(146_500),
             },
         ]
@@ -549,13 +559,41 @@ fn statements_that_do_not_fit_the_account_are_refused() {
     ));
     assert_eq!(error.report().code, "import.account-currency-differs");
 
-    // The Mark is converted from M2.9 on; until then it is refused too.
-    let dem = CurrencyCode::new("DEM").expect("a valid code");
-    let mut marks = statement(Vec::new());
-    marks.currency = Currency::new(dem, 2).expect("valid decimal places");
+    // The mark comes into an account in euros (D-105), but not into one in
+    // dollars, and only with the decimal places it had.
+    book.use_currency(usd).expect("currency used");
+    let dollar_account = AccountId::generate();
+    book.add_account(&Account {
+        id: dollar_account,
+        name: "Dollar account".into(),
+        kind: AccountKind::Asset,
+        currency: usd,
+        account_type: None,
+        parent: None,
+        closed: false,
+    })
+    .expect("account added");
+    let marks = |digits| Statement {
+        currency: Currency::new(DEM, digits).expect("valid decimal places"),
+        ..statement(Vec::new())
+    };
+    let error = refused(&mut book, dollar_account, marks(2));
     assert!(matches!(
-        refused(&mut book, checking, marks),
-        PipelineError::Import(ImportError::AccountCurrencyDiffers { .. })
+        error,
+        PipelineError::Import(ImportError::ReplacedCurrencyDiffers {
+            statement_currency: DEM,
+            successor: EUR,
+            ..
+        })
+    ));
+    assert_eq!(error.report().code, "import.replaced-currency-differs");
+    assert!(matches!(
+        refused(&mut book, checking, marks(3)),
+        PipelineError::Import(ImportError::DecimalPlacesDiffer {
+            currency: DEM,
+            book: 2,
+            file: 3,
+        })
     ));
 
     let mut three = statement(vec![entry(5, -5320, "B1", "REWE Markt")]);
@@ -578,7 +616,8 @@ fn statements_that_do_not_fit_the_account_are_refused() {
     assert_eq!(error.report().code, "store.not-an-account");
     let closed = add_account(&mut book, "Old account", AccountKind::Asset);
     book.close_account(closed).expect("closed");
-    let history = history + 2;
+    // The dollars, the dollar account, the old account and closing it.
+    let history = history + 4;
     assert!(matches!(
         refused(&mut book, closed, purchase()),
         PipelineError::Store(StoreError::AccountClosed(_))
@@ -608,4 +647,132 @@ fn an_import_that_fails_part_way_changes_nothing() {
     ));
     assert!(book.register(checking).expect("register").is_empty());
     assert_eq!(history_length(&book), history);
+}
+
+/// A booked entry of a statement in German marks, in October 2001.
+fn in_marks(day: i8, minor_units: i64, bank_id: &str) -> Entry {
+    let date = Date::new(2001, 10, day).expect("a valid date");
+    Entry {
+        bank_id: (!bank_id.is_empty()).then(|| bank_id.to_owned()),
+        other_party_name: Some("Kiosk".into()),
+        ..Entry::booked(date, dem(minor_units))
+    }
+}
+
+/// A statement in German marks, from 1,000.00 DEM to `closing` minor units.
+fn statement_in_marks(entries: Vec<Entry>, closing: i64) -> Statement {
+    let date = |day| Date::new(2001, 10, day).expect("a valid date");
+    Statement {
+        currency: Currency::new(DEM, 2).expect("valid decimal places"),
+        opening_balance: Some(Balance {
+            amount: dem(100_000),
+            date: date(1),
+        }),
+        closing_balance: Some(Balance {
+            amount: dem(closing),
+            date: date(10),
+        }),
+        ..statement(entries)
+    }
+}
+
+#[test]
+fn a_statement_in_marks_comes_into_an_account_in_euros() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    // 1,000.00 DEM, as the account held them before, are 511.29 EUR.
+    let before = Transaction::new(
+        TransactionId::generate(),
+        Date::new(2001, 9, 30).expect("a valid date"),
+        None,
+        vec![
+            Split::new(checking, eur(51_129)),
+            Split::new(groceries, eur(-51_129)),
+        ],
+    )
+    .expect("balanced");
+    book.add_transaction(&before).expect("added");
+    let mut pending = in_marks(9, -500, "");
+    pending.status = EntryStatus::Pending;
+    let statements = [statement_in_marks(
+        vec![
+            in_marks(2, -1, "M1"),
+            in_marks(3, -1, "M2"),
+            in_marks(4, -1, "M3"),
+            in_marks(5, 10_000, "M4"),
+            pending,
+        ],
+        109_997,
+    )];
+
+    let preview =
+        preview_import(&mut book, checking, &statements, &Choices::default()).expect("previewed");
+    let report = import(&mut book, checking, &statements);
+    assert_eq!(preview.balances, report.balances);
+    let mark = DEM.withdrawn().expect("the table lists the mark");
+    assert_eq!(report.converted_from, vec![mark]);
+    assert_eq!(report.summary().imported, 4);
+    // On their own, 0.01 DEM would be 0.01 EUR three times; the balance in
+    // marks, converted, goes from 511.29 EUR to 511.29, 511.28 and 511.28
+    // EUR, so the bank's converted balance is the book's.
+    let transactions: Vec<Transaction> = report
+        .imported()
+        .into_iter()
+        .map(|id| book.transaction(id).expect("imported"))
+        .collect();
+    let amounts: Vec<Money> = transactions
+        .iter()
+        .map(|transaction| transaction.splits()[0].amount)
+        .collect();
+    assert_eq!(amounts, [eur(0), eur(-1), eur(0), eur(5_113)]);
+    for (transaction, original) in transactions.iter().zip([-1, -1, -1, 10_000]) {
+        let [own, open] = transaction.splits() else {
+            panic!("two parts");
+        };
+        let kept = own.original.expect("an original amount");
+        assert_eq!(kept.amount, dem(original));
+        assert_eq!(kept.rate.from, EUR);
+        assert_eq!(kept.rate.to, DEM);
+        assert_eq!(
+            kept.rate.rate,
+            "1.95583".parse::<ExchangeRate>().expect("a rate")
+        );
+        assert_eq!(kept.rate.source, RateSource::Changeover);
+        // What it was for can be broken down freely.
+        assert_eq!(open.original, None);
+        assert_eq!(open.amount, own.amount.checked_neg().expect("fits"));
+    }
+    assert_eq!(
+        report.balances,
+        [BalanceCheck {
+            statement: 0,
+            date: Date::new(2001, 10, 10).expect("a valid date"),
+            bank: eur(56_241),
+            bank_original: Some(dem(109_997)),
+            book: eur(56_241),
+        }]
+    );
+    assert!(report.balances[0].matches());
+    assert!(
+        book.currencies()
+            .expect("currencies")
+            .contains(&Currency::new(DEM, 2).expect("2"))
+    );
+
+    // Again: each entry is in the book already. Without its bank ID, an
+    // entry of the same amount in marks looks like one.
+    let again = import(&mut book, checking, &statements);
+    assert_eq!(again.summary().imported, 0);
+    let kiosk = report.imported()[0];
+    let later = [statement_in_marks(vec![in_marks(2, -1, "")], 99_999)];
+    let preview =
+        preview_import(&mut book, checking, &later, &Choices::default()).expect("previewed");
+    assert!(matches!(
+        &preview.entries[0].outcome,
+        EntryOutcome::Similar(similar) if similar.contains(&kiosk)
+    ));
 }

@@ -42,7 +42,7 @@ mod ofx;
 mod statement;
 mod test_format;
 
-pub use amount::{DecimalMark, book_currency, currency, parse_amount};
+pub use amount::{DecimalMark, currency, parse_amount};
 pub use book::{
     BookAccount, BookPart, BookRate, BookTransaction, ImportedBook, Skipped, SkippedData,
 };

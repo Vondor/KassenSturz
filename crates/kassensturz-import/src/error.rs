@@ -125,8 +125,7 @@ pub enum ImportError {
         found: CurrencyCode,
     },
     /// A statement is in another currency than the account it is to go
-    /// into. The import pipeline refuses it, also for a withdrawn currency
-    /// such as the Mark, until converting one comes (M2.9, D-077, D-092).
+    /// into (D-092).
     AccountCurrencyDiffers {
         /// The account.
         account: AccountId,
@@ -134,6 +133,19 @@ pub enum ImportError {
         account_currency: CurrencyCode,
         /// The statement's currency.
         statement_currency: CurrencyCode,
+    },
+    /// A statement is in a withdrawn currency, such as the German mark, and
+    /// the account it is to go into isn't in the currency that replaced it,
+    /// the only one it can be converted into (D-105).
+    ReplacedCurrencyDiffers {
+        /// The account.
+        account: AccountId,
+        /// The account's currency.
+        account_currency: CurrencyCode,
+        /// The statement's currency.
+        statement_currency: CurrencyCode,
+        /// The currency that replaced it.
+        successor: CurrencyCode,
     },
     /// The file counts a currency in other decimal places than the book
     /// does (D-027), so its amounts would be read with the decimal point in
@@ -171,6 +183,7 @@ impl ImportError {
             | Self::TooManyEntries { .. }
             | Self::CurrencyMismatch { .. }
             | Self::AccountCurrencyDiffers { .. }
+            | Self::ReplacedCurrencyDiffers { .. }
             | Self::DecimalPlacesDiffer { .. } => {}
         }
         self
@@ -275,6 +288,19 @@ impl Report for ImportError {
                     "statement_currency",
                     ErrorParam::Currency(*statement_currency),
                 ),
+            Self::ReplacedCurrencyDiffers {
+                account,
+                account_currency,
+                statement_currency,
+                successor,
+            } => ErrorReport::new("import.replaced-currency-differs")
+                .with("account", ErrorParam::Account(*account))
+                .with("account_currency", ErrorParam::Currency(*account_currency))
+                .with(
+                    "statement_currency",
+                    ErrorParam::Currency(*statement_currency),
+                )
+                .with("successor", ErrorParam::Currency(*successor)),
             Self::DecimalPlacesDiffer {
                 currency,
                 book,

@@ -1,4 +1,4 @@
 recognized: yes
 error: import.unknown-currency
-  currency: DEM
+  currency: XYZ
   line: 3

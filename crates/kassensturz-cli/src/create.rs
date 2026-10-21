@@ -252,10 +252,17 @@ fn write_report(
         counted(report.transactions, "transaction", "transactions"),
         counted(report.rates, "rate", "rates")
     )?;
+    if report.uncategorized > 0 {
+        writeln!(
+            out,
+            "{} no category yet, as in the file.",
+            counted(report.uncategorized, "transaction has", "transactions have")
+        )?;
+    }
     if report.completed > 0 {
         writeln!(
             out,
-            "{} didn't add up and got a part without a category for the rest.",
+            "{} didn't add up in the file and got a part without a category for the rest.",
             counted(report.completed, "transaction", "transactions")
         )?;
     }

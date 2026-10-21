@@ -2159,7 +2159,7 @@ fn a_kmymoney_file_makes_a_new_book() {
         session.ok(&["create", "--from", &sample]),
         format!(
             "Created the book from {sample}: 5 accounts, 51 categories, 538 transactions, 0 rates.\n\
-             536 transactions didn't add up and got a part without a category for the rest.\n\
+             536 transactions have no category yet, as in the file.\n\
              Not imported, because KassenSturz can't hold it yet:\n  \
              institutions: 1\n  \
              account-numbers: 2\n  \
@@ -2291,6 +2291,58 @@ fn a_kmymoney_file_in_marks_comes_in_in_euros() {
             "  Groceries      5.11 EUR  was 10.00 DEM at 1 EUR = 1.95583 DEM \
              (1999-01-01, fixed when the currency was replaced)",
         ]
+    );
+}
+
+/// Two entries without a category, as KMyMoney keeps one imported from a
+/// bank, and one transaction whose parts don't add up.
+const WITHOUT_CATEGORIES: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE KMYMONEY-FILE>
+<KMYMONEY-FILE>
+  <FILEINFO>
+    <VERSION id="1"/>
+  </FILEINFO>
+  <ACCOUNTS>
+    <ACCOUNT id="AStd::Asset" parentaccount="" type="9" name="Anlagen" currency="EUR"/>
+    <ACCOUNT id="AStd::Expense" parentaccount="" type="13" name="Ausgabe" currency="EUR"/>
+    <ACCOUNT id="A000001" parentaccount="AStd::Asset" type="1" name="Checking" currency="EUR"/>
+    <ACCOUNT id="A000002" parentaccount="AStd::Expense" type="13" name="Groceries" currency="EUR"/>
+  </ACCOUNTS>
+  <TRANSACTIONS>
+    <TRANSACTION id="T000000000000000001" postdate="2026-01-05" memo="" commodity="EUR">
+      <SPLITS>
+        <SPLIT id="S0001" payee="" reconcileflag="0" value="-1250/100" shares="-1250/100" memo="" account="A000001" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+    <TRANSACTION id="T000000000000000002" postdate="2026-01-06" memo="" commodity="EUR">
+      <SPLITS>
+        <SPLIT id="S0001" payee="" reconcileflag="0" value="200000/100" shares="200000/100" memo="" account="A000001" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+    <TRANSACTION id="T000000000000000003" postdate="2026-01-07" memo="" commodity="EUR">
+      <SPLITS>
+        <SPLIT id="S0001" payee="" reconcileflag="0" value="-3000/100" shares="-3000/100" memo="" account="A000001" bankid=""/>
+        <SPLIT id="S0002" payee="" reconcileflag="0" value="2500/100" shares="2500/100" memo="" account="A000002" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+  </TRANSACTIONS>
+</KMYMONEY-FILE>
+"#;
+
+#[test]
+fn a_kmymoney_file_says_which_transactions_have_no_category_and_which_didnt_add_up() {
+    let session = Session::new();
+    let file = session.0.join("household.kmy");
+    std::fs::write(&file, WITHOUT_CATEGORIES).expect("written");
+    let file = file.display().to_string();
+    assert_eq!(
+        session.ok(&["create", "--from", &file]),
+        format!(
+            "Created the book from {file}: 1 account, 1 category, 3 transactions, 0 rates.\n\
+             2 transactions have no category yet, as in the file.\n\
+             1 transaction didn't add up in the file and got a part without a category \
+             for the rest.\n"
+        )
     );
 }
 

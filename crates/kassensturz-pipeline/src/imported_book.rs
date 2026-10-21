@@ -33,9 +33,15 @@ pub struct BookImportReport {
     pub transactions: usize,
     /// How many exchange rates.
     pub rates: usize,
-    /// How many transactions got a part without a category for what their
-    /// parts didn't add up to, e.g. an entry the other program imported
-    /// from a bank and nobody gave a category yet (D-083).
+    /// How many transactions the file kept with only their part in one of
+    /// the user's accounts, such as an entry the other program imported
+    /// from a bank that nobody gave a category yet (D-101). Each got a part
+    /// without a category for the other side, as an imported entry does
+    /// (D-083); nothing is wrong with them.
+    pub uncategorized: usize,
+    /// How many other transactions got a part without a category for what
+    /// their parts didn't add up to (D-083): the file didn't balance them,
+    /// so the user may want to look at them.
     pub completed: usize,
     /// Accounts and categories whose name another one had already, ignoring
     /// capitals, and that got a number after it, e.g. "Savings (2)": their
@@ -79,7 +85,9 @@ pub struct ConvertedCurrency {
 /// Everything gets a new ID. Accounts and categories keep their names,
 /// with a number after one that is taken already (`renamed`); a
 /// transaction whose parts don't add up gets a part without a category for
-/// the difference (`completed`). The decimal places of each currency are
+/// the difference (`completed`), and one the file kept with only its part
+/// in an account gets one for the other side (`uncategorized`). The
+/// decimal places of each currency are
 /// the ones the importer read the amounts in, so nothing is rescaled
 /// (D-027). Amounts in a withdrawn currency, such as the German mark, are
 /// converted into the one that replaced it at the fixed rate, and each
@@ -112,6 +120,7 @@ pub fn fill_book_from(
     };
     let mut accounts = mapper.accounts(&imported.accounts)?;
     let mut changeover = Changeover::new(rounding);
+    let mut uncategorized = 0;
     let mut completed = 0;
     // In date order, so each account's balance in a withdrawn currency
     // grows as it did in the other program (D-104); the book gets them in
@@ -122,7 +131,11 @@ pub fn fill_book_from(
     for index in order {
         let transaction = &imported.transactions[index];
         let (splits, added) = mapper.splits(transaction, &mut changeover, rounding)?;
-        completed += usize::from(added);
+        match added {
+            Some(Added::OtherSide) => uncategorized += 1,
+            Some(Added::Difference) => completed += 1,
+            None => {}
+        }
         let transaction = Transaction::new(
             TransactionId::generate(),
             transaction.date,
@@ -179,6 +192,7 @@ pub fn fill_book_from(
         categories: count(AccountKind::is_category),
         transactions: data.transactions.len(),
         rates: data.rates.len(),
+        uncategorized,
         completed,
         renamed: mapper.renamed,
         moved_to_top: mapper.moved_to_top,
@@ -222,6 +236,17 @@ fn replaced_currencies(
         withdrawn.insert(currency.code(), replaced);
     }
     Ok(withdrawn)
+}
+
+/// Why a transaction got a part without a category (D-083).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Added {
+    /// The file kept only its part in one of the user's accounts, such as
+    /// an entry imported from a bank: the part is the other side, with no
+    /// category yet.
+    OtherSide,
+    /// Its parts didn't add up: the part is the difference.
+    Difference,
 }
 
 /// Turns the file's keys and names into a book's IDs and unique names, and
@@ -420,14 +445,14 @@ impl Mapper {
     }
 
     /// The parts of `transaction` in the book, converted out of withdrawn
-    /// currencies (D-104), and whether a part without a category was added
-    /// for what they didn't add up to (D-083).
+    /// currencies (D-104), and why a part without a category was added for
+    /// what they didn't add up to, if one was (D-083).
     fn splits(
         &mut self,
         transaction: &BookTransaction,
         changeover: &mut Changeover,
         rounding: RoundingMode,
-    ) -> Result<(Vec<Split>, bool), PipelineError> {
+    ) -> Result<(Vec<Split>, Option<Added>), PipelineError> {
         let file_currency = transaction.currency;
         let withdrawn = self.withdrawn(file_currency.code())?;
         let currency = self.current(file_currency)?;
@@ -455,13 +480,23 @@ impl Mapper {
         }
         let total = Money::checked_sum(currency.code(), splits.iter().map(|split| split.amount))
             .map_err(money_error)?;
-        let added = !total.is_zero() || splits.len() < 2;
-        if added {
-            splits.push(Split::uncategorized(
-                total.checked_neg().map_err(money_error)?,
-            ));
+        if total.is_zero() && splits.len() >= 2 {
+            return Ok((splits, None));
         }
-        Ok((splits, added))
+        splits.push(Split::uncategorized(
+            total.checked_neg().map_err(money_error)?,
+        ));
+        let added = match transaction.parts.as_slice() {
+            [only] if self.is_user_account(only.account.as_deref()) => Added::OtherSide,
+            _ => Added::Difference,
+        };
+        Ok((splits, Some(added)))
+    }
+
+    /// Whether `key` is one of the user's accounts, as opposed to a
+    /// category, an internal account or nothing.
+    fn is_user_account(&self, key: Option<&str>) -> bool {
+        key.and_then(|key| self.user_accounts.get(key)).copied() == Some(true)
     }
 
     /// One part of a transaction that was in `file_currency`'s

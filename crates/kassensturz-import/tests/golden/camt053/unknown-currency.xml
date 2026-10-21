@@ -4,10 +4,10 @@
     <Stmt>
       <Acct>
         <Id><IBAN>DE89370400440532013000</IBAN></Id>
-        <Ccy>DEM</Ccy>
+        <Ccy>XYZ</Ccy>
       </Acct>
       <Ntry>
-        <Amt Ccy="DEM">10.00</Amt>
+        <Amt Ccy="XYZ">10.00</Amt>
         <CdtDbtInd>CRDT</CdtDbtInd>
         <Sts>BOOK</Sts>
         <BookgDt><Dt>2026-10-01</Dt></BookgDt>

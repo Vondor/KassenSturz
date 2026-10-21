@@ -1,0 +1,7 @@
+recognized: yes
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: DEM with 2 decimal places
+  opening balance: 10.00 DEM on 2001-10-01
+  closing balance: 10.00 DEM on 2001-10-02

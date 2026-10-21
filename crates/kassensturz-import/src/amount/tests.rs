@@ -128,11 +128,13 @@ fn currencies_come_from_the_table() {
     let code = |text| CurrencyCode::new(text).expect("a valid code");
     assert_eq!(currency(code("EUR")), Ok(EUR));
     assert_eq!(currency(code("JPY")), Ok(JPY));
-    // The Deutsche Mark is withdrawn, so the table doesn't list it (D-077).
+    // The Deutsche Mark is withdrawn: the table doesn't list it, the table
+    // of withdrawn currencies does (D-077, D-105).
+    assert_eq!(currency(code("DEM")), Ok(currency_with("DEM", 2)));
     assert_eq!(
-        currency(code("DEM")),
+        currency(code("XYZ")),
         Err(ImportError::UnknownCurrency {
-            currency: code("DEM"),
+            currency: code("XYZ"),
             line: None,
         })
     );

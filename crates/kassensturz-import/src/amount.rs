@@ -27,32 +27,23 @@ impl DecimalMark {
 }
 
 /// The currency `code` with the decimal places KassenSturz's ISO 4217 table
-/// gives it (D-062, D-077), for a [`crate::Statement`]'s currency.
+/// gives it (D-062, D-077), for a file's amounts.
 ///
-/// Fails for a code the table doesn't list: a withdrawn currency, such as
-/// the Deutsche Mark, or a code that isn't a currency. An importer of a
-/// book another program kept takes withdrawn currencies too
-/// ([`book_currency`]).
+/// A withdrawn currency, such as the Deutsche Mark, comes in too, with the
+/// decimal places it had, from KassenSturz's table of withdrawn currencies:
+/// no account can be in one, so the import pipeline converts its amounts
+/// into the currency that replaced it (D-077, D-104, D-105). Fails for a
+/// code neither table lists.
 pub fn currency(code: CurrencyCode) -> Result<Currency, ImportError> {
+    if let Some(withdrawn) = code.withdrawn() {
+        return Ok(withdrawn.currency());
+    }
     code.iso_minor_digits()
         .and_then(|digits| Currency::new(code, digits))
         .ok_or(ImportError::UnknownCurrency {
             currency: code,
             line: None,
         })
-}
-
-/// The currency `code` with its decimal places, for a book another program
-/// kept ([`crate::ImportedBook`]): like [`currency`], but a withdrawn
-/// currency, such as the Deutsche Mark, comes in too, with the decimal
-/// places it had, from KassenSturz's table of withdrawn currencies. The
-/// import pipeline converts its amounts into the currency that replaced it
-/// (D-077, D-104).
-pub fn book_currency(code: CurrencyCode) -> Result<Currency, ImportError> {
-    match code.withdrawn() {
-        Some(withdrawn) => Ok(withdrawn.currency()),
-        None => currency(code),
-    }
 }
 
 /// Reads `text` as an amount of `currency`: an optional sign (`-` or `+`),

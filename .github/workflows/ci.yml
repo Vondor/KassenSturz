@@ -223,6 +223,7 @@ jobs:
       QT_QPA_PLATFORM: offscreen
       CARGO_INCREMENTAL: "0"
     steps:
+      # zstd lets the cache action pack Cargo's folder in seconds, not minutes.
       - name: Install the distribution's build tools, Qt, KDE Frameworks and SQLite
         run: |
           apt-get update
@@ -230,7 +231,7 @@ jobs:
             build-essential ca-certificates cmake curl extra-cmake-modules gettext git \
             libkf6i18n-dev libkf6qqc2desktopstyle-dev libsqlite3-dev ninja-build pkgconf \
             qml6-module-org-kde-desktop qml6-module-org-kde-ki18n qml6-module-org-kde-kirigami \
-            qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools rustup
+            qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools rustup zstd
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # In a container, `github.workspace` is the runner's path, not the
       # container's, so Cargo's folder is named here.

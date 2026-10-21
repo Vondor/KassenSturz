@@ -1,0 +1,4 @@
+recognized: yes
+error: import.unknown-currency
+  currency: XYZ
+  line: 13

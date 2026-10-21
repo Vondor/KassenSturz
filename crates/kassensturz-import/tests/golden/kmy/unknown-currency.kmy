@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE KMYMONEY-FILE>
+<KMYMONEY-FILE>
+  <FILEINFO>
+    <VERSION id="1"/>
+  </FILEINFO>
+  <ACCOUNTS>
+    <ACCOUNT id="AStd::Asset" parentaccount="" type="9" name="Anlagen" currency="EUR"/>
+    <ACCOUNT id="AStd::Expense" parentaccount="" type="13" name="Ausgabe" currency="EUR"/>
+    <ACCOUNT id="A000001" parentaccount="AStd::Asset" type="1" name="Checking" currency="EUR"/>
+    <ACCOUNT id="A000002" parentaccount="AStd::Expense" type="13" name="Holiday" currency="ROL"/>
+    <ACCOUNT id="A000003" parentaccount="AStd::Asset" type="3" name="Lei in cash" currency="ROL"/>
+    <ACCOUNT id="A000004" parentaccount="AStd::Asset" type="3" name="Lira in cash" currency="XYZ"/>
+  </ACCOUNTS>
+  <TRANSACTIONS>
+    <TRANSACTION id="T000000000000000001" postdate="2003-08-04" memo="" commodity="ROL">
+      <SPLITS>
+        <SPLIT id="S0001" payee="" reconcileflag="0" value="-150000000/100" shares="-150000000/100" memo="" account="A000003" bankid=""/>
+        <SPLIT id="S0002" payee="" reconcileflag="0" value="150000000/100" shares="150000000/100" memo="" account="A000002" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+  </TRANSACTIONS>
+  <CURRENCIES>
+    <CURRENCY id="EUR" name="Euro" symbol="EUR" type="3" rounding-method="0" saf="100" pp="4" scf="100"/>
+    <CURRENCY id="ROL" name="Old leu" symbol="ROL" type="3" rounding-method="0" saf="100" pp="4" scf="100"/>
+    <CURRENCY id="RON" name="New leu" symbol="RON" type="3" rounding-method="0" saf="100" pp="4" scf="100"/>
+    <CURRENCY id="TRY" name="New lira" symbol="YTL" type="3" rounding-method="0" saf="100" pp="4" scf="100"/>
+  </CURRENCIES>
+  <PRICES>
+    <PRICEPAIR from="BGL" to="BGN">
+      <PRICE date="1999-07-05" price="1/1000" source="KMyMoney"/>
+    </PRICEPAIR>
+    <PRICEPAIR from="ROL" to="RON">
+      <PRICE date="2001-01-01" price="1/5000" source="KMyMoney"/>
+      <PRICE date="2005-06-30" price="1/10000" source="KMyMoney"/>
+    </PRICEPAIR>
+    <PRICEPAIR from="TRY" to="TRL">
+      <PRICE date="2005-01-01" price="1000000/1" source="KMyMoney"/>
+    </PRICEPAIR>
+  </PRICES>
+</KMYMONEY-FILE>

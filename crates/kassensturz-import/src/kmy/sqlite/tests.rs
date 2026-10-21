@@ -5,10 +5,12 @@
 //! files is in its golden files (`tests/golden/kmy-sqlite/`). Cases the
 //! sample doesn't have are made by editing a copy of it in memory (D-102).
 
+use kassensturz_core::{Currency, CurrencyCode, Date};
 use proptest::prelude::*;
 use rusqlite::{Connection, MAIN_DB};
 
 use super::*;
+use crate::book::{Replacement, UnlistedCurrency};
 use crate::importer::import;
 use crate::kmy::Kmy;
 
@@ -334,4 +336,50 @@ proptest! {
         let result = read(&SAMPLE[..cut]);
         prop_assert!(result.is_err() || result == read(SAMPLE));
     }
+}
+
+#[test]
+fn a_currency_no_table_lists_comes_from_the_currency_list() {
+    // Cash in the old Romanian leu, which the sample's currency list and
+    // price table have (D-106).
+    let cash = "INSERT INTO kmmAccounts (id, parentId, accountType, accountName, currencyId) \
+                VALUES ('A999999', 'AStd::Asset', '3', 'Lei in cash', 'ROL');";
+    let code = |text| CurrencyCode::new(text).expect("a code");
+    let Ok(Imported::Book(book)) = read(&after(cash)) else {
+        panic!("a book");
+    };
+    assert_eq!(
+        book.unlisted,
+        vec![UnlistedCurrency {
+            currency: Currency::new(code("ROL"), 2).expect("2 places"),
+            suggestion: Some(Replacement {
+                successor: code("RON"),
+                rate: "10000".parse().expect("a rate"),
+                date: Date::constant(2005, 6, 30),
+            }),
+        }]
+    );
+    // Without it in the list, or with a fraction that isn't a power of ten,
+    // its amounts can't be read.
+    let unknown = Err(ImportError::UnknownCurrency {
+        currency: code("ROL"),
+        line: None,
+    });
+    for change in [
+        "DELETE FROM kmmCurrencies WHERE ISOcode = 'ROL'",
+        "DROP TABLE kmmCurrencies",
+    ] {
+        assert_eq!(
+            read(&after(&format!("{cash} {change}"))),
+            unknown,
+            "{change}"
+        );
+    }
+    assert_eq!(
+        read(&after(&format!(
+            "{cash} UPDATE kmmCurrencies SET smallestAccountFraction = '50' \
+             WHERE ISOcode = 'ROL'"
+        ))),
+        Err(ImportError::Malformed { line: None })
+    );
 }

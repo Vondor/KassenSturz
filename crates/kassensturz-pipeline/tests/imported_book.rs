@@ -4,13 +4,15 @@
 //! Another program's book into a new book (M2.9), built in code, so it
 //! waits for no file format. All data is made up (AGENTS.md §3.1 rule 2).
 
+use std::collections::HashMap;
+
 use kassensturz_core::{
-    AccountKind, AccountType, Currency, CurrencyCode, Date, ExchangeRate, ImportedDetails, Money,
-    RateSource, Split, Transaction,
+    Account, AccountId, AccountKind, AccountType, Currency, CurrencyCode, Date, ExchangeRate,
+    ImportedDetails, Money, RateSource, Split, Transaction,
 };
 use kassensturz_import::{
-    BookAccount, BookPart, BookRate, BookTransaction, ImportError, ImportedBook, Skipped,
-    SkippedData,
+    BookAccount, BookPart, BookRate, BookTransaction, ImportError, ImportedBook, Replacement,
+    Skipped, SkippedData, UnlistedCurrency,
 };
 use kassensturz_pipeline::{PipelineError, fill_book_from};
 use kassensturz_store::{Book, StoreError};
@@ -26,6 +28,15 @@ const USD: CurrencyCode = match CurrencyCode::new("USD") {
 const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
     Ok(code) => code,
     Err(_) => panic!("DEM is a valid code"),
+};
+
+const ROL: CurrencyCode = match CurrencyCode::new("ROL") {
+    Ok(code) => code,
+    Err(_) => panic!("ROL is a valid code"),
+};
+const RON: CurrencyCode = match CurrencyCode::new("RON") {
+    Ok(code) => code,
+    Err(_) => panic!("RON is a valid code"),
 };
 
 fn currency(code: CurrencyCode) -> Currency {
@@ -204,6 +215,7 @@ fn household() -> ImportedBook {
             to: USD,
             rate: "1.0811".parse::<ExchangeRate>().expect("a rate"),
         }],
+        unlisted: Vec::new(),
         skipped: vec![Skipped {
             what: SkippedData::Schedules,
             count: 2,
@@ -222,7 +234,7 @@ fn named(book: &Book, name: &str) -> kassensturz_core::Account {
 #[test]
 fn a_book_comes_in_with_its_accounts_categories_and_transactions() {
     let mut book = Book::create_in_memory().expect("book created");
-    let report = fill_book_from(&mut book, &household()).expect("filled");
+    let report = fill_book_from(&mut book, &household(), &HashMap::new()).expect("filled");
     assert_eq!(report.accounts, 4);
     assert_eq!(report.categories, 4);
     assert_eq!(report.transactions, 6);
@@ -291,7 +303,7 @@ fn a_book_that_cant_be_filled_stays_empty() {
     broken.transactions[1].parts[1].account = Some("E9".into());
     let mut book = Book::create_in_memory().expect("book created");
     assert!(matches!(
-        fill_book_from(&mut book, &broken),
+        fill_book_from(&mut book, &broken, &HashMap::new()),
         Err(PipelineError::Import(ImportError::Malformed { .. }))
     ));
     assert!(book.all_accounts().expect("accounts").is_empty());
@@ -300,15 +312,15 @@ fn a_book_that_cant_be_filled_stays_empty() {
     let mut unnamed = household();
     unnamed.accounts[0].name = "  ".into();
     assert!(matches!(
-        fill_book_from(&mut book, &unnamed),
+        fill_book_from(&mut book, &unnamed, &HashMap::new()),
         Err(PipelineError::Store(StoreError::EmptyAccountName))
     ));
     assert!(book.all_accounts().expect("accounts").is_empty());
 
     // Only a new, empty book is filled.
-    fill_book_from(&mut book, &household()).expect("filled");
+    fill_book_from(&mut book, &household(), &HashMap::new()).expect("filled");
     assert!(matches!(
-        fill_book_from(&mut book, &household()),
+        fill_book_from(&mut book, &household(), &HashMap::new()),
         Err(PipelineError::Store(StoreError::NotEmpty))
     ));
 }
@@ -388,6 +400,7 @@ fn household_in_marks() -> ImportedBook {
         accounts,
         transactions,
         rates: Vec::new(),
+        unlisted: Vec::new(),
         skipped: Vec::new(),
     }
 }
@@ -434,7 +447,7 @@ fn assert_converted_from_marks(split: &Split) {
 #[test]
 fn a_book_in_marks_comes_in_in_euros_and_keeps_the_amounts_in_marks() {
     let mut book = Book::create_in_memory().expect("book created");
-    let report = fill_book_from(&mut book, &household_in_marks()).expect("filled");
+    let report = fill_book_from(&mut book, &household_in_marks(), &HashMap::new()).expect("filled");
     assert_eq!(report.accounts, 3);
     assert_eq!(report.categories, 5);
     assert_eq!(report.transactions, 6);
@@ -556,10 +569,11 @@ fn parts_in_other_currencies_keep_what_the_file_gave() {
         accounts,
         transactions,
         rates: Vec::new(),
+        unlisted: Vec::new(),
         skipped: Vec::new(),
     };
     let mut book = Book::create_in_memory().expect("book created");
-    let report = fill_book_from(&mut book, &imported).expect("filled");
+    let report = fill_book_from(&mut book, &imported, &HashMap::new()).expect("filled");
     assert_eq!(report.completed, 1);
     assert_eq!(report.converted[0].accounts, 2);
     assert_eq!(report.converted[0].parts, 6);
@@ -601,4 +615,148 @@ fn parts_in_other_currencies_keep_what_the_file_gave() {
     assert_eq!(balance("Girokonto"), eur(-5_112));
     assert_eq!(balance("Groceries"), eur(5_112));
     assert_eq!(balance("Travel"), usd(12_000));
+}
+
+fn rol(minor_units: i64) -> Money {
+    Money::from_minor_units(minor_units, ROL)
+}
+
+fn ron(minor_units: i64) -> Money {
+    Money::from_minor_units(minor_units, RON)
+}
+
+/// A holiday in Romania in 2003, kept in the old leu, which neither of
+/// KassenSturz's tables lists (D-106): cash in lei and a hotel paid with it.
+fn holiday_in_lei() -> ImportedBook {
+    let in_lei = |key: &str, name: &str, kind| BookAccount {
+        currency: currency(ROL),
+        ..account(key, name, kind)
+    };
+    let on = |date, payee, parts| BookTransaction {
+        currency: currency(ROL),
+        ..transaction(date, payee, parts)
+    };
+    ImportedBook {
+        accounts: vec![
+            account("A1", "Checking", AccountKind::Asset),
+            in_lei("A2", "Lei in cash", AccountKind::Asset),
+            in_lei("Q1", "Opening balances", AccountKind::Equity),
+            in_lei("C1", "Holiday", AccountKind::Expense),
+        ],
+        transactions: vec![
+            // 2,000,000.00 ROL, then a hotel for 1,500,000.00 ROL.
+            on(
+                date(2003, 8, 1),
+                None,
+                vec![
+                    part(Some("A2"), rol(200_000_000)),
+                    part(Some("Q1"), rol(-200_000_000)),
+                ],
+            ),
+            on(
+                date(2003, 8, 4),
+                Some("Hotel"),
+                vec![
+                    part(Some("A2"), rol(-150_000_000)),
+                    part(Some("C1"), rol(150_000_000)),
+                ],
+            ),
+        ],
+        rates: Vec::new(),
+        unlisted: vec![UnlistedCurrency {
+            currency: currency(ROL),
+            suggestion: Some(Replacement {
+                successor: RON,
+                rate: "10000".parse().expect("a rate"),
+                date: date(2005, 6, 30),
+            }),
+        }],
+        skipped: Vec::new(),
+    }
+}
+
+#[test]
+fn a_currency_no_table_lists_comes_in_as_the_user_says_it_was_replaced() {
+    let imported = holiday_in_lei();
+    let replaced = |successor| {
+        HashMap::from([(
+            ROL,
+            Replacement {
+                successor,
+                rate: "10000".parse().expect("a rate"),
+                date: date(2005, 7, 1),
+            },
+        )])
+    };
+    // The file's rate is only a suggestion: without the user's word,
+    // nothing comes in. Nor does it into a currency an account can't be in.
+    let mut book = Book::create_in_memory().expect("book created");
+    assert!(matches!(
+        fill_book_from(&mut book, &imported, &HashMap::new()),
+        Err(PipelineError::Import(ImportError::SuccessorNeeded {
+            currency: ROL
+        }))
+    ));
+    for successor in [DEM, ROL] {
+        assert!(matches!(
+            fill_book_from(&mut book, &imported, &replaced(successor)),
+            Err(PipelineError::Import(ImportError::SuccessorNotCurrent {
+                currency: ROL,
+                successor: found,
+            })) if found == successor
+        ));
+    }
+    assert!(book.all_accounts().expect("accounts").is_empty());
+
+    let report = fill_book_from(&mut book, &imported, &replaced(RON)).expect("filled");
+    assert_eq!(report.converted.len(), 1);
+    let leu = report.converted[0].withdrawn;
+    assert_eq!(
+        (leu.currency(), leu.successor(), leu.date()),
+        (currency(ROL), RON, date(2005, 7, 1))
+    );
+    assert_eq!(
+        (report.converted[0].accounts, report.converted[0].parts),
+        (3, 4)
+    );
+    let balance = |name: &str| book.balance(named(&book, name).id).expect("balance");
+    assert_eq!(balance("Lei in cash"), ron(5_000));
+    assert_eq!(balance("Holiday"), ron(15_000));
+    assert_eq!(balance("Opening balances"), ron(-20_000));
+    assert_eq!(balance("Checking"), eur(0));
+    let hotel = paid_by(&book.transactions().expect("transactions"), "Hotel");
+    assert_eq!(amounts(&hotel), vec![ron(-15_000), ron(15_000)]);
+    assert_eq!(
+        originals(&hotel),
+        vec![Some(rol(-150_000_000)), Some(rol(150_000_000))]
+    );
+    let rate = hotel.splits()[0].original.expect("converted").rate;
+    assert_eq!(
+        (rate.from, rate.to, rate.date),
+        (RON, ROL, date(2005, 7, 1))
+    );
+    assert_eq!(rate.rate, "10000".parse::<ExchangeRate>().expect("a rate"));
+    assert_eq!(rate.source, RateSource::Changeover);
+
+    // The book lists the old leu for the original amounts, but no account
+    // can be in it.
+    let mut currencies = book.currencies().expect("currencies");
+    currencies.sort_by_key(|currency| currency.code().as_str().to_owned());
+    assert_eq!(
+        currencies,
+        vec![currency(EUR), currency(ROL), currency(RON)]
+    );
+    let in_lei = Account {
+        id: AccountId::generate(),
+        name: "More lei".into(),
+        kind: AccountKind::Asset,
+        currency: ROL,
+        account_type: None,
+        parent: None,
+        closed: false,
+    };
+    assert!(matches!(
+        book.add_account(&in_lei),
+        Err(StoreError::WithdrawnCurrency(ROL))
+    ));
 }

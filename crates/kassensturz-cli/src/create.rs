@@ -5,22 +5,64 @@
 //! export (D-100) or from another program's book, such as KMyMoney's
 //! (M2.9, M2.10).
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
+use std::str::FromStr;
 
+use kassensturz_core::{CurrencyCode, ExchangeRate};
 use kassensturz_export::read_book_file;
 use kassensturz_import::{
-    Imported, Importer, Kmy, KmySqlite, Limits, RECOGNITION_BYTES, Recognition, import,
+    Imported, ImportedBook, Importer, Kmy, KmySqlite, Limits, RECOGNITION_BYTES, Recognition,
+    Replacement, import,
 };
 use kassensturz_pipeline::{BookImportReport, fill_book, fill_book_from};
 use kassensturz_store::{Book, Computer};
 
 use crate::error::CliError;
+use crate::input::{parse_currency, parse_date};
 use crate::text::plain;
 
 /// The ID of the complete export's format, as `export --format` names it.
 const BOOK: &str = "book";
+
+/// The currencies `--replaced` says replaced old ones that KassenSturz's
+/// tables don't list, by the old one's code (D-106).
+pub(crate) type Replaced = HashMap<CurrencyCode, Replacement>;
+
+/// Reads each `--replaced` value, like `ROL=RON:10000:2005-07-01`: the old
+/// currency, the one that replaced it, how many of the old one a unit of
+/// the new one was worth, and the day.
+pub(crate) fn parse_replaced(values: &[&str]) -> Result<Replaced, CliError> {
+    let mut replaced = Replaced::new();
+    for value in values {
+        let shape = || {
+            CliError::usage(format!(
+                "`{}` isn't like --replaced ROL=RON:10000:2005-07-01: the old currency, \
+                 the new one, how many old ones one new one was worth, and the day",
+                plain(value)
+            ))
+        };
+        let (old, rest) = value.split_once('=').ok_or_else(shape)?;
+        let mut parts = rest.split(':');
+        let (Some(new), Some(rate), Some(day), None) =
+            (parts.next(), parts.next(), parts.next(), parts.next())
+        else {
+            return Err(shape());
+        };
+        let old = parse_currency(old)?;
+        let replacement = Replacement {
+            successor: parse_currency(new)?,
+            rate: ExchangeRate::from_str(rate.trim())?,
+            date: parse_date(day.trim())?,
+        };
+        if replaced.insert(old, replacement).is_some() {
+            return Err(CliError::usage(format!("--replaced names {old} twice")));
+        }
+    }
+    Ok(replaced)
+}
 
 /// What a new book was made from.
 pub(crate) enum Created {
@@ -34,14 +76,16 @@ pub(crate) enum Created {
 
 /// Creates the book at `path`, filled from `from` if given: a complete
 /// export, or another program's book in the format `format` names, or the
-/// one `from` is recognized as. The file is read first, so a file that
-/// isn't one leaves nothing behind; if the book refuses what it holds, the
-/// new book is removed again.
+/// one `from` is recognized as, with the currencies `replaced` says
+/// replaced old ones it uses (D-106). The file is read first, so a file
+/// that isn't one leaves nothing behind; if the book refuses what it holds,
+/// the new book is removed again.
 pub(crate) fn create(
     path: &Path,
     computer: &Computer,
     from: Option<&Path>,
     format: Option<&str>,
+    replaced: &Replaced,
 ) -> Result<(Book, Created), CliError> {
     let Some(from) = from else {
         if format.is_some() {
@@ -78,13 +122,59 @@ pub(crate) fn create(
         let Imported::Book(imported) = import(importer, &input, &limits)? else {
             unreachable!("the KMyMoney importers read a book")
         };
-        fill_new(path, computer, |book| Ok(fill_book_from(book, &imported)?))
-            .map(|(book, report)| (book, Created::Imported(report)))
+        check_replaced(&imported, replaced)?;
+        fill_new(path, computer, |book| {
+            Ok(fill_book_from(book, &imported, replaced)?)
+        })
+        .map(|(book, report)| (book, Created::Imported(report)))
     } else {
+        if !replaced.is_empty() {
+            return Err(CliError::usage(
+                "--replaced is for another program's book; a complete export has none to replace",
+            ));
+        }
         let data = read_book_file(from)?;
         fill_new(path, computer, |book| Ok(fill_book(book, &data)?))
             .map(|(book, ())| (book, Created::Export))
     }
+}
+
+/// Fails, before a book is made, if `imported` uses a currency KassenSturz
+/// doesn't know that `replaced` doesn't name, saying how to name it and
+/// what the file's own rates suggest; or if `replaced` names one the file
+/// doesn't use that way.
+fn check_replaced(imported: &ImportedBook, replaced: &Replaced) -> Result<(), CliError> {
+    for old in replaced.keys() {
+        if !imported
+            .unlisted
+            .iter()
+            .any(|unlisted| unlisted.currency.code() == *old)
+        {
+            return Err(CliError::usage(format!(
+                "the file has no amounts in {old} that KassenSturz needs told about: \
+                 --replaced is only for currencies it doesn't know"
+            )));
+        }
+    }
+    for unlisted in &imported.unlisted {
+        let code = unlisted.currency.code();
+        if replaced.contains_key(&code) {
+            continue;
+        }
+        let suggestion = unlisted.suggestion.map_or_else(String::new, |suggestion| {
+            format!(
+                " The file's own rates suggest --replaced {code}={}:{}:{}; check it first, \
+                 since another program's rates can be off.",
+                suggestion.successor, suggestion.rate, suggestion.date
+            )
+        });
+        return Err(CliError::message(format!(
+            "the file uses {code}, a currency KassenSturz doesn't know, most likely one \
+             that another one replaced long ago. Say which with --replaced \
+             {code}=NEW:RATE:DAY, where one NEW was worth RATE {code} from DAY on.{suggestion}"
+        )));
+    }
+    Ok(())
 }
 
 /// The first bytes of the file at `path`, for recognizing its format. If

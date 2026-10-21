@@ -14,7 +14,8 @@ use kassensturz_core::{
 };
 use kassensturz_export::BookData;
 use kassensturz_import::{
-    BookAccount, BookPart, BookTransaction, ImportError, ImportedBook, Skipped, currency,
+    BookAccount, BookPart, BookTransaction, ImportError, ImportedBook, Replacement, Skipped,
+    currency,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -89,14 +90,26 @@ pub struct ConvertedCurrency {
 /// complete export, nothing is recorded in its change history
 /// ([`fill_book`]): undoing the import would only leave an empty book.
 ///
+/// A currency neither of KassenSturz's tables lists
+/// ([`ImportedBook::unlisted`]) is converted the same way, into what
+/// `replaced` says replaced it, at that rate (D-106): the user says so, a
+/// file's own rate is only a suggestion. Without it, or if that isn't a
+/// current currency, nothing is imported (`import.successor-needed`,
+/// `import.successor-not-current`). What `replaced` says about other
+/// currencies is passed over: KassenSturz's table counts for those.
+///
 /// If anything is refused, the book stays empty, so the front end can
 /// remove it again.
 pub fn fill_book_from(
     book: &mut Book,
     imported: &ImportedBook,
+    replaced: &HashMap<CurrencyCode, Replacement>,
 ) -> Result<BookImportReport, PipelineError> {
     let rounding = book.rounding_mode()?;
-    let mut mapper = Mapper::default();
+    let mut mapper = Mapper {
+        replaced: replaced_currencies(imported, replaced)?,
+        ..Mapper::default()
+    };
     let mut accounts = mapper.accounts(&imported.accounts)?;
     let mut changeover = Changeover::new(rounding);
     let mut completed = 0;
@@ -176,10 +189,48 @@ pub fn fill_book_from(
     })
 }
 
+/// The currencies of `imported` that neither of KassenSturz's tables lists,
+/// as withdrawn ones that `replaced` says replaced them (D-106).
+fn replaced_currencies(
+    imported: &ImportedBook,
+    replaced: &HashMap<CurrencyCode, Replacement>,
+) -> Result<HashMap<CurrencyCode, Withdrawn>, ImportError> {
+    let mut withdrawn = HashMap::with_capacity(imported.unlisted.len());
+    for unlisted in &imported.unlisted {
+        let currency = unlisted.currency;
+        let replacement = replaced
+            .get(&currency.code())
+            .ok_or(ImportError::SuccessorNeeded {
+                currency: currency.code(),
+            })?;
+        let not_current = ImportError::SuccessorNotCurrent {
+            currency: currency.code(),
+            successor: replacement.successor,
+        };
+        // A current currency is one an account can be in, which no
+        // withdrawn one is.
+        if replacement.successor.iso_minor_digits().is_none() {
+            return Err(not_current);
+        }
+        let replaced = Withdrawn::new(
+            currency,
+            replacement.successor,
+            replacement.rate,
+            replacement.date,
+        )
+        .ok_or(not_current)?;
+        withdrawn.insert(currency.code(), replaced);
+    }
+    Ok(withdrawn)
+}
+
 /// Turns the file's keys and names into a book's IDs and unique names, and
 /// its withdrawn currencies into their successors.
 #[derive(Default)]
 struct Mapper {
+    /// The withdrawn currencies neither of KassenSturz's tables lists, with
+    /// what the user said replaced them (D-106).
+    replaced: HashMap<CurrencyCode, Withdrawn>,
     ids: HashMap<String, AccountId>,
     /// Whether the account with the key is one of the user's accounts, as
     /// opposed to a category or an internal account.
@@ -222,11 +273,27 @@ impl Mapper {
         }
     }
 
+    /// The withdrawn currency `code` is, from KassenSturz's table or as the
+    /// user said (D-104, D-106); `None` for a current one. Fails for one
+    /// that neither table lists if the user didn't say what replaced it.
+    fn withdrawn(&self, code: CurrencyCode) -> Result<Option<Withdrawn>, ImportError> {
+        if let Some(withdrawn) = code
+            .withdrawn()
+            .or_else(|| self.replaced.get(&code).copied())
+        {
+            return Ok(Some(withdrawn));
+        }
+        if code.iso_minor_digits().is_none() {
+            return Err(ImportError::SuccessorNeeded { currency: code });
+        }
+        Ok(None)
+    }
+
     /// The current currency `currency` is in the book: its successor, with
     /// the decimal places KassenSturz's ISO 4217 table gives it, if it was
     /// withdrawn (D-104), otherwise itself. Notes that the book uses it.
     fn current(&mut self, currency: Currency) -> Result<Currency, ImportError> {
-        let current = match currency.code().withdrawn() {
+        let current = match self.withdrawn(currency.code())? {
             Some(withdrawn) => self.known_or_listed(withdrawn.successor())?,
             None => currency,
         };
@@ -296,7 +363,7 @@ impl Mapper {
             self.user_accounts
                 .insert(account.key.clone(), account.kind.is_account());
             current.insert(account.key.as_str(), self.current(account.currency)?);
-            if let Some(withdrawn) = account.currency.code().withdrawn() {
+            if let Some(withdrawn) = self.withdrawn(account.currency.code())? {
                 self.note_converted(withdrawn, 1, 0)?;
             }
         }
@@ -362,7 +429,7 @@ impl Mapper {
         rounding: RoundingMode,
     ) -> Result<(Vec<Split>, bool), PipelineError> {
         let file_currency = transaction.currency;
-        let withdrawn = file_currency.code().withdrawn();
+        let withdrawn = self.withdrawn(file_currency.code())?;
         let currency = self.current(file_currency)?;
         let mut splits = Vec::with_capacity(transaction.parts.len() + 1);
         let mut parts = Vec::with_capacity(transaction.parts.len());
@@ -429,7 +496,10 @@ impl Mapper {
         };
         // What the part booked to its account, in the account's currency.
         let booked = part.account_amount.unwrap_or(part.amount);
-        let account_withdrawn = account.and(booked.currency().withdrawn());
+        let account_withdrawn = match account {
+            Some(_) => self.withdrawn(booked.currency())?,
+            None => None,
+        };
         if let (Some((id, user)), Some(account_withdrawn)) = (account, account_withdrawn) {
             // Its account is in the successor now, and the account's balance
             // follows its balance in the withdrawn currency.

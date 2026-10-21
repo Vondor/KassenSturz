@@ -72,6 +72,16 @@ impl Fraction {
         Ok(Money::from_minor_units(minor_units, currency.code()))
     }
 
+    /// One over the fraction, e.g. `195583/100000` for `100000/195583`.
+    /// `None` for zero.
+    pub fn inverse(self) -> Option<Self> {
+        let sign = self.numerator.signum();
+        (sign != 0).then_some(Self {
+            numerator: sign * self.denominator,
+            denominator: self.numerator.abs(),
+        })
+    }
+
     /// The fraction as an exchange rate, if it is above zero and has a
     /// finite decimal form that a rate can hold exactly: `100000/195583`,
     /// KMyMoney's rate from the Deutsche Mark to the euro, has none.

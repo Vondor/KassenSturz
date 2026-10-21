@@ -41,7 +41,7 @@ use std::path::PathBuf;
 use kassensturz_store::{Book, Computer, StoreError};
 
 use args::Arguments;
-use create::Created;
+use create::{Created, Replaced};
 use error::{CliError, print_error};
 
 /// The app ID, which names KassenSturz's folders (D-049).
@@ -107,14 +107,18 @@ money out of the account. Dates are written 2026-10-05. Names ignore capitals.
 Categories can be named by their path, like Food/Groceries.
 
 Commands:
-  create [--from FILE [--format ID]]
+  create [--from FILE [--format ID] [--replaced CODE=NEW:RATE:DAY ...]]
                                  make a new, empty book; with --from, a new
                                  book holding what a complete export (export
                                  --format book) holds, with the same IDs, or
                                  what a KMyMoney file (.kmy, or saved as
                                  SQLite) holds, with new IDs and a list of
                                  what KassenSturz can't hold yet. The format
-                                 is recognized; ID is book, kmy or kmy-sqlite
+                                 is recognized; ID is book, kmy or kmy-sqlite.
+                                 --replaced says which currency NEW replaced
+                                 an old one KassenSturz doesn't know from DAY
+                                 on, one NEW being worth RATE of the old one,
+                                 like ROL=RON:10000:2005-07-01
   account add NAME --type TYPE --currency CODE
                                  TYPE is checking, savings, cash or credit-card
   account list [--all]           --all includes closed accounts
@@ -340,17 +344,24 @@ impl<'a> CommandLine<'a> {
         }
     }
 
-    /// The file `create --from FILE` makes the book from, and the format
-    /// `--format ID` names for it.
-    fn create_from(&self) -> Result<(Option<PathBuf>, Option<String>), CliError> {
-        let args = Arguments::parse(self.rest, &["from", "format"], &[])?;
+    /// The file `create --from FILE` makes the book from, the format
+    /// `--format ID` names for it, and the currencies `--replaced` says
+    /// replaced old ones (D-106).
+    fn create_from(&self) -> Result<(Option<PathBuf>, Option<String>, Replaced), CliError> {
+        let args = Arguments::parse(self.rest, &["from", "format", "replaced"], &[])?;
         args.exactly([])?;
         let from = args.value("from")?.map(PathBuf::from);
         let format = args.value("format")?.map(str::to_owned);
-        if format.is_some() && from.is_none() {
-            return Err(CliError::usage("--format needs --from FILE"));
+        let replaced = args.all("replaced");
+        if from.is_none() {
+            if format.is_some() {
+                return Err(CliError::usage("--format needs --from FILE"));
+            }
+            if !replaced.is_empty() {
+                return Err(CliError::usage("--replaced needs --from FILE"));
+            }
         }
-        Ok((from, format))
+        Ok((from, format, create::parse_replaced(&replaced)?))
     }
 
     fn execute(
@@ -364,7 +375,7 @@ impl<'a> CommandLine<'a> {
             Some("create") => {
                 // `open` made the book, and filled it; saying so is all that
                 // is left.
-                let (from, _) = self.create_from()?;
+                let (from, _, _) = self.create_from()?;
                 let created = created.expect("`open` creates the book for `create`");
                 create::write_created(book, from.as_deref(), created, out)
             }
@@ -412,8 +423,14 @@ fn open(
         backup_folder,
     };
     if command_line.command == Some("create") {
-        let (from, format) = command_line.create_from()?;
-        let (book, created) = create::create(&path, &computer, from.as_deref(), format.as_deref())?;
+        let (from, format, replaced) = command_line.create_from()?;
+        let (book, created) = create::create(
+            &path,
+            &computer,
+            from.as_deref(),
+            format.as_deref(),
+            &replaced,
+        )?;
         return Ok((book, Some(created)));
     }
     let book = match Book::open(&path, &computer) {

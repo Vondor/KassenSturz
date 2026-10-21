@@ -5,15 +5,16 @@
 //! accounts are accounts and which are categories, amounts from fractions,
 //! and what a book can't hold counted (D-029, D-101).
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use kassensturz_core::{AccountKind, AccountType, Currency, CurrencyCode, Date, ImportedDetails};
 
 use super::fraction::Fraction;
-use super::records::{RawAccount, RawSplit, RawTransaction, Records, Skips};
+use super::records::{RawAccount, RawCurrency, RawPrice, RawSplit, RawTransaction, Records, Skips};
 use crate::amount;
 use crate::book::{
-    BookAccount, BookPart, BookRate, BookTransaction, ImportedBook, Skipped, SkippedData,
+    BookAccount, BookPart, BookRate, BookTransaction, ImportedBook, Replacement, Skipped,
+    SkippedData, UnlistedCurrency,
 };
 use crate::error::ImportError;
 
@@ -42,6 +43,7 @@ const TYPES: [(&str, AccountType); 3] = [
 pub(super) fn book(records: Records) -> Result<ImportedBook, ImportError> {
     let mut skipped = records.skipped;
     let accounts = Accounts::new(&records.accounts, &records.securities)?;
+    let mut currencies = Currencies::new(&records.currencies)?;
     for account in &records.accounts {
         if accounts.investments.contains(account.id.as_str()) {
             skipped.add(SkippedData::Investments);
@@ -49,7 +51,7 @@ pub(super) fn book(records: Records) -> Result<ImportedBook, ImportError> {
     }
     let mut book_accounts = Vec::with_capacity(records.accounts.len());
     for account in &records.accounts {
-        if let Some(book_account) = accounts.book_account(account, &mut skipped)? {
+        if let Some(book_account) = accounts.book_account(account, &mut currencies, &mut skipped)? {
             book_accounts.push(book_account);
         }
     }
@@ -62,7 +64,7 @@ pub(super) fn book(records: Records) -> Result<ImportedBook, ImportError> {
     let mut used_payees: HashSet<&str> = HashSet::new();
     let mut transactions = Vec::with_capacity(records.transactions.len());
     for raw in &records.transactions {
-        let transaction = transaction(raw, &accounts, &payees, &mut skipped)?;
+        let transaction = transaction(raw, &accounts, &mut currencies, &payees, &mut skipped)?;
         used_payees.extend(
             raw.splits
                 .iter()
@@ -101,10 +103,19 @@ pub(super) fn book(records: Records) -> Result<ImportedBook, ImportError> {
         }
     }
 
+    let mut suggestions = suggestions(&records.prices, &currencies.unlisted);
     Ok(ImportedBook {
         accounts: book_accounts,
         transactions,
         rates,
+        unlisted: currencies
+            .unlisted
+            .into_values()
+            .map(|currency| UnlistedCurrency {
+                currency,
+                suggestion: suggestions.remove(&currency.code()),
+            })
+            .collect(),
         skipped: skipped
             .into_counts()
             .into_iter()
@@ -175,6 +186,7 @@ impl<'a> Accounts<'a> {
     fn book_account(
         &self,
         account: &RawAccount,
+        currencies: &mut Currencies<'_>,
         skipped: &mut Skips,
     ) -> Result<Option<BookAccount>, ImportError> {
         let Some(&kind) = self.kinds.get(account.id.as_str()) else {
@@ -183,8 +195,7 @@ impl<'a> Accounts<'a> {
         if self.investments.contains(account.id.as_str()) {
             return Ok(None);
         }
-        let currency = amount::currency(code(&account.currency, account.line)?)
-            .map_err(|error| error.at(account.line))?;
+        let currency = currencies.get(code(&account.currency, account.line)?, account.line)?;
         let account_type = TYPES
             .iter()
             .find(|(number, _)| *number == account.account_type)
@@ -223,6 +234,117 @@ impl<'a> Accounts<'a> {
     }
 }
 
+/// The currencies the file's amounts are in: with the decimal places
+/// KassenSturz's tables give them, or for one neither table lists, those of
+/// the file's own list (D-106).
+struct Currencies<'a> {
+    /// The file's list, by code.
+    listed: HashMap<&'a str, &'a RawCurrency>,
+    /// The currencies neither table lists that accounts or transactions
+    /// are in, by code.
+    unlisted: BTreeMap<CurrencyCode, Currency>,
+}
+
+impl<'a> Currencies<'a> {
+    fn new(listed: &'a [RawCurrency]) -> Result<Self, ImportError> {
+        let mut by_code = HashMap::with_capacity(listed.len());
+        for currency in listed {
+            if by_code.insert(currency.id.as_str(), currency).is_some() {
+                return Err(ImportError::Malformed {
+                    line: currency.line,
+                });
+            }
+        }
+        Ok(Self {
+            listed: by_code,
+            unlisted: BTreeMap::new(),
+        })
+    }
+
+    /// The currency `code`, used on `line`. One that neither KassenSturz's
+    /// tables nor the file's list has is `import.unknown-currency` there;
+    /// one whose fraction in the file's list isn't a power of ten, as `100`
+    /// for cents is, is `import.malformed` on the list's line.
+    fn get(&mut self, code: CurrencyCode, line: Option<u64>) -> Result<Currency, ImportError> {
+        if let Ok(currency) = amount::currency(code) {
+            return Ok(currency);
+        }
+        if let Some(&currency) = self.unlisted.get(&code) {
+            return Ok(currency);
+        }
+        let listed = self
+            .listed
+            .get(code.as_str())
+            .ok_or(ImportError::UnknownCurrency {
+                currency: code,
+                line,
+            })?;
+        let currency = decimal_places(&listed.fraction)
+            .and_then(|digits| Currency::new(code, digits))
+            .ok_or(ImportError::Malformed { line: listed.line })?;
+        self.unlisted.insert(code, currency);
+        Ok(currency)
+    }
+}
+
+/// The decimal places a smallest fraction such as `100` stands for: 2. It
+/// must be a power of ten.
+fn decimal_places(fraction: &str) -> Option<u8> {
+    let zeros = fraction.strip_prefix('1')?;
+    if !zeros.bytes().all(|byte| byte == b'0') {
+        return None;
+    }
+    u8::try_from(zeros.len()).ok()
+}
+
+/// What the file's prices say replaced each of the `unlisted` currencies:
+/// the latest price between it and a current currency whose rate has an
+/// exact decimal form, turned into how many units of it one unit of the
+/// current currency was worth (D-106). A price into another withdrawn
+/// currency, such as the old lev into the lev (BGN), which the euro replaced
+/// since, suggests nothing.
+fn suggestions(
+    prices: &[RawPrice],
+    unlisted: &BTreeMap<CurrencyCode, Currency>,
+) -> HashMap<CurrencyCode, Replacement> {
+    let mut suggestions: HashMap<CurrencyCode, Replacement> = HashMap::new();
+    for price in prices {
+        let (Ok(date), Ok(fraction)) = (date(&price.date), fraction(&price.price)) else {
+            continue;
+        };
+        let code = |text: &str| CurrencyCode::new(text).ok();
+        let (withdrawn, successor, rate) = match (code(&price.from), code(&price.to)) {
+            // One unit of the withdrawn currency costs `fraction` units of
+            // the current one.
+            (Some(from), Some(to)) if unlisted.contains_key(&from) => {
+                (from, to, fraction.inverse().and_then(Fraction::rate))
+            }
+            (Some(from), Some(to)) if unlisted.contains_key(&to) => (to, from, fraction.rate()),
+            _ => continue,
+        };
+        let Some(rate) = rate else {
+            continue;
+        };
+        if successor.iso_minor_digits().is_none() {
+            continue;
+        }
+        let later = suggestions
+            .get(&withdrawn)
+            .is_none_or(|earlier| earlier.date <= date);
+        if later {
+            suggestions.insert(
+                withdrawn,
+                Replacement {
+                    successor,
+                    rate,
+                    date,
+                },
+            );
+        }
+    }
+    suggestions
+}
+
 /// The kind of the top-level account `id`, if it is one of the five.
 fn top_level(id: &str) -> Option<AccountKind> {
     TOP_LEVEL
@@ -235,11 +357,12 @@ fn top_level(id: &str) -> Option<AccountKind> {
 fn transaction(
     raw: &RawTransaction,
     accounts: &Accounts<'_>,
+    currencies: &mut Currencies<'_>,
     payees: &HashMap<&str, &str>,
     skipped: &mut Skips,
 ) -> Result<BookTransaction, ImportError> {
     let at_transaction = |error: ImportError| error.at(raw.line);
-    let currency = amount::currency(code(&raw.currency, raw.line)?).map_err(at_transaction)?;
+    let currency = currencies.get(code(&raw.currency, raw.line)?, raw.line)?;
     // A book has one payee for a transaction; KMyMoney keeps one for each
     // split, and the first one given stands for the transaction.
     let payee = match raw.splits.iter().find(|split| !split.payee.is_empty()) {
@@ -255,8 +378,8 @@ fn transaction(
     let mut parts = Vec::with_capacity(raw.splits.len());
     let mut memo_kept = false;
     for split in &raw.splits {
-        let part =
-            part(split, currency, accounts, skipped).map_err(|error| error.at(split.line))?;
+        let part = part(split, currency, accounts, currencies, skipped)
+            .map_err(|error| error.at(split.line))?;
         memo_kept |= part.details.is_some() && split.memo == raw.memo;
         parts.push(part);
     }
@@ -276,6 +399,7 @@ fn part(
     split: &RawSplit,
     currency: Currency,
     accounts: &Accounts<'_>,
+    currencies: &mut Currencies<'_>,
     skipped: &mut Skips,
 ) -> Result<BookPart, ImportError> {
     let malformed = || ImportError::Malformed { line: split.line };
@@ -316,7 +440,7 @@ fn part(
         }
         None
     } else {
-        let account_currency = amount::currency(account_currency)?;
+        let account_currency = currencies.get(account_currency, account.line)?;
         Some(shares.money(account_currency, &split.shares)?)
     };
     // What a bank delivered, or the note kept with the part, stays with a

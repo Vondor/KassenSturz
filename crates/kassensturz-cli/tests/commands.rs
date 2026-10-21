@@ -2284,6 +2284,121 @@ fn a_kmymoney_file_in_marks_comes_in_in_euros() {
     );
 }
 
+/// A holiday in Romania in 2003, kept in the old leu, which neither of
+/// KassenSturz's tables lists, with KMyMoney's rate into the new one.
+const IN_LEI: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE KMYMONEY-FILE>
+<KMYMONEY-FILE>
+  <FILEINFO>
+    <VERSION id="1"/>
+  </FILEINFO>
+  <ACCOUNTS>
+    <ACCOUNT id="AStd::Asset" parentaccount="" type="9" name="Anlagen" currency="EUR"/>
+    <ACCOUNT id="AStd::Expense" parentaccount="" type="13" name="Ausgabe" currency="EUR"/>
+    <ACCOUNT id="A000001" parentaccount="AStd::Asset" type="1" name="Checking" currency="EUR"/>
+    <ACCOUNT id="A000002" parentaccount="AStd::Asset" type="3" name="Lei in cash" currency="ROL"/>
+    <ACCOUNT id="A000003" parentaccount="AStd::Expense" type="13" name="Holiday" currency="ROL"/>
+  </ACCOUNTS>
+  <TRANSACTIONS>
+    <TRANSACTION id="T000000000000000001" postdate="2003-08-04" memo="" commodity="ROL">
+      <SPLITS>
+        <SPLIT id="S0001" payee="" reconcileflag="0" value="-150000000/100" shares="-150000000/100" memo="" account="A000002" bankid=""/>
+        <SPLIT id="S0002" payee="" reconcileflag="0" value="150000000/100" shares="150000000/100" memo="" account="A000003" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+  </TRANSACTIONS>
+  <CURRENCIES>
+    <CURRENCY id="ROL" name="Old leu" symbol="ROL" type="3" saf="100" pp="4" scf="100"/>
+  </CURRENCIES>
+  <PRICES>
+    <PRICEPAIR from="ROL" to="RON">
+      <PRICE date="2005-06-30" price="1/10000" source="KMyMoney"/>
+    </PRICEPAIR>
+  </PRICES>
+</KMYMONEY-FILE>
+"#;
+
+#[test]
+fn a_kmymoney_file_in_a_currency_no_table_lists_needs_its_successor() {
+    let session = Session::new();
+    let file = session.0.join("holiday.kmy");
+    std::fs::write(&file, IN_LEI).expect("written");
+    let file = file.display().to_string();
+    // The file's rate is a suggestion; nothing is made without the user's
+    // word.
+    let refused = session.cli(&["create", "--from", &file]);
+    assert_eq!(refused.status, 1);
+    assert!(
+        refused.err.contains(
+            "Say which with --replaced ROL=NEW:RATE:DAY, where one NEW was worth RATE ROL \
+             from DAY on. The file's own rates suggest --replaced ROL=RON:10000:2005-06-30;"
+        ),
+        "{}",
+        refused.err
+    );
+    assert!(!session.book().exists());
+    for wrong in [
+        &["create", "--replaced", "ROL=RON:10000:2005-07-01"][..],
+        &["create", "--from", &file, "--replaced", "ROL=RON:10000"],
+        &[
+            "create",
+            "--from",
+            &file,
+            "--replaced",
+            "TRL=TRY:1000000:2005-01-01",
+        ],
+        &[
+            "create",
+            "--from",
+            &file,
+            "--replaced",
+            "ROL=RON:10000:2005-07-01",
+            "--replaced",
+            "rol=RON:10000:2005-07-01",
+        ],
+    ] {
+        assert_eq!(session.cli(wrong).status, 2, "{wrong:?}");
+    }
+    let refused = session.cli(&[
+        "create",
+        "--from",
+        &file,
+        "--replaced",
+        "ROL=DEM:1:2005-07-01",
+    ]);
+    assert!(
+        refused
+            .err
+            .starts_with("error: import.successor-not-current\n"),
+        "{}",
+        refused.err
+    );
+    assert!(!session.book().exists());
+
+    assert_eq!(
+        session.ok(&[
+            "create",
+            "--from",
+            &file,
+            "--replaced",
+            "ROL=RON:10000:2005-07-01"
+        ]),
+        format!(
+            "Created the book from {file}: 2 accounts, 1 categories, 1 transactions, 0 rates.\n\
+             Converted ROL into RON, which replaced it at 1 RON = 10000 ROL on 2005-07-01: \
+             2 accounts and categories, 2 parts. Each part keeps its amount in ROL.\n\
+             Not imported, because KassenSturz can't hold it yet:\n  \
+             rates: 1\n"
+        )
+    );
+    // 1,500,000.00 ROL are 150.00 RON.
+    assert!(
+        session
+            .ok(&["balances"])
+            .contains("Lei in cash  -150.00 RON"),
+    );
+}
+
 #[test]
 fn a_kmymoney_file_is_read_as_one_when_asked() {
     let session = Session::new();

@@ -32,6 +32,28 @@ pub struct Withdrawn {
 }
 
 impl Withdrawn {
+    /// A withdrawn currency that KassenSturz's table doesn't list, with what
+    /// the user said replaced it: `successor`, from `date`, when one unit of
+    /// it was worth `rate` units of `currency`, e.g. the old Romanian leu
+    /// (ROL), which the new one (RON) replaced at 10000 in 2005 (D-106).
+    ///
+    /// `currency` has the decimal places its amounts were counted in.
+    /// `None` if `successor` is `currency` itself.
+    pub fn new(
+        currency: Currency,
+        successor: CurrencyCode,
+        rate: ExchangeRate,
+        date: Date,
+    ) -> Option<Self> {
+        (successor != currency.code()).then_some(Self {
+            currency,
+            successor,
+            rate_digits: rate.digits(),
+            rate_decimal_places: rate.decimal_places(),
+            date,
+        })
+    }
+
     /// The withdrawn currency, with the decimal places ISO 4217 gave it
     /// while it was current: DEM with 2, ITL with 0.
     pub const fn currency(self) -> Currency {
@@ -47,7 +69,7 @@ impl Withdrawn {
     /// regulation writes it: 1.95583 for the mark.
     pub fn rate(self) -> ExchangeRate {
         ExchangeRate::from_digits(self.rate_digits, self.rate_decimal_places)
-            .expect("the table's rates were checked while compiling")
+            .expect("the table's rates were checked while compiling, and others were rates")
     }
 
     /// The day the rate took effect: 1 January 1999 for the mark.
@@ -319,6 +341,33 @@ mod tests {
                 RateSource::Changeover
             )
         );
+    }
+
+    #[test]
+    fn one_the_table_doesnt_list_is_what_the_user_says() {
+        let leu = Currency::new(code("ROL"), 2).unwrap();
+        let rate: ExchangeRate = "10000".parse().unwrap();
+        let date = Date::constant(2005, 7, 1);
+        let replaced = Withdrawn::new(leu, code("RON"), rate, date).expect("replaced");
+        assert_eq!(
+            (
+                replaced.currency(),
+                replaced.successor(),
+                replaced.rate(),
+                replaced.date()
+            ),
+            (leu, code("RON"), rate, date)
+        );
+        // 1,000,000.00 ROL are 100.00 RON.
+        assert_eq!(
+            replaced.convert(
+                Money::from_minor_units(100_000_000, code("ROL")),
+                Currency::new(code("RON"), 2).unwrap(),
+                RoundingMode::HalfAwayFromZero
+            ),
+            Ok(Money::from_minor_units(10_000, code("RON")))
+        );
+        assert_eq!(Withdrawn::new(leu, code("ROL"), rate, date), None);
     }
 
     #[test]

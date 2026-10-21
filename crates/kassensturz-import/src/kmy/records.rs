@@ -31,6 +31,9 @@ pub(super) struct Records {
     pub payees: Vec<RawPayee>,
     pub transactions: Vec<RawTransaction>,
     pub prices: Vec<RawPrice>,
+    /// The file's list of currencies, for those KassenSturz's tables don't
+    /// list (D-106).
+    pub currencies: Vec<RawCurrency>,
     /// The IDs of the file's securities, which investment accounts count
     /// in instead of a currency.
     pub securities: HashSet<String>,
@@ -107,6 +110,18 @@ pub(super) struct RawPrice {
     pub date: String,
     /// The price, as a fraction.
     pub price: String,
+    pub line: Option<u64>,
+}
+
+/// A `CURRENCY` of the file's list of currencies: KMyMoney lists every
+/// currency it knows, whether the book uses it or not.
+#[derive(Debug)]
+pub(super) struct RawCurrency {
+    /// Its code.
+    pub id: String,
+    /// How finely its amounts are counted in accounts, e.g. `100` for
+    /// cents: KMyMoney's smallest account fraction. Empty if not given.
+    pub fraction: String,
     pub line: Option<u64>,
 }
 
@@ -239,6 +254,13 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
                     .securities
                     .insert(required(element, "id")?.to_owned());
             }
+            [ROOT, "CURRENCIES"] if name == "CURRENCY" => {
+                records.currencies.push(RawCurrency {
+                    id: required(element, "id")?.to_owned(),
+                    fraction: element.get("saf").unwrap_or_default().to_owned(),
+                    line: Some(element.line),
+                });
+            }
             [ROOT, "PRICES"] if name == "PRICEPAIR" => {
                 pair = Some((
                     required(element, "from")?.to_owned(),
@@ -256,7 +278,7 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
                 });
             }
             // Everything else is either KMyMoney's own bookkeeping, such as
-            // its list of currencies, the file's dates and its settings,
+            // the file's dates and its settings,
             // or repeats what the records above say, such as the lists of
             // the accounts inside an account.
             _ => {}

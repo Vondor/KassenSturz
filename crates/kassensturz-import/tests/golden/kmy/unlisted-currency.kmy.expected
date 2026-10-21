@@ -1,0 +1,14 @@
+recognized: yes
+book
+  account "A000001": "Checking", asset, type checking, EUR with 2 decimal places, inside -
+  account "A000002": "Holiday", expense, type -, ROL with 2 decimal places, inside -
+  account "A000003": "Lei in cash", asset, type cash, ROL with 2 decimal places, inside -
+  account "A000004": "Lira in cash", asset, type cash, TRL with 0 decimal places, inside -
+  account "A000005": "Old lev", asset, type cash, BGL with 2 decimal places, inside -
+  transaction 1 on 2003-08-04, payee -
+    part "A000003": -1500000.00 ROL, in the account -
+    part "A000002": 1500000.00 ROL, in the account -
+  unlisted BGL with 2 decimal places, suggested -
+  unlisted ROL with 2 decimal places, suggested RON at 10000 from 2005-06-30
+  unlisted TRL with 0 decimal places, suggested TRY at 1000000 from 2005-01-01
+  skipped rates: 4

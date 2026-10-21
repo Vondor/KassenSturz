@@ -173,8 +173,9 @@ pub fn render_imported(out: &mut String, imported: &Imported) {
 }
 
 /// A whole book: one line per account, one per transaction and one per
-/// part below it, one per rate and one per kind of data left out, so a
-/// book of a few hundred transactions stays readable.
+/// part below it, one per rate, one per currency no table lists and one per
+/// kind of data left out, so a book of a few hundred transactions stays
+/// readable.
 fn render_book(out: &mut String, book: &ImportedBook) {
     let _ = writeln!(out, "book");
     for account in &book.accounts {
@@ -212,6 +213,23 @@ fn render_book(out: &mut String, book: &ImportedBook) {
             out,
             "  rate on {}: 1 {} = {} {}",
             rate.date, rate.from, rate.rate, rate.to
+        );
+    }
+    for unlisted in &book.unlisted {
+        let suggestion = unlisted.suggestion.map_or_else(
+            || "-".to_owned(),
+            |suggestion| {
+                format!(
+                    "{} at {} from {}",
+                    suggestion.successor, suggestion.rate, suggestion.date
+                )
+            },
+        );
+        let _ = writeln!(
+            out,
+            "  unlisted {} with {} decimal places, suggested {suggestion}",
+            unlisted.currency.code(),
+            unlisted.currency.minor_digits(),
         );
     }
     for skipped in &book.skipped {

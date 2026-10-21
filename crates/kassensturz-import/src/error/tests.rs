@@ -22,6 +22,11 @@ const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
     Err(_) => panic!("DEM is a valid code"),
 };
 
+const ROL: CurrencyCode = match CurrencyCode::new("ROL") {
+    Ok(code) => code,
+    Err(_) => panic!("ROL is a valid code"),
+};
+
 fn text(value: &str) -> String {
     value.to_owned()
 }
@@ -88,6 +93,11 @@ fn examples() -> Vec<ImportError> {
             account_currency: USD,
             statement_currency: DEM,
             successor: EUR,
+        },
+        ImportError::SuccessorNeeded { currency: ROL },
+        ImportError::SuccessorNotCurrent {
+            currency: ROL,
+            successor: DEM,
         },
         ImportError::DecimalPlacesDiffer {
             currency: EUR,

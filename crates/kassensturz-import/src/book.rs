@@ -22,7 +22,10 @@ use kassensturz_core::{
 /// Its currencies can include withdrawn ones, such as the German mark,
 /// with the decimal places they had ([`crate::currency`]): the
 /// pipeline converts their amounts into the currencies that replaced them,
-/// and each converted part keeps the amount it had (D-077, D-104).
+/// and each converted part keeps the amount it had (D-077, D-104). They can
+/// also include currencies neither of KassenSturz's tables lists, such as
+/// the old Romanian leu ([`ImportedBook::unlisted`]): the user says what
+/// replaced each one before the pipeline converts it the same way (D-106).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ImportedBook {
     /// The accounts and categories, and the internal accounts for starting
@@ -32,6 +35,10 @@ pub struct ImportedBook {
     pub transactions: Vec<BookTransaction>,
     /// The exchange rates of the price table (D-028).
     pub rates: Vec<BookRate>,
+    /// The currencies of accounts and transactions that neither
+    /// KassenSturz's ISO 4217 table nor its table of withdrawn currencies
+    /// lists, sorted by code (D-106).
+    pub unlisted: Vec<UnlistedCurrency>,
     /// What the file held that isn't in the book, each kind once with how
     /// many there were, in the order of [`SkippedData`].
     pub skipped: Vec<Skipped>,
@@ -111,6 +118,34 @@ pub struct BookRate {
     pub to: CurrencyCode,
     /// How many units of `to` one unit of `from` costs.
     pub rate: ExchangeRate,
+}
+
+/// A currency of an imported book that neither of KassenSturz's tables
+/// lists, such as the old Romanian leu (ROL), which the new one replaced in
+/// 2005 (D-106). No account can be in it: before the book is filled, the
+/// user says which current currency replaced it, at what rate and from
+/// which day ([`Replacement`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct UnlistedCurrency {
+    /// The currency, with the decimal places the file counts it in.
+    pub currency: Currency,
+    /// What the file's own rates say replaced it, if they say so exactly.
+    /// Only ever a suggestion for the user to check: another program's
+    /// rates can be off, or the wrong way round (Q-065).
+    pub suggestion: Option<Replacement>,
+}
+
+/// Which current currency replaced a withdrawn one, at what rate and from
+/// which day (D-106).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Replacement {
+    /// The current currency that replaced it: RON for the old leu.
+    pub successor: CurrencyCode,
+    /// How many units of the withdrawn currency one unit of the successor
+    /// was worth: 10000 for the old leu.
+    pub rate: ExchangeRate,
+    /// The day the rate took effect.
+    pub date: Date,
 }
 
 /// Something the file held that the imported book doesn't, and how many of

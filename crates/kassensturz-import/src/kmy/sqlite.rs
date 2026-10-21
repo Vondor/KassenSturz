@@ -23,7 +23,9 @@ use rusqlite::config::DbConfig;
 use rusqlite::types::ValueRef;
 use rusqlite::{Connection, MAIN_DB, Row};
 
-use super::records::{RawAccount, RawPayee, RawPrice, RawSplit, RawTransaction, Records};
+use super::records::{
+    RawAccount, RawCurrency, RawPayee, RawPrice, RawSplit, RawTransaction, Records,
+};
 use super::{find, mapping};
 use crate::book::SkippedData;
 use crate::error::ImportError;
@@ -133,12 +135,15 @@ const COUNTED: [(&str, SkippedData); 7] = [
     ("kmmAccountsPayeeIdentifier", SkippedData::Other),
 ];
 
+/// Tables the importer reads if the file has them: the currency list, for
+/// currencies KassenSturz's tables don't list (D-106).
+const CURRENCIES: &str = "kmmCurrencies";
+
 /// Tables KMyMoney has that the book doesn't need, whether or not they hold
-/// anything: its currency list, the payments of schedules (the schedules are
-/// counted) and the tags of splits (the tags are counted), its plug-ins,
-/// and the identifier definitions the rows of other tables point to.
-const IGNORED: [&str; 5] = [
-    "kmmCurrencies",
+/// anything: the payments of schedules (the schedules are counted) and the
+/// tags of splits (the tags are counted), its plug-ins, and the identifier
+/// definitions the rows of other tables point to.
+const IGNORED: [&str; 4] = [
     "kmmSchedulePaymentHistory",
     "kmmTagSplits",
     "kmmPluginInfo",
@@ -173,6 +178,7 @@ impl<'a> Reader<'a> {
         self.accounts(&mut records)?;
         self.transactions(&mut records)?;
         self.prices(&mut records)?;
+        self.currencies(&mut records)?;
         self.query("SELECT id FROM kmmSecurities", |row| {
             records.securities.insert(self.required(row, 0)?);
             Ok(())
@@ -192,6 +198,7 @@ impl<'a> Reader<'a> {
         // A table the importer doesn't know holds something it leaves out.
         let known = |table: &str| {
             READ.contains(&table)
+                || table == CURRENCIES
                 || IGNORED.contains(&table)
                 || COUNTED.iter().any(|(counted, _)| *counted == table)
                 || table == "kmmPayeesPayeeIdentifier"
@@ -418,6 +425,25 @@ impl<'a> Reader<'a> {
                     to: self.required(row, 1)?,
                     date: self.required(row, 2)?,
                     price: self.required(row, 3)?,
+                    line: None,
+                });
+                Ok(())
+            },
+        )?;
+        Ok(())
+    }
+
+    /// Reads the currency list, if the file has one.
+    fn currencies(&self, records: &mut Records) -> Result<(), ImportError> {
+        if !self.tables()?.contains(CURRENCIES) {
+            return Ok(());
+        }
+        self.query(
+            "SELECT ISOcode, smallestAccountFraction FROM kmmCurrencies ORDER BY ISOcode",
+            |row| {
+                records.currencies.push(RawCurrency {
+                    id: self.required(row, 0)?,
+                    fraction: self.optional(row, 1)?,
                     line: None,
                 });
                 Ok(())

@@ -4,7 +4,7 @@
 use kassensturz_core::{AccountKind, AccountType, Currency, CurrencyCode, Date};
 
 use super::*;
-use crate::book::{BookPart, BookRate};
+use crate::book::{BookPart, BookRate, Replacement, UnlistedCurrency};
 use crate::statement::{Balance, Entry, StatementAccount};
 
 fn code(text: &str) -> CurrencyCode {
@@ -183,6 +183,7 @@ fn book() -> ImportedBook {
             to: code("USD"),
             rate: "1.1".parse().expect("a rate"),
         }],
+        unlisted: Vec::new(),
         skipped: Vec::new(),
     }
 }
@@ -200,6 +201,7 @@ fn a_consistent_book_passes() {
         accounts: Vec::new(),
         transactions: Vec::new(),
         rates: Vec::new(),
+        unlisted: Vec::new(),
         skipped: Vec::new(),
     };
     assert_eq!(book_checked(empty, &Limits::default()), Ok(()));
@@ -297,6 +299,48 @@ fn a_currency_keeps_its_decimal_places_throughout() {
             file: 3,
         })
     );
+}
+
+#[test]
+fn the_currencies_no_table_lists_are_listed_once_each() {
+    let leu = Currency::new(code("ROL"), 2).expect("valid decimal places");
+    let in_lei = || {
+        let mut in_lei = book();
+        in_lei.accounts[3].currency = leu;
+        in_lei.transactions[0].parts[2].account_amount =
+            Some(Money::from_minor_units(110_000, code("ROL")));
+        in_lei
+    };
+    let unlisted = UnlistedCurrency {
+        currency: leu,
+        suggestion: Some(Replacement {
+            successor: code("RON"),
+            rate: "10000".parse().expect("a rate"),
+            date: date(),
+        }),
+    };
+    let mut listed = in_lei();
+    listed.unlisted = vec![unlisted];
+    assert_eq!(book_checked(listed.clone(), &Limits::default()), Ok(()));
+    // Not listed, listed twice, or listed but unused.
+    assert_eq!(book_checked(in_lei(), &Limits::default()), MALFORMED);
+    let mut twice = listed.clone();
+    twice.unlisted.push(unlisted);
+    assert_eq!(book_checked(twice, &Limits::default()), MALFORMED);
+    let mut unused = book();
+    unused.unlisted = vec![unlisted];
+    assert_eq!(book_checked(unused, &Limits::default()), MALFORMED);
+    // In other decimal places than the amounts, or replaced by a currency
+    // that isn't current.
+    let mut places = listed.clone();
+    places.unlisted[0].currency = Currency::new(code("ROL"), 0).expect("valid");
+    assert_eq!(book_checked(places, &Limits::default()), MALFORMED);
+    let mut withdrawn = listed;
+    withdrawn.unlisted[0].suggestion = Some(Replacement {
+        successor: code("DEM"),
+        ..unlisted.suggestion.expect("given")
+    });
+    assert_eq!(book_checked(withdrawn, &Limits::default()), MALFORMED);
 }
 
 #[test]

@@ -4,11 +4,11 @@
 //! Checks what an importer returns, so the import pipeline can rely on it
 //! whichever importer read the file, a plugin's included later (D-091).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{Currency, CurrencyCode, ImportedDetails, Money};
 
-use crate::book::{BookAccount, BookTransaction, ImportedBook};
+use crate::book::{BookAccount, BookTransaction, ImportedBook, Replacement};
 use crate::error::ImportError;
 use crate::importer::Imported;
 use crate::limits::Limits;
@@ -112,6 +112,33 @@ fn check_book(book: &ImportedBook, limits: &Limits) -> Result<(), ImportError> {
     }
     for rate in &book.rates {
         if rate.from == rate.to {
+            return Err(malformed());
+        }
+    }
+    // The unlisted currencies are those of the book's currencies that
+    // neither of KassenSturz's tables lists, each once, and a suggestion is
+    // a current currency (D-106).
+    let unlisted: HashSet<CurrencyCode> = book
+        .unlisted
+        .iter()
+        .map(|unlisted| unlisted.currency.code())
+        .collect();
+    let listed =
+        |code: CurrencyCode| code.iso_minor_digits().is_some() || code.withdrawn().is_some();
+    let needed: HashSet<CurrencyCode> = currencies
+        .keys()
+        .copied()
+        .filter(|&code| !listed(code))
+        .collect();
+    if unlisted.len() != book.unlisted.len() || unlisted != needed {
+        return Err(malformed());
+    }
+    for unlisted in &book.unlisted {
+        let currency = unlisted.currency;
+        let current = |suggestion: Replacement| suggestion.successor.iso_minor_digits().is_some();
+        if currencies.get(&currency.code()) != Some(&currency.minor_digits())
+            || !unlisted.suggestion.is_none_or(current)
+        {
             return Err(malformed());
         }
     }

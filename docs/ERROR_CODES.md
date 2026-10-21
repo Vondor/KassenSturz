@@ -187,6 +187,8 @@ A file from a bank or another program couldn't be read (D-091), or what it holds
 | `import.currency-mismatch` | `expected`, `found` | | The file has an amount in {found} in a statement for an account in {expected}, so its entries can't be added up. Nothing was imported. |
 | `import.account-currency-differs` | `account`, `account_currency`, `statement_currency` | | The statement is in {statement_currency}, but {account} counts in {account_currency}. Choose an account in {statement_currency}. Nothing was imported. |
 | `import.replaced-currency-differs` | `account`, `account_currency`, `statement_currency`, `successor` | | The statement is in {statement_currency}, which {successor} replaced, but {account} counts in {account_currency}. Choose an account in {successor}: the amounts are converted into it. Nothing was imported. |
+| `import.successor-needed` | `currency` | | The file uses {currency}, a currency KassenSturz doesn't know, most likely one that another currency replaced long ago. Say which current currency replaced it, at what rate and from which day, and import the file again. Nothing was imported. |
+| `import.successor-not-current` | `currency`, `successor` | | {successor} isn't a currency in use today, so {currency} can't be converted into it. Give the current currency that replaced it in the end, with the rate into that one. Nothing was imported. |
 | `import.decimal-places-differ` | `currency`, `book`, `file` | | The file counts {currency} with {file} decimal places, your book with {book}, so its amounts can't be read safely. KassenSturz never moves the decimal point of what a bank delivered, so nothing was imported. |
 
 ## Exporting files (`kassensturz-export`)

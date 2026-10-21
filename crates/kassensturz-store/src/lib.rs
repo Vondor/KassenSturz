@@ -311,7 +311,9 @@ impl Book {
     }
 
     /// Adds an account or category. Its currency must be in use in this book,
-    /// and can't be a withdrawn one, such as the German mark (D-104), unless
+    /// and can't be a withdrawn one, such as the German mark (D-104), or one
+    /// that KassenSturz's ISO 4217 table doesn't list, such as the old
+    /// Romanian leu that an imported book kept amounts in (D-106), unless
     /// the book is being filled from a complete export that had it
     /// ([`Book::fill_new`]): a book keeps its accounts in a currency that was
     /// withdrawn after it was made.
@@ -322,7 +324,9 @@ impl Book {
     /// them apart. Categories are checked when they become a tree (M1.5).
     pub fn add_account(&mut self, account: &Account) -> Result<(), StoreError> {
         self.currency_minor_digits(account.currency)?;
-        if !self.filling && account.currency.withdrawn().is_some() {
+        let current =
+            account.currency.iso_minor_digits().is_some() && account.currency.withdrawn().is_none();
+        if !self.filling && !current {
             return Err(StoreError::WithdrawnCurrency(account.currency));
         }
         self.check_account(account)?;

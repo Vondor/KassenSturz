@@ -298,6 +298,33 @@ fn a_withdrawn_currency_is_for_original_amounts_only() {
 }
 
 #[test]
+fn a_currency_neither_table_lists_is_for_original_amounts_only() {
+    // An imported book kept amounts in the old Romanian leu, which the user
+    // said the new one replaced (D-106): the book lists it, with the
+    // decimal places the file gave it, but no account can be in it.
+    let leu = CurrencyCode::new("ROL").expect("valid code");
+    let mut book = Book::create_in_memory().expect("book created");
+    book.fill_new(HistoryRetention::Days(30), |book| {
+        book.restore_currency(Currency::new(leu, 2).expect("2 places"))
+    })
+    .expect("filled");
+    assert_eq!(book.use_currency(leu).expect("listed"), 2);
+    let savings = Account {
+        id: AccountId::generate(),
+        name: "Old savings".into(),
+        kind: AccountKind::Asset,
+        currency: leu,
+        account_type: None,
+        closed: false,
+        parent: None,
+    };
+    assert!(matches!(
+        book.add_account(&savings),
+        Err(StoreError::WithdrawnCurrency(found)) if found == leu
+    ));
+}
+
+#[test]
 fn new_books_round_half_away_from_zero() {
     let book = Book::create_in_memory().expect("book created");
     assert_eq!(

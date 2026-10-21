@@ -147,6 +147,21 @@ pub enum ImportError {
         /// The currency that replaced it.
         successor: CurrencyCode,
     },
+    /// An imported book uses a currency neither of KassenSturz's tables
+    /// lists, and nobody said which current currency replaced it (D-106).
+    SuccessorNeeded {
+        /// The currency.
+        currency: CurrencyCode,
+    },
+    /// The currency said to have replaced one that neither of KassenSturz's
+    /// tables lists isn't a current one, which an account could be in
+    /// (D-106).
+    SuccessorNotCurrent {
+        /// The currency that was replaced.
+        currency: CurrencyCode,
+        /// The currency said to have replaced it.
+        successor: CurrencyCode,
+    },
     /// The file counts a currency in other decimal places than the book
     /// does (D-027), so its amounts would be read with the decimal point in
     /// another place.
@@ -184,6 +199,8 @@ impl ImportError {
             | Self::CurrencyMismatch { .. }
             | Self::AccountCurrencyDiffers { .. }
             | Self::ReplacedCurrencyDiffers { .. }
+            | Self::SuccessorNeeded { .. }
+            | Self::SuccessorNotCurrent { .. }
             | Self::DecimalPlacesDiffer { .. } => {}
         }
         self
@@ -300,6 +317,14 @@ impl Report for ImportError {
                     "statement_currency",
                     ErrorParam::Currency(*statement_currency),
                 )
+                .with("successor", ErrorParam::Currency(*successor)),
+            Self::SuccessorNeeded { currency } => ErrorReport::new("import.successor-needed")
+                .with("currency", ErrorParam::Currency(*currency)),
+            Self::SuccessorNotCurrent {
+                currency,
+                successor,
+            } => ErrorReport::new("import.successor-not-current")
+                .with("currency", ErrorParam::Currency(*currency))
                 .with("successor", ErrorParam::Currency(*successor)),
             Self::DecimalPlacesDiffer {
                 currency,

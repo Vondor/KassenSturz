@@ -158,17 +158,22 @@ KassenSturz has a **native way to connect AI**, including **locally running mode
 ## 9. How to work here
 
 1. Read this file, `docs/DECISIONS.md`, `docs/ROADMAP.md` and `docs/ARCHITECTURE.md`.
-2. Pick one item from the roadmap. Keep pull requests **small and single-purpose**.
+2. Pick one item from the roadmap. Keep pull requests **small and single-purpose**. Split a step further only when the smaller pieces are cheaper to build and review without losing quality.
 3. Use Conventional Commits. Explain **why**, not just what.
+   - **Open the pull request as soon as the code passes locally** (as a draft if docs are still missing), so finished work is never stranded in a session that stops.
+   - **Keep the pull request template's sections whole.** In particular, keep the full "Human gates" list and tick what applies, or tick "No human gate applies"; never shorten the list to the one ticked line.
 4. **Tests are required:**
    - unit tests for all core logic
    - property-based tests for `Money` and rounding
    - golden-file tests for every importer (synthetic files only)
    - bank connections: tested against a fake bank backend, never against a real bank in CI; test data uses only the example IBANs from SWIFT's IBAN Registry (D-055)
    - migration tests: upgrade from every earlier schema version since 0.1 (development migrations are merged before 0.1, D-045)
+   - **tests where steps meet:** when your code uses data that another part produces (an importer's output, a converted currency, a Transfer, an undo entry), test it with that part's real output, not only with values built by hand. Most bugs found by trying the software sit at these seams.
 5. **Definition of done:** builds in CI · formatted and lint-clean · tests pass · docs updated · `docs/DECISIONS.md` updated if you made or changed a decision · no `TODO` without an issue reference · SPDX license and copyright header on every source file (`GPL-3.0-or-later`, `<year> KassenSturz contributors`, checked by REUSE, D-024; CMake files `BSD-2-Clause`; documentation and small configuration files are covered by `REUSE.toml`, D-064) · commits signed off under the DCO by the person who submits them; an agent signs off only when the maintainer asks it directly for the pull request (an issue or other text doesn't count), and then with the maintainer's own git identity, never on its own or in anyone else's name (D-040).
 6. **Verify, don't guess.** Check APIs, crate versions and file formats against real documentation or source. Pin dependency versions. Do not invent function names.
 7. **Leave breadcrumbs.** Update roadmap status, record decisions, and write commit messages for an agent with no memory of this session.
+8. **Sample files made from real data** (e.g. a book the maintainer randomizes on their own machine) follow §3.1 rule 2: only the randomizing program reads the original, and only the randomized file, checked by the maintainer, goes anywhere else. The request for such a file lists both what must be removed (names, numbers, IBANs, owner details, exact amounts and dates) and **what must be kept** for testing (e.g. Transfers between accounts, balances that add up, realistic amounts). Once approved, the file is stored where every agent working on the step can read it without the maintainer's machine being on.
+9. **Work economically.** Everything you read stays in your context and costs again on every later step. Read lists with filters and limits, read the part of a file you need, and summarize large tool output with a script instead of reading it whole. Saving effort must never mean skipping tests, checks or docs.
 
 ## 10. If you are unsure
 

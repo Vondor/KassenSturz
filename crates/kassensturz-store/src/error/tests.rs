@@ -131,7 +131,9 @@ fn examples() -> Vec<ErrorReport> {
         Corruption::BadRuleTree(rule),
     ];
     let store_errors = [
-        StoreError::AlreadyExists,
+        StoreError::AlreadyExists {
+            file: "Household.ksz".to_owned(),
+        },
         StoreError::NotFound,
         StoreError::NotEmpty,
         StoreError::NotABook,

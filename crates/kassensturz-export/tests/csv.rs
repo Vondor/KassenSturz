@@ -11,13 +11,17 @@ use std::path::PathBuf;
 use kassensturz_core::{CurrencyCode, Date, Money};
 use kassensturz_export::{
     AccountTransactions, Counterpart, CsvExport, CsvExportSettings, DecimalMark, ExportData,
-    ExportError, ExportKind, Exporter, ExporterInfo, Separator, TransactionRow, export,
-    export_file,
+    ExportError, ExportKind, Exporter, ExporterInfo, OriginalRow, Separator, TransactionRow,
+    export, export_file,
 };
 
 const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
     Err(_) => panic!("EUR is a valid code"),
+};
+const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
+    Ok(code) => code,
+    Err(_) => panic!("DEM is a valid code"),
 };
 const JPY: CurrencyCode = match CurrencyCode::new("JPY") {
     Ok(code) => code,
@@ -37,6 +41,7 @@ fn row(
         counterpart,
         memo: memo.map(str::to_owned),
         amount,
+        original: None,
     }
 }
 
@@ -81,6 +86,20 @@ fn sample() -> ExportData {
                     eur(-1),
                 ),
                 row(9, Some("Refund"), Counterpart::Uncategorized, None, eur(0)),
+                // Converted from German marks at 1 EUR = 1.95583 DEM.
+                TransactionRow {
+                    original: Some(OriginalRow {
+                        amount: Money::from_minor_units(-19_558, DEM),
+                        minor_digits: 2,
+                    }),
+                    ..row(
+                        11,
+                        Some("Kiosk"),
+                        Counterpart::Uncategorized,
+                        None,
+                        eur(-1_000),
+                    )
+                },
             ],
         },
         AccountTransactions {
@@ -173,7 +192,9 @@ fn a_file_is_written_once_and_never_overwritten() {
     fs::write(&path, b"mine").expect("changed");
     assert_eq!(
         export_file(&CsvExport::default(), &sample(), &path),
-        Err(ExportError::AlreadyExists)
+        Err(ExportError::AlreadyExists {
+            file: path.display().to_string()
+        })
     );
     assert_eq!(fs::read(&path).expect("kept"), b"mine");
 }

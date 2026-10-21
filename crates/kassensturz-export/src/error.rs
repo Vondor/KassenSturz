@@ -21,7 +21,10 @@ pub enum ExportError {
     Io(ErrorKind),
     /// A file with that name exists already. An export never overwrites a
     /// file.
-    AlreadyExists,
+    AlreadyExists {
+        /// The path of the file, as given.
+        file: String,
+    },
     /// The settings for writing a file contradict each other.
     BadSettings,
     /// A row's amount is in another currency than its account.
@@ -163,10 +166,7 @@ impl Expected {
 
 impl From<std::io::Error> for ExportError {
     fn from(error: std::io::Error) -> Self {
-        match error.kind() {
-            ErrorKind::AlreadyExists => Self::AlreadyExists,
-            kind => Self::Io(kind),
-        }
+        Self::Io(error.kind())
     }
 }
 
@@ -176,7 +176,8 @@ impl Report for ExportError {
             Self::Io(kind) => {
                 ErrorReport::new("export.io").with("kind", ErrorParam::Keyword(io_keyword(*kind)))
             }
-            Self::AlreadyExists => ErrorReport::new("export.already-exists"),
+            Self::AlreadyExists { file } => ErrorReport::new("export.already-exists")
+                .with("file", ErrorParam::Text(file.clone())),
             Self::BadSettings => ErrorReport::new("export.bad-settings"),
             Self::CurrencyMismatch { expected, found } => {
                 ErrorReport::new("export.currency-mismatch")

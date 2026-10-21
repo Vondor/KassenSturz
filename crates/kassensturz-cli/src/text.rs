@@ -12,6 +12,11 @@ pub(crate) fn plain(text: &str) -> String {
         .collect()
 }
 
+/// `count` with its noun in the right number: `1 entry`, `2 entries`.
+pub(crate) fn counted(count: usize, singular: &str, plural: &str) -> String {
+    format!("{count} {}", if count == 1 { singular } else { plural })
+}
+
 /// Writes rows as a table: every column as wide as its widest entry, columns
 /// separated by two spaces, no trailing spaces. The first row is the header.
 pub(crate) fn table(rows: &[Vec<String>], right_aligned: &[usize]) -> String {

@@ -883,11 +883,11 @@ fn a_statement_file_is_imported_once_and_undone_as_a_whole() {
         ["Entry", "Date", "Payee", "Amount"]
     );
     assert!(
-        preview.contains("Left out 1 the bank hasn't booked yet: 1.3.\n"),
+        preview.contains("Left out 1 entry the bank hasn't booked yet: 1.3.\n"),
         "{preview}"
     );
     assert!(
-        preview.contains("Left out 1 that may be in the book already."),
+        preview.contains("Left out 1 entry that may be in the book already."),
         "{preview}"
     );
     let similar = lines
@@ -923,7 +923,7 @@ fn a_statement_file_is_imported_once_and_undone_as_a_whole() {
         "{again}"
     );
     assert!(
-        again.contains("Skipped 2 already in the book: 1.1, 1.4.\n"),
+        again.contains("Skipped 2 entries already in the book: 1.1, 1.4.\n"),
         "{again}"
     );
     // The bakery was already typed in; importing it anyway counts it twice,
@@ -994,7 +994,7 @@ fn a_camt053_file_goes_through_the_whole_pipeline() {
         "{imported}"
     );
     assert!(
-        imported.contains("Left out 1 the bank hasn't booked yet: 1.2.\n"),
+        imported.contains("Left out 1 entry the bank hasn't booked yet: 1.2.\n"),
         "{imported}"
     );
     assert!(
@@ -1006,7 +1006,7 @@ fn a_camt053_file_goes_through_the_whole_pipeline() {
     // The bank's references recognize the entries the second time.
     let again = session.ok(&["import", &file, "--account", "Checking account"]);
     assert!(
-        again.contains("Skipped 2 already in the book: 1.1, 1.3.\n"),
+        again.contains("Skipped 2 entries already in the book: 1.1, 1.3.\n"),
         "{again}"
     );
     assert_eq!(register(), before + 2);
@@ -1074,7 +1074,7 @@ fn an_mt940_file_goes_through_the_whole_pipeline() {
     // The bank's references recognize the entries the second time.
     let again = session.ok(&["import", &file, "--account", "Checking account"]);
     assert!(
-        again.contains("Skipped 2 already in the book: 1.1, 1.2.\n"),
+        again.contains("Skipped 2 entries already in the book: 1.1, 1.2.\n"),
         "{again}"
     );
     assert_eq!(register(), before + 2);
@@ -1156,7 +1156,7 @@ fn an_ofx_file_goes_through_the_whole_pipeline() {
     // The bank's transaction IDs recognize the entries the second time.
     let again = session.ok(&["import", &file, "--account", "Checking account"]);
     assert!(
-        again.contains("Skipped 2 already in the book: 1.1, 1.2.\n"),
+        again.contains("Skipped 2 entries already in the book: 1.1, 1.2.\n"),
         "{again}"
     );
     assert_eq!(register(), before + 2);
@@ -1252,7 +1252,7 @@ fn a_csv_file_is_read_with_its_settings() {
     assert!(
         imported
             .out
-            .contains("Left out 1 the bank hasn't booked yet: 1.2.\n"),
+            .contains("Left out 1 entry the bank hasn't booked yet: 1.2.\n"),
         "{}",
         imported.out
     );
@@ -1269,7 +1269,7 @@ fn a_csv_file_is_read_with_its_settings() {
     assert!(
         again
             .out
-            .contains("Left out 2 that may be in the book already."),
+            .contains("Left out 2 entries that may be in the book already."),
         "{}",
         again.out
     );
@@ -1772,7 +1772,14 @@ fn creating_a_book_never_replaces_an_existing_file() {
     session.ok(&["create"]);
     let again = session.cli(&["create"]);
     assert_eq!(again.status, 1);
-    assert_eq!(again.err, "error: store.already-exists\n");
+    assert_eq!(
+        again.err,
+        // Text is shown quoted and escaped, also a Windows path's backslashes.
+        format!(
+            "error: store.already-exists\n  file: {:?}\n",
+            session.book().display().to_string()
+        )
+    );
     let missing = run_line(
         &[
             "--book".into(),
@@ -1912,13 +1919,13 @@ fn transactions_are_exported_as_csv_into_a_new_file() {
     let csv = std::fs::read_to_string(&file).expect("file written");
     assert_eq!(
         csv,
-        "date,account,payee,category,transfer,memo,amount,currency,parts\r\n\
-         2026-10-01,Checking account,Employer,Salary,,,2500.00,EUR,\r\n\
-         2026-10-05,Checking account,\"'=HYPERLINK(\"\"x\"\")\",Food/Groceries,,,-12.50,EUR,\r\n\
-         2026-10-06,Checking account,,,Savings,,-300.00,EUR,\r\n\
-         2026-10-07,Checking account,Market,,,,-40.00,EUR,2\r\n\
-         2026-10-08,Checking account,Kiosk,,,,-1.00,EUR,\r\n\
-         2026-10-06,Savings,,,Checking account,,300.00,EUR,\r\n"
+        "date,account,payee,category,transfer,memo,amount,currency,parts,original_amount,original_currency\r\n\
+         2026-10-01,Checking account,Employer,Salary,,,2500.00,EUR,,,\r\n\
+         2026-10-05,Checking account,\"'=HYPERLINK(\"\"x\"\")\",Food/Groceries,,,-12.50,EUR,,,\r\n\
+         2026-10-06,Checking account,,,Savings,,-300.00,EUR,,,\r\n\
+         2026-10-07,Checking account,Market,,,,-40.00,EUR,2,,\r\n\
+         2026-10-08,Checking account,Kiosk,,,,-1.00,EUR,,,\r\n\
+         2026-10-06,Savings,,,Checking account,,300.00,EUR,,,\r\n"
     );
 
     // One account, with Excel-friendly settings.
@@ -1938,13 +1945,16 @@ fn transactions_are_exported_as_csv_into_a_new_file() {
     ]);
     assert_eq!(
         std::fs::read(&one).expect("file written"),
-        "\u{feff}2026-10-06;Savings;;;Checking account;;300,00;EUR;\r\n".as_bytes()
+        "\u{feff}2026-10-06;Savings;;;Checking account;;300,00;EUR;;;\r\n".as_bytes()
     );
 
     // A file is never overwritten.
     let again = session.cli(&["export", &file_text]);
     assert_eq!(again.status, 1);
-    assert_eq!(again.err, "error: export.already-exists\n");
+    assert_eq!(
+        again.err,
+        format!("error: export.already-exists\n  file: {file_text:?}\n")
+    );
     assert_eq!(std::fs::read_to_string(&file).expect("kept"), csv);
 
     // Mistakes in the command, and a comma that is both separator and mark.
@@ -2276,7 +2286,7 @@ fn a_kmymoney_file_in_marks_comes_in_in_euros() {
     assert_eq!(
         session.ok(&["create", "--from", &file]),
         format!(
-            "Created the book from {file}: 2 accounts, 1 categories, 2 transactions, 0 rates.\n\
+            "Created the book from {file}: 2 accounts, 1 category, 2 transactions, 0 rates.\n\
              Converted DEM into EUR, which replaced it at 1 EUR = 1.95583 DEM on 1999-01-01: \
              1 accounts and categories, 4 parts. Each part keeps its amount in DEM.\n"
         )
@@ -2355,9 +2365,9 @@ fn a_kmymoney_file_says_which_transactions_have_no_category_and_which_didnt_add_
     assert_eq!(
         session.ok(&["create", "--from", &file]),
         format!(
-            "Created the book from {file}: 1 accounts, 1 categories, 3 transactions, 0 rates.\n\
+            "Created the book from {file}: 1 account, 1 category, 3 transactions, 0 rates.\n\
              2 transactions have no category yet, as in the file.\n\
-             1 transactions didn't add up in the file and got a part without a category \
+             1 transaction didn't add up in the file and got a part without a category \
              for the rest.\n"
         )
     );
@@ -2463,7 +2473,7 @@ fn a_kmymoney_file_in_a_currency_no_table_lists_needs_its_successor() {
             "ROL=RON:10000:2005-07-01"
         ]),
         format!(
-            "Created the book from {file}: 2 accounts, 1 categories, 1 transactions, 0 rates.\n\
+            "Created the book from {file}: 2 accounts, 1 category, 1 transaction, 0 rates.\n\
              Converted ROL into RON, which replaced it at 1 RON = 10000 ROL on 2005-07-01: \
              2 accounts and categories, 2 parts. Each part keeps its amount in ROL.\n\
              Not imported, because KassenSturz can't hold it yet:\n  \

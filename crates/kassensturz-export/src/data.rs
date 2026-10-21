@@ -51,6 +51,20 @@ pub struct TransactionRow {
     /// positive amounts came in, negative ones went out. The amounts of an
     /// account's rows add up to its balance.
     pub amount: Money,
+    /// The amount before it was converted from a withdrawn currency, such as
+    /// German marks, if it was (D-104). It is in that currency and has the
+    /// sign of `amount`.
+    pub original: Option<OriginalRow>,
+}
+
+/// A row's amount in the currency it was converted from.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OriginalRow {
+    /// The amount, in the withdrawn currency.
+    pub amount: Money,
+    /// The decimal places that currency had (D-104), so the amount is
+    /// written exactly as stored.
+    pub minor_digits: u8,
 }
 
 /// What the other side of a transaction, seen from an account, is.
@@ -99,6 +113,16 @@ impl ExportData {
                         return Err(crate::ExportError::CurrencyMismatch {
                             expected: account.currency,
                             found: row.amount.currency(),
+                        });
+                    }
+                    if let Some(original) = account.rows.iter().find_map(|row| {
+                        row.original
+                            .as_ref()
+                            .filter(|original| original.minor_digits > MAX_MINOR_DIGITS)
+                    }) {
+                        return Err(crate::ExportError::BadDecimalPlaces {
+                            currency: original.amount.currency(),
+                            digits: original.minor_digits,
                         });
                     }
                 }

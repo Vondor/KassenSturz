@@ -8,7 +8,7 @@ use kassensturz_core::{CurrencyCode, Date, Money};
 use proptest::prelude::*;
 
 use super::*;
-use crate::export;
+use crate::{OriginalRow, export};
 
 const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
@@ -26,6 +26,7 @@ fn row(minor: i64, payee: Option<&str>) -> TransactionRow {
         counterpart: Counterpart::Uncategorized,
         memo: None,
         amount: Money::from_minor_units(minor, EUR),
+        original: None,
     }
 }
 
@@ -70,7 +71,7 @@ fn a_decimal_comma_replaces_the_point_only() {
     };
     let text = csv(settings, &account(vec![row(-1250, Some("Shop; Co"))]));
     assert!(
-        text.ends_with("2026-10-05;Checking;\"Shop; Co\";;;;-12,50;EUR;\r\n"),
+        text.ends_with("2026-10-05;Checking;\"Shop; Co\";;;;-12,50;EUR;;;\r\n"),
         "{text}"
     );
 }
@@ -91,7 +92,7 @@ fn fields_with_quotes_and_line_breaks_are_quoted_as_rfc_4180_says() {
     let text = csv(CsvExportSettings::default(), &account(vec![transaction]));
     assert!(
         text.ends_with(
-            "2026-10-05,Checking,\"The \"\"Corner\"\" Shop\",,,\"line one\nline two\",1.00,EUR,\r\n"
+            "2026-10-05,Checking,\"The \"\"Corner\"\" Shop\",,,\"line one\nline two\",1.00,EUR,,,\r\n"
         ),
         "{text:?}"
     );
@@ -128,7 +129,7 @@ fn the_header_and_byte_order_mark_are_optional() {
     let data = account(vec![row(100, None)]);
     let plain = csv(CsvExportSettings::default(), &data);
     assert!(
-        plain.starts_with("date,account,payee,category,transfer,memo,amount,currency,parts\r\n")
+        plain.starts_with("date,account,payee,category,transfer,memo,amount,currency,parts,original_amount,original_currency\r\n")
     );
     let bare = csv(
         CsvExportSettings {
@@ -138,7 +139,7 @@ fn the_header_and_byte_order_mark_are_optional() {
         },
         &data,
     );
-    assert_eq!(bare, "\u{feff}2026-10-05,Checking,,,,,1.00,EUR,\r\n");
+    assert_eq!(bare, "\u{feff}2026-10-05,Checking,,,,,1.00,EUR,,,\r\n");
 }
 
 #[test]
@@ -169,7 +170,7 @@ fn counterparts_fill_their_own_columns() {
         };
         assert_eq!(
             text,
-            format!("2026-10-05,Checking,Shop,{columns}-1.00,EUR,{parts}\r\n"),
+            format!("2026-10-05,Checking,Shop,{columns}-1.00,EUR,{parts},,\r\n"),
             "{counterpart:?}"
         );
     }
@@ -203,7 +204,56 @@ fn accounts_follow_each_other_and_keep_their_own_currency() {
     );
     assert_eq!(
         text,
-        "2026-10-05,Checking,,,,,1.00,EUR,\r\n2026-10-05,Wallet,,,,,-500,JPY,\r\n"
+        "2026-10-05,Checking,,,,,1.00,EUR,,,\r\n2026-10-05,Wallet,,,,,-500,JPY,,,\r\n"
+    );
+}
+
+#[test]
+fn an_amount_converted_from_a_withdrawn_currency_keeps_its_original() {
+    const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
+        Ok(code) => code,
+        Err(_) => panic!("DEM is a valid code"),
+    };
+    let converted = TransactionRow {
+        original: Some(OriginalRow {
+            amount: Money::from_minor_units(-19_558, DEM),
+            minor_digits: 2,
+        }),
+        ..row(-1_000, Some("Kiosk"))
+    };
+    let settings = CsvExportSettings {
+        header: false,
+        decimal_mark: DecimalMark::Comma,
+        separator: Separator::Semicolon,
+        ..CsvExportSettings::default()
+    };
+    let text = csv(settings, &account(vec![converted, row(-5, None)]));
+    assert_eq!(
+        text,
+        "2026-10-05;Checking;Kiosk;;;;-10,00;EUR;;-195,58;DEM\r\n\
+         2026-10-05;Checking;;;;;-0,05;EUR;;;\r\n"
+    );
+}
+
+#[test]
+fn an_original_with_too_many_decimal_places_is_refused() {
+    const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
+        Ok(code) => code,
+        Err(_) => panic!("DEM is a valid code"),
+    };
+    let converted = TransactionRow {
+        original: Some(OriginalRow {
+            amount: Money::from_minor_units(-1, DEM),
+            minor_digits: 19,
+        }),
+        ..row(-1, None)
+    };
+    assert_eq!(
+        export(&CsvExport::default(), &account(vec![converted])),
+        Err(ExportError::BadDecimalPlaces {
+            currency: DEM,
+            digits: 19
+        })
     );
 }
 
@@ -212,7 +262,7 @@ fn an_account_without_rows_gives_only_the_header() {
     let text = csv(CsvExportSettings::default(), &account(Vec::new()));
     assert_eq!(
         text,
-        "date,account,payee,category,transfer,memo,amount,currency,parts\r\n"
+        "date,account,payee,category,transfer,memo,amount,currency,parts,original_amount,original_currency\r\n"
     );
 }
 

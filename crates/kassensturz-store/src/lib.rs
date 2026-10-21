@@ -90,7 +90,9 @@ impl Book {
             .create_new(true)
             .open(&path)
             .map_err(|error| match error.kind() {
-                ErrorKind::AlreadyExists => StoreError::AlreadyExists,
+                ErrorKind::AlreadyExists => StoreError::AlreadyExists {
+                    file: path.display().to_string(),
+                },
                 kind => StoreError::Io(kind),
             })?;
         let book = Self::create_at(&path, computer);

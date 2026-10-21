@@ -20,7 +20,10 @@ use crate::layout;
 pub enum StoreError {
     /// Creating a book failed because something is at the path already. It was
     /// left untouched.
-    AlreadyExists,
+    AlreadyExists {
+        /// The path of the file, made absolute.
+        file: String,
+    },
     /// Opening a book failed because there's no file at the path.
     NotFound,
     /// Only a new, empty book can be filled in one go
@@ -303,7 +306,9 @@ impl Report for StoreError {
         use ErrorParam as P;
         let new = ErrorReport::new;
         match self {
-            Self::AlreadyExists => new("store.already-exists"),
+            Self::AlreadyExists { file } => {
+                new("store.already-exists").with("file", P::Text(file.clone()))
+            }
             Self::NotFound => new("store.not-found"),
             Self::NotEmpty => new("store.book-not-empty"),
             Self::NotABook => new("store.not-a-book"),

@@ -6,6 +6,9 @@ Cargo.lock.bak
 # Cargo's downloads when building in the KDE SDK with tools/sdk.sh
 /.sdk-cache/
 
+# Cargo's folder in the Kubuntu and Fedora CI jobs (D-110)
+/.cargo-home/
+
 # flatpak-builder's state
 /.flatpak-builder/
 

@@ -8,7 +8,46 @@ on:
 permissions:
   contents: read
 
+# Order of work (D-110): the quick checks (REUSE, DCO, licenses, formatting) run
+# first and take about a minute, so the common mistakes show up before any slow
+# job has started; the slow jobs wait for them and then run side by side. A pull
+# request that only changes documentation skips the slow jobs: a job skipped by
+# its own `if` counts as passed for branch protection, so the checks it requires
+# still report (a workflow-level `paths-ignore` would leave them pending forever).
 jobs:
+  # Decides whether the slow jobs have anything to build. Everything that isn't
+  # plainly documentation counts as code, and so does every push to main.
+  changes:
+    name: What changed
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          code=true
+          if [ "$EVENT" = pull_request ]; then
+            files=$(git diff --name-only "$BASE...$HEAD")
+            # docs/ERROR_CODES.md is compiled into the tests of kassensturz-store,
+            # so it's code. The other documentation, the licenses, the GitHub
+            # templates and the Markdown files in the top folder are not.
+            not_docs=$(grep -Ev '^(docs/|LICENSES/|[^/]+\.md$|REUSE\.toml$|CODEOWNERS$|\.github/ISSUE_TEMPLATE/|\.github/PULL_REQUEST_TEMPLATE\.md$)' <<< "$files" || true)
+            error_codes=$(grep -x 'docs/ERROR_CODES.md' <<< "$files" || true)
+            if [ -n "$files" ] && [ -z "$not_docs$error_codes" ]; then
+              code=false
+            fi
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Slow jobs needed: $code"
+
   reuse:
     name: REUSE (SPDX headers, D-024)
     runs-on: ubuntu-latest
@@ -20,15 +59,18 @@ jobs:
       - run: pip install "reuse==6.2.0"
       - run: reuse lint
 
+  # Runs on pushes too, with nothing to check, so that the slow jobs can wait
+  # for it (a job that was skipped would skip them as well).
   dco:
     name: DCO sign-off (D-040)
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request'
         with:
           fetch-depth: 0
       - name: Check every commit in this PR is signed off by its author or committer
+        if: github.event_name == 'pull_request'
         run: |
           set -euo pipefail
           base="${{ github.event.pull_request.base.sha }}"
@@ -47,24 +89,59 @@ jobs:
           done
           exit $missing
 
+  # Formatting needs nothing but rustfmt, so it runs on its own and answers in
+  # seconds instead of waiting for the KDE container. The Rust extension in the
+  # SDK ships the same release (D-073), so both format alike.
+  fmt:
+    name: Rust formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal --component rustfmt
+          rustup default 1.98.1
+      - run: cargo fmt --all --check
+
   # Formatting, lints and tests run in the same KDE Flatpak SDK with the Rust
   # extension that developers use through tools/sdk.sh (D-063).
   rust:
     name: Rust format, lints and tests (KDE SDK, D-063)
     runs-on: ubuntu-latest
+    needs: [changes, reuse, dco, licenses, fmt]
+    if: needs.changes.outputs.code == 'true'
     container:
       # The KDE Flatpak runtime and SDK 6.11, pinned (D-025).
       image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11@sha256:b0a8a2acb9e420dd0e3e083ff552bea5a817e17e41532f1d2287ff49ef9aae0e
       options: --privileged
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the Rust SDK extension
+        run: flatpak install -y --noninteractive flathub org.freedesktop.Sdk.Extension.rust-stable//25.08
+      # Cargo's downloads and build output are kept between runs, per Rust
+      # release and Cargo.lock (D-110). Without incremental builds, which a
+      # cache wouldn't use again, the saved folder stays smaller.
+      - name: Set up Cargo's cache
+        id: rustc
+        run: |
+          mkdir -p .sdk-cache/cargo
+          printf '[build]\nincremental = false\n' > .sdk-cache/cargo/config.toml
+          echo "version=$(tools/sdk.sh rustc --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+      - name: Restore Cargo's cache
+        id: cargo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .sdk-cache/cargo/registry
+            .sdk-cache/cargo/git
+            target
+          key: cargo-kde-sdk-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-kde-sdk-${{ steps.rustc.outputs.version }}-
       # The runner creates the workspace as its own user, and bubblewrap drops
       # all capabilities in the Flatpak sandbox, so root in there can only
       # write where it owns the files, e.g. Cargo's target directory.
       - name: Give the checkout to the container's user
         run: chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
-      - name: Install the Rust SDK extension
-        run: flatpak install -y --noninteractive flathub org.freedesktop.Sdk.Extension.rust-stable//25.08
       - name: Formatting
         run: tools/sdk.sh cargo fmt --all --check
       - name: Lints
@@ -75,6 +152,16 @@ jobs:
         run: tools/sdk.sh cargo test --package kassensturz-store --no-default-features --locked
       - name: Translations are valid
         run: tools/sdk.sh sh -c 'for po in po/*/kassensturz.po; do msgfmt --check --output-file=/dev/null "$po"; done'
+      # Saved even when a check failed, so the next push doesn't start cold.
+      - name: Save Cargo's cache
+        if: ${{ !cancelled() && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .sdk-cache/cargo/registry
+            .sdk-cache/cargo/git
+            target
+          key: cargo-kde-sdk-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
 
   # Windows is the next platform after KDE Plasma and GNOME (D-006). Qt and
   # KDE Frameworks aren't set up on this runner yet, so it covers everything
@@ -84,6 +171,8 @@ jobs:
   windows:
     name: Windows lints and tests (D-090)
     runs-on: windows-latest
+    needs: [changes, reuse, dco, licenses, fmt]
+    if: needs.changes.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Rust
@@ -103,6 +192,8 @@ jobs:
   macos:
     name: macOS lints and tests (D-090)
     runs-on: macos-latest
+    needs: [changes, reuse, dco, licenses, fmt]
+    if: needs.changes.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Rust
@@ -123,11 +214,14 @@ jobs:
   kubuntu:
     name: Kubuntu 26.10 with distribution packages (D-094)
     runs-on: ubuntu-latest
+    needs: [changes, reuse, dco, licenses, fmt]
+    if: needs.changes.outputs.code == 'true'
     container:
       image: ubuntu:26.10@sha256:93e29beff5257b2cdf1c024d831f6d2997e53655a653ff76a811fc9e6564a719
     env:
       DEBIAN_FRONTEND: noninteractive
       QT_QPA_PLATFORM: offscreen
+      CARGO_INCREMENTAL: "0"
     steps:
       - name: Install the distribution's build tools, Qt, KDE Frameworks and SQLite
         run: |
@@ -138,10 +232,29 @@ jobs:
             qml6-module-org-kde-desktop qml6-module-org-kde-ki18n qml6-module-org-kde-kirigami \
             qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools rustup
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # In a container, `github.workspace` is the runner's path, not the
+      # container's, so Cargo's folder is named here.
+      - name: Keep Cargo's files in the workspace, where the cache reaches them
+        run: echo "CARGO_HOME=$GITHUB_WORKSPACE/.cargo-home" >> "$GITHUB_ENV"
       - name: Install Rust
         run: |
           rustup toolchain install 1.98.1 --profile minimal
           rustup default 1.98.1
+      - name: Remember the Rust version, for the cache's name
+        id: rustc
+        run: echo "version=$(rustc --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+      # Cargo's downloads and build output are kept between runs (D-110).
+      - name: Restore Cargo's cache
+        id: cargo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .cargo-home/registry
+            .cargo-home/git
+            build/cmake/cargo
+            target
+          key: cargo-kubuntu-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-kubuntu-${{ steps.rustc.outputs.version }}-
       # Kubuntu 26.10 has Qt 6.11.2 and KDE Frameworks 6.29.0, the minimums in
       # CMakeLists.txt (D-094). It uses the system's SQLite (D-061).
       - name: Configure
@@ -161,6 +274,16 @@ jobs:
           status=0
           timeout 10 build/stage/usr/bin/kassensturz || status=$?
           test "$status" -eq 124
+      - name: Save Cargo's cache
+        if: ${{ !cancelled() && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .cargo-home/registry
+            .cargo-home/git
+            build/cmake/cargo
+            target
+          key: cargo-kubuntu-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
 
   # The same build with Fedora's packages, groundwork for an RPM (D-097).
   # Fedora 44 is the current stable release; Fedora 45 is not out yet. Qt, KDE
@@ -170,10 +293,13 @@ jobs:
   fedora:
     name: Fedora 44 with distribution packages (D-097)
     runs-on: ubuntu-latest
+    needs: [changes, reuse, dco, licenses, fmt]
+    if: needs.changes.outputs.code == 'true'
     container:
       image: fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
     env:
       QT_QPA_PLATFORM: offscreen
+      CARGO_INCREMENTAL: "0"
     steps:
       - name: Install the distribution's build tools, Qt, KDE Frameworks and SQLite
         run: |
@@ -184,12 +310,31 @@ jobs:
             pkgconf-pkg-config qt6-qtbase-devel qt6-qtdeclarative \
             qt6-qtdeclarative-devel rustup sqlite-devel tar
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # In a container, `github.workspace` is the runner's path, not the
+      # container's, so Cargo's folder is named here.
+      - name: Keep Cargo's files in the workspace, where the cache reaches them
+        run: echo "CARGO_HOME=$GITHUB_WORKSPACE/.cargo-home" >> "$GITHUB_ENV"
       # Fedora's rustup package only has the installer, which puts cargo and
-      # rustc in ~/.cargo/bin.
+      # rustc in $CARGO_HOME/bin.
       - name: Install Rust
         run: |
           rustup-init -y --profile minimal --default-toolchain 1.98.1
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
+      - name: Remember the Rust version, for the cache's name
+        id: rustc
+        run: echo "version=$("$CARGO_HOME/bin/rustc" --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+      # Cargo's downloads and build output are kept between runs (D-110).
+      - name: Restore Cargo's cache
+        id: cargo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .cargo-home/registry
+            .cargo-home/git
+            build/cmake/cargo
+            target
+          key: cargo-fedora-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-fedora-${{ steps.rustc.outputs.version }}-
       # Fedora 44 has Qt 6.11 and KDE Frameworks 6.29 or newer, the minimums in
       # CMakeLists.txt (D-094). It uses the system's SQLite (D-061).
       - name: Configure
@@ -209,6 +354,16 @@ jobs:
           status=0
           timeout 10 build/stage/usr/bin/kassensturz || status=$?
           test "$status" -eq 124
+      - name: Save Cargo's cache
+        if: ${{ !cancelled() && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .cargo-home/registry
+            .cargo-home/git
+            build/cmake/cargo
+            target
+          key: cargo-fedora-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
 
   licenses:
     name: Dependency licenses and sources (D-026)
@@ -225,6 +380,8 @@ jobs:
   flatpak:
     name: Flatpak (D-068)
     runs-on: ubuntu-latest
+    needs: [changes, reuse, dco, licenses, fmt]
+    if: needs.changes.outputs.code == 'true'
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11@sha256:b0a8a2acb9e420dd0e3e083ff552bea5a817e17e41532f1d2287ff49ef9aae0e
       options: --privileged
@@ -234,4 +391,6 @@ jobs:
         with:
           manifest-path: packaging/flatpak/io.github.vondor.KassenSturz.yml
           bundle: KassenSturz.flatpak
-          cache-key: flatpak-builder-${{ github.sha }}
+          # Stable across commits, so Cargo's source downloads are reused; it
+          # changes with the manifest and cargo-sources.json (D-110).
+          cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/**') }}

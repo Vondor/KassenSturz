@@ -1747,9 +1747,10 @@ fn creating_a_book_never_replaces_an_existing_file() {
     assert_eq!(again.status, 1);
     assert_eq!(
         again.err,
+        // Text is shown quoted and escaped, also a Windows path's backslashes.
         format!(
-            "error: store.already-exists\n  file: \"{}\"\n",
-            session.book().display()
+            "error: store.already-exists\n  file: {:?}\n",
+            session.book().display().to_string()
         )
     );
     let missing = run_line(
@@ -1925,7 +1926,7 @@ fn transactions_are_exported_as_csv_into_a_new_file() {
     assert_eq!(again.status, 1);
     assert_eq!(
         again.err,
-        format!("error: export.already-exists\n  file: \"{file_text}\"\n")
+        format!("error: export.already-exists\n  file: {file_text:?}\n")
     );
     assert_eq!(std::fs::read_to_string(&file).expect("kept"), csv);
 

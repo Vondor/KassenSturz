@@ -34,9 +34,9 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 12] = [
+pub(crate) const MIGRATIONS: [&str; 13] = [
     LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4, LAYOUT_5, LAYOUT_6, LAYOUT_7, LAYOUT_8, LAYOUT_9,
-    LAYOUT_10, LAYOUT_11, LAYOUT_12,
+    LAYOUT_10, LAYOUT_11, LAYOUT_12, LAYOUT_13,
 ];
 
 /// The layout version the first migration creates.
@@ -530,6 +530,13 @@ ALTER TABLE changed_splits ADD COLUMN own_date TEXT;
 ALTER TABLE changed_splits ADD COLUMN own_payee TEXT;
 ";
 
+/// Layout 13 (#51): a change keeps the name of the file it read, such as the
+/// statement file of an import, without its folder, so undo can say which
+/// import it takes back (D-109, Q-070). Changes made before have none.
+const LAYOUT_13: &str = "
+ALTER TABLE changes ADD COLUMN file_name TEXT;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -749,8 +756,8 @@ mod tests {
 
     #[test]
     fn changes_made_before_changes_was_rebuilt_can_still_be_undone() {
-        // Layouts 8, 9 and 10 rebuild `changes`; what a book recorded
-        // before stays.
+        // Layouts 8, 9 and 10 rebuild `changes`, and layout 13 adds a
+        // column to it; what a book recorded before stays.
         for version in 7..VERSION {
             undo_after_update(version);
         }
@@ -785,6 +792,7 @@ mod tests {
         let history = book.history().expect("history");
         assert_eq!(history.len(), 1);
         assert_eq!(history[0].action, crate::Action::RenameAccount);
+        assert_eq!(history[0].file_name, None);
         book.undo().expect("undone");
         assert_eq!(
             book.account(checking).expect("account").name,

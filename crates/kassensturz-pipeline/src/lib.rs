@@ -52,6 +52,7 @@ mod imported_book;
 mod report;
 
 use std::collections::HashSet;
+use std::path::Path;
 
 use kassensturz_core::{
     AccountId, Changeover, Currency, CurrencyCode, DatedRateId, ImportedDetails, Money,
@@ -107,13 +108,21 @@ pub fn preview_import(
 /// fixed rate, and each new transaction keeps the amount in the withdrawn
 /// currency with its account's part (D-077, D-105). If anything fails, the
 /// book stays as it was.
+///
+/// `file` is the file the statements were read from, if any: the history
+/// keeps its name, without the folder, so undo can say which import it
+/// takes back (`Book::note_file`, D-109).
 pub fn import_statements(
     book: &mut Book,
     account: AccountId,
     statements: &[Statement],
     choices: &Choices,
+    file: Option<&Path>,
 ) -> Result<ImportReport, PipelineError> {
     book.as_one_action(Action::ImportStatement, |book| {
+        if let Some(file) = file {
+            book.note_file(file)?;
+        }
         run(book, account, statements, choices)
     })
 }

@@ -7,6 +7,7 @@
 //! (D-055).
 
 use std::collections::HashSet;
+use std::path::Path;
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, Actions, BookTo, Condition, Currency, CurrencyCode, Date,
@@ -112,7 +113,7 @@ fn at(statement: usize, entry: usize) -> EntryRef {
 }
 
 fn import(book: &mut Book, account: AccountId, statements: &[Statement]) -> ImportReport {
-    import_statements(book, account, statements, &Choices::default()).expect("imported")
+    import_statements(book, account, statements, &Choices::default(), None).expect("imported")
 }
 
 /// A transaction typed in by hand: `minor_units` into or out of `account`,
@@ -158,7 +159,14 @@ fn a_statement_becomes_transactions_in_one_user_action() {
         pending,
         entry(7, -1250, "B3", "Bakery"),
     ];
-    let report = import(&mut book, checking, &[statement(entries.clone())]);
+    let report = import_statements(
+        &mut book,
+        checking,
+        &[statement(entries.clone())],
+        &Choices::default(),
+        Some(Path::new("/home/someone/october.sta")),
+    )
+    .expect("imported");
     assert_eq!(
         report.summary(),
         Summary {
@@ -203,11 +211,14 @@ fn a_statement_becomes_transactions_in_one_user_action() {
         eur(-5320 + 250_000 - 1250)
     );
 
-    // One user action, which undo takes back as a whole.
+    // One user action, which undo takes back as a whole, with the file's
+    // name but not its folder.
     assert_eq!(history_length(&book), before + 1);
     assert_eq!(
-        book.change_to_undo().expect("read").map(|c| c.action),
-        Some(Action::ImportStatement)
+        book.change_to_undo()
+            .expect("read")
+            .map(|c| (c.action, c.file_name)),
+        Some((Action::ImportStatement, Some("october.sta".into())))
     );
     book.undo().expect("undone");
     assert!(book.register(checking).expect("register").is_empty());
@@ -343,7 +354,8 @@ fn entries_that_look_like_a_transaction_the_account_has_wait_for_the_user() {
     let choices = Choices {
         import_similar: HashSet::from([at(0, 1)]),
     };
-    let report = import_statements(&mut book, checking, &statements, &choices).expect("imported");
+    let report =
+        import_statements(&mut book, checking, &statements, &choices, None).expect("imported");
     let EntryOutcome::Imported {
         transaction,
         similar,
@@ -540,7 +552,8 @@ fn statements_that_do_not_fit_the_account_are_refused() {
     } = sample();
     let history = history_length(&book);
     let refused = |book: &mut Book, account, statement: Statement| {
-        let Err(error) = import_statements(book, account, &[statement], &Choices::default()) else {
+        let Err(error) = import_statements(book, account, &[statement], &Choices::default(), None)
+        else {
             panic!("imported");
         };
         error
@@ -640,7 +653,7 @@ fn an_import_that_fails_part_way_changes_nothing() {
         entry(5, -5320, "B1", "REWE Markt"),
         Entry::booked(year_0, eur(-100)),
     ])];
-    let failed = import_statements(&mut book, checking, &statements, &Choices::default());
+    let failed = import_statements(&mut book, checking, &statements, &Choices::default(), None);
     assert!(matches!(
         failed,
         Err(PipelineError::Store(StoreError::DateOutOfRange(_)))

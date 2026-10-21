@@ -16,6 +16,8 @@
 //! The history is kept in the book, or only in memory if the user keeps it
 //! for 0 days (D-066). Its layout is documented in `docs/BOOK_FORMAT.md`.
 
+use std::path::Path;
+
 use kassensturz_core::{AccountId, Date, Timestamp};
 use rusqlite::{Connection, OptionalExtension, ToSql, params};
 
@@ -137,6 +139,9 @@ pub struct Change {
     pub made_at: Timestamp,
     /// Whether it is undone, so that redo can make it again.
     pub undone: bool,
+    /// The name of the file it read, such as the statement file of an
+    /// import, without its folder ([`Book::note_file`], D-109).
+    pub file_name: Option<String>,
 }
 
 /// What one change did to the book's transactions, so a front end can say
@@ -430,7 +435,8 @@ END;
 /// the database it means (`main` or `temp`). `history_state` holds the state
 /// of the user action under way: no row while there is none, so every change
 /// is refused; `recording` 1 while one is recorded, 0 while undo or redo
-/// write rows back, which isn't recorded again.
+/// write rows back, which isn't recorded again; `file_name` the file the
+/// action reads, if [`Book::note_file`] named one.
 pub(crate) fn prepare(conn: &Connection) -> Result<(), StoreError> {
     let actions = Action::ALL
         .map(|action| format!("'{}'", action_to_text(action)))
@@ -438,7 +444,8 @@ pub(crate) fn prepare(conn: &Connection) -> Result<(), StoreError> {
     let mut sql = format!(
         "
 CREATE TEMP TABLE history_state (
-    recording INTEGER NOT NULL CHECK (recording IN (0, 1))
+    recording INTEGER NOT NULL CHECK (recording IN (0, 1)),
+    file_name TEXT
 ) STRICT;
 
 CREATE TEMP TABLE changes (
@@ -447,7 +454,8 @@ CREATE TEMP TABLE changes (
     action TEXT NOT NULL CHECK (action IN ({actions})),
     made_at TEXT NOT NULL
         CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
-    undone INTEGER NOT NULL CHECK (undone IN (0, 1))
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
+    file_name TEXT
 ) STRICT;
 "
     );
@@ -568,6 +576,30 @@ impl Book {
         result
     }
 
+    /// Notes the file the user action under way reads, such as the statement
+    /// file of an import, so the history can say which file a change came
+    /// from (D-109). Only the file's name is kept, never its folder, which
+    /// tells more about the user than the history needs; a path without a
+    /// name, such as `/`, notes nothing. If the action changes nothing, the
+    /// name isn't kept either.
+    ///
+    /// # Panics
+    ///
+    /// Outside [`Book::as_one_action`] and [`Book::dry_run`].
+    pub fn note_file(&mut self, path: &Path) -> Result<(), StoreError> {
+        assert!(
+            self.recording,
+            "only a user action can note the file it reads"
+        );
+        if let Some(name) = path.file_name() {
+            self.conn.execute(
+                "UPDATE temp.history_state SET file_name = ?1",
+                [name.to_string_lossy()],
+            )?;
+        }
+        Ok(())
+    }
+
     /// Ends the user action under way: what it changed becomes one entry of
     /// the history, unless it changed nothing.
     fn record(&mut self, action: Action) -> Result<(), StoreError> {
@@ -600,8 +632,10 @@ impl Book {
             let made_at = whole_seconds(Timestamp::now());
             self.conn.execute(
                 &format!(
-                    "INSERT INTO {schema}.changes (id, sequence, action, made_at, undone)
-                     SELECT ?1, coalesce(max(sequence), 0) + 1, ?2, ?3, 0 FROM {schema}.changes"
+                    "INSERT INTO {schema}.changes (id, sequence, action, made_at, undone, file_name)
+                     SELECT ?1, coalesce(max(sequence), 0) + 1, ?2, ?3, 0,
+                            (SELECT file_name FROM temp.history_state)
+                     FROM {schema}.changes"
                 ),
                 params![id.to_bytes(), action_to_text(action), made_at.to_string()],
             )?;
@@ -694,7 +728,7 @@ impl Book {
     fn changes(&self, rest: &str) -> Result<Vec<Change>, StoreError> {
         let schema = self.history_schema()?;
         let mut statement = self.conn.prepare(&format!(
-            "SELECT id, action, made_at, undone FROM {schema}.changes {rest}"
+            "SELECT id, action, made_at, undone, file_name FROM {schema}.changes {rest}"
         ))?;
         let rows = statement
             .query_map([], |row| {
@@ -703,11 +737,12 @@ impl Book {
                     row.get::<_, String>(1)?,
                     row.get::<_, String>(2)?,
                     row.get::<_, bool>(3)?,
+                    row.get::<_, Option<String>>(4)?,
                 ))
             })?
             .collect::<Result<Vec<_>, _>>()?;
         rows.into_iter()
-            .map(|(id, action, made_at, undone)| {
+            .map(|(id, action, made_at, undone, file_name)| {
                 Ok(Change {
                     id,
                     action: action_from_text(&action)?,
@@ -715,6 +750,7 @@ impl Book {
                         .parse()
                         .map_err(|_| StoreError::Corrupt(Corruption::BadTimestamp(made_at)))?,
                     undone,
+                    file_name,
                 })
             })
             .collect()
@@ -1035,8 +1071,8 @@ fn delete_changes(
 fn move_history(conn: &Connection, from: &str, to: &str) -> Result<(), StoreError> {
     conn.execute(
         &format!(
-            "INSERT INTO {to}.changes (id, sequence, action, made_at, undone)
-             SELECT id, sequence, action, made_at, undone FROM {from}.changes"
+            "INSERT INTO {to}.changes (id, sequence, action, made_at, undone, file_name)
+             SELECT id, sequence, action, made_at, undone, file_name FROM {from}.changes"
         ),
         [],
     )?;

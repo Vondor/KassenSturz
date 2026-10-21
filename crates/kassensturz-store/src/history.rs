@@ -16,11 +16,11 @@
 //! The history is kept in the book, or only in memory if the user keeps it
 //! for 0 days (D-066). Its layout is documented in `docs/BOOK_FORMAT.md`.
 
-use kassensturz_core::Timestamp;
+use kassensturz_core::{AccountId, Date, Timestamp};
 use rusqlite::{Connection, OptionalExtension, ToSql, params};
 
-use crate::Book;
 use crate::error::{Corruption, StoreError};
+use crate::{Book, date_from_text};
 
 /// What the user did in one change to the book, e.g. adding an account. The
 /// UI uses it to say what undo and redo would do, in the user's language
@@ -137,6 +137,26 @@ pub struct Change {
     pub made_at: Timestamp,
     /// Whether it is undone, so that redo can make it again.
     pub undone: bool,
+}
+
+/// What one change did to the book's transactions, so a front end can say
+/// which change undo or redo takes back, e.g. which of two imports (#51,
+/// D-109). A change that touched no transaction, such as adding an account,
+/// has an empty summary.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ChangeSummary {
+    /// How many transactions it added.
+    pub added: usize,
+    /// How many it removed.
+    pub removed: usize,
+    /// How many it changed: their date, payee or parts.
+    pub changed: usize,
+    /// The accounts and categories the parts of these transactions are
+    /// booked to, before or after the change, sorted by ID.
+    pub accounts: Vec<AccountId>,
+    /// The earliest and the latest booking date of these transactions,
+    /// before or after the change.
+    pub dates: Option<(Date, Date)>,
 }
 
 /// How long a book keeps its change history (D-066). The user chooses it,
@@ -698,6 +718,68 @@ impl Book {
                 })
             })
             .collect()
+    }
+
+    /// What `change`, an entry of the history, did to the book's
+    /// transactions ([`ChangeSummary`]). It is read from the rows the change
+    /// recorded, and from the book for the parts and dates of a transaction
+    /// it changed only in part. So it says the same whether the change is
+    /// done or undone, as long as the changes before it are done, as they are
+    /// for the change undo would take back and the one redo would make
+    /// again.
+    pub fn change_summary(&self, change: ChangeId) -> Result<ChangeSummary, StoreError> {
+        let schema = self.history_schema()?;
+        let id = change.to_bytes();
+        // The transactions it touched, itself or through one of their
+        // parts, and on which sides the history has them.
+        let touched = format!(
+            "SELECT id FROM {schema}.changed_transactions WHERE change_id = ?1
+             UNION SELECT transaction_id FROM {schema}.changed_splits WHERE change_id = ?1"
+        );
+        let mut summary = ChangeSummary::default();
+        let mut statement = self.conn.prepare(&format!(
+            "SELECT
+                 EXISTS (SELECT 1 FROM {schema}.changed_transactions
+                         WHERE change_id = ?1 AND id = touched.id AND side = 'before'),
+                 EXISTS (SELECT 1 FROM {schema}.changed_transactions
+                         WHERE change_id = ?1 AND id = touched.id AND side = 'after')
+             FROM ({touched}) AS touched"
+        ))?;
+        let mut rows = statement.query([id])?;
+        while let Some(row) = rows.next()? {
+            match (row.get::<_, bool>(0)?, row.get::<_, bool>(1)?) {
+                (false, true) => summary.added += 1,
+                (true, false) => summary.removed += 1,
+                _ => summary.changed += 1,
+            }
+        }
+        drop(rows);
+        drop(statement);
+        let mut statement = self.conn.prepare(&format!(
+            "SELECT DISTINCT account_id FROM (
+                 SELECT account_id FROM {schema}.changed_splits WHERE change_id = ?1
+                 UNION ALL
+                 SELECT account_id FROM main.splits WHERE transaction_id IN ({touched}))
+             WHERE account_id IS NOT NULL
+             ORDER BY account_id"
+        ))?;
+        summary.accounts = statement
+            .query_map([id], |row| Ok(AccountId::from_bytes(row.get(0)?)))?
+            .collect::<Result<_, _>>()?;
+        let (first, last): (Option<String>, Option<String>) = self.conn.query_row(
+            &format!(
+                "SELECT min(booking_date), max(booking_date) FROM (
+                     SELECT booking_date FROM {schema}.changed_transactions WHERE change_id = ?1
+                     UNION ALL
+                     SELECT booking_date FROM main.transactions WHERE id IN ({touched}))"
+            ),
+            [id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        if let (Some(first), Some(last)) = (first, last) {
+            summary.dates = Some((date_from_text(&first)?, date_from_text(&last)?));
+        }
+        Ok(summary)
     }
 
     /// Writes the values of `side` back into every row that `change`

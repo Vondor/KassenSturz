@@ -21,6 +21,7 @@ use kassensturz_store::Book;
 use crate::amount::money_text;
 use crate::args::Arguments;
 use crate::error::CliError;
+use crate::history::change_text;
 use crate::lookup::{find_account, short_id};
 use crate::text::{counted, plain, table};
 
@@ -109,6 +110,7 @@ pub(crate) fn import_file(
             .insert(entry_ref(text, &numbers, &chosen)?);
     }
     let dry_run = args.flag("dry-run");
+    let last_change = book.change_to_undo()?.map(|change| change.id);
     let report = if dry_run {
         preview_import(book, account.id, &chosen, &choices)?
     } else {
@@ -129,7 +131,28 @@ pub(crate) fn import_file(
             .collect(),
         dry_run,
     };
-    shown.write(&plain(&account.name), out)
+    shown.write(&plain(&account.name), out)?;
+    // An import that changes nothing leaves no entry in the history (D-086),
+    // so `undo` would take back an earlier change, e.g. the import before
+    // (#51, D-109).
+    if !dry_run {
+        let undo = book.change_to_undo()?;
+        if undo.as_ref().map(|change| change.id) == last_change {
+            write!(
+                out,
+                "Nothing in the book changed, so this import isn't in the history. "
+            )?;
+            match undo {
+                Some(change) => writeln!(
+                    out,
+                    "`undo` would take back the change before it: {}.",
+                    change_text(book, &change)?
+                )?,
+                None => writeln!(out, "There is nothing to undo.")?,
+            }
+        }
+    }
+    Ok(())
 }
 
 /// The importer `--format` names, or else the one that recognizes the file

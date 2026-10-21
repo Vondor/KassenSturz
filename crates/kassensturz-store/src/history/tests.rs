@@ -766,6 +766,95 @@ fn an_edit_records_only_the_rows_it_changed() {
 }
 
 #[test]
+fn a_summary_says_which_transactions_a_change_touched() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        salary,
+    } = sample();
+    let summary = |book: &Book| {
+        let change = book.change_to_undo().expect("read").expect("a change");
+        book.change_summary(change.id).expect("summary read")
+    };
+    let sorted = |mut accounts: Vec<AccountId>| {
+        accounts.sort();
+        accounts
+    };
+    // Adding a category touches no transaction.
+    assert_eq!(summary(&book), ChangeSummary::default());
+
+    let purchase = imported_purchase(checking);
+    let pay = transaction(
+        date(2026, 9, 30),
+        "Employer",
+        &[(checking, eur(250_000)), (salary, eur(-250_000))],
+    );
+    book.as_one_action(Action::ImportStatement, |book| {
+        book.add_transaction(&purchase)?;
+        book.add_transaction(&pay)
+    })
+    .expect("imported");
+    let import = book.change_to_undo().expect("read").expect("the import");
+    // The purchase's part without a category is booked to no account.
+    let imported = ChangeSummary {
+        added: 2,
+        accounts: sorted(vec![checking, salary]),
+        dates: Some((date(2026, 9, 30), date(2026, 10, 5))),
+        ..ChangeSummary::default()
+    };
+    assert_eq!(summary(&book), imported);
+
+    // Only the part without a category changes, but the summary names
+    // every account of the transaction.
+    let categorized = with_parts(
+        &purchase,
+        vec![
+            purchase.splits()[0].clone(),
+            Split {
+                account: Some(groceries),
+                ..purchase.splits()[1].clone()
+            },
+        ],
+    );
+    book.update_transaction(&categorized).expect("changed");
+    let edit = book.change_to_undo().expect("read").expect("the edit");
+    let edited = ChangeSummary {
+        changed: 1,
+        accounts: sorted(vec![checking, groceries]),
+        dates: Some((date(2026, 10, 5), date(2026, 10, 5))),
+        ..ChangeSummary::default()
+    };
+    assert_eq!(summary(&book), edited);
+
+    book.remove_transaction(pay.id()).expect("removed");
+    let removal = book.change_to_undo().expect("read").expect("the removal");
+    let removed = ChangeSummary {
+        removed: 1,
+        accounts: sorted(vec![checking, salary]),
+        dates: Some((date(2026, 9, 30), date(2026, 9, 30))),
+        ..ChangeSummary::default()
+    };
+    assert_eq!(summary(&book), removed);
+
+    // Undone, each says the same, so redo can name it too.
+    for (change, expected) in [(removal, removed), (edit, edited), (import, imported)] {
+        book.undo().expect("undone");
+        assert_eq!(
+            book.change_to_redo().expect("read"),
+            Some(Change {
+                undone: true,
+                ..change.clone()
+            })
+        );
+        assert_eq!(
+            book.change_summary(change.id).expect("summary read"),
+            expected
+        );
+    }
+}
+
+#[test]
 fn a_change_outside_a_user_action_is_refused() {
     let Sample { book, checking, .. } = sample();
     let before = contents(&book);

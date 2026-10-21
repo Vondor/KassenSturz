@@ -78,6 +78,8 @@ fn split(n: u8, account: Option<u8>, amount: Money) -> Split {
         foreign: None,
         imported: None,
         original: None,
+        own_date: None,
+        own_payee: None,
     }
 }
 
@@ -148,6 +150,10 @@ fn sample() -> BookData {
         amount: Money::from_minor_units(10_000, USD),
         rate: Some(rate(12, day(1), USD, EUR, "0.9210")),
     });
+    // The cash account shows the exchange a day later, from another payee,
+    // as the second side of a joined Transfer would (D-108).
+    dollars.own_date = Some(day(5));
+    dollars.own_payee = Some("Wechselstube \"Am Markt\"".into());
     let mut hotel = split(51, Some(travel), eur(9_000));
     hotel.foreign = Some(ForeignAmount {
         amount: Money::from_minor_units(9_800, USD),
@@ -490,13 +496,13 @@ fn what_is_not_a_complete_export_is_refused() {
     assert_eq!(read_book(b"[1, 2]"), Err(ExportError::NotABook));
     assert_eq!(read_book(b"{\"name\": \"x\"}"), Err(ExportError::NotABook));
     assert_eq!(
-        read_book(&changed("\"version\": 2", "\"version\": 3")),
-        Err(ExportError::NewerVersion { version: 3 })
+        read_book(&changed("\"version\": 3", "\"version\": 4")),
+        Err(ExportError::NewerVersion { version: 4 })
     );
     for version in ["\"2\"", "0", "-1", "2.5"] {
         assert_eq!(
             read_book(&changed(
-                "\"version\": 2",
+                "\"version\": 3",
                 &format!("\"version\": {version}")
             )),
             bad("version", Expected::Number),
@@ -676,6 +682,40 @@ fn a_version_1_file_has_no_original_amounts() {
     assert_eq!(
         read_book(changeover.as_bytes()),
         bad("rates[0].source", Expected::Keyword)
+    );
+}
+
+#[test]
+fn a_part_has_its_own_date_and_payee_from_version_3() {
+    // SHORT is a version 1 file. From version 3, a part may have a date and
+    // payee of its own, which its account shows (D-108).
+    let own = r#""amount": "5.0", "date": "2026-10-06", "payee": "Card \"Example\"""#;
+    let with_own = SHORT.replacen(r#""amount": "5.0""#, own, 1);
+    for version in ["1", "2"] {
+        let file = with_own.replacen("\"version\": 1", &format!("\"version\": {version}"), 1);
+        assert_eq!(
+            read_book(file.as_bytes()),
+            Err(ExportError::UnknownValue {
+                path: "transactions[0].parts[1].date".into()
+            }),
+            "version {version}"
+        );
+    }
+    let version_3 = with_own.replacen("\"version\": 1", "\"version\": 3", 1);
+    let book = read_book(version_3.as_bytes()).expect("read");
+    let part = &book.transactions[0].splits()[1];
+    assert_eq!(
+        (part.own_date, part.own_payee.as_deref()),
+        (Some(day(6)), Some("Card \"Example\""))
+    );
+    assert_eq!(book.transactions[0].splits()[0].own_date, None);
+    assert_eq!(
+        read_book(
+            version_3
+                .replacen("\"2026-10-06\"", "\"6 October\"", 1)
+                .as_bytes()
+        ),
+        bad("transactions[0].parts[1].date", Expected::Date)
     );
 }
 

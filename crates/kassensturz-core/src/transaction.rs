@@ -47,6 +47,15 @@ pub struct Split {
     /// German marks from an old book: the amount it had, and the fixed rate
     /// it was converted with (D-077, D-104).
     pub original: Option<OriginalAmount>,
+    /// The date this part's account shows it with, if not the
+    /// transaction's: on the second side of a joined Transfer, the day that
+    /// account's bank booked it, so each account's register keeps matching
+    /// its statements (D-108). The transaction's own date stays the one date
+    /// of the whole Transfer.
+    pub own_date: Option<Date>,
+    /// The payee this part's account shows, if not the transaction's: on
+    /// the second side of a joined Transfer, the one that side had (D-108).
+    pub own_payee: Option<String>,
 }
 
 impl Split {
@@ -69,6 +78,8 @@ impl Split {
             foreign: None,
             imported: None,
             original: None,
+            own_date: None,
+            own_payee: None,
         }
     }
 
@@ -253,14 +264,29 @@ impl Transaction {
 
     /// The date it is shown with: the date the bank booked it, or the user
     /// entered (D-030). What the bank delivered is kept with the part it
-    /// delivered ([`Split::imported`]).
+    /// delivered ([`Split::imported`]). A part with its own date is shown
+    /// with that one in its account ([`Transaction::date_of`]).
     pub fn booking_date(&self) -> Date {
         self.booking_date
     }
 
-    /// Who the money came from or went to, as the user wants it shown.
+    /// Who the money came from or went to, as the user wants it shown. A
+    /// part with its own payee shows that one in its account
+    /// ([`Transaction::payee_of`]).
     pub fn payee(&self) -> Option<&str> {
         self.payee.as_deref()
+    }
+
+    /// The date the account of `part`, one of its parts, shows it with: the
+    /// part's own date if it has one, otherwise the transaction's (D-108).
+    pub fn date_of(&self, part: &Split) -> Date {
+        part.own_date.unwrap_or(self.booking_date)
+    }
+
+    /// The payee the account of `part`, one of its parts, shows: the part's
+    /// own payee if it has one, otherwise the transaction's (D-108).
+    pub fn payee_of<'a>(&'a self, part: &'a Split) -> Option<&'a str> {
+        part.own_payee.as_deref().or(self.payee())
     }
 
     /// The currency it counts in: the one of its parts' amounts.

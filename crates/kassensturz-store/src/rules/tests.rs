@@ -1056,6 +1056,62 @@ fn the_rules_check_the_payee_the_user_or_a_rule_set() {
 }
 
 #[test]
+fn the_rules_check_the_date_and_payee_the_account_shows() {
+    // A part with a date and payee of its own, as the second side of a
+    // joined Transfer keeps them (D-108), here turned back into a
+    // transaction without a category.
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let card = Condition::Text {
+        field: TextField::Payee,
+        operator: TextOperator::Equals,
+        value: "Alex Example".into(),
+        case_sensitive: false,
+    };
+    let on_the_21st = Condition::BookingDate {
+        first: date(2026, 10, 21),
+        last: date(2026, 10, 21),
+    };
+    let mut payment = rule(
+        "Card payment",
+        vec![card, on_the_21st],
+        Some(BookTo::Category(groceries)),
+    );
+    payment.actions.payee = Some("Card payment".into());
+    book.add_rule(&payment, None).expect("added");
+    let shown = Split {
+        own_date: Some(date(2026, 10, 21)),
+        own_payee: Some("Alex Example".into()),
+        ..Split::new(checking, eur(-9840))
+    };
+    let entered = Transaction::new(
+        TransactionId::generate(),
+        date(2026, 10, 20),
+        Some("Example Card Services".into()),
+        vec![shown, Split::uncategorized(eur(9840))],
+    )
+    .expect("balanced");
+    book.add_transaction(&entered).expect("added");
+    assert_eq!(
+        changed(&book.run_rules().expect("run")),
+        [(entered.id(), payment.id)]
+    );
+    // The payee the Rule set is the one the account shows now.
+    let entry = &book.register(checking).expect("register")[0];
+    assert_eq!(
+        (entry.booking_date, entry.payee.as_deref()),
+        (date(2026, 10, 21), Some("Card payment"))
+    );
+    let read = book.transaction(entered.id()).expect("read");
+    assert_eq!(read.splits()[0].own_payee, None);
+    assert_eq!(read.splits()[0].own_date, Some(date(2026, 10, 21)));
+}
+
+#[test]
 fn a_broken_pattern_in_a_book_stops_the_run() {
     let Sample { mut book, .. } = sample();
     let rule = add(&mut book, "Shops", "REWE", None, None);

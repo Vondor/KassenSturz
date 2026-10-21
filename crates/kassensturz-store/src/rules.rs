@@ -466,11 +466,12 @@ impl Book {
             if own.foreign.is_some() {
                 continue;
             }
+            // What the user sees in the account's register (D-108).
             let facts = RuleFacts {
                 account,
                 amount: own.amount,
-                booking_date: transaction.booking_date(),
-                payee: transaction.payee(),
+                booking_date: transaction.date_of(own),
+                payee: transaction.payee_of(own),
                 imported: own.imported.as_ref(),
             };
             let Some(outcome) = rules.evaluate(&facts) else {
@@ -593,11 +594,17 @@ impl Book {
             .splits()
             .iter()
             .map(|split| {
-                if split.id == part.id {
+                let mut split = if split.id == part.id {
                     rebooked.clone()
                 } else {
                     split.clone()
+                };
+                // The payee a Rule sets is the one the account shows, so a
+                // part's own payee goes (D-108).
+                if actions.payee.is_some() {
+                    split.own_payee = None;
                 }
+                split
             })
             .collect();
         Transaction::new(transaction.id(), transaction.booking_date(), payee, splits).map_err(
@@ -623,6 +630,15 @@ impl Book {
             "UPDATE transactions SET payee = ?2 WHERE id = ?1",
             params![transaction.id().to_bytes(), transaction.payee()],
         )?;
+        // A Rule that set the payee took the parts' own payees away.
+        for split in transaction.splits() {
+            if split.own_payee.is_none() {
+                self.conn.execute(
+                    "UPDATE splits SET own_payee = NULL WHERE id = ?1 AND own_payee IS NOT NULL",
+                    [split.id.to_bytes()],
+                )?;
+            }
+        }
         self.conn.execute(
             "UPDATE splits SET account_id = ?2, foreign_amount = ?3, foreign_currency = ?4
              WHERE id = ?1",

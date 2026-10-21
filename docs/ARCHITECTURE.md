@@ -113,7 +113,7 @@ kassensturz/
 - Matching: amount (same currency) or a plausible exchange rate for cross-currency transfers (D-004) + date-proximity + both accounts already present in the book. External IBANs are never candidates.
 - Date window: up to 3 business days between the two sides; same currency only for now (D-030; cross-currency tolerances are Q-020).
 - Always a suggestion the user confirms, every time, in v1; a "trust this pair of accounts" option may come later (D-030).
-- The heuristic is `kassensturz_core::find_transfers`; `Book::transfer_suggestions` runs it on the transactions whose other part has no category yet, and `Book::join_transfer` turns a confirmed pair into one Transfer: the outgoing transaction gets the incoming account's part, with what its bank delivered, and the incoming transaction goes (D-087).
+- The heuristic is `kassensturz_core::find_transfers`; `Book::transfer_suggestions` runs it on the transactions whose other part has no category yet, and `Book::join_transfer` turns a confirmed pair into one Transfer: the outgoing transaction gets the incoming account's part, with what its bank delivered and, as the part's own, the date and payee that account showed, and the incoming transaction goes (D-087, D-108). So neither account's register changes: each keeps the day its own bank booked the money, while the Transfer has one date, the outgoing side's.
 - Reports exclude confirmed Transfers from income/expense totals — a direct consequence of the existing double-entry model (§5), not a separate reporting rule.
 
 ## Importers

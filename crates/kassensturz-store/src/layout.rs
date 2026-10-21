@@ -34,9 +34,9 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 11] = [
+pub(crate) const MIGRATIONS: [&str; 12] = [
     LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4, LAYOUT_5, LAYOUT_6, LAYOUT_7, LAYOUT_8, LAYOUT_9,
-    LAYOUT_10, LAYOUT_11,
+    LAYOUT_10, LAYOUT_11, LAYOUT_12,
 ];
 
 /// The layout version the first migration creates.
@@ -515,6 +515,21 @@ ALTER TABLE changed_splits ADD COLUMN original_amount INTEGER;
 ALTER TABLE changed_splits ADD COLUMN original_currency TEXT;
 ";
 
+/// Layout 12 (#44): a part can have a date and a payee of its own, which its
+/// account's register shows instead of the transaction's. Joining a Transfer
+/// gives them to the second side's part, so each account keeps showing the
+/// day its own bank booked the money and the payee it had (D-108). Both are
+/// empty in the parts a book has, which show their transaction's as before;
+/// `changed_splits` gets the two columns too, empty in the rows it has.
+const LAYOUT_12: &str = "
+ALTER TABLE splits ADD COLUMN own_date TEXT
+    CHECK (own_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]');
+ALTER TABLE splits ADD COLUMN own_payee TEXT;
+
+ALTER TABLE changed_splits ADD COLUMN own_date TEXT;
+ALTER TABLE changed_splits ADD COLUMN own_payee TEXT;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -694,6 +709,7 @@ mod tests {
                     (&part.foreign, &part.imported, &part.original),
                     (&None, &None, &None)
                 );
+                assert_eq!((part.own_date, &part.own_payee), (None, &None));
             }
             // Accounts from before layout 4 have no type and are open.
             let account = book.account(checking).expect("account");
@@ -779,7 +795,7 @@ mod tests {
     #[test]
     fn rates_and_recorded_parts_stay_when_split_rates_is_rebuilt() {
         // Layout 11 rebuilds `split_rates` and adds two columns to `splits`
-        // and `changed_splits`.
+        // and `changed_splits`, and layout 12 two more.
         let folder = TempFolder::new();
         let path = folder.join("Household.ksz");
         let checking = old_book(&path, 10);

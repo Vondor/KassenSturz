@@ -24,9 +24,12 @@ use crate::{
 pub struct RegisterEntry {
     /// The transaction.
     pub transaction: TransactionId,
-    /// Its booking date.
+    /// The date the account shows it with: its part's own date, e.g. the
+    /// day this account's bank booked one side of a Transfer, otherwise the
+    /// transaction's booking date (D-108).
     pub booking_date: Date,
-    /// Who the money came from or went to.
+    /// Who the money came from or went to: its part's own payee, otherwise
+    /// the transaction's (D-108).
     pub payee: Option<String>,
     /// What it did to this account, in the account's currency: positive
     /// amounts came in, negative ones went out.
@@ -42,7 +45,8 @@ pub struct AccountPart {
     pub transaction: TransactionId,
     /// The part.
     pub split: SplitId,
-    /// The transaction's booking date, the one the user sees.
+    /// The date the account shows it with: the part's own date, otherwise
+    /// the transaction's booking date (D-108).
     pub booking_date: Date,
     /// What it does to the account, in the account's currency: positive
     /// amounts came in, negative ones went out.
@@ -293,24 +297,29 @@ impl Book {
     }
 
     /// The transactions that touch `account`, oldest first, each as seen from
-    /// that account, in its currency.
+    /// that account, in its currency, with the date and payee it shows them
+    /// with (D-108).
     pub fn register(&self, account: AccountId) -> Result<Vec<RegisterEntry>, StoreError> {
         let account = self.account(account)?;
         let mut statement = self.conn.prepare(
-            "SELECT t.id, t.booking_date, t.payee, t.currency,
-                    s.id, s.amount, s.foreign_amount, s.foreign_currency
+            "SELECT t.id, coalesce(s.own_date, t.booking_date), coalesce(s.own_payee, t.payee),
+                    t.currency, s.id, s.amount, s.foreign_amount, s.foreign_currency
              FROM splits AS s JOIN transactions AS t ON t.id = s.transaction_id
              WHERE s.account_id = ?1
-             ORDER BY t.booking_date, t.id, s.position",
+             ORDER BY coalesce(s.own_date, t.booking_date), t.id, s.position",
         )?;
         let mut rows = statement.query([account.id.to_bytes()])?;
         let mut entries: Vec<RegisterEntry> = Vec::new();
         while let Some(row) = rows.next()? {
             let transaction = TransactionId::from_bytes(row.get(0)?);
+            let booking_date = date_from_text(&row.get::<_, String>(1)?)?;
             let amount = account_amount(&account, transaction, row, 3)?;
             match entries.last_mut() {
-                // One account can appear in several parts of a transaction.
-                Some(last) if last.transaction == transaction => {
+                // One account can appear in several parts of a transaction,
+                // shown as one line if on the same day.
+                Some(last)
+                    if last.transaction == transaction && last.booking_date == booking_date =>
+                {
                     last.amount = last
                         .amount
                         .checked_add(amount)
@@ -318,7 +327,7 @@ impl Book {
                 }
                 _ => entries.push(RegisterEntry {
                     transaction,
-                    booking_date: date_from_text(&row.get::<_, String>(1)?)?,
+                    booking_date,
                     payee: row.get(2)?,
                     amount,
                 }),
@@ -334,13 +343,13 @@ impl Book {
     pub fn account_parts(&self, account: AccountId) -> Result<Vec<AccountPart>, StoreError> {
         let account = self.account(account)?;
         let mut statement = self.conn.prepare(&format!(
-            "SELECT t.id, t.booking_date, t.currency,
+            "SELECT t.id, coalesce(s.own_date, t.booking_date), t.currency,
                     s.id, s.amount, s.foreign_amount, s.foreign_currency,
                     s.original_amount, s.original_currency, {IMPORTED_COLUMNS}
              FROM splits AS s JOIN transactions AS t ON t.id = s.transaction_id
              LEFT JOIN split_imports AS i ON i.split_id = s.id
              WHERE s.account_id = ?1
-             ORDER BY t.booking_date, t.id, s.position"
+             ORDER BY coalesce(s.own_date, t.booking_date), t.id, s.position"
         ))?;
         let mut rows = statement.query([account.id.to_bytes()])?;
         let mut parts = Vec::new();
@@ -441,7 +450,7 @@ impl Book {
                 .and_then(|foreign| foreign.rate)
                 .or(split.original.map(|original| original.rate))
                 .map(|rate| rate.date);
-            for date in dates.chain(rate_date) {
+            for date in dates.chain(rate_date).chain(split.own_date) {
                 date_to_text(date)?;
             }
             if let Some(original) = split.original {
@@ -603,8 +612,8 @@ pub(crate) fn insert_splits(
     let mut insert = conn.prepare(
         "INSERT INTO splits
              (id, transaction_id, position, account_id, amount, foreign_amount, foreign_currency,
-              original_amount, original_currency)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+              original_amount, original_currency, own_date, own_payee)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
     )?;
     let mut insert_imported = conn.prepare(
         "INSERT INTO split_imports
@@ -629,6 +638,8 @@ pub(crate) fn insert_splits(
             split
                 .original
                 .map(|original| original.amount.currency().as_str().to_owned()),
+            optional_date(split.own_date)?,
+            split.own_payee,
         ])?;
         if let Some(rate) = split_rate(split) {
             insert_split_rate(conn, split.id, &rate)?;
@@ -730,7 +741,7 @@ fn foreign_columns(
 const SPLIT_COLUMNS: &str = "
     s.id, s.account_id, s.amount, s.foreign_amount, s.foreign_currency,
     s.original_amount, s.original_currency, r.rate_id, r.date, r.from_currency, r.to_currency, r.rate_digits,
-    r.rate_decimal_places, r.source";
+    r.rate_decimal_places, r.source, s.own_date, s.own_payee";
 
 /// The columns of `split_imports` (as `i`) [`ImportedRow::read`] expects, in
 /// its order.
@@ -739,7 +750,7 @@ const IMPORTED_COLUMNS: &str = "
     i.other_party_name, i.other_party_iban, i.remittance_information";
 
 /// How many columns [`SplitRow::read`] reads.
-const SPLIT_ROW_COLUMNS: usize = 21;
+const SPLIT_ROW_COLUMNS: usize = 23;
 
 /// The tables behind [`SPLIT_COLUMNS`].
 const SPLIT_TABLES: &str = "
@@ -757,6 +768,8 @@ struct SplitRow {
     original_amount: Option<i64>,
     original_currency: Option<String>,
     rate: Option<RateRow>,
+    own_date: Option<String>,
+    own_payee: Option<String>,
     imported: Option<ImportedRow>,
 }
 
@@ -784,7 +797,7 @@ impl SplitRow {
             }),
             None => None,
         };
-        let imported = ImportedRow::read(row, 14)?;
+        let imported = ImportedRow::read(row, 16)?;
         Ok(Self {
             id: SplitId::from_bytes(row.get(0)?),
             account: row.get(1)?,
@@ -794,6 +807,8 @@ impl SplitRow {
             original_amount: row.get(5)?,
             original_currency: row.get(6)?,
             rate,
+            own_date: row.get(14)?,
+            own_payee: row.get(15)?,
             imported,
         })
     }
@@ -828,6 +843,8 @@ impl SplitRow {
             foreign,
             imported,
             original,
+            own_date: self.own_date.as_deref().map(date_from_text).transpose()?,
+            own_payee: self.own_payee,
         })
     }
 }

@@ -111,10 +111,10 @@ Commands:
                                  make a new, empty book; with --from, a new
                                  book holding what a complete export (export
                                  --format book) holds, with the same IDs, or
-                                 what a KMyMoney file (.kmy) holds, with new
-                                 IDs and a list of what KassenSturz can't
-                                 hold yet. The format is recognized; ID is
-                                 book or kmy
+                                 what a KMyMoney file (.kmy, or saved as
+                                 SQLite) holds, with new IDs and a list of
+                                 what KassenSturz can't hold yet. The format
+                                 is recognized; ID is book, kmy or kmy-sqlite
   account add NAME --type TYPE --currency CODE
                                  TYPE is checking, savings, cash or credit-card
   account list [--all]           --all includes closed accounts

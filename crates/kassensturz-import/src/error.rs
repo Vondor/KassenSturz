@@ -175,6 +175,16 @@ impl ImportError {
         }
         self
     }
+
+    /// As [`ImportError::at_line`], for a place that may not be known: a
+    /// file that isn't made of lines, such as a SQLite database, has none.
+    #[must_use]
+    pub(crate) fn at(self, line: Option<u64>) -> Self {
+        match line {
+            Some(line) => self.at_line(line),
+            None => self,
+        }
+    }
 }
 
 impl Report for ImportError {

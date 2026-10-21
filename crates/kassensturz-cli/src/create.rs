@@ -3,14 +3,16 @@
 
 //! The `create` command: a new, empty book, or one made from a complete
 //! export (D-100) or from another program's book, such as KMyMoney's
-//! (M2.9).
+//! (M2.9, M2.10).
 
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
 
 use kassensturz_export::read_book_file;
-use kassensturz_import::{Imported, Importer, Kmy, Limits, RECOGNITION_BYTES, Recognition, import};
+use kassensturz_import::{
+    Imported, Importer, Kmy, KmySqlite, Limits, RECOGNITION_BYTES, Recognition, import,
+};
 use kassensturz_pipeline::{BookImportReport, fill_book, fill_book_from};
 use kassensturz_store::{Book, Computer};
 
@@ -47,22 +49,34 @@ pub(crate) fn create(
         }
         return Ok((Book::create(path, computer)?, Created::Empty));
     };
-    let kmy = match format {
-        Some(BOOK) => false,
-        Some(id) if id == Kmy.info().id => true,
+    let importer: Option<&dyn Importer> = match format {
+        Some(BOOK) => None,
+        Some(id) if id == Kmy.info().id => Some(&Kmy),
+        Some(id) if id == KmySqlite.info().id => Some(&KmySqlite),
         Some(other) => {
             return Err(CliError::usage(format!(
-                "`{}` isn't a format to make a book from: use book or kmy",
+                "`{}` isn't a format to make a book from: use book, kmy or kmy-sqlite",
                 plain(other)
             )));
         }
-        None => Kmy.recognize(&start_of(from)) == Recognition::Yes,
+        None => {
+            let start = start_of(from);
+            if Kmy.recognize(&start) == Recognition::Yes {
+                Some(&Kmy)
+            } else if KmySqlite.recognize(&start) != Recognition::No {
+                // Any SQLite file could be KMyMoney's, and neither a
+                // complete export nor a KassenSturz book is one.
+                Some(&KmySqlite)
+            } else {
+                None
+            }
+        }
     };
-    if kmy {
+    if let Some(importer) = importer {
         let limits = Limits::default();
         let input = kassensturz_import::read_file(from, &limits)?;
-        let Imported::Book(imported) = import(&Kmy, &input, &limits)? else {
-            unreachable!("the KMyMoney importer reads a book")
+        let Imported::Book(imported) = import(importer, &input, &limits)? else {
+            unreachable!("the KMyMoney importers read a book")
         };
         fill_new(path, computer, |book| Ok(fill_book_from(book, &imported)?))
             .map(|(book, report)| (book, Created::Imported(report)))

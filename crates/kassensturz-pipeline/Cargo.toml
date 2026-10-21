@@ -14,7 +14,7 @@ publish.workspace = true
 [features]
 default = ["bundled-sqlite"]
 # See kassensturz-store (D-061).
-bundled-sqlite = ["kassensturz-store/bundled-sqlite"]
+bundled-sqlite = ["kassensturz-store/bundled-sqlite", "kassensturz-import/bundled-sqlite"]
 
 [dependencies]
 kassensturz-core.workspace = true

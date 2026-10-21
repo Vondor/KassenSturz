@@ -80,8 +80,8 @@ pub(super) fn book(records: Records) -> Result<ImportedBook, ImportError> {
     let mut rates = Vec::new();
     let mut seen = HashSet::new();
     for price in &records.prices {
-        let date = date(&price.date).map_err(|error| error.at_line(price.line))?;
-        let fraction = fraction(&price.price).map_err(|error| error.at_line(price.line))?;
+        let date = date(&price.date).map_err(|error| error.at(price.line))?;
+        let fraction = fraction(&price.price).map_err(|error| error.at(price.line))?;
         let rate = match (known_currency(&price.from), known_currency(&price.to)) {
             (Some(from), Some(to)) if from != to => fraction
                 .rate()
@@ -127,9 +127,7 @@ struct Accounts<'a> {
 
 impl<'a> Accounts<'a> {
     fn new(accounts: &'a [RawAccount], securities: &HashSet<String>) -> Result<Self, ImportError> {
-        let malformed = |account: &RawAccount| ImportError::Malformed {
-            line: Some(account.line),
-        };
+        let malformed = |account: &RawAccount| ImportError::Malformed { line: account.line };
         let mut by_id = HashMap::with_capacity(accounts.len());
         for account in accounts {
             if by_id.insert(account.id.as_str(), account).is_some() {
@@ -186,7 +184,7 @@ impl<'a> Accounts<'a> {
             return Ok(None);
         }
         let currency = currency(code(&account.currency, account.line)?)
-            .map_err(|error| error.at_line(account.line))?;
+            .map_err(|error| error.at(account.line))?;
         let account_type = TYPES
             .iter()
             .find(|(number, _)| *number == account.account_type)
@@ -240,7 +238,7 @@ fn transaction(
     payees: &HashMap<&str, &str>,
     skipped: &mut Skips,
 ) -> Result<BookTransaction, ImportError> {
-    let at_transaction = |error: ImportError| error.at_line(raw.line);
+    let at_transaction = |error: ImportError| error.at(raw.line);
     let currency = currency(code(&raw.currency, raw.line)?).map_err(at_transaction)?;
     // A book has one payee for a transaction; KMyMoney keeps one for each
     // split, and the first one given stands for the transaction.
@@ -248,9 +246,7 @@ fn transaction(
         Some(split) => Some(
             (*payees
                 .get(split.payee.as_str())
-                .ok_or(ImportError::Malformed {
-                    line: Some(split.line),
-                })?)
+                .ok_or(ImportError::Malformed { line: split.line })?)
             .to_owned(),
         )
         .filter(|name| !name.trim().is_empty()),
@@ -260,7 +256,7 @@ fn transaction(
     let mut memo_kept = false;
     for split in &raw.splits {
         let part =
-            part(split, currency, accounts, skipped).map_err(|error| error.at_line(split.line))?;
+            part(split, currency, accounts, skipped).map_err(|error| error.at(split.line))?;
         memo_kept |= part.details.is_some() && split.memo == raw.memo;
         parts.push(part);
     }
@@ -282,9 +278,7 @@ fn part(
     accounts: &Accounts<'_>,
     skipped: &mut Skips,
 ) -> Result<BookPart, ImportError> {
-    let malformed = || ImportError::Malformed {
-        line: Some(split.line),
-    };
+    let malformed = || ImportError::Malformed { line: split.line };
     let value = fraction(&split.value)?;
     let shares = fraction(&split.shares)?;
     let amount = value.money(currency, &split.value)?;
@@ -358,8 +352,8 @@ fn fraction(text: &str) -> Result<Fraction, ImportError> {
 }
 
 /// The currency code `text`, which must be one.
-fn code(text: &str, line: u64) -> Result<CurrencyCode, ImportError> {
-    CurrencyCode::new(text).map_err(|_| ImportError::Malformed { line: Some(line) })
+fn code(text: &str, line: Option<u64>) -> Result<CurrencyCode, ImportError> {
+    CurrencyCode::new(text).map_err(|_| ImportError::Malformed { line })
 }
 
 /// The currency code `text`, if KassenSturz's ISO 4217 table lists it.

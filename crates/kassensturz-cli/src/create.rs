@@ -245,10 +245,18 @@ fn write_report(
         "Created the book from {file}: {} accounts, {} categories, {} transactions, {} rates.",
         report.accounts, report.categories, report.transactions, report.rates
     )?;
+    if report.uncategorized > 0 {
+        writeln!(
+            out,
+            "{} transactions have no category yet, as in the file.",
+            report.uncategorized
+        )?;
+    }
     if report.completed > 0 {
         writeln!(
             out,
-            "{} transactions didn't add up and got a part without a category for the rest.",
+            "{} transactions didn't add up in the file and got a part without a category \
+             for the rest.",
             report.completed
         )?;
     }

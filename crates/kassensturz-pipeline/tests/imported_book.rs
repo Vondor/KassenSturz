@@ -239,8 +239,10 @@ fn a_book_comes_in_with_its_accounts_categories_and_transactions() {
     assert_eq!(report.categories, 4);
     assert_eq!(report.transactions, 6);
     assert_eq!(report.rates, 1);
-    // Only the payroll entry didn't add up.
-    assert_eq!(report.completed, 1);
+    // The payroll entry has only its part in Checking, as an entry
+    // imported from a bank has; every other transaction adds up.
+    assert_eq!(report.uncategorized, 1);
+    assert_eq!(report.completed, 0);
     assert_eq!(
         report.skipped,
         vec![Skipped {
@@ -451,6 +453,7 @@ fn a_book_in_marks_comes_in_in_euros_and_keeps_the_amounts_in_marks() {
     assert_eq!(report.accounts, 3);
     assert_eq!(report.categories, 5);
     assert_eq!(report.transactions, 6);
+    assert_eq!(report.uncategorized, 0);
     assert_eq!(report.completed, 0);
     let mark = DEM.withdrawn().expect("the table lists the mark");
     assert_eq!(report.converted.len(), 1);
@@ -574,7 +577,8 @@ fn parts_in_other_currencies_keep_what_the_file_gave() {
     };
     let mut book = Book::create_in_memory().expect("book created");
     let report = fill_book_from(&mut book, &imported, &HashMap::new()).expect("filled");
-    assert_eq!(report.completed, 1);
+    assert_eq!(report.uncategorized, 1);
+    assert_eq!(report.completed, 0);
     assert_eq!(report.converted[0].accounts, 2);
     assert_eq!(report.converted[0].parts, 6);
 

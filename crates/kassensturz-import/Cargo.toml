@@ -11,10 +11,19 @@ license.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[features]
+default = ["bundled-sqlite"]
+# See kassensturz-store (D-061).
+bundled-sqlite = ["rusqlite/bundled"]
+
 [dependencies]
 kassensturz-core.workspace = true
 flate2.workspace = true
 quick-xml.workspace = true
+# Only for reading KMyMoney's SQLite files (M2.10, D-103). Its `serialize`
+# feature opens a file that is already in memory, so no copy of the user's
+# book is written to disk.
+rusqlite = { workspace = true, features = ["serialize"] }
 
 [dev-dependencies]
 proptest.workspace = true

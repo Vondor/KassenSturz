@@ -630,6 +630,7 @@ dependencies = [
  "kassensturz-core",
  "proptest",
  "quick-xml",
+ "rusqlite",
 ]
 
 [[package]]

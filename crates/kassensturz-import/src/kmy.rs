@@ -13,11 +13,14 @@ mod fraction;
 mod gzip;
 mod mapping;
 mod records;
+mod sqlite;
 mod xml;
 
 use crate::error::ImportError;
 use crate::importer::{ImportKind, Imported, Importer, ImporterInfo, Recognition};
 use crate::limits::Limits;
+
+pub use sqlite::KmySqlite;
 
 /// The document type every `.kmy` file declares.
 const DOCTYPE: &[u8] = b"<!DOCTYPE KMYMONEY-FILE>";

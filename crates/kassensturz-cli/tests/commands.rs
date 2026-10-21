@@ -2158,6 +2158,54 @@ fn a_kmymoney_file_makes_a_new_book() {
     );
 }
 
+/// The same book saved by KMyMoney as a SQLite file (D-102, D-103).
+fn kmymoney_sqlite_sample() -> String {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../kassensturz-import/tests/golden/kmy-sqlite/kassensturz-sample.sqlite")
+        .display()
+        .to_string()
+}
+
+#[test]
+fn a_kmymoney_sqlite_file_makes_the_same_book_as_a_kmy_file() {
+    let from_kmy = Session::new();
+    let said_kmy = from_kmy.ok(&["create", "--from", &kmymoney_sample()]);
+    let sqlite = kmymoney_sqlite_sample();
+    // Recognized, and the same when asked for.
+    for format in [&[][..], &["--format", "kmy-sqlite"][..]] {
+        let session = Session::new();
+        let mut args = vec!["create", "--from", &sqlite];
+        args.extend_from_slice(format);
+        let said = session.ok(&args);
+        assert_eq!(
+            said.replace(&sqlite, "FILE"),
+            said_kmy.replace(&kmymoney_sample(), "FILE")
+        );
+        assert_eq!(session.ok(&["balances"]), from_kmy.ok(&["balances"]));
+    }
+    // Asked for as the other format, it is no such file.
+    let session = Session::new();
+    let refused = session.cli(&["create", "--from", &sqlite, "--format", "kmy"]);
+    assert_eq!(refused.status, 1);
+    assert!(
+        refused.err.starts_with("error: import.malformed\n"),
+        "{}",
+        refused.err
+    );
+    assert!(!session.book().exists());
+    // A SQLite file that isn't KMyMoney's leaves nothing behind either.
+    let other = session.0.join("other.sqlite");
+    std::fs::write(&other, b"SQLite format 3\0 and then nothing").expect("written");
+    let refused = session.cli(&["create", "--from", &other.display().to_string()]);
+    assert_eq!(refused.status, 1);
+    assert!(
+        refused.err.starts_with("error: import.malformed\n"),
+        "{}",
+        refused.err
+    );
+    assert!(!session.book().exists());
+}
+
 #[test]
 fn a_kmymoney_file_is_read_as_one_when_asked() {
     let session = Session::new();
@@ -2183,7 +2231,7 @@ fn a_kmymoney_file_is_read_as_one_when_asked() {
     let refused = session.cli(&["create", "--from", &sample, "--format", "book"]);
     assert_eq!(refused.status, 1);
     assert!(!session.book().exists());
-    // Only the two formats make a book, and only from a file.
+    // Only these formats make a book, and only from a file.
     assert_eq!(
         session
             .cli(&["create", "--from", &sample, "--format", "csv"])

@@ -55,7 +55,7 @@ pub(super) struct RawAccount {
     pub currency: String,
     /// Whether it has settings for online banking.
     pub online_banking: bool,
-    pub line: u64,
+    pub line: Option<u64>,
 }
 
 /// A `PAYEE`: who money goes to or comes from.
@@ -76,7 +76,7 @@ pub(super) struct RawTransaction {
     pub currency: String,
     pub memo: String,
     pub splits: Vec<RawSplit>,
-    pub line: u64,
+    pub line: Option<u64>,
 }
 
 /// A `SPLIT`: one part of a transaction.
@@ -96,7 +96,7 @@ pub(super) struct RawSplit {
     pub reconciled: String,
     /// A cheque number.
     pub number: String,
-    pub line: u64,
+    pub line: Option<u64>,
 }
 
 /// A `PRICE`: what one unit of `from` cost in `to` on a day.
@@ -107,7 +107,7 @@ pub(super) struct RawPrice {
     pub date: String,
     /// The price, as a fraction.
     pub price: String,
-    pub line: u64,
+    pub line: Option<u64>,
 }
 
 /// Counts of what the importer leaves out, by kind.
@@ -117,9 +117,17 @@ pub(super) struct Skips(Vec<(SkippedData, usize)>);
 impl Skips {
     /// Counts one more of `what`.
     pub fn add(&mut self, what: SkippedData) {
+        self.add_many(what, 1);
+    }
+
+    /// Counts `many` more of `what`.
+    pub fn add_many(&mut self, what: SkippedData, many: usize) {
+        if many == 0 {
+            return;
+        }
         match self.0.iter_mut().find(|(kind, _)| *kind == what) {
-            Some((_, count)) => *count = count.saturating_add(1),
-            None => self.0.push((what, 1)),
+            Some((_, count)) => *count = count.saturating_add(many),
+            None => self.0.push((what, many)),
         }
     }
 
@@ -191,7 +199,7 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
                 description: element.get("description").unwrap_or_default().to_owned(),
                 currency: required(element, "currency")?.to_owned(),
                 online_banking: false,
-                line: element.line,
+                line: Some(element.line),
             }),
             [ROOT, "ACCOUNTS", "ACCOUNT"] if name == "ONLINEBANKING" => {
                 let account = records.accounts.last_mut().ok_or_else(malformed)?;
@@ -203,7 +211,7 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
                     currency: required(element, "commodity")?.to_owned(),
                     memo: element.get("memo").unwrap_or_default().to_owned(),
                     splits: Vec::new(),
-                    line: element.line,
+                    line: Some(element.line),
                 });
             }
             [ROOT, "TRANSACTIONS", "TRANSACTION", "SPLITS"] if name == "SPLIT" => {
@@ -217,7 +225,7 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
                     bank_id: element.get("bankid").unwrap_or_default().to_owned(),
                     reconciled: element.get("reconcileflag").unwrap_or_default().to_owned(),
                     number: element.get("number").unwrap_or_default().to_owned(),
-                    line: element.line,
+                    line: Some(element.line),
                 });
             }
             // Each entry of these lists is one of what it holds; what is
@@ -244,7 +252,7 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
                     to,
                     date: required(element, "date")?.to_owned(),
                     price: required(element, "price")?.to_owned(),
-                    line: element.line,
+                    line: Some(element.line),
                 });
             }
             // Everything else is either KMyMoney's own bookkeeping, such as

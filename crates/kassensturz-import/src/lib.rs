@@ -55,7 +55,7 @@ pub use importer::{
     ImportKind, Imported, Importer, ImporterInfo, RECOGNITION_BYTES, Recognition, import,
     import_file,
 };
-pub use kmy::Kmy;
+pub use kmy::{Kmy, KmySqlite};
 pub use limits::{Limits, read_file};
 pub use mt940::Mt940;
 pub use ofx::Ofx;

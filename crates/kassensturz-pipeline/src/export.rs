@@ -5,8 +5,10 @@
 
 use std::collections::HashMap;
 
-use kassensturz_core::{AccountId, AccountKind};
-use kassensturz_export::{AccountTransactions, Counterpart, ExportData, TransactionRow};
+use kassensturz_core::{AccountId, AccountKind, CurrencyCode, Money, Split};
+use kassensturz_export::{
+    AccountTransactions, Counterpart, ExportData, OriginalRow, TransactionRow,
+};
 use kassensturz_store::{Book, StoreError};
 
 /// The transactions of `accounts` as an exporter takes them, in the order
@@ -41,6 +43,7 @@ pub fn export_transactions(book: &Book, accounts: &[AccountId]) -> Result<Export
                     .as_ref()
                     .and_then(|imported| imported.remittance_information.clone())
             });
+            let original = original_of(book, &account.currency, &own)?;
             let counterpart = match others.as_slice() {
                 [other] => match other.account {
                     Some(other) => counterpart_of(book, &paths, other)?,
@@ -55,6 +58,7 @@ pub fn export_transactions(book: &Book, accounts: &[AccountId]) -> Result<Export
                 counterpart,
                 memo,
                 amount: entry.amount,
+                original,
             });
         }
         exported.push(AccountTransactions {
@@ -65,6 +69,43 @@ pub fn export_transactions(book: &Book, accounts: &[AccountId]) -> Result<Export
         });
     }
     Ok(ExportData::Transactions(exported))
+}
+
+/// What the part or parts booked to the account were before they were
+/// converted from a withdrawn currency (D-104): only if every one of them was,
+/// from the same currency into the account's, so the original adds up to the
+/// row's amount.
+fn original_of(
+    book: &Book,
+    account_currency: &CurrencyCode,
+    own: &[&Split],
+) -> Result<Option<OriginalRow>, StoreError> {
+    let mut total: Option<Money> = None;
+    for split in own {
+        let Some(original) = split
+            .original
+            .filter(|original| original.rate.from == *account_currency)
+        else {
+            return Ok(None);
+        };
+        total = match total {
+            None => Some(original.amount),
+            Some(sum) => match sum.checked_add(original.amount) {
+                Ok(sum) => Some(sum),
+                // Another currency, or too large: leave the original out
+                // rather than write a wrong one.
+                Err(_) => return Ok(None),
+            },
+        };
+    }
+    total
+        .map(|amount| {
+            Ok(OriginalRow {
+                amount,
+                minor_digits: book.currency_minor_digits(amount.currency())?,
+            })
+        })
+        .transpose()
 }
 
 fn counterpart_of(

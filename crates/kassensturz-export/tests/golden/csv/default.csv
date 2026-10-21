@@ -1,9 +1,10 @@
-date,account,payee,category,transfer,memo,amount,currency,parts
-2026-10-01,Girokonto; privat,Arbeitgeber GmbH,Gehalt,,Gehalt Oktober,2500.00,EUR,
+date,account,payee,category,transfer,memo,amount,currency,parts,original_amount,original_currency
+2026-10-01,Girokonto; privat,Arbeitgeber GmbH,Gehalt,,Gehalt Oktober,2500.00,EUR,,,
 2026-10-05,Girokonto; privat,"Bäckerei ""Zum Hörnchen""",Essen/Lebensmittel,,"Karte 4711
-Brötchen",-12.50,EUR,
-2026-10-06,Girokonto; privat,,,Sparkonto,,-300.00,EUR,
-2026-10-07,Girokonto; privat,Markt,,,,-40.00,EUR,2
-2026-10-08,Girokonto; privat,'=1+1,,,'@home,-0.01,EUR,
-2026-10-09,Girokonto; privat,Refund,,,,0.00,EUR,
-2026-10-10,Reisekasse,Ramen,,,,-980,JPY,
+Brötchen",-12.50,EUR,,,
+2026-10-06,Girokonto; privat,,,Sparkonto,,-300.00,EUR,,,
+2026-10-07,Girokonto; privat,Markt,,,,-40.00,EUR,2,,
+2026-10-08,Girokonto; privat,'=1+1,,,'@home,-0.01,EUR,,,
+2026-10-09,Girokonto; privat,Refund,,,,0.00,EUR,,,
+2026-10-11,Girokonto; privat,Kiosk,,,,-10.00,EUR,,-195.58,DEM
+2026-10-10,Reisekasse,Ramen,,,,-980,JPY,,,

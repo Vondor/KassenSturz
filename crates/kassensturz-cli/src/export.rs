@@ -17,7 +17,7 @@ use kassensturz_store::Book;
 use crate::args::Arguments;
 use crate::error::CliError;
 use crate::lookup::find_account;
-use crate::text::plain;
+use crate::text::{counted, plain};
 
 /// The IDs of the formats: transactions as CSV, the default, and the
 /// complete export of the whole book.
@@ -72,10 +72,14 @@ fn export_whole_book(
     export_file(&BookExport, &data, Path::new(file))?;
     writeln!(
         out,
-        "Exported the book to {} as {BOOK}: {} accounts and categories, {} transactions.",
+        "Exported the book to {} as {BOOK}: {}, {}.",
         plain(file),
-        exported.accounts.len(),
-        exported.transactions.len()
+        counted(
+            exported.accounts.len(),
+            "account or category",
+            "accounts and categories"
+        ),
+        counted(exported.transactions.len(), "transaction", "transactions")
     )?;
     Ok(())
 }
@@ -131,8 +135,9 @@ fn export_csv(
     export_file(&exporter, &data, Path::new(file))?;
     writeln!(
         out,
-        "Exported {rows} transactions of {} accounts to {} as {}.",
-        exported.len(),
+        "Exported {} of {} to {} as {}.",
+        counted(rows, "transaction", "transactions"),
+        counted(exported.len(), "account", "accounts"),
         plain(file),
         exporter.info().id
     )?;

@@ -22,7 +22,7 @@ use kassensturz_store::{Book, Computer};
 
 use crate::error::CliError;
 use crate::input::{parse_currency, parse_date};
-use crate::text::plain;
+use crate::text::{counted, plain};
 
 /// The ID of the complete export's format, as `export --format` names it.
 const BOOK: &str = "book";
@@ -223,10 +223,14 @@ pub(crate) fn write_created(
         Created::Empty => writeln!(out, "Created the book.")?,
         Created::Export => writeln!(
             out,
-            "Created the book from {}: {} accounts and categories, {} transactions.",
+            "Created the book from {}: {}, {}.",
             file(),
-            book.all_accounts()?.len(),
-            book.transactions()?.len()
+            counted(
+                book.all_accounts()?.len(),
+                "account or category",
+                "accounts and categories"
+            ),
+            counted(book.transactions()?.len(), "transaction", "transactions")
         )?,
         Created::Imported(report) => write_report(book, &file(), report, out)?,
     }
@@ -242,22 +246,24 @@ fn write_report(
 ) -> Result<(), CliError> {
     writeln!(
         out,
-        "Created the book from {file}: {} accounts, {} categories, {} transactions, {} rates.",
-        report.accounts, report.categories, report.transactions, report.rates
+        "Created the book from {file}: {}, {}, {}, {}.",
+        counted(report.accounts, "account", "accounts"),
+        counted(report.categories, "category", "categories"),
+        counted(report.transactions, "transaction", "transactions"),
+        counted(report.rates, "rate", "rates")
     )?;
     if report.uncategorized > 0 {
         writeln!(
             out,
-            "{} transactions have no category yet, as in the file.",
-            report.uncategorized
+            "{} no category yet, as in the file.",
+            counted(report.uncategorized, "transaction has", "transactions have")
         )?;
     }
     if report.completed > 0 {
         writeln!(
             out,
-            "{} transactions didn't add up in the file and got a part without a category \
-             for the rest.",
-            report.completed
+            "{} didn't add up in the file and got a part without a category for the rest.",
+            counted(report.completed, "transaction", "transactions")
         )?;
     }
     for (id, name) in &report.renamed {
@@ -305,9 +311,14 @@ fn write_report(
     if !report.transfers.is_empty() {
         writeln!(
             out,
-            "{} pairs of transactions look like Transfers between your accounts; \
+            "{} of transactions {} like Transfers between your accounts; \
              see `transfer suggest`.",
-            report.transfers.len()
+            counted(report.transfers.len(), "pair", "pairs"),
+            if report.transfers.len() == 1 {
+                "looks"
+            } else {
+                "look"
+            }
         )?;
     }
     Ok(())

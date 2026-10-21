@@ -291,7 +291,7 @@ fn creating_a_book_never_touches_an_existing_file() {
     std::fs::write(&path, "not a book").expect("file written");
     assert!(matches!(
         Book::create(&path, &folder.computer("Laptop")),
-        Err(StoreError::AlreadyExists)
+        Err(StoreError::AlreadyExists { file }) if file == path.display().to_string()
     ));
     assert_eq!(
         std::fs::read_to_string(&path).expect("file read"),

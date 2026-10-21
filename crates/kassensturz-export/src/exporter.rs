@@ -4,7 +4,7 @@
 //! The Exporter interface every format implements (D-007, D-069).
 
 use std::fs::{self, OpenOptions};
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, ErrorKind, Write};
 use std::path::Path;
 
 use crate::data::ExportData;
@@ -71,16 +71,25 @@ pub fn export(exporter: &dyn Exporter, data: &ExportData) -> Result<Vec<u8>, Exp
 /// Writes `data` with `exporter` to a new file at `path`.
 ///
 /// Never overwrites: if something is at `path`, it fails with
-/// [`ExportError::AlreadyExists`] and leaves it alone. If writing fails, the
-/// file this call began is removed again, so there is either a complete file
-/// or none.
+/// [`ExportError::AlreadyExists`], naming the file, and leaves it alone. If
+/// writing fails, the file this call began is removed again, so there is
+/// either a complete file or none.
 pub fn export_file(
     exporter: &dyn Exporter,
     data: &ExportData,
     path: &Path,
 ) -> Result<(), ExportError> {
     data.check()?;
-    let file = OpenOptions::new().write(true).create_new(true).open(path)?;
+    let file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .map_err(|error| match error.kind() {
+            ErrorKind::AlreadyExists => ExportError::AlreadyExists {
+                file: path.display().to_string(),
+            },
+            _ => ExportError::from(error),
+        })?;
     let mut out = BufWriter::new(file);
     let written = exporter
         .write(data, &mut out)

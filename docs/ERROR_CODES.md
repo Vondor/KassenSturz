@@ -89,7 +89,7 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
-| `store.already-exists` | | | There is already a file with this name. Choose another name or another folder. Nothing was changed. |
+| `store.already-exists` | `file` | | There is already a file called {file}. Choose another name or another folder. Nothing was changed. |
 | `store.not-found` | | | There is no book at this place. It may have been moved or renamed. Choose it again. |
 | `store.book-not-empty` | | | A complete export can only be read into a new, empty book, and this one has something in it already. It wasn't changed. Choose a new book to read the export into. |
 | `store.not-a-book` | | | This file isn't a KassenSturz book. It wasn't changed. Choose another file, or import it if it comes from another program. |
@@ -198,7 +198,7 @@ Data couldn't be written to a file (D-099), or a complete export couldn't be rea
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
 | `export.io` | `kind` | `not-found`, `permission-denied`, `is-a-directory`, `disk-full`, `other` | The file couldn't be written. Not found: the folder doesn't exist, so choose another. Permission denied: choose a folder you may write to. Is a directory: type a file name after the folder. Disk full: free some space or choose another drive. No file was left behind. |
-| `export.already-exists` | | | A file with this name exists already. KassenSturz never overwrites a file, so choose another name, or move the old file away first. Nothing was exported. |
+| `export.already-exists` | `file` | | The file {file} exists already. KassenSturz never overwrites a file, so choose another name, or move the old file away first. Nothing was exported. |
 | `export.bad-settings` | | | The settings for the file contradict each other, e.g. a comma as both the separator and the decimal mark. Choose a semicolon or a tab as the separator, or a point as the decimal mark. Nothing was exported. |
 | `export.currency-mismatch` | `expected`, `found` | | An amount in {found} was to be written for an account in {expected}, so the file would add up wrongly. This is a mistake in KassenSturz; please report it. Nothing was exported. |
 | `export.bad-decimal-places` | `currency`, `digits` | | {currency} has {digits} decimal places in this book, more than an amount can have, so it can't be written exactly. This is a mistake in KassenSturz or in the book; please report it. Nothing was exported. |

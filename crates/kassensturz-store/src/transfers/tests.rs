@@ -16,6 +16,17 @@ use crate::tests::{EUR, Sample, USD, account, date, eur, sample, transaction};
 /// it: the account's part with what the bank delivered, and a part without
 /// a category yet (D-083). `day` is in October 2026; the 5th is a Monday.
 fn side(book: &mut Book, account: AccountId, minor_units: i64, day: i8) -> Transaction {
+    named_side(book, account, minor_units, day, None)
+}
+
+/// [`side`] with a payee, e.g. the other party's name an import fills in.
+fn named_side(
+    book: &mut Book,
+    account: AccountId,
+    minor_units: i64,
+    day: i8,
+    payee: Option<&str>,
+) -> Transaction {
     let delivered = ImportedDetails {
         bank_id: Some(format!("2026-10-{day:02}-{minor_units}")),
         booking_date: Some(date(2026, 10, day)),
@@ -32,7 +43,7 @@ fn side(book: &mut Book, account: AccountId, minor_units: i64, day: i8) -> Trans
     let transaction = Transaction::new(
         TransactionId::generate(),
         date(2026, 10, day),
-        None,
+        payee.map(str::to_owned),
         vec![booked, other],
     )
     .expect("balanced");
@@ -198,24 +209,33 @@ fn joining_makes_one_transfer_that_keeps_what_both_banks_delivered() {
     assert_eq!(joined, out.id());
     let transfer = book.transaction(joined).expect("read");
     assert_eq!(transfer.booking_date(), date(2026, 10, 9));
-    assert_eq!(
-        transfer.splits(),
-        [out.splits()[0].clone(), into.splits()[0].clone()]
-    );
+    // The savings part keeps the day the savings account showed (D-108).
+    let savings_part = Split {
+        own_date: Some(date(2026, 10, 12)),
+        ..into.splits()[0].clone()
+    };
+    assert_eq!(transfer.splits(), [out.splits()[0].clone(), savings_part]);
     assert!(matches!(
         book.transaction(into.id()),
         Err(StoreError::UnknownTransaction(id)) if id == into.id()
     ));
-    // Both registers show the one transaction, and the balances stay.
+    // Both registers show the one transaction, each on the day it showed
+    // before, and the balances stay.
     let register = |account| {
         book.register(account)
             .expect("register")
             .into_iter()
-            .map(|entry| (entry.transaction, entry.amount))
+            .map(|entry| (entry.transaction, entry.booking_date, entry.amount))
             .collect::<Vec<_>>()
     };
-    assert_eq!(register(checking), vec![(joined, eur(-20_000))]);
-    assert_eq!(register(savings), vec![(joined, eur(20_000))]);
+    assert_eq!(
+        register(checking),
+        vec![(joined, date(2026, 10, 9), eur(-20_000))]
+    );
+    assert_eq!(
+        register(savings),
+        vec![(joined, date(2026, 10, 12), eur(20_000))]
+    );
     assert_eq!(pairs(&book), Vec::new());
     assert_eq!(
         book.history().expect("history")[0].action,
@@ -230,6 +250,88 @@ fn joining_makes_one_transfer_that_keeps_what_both_banks_delivered() {
     book.redo().expect("redone");
     assert_eq!(book.transaction(joined).expect("read"), transfer);
     assert!(book.transaction(into.id()).is_err());
+}
+
+#[test]
+fn each_register_keeps_the_date_and_payee_its_bank_delivered() {
+    // Issue #44: the checking account paid the credit card on Tuesday the
+    // 20th; the card's bank booked it on Wednesday the 21st, from the
+    // account holder's name. The card was used for a purchase on the 20th
+    // too.
+    let Accounts {
+        mut book, checking, ..
+    } = accounts();
+    let card = account(&mut book, "Credit card", AccountKind::Liability, EUR);
+    let out = named_side(
+        &mut book,
+        checking,
+        -9_840,
+        20,
+        Some("Example Card Services"),
+    );
+    let into = named_side(&mut book, card, 9_840, 21, Some("Alex Example"));
+    let purchase = named_side(&mut book, card, -1_250, 20, Some("Corner Grocery"));
+    let lines = |book: &Book, account| {
+        book.register(account)
+            .expect("register")
+            .into_iter()
+            .map(|entry| {
+                (
+                    entry.transaction,
+                    entry.booking_date,
+                    entry.payee,
+                    entry.amount,
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let checking_before = lines(&book, checking);
+    let card_before = lines(&book, card);
+
+    let joined = book.join_transfer(out.id(), into.id()).expect("joined");
+    let transfer = book.transaction(joined).expect("read");
+    assert_eq!(
+        (transfer.booking_date(), transfer.payee()),
+        (date(2026, 10, 20), Some("Example Card Services"))
+    );
+    // Neither register changes, except that the card's payment is now the
+    // Transfer: still on the 21st, after the purchase, from Alex Example.
+    let renamed = |lines: Vec<_>| {
+        lines
+            .into_iter()
+            .map(|(id, day, payee, amount)| {
+                let id = if id == into.id() { joined } else { id };
+                (id, day, payee, amount)
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(lines(&book, checking), checking_before);
+    assert_eq!(lines(&book, card), renamed(card_before.clone()));
+    assert_eq!(
+        lines(&book, card),
+        vec![
+            (
+                purchase.id(),
+                date(2026, 10, 20),
+                Some("Corner Grocery".into()),
+                eur(-1_250)
+            ),
+            (
+                joined,
+                date(2026, 10, 21),
+                Some("Alex Example".into()),
+                eur(9_840)
+            ),
+        ]
+    );
+
+    // Undo takes the join back as a whole, the parts' own date and payee
+    // included, and redo brings them back.
+    book.undo().expect("undone");
+    assert_eq!(lines(&book, card), card_before);
+    assert_eq!(book.transaction(into.id()).expect("back"), into);
+    book.redo().expect("redone");
+    assert_eq!(book.transaction(joined).expect("read"), transfer);
 }
 
 #[test]

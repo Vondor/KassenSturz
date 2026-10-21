@@ -371,6 +371,30 @@ fn household() -> Book {
     imported(&mut book, checking, -777, day(9), "Somebody else");
     book.run_rules().expect("ran");
     book.remove_rule(gone.id).expect("removed");
+
+    // The card bill, paid from checking on the 20th and booked by the
+    // card's bank on the 21st, joined into a Transfer: the card's part keeps
+    // the date and payee the card showed (D-108).
+    let paid = add_transaction(
+        &mut book,
+        day(20),
+        Some("Example Card Services"),
+        vec![
+            Split::new(checking, eur(-9_840)),
+            Split::uncategorized(eur(9_840)),
+        ],
+    );
+    let received = add_transaction(
+        &mut book,
+        day(21),
+        Some("Alex Example"),
+        vec![
+            Split::new(card, eur(9_840)),
+            Split::uncategorized(eur(-9_840)),
+        ],
+    );
+    book.join_transfer(paid.id(), received.id())
+        .expect("joined");
     book
 }
 
@@ -389,7 +413,17 @@ fn a_book_comes_back_from_its_export_as_it_was() {
     assert_eq!(data.currencies.len(), 3);
     assert_eq!(data.accounts.len(), 10);
     assert_eq!(data.rates.len(), 2);
-    assert_eq!(data.transactions.len(), 10);
+    assert_eq!(data.transactions.len(), 11);
+    let card_part = data
+        .transactions
+        .iter()
+        .flat_map(|transaction| transaction.splits())
+        .find(|part| part.own_date.is_some())
+        .expect("the card's part of the Transfer");
+    assert_eq!(
+        (card_part.own_date, card_part.own_payee.as_deref()),
+        (Some(day(21)), Some("Alex Example"))
+    );
     assert_eq!(data.rule_marks.len(), 2);
     assert_eq!(
         data.rule_marks

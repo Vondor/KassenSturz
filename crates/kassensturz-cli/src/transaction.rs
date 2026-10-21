@@ -220,6 +220,17 @@ fn show(book: &Book, id: TransactionId, out: &mut dyn Write) -> Result<(), CliEr
                 rate_text(&original.rate)
             ));
         }
+        // The second side of a joined Transfer, as its account shows it
+        // (D-108).
+        if split.own_date.is_some() || split.own_payee.is_some() {
+            if !note.is_empty() {
+                note.push_str("; ");
+            }
+            note.push_str(&format!("shown on {}", transaction.date_of(split)));
+            if let Some(payee) = transaction.payee_of(split) {
+                note.push_str(&format!(" with the payee {}", plain(payee)));
+            }
+        }
         rows.push(vec![place, money_text(Some(book), split.amount), note]);
     }
     for line in table(&rows, &[1]).lines() {

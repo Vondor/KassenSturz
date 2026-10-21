@@ -55,10 +55,11 @@ impl Book {
     ///
     /// The transaction the money left from stays, with its date and payee,
     /// and gets the part that books the money into the other account, with
-    /// what that account's bank delivered (D-083); the other transaction is
-    /// removed. Both accounts' balances stay as they were, and the two parts
-    /// without a category go. It is one user action, which undo takes back
-    /// as a whole.
+    /// what that account's bank delivered (D-083) and, as its own, the date
+    /// and payee that account showed (D-108); the other transaction is
+    /// removed. Both accounts' balances and registers stay as they were, and
+    /// the two parts without a category go. It is one user action, which
+    /// undo takes back as a whole.
     ///
     /// Any two sides can be joined, however far apart their dates are, since
     /// the user decides; they must be in different accounts and take out and

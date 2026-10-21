@@ -593,6 +593,73 @@ fn an_accounts_parts_come_with_what_was_delivered() {
 }
 
 #[test]
+fn a_part_can_have_its_own_date_and_payee() {
+    // As the second side of a joined Transfer keeps them (D-108): the
+    // account shows them instead of the transaction's.
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let shown = Split {
+        own_date: Some(date(2026, 10, 7)),
+        own_payee: Some("Corner Market".into()),
+        ..Split::new(checking, eur(-1000))
+    };
+    let market = Transaction::new(
+        TransactionId::generate(),
+        date(2026, 10, 2),
+        Some("Market".into()),
+        vec![shown, Split::new(groceries, eur(1000))],
+    )
+    .expect("balanced");
+    book.add_transaction(&market).expect("added");
+    let earlier = transaction(
+        date(2026, 10, 5),
+        "Bakery",
+        &[(checking, eur(-300)), (groceries, eur(300))],
+    );
+    book.add_transaction(&earlier).expect("added");
+    assert_eq!(book.transaction(market.id()).expect("read"), market);
+
+    let lines = |book: &Book, account| {
+        book.register(account)
+            .expect("register")
+            .into_iter()
+            .map(|entry| (entry.transaction, entry.booking_date, entry.payee))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        lines(&book, checking),
+        [
+            (earlier.id(), date(2026, 10, 5), Some("Bakery".into())),
+            (market.id(), date(2026, 10, 7), Some("Corner Market".into())),
+        ],
+        "by the date the account shows"
+    );
+    assert_eq!(
+        lines(&book, groceries),
+        [
+            (market.id(), date(2026, 10, 2), Some("Market".into())),
+            (earlier.id(), date(2026, 10, 5), Some("Bakery".into())),
+        ]
+    );
+    let parts = book.account_parts(checking).expect("parts");
+    assert_eq!(parts[1].booking_date, date(2026, 10, 7));
+
+    // An edit can change or remove them.
+    let mut parts = market.splits().to_vec();
+    parts[0].own_payee = None;
+    let edited = with_parts(&market, parts);
+    book.update_transaction(&edited).expect("changed");
+    assert_eq!(book.transaction(market.id()).expect("read"), edited);
+    assert_eq!(lines(&book, checking)[1].2, Some("Market".into()));
+    book.undo().expect("undone");
+    assert_eq!(book.transaction(market.id()).expect("read"), market);
+}
+
+#[test]
 fn a_part_a_bank_delivered_stays_as_it_was() {
     let Sample {
         mut book,

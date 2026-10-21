@@ -508,6 +508,8 @@ fn both_sides_of_a_transfer_are_suggested_and_joined() {
         "Savings",
         "--amount",
         "200",
+        "--payee",
+        "From checking",
     ]));
     // A purchase of the same amount, a week later, doesn't fit.
     session.ok(&[
@@ -557,10 +559,35 @@ fn both_sides_of_a_transfer_are_suggested_and_joined() {
         "No transactions look like the two sides of a Transfer.\n"
     );
     let shown = session.ok(&["transaction", "show", &out]);
+    assert!(
+        shown.contains("Date:  2026-10-09\nPayee: To savings\n"),
+        "{shown}"
+    );
     assert!(shown.contains("Checking account  -200.00 EUR"), "{shown}");
-    assert!(shown.contains("Savings            200.00 EUR"), "{shown}");
+    assert!(
+        shown.contains(
+            "Savings            200.00 EUR  shown on 2026-10-12 with the payee From checking"
+        ),
+        "{shown}"
+    );
     assert!(!shown.contains("no category yet"), "{shown}");
-    assert_eq!(session.ok(&["register", "Savings"]).lines().count(), 3);
+    // Each register shows its side as before: the day its bank booked it,
+    // and its payee (D-108).
+    let words = |register: &str| {
+        register
+            .lines()
+            .nth(2)
+            .expect("one line")
+            .split_whitespace()
+            .take(3)
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let savings = session.ok(&["register", "Savings"]);
+    assert_eq!(savings.lines().count(), 3, "{savings}");
+    assert_eq!(words(&savings), "2026-10-12 From checking");
+    let checking = session.ok(&["register", "Checking account"]);
+    assert_eq!(words(&checking), "2026-10-09 To savings");
 
     // Undo brings back both sides.
     assert_eq!(
@@ -2094,7 +2121,7 @@ fn a_file_that_does_not_make_a_book_leaves_nothing_behind() {
     .expect("written");
     std::fs::write(
         new.0.join("busy.json"),
-        written.replace("\"version\": 2", "\"version\": 3"),
+        written.replace("\"version\": 3", "\"version\": 4"),
     )
     .expect("written");
     for (from, code) in [

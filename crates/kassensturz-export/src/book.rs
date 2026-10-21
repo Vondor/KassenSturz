@@ -38,8 +38,9 @@ pub const FORMAT: &str = "kassensturz-book";
 /// Every change to the format gets a new one; KassenSturz reads every
 /// version up to its own and refuses newer ones (`docs/EXPORT_FORMAT.md`).
 /// Version 2 added a part's original amount, from before it was converted
-/// out of a withdrawn currency (D-104).
-pub const VERSION: u64 = 2;
+/// out of a withdrawn currency (D-104), version 3 a part's own date and
+/// payee, which its account shows instead of the transaction's (D-108).
+pub const VERSION: u64 = 3;
 
 /// How deep Rules can sit inside each other in the file: a top-level Rule is
 /// at depth 1. Deeper trees are refused when writing and reading, so a file
@@ -317,6 +318,8 @@ impl BookWriter {
                     ("amount", self.amount(split.amount)?),
                     ("foreign", foreign),
                     ("original", original),
+                    ("date", Json::optional_date(split.own_date)),
+                    ("payee", Json::optional_text(split.own_payee.as_deref())),
                     ("delivered", delivered),
                     ("booked_by_rule", booked_by_rule),
                 ]))

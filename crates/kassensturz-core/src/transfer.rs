@@ -41,7 +41,8 @@ pub const MAX_BUSINESS_DAYS: u32 = 3;
 pub struct TransferSide {
     /// The transaction.
     pub transaction: TransactionId,
-    /// Its booking date, the one the user sees.
+    /// Its booking date, the one the user sees in the account's register
+    /// ([`Transaction::date_of`]).
     pub booking_date: Date,
     /// The user's account the money moves into or out of.
     pub account: AccountId,
@@ -79,7 +80,7 @@ impl TransferSide {
         }
         Ok(Self {
             transaction: transaction.id(),
-            booking_date: transaction.booking_date(),
+            booking_date: transaction.date_of(booked),
             account,
             amount: booked.amount,
         })
@@ -182,10 +183,13 @@ pub fn find_transfers(sides: &[TransferSide]) -> Vec<TransferMatch> {
 /// transaction that books the money into its account (D-087).
 ///
 /// The joined transaction keeps the outgoing side's ID, booking date and
-/// payee, or the incoming side's payee if the outgoing one has none. Both
-/// accounts' parts stay exactly as they were, with what their banks
-/// delivered (D-083), so neither account's balance changes; the two parts
-/// without a category go. The incoming transaction is the one to remove.
+/// payee, or the incoming side's payee if the outgoing one has none: the
+/// one date and payee of the whole Transfer. Both accounts' parts stay as
+/// they were, with what their banks delivered (D-083), so neither account's
+/// balance changes; the incoming side's part also keeps the date and payee
+/// its account showed, as its own (D-108), so neither register changes
+/// either. The two parts without a category go. The incoming transaction is
+/// the one to remove.
 ///
 /// The user decides which sides to join, so the dates may be any number of
 /// days apart; the two sides must be in different accounts and take out and
@@ -224,8 +228,12 @@ pub fn join_transfer(
         .splits()
         .iter()
         .find(|split| split.account == Some(incoming_account))
-        .cloned()
         .ok_or(TransferError::NotASide(incoming.id()))?;
+    let incoming_part = Split {
+        own_date: Some(incoming.date_of(incoming_part)),
+        own_payee: incoming.payee_of(incoming_part).map(str::to_owned),
+        ..incoming_part.clone()
+    };
     let splits: Vec<Split> = outgoing
         .splits()
         .iter()
@@ -605,6 +613,13 @@ mod tests {
             .expect("balanced");
         let out = imported(checking, -10_000, 9, None);
 
+        // The savings part keeps the date and payee the savings account
+        // showed (D-108).
+        let savings_part = Split {
+            own_date: Some(october(12)),
+            own_payee: Some("From checking".into()),
+            ..into.splits()[0].clone()
+        };
         for (a, b) in [(&out, &into), (&into, &out)] {
             let joined = join_transfer(a, b, is_account).expect("joined");
             assert_eq!(joined.id(), out.id());
@@ -613,7 +628,7 @@ mod tests {
             assert_eq!(joined.payee(), Some("From checking"));
             assert_eq!(
                 joined.splits(),
-                [out.splits()[0].clone(), into.splits()[0].clone()]
+                [out.splits()[0].clone(), savings_part.clone()]
             );
             assert_eq!(joined.splits()[1].imported, Some(delivered.clone()));
         }
@@ -628,9 +643,54 @@ mod tests {
         .expect("balanced");
         let joined = join_transfer(&into, &out, is_account).expect("joined");
         assert_eq!(joined.payee(), Some("To savings"));
+        assert_eq!(joined.splits(), [savings_part, out.splits()[1].clone()]);
+    }
+
+    #[test]
+    fn each_account_shows_a_joined_transfer_as_it_did_before() {
+        // A credit card paid from checking on Tuesday the 20th; the card's
+        // bank booked it on Wednesday the 21st, from another name (D-108).
+        let checking = AccountId::generate();
+        let card = AccountId::generate();
+        let is_account = |id: AccountId| id == checking || id == card;
+        let out = imported(checking, -9_840, 20, Some("Example Card Services"));
+        let into = imported(card, 9_840, 21, Some("Alex Example"));
+        let joined = join_transfer(&into, &out, is_account).expect("joined");
+        let [paid, received] = joined.splits() else {
+            panic!("two parts");
+        };
         assert_eq!(
-            joined.splits(),
-            [into.splits()[0].clone(), out.splits()[1].clone()]
+            (joined.booking_date(), joined.payee()),
+            (october(20), Some("Example Card Services"))
+        );
+        assert_eq!(
+            (joined.date_of(paid), joined.payee_of(paid)),
+            (october(20), Some("Example Card Services"))
+        );
+        assert_eq!(
+            (joined.date_of(received), joined.payee_of(received)),
+            (october(21), Some("Alex Example"))
+        );
+
+        // A side without a payee shows the Transfer's.
+        let into = imported(card, 9_840, 21, None);
+        let joined = join_transfer(&out, &into, is_account).expect("joined");
+        let received = &joined.splits()[1];
+        assert_eq!(received.own_payee, None);
+        assert_eq!(joined.payee_of(received), Some("Example Card Services"));
+    }
+
+    #[test]
+    fn a_side_is_dated_as_its_account_shows_it() {
+        let checking = AccountId::generate();
+        let is_account = |id: AccountId| id == checking;
+        let side = imported(checking, -9_840, 20, None);
+        let mut parts = side.splits().to_vec();
+        parts[0].own_date = Some(october(21));
+        let side = Transaction::new(side.id(), october(20), None, parts).expect("balanced");
+        assert_eq!(
+            TransferSide::of(&side, is_account).map(|side| side.booking_date),
+            Ok(october(21))
         );
     }
 

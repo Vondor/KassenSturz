@@ -207,7 +207,8 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
 #[derive(Default)]
 struct Reader {
     /// The file's version: version 1 has no original amounts and no
-    /// `changeover` rates (D-104).
+    /// `changeover` rates (D-104), and versions 1 and 2 no parts with a date
+    /// and payee of their own (D-108).
     version: u64,
     /// The decimal places of each currency the file lists.
     digits: HashMap<CurrencyCode, u8>,
@@ -275,27 +276,21 @@ impl Reader {
         let currency = transaction.currency("currency")?;
         let mut splits = Vec::new();
         for (value, path) in transaction.list("parts")? {
-            let keys: &[&str] = if self.version >= 2 {
-                &[
-                    "id",
-                    "account",
-                    "amount",
-                    "foreign",
-                    "original",
-                    "delivered",
-                    "booked_by_rule",
-                ]
-            } else {
-                &[
-                    "id",
-                    "account",
-                    "amount",
-                    "foreign",
-                    "delivered",
-                    "booked_by_rule",
-                ]
-            };
-            let part = Object::new(value, &path, keys)?;
+            let mut keys = vec![
+                "id",
+                "account",
+                "amount",
+                "foreign",
+                "delivered",
+                "booked_by_rule",
+            ];
+            if self.version >= 2 {
+                keys.push("original");
+            }
+            if self.version >= 3 {
+                keys.extend(["date", "payee"]);
+            }
+            let part = Object::new(value, &path, &keys)?;
             let split = SplitId::from_bytes(part.id("id")?);
             if !self.parts.insert(split) {
                 return Err(ExportError::Duplicate {
@@ -378,6 +373,8 @@ impl Reader {
                 foreign,
                 imported,
                 original,
+                own_date: part.optional_date("date")?,
+                own_payee: part.optional_text("payee")?,
             });
         }
         Transaction::new(id, booking_date, payee, splits).map_err(|error| {

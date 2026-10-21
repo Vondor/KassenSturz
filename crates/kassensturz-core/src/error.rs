@@ -186,6 +186,11 @@ impl Report for TransactionError {
             }
             Self::ForeignSignMismatch(id) => split("transaction.foreign-sign-mismatch", id),
             Self::RateCurrencyMismatch(id) => split("transaction.rate-currency-mismatch", id),
+            Self::OriginalInPartCurrency(id) => split("transaction.original-in-part-currency", id),
+            Self::OriginalSignMismatch(id) => split("transaction.original-sign-mismatch", id),
+            Self::OriginalWithForeignRate(id) => {
+                split("transaction.original-with-foreign-rate", id)
+            }
         }
     }
 }

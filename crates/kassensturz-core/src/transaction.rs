@@ -43,6 +43,10 @@ pub struct Split {
     /// What a bank or file delivered for this part, kept unchanged (D-067).
     /// Only a part booked to the account a statement is for has it.
     pub imported: Option<ImportedDetails>,
+    /// For a part converted from a withdrawn currency, such as an amount in
+    /// German marks from an old book: the amount it had, and the fixed rate
+    /// it was converted with (D-077, D-104).
+    pub original: Option<OriginalAmount>,
 }
 
 impl Split {
@@ -64,6 +68,7 @@ impl Split {
             amount,
             foreign: None,
             imported: None,
+            original: None,
         }
     }
 
@@ -94,6 +99,26 @@ pub struct ForeignAmount {
     /// (AGENTS.md §5). `None` if both amounts were given, e.g. by the bank or
     /// the user: then their ratio is the rate.
     pub rate: Option<DatedRate>,
+}
+
+/// The amount a part had in a withdrawn currency, before it was converted into
+/// the currency that replaced it (D-077, D-104). Example: a purchase of
+/// 100.00 DEM from a book kept before the euro is 51.13 EUR now, and keeps
+/// the 100.00 DEM and the fixed rate of 1 EUR = 1.95583 DEM.
+///
+/// It was converted into the part's amount, in the transaction's currency,
+/// or into its foreign amount, in its account's: the one in the currency
+/// the rate is from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct OriginalAmount {
+    /// The amount in the withdrawn currency, e.g. 100.00 DEM. It has the
+    /// same sign as the amount it was converted into, unless one of the two
+    /// is zero.
+    pub amount: Money,
+    /// The fixed rate it was converted with: one unit of the currency that
+    /// replaced the withdrawn one costs `rate` units of it, e.g.
+    /// 1 EUR = 1.95583 DEM, usually from [`RateSource::Changeover`](crate::RateSource::Changeover).
+    pub rate: DatedRate,
 }
 
 /// What a bank or file delivered for one part, kept exactly as it was
@@ -172,6 +197,9 @@ impl Transaction {
             }
             if let Some(foreign) = &split.foreign {
                 check_foreign(split, foreign, currency)?;
+            }
+            if let Some(original) = &split.original {
+                check_original(split, original, currency)?;
             }
         }
         let total = Money::checked_sum(currency, splits.iter().map(|split| split.amount))
@@ -274,6 +302,44 @@ fn check_foreign(
     Ok(())
 }
 
+/// Checks a part's original amount: in neither of the part's currencies, with
+/// a rate from one of them into its own, and the same sign as the amount it
+/// was converted into. The part keeps one rate, so its foreign amount has
+/// none.
+fn check_original(
+    split: &Split,
+    original: &OriginalAmount,
+    currency: CurrencyCode,
+) -> Result<(), TransactionError> {
+    let original_currency = original.amount.currency();
+    let foreign = split.foreign.as_ref();
+    if original_currency == currency
+        || foreign.is_some_and(|foreign| foreign.amount.currency() == original_currency)
+    {
+        return Err(TransactionError::OriginalInPartCurrency(split.id));
+    }
+    if foreign.is_some_and(|foreign| foreign.rate.is_some()) {
+        return Err(TransactionError::OriginalWithForeignRate(split.id));
+    }
+    if original.rate.to != original_currency {
+        return Err(TransactionError::RateCurrencyMismatch(split.id));
+    }
+    let converted = if original.rate.from == currency {
+        split.amount
+    } else {
+        match foreign {
+            Some(foreign) if foreign.amount.currency() == original.rate.from => foreign.amount,
+            _ => return Err(TransactionError::RateCurrencyMismatch(split.id)),
+        }
+    };
+    let opposite = (converted.is_negative() && original.amount.minor_units() > 0)
+        || (converted.minor_units() > 0 && original.amount.is_negative());
+    if opposite {
+        return Err(TransactionError::OriginalSignMismatch(split.id));
+    }
+    Ok(())
+}
+
 /// Why parts don't form a valid transaction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TransactionError {
@@ -315,8 +381,22 @@ pub enum TransactionError {
     /// rates are above zero, so both point the same way.
     ForeignSignMismatch(SplitId),
     /// The rate a part's foreign amount was converted with isn't between the
-    /// part's two currencies.
+    /// part's two currencies, or the rate of its original amount isn't from
+    /// one of them into the original amount's currency.
     RateCurrencyMismatch(SplitId),
+    /// A part's original amount is in the currency of its amount or of its
+    /// foreign amount. It is in the withdrawn currency the part was
+    /// converted from.
+    OriginalInPartCurrency(SplitId),
+    /// A part's original amount and the amount it was converted into have
+    /// opposite signs. Exchange rates are above zero, so both point the same
+    /// way.
+    OriginalSignMismatch(SplitId),
+    /// A part has both an original amount and a rate for its foreign amount.
+    /// A part keeps one rate: a converted part's foreign amount comes with
+    /// none, since both of its amounts were given or converted with the
+    /// fixed rate.
+    OriginalWithForeignRate(SplitId),
 }
 
 #[cfg(test)]
@@ -566,6 +646,118 @@ mod tests {
         parts[0].amount = eur(0);
         parts[1].amount = eur(0);
         foreign(&mut parts[1]).amount = usd(1);
+        new(parts).expect("zero and a positive amount");
+    }
+
+    const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
+        Ok(code) => code,
+        Err(_) => panic!("DEM is a valid code"),
+    };
+
+    fn dem(minor_units: i64) -> Money {
+        Money::from_minor_units(minor_units, DEM)
+    }
+
+    /// 100.00 DEM converted at the fixed rate of 1 EUR = 1.95583 DEM.
+    fn mark_original() -> OriginalAmount {
+        OriginalAmount {
+            amount: dem(10_000),
+            rate: DatedRate {
+                id: DatedRateId::generate(),
+                date: Date::new(1999, 1, 1).expect("valid date"),
+                from: EUR,
+                to: DEM,
+                rate: "1.95583".parse().expect("valid rate"),
+                source: RateSource::Changeover,
+            },
+        }
+    }
+
+    /// A purchase of 100.00 DEM from a book kept in marks, in euros now.
+    fn converted_parts() -> Vec<Split> {
+        let original = mark_original();
+        vec![
+            Split {
+                original: Some(OriginalAmount {
+                    amount: dem(-10_000),
+                    ..original
+                }),
+                ..split(AccountId::generate(), -5113)
+            },
+            Split {
+                original: Some(original),
+                ..split(AccountId::generate(), 5113)
+            },
+        ]
+    }
+
+    #[test]
+    fn a_converted_part_keeps_its_original_amount() {
+        let transaction = new(converted_parts()).expect("balanced in euros");
+        let part = &transaction.splits()[1];
+        assert_eq!(part.account_amount(), eur(5113));
+        assert_eq!(
+            part.original.map(|original| original.amount),
+            Some(dem(10_000))
+        );
+
+        // In a transaction in dollars, a part booked to an account in marks
+        // that is in euros now: the euro amount is converted from the marks.
+        let mut parts = hotel_parts();
+        parts[1].foreign = Some(ForeignAmount {
+            amount: eur(5113),
+            rate: None,
+        });
+        parts[0].amount = usd(-5500);
+        parts[1].amount = usd(5500);
+        parts[1].original = Some(mark_original());
+        new(parts).expect("converted into the foreign amount");
+    }
+
+    #[test]
+    fn an_original_amount_is_in_a_third_currency_with_a_rate_into_it() {
+        /// The converted purchase with its second part changed by `change`,
+        /// and that part's ID.
+        fn changed(
+            change: impl FnOnce(&mut Split),
+        ) -> (Result<Transaction, TransactionError>, SplitId) {
+            let mut parts = converted_parts();
+            change(&mut parts[1]);
+            let id = parts[1].id;
+            (new(parts), id)
+        }
+        fn original(part: &mut Split) -> &mut OriginalAmount {
+            part.original.as_mut().expect("a converted part")
+        }
+
+        let (result, id) = changed(|part| original(part).amount = eur(10_000));
+        assert_eq!(result, Err(TransactionError::OriginalInPartCurrency(id)));
+        let (result, id) = changed(|part| {
+            part.foreign = Some(ForeignAmount {
+                amount: dem(10_000),
+                rate: None,
+            });
+        });
+        assert_eq!(result, Err(TransactionError::OriginalInPartCurrency(id)));
+        let (result, id) = changed(|part| original(part).amount = dem(-10_000));
+        assert_eq!(result, Err(TransactionError::OriginalSignMismatch(id)));
+        let (result, id) = changed(|part| original(part).rate.to = USD);
+        assert_eq!(result, Err(TransactionError::RateCurrencyMismatch(id)));
+        let (result, id) = changed(|part| original(part).rate.from = USD);
+        assert_eq!(result, Err(TransactionError::RateCurrencyMismatch(id)));
+        let (result, id) = changed(|part| {
+            part.foreign = Some(ForeignAmount {
+                amount: usd(5500),
+                rate: Some(rate(EUR, USD)),
+            });
+        });
+        assert_eq!(result, Err(TransactionError::OriginalWithForeignRate(id)));
+
+        // A tiny amount can convert to zero.
+        let mut parts = converted_parts();
+        parts[0].amount = eur(0);
+        parts[1].amount = eur(0);
+        original(&mut parts[1]).amount = dem(1);
         new(parts).expect("zero and a positive amount");
     }
 

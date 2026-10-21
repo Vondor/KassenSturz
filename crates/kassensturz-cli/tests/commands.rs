@@ -2061,7 +2061,7 @@ fn a_file_that_does_not_make_a_book_leaves_nothing_behind() {
     .expect("written");
     std::fs::write(
         new.0.join("busy.json"),
-        written.replace("\"version\": 1", "\"version\": 2"),
+        written.replace("\"version\": 2", "\"version\": 3"),
     )
     .expect("written");
     for (from, code) in [
@@ -2204,6 +2204,51 @@ fn a_kmymoney_sqlite_file_makes_the_same_book_as_a_kmy_file() {
         refused.err
     );
     assert!(!session.book().exists());
+}
+
+#[test]
+fn a_kmymoney_file_in_marks_comes_in_in_euros() {
+    let session = Session::new();
+    let file = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../kassensturz-import/tests/golden/kmy/withdrawn-currency-transaction.kmy")
+        .display()
+        .to_string();
+    assert_eq!(
+        session.ok(&["create", "--from", &file]),
+        format!(
+            "Created the book from {file}: 2 accounts, 1 categories, 2 transactions, 0 rates.\n\
+             Converted DEM into EUR, which replaced it at 1 EUR = 1.95583 DEM on 1999-01-01: \
+             1 accounts and categories, 4 parts. Each part keeps its amount in DEM.\n"
+        )
+    );
+    // The old checking account's 10.00 DEM are 5.11 EUR at the fixed rate.
+    assert_eq!(
+        session.ok(&["balances"]),
+        "Account          Balance\n\
+         Checking      -24.75 EUR\n\
+         Old checking   -5.11 EUR\n\
+         Total         -29.86 EUR\n"
+    );
+    let register = session.ok(&["register", "Old checking"]);
+    let (_, id) = register
+        .lines()
+        .last()
+        .and_then(|line| line.rsplit_once("  "))
+        .expect("a transaction");
+    // Each part shows the amount it had in marks.
+    assert_eq!(
+        session
+            .ok(&["transaction", "show", id])
+            .lines()
+            .skip(4)
+            .collect::<Vec<_>>(),
+        [
+            "  Old checking  -5.11 EUR  was -10.00 DEM at 1 EUR = 1.95583 DEM \
+             (1999-01-01, fixed when the currency was replaced)",
+            "  Groceries      5.11 EUR  was 10.00 DEM at 1 EUR = 1.95583 DEM \
+             (1999-01-01, fixed when the currency was replaced)",
+        ]
+    );
 }
 
 #[test]

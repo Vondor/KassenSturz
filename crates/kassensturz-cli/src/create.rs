@@ -184,6 +184,20 @@ fn write_report(
             plain(&book.account(*id)?.name)
         )?;
     }
+    for converted in &report.converted {
+        let withdrawn = converted.withdrawn;
+        writeln!(
+            out,
+            "Converted {old} into {new}, which replaced it at 1 {new} = {rate} {old} on {date}: \
+             {} accounts and categories, {} parts. Each part keeps its amount in {old}.",
+            converted.accounts,
+            converted.parts,
+            old = withdrawn.currency().code(),
+            new = withdrawn.successor(),
+            rate = withdrawn.rate(),
+            date = withdrawn.date(),
+        )?;
+    }
     if !report.skipped.is_empty() {
         writeln!(out, "Not imported, because KassenSturz can't hold it yet:")?;
         for skipped in &report.skipped {

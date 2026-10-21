@@ -6,7 +6,8 @@
 use std::io::Write;
 
 use kassensturz_core::{
-    Account, ForeignAmount, Money, RateSource, Split, SplitId, Transaction, TransactionId,
+    Account, DatedRate, ForeignAmount, Money, RateSource, Split, SplitId, Transaction,
+    TransactionId,
 };
 use kassensturz_store::Book;
 
@@ -187,22 +188,37 @@ fn show(book: &Book, id: TransactionId, out: &mut dyn Write) -> Result<(), CliEr
             Some(id) => plain(&book.account(id)?.name),
             None => "(no category yet)".to_owned(),
         };
+        let rate_text = |rate: &DatedRate| {
+            format!(
+                " at 1 {} = {} {} ({}, {})",
+                rate.from,
+                rate.rate,
+                rate.to,
+                rate.date,
+                match rate.source {
+                    RateSource::Manual => "entered by hand",
+                    RateSource::Changeover => "fixed when the currency was replaced",
+                }
+            )
+        };
         let mut note = String::new();
         if let Some(foreign) = &split.foreign {
             note = format!("= {}", money_text(Some(book), foreign.amount));
             match &foreign.rate {
-                Some(rate) => note.push_str(&format!(
-                    " at 1 {} = {} {} ({}, {})",
-                    rate.from,
-                    rate.rate,
-                    rate.to,
-                    rate.date,
-                    match rate.source {
-                        RateSource::Manual => "entered by hand",
-                    }
-                )),
+                Some(rate) => note.push_str(&rate_text(rate)),
                 None => note.push_str(" (both amounts given)"),
             }
+        }
+        // A part converted from a withdrawn currency (D-104).
+        if let Some(original) = &split.original {
+            if !note.is_empty() {
+                note.push_str("; ");
+            }
+            note.push_str(&format!(
+                "was {}{}",
+                money_text(Some(book), original.amount),
+                rate_text(&original.rate)
+            ));
         }
         rows.push(vec![place, money_text(Some(book), split.amount), note]);
     }

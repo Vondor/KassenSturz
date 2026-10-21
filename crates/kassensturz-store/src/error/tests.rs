@@ -78,6 +78,9 @@ fn examples() -> Vec<ErrorReport> {
         TransactionError::ForeignInTransactionCurrency(split),
         TransactionError::ForeignSignMismatch(split),
         TransactionError::RateCurrencyMismatch(split),
+        TransactionError::OriginalInPartCurrency(split),
+        TransactionError::OriginalSignMismatch(split),
+        TransactionError::OriginalWithForeignRate(split),
     ];
     let transfer_errors = [
         TransferError::NotASide(transaction),
@@ -137,6 +140,7 @@ fn examples() -> Vec<ErrorReport> {
         StoreError::BackupFailed(Box::new(StoreError::Io(ErrorKind::StorageFull))),
         StoreError::JournalModeRefused { mode: text("wal") },
         StoreError::UnlistedCurrency(USD),
+        StoreError::WithdrawnCurrency(USD),
         StoreError::UnknownCurrency(USD),
         StoreError::UnknownAccount(account),
         StoreError::EmptyAccountName,
@@ -173,6 +177,7 @@ fn examples() -> Vec<ErrorReport> {
             split_currency: EUR,
         },
         StoreError::ImportedSplitChanged(split),
+        StoreError::OriginalChanged(split),
         StoreError::UnknownRule(rule),
         StoreError::RuleIdInUse(rule),
         StoreError::EmptyRuleName,
@@ -182,6 +187,7 @@ fn examples() -> Vec<ErrorReport> {
         StoreError::TransferSuggested(transaction),
         StoreError::UnknownRate(rate),
         StoreError::RateWithinOneCurrency(EUR),
+        StoreError::ChangeoverRate,
         StoreError::NoRate {
             from: EUR,
             to: USD,

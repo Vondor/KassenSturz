@@ -1,4 +1,11 @@
 recognized: yes
-error: import.unknown-currency
-  currency: DEM
-  line: 14
+book
+  account "A000001": "Checking", asset, type checking, EUR with 2 decimal places, inside -
+  account "A000002": "Groceries", expense, type -, EUR with 2 decimal places, inside -
+  account "A000003": "Old checking", asset, type checking, DEM with 2 decimal places, inside -
+  transaction 1 on 2001-11-03, payee -
+    part "A000001": -48.41 DEM, in the account -24.75 EUR
+    part "A000002": 48.41 DEM, in the account 24.75 EUR
+  transaction 2 on 2001-11-10, payee -
+    part "A000003": -10.00 DEM, in the account -
+    part "A000002": 10.00 DEM, in the account 5.11 EUR

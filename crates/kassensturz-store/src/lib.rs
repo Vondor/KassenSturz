@@ -231,13 +231,19 @@ impl Book {
     /// The first time, the decimal places come from KassenSturz's ISO 4217
     /// table (D-062) and are stored in the book. From then on the stored ones
     /// count, even if a newer table says otherwise, so amounts are never
-    /// rescaled (D-027). A currency the table doesn't list can't be used.
+    /// rescaled (D-027). A currency the table doesn't list can't be used,
+    /// unless KassenSturz's table of withdrawn currencies lists it, with the
+    /// decimal places it had: then only parts' original amounts can be in
+    /// it, no account (D-104).
     pub fn use_currency(&mut self, currency: CurrencyCode) -> Result<u8, StoreError> {
         if let Some(stored) = self.stored_minor_digits(currency)? {
             return Ok(stored);
         }
         let minor_digits = currency
             .iso_minor_digits()
+            .or(currency
+                .withdrawn()
+                .map(|withdrawn| withdrawn.currency().minor_digits()))
             .ok_or(StoreError::UnlistedCurrency(currency))?;
         self.as_one_action(Action::UseCurrency, |book| {
             book.conn.execute(
@@ -304,7 +310,11 @@ impl Book {
             .transpose()
     }
 
-    /// Adds an account or category. Its currency must be in use in this book.
+    /// Adds an account or category. Its currency must be in use in this book,
+    /// and can't be a withdrawn one, such as the German mark (D-104), unless
+    /// the book is being filled from a complete export that had it
+    /// ([`Book::fill_new`]): a book keeps its accounts in a currency that was
+    /// withdrawn after it was made.
     ///
     /// The name can't be empty, and an account's type must fit its kind (a
     /// credit card is money the user owes). No two accounts share a name,
@@ -312,6 +322,9 @@ impl Book {
     /// them apart. Categories are checked when they become a tree (M1.5).
     pub fn add_account(&mut self, account: &Account) -> Result<(), StoreError> {
         self.currency_minor_digits(account.currency)?;
+        if !self.filling && account.currency.withdrawn().is_some() {
+            return Err(StoreError::WithdrawnCurrency(account.currency));
+        }
         self.check_account(account)?;
         let action = if account.kind.is_category() {
             Action::AddCategory
@@ -622,8 +635,13 @@ impl Book {
     /// Both currencies must be in use in this book and differ. A book holds
     /// one rate per pair of currencies, direction and date; adding a second
     /// fails with [`StoreError::DuplicateRate`], so the user changes or
-    /// removes the first one instead of having two that disagree.
+    /// removes the first one instead of having two that disagree. The fixed
+    /// rate a withdrawn currency was replaced at stays with the parts
+    /// converted with it ([`StoreError::ChangeoverRate`], D-104).
     pub fn add_rate(&mut self, rate: &DatedRate) -> Result<(), StoreError> {
+        if rate.source == RateSource::Changeover {
+            return Err(StoreError::ChangeoverRate);
+        }
         if rate.from == rate.to {
             return Err(StoreError::RateWithinOneCurrency(rate.from));
         }
@@ -882,12 +900,14 @@ impl RateRow {
 fn source_to_text(source: RateSource) -> &'static str {
     match source {
         RateSource::Manual => "manual",
+        RateSource::Changeover => "changeover",
     }
 }
 
 fn source_from_text(text: &str) -> Result<RateSource, StoreError> {
     match text {
         "manual" => Ok(RateSource::Manual),
+        "changeover" => Ok(RateSource::Changeover),
         other => Err(StoreError::Corrupt(Corruption::BadRateSource(other.into()))),
     }
 }

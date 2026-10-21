@@ -11,8 +11,8 @@ use std::path::PathBuf;
 use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, Actions, AmountTest, BookTo, Condition, Currency,
     CurrencyCode, Date, DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails,
-    MatchMode, Money, RateSource, RoundingMode, Rule, RuleId, RuleNode, Split, SplitId, TextField,
-    TextOperator, Transaction, TransactionError, TransactionId,
+    MatchMode, Money, OriginalAmount, RateSource, RoundingMode, Rule, RuleId, RuleNode, Split,
+    SplitId, TextField, TextOperator, Transaction, TransactionError, TransactionId,
 };
 use kassensturz_export::{
     BookData, BookExport, BookedByRule, CsvExport, Expected, ExportData, ExportError, ExportKind,
@@ -30,6 +30,10 @@ const USD: CurrencyCode = match CurrencyCode::new("USD") {
 const JPY: CurrencyCode = match CurrencyCode::new("JPY") {
     Ok(code) => code,
     Err(_) => panic!("JPY is a valid code"),
+};
+const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
+    Ok(code) => code,
+    Err(_) => panic!("DEM is a valid code"),
 };
 
 /// A fixed UUIDv7, so the golden file stays the same: `n` is its last byte.
@@ -73,6 +77,7 @@ fn split(n: u8, account: Option<u8>, amount: Money) -> Split {
         amount,
         foreign: None,
         imported: None,
+        original: None,
     }
 }
 
@@ -148,6 +153,24 @@ fn sample() -> BookData {
         amount: Money::from_minor_units(9_800, USD),
         rate: None,
     });
+    // A purchase of 100.00 DEM from a book kept in marks (D-104).
+    let fixed = DEM
+        .withdrawn()
+        .expect("the table lists the mark")
+        .dated_rate(DatedRateId::from_bytes(id(73)));
+    let mut paid = split(71, Some(checking), eur(-5_113));
+    paid.original = Some(OriginalAmount {
+        amount: Money::from_minor_units(-10_000, DEM),
+        rate: fixed,
+    });
+    let mut bread_in_marks = split(72, Some(bakery), eur(5_113));
+    bread_in_marks.original = Some(OriginalAmount {
+        amount: Money::from_minor_units(10_000, DEM),
+        rate: DatedRate {
+            id: DatedRateId::from_bytes(id(74)),
+            ..fixed
+        },
+    });
 
     let mut groceries = rule(
         21,
@@ -211,6 +234,7 @@ fn sample() -> BookData {
             Currency::new(EUR, 2).expect("valid"),
             Currency::new(JPY, 0).expect("valid"),
             Currency::new(USD, 2).expect("valid"),
+            Currency::new(DEM, 2).expect("valid"),
         ],
         accounts: vec![
             account(
@@ -300,6 +324,7 @@ fn sample() -> BookData {
                 Some("Unknown"),
                 vec![split(61, Some(checking), eur(-1)), split(62, None, eur(1))],
             ),
+            transaction(70, day(8), Some("Bakery"), vec![paid, bread_in_marks]),
         ],
         rule_marks: vec![
             BookedByRule {
@@ -465,13 +490,19 @@ fn what_is_not_a_complete_export_is_refused() {
     assert_eq!(read_book(b"[1, 2]"), Err(ExportError::NotABook));
     assert_eq!(read_book(b"{\"name\": \"x\"}"), Err(ExportError::NotABook));
     assert_eq!(
-        read_book(&changed("\"version\": 1", "\"version\": 2")),
-        Err(ExportError::NewerVersion { version: 2 })
+        read_book(&changed("\"version\": 2", "\"version\": 3")),
+        Err(ExportError::NewerVersion { version: 3 })
     );
-    assert_eq!(
-        read_book(&changed("\"version\": 1", "\"version\": \"1\"")),
-        bad("version", Expected::Number)
-    );
+    for version in ["\"2\"", "0", "-1", "2.5"] {
+        assert_eq!(
+            read_book(&changed(
+                "\"version\": 2",
+                &format!("\"version\": {version}")
+            )),
+            bad("version", Expected::Number),
+            "{version}"
+        );
+    }
 }
 
 #[test]
@@ -604,6 +635,47 @@ fn every_value_must_be_what_the_format_says() {
                 .into_bytes()
         ),
         bad("rates[0]", Expected::Object)
+    );
+}
+
+#[test]
+fn a_version_1_file_has_no_original_amounts() {
+    // SHORT is a version 1 file. A version 2 file may give its parts the
+    // original amounts they had in a withdrawn currency (D-104), with the
+    // fixed rate as a rate from `changeover`.
+    let original = r#""amount": "5.0", "original": {"amount": "9.78", "currency": "DEM", "rate": {"id": "019a0000-0000-7000-8000-000000000007", "date": "1999-01-01", "from": "EUR", "to": "DEM", "rate": "1.95583", "source": "changeover"}}"#;
+    let marks = r#"{"code": "EUR", "minor_digits": 2}, {"code": "DEM", "minor_digits": 2}"#;
+    let with_original = SHORT
+        .replacen(r#"{"code": "EUR", "minor_digits": 2}"#, marks, 1)
+        .replacen(
+            r#""amount": "-5""#,
+            r#""amount": "-5", "original": null"#,
+            1,
+        )
+        .replacen(r#""amount": "5.0""#, original, 1);
+    assert_eq!(
+        read_book(with_original.as_bytes()),
+        Err(ExportError::UnknownValue {
+            path: "transactions[0].parts[0].original".into()
+        })
+    );
+    let version_2 = with_original.replacen("\"version\": 1", "\"version\": 2", 1);
+    let book = read_book(version_2.as_bytes()).expect("read");
+    let part = &book.transactions[0].splits()[1];
+    assert_eq!(
+        part.original
+            .map(|original| (original.amount, original.rate.source)),
+        Some((Money::from_minor_units(978, DEM), RateSource::Changeover))
+    );
+    // A rate in version 1 is entered by hand.
+    let changeover = SHORT.replacen(
+        r#""rates": []"#,
+        r#""rates": [{"id": "019a0000-0000-7000-8000-000000000007", "date": "1999-01-01", "from": "EUR", "to": "EUR", "rate": "1", "source": "changeover"}]"#,
+        1,
+    );
+    assert_eq!(
+        read_book(changeover.as_bytes()),
+        bad("rates[0].source", Expected::Keyword)
     );
 }
 

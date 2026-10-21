@@ -12,6 +12,7 @@
 #![forbid(unsafe_code)]
 
 mod account;
+mod changeover;
 mod currency;
 mod decimal;
 mod error;
@@ -22,8 +23,10 @@ mod rounding;
 mod rules;
 mod transaction;
 mod transfer;
+mod withdrawn;
 
 pub use account::{Account, AccountId, AccountKind, AccountType};
+pub use changeover::{Changeover, ConvertedPart};
 pub use currency::{Currency, CurrencyCode, CurrencyCodeError};
 pub use decimal::{DecimalError, ExchangeRate, MAX_DECIMAL_PLACES, MAX_DIGITS, Price, Quantity};
 pub use error::{ErrorParam, ErrorReport, Report};
@@ -35,12 +38,14 @@ pub use rules::{
     RuleNode, RuleOutcome, RuleSet, TextField, TextOperator,
 };
 pub use transaction::{
-    ForeignAmount, ImportedDetails, Split, SplitId, Transaction, TransactionError, TransactionId,
+    ForeignAmount, ImportedDetails, OriginalAmount, Split, SplitId, Transaction, TransactionError,
+    TransactionId,
 };
 pub use transfer::{
     MAX_BUSINESS_DAYS, TransferError, TransferMatch, TransferSide, business_days_apart,
     find_transfers, join_transfer,
 };
+pub use withdrawn::Withdrawn;
 
 /// A calendar date without time or time zone, used for booking dates
 /// (AGENTS.md §5, D-061).

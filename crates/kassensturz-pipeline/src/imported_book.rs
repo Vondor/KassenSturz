@@ -8,11 +8,14 @@
 use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, Currency, CurrencyCode, DatedRate, DatedRateId, ForeignAmount,
-    Money, RateSource, Split, Transaction, TransactionId, TransferMatch,
+    Account, AccountId, AccountKind, Changeover, ConvertedPart, Currency, CurrencyCode, DatedRate,
+    DatedRateId, ForeignAmount, Money, MoneyError, OriginalAmount, RateSource, RoundingMode, Split,
+    Transaction, TransactionId, TransferMatch, Withdrawn,
 };
 use kassensturz_export::BookData;
-use kassensturz_import::{BookAccount, ImportError, ImportedBook, Skipped, currency};
+use kassensturz_import::{
+    BookAccount, BookPart, BookTransaction, ImportError, ImportedBook, Skipped, currency,
+};
 use kassensturz_store::{Book, StoreError};
 
 use crate::book::fill_book;
@@ -43,6 +46,9 @@ pub struct BookImportReport {
     /// Accounts the other program had closed although money was still in
     /// them, which stay open, so no money is hidden (D-081).
     pub left_open: Vec<AccountId>,
+    /// The withdrawn currencies the file used, such as the German mark,
+    /// whose amounts are in the currencies that replaced them now (D-104).
+    pub converted: Vec<ConvertedCurrency>,
     /// The Transfers to suggest between the new book's accounts (D-087):
     /// two transactions without a category yet that look like the two
     /// sides of one. Nothing is joined: the user confirms each one.
@@ -50,6 +56,20 @@ pub struct BookImportReport {
     /// What the file held that the book can't, as the importer counted it
     /// (D-029).
     pub skipped: Vec<Skipped>,
+}
+
+/// A withdrawn currency an imported book used, and what was converted out of
+/// it (D-104).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ConvertedCurrency {
+    /// The withdrawn currency, e.g. the German mark, with its fixed rate.
+    pub withdrawn: Withdrawn,
+    /// How many accounts and categories were in it and are in its successor
+    /// now.
+    pub accounts: usize,
+    /// How many parts were converted out of it, each keeping the amount it
+    /// had as its original amount.
+    pub parts: usize,
 }
 
 /// Fills the new, empty `book` with `imported`, a book another program
@@ -60,8 +80,13 @@ pub struct BookImportReport {
 /// transaction whose parts don't add up gets a part without a category for
 /// the difference (`completed`). The decimal places of each currency are
 /// the ones the importer read the amounts in, so nothing is rescaled
-/// (D-027). The book's settings stay the ones it was created with, and,
-/// as for a complete export, nothing is recorded in its change history
+/// (D-027). Amounts in a withdrawn currency, such as the German mark, are
+/// converted into the one that replaced it at the fixed rate, and each
+/// converted part keeps the amount it had (`converted`, D-077, D-104):
+/// the accounts and categories are in the successor, and each one's
+/// converted balance is its old balance converted and rounded once. The
+/// book's settings stay the ones it was created with, and, as for a
+/// complete export, nothing is recorded in its change history
 /// ([`fill_book`]): undoing the import would only leave an empty book.
 ///
 /// If anything is refused, the book stays empty, so the front end can
@@ -70,37 +95,21 @@ pub fn fill_book_from(
     book: &mut Book,
     imported: &ImportedBook,
 ) -> Result<BookImportReport, PipelineError> {
+    let rounding = book.rounding_mode()?;
     let mut mapper = Mapper::default();
     let mut accounts = mapper.accounts(&imported.accounts)?;
+    let mut changeover = Changeover::new(rounding);
     let mut completed = 0;
-    let mut transactions = Vec::with_capacity(imported.transactions.len());
-    for transaction in &imported.transactions {
-        mapper.uses(transaction.currency)?;
-        let mut splits = Vec::with_capacity(transaction.parts.len() + 1);
-        for part in &transaction.parts {
-            let account = match &part.account {
-                Some(key) => Some(mapper.id(key)?),
-                None => None,
-            };
-            splits.push(Split {
-                account,
-                foreign: part
-                    .account_amount
-                    .map(|amount| ForeignAmount { amount, rate: None }),
-                imported: part.details.clone(),
-                ..Split::uncategorized(part.amount)
-            });
-        }
-        let currency = transaction.currency.code();
-        let total = Money::checked_sum(currency, splits.iter().map(|split| split.amount))
-            .map_err(|_| StoreError::AmountOverflow)?;
-        if !total.is_zero() || splits.len() < 2 {
-            let open = total
-                .checked_neg()
-                .map_err(|_| StoreError::AmountOverflow)?;
-            splits.push(Split::uncategorized(open));
-            completed += 1;
-        }
+    // In date order, so each account's balance in a withdrawn currency
+    // grows as it did in the other program (D-104); the book gets them in
+    // the file's order.
+    let mut order: Vec<usize> = (0..imported.transactions.len()).collect();
+    order.sort_by_key(|&index| imported.transactions[index].date);
+    let mut transactions: Vec<Option<Transaction>> = vec![None; imported.transactions.len()];
+    for index in order {
+        let transaction = &imported.transactions[index];
+        let (splits, added) = mapper.splits(transaction, &mut changeover, rounding)?;
+        completed += usize::from(added);
         let transaction = Transaction::new(
             TransactionId::generate(),
             transaction.date,
@@ -112,8 +121,9 @@ pub fn fill_book_from(
         // amount in another one, the same sign for both of a part's
         // amounts. A book handed over without them is refused here.
         .map_err(|_| ImportError::Malformed { line: None })?;
-        transactions.push(transaction);
+        transactions[index] = Some(transaction);
     }
+    let transactions: Vec<Transaction> = transactions.into_iter().flatten().collect();
     let mut rates = Vec::with_capacity(imported.rates.len());
     for rate in &imported.rates {
         for code in [rate.from, rate.to] {
@@ -160,18 +170,24 @@ pub fn fill_book_from(
         renamed: mapper.renamed,
         moved_to_top: mapper.moved_to_top,
         left_open,
+        converted: mapper.converted,
         transfers: book.transfer_suggestions()?,
         skipped: imported.skipped.clone(),
     })
 }
 
-/// Turns the file's keys and names into a book's IDs and unique names.
+/// Turns the file's keys and names into a book's IDs and unique names, and
+/// its withdrawn currencies into their successors.
 #[derive(Default)]
 struct Mapper {
     ids: HashMap<String, AccountId>,
+    /// Whether the account with the key is one of the user's accounts, as
+    /// opposed to a category or an internal account.
+    user_accounts: HashMap<String, bool>,
     currencies: Vec<Currency>,
     renamed: Vec<(AccountId, String)>,
     moved_to_top: Vec<AccountId>,
+    converted: Vec<ConvertedCurrency>,
 }
 
 impl Mapper {
@@ -206,6 +222,57 @@ impl Mapper {
         }
     }
 
+    /// The current currency `currency` is in the book: its successor, with
+    /// the decimal places KassenSturz's ISO 4217 table gives it, if it was
+    /// withdrawn (D-104), otherwise itself. Notes that the book uses it.
+    fn current(&mut self, currency: Currency) -> Result<Currency, ImportError> {
+        let current = match currency.code().withdrawn() {
+            Some(withdrawn) => self.known_or_listed(withdrawn.successor())?,
+            None => currency,
+        };
+        self.uses(current)?;
+        Ok(current)
+    }
+
+    /// `code` with the decimal places the book uses for it already, or else
+    /// those KassenSturz's ISO 4217 table gives it.
+    fn known_or_listed(&self, code: CurrencyCode) -> Result<Currency, ImportError> {
+        match self.currencies.iter().find(|known| known.code() == code) {
+            Some(&known) => Ok(known),
+            None => currency(code),
+        }
+    }
+
+    /// Notes that `count` accounts were in `withdrawn` and `parts` parts were
+    /// converted out of it, which keep their amounts in it: the book lists
+    /// it then, with its decimal places.
+    fn note_converted(
+        &mut self,
+        withdrawn: Withdrawn,
+        accounts: usize,
+        parts: usize,
+    ) -> Result<(), ImportError> {
+        if parts > 0 {
+            self.uses(withdrawn.currency())?;
+        }
+        match self
+            .converted
+            .iter_mut()
+            .find(|converted| converted.withdrawn == withdrawn)
+        {
+            Some(converted) => {
+                converted.accounts += accounts;
+                converted.parts += parts;
+            }
+            None => self.converted.push(ConvertedCurrency {
+                withdrawn,
+                accounts,
+                parts,
+            }),
+        }
+        Ok(())
+    }
+
     /// Notes that the book uses the currency `code`, which no amount gave
     /// decimal places yet, e.g. one only rates are in: KassenSturz's ISO
     /// 4217 table gives them (D-027).
@@ -220,12 +287,18 @@ impl Mapper {
     /// unique where the book needs them to be (D-081, D-082), and every
     /// category inside one of its own currency.
     fn accounts(&mut self, imported: &[BookAccount]) -> Result<Vec<Account>, PipelineError> {
+        let mut current = HashMap::with_capacity(imported.len());
         for account in imported {
             if self.ids.contains_key(&account.key) {
                 return Err(ImportError::Malformed { line: None }.into());
             }
             self.ids.insert(account.key.clone(), AccountId::generate());
-            self.uses(account.currency)?;
+            self.user_accounts
+                .insert(account.key.clone(), account.kind.is_account());
+            current.insert(account.key.as_str(), self.current(account.currency)?);
+            if let Some(withdrawn) = account.currency.code().withdrawn() {
+                self.note_converted(withdrawn, 1, 0)?;
+            }
         }
         let by_key: HashMap<&str, &BookAccount> = imported
             .iter()
@@ -242,7 +315,10 @@ impl Mapper {
                     let parent = by_key
                         .get(key.as_str())
                         .ok_or(ImportError::Malformed { line: None })?;
-                    if parent.currency.code() == account.currency.code() {
+                    // Compared in the book's currencies: a category in marks
+                    // inside one in euros fits once both are in euros.
+                    let currency = |key: &str| current[key].code();
+                    if currency(&parent.key) == currency(&account.key) {
                         Some(self.id(key)?)
                     } else {
                         self.moved_to_top.push(id);
@@ -266,7 +342,7 @@ impl Mapper {
                 id,
                 name,
                 kind: account.kind,
-                currency: account.currency.code(),
+                currency: current[account.key.as_str()].code(),
                 account_type: account.account_type,
                 parent,
                 // Only the user's accounts can be closed (D-081).
@@ -274,6 +350,153 @@ impl Mapper {
             });
         }
         Ok(accounts)
+    }
+
+    /// The parts of `transaction` in the book, converted out of withdrawn
+    /// currencies (D-104), and whether a part without a category was added
+    /// for what they didn't add up to (D-083).
+    fn splits(
+        &mut self,
+        transaction: &BookTransaction,
+        changeover: &mut Changeover,
+        rounding: RoundingMode,
+    ) -> Result<(Vec<Split>, bool), PipelineError> {
+        let file_currency = transaction.currency;
+        let withdrawn = file_currency.code().withdrawn();
+        let currency = self.current(file_currency)?;
+        let mut splits = Vec::with_capacity(transaction.parts.len() + 1);
+        let mut parts = Vec::with_capacity(transaction.parts.len());
+        for part in &transaction.parts {
+            let (split, converted) = self.split(part, withdrawn, currency, changeover, rounding)?;
+            splits.push(split);
+            parts.push(converted);
+        }
+        let file_total = Money::checked_sum(
+            file_currency.code(),
+            transaction.parts.iter().map(|part| part.amount),
+        )
+        .map_err(money_error)?;
+        // Each part was converted on its own; where the file's parts added
+        // up, the converted ones do too.
+        if withdrawn.is_some() && file_total.is_zero() {
+            changeover
+                .balance(currency.code(), &mut parts)
+                .map_err(money_error)?;
+            for (split, part) in splits.iter_mut().zip(&parts) {
+                split.amount = part.amount;
+            }
+        }
+        let total = Money::checked_sum(currency.code(), splits.iter().map(|split| split.amount))
+            .map_err(money_error)?;
+        let added = !total.is_zero() || splits.len() < 2;
+        if added {
+            splits.push(Split::uncategorized(
+                total.checked_neg().map_err(money_error)?,
+            ));
+        }
+        Ok((splits, added))
+    }
+
+    /// One part of a transaction that was in `file_currency`'s
+    /// `withdrawn` currency, if it was in one, and is in `currency` now;
+    /// and the part as [`Changeover::balance`] sees it.
+    fn split(
+        &mut self,
+        part: &BookPart,
+        withdrawn: Option<Withdrawn>,
+        currency: Currency,
+        changeover: &mut Changeover,
+        rounding: RoundingMode,
+    ) -> Result<(Split, ConvertedPart), PipelineError> {
+        let account = match &part.account {
+            Some(key) => Some((self.id(key)?, self.user_accounts[key.as_str()])),
+            None => None,
+        };
+        let mut split = Split {
+            account: account.map(|(id, _)| id),
+            foreign: part
+                .account_amount
+                .map(|amount| ForeignAmount { amount, rate: None }),
+            imported: part.details.clone(),
+            ..Split::uncategorized(part.amount)
+        };
+        // An amount given in the transaction's currency stays as it is.
+        let mut converted = ConvertedPart {
+            amount: part.amount,
+            original: None,
+            account: None,
+            to_user_account: false,
+        };
+        // What the part booked to its account, in the account's currency.
+        let booked = part.account_amount.unwrap_or(part.amount);
+        let account_withdrawn = account.and(booked.currency().withdrawn());
+        if let (Some((id, user)), Some(account_withdrawn)) = (account, account_withdrawn) {
+            // Its account is in the successor now, and the account's balance
+            // follows its balance in the withdrawn currency.
+            let account_currency = self.current(account_withdrawn.currency())?;
+            split.original = Some(OriginalAmount {
+                amount: booked,
+                rate: account_withdrawn.dated_rate(DatedRateId::generate()),
+            });
+            self.note_converted(account_withdrawn, 0, 1)?;
+            if account_currency.code() == currency.code() {
+                split.foreign = None;
+                if withdrawn.is_some() {
+                    split.amount = changeover
+                        .book(id, booked, account_withdrawn, account_currency)
+                        .map_err(money_error)?;
+                    converted = ConvertedPart {
+                        amount: split.amount,
+                        original: Some(booked),
+                        account: Some(id),
+                        to_user_account: user,
+                    };
+                } else {
+                    // The file gave its amount in the successor.
+                    changeover
+                        .book_given(id, booked, part.amount)
+                        .map_err(money_error)?;
+                }
+            } else {
+                split.foreign = Some(ForeignAmount {
+                    amount: changeover
+                        .book(id, booked, account_withdrawn, account_currency)
+                        .map_err(money_error)?,
+                    rate: None,
+                });
+                if let Some(withdrawn) = withdrawn {
+                    split.amount = withdrawn
+                        .convert(part.amount, currency, rounding)
+                        .map_err(money_error)?;
+                    converted.amount = split.amount;
+                    converted.original = Some(part.amount);
+                }
+            }
+        } else if let Some(withdrawn) = withdrawn {
+            // The transaction was in a withdrawn currency, the account
+            // isn't: the part keeps its amount in the transaction's.
+            split.original = Some(OriginalAmount {
+                amount: part.amount,
+                rate: withdrawn.dated_rate(DatedRateId::generate()),
+            });
+            self.note_converted(withdrawn, 0, 1)?;
+            match split.foreign {
+                // Its account is in the successor: the file gave the amount.
+                Some(foreign) if foreign.amount.currency() == currency.code() => {
+                    split.amount = foreign.amount;
+                    split.foreign = None;
+                    converted.amount = split.amount;
+                }
+                _ => {
+                    split.amount = withdrawn
+                        .convert(part.amount, currency, rounding)
+                        .map_err(money_error)?;
+                    converted.amount = split.amount;
+                    converted.original = Some(part.amount);
+                }
+            }
+        }
+        Ok((split, converted))
     }
 
     /// Opens again the accounts the file says are closed whose balance
@@ -301,5 +524,15 @@ impl Mapper {
             }
         }
         left_open
+    }
+}
+
+/// A calculation the conversion out of a withdrawn currency couldn't do:
+/// amounts too large for 64 bits, or, in a book handed over without the
+/// importer's checks, an account's amounts in two currencies.
+fn money_error(error: MoneyError) -> PipelineError {
+    match error {
+        MoneyError::CurrencyMismatch { .. } => ImportError::Malformed { line: None }.into(),
+        _ => StoreError::AmountOverflow.into(),
     }
 }

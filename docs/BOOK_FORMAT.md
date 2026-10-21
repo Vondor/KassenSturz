@@ -2,13 +2,13 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029), whose format is described in `docs/EXPORT_FORMAT.md` (D-100). Every change to the layout updates this document.
 
-**Status: development layout 10.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2), layout 4 the type and closed flag of accounts (M1.4), layout 5 the category tree (M1.5), layout 6 parts without a category, parts in another currency with their rates, and what a bank or file delivered (M1.6), layout 7 the [change history](#the-change-history) (M1.9), layout 8 the action that joins the two sides of a Transfer (M1.10), layout 9 the [Rules](#rules) and the actions that change and run them (M1.11), and layout 10 the action that imports a statement into an account (M2.2). Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds much more.
+**Status: development layout 11.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2), layout 4 the type and closed flag of accounts (M1.4), layout 5 the category tree (M1.5), layout 6 parts without a category, parts in another currency with their rates, and what a bank or file delivered (M1.6), layout 7 the [change history](#the-change-history) (M1.9), layout 8 the action that joins the two sides of a Transfer (M1.10), layout 9 the [Rules](#rules) and the actions that change and run them (M1.11), layout 10 the action that imports a statement into an account (M2.2), and layout 11 the original amounts of parts converted out of a withdrawn currency (M2.9b, D-104). Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds much more.
 
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).
 - `PRAGMA application_id` is `0x4B535A42` (1263753794), the letters `KSZB` for KassenSturz book (D-037, D-080). KassenSturz reads it, and SQLite's header, from the file's first bytes before SQLite opens the file. Only a file with both is opened, so another program's SQLite file is never changed, not even its journal mode.
-- `PRAGMA user_version` holds the layout version: currently `10`.
+- `PRAGMA user_version` holds the layout version: currently `11`.
 - The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033). While the book is open, its [lock file](#the-lock-file) sits next to it.
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
 - Deleted content is overwritten (`PRAGMA secure_delete = ON` on every connection), so what KassenSturz deletes, such as a change history the user cleans up, is gone from the file too, though not from copies of it such as backups (D-066, D-086).
@@ -36,6 +36,8 @@ The book's settings: exactly one row. They are stored in the book, not in the ap
 ### `currencies`
 
 The currencies the book uses. A currency's decimal places are taken from KassenSturz's ISO 4217 table when the book first uses it (D-062) and stay fixed from then on, so an update to that table can never rescale stored amounts (D-027).
+
+A withdrawn currency such as the German mark (DEM) is listed here too, with the decimal places it had while it was current, once a part keeps an [original amount](#splits) in it (D-104). No account can be in one, except one the book had in a currency withdrawn later (D-104, Q-068).
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -84,14 +86,20 @@ The parts of each transaction (shown to users as "Parts", D-017). A transaction'
 | `amount` | INTEGER | Minor units in the transaction's currency |
 | `foreign_amount` | INTEGER, may be NULL | For a part booked to an account in another currency than the transaction's: its amount in minor units of that currency, e.g. `10856` for 108.56 USD in a transaction in euros (D-043). It has the same sign as `amount`, unless one of them is zero. NULL otherwise |
 | `foreign_currency` | TEXT → `currencies.code`, may be NULL | The currency of `foreign_amount`: the account's currency, never the transaction's. Set exactly when `foreign_amount` is |
+| `original_amount` | INTEGER, may be NULL | For a part converted out of a withdrawn currency, e.g. from a book another program kept in German marks: the amount it had in that currency, in its minor units, e.g. `-4841` for -48.41 DEM (D-077, D-104). It has the same sign as the amount it was converted into, unless one of them is zero. NULL otherwise. Added in layout 11 |
+| `original_currency` | TEXT → `currencies.code`, may be NULL | The withdrawn currency of `original_amount`, never the transaction's or `foreign_currency`. Set exactly when `original_amount` is, which the database checks. Added in layout 11 |
 
 A part with a `foreign_amount` always has an `account_id`. Every part is in its account's currency: `foreign_currency` if it has one, otherwise the transaction's currency. KassenSturz checks this, not the database.
+
+A part with an `original_amount` always has a row in [`split_rates`](#split_rates) with the fixed rate it was converted at, from the currency it was converted into (the transaction's, or `foreign_currency`) to `original_currency`. Its `foreign_amount`, if it has one, has no rate of its own. KassenSturz never changes a part's original amount, its rate or the amount converted from it, nor gives an existing part one.
 
 Index: `splits_by_account` on `splits (account_id)`, for an account's register and balance.
 
 ### `split_rates`
 
 The exchange rate a part in another currency was converted with, when one amount was calculated from the other with a rate from the [price table](#prices) (D-043). It is a copy: the part keeps it when the rate in the price table is changed or removed. A part whose two amounts were both given, e.g. by the bank or the user, has no row here: their ratio is the rate.
+
+For a part with an `original_amount`, the row is the fixed rate of the changeover instead, e.g. 1 EUR = 1.95583 DEM from 1999-01-01, with the source `changeover` (D-104). That rate is never in the price table.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -102,7 +110,7 @@ The exchange rate a part in another currency was converted with, when one amount
 | `to_currency` | TEXT → `currencies.code` | As in `prices`. The two currencies are the part's two currencies, in either order |
 | `rate_digits` | INTEGER, 1 to 999999999999999999 | As in `prices` |
 | `rate_decimal_places` | INTEGER, 0–18 | As in `prices` |
-| `source` | TEXT | As in `prices`: `manual` |
+| `source` | TEXT | `manual` as in `prices`, or `changeover` for the fixed rate a withdrawn currency was replaced at (layout 11) |
 
 KassenSturz converts with the newest rate on or before the date it converts for, usually the transaction's, in either direction, multiplying by a rate from the amount's currency and dividing by one the other way; on a day with a rate in each direction, the one from the amount's currency counts. It rounds once, in the book's rounding mode (D-027, D-083).
 

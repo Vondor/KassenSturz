@@ -11,7 +11,7 @@ use kassensturz_core::{AccountKind, AccountType, Currency, CurrencyCode, Date, I
 
 use super::fraction::Fraction;
 use super::records::{RawAccount, RawSplit, RawTransaction, Records, Skips};
-use crate::amount::currency;
+use crate::amount::book_currency;
 use crate::book::{
     BookAccount, BookPart, BookRate, BookTransaction, ImportedBook, Skipped, SkippedData,
 };
@@ -183,7 +183,7 @@ impl<'a> Accounts<'a> {
         if self.investments.contains(account.id.as_str()) {
             return Ok(None);
         }
-        let currency = currency(code(&account.currency, account.line)?)
+        let currency = book_currency(code(&account.currency, account.line)?)
             .map_err(|error| error.at(account.line))?;
         let account_type = TYPES
             .iter()
@@ -239,7 +239,7 @@ fn transaction(
     skipped: &mut Skips,
 ) -> Result<BookTransaction, ImportError> {
     let at_transaction = |error: ImportError| error.at(raw.line);
-    let currency = currency(code(&raw.currency, raw.line)?).map_err(at_transaction)?;
+    let currency = book_currency(code(&raw.currency, raw.line)?).map_err(at_transaction)?;
     // A book has one payee for a transaction; KMyMoney keeps one for each
     // split, and the first one given stands for the transaction.
     let payee = match raw.splits.iter().find(|split| !split.payee.is_empty()) {
@@ -316,7 +316,7 @@ fn part(
         }
         None
     } else {
-        let account_currency = crate::amount::currency(account_currency)?;
+        let account_currency = book_currency(account_currency)?;
         Some(shares.money(account_currency, &split.shares)?)
     };
     // What a bank delivered, or the note kept with the part, stays with a

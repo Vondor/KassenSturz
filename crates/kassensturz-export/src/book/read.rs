@@ -19,8 +19,8 @@ use std::path::Path;
 
 use kassensturz_core::{
     Account, AccountId, Actions, AmountTest, BookTo, Condition, Currency, CurrencyCode, Date,
-    DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails, Money, Rule, RuleId,
-    RuleNode, Split, SplitId, Transaction, TransactionId,
+    DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails, Money, OriginalAmount,
+    RateSource, Rule, RuleId, RuleNode, Split, SplitId, Transaction, TransactionId,
 };
 use serde_json::{Map, Value};
 
@@ -75,11 +75,11 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
     let version = top.get("version").ok_or(ExportError::MissingValue {
         path: "version".into(),
     })?;
-    match version.as_u64() {
-        Some(VERSION) => {}
+    let version = match version.as_u64() {
         Some(newer) if newer > VERSION => return Err(ExportError::NewerVersion { version: newer }),
+        Some(version @ 1..) => version,
         _ => return Err(bad("version", Expected::Number)),
-    }
+    };
     let top = Object::new(
         &file,
         "",
@@ -94,7 +94,10 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
             "transactions",
         ],
     )?;
-    let mut reader = Reader::default();
+    let mut reader = Reader {
+        version,
+        ..Reader::default()
+    };
 
     let settings = top.object("settings", &["rounding_mode", "history_keep_days"])?;
     let rounding_mode = settings.keyword("rounding_mode", &ROUNDING_MODES)?;
@@ -203,6 +206,9 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
 /// What reading needs to remember across the file.
 #[derive(Default)]
 struct Reader {
+    /// The file's version: version 1 has no original amounts and no
+    /// `changeover` rates (D-104).
+    version: u64,
     /// The decimal places of each currency the file lists.
     digits: HashMap<CurrencyCode, u8>,
     /// The IDs of the parts read so far: unique across the whole book.
@@ -212,6 +218,15 @@ struct Reader {
 }
 
 impl Reader {
+    /// The rates' sources the file's version has.
+    fn sources(&self) -> &'static [(RateSource, &'static str)] {
+        if self.version >= 2 {
+            &SOURCES
+        } else {
+            &SOURCES[..1]
+        }
+    }
+
     /// An amount in `currency`, e.g. `-12.50`: an optional minus, digits,
     /// and optionally a point and at most as many digits as the currency
     /// has decimal places. Read with integers only, never rounded
@@ -243,7 +258,7 @@ impl Reader {
             from: rate.currency("from")?,
             to: rate.currency("to")?,
             rate: exchange_rate,
-            source: rate.keyword("source", &SOURCES)?,
+            source: rate.keyword("source", self.sources())?,
         })
     }
 
@@ -260,9 +275,17 @@ impl Reader {
         let currency = transaction.currency("currency")?;
         let mut splits = Vec::new();
         for (value, path) in transaction.list("parts")? {
-            let part = Object::new(
-                value,
-                &path,
+            let keys: &[&str] = if self.version >= 2 {
+                &[
+                    "id",
+                    "account",
+                    "amount",
+                    "foreign",
+                    "original",
+                    "delivered",
+                    "booked_by_rule",
+                ]
+            } else {
                 &[
                     "id",
                     "account",
@@ -270,8 +293,9 @@ impl Reader {
                     "foreign",
                     "delivered",
                     "booked_by_rule",
-                ],
-            )?;
+                ]
+            };
+            let part = Object::new(value, &path, keys)?;
             let split = SplitId::from_bytes(part.id("id")?);
             if !self.parts.insert(split) {
                 return Err(ExportError::Duplicate {
@@ -296,6 +320,20 @@ impl Reader {
                     Some(ForeignAmount {
                         amount: self.amount(amount, &amount_path, foreign_currency)?,
                         rate,
+                    })
+                }
+                None => None,
+            };
+            let original = match part.optional("original") {
+                Some((value, path)) => {
+                    let original = Object::new(value, &path, &["amount", "currency", "rate"])?;
+                    let original_currency = original.currency("currency")?;
+                    let (amount, amount_path) = original.required("amount")?;
+                    let rate =
+                        original.object("rate", &["id", "date", "from", "to", "rate", "source"])?;
+                    Some(OriginalAmount {
+                        amount: self.amount(amount, &amount_path, original_currency)?,
+                        rate: self.rate(&rate)?,
                     })
                 }
                 None => None,
@@ -339,6 +377,7 @@ impl Reader {
                 amount,
                 foreign,
                 imported,
+                original,
             });
         }
         Transaction::new(id, booking_date, payee, splits).map_err(|error| {

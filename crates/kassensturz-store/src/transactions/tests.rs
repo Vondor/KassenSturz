@@ -972,3 +972,226 @@ fn delivered_details_that_are_wrong_in_the_file_are_reported() {
         Err(StoreError::Corrupt(Corruption::BadDate(text))) if text == "2026-13-45"
     ));
 }
+
+const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
+    Ok(code) => code,
+    Err(_) => panic!("DEM is a valid code"),
+};
+
+fn dem(minor_units: i64) -> Money {
+    Money::from_minor_units(minor_units, DEM)
+}
+
+/// `minor_units` in marks as the original amount of a part converted at the
+/// fixed rate (D-104).
+fn in_marks(minor_units: i64) -> OriginalAmount {
+    OriginalAmount {
+        amount: dem(minor_units),
+        rate: DEM
+            .withdrawn()
+            .expect("the table lists the mark")
+            .dated_rate(DatedRateId::generate()),
+    }
+}
+
+/// A purchase of 100.00 DEM from a book kept in marks, in euros now: both
+/// parts keep their amounts in marks.
+fn converted_purchase(book: &mut Book, checking: AccountId, groceries: AccountId) -> Transaction {
+    book.use_currency(DEM).expect("currency used");
+    let purchase = Transaction::new(
+        TransactionId::generate(),
+        date(2001, 10, 5),
+        Some("Corner Grocery".into()),
+        vec![
+            Split {
+                original: Some(in_marks(-10_000)),
+                ..Split::new(checking, eur(-5113))
+            },
+            Split {
+                original: Some(in_marks(10_000)),
+                ..Split::new(groceries, eur(5113))
+            },
+        ],
+    )
+    .expect("balanced");
+    book.add_transaction(&purchase).expect("added");
+    purchase
+}
+
+#[test]
+fn a_converted_part_keeps_its_original_amount() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let purchase = converted_purchase(&mut book, checking, groceries);
+    assert_eq!(book.transaction(purchase.id()).expect("read"), purchase);
+    assert_eq!(book.balance(checking).expect("balance"), eur(-5113));
+    assert_eq!(rows(&book, "split_rates"), 2);
+
+    // A part converted into its foreign amount: a dollar purchase paid from
+    // an account kept in marks, in euros now.
+    let TwoCurrencies {
+        mut book,
+        checking,
+        dollars,
+    } = two_currencies();
+    book.use_currency(DEM).expect("currency used");
+    let paid = Split {
+        foreign: Some(ForeignAmount {
+            amount: eur(-5113),
+            rate: None,
+        }),
+        original: Some(in_marks(-10_000)),
+        ..Split::new(checking, usd(-5500))
+    };
+    let purchase = Transaction::new(
+        TransactionId::generate(),
+        date(2001, 10, 5),
+        None,
+        vec![paid, Split::new(dollars, usd(5500))],
+    )
+    .expect("balanced in dollars");
+    book.add_transaction(&purchase).expect("added");
+    assert_eq!(book.transaction(purchase.id()).expect("read"), purchase);
+    assert_eq!(book.balance(checking).expect("balance"), eur(-5113));
+}
+
+#[test]
+fn an_original_amount_needs_its_currency_in_the_book() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let purchase = Transaction::new(
+        TransactionId::generate(),
+        date(2001, 10, 5),
+        None,
+        vec![
+            Split::new(checking, eur(-5113)),
+            Split {
+                original: Some(in_marks(10_000)),
+                ..Split::new(groceries, eur(5113))
+            },
+        ],
+    )
+    .expect("balanced");
+    assert!(matches!(
+        book.add_transaction(&purchase),
+        Err(StoreError::UnknownCurrency(DEM))
+    ));
+}
+
+#[test]
+fn a_converted_part_keeps_its_amounts_when_the_transaction_changes() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        salary,
+    } = sample();
+    let purchase = converted_purchase(&mut book, checking, groceries);
+    let [paid, bought] = purchase.splits() else {
+        panic!("two parts");
+    };
+    let household = account(&mut book, "Household", AccountKind::Expense, EUR);
+    let refused = |parts: Vec<Split>| with_parts(&purchase, parts);
+    let other_amount = refused(vec![
+        paid.clone(),
+        Split {
+            amount: eur(5100),
+            ..bought.clone()
+        },
+        Split::new(household, eur(13)),
+    ]);
+    let other_original = refused(vec![
+        paid.clone(),
+        Split {
+            original: Some(in_marks(10_001)),
+            ..bought.clone()
+        },
+    ]);
+    let without_it = refused(vec![
+        paid.clone(),
+        Split {
+            original: None,
+            ..bought.clone()
+        },
+    ]);
+    let removed = refused(vec![paid.clone(), Split::new(groceries, eur(5113))]);
+    for changed in [other_amount, other_original, without_it, removed] {
+        assert!(matches!(
+            book.update_transaction(&changed),
+            Err(StoreError::OriginalChanged(id)) if id == bought.id
+        ));
+    }
+    // Nor can an edit give a part an original amount.
+    let claimed = Split {
+        original: Some(in_marks(1)),
+        ..Split::new(salary, eur(0))
+    };
+    let claimed_id = claimed.id;
+    assert!(matches!(
+        book.update_transaction(&refused(vec![paid.clone(), bought.clone(), claimed])),
+        Err(StoreError::OriginalChanged(id)) if id == claimed_id
+    ));
+    assert_eq!(book.transaction(purchase.id()).expect("read"), purchase);
+
+    // Its account can change, and the other parts can.
+    let moved = refused(vec![
+        paid.clone(),
+        Split {
+            account: Some(household),
+            ..bought.clone()
+        },
+        Split::new(groceries, eur(0)),
+    ]);
+    book.update_transaction(&moved).expect("updated");
+    assert_eq!(book.transaction(purchase.id()).expect("read"), moved);
+    // Undo brings the original amounts back with the parts.
+    book.undo().expect("undone");
+    assert_eq!(book.transaction(purchase.id()).expect("read"), purchase);
+    book.remove_transaction(purchase.id()).expect("removed");
+    assert_eq!(rows(&book, "split_rates"), 0);
+    book.undo().expect("undone");
+    assert_eq!(book.transaction(purchase.id()).expect("read"), purchase);
+}
+
+#[test]
+fn a_fixed_rate_is_not_an_exchange_rate_of_the_book() {
+    let TwoCurrencies { mut book, .. } = two_currencies();
+    let changeover = DatedRate {
+        source: RateSource::Changeover,
+        ..rate(1, EUR, USD, "1.0856")
+    };
+    assert!(matches!(
+        book.add_rate(&changeover),
+        Err(StoreError::ChangeoverRate)
+    ));
+}
+
+#[test]
+fn an_original_amount_without_its_rate_in_the_file_is_reported() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let purchase = converted_purchase(&mut book, checking, groceries);
+    let bought = purchase.splits()[1].id;
+    book.as_another_program()
+        .execute(
+            "DELETE FROM split_rates WHERE split_id = ?1",
+            [bought.to_bytes()],
+        )
+        .expect("changed behind KassenSturz's back");
+    assert!(matches!(
+        book.transaction(purchase.id()),
+        Err(StoreError::Corrupt(Corruption::BadSplit(id))) if id == bought
+    ));
+}

@@ -17,21 +17,33 @@
 # A code iso-codes adds needs its number of decimal places from ISO 4217,
 # typed in once after the file, e.g. XYZ=2; the tool names every code that
 # needs one and changes nothing until each has it. The same form changes the
-# decimal places of a code already in the table. A code iso-codes no longer
-# lists leaves the table, so a book can't start using that currency anymore;
-# the importers convert it into the currency that replaced it (D-077).
+# decimal places of a code already in the table.
+#
+# A code iso-codes no longer lists leaves the table, so no account can be in
+# that currency anymore, and moves to KassenSturz's table of withdrawn
+# currencies, crates/kassensturz-core/data/withdrawn.txt, with the decimal
+# places it had (Q-065, D-104). The importers convert its amounts into the
+# currency that replaced it, so that one, the fixed rate and the day it took
+# effect are typed in once, from the regulation that fixed them, e.g.
+# XYZ=EUR:1.95583:2026-01-01 for "1 EUR = 1.95583 XYZ from 1 January 2026";
+# the tool names every code that needs them and changes nothing until each
+# has them. The comment at the top of withdrawn.txt is kept as it is: say
+# there where the new rate came from.
 #
 # Record the version, where it came from and its SHA-256 in
 # docs/THIRD_PARTY.md. A changed table changes only the decimal places of
 # currencies a book starts using afterwards; books keep the ones they stored
 # (D-027).
 
+import datetime
 import json
 import re
 import sys
 from pathlib import Path
 
-TABLE = Path(__file__).resolve().parent.parent / "crates/kassensturz-core/data/iso4217.txt"
+DATA = Path(__file__).resolve().parent.parent / "crates/kassensturz-core/data"
+TABLE = DATA / "iso4217.txt"
+WITHDRAWN = DATA / "withdrawn.txt"
 
 # The codes ISO 4217 gives no decimal places: precious metals, bond market
 # units, the IMF's special drawing right, the Sucre, the ADB unit of account,
@@ -43,6 +55,12 @@ NO_DECIMAL_PLACES = frozenset(
 
 CODE = re.compile(r"[A-Z]{3}")
 DIGIT = re.compile(r"[0-9]")
+# How many units of a withdrawn currency one unit of its successor was
+# worth, as the core reads it: digits with at most one point between them.
+RATE = re.compile(r"[0-9]+(\.[0-9]+)?")
+DAY = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+# The most digits and decimal places a rate can have (ExchangeRate, D-051).
+RATE_DIGITS = 18
 
 # REUSE-IgnoreStart
 HEADER = """\
@@ -105,34 +123,109 @@ def read_table():
     return table
 
 
-def read_digits(arguments, codes):
-    """The decimal places given on the command line, as CODE=DIGITS."""
+def read_withdrawn():
+    """The comment at the top of the withdrawn table, and each currency in
+    it with its decimal places, successor, rate and day."""
+    if not WITHDRAWN.is_file():
+        fail(f"{WITHDRAWN} is missing; the withdrawn currencies are kept there")
+    comment = []
+    withdrawn = {}
+    for number, line in enumerate(WITHDRAWN.read_text(encoding="utf-8").splitlines(), 1):
+        if line.startswith("#") and not withdrawn:
+            comment.append(line)
+            continue
+        fields = line.split(" ")
+        if (
+            len(fields) != 5
+            or not CODE.fullmatch(fields[0])
+            or not DIGIT.fullmatch(fields[1])
+            or fields[0] in withdrawn
+        ):
+            fail(
+                f"{WITHDRAWN}:{number} isn't a currency line like "
+                f"`DEM 2 EUR 1.95583 1999-01-01`: {line!r}"
+            )
+        code, digits, successor, rate, day = fields
+        withdrawn[code] = (int(digits), *check_changeover(code, successor, rate, day))
+    return comment, withdrawn
+
+
+def check_changeover(code, successor, rate, day):
+    """`code`'s successor, rate and day, checked as the core checks them."""
+    if not CODE.fullmatch(successor) or successor == code:
+        fail(f"{code} can't be replaced by {successor!r}: give another currency's code")
+    significant = rate.replace(".", "").lstrip("0")
+    decimal_places = len(rate.partition(".")[2])
+    if (
+        not RATE.fullmatch(rate)
+        or not significant
+        or len(significant) > RATE_DIGITS
+        or decimal_places > RATE_DIGITS
+    ):
+        fail(
+            f"{rate!r} isn't a rate for {code}: how many {code} one {successor} was "
+            f"worth, above zero, like 1.95583, with at most {RATE_DIGITS} digits"
+        )
+    try:
+        if not DAY.fullmatch(day):
+            raise ValueError
+        datetime.date.fromisoformat(day)
+    except ValueError:
+        fail(f"{day!r} isn't a day for {code}'s rate, like 2026-01-01")
+    return successor, rate, day
+
+
+def read_arguments(arguments, codes, table):
+    """The decimal places given on the command line, as CODE=DIGITS, and what
+    replaced each withdrawn currency, as CODE=SUCCESSOR:RATE:DAY."""
     given = {}
+    changeovers = {}
     for argument in arguments:
-        code, _, digits = argument.partition("=")
-        if not CODE.fullmatch(code) or not DIGIT.fullmatch(digits):
-            fail(f"{argument!r} isn't a code and its decimal places, like XYZ=2")
-        if code not in codes:
-            fail(f"iso-codes doesn't list {code}")
-        if code in NO_DECIMAL_PLACES:
-            fail(f"ISO 4217 gives {code} no decimal places, so the table leaves it out")
-        if code in given:
+        code, _, value = argument.partition("=")
+        if not CODE.fullmatch(code):
+            fail(f"{argument!r} doesn't start with a currency code, like XYZ=2")
+        if code in given or code in changeovers:
             fail(f"{code} is given twice")
-        given[code] = int(digits)
-    return given
+        if DIGIT.fullmatch(value):
+            if code not in codes:
+                fail(f"iso-codes doesn't list {code}")
+            if code in NO_DECIMAL_PLACES:
+                fail(f"ISO 4217 gives {code} no decimal places, so the table leaves it out")
+            given[code] = int(value)
+        elif value.count(":") == 2:
+            if code in codes:
+                fail(f"iso-codes still lists {code}, so it isn't withdrawn")
+            if code not in table:
+                fail(f"the table doesn't list {code}, so it has no decimal places to keep")
+            changeovers[code] = check_changeover(code, *value.split(":"))
+        else:
+            fail(
+                f"{argument!r} isn't a code and its decimal places, like XYZ=2, nor a "
+                "withdrawn code and what replaced it, like XYZ=EUR:1.95583:2026-01-01"
+            )
+    return given, changeovers
 
 
 def main():
     if len(sys.argv) < 3:
         fail(
-            "usage: python3 tools/update-currency-table.py VERSION iso_4217.json [CODE=DIGITS ...]"
+            "usage: python3 tools/update-currency-table.py VERSION iso_4217.json "
+            "[CODE=DIGITS ...] [CODE=SUCCESSOR:RATE:DAY ...]"
         )
     version, path, arguments = sys.argv[1], sys.argv[2], sys.argv[3:]
     if not re.fullmatch(r"[0-9]+(\.[0-9]+)*", version):
         fail(f"{version!r} isn't a version of iso-codes, like 4.20.1")
     codes = read_codes(path)
     old = read_table()
-    given = read_digits(arguments, codes)
+    comment, old_withdrawn = read_withdrawn()
+    given, changeovers = read_arguments(arguments, codes, old)
+
+    back = sorted(codes & old_withdrawn.keys())
+    if back:
+        fail(
+            "iso-codes lists codes that withdrawn.txt has as withdrawn; "
+            f"check them and take them out of it by hand: {' '.join(back)}"
+        )
 
     new = {}
     missing = []
@@ -150,11 +243,40 @@ def main():
             f"none: {' '.join(missing)}"
         )
 
+    # A currency that leaves the table is withdrawn, with the decimal places
+    # it had, once what replaced it is given.
+    leaving = sorted(old.keys() - codes - NO_DECIMAL_PLACES)
+    missing = [code for code in leaving if code not in changeovers]
+    if missing:
+        fail(
+            "iso-codes no longer lists some codes; give the currency that replaced "
+            "each one, the fixed rate (how many units of it one unit of the new one "
+            "was worth) and the day it took effect, from the regulation that fixed "
+            f"them, e.g. {missing[0]}=EUR:1.95583:2026-01-01: {' '.join(missing)}"
+        )
+    withdrawn = dict(old_withdrawn)
+    for code in leaving:
+        withdrawn[code] = (old[code], *changeovers[code])
+    for code, (_, successor, _, _) in sorted(withdrawn.items()):
+        if successor in withdrawn:
+            # The importers convert in one step (D-104).
+            fail(
+                f"{successor}, which replaced {code}, is withdrawn too; KassenSturz "
+                "can't convert through two changeovers yet (Q-068)"
+            )
+        if successor not in new:
+            fail(f"{successor}, which replaced {code}, isn't in the table of current currencies")
+
     left_out = sorted(codes & NO_DECIMAL_PLACES)
     with TABLE.open("w", encoding="utf-8", newline="\n") as table:
         table.write(HEADER.format(version=version, left_out=" ".join(left_out) or "none"))
         for code, digits in new.items():
             table.write(f"{code} {digits}\n")
+    if withdrawn != old_withdrawn:
+        with WITHDRAWN.open("w", encoding="utf-8", newline="\n") as table:
+            table.write("".join(f"{line}\n" for line in comment))
+            for code, (digits, successor, rate, day) in sorted(withdrawn.items()):
+                table.write(f"{code} {digits} {successor} {rate} {day}\n")
 
     print(f"{TABLE}: {len(new)} currencies from iso-codes {version}")
     for code in sorted(new.keys() - old.keys()):
@@ -166,7 +288,11 @@ def main():
         if code in NO_DECIMAL_PLACES:
             print(f"  removed {code}, which ISO 4217 gives no decimal places")
         else:
-            print(f"  removed {code}, which iso-codes no longer lists")
+            _, successor, rate, day = withdrawn[code]
+            print(
+                f"  withdrew {code}, which iso-codes no longer lists, into {WITHDRAWN.name}: "
+                f"1 {successor} = {rate} {code} from {day}"
+            )
 
 
 if __name__ == "__main__":

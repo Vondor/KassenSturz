@@ -39,7 +39,7 @@ pub use book::{
     read_book_file,
 };
 pub use csv::{CsvExport, CsvExportSettings, DecimalMark, Separator};
-pub use data::{AccountTransactions, Counterpart, ExportData, TransactionRow};
+pub use data::{AccountTransactions, Counterpart, ExportData, OriginalRow, TransactionRow};
 pub use error::{Expected, ExportError};
 pub use exporter::{ExportKind, Exporter, ExporterInfo, export, export_file};
 

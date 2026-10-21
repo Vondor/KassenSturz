@@ -5,8 +5,8 @@
 //! up (AGENTS.md §3.1 rule 2).
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, CurrencyCode, Date, ImportedDetails, Money, Split,
-    Transaction, TransactionId,
+    Account, AccountId, AccountKind, CurrencyCode, Date, DatedRateId, ImportedDetails, Money,
+    OriginalAmount, Split, Transaction, TransactionId,
 };
 use kassensturz_export::{AccountTransactions, Counterpart, ExportData};
 use kassensturz_pipeline::export_transactions;
@@ -217,4 +217,57 @@ fn an_unknown_account_is_refused_and_an_empty_list_gives_no_accounts() {
         Err(StoreError::UnknownAccount(id)) if id == unknown
     ));
     assert!(only(export_transactions(&book, &[]).expect("gathered")).is_empty());
+}
+
+#[test]
+fn an_amount_converted_from_marks_keeps_its_original_in_the_row() {
+    const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
+        Ok(code) => code,
+        Err(_) => panic!("DEM is a valid code"),
+    };
+    let in_marks = |minor_units| OriginalAmount {
+        amount: Money::from_minor_units(minor_units, DEM),
+        rate: DEM
+            .withdrawn()
+            .expect("the table lists the mark")
+            .dated_rate(DatedRateId::generate()),
+    };
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    book.use_currency(DEM).expect("currency used");
+    let checking = add(&mut book, "Checking account", AccountKind::Asset, None);
+    let groceries = add(&mut book, "Groceries", AccountKind::Expense, None);
+    add_transaction(
+        &mut book,
+        day(1),
+        Some("Corner Grocery"),
+        vec![
+            Split {
+                original: Some(in_marks(-10_000)),
+                ..Split::new(checking, eur(-5113))
+            },
+            Split {
+                original: Some(in_marks(10_000)),
+                ..Split::new(groceries, eur(5113))
+            },
+        ],
+    );
+    add_transaction(
+        &mut book,
+        day(2),
+        None,
+        vec![
+            Split::new(checking, eur(-100)),
+            Split::new(groceries, eur(100)),
+        ],
+    );
+
+    let accounts = only(export_transactions(&book, &[checking]).expect("gathered"));
+    let rows = &accounts[0].rows;
+    let original = rows[0].original.as_ref().expect("an original amount");
+    assert_eq!(original.amount, Money::from_minor_units(-10_000, DEM));
+    assert_eq!(original.minor_digits, 2);
+    assert_eq!(rows[0].amount, eur(-5113));
+    // A transaction typed in euros has none.
+    assert_eq!(rows[1].original, None);
 }

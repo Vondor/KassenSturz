@@ -21,7 +21,9 @@ const USD: CurrencyCode = match CurrencyCode::new("USD") {
 fn examples() -> Vec<ExportError> {
     vec![
         ExportError::Io(ErrorKind::NotFound),
-        ExportError::AlreadyExists,
+        ExportError::AlreadyExists {
+            file: "transactions.csv".to_owned(),
+        },
         ExportError::BadSettings,
         ExportError::CurrencyMismatch {
             expected: EUR,
@@ -144,9 +146,7 @@ fn every_file_system_keyword_is_listed() {
 }
 
 #[test]
-fn a_file_that_exists_is_not_an_io_error() {
-    let error = ExportError::from(std::io::Error::from(ErrorKind::AlreadyExists));
-    assert_eq!(error, ExportError::AlreadyExists);
+fn an_io_error_keeps_its_kind() {
     let error = ExportError::from(std::io::Error::from(ErrorKind::PermissionDenied));
     assert_eq!(error, ExportError::Io(ErrorKind::PermissionDenied));
 }

@@ -22,7 +22,7 @@ use crate::amount::money_text;
 use crate::args::Arguments;
 use crate::error::CliError;
 use crate::lookup::{find_account, short_id};
-use crate::text::{plain, table};
+use crate::text::{counted, plain, table};
 
 /// The formats the tool recognizes by themselves: CAMT.053, MT940, OFX and
 /// the made-up test format so far. CSV files need settings
@@ -89,9 +89,9 @@ pub(crate) fn import_file(
                 .collect();
             if accounts.len() > 1 {
                 return Err(CliError::message(format!(
-                    "the file has statements for {} accounts; choose one with --statement N, \
+                    "the file has statements for {}; choose one with --statement N, \
                      N from 1 to {}",
-                    accounts.len(),
+                    counted(accounts.len(), "account", "accounts"),
                     statements.len()
                 )));
             }
@@ -235,9 +235,9 @@ impl Shown<'_> {
         };
         writeln!(
             out,
-            "{verb} {} of {} entries into {account}.",
+            "{verb} {} of {} into {account}.",
             summary.imported,
-            report.entries.len()
+            counted(report.entries.len(), "entry", "entries")
         )?;
         if summary.imported > 0 {
             // A preview's transactions aren't kept, so they have no ID.
@@ -274,7 +274,7 @@ impl Shown<'_> {
             writeln!(
                 out,
                 "Left out {} the bank hasn't booked yet: {}.",
-                pending.len(),
+                counted(pending.len(), "entry", "entries"),
                 self.labels(&pending)
             )?;
         }
@@ -283,7 +283,7 @@ impl Shown<'_> {
             writeln!(
                 out,
                 "Skipped {} already in the book: {}.",
-                duplicates.len(),
+                counted(duplicates.len(), "entry", "entries"),
                 self.labels(&duplicates)
             )?;
         }
@@ -339,7 +339,7 @@ impl Shown<'_> {
             out,
             "Left out {} that may be in the book already. To import one anyway, add --also \
              with its number:",
-            similar.len()
+            counted(similar.len(), "entry", "entries")
         )?;
         let mut rows = vec![header(&["Entry", "Date", "Payee", "Amount", "Looks like"])];
         for (at, ids) in similar {

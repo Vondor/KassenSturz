@@ -847,7 +847,9 @@ fn a_file_is_written_and_read_back() {
     assert_eq!(read_book_file(&path), Ok(sample()));
     assert_eq!(
         export_file(&BookExport, &ExportData::Book(sample()), &path),
-        Err(ExportError::AlreadyExists)
+        Err(ExportError::AlreadyExists {
+            file: path.display().to_string()
+        })
     );
     assert_eq!(
         read_book_file(&folder.join("missing.json")),

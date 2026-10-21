@@ -105,12 +105,15 @@ fn retention_text(keep: HistoryRetention) -> String {
     }
 }
 
-/// What the user did in `change`, and which transactions it touched, so the
-/// user can tell e.g. two imports apart (#51, D-109): `imported a statement
-/// (2 transactions added in Checking account, dated 2026-10-05 to
-/// 2026-10-14)`.
+/// What the user did in `change`, the file it read and which transactions
+/// it touched, so the user can tell e.g. two imports apart (#51, D-109):
+/// `imported a statement from october.xml (2 transactions added in Checking
+/// account, dated 2026-10-05 to 2026-10-14)`.
 pub(crate) fn change_text(book: &Book, change: &Change) -> Result<String, CliError> {
-    let action = action_text(change.action);
+    let action = match &change.file_name {
+        Some(file) => format!("{} from {}", action_text(change.action), plain(file)),
+        None => action_text(change.action).to_owned(),
+    };
     let summary = book.change_summary(change.id)?;
     let mut counts = Vec::new();
     for (count, done) in [
@@ -128,7 +131,7 @@ pub(crate) fn change_text(book: &Book, change: &Change) -> Result<String, CliErr
         }
     }
     if counts.is_empty() {
-        return Ok(action.to_owned());
+        return Ok(action);
     }
     let mut details = counts.join(", ");
     // The user's accounts, not the categories: they say where it happened.

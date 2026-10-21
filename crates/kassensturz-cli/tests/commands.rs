@@ -944,20 +944,20 @@ fn a_statement_file_is_imported_once_and_undone_as_a_whole() {
     assert!(
         again.ends_with(
             "Nothing in the book changed, so this import isn't in the history. `undo` would take \
-             back the change before it: imported a statement (2 transactions added in Checking \
-             account, dated 2026-10-05 to 2026-10-14).\n"
+             back the change before it: imported a statement from october.kstest (2 transactions \
+             added in Checking account, dated 2026-10-05 to 2026-10-14).\n"
         ),
         "{again}"
     );
     assert_eq!(
         session.ok(&["undo"]),
-        "Undid the change: imported a statement (1 transaction added in Checking account, dated \
-         2026-10-12).\n"
+        "Undid the change: imported a statement from october.kstest (1 transaction added in \
+         Checking account, dated 2026-10-12).\n"
     );
     assert_eq!(
         session.ok(&["undo"]),
-        "Undid the change: imported a statement (2 transactions added in Checking account, \
-         dated 2026-10-05 to 2026-10-14).\n"
+        "Undid the change: imported a statement from october.kstest (2 transactions added in \
+         Checking account, dated 2026-10-05 to 2026-10-14).\n"
     );
     assert_eq!(register(), before);
 }
@@ -1030,8 +1030,8 @@ fn a_camt053_file_goes_through_the_whole_pipeline() {
     // Importing nothing new changed nothing, so one undo takes it all back.
     assert_eq!(
         session.ok(&["undo"]),
-        "Undid the change: imported a statement (2 transactions added in Checking account, \
-         dated 2026-10-05).\n"
+        "Undid the change: imported a statement from october.xml (2 transactions added in \
+         Checking account, dated 2026-10-05).\n"
     );
     assert_eq!(register(), before);
     // Without a history, there is nothing to undo either.
@@ -1109,8 +1109,8 @@ fn an_mt940_file_goes_through_the_whole_pipeline() {
     assert_eq!(register(), before + 2);
     assert_eq!(
         session.ok(&["undo"]),
-        "Undid the change: imported a statement (2 transactions added in Checking account, \
-         dated 2026-10-05 to 2026-10-06).\n"
+        "Undid the change: imported a statement from october.sta (2 transactions added in \
+         Checking account, dated 2026-10-05 to 2026-10-06).\n"
     );
     assert_eq!(register(), before);
     // The format can be named, and a file of another format is refused.
@@ -1192,8 +1192,8 @@ fn an_ofx_file_goes_through_the_whole_pipeline() {
     assert_eq!(register(), before + 2);
     assert_eq!(
         session.ok(&["undo"]),
-        "Undid the change: imported a statement (2 transactions added in Checking account, \
-         dated 2026-10-05 to 2026-10-06).\n"
+        "Undid the change: imported a statement from october.ofx (2 transactions added in \
+         Checking account, dated 2026-10-05 to 2026-10-06).\n"
     );
     assert_eq!(register(), before);
     // The format can be named, and a file of another format is refused.
@@ -1306,8 +1306,8 @@ fn a_csv_file_is_read_with_its_settings() {
     );
     assert_eq!(
         session.ok(&["undo"]),
-        "Undid the change: imported a statement (2 transactions added in Checking account, \
-         dated 2026-10-05 to 2026-10-07).\n"
+        "Undid the change: imported a statement from umsaetze.csv (2 transactions added in \
+         Checking account, dated 2026-10-05 to 2026-10-07).\n"
     );
 
     // --format csv needs the settings, which are for CSV files only.

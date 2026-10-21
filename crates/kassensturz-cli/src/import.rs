@@ -114,7 +114,7 @@ pub(crate) fn import_file(
     let report = if dry_run {
         preview_import(book, account.id, &chosen, &choices)?
     } else {
-        import_statements(book, account.id, &chosen, &choices)?
+        import_statements(book, account.id, &chosen, &choices, Some(Path::new(file)))?
     };
     let shown = Shown {
         book,

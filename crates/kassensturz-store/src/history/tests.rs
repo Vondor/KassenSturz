@@ -6,6 +6,7 @@
 //! rule 2).
 
 use std::collections::HashSet;
+use std::path::Path;
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, Actions, BookTo, Condition, CurrencyCode, DatedRate,
@@ -855,6 +856,75 @@ fn a_summary_says_which_transactions_a_change_touched() {
 }
 
 #[test]
+fn a_change_keeps_the_name_of_the_file_it_read() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let mut book = Book::create(&path, &computer).expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    let checking = account(&mut book, "Checking account", AccountKind::Asset, EUR);
+    let import = |book: &mut Book, file: &str| {
+        let purchase = imported_purchase(checking);
+        book.as_one_action(Action::ImportStatement, |book| {
+            book.note_file(Path::new(file))?;
+            book.add_transaction(&purchase)
+        })
+    };
+    let file_name = |book: &Book| {
+        book.change_to_undo()
+            .expect("read")
+            .expect("a change")
+            .file_name
+    };
+    // Changes that read no file have none.
+    assert_eq!(file_name(&book), None);
+    // Only the name: the folder can tell more about the user than the
+    // history needs.
+    import(&mut book, "/home/someone/Bank statements/october.xml").expect("imported");
+    assert_eq!(file_name(&book).as_deref(), Some("october.xml"));
+    drop(book);
+
+    let mut book = Book::open(&path, &computer).expect("book opened");
+    assert_eq!(file_name(&book).as_deref(), Some("october.xml"));
+    // Kept in memory with the rest of the history, and back in the book.
+    book.set_history_retention(HistoryRetention::Days(0))
+        .expect("kept in memory");
+    assert_eq!(file_name(&book).as_deref(), Some("october.xml"));
+    book.set_history_retention(HistoryRetention::Days(30))
+        .expect("kept in the book");
+    assert_eq!(file_name(&book).as_deref(), Some("october.xml"));
+    let undone = book.undo().expect("undone").expect("the import");
+    assert_eq!(undone.file_name.as_deref(), Some("october.xml"));
+
+    // An action that changes nothing, a dry run and a failed action keep
+    // no name.
+    let history = book.history().expect("history read");
+    book.as_one_action(Action::ImportStatement, |book| {
+        book.note_file(Path::new("november.xml"))
+    })
+    .expect("nothing imported");
+    book.dry_run(|book| import(book, "november.xml"))
+        .expect("previewed");
+    let failed: Result<(), StoreError> = book.as_one_action(Action::ImportStatement, |book| {
+        book.note_file(Path::new("november.xml"))?;
+        Err(StoreError::Corrupt(Corruption::HistoryMismatch))
+    });
+    assert!(failed.is_err());
+    assert_eq!(book.history().expect("history read"), history);
+    // The next action names its own file, or none.
+    book.rename_account(checking, "Main account")
+        .expect("renamed");
+    assert_eq!(file_name(&book), None);
+}
+
+#[test]
+#[should_panic(expected = "only a user action can note the file it reads")]
+fn only_a_user_action_notes_a_file() {
+    let Sample { mut book, .. } = sample();
+    let _ = book.note_file(Path::new("october.xml"));
+}
+
+#[test]
 fn a_change_outside_a_user_action_is_refused() {
     let Sample { book, checking, .. } = sample();
     let before = contents(&book);
@@ -1177,6 +1247,8 @@ fn the_history_records_every_table_with_every_column() {
     let mut recorded: Vec<&str> = RECORDED.iter().map(|table| table.name).collect();
     recorded.sort_unstable();
     assert_eq!(data, recorded);
+    // The list of changes in memory is like the one in the book.
+    assert_eq!(columns("temp", "changes"), columns("main", "changes"));
 
     for table in &RECORDED {
         let name = table.name;

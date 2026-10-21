@@ -250,8 +250,9 @@ fn a_currencys_decimal_places_stay_fixed() {
 #[test]
 fn currencies_the_table_does_not_list_are_refused() {
     let mut book = Book::create_in_memory().expect("book created");
-    // Gold has no decimal places in ISO 4217; the mark ended in 2002.
-    for text in ["XAU", "DEM"] {
+    // Gold has no decimal places in ISO 4217, and "ABC" was never a
+    // currency.
+    for text in ["XAU", "ABC"] {
         let currency = CurrencyCode::new(text).expect("valid code");
         assert!(matches!(
             book.use_currency(currency),
@@ -262,6 +263,38 @@ fn currencies_the_table_does_not_list_are_refused() {
             Err(StoreError::UnknownCurrency(_))
         ));
     }
+}
+
+#[test]
+fn a_withdrawn_currency_is_for_original_amounts_only() {
+    let mut book = Book::create_in_memory().expect("book created");
+    let mark = CurrencyCode::new("DEM").expect("valid code");
+    // The mark had 2 decimal places, from KassenSturz's table of withdrawn
+    // currencies (D-104).
+    assert_eq!(book.use_currency(mark).expect("used"), 2);
+    let savings = Account {
+        id: AccountId::generate(),
+        name: "Old savings".into(),
+        kind: AccountKind::Asset,
+        currency: mark,
+        account_type: None,
+        closed: false,
+        parent: None,
+    };
+    assert!(matches!(
+        book.add_account(&savings),
+        Err(StoreError::WithdrawnCurrency(found)) if found == mark
+    ));
+    // A book filled from a complete export keeps the accounts it had, even
+    // in a currency withdrawn after it was made.
+    let mut restored = Book::create_in_memory().expect("book created");
+    restored
+        .fill_new(HistoryRetention::Days(30), |book| {
+            book.restore_currency(Currency::new(mark, 2).expect("2 places"))?;
+            book.add_account(&savings)
+        })
+        .expect("filled");
+    assert_eq!(restored.account(savings.id).expect("kept"), savings);
 }
 
 #[test]

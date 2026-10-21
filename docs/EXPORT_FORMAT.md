@@ -2,13 +2,13 @@
 
 The complete export holds a whole KassenSturz book in one JSON file (D-029, D-100). It is the stable way to move a book's data: into a new book, to another program, or from a development build to 0.1 (D-045, D-046). Unlike the book file itself (`docs/BOOK_FORMAT.md`), this format is meant to be read and written by other programs, so it changes only with a new [version](#versions).
 
-**Status: version 1** (M2.8).
+**Status: version 2** (M2.9b). Version 1 (M2.8) is read as [described below](#versions).
 
 In the command-line tool, `export FILE --format book` writes it and `create --from FILE` makes a new book from it. In code, `BookExport` (ID `book`) in `kassensturz-export` writes it, `read_book` reads it, and `export_book` and `fill_book` in `kassensturz-pipeline` connect it to a book.
 
 ## What is in it
 
-Everything the book holds, with its IDs: the settings, the currencies with their decimal places, the accounts and categories, the price table, the Rules, the transactions with all their parts, what a bank or file delivered for a part, and which parts a Rule booked.
+Everything the book holds, with its IDs: the settings, the currencies with their decimal places, the accounts and categories, the price table, the Rules, the transactions with all their parts, what a bank or file delivered for a part, the amount a part had in a withdrawn currency before it was converted, and which parts a Rule booked.
 
 Left out is the **change history** (D-032, D-066). It belongs to the book file, not to its data, so a book made from the file starts with an empty history, as a new book does. How long it keeps its history is a setting and does come along.
 
@@ -33,6 +33,13 @@ Left out is the **change history** (D-032, D-066). It belongs to the book file, 
 
 `version` is a whole number. KassenSturz reads every version up to its own and refuses a file from a newer one (`export.newer-version`), since it can't know what that file holds. Any change to what a file can hold, even a new key, gets a new version, which this document describes, together with how an older version is read.
 
+| Version | What changed |
+|---|---|
+| 1 | The first version (M2.8, D-100). |
+| 2 | A part can have an `original` amount, from before it was converted out of a withdrawn currency, and a rate's `source` can be `changeover` (M2.9b, D-104). |
+
+A version 1 file is read as version 2 without them: a part with an `original` key or a rate from `changeover` in it is refused (`export.unknown-value`, `export.bad-value`).
+
 ## The top level
 
 ```json
@@ -51,7 +58,7 @@ Left out is the **change history** (D-032, D-066). It belongs to the book file, 
 | Key | Value |
 |---|---|
 | `format` | Always `"kassensturz-book"`. A JSON file without it isn't a complete export (`export.not-a-book`). |
-| `version` | The [version](#versions) of the format: `1`. |
+| `version` | The [version](#versions) of the format: `2`. |
 | `settings` | The book's [settings](#settings). |
 | `currencies` | The [currencies](#currencies) the book uses. |
 | `accounts` | The [accounts and categories](#accounts-and-categories). |
@@ -101,7 +108,7 @@ The price table (D-028): one object per exchange rate, sorted by its two currenc
 | `date` | The day it applies to. |
 | `from`, `to` | The two currencies: one unit of `from` is worth `rate` units of `to`. |
 | `rate` | The exchange rate. |
-| `source` | Where it comes from: `manual`, entered by the user (D-028). |
+| `source` | Where it comes from: `manual`, entered by the user (D-028), or, only for the rate of a part's `original` amount, `changeover`, the fixed rate a withdrawn currency was replaced at (D-104). A book's price table holds no `changeover` rate (`store.changeover-rate`). |
 
 ### Rules
 
@@ -154,6 +161,7 @@ One object per transaction, sorted by booking date and ID.
 | `account` | The account or category it books to, or `null` for a part without a category yet. |
 | `amount` | Its amount, in the transaction's currency. |
 | `foreign` | For a part whose account is in another currency: an object with `amount`, the original amount, `currency`, the account's currency, and `rate`, the rate used, as an object like those in [`rates`](#rates), or `null` if none was recorded. Otherwise `null`. |
+| `original` | For a part converted from a withdrawn currency, such as the German mark (D-077, D-104): an object with `amount`, the amount it had, `currency`, the withdrawn currency, which is listed in [`currencies`](#currencies), and `rate`, the fixed rate it was converted with, as an object like those in [`rates`](#rates): one unit of the currency that replaced it, in the part's `currency` or in its `foreign` amount's, costs `rate` units of the withdrawn one. A part with one has no `rate` in its `foreign` amount. Otherwise `null`. Version 2 and later. |
 | `delivered` | What a bank or file delivered for it (D-083): an object with `bank_id`, `booking_date`, `value_date`, `other_party_name`, `other_party_iban` and `remittance_information`, each of them text or a date, or `null`. Otherwise `null`. |
 | `booked_by_rule` | If a Rule booked it and may book it again when the user changes that Rule (D-088): an object with `rule`, the Rule's ID, or `null` if that Rule was removed since. Otherwise `null`. |
 
@@ -174,7 +182,7 @@ A book with one account, one category and one transaction:
 ```json
 {
   "format": "kassensturz-book",
-  "version": 1,
+  "version": 2,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2}
@@ -192,8 +200,8 @@ A book with one account, one category and one transaction:
       "payee": "Bakery",
       "currency": "EUR",
       "parts": [
-        {"id": "019a0000-0000-7000-8000-000000000004", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-4.50", "foreign": null, "delivered": null, "booked_by_rule": null},
-        {"id": "019a0000-0000-7000-8000-000000000005", "account": "019a0000-0000-7000-8000-000000000002", "amount": "4.50", "foreign": null, "delivered": null, "booked_by_rule": null}
+        {"id": "019a0000-0000-7000-8000-000000000004", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-4.50", "foreign": null, "original": null, "delivered": null, "booked_by_rule": null},
+        {"id": "019a0000-0000-7000-8000-000000000005", "account": "019a0000-0000-7000-8000-000000000002", "amount": "4.50", "foreign": null, "original": null, "delivered": null, "booked_by_rule": null}
       ]
     }
   ]

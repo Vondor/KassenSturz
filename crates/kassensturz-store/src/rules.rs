@@ -24,7 +24,7 @@ use kassensturz_core::{
 use rusqlite::{OptionalExtension, params};
 
 use crate::error::{Corruption, StoreError};
-use crate::transactions::insert_split_rate;
+use crate::transactions::{insert_split_rate, split_rate};
 use crate::{Action, Book, currency_from_text, date_from_text, date_to_text};
 
 /// What running the Rules, or rebooking what a changed Rule booked, does or
@@ -497,6 +497,7 @@ impl Book {
                         reason @ (StoreError::NoRate { .. }
                         | StoreError::AmountOverflow
                         | StoreError::AccountClosed(_)
+                        | StoreError::OriginalChanged(_)
                         | StoreError::Transfer(_)),
                     ) => {
                         run.skipped.push(skip(reason));
@@ -563,16 +564,25 @@ impl Book {
                 }
                 let currency = accounts[&target].currency;
                 rebooked.account = Some(target);
-                rebooked.foreign = if currency == transaction.currency() {
-                    None
+                if part.original.is_some() {
+                    // A part converted from a withdrawn currency keeps its
+                    // amounts and its one rate, the fixed one (D-104), so it
+                    // moves only to an account in the same currency.
+                    if currency != part.account_amount().currency() {
+                        return Err(StoreError::OriginalChanged(part.id));
+                    }
                 } else {
-                    let (amount, rate) =
-                        self.convert(part.amount, currency, transaction.booking_date())?;
-                    Some(ForeignAmount {
-                        amount,
-                        rate: Some(rate),
-                    })
-                };
+                    rebooked.foreign = if currency == transaction.currency() {
+                        None
+                    } else {
+                        let (amount, rate) =
+                            self.convert(part.amount, currency, transaction.booking_date())?;
+                        Some(ForeignAmount {
+                            amount,
+                            rate: Some(rate),
+                        })
+                    };
+                }
             }
         }
         let payee = actions
@@ -628,7 +638,7 @@ impl Book {
         // changes.
         self.conn
             .execute("DELETE FROM split_rates WHERE split_id = ?1", [id])?;
-        if let Some(rate) = part.foreign.and_then(|foreign| foreign.rate) {
+        if let Some(rate) = split_rate(part) {
             insert_split_rate(&self.conn, part.id, &rate)?;
         }
         self.conn.execute(

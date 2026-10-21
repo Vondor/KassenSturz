@@ -217,13 +217,26 @@ fn an_amount_is_read_exactly_or_refused() {
         )),
         Err(ImportError::TooManyDecimalPlaces { .. })
     ));
-    // A currency withdrawn since is refused, as for a `.kmy` file (D-101).
+    // A currency KassenSturz doesn't know is refused, as for a `.kmy` file
+    // (D-101).
     assert!(matches!(
         read(&after(
-            "UPDATE kmmAccounts SET currencyId = 'DEM' WHERE id = 'A000001'"
+            "UPDATE kmmAccounts SET currencyId = 'ABC' WHERE id = 'A000001'"
         )),
         Err(ImportError::UnknownCurrency { line: None, .. })
     ));
+    // A withdrawn one is read, for the new book to convert (D-104).
+    let Ok(Imported::Book(book)) = read(&after(
+        "UPDATE kmmAccounts SET currencyId = 'DEM' WHERE id = 'A000001'",
+    )) else {
+        panic!("a book");
+    };
+    let account = book
+        .accounts
+        .iter()
+        .find(|account| account.key == "A000001")
+        .expect("the account");
+    assert_eq!(account.currency.code().as_str(), "DEM");
 }
 
 #[test]

@@ -37,7 +37,9 @@ pub const FORMAT: &str = "kassensturz-book";
 /// The version of the format this KassenSturz writes, the file's `version`.
 /// Every change to the format gets a new one; KassenSturz reads every
 /// version up to its own and refuses newer ones (`docs/EXPORT_FORMAT.md`).
-pub const VERSION: u64 = 1;
+/// Version 2 added a part's original amount, from before it was converted
+/// out of a withdrawn currency (D-104).
+pub const VERSION: u64 = 2;
 
 /// How deep Rules can sit inside each other in the file: a top-level Rule is
 /// at depth 1. Deeper trees are refused when writing and reading, so a file
@@ -188,6 +190,9 @@ impl BookData {
                 if let Some(foreign) = split.foreign {
                     is_listed(foreign.amount)?;
                 }
+                if let Some(original) = split.original {
+                    is_listed(original.amount)?;
+                }
                 parts.insert(split.id);
             }
         }
@@ -274,6 +279,14 @@ impl BookWriter {
                     ]),
                     None => Json::Null,
                 };
+                let original = match split.original {
+                    Some(original) => Json::Object(vec![
+                        ("amount", self.amount(original.amount)?),
+                        ("currency", Json::text(original.amount.currency().as_str())),
+                        ("rate", rate(&original.rate)),
+                    ]),
+                    None => Json::Null,
+                };
                 let delivered = match &split.imported {
                     Some(imported) => Json::Object(vec![
                         ("bank_id", Json::optional_text(imported.bank_id.as_deref())),
@@ -303,6 +316,7 @@ impl BookWriter {
                     ("account", Json::optional_id(split.account)),
                     ("amount", self.amount(split.amount)?),
                     ("foreign", foreign),
+                    ("original", original),
                     ("delivered", delivered),
                     ("booked_by_rule", booked_by_rule),
                 ]))
@@ -472,7 +486,11 @@ const TYPES: [(AccountType, &str); 4] = [
     (AccountType::CreditCard, "credit_card"),
 ];
 
-const SOURCES: [(RateSource, &str); 1] = [(RateSource::Manual, "manual")];
+/// Version 1 has only the first one.
+const SOURCES: [(RateSource, &str); 2] = [
+    (RateSource::Manual, "manual"),
+    (RateSource::Changeover, "changeover"),
+];
 
 const MATCH_MODES: [(MatchMode, &str); 2] = [(MatchMode::All, "all"), (MatchMode::Any, "any")];
 

@@ -52,6 +52,10 @@ pub enum StoreError {
     /// decimal places isn't known (D-062): it isn't a current currency, or
     /// ISO 4217 gives it no decimal places, as for gold (XAU).
     UnlistedCurrency(CurrencyCode),
+    /// The currency was withdrawn: another one replaced it at a fixed rate,
+    /// as the euro replaced the German mark, so no new account can be in it
+    /// (D-104). Its amounts are kept only as parts' original amounts.
+    WithdrawnCurrency(CurrencyCode),
     /// The currency isn't used in this book yet.
     UnknownCurrency(CurrencyCode),
     /// There's no account or category with this ID.
@@ -134,6 +138,12 @@ pub enum StoreError {
     /// account, its amount or what was delivered with it, or it would add
     /// or remove such a part (D-067). The user can change the other parts.
     ImportedSplitChanged(SplitId),
+    /// A change would alter a part converted from a withdrawn currency: its
+    /// original amount, the fixed rate or the amount it was converted into,
+    /// or it would remove such a part, give a part an original amount, or
+    /// book it to an account in another currency (D-104). Its account can
+    /// change to one in the same currency.
+    OriginalChanged(SplitId),
     /// The two transactions can't be joined into a Transfer (D-087).
     Transfer(TransferError),
     /// There's no Rule with this ID.
@@ -164,6 +174,11 @@ pub enum StoreError {
     UnknownRate(DatedRateId),
     /// An exchange rate from a currency into the same currency.
     RateWithinOneCurrency(CurrencyCode),
+    /// A fixed rate a withdrawn currency was replaced at
+    /// ([`RateSource::Changeover`](kassensturz_core::RateSource::Changeover))
+    /// belongs to the parts converted with it, not to the price table
+    /// (D-104).
+    ChangeoverRate,
     /// The book has no exchange rate between the two currencies on or before
     /// the date, in either direction. The user can enter one (D-028).
     NoRate {
@@ -312,6 +327,9 @@ impl Report for StoreError {
             Self::UnlistedCurrency(currency) => {
                 new("store.unlisted-currency").with("currency", P::Currency(*currency))
             }
+            Self::WithdrawnCurrency(currency) => {
+                new("store.withdrawn-currency").with("currency", P::Currency(*currency))
+            }
             Self::UnknownCurrency(currency) => {
                 new("store.unknown-currency").with("currency", P::Currency(*currency))
             }
@@ -379,6 +397,9 @@ impl Report for StoreError {
             Self::ImportedSplitChanged(split) => {
                 new("store.imported-split-changed").with("split", P::Split(*split))
             }
+            Self::OriginalChanged(split) => {
+                new("store.original-changed").with("split", P::Split(*split))
+            }
             // The transfer's own error says what doesn't fit.
             Self::Transfer(error) => error.report(),
             Self::UnknownRule(rule) => new("store.unknown-rule").with("rule", P::Rule(*rule)),
@@ -402,6 +423,7 @@ impl Report for StoreError {
             Self::RateWithinOneCurrency(currency) => {
                 new("store.rate-within-one-currency").with("currency", P::Currency(*currency))
             }
+            Self::ChangeoverRate => new("store.changeover-rate"),
             Self::NoRate { from, to, date } => new("store.no-rate")
                 .with("from", P::Currency(*from))
                 .with("to", P::Currency(*to))

@@ -1,11 +1,12 @@
 {
   "format": "kassensturz-book",
-  "version": 1,
+  "version": 2,
   "settings": {"rounding_mode": "half_even", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2},
     {"code": "JPY", "minor_digits": 0},
-    {"code": "USD", "minor_digits": 2}
+    {"code": "USD", "minor_digits": 2},
+    {"code": "DEM", "minor_digits": 2}
   ],
   "accounts": [
     {"id": "019a0000-0000-7000-8000-000000000001", "name": "Girokonto", "kind": "asset", "currency": "EUR", "type": "checking", "closed": false, "parent": null},
@@ -73,8 +74,8 @@
       "payee": "Opening balance",
       "currency": "EUR",
       "parts": [
-        {"id": "019a0000-0000-7000-8000-000000000020", "account": "019a0000-0000-7000-8000-000000000001", "amount": "1000.00", "foreign": null, "delivered": null, "booked_by_rule": null},
-        {"id": "019a0000-0000-7000-8000-000000000021", "account": "019a0000-0000-7000-8000-000000000003", "amount": "-1000.00", "foreign": null, "delivered": null, "booked_by_rule": null}
+        {"id": "019a0000-0000-7000-8000-000000000020", "account": "019a0000-0000-7000-8000-000000000001", "amount": "1000.00", "foreign": null, "original": null, "delivered": null, "booked_by_rule": null},
+        {"id": "019a0000-0000-7000-8000-000000000021", "account": "019a0000-0000-7000-8000-000000000003", "amount": "-1000.00", "foreign": null, "original": null, "delivered": null, "booked_by_rule": null}
       ]
     },
     {
@@ -88,6 +89,7 @@
           "account": "019a0000-0000-7000-8000-000000000001",
           "amount": "-4.50",
           "foreign": null,
+          "original": null,
           "delivered": {"bank_id": "2026-10-05-0001", "booking_date": "2026-10-05", "value_date": "2026-10-06", "other_party_name": "Bäckerei Sonnenschein", "other_party_iban": "DE89 3704 0044 0532 0130 00", "remittance_information": "=Brötchen\nKarte 4711"},
           "booked_by_rule": null
         },
@@ -96,6 +98,7 @@
           "account": "019a0000-0000-7000-8000-000000000005",
           "amount": "4.50",
           "foreign": null,
+          "original": null,
           "delivered": null,
           "booked_by_rule": {"rule": "019a0000-0000-7000-8000-000000000016"}
         }
@@ -116,10 +119,11 @@
             "currency": "USD",
             "rate": {"id": "019a0000-0000-7000-8000-00000000000c", "date": "2026-10-01", "from": "USD", "to": "EUR", "rate": "0.9210", "source": "manual"}
           },
+          "original": null,
           "delivered": null,
           "booked_by_rule": null
         },
-        {"id": "019a0000-0000-7000-8000-00000000002a", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-92.10", "foreign": null, "delivered": null, "booked_by_rule": null}
+        {"id": "019a0000-0000-7000-8000-00000000002a", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-92.10", "foreign": null, "original": null, "delivered": null, "booked_by_rule": null}
       ]
     },
     {
@@ -128,12 +132,13 @@
       "payee": "Hotel",
       "currency": "EUR",
       "parts": [
-        {"id": "019a0000-0000-7000-8000-000000000034", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-90.00", "foreign": null, "delivered": null, "booked_by_rule": null},
+        {"id": "019a0000-0000-7000-8000-000000000034", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-90.00", "foreign": null, "original": null, "delivered": null, "booked_by_rule": null},
         {
           "id": "019a0000-0000-7000-8000-000000000033",
           "account": "019a0000-0000-7000-8000-000000000006",
           "amount": "90.00",
           "foreign": {"amount": "98.00", "currency": "USD", "rate": null},
+          "original": null,
           "delivered": null,
           "booked_by_rule": null
         }
@@ -145,14 +150,49 @@
       "payee": "Unknown",
       "currency": "EUR",
       "parts": [
-        {"id": "019a0000-0000-7000-8000-00000000003d", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-0.01", "foreign": null, "delivered": null, "booked_by_rule": null},
+        {"id": "019a0000-0000-7000-8000-00000000003d", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-0.01", "foreign": null, "original": null, "delivered": null, "booked_by_rule": null},
         {
           "id": "019a0000-0000-7000-8000-00000000003e",
           "account": null,
           "amount": "0.01",
           "foreign": null,
+          "original": null,
           "delivered": null,
           "booked_by_rule": {"rule": null}
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000046",
+      "date": "2026-10-08",
+      "payee": "Bakery",
+      "currency": "EUR",
+      "parts": [
+        {
+          "id": "019a0000-0000-7000-8000-000000000047",
+          "account": "019a0000-0000-7000-8000-000000000001",
+          "amount": "-51.13",
+          "foreign": null,
+          "original": {
+            "amount": "-100.00",
+            "currency": "DEM",
+            "rate": {"id": "019a0000-0000-7000-8000-000000000049", "date": "1999-01-01", "from": "EUR", "to": "DEM", "rate": "1.95583", "source": "changeover"}
+          },
+          "delivered": null,
+          "booked_by_rule": null
+        },
+        {
+          "id": "019a0000-0000-7000-8000-000000000048",
+          "account": "019a0000-0000-7000-8000-000000000005",
+          "amount": "51.13",
+          "foreign": null,
+          "original": {
+            "amount": "100.00",
+            "currency": "DEM",
+            "rate": {"id": "019a0000-0000-7000-8000-00000000004a", "date": "1999-01-01", "from": "EUR", "to": "DEM", "rate": "1.95583", "source": "changeover"}
+          },
+          "delivered": null,
+          "booked_by_rule": null
         }
       ]
     }

@@ -18,6 +18,11 @@ use kassensturz_core::{
 /// yet, such as investments or scheduled transactions, isn't in it; the
 /// importer counts it in [`ImportedBook::skipped`], so the user learns what
 /// stayed behind (D-029).
+///
+/// Its currencies can include withdrawn ones, such as the German mark,
+/// with the decimal places they had ([`crate::book_currency`]): the
+/// pipeline converts their amounts into the currencies that replaced them,
+/// and each converted part keeps the amount it had (D-077, D-104).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ImportedBook {
     /// The accounts and categories, and the internal accounts for starting

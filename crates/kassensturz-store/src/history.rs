@@ -218,6 +218,8 @@ pub(crate) const RECORDED: [Recorded; 11] = [
             ("amount", "INTEGER"),
             ("foreign_amount", "INTEGER"),
             ("foreign_currency", "TEXT"),
+            ("original_amount", "INTEGER"),
+            ("original_currency", "TEXT"),
         ],
     },
     Recorded {

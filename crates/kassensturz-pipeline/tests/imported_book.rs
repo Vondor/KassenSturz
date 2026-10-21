@@ -6,6 +6,7 @@
 
 use kassensturz_core::{
     AccountKind, AccountType, Currency, CurrencyCode, Date, ExchangeRate, ImportedDetails, Money,
+    RateSource, Split, Transaction,
 };
 use kassensturz_import::{
     BookAccount, BookPart, BookRate, BookTransaction, ImportError, ImportedBook, Skipped,
@@ -22,6 +23,10 @@ const USD: CurrencyCode = match CurrencyCode::new("USD") {
     Ok(code) => code,
     Err(_) => panic!("USD is a valid code"),
 };
+const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
+    Ok(code) => code,
+    Err(_) => panic!("DEM is a valid code"),
+};
 
 fn currency(code: CurrencyCode) -> Currency {
     Currency::new(code, 2).expect("two decimal places")
@@ -33,6 +38,10 @@ fn eur(minor_units: i64) -> Money {
 
 fn usd(minor_units: i64) -> Money {
     Money::from_minor_units(minor_units, USD)
+}
+
+fn dem(minor_units: i64) -> Money {
+    Money::from_minor_units(minor_units, DEM)
 }
 
 fn day(day: i8) -> Date {
@@ -67,6 +76,35 @@ fn transaction(date: Date, payee: Option<&str>, parts: Vec<BookPart>) -> BookTra
         currency: currency(EUR),
         parts,
     }
+}
+
+/// An account or category the other program kept in German marks.
+fn in_marks(key: &str, name: &str, kind: AccountKind) -> BookAccount {
+    BookAccount {
+        currency: currency(DEM),
+        ..account(key, name, kind)
+    }
+}
+
+/// A transaction in German marks.
+fn in_marks_on(date: Date, payee: Option<&str>, parts: Vec<BookPart>) -> BookTransaction {
+    BookTransaction {
+        currency: currency(DEM),
+        ..transaction(date, payee, parts)
+    }
+}
+
+/// A part whose amount in its account's currency differs from the one in
+/// the transaction's.
+fn part_in(account: &str, amount: Money, account_amount: Money) -> BookPart {
+    BookPart {
+        account_amount: Some(account_amount),
+        ..part(Some(account), amount)
+    }
+}
+
+fn date(year: i16, month: i8, day: i8) -> Date {
+    Date::new(year, month, day).expect("a valid date")
 }
 
 /// A small household as another program kept it: two accounts (one
@@ -273,4 +311,294 @@ fn a_book_that_cant_be_filled_stays_empty() {
         fill_book_from(&mut book, &household()),
         Err(PipelineError::Store(StoreError::NotEmpty))
     ));
+}
+
+/// A household that kept its book in German marks, as another program kept
+/// it, and went on in euros in 2002: a checking account in marks emptied
+/// into a new one in euros, categories in marks, one of them inside a
+/// category in euros, and an account in marks that was never used.
+fn household_in_marks() -> ImportedBook {
+    let mut bakery = in_marks("C5", "Bakery", AccountKind::Expense);
+    bakery.parent = Some("C4".into());
+    let accounts = vec![
+        in_marks("A1", "Checking", AccountKind::Asset),
+        account("A2", "Girokonto", AccountKind::Asset),
+        in_marks("A3", "Old savings", AccountKind::Asset),
+        in_marks("Q1", "Opening balances", AccountKind::Equity),
+        in_marks("C1", "Groceries", AccountKind::Expense),
+        in_marks("C2", "Household", AccountKind::Expense),
+        in_marks("C3", "Drinks", AccountKind::Expense),
+        account("C4", "Food", AccountKind::Expense),
+        bakery,
+    ];
+    let transactions = vec![
+        in_marks_on(
+            date(1998, 12, 1),
+            None,
+            vec![
+                part(Some("A1"), dem(100_000)),
+                part(Some("Q1"), dem(-100_000)),
+            ],
+        ),
+        in_marks_on(
+            date(1998, 12, 15),
+            Some("Market"),
+            vec![
+                part(Some("A1"), dem(-10_000)),
+                part(Some("C1"), dem(10_000)),
+            ],
+        ),
+        // 0.01 DEM is 0.0051... EUR, but 0.03 DEM is 0.0153... EUR.
+        in_marks_on(
+            date(1999, 2, 1),
+            Some("Corner shop"),
+            vec![
+                part(Some("A1"), dem(-3)),
+                part(Some("C1"), dem(1)),
+                part(Some("C2"), dem(1)),
+                part(Some("C3"), dem(1)),
+            ],
+        ),
+        in_marks_on(
+            date(1999, 3, 1),
+            Some("Hardware store"),
+            vec![part(Some("A1"), dem(-1)), part(Some("C2"), dem(1))],
+        ),
+        // The rest moved to the new account in euros: the file gives the
+        // amount in both currencies.
+        transaction(
+            date(2002, 1, 2),
+            None,
+            vec![
+                part_in("A1", eur(-46_014), dem(-89_996)),
+                part(Some("A2"), eur(46_014)),
+            ],
+        ),
+        // Old prices at the bakery: the category is still in marks.
+        transaction(
+            date(2002, 2, 1),
+            Some("Bakery"),
+            vec![
+                part(Some("A2"), eur(-1_000)),
+                part_in("C5", eur(1_000), dem(1_956)),
+            ],
+        ),
+    ];
+    ImportedBook {
+        accounts,
+        transactions,
+        rates: Vec::new(),
+        skipped: Vec::new(),
+    }
+}
+
+fn paid_by(transactions: &[Transaction], payee: &str) -> Transaction {
+    transactions
+        .iter()
+        .find(|transaction| transaction.payee() == Some(payee))
+        .unwrap_or_else(|| panic!("{payee} is in the book"))
+        .clone()
+}
+
+fn amounts(transaction: &Transaction) -> Vec<Money> {
+    transaction
+        .splits()
+        .iter()
+        .map(|split| split.amount)
+        .collect()
+}
+
+/// The amounts each part had in marks, if it had one.
+fn originals(transaction: &Transaction) -> Vec<Option<Money>> {
+    transaction
+        .splits()
+        .iter()
+        .map(|split| split.original.map(|original| original.amount))
+        .collect()
+}
+
+/// Checks that `split` was converted out of marks at the fixed rate.
+fn assert_converted_from_marks(split: &Split) {
+    let original = split.original.expect("an original amount");
+    assert_eq!(original.amount.currency(), DEM);
+    assert_eq!(original.rate.from, EUR);
+    assert_eq!(original.rate.to, DEM);
+    assert_eq!(
+        original.rate.rate,
+        "1.95583".parse::<ExchangeRate>().expect("a rate")
+    );
+    assert_eq!(original.rate.date, date(1999, 1, 1));
+    assert_eq!(original.rate.source, RateSource::Changeover);
+}
+
+#[test]
+fn a_book_in_marks_comes_in_in_euros_and_keeps_the_amounts_in_marks() {
+    let mut book = Book::create_in_memory().expect("book created");
+    let report = fill_book_from(&mut book, &household_in_marks()).expect("filled");
+    assert_eq!(report.accounts, 3);
+    assert_eq!(report.categories, 5);
+    assert_eq!(report.transactions, 6);
+    assert_eq!(report.completed, 0);
+    let mark = DEM.withdrawn().expect("the table lists the mark");
+    assert_eq!(report.converted.len(), 1);
+    assert_eq!(report.converted[0].withdrawn, mark);
+    // All but the two accounts in euros, and every part in marks.
+    assert_eq!(report.converted[0].accounts, 7);
+    assert_eq!(report.converted[0].parts, 12);
+
+    // Every account and category is in euros now; the book lists the mark
+    // only for the parts' original amounts.
+    for account in book.all_accounts().expect("accounts") {
+        assert_eq!(account.currency, EUR, "{}", account.name);
+    }
+    let mut currencies = book.currencies().expect("currencies");
+    currencies.sort_by_key(|currency| currency.code().as_str().to_owned());
+    assert_eq!(currencies, vec![currency(DEM), currency(EUR)]);
+    // In euros both, the bakery stays inside food.
+    assert_eq!(named(&book, "Bakery").parent, Some(named(&book, "Food").id));
+    assert!(report.moved_to_top.is_empty());
+
+    // Each balance is the balance in marks converted once: 1,000.00 DEM
+    // are 511.29 EUR. The account the old book emptied is empty.
+    let balance = |name: &str| book.balance(named(&book, name).id).expect("balance");
+    assert_eq!(balance("Checking"), eur(0));
+    assert_eq!(balance("Opening balances"), eur(-51_129));
+    assert_eq!(balance("Groceries"), eur(5_113));
+    assert_eq!(balance("Girokonto"), eur(46_014 - 1_000));
+    assert_eq!(balance("Old savings"), eur(0));
+
+    let transactions = book.transactions().expect("transactions");
+    // Converted on their own, the four parts would be -0.02, 0.01, 0.01
+    // and 0.01 EUR, which don't add up. The checking account's part follows
+    // its balance (899.97 DEM are 460.15 EUR, one cent less than 900.00
+    // DEM); a category takes what is left over.
+    let corner_shop = paid_by(&transactions, "Corner shop");
+    assert_eq!(amounts(&corner_shop), vec![eur(-1), eur(0), eur(0), eur(1)]);
+    assert_eq!(
+        originals(&corner_shop),
+        vec![Some(dem(-3)), Some(dem(1)), Some(dem(1)), Some(dem(1))]
+    );
+    for split in corner_shop.splits() {
+        assert_converted_from_marks(split);
+        assert_eq!(split.foreign, None);
+    }
+    // The household category's next penny catches up: 0.02 DEM are 0.01
+    // EUR.
+    let hardware = paid_by(&transactions, "Hardware store");
+    assert_eq!(amounts(&hardware), vec![eur(-1), eur(1)]);
+    assert_eq!(balance("Household"), eur(1));
+    assert_eq!(balance("Drinks"), eur(1));
+
+    // Where the file gave the amount in euros, it stays.
+    let bakery = paid_by(&transactions, "Bakery");
+    assert_eq!(amounts(&bakery), vec![eur(-1_000), eur(1_000)]);
+    assert_eq!(originals(&bakery), vec![None, Some(dem(1_956))]);
+    assert_converted_from_marks(&bakery.splits()[1]);
+    assert_eq!(bakery.splits()[1].foreign, None);
+    assert_eq!(balance("Bakery"), eur(1_000));
+
+    assert!(book.all_rates().expect("rates").is_empty());
+    assert_eq!(book.history().expect("history"), Vec::new());
+}
+
+#[test]
+fn parts_in_other_currencies_keep_what_the_file_gave() {
+    let accounts = vec![
+        in_marks("A1", "Checking", AccountKind::Asset),
+        account("A2", "Girokonto", AccountKind::Asset),
+        in_marks("C1", "Groceries", AccountKind::Expense),
+        BookAccount {
+            currency: currency(USD),
+            ..account("C2", "Travel", AccountKind::Expense)
+        },
+    ];
+    let transactions = vec![
+        // From the account in euros, in marks: the file gives 51.12 EUR,
+        // one cent less than the fixed rate gives for 100.00 DEM, and the
+        // category takes the difference.
+        in_marks_on(
+            date(1998, 11, 2),
+            Some("Market"),
+            vec![
+                part_in("A2", dem(-10_000), eur(-5_112)),
+                part(Some("C1"), dem(10_000)),
+            ],
+        ),
+        // In dollars, from the account in marks.
+        BookTransaction {
+            currency: currency(USD),
+            ..transaction(
+                date(1998, 11, 3),
+                Some("Hotel"),
+                vec![
+                    part_in("A1", usd(-6_000), dem(-10_000)),
+                    part(Some("C2"), usd(6_000)),
+                ],
+            )
+        },
+        // In marks, into the category in dollars.
+        in_marks_on(
+            date(1998, 11, 4),
+            Some("Car rental"),
+            vec![
+                part_in("C2", dem(10_000), usd(6_000)),
+                part(Some("A1"), dem(-10_000)),
+            ],
+        ),
+        // Only the account's part, without a category yet.
+        in_marks_on(
+            date(1998, 11, 5),
+            Some("Bank fee"),
+            vec![part(Some("A1"), dem(-1_000))],
+        ),
+    ];
+    let imported = ImportedBook {
+        accounts,
+        transactions,
+        rates: Vec::new(),
+        skipped: Vec::new(),
+    };
+    let mut book = Book::create_in_memory().expect("book created");
+    let report = fill_book_from(&mut book, &imported).expect("filled");
+    assert_eq!(report.completed, 1);
+    assert_eq!(report.converted[0].accounts, 2);
+    assert_eq!(report.converted[0].parts, 6);
+
+    let transactions = book.transactions().expect("transactions");
+    let market = paid_by(&transactions, "Market");
+    assert_eq!(amounts(&market), vec![eur(-5_112), eur(5_112)]);
+    assert_eq!(
+        originals(&market),
+        vec![Some(dem(-10_000)), Some(dem(10_000))]
+    );
+    assert_eq!(market.splits()[0].foreign, None);
+
+    // The dollars stay; the amount in marks, converted, is what the part
+    // books to the account in euros now.
+    let hotel = paid_by(&transactions, "Hotel");
+    let paid = &hotel.splits()[0];
+    assert_eq!(paid.amount, usd(-6_000));
+    assert_eq!(paid.account_amount(), eur(-5_113));
+    assert_eq!(paid.foreign.and_then(|foreign| foreign.rate), None);
+    assert_converted_from_marks(paid);
+    assert_eq!(originals(&hotel), vec![Some(dem(-10_000)), None]);
+
+    // The dollars the file gave stay what the category got; the marks are
+    // converted into the transaction's euros.
+    let rental = paid_by(&transactions, "Car rental");
+    assert_eq!(amounts(&rental), vec![eur(5_113), eur(-5_113)]);
+    assert_eq!(rental.splits()[0].account_amount(), usd(6_000));
+    assert_converted_from_marks(&rental.splits()[0]);
+
+    // 10.00 DEM more out of the account: 210.00 DEM are 107.37 EUR, and
+    // the part without a category takes the other side.
+    let fee = paid_by(&transactions, "Bank fee");
+    assert_eq!(amounts(&fee), vec![eur(-511), eur(511)]);
+    assert_eq!(originals(&fee), vec![Some(dem(-1_000)), None]);
+
+    let balance = |name: &str| book.balance(named(&book, name).id).expect("balance");
+    assert_eq!(balance("Checking"), eur(-10_737));
+    assert_eq!(balance("Girokonto"), eur(-5_112));
+    assert_eq!(balance("Groceries"), eur(5_112));
+    assert_eq!(balance("Travel"), usd(12_000));
 }

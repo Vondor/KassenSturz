@@ -18,9 +18,15 @@ define_id!(
 /// rate it used, from when and from where (AGENTS.md §5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RateSource {
-    /// Entered by hand. The only source in v1: downloading rates would be
-    /// network access, which needs its own approval first (D-028).
+    /// Entered by hand. The only source of a book's price table in v1:
+    /// downloading rates would be network access, which needs its own
+    /// approval first (D-028).
     Manual,
+    /// The fixed rate a withdrawn currency was replaced at, such as
+    /// 1 EUR = 1.95583 DEM, from KassenSturz's table of withdrawn currencies
+    /// ([`Withdrawn`](crate::Withdrawn), D-104). Only a part's original
+    /// amount has one; it isn't in a book's price table.
+    Changeover,
 }
 
 /// An exchange rate that applies on a date: one unit of `from` costs `rate`

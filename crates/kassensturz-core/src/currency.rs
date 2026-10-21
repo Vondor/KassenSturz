@@ -23,7 +23,7 @@ impl CurrencyCode {
         }
     }
 
-    const fn from_bytes(bytes: [u8; 3]) -> Result<Self, CurrencyCodeError> {
+    pub(crate) const fn from_bytes(bytes: [u8; 3]) -> Result<Self, CurrencyCodeError> {
         let [a, b, c] = bytes;
         if a.is_ascii_uppercase() && b.is_ascii_uppercase() && c.is_ascii_uppercase() {
             Ok(Self(bytes))
@@ -40,7 +40,8 @@ impl CurrencyCode {
     /// How many decimal places ISO 4217 gives this currency: 2 for the euro,
     /// 0 for the yen, 3 for the Bahraini dinar. `None` if KassenSturz's table
     /// doesn't list it: it isn't a current currency, or ISO 4217 gives it no
-    /// decimal places, as for gold (XAU).
+    /// decimal places, as for gold (XAU). A withdrawn currency, such as the
+    /// German mark, has its own table ([`CurrencyCode::withdrawn`], D-104).
     ///
     /// Only for a currency's first use in a book: from then on the decimal
     /// places stored in the book count, so a newer table can never rescale
@@ -138,7 +139,7 @@ enum TableError {
 /// Finds the next currency line at or after `start`, skipping comments and
 /// empty lines. Returns where its text starts and ends, and where the line
 /// after it starts.
-const fn next_entry(text: &[u8], mut start: usize) -> Option<(usize, usize, usize)> {
+pub(crate) const fn next_entry(text: &[u8], mut start: usize) -> Option<(usize, usize, usize)> {
     while start < text.len() {
         let mut end = start;
         while end < text.len() && text[end] != b'\n' {
@@ -157,8 +158,9 @@ const fn next_entry(text: &[u8], mut start: usize) -> Option<(usize, usize, usiz
     None
 }
 
-/// How many currencies the table lists.
-const fn count_entries(text: &[u8]) -> usize {
+/// How many currencies the table lists: its lines that aren't comments or
+/// empty.
+pub(crate) const fn count_entries(text: &[u8]) -> usize {
     let mut count = 0;
     let mut start = 0;
     while let Some((_, _, next)) = next_entry(text, start) {
@@ -195,7 +197,7 @@ const fn parse_table<const N: usize>(text: &[u8]) -> Result<[(CurrencyCode, u8);
 }
 
 /// Whether `a` comes before `b` in alphabetical order, the order `Ord` uses.
-const fn sorts_before(a: CurrencyCode, b: CurrencyCode) -> bool {
+pub(crate) const fn sorts_before(a: CurrencyCode, b: CurrencyCode) -> bool {
     let [a0, a1, a2] = a.0;
     let [b0, b1, b2] = b.0;
     u32::from_be_bytes([0, a0, a1, a2]) < u32::from_be_bytes([0, b0, b1, b2])

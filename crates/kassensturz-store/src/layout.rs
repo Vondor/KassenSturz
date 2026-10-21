@@ -34,9 +34,9 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 10] = [
+pub(crate) const MIGRATIONS: [&str; 11] = [
     LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4, LAYOUT_5, LAYOUT_6, LAYOUT_7, LAYOUT_8, LAYOUT_9,
-    LAYOUT_10,
+    LAYOUT_10, LAYOUT_11,
 ];
 
 /// The layout version the first migration creates.
@@ -477,6 +477,44 @@ DROP TABLE changes;
 ALTER TABLE new_changes RENAME TO changes;
 ";
 
+/// Layout 11 (M2.9b): a part converted from a withdrawn currency, such as an
+/// amount in German marks, keeps the amount it had and its currency in two
+/// new columns of `splits`, both set or both empty (D-077, D-104, Q-064).
+/// The fixed rate it was converted with is kept in `split_rates`, like the
+/// rate of a foreign amount, so that table is rebuilt with `changeover` in
+/// its list of sources; its rows are copied unchanged. `changed_splits` gets
+/// the two columns too, empty in the rows it has, as the parts had no
+/// original amount then; `changed_split_rates` doesn't check its sources.
+const LAYOUT_11: &str = "
+ALTER TABLE splits ADD COLUMN original_amount INTEGER;
+ALTER TABLE splits ADD COLUMN original_currency TEXT REFERENCES currencies (code)
+    CHECK ((original_amount IS NULL) = (original_currency IS NULL));
+
+CREATE TABLE new_split_rates (
+    split_id BLOB PRIMARY KEY NOT NULL REFERENCES splits (id) ON DELETE CASCADE,
+    rate_id BLOB NOT NULL CHECK (length(rate_id) = 16),
+    date TEXT NOT NULL
+        CHECK (date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    from_currency TEXT NOT NULL REFERENCES currencies (code),
+    to_currency TEXT NOT NULL REFERENCES currencies (code),
+    rate_digits INTEGER NOT NULL CHECK (rate_digits BETWEEN 1 AND 999999999999999999),
+    rate_decimal_places INTEGER NOT NULL CHECK (rate_decimal_places BETWEEN 0 AND 18),
+    source TEXT NOT NULL CHECK (source IN ('manual', 'changeover')),
+    CHECK (from_currency <> to_currency)
+) STRICT;
+INSERT INTO new_split_rates
+    (split_id, rate_id, date, from_currency, to_currency,
+     rate_digits, rate_decimal_places, source)
+    SELECT split_id, rate_id, date, from_currency, to_currency,
+           rate_digits, rate_decimal_places, source
+    FROM split_rates;
+DROP TABLE split_rates;
+ALTER TABLE new_split_rates RENAME TO split_rates;
+
+ALTER TABLE changed_splits ADD COLUMN original_amount INTEGER;
+ALTER TABLE changed_splits ADD COLUMN original_currency TEXT;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -652,7 +690,10 @@ mod tests {
             let shopping = book.transaction(register[0].transaction).expect("read");
             for part in shopping.splits() {
                 assert!(part.account.is_some(), "layout {version}");
-                assert_eq!((&part.foreign, &part.imported), (&None, &None));
+                assert_eq!(
+                    (&part.foreign, &part.imported, &part.original),
+                    (&None, &None, &None)
+                );
             }
             // Accounts from before layout 4 have no type and are open.
             let account = book.account(checking).expect("account");
@@ -732,6 +773,118 @@ mod tests {
         assert_eq!(
             book.account(checking).expect("account").name,
             "Main account"
+        );
+    }
+
+    #[test]
+    fn rates_and_recorded_parts_stay_when_split_rates_is_rebuilt() {
+        // Layout 11 rebuilds `split_rates` and adds two columns to `splits`
+        // and `changed_splits`.
+        let folder = TempFolder::new();
+        let path = folder.join("Household.ksz");
+        let checking = old_book(&path, 10);
+        let conn = Connection::open(&path).expect("book opened");
+        let (shopping, groceries_part): ([u8; 16], [u8; 16]) = conn
+            .query_row(
+                "SELECT transaction_id, id FROM splits WHERE position = 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("part read");
+        // The purchase was 50.00 EUR before an edit made it 53.20: the
+        // history kept both, as layout 10 wrote them.
+        let change = uuid::Uuid::now_v7().into_bytes();
+        conn.execute(
+            "INSERT INTO changes (id, sequence, action, made_at, undone)
+             VALUES (?1, 1, 'edit_transaction', '2026-10-05T12:00:00Z', 0)",
+            [change],
+        )
+        .expect("change written");
+        conn.execute(
+            "INSERT INTO changed_splits
+                 (change_id, side, id, transaction_id, position, account_id, amount)
+             SELECT ?1, side, id, transaction_id, position, account_id, amount
+             FROM splits, (SELECT 'before' AS side UNION SELECT 'after')",
+            [change],
+        )
+        .expect("rows written");
+        conn.execute(
+            "UPDATE changed_splits SET amount = CASE WHEN amount < 0 THEN -5000 ELSE 5000 END
+             WHERE side = 'before'",
+            [],
+        )
+        .expect("rows written");
+        // A dollar part kept the rate it was converted with.
+        let dollars = AccountId::generate();
+        let trip = TransactionId::generate();
+        let received = SplitId::generate();
+        let rate = uuid::Uuid::now_v7().into_bytes();
+        conn.execute_batch("INSERT INTO currencies (code, minor_digits) VALUES ('USD', 2);")
+            .expect("currency written");
+        conn.execute(
+            "INSERT INTO accounts (id, name, kind, currency) VALUES (?1, 'Dollars', 'asset', 'USD')",
+            [dollars.to_bytes()],
+        )
+        .expect("account written");
+        conn.execute(
+            "INSERT INTO transactions (id, booking_date, currency)
+             VALUES (?1, '2026-10-07', 'EUR')",
+            [trip.to_bytes()],
+        )
+        .expect("transaction written");
+        conn.execute(
+            "INSERT INTO splits
+                 (id, transaction_id, position, account_id, amount, foreign_amount, foreign_currency)
+             VALUES (?1, ?3, 0, ?4, -100000, NULL, NULL), (?2, ?3, 1, ?5, 100000, 108560, 'USD')",
+            params![
+                SplitId::generate().to_bytes(),
+                received.to_bytes(),
+                trip.to_bytes(),
+                checking.to_bytes(),
+                dollars.to_bytes()
+            ],
+        )
+        .expect("parts written");
+        conn.execute(
+            "INSERT INTO split_rates
+                 (split_id, rate_id, date, from_currency, to_currency,
+                  rate_digits, rate_decimal_places, source)
+             VALUES (?1, ?2, '2026-10-07', 'EUR', 'USD', 10856, 4, 'manual')",
+            params![received.to_bytes(), rate],
+        )
+        .expect("rate written");
+        drop(conn);
+
+        let mut book = Book::open(&path, &computer(&folder)).expect("book updated");
+        let trip = book.transaction(trip).expect("read");
+        let foreign = trip.splits()[1].foreign.expect("a part in dollars");
+        let kept = foreign.rate.expect("its rate");
+        assert_eq!(
+            (
+                foreign.amount,
+                kept.rate,
+                kept.source,
+                trip.splits()[1].original
+            ),
+            (
+                Money::from_minor_units(108_560, CurrencyCode::new("USD").expect("valid")),
+                "1.0856".parse().expect("valid rate"),
+                kassensturz_core::RateSource::Manual,
+                None
+            )
+        );
+        book.undo().expect("undone");
+        let shopping = book
+            .transaction(TransactionId::from_bytes(shopping))
+            .expect("read");
+        let part = shopping
+            .splits()
+            .iter()
+            .find(|part| part.id == SplitId::from_bytes(groceries_part))
+            .expect("the groceries part");
+        assert_eq!(
+            (part.amount, part.original),
+            (Money::from_minor_units(5000, EUR), None)
         );
     }
 

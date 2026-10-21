@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use kassensturz_core::{
     Account, AccountId, CurrencyCode, Date, DatedRate, DatedRateId, ForeignAmount, ImportedDetails,
-    Money, Split, SplitId, Transaction, TransactionId,
+    Money, OriginalAmount, Split, SplitId, Transaction, TransactionId,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 
@@ -57,8 +57,11 @@ impl Book {
     /// Its currency must be in use in this book. Every part with an account
     /// must be booked to an existing account in the part's currency: the
     /// transaction's, or for a part in another currency, that of its foreign
-    /// amount (D-043). A closed account takes no new transactions (D-081).
-    /// Neither the transaction's ID nor its parts' may be in use already.
+    /// amount (D-043). A part's original amount, from before it was
+    /// converted out of a withdrawn currency, must be in a currency in use in
+    /// this book too (D-104). A closed account takes no new transactions
+    /// (D-081). Neither the transaction's ID nor its parts' may be in use
+    /// already.
     pub fn add_transaction(&mut self, transaction: &Transaction) -> Result<(), StoreError> {
         let accounts = self.check_transaction(transaction)?;
         let exists: Option<i64> = self
@@ -99,17 +102,22 @@ impl Book {
     /// given other categories, after the fact (D-017). The changed
     /// transaction is checked as in [`Book::add_transaction`].
     ///
-    /// Two things can't change. A part delivered by a bank or file keeps its
-    /// account, its amount in that account's currency and what was delivered
-    /// with it (D-067), so the transaction keeps adding up to what the bank
-    /// said; otherwise the change fails with
-    /// [`StoreError::ImportedSplitChanged`]. And the total booked to a
+    /// Three things can't change. A part delivered by a bank or file keeps
+    /// its account, its amount in that account's currency and what was
+    /// delivered with it (D-067), so the transaction keeps adding up to what
+    /// the bank said; otherwise the change fails with
+    /// [`StoreError::ImportedSplitChanged`]. A part converted from a
+    /// withdrawn currency keeps its original amount, its rate and the amount
+    /// it was converted into (D-104), so the original amount is never lost
+    /// (AGENTS.md §5); only its account may change, and no other part can
+    /// get one ([`StoreError::OriginalChanged`]). And the total booked to a
     /// closed account stays the same ([`StoreError::AccountClosed`]), so no
     /// money appears in or vanishes from it.
     pub fn update_transaction(&mut self, transaction: &Transaction) -> Result<(), StoreError> {
         let stored = self.transaction(transaction.id())?;
         let accounts = self.check_transaction(transaction)?;
         check_imported_unchanged(&stored, transaction)?;
+        check_originals_unchanged(&stored, transaction)?;
         let before = account_totals(&stored)?;
         let after = account_totals(transaction)?;
         let touched = stored
@@ -424,9 +432,13 @@ impl Book {
             let rate_date = split
                 .foreign
                 .and_then(|foreign| foreign.rate)
+                .or(split.original.map(|original| original.rate))
                 .map(|rate| rate.date);
             for date in dates.chain(rate_date) {
                 date_to_text(date)?;
+            }
+            if let Some(original) = split.original {
+                self.currency_minor_digits(original.amount.currency())?;
             }
             let used_by: Option<[u8; 16]> = self
                 .conn
@@ -521,6 +533,42 @@ fn check_imported_unchanged(stored: &Transaction, changed: &Transaction) -> Resu
     Ok(())
 }
 
+/// Fails if `changed` changes the original amount of a part of `stored`, its
+/// rate or the amount it was converted into, or gives a part an original
+/// amount it didn't have (D-104).
+fn check_originals_unchanged(
+    stored: &Transaction,
+    changed: &Transaction,
+) -> Result<(), StoreError> {
+    let converted = |split: &Split| {
+        split.original.map(|original| {
+            if original.rate.from == split.amount.currency() {
+                split.amount
+            } else {
+                split.account_amount()
+            }
+        })
+    };
+    for old in stored.splits().iter().filter(|old| old.original.is_some()) {
+        let kept = changed.splits().iter().any(|new| {
+            new.id == old.id && new.original == old.original && converted(new) == converted(old)
+        });
+        if !kept {
+            return Err(StoreError::OriginalChanged(old.id));
+        }
+    }
+    for new in changed.splits().iter().filter(|new| new.original.is_some()) {
+        let had = stored
+            .splits()
+            .iter()
+            .any(|old| old.id == new.id && old.original == new.original);
+        if !had {
+            return Err(StoreError::OriginalChanged(new.id));
+        }
+    }
+    Ok(())
+}
+
 /// What `transaction` books to each account, in the account's currency.
 fn account_totals(transaction: &Transaction) -> Result<HashMap<AccountId, Money>, StoreError> {
     let mut totals: HashMap<AccountId, Money> = HashMap::new();
@@ -547,8 +595,9 @@ pub(crate) fn insert_splits(
 ) -> Result<(), StoreError> {
     let mut insert = conn.prepare(
         "INSERT INTO splits
-             (id, transaction_id, position, account_id, amount, foreign_amount, foreign_currency)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+             (id, transaction_id, position, account_id, amount, foreign_amount, foreign_currency,
+              original_amount, original_currency)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
     )?;
     let mut insert_imported = conn.prepare(
         "INSERT INTO split_imports
@@ -569,8 +618,12 @@ pub(crate) fn insert_splits(
             split
                 .foreign
                 .map(|foreign| foreign.amount.currency().as_str().to_owned()),
+            split.original.map(|original| original.amount.minor_units()),
+            split
+                .original
+                .map(|original| original.amount.currency().as_str().to_owned()),
         ])?;
-        if let Some(rate) = split.foreign.and_then(|foreign| foreign.rate) {
+        if let Some(rate) = split_rate(split) {
             insert_split_rate(conn, split.id, &rate)?;
         }
         if let Some(imported) = &split.imported {
@@ -586,6 +639,15 @@ pub(crate) fn insert_splits(
         }
     }
     Ok(())
+}
+
+/// The one rate a part keeps: the fixed one its original amount was
+/// converted with, or else the one its foreign amount was (D-104).
+pub(crate) fn split_rate(split: &Split) -> Option<DatedRate> {
+    split
+        .original
+        .map(|original| original.rate)
+        .or(split.foreign.and_then(|foreign| foreign.rate))
 }
 
 /// Writes the copy of the rate the part `split` was converted with.
@@ -639,8 +701,8 @@ fn account_amount(
     Ok(amount)
 }
 
-/// A part's foreign amount from its two columns, which are both set or both
-/// empty.
+/// A part's foreign or original amount from its two columns, which are both
+/// set or both empty.
 fn foreign_columns(
     split: SplitId,
     amount: Option<i64>,
@@ -660,7 +722,7 @@ fn foreign_columns(
 /// [`IMPORTED_COLUMNS`]: [`SPLIT_ROW_COLUMNS`] together.
 const SPLIT_COLUMNS: &str = "
     s.id, s.account_id, s.amount, s.foreign_amount, s.foreign_currency,
-    r.rate_id, r.date, r.from_currency, r.to_currency, r.rate_digits,
+    s.original_amount, s.original_currency, r.rate_id, r.date, r.from_currency, r.to_currency, r.rate_digits,
     r.rate_decimal_places, r.source";
 
 /// The columns of `split_imports` (as `i`) [`ImportedRow::read`] expects, in
@@ -670,7 +732,7 @@ const IMPORTED_COLUMNS: &str = "
     i.other_party_name, i.other_party_iban, i.remittance_information";
 
 /// How many columns [`SplitRow::read`] reads.
-const SPLIT_ROW_COLUMNS: usize = 19;
+const SPLIT_ROW_COLUMNS: usize = 21;
 
 /// The tables behind [`SPLIT_COLUMNS`].
 const SPLIT_TABLES: &str = "
@@ -685,6 +747,8 @@ struct SplitRow {
     amount: i64,
     foreign_amount: Option<i64>,
     foreign_currency: Option<String>,
+    original_amount: Option<i64>,
+    original_currency: Option<String>,
     rate: Option<RateRow>,
     imported: Option<ImportedRow>,
 }
@@ -701,25 +765,27 @@ struct ImportedRow {
 
 impl SplitRow {
     fn read(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
-        let rate = match row.get::<_, Option<[u8; 16]>>(5)? {
+        let rate = match row.get::<_, Option<[u8; 16]>>(7)? {
             Some(id) => Some(RateRow {
                 id: DatedRateId::from_bytes(id),
-                date: row.get(6)?,
-                from: row.get(7)?,
-                to: row.get(8)?,
-                digits: row.get(9)?,
-                decimal_places: row.get(10)?,
-                source: row.get(11)?,
+                date: row.get(8)?,
+                from: row.get(9)?,
+                to: row.get(10)?,
+                digits: row.get(11)?,
+                decimal_places: row.get(12)?,
+                source: row.get(13)?,
             }),
             None => None,
         };
-        let imported = ImportedRow::read(row, 12)?;
+        let imported = ImportedRow::read(row, 14)?;
         Ok(Self {
             id: SplitId::from_bytes(row.get(0)?),
             account: row.get(1)?,
             amount: row.get(2)?,
             foreign_amount: row.get(3)?,
             foreign_currency: row.get(4)?,
+            original_amount: row.get(5)?,
+            original_currency: row.get(6)?,
             rate,
             imported,
         })
@@ -727,13 +793,25 @@ impl SplitRow {
 
     /// The part, in a transaction in `currency`.
     fn into_split(self, currency: CurrencyCode) -> Result<Split, StoreError> {
+        let bad = || StoreError::Corrupt(Corruption::BadSplit(self.id));
         let foreign_amount = foreign_columns(self.id, self.foreign_amount, self.foreign_currency)?;
-        let rate = self.rate.map(RateRow::into_rate).transpose()?;
+        let original_amount =
+            foreign_columns(self.id, self.original_amount, self.original_currency)?;
+        let mut rate = self.rate.map(RateRow::into_rate).transpose()?;
+        // The part's one rate is its original amount's, if it has one: the
+        // fixed rate it was converted with, which it can't be without.
+        let original = match original_amount {
+            Some(amount) => Some(OriginalAmount {
+                amount,
+                rate: rate.take().ok_or_else(bad)?,
+            }),
+            None => None,
+        };
         let foreign = match (foreign_amount, rate) {
             (Some(amount), rate) => Some(ForeignAmount { amount, rate }),
             (None, None) => None,
             // A rate belongs to a part in another currency.
-            (None, Some(_)) => return Err(StoreError::Corrupt(Corruption::BadSplit(self.id))),
+            (None, Some(_)) => return Err(bad()),
         };
         let imported = self.imported.map(ImportedRow::into_details).transpose()?;
         Ok(Split {
@@ -742,6 +820,7 @@ impl SplitRow {
             amount: Money::from_minor_units(self.amount, currency),
             foreign,
             imported,
+            original,
         })
     }
 }

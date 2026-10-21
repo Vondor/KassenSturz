@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+#
+# KassenSturz's table of withdrawn currencies (D-077, D-104): currencies
+# that another one replaced at a fixed rate, sorted by code. No account or
+# transaction can be in one of them; the importers convert their amounts
+# into the currency that replaced them, and each converted part keeps its
+# original amount, currency and the rate.
+#
+# Each line below is a currency code, its number of decimal places as
+# ISO 4217 gave them while it was current, the code of the current currency
+# that replaced it, the fixed rate as the regulation writes it (how many
+# units of the withdrawn currency one unit of the new one was worth), and
+# the day the rate took effect.
+#
+# The euro's predecessors and the Bulgarian lev were typed in once (Q-065):
+# the rates and days from Council Regulation (EC) No 2866/98 as amended for
+# each country that joined the euro later, the decimal places from ISO 4217
+# Table A.1 of the time. tools/update-currency-table.py adds a currency here
+# when it leaves iso4217.txt, with the decimal places it had there, once its
+# successor, rate and day are typed in.
+ATS 2 EUR 13.7603 1999-01-01
+BEF 0 EUR 40.3399 1999-01-01
+BGN 2 EUR 1.95583 2026-01-01
+CYP 2 EUR 0.585274 2008-01-01
+DEM 2 EUR 1.95583 1999-01-01
+EEK 2 EUR 15.6466 2011-01-01
+ESP 0 EUR 166.386 1999-01-01
+FIM 2 EUR 5.94573 1999-01-01
+FRF 2 EUR 6.55957 1999-01-01
+GRD 0 EUR 340.750 2001-01-01
+HRK 2 EUR 7.53450 2023-01-01
+IEP 2 EUR 0.787564 1999-01-01
+ITL 0 EUR 1936.27 1999-01-01
+LTL 2 EUR 3.45280 2015-01-01
+LUF 0 EUR 40.3399 1999-01-01
+LVL 2 EUR 0.702804 2014-01-01
+MTL 2 EUR 0.429300 2008-01-01
+NLG 2 EUR 2.20371 1999-01-01
+PTE 0 EUR 200.482 1999-01-01
+SIT 2 EUR 239.640 2007-01-01
+SKK 2 EUR 30.1260 2009-01-01

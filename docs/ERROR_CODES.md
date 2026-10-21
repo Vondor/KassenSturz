@@ -54,6 +54,9 @@ This list is the reference for that. A test in `kassensturz-store` (`src/error/t
 | `transaction.foreign-in-transaction-currency` | `split` | | The part's second amount is in the transaction's own currency. Remove it, or enter it in the account's currency. |
 | `transaction.foreign-sign-mismatch` | `split` | | The part's two amounts point in different directions: one is money in, the other money out. Check the sign of one of them. |
 | `transaction.rate-currency-mismatch` | `split` | | The exchange rate used for this part isn't between its two currencies. Choose a rate for these currencies. |
+| `transaction.original-in-part-currency` | `split` | | The amount this part had before it was converted is in one of the part's own currencies, not in the withdrawn currency it was converted from. The file it came from is damaged; import it again from the original program. |
+| `transaction.original-sign-mismatch` | `split` | | The amount this part had before it was converted points in the other direction than its amount now: one is money in, the other money out. The file it came from is damaged; import it again from the original program. |
+| `transaction.original-with-foreign-rate` | `split` | | This part was converted from a withdrawn currency and also has an exchange rate for its amount in another currency, but a part keeps only one rate. The file it came from is damaged; import it again from the original program. |
 
 ## Transfers (`kassensturz-core`)
 
@@ -95,6 +98,7 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.backup-failed` | | | KassenSturz couldn't make a backup before updating this book, so it left the book as it was. The detail below says why. Free up space or check the backup folder, then try again. |
 | `store.journal-mode-refused` | `mode` | | The book's file couldn't be set up safely, so KassenSturz didn't open it. Copy the book to a local folder and open it from there. |
 | `store.unlisted-currency` | `currency` | | KassenSturz doesn't know the currency {currency}. Choose a current currency. |
+| `store.withdrawn-currency` | `currency` | | {currency} isn't used any more: another currency replaced it at a fixed rate. Choose the currency that replaced it. |
 | `store.unknown-currency` | `currency` | | The currency {currency} isn't used in this book yet. Add it first. |
 | `store.unknown-account` | `account` | | This account or category isn't in the book anymore. It may have just been removed. |
 | `store.empty-account-name` | | | Give the account a name. |
@@ -113,6 +117,7 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.split-id-in-use` | `split` | | This part belongs to another transaction already. |
 | `store.split-currency-mismatch` | `account`, `account_currency`, `split_currency` | | {account} counts in {account_currency}, but this part's amount is in {split_currency}. Enter the amount in {account_currency} as well. |
 | `store.imported-split-changed` | `split` | | This part came from your bank or a file, so its account, amount and details stay as they were delivered. You can change the other parts. |
+| `store.original-changed` | `split` | | This part was converted from a currency that isn't used any more, so its amount stays as it was converted, with the amount it had before. You can choose another account or category in the same currency, or change the other parts. |
 | `store.unknown-rule` | `rule` | | This Rule isn't in the book anymore. It may have just been removed. |
 | `store.rule-id-in-use` | `rule` | | This Rule is in the book already. |
 | `store.empty-rule-name` | | | Give the Rule a name. |
@@ -122,6 +127,7 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.transfer-suggested` | `transaction` | | {transaction} looks like one side of a Transfer between your accounts, so the Rules left it alone. Decide on the Transfer first, then run the Rules again. |
 | `store.unknown-rate` | `rate` | | This exchange rate isn't in the book anymore. It may have just been removed. |
 | `store.rate-within-one-currency` | `currency` | | An exchange rate is between two different currencies. Choose another currency than {currency}. |
+| `store.changeover-rate` | | | This is the fixed rate a currency was replaced at. It stays with the amounts converted with it and isn't added to the exchange rates. |
 | `store.no-rate` | `from`, `to`, `date` | | There is no exchange rate from {from} to {to} on or before {date}. Enter one. |
 | `store.duplicate-rate` | `existing` | | There is already a rate for these currencies on this day. Change that one instead. |
 | `store.date-out-of-range` | `date` | | KassenSturz can't store {date}. Choose a date in the year 1 or later. |

@@ -60,6 +60,7 @@ pub(crate) fn rate(book: &mut Book, args: &[String], out: &mut dyn Write) -> Res
                     rate.rate.to_string(),
                     match rate.source {
                         RateSource::Manual => "entered by hand".to_owned(),
+                        RateSource::Changeover => "fixed when the currency was replaced".to_owned(),
                     },
                 ]);
             }

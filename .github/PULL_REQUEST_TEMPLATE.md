@@ -16,11 +16,11 @@
 ## Human gates (AGENTS.md §3.2)
 
 Does this PR touch any of the following? If yes, say so explicitly — these need the
-maintainer's explicit approval, not just a review:
+maintainer's explicit approval, not just a review. Keep the whole list and tick what applies:
 
 - [ ] Adding/changing a direct dependency, or the license allowlist (D-026)
 - [ ] A database schema change affecting existing user data
 - [ ] A breaking change to the plugin API
 - [ ] Keychain, cryptography, bank connections, or AI data sharing
 - [ ] Code adapted from another project (AGENTS.md §3.1 rule 5)
-- [ ] None of the above
+- [ ] No human gate applies

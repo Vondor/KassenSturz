@@ -46,6 +46,7 @@ Used to build or check KassenSturz, never shipped with it, and pinned to exact v
 | KDE Flatpak SDK with the Rust SDK extension | The one build environment for development, CI and the Flatpak (D-063) | Mixed free licenses (runtime: GPL-2.0+ and others) | `org.kde.Sdk//6.11`, `org.freedesktop.Sdk.Extension.rust-stable//25.08` (Rust 1.98.1); in CI the container `ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11`, pinned by digest |
 | flatpak-builder | Builds the Flatpak (`packaging/flatpak/`) | LGPL-2.1-only (Flathub's metadata) | Locally the Flathub app `org.flatpak.Builder`; in CI the action `flatpak/flatpak-github-actions/flatpak-builder` v6.8, pinned by commit |
 | `flatpak-cargo-generator.py` (flatpak-builder-tools) | Generates `packaging/flatpak/cargo-sources.json` from `Cargo.lock`, so the Flatpak builds offline (D-063) | MIT | Commit `74697c75b630d7330e77250fc13cb5ea688d9479` (2026-09-30) |
+| actions/cache | Keeps Cargo's downloads and build output between CI runs (D-110) | MIT | v6.1.0, pinned by commit (`actions/cache/restore` and `actions/cache/save`) |
 | cargo-deny | Checks the licenses and sources of all crates (D-026) | MIT OR Apache-2.0 | 0.20.2, in CI through `EmbarkStudios/cargo-deny-action` v2.1.1, pinned by commit |
 | reuse | Checks SPDX headers (D-024) | GPL-3.0-or-later and others | 6.2.0 |
 | GNU gettext (`xgettext`, `msgmerge`, `msgfmt`) | Extracts, merges and checks translations (D-034); part of the KDE SDK | GPL-3.0-or-later | 0.26, from the SDK |

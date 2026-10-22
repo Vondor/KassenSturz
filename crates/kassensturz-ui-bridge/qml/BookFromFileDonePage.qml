@@ -47,7 +47,7 @@ FormCard.FormCardPage {
         case "account-groups":
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 account that sat inside another account (it is an account of its own now)", "%1 accounts that sat inside another account (they are accounts of their own now)", count);
         case "payees":
-            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 payee's address, e-mail or other details", "%1 payees' addresses, e-mails or other details", count);
+            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 address, e-mail or other detail of someone you paid or got money from", "%1 addresses, e-mails or other details of people you paid or got money from", count);
         case "tags":
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 tag", "%1 tags", count);
         case "notes":

@@ -32,5 +32,7 @@ fi
 for po in po/*/kassensturz.po; do
     [ -e "$po" ] || continue
     msgmerge --quiet --update --backup=none --no-fuzzy-matching "$po" "$podir/kassensturz.pot"
+    # Translations of strings that are gone stay in git's history.
+    msgattrib --no-obsolete --output-file="$po" "$po"
     msgfmt --check --output-file=/dev/null "$po"
 done

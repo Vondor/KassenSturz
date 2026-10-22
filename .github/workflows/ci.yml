@@ -150,8 +150,8 @@ jobs:
         run: tools/sdk.sh cargo test --workspace --locked
       - name: Tests with the system's SQLite instead of the bundled one (D-061)
         run: tools/sdk.sh cargo test --package kassensturz-store --no-default-features --locked
-      - name: Translations are valid
-        run: tools/sdk.sh sh -c 'for po in po/*/kassensturz.po; do msgfmt --check --output-file=/dev/null "$po"; done'
+      - name: Translations are valid, complete and current (D-126)
+        run: tools/sdk.sh tools/check-translations.sh
       # Saved even when a check failed, so the next push doesn't start cold.
       - name: Save Cargo's cache
         if: ${{ !cancelled() && steps.cargo-cache.outputs.cache-hit != 'true' }}
@@ -265,6 +265,9 @@ jobs:
         run: cmake --build build/cmake
       - name: Install into a staging folder
         run: DESTDIR="$PWD/build/stage" cmake --install build/cmake
+      # Without its catalog the app would speak English on a German system.
+      - name: The German translation is installed (D-126)
+        run: test -f build/stage/usr/share/locale/de/LC_MESSAGES/kassensturz.mo
       - name: Tests, with the system's SQLite
         run: cargo test --workspace --no-default-features --locked
         env:
@@ -349,6 +352,9 @@ jobs:
         run: cmake --build build/cmake
       - name: Install into a staging folder
         run: DESTDIR="$PWD/build/stage" cmake --install build/cmake
+      # Without its catalog the app would speak English on a German system.
+      - name: The German translation is installed (D-126)
+        run: test -f build/stage/usr/share/locale/de/LC_MESSAGES/kassensturz.mo
       - name: Tests, with the system's SQLite
         run: cargo test --workspace --no-default-features --locked
         env:

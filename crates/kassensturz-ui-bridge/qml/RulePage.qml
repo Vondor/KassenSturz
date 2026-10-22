@@ -248,9 +248,9 @@ Kirigami.ScrollablePage {
 
             Controls.TextField {
                 id: payeeField
-                Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Set the payee to:")
+                Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Show this name as From or To:")
                 placeholderText: page.i18nContext.i18nc("@info:placeholder", "Leave empty to keep it")
-                Accessible.name: page.i18nContext.i18nc("@label:textbox", "The payee to set")
+                Accessible.name: page.i18nContext.i18nc("@label:textbox", "The name to show")
             }
         }
 
@@ -324,7 +324,7 @@ Kirigami.ScrollablePage {
         Controls.Label {
             Layout.maximumWidth: Kirigami.Units.gridUnit * 20
             visible: !page.adding
-            text: page.i18nContext.i18nc("@info", "A Rule inside another one is only checked when the outer Rule fits, and can set a more specific category or payee. Removing a Rule removes the Rules inside it. What it sorted stays sorted. Undo brings it back.")
+            text: page.i18nContext.i18nc("@info", "A Rule inside another one is only checked when the outer Rule fits, and can set a more specific category or name. Removing a Rule removes the Rules inside it. What it sorted stays sorted. Undo brings it back.")
             wrapMode: Text.Wrap
             font: Kirigami.Theme.smallFont
         }

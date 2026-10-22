@@ -127,7 +127,7 @@ Kirigami.ScrollablePage {
             visible: (page.account.stated ?? null) !== null && !(page.account.stated.matches ?? true)
             type: Kirigami.MessageType.Warning
             text: visible
-                ? page.i18nContext.i18nc("@info %1 is a date, %2 and %3 say how much money there was or was owed", "On %1 your bank said %2, but KassenSturz now has %3 for that day. An entry dated before that day may have changed it. Check against your bank to put it right.", page.account.stated.date, page.said(page.account.stated.exactBalance, page.account.stated.owes), page.said(page.account.stated.exactHeld, page.account.stated.heldOwes))
+                ? page.i18nContext.i18nc("@info %1 is a date, %2 and %3 say how much money there was or was owed", "On %1 your bank said %2, but KassenSturz now has %3 for that day. A transaction dated before that day may have changed it. Check against your bank to put it right.", page.account.stated.date, page.said(page.account.stated.exactBalance, page.account.stated.owes), page.said(page.account.stated.exactHeld, page.account.stated.heldOwes))
                 : ""
             actions: [
                 Kirigami.Action {

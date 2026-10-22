@@ -49,7 +49,7 @@ Kirigami.ScrollablePage {
             does.push(i18nContext.i18nc("@info %1 is the name of an account", "Moves the money to %1", row.bookTo));
         }
         if (row.payee !== "") {
-            does.push(i18nContext.i18nc("@info %1 is a name", "Sets the payee to %1", row.payee));
+            does.push(i18nContext.i18nc("@info %1 is a name", "Shows the name %1 as From or To", row.payee));
         }
         return does.length > 0 ? does.join(", ") : i18nContext.i18nc("@info", "Leaves it as it is");
     }

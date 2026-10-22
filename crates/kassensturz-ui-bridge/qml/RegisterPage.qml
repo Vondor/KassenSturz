@@ -1,11 +1,13 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// One account's transactions and its balance (M3.5, D-118). The rows come
-// from a Rust list model, sorted there, each with what the account held
-// after it. Newest first unless the user sorts otherwise. A click opens the
-// transaction to change or remove it; "Add transaction" adds one to this
-// account.
+// One account's transactions and its balance (M3.5, D-118), laid out like
+// the lines of a household book where the page is wide enough (round 1): date,
+// from or to, category, payment, deposit and what the account held after it.
+// The rows come from a Rust list model, sorted there. Newest first unless the
+// user sorts otherwise. A click opens the transaction to change or remove it;
+// "Add transaction" adds one to this account, and "About this account" opens
+// its name, its closing and the check against the bank.
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -29,6 +31,8 @@ Kirigami.ScrollablePage {
     signal addTransactionClicked(string accountId)
     // Import a file from the bank into this account (M3.10).
     signal importClicked(string accountId)
+    // The account's name, closing and check against the bank.
+    signal detailsClicked(string accountId)
     // Open a transaction to change or remove it.
     signal transactionClicked(string accountId, string transactionId)
     // The user wants the Rule that is suggested.
@@ -65,6 +69,9 @@ Kirigami.ScrollablePage {
         return register.accountChoices().findIndex(choice => choice.id === accountId) >= 0;
     }
 
+    // Columns need room: the row's two lines are used on a narrow page.
+    readonly property bool wide: width >= Kirigami.Units.gridUnit * 50
+
     title: register.accountName
     Component.onCompleted: register.show(accountId)
 
@@ -78,6 +85,11 @@ Kirigami.ScrollablePage {
             icon.name: "document-import"
             text: page.i18nContext.i18nc("@action:button", "Import from my bank")
             onTriggered: page.importClicked(page.accountId)
+        },
+        Kirigami.Action {
+            icon.name: "configure"
+            text: page.i18nContext.i18nc("@action:button settings of one account: its name, closing it, checking it against the bank", "About this account")
+            onTriggered: page.detailsClicked(page.accountId)
         },
         Kirigami.Action {
             icon.name: "view-sort"
@@ -167,6 +179,31 @@ Kirigami.ScrollablePage {
         // transaction page, which may have shown another one.
         onVisibleChanged: if (visible) { page.register.show(page.accountId); }
 
+        // The book's column titles stay in view while the lines scroll.
+        headerPositioning: ListView.OverlayHeader
+        header: Controls.ItemDelegate {
+            z: 2
+            width: ListView.view.width
+            visible: page.wide
+            height: visible ? implicitHeight : 0
+            hoverEnabled: false
+            down: false
+            // Opaque, so lines scrolling beneath it don't show through.
+            background: Rectangle {
+                color: Kirigami.Theme.backgroundColor
+
+                Kirigami.Separator {
+                    anchors.bottom: parent.bottom
+                    width: parent.width
+                }
+            }
+            contentItem: TransactionRow {
+                ledger: true
+                header: true
+                owes: page.register.owes
+            }
+        }
+
         Kirigami.PlaceholderMessage {
             anchors.centerIn: parent
             width: parent.width - Kirigami.Units.largeSpacing * 4
@@ -183,6 +220,7 @@ Kirigami.ScrollablePage {
         delegate: Controls.ItemDelegate {
             id: delegate
 
+            required property int index
             required property string transactionId
             required property string date
             required property string otherParty
@@ -197,10 +235,21 @@ Kirigami.ScrollablePage {
             width: ListView.view.width
             Accessible.name: transaction.Accessible.name
             onClicked: page.transactionClicked(page.accountId, transactionId)
+            // Every second line shaded, to follow it across the columns.
+            background: Rectangle {
+                // The line under the pointer or the keyboard focus is lit.
+                readonly property bool lit: delegate.down || delegate.hovered || delegate.visualFocus
+
+                color: lit
+                    ? Kirigami.Theme.highlightColor
+                    : delegate.index % 2 === 1 ? Kirigami.Theme.alternateBackgroundColor : "transparent"
+                opacity: lit ? 0.3 : 1
+            }
 
             contentItem: TransactionRow {
                 id: transaction
 
+                ledger: page.wide
                 date: delegate.date
                 otherParty: delegate.otherParty
                 category: delegate.category

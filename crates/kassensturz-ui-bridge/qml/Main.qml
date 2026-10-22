@@ -599,8 +599,6 @@ Kirigami.ApplicationWindow {
             overview: bookOverview
             onAddAccountClicked: root.addAccount(false)
             onAddTransactionClicked: root.addTransaction(false, "")
-            onAccountClicked: accountId => root.showRegister(accountId)
-            onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
         }
     }
 
@@ -611,6 +609,7 @@ Kirigami.ApplicationWindow {
             register: accountRegister
             rules: ruleBook
             onAddTransactionClicked: accountId => root.addTransaction(false, accountId)
+            onDetailsClicked: accountId => root.pushPage(accountDetailsPage, { accountId: accountId })
             onCreateRuleFromSuggestion: (payee, category) => root.pushPage(rulePage, { initialForm: ruleBook.formFromSuggestion(payee, category) })
             onImportClicked: accountId => root.importStatement(accountId)
             onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
@@ -623,7 +622,7 @@ Kirigami.ApplicationWindow {
         AccountsPage {
             accounts: accountList
             onAddAccountClicked: root.addAccount(false)
-            onAccountClicked: accountId => root.pushPage(accountDetailsPage, { accountId: accountId })
+            onAccountClicked: accountId => root.showRegister(accountId)
         }
     }
 
@@ -642,9 +641,9 @@ Kirigami.ApplicationWindow {
         AccountDetailsPage {
             accounts: accountList
             onCheckClicked: (bank, date) => root.pushPage(bankCheckPage, { accountId: accountId, initialBank: bank, initialDate: date })
-            onTransactionsClicked: root.showRegister(accountId)
-            // Closed or opened again: back to the list.
-            onAccountClosedOrOpened: root.pageStack.pop()
+            // Closed or opened again: back to the list, past the account's
+            // transactions, which the details were opened from.
+            onAccountClosedOrOpened: root.pageStack.pop(root.pageStack.get(Math.max(root.pageStack.depth - 3, 0)))
         }
     }
 
@@ -690,6 +689,7 @@ Kirigami.ApplicationWindow {
             rules: ruleBook
             onAddRuleClicked: root.pushPage(rulePage)
             onRuleClicked: ruleId => root.pushPage(rulePage, { ruleId: ruleId })
+            onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
             onCreateFromSuggestion: (payee, category) => root.pushPage(rulePage, { initialForm: ruleBook.formFromSuggestion(payee, category) })
         }
     }

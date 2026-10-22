@@ -25,7 +25,9 @@ use kassensturz_store::{Book, StoreError};
 use crate::accounts::usual_currency;
 use crate::errors::{ErrorText, report_text};
 use crate::format::Locale;
+use crate::overview::LatestRow;
 use crate::parse::{AmountInputError, AmountReader};
+use crate::register::{AmountWriter, entries};
 use crate::settings::Settings;
 use crate::transaction_entry::typed_amount;
 
@@ -703,6 +705,62 @@ pub fn preview_rebook(
         changed: run.changed.len(),
         skipped: run.skipped.len(),
     })
+}
+
+/// The transactions the Rule with this ID matches as the book is now,
+/// newest first, as the register of the account each is in shows them: every
+/// transaction it decides, and those its sub-Rules decide, whether or not a
+/// Rule booked them (D-131). A Rule that comes after another one that fits a
+/// transaction doesn't match it, because the first Rule that fits decides.
+pub fn matches(
+    book: &Book,
+    id: &str,
+    locale: &impl Locale,
+) -> Result<Vec<LatestRow>, RuleEditError> {
+    let id = find_rule(book, id)?;
+    let mut wanted: HashMap<AccountId, HashSet<TransactionId>> = HashMap::new();
+    for found in book.rule_matches()? {
+        if found.rules.contains(&id) {
+            wanted
+                .entry(found.account)
+                .or_default()
+                .insert(found.transaction);
+        }
+    }
+    let accounts: HashMap<AccountId, Account> = book
+        .all_accounts()?
+        .into_iter()
+        .map(|account| (account.id, account))
+        .collect();
+    let mut found = Vec::new();
+    for (account_id, transactions) in wanted {
+        let Some(account) = accounts.get(&account_id) else {
+            continue;
+        };
+        let writer = AmountWriter::new(book, account.currency, locale)?;
+        for entry in entries(book, account_id)? {
+            if transactions.contains(&entry.transaction) {
+                let row = entry.row(&writer, account.kind);
+                found.push((
+                    entry.date,
+                    entry.transaction,
+                    LatestRow {
+                        account_id: account.id.to_string(),
+                        account: account.name.clone(),
+                        id: row.id,
+                        date: row.date,
+                        other_party: row.other_party,
+                        category: row.category,
+                        amount: row.amount,
+                        incoming: row.incoming,
+                        kind: row.kind,
+                    },
+                ));
+            }
+        }
+    }
+    found.sort_by_key(|(date, transaction, _)| core::cmp::Reverse((*date, *transaction)));
+    Ok(found.into_iter().map(|(_, _, row)| row).collect())
 }
 
 /// Removes a Rule with its sub-Rules. What it booked keeps its booking.
@@ -1612,6 +1670,52 @@ mod tests {
             Some("Groceries")
         );
         assert_eq!(category_of(&book, &done.new[1].to_string()), None);
+    }
+
+    #[test]
+    fn lists_what_a_rule_matches_newest_first_booked_by_it_or_not() {
+        let mut book = started();
+        let groceries = category(&book, "Food › Groceries");
+        let clothes = category(&book, "Clothes");
+        let account = checking(&mut book);
+        let shops = add(
+            &mut book,
+            &text_form("Shops", "payee", "contains", "shop", &groceries),
+        );
+        let novels = add(
+            &mut book,
+            &text_form("Novels", "payee", "contains", "novel", &clothes),
+        );
+        // Sorted by hand, so no Rule booked it; and one that is not sorted.
+        let by_hand = typed(
+            &mut book,
+            &account,
+            "Example Shop",
+            "5",
+            &groceries,
+            "2026-10-02",
+        );
+        let waiting = typed(&mut book, &account, "Example Shop", "7", "", "2026-10-03");
+        typed(&mut book, &account, "Example Bakery", "3", "", "2026-10-04");
+        let novel = typed(&mut book, &account, "Novel Corner", "9", "", "2026-10-05");
+
+        let found = matches(&book, &shops, &TestLocale).expect("matches");
+        let ids: Vec<&str> = found.iter().map(|row| row.id.as_str()).collect();
+        assert_eq!(ids, [waiting.as_str(), by_hand.as_str()], "newest first");
+        assert_eq!(found[0].account, "Checking account");
+        assert_eq!(found[0].account_id, account);
+        assert_eq!(found[0].other_party, "Example Shop");
+        assert!(!found[0].incoming);
+        assert_eq!(found[1].category, "Groceries");
+
+        let found = matches(&book, &novels, &TestLocale).expect("matches");
+        let ids: Vec<&str> = found.iter().map(|row| row.id.as_str()).collect();
+        assert_eq!(ids, [novel.as_str()]);
+
+        assert!(matches!(
+            matches(&book, "gone", &TestLocale),
+            Err(RuleEditError::NoSuchEntry)
+        ));
     }
 
     fn account_id(book: &Book, id: &str) -> AccountId {

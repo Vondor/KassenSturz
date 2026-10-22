@@ -108,10 +108,7 @@ fn similar_to(entry: &Entry, by_amount: &HashMap<Money, Vec<&AccountPart>>) -> V
 /// The day the bank booked a part, as it delivered it, or for a part typed
 /// in by hand, its transaction's booking date.
 pub(crate) fn bank_date(part: &AccountPart) -> Date {
-    part.imported
-        .as_ref()
-        .and_then(|imported| imported.booking_date)
-        .unwrap_or(part.booking_date)
+    part.bank_date()
 }
 
 /// The bank ID a part was delivered with, if any.

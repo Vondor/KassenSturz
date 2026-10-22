@@ -1,0 +1,132 @@
+// SPDX-FileCopyrightText: 2026 KassenSturz contributors
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// Adds an account: what kind it is, its name, and how much is in it on a day
+// the user names, today unless changed (D-111). Every field has a sensible
+// default, so a new user can just press the button. The currency is the
+// household's usual one; another one is a deliberate step away.
+
+import QtQuick
+import QtQuick.Controls as Controls
+import QtQuick.Layouts
+import org.kde.kirigami as Kirigami
+import org.kde.ki18n
+import io.github.vondor.kassensturz
+
+Kirigami.ScrollablePage {
+    id: page
+
+    required property AccountList accounts
+    property int typeIndex: 0
+
+    signal added()
+
+    readonly property KI18nContext i18nContext: KI18nContext {
+        translationDomain: "kassensturz"
+    }
+
+    AccountTypes {
+        id: types
+    }
+
+    readonly property var type: types.all[typeIndex]
+    readonly property bool owes: type.key === "credit-card"
+    // The household's usual currency is the first; others are chosen on request.
+    readonly property string currency: otherCurrency.checked ? currencyBox.currentText : accounts.currencies[0]
+
+    title: i18nContext.i18nc("@title", "Add an account")
+    header: FormError {
+        id: error
+    }
+
+    function save() {
+        const name = nameField.text.trim() === "" ? type.name : nameField.text;
+        const result = accounts.addAccount(type.key, name, currency, balanceField.text, dateField.text);
+        error.result = result;
+        if (result.code === undefined) {
+            added();
+        }
+    }
+
+    Kirigami.FormLayout {
+        Controls.ButtonGroup {
+            id: typeGroup
+        }
+
+        Repeater {
+            model: types.all
+
+            delegate: Controls.RadioButton {
+                required property var modelData
+                required property int index
+
+                Kirigami.FormData.label: index === 0 ? page.i18nContext.i18nc("@label", "What kind of account is it?") : ""
+                text: modelData.name
+                checked: index === page.typeIndex
+                Controls.ButtonGroup.group: typeGroup
+                onToggled: page.typeIndex = index
+            }
+        }
+
+        Controls.Label {
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            text: page.type.hint
+            wrapMode: Text.Wrap
+            font: Kirigami.Theme.smallFont
+        }
+
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: true
+        }
+
+        Controls.TextField {
+            id: nameField
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Name:")
+            // Left empty, the account is named after its kind.
+            placeholderText: page.type.name
+            onAccepted: page.save()
+        }
+
+        Controls.TextField {
+            id: balanceField
+            Kirigami.FormData.label: page.owes
+                ? page.i18nContext.i18nc("@label:textbox", "How much do you owe on it?")
+                : page.i18nContext.i18nc("@label:textbox", "How much is in it?")
+            placeholderText: page.i18nContext.i18nc("@info:placeholder %1 is an example amount", "For example %1", accounts.amountExample(page.currency))
+            inputMethodHints: Qt.ImhFormattedNumbersOnly
+            onAccepted: page.save()
+        }
+
+        Controls.TextField {
+            id: dateField
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "On which day?")
+            placeholderText: page.i18nContext.i18nc("@info:placeholder %1 is today's date", "Today, %1", accounts.today)
+            onAccepted: page.save()
+        }
+
+        Controls.Label {
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            text: page.i18nContext.i18nc("@info", "The day your balance is for. Leave the amount empty if there's nothing in it. If you type a day in the past, KassenSturz counts the money from then on.")
+            wrapMode: Text.Wrap
+            font: Kirigami.Theme.smallFont
+        }
+
+        Controls.CheckBox {
+            id: otherCurrency
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Currency:")
+            text: page.i18nContext.i18nc("@option:check %1 is a currency code such as EUR", "This account is not in %1", accounts.currencies[0])
+        }
+
+        Controls.ComboBox {
+            id: currencyBox
+            visible: otherCurrency.checked
+            model: page.accounts.currencies
+        }
+
+        Controls.Button {
+            text: page.i18nContext.i18nc("@action:button", "Add account")
+            icon.name: "list-add"
+            onClicked: page.save()
+        }
+    }
+}

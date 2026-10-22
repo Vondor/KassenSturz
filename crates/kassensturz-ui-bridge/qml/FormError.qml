@@ -16,6 +16,8 @@ Kirigami.InlineMessage {
     // What addAccount() or addTransaction() returned: empty, or the code and
     // its parameters.
     property var result: ({})
+    // Whether the form is about a category rather than an account.
+    property bool forCategory: false
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -43,10 +45,28 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is an example date", "This isn't a date. Type it like this: %1", result.example);
         case "input.no-such-entry":
             return i18nContext.i18nc("@info", "This choice isn't there anymore. Choose again.");
+        case "input.date-in-future":
+            return i18nContext.i18nc("@info", "This day hasn't come yet. Type today or a day in the past.");
+        case "input.unknown-currency":
+            return i18nContext.i18nc("@info", "KassenSturz doesn't know this currency. Choose another one.");
         case "store.empty-account-name":
-            return i18nContext.i18nc("@info", "Give the account a name.");
+            return forCategory
+                ? i18nContext.i18nc("@info", "Give the category a name.")
+                : i18nContext.i18nc("@info", "Give the account a name.");
         case "store.duplicate-account-name":
             return i18nContext.i18nc("@info %1 is the name of an account or category", "%1 already has this name. Choose another one, so you can tell them apart.", result.existing);
+        case "store.account-not-empty":
+            return i18nContext.i18nc("@info %1 is the name of an account, %2 an amount of money", "%1 still has %2 in it. Move the money to another account first, then close it.", result.account, result.balance);
+        case "store.unknown-account":
+            return i18nContext.i18nc("@info", "This account or category isn't in the book anymore. It may have just been removed.");
+        case "store.parent-kind-mismatch":
+            return i18nContext.i18nc("@info", "Categories for money you receive go inside categories for money you receive, and the same for spending. Choose another category.");
+        case "store.parent-currency-mismatch":
+            return i18nContext.i18nc("@info %1 is the name of a category, %2 and %3 are currency codes", "%1 counts in %2, this category in %3. Choose a category in the same currency.", result.parent, result.parent_currency, result.currency);
+        case "store.category-inside-itself":
+            return i18nContext.i18nc("@info %1 is the name of a category", "%1 can't go inside itself or one of the categories inside it. Choose another place.", result.account);
+        case "store.account-closed":
+            return i18nContext.i18nc("@info %1 is the name of an account", "%1 is closed. Open it again to add or change its transactions.", result.account);
         default:
             return i18nContext.i18nc("@info %1 is an error code", "Something went wrong (%1). Please report this, so it can be fixed.", result.code);
         }

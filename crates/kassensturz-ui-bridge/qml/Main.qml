@@ -31,6 +31,8 @@ Kirigami.ApplicationWindow {
     // The screens the side menu leads to, by name.
     readonly property var screens: ({
         "overview": overviewPage,
+        "accounts": accountsPage,
+        "categories": categoriesPage,
         "settings": settingsPage,
     })
     // Whether the first-run steps are done, so the side menu is offered.
@@ -54,11 +56,28 @@ Kirigami.ApplicationWindow {
         id: mockBook
     }
 
+    // The accounts and categories screens (M3.3). A change in one of them,
+    // or in the first-run mock, is read again by all the others.
+    AccountList {
+        id: accountList
+
+        onChanged: root.bookChanged()
+    }
+
+    CategoryTree {
+        id: categoryTree
+
+        onChanged: root.bookChanged()
+    }
+
     // How amounts look (D-002): the screens show them again when it changes.
     NumberFormatSettings {
         id: numberFormatSettings
 
-        onChoicesChanged: mockBook.refresh()
+        onChoicesChanged: {
+            mockBook.refresh();
+            accountList.refresh();
+        }
     }
 
     // The app's own book is called this in the user's language, e.g.
@@ -84,12 +103,23 @@ Kirigami.ApplicationWindow {
             i18nContext.i18nc("@item an income category", "Salary"),
             i18nContext.i18nc("@item an income category", "Other income"),
         ]);
+        accountList.refresh();
+        categoryTree.refresh();
         if (mockBook.accounts.length === 0) {
             pageStack.clear();
             pageStack.push(welcomePage);
         } else {
             showScreen("overview");
         }
+    }
+
+    // The accounts or categories changed on one of their screens: the
+    // first-run mock and the other screen read the book again. The mock finds
+    // the categories it already has, so it needs no names for new ones.
+    function bookChanged() {
+        mockBook.start([], []);
+        accountList.refresh();
+        categoryTree.refresh();
     }
 
     // Says why a book didn't open. A book that was open stays open, and the
@@ -155,6 +185,16 @@ Kirigami.ApplicationWindow {
                 icon.name: "go-home"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Overview")
                 onTriggered: root.showScreen("overview")
+            },
+            Kirigami.Action {
+                icon.name: "view-financial-account"
+                text: root.i18nContext.i18nc("@action:inmenu a screen", "Accounts")
+                onTriggered: root.showScreen("accounts")
+            },
+            Kirigami.Action {
+                icon.name: "view-financial-categories"
+                text: root.i18nContext.i18nc("@action:inmenu a screen", "Categories")
+                onTriggered: root.showScreen("categories")
             },
             Kirigami.Action {
                 icon.name: "settings-configure"
@@ -241,6 +281,71 @@ Kirigami.ApplicationWindow {
 
         RegisterPage {
             mock: mockBook
+        }
+    }
+
+    Component {
+        id: accountsPage
+
+        AccountsPage {
+            accounts: accountList
+            onAddAccountClicked: root.pageStack.push(newAccountPage)
+            onAccountClicked: accountId => root.pageStack.push(accountDetailsPage, { accountId: accountId })
+        }
+    }
+
+    Component {
+        id: newAccountPage
+
+        NewAccountPage {
+            accounts: accountList
+            onAdded: root.pageStack.pop()
+        }
+    }
+
+    Component {
+        id: accountDetailsPage
+
+        AccountDetailsPage {
+            accounts: accountList
+            onCheckClicked: root.pageStack.push(bankCheckPage, { accountId: accountId })
+            // Closed or opened again: back to the list.
+            onAccountClosedOrOpened: root.pageStack.pop()
+        }
+    }
+
+    Component {
+        id: bankCheckPage
+
+        BankCheckPage {
+            accounts: accountList
+        }
+    }
+
+    Component {
+        id: categoriesPage
+
+        CategoriesPage {
+            categories: categoryTree
+            onAddCategoryClicked: root.pageStack.push(categoryPage)
+            onCategoryClicked: categoryId => {
+                const row = categoryTree.view.rows.find(row => row.id === categoryId);
+                root.pageStack.push(categoryPage, {
+                    categoryId: row.id,
+                    categoryName: row.name,
+                    income: row.income,
+                    parentId: row.parent,
+                });
+            }
+        }
+    }
+
+    Component {
+        id: categoryPage
+
+        CategoryPage {
+            categories: categoryTree
+            onDone: root.pageStack.pop()
         }
     }
 

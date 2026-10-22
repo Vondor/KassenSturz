@@ -20,3 +20,12 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **Rounded amounts:** without decimal places, 53,60 € shows as 54 €. Only the display is rounded: KassenSturz adds up the exact amounts first, so rounded figures may not add up exactly on screen. Point at an amount to see it exactly.
 - **Typing amounts** follows the same separators, and you can always type all the decimal places.
 - These settings belong to this computer, not to the book: someone else opening the same book sees amounts their way.
+
+## Accounts and categories (M3.3)
+
+- **Accounts** (side menu) shows your accounts side by side with what is in each, in the order you added them. A credit card reads "You owe 300 €". From two accounts on, "All together" shows what you have minus what you owe. If you have accounts in more than one currency, each currency has its own group and its own total: KassenSturz never adds euros and dollars together.
+- **Add account:** choose what kind it is, give it a name, say how much is in it and on which day. The day is today unless you change it, and the amount is what the account held at the end of that day. Leave the amount empty if there is nothing in it. "This account is not in EUR" (or whichever currency you use) lets you choose another one, by its code.
+- **Open an account** by clicking its card: rename it, check it against your bank, or close it. You can close an account when nothing is left in it, so no money is hidden; it keeps its history and you can show closed accounts and open one again.
+- **Check against my bank:** type what your bank says is in the account on a day. KassenSturz says whether it agrees. If not, it shows the difference exactly and where it can come from: an entry that may be in twice or the wrong way round, an entry that may be missing, entries or a starting balance dated after that day, and what the starting balance would have to be for both to agree. It changes nothing; correcting the starting balance comes with the first-start steps.
+- **Messages:** "This day hasn't come yet" (type today or an earlier day); "This account still has 100,00 € in it. Move the money to another account first, then close it."
+- **Categories** (side menu) lists where money comes from, then what it is spent on, with categories inside categories indented, e.g. Groceries inside Food. Click one to rename it or move it, with everything inside it, into another category or to the top level. "Add category" makes a new one, on its own or inside another. Categories can't be deleted yet.

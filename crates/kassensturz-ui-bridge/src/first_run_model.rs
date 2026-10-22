@@ -11,14 +11,16 @@
 use core::pin::Pin;
 
 use cxx_qt::CxxQtType;
-use cxx_qt_lib::{QList, QMap, QMapPair_QString_QVariant, QString, QStringList, QVariant};
+use cxx_qt_lib::{QList, QString, QStringList, QVariant};
 use kassensturz_core::CurrencyCode;
 
-use crate::first_run::{ErrorText, FirstRun, FirstRunError, NewTransaction, type_from_key};
+use crate::errors::ErrorText;
+use crate::first_run::{FirstRun, FirstRunError, NewTransaction, type_from_key};
 use crate::format::Locale;
 use crate::locale::QtLocale;
 use crate::number_format::app_locale;
 use crate::session;
+use crate::variant::{error_object, list, map, text};
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -263,11 +265,10 @@ impl qobject::FirstRunMock {
         let shown = self.rust().state.as_ref().and_then(|state| {
             session::with_book(|book| state.error_text(book, error, &app_locale()))
         });
-        let Some(ErrorText { code, params }) = shown else {
-            return map([("code", text("input.no-such-entry"))]);
-        };
-        map(std::iter::once(("code", text(code)))
-            .chain(params.iter().map(|(name, value)| (*name, text(value)))))
+        match shown {
+            Some(shown) => error_object(&shown),
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        }
     }
 
     /// Reads the overview and the list of accounts again.
@@ -343,26 +344,4 @@ impl qobject::FirstRunMock {
         self.as_mut().accounts_changed();
         self.as_mut().amount_example_changed();
     }
-}
-
-fn text(value: &str) -> QVariant {
-    QVariant::from(&QString::from(value))
-}
-
-/// A QML object with these properties.
-fn map<'a>(entries: impl IntoIterator<Item = (&'a str, QVariant)>) -> QVariant {
-    let mut map = QMap::<QMapPair_QString_QVariant>::default();
-    for (key, value) in entries {
-        map.insert(QString::from(key), value);
-    }
-    QVariant::from(&map)
-}
-
-/// A QML array of these values.
-fn list(values: impl IntoIterator<Item = QVariant>) -> QVariant {
-    let mut list = QList::<QVariant>::default();
-    for value in values {
-        list.append(value);
-    }
-    QVariant::from(&list)
 }

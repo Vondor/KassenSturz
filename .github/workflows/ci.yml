@@ -406,3 +406,13 @@ jobs:
           # Stable across commits, so Cargo's source downloads are reused; it
           # changes with the manifest and cargo-sources.json (D-110).
           cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/**') }}
+      # Installed from the bundle that people get, since a catalog in the build
+      # but not in the bundle left the Flatpak in English on a German system
+      # (D-128).
+      - name: The German translation is in the Flatpak (D-128)
+        run: |
+          set -eu
+          flatpak=$(command -v flatpak || echo /app/bin/flatpak)
+          "$flatpak" install --user --noninteractive --bundle KassenSturz.flatpak
+          where=$("$flatpak" info --show-location io.github.vondor.KassenSturz)
+          test -f "$where/files/share/locale/de/LC_MESSAGES/kassensturz.mo"

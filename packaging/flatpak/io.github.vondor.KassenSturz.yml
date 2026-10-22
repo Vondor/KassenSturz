@@ -13,6 +13,12 @@ sdk: org.kde.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
 command: kassensturz
+# Keep the app's translations (share/locale) inside the app. By default
+# flatpak-builder moves them into a separate ".Locale" extension, which the
+# bundle built in CI leaves out and which an install only fetches for the
+# languages it was set up with, so the German catalog never reached the user
+# (D-128).
+separate-locales: false
 finish-args:
   # A window on Wayland, or on X11 where there's no Wayland, drawn with the GPU.
   - --socket=wayland

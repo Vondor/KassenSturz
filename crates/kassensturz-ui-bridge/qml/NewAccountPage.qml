@@ -4,7 +4,9 @@
 // Adds an account: what kind it is, its name, and how much is in it on a day
 // the user names, today unless changed (D-111). Every field has a sensible
 // default, so a new user can just press the button. The currency is the
-// household's usual one; another one is a deliberate step away.
+// household's usual one; another one is a deliberate step away. At the first
+// start it is the first account, and leads on to the first transaction
+// (D-116).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -17,6 +19,8 @@ Kirigami.ScrollablePage {
     id: page
 
     required property AccountList accounts
+    // Part of the first start rather than added from a screen.
+    property bool firstRun: false
     property int typeIndex: 0
 
     signal added()
@@ -34,9 +38,21 @@ Kirigami.ScrollablePage {
     // The household's usual currency is the first; others are chosen on request.
     readonly property string currency: otherCurrency.checked ? currencyBox.currentText : accounts.currencies[0]
 
-    title: i18nContext.i18nc("@title", "Add an account")
-    header: FormError {
-        id: error
+    title: firstRun
+        ? i18nContext.i18nc("@title", "Your first account")
+        : i18nContext.i18nc("@title", "Add an account")
+    header: ColumnLayout {
+        spacing: 0
+
+        MockNotice {
+            Layout.fillWidth: true
+            visible: page.firstRun
+        }
+
+        FormError {
+            id: error
+            Layout.fillWidth: true
+        }
     }
 
     function save() {
@@ -107,6 +123,14 @@ Kirigami.ScrollablePage {
         Controls.Label {
             Layout.maximumWidth: Kirigami.Units.gridUnit * 20
             text: page.i18nContext.i18nc("@info", "The day your balance is for. Leave the amount empty if there's nothing in it. If you type a day in the past, KassenSturz counts the money from then on.")
+            wrapMode: Text.Wrap
+            font: Kirigami.Theme.smallFont
+        }
+
+        Controls.Label {
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            visible: page.firstRun
+            text: page.i18nContext.i18nc("@info", "Take the balance from your bank's statement or app, so KassenSturz starts from what you really have. It can check against your bank at any time.")
             wrapMode: Text.Wrap
             font: Kirigami.Theme.smallFont
         }

@@ -3,7 +3,8 @@
 
 // The app's window: it opens the book (D-033) and shows one screen at a
 // time, each in a QML file of its own, chosen from the side menu. Until the
-// book has an account, the first-run steps of the mock (M1.M) show instead.
+// book has an account, the first-run steps show instead (D-116): welcome and
+// currency, the first account, an optional first transaction.
 //
 // Adding a screen: write its page in a file of its own, add it to
 // `build.rs`, and give it a `Component` and an entry in `screens` and in the
@@ -36,7 +37,7 @@ Kirigami.ApplicationWindow {
         "settings": settingsPage,
     })
     // Whether the first-run steps are done, so the side menu is offered.
-    readonly property bool started: bookSession.open && mockBook.accounts.length > 0
+    readonly property bool started: bookSession.open && firstStartState.hasAccount
 
     // The app's name; it isn't translated.
     title: "KassenSturz"
@@ -50,6 +51,12 @@ Kirigami.ApplicationWindow {
 
         onOpened: root.showBook()
         onFailed: root.showProblem()
+    }
+
+    // The first start (M3.4) and what the mock (M1.M) still shows: the
+    // transaction page, the register and the overview (M3.5, M3.9).
+    FirstStart {
+        id: firstStartState
     }
 
     FirstRunMock {
@@ -87,25 +94,8 @@ Kirigami.ApplicationWindow {
     // Shows the book that was just opened: its first-run steps if it has no
     // account yet, otherwise the overview.
     function showBook() {
-        // Made-up categories for trying the flow, for a book that has none.
-        // The real default set comes with the first-run flow in M3.4
-        // (D-029); like it, these are stored in the language the book is
-        // started in (D-067).
-        mockBook.start([
-            i18nContext.i18nc("@item a spending category", "Groceries"),
-            i18nContext.i18nc("@item a spending category", "Rent"),
-            i18nContext.i18nc("@item a spending category", "Eating out"),
-            i18nContext.i18nc("@item a spending category", "Getting around"),
-            i18nContext.i18nc("@item a spending category", "Clothes"),
-            i18nContext.i18nc("@item a spending category", "Free time"),
-            i18nContext.i18nc("@item a spending category", "Other spending"),
-        ], [
-            i18nContext.i18nc("@item an income category", "Salary"),
-            i18nContext.i18nc("@item an income category", "Other income"),
-        ]);
-        accountList.refresh();
-        categoryTree.refresh();
-        if (mockBook.accounts.length === 0) {
+        bookChanged();
+        if (!firstStartState.hasAccount) {
             pageStack.clear();
             pageStack.push(welcomePage);
         } else {
@@ -113,11 +103,10 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    // The accounts or categories changed on one of their screens: the
-    // first-run mock and the other screen read the book again. The mock finds
-    // the categories it already has, so it needs no names for new ones.
+    // The book changed on one of its screens: every screen reads it again.
     function bookChanged() {
-        mockBook.start([], []);
+        firstStartState.refresh();
+        mockBook.start();
         accountList.refresh();
         categoryTree.refresh();
     }
@@ -148,7 +137,7 @@ Kirigami.ApplicationWindow {
     }
 
     function addAccount(firstRun: bool) {
-        pageStack.push(accountPage, { firstRun: firstRun });
+        pageStack.push(newAccountPage, { firstRun: firstRun });
     }
 
     function addTransaction(firstRun: bool) {
@@ -229,6 +218,7 @@ Kirigami.ApplicationWindow {
         id: welcomePage
 
         WelcomePage {
+            firstStart: firstStartState
             onAddAccountClicked: root.addAccount(true)
         }
     }
@@ -244,15 +234,6 @@ Kirigami.ApplicationWindow {
                 bookSession.dismissProblem();
                 root.pageStack.pop();
             }
-        }
-    }
-
-    Component {
-        id: accountPage
-
-        AccountPage {
-            mock: mockBook
-            onAdded: firstRun ? root.addTransaction(true) : root.pageStack.pop()
         }
     }
 
@@ -289,7 +270,7 @@ Kirigami.ApplicationWindow {
 
         AccountsPage {
             accounts: accountList
-            onAddAccountClicked: root.pageStack.push(newAccountPage)
+            onAddAccountClicked: root.addAccount(false)
             onAccountClicked: accountId => root.pageStack.push(accountDetailsPage, { accountId: accountId })
         }
     }
@@ -299,7 +280,7 @@ Kirigami.ApplicationWindow {
 
         NewAccountPage {
             accounts: accountList
-            onAdded: root.pageStack.pop()
+            onAdded: firstRun ? root.addTransaction(true) : root.pageStack.pop()
         }
     }
 

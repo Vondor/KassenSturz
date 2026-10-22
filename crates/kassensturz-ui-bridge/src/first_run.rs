@@ -8,15 +8,18 @@
 //! What the user enters goes into the book the app has open (M3.1, D-033),
 //! through the public functions of core and store, and is there at the next
 //! start. The mock keeps to one currency and the accounts and categories in
-//! it, until the real screens replace it (M3.3, M3.4, M3.5, M3.9).
-//! Everything the window shows is text formatted here (D-065); what the user
-//! types comes back as text and is read here too.
+//! it, until the real screens replace it: since M3.3 and M3.4 the accounts
+//! and categories come from `accounts.rs`, `categories.rs` and
+//! `first_start.rs`, and only the transaction page, the register and the
+//! overview are still the mock's (M3.5, M3.9). Everything the window shows is
+//! text formatted here (D-065); what the user types comes back as text and
+//! is read here too.
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, AccountType, CurrencyCode, Money, Report, Split, Transaction,
+    AccountId, AccountKind, AccountType, CurrencyCode, Money, Report, Split, Transaction,
     TransactionError, TransactionId,
 };
-use kassensturz_store::{Action, Book, StoreError};
+use kassensturz_store::{Book, StoreError};
 
 use crate::errors::{ErrorText, amount_example, report_text};
 use crate::format::Locale;
@@ -39,9 +42,6 @@ pub struct FirstRun {
     spending_names: Vec<String>,
     /// The names of the income categories, as the UI offers them.
     income_names: Vec<String>,
-    /// The internal account that starting balances are booked against,
-    /// once there is one (`docs/GLOSSARY.md`).
-    starting_balances: Option<AccountId>,
 }
 
 /// Why something the user entered wasn't added. The UI shows a message for
@@ -53,8 +53,6 @@ pub enum FirstRunError {
     /// An amount of a transaction has to be more than zero: whether money
     /// came in or went out is chosen separately.
     NotPositive,
-    /// What a credit card owes can't be below zero here.
-    NegativeDebt,
     /// What the user typed as a date isn't one.
     Date,
     /// There is no account or category at that place in the list.
@@ -148,25 +146,12 @@ pub struct NewTransaction<'a> {
 }
 
 impl FirstRun {
-    /// What the mock needs from `book`: its accounts in one currency, the
-    /// categories in that currency, and the internal account for starting
-    /// balances. The currency is that of the book's first account, or
-    /// `currency` in a book without accounts. A book without spending or
-    /// income categories gets the ones named in `spending` and `income`; the
-    /// UI passes their names in the user's language, as the real default
-    /// categories will be stored (D-067).
-    pub fn load(
-        book: &mut Book,
-        currency: CurrencyCode,
-        spending: &[String],
-        income: &[String],
-    ) -> Result<Self, StoreError> {
+    /// What the mock needs from `book`: its accounts in `currency`, the
+    /// household's usual one (`accounts::usual_currency`), and the categories
+    /// in that currency, as the first start wrote them (`first_start.rs`).
+    pub fn load(book: &Book, currency: CurrencyCode) -> Result<Self, StoreError> {
         // Sorted by ID, so in the order they were added (D-067).
         let all = book.all_accounts()?;
-        let currency = all
-            .iter()
-            .find(|account| account.kind.is_account() && !account.closed)
-            .map_or(currency, |account| account.currency);
         let accounts = all
             .iter()
             .filter(|account| {
@@ -174,14 +159,8 @@ impl FirstRun {
             })
             .map(|account| account.id)
             .collect();
-        let starting_balances = all
-            .iter()
-            .find(|account| account.kind == AccountKind::Equity && account.currency == currency)
-            .map(|account| account.id);
-        book.use_currency(currency)?;
-        let (spending, spending_names) =
-            categories(book, AccountKind::Expense, currency, spending)?;
-        let (income, income_names) = categories(book, AccountKind::Income, currency, income)?;
+        let (spending, spending_names) = categories(book, AccountKind::Expense, currency)?;
+        let (income, income_names) = categories(book, AccountKind::Income, currency)?;
         Ok(Self {
             currency,
             accounts,
@@ -189,7 +168,6 @@ impl FirstRun {
             income,
             spending_names,
             income_names,
-            starting_balances,
         })
     }
 
@@ -203,93 +181,17 @@ impl FirstRun {
         }
     }
 
+    /// How many accounts the mock lists.
+    pub fn account_count(&self) -> usize {
+        self.accounts.len()
+    }
+
     /// The names of the user's accounts, in the order they were added.
     pub fn account_names(&self, book: &Book) -> Result<Vec<String>, StoreError> {
         self.accounts
             .iter()
             .map(|&id| Ok(book.account(id)?.name))
             .collect()
-    }
-
-    /// Adds an account of `account_type` named `name`, with the starting
-    /// balance typed as `starting_balance`: for a credit card what the user
-    /// owes on it, otherwise what is in it. Nothing typed means zero.
-    pub fn add_account(
-        &mut self,
-        book: &mut Book,
-        name: &str,
-        account_type: AccountType,
-        starting_balance: &str,
-        locale: &impl Locale,
-    ) -> Result<(), FirstRunError> {
-        let amount = if starting_balance.trim().is_empty() {
-            Money::zero(self.currency)
-        } else {
-            self.read_amount(book, starting_balance, locale)?
-        };
-        let amount = match account_type.kind() {
-            AccountKind::Liability if amount.is_negative() => {
-                return Err(FirstRunError::NegativeDebt);
-            }
-            // What is owed is money that went out of the account.
-            AccountKind::Liability => amount
-                .checked_neg()
-                .map_err(|_| FirstRunError::Amount(AmountInputError::TooLarge))?,
-            _ => amount,
-        };
-
-        let id = AccountId::generate();
-        let currency = self.currency;
-        let starting_balances = self.starting_balances;
-        // One user action, so the account and its starting balance are added
-        // together or not at all (D-032).
-        let equity =
-            book.as_one_action(Action::AddAccount, |book| -> Result<_, FirstRunError> {
-                book.add_account(&Account {
-                    id,
-                    name: name.trim().to_owned(),
-                    kind: account_type.kind(),
-                    currency,
-                    account_type: Some(account_type),
-                    closed: false,
-                    parent: None,
-                })?;
-                if amount.is_zero() {
-                    return Ok(starting_balances);
-                }
-                let equity = match starting_balances {
-                    Some(equity) => equity,
-                    None => {
-                        let equity = AccountId::generate();
-                        book.add_account(&Account {
-                            id: equity,
-                            // Never shown (`AccountKind::Equity`).
-                            name: "Starting balances".into(),
-                            kind: AccountKind::Equity,
-                            currency,
-                            account_type: None,
-                            closed: false,
-                            parent: None,
-                        })?;
-                        equity
-                    }
-                };
-                let balancing = amount
-                    .checked_neg()
-                    .map_err(|_| FirstRunError::Amount(AmountInputError::TooLarge))?;
-                let transaction = Transaction::new(
-                    TransactionId::generate(),
-                    locale.today(),
-                    None,
-                    vec![Split::new(id, amount), Split::new(equity, balancing)],
-                )
-                .map_err(FirstRunError::Transaction)?;
-                book.add_transaction(&transaction)?;
-                Ok(Some(equity))
-            })?;
-        self.starting_balances = equity;
-        self.accounts.push(id);
-        Ok(())
     }
 
     /// Adds a transaction the user entered.
@@ -462,7 +364,6 @@ impl FirstRun {
         match error {
             FirstRunError::Amount(error) => ErrorText::amount(*error, book, self.currency, locale),
             FirstRunError::NotPositive => plain("input.amount-not-positive"),
-            FirstRunError::NegativeDebt => plain("input.negative-debt"),
             FirstRunError::Date => ErrorText {
                 code: "input.malformed-date",
                 params: vec![("example", locale.short_date(locale.today()))],
@@ -496,13 +397,12 @@ impl FirstRun {
 }
 
 /// The categories of `kind` in `currency`, with their names as the UI offers
-/// them, in the order they were added. If the book has none, the ones named
-/// in `names` are added, in that order and in one user action (D-032).
+/// them (a category inside another as "Food › Groceries"), in the order they
+/// were added.
 fn categories(
-    book: &mut Book,
+    book: &Book,
     kind: AccountKind,
     currency: CurrencyCode,
-    names: &[String],
 ) -> Result<(Vec<AccountId>, Vec<String>), StoreError> {
     let mut found: Vec<(AccountId, String)> = book
         .categories()?
@@ -516,28 +416,7 @@ fn categories(
     // IDs are UUIDv7, so sorted by ID is in the order they were added
     // (D-067), as the UI offered them when they were made.
     found.sort_by_key(|(id, _)| *id);
-    if !found.is_empty() || names.is_empty() {
-        return Ok(found.into_iter().unzip());
-    }
-    let ids = book.as_one_action(Action::AddCategory, |book| {
-        names
-            .iter()
-            .map(|name| {
-                let id = AccountId::generate();
-                book.add_account(&Account {
-                    id,
-                    name: name.clone(),
-                    kind,
-                    currency,
-                    account_type: None,
-                    closed: false,
-                    parent: None,
-                })?;
-                Ok(id)
-            })
-            .collect::<Result<Vec<_>, StoreError>>()
-    })?;
-    Ok((ids, names.to_vec()))
+    Ok(found.into_iter().unzip())
 }
 
 /// The key the UI translates an account type with.
@@ -560,6 +439,8 @@ pub fn type_from_key(key: &str) -> Option<AccountType> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::accounts::{NewAccount, add_account, usual_currency};
+    use crate::first_start::tests::started;
     use crate::number_format::{DecimalPlaces, NumberFormat, UserLocale};
     use crate::register::tests::TestLocale;
 
@@ -568,18 +449,6 @@ mod tests {
         Err(_) => panic!("EUR is a valid code"),
     };
 
-    fn spending() -> [String; 3] {
-        [
-            "Groceries".to_owned(),
-            "Rent".to_owned(),
-            "Clothes".to_owned(),
-        ]
-    }
-
-    fn income() -> [String; 1] {
-        ["Salary".to_owned()]
-    }
-
     /// The mock with its book, so the tests read as the UI uses it.
     struct Mock {
         book: Book,
@@ -587,15 +456,28 @@ mod tests {
     }
 
     impl Mock {
+        /// Adds an account the way the accounts screen does (M3.3), with
+        /// `balance` on `date`, today if empty, and reads the book again.
         fn add_account(
             &mut self,
             name: &str,
             account_type: AccountType,
-            starting_balance: &str,
-            locale: &impl Locale,
-        ) -> Result<(), FirstRunError> {
-            self.first_run
-                .add_account(&mut self.book, name, account_type, starting_balance, locale)
+            balance: &str,
+            date: &str,
+        ) {
+            add_account(
+                &mut self.book,
+                &NewAccount {
+                    name,
+                    account_type,
+                    currency: "EUR",
+                    balance,
+                    date,
+                },
+                &TestLocale,
+            )
+            .expect("account added");
+            self.first_run = FirstRun::load(&self.book, EUR).expect("mock loaded");
         }
 
         fn add_transaction(
@@ -624,12 +506,18 @@ mod tests {
         }
     }
 
+    /// The mock on a book after the first start wrote the default categories
+    /// (`first_start.rs`): spending Food, Food › Groceries, Food › Eating
+    /// out, Rent, Clothes; income Salary, Other income.
     fn first_run() -> Mock {
-        let mut book = Book::create_in_memory().expect("book in memory");
-        let first_run =
-            FirstRun::load(&mut book, EUR, &spending(), &income()).expect("mock loaded");
+        let book = started();
+        let first_run = FirstRun::load(&book, EUR).expect("mock loaded");
         Mock { book, first_run }
     }
+
+    const GROCERIES: usize = 1;
+    const CLOTHES: usize = 4;
+    const SALARY: usize = 0;
 
     fn paid<'a>(
         account: usize,
@@ -653,39 +541,52 @@ mod tests {
     }
 
     #[test]
+    fn offers_the_default_categories_by_their_place_in_the_tree() {
+        let first_run = first_run();
+        assert_eq!(
+            first_run.first_run.category_names(false),
+            [
+                "Food",
+                "Food › Groceries",
+                "Food › Eating out",
+                "Rent",
+                "Clothes"
+            ]
+        );
+        assert_eq!(
+            first_run.first_run.category_names(true),
+            ["Salary", "Other income"]
+        );
+    }
+
+    #[test]
     fn walks_through_the_first_start() {
         let mut first_run = first_run();
         let locale = TestLocale;
+        first_run.add_account(
+            "Checking account",
+            AccountType::Checking,
+            "2.450,00",
+            "2026-10-01",
+        );
         first_run
-            .add_account(
-                "Checking account",
-                AccountType::Checking,
-                "2.450,00",
-                &locale,
-            )
-            .expect("account added");
-        first_run
-            .add_transaction(&paid(0, "53,20", "Corner Grocery", 0), &locale)
+            .add_transaction(&paid(0, "53,20", "Corner Grocery", GROCERIES), &locale)
             .expect("transaction added");
         first_run
             .add_transaction(
                 &NewTransaction {
                     money_in: true,
-                    ..paid(0, "2400", "Example Employer Ltd.", 0)
+                    ..paid(0, "2400", "Example Employer Ltd.", SALARY)
                 },
                 &locale,
             )
             .expect("transaction added");
+        first_run.add_account("Credit card", AccountType::CreditCard, "300", "");
         first_run
-            .add_account("Credit card", AccountType::CreditCard, "300", &locale)
-            .expect("account added");
-        first_run
-            .add_transaction(&paid(1, "89,90", "Example Shoes", 2), &locale)
+            .add_transaction(&paid(1, "89,90", "Example Shoes", CLOTHES), &locale)
             .expect("transaction added");
         // An account without a starting balance.
-        first_run
-            .add_account("Cash", AccountType::Cash, "", &locale)
-            .expect("account added");
+        first_run.add_account("Cash", AccountType::Cash, "", "");
 
         let overview = first_run.overview(&locale).expect("overview");
         let card = |name: &str, account_type, balance: &str, owes| AccountCard {
@@ -759,8 +660,8 @@ mod tests {
         assert_eq!(
             rows,
             [
-                // The starting balance is booked on the day the account is
-                // added, here after the purchase the user dated earlier.
+                // The starting balance is dated the day the user named, here
+                // today, after the purchase the user dated earlier.
                 ("2026-10-19", "", "", "-300,00 €", true),
                 ("2026-10-05", "Example Shoes", "Clothes", "-89,90 €", false),
             ]
@@ -779,12 +680,10 @@ mod tests {
                 ..NumberFormat::default()
             },
         );
-        first_run
-            .add_account("Cash", AccountType::Cash, "10,00", &locale)
-            .expect("account added");
+        first_run.add_account("Cash", AccountType::Cash, "10,00", "");
         for _ in 0..3 {
             first_run
-                .add_transaction(&paid(0, "0,40", "Kiosk", 0), &locale)
+                .add_transaction(&paid(0, "0,40", "Kiosk", GROCERIES), &locale)
                 .expect("transaction added");
         }
 
@@ -811,11 +710,8 @@ mod tests {
     #[test]
     fn a_debt_larger_than_everything_reads_you_owe() {
         let mut first_run = first_run();
-        let locale = TestLocale;
-        first_run
-            .add_account("Credit card", AccountType::CreditCard, "300", &locale)
-            .expect("account added");
-        let overview = first_run.overview(&locale).expect("overview");
+        first_run.add_account("Credit card", AccountType::CreditCard, "300", "");
+        let overview = first_run.overview(&TestLocale).expect("overview");
         assert_eq!(overview.together.text, "300,00 €");
         assert!(overview.together_owes);
     }
@@ -824,32 +720,7 @@ mod tests {
     fn explains_what_it_refuses() {
         let mut first_run = first_run();
         let locale = TestLocale;
-        let result = first_run.add_account("Checking", AccountType::Checking, "12.50", &locale);
-        let error = result.expect_err("refused");
-        assert_eq!(
-            first_run.error_text(&error, &locale),
-            ErrorText {
-                code: "input.malformed-amount",
-                params: vec![("example", "1234,56".into())],
-            }
-        );
-        let result = first_run.add_account("Card", AccountType::CreditCard, "-5", &locale);
-        assert_eq!(code(result, &first_run), "input.negative-debt");
-        let result = first_run.add_account(" ", AccountType::Cash, "", &locale);
-        assert_eq!(code(result, &first_run), "store.empty-account-name");
-
-        first_run
-            .add_account("Checking", AccountType::Checking, "", &locale)
-            .expect("account added");
-        let result = first_run.add_account("checking", AccountType::Savings, "", &locale);
-        let error = result.expect_err("refused");
-        assert_eq!(
-            first_run.error_text(&error, &locale),
-            ErrorText {
-                code: "store.duplicate-account-name",
-                params: vec![("existing", "Checking".into())],
-            }
-        );
+        first_run.add_account("Checking", AccountType::Checking, "", "");
 
         let result = first_run.add_transaction(&paid(0, "0", "", 0), &locale);
         assert_eq!(code(result, &first_run), "input.amount-not-positive");
@@ -859,6 +730,15 @@ mod tests {
         assert_eq!(code(result, &first_run), "input.empty-amount");
         let result = first_run.add_transaction(&paid(0, "1,234", "", 0), &locale);
         assert_eq!(code(result, &first_run), "input.too-many-decimal-places");
+        let result = first_run.add_transaction(&paid(0, "12.50", "", 0), &locale);
+        let error = result.expect_err("refused");
+        assert_eq!(
+            first_run.error_text(&error, &locale),
+            ErrorText {
+                code: "input.malformed-amount",
+                params: vec![("example", "1234,56".into())],
+            }
+        );
         let result = first_run.add_transaction(&paid(1, "5", "", 0), &locale);
         assert_eq!(code(result, &first_run), "input.no-such-entry");
         let result = first_run.add_transaction(&paid(0, "5", "", 7), &locale);
@@ -895,59 +775,58 @@ mod tests {
         };
         let locale = TestLocale;
         let mut book = Book::create(&path, &computer).expect("book made");
-        let mut first_run =
-            FirstRun::load(&mut book, EUR, &spending(), &income()).expect("mock loaded");
+        crate::first_start::start(&mut book, "EUR", &crate::first_start::tests::defaults())
+            .expect("started");
+        let mut first_run = Mock {
+            book,
+            first_run: FirstRun::load(&Book::create_in_memory().expect("book"), EUR)
+                .expect("mock loaded"),
+        };
+        first_run.add_account("Checking", AccountType::Checking, "100", "");
         first_run
-            .add_account(&mut book, "Checking", AccountType::Checking, "100", &locale)
-            .expect("account added");
-        first_run
-            .add_transaction(&mut book, &paid(0, "53,20", "Corner Grocery", 2), &locale)
+            .add_transaction(&paid(0, "53,20", "Corner Grocery", GROCERIES), &locale)
             .expect("transaction added");
-        first_run
-            .add_account(&mut book, "Wallet", AccountType::Cash, "20", &locale)
-            .expect("account added");
-        let before = first_run.overview(&book, &locale).expect("overview");
-        drop(book);
+        first_run.add_account("Wallet", AccountType::Cash, "20", "");
+        let before = first_run.overview(&locale).expect("overview");
+        drop(first_run);
 
-        // Opened again, in another language: the categories the book has
-        // are kept, not added a second time.
-        let mut book = Book::open(&path, &computer).expect("book opened");
+        // Opened again: the accounts and the categories are there.
+        let book = Book::open(&path, &computer).expect("book opened");
         let first_run =
-            FirstRun::load(&mut book, EUR, &["Lebensmittel".to_owned()], &[]).expect("mock loaded");
+            FirstRun::load(&book, usual_currency(&book, EUR).expect("usual")).expect("mock loaded");
         assert_eq!(
             first_run.account_names(&book).expect("names"),
             ["Checking", "Wallet"]
         );
-        assert_eq!(
-            first_run.category_names(false),
-            ["Groceries", "Rent", "Clothes"]
-        );
-        assert_eq!(first_run.category_names(true), ["Salary"]);
+        assert_eq!(first_run.category_names(false).len(), 5);
+        assert_eq!(first_run.category_names(true), ["Salary", "Other income"]);
         assert_eq!(
             first_run.overview(&book, &locale).expect("overview"),
             before
         );
-        let spending = book
-            .categories()
-            .expect("categories")
-            .into_iter()
-            .filter(|entry| entry.category.kind == AccountKind::Expense)
-            .count();
-        assert_eq!(spending, 3);
     }
 
     #[test]
     fn keeps_to_the_currency_of_the_first_account() {
         let mut book = Book::create_in_memory().expect("book in memory");
         let chf = CurrencyCode::new("CHF").expect("valid code");
-        let mut first_run =
-            FirstRun::load(&mut book, chf, &spending(), &income()).expect("mock loaded");
-        first_run
-            .add_account(&mut book, "Konto", AccountType::Checking, "", &TestLocale)
-            .expect("account added");
-        let again = FirstRun::load(&mut book, EUR, &spending(), &income()).expect("mock loaded");
-        assert_eq!(again.account_names(&book).expect("names"), ["Konto"]);
-        assert_eq!(again.currency, chf);
+        add_account(
+            &mut book,
+            &NewAccount {
+                name: "Konto",
+                account_type: AccountType::Checking,
+                currency: "CHF",
+                balance: "",
+                date: "",
+            },
+            &TestLocale,
+        )
+        .expect("account added");
+        let usual = usual_currency(&book, EUR).expect("usual");
+        assert_eq!(usual, chf);
+        let first_run = FirstRun::load(&book, usual).expect("mock loaded");
+        assert_eq!(first_run.account_names(&book).expect("names"), ["Konto"]);
+        assert_eq!(first_run.currency, chf);
     }
 
     #[test]

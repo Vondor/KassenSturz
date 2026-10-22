@@ -67,7 +67,10 @@ impl QtLocale {
     /// Makes `name` (e.g. "de_DE") the locale used from now on.
     #[cfg_attr(
         not(test),
-        expect(dead_code, reason = "used by tests until Settings exist (D-002)")
+        expect(
+            dead_code,
+            reason = "used by tests: the app follows the system's region (D-114)"
+        )
     )]
     pub fn set_default(name: &str) {
         ffi::set_default_locale(&ffi::QString::from(name));
@@ -108,6 +111,10 @@ impl Locale for QtLocale {
         }
     }
 
+    fn decimal_point(&self) -> String {
+        ffi::decimal_point().to_string()
+    }
+
     fn group_digits(&self, value: u64) -> String {
         ffi::group_digits(value).to_string()
     }
@@ -146,7 +153,9 @@ mod tests {
     use super::*;
     use kassensturz_core::Money;
 
-    fn format(locale: &QtLocale, minor_units: i64, currency: &str) -> String {
+    use crate::number_format::{NegativeAmounts, NumberFormat, SymbolPosition, UserLocale};
+
+    fn format(locale: &impl Locale, minor_units: i64, currency: &str) -> String {
         let currency = CurrencyCode::new(currency).expect("valid code");
         locale.amount_format(currency).format(
             Money::from_minor_units(minor_units, currency),
@@ -184,5 +193,33 @@ mod tests {
         assert_eq!(locale.read_date("10/5/2026"), Some(date));
         assert_eq!(locale.read_date("10/5/26"), Some(date));
         assert_eq!(locale.read_date("31/12/2026"), None);
+
+        // The user's number format on top of Qt's data (D-114).
+        let minus = UserLocale::new(
+            QtLocale,
+            NumberFormat {
+                negative_amounts: NegativeAmounts::Minus,
+                ..NumberFormat::default()
+            },
+        );
+        assert_eq!(format(&minus, -5320, "USD"), "-$53.20");
+        assert_eq!(format(&minus, -5320, "EUR"), "-EUR\u{a0}53.20");
+
+        QtLocale::set_default("de_DE");
+        let point = NumberFormat::default()
+            .with("DecimalSeparator", "point", &locale)
+            .expect("a setting");
+        let point = UserLocale::new(QtLocale, point);
+        assert_eq!(format(&point, -123_456, "EUR"), "-1,234.56\u{a0}€");
+        let before = UserLocale::new(
+            QtLocale,
+            NumberFormat {
+                symbol_position: SymbolPosition::Before,
+                negative_amounts: NegativeAmounts::Parentheses,
+                ..NumberFormat::default()
+            },
+        );
+        assert_eq!(format(&before, -5320, "EUR"), "(€53,20)");
+        assert_eq!(format(&before, 5320, "USD"), "USD\u{a0}53,20");
     }
 }

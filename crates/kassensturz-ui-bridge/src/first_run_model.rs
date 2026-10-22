@@ -17,6 +17,7 @@ use kassensturz_core::CurrencyCode;
 use crate::first_run::{ErrorText, FirstRun, FirstRunError, NewTransaction, type_from_key};
 use crate::format::Locale;
 use crate::locale::QtLocale;
+use crate::number_format::app_locale;
 use crate::session;
 
 #[cxx_qt::bridge]
@@ -86,6 +87,11 @@ pub mod qobject {
         /// offers them.
         #[qinvokable]
         fn categories(self: &FirstRunMock, money_in: bool) -> QStringList;
+
+        /// Reads the overview and the list of accounts again, e.g. after
+        /// the number format changed.
+        #[qinvokable]
+        fn refresh(self: Pin<&mut FirstRunMock>);
     }
 
     impl cxx_qt::Initialize for FirstRunMock {}
@@ -153,7 +159,7 @@ impl qobject::FirstRunMock {
                     &name.to_string(),
                     account_type,
                     &starting_balance.to_string(),
-                    &QtLocale,
+                    &app_locale(),
                 )
             })
             .unwrap_or(Err(FirstRunError::NoSuchEntry)),
@@ -190,7 +196,7 @@ impl qobject::FirstRunMock {
         };
         let result = match self.as_mut().rust_mut().state.as_mut() {
             Some(state) => {
-                session::with_book_mut(|book| state.add_transaction(book, &entered, &QtLocale))
+                session::with_book_mut(|book| state.add_transaction(book, &entered, &app_locale()))
                     .unwrap_or(Err(FirstRunError::NoSuchEntry))
             }
             None => Err(FirstRunError::NoSuchEntry),
@@ -201,7 +207,7 @@ impl qobject::FirstRunMock {
     fn transactions(&self, account: i32) -> QVariant {
         let view = self.rust().state.as_ref().and_then(|state| {
             let account = usize::try_from(account).ok()?;
-            session::with_book(|book| state.register(book, account, &QtLocale))?
+            session::with_book(|book| state.register(book, account, &app_locale()))?
                 .ok()
                 .flatten()
         });
@@ -213,14 +219,16 @@ impl qobject::FirstRunMock {
                 ("date", text(&row.date)),
                 ("otherParty", text(&row.other_party)),
                 ("category", text(&row.category)),
-                ("amount", text(&row.amount)),
+                ("amount", text(&row.amount.text)),
+                ("exactAmount", text(&row.amount.exact)),
                 ("incoming", QVariant::from(&row.incoming)),
                 ("startingBalance", QVariant::from(&row.starting_balance)),
             ])
         });
         map([
             ("name", text(&view.account_name)),
-            ("balance", text(&view.balance)),
+            ("balance", text(&view.balance.text)),
+            ("exactBalance", text(&view.balance.exact)),
             ("owes", QVariant::from(&view.owes)),
             ("rows", list(rows)),
         ])
@@ -252,10 +260,9 @@ impl qobject::FirstRunMock {
     }
 
     fn error(&self, error: &FirstRunError) -> QVariant {
-        let shown =
-            self.rust().state.as_ref().and_then(|state| {
-                session::with_book(|book| state.error_text(book, error, &QtLocale))
-            });
+        let shown = self.rust().state.as_ref().and_then(|state| {
+            session::with_book(|book| state.error_text(book, error, &app_locale()))
+        });
         let Some(ErrorText { code, params }) = shown else {
             return map([("code", text("input.no-such-entry"))]);
         };
@@ -270,9 +277,9 @@ impl qobject::FirstRunMock {
         };
         let read = session::with_book(|book| {
             Ok::<_, kassensturz_store::StoreError>((
-                state.overview(book, &QtLocale)?,
+                state.overview(book, &app_locale())?,
                 state.account_names(book)?,
-                state.amount_example(book, &QtLocale)?,
+                state.amount_example(book, &app_locale())?,
             ))
         });
         let (overview, names, amount_example) = match read {
@@ -292,30 +299,38 @@ impl qobject::FirstRunMock {
             map([
                 ("name", text(&card.name)),
                 ("type", text(card.account_type)),
-                ("balance", text(&card.balance)),
+                ("balance", text(&card.balance.text)),
+                ("exactBalance", text(&card.balance.exact)),
                 ("owes", QVariant::from(&card.owes)),
             ])
         });
-        let spending = overview
-            .spending
-            .iter()
-            .map(|total| map([("name", text(&total.name)), ("amount", text(&total.amount))]));
+        let spending = overview.spending.iter().map(|total| {
+            map([
+                ("name", text(&total.name)),
+                ("amount", text(&total.amount.text)),
+                ("exactAmount", text(&total.amount.exact)),
+            ])
+        });
         let latest = overview.latest.iter().map(|row| {
             map([
                 ("account", text(&row.account)),
                 ("date", text(&row.date)),
                 ("otherParty", text(&row.other_party)),
                 ("category", text(&row.category)),
-                ("amount", text(&row.amount)),
+                ("amount", text(&row.amount.text)),
+                ("exactAmount", text(&row.amount.exact)),
                 ("incoming", QVariant::from(&row.incoming)),
             ])
         });
         let overview = map([
             ("accounts", list(cards)),
-            ("together", text(&overview.together)),
+            ("together", text(&overview.together.text)),
+            ("exactTogether", text(&overview.together.exact)),
             ("togetherOwes", QVariant::from(&overview.together_owes)),
-            ("moneyIn", text(&overview.money_in)),
-            ("moneyOut", text(&overview.money_out)),
+            ("moneyIn", text(&overview.money_in.text)),
+            ("exactMoneyIn", text(&overview.money_in.exact)),
+            ("moneyOut", text(&overview.money_out.text)),
+            ("exactMoneyOut", text(&overview.money_out.exact)),
             ("spending", list(spending)),
             ("latest", list(latest)),
         ]);

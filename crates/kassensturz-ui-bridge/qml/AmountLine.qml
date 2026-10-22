@@ -10,11 +10,11 @@ import QtQuick.Layouts
 RowLayout {
     id: line
 
-    // name and amount, both text.
+    // name, amount and exactAmount, all text.
     required property var modelData
 
     Accessible.role: Accessible.StaticText
-    Accessible.name: modelData.name + ", " + modelData.amount
+    Accessible.name: modelData.name + ", " + modelData.exactAmount
 
     Controls.Label {
         Layout.fillWidth: true
@@ -22,7 +22,8 @@ RowLayout {
         elide: Text.ElideRight
     }
 
-    Controls.Label {
+    AmountLabel {
         text: line.modelData.amount
+        exactText: line.modelData.exactAmount
     }
 }

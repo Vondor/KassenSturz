@@ -20,7 +20,7 @@ use kassensturz_store::{Action, Book, StoreError};
 
 use crate::format::{Affixes, AmountFormat, Locale};
 use crate::parse::{AmountInputError, AmountReader};
-use crate::register::{AmountWriter, Entry, RegisterView, entries, register_view};
+use crate::register::{AmountWriter, Entry, RegisterView, Shown, entries, register_view};
 
 /// How many transactions the overview lists.
 const LATEST: usize = 5;
@@ -88,7 +88,7 @@ pub struct AccountCard {
     /// or `credit-card`.
     pub account_type: &'static str,
     /// Its balance; for a debt, what the user owes.
-    pub balance: String,
+    pub balance: Shown,
     /// Whether the balance is shown as "You owe" (D-067).
     pub owes: bool,
 }
@@ -99,7 +99,7 @@ pub struct CategoryTotal {
     /// The category's name.
     pub name: String,
     /// Its total.
-    pub amount: String,
+    pub amount: Shown,
 }
 
 /// A recent transaction on the overview.
@@ -114,7 +114,7 @@ pub struct LatestRow {
     /// Its category.
     pub category: String,
     /// The amount, as seen from the account.
-    pub amount: String,
+    pub amount: Shown,
     /// Whether money came in.
     pub incoming: bool,
 }
@@ -126,13 +126,13 @@ pub struct Overview {
     /// The accounts, in the order they were added.
     pub accounts: Vec<AccountCard>,
     /// All accounts together: what the user has minus what they owe.
-    pub together: String,
+    pub together: Shown,
     /// Whether, all together, the user owes money.
     pub together_owes: bool,
     /// Everything booked to income categories.
-    pub money_in: String,
+    pub money_in: Shown,
     /// Everything booked to spending categories.
-    pub money_out: String,
+    pub money_out: Shown,
     /// The spending categories that have something, largest first.
     pub spending: Vec<CategoryTotal>,
     /// The newest transactions, newest first, without starting balances.
@@ -525,7 +525,7 @@ impl FirstRun {
                         .map(|account| account.name)
                         .unwrap_or_default(),
                     ErrorParam::Money(amount) => AmountWriter::new(book, amount.currency(), locale)
-                        .map(|writer| writer.text(*amount))
+                        .map(|writer| writer.text(*amount).exact)
                         .unwrap_or_default(),
                     ErrorParam::Text(text) => text.clone(),
                     ErrorParam::Number(number) => number.to_string(),
@@ -630,6 +630,7 @@ pub fn type_from_key(key: &str) -> Option<AccountType> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::number_format::{DecimalPlaces, NumberFormat, UserLocale};
     use crate::register::tests::TestLocale;
 
     const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
@@ -760,7 +761,10 @@ mod tests {
         let card = |name: &str, account_type, balance: &str, owes| AccountCard {
             name: name.into(),
             account_type,
-            balance: balance.into(),
+            balance: Shown {
+                text: balance.into(),
+                exact: balance.into(),
+            },
             owes,
         };
         assert_eq!(
@@ -771,15 +775,15 @@ mod tests {
                 card("Cash", "cash", "0,00 €", false),
             ]
         );
-        assert_eq!(overview.together, "4406,90 €");
+        assert_eq!(overview.together.text, "4406,90 €");
         assert!(!overview.together_owes);
-        assert_eq!(overview.money_in, "2400,00 €");
+        assert_eq!(overview.money_in.text, "2400,00 €");
         // Starting balances are neither money in nor money out.
-        assert_eq!(overview.money_out, "143,10 €");
+        assert_eq!(overview.money_out.text, "143,10 €");
         let spending: Vec<_> = overview
             .spending
             .iter()
-            .map(|total| (total.name.as_str(), total.amount.as_str()))
+            .map(|total| (total.name.as_str(), total.amount.text.as_str()))
             .collect();
         assert_eq!(spending, [("Clothes", "89,90 €"), ("Groceries", "53,20 €")]);
         let latest: Vec<_> = overview
@@ -807,7 +811,7 @@ mod tests {
             .expect("register")
             .expect("an account at 1");
         assert_eq!(register.account_name, "Credit card");
-        assert_eq!(register.balance, "389,90 €");
+        assert_eq!(register.balance.text, "389,90 €");
         assert!(register.owes);
         let rows: Vec<_> = register
             .rows
@@ -817,7 +821,7 @@ mod tests {
                     row.date.as_str(),
                     row.other_party.as_str(),
                     row.category.as_str(),
-                    row.amount.as_str(),
+                    row.amount.text.as_str(),
                     row.starting_balance,
                 )
             })
@@ -835,6 +839,46 @@ mod tests {
     }
 
     #[test]
+    fn totals_add_up_the_exact_amounts_before_rounding() {
+        let mut first_run = first_run();
+        // Amounts are typed as usual, with every decimal place.
+        let locale = UserLocale::new(
+            TestLocale,
+            NumberFormat {
+                decimal_places: DecimalPlaces::None,
+                ..NumberFormat::default()
+            },
+        );
+        first_run
+            .add_account("Cash", AccountType::Cash, "10,00", &locale)
+            .expect("account added");
+        for _ in 0..3 {
+            first_run
+                .add_transaction(&paid(0, "0,40", "Kiosk", 0), &locale)
+                .expect("transaction added");
+        }
+
+        // Each 0,40 € shows as 0 €; their total of 1,20 € as 1 €, not 0 €.
+        let overview = first_run.overview(&locale).expect("overview");
+        let groceries = &overview.spending[0].amount;
+        assert_eq!(groceries.text, "1 €");
+        assert_eq!(groceries.exact, "1,20 €");
+        assert_eq!(overview.money_out.text, "1 €");
+        assert_eq!(
+            overview.latest[0].amount,
+            Shown {
+                text: "0 €".into(),
+                exact: "-0,40 €".into()
+            }
+        );
+        let balance = &overview.accounts[0].balance;
+        assert_eq!(
+            (balance.text.as_str(), balance.exact.as_str()),
+            ("9 €", "8,80 €")
+        );
+    }
+
+    #[test]
     fn a_debt_larger_than_everything_reads_you_owe() {
         let mut first_run = first_run();
         let locale = TestLocale;
@@ -842,7 +886,7 @@ mod tests {
             .add_account("Credit card", AccountType::CreditCard, "300", &locale)
             .expect("account added");
         let overview = first_run.overview(&locale).expect("overview");
-        assert_eq!(overview.together, "300,00 €");
+        assert_eq!(overview.together.text, "300,00 €");
         assert!(overview.together_owes);
     }
 

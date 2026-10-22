@@ -13,9 +13,9 @@ import org.kde.ki18n
 RowLayout {
     id: row
 
-    // A row from the Rust side: date, otherParty, category, amount, incoming,
-    // and either account (on the overview) or startingBalance (in a
-    // register).
+    // A row from the Rust side: date, otherParty, category, amount and
+    // exactAmount, incoming, and either account (on the overview) or
+    // startingBalance (in a register).
     required property var modelData
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -35,7 +35,7 @@ RowLayout {
 
     spacing: Kirigami.Units.largeSpacing
     Accessible.role: Accessible.ListItem
-    Accessible.name: [title, details, modelData.amount].filter(text => text !== "").join(", ")
+    Accessible.name: [title, details, modelData.exactAmount].filter(text => text !== "").join(", ")
 
     ColumnLayout {
         Layout.fillWidth: true
@@ -55,8 +55,9 @@ RowLayout {
         }
     }
 
-    Controls.Label {
+    AmountLabel {
         text: row.modelData.amount
+        exactText: row.modelData.exactAmount
         color: row.modelData.incoming ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.textColor
     }
 }

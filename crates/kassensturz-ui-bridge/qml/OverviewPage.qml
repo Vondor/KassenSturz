@@ -46,6 +46,13 @@ Kirigami.ScrollablePage {
         return owes ? i18nContext.i18nc("@label %1 is an amount of money", "You owe %1", balance) : balance;
     }
 
+    // All accounts together, with `amount` as shown or exactly.
+    function togetherText(amount: string): string {
+        return overview.togetherOwes
+            ? i18nContext.i18nc("@label %1 is an amount of money", "All your accounts together: you owe %1", amount)
+            : i18nContext.i18nc("@label %1 is an amount of money", "All your accounts together: %1", amount);
+    }
+
     title: i18nContext.i18nc("@title", "Overview")
     header: MockNotice {}
 
@@ -83,9 +90,10 @@ Kirigami.ScrollablePage {
                     required property int index
 
                     readonly property string balanceText: page.balanceText(modelData.balance, modelData.owes)
+                    readonly property string exactBalanceText: page.balanceText(modelData.exactBalance, modelData.owes)
 
                     showClickFeedback: true
-                    Accessible.name: [modelData.name, page.typeName(modelData.type), balanceText].join(", ")
+                    Accessible.name: [modelData.name, page.typeName(modelData.type), exactBalanceText].join(", ")
                     onClicked: page.accountClicked(index)
 
                     contentItem: ColumnLayout {
@@ -112,17 +120,25 @@ Kirigami.ScrollablePage {
                             level: 3
                             text: card.balanceText
                             horizontalAlignment: Text.AlignRight
+                            // The exact balance, if it is shown rounded
+                            // (D-002), as AmountLabel does.
+                            Controls.ToolTip.visible: card.exactBalanceText !== text && balanceHover.hovered
+                            Controls.ToolTip.text: card.exactBalanceText
+                            Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
+
+                            HoverHandler {
+                                id: balanceHover
+                            }
                         }
                     }
                 }
             }
         }
 
-        Controls.Label {
+        AmountLabel {
             Layout.fillWidth: true
-            text: page.overview.togetherOwes
-                ? page.i18nContext.i18nc("@label %1 is an amount of money", "All your accounts together: you owe %1", page.overview.together)
-                : page.i18nContext.i18nc("@label %1 is an amount of money", "All your accounts together: %1", page.overview.together)
+            text: page.togetherText(page.overview.together)
+            exactText: page.togetherText(page.overview.exactTogether)
             font.bold: true
             wrapMode: Text.Wrap
         }
@@ -135,8 +151,8 @@ Kirigami.ScrollablePage {
 
         Repeater {
             model: [
-                { name: page.i18nContext.i18nc("@label", "Money in"), amount: page.overview.moneyIn },
-                { name: page.i18nContext.i18nc("@label", "Money out"), amount: page.overview.moneyOut },
+                { name: page.i18nContext.i18nc("@label", "Money in"), amount: page.overview.moneyIn, exactAmount: page.overview.exactMoneyIn },
+                { name: page.i18nContext.i18nc("@label", "Money out"), amount: page.overview.moneyOut, exactAmount: page.overview.exactMoneyOut },
             ]
 
             delegate: AmountLine {

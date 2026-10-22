@@ -30,6 +30,15 @@ RowLayout {
     property string balance: ""
     property string exactBalance: balance
     property bool owes: false
+    // Wide pages show a row as the lines of a book, one column each: date,
+    // from or to, category, payment, deposit and balance. `header` makes the
+    // row the book's column titles instead, so that both line up.
+    property bool ledger: false
+    property bool header: false
+
+    readonly property real dateWidth: Kirigami.Units.gridUnit * 7
+    readonly property real amountWidth: Kirigami.Units.gridUnit * 8
+    readonly property real nameWidth: Kirigami.Units.gridUnit * 10
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -69,10 +78,77 @@ RowLayout {
 
     spacing: Kirigami.Units.largeSpacing
     Accessible.role: Accessible.ListItem
-    Accessible.name: [title, details, exactAmount, exactBalanceText].filter(text => text !== "").join(", ")
+    Accessible.name: header
+        ? ""
+        : [title, details, exactAmount, exactBalanceText].filter(text => text !== "").join(", ")
 
+    // The book's columns.
+    Controls.Label {
+        Layout.preferredWidth: row.dateWidth
+        visible: row.ledger
+        text: row.header ? row.i18nContext.i18nc("@title:column", "Date") : row.date
+        font.bold: row.header
+        elide: Text.ElideRight
+    }
+
+    Controls.Label {
+        Layout.fillWidth: true
+        Layout.preferredWidth: row.nameWidth
+        visible: row.ledger
+        text: row.header
+            ? row.i18nContext.i18nc("@title:column whom the money came from or went to", "From or to")
+            : row.kind === "starting-balance" ? row.title : row.otherParty
+        font.bold: row.header
+        elide: Text.ElideRight
+    }
+
+    Controls.Label {
+        Layout.fillWidth: true
+        Layout.preferredWidth: row.nameWidth
+        visible: row.ledger
+        text: row.header ? row.i18nContext.i18nc("@title:column", "Category") : row.whatFor
+        font.bold: row.header
+        elide: Text.ElideRight
+    }
+
+    // A payment and a deposit each have their own column, so what went out
+    // and what came in can be told apart at a glance.
+    AmountLabel {
+        Layout.preferredWidth: row.amountWidth
+        visible: row.ledger
+        horizontalAlignment: Text.AlignRight
+        text: row.header ? row.i18nContext.i18nc("@title:column money that went out", "Payment") : row.incoming ? "" : row.amount
+        exactText: row.header ? text : row.incoming ? "" : row.exactAmount
+        font.bold: row.header
+    }
+
+    AmountLabel {
+        Layout.preferredWidth: row.amountWidth
+        visible: row.ledger
+        horizontalAlignment: Text.AlignRight
+        text: row.header ? row.i18nContext.i18nc("@title:column money that came in", "Deposit") : row.incoming ? row.amount : ""
+        exactText: row.header ? text : row.incoming ? row.exactAmount : ""
+        color: row.header ? Kirigami.Theme.textColor : Kirigami.Theme.positiveTextColor
+        font.bold: row.header
+    }
+
+    AmountLabel {
+        Layout.preferredWidth: row.amountWidth
+        visible: row.ledger
+        horizontalAlignment: Text.AlignRight
+        text: row.header
+            ? (row.owes
+                ? row.i18nContext.i18nc("@title:column what you owed after the transaction", "You owed after")
+                : row.i18nContext.i18nc("@title:column what the account held after the transaction", "Balance after"))
+            : row.balance
+        exactText: row.header ? text : row.exactBalance
+        font.bold: row.header
+    }
+
+    // The same, as two lines, where there is not room for columns.
     ColumnLayout {
         Layout.fillWidth: true
+        visible: !row.ledger
         spacing: 0
 
         Controls.Label {
@@ -90,6 +166,7 @@ RowLayout {
     }
 
     ColumnLayout {
+        visible: !row.ledger
         spacing: 0
 
         AmountLabel {

@@ -20,6 +20,7 @@ use crate::errors::{ErrorText, amount_example};
 use crate::format::Locale;
 use crate::locale::QtLocale;
 use crate::number_format::{UserLocale, app_locale};
+use crate::overview_model::latest_row_object;
 use crate::register_model::{field, flag};
 use crate::rules::{
     self, Choice, Choices, ConditionForm, Rebooked, RuleEditError, RuleForm, RuleRow, Suggestion,
@@ -116,6 +117,13 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "previewRebook"]
         fn preview_rebook(self: &RuleBook, form: &QVariant) -> QVariant;
+
+        /// The transactions the Rule with this ID matches now, newest first
+        /// (`accountId`, `account`, `id`, `date`, `otherParty`, `category`,
+        /// `amount`, `exactAmount`, `incoming`, `kind`); nothing if the Rule
+        /// is gone.
+        #[qinvokable]
+        fn matches(self: &RuleBook, id: &QString) -> QVariant;
 
         /// Removes the Rule with this ID and its sub-Rules.
         #[qinvokable]
@@ -241,6 +249,14 @@ impl qobject::RuleBook {
         let form = read_form(form);
         read_book(|book, locale| rules::preview_rebook(book, &form, locale))
             .map_or_else(|error| error_object(&error), rebooked_object)
+    }
+
+    fn matches(&self, id: &QString) -> QVariant {
+        let id = id.to_string();
+        read_book(|book, locale| rules::matches(book, &id, locale)).map_or_else(
+            |_| list([]),
+            |rows| list(rows.iter().map(latest_row_object)),
+        )
     }
 
     fn remove_rule(self: Pin<&mut Self>, id: &QString) -> QVariant {

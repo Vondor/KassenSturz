@@ -39,6 +39,18 @@ pub struct RuleRun {
     pub skipped: Vec<RuleSkip>,
 }
 
+/// One transaction the Rules match ([`Book::rule_matches`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuleMatch {
+    /// The transaction.
+    pub transaction: TransactionId,
+    /// The user's account its matching part is in.
+    pub account: AccountId,
+    /// The Rules that matched, from the top-level Rule down to the sub-Rule
+    /// that decided. Never empty.
+    pub rules: Vec<RuleId>,
+}
+
 /// One transaction the Rules change.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuleChange {
@@ -336,6 +348,76 @@ impl Book {
             .collect();
         marks.sort_by_key(|mark| mark.split);
         Ok(marks)
+    }
+
+    /// Which transactions the Rules match as the book is now, whether or not
+    /// a Rule booked them, oldest first: every transaction with one part in
+    /// one of the user's accounts and the other in a category or without a
+    /// category yet, checked as a run checks it ([`Book::run_rules`]), with
+    /// what the user's account shows (D-108). Changes nothing.
+    pub fn rule_matches(&self) -> Result<Vec<RuleMatch>, StoreError> {
+        let tree = self.rules()?;
+        if tree.is_empty() {
+            return Ok(Vec::new());
+        }
+        let rules = RuleSet::new(&tree).map_err(StoreError::Rule)?;
+        let accounts: HashMap<AccountId, Account> = self
+            .all_accounts()?
+            .into_iter()
+            .map(|account| (account.id, account))
+            .collect();
+        let in_an_account = |part: &Split| {
+            part.account
+                .and_then(|id| accounts.get(&id))
+                .is_some_and(|account| account.kind.is_account())
+        };
+        let mut ids = self
+            .conn
+            .prepare(
+                "SELECT transaction_id FROM splits GROUP BY transaction_id HAVING count(*) = 2",
+            )?
+            .query_map([], |row| Ok(TransactionId::from_bytes(row.get(0)?)))?
+            .collect::<Result<Vec<_>, _>>()?;
+        ids.sort_unstable();
+        let mut transactions = ids
+            .into_iter()
+            .map(|id| self.transaction(id))
+            .collect::<Result<Vec<_>, _>>()?;
+        transactions.sort_by_key(|transaction| (transaction.booking_date(), transaction.id()));
+
+        let mut found = Vec::new();
+        for transaction in transactions {
+            let [first, second] = transaction.splits() else {
+                continue;
+            };
+            let own = match (in_an_account(first), in_an_account(second)) {
+                (true, false) => first,
+                (false, true) => second,
+                // A move between two accounts, or no account at all.
+                _ => continue,
+            };
+            let Some(account) = own.account else {
+                continue;
+            };
+            if own.foreign.is_some() {
+                continue;
+            }
+            let facts = RuleFacts {
+                account,
+                amount: own.amount,
+                booking_date: transaction.date_of(own),
+                payee: transaction.payee_of(own),
+                imported: own.imported.as_ref(),
+            };
+            if let Some(outcome) = rules.evaluate(&facts) {
+                found.push(RuleMatch {
+                    transaction: transaction.id(),
+                    account,
+                    rules: outcome.rules,
+                });
+            }
+        }
+        Ok(found)
     }
 
     /// What running the Rules would do, without changing anything: see

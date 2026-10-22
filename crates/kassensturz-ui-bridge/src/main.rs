@@ -28,6 +28,8 @@ mod parts_entry;
 mod platform;
 mod register;
 mod register_model;
+mod rules;
+mod rules_model;
 mod session;
 mod settings;
 mod statement_import;

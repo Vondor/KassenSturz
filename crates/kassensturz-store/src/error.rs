@@ -82,6 +82,15 @@ pub enum StoreError {
     /// The ID belongs to a category or an internal account, not to an
     /// account the user sees.
     NotAnAccount(AccountId),
+    /// A stated balance must be in the account's currency (D-117).
+    StatedBalanceCurrencyMismatch {
+        /// The account.
+        account: AccountId,
+        /// Its currency.
+        account_currency: CurrencyCode,
+        /// The currency of the balance stated.
+        currency: CurrencyCode,
+    },
     /// A closed account takes no new transactions. The user can open it
     /// again.
     AccountClosed(AccountId),
@@ -220,6 +229,9 @@ pub enum Corruption {
     BadAccountType(String),
     /// An account whose type doesn't fit its kind.
     AccountTypeMismatch(AccountId),
+    /// An account with a stated balance but no day for it, or the other way
+    /// round (D-117).
+    HalfStatedBalance(AccountId),
     /// A category whose place in the tree is wrong: it sits inside something
     /// that isn't a category of the same kind and currency, or inside
     /// itself.
@@ -351,6 +363,14 @@ impl Report for StoreError {
             Self::NotAnAccount(account) => {
                 new("store.not-an-account").with("account", P::Account(*account))
             }
+            Self::StatedBalanceCurrencyMismatch {
+                account,
+                account_currency,
+                currency,
+            } => new("store.stated-balance-currency-mismatch")
+                .with("account", P::Account(*account))
+                .with("account_currency", P::Currency(*account_currency))
+                .with("currency", P::Currency(*currency)),
             Self::AccountClosed(account) => {
                 new("store.account-closed").with("account", P::Account(*account))
             }
@@ -457,6 +477,9 @@ impl Report for Corruption {
             Self::BadAccountType(text) => found("store.corrupt.bad-account-type", text),
             Self::AccountTypeMismatch(account) => {
                 new("store.corrupt.account-type-mismatch").with("account", P::Account(*account))
+            }
+            Self::HalfStatedBalance(account) => {
+                new("store.corrupt.half-stated-balance").with("account", P::Account(*account))
             }
             Self::BadCategoryTree(account) => {
                 new("store.corrupt.bad-category-tree").with("account", P::Account(*account))

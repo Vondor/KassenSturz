@@ -23,6 +23,11 @@ Kirigami.ScrollablePage {
     // The account's ID, and what the Rust side says about it.
     required property string accountId
     property var account: ({})
+    // What to start with in the two fields: the balance the user stated
+    // and its day, when the account page sends the user here because the
+    // account no longer holds it (D-117). Empty otherwise.
+    property string initialBank: ""
+    property string initialDate: ""
     readonly property bool debt: account.debt ?? false
     // The comparison, once the user asked for it.
     property var check: ({})
@@ -35,8 +40,14 @@ Kirigami.ScrollablePage {
         translationDomain: "kassensturz"
     }
 
-    // The account doesn't change while this page is open.
-    Component.onCompleted: account = accounts.details(accountId) ?? ({})
+    // The account doesn't change while this page is open. Sent here with the
+    // stated balance, the page compares right away.
+    Component.onCompleted: {
+        account = accounts.details(accountId) ?? ({});
+        if (initialBank !== "") {
+            compare();
+        }
+    }
 
     title: i18nContext.i18nc("@title %1 is the name of an account", "Check %1 against my bank", account.name ?? "")
     header: FormError {
@@ -122,6 +133,7 @@ Kirigami.ScrollablePage {
 
             Controls.TextField {
                 id: bankField
+                text: page.initialBank
                 Kirigami.FormData.label: page.debt
                     ? page.i18nContext.i18nc("@label:textbox", "What does your bank say you owe?")
                     : page.i18nContext.i18nc("@label:textbox", "What does your bank say is in it?")
@@ -132,6 +144,7 @@ Kirigami.ScrollablePage {
 
             Controls.TextField {
                 id: dateField
+                text: page.initialDate
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "On which day?")
                 placeholderText: page.i18nContext.i18nc("@info:placeholder %1 is today's date", "Today, %1", page.accounts.today)
                 onAccepted: page.compare()

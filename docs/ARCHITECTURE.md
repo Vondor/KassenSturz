@@ -92,7 +92,8 @@ kassensturz/
 ## First start (M3.4)
 
 - `src/first_start.rs` says where a book stands (`FirstStart`: whether it has an account, whether the currency must still be asked, the currencies to offer) and completes the first start: the chosen currency and the default categories, written as a tree in one user action (D-116). The names come from QML (`DefaultCategories.qml`), where KI18n translates them; Rust checks the list and writes it. `src/first_start_model.rs` is its QML object, `FirstStart`.
-- `accounts::correct_starting_balance` carries out the offer of "Check against my bank" (D-111): `BankCheck::correction` says what it would do, and only the user's click does it, as one edited or added transaction.
+- `accounts::correct_starting_balance` carries out the offer of "Check against my bank" (D-111): `BankCheck::correction` says what it would do, and only the user's click does it, as one change (`Action::CorrectStartingBalance`): the edited or added transaction plus the stated balance.
+- **The stated balance (M3.4a, D-117):** `Book::stated_balance` and `Book::set_stated_balance` keep what the user said the bank showed and the day (layout 14, two columns of `accounts`). `accounts::add_account` notes it when a balance was typed, `correct_starting_balance` when the user confirms. `accounts::details` compares it with `Book::balance_on` for that day (`Statement`), and `AccountDetailsPage` shows the result; when the account no longer holds it, the page sends the user to `BankCheckPage` with the stated balance and day filled in (`initialBank`, `initialDate`), which compares at once and offers the correction.
 - QML: `WelcomePage` (currency question and start), `NewAccountPage` with `firstRun` (the first account), the mock's `TransactionPage` for the optional first transaction. `Main.qml` shows the welcome page until the book has an account and reads every screen again after a change (`bookChanged`).
 
 ## Dependency rules

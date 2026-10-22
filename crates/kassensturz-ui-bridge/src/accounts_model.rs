@@ -349,6 +349,24 @@ fn details_object(details: &AccountDetails) -> QVariant {
         ("closed", QVariant::from(&details.closed)),
         ("debt", QVariant::from(&details.debt)),
         ("canClose", QVariant::from(&details.can_close)),
+        (
+            "stated",
+            details
+                .stated
+                .as_ref()
+                .map_or_else(QVariant::default, |stated| {
+                    map([
+                        ("balance", text(&stated.balance.text)),
+                        ("exactBalance", text(&stated.balance.exact)),
+                        ("owes", QVariant::from(&stated.owes)),
+                        ("date", text(&stated.date)),
+                        ("held", text(&stated.held.text)),
+                        ("exactHeld", text(&stated.held.exact)),
+                        ("heldOwes", QVariant::from(&stated.held_owes)),
+                        ("matches", QVariant::from(&stated.matches)),
+                    ])
+                }),
+        ),
     ])
 }
 

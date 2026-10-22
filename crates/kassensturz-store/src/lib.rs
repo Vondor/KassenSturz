@@ -26,7 +26,7 @@ use std::path::{Path, PathBuf};
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, Currency, CurrencyCode, Date, DatedRate,
-    DatedRateId, ExchangeRate, RateSource, RoundingMode,
+    DatedRateId, ExchangeRate, Money, RateSource, RoundingMode,
 };
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
@@ -501,6 +501,70 @@ impl Book {
         })
     }
 
+    /// The balance the user stated for an account and the day it was for,
+    /// if they stated one: what the bank showed when the account was added or
+    /// when its starting balance was last corrected (D-111, D-117). The
+    /// account should hold that amount on that day; whether it still does is
+    /// for the caller to check with [`Book::balance_on`]. Categories and
+    /// accounts from before layout 14 have none.
+    pub fn stated_balance(&self, id: AccountId) -> Result<Option<StatedBalance>, StoreError> {
+        let row: Option<(Option<i64>, Option<String>, String)> = self
+            .conn
+            .query_row(
+                "SELECT stated_balance, stated_on, currency FROM accounts WHERE id = ?1",
+                [id.to_bytes()],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?;
+        let (minor_units, on, currency) = row.ok_or(StoreError::UnknownAccount(id))?;
+        match (minor_units, on) {
+            (Some(minor_units), Some(on)) => Ok(Some(StatedBalance {
+                amount: Money::from_minor_units(minor_units, currency_from_text(&currency)?),
+                on: date_from_text(&on)?,
+            })),
+            (None, None) => Ok(None),
+            _ => Err(StoreError::Corrupt(Corruption::HalfStatedBalance(id))),
+        }
+    }
+
+    /// Notes `stated` as the balance the user stated for the account `id`:
+    /// what the bank showed on that day, in the account's currency. `None`
+    /// forgets it. Only an account the user sees can have one, never a
+    /// category. On its own this is the user action
+    /// [`Action::CorrectStartingBalance`]; adding an account or correcting
+    /// its starting balance notes the statement within that action.
+    pub fn set_stated_balance(
+        &mut self,
+        id: AccountId,
+        stated: Option<&StatedBalance>,
+    ) -> Result<(), StoreError> {
+        let account = self.account(id)?;
+        if !account.kind.is_account() {
+            return Err(StoreError::NotAnAccount(id));
+        }
+        if let Some(stated) = stated
+            && stated.amount.currency() != account.currency
+        {
+            return Err(StoreError::StatedBalanceCurrencyMismatch {
+                account: id,
+                account_currency: account.currency,
+                currency: stated.amount.currency(),
+            });
+        }
+        let on = stated.map(|stated| date_to_text(stated.on)).transpose()?;
+        self.as_one_action(Action::CorrectStartingBalance, |book| {
+            book.conn.execute(
+                "UPDATE accounts SET stated_balance = ?2, stated_on = ?3 WHERE id = ?1",
+                params![
+                    id.to_bytes(),
+                    stated.map(|stated| stated.amount.minor_units()),
+                    on,
+                ],
+            )?;
+            Ok(())
+        })
+    }
+
     /// Moves a category inside `parent`, or to the top level if `parent` is
     /// `None`. Its subcategories and its transactions go with it. The new
     /// place must follow the same rules as in [`Book::add_account`]: the same
@@ -804,6 +868,17 @@ fn is_book_file(path: &Path) -> Result<bool, StoreError> {
         Err(error) if error.kind() == ErrorKind::UnexpectedEof => Ok(false),
         Err(error) => Err(error.into()),
     }
+}
+
+/// The balance the user stated for an account, taken from the bank, and the
+/// day it was for (D-111, D-117): what the account should hold at the end of
+/// that day.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StatedBalance {
+    /// The balance, in the account's currency; for a debt, negative.
+    pub amount: Money,
+    /// The day it was for.
+    pub on: Date,
 }
 
 /// The columns [`AccountRow::read`] expects, in its order.

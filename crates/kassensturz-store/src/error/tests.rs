@@ -108,6 +108,7 @@ fn examples() -> Vec<ErrorReport> {
         Corruption::BadAccountKind(text("assets")),
         Corruption::BadAccountType(text("giro")),
         Corruption::AccountTypeMismatch(account),
+        Corruption::HalfStatedBalance(account),
         Corruption::BadCategoryTree(account),
         Corruption::BadCurrencyCode(text("eur")),
         Corruption::BadDate(text("2026-13-01")),
@@ -152,6 +153,11 @@ fn examples() -> Vec<ErrorReport> {
             kind: AccountKind::Asset,
         },
         StoreError::NotAnAccount(account),
+        StoreError::StatedBalanceCurrencyMismatch {
+            account,
+            account_currency: EUR,
+            currency: CurrencyCode::new("CHF").expect("valid code"),
+        },
         StoreError::AccountClosed(account),
         StoreError::AccountNotEmpty {
             account,

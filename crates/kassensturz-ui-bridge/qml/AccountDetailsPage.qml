@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// One account: its balance, renaming it, comparing it with the bank, and
-// closing it or opening it again (D-081).
+// One account: its balance, what the user said the bank showed and whether
+// the account still holds it (D-117), renaming it, comparing it with the
+// bank, and closing it or opening it again (D-081).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -20,7 +21,10 @@ Kirigami.ScrollablePage {
     // What the Rust side says about the account, read again after a change.
     property var account: accounts.details(accountId) ?? ({})
 
-    signal checkClicked()
+    // "Check against my bank", with what to start the fields with: the
+    // stated balance and its day when the account no longer holds it,
+    // otherwise empty.
+    signal checkClicked(string bank, string date)
     // The account was closed or opened again.
     signal accountClosedOrOpened()
 
@@ -39,6 +43,21 @@ Kirigami.ScrollablePage {
 
     function reload() {
         account = accounts.details(accountId) ?? ({});
+    }
+
+    // A correction made on the check page, or an undo, changes what the
+    // account holds on the stated day.
+    Connections {
+        target: page.accounts
+
+        function onChanged() {
+            page.reload();
+        }
+    }
+
+    // What the bank said, or what KassenSturz has: a debt reads "you owed".
+    function said(amount: string, owes: bool): string {
+        return owes ? i18nContext.i18nc("@label %1 is an amount of money", "you owed %1", amount) : amount;
     }
 
     function rename() {
@@ -88,6 +107,36 @@ Kirigami.ScrollablePage {
             font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.5
         }
 
+        // The stated balance (D-111, D-117): what the user said the bank
+        // showed on a day, and whether the account still holds it. Exact
+        // amounts, since a rounded one could hide the difference.
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: (page.account.stated ?? null) !== null && (page.account.stated.matches ?? false)
+            text: visible
+                ? page.i18nContext.i18nc("@info %1 is a date, %2 says how much money there was or was owed", "On %1 your bank said %2, and KassenSturz agrees.", page.account.stated.date, page.said(page.account.stated.exactBalance, page.account.stated.owes))
+                : ""
+            wrapMode: Text.Wrap
+            font: Kirigami.Theme.smallFont
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: (page.account.stated ?? null) !== null && !(page.account.stated.matches ?? true)
+            type: Kirigami.MessageType.Warning
+            text: visible
+                ? page.i18nContext.i18nc("@info %1 is a date, %2 and %3 say how much money there was or was owed", "On %1 your bank said %2, but KassenSturz now has %3 for that day. An entry dated before that day may have changed it. Check against your bank to put it right.", page.account.stated.date, page.said(page.account.stated.exactBalance, page.account.stated.owes), page.said(page.account.stated.exactHeld, page.account.stated.heldOwes))
+                : ""
+            actions: [
+                Kirigami.Action {
+                    text: page.i18nContext.i18nc("@action:button", "Check against my bank…")
+                    icon.name: "view-financial-account-checking"
+                    enabled: !(page.account.closed ?? false)
+                    onTriggered: page.checkClicked(page.account.stated.exactBalance, page.account.stated.date)
+                }
+            ]
+        }
+
         Kirigami.Heading {
             Layout.topMargin: Kirigami.Units.largeSpacing
             text: page.i18nContext.i18nc("@title", "Name")
@@ -130,7 +179,7 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@action:button", "Check against my bank…")
             icon.name: "view-financial-account-checking"
             enabled: !(page.account.closed ?? false)
-            onClicked: page.checkClicked()
+            onClicked: page.checkClicked("", "")
         }
 
         Kirigami.Heading {

@@ -105,6 +105,7 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.duplicate-account-name` | `existing` | | {existing} already has this name. Choose another one, so you can tell them apart. |
 | `store.account-type-mismatch` | `account_type`, `kind` | | {account_type} doesn't fit this kind of account. Choose another type. |
 | `store.not-an-account` | `account` | | {account} is a category, not an account. Choose an account. |
+| `store.stated-balance-currency-mismatch` | `account`, `account_currency`, `currency` | | {account} counts in {account_currency}, the balance you stated is in {currency}. State it in the account's currency. |
 | `store.account-closed` | `account` | | {account} is closed. Open it again to add or change its transactions. |
 | `store.account-not-empty` | `account`, `balance` | | {account} still has {balance}. Move the money to another account first, then close it. |
 | `store.not-a-category` | `account` | | {account} is an account, not a category. Only categories sit inside other categories. |
@@ -144,6 +145,7 @@ Data in the book breaks one of KassenSturz's rules, for example because another 
 | `store.corrupt.bad-account-kind` | `found` | | An account has a kind that doesn't exist. |
 | `store.corrupt.bad-account-type` | `found` | | An account has a type that doesn't exist. |
 | `store.corrupt.account-type-mismatch` | `account` | | {account}'s type doesn't fit its kind. |
+| `store.corrupt.half-stated-balance` | `account` | | {account} has a stated balance without its day, or a day without the balance. |
 | `store.corrupt.bad-category-tree` | `account` | | {account} sits in the wrong place in the category tree. |
 | `store.corrupt.bad-currency-code` | `found` | | A currency code isn't three capital letters. |
 | `store.corrupt.bad-date` | `found` | | A date isn't a valid calendar date. |

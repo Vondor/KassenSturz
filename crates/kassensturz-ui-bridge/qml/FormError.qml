@@ -51,6 +51,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "KassenSturz doesn't know this currency. Choose another one.");
         case "input.no-such-parent":
             return i18nContext.i18nc("@info %1 is the name of a category", "The default categories can't be written: %1 isn't among them. Please report this, so it can be fixed.", result.parent);
+        case "input.not-editable-here":
+            return i18nContext.i18nc("@info", "This transaction can't be changed on this page. Go back to the list and open it again.");
         case "bank-check.cannot-correct":
             return i18nContext.i18nc("@info", "The starting balance is dated after this day, so it can't be corrected from here. Check a day on or after the starting balance.");
         case "store.empty-account-name":
@@ -69,6 +71,10 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is the name of a category, %2 and %3 are currency codes", "%1 counts in %2, this category in %3. Choose a category in the same currency.", result.parent, result.parent_currency, result.currency);
         case "store.category-inside-itself":
             return i18nContext.i18nc("@info %1 is the name of a category", "%1 can't go inside itself or one of the categories inside it. Choose another place.", result.account);
+        case "store.unknown-transaction":
+            return i18nContext.i18nc("@info", "This transaction isn't in the book anymore. It may have just been removed.");
+        case "store.imported-split-changed":
+            return i18nContext.i18nc("@info", "This entry came from your bank or a file, so its amount stays as it was delivered. You can change the rest.");
         case "store.account-closed":
             return i18nContext.i18nc("@info %1 is the name of an account", "%1 is closed. Open it again to add or change its transactions.", result.account);
         default:

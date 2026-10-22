@@ -1,8 +1,13 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Adds a transaction: money paid or received, how much, to or from whom,
-// what for and when (M1.M). The other party reads "To" or "From" (D-034).
+// Adds a transaction, or changes or removes one (M3.5, D-118): money paid
+// or received, how much, to or from whom, what for and when. The other
+// party reads "To" or "From" (D-034). Only a simple transaction, one account
+// and one category, can be changed here: a starting balance is corrected
+// through "Check against my bank" (D-116), a Transfer and a purchase broken
+// down into Parts get their own pages later (M3.6, M3.7); they can only be
+// removed from here.
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -14,13 +19,47 @@ import io.github.vondor.kassensturz
 Kirigami.ScrollablePage {
     id: page
 
-    required property FirstRunMock mock
+    required property AccountRegister register
+    // The account the transaction belongs to; empty to let the user choose
+    // one, e.g. from the overview.
+    property string accountId: ""
+    // The transaction to change, by ID; empty to add a new one.
+    property string transactionId: ""
     // Part of the first start rather than added from the overview.
     property bool firstRun: false
     property bool moneyIn: false
 
-    // Added, or skipped during the first start.
+    readonly property bool adding: transactionId === ""
+    // What the Rust side says about the transaction to change.
+    readonly property var entry: adding ? ({}) : register.details(accountId, transactionId)
+    readonly property string kind: entry.kind ?? "simple"
+    readonly property bool editable: adding || kind === "simple"
+    // The accounts to choose from, when the page wasn't opened for one.
+    readonly property var accountChoices: register.accountChoices()
+    // The account chosen: the page's, or the list's.
+    readonly property string chosenAccount: accountId !== ""
+        ? accountId
+        : (accountChoices[accountBox.currentIndex] ?? ({})).id ?? ""
+    // The categories to choose from, "Not sorted yet" first, and an amount
+    // written the way the user types it. Both depend on the account and the
+    // direction, and are read again when those change (a binding on the
+    // invokables would report a loop).
+    property var categoryChoices: []
+    property string amountExample: ""
+
+    onChosenAccountChanged: reload()
+    onMoneyInChanged: reload()
+
+    function reload() {
+        const found = register.categoryChoices(chosenAccount, moneyIn, entry.category ?? "");
+        categoryChoices = found.code === undefined ? found : [];
+        amountExample = register.amountExample(chosenAccount);
+    }
+
+    // Added, changed, removed, or skipped during the first start.
     signal done()
+    // The user wants "Check against my bank" for the account.
+    signal checkAgainstBankClicked(string accountId)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -28,24 +67,62 @@ Kirigami.ScrollablePage {
 
     title: firstRun
         ? i18nContext.i18nc("@title", "Your first transaction")
-        : i18nContext.i18nc("@title", "Add a transaction")
+        : adding
+            ? i18nContext.i18nc("@title", "Add a transaction")
+            : kind === "starting-balance"
+                ? i18nContext.i18nc("@title", "Starting balance")
+                : kind === "transfer"
+                    ? i18nContext.i18nc("@title", "Money moved between your accounts")
+                    : i18nContext.i18nc("@title", "Change a transaction")
 
-    header: ColumnLayout {
-        spacing: 0
+    header: FormError {
+        id: error
+    }
 
-        MockNotice {
-            Layout.fillWidth: true
-        }
-
-        FormError {
-            id: error
-            Layout.fillWidth: true
+    Component.onCompleted: {
+        reload();
+        if (!adding) {
+            moneyIn = entry.moneyIn ?? false;
+            amountField.text = entry.amount ?? "";
+            otherPartyField.text = entry.otherParty ?? "";
+            dateField.text = entry.date ?? "";
+            categoryBox.currentIndex = page.categoryIndex(entry.category ?? "");
         }
     }
 
+    // The place of the category with `id` in the list; 0 is "Not sorted yet".
+    function categoryIndex(id: string): int {
+        return categoryChoices.findIndex(choice => choice.id === id) + 1;
+    }
+
+    // The ID of the category chosen, empty for none yet.
+    function chosenCategory(): string {
+        return categoryBox.currentIndex <= 0 ? "" : categoryChoices[categoryBox.currentIndex - 1].id;
+    }
+
+    // What the user typed, as the Rust side takes it.
+    function form(): var {
+        return {
+            moneyIn: moneyIn,
+            amount: amountField.text,
+            otherParty: otherPartyField.text,
+            category: chosenCategory(),
+            date: dateField.text,
+        };
+    }
+
     function save() {
-        const result = mock.addTransaction(accountBox.currentIndex, moneyIn, amountField.text,
-            otherPartyField.text, categoryBox.currentIndex, dateField.text);
+        const result = adding
+            ? register.addTransaction(chosenAccount, form())
+            : register.editTransaction(chosenAccount, transactionId, form());
+        error.result = result;
+        if (result.code === undefined) {
+            done();
+        }
+    }
+
+    function remove() {
+        const result = register.removeTransaction(chosenAccount, transactionId);
         error.result = result;
         if (result.code === undefined) {
             done();
@@ -60,14 +137,40 @@ Kirigami.ScrollablePage {
             wrapMode: Text.Wrap
         }
 
+        // What can't be changed here, and where it can.
+        Controls.Label {
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            visible: !page.editable
+            text: page.kind === "starting-balance"
+                ? page.i18nContext.i18nc("@info", "This is the starting balance: what the account held when you began. To change it, check the account against your bank, and KassenSturz offers to correct it.")
+                : page.kind === "transfer"
+                    ? page.i18nContext.i18nc("@info %1 is the name of an account", "This money was moved between this account and %1. Changing a Transfer isn't possible yet; you can remove it and add it again.", page.entry.otherAccount ?? "")
+                    : page.i18nContext.i18nc("@info", "This transaction is broken down into several parts. Changing the parts isn't possible yet; you can remove it and add it again.")
+            wrapMode: Text.Wrap
+        }
+
+        Controls.Button {
+            visible: page.kind === "starting-balance"
+            text: page.i18nContext.i18nc("@action:button", "Check against my bank…")
+            icon.name: "view-financial-account-checking"
+            onClicked: page.checkAgainstBankClicked(page.chosenAccount)
+        }
+
+        Controls.Label {
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            visible: page.editable && (page.entry.imported ?? false)
+            text: page.i18nContext.i18nc("@info", "This entry came from your bank, so its amount stays as the bank sent it. You can change the rest.")
+            wrapMode: Text.Wrap
+        }
+
         Controls.ComboBox {
             id: accountBox
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox", "Account:")
-            model: page.mock.accounts
-            // The account just added comes last; with one account there's
+            model: page.accountChoices.map(choice => choice.name)
+            // The account added last comes last; with one account there's
             // nothing to choose.
             currentIndex: count - 1
-            visible: count > 1
+            visible: page.accountId === "" && count > 1
         }
 
         Controls.ButtonGroup {
@@ -75,6 +178,7 @@ Kirigami.ScrollablePage {
         }
 
         Controls.RadioButton {
+            visible: page.editable
             Kirigami.FormData.label: page.i18nContext.i18nc("@label", "What happened?")
             text: page.i18nContext.i18nc("@option:radio", "I paid money")
             checked: !page.moneyIn
@@ -83,6 +187,7 @@ Kirigami.ScrollablePage {
         }
 
         Controls.RadioButton {
+            visible: page.editable
             text: page.i18nContext.i18nc("@option:radio", "I received money")
             checked: page.moneyIn
             Controls.ButtonGroup.group: directionGroup
@@ -91,14 +196,17 @@ Kirigami.ScrollablePage {
 
         Controls.TextField {
             id: amountField
+            visible: page.editable
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "How much?")
-            placeholderText: page.i18nContext.i18nc("@info:placeholder %1 is an example amount", "For example %1", page.mock.amountExample)
+            placeholderText: page.i18nContext.i18nc("@info:placeholder %1 is an example amount", "For example %1", page.amountExample)
             inputMethodHints: Qt.ImhFormattedNumbersOnly
+            readOnly: page.entry.imported ?? false
             onAccepted: page.save()
         }
 
         Controls.TextField {
             id: otherPartyField
+            visible: page.editable
             Kirigami.FormData.label: page.moneyIn
                 ? page.i18nContext.i18nc("@label:textbox who the money came from", "From:")
                 : page.i18nContext.i18nc("@label:textbox who the money went to", "To:")
@@ -110,24 +218,38 @@ Kirigami.ScrollablePage {
 
         Controls.ComboBox {
             id: categoryBox
+            visible: page.editable
             Kirigami.FormData.label: page.moneyIn
                 ? page.i18nContext.i18nc("@label:listbox", "What kind of income?")
                 : page.i18nContext.i18nc("@label:listbox", "What was it for?")
-            model: page.mock.categories(page.moneyIn)
+            model: [page.i18nContext.i18nc("@item:inlistbox the transaction gets no category yet", "Not sorted yet")]
+                .concat(page.categoryChoices.map(choice => choice.path))
+            Accessible.name: page.i18nContext.i18nc("@label:listbox", "The category")
         }
 
         Controls.TextField {
             id: dateField
+            visible: page.editable
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Date:")
-            text: page.mock.today
+            text: page.register.today
             onAccepted: page.save()
         }
 
         RowLayout {
             Controls.Button {
-                text: page.i18nContext.i18nc("@action:button", "Add transaction")
-                icon.name: "list-add"
+                visible: page.editable
+                text: page.adding
+                    ? page.i18nContext.i18nc("@action:button", "Add transaction")
+                    : page.i18nContext.i18nc("@action:button", "Save")
+                icon.name: page.adding ? "list-add" : "document-save"
                 onClicked: page.save()
+            }
+
+            Controls.Button {
+                visible: !page.adding && page.kind !== "starting-balance"
+                text: page.i18nContext.i18nc("@action:button", "Remove")
+                icon.name: "edit-delete"
+                onClicked: page.remove()
             }
 
             Controls.Button {
@@ -136,6 +258,14 @@ Kirigami.ScrollablePage {
                 flat: true
                 onClicked: page.done()
             }
+        }
+
+        Controls.Label {
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            visible: !page.adding && page.kind !== "starting-balance"
+            text: page.i18nContext.i18nc("@info", "Removing takes the transaction out of this account's list and balance. Undo brings it back.")
+            wrapMode: Text.Wrap
+            font: Kirigami.Theme.smallFont
         }
     }
 }

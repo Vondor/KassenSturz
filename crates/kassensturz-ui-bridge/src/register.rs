@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! An account's register, ready for display: every amount and date is
-//! already text in the user's regional format (D-065).
+//! already text in the user's regional format, the rows are sorted here and
+//! the balance after each entry is added up here, from the exact amounts
+//! (D-065, D-118). The writes behind the register's pages are in
+//! `transaction_entry.rs`.
 
 use kassensturz_core::{AccountId, AccountKind, CurrencyCode, Date, Money, TransactionId};
 use kassensturz_store::{Book, StoreError};
@@ -72,18 +75,21 @@ pub struct RegisterView {
     pub balance: Shown,
     /// Whether the balance is shown as "You owe" (D-067).
     pub owes: bool,
-    /// Its transactions, newest first, like in a banking app.
+    /// Its transactions, in the order asked for ([`Sort`]).
     pub rows: Vec<RegisterRow>,
 }
 
 /// One transaction in the list.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RegisterRow {
+    /// The transaction's ID as text, to name it to QML.
+    pub id: String,
     /// The booking date.
     pub date: String,
     /// Who the money came from or went to; may be empty.
     pub other_party: String,
-    /// The category, if the transaction has exactly one.
+    /// The category, if the transaction has exactly one; for a Transfer the
+    /// other account's name.
     pub category: String,
     /// The amount, as seen from the account.
     pub amount: Shown,
@@ -91,6 +97,41 @@ pub struct RegisterRow {
     pub incoming: bool,
     /// Whether this is the account's starting balance (`docs/GLOSSARY.md`).
     pub starting_balance: bool,
+    /// What kind of entry it is, as a key the UI translates (`EntryKind`).
+    pub kind: &'static str,
+    /// What the account held after this entry, counting its entries in
+    /// date order; for a debt, what the user owed.
+    pub balance: Shown,
+    /// Whether that balance is shown as "You owe" (D-067).
+    pub owes: bool,
+}
+
+/// What a transaction is, seen from one account. The register's page can
+/// change only the simple kind here; the others get their own pages (D-118).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EntryKind {
+    /// Money paid or received, booked to one category or to none yet.
+    Simple,
+    /// The account's starting balance, which "Check against my bank"
+    /// corrects (D-116).
+    StartingBalance,
+    /// Money moved to or from another of the user's accounts (D-021).
+    Transfer,
+    /// Broken down into several Parts (D-017), or booked to the account
+    /// more than once.
+    Parts,
+}
+
+impl EntryKind {
+    /// The key the UI knows the kind by.
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Simple => "simple",
+            Self::StartingBalance => "starting-balance",
+            Self::Transfer => "transfer",
+            Self::Parts => "parts",
+        }
+    }
 }
 
 /// One transaction as seen from an account, before it is written as text.
@@ -102,74 +143,196 @@ pub struct Entry {
     pub date: Date,
     /// Who the money came from or went to; may be empty.
     pub other_party: String,
-    /// The category, if the transaction has exactly one.
+    /// The category, if the transaction has exactly one; for a Transfer the
+    /// other account's name.
     pub category: String,
     /// What it did to the account.
     pub amount: Money,
-    /// Whether this is the account's starting balance.
-    pub starting_balance: bool,
+    /// What kind of entry it is.
+    pub kind: EntryKind,
+    /// What the account held after it, counting the entries in date order.
+    pub balance: Money,
 }
 
 impl Entry {
-    /// The entry as text for `writer`'s locale.
-    pub fn row(&self, writer: &AmountWriter<'_, impl Locale>) -> RegisterRow {
+    /// Whether this is the account's starting balance.
+    pub fn starting_balance(&self) -> bool {
+        self.kind == EntryKind::StartingBalance
+    }
+
+    /// The entry as text for `writer`'s locale, in an account of `kind`.
+    pub fn row(&self, writer: &AmountWriter<'_, impl Locale>, kind: AccountKind) -> RegisterRow {
+        let (balance, owes) = writer.balance(self.balance, kind);
         RegisterRow {
+            id: self.transaction.to_string(),
             date: writer.locale.short_date(self.date),
             other_party: self.other_party.clone(),
             category: self.category.clone(),
             amount: writer.text(self.amount),
             incoming: self.amount.minor_units() > 0,
-            starting_balance: self.starting_balance,
+            starting_balance: self.starting_balance(),
+            kind: self.kind.key(),
+            balance,
+            owes,
         }
     }
 }
 
-/// `account`'s transactions, oldest first, with what the other parts of each
-/// are booked to.
+/// What a transaction is, seen from `account`, and what its other part is
+/// booked to: the category's or the other account's name, if it has exactly
+/// one other part.
+pub fn kind_of(
+    book: &Book,
+    account: AccountId,
+    transaction: &kassensturz_core::Transaction,
+) -> Result<(EntryKind, String), StoreError> {
+    let mut own = 0;
+    let mut others = Vec::new();
+    for split in transaction.splits() {
+        if split.account == Some(account) {
+            own += 1;
+        } else {
+            others.push(split);
+        }
+    }
+    let [other] = others.as_slice() else {
+        return Ok((EntryKind::Parts, String::new()));
+    };
+    if own != 1 || other.foreign.is_some() {
+        return Ok((EntryKind::Parts, String::new()));
+    }
+    let Some(id) = other.account else {
+        return Ok((EntryKind::Simple, String::new()));
+    };
+    let other = book.account(id)?;
+    Ok(match other.kind {
+        AccountKind::Income | AccountKind::Expense => (EntryKind::Simple, other.name),
+        AccountKind::Equity => (EntryKind::StartingBalance, String::new()),
+        AccountKind::Asset | AccountKind::Liability => (EntryKind::Transfer, other.name),
+    })
+}
+
+/// `account`'s transactions, oldest first, each with what its other part is
+/// booked to and what the account held after it, added up from the exact
+/// amounts (D-065). The last entry's balance is the account's balance.
 pub fn entries(book: &Book, account: AccountId) -> Result<Vec<Entry>, StoreError> {
+    let details = book.account(account)?;
+    let mut balance = Money::zero(details.currency);
     let mut entries = Vec::new();
     for entry in book.register(account)? {
         let transaction = book.transaction(entry.transaction)?;
-        let mut others = transaction
-            .splits()
-            .iter()
-            .filter(|split| split.account != Some(account));
-        let (mut category, mut starting_balance) = (String::new(), false);
-        if let (Some(other), None) = (others.next(), others.next())
-            && let Some(id) = other.account
-        {
-            let other = book.account(id)?;
-            match other.kind {
-                AccountKind::Income | AccountKind::Expense => category = other.name,
-                AccountKind::Equity => starting_balance = true,
-                AccountKind::Asset | AccountKind::Liability => {}
-            }
-        }
+        let (kind, category) = kind_of(book, account, &transaction)?;
+        balance = balance
+            .checked_add(entry.amount)
+            .map_err(|_| StoreError::AmountOverflow)?;
         entries.push(Entry {
             transaction: entry.transaction,
             date: entry.booking_date,
             other_party: entry.payee.unwrap_or_default(),
             category,
             amount: entry.amount,
-            starting_balance,
+            kind,
+            balance,
         });
     }
     Ok(entries)
 }
 
-/// Reads `account`'s register from `book` and formats it for `locale`.
+/// What the register is sorted by. The balance after each entry doesn't
+/// change with the order: it always counts the entries in date order.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SortKey {
+    /// By date; on the same day, the entry added last comes last (D-067).
+    #[default]
+    Date,
+    /// By amount, money in before money out when ascending.
+    Amount,
+    /// By who the money came from or went to, ignoring case; entries without
+    /// come first when ascending.
+    OtherParty,
+    /// By category, ignoring case; entries without come first when
+    /// ascending.
+    Category,
+}
+
+impl SortKey {
+    /// The key the UI knows the sort by.
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Date => "date",
+            Self::Amount => "amount",
+            Self::OtherParty => "other-party",
+            Self::Category => "category",
+        }
+    }
+
+    /// The sort for a key from [`SortKey::key`].
+    pub fn from_key(key: &str) -> Option<Self> {
+        [Self::Date, Self::Amount, Self::OtherParty, Self::Category]
+            .into_iter()
+            .find(|sort| sort.key() == key)
+    }
+}
+
+/// How the register is sorted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Sort {
+    /// What by.
+    pub key: SortKey,
+    /// Whether largest or latest first.
+    pub descending: bool,
+}
+
+impl Default for Sort {
+    /// Newest first, like in a banking app.
+    fn default() -> Self {
+        Self {
+            key: SortKey::Date,
+            descending: true,
+        }
+    }
+}
+
+impl Sort {
+    /// Sorts `entries` as asked. A tie keeps the date order, which is how
+    /// they come from [`entries`]; so does sorting by date.
+    pub fn apply(self, entries: &mut [Entry]) {
+        let key = self.key;
+        entries.sort_by(|a, b| {
+            let ordering = match key {
+                SortKey::Date => (a.date, a.transaction).cmp(&(b.date, b.transaction)),
+                SortKey::Amount => a.amount.minor_units().cmp(&b.amount.minor_units()),
+                SortKey::OtherParty => a
+                    .other_party
+                    .to_lowercase()
+                    .cmp(&b.other_party.to_lowercase()),
+                SortKey::Category => a.category.to_lowercase().cmp(&b.category.to_lowercase()),
+            };
+            if self.descending {
+                ordering.reverse()
+            } else {
+                ordering
+            }
+        });
+    }
+}
+
+/// Reads `account`'s register from `book`, sorts it and formats it for
+/// `locale`.
 pub fn register_view(
     book: &Book,
     account: AccountId,
+    sort: Sort,
     locale: &impl Locale,
 ) -> Result<RegisterView, StoreError> {
     let details = book.account(account)?;
     let writer = AmountWriter::new(book, details.currency, locale)?;
     let (balance, owes) = writer.balance(book.balance(account)?, details.kind);
-    let rows = entries(book, account)?
+    let mut entries = entries(book, account)?;
+    sort.apply(&mut entries);
+    let rows = entries
         .iter()
-        .rev()
-        .map(|entry| entry.row(&writer))
+        .map(|entry| entry.row(&writer, details.kind))
         .collect();
     Ok(RegisterView {
         account_name: details.name,
@@ -219,6 +382,60 @@ pub(crate) mod tests {
 
         fn today(&self) -> Date {
             Date::constant(2026, 10, 19)
+        }
+    }
+}
+
+#[cfg(test)]
+mod sort_tests {
+    use super::*;
+
+    fn entry(minor: i64, day: i8, other: &str, category: &str) -> Entry {
+        let eur = CurrencyCode::new("EUR").expect("EUR");
+        Entry {
+            transaction: TransactionId::generate(),
+            date: Date::constant(2026, 10, day),
+            other_party: other.into(),
+            category: category.into(),
+            amount: Money::from_minor_units(minor, eur),
+            kind: EntryKind::Simple,
+            balance: Money::from_minor_units(minor, eur),
+        }
+    }
+
+    #[test]
+    fn newest_first_by_default_and_ties_keep_the_order_added() {
+        let mut entries = vec![
+            entry(1, 5, "", ""),
+            entry(2, 5, "", ""),
+            entry(3, 4, "", ""),
+        ];
+        let (first, second, third) = (
+            entries[0].transaction,
+            entries[1].transaction,
+            entries[2].transaction,
+        );
+        Sort::default().apply(&mut entries);
+        let order: Vec<_> = entries.iter().map(|entry| entry.transaction).collect();
+        assert_eq!(order, [second, first, third]);
+        Sort {
+            key: SortKey::Date,
+            descending: false,
+        }
+        .apply(&mut entries);
+        let order: Vec<_> = entries.iter().map(|entry| entry.transaction).collect();
+        assert_eq!(order, [third, first, second]);
+    }
+
+    #[test]
+    fn keys_round_trip() {
+        for key in [
+            SortKey::Date,
+            SortKey::Amount,
+            SortKey::OtherParty,
+            SortKey::Category,
+        ] {
+            assert_eq!(SortKey::from_key(key.key()), Some(key));
         }
     }
 }

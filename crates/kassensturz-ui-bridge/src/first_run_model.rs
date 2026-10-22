@@ -70,10 +70,11 @@ pub mod qobject {
             date: &QString,
         ) -> QVariant;
 
-        /// The register of the account at `account` in `accounts`: its
-        /// name, balance and transactions.
+        /// The ID of the account at `account` in `accounts`, as text for
+        /// the register (M3.5); empty if there is none.
         #[qinvokable]
-        fn transactions(self: &FirstRunMock, account: i32) -> QVariant;
+        #[cxx_name = "accountId"]
+        fn account_id(self: &FirstRunMock, account: i32) -> QString;
 
         /// The categories for money in or money out, in the order the UI
         /// offers them.
@@ -165,34 +166,12 @@ impl qobject::FirstRunMock {
         self.finish(result)
     }
 
-    fn transactions(&self, account: i32) -> QVariant {
-        let view = self.rust().state.as_ref().and_then(|state| {
+    fn account_id(&self, account: i32) -> QString {
+        let id = self.rust().state.as_ref().and_then(|state| {
             let account = usize::try_from(account).ok()?;
-            session::with_book(|book| state.register(book, account, &app_locale()))?
-                .ok()
-                .flatten()
+            state.account_id(account)
         });
-        let Some(view) = view else {
-            return QVariant::default();
-        };
-        let rows = view.rows.iter().map(|row| {
-            map([
-                ("date", text(&row.date)),
-                ("otherParty", text(&row.other_party)),
-                ("category", text(&row.category)),
-                ("amount", text(&row.amount.text)),
-                ("exactAmount", text(&row.amount.exact)),
-                ("incoming", QVariant::from(&row.incoming)),
-                ("startingBalance", QVariant::from(&row.starting_balance)),
-            ])
-        });
-        map([
-            ("name", text(&view.account_name)),
-            ("balance", text(&view.balance.text)),
-            ("exactBalance", text(&view.balance.exact)),
-            ("owes", QVariant::from(&view.owes)),
-            ("rows", list(rows)),
-        ])
+        QString::from(id.unwrap_or_default().as_str())
     }
 
     fn categories(&self, money_in: bool) -> QStringList {

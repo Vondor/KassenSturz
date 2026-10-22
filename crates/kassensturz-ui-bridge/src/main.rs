@@ -4,8 +4,8 @@
 //! KassenSturz's desktop app.
 //!
 //! It opens the book the app manages, or the one the user opened last
-//! (D-033), and shows it through one QML page per screen. The screens are
-//! still the first-run mock (M1.M, D-068) until the M3 steps replace them.
+//! (D-033), and shows it through one QML page per screen. The overview is
+//! still the first-run mock's (M1.M, D-068) until M3.9 replaces it.
 
 mod accounts;
 mod accounts_model;
@@ -25,10 +25,12 @@ mod number_format_model;
 mod parse;
 mod platform;
 mod register;
+mod register_model;
 mod session;
 mod settings;
 #[cfg(test)]
 mod test_folder;
+mod transaction_entry;
 mod variant;
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQuickStyle, QString, QUrl};

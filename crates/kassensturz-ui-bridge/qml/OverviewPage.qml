@@ -20,7 +20,8 @@ Kirigami.ScrollablePage {
 
     signal addAccountClicked()
     signal addTransactionClicked()
-    signal accountClicked(index: int)
+    // Open the account's register, by the account's ID.
+    signal accountClicked(accountId: string)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -94,7 +95,7 @@ Kirigami.ScrollablePage {
 
                     showClickFeedback: true
                     Accessible.name: [modelData.name, page.typeName(modelData.type), exactBalanceText].join(", ")
-                    onClicked: page.accountClicked(index)
+                    onClicked: page.accountClicked(page.mock.accountId(index))
 
                     contentItem: ColumnLayout {
                         spacing: 0
@@ -192,7 +193,16 @@ Kirigami.ScrollablePage {
             model: page.overview.latest
 
             delegate: TransactionRow {
+                required property var modelData
+
                 Layout.fillWidth: true
+                date: modelData.date
+                otherParty: modelData.otherParty
+                category: modelData.category
+                amount: modelData.amount
+                exactAmount: modelData.exactAmount
+                incoming: modelData.incoming
+                account: modelData.account
             }
         }
     }

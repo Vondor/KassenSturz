@@ -54,7 +54,7 @@ Kirigami.ApplicationWindow {
     }
 
     // The first start (M3.4) and what the mock (M1.M) still shows: the
-    // transaction page, the register and the overview (M3.5, M3.9).
+    // overview (M3.9).
     FirstStart {
         id: firstStartState
     }
@@ -77,6 +77,14 @@ Kirigami.ApplicationWindow {
         onChanged: root.bookChanged()
     }
 
+    // The register and its pages (M3.5): one list model, shown for the
+    // account whose page is open.
+    AccountRegister {
+        id: accountRegister
+
+        onChanged: root.bookChanged()
+    }
+
     // How amounts look (D-002): the screens show them again when it changes.
     NumberFormatSettings {
         id: numberFormatSettings
@@ -84,6 +92,7 @@ Kirigami.ApplicationWindow {
         onChoicesChanged: {
             mockBook.refresh();
             accountList.refresh();
+            accountRegister.refresh();
         }
     }
 
@@ -109,6 +118,7 @@ Kirigami.ApplicationWindow {
         mockBook.start();
         accountList.refresh();
         categoryTree.refresh();
+        accountRegister.refresh();
     }
 
     // Says why a book didn't open. A book that was open stays open, and the
@@ -140,15 +150,24 @@ Kirigami.ApplicationWindow {
         pageStack.push(newAccountPage, { firstRun: firstRun });
     }
 
-    function addTransaction(firstRun: bool) {
+    // Adds a transaction to the account with `accountId`, or lets the user
+    // choose one if it is empty.
+    function addTransaction(firstRun: bool, accountId: string) {
         if (firstRun) {
             // The account is there now: going back to add it again would
             // only add a second one, so the first-run steps are replaced.
+            // The first account is the only one.
+            const accounts = accountRegister.accountChoices();
+            const first = accounts.length > 0 ? accounts[accounts.length - 1].id : "";
             pageStack.pop(pageStack.get(0));
-            pageStack.replace(transactionPage, { firstRun: true });
+            pageStack.replace(transactionPage, { firstRun: true, accountId: first });
         } else {
-            pageStack.push(transactionPage, { firstRun: false });
+            pageStack.push(transactionPage, { firstRun: false, accountId: accountId });
         }
+    }
+
+    function showRegister(accountId: string) {
+        pageStack.push(registerPage, { accountId: accountId });
     }
 
     // One page at a time, also in a wide window.
@@ -241,8 +260,9 @@ Kirigami.ApplicationWindow {
         id: transactionPage
 
         TransactionPage {
-            mock: mockBook
+            register: accountRegister
             onDone: firstRun ? root.showScreen("overview") : root.pageStack.pop()
+            onCheckAgainstBankClicked: accountId => root.pageStack.push(bankCheckPage, { accountId: accountId, initialBank: "", initialDate: "" })
         }
     }
 
@@ -252,8 +272,8 @@ Kirigami.ApplicationWindow {
         OverviewPage {
             mock: mockBook
             onAddAccountClicked: root.addAccount(false)
-            onAddTransactionClicked: root.addTransaction(false)
-            onAccountClicked: index => root.pageStack.push(registerPage, { account: index })
+            onAddTransactionClicked: root.addTransaction(false, "")
+            onAccountClicked: accountId => root.showRegister(accountId)
         }
     }
 
@@ -261,7 +281,9 @@ Kirigami.ApplicationWindow {
         id: registerPage
 
         RegisterPage {
-            mock: mockBook
+            register: accountRegister
+            onAddTransactionClicked: accountId => root.addTransaction(false, accountId)
+            onTransactionClicked: (accountId, transactionId) => root.pageStack.push(transactionPage, { accountId: accountId, transactionId: transactionId })
         }
     }
 
@@ -280,7 +302,7 @@ Kirigami.ApplicationWindow {
 
         NewAccountPage {
             accounts: accountList
-            onAdded: firstRun ? root.addTransaction(true) : root.pageStack.pop()
+            onAdded: firstRun ? root.addTransaction(true, "") : root.pageStack.pop()
         }
     }
 
@@ -290,6 +312,7 @@ Kirigami.ApplicationWindow {
         AccountDetailsPage {
             accounts: accountList
             onCheckClicked: (bank, date) => root.pageStack.push(bankCheckPage, { accountId: accountId, initialBank: bank, initialDate: date })
+            onTransactionsClicked: root.showRegister(accountId)
             // Closed or opened again: back to the list.
             onAccountClosedOrOpened: root.pageStack.pop()
         }

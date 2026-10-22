@@ -24,7 +24,7 @@ use kassensturz_store::{Book, StoreError};
 use crate::errors::{ErrorText, amount_example, report_text};
 use crate::format::Locale;
 use crate::parse::{AmountInputError, AmountReader};
-use crate::register::{AmountWriter, Entry, RegisterView, Shown, entries, register_view};
+use crate::register::{AmountWriter, Entry, Shown, entries};
 
 /// How many transactions the overview lists.
 const LATEST: usize = 5;
@@ -248,7 +248,7 @@ impl FirstRun {
         let writer = AmountWriter::new(book, self.currency, locale)?;
         let mut accounts = Vec::new();
         let mut balances = Vec::new();
-        let mut latest: Vec<(String, Entry)> = Vec::new();
+        let mut latest: Vec<(String, AccountKind, Entry)> = Vec::new();
         for &id in &self.accounts {
             let account = book.account(id)?;
             let balance = book.balance(id)?;
@@ -261,8 +261,8 @@ impl FirstRun {
                 owes,
             });
             for entry in entries(book, id)? {
-                if !entry.starting_balance {
-                    latest.push((account.name.clone(), entry));
+                if !entry.starting_balance() {
+                    latest.push((account.name.clone(), account.kind, entry));
                 }
             }
         }
@@ -300,12 +300,12 @@ impl FirstRun {
 
         // Newest first, and on the same day the one added last, as in a
         // register.
-        latest.sort_by_key(|(_, entry)| core::cmp::Reverse((entry.date, entry.transaction)));
+        latest.sort_by_key(|(_, _, entry)| core::cmp::Reverse((entry.date, entry.transaction)));
         let latest = latest
             .into_iter()
             .take(LATEST)
-            .map(|(account, entry)| {
-                let row = entry.row(&writer);
+            .map(|(account, kind, entry)| {
+                let row = entry.row(&writer, kind);
                 LatestRow {
                     account,
                     date: row.date,
@@ -334,17 +334,10 @@ impl FirstRun {
         })
     }
 
-    /// The register of the account at `account` in the overview's list.
-    pub fn register(
-        &self,
-        book: &Book,
-        account: usize,
-        locale: &impl Locale,
-    ) -> Result<Option<RegisterView>, StoreError> {
-        self.accounts
-            .get(account)
-            .map(|&id| register_view(book, id, locale))
-            .transpose()
+    /// The ID of the account at `account` in the overview's list, as text
+    /// for the register's page (M3.5).
+    pub fn account_id(&self, account: usize) -> Option<String> {
+        self.accounts.get(account).map(|id| id.to_string())
     }
 
     /// An amount written the way the user should type it, e.g. "1.234,56"
@@ -493,14 +486,6 @@ mod tests {
             self.first_run.overview(&self.book, locale)
         }
 
-        fn register(
-            &self,
-            account: usize,
-            locale: &impl Locale,
-        ) -> Result<Option<RegisterView>, StoreError> {
-            self.first_run.register(&self.book, account, locale)
-        }
-
         fn error_text(&self, error: &FirstRunError, locale: &impl Locale) -> ErrorText {
             self.first_run.error_text(&self.book, error, locale)
         }
@@ -637,36 +622,7 @@ mod tests {
             ]
         );
 
-        let register = first_run
-            .register(1, &locale)
-            .expect("register")
-            .expect("an account at 1");
-        assert_eq!(register.account_name, "Credit card");
-        assert_eq!(register.balance.text, "389,90 €");
-        assert!(register.owes);
-        let rows: Vec<_> = register
-            .rows
-            .iter()
-            .map(|row| {
-                (
-                    row.date.as_str(),
-                    row.other_party.as_str(),
-                    row.category.as_str(),
-                    row.amount.text.as_str(),
-                    row.starting_balance,
-                )
-            })
-            .collect();
-        assert_eq!(
-            rows,
-            [
-                // The starting balance is dated the day the user named, here
-                // today, after the purchase the user dated earlier.
-                ("2026-10-19", "", "", "-300,00 €", true),
-                ("2026-10-05", "Example Shoes", "Clothes", "-89,90 €", false),
-            ]
-        );
-        assert_eq!(first_run.register(3, &locale).expect("no error"), None);
+        assert_eq!(first_run.first_run.account_id(3), None);
     }
 
     #[test]

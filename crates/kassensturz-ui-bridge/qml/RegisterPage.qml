@@ -52,6 +52,12 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // Undo or redo may have removed this account, in which case the page
+    // closes (M3.8). The transactions in it refresh by themselves.
+    function survivesUndo(): bool {
+        return register.accountChoices().findIndex(choice => choice.id === accountId) >= 0;
+    }
+
     title: register.accountName
     Component.onCompleted: register.show(accountId)
 

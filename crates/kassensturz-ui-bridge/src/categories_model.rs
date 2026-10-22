@@ -216,6 +216,7 @@ fn row_object(row: &CategoryRow) -> QVariant {
             "depth",
             QVariant::from(&i32::try_from(row.depth).unwrap_or(i32::MAX)),
         ),
+        ("parent", text(&row.parent)),
         ("income", QVariant::from(&row.income)),
         ("currency", text(&row.currency)),
     ])
@@ -230,4 +231,47 @@ fn choice_object(choice: &ParentChoice) -> QVariant {
             QVariant::from(&i32::try_from(choice.depth).unwrap_or(i32::MAX)),
         ),
     ])
+}
+
+#[cfg(test)]
+mod tests {
+    use cxx_qt_lib::{QMap, QMapPair_QString_QVariant};
+
+    use super::*;
+    use crate::first_start::tests::started;
+
+    fn field(object: &QVariant, key: &str) -> String {
+        object
+            .value::<QMap<QMapPair_QString_QVariant>>()
+            .and_then(|map| map.get(&QString::from(key)))
+            .and_then(|value| value.value::<QString>())
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| panic!("the row has no text `{key}`"))
+    }
+
+    /// The Categories screen opens a category with the rows it is given, so
+    /// the one a category sits inside must be among them (#76).
+    #[test]
+    fn a_row_tells_the_category_it_sits_inside() {
+        let book = started();
+        let shown = categories::view(&book).expect("view");
+        let food = shown
+            .rows
+            .iter()
+            .find(|row| row.name == "Food")
+            .expect("Food");
+        let groceries = shown
+            .rows
+            .iter()
+            .find(|row| row.name == "Groceries")
+            .expect("Groceries");
+        assert_eq!(field(&row_object(food), "parent"), "");
+        assert_eq!(field(&row_object(groceries), "parent"), food.id);
+        for row in &shown.rows {
+            let object = row_object(row);
+            for key in ["id", "name", "path", "currency", "parent"] {
+                field(&object, key);
+            }
+        }
+    }
 }

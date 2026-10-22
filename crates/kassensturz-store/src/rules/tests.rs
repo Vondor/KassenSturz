@@ -41,7 +41,9 @@ fn imported(
         None,
         vec![booked, Split::uncategorized(eur(-minor_units))],
     )
-    .expect("balanced");
+    .expect("balanced")
+    .with_note(Some(format!("Noted: {other_party}")))
+    .with_entry_date(Some(date(2026, 10, day)));
     book.add_transaction(&transaction).expect("added");
     transaction
 }
@@ -507,8 +509,11 @@ fn running_the_rules_books_what_has_no_category_yet() {
     assert_eq!(other_side(&book, &other, checking), None);
     let paid = book.transaction(wages.id()).expect("read");
     assert_eq!(paid.payee(), Some("Salary"));
-    // What the bank delivered stays as it was (D-067).
+    // What the bank delivered stays as it was (D-067), and so do the
+    // note and entry date (D-132).
     assert_eq!(paid.splits()[0], wages.splits()[0]);
+    assert_eq!(paid.note(), Some("Noted: Example Employer"));
+    assert_eq!(paid.entered_on(), Some(date(2026, 10, 1)));
     assert_eq!(
         book.balance(checking).expect("balance"),
         eur(240_000 - 5320 - 1250)

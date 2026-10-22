@@ -27,8 +27,10 @@ const VERSION: &str = "1";
 /// Everything the importer takes from a `.kmy` file.
 #[derive(Debug, Default)]
 pub(super) struct Records {
+    pub institutions: Vec<RawInstitution>,
     pub accounts: Vec<RawAccount>,
     pub payees: Vec<RawPayee>,
+    pub tags: Vec<RawTag>,
     pub transactions: Vec<RawTransaction>,
     pub prices: Vec<RawPrice>,
     /// The file's list of currencies, for those KassenSturz's tables don't
@@ -40,6 +42,51 @@ pub(super) struct Records {
     /// How many of each kind of data the importer leaves out, as far as
     /// the records alone tell; `mapping` adds what the book can't hold.
     pub skipped: Skips,
+}
+
+/// An `INSTITUTION`: a bank, with its `ADDRESS` (D-132).
+#[derive(Debug, Default)]
+pub(super) struct RawInstitution {
+    pub id: String,
+    pub name: String,
+    /// Its bank code: `sortcode` in a `.kmy` file.
+    pub bank_code: String,
+    /// Who the user talks to there: `manager`.
+    pub contact: String,
+    pub address: RawAddress,
+}
+
+/// An `ADDRESS` of an institution or a payee, as its attributes give it.
+#[derive(Debug, Default)]
+pub(super) struct RawAddress {
+    pub street: String,
+    pub city: String,
+    pub state: String,
+    /// The postal code; a `.kmy` file has three attributes for it (`zip`,
+    /// `zipcode`, `postcode`) and the first one given counts.
+    pub postal_code: String,
+    pub country: String,
+    pub phone: String,
+}
+
+impl RawAddress {
+    /// The address as lines of text, or `None` if nothing was given.
+    pub fn lines(&self) -> Option<String> {
+        let place = format!("{} {}", self.postal_code.trim(), self.city.trim());
+        let lines: Vec<&str> = [&self.street, &place, &self.state, &self.country]
+            .into_iter()
+            .map(|line| line.trim())
+            .filter(|line| !line.is_empty())
+            .collect();
+        (!lines.is_empty()).then(|| lines.join("\n"))
+    }
+}
+
+/// A `TAG` of the file's list of tags (D-132).
+#[derive(Debug)]
+pub(super) struct RawTag {
+    pub id: String,
+    pub name: String,
 }
 
 /// An `ACCOUNT`: an account, a category, or one of KMyMoney's five
@@ -54,6 +101,8 @@ pub(super) struct RawAccount {
     pub name: String,
     pub number: String,
     pub description: String,
+    /// The ID of the institution it is at, or empty.
+    pub institution: String,
     /// The code of its currency, or the ID of a security.
     pub currency: String,
     /// Whether it has settings for online banking.
@@ -61,13 +110,24 @@ pub(super) struct RawAccount {
     pub line: Option<u64>,
 }
 
-/// A `PAYEE`: who money goes to or comes from.
-#[derive(Debug)]
+/// A `PAYEE`: who money goes to or comes from, with its `ADDRESS`
+/// (D-132).
+#[derive(Debug, Default)]
 pub(super) struct RawPayee {
     pub id: String,
     pub name: String,
-    /// Whether anything besides the name was kept with it.
-    pub details: bool,
+    pub reference: String,
+    pub email: String,
+    pub address: RawAddress,
+    /// How KMyMoney recognizes the payee in an imported entry: `0` not at
+    /// all, `1` by the name, `2` by key words. A `.kmy` file says it with
+    /// two flags (`matchingenabled`, `usingmatchkey`), its SQLite file with
+    /// one number (`matchData`), as the samples show (D-102).
+    pub matching: String,
+    /// Whether that ignores capitals: `1` or `Y`, else no.
+    pub match_ignores_case: String,
+    /// The key words, as the file has them.
+    pub match_keys: String,
 }
 
 /// A `TRANSACTION` of the file's list of transactions.
@@ -78,6 +138,8 @@ pub(super) struct RawTransaction {
     /// The code of the currency its values count in.
     pub currency: String,
     pub memo: String,
+    /// The day it was entered, as written, or empty.
+    pub entered: String,
     pub splits: Vec<RawSplit>,
     pub line: Option<u64>,
 }
@@ -99,6 +161,8 @@ pub(super) struct RawSplit {
     pub reconciled: String,
     /// A cheque number.
     pub number: String,
+    /// The IDs of its tags, in the file's order (D-132).
+    pub tags: Vec<String>,
     pub line: Option<u64>,
 }
 
@@ -188,22 +252,44 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
                 }
             }
             [ROOT, "USER", ..] => owner |= any_text(element),
-            [ROOT, "INSTITUTIONS"] => records.skipped.add(SkippedData::Institutions),
-            [ROOT, "PAYEES"] if name == "PAYEE" => records.payees.push(RawPayee {
+            [ROOT, "INSTITUTIONS"] if name == "INSTITUTION" => {
+                records.institutions.push(RawInstitution {
+                    id: required(element, "id")?.to_owned(),
+                    name: required(element, "name")?.to_owned(),
+                    bank_code: optional(element, "sortcode"),
+                    contact: optional(element, "manager"),
+                    address: RawAddress::default(),
+                });
+            }
+            [ROOT, "INSTITUTIONS", "INSTITUTION"] if name == "ADDRESS" => {
+                let institution = records.institutions.last_mut().ok_or_else(malformed)?;
+                institution.address = address(element);
+            }
+            [ROOT, "PAYEES"] if name == "PAYEE" => {
+                let flag = |key: &str| element.get(key) == Some("1");
+                records.payees.push(RawPayee {
+                    id: required(element, "id")?.to_owned(),
+                    name: required(element, "name")?.to_owned(),
+                    reference: optional(element, "reference"),
+                    email: optional(element, "email"),
+                    address: RawAddress::default(),
+                    matching: match (flag("matchingenabled"), flag("usingmatchkey")) {
+                        (false, _) => "0".to_owned(),
+                        (true, false) => "1".to_owned(),
+                        (true, true) => "2".to_owned(),
+                    },
+                    match_ignores_case: optional(element, "matchignorecase"),
+                    match_keys: optional(element, "matchkey"),
+                });
+            }
+            [ROOT, "PAYEES", "PAYEE"] if name == "ADDRESS" => {
+                let payee = records.payees.last_mut().ok_or_else(malformed)?;
+                payee.address = address(element);
+            }
+            [ROOT, "TAGS"] if name == "TAG" => records.tags.push(RawTag {
                 id: required(element, "id")?.to_owned(),
                 name: required(element, "name")?.to_owned(),
-                details: ["reference", "email", "matchkey"]
-                    .iter()
-                    .any(|key| element.get(key).is_some_and(|value| !value.is_empty())),
             }),
-            [ROOT, "PAYEES", "PAYEE", ..] => {
-                if any_text(element)
-                    && let Some(payee) = records.payees.last_mut()
-                {
-                    payee.details = true;
-                }
-            }
-            [ROOT, "TAGS"] => records.skipped.add(SkippedData::Tags),
             [ROOT, "COSTCENTERS"] => records.skipped.add(SkippedData::Other),
             [ROOT, "ACCOUNTS"] if name == "ACCOUNT" => records.accounts.push(RawAccount {
                 id: required(element, "id")?.to_owned(),
@@ -212,6 +298,7 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
                 name: required(element, "name")?.to_owned(),
                 number: element.get("number").unwrap_or_default().to_owned(),
                 description: element.get("description").unwrap_or_default().to_owned(),
+                institution: optional(element, "institution"),
                 currency: required(element, "currency")?.to_owned(),
                 online_banking: false,
                 line: Some(element.line),
@@ -225,6 +312,7 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
                     date: required(element, "postdate")?.to_owned(),
                     currency: required(element, "commodity")?.to_owned(),
                     memo: element.get("memo").unwrap_or_default().to_owned(),
+                    entered: optional(element, "entrydate"),
                     splits: Vec::new(),
                     line: Some(element.line),
                 });
@@ -240,8 +328,21 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
                     bank_id: element.get("bankid").unwrap_or_default().to_owned(),
                     reconciled: element.get("reconcileflag").unwrap_or_default().to_owned(),
                     number: element.get("number").unwrap_or_default().to_owned(),
+                    tags: Vec::new(),
                     line: Some(element.line),
                 });
+            }
+            // A tag on a split. The samples show no tagged split (D-102),
+            // so this follows how the file names other links (`ACCOUNTID`,
+            // `SUBACCOUNT`: an element with an `id`); a tag written some
+            // other way is counted as left out, never misread.
+            [ROOT, "TRANSACTIONS", "TRANSACTION", "SPLITS", "SPLIT"] => {
+                let transaction = records.transactions.last_mut().ok_or_else(malformed)?;
+                let split = transaction.splits.last_mut().ok_or_else(malformed)?;
+                match element.get("id") {
+                    Some(id) if name == "TAG" && !id.is_empty() => split.tags.push(id.to_owned()),
+                    _ => records.skipped.add(SkippedData::Tags),
+                }
             }
             // Each entry of these lists is one of what it holds; what is
             // inside an entry doesn't matter, since it is left out whole.
@@ -313,6 +414,27 @@ fn section(skipped: &mut Skips, name: &str) {
     ];
     if !KNOWN.contains(&name) {
         skipped.add(SkippedData::Other);
+    }
+}
+
+/// The attribute `name` of `element`, or empty if it lacks it.
+fn optional(element: &Element, name: &str) -> String {
+    element.get(name).unwrap_or_default().to_owned()
+}
+
+/// The `ADDRESS` element `element`.
+fn address(element: &Element) -> RawAddress {
+    RawAddress {
+        street: optional(element, "street"),
+        city: optional(element, "city"),
+        state: optional(element, "state"),
+        postal_code: ["zip", "zipcode", "postcode"]
+            .into_iter()
+            .map(|key| optional(element, key))
+            .find(|value| !value.trim().is_empty())
+            .unwrap_or_default(),
+        country: optional(element, "country"),
+        phone: optional(element, "telephone"),
     }
 }
 

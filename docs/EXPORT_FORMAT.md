@@ -2,13 +2,13 @@
 
 The complete export holds a whole KassenSturz book in one JSON file (D-029, D-100). It is the stable way to move a book's data: into a new book, to another program, or from a development build to 0.1 (D-045, D-046). Unlike the book file itself (`docs/BOOK_FORMAT.md`), this format is meant to be read and written by other programs, so it changes only with a new [version](#versions).
 
-**Status: version 3** (#44). Versions 1 (M2.8) and 2 (M2.9b) are read as [described below](#versions).
+**Status: version 4** (D-132). Versions 1 (M2.8), 2 (M2.9b) and 3 (#44) are read as [described below](#versions).
 
 In the command-line tool, `export FILE --format book` writes it and `create --from FILE` makes a new book from it. In code, `BookExport` (ID `book`) in `kassensturz-export` writes it, `read_book` reads it, and `export_book` and `fill_book` in `kassensturz-pipeline` connect it to a book.
 
 ## What is in it
 
-Everything the book holds, with its IDs: the settings, the currencies with their decimal places, the accounts and categories, the price table, the Rules, the transactions with all their parts, what a bank or file delivered for a part, the amount a part had in a withdrawn currency before it was converted, the date and payee a part's account shows if they aren't its transaction's, and which parts a Rule booked.
+Everything the book holds, with its IDs: the settings, the currencies with their decimal places, the banks, the accounts and categories, the payees, the tags, the price table, the Rules, the transactions with all their parts, what a bank or file delivered for a part, the amount a part had in a withdrawn currency before it was converted, the date and payee a part's account shows if they aren't its transaction's, the notes, numbers, status and tags of parts, and which parts a Rule booked.
 
 Left out is the **change history** (D-032, D-066). It belongs to the book file, not to its data, so a book made from the file starts with an empty history, as a new book does. How long it keeps its history is a setting and does come along.
 
@@ -20,7 +20,7 @@ Left out is the **change history** (D-032, D-066). It belongs to the book file, 
 
 ## Conventions
 
-- **IDs** are UUIDs in their usual form with hyphens, e.g. `019a0000-0000-7000-8000-000000000001`. KassenSturz writes small letters and reads either. Every ID is unique within its kind (accounts, rates, Rules, transactions, parts) across the whole file.
+- **IDs** are UUIDs in their usual form with hyphens, e.g. `019a0000-0000-7000-8000-000000000001`. KassenSturz writes small letters and reads either. Every ID is unique within its kind (banks, accounts, payees, tags, rates, Rules, transactions, parts) across the whole file.
 - **Dates** are ISO 8601 calendar dates, exactly `YYYY-MM-DD`, without time or time zone (D-061).
 - **Currencies** are ISO 4217 codes, three capital letters, e.g. `EUR`.
 - **Amounts** are JSON strings, never JSON numbers, so no program reads them as floating point (AGENTS.md §3.1 rule 1): an optional `-`, digits, and optionally a `.` and at most as many digits as the currency has decimal places in the file's [`currencies`](#currencies). KassenSturz writes exactly that many, e.g. `"-12.50"` for EUR and `"1500"` for JPY, and reads fewer, e.g. `"-12.5"`. A `+`, an exponent, spaces or digit grouping are refused. Positive amounts flow into an account, negative ones out of it.
@@ -38,8 +38,9 @@ Left out is the **change history** (D-032, D-066). It belongs to the book file, 
 | 1 | The first version (M2.8, D-100). |
 | 2 | A part can have an `original` amount, from before it was converted out of a withdrawn currency, and a rate's `source` can be `changeover` (M2.9b, D-104). |
 | 3 | A part can have a `date` and a `payee` of its own, which its account shows instead of the transaction's, as the second side of a joined Transfer does (#44, D-108). |
+| 4 | The file lists the `institutions` (banks), `payees` and `tags`. An account has a `number`, `notes` and an `institution`, and may sit inside another account (`parent`); a transaction has a `note` and the date it was `entered`; a part has a `note`, a `number`, a `status` and `tags`. What the KMyMoney import used to drop (D-132). |
 
-An older file is read as version 3 without what came later: a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, and so is a version 1 or 2 file with a part's `date` or `payee` key (`export.unknown-value`, `export.bad-value`).
+An older file is read as version 4 without what came later: a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, and so is a version 1 to 3 file with any key of version 4 (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three new lists, even when they are empty (`export.missing-value`).
 
 ## The top level
 
@@ -49,7 +50,10 @@ An older file is read as version 3 without what came later: a version 1 file wit
   "version": 1,
   "settings": {...},
   "currencies": [...],
+  "institutions": [...],
   "accounts": [...],
+  "payees": [...],
+  "tags": [...],
   "rates": [...],
   "rules": [...],
   "transactions": [...]
@@ -59,10 +63,13 @@ An older file is read as version 3 without what came later: a version 1 file wit
 | Key | Value |
 |---|---|
 | `format` | Always `"kassensturz-book"`. A JSON file without it isn't a complete export (`export.not-a-book`). |
-| `version` | The [version](#versions) of the format: `2`. |
+| `version` | The [version](#versions) of the format: `4`. |
 | `settings` | The book's [settings](#settings). |
 | `currencies` | The [currencies](#currencies) the book uses. |
+| `institutions` | The [banks](#banks) the accounts are held at. Version 4 and later. |
 | `accounts` | The [accounts and categories](#accounts-and-categories). |
+| `payees` | The [payees](#payees) with their details. Version 4 and later. |
+| `tags` | The [tags](#tags) parts can carry. Version 4 and later. |
 | `rates` | The [price table](#rates). |
 | `rules` | The [Rules](#rules), as a tree. |
 | `transactions` | The [transactions](#transactions) with their parts. |
@@ -85,6 +92,19 @@ One object per currency the book uses, sorted by code. Every amount in the file 
 | `code` | The ISO 4217 code. |
 | `minor_digits` | How many decimal places the book stores for it (D-027), 0 to 18. The amounts in the file are written with these, and a new book made from the file keeps them, even if KassenSturz's own currency table says otherwise. |
 
+### Banks
+
+One object per bank (institution) an account is held at, sorted by name. Version 4 and later.
+
+| Key | Value |
+|---|---|
+| `id` | Its ID. |
+| `name` | Its name. |
+| `bank_code` | Its bank code, sort code or BIC as the user or the imported file gave it, or `null`. |
+| `contact` | The user's contact there, or `null`. |
+| `address` | Its address as text, lines separated by line breaks, or `null`. |
+| `phone` | Its phone number, or `null`. |
+
 ### Accounts and categories
 
 One object per account and category, including the internal account for starting balances. KassenSturz writes the accounts sorted by name, then the internal account, then the categories as a tree, each after the one it sits inside. A file may list them in any order.
@@ -97,7 +117,35 @@ One object per account and category, including the internal account for starting
 | `currency` | Its currency. |
 | `type` | For an account: `checking`, `savings`, `cash` or `credit_card`. `null` for the others. |
 | `closed` | `true` if the user closed it. Only an account whose balance is zero can be closed. |
-| `parent` | For a category inside another one: that category's ID. Otherwise `null`. |
+| `parent` | For a category inside another one: that category's ID. From version 4 also for an account grouped under another account of the same kind, as an imported KMyMoney file may group them: that account's ID. Otherwise `null`. |
+| `number` | For an account: its number or IBAN at the bank, or `null`. Always `null` for a category and the internal account. Version 4 and later. |
+| `notes` | What the user noted about it, or `null`. Version 4 and later. |
+| `institution` | For an account: the ID of the [bank](#banks) it is held at, or `null`. Always `null` for a category and the internal account. Version 4 and later. |
+
+### Payees
+
+One object per payee the book keeps details for, sorted by name. A transaction's `payee` is text and needs no object here; the objects hold what the user or an imported file knows about a payee beyond the name. Version 4 and later.
+
+| Key | Value |
+|---|---|
+| `id` | Its ID. |
+| `name` | Its name. Names are unique, ignoring capitals. |
+| `address` | Its address as text, lines separated by line breaks, or `null`. |
+| `email` | Its e-mail address, or `null`. |
+| `phone` | Its phone number, or `null`. |
+| `reference` | The user's customer or contract number there, or `null`. |
+| `recognition` | How imported transactions are recognized as this payee's: `never`, `name` (the delivered name is this name) or `key_words` (the delivered text contains one of the `key_words`). |
+| `key_words` | The key words for `key_words`, a non-empty list of text; `null` for the other two. |
+| `ignore_case` | `true` if recognition ignores capitals. |
+
+### Tags
+
+One object per tag, sorted by name. Version 4 and later.
+
+| Key | Value |
+|---|---|
+| `id` | Its ID. |
+| `name` | Its name. Names are unique, ignoring capitals. |
 
 ### Rates
 
@@ -152,6 +200,8 @@ One object per transaction, sorted by booking date and ID.
 | `date` | The booking date: the one date of the whole transaction, and the date each part's account shows unless the part has its own. |
 | `payee` | Who was paid or paid, or `null`. Each part's account shows it unless the part has its own. |
 | `currency` | The currency the transaction balances in (D-043). |
+| `note` | What the user noted about the whole transaction, or `null`. Version 4 and later. |
+| `entered` | The day it was entered into the book, if known, or `null`. Version 4 and later. |
 | `parts` | Its [parts](#parts): their amounts add up to zero. |
 
 #### Parts
@@ -165,6 +215,10 @@ One object per transaction, sorted by booking date and ID.
 | `original` | For a part converted from a withdrawn currency, such as the German mark (D-077, D-104): an object with `amount`, the amount it had, `currency`, the withdrawn currency, which is listed in [`currencies`](#currencies), and `rate`, the fixed rate it was converted with, as an object like those in [`rates`](#rates): one unit of the currency that replaced it, in the part's `currency` or in its `foreign` amount's, costs `rate` units of the withdrawn one. A part with one has no `rate` in its `foreign` amount. Otherwise `null`. Version 2 and later. |
 | `date` | The date the part's account shows it with, if not the transaction's: on the second side of a joined Transfer, the day that account's bank booked it (D-108). Otherwise `null`. Version 3 and later. |
 | `payee` | The payee the part's account shows, if not the transaction's: on the second side of a joined Transfer, the one that side had (D-108). Otherwise `null`. Version 3 and later. |
+| `note` | What the user noted about this part, or `null`. For a part booked to an account, the KMyMoney import puts the memo into `delivered` instead, as a bank's text. Version 4 and later. |
+| `number` | A cheque or document number, or `null`. Version 4 and later. |
+| `status` | `cleared` if the part was seen on the bank's side, `reconciled` if it was checked against a statement, or `null`. Version 4 and later. |
+| `tags` | The IDs of the [tags](#tags) it carries, in their order, each at most once. May be left out when empty. Version 4 and later. |
 | `delivered` | What a bank or file delivered for it (D-083): an object with `bank_id`, `booking_date`, `value_date`, `other_party_name`, `other_party_iban` and `remittance_information`, each of them text or a date, or `null`. Otherwise `null`. |
 | `booked_by_rule` | If a Rule booked it and may book it again when the user changes that Rule (D-088): an object with `rule`, the Rule's ID, or `null` if that Rule was removed since. Otherwise `null`. |
 
@@ -185,15 +239,18 @@ A book with one account, one category and one transaction:
 ```json
 {
   "format": "kassensturz-book",
-  "version": 3,
+  "version": 4,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2}
   ],
+  "institutions": [],
   "accounts": [
-    {"id": "019a0000-0000-7000-8000-000000000001", "name": "Checking account", "kind": "asset", "currency": "EUR", "type": "checking", "closed": false, "parent": null},
-    {"id": "019a0000-0000-7000-8000-000000000002", "name": "Food", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null}
+    {"id": "019a0000-0000-7000-8000-000000000001", "name": "Checking account", "kind": "asset", "currency": "EUR", "type": "checking", "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000002", "name": "Food", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null}
   ],
+  "payees": [],
+  "tags": [],
   "rates": [],
   "rules": [],
   "transactions": [
@@ -202,9 +259,11 @@ A book with one account, one category and one transaction:
       "date": "2026-10-05",
       "payee": "Bakery",
       "currency": "EUR",
+      "note": null,
+      "entered": null,
       "parts": [
-        {"id": "019a0000-0000-7000-8000-000000000004", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-4.50", "foreign": null, "original": null, "date": null, "payee": null, "delivered": null, "booked_by_rule": null},
-        {"id": "019a0000-0000-7000-8000-000000000005", "account": "019a0000-0000-7000-8000-000000000002", "amount": "4.50", "foreign": null, "original": null, "date": null, "payee": null, "delivered": null, "booked_by_rule": null}
+        {"id": "019a0000-0000-7000-8000-000000000004", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-4.50", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {"id": "019a0000-0000-7000-8000-000000000005", "account": "019a0000-0000-7000-8000-000000000002", "amount": "4.50", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null}
       ]
     }
   ]

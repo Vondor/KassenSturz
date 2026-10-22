@@ -10,6 +10,7 @@
 #![forbid(unsafe_code)]
 
 mod backup;
+mod details;
 mod error;
 mod fill;
 mod history;
@@ -26,7 +27,7 @@ use std::path::{Path, PathBuf};
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, Currency, CurrencyCode, Date, DatedRate,
-    DatedRateId, ExchangeRate, Money, RateSource, RoundingMode,
+    DatedRateId, ExchangeRate, InstitutionId, Money, RateSource, RoundingMode,
 };
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
@@ -324,6 +325,10 @@ impl Book {
     /// credit card is money the user owes). No two accounts share a name,
     /// ignoring capitals, closed ones included, so the user can always tell
     /// them apart. Categories are checked when they become a tree (M1.5).
+    /// Only an account has a number and an institution, which must be in
+    /// the book; an account inside another one sits inside an account of
+    /// its kind, in any currency, since nothing adds up account groups
+    /// (D-081, D-132).
     pub fn add_account(&mut self, account: &Account) -> Result<(), StoreError> {
         self.currency_minor_digits(account.currency)?;
         let current =
@@ -339,8 +344,10 @@ impl Book {
         };
         self.as_one_action(action, |book| {
             book.conn.execute(
-                "INSERT INTO accounts (id, name, kind, currency, account_type, closed, parent_id)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                "INSERT INTO accounts
+                     (id, name, kind, currency, account_type, closed, parent_id,
+                      number, notes, institution_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
                 params![
                     account.id.to_bytes(),
                     account.name,
@@ -349,6 +356,9 @@ impl Book {
                     account.account_type.map(type_to_text),
                     account.closed,
                     account.parent.map(AccountId::to_bytes),
+                    account.number,
+                    account.notes,
+                    account.institution.map(InstitutionId::to_bytes),
                 ],
             )?;
             Ok(())
@@ -374,8 +384,15 @@ impl Book {
             .into_iter()
             .filter(|other| other.id != account.id)
             .collect();
+        if !account.kind.is_account() {
+            if account.number.is_some() || account.institution.is_some() {
+                return Err(StoreError::NotAnAccount(account.id));
+            }
+        } else if let Some(institution) = account.institution {
+            self.institution(institution)?;
+        }
         if let Some(parent) = account.parent {
-            if !account.kind.is_category() {
+            if account.kind == AccountKind::Equity {
                 return Err(StoreError::NotACategory(account.id));
             }
             if parent == account.id {
@@ -385,8 +402,11 @@ impl Book {
                 .iter()
                 .find(|other| other.id == parent)
                 .ok_or(StoreError::UnknownAccount(parent))?;
-            if !parent.kind.is_category() {
+            if account.kind.is_category() && !parent.kind.is_category() {
                 return Err(StoreError::ParentNotACategory(parent.id));
+            }
+            if account.kind.is_account() && !parent.kind.is_account() {
+                return Err(StoreError::ParentNotAnAccount(parent.id));
             }
             if parent.kind != account.kind {
                 return Err(StoreError::ParentKindMismatch {
@@ -395,7 +415,9 @@ impl Book {
                     kind: account.kind,
                 });
             }
-            if parent.currency != account.currency {
+            // A category adds up the ones inside it, so they share its
+            // currency (D-082); account groups add up nothing.
+            if account.kind.is_category() && parent.currency != account.currency {
                 return Err(StoreError::ParentCurrencyMismatch {
                     parent: parent.id,
                     parent_currency: parent.currency,
@@ -882,7 +904,8 @@ pub struct StatedBalance {
 }
 
 /// The columns [`AccountRow::read`] expects, in its order.
-const ACCOUNT_COLUMNS: &str = "id, name, kind, currency, account_type, closed, parent_id";
+const ACCOUNT_COLUMNS: &str =
+    "id, name, kind, currency, account_type, closed, parent_id, number, notes, institution_id";
 
 /// A row of the accounts table as SQLite returns it, before KassenSturz's
 /// checks.
@@ -894,6 +917,9 @@ struct AccountRow {
     account_type: Option<String>,
     closed: i64,
     parent: Option<[u8; 16]>,
+    number: Option<String>,
+    notes: Option<String>,
+    institution: Option<[u8; 16]>,
 }
 
 impl AccountRow {
@@ -906,6 +932,9 @@ impl AccountRow {
             account_type: row.get(4)?,
             closed: row.get(5)?,
             parent: row.get(6)?,
+            number: row.get(7)?,
+            notes: row.get(8)?,
+            institution: row.get(9)?,
         })
     }
 
@@ -929,6 +958,9 @@ impl AccountRow {
             account_type,
             closed: self.closed != 0,
             parent: self.parent.map(AccountId::from_bytes),
+            number: self.number,
+            notes: self.notes,
+            institution: self.institution.map(InstitutionId::from_bytes),
         })
     }
 }

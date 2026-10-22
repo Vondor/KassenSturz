@@ -209,6 +209,9 @@ pub fn add_category(
             account_type: None,
             closed: false,
             parent: parent.map(|parent| parent.id),
+            number: None,
+            notes: None,
+            institution: None,
         })
     })?;
     Ok(id)

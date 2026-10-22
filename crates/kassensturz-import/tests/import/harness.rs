@@ -22,7 +22,9 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use kassensturz_core::{AccountKind, AccountType, ErrorParam, ErrorReport, Money, Report};
+use kassensturz_core::{
+    AccountKind, AccountType, ErrorParam, ErrorReport, Money, PartStatus, PayeeRecognition, Report,
+};
 use kassensturz_import::{
     Balance, BookPart, BookTransaction, Entry, EntryStatus, ImportError, Imported, ImportedBook,
     Importer, Limits, RECOGNITION_BYTES, Recognition, Statement, import,
@@ -178,6 +180,18 @@ pub fn render_imported(out: &mut String, imported: &Imported) {
 /// readable.
 fn render_book(out: &mut String, book: &ImportedBook) {
     let _ = writeln!(out, "book");
+    for institution in &book.institutions {
+        let _ = writeln!(
+            out,
+            "  institution {:?}: {:?}, bank code {}, contact {}, address {}, phone {}",
+            institution.key,
+            institution.name,
+            text(&institution.bank_code),
+            text(&institution.contact),
+            text(&institution.address),
+            text(&institution.phone),
+        );
+    }
     for account in &book.accounts {
         let kind = match account.kind {
             AccountKind::Asset => "asset",
@@ -204,6 +218,41 @@ fn render_book(out: &mut String, book: &ImportedBook) {
             text(&account.parent),
             if account.closed { ", closed" } else { "" },
         );
+        if account.number.is_some() || account.notes.is_some() || account.institution.is_some() {
+            let _ = writeln!(
+                out,
+                "    number {}, notes {}, at {}",
+                text(&account.number),
+                text(&account.notes),
+                text(&account.institution),
+            );
+        }
+    }
+    for payee in &book.payees {
+        let recognition = match &payee.recognition {
+            PayeeRecognition::Never => "never".to_owned(),
+            PayeeRecognition::ByName => "by name".to_owned(),
+            PayeeRecognition::ByKeyWords(words) => format!("by {words:?}"),
+        };
+        let _ = writeln!(
+            out,
+            "  payee {:?}: {:?}, address {}, email {}, phone {}, reference {}, recognized \
+             {recognition}{}",
+            payee.key,
+            payee.name,
+            text(&payee.address),
+            text(&payee.email),
+            text(&payee.phone),
+            text(&payee.reference),
+            if payee.recognition_ignores_case {
+                " ignoring case"
+            } else {
+                ""
+            },
+        );
+    }
+    for tag in &book.tags {
+        let _ = writeln!(out, "  tag {:?}: {:?}", tag.key, tag.name);
     }
     for (number, transaction) in (1..).zip(&book.transactions) {
         render_book_transaction(out, number, transaction);
@@ -246,9 +295,16 @@ fn render_book_transaction(out: &mut String, number: usize, transaction: &BookTr
     let digits = transaction.currency.minor_digits();
     let _ = writeln!(
         out,
-        "  transaction {number} on {}, payee {}",
+        "  transaction {number} on {}, payee {}{}{}",
         transaction.date,
-        text(&transaction.payee)
+        text(&transaction.payee),
+        transaction
+            .note
+            .as_ref()
+            .map_or_else(String::new, |note| format!(", note {note:?}")),
+        transaction
+            .entered_on
+            .map_or_else(String::new, |entered| format!(", entered {entered}")),
     );
     for part in &transaction.parts {
         render_book_part(out, part, digits);
@@ -280,6 +336,24 @@ fn render_book_part(out: &mut String, part: &BookPart, digits: u8) {
             text(&details.other_party_iban),
             text(&details.remittance_information),
         );
+    }
+    if let Some(note) = &part.note {
+        let _ = write!(out, ", note {note:?}");
+    }
+    if let Some(number) = &part.number {
+        let _ = write!(out, ", number {number:?}");
+    }
+    match part.status {
+        Some(PartStatus::Cleared) => {
+            let _ = write!(out, ", cleared");
+        }
+        Some(PartStatus::Reconciled) => {
+            let _ = write!(out, ", reconciled");
+        }
+        None => {}
+    }
+    if !part.tags.is_empty() {
+        let _ = write!(out, ", tags {:?}", part.tags);
     }
     let _ = writeln!(out);
 }

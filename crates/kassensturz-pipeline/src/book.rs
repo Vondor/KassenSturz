@@ -11,7 +11,7 @@ use kassensturz_export::{BookData, BookedByRule, ExportData};
 use kassensturz_store::{Book, HistoryRetention, StoreError};
 
 /// Everything `book` holds, for the complete export (`BookExport`): its
-/// settings, currencies, accounts and categories, rates, Rules,
+/// settings, currencies, banks, accounts and categories, payees, tags, rates, Rules,
 /// transactions and which parts the Rules booked. Only the change history
 /// stays behind (D-066). Nothing in the book changes.
 ///
@@ -52,6 +52,9 @@ pub fn export_book(book: &Book) -> Result<ExportData, StoreError> {
                 rule: mark.rule,
             })
             .collect(),
+        institutions: book.institutions()?,
+        payees: book.payees()?,
+        tags: book.tags()?,
     }))
 }
 
@@ -74,6 +77,9 @@ pub fn fill_book(book: &mut Book, data: &BookData) -> Result<(), StoreError> {
         for &currency in &data.currencies {
             book.restore_currency(currency)?;
         }
+        for institution in &data.institutions {
+            book.add_institution(institution)?;
+        }
         // Open at first, so their transactions can be added; closed at the
         // end, which checks that their balance is zero.
         for account in parents_first(&data.accounts)? {
@@ -86,6 +92,12 @@ pub fn fill_book(book: &mut Book, data: &BookData) -> Result<(), StoreError> {
             book.add_rate(rate)?;
         }
         add_rules(book, &data.rules, None)?;
+        for payee in &data.payees {
+            book.add_payee(payee)?;
+        }
+        for tag in &data.tags {
+            book.add_tag(tag)?;
+        }
         for transaction in &data.transactions {
             book.add_transaction(transaction)?;
         }

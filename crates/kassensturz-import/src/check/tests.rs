@@ -138,6 +138,9 @@ fn book_account(key: &str, kind: AccountKind) -> BookAccount {
         currency: Currency::new(code("EUR"), 2).expect("valid decimal places"),
         parent: None,
         closed: false,
+        number: None,
+        notes: None,
+        institution: None,
     }
 }
 
@@ -147,6 +150,10 @@ fn part(account: Option<&str>, amount: Money) -> BookPart {
         amount,
         account_amount: None,
         details: None,
+        note: None,
+        number: None,
+        status: None,
+        tags: Vec::new(),
     }
 }
 
@@ -176,6 +183,8 @@ fn book() -> ImportedBook {
                     ..part(Some("E3"), eur(1_000))
                 },
             ],
+            note: None,
+            entered_on: None,
         }],
         rates: vec![BookRate {
             date: date(),
@@ -185,6 +194,9 @@ fn book() -> ImportedBook {
         }],
         unlisted: Vec::new(),
         skipped: Vec::new(),
+        institutions: Vec::new(),
+        payees: Vec::new(),
+        tags: Vec::new(),
     }
 }
 
@@ -203,6 +215,9 @@ fn a_consistent_book_passes() {
         rates: Vec::new(),
         unlisted: Vec::new(),
         skipped: Vec::new(),
+        institutions: Vec::new(),
+        payees: Vec::new(),
+        tags: Vec::new(),
     };
     assert_eq!(book_checked(empty, &Limits::default()), Ok(()));
 }

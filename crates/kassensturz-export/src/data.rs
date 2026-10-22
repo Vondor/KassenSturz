@@ -14,6 +14,8 @@ use crate::book::BookData;
 /// so a new one is never ignored silently.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
+// A book is one value passed once per export, so its size doesn't matter.
+#[allow(clippy::large_enum_variant)]
 pub enum ExportData {
     /// The transactions of one or more accounts, one list per account.
     Transactions(Vec<AccountTransactions>),

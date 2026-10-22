@@ -119,6 +119,8 @@ fn examples() -> Vec<ErrorReport> {
         Corruption::BadRoundingMode(text("half_up")),
         Corruption::CurrencyMismatch { transaction },
         Corruption::BadSplit(split),
+        Corruption::BadPartStatus(text("pending")),
+        Corruption::BadPayee(kassensturz_core::PayeeId::generate()),
         Corruption::InvalidTransaction {
             transaction,
             error: TransactionError::Overflow,
@@ -165,6 +167,16 @@ fn examples() -> Vec<ErrorReport> {
         },
         StoreError::NotACategory(account),
         StoreError::ParentNotACategory(account),
+        StoreError::ParentNotAnAccount(account),
+        StoreError::UnknownInstitution(kassensturz_core::InstitutionId::generate()),
+        StoreError::UnknownTag(kassensturz_core::TagId::generate()),
+        StoreError::EmptyName,
+        StoreError::DuplicatePayeeName {
+            existing: "Bakery".into(),
+        },
+        StoreError::DuplicateTagName {
+            existing: "Kids".into(),
+        },
         StoreError::ParentKindMismatch {
             parent: account,
             parent_kind: AccountKind::Income,

@@ -110,6 +110,12 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.account-not-empty` | `account`, `balance` | | {account} still has {balance}. Move the money to another account first, then close it. |
 | `store.not-a-category` | `account` | | {account} is an account, not a category. Only categories sit inside other categories. |
 | `store.parent-not-a-category` | `parent` | | {parent} isn't a category. Choose a category to put this one inside. |
+| `store.parent-not-an-account` | `parent` | | {parent} isn't an account. An account can only be grouped under another account. |
+| `store.unknown-institution` | `institution` | | This bank isn't in the book anymore. It may have just been removed. |
+| `store.unknown-tag` | `tag` | | This tag isn't in the book anymore. It may have just been removed. |
+| `store.empty-name` | | | Give it a name. |
+| `store.duplicate-payee-name` | `existing` | | {existing} already has this name. Choose another one, so you can tell them apart. |
+| `store.duplicate-tag-name` | `existing` | | {existing} already has this name. Choose another one, so you can tell them apart. |
 | `store.parent-kind-mismatch` | `parent`, `parent_kind`, `kind` | | Income categories go inside income, spending categories inside spending. Choose another category. |
 | `store.parent-currency-mismatch` | `parent`, `parent_currency`, `currency` | | {parent} counts in {parent_currency}, this category in {currency}. Choose a category in the same currency. |
 | `store.category-inside-itself` | `account` | | {account} can't go inside itself or one of its own subcategories. Choose another place. |
@@ -156,6 +162,8 @@ Data in the book breaks one of KassenSturz's rules, for example because another 
 | `store.corrupt.bad-rounding-mode` | `found` | | The book's rounding setting doesn't exist. |
 | `store.corrupt.currency-mismatch` | `transaction` | | A part of {transaction} is in another currency than its account. |
 | `store.corrupt.bad-split` | `split` | | A part of a transaction is incomplete. |
+| `store.corrupt.bad-part-status` | `found` | | A part of a transaction has a status that doesn't exist. |
+| `store.corrupt.bad-payee` | `payee` | | {payee}'s details contradict each other. |
 | `store.corrupt.invalid-transaction` | `transaction` | | {transaction} doesn't add up. The detail below says why. |
 | `store.corrupt.broken-references` | | | Something in the book refers to an account or a transaction that isn't there. |
 | `store.corrupt.bad-action` | `found` | | The change history names a change that doesn't exist. |
@@ -207,6 +215,7 @@ Data couldn't be written to a file (D-099), or a complete export couldn't be rea
 | `export.wrong-kind` | | | The chosen format can't hold this data, e.g. a whole book as CSV. This is a mistake in KassenSturz; please report it. Nothing was exported. |
 | `export.unlisted-currency` | `currency`, `path?` | | An amount is in {currency}, but the book's list of currencies doesn't have it, so its decimal places aren't known. In a complete export being read, {path} says where. Correct the file, or report it if KassenSturz wrote it. Nothing was exported or read. |
 | `export.mark-without-part` | `split` | | A part is marked as booked by a Rule, but no transaction has it. This is a mistake in KassenSturz; please report it. Nothing was exported. |
+| `export.unlisted-tag` | `split`, `tag` | | A part carries a tag the book doesn't list. This is a mistake in KassenSturz: nothing was exported. |
 | `export.rules-too-deep` | `max` | | Rules sit inside each other more than {max} levels deep, more than a complete export can hold. Move some of them up a level and try again. Nothing was exported or read. |
 | `export.too-large` | `max` | | The file is larger than a complete export can be ({max} bytes), so it wasn't read. Check that it is the right file. |
 | `export.not-json` | `line`, `column` | | This file isn't a complete export: it isn't JSON, or it is cut off, at line {line}, column {column}. Choose the file KassenSturz exported, or export the book again. Nothing was read. |

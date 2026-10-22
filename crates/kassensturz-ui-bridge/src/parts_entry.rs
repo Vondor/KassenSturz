@@ -454,7 +454,8 @@ pub fn save(
         payee(entered.other_party),
         splits,
     )
-    .map_err(PartsError::Transaction)?;
+    .map_err(PartsError::Transaction)?
+    .with_details_of(&draft.stored);
     book.update_transaction(&transaction)?;
     Ok(())
 }

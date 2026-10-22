@@ -19,14 +19,15 @@ use std::path::Path;
 
 use kassensturz_core::{
     Account, AccountId, Actions, AmountTest, BookTo, Condition, Currency, CurrencyCode, Date,
-    DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails, Money, OriginalAmount,
-    RateSource, Rule, RuleId, RuleNode, Split, SplitId, Transaction, TransactionId,
+    DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails, Institution,
+    InstitutionId, Money, OriginalAmount, Payee, PayeeId, PayeeRecognition, RateSource, Rule,
+    RuleId, RuleNode, Split, SplitId, Tag, TagId, Transaction, TransactionId,
 };
 use serde_json::{Map, Value};
 
 use super::{
-    BookData, BookedByRule, FORMAT, KINDS, MATCH_MODES, MAX_RULE_DEPTH, ROUNDING_MODES, SOURCES,
-    TEXT_FIELDS, TEXT_OPERATORS, TYPES, VERSION,
+    BookData, BookedByRule, FORMAT, KINDS, MATCH_MODES, MAX_RULE_DEPTH, RECOGNITIONS,
+    ROUNDING_MODES, SOURCES, STATUSES, TEXT_FIELDS, TEXT_OPERATORS, TYPES, VERSION,
 };
 use crate::error::{Expected, ExportError};
 
@@ -80,20 +81,20 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         Some(version @ 1..) => version,
         _ => return Err(bad("version", Expected::Number)),
     };
-    let top = Object::new(
-        &file,
-        "",
-        &[
-            "format",
-            "version",
-            "settings",
-            "currencies",
-            "accounts",
-            "rates",
-            "rules",
-            "transactions",
-        ],
-    )?;
+    let mut keys = vec![
+        "format",
+        "version",
+        "settings",
+        "currencies",
+        "accounts",
+        "rates",
+        "rules",
+        "transactions",
+    ];
+    if version >= 4 {
+        keys.extend(["institutions", "payees", "tags"]);
+    }
+    let top = Object::new(&file, "", &keys)?;
     let mut reader = Reader {
         version,
         ..Reader::default()
@@ -131,14 +132,40 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         currencies.push(minor_digits);
     }
 
+    let mut institutions = Vec::new();
+    let mut institution_ids = HashSet::new();
+    if version >= 4 {
+        for (value, path) in top.list("institutions")? {
+            let institution = Object::new(
+                value,
+                &path,
+                &["id", "name", "bank_code", "contact", "address", "phone"],
+            )?;
+            let id = InstitutionId::from_bytes(institution.id("id")?);
+            if !institution_ids.insert(id) {
+                return Err(ExportError::Duplicate {
+                    path: format!("{path}.id"),
+                });
+            }
+            institutions.push(Institution {
+                id,
+                name: institution.text("name")?,
+                bank_code: institution.optional_text("bank_code")?,
+                contact: institution.optional_text("contact")?,
+                address: institution.optional_text("address")?,
+                phone: institution.optional_text("phone")?,
+            });
+        }
+    }
+
     let mut accounts = Vec::new();
     let mut account_ids = HashSet::new();
     for (value, path) in top.list("accounts")? {
-        let account = Object::new(
-            value,
-            &path,
-            &["id", "name", "kind", "currency", "type", "closed", "parent"],
-        )?;
+        let mut keys = vec!["id", "name", "kind", "currency", "type", "closed", "parent"];
+        if version >= 4 {
+            keys.extend(["number", "notes", "institution"]);
+        }
+        let account = Object::new(value, &path, &keys)?;
         let id = AccountId::from_bytes(account.id("id")?);
         if !account_ids.insert(id) {
             return Err(ExportError::Duplicate {
@@ -153,7 +180,92 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
             account_type: account.optional_keyword("type", &TYPES)?,
             closed: account.boolean("closed")?,
             parent: account.optional_id("parent")?.map(AccountId::from_bytes),
+            number: account.optional_text("number")?,
+            notes: account.optional_text("notes")?,
+            institution: account
+                .optional_id("institution")?
+                .map(InstitutionId::from_bytes),
         });
+    }
+
+    let mut payees = Vec::new();
+    let mut tags = Vec::new();
+    if version >= 4 {
+        let mut payee_ids = HashSet::new();
+        for (value, path) in top.list("payees")? {
+            let payee = Object::new(
+                value,
+                &path,
+                &[
+                    "id",
+                    "name",
+                    "address",
+                    "email",
+                    "phone",
+                    "reference",
+                    "recognition",
+                    "key_words",
+                    "ignore_case",
+                ],
+            )?;
+            let id = PayeeId::from_bytes(payee.id("id")?);
+            if !payee_ids.insert(id) {
+                return Err(ExportError::Duplicate {
+                    path: format!("{path}.id"),
+                });
+            }
+            let (recognition, recognition_path) = payee.required("recognition")?;
+            let recognition = recognition
+                .as_str()
+                .filter(|word| RECOGNITIONS.contains(word))
+                .ok_or_else(|| bad(&recognition_path, Expected::Keyword))?;
+            let recognition = match (recognition, payee.optional("key_words")) {
+                ("never", None) => PayeeRecognition::Never,
+                ("name", None) => PayeeRecognition::ByName,
+                ("key_words", Some(_)) => {
+                    let mut words = Vec::new();
+                    for (value, path) in payee.list("key_words")? {
+                        words.push(
+                            value
+                                .as_str()
+                                .filter(|word| !word.trim().is_empty())
+                                .map(str::to_owned)
+                                .ok_or_else(|| bad(&path, Expected::Text))?,
+                        );
+                    }
+                    if words.is_empty() {
+                        return Err(bad(&join(&path, "key_words"), Expected::List));
+                    }
+                    PayeeRecognition::ByKeyWords(words)
+                }
+                // Key words go with `key_words`, and only with it.
+                (_, Some((_, path))) => return Err(bad(&path, Expected::Null)),
+                (_, None) => return Err(bad(&join(&path, "key_words"), Expected::List)),
+            };
+            payees.push(Payee {
+                id,
+                name: payee.text("name")?,
+                address: payee.optional_text("address")?,
+                email: payee.optional_text("email")?,
+                phone: payee.optional_text("phone")?,
+                reference: payee.optional_text("reference")?,
+                recognition,
+                recognition_ignores_case: payee.boolean("ignore_case")?,
+            });
+        }
+        for (value, path) in top.list("tags")? {
+            let tag = Object::new(value, &path, &["id", "name"])?;
+            let id = TagId::from_bytes(tag.id("id")?);
+            if !reader.tags.insert(id) {
+                return Err(ExportError::Duplicate {
+                    path: format!("{path}.id"),
+                });
+            }
+            tags.push(Tag {
+                id,
+                name: tag.text("name")?,
+            });
+        }
     }
 
     let mut rates = Vec::new();
@@ -200,6 +312,9 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         rules,
         transactions,
         rule_marks,
+        institutions,
+        payees,
+        tags,
     })
 }
 
@@ -207,9 +322,12 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
 #[derive(Default)]
 struct Reader {
     /// The file's version: version 1 has no original amounts and no
-    /// `changeover` rates (D-104), and versions 1 and 2 no parts with a date
-    /// and payee of their own (D-108).
+    /// `changeover` rates (D-104), versions 1 and 2 no parts with a date
+    /// and payee of their own (D-108), and versions before 4 no
+    /// institutions, payees, tags, notes, numbers or status (D-132).
     version: u64,
+    /// The IDs of the tags the file lists: a part carries only those.
+    tags: HashSet<TagId>,
     /// The decimal places of each currency the file lists.
     digits: HashMap<CurrencyCode, u8>,
     /// The IDs of the parts read so far: unique across the whole book.
@@ -269,11 +387,17 @@ impl Reader {
         path: &str,
         marks: &mut Vec<BookedByRule>,
     ) -> Result<Transaction> {
-        let transaction = Object::new(value, path, &["id", "date", "payee", "currency", "parts"])?;
+        let mut keys = vec!["id", "date", "payee", "currency", "parts"];
+        if self.version >= 4 {
+            keys.extend(["note", "entered"]);
+        }
+        let transaction = Object::new(value, path, &keys)?;
         let id = TransactionId::from_bytes(transaction.id("id")?);
         let booking_date = transaction.date("date")?;
         let payee = transaction.optional_text("payee")?;
         let currency = transaction.currency("currency")?;
+        let note = transaction.optional_text("note")?;
+        let entered_on = transaction.optional_date("entered")?;
         let mut splits = Vec::new();
         for (value, path) in transaction.list("parts")? {
             let mut keys = vec![
@@ -289,6 +413,9 @@ impl Reader {
             }
             if self.version >= 3 {
                 keys.extend(["date", "payee"]);
+            }
+            if self.version >= 4 {
+                keys.extend(["note", "number", "status", "tags"]);
             }
             let part = Object::new(value, &path, &keys)?;
             let split = SplitId::from_bytes(part.id("id")?);
@@ -366,6 +493,21 @@ impl Reader {
                     rule: mark.optional_id("rule")?.map(RuleId::from_bytes),
                 });
             }
+            let mut tags = Vec::new();
+            if self.version >= 4 {
+                for (value, path) in part
+                    .optional("tags")
+                    .map(|_| part.list("tags"))
+                    .transpose()?
+                    .unwrap_or_default()
+                {
+                    let tag = TagId::from_bytes(parse_id(value, &path)?);
+                    if !self.tags.contains(&tag) || tags.contains(&tag) {
+                        return Err(bad(&path, Expected::Id));
+                    }
+                    tags.push(tag);
+                }
+            }
             splits.push(Split {
                 id: split,
                 account: part.optional_id("account")?.map(AccountId::from_bytes),
@@ -375,14 +517,18 @@ impl Reader {
                 original,
                 own_date: part.optional_date("date")?,
                 own_payee: part.optional_text("payee")?,
+                note: part.optional_text("note")?,
+                number: part.optional_text("number")?,
+                status: part.optional_keyword("status", &STATUSES)?,
+                tags,
             });
         }
-        Transaction::new(id, booking_date, payee, splits).map_err(|error| {
-            ExportError::InvalidTransaction {
+        Transaction::new(id, booking_date, payee, splits)
+            .map(|transaction| transaction.with_note(note).with_entry_date(entered_on))
+            .map_err(|error| ExportError::InvalidTransaction {
                 path: path.to_owned(),
                 error,
-            }
-        })
+            })
     }
 
     fn rule(&mut self, value: &Value, path: &str, depth: usize) -> Result<RuleNode> {

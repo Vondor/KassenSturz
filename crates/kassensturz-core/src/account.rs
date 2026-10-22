@@ -4,6 +4,7 @@
 //! Accounts and categories.
 
 use crate::currency::CurrencyCode;
+use crate::details::InstitutionId;
 use crate::id::define_id;
 
 define_id!(
@@ -89,9 +90,19 @@ pub struct Account {
     /// (see [`AccountType::kind`]), and old books have none.
     pub account_type: Option<AccountType>,
     /// For a category: the category it sits inside, e.g. Groceries inside
-    /// Food (D-067). `None` for a top-level category and for every account.
+    /// Food (D-067). For an account: the account it was grouped under in
+    /// another program, which the lists don't show (D-081, D-132). `None`
+    /// for a top-level category and for most accounts.
     pub parent: Option<AccountId>,
     /// Whether the user closed it. A closed account keeps its history but
     /// takes no new transactions and is hidden from the lists.
     pub closed: bool,
+    /// For an account: its account number or IBAN, as the user gave it,
+    /// not checked (D-132). Never on a category.
+    pub number: Option<String>,
+    /// What the user wrote about it (D-132).
+    pub notes: Option<String>,
+    /// For an account: the bank or other institution it is at (D-132).
+    /// Never on a category.
+    pub institution: Option<InstitutionId>,
 }

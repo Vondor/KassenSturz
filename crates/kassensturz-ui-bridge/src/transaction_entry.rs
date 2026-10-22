@@ -291,7 +291,8 @@ pub fn edit(
         })
         .collect();
     let transaction = Transaction::new(stored.id(), date, payee(entered.other_party), splits)
-        .map_err(EntryError::Transaction)?;
+        .map_err(EntryError::Transaction)?
+        .with_details_of(&stored);
     book.update_transaction(&transaction)?;
     Ok(())
 }

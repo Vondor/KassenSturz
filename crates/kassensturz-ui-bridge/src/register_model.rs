@@ -275,7 +275,7 @@ pub mod qobject {
 }
 
 /// The roles a row has, numbered from Qt's first user role.
-const ROLES: [(&str, i32); 11] = [
+const ROLES: [(&str, i32); 12] = [
     ("transactionId", 0x0100),
     ("date", 0x0101),
     ("otherParty", 0x0102),
@@ -287,6 +287,7 @@ const ROLES: [(&str, i32); 11] = [
     ("kind", 0x0108),
     ("balance", 0x0109),
     ("exactBalance", 0x010A),
+    ("note", 0x010B),
 ];
 
 /// The Rust side of [`qobject::AccountRegister`].
@@ -691,6 +692,7 @@ impl qobject::AccountRegister {
             Some(("kind", _)) => text(row.kind),
             Some(("balance", _)) => text(&row.balance.text),
             Some(("exactBalance", _)) => text(&row.balance.exact),
+            Some(("note", _)) => text(&row.note),
             _ => QVariant::default(),
         }
     }

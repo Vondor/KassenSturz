@@ -243,7 +243,15 @@ pub fn join_transfer(
         })
         .collect();
     let payee = outgoing.payee().or(incoming.payee()).map(str::to_owned);
+    // The joined transaction keeps the outgoing side's note, or else the
+    // incoming side's, and the outgoing side's entry date (D-132).
+    let note = outgoing.note().or(incoming.note()).map(str::to_owned);
     Transaction::new(outgoing.id(), outgoing.booking_date(), payee, splits)
+        .map(|joined| {
+            joined
+                .with_note(note)
+                .with_entry_date(outgoing.entered_on().or(incoming.entered_on()))
+        })
         .map_err(TransferError::Transaction)
 }
 
@@ -610,7 +618,9 @@ mod tests {
         let mut parts = into.splits().to_vec();
         parts[0].imported = Some(delivered.clone());
         into = Transaction::new(into.id(), october(12), Some("From checking".into()), parts)
-            .expect("balanced");
+            .expect("balanced")
+            .with_note(Some("Savings plan".into()))
+            .with_entry_date(Some(october(13)));
         let out = imported(checking, -10_000, 9, None);
 
         // The savings part keeps the date and payee the savings account
@@ -631,6 +641,10 @@ mod tests {
                 [out.splits()[0].clone(), savings_part.clone()]
             );
             assert_eq!(joined.splits()[1].imported, Some(delivered.clone()));
+            // The outgoing side has no note or entry date either, so the
+            // incoming one's are kept (D-132).
+            assert_eq!(joined.note(), Some("Savings plan"));
+            assert_eq!(joined.entered_on(), Some(october(13)));
         }
 
         // The outgoing side's payee wins, and its parts keep their order.

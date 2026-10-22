@@ -6,7 +6,9 @@
 
 use std::io::ErrorKind;
 
-use kassensturz_core::{CurrencyCode, ErrorParam, ErrorReport, Report, SplitId, TransactionError};
+use kassensturz_core::{
+    CurrencyCode, ErrorParam, ErrorReport, Report, SplitId, TagId, TransactionError,
+};
 
 /// Why data can't be exported, or a complete export can't be read back.
 ///
@@ -55,6 +57,13 @@ pub enum ExportError {
     },
     /// A part is marked as booked by a Rule, but no transaction has it.
     MarkWithoutPart(SplitId),
+    /// A part carries a tag the book doesn't list (D-132).
+    UnlistedTag {
+        /// The part.
+        split: SplitId,
+        /// The tag.
+        tag: TagId,
+    },
     /// Rules sit inside each other deeper than the complete export allows.
     RulesTooDeep {
         /// The deepest a Rule may sit; a top-level Rule is at 1.
@@ -200,6 +209,9 @@ impl Report for ExportError {
             }
             Self::MarkWithoutPart(split) => ErrorReport::new("export.mark-without-part")
                 .with("split", ErrorParam::Split(*split)),
+            Self::UnlistedTag { split, tag } => ErrorReport::new("export.unlisted-tag")
+                .with("split", ErrorParam::Split(*split))
+                .with("tag", ErrorParam::Text(tag.to_string())),
             Self::RulesTooDeep { max } => {
                 ErrorReport::new("export.rules-too-deep").with("max", ErrorParam::count(*max))
             }

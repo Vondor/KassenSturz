@@ -2164,7 +2164,7 @@ fn a_file_that_does_not_make_a_book_leaves_nothing_behind() {
     .expect("written");
     std::fs::write(
         new.0.join("busy.json"),
-        written.replace("\"version\": 3", "\"version\": 4"),
+        written.replace("\"version\": 4", "\"version\": 5"),
     )
     .expect("written");
     for (from, code) in [
@@ -2221,10 +2221,6 @@ fn a_kmymoney_file_makes_a_new_book() {
             "Created the book from {sample}: 5 accounts, 51 categories, 538 transactions, 0 rates.\n\
              536 transactions have no category yet, as in the file.\n\
              Not imported, because KassenSturz can't hold it yet:\n  \
-             institutions: 1\n  \
-             account-numbers: 2\n  \
-             account-groups: 3\n  \
-             reconciliation: 73\n  \
              rates: 20\n  \
              online-banking: 2\n\
              8 pairs of transactions look like Transfers between your accounts; \

@@ -689,14 +689,14 @@ impl Book {
                 split
             })
             .collect();
-        Transaction::new(transaction.id(), transaction.booking_date(), payee, splits).map_err(
-            |error| {
+        Transaction::new(transaction.id(), transaction.booking_date(), payee, splits)
+            .map(|booked| booked.with_details_of(transaction))
+            .map_err(|error| {
                 StoreError::Corrupt(Corruption::InvalidTransaction {
                     transaction: transaction.id(),
                     error,
                 })
-            },
-        )
+            })
     }
 
     /// Writes one transaction the Rules changed, and marks its part.

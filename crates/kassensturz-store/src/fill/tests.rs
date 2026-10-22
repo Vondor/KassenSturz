@@ -29,6 +29,9 @@ fn category(name: &str, parent: Option<AccountId>) -> Account {
         account_type: None,
         closed: false,
         parent,
+        number: None,
+        notes: None,
+        institution: None,
     }
 }
 

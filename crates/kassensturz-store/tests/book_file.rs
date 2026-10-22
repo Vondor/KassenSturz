@@ -59,6 +59,9 @@ fn fill(book: &mut Book) -> AccountId {
         account_type: None,
         closed: false,
         parent: None,
+        number: None,
+        notes: None,
+        institution: None,
     };
     let groceries = Account {
         id: AccountId::generate(),
@@ -68,6 +71,9 @@ fn fill(book: &mut Book) -> AccountId {
         account_type: None,
         closed: false,
         parent: None,
+        number: None,
+        notes: None,
+        institution: None,
     };
     book.add_account(&checking).expect("account added");
     book.add_account(&groceries).expect("category added");
@@ -146,6 +152,9 @@ fn a_book_keeps_its_transactions_in_full() {
             account_type: None,
             closed: false,
             parent: None,
+            number: None,
+            notes: None,
+            institution: None,
         };
         book.add_account(&dollars).expect("account added");
         book.add_rate(&DatedRate {

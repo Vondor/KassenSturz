@@ -39,6 +39,10 @@ fn examples() -> Vec<ExportError> {
             path: Some("transactions[0].parts[1].amount".into()),
         },
         ExportError::MarkWithoutPart(SplitId::generate()),
+        ExportError::UnlistedTag {
+            split: SplitId::generate(),
+            tag: kassensturz_core::TagId::generate(),
+        },
         ExportError::RulesTooDeep { max: 32 },
         ExportError::TooLarge { max: 1024 },
         ExportError::NotJson { line: 3, column: 7 },

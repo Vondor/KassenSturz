@@ -121,6 +121,9 @@ pub fn action_key(action: Action) -> &'static str {
         Action::RunRules => "run-rules",
         Action::ImportStatement => "import-statement",
         Action::CorrectStartingBalance => "correct-starting-balance",
+        Action::AddInstitution => "add-institution",
+        Action::AddPayee => "add-payee",
+        Action::AddTag => "add-tag",
     }
 }
 

@@ -2,13 +2,13 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029), whose format is described in `docs/EXPORT_FORMAT.md` (D-100). Every change to the layout updates this document.
 
-**Status: development layout 14.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2), layout 4 the type and closed flag of accounts (M1.4), layout 5 the category tree (M1.5), layout 6 parts without a category, parts in another currency with their rates, and what a bank or file delivered (M1.6), layout 7 the [change history](#the-change-history) (M1.9), layout 8 the action that joins the two sides of a Transfer (M1.10), layout 9 the [Rules](#rules) and the actions that change and run them (M1.11), layout 10 the action that imports a statement into an account (M2.2), layout 11 the original amounts of parts converted out of a withdrawn currency (M2.9b, D-104), layout 12 a part's own date and payee, which the second side of a joined Transfer keeps (#44, D-108), layout 13 the name of the file a change read, such as an imported statement (#51, D-109), and layout 14 the balance the user stated for an account and its day, with the action that corrects a starting balance (M3.4a, D-117). Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds much more.
+**Status: development layout 15.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2), layout 4 the type and closed flag of accounts (M1.4), layout 5 the category tree (M1.5), layout 6 parts without a category, parts in another currency with their rates, and what a bank or file delivered (M1.6), layout 7 the [change history](#the-change-history) (M1.9), layout 8 the action that joins the two sides of a Transfer (M1.10), layout 9 the [Rules](#rules) and the actions that change and run them (M1.11), layout 10 the action that imports a statement into an account (M2.2), layout 11 the original amounts of parts converted out of a withdrawn currency (M2.9b, D-104), layout 12 a part's own date and payee, which the second side of a joined Transfer keeps (#44, D-108), layout 13 the name of the file a change read, such as an imported statement (#51, D-109), layout 14 the balance the user stated for an account and its day, with the action that corrects a starting balance (M3.4a, D-117), and layout 15 what a KMyMoney book holds beyond that (D-132): the [banks](#institutions), [payees](#payees) and [tags](#tags), an account's number, notes and bank, accounts grouped under accounts, a transaction's note and entry date, and a part's note, number and status. Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds much more.
 
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).
 - `PRAGMA application_id` is `0x4B535A42` (1263753794), the letters `KSZB` for KassenSturz book (D-037, D-080). KassenSturz reads it, and SQLite's header, from the file's first bytes before SQLite opens the file. Only a file with both is opened, so another program's SQLite file is never changed, not even its journal mode.
-- `PRAGMA user_version` holds the layout version: currently `11`.
+- `PRAGMA user_version` holds the layout version: currently `15`.
 - The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033). While the book is open, its [lock file](#the-lock-file) sits next to it.
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
 - Deleted content is overwritten (`PRAGMA secure_delete = ON` on every connection), so what KassenSturz deletes, such as a change history the user cleans up, is gone from the file too, though not from copies of it such as backups (D-066, D-086).
@@ -44,6 +44,19 @@ A withdrawn currency such as the German mark (DEM) is listed here too, with the 
 | `code` | TEXT, primary key | ISO 4217 code: three capital letters |
 | `minor_digits` | INTEGER, 0–18 | Decimal places: 2 for EUR, 0 for JPY |
 
+### `institutions`
+
+The banks the user's accounts are held at (D-132). Added in layout 15. Nothing checks the texts; they are kept as the user or an imported file gave them.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | BLOB (16 bytes), primary key | UUIDv7 |
+| `name` | TEXT | The bank's name, never empty. Two banks may share a name |
+| `bank_code` | TEXT, may be NULL | Its bank code, sort code or BIC |
+| `contact` | TEXT, may be NULL | The user's contact there |
+| `address` | TEXT, may be NULL | Its address, lines separated by line breaks |
+| `phone` | TEXT, may be NULL | Its phone number |
+
 ### `accounts`
 
 Accounts and categories (`docs/GLOSSARY.md`).
@@ -56,13 +69,18 @@ Accounts and categories (`docs/GLOSSARY.md`).
 | `currency` | TEXT → `currencies.code` | The currency of its amounts |
 | `account_type` | TEXT, may be NULL | What sort of account it is, if known: `checking`, `savings`, `cash` or `credit_card`. Only accounts have one, never categories. `checking`, `savings` and `cash` need `kind` `asset`, `credit_card` needs `liability`. Books from before layout 4 have none (D-081) |
 | `closed` | INTEGER, 0 or 1 | `1` if the user closed the account: its history stays, but it takes no new transactions and is hidden from the lists. Only an account whose balance is zero can be closed |
-| `parent_id` | BLOB (16 bytes) → `accounts.id`, may be NULL | For a category: the category it sits inside, e.g. Groceries inside Food. NULL for a top-level category and for every account. Only `income` and `expense` accounts can have one, and never themselves |
+| `parent_id` | BLOB (16 bytes) → `accounts.id`, may be NULL | For a category: the category it sits inside, e.g. Groceries inside Food. From layout 15 also for an account: the account it was grouped under, as a KMyMoney book groups them (D-132); the lists still show every account on its own. NULL for a top-level category or account. The `equity` account never has one, and no row is its own parent |
 | `stated_balance` | INTEGER, may be NULL | The balance the user stated for the account, taken from the bank, in minor units of `currency`: what the account should hold at the end of `stated_on`. For a debt it is negative, like the account's parts. Set when the user adds an account with a balance or corrects its starting balance, NULL when they never did and in books from before layout 14. Only `asset` and `liability` accounts can have one (D-111, D-117) |
 | `stated_on` | TEXT, may be NULL | The day the stated balance was for, ISO 8601. NULL exactly when `stated_balance` is |
+| `number` | TEXT, may be NULL | The account's number or IBAN at its bank, as the user or an imported file gave it. Only `asset` and `liability` accounts can have one. Added in layout 15 (D-132) |
+| `notes` | TEXT, may be NULL | What the user noted about the account or category. Added in layout 15 |
+| `institution_id` | BLOB (16 bytes) → `institutions.id`, may be NULL | The bank the account is held at. Only `asset` and `liability` accounts can have one. Added in layout 15 |
 
-Index: `accounts_by_parent` on `accounts (parent_id)`.
+Indexes: `accounts_by_parent` on `accounts (parent_id)`, `accounts_by_institution` on `accounts (institution_id)`.
 
-**The category tree** (D-082): categories are the accounts of kind `income` or `expense`, and `parent_id` links each to the one it sits inside, to any depth. A category sits inside a category of its own kind and currency, so a category's total can add up the ones inside it. A tree has no loops. Siblings, meaning the categories of one kind inside the same category (or all top-level ones), never share a name, ignoring capitals and spaces around it. KassenSturz checks all of this when it writes and again when it reads the tree; the database itself only refuses a parent that doesn't exist, that is the category itself, or that belongs to an account.
+**The category tree** (D-082): categories are the accounts of kind `income` or `expense`, and `parent_id` links each to the one it sits inside, to any depth. A category sits inside a category of its own kind and currency, so a category's total can add up the ones inside it. A tree has no loops. Siblings, meaning the categories of one kind inside the same category (or all top-level ones), never share a name, ignoring capitals and spaces around it. KassenSturz checks all of this when it writes and again when it reads the tree; the database itself only refuses a parent that doesn't exist, that is the row itself, or that is given to the `equity` account.
+
+**Account groups** (D-132): an account's `parent_id` names an account of the same kind (`asset` under `asset`, `liability` under `liability`), in any currency, with no loops. KassenSturz checks this when it writes. A group adds nothing up and hides nothing: the account lists show every account on its own.
 
 Account names are never empty. No two accounts (kind `asset` or `liability`) share a name, ignoring capitals and spaces around it, closed ones included. KassenSturz checks this when it writes, not the database (D-081).
 
@@ -74,6 +92,8 @@ Account names are never empty. No two accounts (kind `asset` or `liability`) sha
 | `booking_date` | TEXT | ISO 8601 date the transaction is shown with: the date the bank booked it, or the user entered. The user can change it; what the bank delivered is kept in [`split_imports`](#split_imports) (D-030, D-083) |
 | `payee` | TEXT, may be NULL | Who the money came from or went to, as the user wants it shown |
 | `currency` | TEXT → `currencies.code` | The currency the transaction counts in: the `amount` of every part is in it |
+| `note` | TEXT, may be NULL | What the user noted about the whole transaction, never empty text. Added in layout 15 (D-132) |
+| `entered_on` | TEXT, may be NULL | The ISO 8601 date the transaction was entered into the book, if known, e.g. from a KMyMoney book; KassenSturz itself doesn't set it yet. Added in layout 15 |
 
 ### `splits`
 
@@ -92,6 +112,9 @@ The parts of each transaction (shown to users as "Parts", D-017). A transaction'
 | `original_currency` | TEXT → `currencies.code`, may be NULL | The withdrawn currency of `original_amount`, never the transaction's or `foreign_currency`. Set exactly when `original_amount` is, which the database checks. Added in layout 11 |
 | `own_date` | TEXT, may be NULL | The ISO 8601 date the part's account shows it with, if not the transaction's `booking_date`: on the second side of a joined Transfer, the day that account's bank booked it (D-108). NULL otherwise. Added in layout 12 |
 | `own_payee` | TEXT, may be NULL | The payee the part's account shows, if not the transaction's `payee`: on the second side of a joined Transfer, the one that side had (D-108). NULL otherwise. Added in layout 12 |
+| `note` | TEXT, may be NULL | What the user noted about this part. What a bank or file delivered for it stays in [`split_imports`](#split_imports). Added in layout 15 (D-132) |
+| `number` | TEXT, may be NULL | A cheque or document number. Added in layout 15 |
+| `status` | TEXT, may be NULL | `cleared` if the part was seen on the bank's side, `reconciled` if it was checked against a statement, NULL if neither is known. Added in layout 15 |
 
 A part with a `foreign_amount` always has an `account_id`. Every part is in its account's currency: `foreign_currency` if it has one, otherwise the transaction's currency. KassenSturz checks this, not the database.
 
@@ -189,6 +212,44 @@ The conditions of each Rule, at least one per Rule. Which other columns are set 
 
 A text field that a transaction doesn't have, such as the purpose of one entered by hand, fails every condition on it. IBANs are compared without their spaces.
 
+### `payees`
+
+The people and shops money goes to or comes from, with what the user or an imported file knows about them beyond the name (D-132). A transaction names its payee by text (`transactions.payee`), not by a row here, so the book works without any. Added in layout 15.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | BLOB (16 bytes), primary key | UUIDv7 |
+| `name` | TEXT | The name, never empty. No two payees share a name, ignoring capitals and spaces around it; KassenSturz checks this when it writes |
+| `address` | TEXT, may be NULL | Their address, lines separated by line breaks |
+| `email` | TEXT, may be NULL | Their e-mail address |
+| `phone` | TEXT, may be NULL | Their phone number |
+| `reference` | TEXT, may be NULL | The user's customer or contract number with them |
+| `recognition` | TEXT | How an imported transaction is recognized as theirs: `never`, `name` (the delivered name is this name) or `key_words` (the delivered text contains one of the key words). Kept from a KMyMoney book; KassenSturz's Rules do the recognizing (D-088) |
+| `key_words` | TEXT, may be NULL | The key words, one per line. Set exactly when `recognition` is `key_words`, which the database checks |
+| `recognition_ignores_case` | INTEGER, 0 or 1 | `1` if recognition ignores capitals |
+
+### `tags`
+
+The tags parts can carry, e.g. "Holiday 2026" across several categories (D-132). Added in layout 15.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | BLOB (16 bytes), primary key | UUIDv7 |
+| `name` | TEXT | The name, never empty. No two tags share a name, ignoring capitals and spaces around it; KassenSturz checks this when it writes |
+
+### `split_tags`
+
+Which tags each part carries (D-132). Added in layout 15.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | BLOB (16 bytes), primary key | UUIDv7, so the change history can name the row |
+| `split_id` | BLOB → `splits.id` | The part; deleting it deletes this row |
+| `tag_id` | BLOB → `tags.id` | The tag. A part carries a tag at most once, which the database checks |
+| `position` | INTEGER, from 0 | The order of the part's tags |
+
+Index: `split_tags_by_tag` on `split_tags (tag_id)`.
+
 ### `split_rules`
 
 Marks the parts a Rule booked (D-088). A run of the Rules books a transaction that has two parts, one booked to one of the user's accounts and the other without a category yet. A Rule books a transaction once: a part with a row here is booked again only when the user changes the Rule the row names, or one of that Rule's parents, and asks for what it booked to follow (Q-044). When the user changes or joins such a transaction, KassenSturz writes its parts again without this row, so the Rules leave it alone (D-031).
@@ -217,14 +278,14 @@ The change history (D-032, D-066): one row per user action, e.g. adding an accou
 |---|---|---|
 | `id` | BLOB (16 bytes), primary key | UUIDv7 |
 | `sequence` | INTEGER, from 1, unique | The order the changes were made in. Undo and redo follow it, not `made_at`, since a computer's clock can be wrong |
-| `action` | TEXT | What the user did: `set_rounding_mode`, `use_currency`, `add_account`, `rename_account`, `close_account`, `reopen_account`, `add_category`, `rename_category`, `move_category`, `add_rate`, `remove_rate`, `add_transaction`, `edit_transaction`, `remove_transaction`, `join_transfer` (joining the two sides of a Transfer into one transaction, D-087), `add_rule`, `edit_rule`, `move_rule`, `remove_rule`, `run_rules` (running the Rules on the book's transactions, D-088), `import_statement` (importing bank statements into one account, with the Rules run on what it added, D-092) or `correct_starting_balance` (correcting an account's starting balance so it holds what the bank said on a day, and noting that balance on the account, D-117) |
+| `action` | TEXT | What the user did: `set_rounding_mode`, `use_currency`, `add_account`, `rename_account`, `close_account`, `reopen_account`, `add_category`, `rename_category`, `move_category`, `add_rate`, `remove_rate`, `add_transaction`, `edit_transaction`, `remove_transaction`, `join_transfer` (joining the two sides of a Transfer into one transaction, D-087), `add_rule`, `edit_rule`, `move_rule`, `remove_rule`, `run_rules` (running the Rules on the book's transactions, D-088), `import_statement` (importing bank statements into one account, with the Rules run on what it added, D-092), `correct_starting_balance` (correcting an account's starting balance so it holds what the bank said on a day, and noting that balance on the account, D-117), or, from layout 15, `add_institution`, `add_payee` or `add_tag` (D-132) |
 | `made_at` | TEXT | When, ISO 8601 in UTC, in whole seconds, e.g. `2026-10-19T11:04:02Z`, by the clock of the computer it was made on |
 | `undone` | INTEGER, 0 or 1 | `1` if it is undone, so redo can make it again |
 | `file_name` | TEXT, may be NULL | The name of the file the change read, without its folder, e.g. `october.xml` for an import of that statement file, so undo can say which import it takes back (D-109). NULL for changes that read no file and for those made before layout 13 |
 
 ### `changed_settings`, `changed_currencies` and the other `changed_` tables
 
-For each table that holds the book's data (`settings`, `currencies`, `accounts`, `transactions`, `splits`, `split_rates`, `split_imports`, `prices`, `rules`, `rule_conditions` and `split_rules`), a table named `changed_` plus its name, e.g. `changed_accounts`, holds copies of the rows each change touched.
+For each table that holds the book's data (`settings`, `currencies`, `institutions`, `accounts`, `payees`, `tags`, `transactions`, `splits`, `split_tags`, `split_rates`, `split_imports`, `prices`, `rules`, `rule_conditions` and `split_rules`), a table named `changed_` plus its name, e.g. `changed_accounts`, holds copies of the rows each change touched.
 
 | Column | Type | Meaning |
 |---|---|---|

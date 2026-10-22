@@ -11,8 +11,9 @@ use std::path::PathBuf;
 use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, Actions, AmountTest, BookTo, Condition, Currency,
     CurrencyCode, Date, DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails,
-    MatchMode, Money, OriginalAmount, RateSource, RoundingMode, Rule, RuleId, RuleNode, Split,
-    SplitId, TextField, TextOperator, Transaction, TransactionError, TransactionId,
+    Institution, InstitutionId, MatchMode, Money, OriginalAmount, PartStatus, Payee, PayeeId,
+    PayeeRecognition, RateSource, RoundingMode, Rule, RuleId, RuleNode, Split, SplitId, Tag, TagId,
+    TextField, TextOperator, Transaction, TransactionError, TransactionId,
 };
 use kassensturz_export::{
     BookData, BookExport, BookedByRule, CsvExport, Expected, ExportData, ExportError, ExportKind,
@@ -67,6 +68,9 @@ fn account(
         account_type,
         parent: parent.map(|parent| AccountId::from_bytes(id(parent))),
         closed: false,
+        number: None,
+        notes: None,
+        institution: None,
     }
 }
 
@@ -80,6 +84,10 @@ fn split(n: u8, account: Option<u8>, amount: Money) -> Split {
         original: None,
         own_date: None,
         own_payee: None,
+        note: None,
+        number: None,
+        status: None,
+        tags: Vec::new(),
     }
 }
 
@@ -126,6 +134,19 @@ fn sample() -> BookData {
     let food = 4;
     let bakery = 5;
     let travel = 6;
+    let bank = 80;
+    let mut giro = account(
+        checking,
+        "Girokonto",
+        AccountKind::Asset,
+        Some(AccountType::Checking),
+        EUR,
+        None,
+    );
+    // The account's number at the bank, and what the user noted about it.
+    giro.number = Some("DE89 3704 0044 0532 0130 00".into());
+    giro.notes = Some("Joint account\nsince 2020".into());
+    giro.institution = Some(InstitutionId::from_bytes(id(bank)));
     let mut closed = account(
         7,
         "Old \"savings\"",
@@ -135,8 +156,13 @@ fn sample() -> BookData {
         None,
     );
     closed.closed = true;
+    // The old savings account was grouped under the current account.
+    closed.parent = Some(AccountId::from_bytes(id(checking)));
 
     let mut bought = split(31, Some(checking), eur(-450));
+    bought.number = Some("1001".into());
+    bought.status = Some(PartStatus::Reconciled);
+    bought.tags = vec![TagId::from_bytes(id(84)), TagId::from_bytes(id(83))];
     bought.imported = Some(ImportedDetails {
         bank_id: Some("2026-10-05-0001".into()),
         booking_date: Some(day(5)),
@@ -145,6 +171,9 @@ fn sample() -> BookData {
         other_party_iban: Some("DE89 3704 0044 0532 0130 00".into()),
         remittance_information: Some("=Brötchen\nKarte 4711".into()),
     });
+    let mut rolls = split(35, Some(bakery), eur(450));
+    rolls.note = Some("Rolls for the weekend".into());
+    rolls.status = Some(PartStatus::Cleared);
     let mut dollars = split(41, Some(cash), eur(9_210));
     dollars.foreign = Some(ForeignAmount {
         amount: Money::from_minor_units(10_000, USD),
@@ -243,14 +272,7 @@ fn sample() -> BookData {
             Currency::new(DEM, 2).expect("valid"),
         ],
         accounts: vec![
-            account(
-                checking,
-                "Girokonto",
-                AccountKind::Asset,
-                Some(AccountType::Checking),
-                EUR,
-                None,
-            ),
+            giro,
             account(
                 cash,
                 "Dollars",
@@ -306,12 +328,9 @@ fn sample() -> BookData {
                     split(33, Some(start), eur(-100_000)),
                 ],
             ),
-            transaction(
-                34,
-                day(5),
-                None,
-                vec![bought, split(35, Some(bakery), eur(450))],
-            ),
+            transaction(34, day(5), None, vec![bought, rolls])
+                .with_note(Some("Saturday \"shopping\"\nwith the kids".into()))
+                .with_entry_date(Some(day(6))),
             transaction(
                 40,
                 day(4),
@@ -340,6 +359,49 @@ fn sample() -> BookData {
             BookedByRule {
                 split: SplitId::from_bytes(id(62)),
                 rule: None,
+            },
+        ],
+        institutions: vec![Institution {
+            id: InstitutionId::from_bytes(id(bank)),
+            name: "Sparkasse \"Musterstadt\"".into(),
+            bank_code: Some("37040044".into()),
+            contact: Some("Erika Mustermann".into()),
+            address: Some("Hauptstraße 1\n12345 Musterstadt\nDeutschland".into()),
+            phone: Some("+49 221 0000000".into()),
+        }],
+        payees: vec![
+            Payee {
+                id: PayeeId::from_bytes(id(81)),
+                name: "Bakery".into(),
+                address: Some("Marktplatz 2\n12345 Musterstadt".into()),
+                email: Some("hello@bakery.example".into()),
+                phone: None,
+                reference: Some("Customer 4711".into()),
+                recognition: PayeeRecognition::ByKeyWords(vec![
+                    "Bäckerei".into(),
+                    "Brötchen".into(),
+                ]),
+                recognition_ignores_case: true,
+            },
+            Payee {
+                id: PayeeId::from_bytes(id(82)),
+                name: "Hotel".into(),
+                address: None,
+                email: None,
+                phone: Some("+1 555 0100".into()),
+                reference: None,
+                recognition: PayeeRecognition::ByName,
+                recognition_ignores_case: false,
+            },
+        ],
+        tags: vec![
+            Tag {
+                id: TagId::from_bytes(id(83)),
+                name: "Kids".into(),
+            },
+            Tag {
+                id: TagId::from_bytes(id(84)),
+                name: "Weekend".into(),
             },
         ],
     }
@@ -466,6 +528,9 @@ fn values_that_may_be_empty_can_be_left_out() {
                 vec![split(5, Some(1), eur(-500)), split(6, None, eur(500))],
             )],
             rule_marks: vec![],
+            institutions: Vec::new(),
+            payees: Vec::new(),
+            tags: Vec::new(),
         }
     );
 }
@@ -496,13 +561,13 @@ fn what_is_not_a_complete_export_is_refused() {
     assert_eq!(read_book(b"[1, 2]"), Err(ExportError::NotABook));
     assert_eq!(read_book(b"{\"name\": \"x\"}"), Err(ExportError::NotABook));
     assert_eq!(
-        read_book(&changed("\"version\": 3", "\"version\": 4")),
-        Err(ExportError::NewerVersion { version: 4 })
+        read_book(&changed("\"version\": 4", "\"version\": 5")),
+        Err(ExportError::NewerVersion { version: 5 })
     );
     for version in ["\"2\"", "0", "-1", "2.5"] {
         assert_eq!(
             read_book(&changed(
-                "\"version\": 3",
+                "\"version\": 4",
                 &format!("\"version\": {version}")
             )),
             bad("version", Expected::Number),
@@ -716,6 +781,82 @@ fn a_part_has_its_own_date_and_payee_from_version_3() {
                 .as_bytes()
         ),
         bad("transactions[0].parts[1].date", Expected::Date)
+    );
+}
+
+#[test]
+fn banks_payees_tags_and_notes_come_with_version_4() {
+    // SHORT is a version 1 file. From version 4, the file lists the banks,
+    // payees and tags, and accounts, transactions and parts carry what the
+    // KMyMoney import used to drop (D-132). An older file may not have any
+    // of them, and a version 4 file must have the three lists.
+    let with_note = SHORT.replacen(
+        r#""amount": "5.0""#,
+        r#""amount": "5.0", "note": "Rolls""#,
+        1,
+    );
+    for version in ["1", "2", "3"] {
+        let file = with_note.replacen("\"version\": 1", &format!("\"version\": {version}"), 1);
+        assert_eq!(
+            read_book(file.as_bytes()),
+            Err(ExportError::UnknownValue {
+                path: "transactions[0].parts[1].note".into()
+            }),
+            "version {version}"
+        );
+        let file = SHORT.replacen(
+            "\"rates\": []",
+            &format!("\"version\": {version}, \"tags\": [], \"rates\": []"),
+            1,
+        );
+        assert_eq!(
+            read_book(file.as_bytes()),
+            Err(ExportError::UnknownValue {
+                path: "tags".into()
+            }),
+            "version {version}"
+        );
+    }
+    let version_4 = with_note.replacen("\"version\": 1", "\"version\": 4", 1);
+    assert_eq!(
+        read_book(version_4.as_bytes()),
+        Err(ExportError::MissingValue {
+            path: "institutions".into()
+        })
+    );
+    let lists = r#""institutions": [], "payees": [], "tags": [{"id": "019a0000-0000-7000-8000-000000000007", "name": "Kids"}], "rates": []"#;
+    let complete = version_4.replacen(r#""rates": []"#, lists, 1);
+    let book = read_book(complete.as_bytes()).expect("read");
+    assert_eq!(book.tags.len(), 1);
+    assert_eq!(
+        book.transactions[0].splits()[1].note.as_deref(),
+        Some("Rolls")
+    );
+    // A part's tags must be listed, and a payee's key words fit its
+    // recognition.
+    let tagged = complete.replacen(
+        r#""note": "Rolls""#,
+        r#""note": "Rolls", "tags": ["019a0000-0000-7000-8000-000000000008"]"#,
+        1,
+    );
+    assert_eq!(
+        read_book(tagged.as_bytes()),
+        bad("transactions[0].parts[1].tags[0]", Expected::Id)
+    );
+    let payee = r#""payees": [{"id": "019a0000-0000-7000-8000-000000000009", "name": "Bakery", "recognition": "name", "key_words": ["Bread"], "ignore_case": true}]"#;
+    assert_eq!(
+        read_book(complete.replacen(r#""payees": []"#, payee, 1).as_bytes()),
+        bad("payees[0].key_words", Expected::Null)
+    );
+    let payee = payee.replacen(
+        r#""recognition": "name""#,
+        r#""recognition": "key_words""#,
+        1,
+    );
+    let book = read_book(complete.replacen(r#""payees": []"#, &payee, 1).as_bytes()).expect("read");
+    assert_eq!(
+        book.payees[0].recognition,
+        PayeeRecognition::ByKeyWords(vec!["Bread".into()])
     );
 }
 

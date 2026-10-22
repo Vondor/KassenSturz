@@ -57,6 +57,9 @@ fn add(
         account_type,
         parent,
         closed: false,
+        number: None,
+        notes: None,
+        institution: None,
     })
     .expect("account added");
     id

@@ -169,12 +169,13 @@ pub fn category_choices(
         .collect())
 }
 
-/// Adds the transaction the user entered.
+/// Adds the transaction the user entered, and returns its ID, e.g. to ask
+/// whether it is one side of a Transfer (`transfer_prompt.rs`).
 pub fn add(
     book: &mut Book,
     entered: &NewEntry<'_>,
     locale: &impl Locale,
-) -> Result<(), EntryError> {
+) -> Result<TransactionId, EntryError> {
     let account = find_account(book, entered.account)?;
     let category = find_category(book, &account, entered.category)?;
     let (into_account, into_other) = read_amounts(book, &account, entered, locale)?;
@@ -191,7 +192,7 @@ pub fn add(
     )
     .map_err(EntryError::Transaction)?;
     book.add_transaction(&transaction)?;
-    Ok(())
+    Ok(transaction.id())
 }
 
 /// The transaction with `id` (as text) as the page shows it, seen from
@@ -529,7 +530,11 @@ mod tests {
         )
     }
 
-    fn code(book: &Book, account: &str, result: Result<(), EntryError>) -> &'static str {
+    fn code<T: std::fmt::Debug>(
+        book: &Book,
+        account: &str,
+        result: Result<T, EntryError>,
+    ) -> &'static str {
         let error = result.expect_err("refused");
         error_text(book, account, &error, &TestLocale).code
     }

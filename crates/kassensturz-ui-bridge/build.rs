@@ -36,6 +36,7 @@ fn main() {
             "qml/SettingsPage.qml",
             "qml/TransactionPage.qml",
             "qml/TransactionRow.qml",
+            "qml/TransferPrompt.qml",
             "qml/WelcomePage.qml",
         ]))
         .files([

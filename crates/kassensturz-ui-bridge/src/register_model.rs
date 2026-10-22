@@ -9,8 +9,9 @@
 //! asks for what it shows. Every row is text and flags (D-065): the sorting
 //! and the balance after each entry are worked out in `register.rs`. The
 //! writes behind the register's pages (`transaction_entry.rs`, and
-//! `parts_entry.rs` for breaking a transaction down into Parts) are on the
-//! same object, so one page can add, change and remove transactions; every
+//! `parts_entry.rs` for breaking a transaction down into Parts, and
+//! `transfer_prompt.rs` for the Transfers to confirm) are on the same
+//! object, so one page can add, change and remove transactions; every
 //! change asks the other screens to read the book again through `changed`.
 
 use core::pin::Pin;
@@ -30,6 +31,7 @@ use crate::parts_entry::{self, PartInput, PartsError, PartsInput};
 use crate::register::{RegisterRow, Sort, SortKey, register_view};
 use crate::session;
 use crate::transaction_entry::{self, EntryError, NewEntry};
+use crate::transfer_prompt::{self, SideText};
 use crate::variant::{error_object, list, map, text};
 
 #[cxx_qt::bridge]
@@ -210,6 +212,29 @@ pub mod qobject {
             account_id: &QString,
             transaction_id: &QString,
             form: &QVariant,
+        ) -> QVariant;
+
+        /// The Transfers to ask the user about (M3.7, D-120): pairs of
+        /// transactions that look like one move of money between two of the
+        /// user's accounts, as a list of objects with `outgoing` and
+        /// `incoming` (each with `id`, `account`, `date` and `otherParty`),
+        /// `amount`, `exactAmount` and `businessDays`. Only those that
+        /// involve the transaction with this ID, or all of them if it is
+        /// empty. An error comes back as an object with its `code`. Nothing
+        /// is written.
+        #[qinvokable]
+        #[cxx_name = "transferSuggestions"]
+        fn transfer_suggestions(self: &AccountRegister, involving: &QString) -> QVariant;
+
+        /// Joins the two transactions of a suggested Transfer, after the
+        /// user confirmed it. Returns an empty map, or the error's `code`
+        /// and its parameters.
+        #[qinvokable]
+        #[cxx_name = "joinTransfer"]
+        fn join_transfer(
+            self: Pin<&mut AccountRegister>,
+            outgoing: &QString,
+            incoming: &QString,
         ) -> QVariant;
     }
 
@@ -439,10 +464,19 @@ impl qobject::AccountRegister {
         let account_id = account_id.to_string();
         let form = Form::read(form);
         let entered = form.entry(&account_id);
-        let result = change(&account_id, |book| {
+        let added = session::with_book_mut(|book| {
             transaction_entry::add(book, &entered, &app_locale())
-        });
-        self.finish(result)
+                .map_err(|error| error_text(book, &account_id, &error))
+        })
+        .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")));
+        let id = added.as_ref().map(ToString::to_string).unwrap_or_default();
+        let shown = self.finish(added.map(|_| ()));
+        // The new transaction's ID, to ask whether it is a Transfer.
+        if id.is_empty() {
+            shown
+        } else {
+            map([("id", text(&id))])
+        }
     }
 
     fn edit_transaction(
@@ -611,6 +645,40 @@ impl qobject::AccountRegister {
         self.finish(result)
     }
 
+    fn transfer_suggestions(&self, involving: &QString) -> QVariant {
+        let involving = involving.to_string();
+        let found = session::with_book(|book| {
+            transfer_prompt::suggestions(book, &involving, &app_locale())
+                .map_err(|error| transfer_prompt::error_text(book, &error, &app_locale()))
+        });
+        match found {
+            Some(Ok(suggestions)) => list(suggestions.iter().map(|found| {
+                map([
+                    ("outgoing", side_object(&found.outgoing)),
+                    ("incoming", side_object(&found.incoming)),
+                    ("amount", text(&found.amount.text)),
+                    ("exactAmount", text(&found.amount.exact)),
+                    (
+                        "businessDays",
+                        QVariant::from(&i32::try_from(found.business_days).unwrap_or(0)),
+                    ),
+                ])
+            })),
+            Some(Err(error)) => error_object(&error),
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        }
+    }
+
+    fn join_transfer(self: Pin<&mut Self>, outgoing: &QString, incoming: &QString) -> QVariant {
+        let (outgoing, incoming) = (outgoing.to_string(), incoming.to_string());
+        let result = session::with_book_mut(|book| {
+            transfer_prompt::join(book, &outgoing, &incoming)
+                .map_err(|error| transfer_prompt::error_text(book, &error, &app_locale()))
+        })
+        .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")));
+        self.finish(result)
+    }
+
     fn row_count(&self, _parent: &QModelIndex) -> i32 {
         self.rust().count
     }
@@ -657,6 +725,16 @@ impl qobject::AccountRegister {
             Err(error) => error_object(&error),
         }
     }
+}
+
+/// One side of a suggested Transfer as QML gets it.
+fn side_object(side: &SideText) -> QVariant {
+    map([
+        ("id", text(&side.id)),
+        ("account", text(&side.account)),
+        ("date", text(&side.date)),
+        ("otherParty", text(&side.other_party)),
+    ])
 }
 
 /// What the page's form holds, as typed; a missing field counts as empty.

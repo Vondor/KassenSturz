@@ -30,6 +30,8 @@ fn main() {
             "qml/MockNotice.qml",
             "qml/NewAccountPage.qml",
             "qml/OverviewPage.qml",
+            "qml/PartRow.qml",
+            "qml/PartsPage.qml",
             "qml/RegisterPage.qml",
             "qml/SettingsPage.qml",
             "qml/TransactionPage.qml",

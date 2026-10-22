@@ -23,6 +23,7 @@ mod locale;
 mod number_format;
 mod number_format_model;
 mod parse;
+mod parts_entry;
 mod platform;
 mod register;
 mod register_model;

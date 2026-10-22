@@ -338,7 +338,7 @@ pub fn example(book: &Book, account: &str, locale: &impl Locale) -> Result<Strin
 }
 
 /// The user's open account the UI means by `id`.
-fn find_account(book: &Book, id: &str) -> Result<Account, EntryError> {
+pub(crate) fn find_account(book: &Book, id: &str) -> Result<Account, EntryError> {
     book.all_accounts()?
         .into_iter()
         .find(|account| account.kind.is_account() && account.id.to_string() == id)
@@ -364,7 +364,11 @@ fn find_category(book: &Book, account: &Account, id: &str) -> Result<Option<Acco
 }
 
 /// The transaction the UI means by `id`, which must touch `account`.
-fn find_transaction(book: &Book, account: AccountId, id: &str) -> Result<Transaction, EntryError> {
+pub(crate) fn find_transaction(
+    book: &Book,
+    account: AccountId,
+    id: &str,
+) -> Result<Transaction, EntryError> {
     let entry = book
         .register(account)?
         .into_iter()
@@ -404,7 +408,11 @@ fn read_amounts(
 
 /// `amount` written the way the user types it: with the regional
 /// separators, every decimal place and no currency symbol.
-fn typed_amount(book: &Book, amount: Money, locale: &impl Locale) -> Result<String, StoreError> {
+pub(crate) fn typed_amount(
+    book: &Book,
+    amount: Money,
+    locale: &impl Locale,
+) -> Result<String, StoreError> {
     let format = AmountFormat {
         positive: Affixes::default(),
         negative: Affixes::default(),
@@ -416,7 +424,7 @@ fn typed_amount(book: &Book, amount: Money, locale: &impl Locale) -> Result<Stri
 
 /// Who the money came from or went to, without spaces around it; none if
 /// nothing was typed.
-fn payee(typed: &str) -> Option<String> {
+pub(crate) fn payee(typed: &str) -> Option<String> {
     let trimmed = typed.trim();
     (!trimmed.is_empty()).then(|| trimmed.to_owned())
 }

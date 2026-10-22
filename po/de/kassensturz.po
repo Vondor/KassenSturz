@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-22 21:09+0000\n"
+"POT-Creation-Date: 2026-10-22 21:11+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -1297,27 +1297,39 @@ msgctxt "@action:button %1 is a file name"
 msgid "Back to %1"
 msgstr "Zurück zu %1"
 
-#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:29
+#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:60
+#, kde-format
+msgctxt "@title"
+msgid "Where money comes from"
+msgstr "Woher Geld kommt"
+
+#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:61
+#, kde-format
+msgctxt "@title"
+msgid "What money is spent on"
+msgstr "Wofür Geld ausgegeben wird"
+
+#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:94
 #, kde-format
 msgctxt "@title"
 msgid "Categories"
 msgstr "Kategorien"
 
-#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:34
-#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:49
+#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:99
+#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:114
 #: crates/kassensturz-ui-bridge/qml/CategoryPage.qml:128
 #, kde-format
 msgctxt "@action:button"
 msgid "Add category"
 msgstr "Kategorie hinzufügen"
 
-#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:45
+#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:110
 #, kde-format
 msgctxt "@info"
 msgid "You have no categories yet"
 msgstr "Sie haben noch keine Kategorien"
 
-#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:46
+#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:111
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1327,17 +1339,17 @@ msgstr ""
 "Eine Kategorie sagt, wofür Geld ausgegeben wurde oder woher es kam, zum "
 "Beispiel Lebensmittel oder Gehalt."
 
-#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:74
+#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:187
 #, kde-format
-msgctxt "@title"
-msgid "Where money comes from"
-msgstr "Woher Geld kommt"
+msgctxt "@action:button hide what is inside a category"
+msgid "Collapse"
+msgstr "Zuklappen"
 
-#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:75
+#: crates/kassensturz-ui-bridge/qml/CategoriesPage.qml:188
 #, kde-format
-msgctxt "@title"
-msgid "What money is spent on"
-msgstr "Wofür Geld ausgegeben wird"
+msgctxt "@action:button show what is inside a category"
+msgid "Expand"
+msgstr "Aufklappen"
 
 #: crates/kassensturz-ui-bridge/qml/CategoryPage.qml:42
 #, kde-format

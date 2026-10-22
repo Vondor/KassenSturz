@@ -4,7 +4,9 @@
 // The categories as a tree (D-067, D-082): what money came from and what it
 // was spent on, with categories inside categories, e.g. Groceries inside
 // Food. Income comes before spending; each category is followed by what is
-// inside it.
+// inside it. Like KMyMoney's category list (round 1), the tree opens and
+// closes, with thin guide lines, small icons and compact, alternately shaded
+// lines.
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -18,6 +20,69 @@ Kirigami.ScrollablePage {
 
     required property CategoryTree categories
     readonly property var rows: categories.view.rows ?? []
+    // What the user closed, by the category's ID or the heading's key.
+    property var collapsed: ({})
+    // What the tree shows now: the two headings with their categories, minus
+    // what sits inside a closed one.
+    readonly property var shown: visibleItems(rows, collapsed)
+
+    function toggle(key: string) {
+        const next = Object.assign({}, collapsed);
+        if (next[key]) {
+            delete next[key];
+        } else {
+            next[key] = true;
+        }
+        collapsed = next;
+    }
+
+    // The rows are in tree order, income first, each followed by what is
+    // inside it, so a closed one hides the rows after it that are deeper.
+    function visibleItems(all: var, closed: var): var {
+        const out = [];
+        let groupHidden = false;
+        let hidingDepth = -1;
+        for (let i = 0; i < all.length; i++) {
+            const row = all[i];
+            if (i === 0 || all[i - 1].income !== row.income) {
+                const key = row.income ? "income" : "spending";
+                groupHidden = closed[key] === true;
+                hidingDepth = -1;
+                out.push({
+                    group: true,
+                    key: key,
+                    id: "",
+                    path: "",
+                    depth: 0,
+                    hasChildren: true,
+                    expanded: !groupHidden,
+                    name: row.income
+                        ? i18nContext.i18nc("@title", "Where money comes from")
+                        : i18nContext.i18nc("@title", "What money is spent on"),
+                });
+            }
+            if (groupHidden || (hidingDepth >= 0 && row.depth > hidingDepth)) {
+                continue;
+            }
+            hidingDepth = -1;
+            const hasChildren = i + 1 < all.length && all[i + 1].depth > row.depth;
+            const expanded = closed[row.id] !== true;
+            if (hasChildren && !expanded) {
+                hidingDepth = row.depth;
+            }
+            out.push({
+                group: false,
+                key: row.id,
+                id: row.id,
+                path: row.path,
+                depth: row.depth + 1,
+                hasChildren: hasChildren,
+                expanded: expanded,
+                name: row.name,
+            });
+        }
+        return out;
+    }
 
     signal addCategoryClicked()
     signal categoryClicked(categoryId: string)
@@ -52,43 +117,101 @@ Kirigami.ScrollablePage {
         }
 
         Repeater {
-            model: page.rows
+            model: page.shown
 
-            delegate: ColumnLayout {
+            delegate: Controls.ItemDelegate {
                 id: entry
 
                 required property var modelData
                 required property int index
 
-                // Income and spending each start with a heading.
-                readonly property bool startsKind: index === 0 || page.rows[index - 1].income !== modelData.income
+                readonly property bool isGroup: modelData.group
+                readonly property real step: Kirigami.Units.gridUnit * 1.5
 
                 Layout.fillWidth: true
-                spacing: 0
+                // Compact lines, every second one shaded, to follow across.
+                topPadding: Kirigami.Units.smallSpacing / 2
+                bottomPadding: Kirigami.Units.smallSpacing / 2
+                leftPadding: Kirigami.Units.smallSpacing
+                // A name could contain anything.
+                text: modelData.name
+                Accessible.name: isGroup ? modelData.name : modelData.path
+                // A heading opens and closes; a category opens to be changed.
+                onClicked: isGroup ? page.toggle(modelData.key) : page.categoryClicked(modelData.id)
+                Keys.onLeftPressed: if (modelData.hasChildren && modelData.expanded) page.toggle(modelData.key)
+                Keys.onRightPressed: if (modelData.hasChildren && !modelData.expanded) page.toggle(modelData.key)
 
-                Kirigami.Heading {
-                    Layout.topMargin: entry.index === 0 ? 0 : Kirigami.Units.largeSpacing
-                    Layout.bottomMargin: Kirigami.Units.smallSpacing
-                    visible: entry.startsKind
-                    text: entry.modelData.income
-                        ? page.i18nContext.i18nc("@title", "Where money comes from")
-                        : page.i18nContext.i18nc("@title", "What money is spent on")
-                    level: 2
+                background: Rectangle {
+                    readonly property bool lit: entry.down || entry.hovered || entry.visualFocus
+
+                    color: lit
+                        ? Kirigami.Theme.highlightColor
+                        : entry.index % 2 === 1 ? Kirigami.Theme.alternateBackgroundColor : "transparent"
+                    opacity: lit ? 0.3 : 1
                 }
 
-                Controls.ItemDelegate {
-                    Layout.fillWidth: true
-                    // Inside another category: indented one step per level.
-                    leftPadding: Kirigami.Units.largeSpacing + entry.modelData.depth * Kirigami.Units.gridUnit * 1.5
-                    text: entry.modelData.name
-                    // A name could contain anything.
-                    contentItem: Controls.Label {
-                        text: parent.text
+                contentItem: RowLayout {
+                    spacing: 0
+
+                    // One thin line per level, joining a category to the
+                    // one it sits inside.
+                    Repeater {
+                        model: entry.modelData.depth
+
+                        delegate: Item {
+                            Layout.preferredWidth: entry.step
+                            Layout.fillHeight: true
+
+                            Kirigami.Separator {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.top: parent.top
+                                anchors.bottom: parent.bottom
+                                anchors.topMargin: -entry.topPadding
+                                anchors.bottomMargin: -entry.bottomPadding
+                                width: 1
+                            }
+                        }
+                    }
+
+                    // The arrow of what has something inside; the others
+                    // keep its room, so the names line up.
+                    Controls.ToolButton {
+                        Layout.preferredWidth: entry.step
+                        Layout.preferredHeight: entry.step
+                        visible: entry.modelData.hasChildren
+                        icon.name: entry.modelData.expanded ? "arrow-down" : "arrow-right"
+                        display: Controls.AbstractButton.IconOnly
+                        flat: true
+                        focusPolicy: Qt.NoFocus
+                        text: entry.modelData.expanded
+                            ? page.i18nContext.i18nc("@action:button hide what is inside a category", "Collapse")
+                            : page.i18nContext.i18nc("@action:button show what is inside a category", "Expand")
+                        onClicked: page.toggle(entry.modelData.key)
+
+                        Controls.ToolTip.text: text
+                        Controls.ToolTip.visible: hovered
+                        Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
+                    }
+
+                    Item {
+                        Layout.preferredWidth: entry.step
+                        visible: !entry.modelData.hasChildren
+                    }
+
+                    Kirigami.Icon {
+                        Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                        Layout.preferredHeight: Kirigami.Units.iconSizes.small
+                        Layout.rightMargin: Kirigami.Units.smallSpacing
+                        source: entry.modelData.hasChildren ? "folder" : "tag"
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        text: entry.text
                         textFormat: Text.PlainText
                         elide: Text.ElideRight
+                        font.bold: entry.isGroup
                     }
-                    Accessible.name: entry.modelData.path
-                    onClicked: page.categoryClicked(entry.modelData.id)
                 }
             }
         }

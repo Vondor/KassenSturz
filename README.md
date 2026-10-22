@@ -90,7 +90,7 @@ When `Cargo.lock` changes, regenerate the Flatpak's crate list with `flatpak-car
 python3 flatpak-cargo-generator.py Cargo.lock -o packaging/flatpak/cargo-sources.json
 ```
 
-When strings in the UI change, update the translations with `tools/sdk.sh tools/update-translations.sh`.
+When strings in the UI change, update the translations with `tools/sdk.sh tools/update-translations.sh` and translate what it leaves empty; `tools/sdk.sh tools/check-translations.sh` (run by CI) fails while a translation is missing or left over (D-126).
 
 When Debian's [iso-codes](https://salsa.debian.org/iso-codes-team/iso-codes) has a new release, download it and update KassenSturz's currency table with `python3 tools/update-currency-table.py VERSION iso-codes-VERSION/data/iso_4217.json`. A currency it adds needs its decimal places from ISO 4217, given once as `CODE=DIGITS` after the file (D-077 in [`docs/DECISIONS.md`](docs/DECISIONS.md)).
 

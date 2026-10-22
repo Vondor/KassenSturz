@@ -89,21 +89,21 @@ Kirigami.ScrollablePage {
         const who = reason.other_party ?? "";
         switch (reason.code) {
         case "bank-check.later-entries":
-            return i18nContext.i18ncp("@info %2 is a date", "%1 entry is dated after %2. Your bank's figure for %2 doesn't have it either, so it is left out on both sides.", "%1 entries are dated after %2. Your bank's figure for %2 doesn't have them either, so they are left out on both sides.", parseInt(reason.count), date);
+            return i18nContext.i18ncp("@info %2 is a date", "%1 transaction is dated after %2. Your bank's figure for %2 doesn't have it either, so it is left out on both sides.", "%1 transactions are dated after %2. Your bank's figure for %2 doesn't have them either, so they are left out on both sides.", parseInt(reason.count), date);
         case "bank-check.starting-balance-later":
             return i18nContext.i18nc("@info %1 is an amount of money, %2 is a date", "The starting balance of %1 is dated %2, after the day you checked, so it isn't counted. Check a later day.", money(reason.amount, reason.owes === "true"), date);
         case "bank-check.entry-twice":
             return who === ""
-                ? i18nContext.i18nc("@info %1 is an amount of money, %2 is a date", "The entry of %1 on %2 is as large as the difference. Maybe it is in your book twice, or your bank hasn't booked it yet.", reason.amount, date)
-                : i18nContext.i18nc("@info %1 is an amount of money, %2 is a date, %3 is who it was paid to or by", "The entry of %1 on %2 (%3) is as large as the difference. Maybe it is in your book twice, or your bank hasn't booked it yet.", reason.amount, date, who);
+                ? i18nContext.i18nc("@info %1 is an amount of money, %2 is a date", "The transaction of %1 on %2 is as large as the difference. Maybe it is in your book twice, or your bank hasn't booked it yet.", reason.amount, date)
+                : i18nContext.i18nc("@info %1 is an amount of money, %2 is a date, %3 is who it was paid to or by", "The transaction of %1 on %2 (%3) is as large as the difference. Maybe it is in your book twice, or your bank hasn't booked it yet.", reason.amount, date, who);
         case "bank-check.entry-wrong-way":
             return who === ""
-                ? i18nContext.i18nc("@info %1 is an amount of money, %2 is a date", "If the entry of %1 on %2 should be the other way round, money out instead of in or the other way, both figures would agree.", reason.amount, date)
-                : i18nContext.i18nc("@info %1 is an amount of money, %2 is a date, %3 is who it was paid to or by", "If the entry of %1 on %2 (%3) should be the other way round, money out instead of in or the other way, both figures would agree.", reason.amount, date, who);
+                ? i18nContext.i18nc("@info %1 is an amount of money, %2 is a date", "If the transaction of %1 on %2 should be the other way round, money out instead of in or the other way, both figures would agree.", reason.amount, date)
+                : i18nContext.i18nc("@info %1 is an amount of money, %2 is a date, %3 is who it was paid to or by", "If the transaction of %1 on %2 (%3) should be the other way round, money out instead of in or the other way, both figures would agree.", reason.amount, date, who);
         case "bank-check.entry-missing":
             return reason.direction === "in"
-                ? i18nContext.i18nc("@info %1 is an amount of money", "An entry of %1 that added money to the account may be missing. Look for it in your bank's statement.", reason.amount)
-                : i18nContext.i18nc("@info %1 is an amount of money", "An entry of %1 that took money out of the account may be missing, or one of your entries is too much. Look for it in your bank's statement.", reason.amount);
+                ? i18nContext.i18nc("@info %1 is an amount of money", "A transaction of %1 that added money to the account may be missing. Look for it in your bank's statement.", reason.amount)
+                : i18nContext.i18nc("@info %1 is an amount of money", "A transaction of %1 that took money out of the account may be missing, or one of your transactions is too much. Look for it in your bank's statement.", reason.amount);
         case "bank-check.starting-balance":
             return i18nContext.i18nc("@info %1 and %2 are amounts of money", "If the difference comes from before you started using KassenSturz, the starting balance would have to be %1 instead of %2 for both to agree. KassenSturz doesn't change it by itself.", money(reason.would_be, reason.owes === "true"), money(reason.current, reason.current_owes === "true"));
         case "bank-check.no-starting-balance":
@@ -217,8 +217,8 @@ Kirigami.ScrollablePage {
                 text: page.correction === null
                     ? ""
                     : page.correction.adds
-                        ? page.i18nContext.i18nc("@info %1 is an amount of money, %2 and %3 are dates", "If the difference comes from before you started using KassenSturz, a starting balance of %1 dated %2 makes both agree. KassenSturz then has on %3 what your bank says. Your other entries stay as they are.", page.money(page.correction.wouldBe, page.correction.owes), page.correction.date, page.check.date)
-                        : page.i18nContext.i18nc("@info %1 is an amount of money, %2 and %3 are dates", "If the difference comes from before you started using KassenSturz, a starting balance of %1 (dated %2) makes both agree. KassenSturz then has on %3 what your bank says. Your other entries stay as they are.", page.money(page.correction.wouldBe, page.correction.owes), page.correction.date, page.check.date)
+                        ? page.i18nContext.i18nc("@info %1 is an amount of money, %2 and %3 are dates", "If the difference comes from before you started using KassenSturz, a starting balance of %1 dated %2 makes both agree. KassenSturz then has on %3 what your bank says. Your other transactions stay as they are.", page.money(page.correction.wouldBe, page.correction.owes), page.correction.date, page.check.date)
+                        : page.i18nContext.i18nc("@info %1 is an amount of money, %2 and %3 are dates", "If the difference comes from before you started using KassenSturz, a starting balance of %1 (dated %2) makes both agree. KassenSturz then has on %3 what your bank says. Your other transactions stay as they are.", page.money(page.correction.wouldBe, page.correction.owes), page.correction.date, page.check.date)
                 wrapMode: Text.Wrap
             }
 

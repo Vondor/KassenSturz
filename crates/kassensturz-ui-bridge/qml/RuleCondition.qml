@@ -38,7 +38,7 @@ Kirigami.AbstractCard {
         { kind: "text", field: "other-party-name", label: i18nContext.i18nc("@item:inlistbox what a Rule looks at: the name the bank gave for who paid or was paid", "Other party") },
         { kind: "text", field: "other-party-iban", label: i18nContext.i18nc("@item:inlistbox what a Rule looks at: the other party's account number", "Other party's IBAN") },
         { kind: "text", field: "purpose", label: i18nContext.i18nc("@item:inlistbox what a Rule looks at: the text a payment came with", "Purpose") },
-        { kind: "text", field: "payee", label: i18nContext.i18nc("@item:inlistbox what a Rule looks at: the name shown as From or To", "Payee") },
+        { kind: "text", field: "payee", label: i18nContext.i18nc("@item:inlistbox what a Rule looks at: the name shown as From or To", "Name shown") },
         { kind: "amount", field: "", label: i18nContext.i18nc("@item:inlistbox what a Rule looks at", "Amount") },
         { kind: "date", field: "", label: i18nContext.i18nc("@item:inlistbox what a Rule looks at", "Date") },
         { kind: "currency", field: "", label: i18nContext.i18nc("@item:inlistbox what a Rule looks at", "Currency") },

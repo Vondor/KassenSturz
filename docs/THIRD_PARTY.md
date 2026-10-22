@@ -51,7 +51,7 @@ Used to build or check KassenSturz, never shipped with it, and pinned to exact v
 | actions/cache | Keeps Cargo's downloads and build output between CI runs (D-110) | MIT | v6.1.0, pinned by commit (`actions/cache/restore` and `actions/cache/save`) |
 | cargo-deny | Checks the licenses and sources of all crates (D-026) | MIT OR Apache-2.0 | 0.20.2, in CI through `EmbarkStudios/cargo-deny-action` v2.1.1, pinned by commit |
 | reuse | Checks SPDX headers (D-024) | GPL-3.0-or-later and others | 6.2.0 |
-| GNU gettext (`xgettext`, `msgmerge`, `msgfmt`) | Extracts, merges and checks translations (D-034); part of the KDE SDK | GPL-3.0-or-later | 0.26, from the SDK |
+| GNU gettext (`xgettext`, `msgmerge`, `msgattrib`, `msgfmt`) | Extracts, merges and checks translations (D-034); part of the KDE SDK | GPL-3.0-or-later | 0.26, from the SDK |
 
 ## Verification log
 

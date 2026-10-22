@@ -181,7 +181,7 @@ Kirigami.ScrollablePage {
         Controls.Label {
             Layout.maximumWidth: Kirigami.Units.gridUnit * 20
             visible: page.editable && (page.entry.imported ?? false)
-            text: page.i18nContext.i18nc("@info", "This entry came from your bank, so its amount stays as the bank sent it. You can change the rest.")
+            text: page.i18nContext.i18nc("@info", "This transaction came from your bank, so its amount stays as the bank sent it. You can change the rest.")
             wrapMode: Text.Wrap
         }
 

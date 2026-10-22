@@ -44,7 +44,7 @@ Kirigami.ScrollablePage {
             icon.name: "document-import"
             enabled: page.toImport > 0
             text: enabled
-                ? page.i18nContext.i18ncp("@action:button", "Import %1 entry", "Import %1 entries", page.toImport)
+                ? page.i18nContext.i18ncp("@action:button", "Import %1 transaction", "Import %1 transactions", page.toImport)
                 : page.i18nContext.i18nc("@action:button nothing to import", "Nothing new to import")
             onTriggered: page.importNow()
         },
@@ -76,7 +76,7 @@ Kirigami.ScrollablePage {
 
     function balanceText(balance: var): string {
         return balance.which === "opening"
-            ? i18nContext.i18nc("@info %1 is a date, %2 what the bank says the account held", "Before these entries, on %1, your bank says: %2", balance.date, says(balance.bank, balance.bankOwes))
+            ? i18nContext.i18nc("@info %1 is a date, %2 what the bank says the account held", "Before these transactions, on %1, your bank says: %2", balance.date, says(balance.bank, balance.bankOwes))
             : i18nContext.i18nc("@info %1 is a date, %2 what the bank says the account held", "After them, on %1, your bank says: %2", balance.date, says(balance.bank, balance.bankOwes));
     }
 
@@ -126,8 +126,8 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@info %1 is a file name", "From %1", page.view.fileName ?? "")
                 textItem.textFormat: Text.PlainText
                 description: page.toImport > 0
-                    ? page.i18nContext.i18ncp("@info", "%1 new entry goes into the account.", "%1 new entries go into the account.", page.toImport)
-                    : page.i18nContext.i18nc("@info", "Nothing new: every entry is already in your book or waits for your decision below.")
+                    ? page.i18nContext.i18ncp("@info", "%1 new transaction goes into the account.", "%1 new transactions go into the account.", page.toImport)
+                    : page.i18nContext.i18nc("@info", "Nothing new: every transaction is already in your book or waits for your decision below.")
             }
 
             FormCard.FormDelegateSeparator {
@@ -147,7 +147,7 @@ Kirigami.ScrollablePage {
             FormCard.FormTextDelegate {
                 visible: (page.view.toDecide ?? 0) > 0
                 icon.name: "dialog-question"
-                text: page.i18nContext.i18ncp("@info", "%1 entry looks like a transaction already in your book.", "%1 entries look like transactions already in your book.", page.view.toDecide ?? 0)
+                text: page.i18nContext.i18ncp("@info", "%1 transaction looks like one already in your book.", "%1 transactions look like transactions already in your book.", page.view.toDecide ?? 0)
                 description: page.i18nContext.i18nc("@info", "Maybe you typed it in before the statement came. It is left out unless you tick \"Import it anyway\" below.")
             }
 
@@ -158,7 +158,7 @@ Kirigami.ScrollablePage {
             FormCard.FormTextDelegate {
                 visible: (page.view.duplicates ?? 0) > 0
                 icon.name: "edit-copy"
-                text: page.i18nContext.i18ncp("@info", "%1 entry is already in your book and is skipped.", "%1 entries are already in your book and are skipped.", page.view.duplicates ?? 0)
+                text: page.i18nContext.i18ncp("@info", "%1 transaction is already in your book and is skipped.", "%1 transactions are already in your book and are skipped.", page.view.duplicates ?? 0)
             }
 
             FormCard.FormDelegateSeparator {
@@ -168,7 +168,7 @@ Kirigami.ScrollablePage {
             FormCard.FormTextDelegate {
                 visible: (page.view.pending ?? 0) > 0
                 icon.name: "chronometer"
-                text: page.i18nContext.i18ncp("@info", "%1 entry isn't booked by your bank yet and is left out.", "%1 entries aren't booked by your bank yet and are left out.", page.view.pending ?? 0)
+                text: page.i18nContext.i18ncp("@info", "%1 transaction isn't booked by your bank yet and is left out.", "%1 transactions aren't booked by your bank yet and are left out.", page.view.pending ?? 0)
                 description: page.i18nContext.i18nc("@info", "It comes with a later statement, once the bank has booked it.")
             }
 
@@ -179,7 +179,7 @@ Kirigami.ScrollablePage {
             FormCard.FormTextDelegate {
                 visible: (page.view.transfers ?? 0) > 0
                 icon.name: "edit-link"
-                text: page.i18nContext.i18ncp("@info", "%1 entry looks like money moved between your own accounts.", "%1 entries look like money moved between your own accounts.", page.view.transfers ?? 0)
+                text: page.i18nContext.i18ncp("@info", "%1 transaction looks like money moved between your own accounts.", "%1 transactions look like money moved between your own accounts.", page.view.transfers ?? 0)
                 description: page.i18nContext.i18nc("@info", "KassenSturz asks you about each one after the import.")
             }
         }
@@ -218,7 +218,7 @@ Kirigami.ScrollablePage {
         }
 
         FormCard.FormHeader {
-            title: page.i18nContext.i18ncp("@title:group", "%1 entry in the file", "%1 entries in the file", page.entries.length)
+            title: page.i18nContext.i18ncp("@title:group", "%1 transaction in the file", "%1 transactions in the file", page.entries.length)
         }
 
         FormCard.FormCard {

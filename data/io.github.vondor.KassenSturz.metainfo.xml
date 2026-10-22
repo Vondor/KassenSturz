@@ -23,10 +23,12 @@ SPDX-License-Identifier: CC0-1.0
       ganz ohne Buchhaltungswissen. Die Daten bleiben auf dem eigenen Computer.
     </p>
     <p>
-      This is an early prototype. It only shows sample data and saves nothing.
+      This is an early test version. Try it with made-up numbers: what you enter
+      is saved in your book.
     </p>
     <p xml:lang="de">
-      Dies ist ein früher Prototyp. Er zeigt nur Beispieldaten und speichert nichts.
+      Dies ist eine frühe Testversion. Probieren Sie sie mit ausgedachten Zahlen
+      aus: Was Sie eingeben, wird in Ihrem Haushaltsbuch gespeichert.
     </p>
   </description>
   <developer id="io.github.vondor">

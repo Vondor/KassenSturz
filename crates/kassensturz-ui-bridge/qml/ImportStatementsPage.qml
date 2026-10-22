@@ -39,7 +39,7 @@ Kirigami.ScrollablePage {
     }
 
     function describe(statement: var): string {
-        const count = i18nContext.i18ncp("@info", "%1 entry", "%1 entries", statement.entries);
+        const count = i18nContext.i18ncp("@info", "%1 transaction", "%1 transactions", statement.entries);
         let text = statement.firstDate === "" ? count : i18nContext.i18nc("@info %1 is a number of entries, %2 and %3 dates", "%1, %2 to %3", count, statement.firstDate, statement.lastDate);
         if (statement.closing !== "") {
             text = i18nContext.i18nc("@info %1 describes the entries, %2 is an amount, %3 a date", "%1 · ends with %2 on %3", text, statement.closing, statement.closingDate);

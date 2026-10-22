@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 3,
+  "version": 4,
   "settings": {"rounding_mode": "half_even", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2},
@@ -8,14 +8,35 @@
     {"code": "USD", "minor_digits": 2},
     {"code": "DEM", "minor_digits": 2}
   ],
+  "institutions": [
+    {"id": "019a0000-0000-7000-8000-000000000050", "name": "Sparkasse \"Musterstadt\"", "bank_code": "37040044", "contact": "Erika Mustermann", "address": "Hauptstraße 1\n12345 Musterstadt\nDeutschland", "phone": "+49 221 0000000"}
+  ],
   "accounts": [
-    {"id": "019a0000-0000-7000-8000-000000000001", "name": "Girokonto", "kind": "asset", "currency": "EUR", "type": "checking", "closed": false, "parent": null},
-    {"id": "019a0000-0000-7000-8000-000000000002", "name": "Dollars", "kind": "asset", "currency": "USD", "type": "cash", "closed": false, "parent": null},
-    {"id": "019a0000-0000-7000-8000-000000000007", "name": "Old \"savings\"", "kind": "asset", "currency": "EUR", "type": "savings", "closed": true, "parent": null},
-    {"id": "019a0000-0000-7000-8000-000000000003", "name": "Starting balances", "kind": "equity", "currency": "EUR", "type": null, "closed": false, "parent": null},
-    {"id": "019a0000-0000-7000-8000-000000000004", "name": "Food", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null},
-    {"id": "019a0000-0000-7000-8000-000000000005", "name": "Bakery", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": "019a0000-0000-7000-8000-000000000004"},
-    {"id": "019a0000-0000-7000-8000-000000000006", "name": "Travel", "kind": "expense", "currency": "USD", "type": null, "closed": false, "parent": null}
+    {"id": "019a0000-0000-7000-8000-000000000001", "name": "Girokonto", "kind": "asset", "currency": "EUR", "type": "checking", "closed": false, "parent": null, "number": "DE89 3704 0044 0532 0130 00", "notes": "Joint account\nsince 2020", "institution": "019a0000-0000-7000-8000-000000000050"},
+    {"id": "019a0000-0000-7000-8000-000000000002", "name": "Dollars", "kind": "asset", "currency": "USD", "type": "cash", "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000007", "name": "Old \"savings\"", "kind": "asset", "currency": "EUR", "type": "savings", "closed": true, "parent": "019a0000-0000-7000-8000-000000000001", "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000003", "name": "Starting balances", "kind": "equity", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000004", "name": "Food", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000005", "name": "Bakery", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": "019a0000-0000-7000-8000-000000000004", "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000006", "name": "Travel", "kind": "expense", "currency": "USD", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null}
+  ],
+  "payees": [
+    {
+      "id": "019a0000-0000-7000-8000-000000000051",
+      "name": "Bakery",
+      "address": "Marktplatz 2\n12345 Musterstadt",
+      "email": "hello@bakery.example",
+      "phone": null,
+      "reference": "Customer 4711",
+      "recognition": "key_words",
+      "key_words": ["Bäckerei", "Brötchen"],
+      "ignore_case": true
+    },
+    {"id": "019a0000-0000-7000-8000-000000000052", "name": "Hotel", "address": null, "email": null, "phone": "+1 555 0100", "reference": null, "recognition": "name", "key_words": null, "ignore_case": false}
+  ],
+  "tags": [
+    {"id": "019a0000-0000-7000-8000-000000000053", "name": "Kids"},
+    {"id": "019a0000-0000-7000-8000-000000000054", "name": "Weekend"}
   ],
   "rates": [
     {"id": "019a0000-0000-7000-8000-00000000000b", "date": "2026-10-02", "from": "EUR", "to": "USD", "rate": "1.0850", "source": "manual"},
@@ -73,9 +94,12 @@
       "date": "2026-10-01",
       "payee": "Opening balance",
       "currency": "EUR",
+      "note": null,
+      "entered": null,
+      "attachments": [],
       "parts": [
-        {"id": "019a0000-0000-7000-8000-000000000020", "account": "019a0000-0000-7000-8000-000000000001", "amount": "1000.00", "foreign": null, "original": null, "date": null, "payee": null, "delivered": null, "booked_by_rule": null},
-        {"id": "019a0000-0000-7000-8000-000000000021", "account": "019a0000-0000-7000-8000-000000000003", "amount": "-1000.00", "foreign": null, "original": null, "date": null, "payee": null, "delivered": null, "booked_by_rule": null}
+        {"id": "019a0000-0000-7000-8000-000000000020", "account": "019a0000-0000-7000-8000-000000000001", "amount": "1000.00", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {"id": "019a0000-0000-7000-8000-000000000021", "account": "019a0000-0000-7000-8000-000000000003", "amount": "-1000.00", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null}
       ]
     },
     {
@@ -83,6 +107,12 @@
       "date": "2026-10-05",
       "payee": null,
       "currency": "EUR",
+      "note": "Saturday \"shopping\"\nwith the kids",
+      "entered": "2026-10-06",
+      "attachments": [
+        {"link": "receipts/2026-10-05-bakery.pdf", "title": "Receipt"},
+        {"link": "https://example.com/orders/4711", "title": null}
+      ],
       "parts": [
         {
           "id": "019a0000-0000-7000-8000-00000000001f",
@@ -92,6 +122,10 @@
           "original": null,
           "date": null,
           "payee": null,
+          "note": null,
+          "number": "1001",
+          "status": "reconciled",
+          "tags": ["019a0000-0000-7000-8000-000000000054", "019a0000-0000-7000-8000-000000000053"],
           "delivered": {"bank_id": "2026-10-05-0001", "booking_date": "2026-10-05", "value_date": "2026-10-06", "other_party_name": "Bäckerei Sonnenschein", "other_party_iban": "DE89 3704 0044 0532 0130 00", "remittance_information": "=Brötchen\nKarte 4711"},
           "booked_by_rule": null
         },
@@ -103,6 +137,10 @@
           "original": null,
           "date": null,
           "payee": null,
+          "note": "Rolls for the weekend",
+          "number": null,
+          "status": "cleared",
+          "tags": [],
           "delivered": null,
           "booked_by_rule": {"rule": "019a0000-0000-7000-8000-000000000016"}
         }
@@ -113,6 +151,9 @@
       "date": "2026-10-04",
       "payee": "Exchange office",
       "currency": "EUR",
+      "note": null,
+      "entered": null,
+      "attachments": [],
       "parts": [
         {
           "id": "019a0000-0000-7000-8000-000000000029",
@@ -126,10 +167,14 @@
           "original": null,
           "date": "2026-10-05",
           "payee": "Wechselstube \"Am Markt\"",
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
           "delivered": null,
           "booked_by_rule": null
         },
-        {"id": "019a0000-0000-7000-8000-00000000002a", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-92.10", "foreign": null, "original": null, "date": null, "payee": null, "delivered": null, "booked_by_rule": null}
+        {"id": "019a0000-0000-7000-8000-00000000002a", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-92.10", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null}
       ]
     },
     {
@@ -137,8 +182,11 @@
       "date": "2026-10-06",
       "payee": "Hotel",
       "currency": "EUR",
+      "note": null,
+      "entered": null,
+      "attachments": [],
       "parts": [
-        {"id": "019a0000-0000-7000-8000-000000000034", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-90.00", "foreign": null, "original": null, "date": null, "payee": null, "delivered": null, "booked_by_rule": null},
+        {"id": "019a0000-0000-7000-8000-000000000034", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-90.00", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
         {
           "id": "019a0000-0000-7000-8000-000000000033",
           "account": "019a0000-0000-7000-8000-000000000006",
@@ -147,6 +195,10 @@
           "original": null,
           "date": null,
           "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
           "delivered": null,
           "booked_by_rule": null
         }
@@ -157,8 +209,11 @@
       "date": "2026-10-07",
       "payee": "Unknown",
       "currency": "EUR",
+      "note": null,
+      "entered": null,
+      "attachments": [],
       "parts": [
-        {"id": "019a0000-0000-7000-8000-00000000003d", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-0.01", "foreign": null, "original": null, "date": null, "payee": null, "delivered": null, "booked_by_rule": null},
+        {"id": "019a0000-0000-7000-8000-00000000003d", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-0.01", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
         {
           "id": "019a0000-0000-7000-8000-00000000003e",
           "account": null,
@@ -167,6 +222,10 @@
           "original": null,
           "date": null,
           "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
           "delivered": null,
           "booked_by_rule": {"rule": null}
         }
@@ -177,6 +236,9 @@
       "date": "2026-10-08",
       "payee": "Bakery",
       "currency": "EUR",
+      "note": null,
+      "entered": null,
+      "attachments": [],
       "parts": [
         {
           "id": "019a0000-0000-7000-8000-000000000047",
@@ -190,6 +252,10 @@
           },
           "date": null,
           "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
           "delivered": null,
           "booked_by_rule": null
         },
@@ -205,6 +271,10 @@
           },
           "date": null,
           "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
           "delivered": null,
           "booked_by_rule": null
         }

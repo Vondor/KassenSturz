@@ -104,6 +104,8 @@ pub struct RegisterRow {
     pub balance: Shown,
     /// Whether that balance is shown as "You owe" (D-067).
     pub owes: bool,
+    /// What the user noted about it; may be empty.
+    pub note: String,
 }
 
 /// What a transaction is, seen from one account. The register's page can
@@ -152,6 +154,9 @@ pub struct Entry {
     pub kind: EntryKind,
     /// What the account held after it, counting the entries in date order.
     pub balance: Money,
+    /// What the user noted about it: the transaction's note, or else the
+    /// note of its part in this account (D-132); may be empty.
+    pub note: String,
 }
 
 impl Entry {
@@ -174,6 +179,7 @@ impl Entry {
             kind: self.kind.key(),
             balance,
             owes,
+            note: self.note.clone(),
         }
     }
 }
@@ -225,6 +231,17 @@ pub fn entries(book: &Book, account: AccountId) -> Result<Vec<Entry>, StoreError
         balance = balance
             .checked_add(entry.amount)
             .map_err(|_| StoreError::AmountOverflow)?;
+        let note = transaction
+            .note()
+            .or_else(|| {
+                transaction
+                    .splits()
+                    .iter()
+                    .find(|split| split.account == Some(account))
+                    .and_then(|split| split.note.as_deref())
+            })
+            .unwrap_or_default()
+            .to_owned();
         entries.push(Entry {
             transaction: entry.transaction,
             date: entry.booking_date,
@@ -233,6 +250,7 @@ pub fn entries(book: &Book, account: AccountId) -> Result<Vec<Entry>, StoreError
             amount: entry.amount,
             kind,
             balance,
+            note,
         });
     }
     Ok(entries)
@@ -420,6 +438,7 @@ mod sort_tests {
             amount: Money::from_minor_units(minor, eur),
             kind: EntryKind::Simple,
             balance: Money::from_minor_units(minor, eur),
+            note: String::new(),
         }
     }
 

@@ -17,8 +17,8 @@ use std::io::Write;
 
 use kassensturz_core::{
     Account, AccountKind, AccountType, AmountTest, Condition, Currency, CurrencyCode, DatedRate,
-    MatchMode, Money, RateSource, RoundingMode, RuleId, RuleNode, SplitId, TextField, TextOperator,
-    Transaction,
+    Institution, MatchMode, Money, PartStatus, Payee, PayeeRecognition, RateSource, RoundingMode,
+    RuleId, RuleNode, SplitId, Tag, TextField, TextOperator, Transaction,
 };
 
 use crate::data::ExportData;
@@ -39,8 +39,10 @@ pub const FORMAT: &str = "kassensturz-book";
 /// version up to its own and refuses newer ones (`docs/EXPORT_FORMAT.md`).
 /// Version 2 added a part's original amount, from before it was converted
 /// out of a withdrawn currency (D-104), version 3 a part's own date and
-/// payee, which its account shows instead of the transaction's (D-108).
-pub const VERSION: u64 = 3;
+/// payee, which its account shows instead of the transaction's (D-108),
+/// version 4 institutions, payees and tags, and the notes, numbers and
+/// status that came over from another program's book with them (D-132).
+pub const VERSION: u64 = 4;
 
 /// How deep Rules can sit inside each other in the file: a top-level Rule is
 /// at depth 1. Deeper trees are refused when writing and reading, so a file
@@ -71,6 +73,12 @@ pub struct BookData {
     pub transactions: Vec<Transaction>,
     /// The parts a Rule booked that the Rules may change again (D-088).
     pub rule_marks: Vec<BookedByRule>,
+    /// The banks and other institutions the accounts are at (D-132).
+    pub institutions: Vec<Institution>,
+    /// The payees, with what the user keeps about them (D-132).
+    pub payees: Vec<Payee>,
+    /// The tags (D-132).
+    pub tags: Vec<Tag>,
 }
 
 /// A part a Rule booked, which the Rules may book again when the user
@@ -135,9 +143,18 @@ impl Exporter for BookExport {
                 ),
             ),
             (
+                "institutions",
+                Json::List(book.institutions.iter().map(institution).collect()),
+            ),
+            (
                 "accounts",
                 Json::List(book.accounts.iter().map(account).collect()),
             ),
+            (
+                "payees",
+                Json::List(book.payees.iter().map(payee).collect()),
+            ),
+            ("tags", Json::List(book.tags.iter().map(tag).collect())),
             ("rates", Json::List(book.rates.iter().map(rate).collect())),
             (
                 "rules",
@@ -167,7 +184,8 @@ impl Exporter for BookExport {
 impl BookData {
     /// Fails if the data can't be written so that it reads back the same:
     /// an amount in a currency the book doesn't list, a mark for a part no
-    /// transaction has, or Rules nested deeper than [`MAX_RULE_DEPTH`].
+    /// transaction has, a tag on a part that the book doesn't list, or
+    /// Rules nested deeper than [`MAX_RULE_DEPTH`].
     pub(crate) fn check(&self) -> Result<(), ExportError> {
         let listed: HashSet<CurrencyCode> = self
             .currencies
@@ -203,6 +221,15 @@ impl BookData {
             .find(|mark| !parts.contains(&mark.split))
         {
             return Err(ExportError::MarkWithoutPart(mark.split));
+        }
+        let tags: HashSet<_> = self.tags.iter().map(|tag| tag.id).collect();
+        for split in self.transactions.iter().flat_map(Transaction::splits) {
+            if let Some(&tag) = split.tags.iter().find(|tag| !tags.contains(tag)) {
+                return Err(ExportError::UnlistedTag {
+                    split: split.id,
+                    tag,
+                });
+            }
         }
         let mut level: Vec<&RuleNode> = self.rules.iter().collect();
         let mut depth = 0;
@@ -320,6 +347,18 @@ impl BookWriter {
                     ("original", original),
                     ("date", Json::optional_date(split.own_date)),
                     ("payee", Json::optional_text(split.own_payee.as_deref())),
+                    ("note", Json::optional_text(split.note.as_deref())),
+                    ("number", Json::optional_text(split.number.as_deref())),
+                    (
+                        "status",
+                        split
+                            .status
+                            .map_or(Json::Null, |status| Json::text(status_name(status))),
+                    ),
+                    (
+                        "tags",
+                        Json::List(split.tags.iter().map(|&tag| Json::id(tag)).collect()),
+                    ),
                     ("delivered", delivered),
                     ("booked_by_rule", booked_by_rule),
                 ]))
@@ -330,6 +369,23 @@ impl BookWriter {
             ("date", Json::date(transaction.booking_date())),
             ("payee", Json::optional_text(transaction.payee())),
             ("currency", Json::text(transaction.currency().as_str())),
+            ("note", Json::optional_text(transaction.note())),
+            ("entered", Json::optional_date(transaction.entered_on())),
+            (
+                "attachments",
+                Json::List(
+                    transaction
+                        .attachments()
+                        .iter()
+                        .map(|attachment| {
+                            Json::Object(vec![
+                                ("link", Json::text(&attachment.link)),
+                                ("title", Json::optional_text(attachment.title.as_deref())),
+                            ])
+                        })
+                        .collect(),
+                ),
+            ),
             ("parts", Json::List(parts)),
         ]))
     }
@@ -436,6 +492,58 @@ fn account(account: &Account) -> Json {
         ),
         ("closed", Json::Bool(account.closed)),
         ("parent", Json::optional_id(account.parent)),
+        ("number", Json::optional_text(account.number.as_deref())),
+        ("notes", Json::optional_text(account.notes.as_deref())),
+        ("institution", Json::optional_id(account.institution)),
+    ])
+}
+
+fn institution(institution: &Institution) -> Json {
+    Json::Object(vec![
+        ("id", Json::id(institution.id)),
+        ("name", Json::text(&institution.name)),
+        (
+            "bank_code",
+            Json::optional_text(institution.bank_code.as_deref()),
+        ),
+        (
+            "contact",
+            Json::optional_text(institution.contact.as_deref()),
+        ),
+        (
+            "address",
+            Json::optional_text(institution.address.as_deref()),
+        ),
+        ("phone", Json::optional_text(institution.phone.as_deref())),
+    ])
+}
+
+fn payee(payee: &Payee) -> Json {
+    let (recognition, key_words) = match &payee.recognition {
+        PayeeRecognition::Never => ("never", Json::Null),
+        PayeeRecognition::ByName => ("name", Json::Null),
+        PayeeRecognition::ByKeyWords(words) => (
+            "key_words",
+            Json::List(words.iter().map(|word| Json::text(word)).collect()),
+        ),
+    };
+    Json::Object(vec![
+        ("id", Json::id(payee.id)),
+        ("name", Json::text(&payee.name)),
+        ("address", Json::optional_text(payee.address.as_deref())),
+        ("email", Json::optional_text(payee.email.as_deref())),
+        ("phone", Json::optional_text(payee.phone.as_deref())),
+        ("reference", Json::optional_text(payee.reference.as_deref())),
+        ("recognition", Json::text(recognition)),
+        ("key_words", key_words),
+        ("ignore_case", Json::Bool(payee.recognition_ignores_case)),
+    ])
+}
+
+fn tag(tag: &Tag) -> Json {
+    Json::Object(vec![
+        ("id", Json::id(tag.id)),
+        ("name", Json::text(&tag.name)),
     ])
 }
 
@@ -497,6 +605,16 @@ const SOURCES: [(RateSource, &str); 2] = [
 
 const MATCH_MODES: [(MatchMode, &str); 2] = [(MatchMode::All, "all"), (MatchMode::Any, "any")];
 
+/// Version 4 and later.
+const STATUSES: [(PartStatus, &str); 2] = [
+    (PartStatus::Cleared, "cleared"),
+    (PartStatus::Reconciled, "reconciled"),
+];
+
+/// The words for how a payee is recognized, version 4 and later: `never`,
+/// `name`, or `key_words` with the words listed.
+const RECOGNITIONS: [&str; 3] = ["never", "name", "key_words"];
+
 const TEXT_FIELDS: [(TextField, &str); 4] = [
     (TextField::OtherPartyName, "other_party_name"),
     (TextField::OtherPartyIban, "other_party_iban"),
@@ -539,6 +657,10 @@ fn source_name(source: RateSource) -> &'static str {
 
 fn match_name(mode: MatchMode) -> &'static str {
     name_of(&MATCH_MODES, mode)
+}
+
+fn status_name(status: PartStatus) -> &'static str {
+    name_of(&STATUSES, status)
 }
 
 fn text_field_name(field: TextField) -> &'static str {

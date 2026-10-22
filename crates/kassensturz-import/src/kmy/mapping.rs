@@ -7,14 +7,19 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use kassensturz_core::{AccountKind, AccountType, Currency, CurrencyCode, Date, ImportedDetails};
+use kassensturz_core::{
+    AccountKind, AccountType, Currency, CurrencyCode, Date, ImportedDetails, PartStatus,
+    PayeeRecognition,
+};
 
 use super::fraction::Fraction;
-use super::records::{RawAccount, RawCurrency, RawPrice, RawSplit, RawTransaction, Records, Skips};
+use super::records::{
+    RawAccount, RawCurrency, RawPayee, RawPrice, RawSplit, RawTransaction, Records, Skips,
+};
 use crate::amount;
 use crate::book::{
-    BookAccount, BookPart, BookRate, BookTransaction, ImportedBook, Replacement, Skipped,
-    SkippedData, UnlistedCurrency,
+    BookAccount, BookInstitution, BookPart, BookPayee, BookRate, BookTag, BookTransaction,
+    ImportedBook, Replacement, Skipped, SkippedData, UnlistedCurrency,
 };
 use crate::error::ImportError;
 
@@ -56,27 +61,44 @@ pub(super) fn book(records: Records) -> Result<ImportedBook, ImportError> {
         }
     }
 
+    let institutions: Vec<BookInstitution> = records
+        .institutions
+        .iter()
+        .map(|institution| BookInstitution {
+            key: institution.id.clone(),
+            name: institution.name.clone(),
+            bank_code: text(&institution.bank_code),
+            contact: text(&institution.contact),
+            address: institution.address.lines(),
+            phone: text(&institution.address.phone),
+        })
+        .collect();
     let payees: HashMap<&str, &str> = records
         .payees
         .iter()
         .map(|payee| (payee.id.as_str(), payee.name.as_str()))
         .collect();
-    let mut used_payees: HashSet<&str> = HashSet::new();
+    let book_payees: Vec<BookPayee> = records.payees.iter().map(payee).collect();
+    let tags: Vec<BookTag> = records
+        .tags
+        .iter()
+        .map(|tag| BookTag {
+            key: tag.id.clone(),
+            name: tag.name.clone(),
+        })
+        .collect();
+    let tag_keys: HashSet<&str> = records.tags.iter().map(|tag| tag.id.as_str()).collect();
     let mut transactions = Vec::with_capacity(records.transactions.len());
     for raw in &records.transactions {
-        let transaction = transaction(raw, &accounts, &mut currencies, &payees, &mut skipped)?;
-        used_payees.extend(
-            raw.splits
-                .iter()
-                .map(|split| split.payee.as_str())
-                .filter(|payee| !payee.is_empty()),
-        );
+        let transaction = transaction(
+            raw,
+            &accounts,
+            &mut currencies,
+            &payees,
+            &tag_keys,
+            &mut skipped,
+        )?;
         transactions.push(transaction);
-    }
-    for payee in &records.payees {
-        if payee.details || !used_payees.contains(payee.id.as_str()) {
-            skipped.add(SkippedData::Payees);
-        }
     }
 
     let mut rates = Vec::new();
@@ -105,7 +127,10 @@ pub(super) fn book(records: Records) -> Result<ImportedBook, ImportError> {
 
     let mut suggestions = suggestions(&records.prices, &currencies.unlisted);
     Ok(ImportedBook {
+        institutions,
         accounts: book_accounts,
+        payees: book_payees,
+        tags,
         transactions,
         rates,
         unlisted: currencies
@@ -205,19 +230,15 @@ impl<'a> Accounts<'a> {
             .by_id
             .get(account.parent.as_str())
             .is_some_and(|parent| parent.parent.is_empty());
-        // Categories keep their tree; a book doesn't nest accounts.
-        let parent = (kind.is_category() && !parent_is_top).then(|| account.parent.clone());
-        if !kind.is_category() && !parent_is_top {
-            skipped.add(SkippedData::AccountGroups);
-        }
-        if !account.number.trim().is_empty() {
-            skipped.add(SkippedData::AccountNumbers);
-        }
-        if !account.description.trim().is_empty() {
-            skipped.add(SkippedData::Notes);
-        }
+        // Categories keep their tree, and an account the account it was
+        // grouped under (D-132); the top-level accounts aren't in the book.
+        let parent = (!parent_is_top).then(|| account.parent.clone());
         if account.online_banking {
             skipped.add(SkippedData::OnlineBanking);
+        }
+        let institution = text(&account.institution);
+        if institution.is_some() && !kind.is_account() {
+            return Err(ImportError::Malformed { line: account.line });
         }
         Ok(Some(BookAccount {
             key: account.id.clone(),
@@ -230,6 +251,9 @@ impl<'a> Accounts<'a> {
             // how a file says it: every account comes in open, which hides
             // no money (D-081).
             closed: false,
+            number: kind.is_account().then(|| text(&account.number)).flatten(),
+            notes: text(&account.description),
+            institution,
         }))
     }
 }
@@ -359,6 +383,7 @@ fn transaction(
     accounts: &Accounts<'_>,
     currencies: &mut Currencies<'_>,
     payees: &HashMap<&str, &str>,
+    tags: &HashSet<&str>,
     skipped: &mut Skips,
 ) -> Result<BookTransaction, ImportError> {
     let at_transaction = |error: ImportError| error.at(raw.line);
@@ -376,21 +401,22 @@ fn transaction(
         None => None,
     };
     let mut parts = Vec::with_capacity(raw.splits.len());
-    let mut memo_kept = false;
     for split in &raw.splits {
-        let part = part(split, currency, accounts, currencies, skipped)
+        let part = part(split, currency, accounts, currencies, tags, skipped)
             .map_err(|error| error.at(split.line))?;
-        memo_kept |= part.details.is_some() && split.memo == raw.memo;
         parts.push(part);
     }
-    if !raw.memo.trim().is_empty() && !memo_kept {
-        skipped.add(SkippedData::Notes);
-    }
+    let entered_on = match raw.entered.trim() {
+        "" => None,
+        entered => Some(date(entered).map_err(at_transaction)?),
+    };
     Ok(BookTransaction {
         date: date(&raw.date).map_err(at_transaction)?,
         payee,
         currency,
         parts,
+        note: text(&raw.memo),
+        entered_on,
     })
 }
 
@@ -400,17 +426,27 @@ fn part(
     currency: Currency,
     accounts: &Accounts<'_>,
     currencies: &mut Currencies<'_>,
+    tags: &HashSet<&str>,
     skipped: &mut Skips,
 ) -> Result<BookPart, ImportError> {
     let malformed = || ImportError::Malformed { line: split.line };
     let value = fraction(&split.value)?;
     let shares = fraction(&split.shares)?;
     let amount = value.money(currency, &split.value)?;
-    if split.reconciled != "0" && !split.reconciled.is_empty() {
-        skipped.add(SkippedData::Reconciliation);
-    }
-    if !split.number.trim().is_empty() {
-        skipped.add(SkippedData::Notes);
+    // KMyMoney's `reconcileflag`: `1` seen on a statement, `2` reconciled,
+    // as the samples show (D-102); anything else is unchecked.
+    let status = match split.reconciled.trim() {
+        "1" => Some(PartStatus::Cleared),
+        "2" => Some(PartStatus::Reconciled),
+        _ => None,
+    };
+    let mut part_tags: Vec<String> = Vec::new();
+    for tag in &split.tags {
+        if tags.contains(tag.as_str()) && !part_tags.contains(tag) {
+            part_tags.push(tag.clone());
+        } else {
+            skipped.add(SkippedData::Tags);
+        }
     }
     let account = accounts
         .by_id
@@ -420,17 +456,19 @@ fn part(
         // Booked to a top-level account itself.
         return Err(malformed());
     };
+    let own = BookPart {
+        account: None,
+        amount,
+        account_amount: None,
+        details: None,
+        note: text(&split.memo),
+        number: text(&split.number),
+        status,
+        tags: part_tags,
+    };
     if accounts.investments.contains(account.id.as_str()) {
         // Its money stays in the transaction, without a category.
-        if !split.memo.trim().is_empty() {
-            skipped.add(SkippedData::Notes);
-        }
-        return Ok(BookPart {
-            account: None,
-            amount,
-            account_amount: None,
-            details: None,
-        });
+        return Ok(own);
     }
     let account_currency = code(&account.currency, account.line)?;
     let account_amount = if account_currency == currency.code() {
@@ -443,28 +481,61 @@ fn part(
         let account_currency = currencies.get(account_currency, account.line)?;
         Some(shares.money(account_currency, &split.shares)?)
     };
-    // What a bank delivered, or the note kept with the part, stays with a
-    // part booked to one of the user's accounts (D-083).
-    let details = if kind.is_account() {
-        let text = |text: &str| (!text.trim().is_empty()).then(|| text.to_owned());
+    // What a bank delivered stays with a part booked to one of the user's
+    // accounts (D-083). KMyMoney keeps one text per split, whether the bank
+    // delivered it or the user typed it: on a part booked to an account it
+    // is the delivered text, on any other part the part's note (D-132).
+    let (details, note) = if kind.is_account() {
         let details = ImportedDetails {
             bank_id: text(&split.bank_id),
             remittance_information: text(&split.memo),
             ..ImportedDetails::default()
         };
-        (details != ImportedDetails::default()).then_some(details)
+        (
+            (details != ImportedDetails::default()).then_some(details),
+            None,
+        )
     } else {
-        if !split.memo.trim().is_empty() {
-            skipped.add(SkippedData::Notes);
-        }
-        None
+        (None, own.note.clone())
     };
     Ok(BookPart {
         account: Some(account.id.clone()),
-        amount,
         account_amount,
         details,
+        note,
+        ..own
     })
+}
+
+/// A payee of the book, with what the file keeps about it (D-132).
+fn payee(raw: &RawPayee) -> BookPayee {
+    let key_words: Vec<String> = raw
+        .match_keys
+        .lines()
+        .map(str::trim)
+        .filter(|word| !word.is_empty())
+        .map(str::to_owned)
+        .collect();
+    let recognition = match (raw.matching.trim(), key_words.is_empty()) {
+        ("1", _) => PayeeRecognition::ByName,
+        ("2", false) => PayeeRecognition::ByKeyWords(key_words),
+        _ => PayeeRecognition::Never,
+    };
+    BookPayee {
+        key: raw.id.clone(),
+        name: raw.name.clone(),
+        address: raw.address.lines(),
+        email: text(&raw.email),
+        phone: text(&raw.address.phone),
+        reference: text(&raw.reference),
+        recognition,
+        recognition_ignores_case: matches!(raw.match_ignores_case.trim(), "1" | "Y"),
+    }
+}
+
+/// `text` as an optional text: `None` if it is empty or only spaces.
+fn text(text: &str) -> Option<String> {
+    (!text.trim().is_empty()).then(|| text.to_owned())
 }
 
 /// The fraction `text`, which must be one.

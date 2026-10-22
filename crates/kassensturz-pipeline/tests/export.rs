@@ -35,6 +35,9 @@ fn add(book: &mut Book, name: &str, kind: AccountKind, parent: Option<AccountId>
         account_type: None,
         parent,
         closed: false,
+        number: None,
+        notes: None,
+        institution: None,
     })
     .expect("account added");
     id

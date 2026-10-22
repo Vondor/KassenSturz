@@ -6,6 +6,7 @@
 use crate::Date;
 use crate::account::AccountId;
 use crate::currency::CurrencyCode;
+use crate::details::TagId;
 use crate::id::define_id;
 use crate::money::Money;
 use crate::rates::DatedRate;
@@ -56,6 +57,28 @@ pub struct Split {
     /// The payee this part's account shows, if not the transaction's: on
     /// the second side of a joined Transfer, the one that side had (D-108).
     pub own_payee: Option<String>,
+    /// What the user wrote about this part, e.g. what the money was for in
+    /// their own words (D-132). Separate from the text a bank delivered
+    /// ([`ImportedDetails::remittance_information`]), which stays as it
+    /// came.
+    pub note: Option<String>,
+    /// A cheque number or other reference the user gave the part (D-132).
+    pub number: Option<String>,
+    /// Whether the user checked the part against a bank statement (D-132).
+    pub status: Option<PartStatus>,
+    /// The tags the user marked it with, each once, in the user's order
+    /// (D-132).
+    pub tags: Vec<TagId>,
+}
+
+/// How far a part was checked against a bank statement (D-132). KassenSturz
+/// doesn't set it yet; it comes over from another program's book.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PartStatus {
+    /// The user saw it on a statement.
+    Cleared,
+    /// The user reconciled the account with a statement that had it.
+    Reconciled,
 }
 
 impl Split {
@@ -80,6 +103,10 @@ impl Split {
             original: None,
             own_date: None,
             own_payee: None,
+            note: None,
+            number: None,
+            status: None,
+            tags: Vec::new(),
         }
     }
 
@@ -171,6 +198,21 @@ pub struct Transaction {
     payee: Option<String>,
     currency: CurrencyCode,
     splits: Vec<Split>,
+    note: Option<String>,
+    entered_on: Option<Date>,
+    attachments: Vec<Attachment>,
+}
+
+/// A link to a receipt or other document that belongs to a transaction
+/// (D-132): a path or URL. The book keeps the link only, never the file,
+/// so a book stays small and the file stays where the user put it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Attachment {
+    /// Where the document is: a path on this computer or a URL, as the
+    /// user or another program gave it. Never empty.
+    pub link: String,
+    /// What the user calls it, if anything.
+    pub title: Option<String>,
 }
 
 impl Transaction {
@@ -224,7 +266,47 @@ impl Transaction {
             payee,
             currency,
             splits,
+            note: None,
+            entered_on: None,
+            attachments: Vec::new(),
         })
+    }
+
+    /// The transaction with `note` as what the user wrote about it as a
+    /// whole (D-132). An empty note is none.
+    #[must_use]
+    pub fn with_note(mut self, note: Option<String>) -> Self {
+        self.note = note.filter(|note| !note.is_empty());
+        self
+    }
+
+    /// The transaction with `entered_on` as the day it was entered (D-132).
+    #[must_use]
+    pub fn with_entry_date(mut self, entered_on: Option<Date>) -> Self {
+        self.entered_on = entered_on;
+        self
+    }
+
+    /// The transaction with `attachments` as the documents linked to it
+    /// (D-132), in their order. A link that is empty or only spaces is
+    /// dropped.
+    #[must_use]
+    pub fn with_attachments(mut self, attachments: Vec<Attachment>) -> Self {
+        self.attachments = attachments
+            .into_iter()
+            .filter(|attachment| !attachment.link.trim().is_empty())
+            .collect();
+        self
+    }
+
+    /// The transaction with the note, entry date and attachments of
+    /// `stored`: what a transaction built again from a stored one, e.g.
+    /// with other parts, keeps (D-132).
+    #[must_use]
+    pub fn with_details_of(self, stored: &Transaction) -> Self {
+        self.with_note(stored.note.clone())
+            .with_entry_date(stored.entered_on)
+            .with_attachments(stored.attachments.clone())
     }
 
     /// The amount the part `open` needs for all of `parts` to add up to zero:
@@ -287,6 +369,24 @@ impl Transaction {
     /// own payee if it has one, otherwise the transaction's (D-108).
     pub fn payee_of<'a>(&'a self, part: &'a Split) -> Option<&'a str> {
         part.own_payee.as_deref().or(self.payee())
+    }
+
+    /// What the user wrote about the transaction as a whole, if anything
+    /// (D-132). Each part can have a note of its own ([`Split::note`]).
+    pub fn note(&self) -> Option<&str> {
+        self.note.as_deref()
+    }
+
+    /// The day the transaction was entered, if known: another program's
+    /// book says so (D-132). Not the booking date, which can be any day.
+    pub fn entered_on(&self) -> Option<Date> {
+        self.entered_on
+    }
+
+    /// The documents linked to it, e.g. a receipt, in the user's order
+    /// (D-132).
+    pub fn attachments(&self) -> &[Attachment] {
+        &self.attachments
     }
 
     /// The currency it counts in: the one of its parts' amounts.

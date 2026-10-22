@@ -245,16 +245,47 @@ fn an_amount_is_read_exactly_or_refused() {
 fn the_owner_is_no_payee_and_is_left_out_when_given() {
     let base = skipped(SAMPLE);
     assert_eq!(count_of(&base, SkippedData::Owner), 0);
-    assert_eq!(count_of(&base, SkippedData::Payees), 0);
-    let named = skipped(&after(
-        "UPDATE kmmPayees SET name = 'Someone' WHERE id = 'USER'",
-    ));
+    let payees = |input: &[u8]| match read(input).expect("read") {
+        Imported::Book(book) => book.payees.len(),
+        other => panic!("a book, not {other:?}"),
+    };
+    assert_eq!(payees(SAMPLE), 131);
+    let named_owner = after("UPDATE kmmPayees SET name = 'Someone' WHERE id = 'USER'");
+    let named = skipped(&named_owner);
     assert_eq!(count_of(&named, SkippedData::Owner), 1);
-    assert_eq!(count_of(&named, SkippedData::Payees), 0);
+    assert_eq!(payees(&named_owner), 131);
     let addressed = skipped(&after(
         "UPDATE kmmPayees SET addressCity = 'Somewhere' WHERE id = 'USER'",
     ));
     assert_eq!(count_of(&addressed, SkippedData::Owner), 1);
+}
+
+#[test]
+fn tags_come_with_the_parts_that_carry_them() {
+    let tagged = after(
+        "INSERT INTO kmmTags (id, name) VALUES ('G000001', 'Holiday'), ('G000002', 'Gift');
+         INSERT INTO kmmTagSplits (transactionId, tagId, splitId)
+             SELECT transactionId, 'G000002', splitId FROM kmmSplits
+             WHERE transactionId = (SELECT min(id) FROM kmmTransactions) AND splitId = 0;
+         INSERT INTO kmmTagSplits (transactionId, tagId, splitId)
+             SELECT transactionId, 'G000001', splitId FROM kmmSplits
+             WHERE transactionId = (SELECT min(id) FROM kmmTransactions) AND splitId = 0;
+         INSERT INTO kmmTagSplits (transactionId, tagId, splitId)
+             VALUES ('T000000000000000001', 'G000001', 99);",
+    );
+    let Imported::Book(book) = read(&tagged).expect("read") else {
+        panic!("a book");
+    };
+    let names: Vec<&str> = book.tags.iter().map(|tag| tag.name.as_str()).collect();
+    assert_eq!(names, ["Holiday", "Gift"]);
+    let first = book
+        .transactions
+        .iter()
+        .find(|transaction| !transaction.parts[0].tags.is_empty())
+        .expect("a tagged part");
+    assert_eq!(first.parts[0].tags, ["G000002", "G000001"]);
+    // The tag on a part the file doesn't have is left out, counted.
+    assert_eq!(count_of(&skipped(&tagged), SkippedData::Tags), 1);
 }
 
 #[test]
@@ -279,15 +310,14 @@ fn what_the_book_cant_hold_is_counted() {
     ));
     assert_eq!(count_of(&base, SkippedData::OnlineBanking), 2);
     for (what, extra) in [
-        (SkippedData::Tags, 2),
-        // Cost centers, the account's identifiers, and the unknown table.
-        (SkippedData::Other, 3),
+        // Cost centers, the account's and the payee's identifiers, and the
+        // unknown table.
+        (SkippedData::Other, 4),
         (SkippedData::Budgets, 1),
         (SkippedData::Reports, 1),
         // An order, and the settings of one more account.
         (SkippedData::OnlineBanking, 2),
         (SkippedData::Schedules, 1),
-        (SkippedData::Payees, 1),
     ] {
         assert_eq!(
             count_of(&more, what),

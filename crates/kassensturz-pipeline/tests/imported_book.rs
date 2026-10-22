@@ -68,6 +68,9 @@ fn account(key: &str, name: &str, kind: AccountKind) -> BookAccount {
         currency: currency(EUR),
         parent: None,
         closed: false,
+        number: None,
+        notes: None,
+        institution: None,
     }
 }
 
@@ -77,6 +80,10 @@ fn part(account: Option<&str>, amount: Money) -> BookPart {
         amount,
         account_amount: None,
         details: None,
+        note: None,
+        number: None,
+        status: None,
+        tags: Vec::new(),
     }
 }
 
@@ -86,6 +93,8 @@ fn transaction(date: Date, payee: Option<&str>, parts: Vec<BookPart>) -> BookTra
         payee: payee.map(str::to_owned),
         currency: currency(EUR),
         parts,
+        note: None,
+        entered_on: None,
     }
 }
 
@@ -220,6 +229,9 @@ fn household() -> ImportedBook {
             what: SkippedData::Schedules,
             count: 2,
         }],
+        institutions: Vec::new(),
+        payees: Vec::new(),
+        tags: Vec::new(),
     }
 }
 
@@ -404,6 +416,9 @@ fn household_in_marks() -> ImportedBook {
         rates: Vec::new(),
         unlisted: Vec::new(),
         skipped: Vec::new(),
+        institutions: Vec::new(),
+        payees: Vec::new(),
+        tags: Vec::new(),
     }
 }
 
@@ -574,6 +589,9 @@ fn parts_in_other_currencies_keep_what_the_file_gave() {
         rates: Vec::new(),
         unlisted: Vec::new(),
         skipped: Vec::new(),
+        institutions: Vec::new(),
+        payees: Vec::new(),
+        tags: Vec::new(),
     };
     let mut book = Book::create_in_memory().expect("book created");
     let report = fill_book_from(&mut book, &imported, &HashMap::new()).expect("filled");
@@ -676,6 +694,9 @@ fn holiday_in_lei() -> ImportedBook {
             }),
         }],
         skipped: Vec::new(),
+        institutions: Vec::new(),
+        payees: Vec::new(),
+        tags: Vec::new(),
     }
 }
 
@@ -758,6 +779,9 @@ fn a_currency_no_table_lists_comes_in_as_the_user_says_it_was_replaced() {
         account_type: None,
         parent: None,
         closed: false,
+        number: None,
+        notes: None,
+        institution: None,
     };
     assert!(matches!(
         book.add_account(&in_lei),

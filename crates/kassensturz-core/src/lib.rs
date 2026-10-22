@@ -15,6 +15,7 @@ mod account;
 mod changeover;
 mod currency;
 mod decimal;
+mod details;
 mod error;
 mod id;
 mod money;
@@ -29,6 +30,7 @@ pub use account::{Account, AccountId, AccountKind, AccountType};
 pub use changeover::{Changeover, ConvertedPart};
 pub use currency::{Currency, CurrencyCode, CurrencyCodeError};
 pub use decimal::{DecimalError, ExchangeRate, MAX_DECIMAL_PLACES, MAX_DIGITS, Price, Quantity};
+pub use details::{Institution, InstitutionId, Payee, PayeeId, PayeeRecognition, Tag, TagId};
 pub use error::{ErrorParam, ErrorReport, Report};
 pub use money::{Money, MoneyError};
 pub use rates::{DatedRate, DatedRateId, RateSource};
@@ -38,8 +40,8 @@ pub use rules::{
     RuleNode, RuleOutcome, RuleSet, TextField, TextOperator,
 };
 pub use transaction::{
-    ForeignAmount, ImportedDetails, OriginalAmount, Split, SplitId, Transaction, TransactionError,
-    TransactionId,
+    Attachment, ForeignAmount, ImportedDetails, OriginalAmount, PartStatus, Split, SplitId,
+    Transaction, TransactionError, TransactionId,
 };
 pub use transfer::{
     MAX_BUSINESS_DAYS, TransferError, TransferMatch, TransferSide, business_days_apart,

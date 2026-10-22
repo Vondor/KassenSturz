@@ -80,6 +80,9 @@ fn category(book: &mut Book, name: &str, parent: Option<AccountId>) -> AccountId
         account_type: None,
         closed: false,
         parent,
+        number: None,
+        notes: None,
+        institution: None,
     })
     .expect("category added");
     id

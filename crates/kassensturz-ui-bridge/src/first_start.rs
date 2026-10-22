@@ -134,6 +134,9 @@ pub fn start(
                 account_type: None,
                 closed: false,
                 parent,
+                number: None,
+                notes: None,
+                institution: None,
             })?;
             written.push((category, id));
         }

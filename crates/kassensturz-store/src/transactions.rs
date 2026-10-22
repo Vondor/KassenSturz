@@ -8,8 +8,9 @@
 use std::collections::HashMap;
 
 use kassensturz_core::{
-    Account, AccountId, CurrencyCode, Date, DatedRate, DatedRateId, ForeignAmount, ImportedDetails,
-    Money, OriginalAmount, Split, SplitId, Transaction, TransactionId,
+    Account, AccountId, Attachment, CurrencyCode, Date, DatedRate, DatedRateId, ForeignAmount,
+    ImportedDetails, Money, OriginalAmount, PartStatus, Split, SplitId, TagId, Transaction,
+    TransactionId,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 
@@ -104,16 +105,19 @@ impl Book {
         }
         self.as_one_action(Action::AddTransaction, |book| {
             book.conn.execute(
-                "INSERT INTO transactions (id, booking_date, payee, currency)
-                 VALUES (?1, ?2, ?3, ?4)",
+                "INSERT INTO transactions (id, booking_date, payee, currency, note, entered_on)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                 params![
                     transaction.id().to_bytes(),
                     date_to_text(transaction.booking_date())?,
                     transaction.payee(),
-                    transaction.currency().as_str()
+                    transaction.currency().as_str(),
+                    transaction.note(),
+                    transaction.entered_on().map(date_to_text).transpose()?,
                 ],
             )?;
-            insert_splits(&book.conn, transaction)
+            insert_splits(&book.conn, transaction)?;
+            insert_attachments(&book.conn, transaction)
         })
     }
 
@@ -160,13 +164,16 @@ impl Book {
         let id = transaction.id().to_bytes();
         self.as_one_action(Action::EditTransaction, |book| {
             book.conn.execute(
-                "UPDATE transactions SET booking_date = ?2, payee = ?3, currency = ?4
+                "UPDATE transactions
+                 SET booking_date = ?2, payee = ?3, currency = ?4, note = ?5, entered_on = ?6
                  WHERE id = ?1",
                 params![
                     id,
                     date_to_text(transaction.booking_date())?,
                     transaction.payee(),
-                    transaction.currency().as_str()
+                    transaction.currency().as_str(),
+                    transaction.note(),
+                    transaction.entered_on().map(date_to_text).transpose()?,
                 ],
             )?;
             // Their rates and imported details go with them, and come back
@@ -174,7 +181,10 @@ impl Book {
             // really changed.
             book.conn
                 .execute("DELETE FROM splits WHERE transaction_id = ?1", [id])?;
-            insert_splits(&book.conn, transaction)
+            insert_splits(&book.conn, transaction)?;
+            book.conn
+                .execute("DELETE FROM attachments WHERE transaction_id = ?1", [id])?;
+            insert_attachments(&book.conn, transaction)
         })
     }
 
@@ -227,24 +237,33 @@ impl Book {
     /// transaction that doesn't balance, or a part that isn't in its
     /// account's currency, is reported, never returned.
     pub fn transaction(&self, id: TransactionId) -> Result<Transaction, StoreError> {
-        let row: Option<(String, Option<String>, String)> = self
+        let row: Option<TransactionRow> = self
             .conn
             .query_row(
-                "SELECT booking_date, payee, currency FROM transactions WHERE id = ?1",
+                "SELECT booking_date, payee, currency, note, entered_on FROM transactions
+                 WHERE id = ?1",
                 [id.to_bytes()],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                |row| TransactionRow::read(row, 0),
             )
             .optional()?;
-        let (booking_date, payee, currency) = row.ok_or(StoreError::UnknownTransaction(id))?;
+        let header = row.ok_or(StoreError::UnknownTransaction(id))?;
 
         let mut statement = self.conn.prepare(&format!(
             "SELECT {SPLIT_COLUMNS}, {IMPORTED_COLUMNS} {SPLIT_TABLES}
              WHERE s.transaction_id = ?1 ORDER BY s.position"
         ))?;
-        let rows = statement
+        let mut rows = statement
             .query_map([id.to_bytes()], SplitRow::read)?
             .collect::<Result<Vec<_>, _>>()?;
-        assemble(id, &booking_date, payee, &currency, rows, |account| {
+        let mut tags = self.split_tags("WHERE s.transaction_id = ?1", params![id.to_bytes()])?;
+        for row in &mut rows {
+            row.tags = tags.remove(&row.id).unwrap_or_default();
+        }
+        let attachments = self
+            .attachments("WHERE a.transaction_id = ?1", params![id.to_bytes()])?
+            .remove(&id.to_bytes())
+            .unwrap_or_default();
+        assemble(id, header, attachments, rows, |account| {
             let currency: Option<String> = self
                 .conn
                 .query_row(
@@ -314,43 +333,97 @@ impl Book {
              ORDER BY s.transaction_id, s.position"
         ))?;
         let mut parts: HashMap<[u8; 16], Vec<SplitRow>> = HashMap::new();
+        let mut tags = self.split_tags(
+            &format!("JOIN transactions AS t ON t.id = s.transaction_id {filter}"),
+            params,
+        )?;
+        let mut attachments = self.attachments(
+            &format!("JOIN transactions AS t ON t.id = a.transaction_id {filter}"),
+            params,
+        )?;
         let mut rows = statement.query(params)?;
         while let Some(row) = rows.next()? {
             let transaction: [u8; 16] = row.get(SPLIT_ROW_COLUMNS)?;
-            parts
-                .entry(transaction)
-                .or_default()
-                .push(SplitRow::read(row)?);
+            let mut split = SplitRow::read(row)?;
+            split.tags = tags.remove(&split.id).unwrap_or_default();
+            parts.entry(transaction).or_default().push(split);
         }
         drop(rows);
         let mut statement = self.conn.prepare(&format!(
-            "SELECT t.id, t.booking_date, t.payee, t.currency FROM transactions AS t
+            "SELECT t.id, t.booking_date, t.payee, t.currency, t.note, t.entered_on
+             FROM transactions AS t
              {filter}
              ORDER BY t.booking_date, t.id"
         ))?;
         let rows = statement
             .query_map(params, |row| {
-                Ok((
-                    row.get::<_, [u8; 16]>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, Option<String>>(2)?,
-                    row.get::<_, String>(3)?,
-                ))
+                Ok((row.get::<_, [u8; 16]>(0)?, TransactionRow::read(row, 1)?))
             })?
             .collect::<Result<Vec<_>, _>>()?;
         rows.into_iter()
-            .map(|(id, booking_date, payee, currency)| {
+            .map(|(id, header)| {
                 let own = parts.remove(&id).unwrap_or_default();
+                let linked = attachments.remove(&id).unwrap_or_default();
                 assemble(
                     TransactionId::from_bytes(id),
-                    &booking_date,
-                    payee,
-                    &currency,
+                    header,
+                    linked,
                     own,
                     |account| Ok(accounts.get(&account).copied()),
                 )
             })
             .collect()
+    }
+
+    /// The attachments of the transactions `filter` (a clause over
+    /// `attachments AS a`) keeps, with its `params`, by transaction ID, each
+    /// transaction's in the user's order.
+    fn attachments(
+        &self,
+        filter: &str,
+        params: &[&dyn rusqlite::ToSql],
+    ) -> Result<HashMap<[u8; 16], Vec<Attachment>>, StoreError> {
+        let mut statement = self.conn.prepare(&format!(
+            "SELECT a.transaction_id, a.link, a.title FROM attachments AS a
+             {filter}
+             ORDER BY a.transaction_id, a.position"
+        ))?;
+        let mut attachments: HashMap<[u8; 16], Vec<Attachment>> = HashMap::new();
+        let mut rows = statement.query(params)?;
+        while let Some(row) = rows.next()? {
+            let transaction: [u8; 16] = row.get(0)?;
+            attachments
+                .entry(transaction)
+                .or_default()
+                .push(Attachment {
+                    link: row.get(1)?,
+                    title: row.get(2)?,
+                });
+        }
+        Ok(attachments)
+    }
+
+    /// The tags of the parts `filter` (a clause over `splits AS s`) keeps,
+    /// with its `params`: each part's tags in the user's order.
+    fn split_tags(
+        &self,
+        filter: &str,
+        params: &[&dyn rusqlite::ToSql],
+    ) -> Result<HashMap<SplitId, Vec<TagId>>, StoreError> {
+        let mut statement = self.conn.prepare(&format!(
+            "SELECT s.id, g.tag_id FROM split_tags AS g
+             JOIN splits AS s ON s.id = g.split_id
+             {filter}
+             ORDER BY g.split_id, g.position"
+        ))?;
+        let mut tags: HashMap<SplitId, Vec<TagId>> = HashMap::new();
+        let mut rows = statement.query(params)?;
+        while let Some(row) = rows.next()? {
+            let split = SplitId::from_bytes(row.get(0)?);
+            let tag = TagId::from_bytes(row.get(1)?);
+            tags.entry(split).or_default().push(tag);
+        }
+        Ok(tags)
     }
 
     /// The transactions that touch `account`, oldest first, each as seen from
@@ -531,6 +604,22 @@ impl Book {
             if let Some(original) = split.original {
                 self.currency_minor_digits(original.amount.currency())?;
             }
+            for (index, &tag) in split.tags.iter().enumerate() {
+                if split.tags[..index].contains(&tag) {
+                    return Err(StoreError::Corrupt(Corruption::BadSplit(split.id)));
+                }
+                let known: Option<i64> = self
+                    .conn
+                    .query_row(
+                        "SELECT 1 FROM tags WHERE id = ?1",
+                        [tag.to_bytes()],
+                        |row| row.get(0),
+                    )
+                    .optional()?;
+                if known.is_none() {
+                    return Err(StoreError::UnknownTag(tag));
+                }
+            }
             let used_by: Option<[u8; 16]> = self
                 .conn
                 .query_row(
@@ -565,24 +654,32 @@ impl Book {
 /// looks up (`None` for an account that isn't in the book).
 fn assemble(
     id: TransactionId,
-    booking_date: &str,
-    payee: Option<String>,
-    currency: &str,
+    header: TransactionRow,
+    attachments: Vec<Attachment>,
     rows: Vec<SplitRow>,
     account_currency: impl Fn(AccountId) -> Result<Option<CurrencyCode>, StoreError>,
 ) -> Result<Transaction, StoreError> {
-    let booking_date = date_from_text(booking_date)?;
-    let currency = currency_from_text(currency)?;
+    let booking_date = date_from_text(&header.booking_date)?;
+    let currency = currency_from_text(&header.currency)?;
+    let entered_on = header
+        .entered_on
+        .as_deref()
+        .map(date_from_text)
+        .transpose()?;
     let splits = rows
         .into_iter()
         .map(|row| row.into_split(currency))
         .collect::<Result<Vec<_>, _>>()?;
-    let transaction = Transaction::new(id, booking_date, payee, splits).map_err(|error| {
-        StoreError::Corrupt(Corruption::InvalidTransaction {
-            transaction: id,
-            error,
-        })
-    })?;
+    let transaction = Transaction::new(id, booking_date, header.payee, splits)
+        .map_err(|error| {
+            StoreError::Corrupt(Corruption::InvalidTransaction {
+                transaction: id,
+                error,
+            })
+        })?
+        .with_note(header.note)
+        .with_entry_date(entered_on)
+        .with_attachments(attachments);
     for split in transaction.splits() {
         let Some(account) = split.account else {
             continue;
@@ -680,6 +777,27 @@ fn account_totals(transaction: &Transaction) -> Result<HashMap<AccountId, Money>
 }
 
 /// Writes the parts of `transaction`, with their rates and imported details.
+/// Writes the links to `transaction`'s documents (D-132).
+pub(crate) fn insert_attachments(
+    conn: &Connection,
+    transaction: &Transaction,
+) -> Result<(), StoreError> {
+    let mut insert = conn.prepare(
+        "INSERT INTO attachments (id, transaction_id, position, link, title)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+    )?;
+    for (position, attachment) in (0_i64..).zip(transaction.attachments()) {
+        insert.execute(params![
+            uuid::Uuid::now_v7().as_bytes(),
+            transaction.id().to_bytes(),
+            position,
+            attachment.link,
+            attachment.title,
+        ])?;
+    }
+    Ok(())
+}
+
 pub(crate) fn insert_splits(
     conn: &Connection,
     transaction: &Transaction,
@@ -687,8 +805,11 @@ pub(crate) fn insert_splits(
     let mut insert = conn.prepare(
         "INSERT INTO splits
              (id, transaction_id, position, account_id, amount, foreign_amount, foreign_currency,
-              original_amount, original_currency, own_date, own_payee)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+              original_amount, original_currency, own_date, own_payee, note, number, status)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+    )?;
+    let mut insert_tag = conn.prepare(
+        "INSERT INTO split_tags (id, split_id, tag_id, position) VALUES (?1, ?2, ?3, ?4)",
     )?;
     let mut insert_imported = conn.prepare(
         "INSERT INTO split_imports
@@ -715,7 +836,18 @@ pub(crate) fn insert_splits(
                 .map(|original| original.amount.currency().as_str().to_owned()),
             optional_date(split.own_date)?,
             split.own_payee,
+            split.note,
+            split.number,
+            split.status.map(status_to_text),
         ])?;
+        for (position, tag) in (0_i64..).zip(&split.tags) {
+            insert_tag.execute(params![
+                uuid::Uuid::now_v7().as_bytes(),
+                id,
+                tag.to_bytes(),
+                position
+            ])?;
+        }
         if let Some(rate) = split_rate(split) {
             insert_split_rate(conn, split.id, &rate)?;
         }
@@ -816,7 +948,7 @@ fn foreign_columns(
 const SPLIT_COLUMNS: &str = "
     s.id, s.account_id, s.amount, s.foreign_amount, s.foreign_currency,
     s.original_amount, s.original_currency, r.rate_id, r.date, r.from_currency, r.to_currency, r.rate_digits,
-    r.rate_decimal_places, r.source, s.own_date, s.own_payee";
+    r.rate_decimal_places, r.source, s.own_date, s.own_payee, s.note, s.number, s.status";
 
 /// The columns of `split_imports` (as `i`) [`ImportedRow::read`] expects, in
 /// its order.
@@ -825,7 +957,7 @@ const IMPORTED_COLUMNS: &str = "
     i.other_party_name, i.other_party_iban, i.remittance_information";
 
 /// How many columns [`SplitRow::read`] reads.
-const SPLIT_ROW_COLUMNS: usize = 23;
+const SPLIT_ROW_COLUMNS: usize = 26;
 
 /// The tables behind [`SPLIT_COLUMNS`].
 const SPLIT_TABLES: &str = "
@@ -845,7 +977,36 @@ struct SplitRow {
     rate: Option<RateRow>,
     own_date: Option<String>,
     own_payee: Option<String>,
+    note: Option<String>,
+    number: Option<String>,
+    status: Option<String>,
     imported: Option<ImportedRow>,
+    /// Filled in by the caller from `split_tags`.
+    tags: Vec<TagId>,
+}
+
+/// A transaction's own row as SQLite returns it, before KassenSturz's
+/// checks.
+struct TransactionRow {
+    booking_date: String,
+    payee: Option<String>,
+    currency: String,
+    note: Option<String>,
+    entered_on: Option<String>,
+}
+
+impl TransactionRow {
+    /// The columns `booking_date, payee, currency, note, entered_on`,
+    /// starting at `first`.
+    fn read(row: &rusqlite::Row<'_>, first: usize) -> rusqlite::Result<Self> {
+        Ok(Self {
+            booking_date: row.get(first)?,
+            payee: row.get(first + 1)?,
+            currency: row.get(first + 2)?,
+            note: row.get(first + 3)?,
+            entered_on: row.get(first + 4)?,
+        })
+    }
 }
 
 /// What a bank or file delivered for a part, as SQLite returns it.
@@ -872,7 +1033,7 @@ impl SplitRow {
             }),
             None => None,
         };
-        let imported = ImportedRow::read(row, 16)?;
+        let imported = ImportedRow::read(row, 19)?;
         Ok(Self {
             id: SplitId::from_bytes(row.get(0)?),
             account: row.get(1)?,
@@ -884,7 +1045,11 @@ impl SplitRow {
             rate,
             own_date: row.get(14)?,
             own_payee: row.get(15)?,
+            note: row.get(16)?,
+            number: row.get(17)?,
+            status: row.get(18)?,
             imported,
+            tags: Vec::new(),
         })
     }
 
@@ -920,7 +1085,26 @@ impl SplitRow {
             original,
             own_date: self.own_date.as_deref().map(date_from_text).transpose()?,
             own_payee: self.own_payee,
+            note: self.note,
+            number: self.number,
+            status: self.status.as_deref().map(status_from_text).transpose()?,
+            tags: self.tags,
         })
+    }
+}
+
+fn status_to_text(status: PartStatus) -> &'static str {
+    match status {
+        PartStatus::Cleared => "cleared",
+        PartStatus::Reconciled => "reconciled",
+    }
+}
+
+fn status_from_text(text: &str) -> Result<PartStatus, StoreError> {
+    match text {
+        "cleared" => Ok(PartStatus::Cleared),
+        "reconciled" => Ok(PartStatus::Reconciled),
+        _ => Err(StoreError::Corrupt(Corruption::BadPartStatus(text.into()))),
     }
 }
 

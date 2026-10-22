@@ -4,7 +4,7 @@
 //! Tests on books in memory. All data is made up (AGENTS.md §3.1 rule 2).
 
 use super::*;
-use kassensturz_core::{Money, Split, Transaction, TransactionError, TransactionId};
+use kassensturz_core::{Money, Report, Split, Transaction, TransactionError, TransactionId};
 
 /// The book's database, for a test to change it as another program could
 /// (D-046): past KassenSturz's checks and outside the change history, which
@@ -69,6 +69,9 @@ pub(crate) fn account(
         account_type: None,
         closed: false,
         parent: None,
+        number: None,
+        notes: None,
+        institution: None,
     };
     book.add_account(&account).expect("account added");
     id
@@ -280,6 +283,9 @@ fn a_withdrawn_currency_is_for_original_amounts_only() {
         account_type: None,
         closed: false,
         parent: None,
+        number: None,
+        notes: None,
+        institution: None,
     };
     assert!(matches!(
         book.add_account(&savings),
@@ -317,6 +323,9 @@ fn a_currency_neither_table_lists_is_for_original_amounts_only() {
         account_type: None,
         closed: false,
         parent: None,
+        number: None,
+        notes: None,
+        institution: None,
     };
     assert!(matches!(
         book.add_account(&savings),
@@ -394,6 +403,9 @@ fn accounts_need_a_currency_in_use() {
         account_type: None,
         closed: false,
         parent: None,
+        number: None,
+        notes: None,
+        institution: None,
     };
     assert!(matches!(
         book.add_account(&account),
@@ -734,6 +746,9 @@ fn typed_account(
         account_type: Some(account_type),
         closed: false,
         parent: None,
+        number: None,
+        notes: None,
+        institution: None,
     })?;
     Ok(id)
 }
@@ -772,6 +787,9 @@ fn an_accounts_type_must_fit_its_kind() {
             account_type: Some(account_type),
             closed: false,
             parent: None,
+            number: None,
+            notes: None,
+            institution: None,
         });
         assert!(
             matches!(result, Err(StoreError::AccountTypeMismatch { .. })),
@@ -1112,6 +1130,9 @@ fn category(
         account_type: None,
         closed: false,
         parent,
+        number: None,
+        notes: None,
+        institution: None,
     })?;
     Ok(id)
 }
@@ -1204,17 +1225,22 @@ fn a_category_sits_inside_a_category_of_its_own_kind_and_currency() {
         account_type: None,
         closed: false,
         parent: Some(food),
+        number: None,
+        notes: None,
+        institution: None,
     };
     assert!(matches!(
         book.add_account(&dollars),
         Err(StoreError::ParentCurrencyMismatch { parent, parent_currency, currency })
             if parent == food && parent_currency == EUR && currency == USD
     ));
-    // Only categories sit inside categories.
-    for kind in [
-        AccountKind::Asset,
-        AccountKind::Liability,
-        AccountKind::Equity,
+    // Only categories sit inside categories; an account sits inside an
+    // account of its kind, if anything (D-132), and the internal account
+    // inside nothing.
+    for (kind, refused) in [
+        (AccountKind::Asset, "parent-not-an-account"),
+        (AccountKind::Liability, "parent-not-an-account"),
+        (AccountKind::Equity, "not-a-category"),
     ] {
         let result = book.add_account(&Account {
             kind,
@@ -1223,10 +1249,8 @@ fn a_category_sits_inside_a_category_of_its_own_kind_and_currency() {
             parent: Some(food),
             ..dollars.clone()
         });
-        assert!(
-            matches!(result, Err(StoreError::NotACategory(_))),
-            "{kind:?}"
-        );
+        let code = result.expect_err("refused").report().code;
+        assert_eq!(code, format!("store.{refused}"), "{kind:?}");
     }
     assert_eq!(tree(&book), ["Food"]);
 }
@@ -1362,11 +1386,11 @@ fn a_category_tree_that_is_wrong_in_the_file_is_reported() {
     let groceries =
         category(&mut book, "Groceries", AccountKind::Expense, Some(food)).expect("added");
     let checking = account(&mut book, "Checking account", AccountKind::Asset, EUR);
-    // The table's checks refuse a category inside itself, an account inside
-    // a category and a parent that doesn't exist.
+    // The table's checks refuse a category inside itself and a parent that
+    // doesn't exist; an account inside a category is only refused by
+    // KassenSturz's own checks (D-132).
     for update in [
         "UPDATE accounts SET parent_id = id WHERE name = 'Food'",
-        "UPDATE accounts SET parent_id = (SELECT id FROM accounts WHERE name = 'Food') WHERE name = 'Checking account'",
         "UPDATE accounts SET parent_id = zeroblob(16) WHERE name = 'Food'",
         "UPDATE accounts SET parent_id = x'00' WHERE name = 'Food'",
     ] {

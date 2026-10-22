@@ -24,7 +24,8 @@ use rusqlite::types::ValueRef;
 use rusqlite::{Connection, MAIN_DB, Row};
 
 use super::records::{
-    RawAccount, RawCurrency, RawPayee, RawPrice, RawSplit, RawTransaction, Records,
+    RawAccount, RawAddress, RawCurrency, RawInstitution, RawPayee, RawPrice, RawSplit, RawTag,
+    RawTransaction, Records,
 };
 use super::{find, mapping};
 use crate::book::SkippedData;
@@ -124,8 +125,7 @@ const READ: [&str; 9] = [
 
 /// Tables whose rows are only counted, as what the book leaves out. A file
 /// may lack one.
-const COUNTED: [(&str, SkippedData); 7] = [
-    ("kmmTags", SkippedData::Tags),
+const COUNTED: [(&str, SkippedData); 6] = [
     ("kmmCostCenter", SkippedData::Other),
     ("kmmSchedules", SkippedData::Schedules),
     ("kmmBudgetConfig", SkippedData::Budgets),
@@ -139,13 +139,17 @@ const COUNTED: [(&str, SkippedData); 7] = [
 /// currencies KassenSturz's tables don't list (D-106).
 const CURRENCIES: &str = "kmmCurrencies";
 
+/// Tables the importer reads if the file has them: the tags and which
+/// splits carry them (D-132).
+const TAGS: &str = "kmmTags";
+const TAG_SPLITS: &str = "kmmTagSplits";
+
 /// Tables KMyMoney has that the book doesn't need, whether or not they hold
-/// anything: the payments of schedules (the schedules are counted) and the
-/// tags of splits (the tags are counted), its plug-ins, and the identifier
-/// definitions the rows of other tables point to.
-const IGNORED: [&str; 4] = [
+/// anything: the payments of schedules (the schedules are counted), its
+/// plug-ins, and the identifier definitions the rows of other tables point
+/// to.
+const IGNORED: [&str; 3] = [
     "kmmSchedulePaymentHistory",
-    "kmmTagSplits",
     "kmmPluginInfo",
     "kmmPayeeIdentifier",
 ];
@@ -175,7 +179,9 @@ impl<'a> Reader<'a> {
         if owner {
             records.skipped.add(SkippedData::Owner);
         }
+        self.institutions(&mut records)?;
         self.accounts(&mut records)?;
+        self.tags(&mut records)?;
         self.transactions(&mut records)?;
         self.prices(&mut records)?;
         self.currencies(&mut records)?;
@@ -184,10 +190,6 @@ impl<'a> Reader<'a> {
             Ok(())
         })?;
 
-        let institutions = self.count("kmmInstitutions")?;
-        records
-            .skipped
-            .add_many(SkippedData::Institutions, institutions);
         let tables = self.tables()?;
         for (table, what) in COUNTED {
             if tables.contains(table) {
@@ -199,6 +201,8 @@ impl<'a> Reader<'a> {
         let known = |table: &str| {
             READ.contains(&table)
                 || table == CURRENCIES
+                || table == TAGS
+                || table == TAG_SPLITS
                 || IGNORED.contains(&table)
                 || COUNTED.iter().any(|(counted, _)| *counted == table)
                 || table == "kmmPayeesPayeeIdentifier"
@@ -295,35 +299,99 @@ impl<'a> Reader<'a> {
         Ok(self.column(row, index)?.unwrap_or_default())
     }
 
-    /// Reads the payees. KMyMoney keeps the owner's own details in a row
-    /// with the ID `USER`, as the sample shows (D-102); that row is no
-    /// payee. Returns whether the owner gave any details.
+    /// Reads the payees, with what KMyMoney keeps about them (D-132).
+    /// KMyMoney keeps the owner's own details in a row with the ID `USER`,
+    /// as the sample shows (D-102); that row is no payee. Returns whether
+    /// the owner gave any details.
     fn payees(&self, records: &mut Records) -> Result<bool, ImportError> {
         // Whether a payee has identifiers, such as an IBAN, kept in the
-        // table of KMyMoney's plug-in; that is more than a name.
+        // table of KMyMoney's plug-in; the book can't hold those yet.
         let with_identifiers = self.payees_with_identifiers()?;
         let mut owner = false;
+        let mut identifiers = 0;
         self.query(
             "SELECT id, name, reference, email, addressStreet, addressCity, \
              addressZipcode, addressState, telephone, notes, defaultAccountId, \
-             matchKeys, idPattern, urlTemplate FROM kmmPayees ORDER BY id",
+             matchData, matchIgnoreCase, matchKeys, idPattern, urlTemplate \
+             FROM kmmPayees ORDER BY id",
             |row| {
                 let id = self.required(row, 0)?;
                 let name = self.optional(row, 1)?;
-                // Anything besides the name, in the other columns.
-                let mut details = with_identifiers.contains(&id);
-                for index in 2..14 {
-                    details |= !self.optional(row, index)?.trim().is_empty();
-                }
                 if id == "USER" {
+                    // Anything besides the name, in the other columns.
+                    // Anything besides the name, in the other columns; how
+                    // KMyMoney would recognize the owner says nothing.
+                    let mut details = with_identifiers.contains(&id);
+                    for index in (2..16).filter(|index| ![11, 12].contains(index)) {
+                        details |= !self.optional(row, index)?.trim().is_empty();
+                    }
                     owner |= details || !name.trim().is_empty();
-                } else {
-                    records.payees.push(RawPayee { id, name, details });
+                    return Ok(());
                 }
+                if with_identifiers.contains(&id) {
+                    identifiers += 1;
+                }
+                records.payees.push(RawPayee {
+                    reference: self.optional(row, 2)?,
+                    email: self.optional(row, 3)?,
+                    address: RawAddress {
+                        street: self.optional(row, 4)?,
+                        city: self.optional(row, 5)?,
+                        postal_code: self.optional(row, 6)?,
+                        state: self.optional(row, 7)?,
+                        phone: self.optional(row, 8)?,
+                        country: String::new(),
+                    },
+                    matching: self.optional(row, 11)?,
+                    match_ignores_case: self.optional(row, 12)?,
+                    match_keys: self.optional(row, 13)?,
+                    id,
+                    name,
+                });
                 Ok(())
             },
         )?;
+        records.skipped.add_many(SkippedData::Other, identifiers);
         Ok(owner)
+    }
+
+    /// Reads the institutions (D-132).
+    fn institutions(&self, records: &mut Records) -> Result<(), ImportError> {
+        self.query(
+            "SELECT id, name, manager, routingCode, addressStreet, addressCity, \
+             addressZipcode, telephone FROM kmmInstitutions ORDER BY id",
+            |row| {
+                records.institutions.push(RawInstitution {
+                    id: self.required(row, 0)?,
+                    name: self.optional(row, 1)?,
+                    contact: self.optional(row, 2)?,
+                    bank_code: self.optional(row, 3)?,
+                    address: RawAddress {
+                        street: self.optional(row, 4)?,
+                        city: self.optional(row, 5)?,
+                        postal_code: self.optional(row, 6)?,
+                        phone: self.optional(row, 7)?,
+                        state: String::new(),
+                        country: String::new(),
+                    },
+                });
+                Ok(())
+            },
+        )
+    }
+
+    /// Reads the tags, if the file has them (D-132).
+    fn tags(&self, records: &mut Records) -> Result<(), ImportError> {
+        if !self.tables()?.contains(TAGS) {
+            return Ok(());
+        }
+        self.query("SELECT id, name FROM kmmTags ORDER BY id", |row| {
+            records.tags.push(RawTag {
+                id: self.required(row, 0)?,
+                name: self.optional(row, 1)?,
+            });
+            Ok(())
+        })
     }
 
     /// The IDs of the payees that have a row in `kmmPayeesPayeeIdentifier`.
@@ -351,7 +419,7 @@ impl<'a> Reader<'a> {
         )?;
         self.query(
             "SELECT id, parentId, accountType, accountName, accountNumber, \
-             description, currencyId FROM kmmAccounts ORDER BY id",
+             description, currencyId, institutionId FROM kmmAccounts ORDER BY id",
             |row| {
                 let id = self.required(row, 0)?;
                 records.accounts.push(RawAccount {
@@ -363,6 +431,7 @@ impl<'a> Reader<'a> {
                     number: self.optional(row, 4)?,
                     description: self.optional(row, 5)?,
                     currency: self.optional(row, 6)?,
+                    institution: self.optional(row, 7)?,
                     line: None,
                 });
                 Ok(())
@@ -375,7 +444,7 @@ impl<'a> Reader<'a> {
     fn transactions(&self, records: &mut Records) -> Result<(), ImportError> {
         let mut index: HashMap<String, usize> = HashMap::new();
         self.query(
-            "SELECT id, postDate, memo, currencyId FROM kmmTransactions ORDER BY id",
+            "SELECT id, postDate, memo, currencyId, entryDate FROM kmmTransactions ORDER BY id",
             |row| {
                 let id = self.required(row, 0)?;
                 if index.insert(id, records.transactions.len()).is_some() {
@@ -385,18 +454,35 @@ impl<'a> Reader<'a> {
                     date: self.optional(row, 1)?,
                     memo: self.optional(row, 2)?,
                     currency: self.optional(row, 3)?,
+                    entered: self.optional(row, 4)?,
                     splits: Vec::new(),
                     line: None,
                 });
                 Ok(())
             },
         )?;
+        // The tags of each split, by the split's transaction and its number
+        // within it, in the order the file gives them (D-132).
+        let mut tags: HashMap<(String, String), Vec<String>> = HashMap::new();
+        if self.tables()?.contains(TAG_SPLITS) {
+            self.query(
+                "SELECT transactionId, splitId, tagId FROM kmmTagSplits \
+                 ORDER BY transactionId, splitId, rowid",
+                |row| {
+                    let key = (self.required(row, 0)?, self.required(row, 1)?);
+                    tags.entry(key).or_default().push(self.required(row, 2)?);
+                    Ok(())
+                },
+            )?;
+        }
         self.query(
             "SELECT transactionId, payeeId, reconcileFlag, value, shares, memo, \
-             accountId, checkNumber, bankId FROM kmmSplits \
+             accountId, checkNumber, bankId, splitId FROM kmmSplits \
              ORDER BY transactionId, splitId",
             |row| {
-                let transaction = *index.get(&self.required(row, 0)?).ok_or_else(malformed)?;
+                let transaction_id = self.required(row, 0)?;
+                let transaction = *index.get(&transaction_id).ok_or_else(malformed)?;
+                let split_id = self.required(row, 9)?;
                 records.transactions[transaction].splits.push(RawSplit {
                     payee: self.optional(row, 1)?,
                     reconciled: self.optional(row, 2)?,
@@ -406,11 +492,15 @@ impl<'a> Reader<'a> {
                     account: self.required(row, 6)?,
                     number: self.optional(row, 7)?,
                     bank_id: self.optional(row, 8)?,
+                    tags: tags.remove(&(transaction_id, split_id)).unwrap_or_default(),
                     line: None,
                 });
                 Ok(())
             },
         )?;
+        // A tag on a split the file doesn't have is left out.
+        let stray: usize = tags.values().map(Vec::len).sum();
+        records.skipped.add_many(SkippedData::Tags, stray);
         Ok(())
     }
 

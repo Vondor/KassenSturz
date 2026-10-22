@@ -30,6 +30,8 @@ RowLayout {
     property string balance: ""
     property string exactBalance: balance
     property bool owes: false
+    // What the user noted about it; empty when nothing was noted.
+    property string note: ""
     // Wide pages show a row as the lines of a book, one column each: date,
     // from or to, category, payment, deposit and balance. `header` makes the
     // row the book's column titles instead, so that both line up.
@@ -80,7 +82,7 @@ RowLayout {
     Accessible.role: Accessible.ListItem
     Accessible.name: header
         ? ""
-        : [title, details, exactAmount, exactBalanceText].filter(text => text !== "").join(", ")
+        : [title, details, note, exactAmount, exactBalanceText].filter(text => text !== "").join(", ")
 
     // The book's columns.
     Controls.Label {
@@ -91,15 +93,31 @@ RowLayout {
         elide: Text.ElideRight
     }
 
-    Controls.Label {
+    // The note sits under the name, so a line stays one row where nothing
+    // was noted.
+    ColumnLayout {
         Layout.fillWidth: true
         Layout.preferredWidth: row.nameWidth
         visible: row.ledger
-        text: row.header
-            ? row.i18nContext.i18nc("@title:column whom the money came from or went to", "From or to")
-            : row.kind === "starting-balance" ? row.title : row.otherParty
-        font.bold: row.header
-        elide: Text.ElideRight
+        spacing: 0
+
+        Controls.Label {
+            Layout.fillWidth: true
+            text: row.header
+                ? row.i18nContext.i18nc("@title:column whom the money came from or went to", "From or to")
+                : row.kind === "starting-balance" ? row.title : row.otherParty
+            font.bold: row.header
+            elide: Text.ElideRight
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: !row.header && row.note !== ""
+            text: row.note
+            elide: Text.ElideRight
+            font: Kirigami.Theme.smallFont
+            color: Kirigami.Theme.disabledTextColor
+        }
     }
 
     Controls.Label {
@@ -162,6 +180,15 @@ RowLayout {
             text: row.details
             elide: Text.ElideRight
             font: Kirigami.Theme.smallFont
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: row.note !== ""
+            text: row.note
+            elide: Text.ElideRight
+            font: Kirigami.Theme.smallFont
+            color: Kirigami.Theme.disabledTextColor
         }
     }
 

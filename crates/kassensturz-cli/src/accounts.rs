@@ -46,6 +46,9 @@ pub(crate) fn account(
                     account_type: Some(account_type),
                     parent: None,
                     closed: false,
+                    number: None,
+                    notes: None,
+                    institution: None,
                 })
             })?;
             writeln!(out, "Added the account {}.", plain(name.trim()))?;
@@ -150,6 +153,9 @@ pub(crate) fn category(
                     account_type: None,
                     parent: parent.map(|parent| parent.id),
                     closed: false,
+                    number: None,
+                    notes: None,
+                    institution: None,
                 })
             })?;
             writeln!(out, "Added the category {}.", plain(name.trim()))?;

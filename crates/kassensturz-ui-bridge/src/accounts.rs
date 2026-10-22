@@ -426,6 +426,9 @@ pub fn add_account(
             account_type: Some(new.account_type),
             closed: false,
             parent: None,
+            number: None,
+            notes: None,
+            institution: None,
         })?;
         if !amount.is_zero() {
             let equity = starting_balances_account(book, currency)?;
@@ -818,6 +821,9 @@ fn starting_balances_account(
         account_type: None,
         closed: false,
         parent: None,
+        number: None,
+        notes: None,
+        institution: None,
     })?;
     Ok(id)
 }
@@ -984,6 +990,9 @@ mod tests {
             account_type: None,
             closed: false,
             parent: None,
+            number: None,
+            notes: None,
+            institution: None,
         };
         book.add_account(&spending).expect("category added");
         let amount = Money::from_minor_units(minor_units, EUR);
@@ -1416,6 +1425,9 @@ mod tests {
             account_type: None,
             closed: false,
             parent: None,
+            number: None,
+            notes: None,
+            institution: None,
         };
         book.use_currency(EUR).expect("currency");
         book.add_account(&category).expect("category");

@@ -63,6 +63,9 @@ fn add_account(book: &mut Book, name: &str, kind: AccountKind) -> AccountId {
         account_type: None,
         parent: None,
         closed: false,
+        number: None,
+        notes: None,
+        institution: None,
     })
     .expect("account added");
     id
@@ -592,6 +595,9 @@ fn statements_that_do_not_fit_the_account_are_refused() {
         account_type: None,
         parent: None,
         closed: false,
+        number: None,
+        notes: None,
+        institution: None,
     })
     .expect("account added");
     let marks = |digits| Statement {

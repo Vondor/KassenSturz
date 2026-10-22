@@ -40,20 +40,8 @@ FormCard.FormCardPage {
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 budget", "%1 budgets", count);
         case "reports":
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 saved report", "%1 saved reports", count);
-        case "institutions":
-            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 bank with its address and codes", "%1 banks with their addresses and codes", count);
-        case "account-numbers":
-            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 account with an account number or IBAN", "%1 accounts with an account number or IBAN", count);
-        case "account-groups":
-            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 account that sat inside another account (it is an account of its own now)", "%1 accounts that sat inside another account (they are accounts of their own now)", count);
-        case "payees":
-            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 address, e-mail or other detail of someone you paid or got money from", "%1 addresses, e-mails or other details of people you paid or got money from", count);
         case "tags":
-            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 tag", "%1 tags", count);
-        case "notes":
-            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 note", "%1 notes", count);
-        case "reconciliation":
-            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 mark that a transaction was checked against a bank statement", "%1 marks that transactions were checked against a bank statement", count);
+            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 tag that no transaction could be given", "%1 tags that no transaction could be given", count);
         case "rates":
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 exchange rate or price that can't be kept exactly", "%1 exchange rates or prices that can't be kept exactly", count);
         case "online-banking":

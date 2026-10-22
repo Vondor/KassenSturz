@@ -6,7 +6,9 @@
 
 use std::collections::{HashMap, HashSet};
 
-use kassensturz_core::{Currency, CurrencyCode, ImportedDetails, Money};
+use kassensturz_core::{
+    AccountKind, Currency, CurrencyCode, ImportedDetails, Money, PayeeRecognition,
+};
 
 use crate::book::{BookAccount, BookTransaction, ImportedBook, Replacement};
 use crate::error::ImportError;
@@ -98,17 +100,79 @@ fn check_book(book: &ImportedBook, limits: &Limits) -> Result<(), ImportError> {
             return Err(malformed());
         }
     }
+    let mut institutions = HashSet::new();
+    for institution in &book.institutions {
+        for text in [Some(&institution.key), Some(&institution.name)]
+            .into_iter()
+            .chain([
+                institution.bank_code.as_ref(),
+                institution.contact.as_ref(),
+                institution.address.as_ref(),
+                institution.phone.as_ref(),
+            ])
+            .flatten()
+        {
+            limits.check_text(text, None)?;
+        }
+        if !institutions.insert(institution.key.as_str()) {
+            return Err(malformed());
+        }
+    }
+    let mut payees = HashSet::new();
+    for payee in &book.payees {
+        let key_words = match &payee.recognition {
+            PayeeRecognition::ByKeyWords(words) => words.as_slice(),
+            PayeeRecognition::Never | PayeeRecognition::ByName => &[],
+        };
+        for text in [Some(&payee.key), Some(&payee.name)]
+            .into_iter()
+            .chain([
+                payee.address.as_ref(),
+                payee.email.as_ref(),
+                payee.phone.as_ref(),
+                payee.reference.as_ref(),
+            ])
+            .flatten()
+            .chain(key_words)
+        {
+            limits.check_text(text, None)?;
+        }
+        if !payees.insert(payee.key.as_str()) {
+            return Err(malformed());
+        }
+    }
+    let mut tags = HashSet::new();
+    for tag in &book.tags {
+        limits.check_text(&tag.key, None)?;
+        limits.check_text(&tag.name, None)?;
+        if !tags.insert(tag.key.as_str()) {
+            return Err(malformed());
+        }
+    }
     for account in &book.accounts {
         if let Some(parent) = &account.parent {
             let parent = accounts.get(parent.as_str()).ok_or_else(malformed)?;
-            if !account.kind.is_category() || parent.kind != account.kind {
+            // A category sits in a category, an account in an account, each
+            // of its own kind (D-082, D-132).
+            if account.kind == AccountKind::Equity || parent.kind != account.kind {
                 return Err(malformed());
             }
+        }
+        if let Some(institution) = &account.institution
+            && (!account.kind.is_account() || !institutions.contains(institution.as_str()))
+        {
+            return Err(malformed());
+        }
+        if account.number.is_some() && !account.kind.is_account() {
+            return Err(malformed());
+        }
+        for text in [&account.number, &account.notes].into_iter().flatten() {
+            limits.check_text(text, None)?;
         }
     }
     for transaction in &book.transactions {
         uses(transaction.currency)?;
-        check_transaction(transaction, &accounts, limits)?;
+        check_transaction(transaction, &accounts, &tags, limits)?;
     }
     for rate in &book.rates {
         if rate.from == rate.to {
@@ -151,14 +215,27 @@ fn check_book(book: &ImportedBook, limits: &Limits) -> Result<(), ImportError> {
 fn check_transaction(
     transaction: &BookTransaction,
     accounts: &HashMap<&str, &BookAccount>,
+    tags: &HashSet<&str>,
     limits: &Limits,
 ) -> Result<(), ImportError> {
     let malformed = || ImportError::Malformed { line: None };
     let currency = transaction.currency.code();
-    if let Some(payee) = &transaction.payee {
-        limits.check_text(payee, None)?;
+    for text in [&transaction.payee, &transaction.note]
+        .into_iter()
+        .flatten()
+    {
+        limits.check_text(text, None)?;
     }
     for part in &transaction.parts {
+        for text in [&part.note, &part.number].into_iter().flatten() {
+            limits.check_text(text, None)?;
+        }
+        // Each tag once, and one the file lists (D-132).
+        for (index, tag) in part.tags.iter().enumerate() {
+            if !tags.contains(tag.as_str()) || part.tags[..index].contains(tag) {
+                return Err(malformed());
+            }
+        }
         if part.amount.currency() != currency {
             return Err(ImportError::CurrencyMismatch {
                 expected: currency,

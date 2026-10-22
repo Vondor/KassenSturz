@@ -7,6 +7,7 @@
 
 use kassensturz_core::{
     AccountKind, AccountType, Currency, CurrencyCode, Date, ExchangeRate, ImportedDetails, Money,
+    PartStatus, PayeeRecognition,
 };
 
 /// Another program's book, read from its file.
@@ -28,9 +29,18 @@ use kassensturz_core::{
 /// replaced each one before the pipeline converts it the same way (D-106).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ImportedBook {
+    /// The banks and other institutions the accounts are at, in the order
+    /// of the file (D-132).
+    pub institutions: Vec<BookInstitution>,
     /// The accounts and categories, and the internal accounts for starting
     /// balances, in the order of the file.
     pub accounts: Vec<BookAccount>,
+    /// The payees, with what the file keeps about them, in the order of the
+    /// file (D-132). Every payee comes in, whether a transaction names it
+    /// or not.
+    pub payees: Vec<BookPayee>,
+    /// The tags, in the order of the file (D-132).
+    pub tags: Vec<BookTag>,
     /// The transactions, in the order of the file.
     pub transactions: Vec<BookTransaction>,
     /// The exchange rates of the price table (D-028).
@@ -61,11 +71,67 @@ pub struct BookAccount {
     pub account_type: Option<AccountType>,
     /// Its currency, with the decimal places its amounts were read in.
     pub currency: Currency,
-    /// For a category: the key of the category it sits inside. `None` for
-    /// a top-level category and for every other account.
+    /// For a category: the key of the category it sits inside. For an
+    /// account: the key of the account it was grouped under, if any
+    /// (D-081, D-132). `None` for a top-level one.
     pub parent: Option<String>,
     /// Whether the user closed it in the other program.
     pub closed: bool,
+    /// For an account: its account number or IBAN, as the file gives it
+    /// (D-132).
+    pub number: Option<String>,
+    /// What the user wrote about it (D-132).
+    pub notes: Option<String>,
+    /// For an account: the key of the institution it is at (D-132).
+    pub institution: Option<String>,
+}
+
+/// A bank or other institution of an imported book (D-132).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BookInstitution {
+    /// The file's own ID for it, unique within the file.
+    pub key: String,
+    /// Its name, as the file gives it.
+    pub name: String,
+    /// Its bank code, as the file gives it.
+    pub bank_code: Option<String>,
+    /// Who the user talks to there.
+    pub contact: Option<String>,
+    /// Its address, as lines of text.
+    pub address: Option<String>,
+    /// Its phone number.
+    pub phone: Option<String>,
+}
+
+/// A payee of an imported book: who money goes to or comes from, with what
+/// the file keeps about them (D-132).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BookPayee {
+    /// The file's own ID for it, unique within the file.
+    pub key: String,
+    /// The name, as transactions name it.
+    pub name: String,
+    /// Their address, as lines of text.
+    pub address: Option<String>,
+    /// Their e-mail address.
+    pub email: Option<String>,
+    /// Their phone number.
+    pub phone: Option<String>,
+    /// The user's number with them.
+    pub reference: Option<String>,
+    /// How the other program recognized them in an imported entry.
+    pub recognition: PayeeRecognition,
+    /// Whether that ignored capitals.
+    pub recognition_ignores_case: bool,
+}
+
+/// A tag of an imported book (D-132).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BookTag {
+    /// The file's own ID for it, unique within the file.
+    pub key: String,
+    /// Its name, as the file gives it.
+    pub name: String,
 }
 
 /// A transaction of an imported book.
@@ -85,6 +151,10 @@ pub struct BookTransaction {
     /// entry, and the import pipeline adds a part without a category for
     /// the difference, as for every imported entry (D-083).
     pub parts: Vec<BookPart>,
+    /// What the user wrote about the transaction as a whole (D-132).
+    pub note: Option<String>,
+    /// The day it was entered, if the file says (D-132).
+    pub entered_on: Option<Date>,
 }
 
 /// One part of an imported transaction.
@@ -104,6 +174,16 @@ pub struct BookPart {
     /// other program kept with it, exactly as the file has it (D-067). Only
     /// a part booked to an account has it (D-083).
     pub details: Option<ImportedDetails>,
+    /// What the user wrote about the part (D-132). Another program's one
+    /// text per part is the delivered text in `details` on a part booked to
+    /// an account, and this note on any other part.
+    pub note: Option<String>,
+    /// A cheque number or other reference (D-132).
+    pub number: Option<String>,
+    /// Whether the user checked it against a bank statement (D-132).
+    pub status: Option<PartStatus>,
+    /// The keys of the tags on it, each once, in the file's order (D-132).
+    pub tags: Vec<String>,
 }
 
 /// An exchange rate of an imported book's price table: one unit of `from`
@@ -160,7 +240,7 @@ pub struct Skipped {
 }
 
 /// The kinds of data an imported book can leave out, because KassenSturz
-/// can't hold them yet (D-029). The UI names each one in the user's
+/// can't hold them yet (D-029, D-132). The UI names each one in the user's
 /// language from its keyword (D-034).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
@@ -175,28 +255,9 @@ pub enum SkippedData {
     Budgets,
     /// Saved reports.
     Reports,
-    /// Banks and other institutions, with their addresses and codes.
-    Institutions,
-    /// Account numbers and IBANs of the user's accounts, counted as
-    /// accounts that had one.
-    AccountNumbers,
-    /// Accounts that sat inside another account, which a book doesn't nest
-    /// (D-081): they come in as accounts of their own, counted as accounts.
-    AccountGroups,
-    /// Payees no transaction is for, and what was kept with a payee besides
-    /// its name (address, e-mail, reference, how to recognize it), counted
-    /// as payees.
-    Payees,
-    /// Tags on transactions, counted as tags.
+    /// Tags on parts that the reader couldn't match to the file's list of
+    /// tags, counted as tags; the list itself comes in (D-132).
     Tags,
-    /// Notes the book has no place for: on parts that aren't booked to one
-    /// of the user's accounts, on transactions, on accounts, and cheque
-    /// numbers, counted as notes. The note of a part booked to an account
-    /// stays, as the text the payment came with.
-    Notes,
-    /// Marks that a part was checked against a bank statement (cleared or
-    /// reconciled), counted as parts.
-    Reconciliation,
     /// Exchange rates and prices the price table can't hold: prices of
     /// securities, rates of a currency KassenSturz doesn't know, such as
     /// one withdrawn since (D-077), and rates it can't keep exactly.
@@ -207,25 +268,20 @@ pub enum SkippedData {
     OnlineBanking,
     /// The owner's name and address.
     Owner,
-    /// Anything else the file holds, such as cost centers or a part of the
-    /// file KassenSturz doesn't know, counted as entries.
+    /// Anything else the file holds, such as cost centers, the bank
+    /// identifiers a plug-in kept, or a part of the file KassenSturz doesn't
+    /// know, counted as entries.
     Other,
 }
 
 impl SkippedData {
     /// Every kind, in the order a report lists them.
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 9] = [
         Self::Investments,
         Self::Schedules,
         Self::Budgets,
         Self::Reports,
-        Self::Institutions,
-        Self::AccountNumbers,
-        Self::AccountGroups,
-        Self::Payees,
         Self::Tags,
-        Self::Notes,
-        Self::Reconciliation,
         Self::Rates,
         Self::OnlineBanking,
         Self::Owner,
@@ -239,13 +295,7 @@ impl SkippedData {
             Self::Schedules => "schedules",
             Self::Budgets => "budgets",
             Self::Reports => "reports",
-            Self::Institutions => "institutions",
-            Self::AccountNumbers => "account-numbers",
-            Self::AccountGroups => "account-groups",
-            Self::Payees => "payees",
             Self::Tags => "tags",
-            Self::Notes => "notes",
-            Self::Reconciliation => "reconciliation",
             Self::Rates => "rates",
             Self::OnlineBanking => "online-banking",
             Self::Owner => "owner",

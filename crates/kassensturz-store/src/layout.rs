@@ -34,9 +34,9 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 14] = [
+pub(crate) const MIGRATIONS: [&str; 15] = [
     LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4, LAYOUT_5, LAYOUT_6, LAYOUT_7, LAYOUT_8, LAYOUT_9,
-    LAYOUT_10, LAYOUT_11, LAYOUT_12, LAYOUT_13, LAYOUT_14,
+    LAYOUT_10, LAYOUT_11, LAYOUT_12, LAYOUT_13, LAYOUT_14, LAYOUT_15,
 ];
 
 /// The layout version the first migration creates.
@@ -579,6 +579,197 @@ DROP TABLE changes;
 ALTER TABLE new_changes RENAME TO changes;
 ";
 
+/// Layout 15 (D-132): what a book another program kept holds besides
+/// accounts and transactions, so a KMyMoney book comes over without losing
+/// it. New tables: `institutions` (the banks accounts are at), `payees`
+/// (who the user pays, with address and how the other program recognized
+/// them), `tags` and `split_tags` (which parts carry which tag). New
+/// columns: an account's number, notes and institution; a transaction's
+/// note and the day it was entered; a part's note, cheque number and
+/// whether it was checked against a statement. `accounts` is rebuilt so an
+/// account, not only a category, can sit inside another one of its kind,
+/// as another program's account groups do (D-081); its rows and index stay
+/// as they were. Every book's rows get none of the new data. Each recorded
+/// table's `changed_` table gets the same columns, and the new tables get
+/// `changed_` tables of their own. Adding an institution, a payee or a tag
+/// becomes a user action, so `changes` is rebuilt with the three in its
+/// list of actions, as in layout 14; its rows stay as they were.
+const LAYOUT_15: &str = "
+CREATE TABLE institutions (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    name TEXT NOT NULL,
+    bank_code TEXT,
+    contact TEXT,
+    address TEXT,
+    phone TEXT
+) STRICT;
+
+CREATE TABLE payees (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    name TEXT NOT NULL,
+    address TEXT,
+    email TEXT,
+    phone TEXT,
+    reference TEXT,
+    recognition TEXT NOT NULL CHECK (recognition IN ('never', 'name', 'key_words')),
+    key_words TEXT CHECK ((key_words IS NULL) = (recognition <> 'key_words')),
+    recognition_ignores_case INTEGER NOT NULL CHECK (recognition_ignores_case IN (0, 1))
+) STRICT;
+
+CREATE TABLE tags (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    name TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE split_tags (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    split_id BLOB NOT NULL REFERENCES splits (id) ON DELETE CASCADE,
+    tag_id BLOB NOT NULL REFERENCES tags (id),
+    position INTEGER NOT NULL CHECK (position >= 0),
+    UNIQUE (split_id, tag_id)
+) STRICT;
+CREATE INDEX split_tags_by_tag ON split_tags (tag_id);
+
+CREATE TABLE attachments (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    transaction_id BLOB NOT NULL REFERENCES transactions (id) ON DELETE CASCADE,
+    position INTEGER NOT NULL CHECK (position >= 0),
+    link TEXT NOT NULL CHECK (link <> ''),
+    title TEXT,
+    UNIQUE (transaction_id, position)
+) STRICT;
+
+CREATE TABLE new_accounts (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL
+        CHECK (kind IN ('asset', 'liability', 'income', 'expense', 'equity')),
+    currency TEXT NOT NULL REFERENCES currencies (code),
+    account_type TEXT
+        CHECK (account_type IN ('checking', 'savings', 'cash', 'credit_card')),
+    closed INTEGER NOT NULL DEFAULT 0
+        CHECK (closed IN (0, 1)),
+    parent_id BLOB REFERENCES accounts (id)
+        CHECK (parent_id IS NULL OR (
+            length(parent_id) = 16 AND parent_id <> id AND kind <> 'equity'
+        )),
+    stated_balance INTEGER
+        CHECK (stated_balance IS NULL OR kind IN ('asset', 'liability')),
+    stated_on TEXT
+        CHECK ((stated_on IS NULL) = (stated_balance IS NULL))
+        CHECK (stated_on IS NULL
+               OR stated_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    number TEXT CHECK (number IS NULL OR kind IN ('asset', 'liability')),
+    notes TEXT,
+    institution_id BLOB REFERENCES institutions (id)
+        CHECK (institution_id IS NULL
+               OR (length(institution_id) = 16 AND kind IN ('asset', 'liability')))
+) STRICT;
+INSERT INTO new_accounts
+    (id, name, kind, currency, account_type, closed, parent_id, stated_balance, stated_on)
+    SELECT id, name, kind, currency, account_type, closed, parent_id, stated_balance, stated_on
+    FROM accounts;
+DROP TABLE accounts;
+ALTER TABLE new_accounts RENAME TO accounts;
+CREATE INDEX accounts_by_parent ON accounts (parent_id);
+CREATE INDEX accounts_by_institution ON accounts (institution_id);
+
+ALTER TABLE transactions ADD COLUMN note TEXT;
+ALTER TABLE transactions ADD COLUMN entered_on TEXT
+    CHECK (entered_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]');
+
+ALTER TABLE splits ADD COLUMN note TEXT;
+ALTER TABLE splits ADD COLUMN number TEXT;
+ALTER TABLE splits ADD COLUMN status TEXT CHECK (status IN ('cleared', 'reconciled'));
+
+ALTER TABLE changed_accounts ADD COLUMN number TEXT;
+ALTER TABLE changed_accounts ADD COLUMN notes TEXT;
+ALTER TABLE changed_accounts ADD COLUMN institution_id BLOB;
+ALTER TABLE changed_transactions ADD COLUMN note TEXT;
+ALTER TABLE changed_transactions ADD COLUMN entered_on TEXT;
+ALTER TABLE changed_splits ADD COLUMN note TEXT;
+ALTER TABLE changed_splits ADD COLUMN number TEXT;
+ALTER TABLE changed_splits ADD COLUMN status TEXT;
+
+CREATE TABLE changed_attachments (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    transaction_id BLOB,
+    position INTEGER,
+    link TEXT,
+    title TEXT,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE changed_institutions (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    name TEXT,
+    bank_code TEXT,
+    contact TEXT,
+    address TEXT,
+    phone TEXT,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE changed_payees (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    name TEXT,
+    address TEXT,
+    email TEXT,
+    phone TEXT,
+    reference TEXT,
+    recognition TEXT,
+    key_words TEXT,
+    recognition_ignores_case INTEGER,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE changed_tags (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    name TEXT,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE changed_split_tags (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    split_id BLOB,
+    tag_id BLOB,
+    position INTEGER,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE new_changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction', 'join_transfer',
+        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
+        'import_statement', 'correct_starting_balance',
+        'add_institution', 'add_payee', 'add_tag'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
+    file_name TEXT
+) STRICT;
+INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
+    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
+DROP TABLE changes;
+ALTER TABLE new_changes RENAME TO changes;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -761,15 +952,33 @@ mod tests {
                     (&None, &None, &None)
                 );
                 assert_eq!((part.own_date, &part.own_payee), (None, &None));
+                // Parts from before layout 15 have no note, number, status
+                // or tags, and their transaction no note or entry date.
+                assert_eq!(
+                    (&part.note, &part.number, part.status),
+                    (&None, &None, None)
+                );
+                assert_eq!(part.tags, Vec::new());
             }
+            assert_eq!((shopping.note(), shopping.entered_on()), (None, None));
+            assert_eq!(shopping.attachments(), []);
             // Accounts from before layout 4 have no type and are open.
             let account = book.account(checking).expect("account");
             assert_eq!(
                 (account.account_type, account.closed, account.parent),
                 (None, false, None)
             );
-            // Accounts from before layout 14 have no stated balance.
+            // Accounts from before layout 14 have no stated balance, and
+            // before layout 15 no number, notes or bank; the book has no
+            // banks, payees or tags yet.
             assert_eq!(book.stated_balance(checking).expect("statement"), None);
+            assert_eq!(
+                (&account.number, &account.notes, account.institution),
+                (&None, &None, None)
+            );
+            assert_eq!(book.institutions().expect("banks"), Vec::new());
+            assert_eq!(book.payees().expect("payees"), Vec::new());
+            assert_eq!(book.tags().expect("tags"), Vec::new());
             assert_eq!(
                 book.rounding_mode().expect("rounding mode"),
                 RoundingMode::HalfAwayFromZero
@@ -855,6 +1064,15 @@ mod tests {
         assert_eq!(book.stated_balance(checking).expect("read"), Some(stated));
         book.undo().expect("undone");
         assert_eq!(book.stated_balance(checking).expect("read"), None);
+        // The `changes` layout 15 rebuilt takes the actions it added.
+        let tag = kassensturz_core::Tag {
+            id: kassensturz_core::TagId::generate(),
+            name: "Holiday".into(),
+        };
+        book.add_tag(&tag).expect("tag added");
+        assert_eq!(book.tags().expect("read"), vec![tag]);
+        book.undo().expect("undone");
+        assert_eq!(book.tags().expect("read"), Vec::new());
     }
 
     #[test]

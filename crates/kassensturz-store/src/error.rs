@@ -9,7 +9,8 @@ use std::io::ErrorKind;
 
 use kassensturz_core::{
     AccountId, AccountKind, AccountType, CurrencyCode, Date, DatedRateId, ErrorParam, ErrorReport,
-    Money, Report, RuleError, RuleId, SplitId, TransactionError, TransactionId, TransferError,
+    InstitutionId, Money, PayeeId, Report, RuleError, RuleId, SplitId, TagId, TransactionError,
+    TransactionId, TransferError,
 };
 
 use crate::Lock;
@@ -106,6 +107,25 @@ pub enum StoreError {
     /// The category to put something inside isn't a category (it is an
     /// account or an internal account).
     ParentNotACategory(AccountId),
+    /// The account to put an account inside isn't an account (it is a
+    /// category or an internal account) (D-132).
+    ParentNotAnAccount(AccountId),
+    /// There's no bank or other institution with this ID (D-132).
+    UnknownInstitution(InstitutionId),
+    /// There's no tag with this ID (D-132).
+    UnknownTag(TagId),
+    /// The name of an institution, a payee or a tag is empty (D-132).
+    EmptyName,
+    /// Another payee already has this name, ignoring capitals (D-132).
+    DuplicatePayeeName {
+        /// The name as the other payee has it.
+        existing: String,
+    },
+    /// Another tag already has this name, ignoring capitals (D-132).
+    DuplicateTagName {
+        /// The name as the other tag has it.
+        existing: String,
+    },
     /// Income can only sit inside income, and spending inside spending.
     ParentKindMismatch {
         /// The category to sit inside.
@@ -259,6 +279,11 @@ pub enum Corruption {
     /// its currency or the other way round, or a rate for a part that isn't
     /// in another currency.
     BadSplit(SplitId),
+    /// A payee's recognition isn't one of the stored words, or its key
+    /// words don't fit it (D-132).
+    BadPayee(PayeeId),
+    /// A part's status isn't one of the stored words (D-132).
+    BadPartStatus(String),
     /// A transaction's parts don't form a valid transaction, e.g. they don't
     /// add up to zero.
     InvalidTransaction {
@@ -383,6 +408,19 @@ impl Report for StoreError {
             Self::ParentNotACategory(parent) => {
                 new("store.parent-not-a-category").with("parent", P::Account(*parent))
             }
+            Self::ParentNotAnAccount(parent) => {
+                new("store.parent-not-an-account").with("parent", P::Account(*parent))
+            }
+            Self::UnknownInstitution(institution) => new("store.unknown-institution")
+                .with("institution", P::Text(institution.to_string())),
+            Self::UnknownTag(tag) => new("store.unknown-tag").with("tag", P::Text(tag.to_string())),
+            Self::EmptyName => new("store.empty-name"),
+            Self::DuplicatePayeeName { existing } => {
+                new("store.duplicate-payee-name").with("existing", P::Text(existing.clone()))
+            }
+            Self::DuplicateTagName { existing } => {
+                new("store.duplicate-tag-name").with("existing", P::Text(existing.clone()))
+            }
             Self::ParentKindMismatch {
                 parent,
                 parent_kind,
@@ -496,6 +534,10 @@ impl Report for Corruption {
             Self::CurrencyMismatch { transaction } => new("store.corrupt.currency-mismatch")
                 .with("transaction", P::Transaction(*transaction)),
             Self::BadSplit(split) => new("store.corrupt.bad-split").with("split", P::Split(*split)),
+            Self::BadPartStatus(text) => found("store.corrupt.bad-part-status", text),
+            Self::BadPayee(payee) => {
+                new("store.corrupt.bad-payee").with("payee", P::Text(payee.to_string()))
+            }
             Self::InvalidTransaction { transaction, error } => {
                 new("store.corrupt.invalid-transaction")
                     .with("transaction", P::Transaction(*transaction))

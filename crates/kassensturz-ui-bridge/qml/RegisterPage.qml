@@ -231,6 +231,7 @@ Kirigami.ScrollablePage {
             required property string kind
             required property string balance
             required property string exactBalance
+            required property string note
 
             width: ListView.view.width
             Accessible.name: transaction.Accessible.name
@@ -260,6 +261,7 @@ Kirigami.ScrollablePage {
                 balance: delegate.balance
                 exactBalance: delegate.exactBalance
                 owes: page.register.owes
+                note: delegate.note
             }
         }
     }

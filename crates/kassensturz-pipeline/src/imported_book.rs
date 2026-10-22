@@ -9,13 +9,14 @@ use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, Changeover, ConvertedPart, Currency, CurrencyCode, DatedRate,
-    DatedRateId, ForeignAmount, Money, MoneyError, OriginalAmount, RateSource, RoundingMode, Split,
-    Transaction, TransactionId, TransferMatch, Withdrawn,
+    DatedRateId, ForeignAmount, Institution, InstitutionId, Money, MoneyError, OriginalAmount,
+    Payee, PayeeId, RateSource, RoundingMode, Split, Tag, TagId, Transaction, TransactionId,
+    TransferMatch, Withdrawn,
 };
 use kassensturz_export::BookData;
 use kassensturz_import::{
-    BookAccount, BookPart, BookTransaction, ImportError, ImportedBook, Replacement, Skipped,
-    currency,
+    BookAccount, BookInstitution, BookPart, BookPayee, BookTag, BookTransaction, ImportError,
+    ImportedBook, Replacement, Skipped, currency,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -118,6 +119,9 @@ pub fn fill_book_from(
         replaced: replaced_currencies(imported, replaced)?,
         ..Mapper::default()
     };
+    let institutions = mapper.institutions(&imported.institutions)?;
+    let tags = mapper.tags(&imported.tags)?;
+    let payees = Mapper::payees(&imported.payees);
     let mut accounts = mapper.accounts(&imported.accounts)?;
     let mut changeover = Changeover::new(rounding);
     let mut uncategorized = 0;
@@ -146,7 +150,9 @@ pub fn fill_book_from(
         // what `Transaction::new` asks: one currency, an account for every
         // amount in another one, the same sign for both of a part's
         // amounts. A book handed over without them is refused here.
-        .map_err(|_| ImportError::Malformed { line: None })?;
+        .map_err(|_| ImportError::Malformed { line: None })?
+        .with_note(transaction.note.clone())
+        .with_entry_date(transaction.entered_on);
         transactions[index] = Some(transaction);
     }
     let transactions: Vec<Transaction> = transactions.into_iter().flatten().collect();
@@ -179,6 +185,9 @@ pub fn fill_book_from(
         rules: Vec::new(),
         transactions,
         rule_marks: Vec::new(),
+        institutions,
+        payees,
+        tags,
     };
     fill_book(book, &data)?;
     let count = |kind: fn(AccountKind) -> bool| {
@@ -257,6 +266,8 @@ struct Mapper {
     /// what the user said replaced them (D-106).
     replaced: HashMap<CurrencyCode, Withdrawn>,
     ids: HashMap<String, AccountId>,
+    institutions: HashMap<String, InstitutionId>,
+    tags: HashMap<String, TagId>,
     /// Whether the account with the key is one of the user's accounts, as
     /// opposed to a category or an internal account.
     user_accounts: HashMap<String, bool>,
@@ -378,6 +389,72 @@ impl Mapper {
     /// The book's accounts and categories, with new IDs, names that are
     /// unique where the book needs them to be (D-081, D-082), and every
     /// category inside one of its own currency.
+    /// The banks, with new IDs. Two with the same name, ignoring capitals,
+    /// stay two banks; the book allows that.
+    fn institutions(
+        &mut self,
+        imported: &[BookInstitution],
+    ) -> Result<Vec<Institution>, PipelineError> {
+        let mut institutions = Vec::with_capacity(imported.len());
+        for institution in imported {
+            let id = InstitutionId::generate();
+            if self
+                .institutions
+                .insert(institution.key.clone(), id)
+                .is_some()
+            {
+                return Err(ImportError::Malformed { line: None }.into());
+            }
+            institutions.push(Institution {
+                id,
+                name: institution.name.clone(),
+                bank_code: institution.bank_code.clone(),
+                contact: institution.contact.clone(),
+                address: institution.address.clone(),
+                phone: institution.phone.clone(),
+            });
+        }
+        Ok(institutions)
+    }
+
+    /// The tags, with new IDs and names that differ, as the book asks:
+    /// a second "Kids" becomes "Kids (2)".
+    fn tags(&mut self, imported: &[BookTag]) -> Result<Vec<Tag>, PipelineError> {
+        let mut taken = HashSet::new();
+        let mut tags = Vec::with_capacity(imported.len());
+        for tag in imported {
+            let id = TagId::generate();
+            if self.tags.insert(tag.key.clone(), id).is_some() {
+                return Err(ImportError::Malformed { line: None }.into());
+            }
+            tags.push(Tag {
+                id,
+                name: unique_name(&tag.name, &mut taken),
+            });
+        }
+        Ok(tags)
+    }
+
+    /// The payees with their details, with new IDs and names that differ,
+    /// as the book asks. A transaction names its payee by name, so no ID
+    /// of theirs needs mapping.
+    fn payees(imported: &[BookPayee]) -> Vec<Payee> {
+        let mut taken = HashSet::new();
+        imported
+            .iter()
+            .map(|payee| Payee {
+                id: PayeeId::generate(),
+                name: unique_name(&payee.name, &mut taken),
+                address: payee.address.clone(),
+                email: payee.email.clone(),
+                phone: payee.phone.clone(),
+                reference: payee.reference.clone(),
+                recognition: payee.recognition.clone(),
+                recognition_ignores_case: payee.recognition_ignores_case,
+            })
+            .collect()
+    }
+
     fn accounts(&mut self, imported: &[BookAccount]) -> Result<Vec<Account>, PipelineError> {
         let mut current = HashMap::with_capacity(imported.len());
         for account in imported {
@@ -408,9 +485,12 @@ impl Mapper {
                         .get(key.as_str())
                         .ok_or(ImportError::Malformed { line: None })?;
                     // Compared in the book's currencies: a category in marks
-                    // inside one in euros fits once both are in euros.
+                    // inside one in euros fits once both are in euros. An
+                    // account grouped under another one may be in any
+                    // currency, since the group doesn't add up (D-132).
                     let currency = |key: &str| current[key].code();
-                    if currency(&parent.key) == currency(&account.key) {
+                    if account.kind.is_account() || currency(&parent.key) == currency(&account.key)
+                    {
                         Some(self.id(key)?)
                     } else {
                         self.moved_to_top.push(id);
@@ -439,6 +519,20 @@ impl Mapper {
                 parent,
                 // Only the user's accounts can be closed (D-081).
                 closed: account.closed && account.kind.is_account(),
+                // Only the user's accounts have a number and a bank; the
+                // importer's checks leave a category's empty.
+                number: account.number.clone(),
+                notes: account.notes.clone(),
+                institution: account
+                    .institution
+                    .as_deref()
+                    .map(|key| {
+                        self.institutions
+                            .get(key)
+                            .copied()
+                            .ok_or(ImportError::Malformed { line: None })
+                    })
+                    .transpose()?,
             });
         }
         Ok(accounts)
@@ -514,12 +608,26 @@ impl Mapper {
             Some(key) => Some((self.id(key)?, self.user_accounts[key.as_str()])),
             None => None,
         };
+        let tags = part
+            .tags
+            .iter()
+            .map(|key| {
+                self.tags
+                    .get(key)
+                    .copied()
+                    .ok_or(ImportError::Malformed { line: None })
+            })
+            .collect::<Result<Vec<TagId>, ImportError>>()?;
         let mut split = Split {
             account: account.map(|(id, _)| id),
             foreign: part
                 .account_amount
                 .map(|amount| ForeignAmount { amount, rate: None }),
             imported: part.details.clone(),
+            note: part.note.clone(),
+            number: part.number.clone(),
+            status: part.status,
+            tags,
             ..Split::uncategorized(part.amount)
         };
         // An amount given in the transaction's currency stays as it is.
@@ -635,6 +743,19 @@ impl Mapper {
 /// A calculation the conversion out of a withdrawn currency couldn't do:
 /// amounts too large for 64 bits, or, in a book handed over without the
 /// importer's checks, an account's amounts in two currencies.
+/// `wanted`, trimmed, or with a number after it if `taken` holds it
+/// already, ignoring capitals: the names a book asks to differ do.
+fn unique_name(wanted: &str, taken: &mut HashSet<String>) -> String {
+    let wanted = wanted.trim();
+    let mut name = wanted.to_owned();
+    let mut number = 1;
+    while !taken.insert(name.to_lowercase()) {
+        number += 1;
+        name = format!("{wanted} ({number})");
+    }
+    name
+}
+
 fn money_error(error: MoneyError) -> PipelineError {
     match error {
         MoneyError::CurrencyMismatch { .. } => ImportError::Malformed { line: None }.into(),

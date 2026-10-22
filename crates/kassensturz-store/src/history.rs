@@ -77,11 +77,18 @@ pub enum Action {
     /// what the bank said, and noted that balance and its day on the
     /// account (D-111, D-116, D-117).
     CorrectStartingBalance,
+    /// Added a bank or other institution (D-132).
+    AddInstitution,
+    /// Added a payee: someone the user pays or receives money from, with
+    /// what the user keeps about them (D-132).
+    AddPayee,
+    /// Added a tag (D-132).
+    AddTag,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 22] = [
+    pub const ALL: [Self; 25] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -104,6 +111,9 @@ impl Action {
         Self::RunRules,
         Self::ImportStatement,
         Self::CorrectStartingBalance,
+        Self::AddInstitution,
+        Self::AddPayee,
+        Self::AddTag,
     ];
 }
 
@@ -203,7 +213,7 @@ pub(crate) struct Recorded {
 
 /// Every table that holds the book's data. Only the history's own tables
 /// aren't recorded: `changes`, the `changed_` tables and `history_settings`.
-pub(crate) const RECORDED: [Recorded; 11] = [
+pub(crate) const RECORDED: [Recorded; 16] = [
     Recorded {
         name: "settings",
         key: "id",
@@ -227,6 +237,9 @@ pub(crate) const RECORDED: [Recorded; 11] = [
             ("parent_id", "BLOB"),
             ("stated_balance", "INTEGER"),
             ("stated_on", "TEXT"),
+            ("number", "TEXT"),
+            ("notes", "TEXT"),
+            ("institution_id", "BLOB"),
         ],
     },
     Recorded {
@@ -237,6 +250,8 @@ pub(crate) const RECORDED: [Recorded; 11] = [
             ("booking_date", "TEXT"),
             ("payee", "TEXT"),
             ("currency", "TEXT"),
+            ("note", "TEXT"),
+            ("entered_on", "TEXT"),
         ],
     },
     Recorded {
@@ -254,6 +269,9 @@ pub(crate) const RECORDED: [Recorded; 11] = [
             ("original_currency", "TEXT"),
             ("own_date", "TEXT"),
             ("own_payee", "TEXT"),
+            ("note", "TEXT"),
+            ("number", "TEXT"),
+            ("status", "TEXT"),
         ],
     },
     Recorded {
@@ -333,6 +351,59 @@ pub(crate) const RECORDED: [Recorded; 11] = [
         name: "split_rules",
         key: "split_id",
         columns: &[("split_id", "BLOB"), ("rule_id", "BLOB")],
+    },
+    Recorded {
+        name: "institutions",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("name", "TEXT"),
+            ("bank_code", "TEXT"),
+            ("contact", "TEXT"),
+            ("address", "TEXT"),
+            ("phone", "TEXT"),
+        ],
+    },
+    Recorded {
+        name: "payees",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("name", "TEXT"),
+            ("address", "TEXT"),
+            ("email", "TEXT"),
+            ("phone", "TEXT"),
+            ("reference", "TEXT"),
+            ("recognition", "TEXT"),
+            ("key_words", "TEXT"),
+            ("recognition_ignores_case", "INTEGER"),
+        ],
+    },
+    Recorded {
+        name: "tags",
+        key: "id",
+        columns: &[("id", "BLOB"), ("name", "TEXT")],
+    },
+    Recorded {
+        name: "split_tags",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("split_id", "BLOB"),
+            ("tag_id", "BLOB"),
+            ("position", "INTEGER"),
+        ],
+    },
+    Recorded {
+        name: "attachments",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("transaction_id", "BLOB"),
+            ("position", "INTEGER"),
+            ("link", "TEXT"),
+            ("title", "TEXT"),
+        ],
     },
 ];
 
@@ -1172,6 +1243,9 @@ fn action_to_text(action: Action) -> &'static str {
         Action::RunRules => "run_rules",
         Action::ImportStatement => "import_statement",
         Action::CorrectStartingBalance => "correct_starting_balance",
+        Action::AddInstitution => "add_institution",
+        Action::AddPayee => "add_payee",
+        Action::AddTag => "add_tag",
     }
 }
 

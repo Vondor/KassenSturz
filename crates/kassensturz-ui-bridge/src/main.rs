@@ -32,6 +32,7 @@ mod settings;
 #[cfg(test)]
 mod test_folder;
 mod transaction_entry;
+mod transfer_prompt;
 mod variant;
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQuickStyle, QString, QUrl};

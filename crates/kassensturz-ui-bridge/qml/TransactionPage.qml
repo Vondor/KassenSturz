@@ -7,8 +7,9 @@
 // and one category, can be changed here: a starting balance is corrected
 // through "Check against my bank" (D-116), a purchase broken down into Parts
 // has its own page (M3.6, D-119), which "Break down this transaction" opens
-// for a simple one too; a Transfer gets its own page later (M3.7) and can
-// only be removed from here.
+// for a simple one too; a Transfer can only be removed from here. After a
+// transaction is saved that looks like one side of a Transfer, the page asks
+// whether it is (M3.7, D-120).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -120,7 +121,9 @@ Kirigami.ScrollablePage {
             : register.editTransaction(chosenAccount, transactionId, form());
         error.result = result;
         if (result.code === undefined) {
-            done();
+            // If it looks like one side of a Transfer, ask before leaving
+            // (M3.7, D-120); the page is done when the questions are.
+            transferPrompt.ask(register.transferSuggestions(adding ? result.id : transactionId));
         }
     }
 
@@ -130,6 +133,13 @@ Kirigami.ScrollablePage {
         if (result.code === undefined) {
             done();
         }
+    }
+
+    TransferPrompt {
+        id: transferPrompt
+
+        register: page.register
+        onFinished: page.done()
     }
 
     Kirigami.FormLayout {
@@ -147,7 +157,7 @@ Kirigami.ScrollablePage {
             text: page.kind === "starting-balance"
                 ? page.i18nContext.i18nc("@info", "This is the starting balance: what the account held when you began. To change it, check the account against your bank, and KassenSturz offers to correct it.")
                 : page.kind === "transfer"
-                    ? page.i18nContext.i18nc("@info %1 is the name of an account", "This money was moved between this account and %1. Changing a Transfer isn't possible yet; you can remove it and add it again.", page.entry.otherAccount ?? "")
+                    ? page.i18nContext.i18nc("@info %1 is the name of an account", "This money was moved between this account and %1. Changing a Transfer isn't possible yet. You can remove it and add each side again in its own account; KassenSturz then offers to join them.", page.entry.otherAccount ?? "")
                     : page.i18nContext.i18nc("@info", "This transaction is broken down into several parts, which have their own page.")
             wrapMode: Text.Wrap
         }

@@ -932,6 +932,134 @@ fn an_account_closes_only_when_empty_and_takes_no_transactions_then() {
 }
 
 #[test]
+fn a_stated_balance_is_kept_with_its_day_and_can_be_forgotten() {
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    // A new account has none: the user hasn't said what the bank showed.
+    assert_eq!(book.stated_balance(checking).expect("read"), None);
+
+    let stated = StatedBalance {
+        amount: eur(100_000),
+        on: date(2026, 10, 1),
+    };
+    book.set_stated_balance(checking, Some(&stated))
+        .expect("noted");
+    assert_eq!(book.stated_balance(checking).expect("read"), Some(stated));
+    let history = book.history().expect("history");
+    assert_eq!(history[0].action, Action::CorrectStartingBalance);
+    // Stating a newer balance replaces it, and forgetting it leaves none;
+    // each is one change the user can undo (D-066).
+    let newer = StatedBalance {
+        amount: eur(80_000),
+        on: date(2026, 10, 10),
+    };
+    book.set_stated_balance(checking, Some(&newer))
+        .expect("noted");
+    assert_eq!(book.stated_balance(checking).expect("read"), Some(newer));
+    book.set_stated_balance(checking, None).expect("forgotten");
+    assert_eq!(book.stated_balance(checking).expect("read"), None);
+    assert_eq!(book.history().expect("history").len(), history.len() + 2);
+    book.undo().expect("undone");
+    assert_eq!(book.stated_balance(checking).expect("read"), Some(newer));
+    book.undo().expect("undone");
+    assert_eq!(book.stated_balance(checking).expect("read"), Some(stated));
+    // The account itself is as it was.
+    assert_eq!(
+        book.account(checking).expect("account").name,
+        "Checking account"
+    );
+}
+
+#[test]
+fn a_stated_balance_belongs_to_an_account_in_its_currency() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let stated = StatedBalance {
+        amount: eur(100_000),
+        on: date(2026, 10, 1),
+    };
+    // A category has no bank to state a balance; the internal account for
+    // starting balances neither.
+    assert!(matches!(
+        book.set_stated_balance(groceries, Some(&stated)),
+        Err(StoreError::NotAnAccount(id)) if id == groceries
+    ));
+    let chf = CurrencyCode::new("CHF").expect("valid code");
+    book.use_currency(chf).expect("currency used");
+    let in_francs = StatedBalance {
+        amount: Money::from_minor_units(100_000, chf),
+        on: date(2026, 10, 1),
+    };
+    assert!(matches!(
+        book.set_stated_balance(checking, Some(&in_francs)),
+        Err(StoreError::StatedBalanceCurrencyMismatch {
+            account,
+            account_currency,
+            currency,
+        }) if account == checking && account_currency == EUR && currency == chf
+    ));
+    let unknown = AccountId::generate();
+    assert!(matches!(
+        book.set_stated_balance(unknown, Some(&stated)),
+        Err(StoreError::UnknownAccount(id)) if id == unknown
+    ));
+    assert!(matches!(
+        book.stated_balance(unknown),
+        Err(StoreError::UnknownAccount(id)) if id == unknown
+    ));
+    // Nothing was noted, and the refusals aren't changes.
+    assert_eq!(book.stated_balance(checking).expect("read"), None);
+    assert_eq!(book.stated_balance(groceries).expect("read"), None);
+    assert!(
+        book.history()
+            .expect("history")
+            .iter()
+            .all(|change| change.action != Action::CorrectStartingBalance)
+    );
+}
+
+#[test]
+fn a_half_stated_balance_in_the_file_is_reported() {
+    let Sample {
+        book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    // The table's checks refuse a balance without its day, a day without the
+    // balance, a day that isn't one, and a stated balance on a category.
+    for update in [
+        "UPDATE accounts SET stated_balance = 100000 WHERE kind = 'asset'",
+        "UPDATE accounts SET stated_on = '2026-10-01' WHERE kind = 'asset'",
+        "UPDATE accounts SET stated_balance = 100000, stated_on = 'October' WHERE kind = 'asset'",
+        "UPDATE accounts SET stated_balance = 100000, stated_on = '2026-10-01' WHERE kind = 'expense'",
+    ] {
+        assert!(
+            book.as_another_program().execute(update, []).is_err(),
+            "{update}"
+        );
+    }
+    // Without them, e.g. in a file changed by another program (D-046), the
+    // account is reported, never half read.
+    book.as_another_program()
+        .execute_batch(
+            "PRAGMA ignore_check_constraints = ON;
+             UPDATE accounts SET stated_on = '2026-10-01' WHERE kind = 'asset';",
+        )
+        .expect("changed behind KassenSturz's back");
+    assert!(matches!(
+        book.stated_balance(checking),
+        Err(StoreError::Corrupt(Corruption::HalfStatedBalance(id))) if id == checking
+    ));
+    assert_eq!(book.stated_balance(groceries).expect("read"), None);
+}
+
+#[test]
 fn bad_account_types_in_the_file_are_reported() {
     let mut book = Book::create_in_memory().expect("book created");
     book.use_currency(EUR).expect("currency used");

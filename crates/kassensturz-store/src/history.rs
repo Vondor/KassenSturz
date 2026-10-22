@@ -73,11 +73,15 @@ pub enum Action {
     /// Imported a bank statement, or the statements of one file, into one
     /// account (D-030, D-092).
     ImportStatement,
+    /// Corrected an account's starting balance so that it holds on a day
+    /// what the bank said, and noted that balance and its day on the
+    /// account (D-111, D-116, D-117).
+    CorrectStartingBalance,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 21] = [
+    pub const ALL: [Self; 22] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -99,6 +103,7 @@ impl Action {
         Self::RemoveRule,
         Self::RunRules,
         Self::ImportStatement,
+        Self::CorrectStartingBalance,
     ];
 }
 
@@ -220,6 +225,8 @@ pub(crate) const RECORDED: [Recorded; 11] = [
             ("account_type", "TEXT"),
             ("closed", "INTEGER"),
             ("parent_id", "BLOB"),
+            ("stated_balance", "INTEGER"),
+            ("stated_on", "TEXT"),
         ],
     },
     Recorded {
@@ -1164,6 +1171,7 @@ fn action_to_text(action: Action) -> &'static str {
         Action::RemoveRule => "remove_rule",
         Action::RunRules => "run_rules",
         Action::ImportStatement => "import_statement",
+        Action::CorrectStartingBalance => "correct_starting_balance",
     }
 }
 

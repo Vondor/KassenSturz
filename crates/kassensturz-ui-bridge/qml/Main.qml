@@ -289,7 +289,7 @@ Kirigami.ApplicationWindow {
 
         AccountDetailsPage {
             accounts: accountList
-            onCheckClicked: root.pageStack.push(bankCheckPage, { accountId: accountId })
+            onCheckClicked: (bank, date) => root.pageStack.push(bankCheckPage, { accountId: accountId, initialBank: bank, initialDate: date })
             // Closed or opened again: back to the list.
             onAccountClosedOrOpened: root.pageStack.pop()
         }

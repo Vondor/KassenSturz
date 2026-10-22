@@ -181,5 +181,6 @@ fn action_text(action: Action) -> &'static str {
         Action::RemoveRule => "removed a Rule",
         Action::RunRules => "ran the Rules",
         Action::ImportStatement => "imported a statement",
+        Action::CorrectStartingBalance => "corrected a starting balance",
     }
 }

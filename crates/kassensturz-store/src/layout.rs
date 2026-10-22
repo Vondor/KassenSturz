@@ -34,9 +34,9 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 13] = [
+pub(crate) const MIGRATIONS: [&str; 14] = [
     LAYOUT_1, LAYOUT_2, LAYOUT_3, LAYOUT_4, LAYOUT_5, LAYOUT_6, LAYOUT_7, LAYOUT_8, LAYOUT_9,
-    LAYOUT_10, LAYOUT_11, LAYOUT_12, LAYOUT_13,
+    LAYOUT_10, LAYOUT_11, LAYOUT_12, LAYOUT_13, LAYOUT_14,
 ];
 
 /// The layout version the first migration creates.
@@ -537,6 +537,48 @@ const LAYOUT_13: &str = "
 ALTER TABLE changes ADD COLUMN file_name TEXT;
 ";
 
+/// Layout 14 (M3.4a): an account keeps the balance the user stated for it,
+/// taken from the bank, and the day it was for, in two new columns of
+/// `accounts`, both set or both empty, and only on accounts, never on
+/// categories or the internal account (D-111, D-117, Q-072). The accounts a
+/// book has get none: KassenSturz knows their stated balance only from their
+/// starting-balance transaction. `changed_accounts` gets the two columns too,
+/// empty in the rows it has. Correcting the starting balance becomes a user
+/// action of its own, so `changes` is rebuilt with `correct_starting_balance`
+/// in its list of actions, as in layouts 8 to 10; its rows stay as they were.
+const LAYOUT_14: &str = "
+ALTER TABLE accounts ADD COLUMN stated_balance INTEGER
+    CHECK (stated_balance IS NULL OR kind IN ('asset', 'liability'));
+ALTER TABLE accounts ADD COLUMN stated_on TEXT
+    CHECK ((stated_on IS NULL) = (stated_balance IS NULL))
+    CHECK (stated_on IS NULL
+           OR stated_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]');
+
+ALTER TABLE changed_accounts ADD COLUMN stated_balance INTEGER;
+ALTER TABLE changed_accounts ADD COLUMN stated_on TEXT;
+
+CREATE TABLE new_changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction', 'join_transfer',
+        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
+        'import_statement', 'correct_starting_balance'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
+    file_name TEXT
+) STRICT;
+INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
+    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
+DROP TABLE changes;
+ALTER TABLE new_changes RENAME TO changes;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -592,7 +634,9 @@ mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
 
-    use kassensturz_core::{AccountId, CurrencyCode, Money, RoundingMode, SplitId, TransactionId};
+    use kassensturz_core::{
+        AccountId, CurrencyCode, Date, Money, RoundingMode, SplitId, TransactionId,
+    };
     use rusqlite::params;
 
     use super::*;
@@ -724,6 +768,8 @@ mod tests {
                 (account.account_type, account.closed, account.parent),
                 (None, false, None)
             );
+            // Accounts from before layout 14 have no stated balance.
+            assert_eq!(book.stated_balance(checking).expect("statement"), None);
             assert_eq!(
                 book.rounding_mode().expect("rounding mode"),
                 RoundingMode::HalfAwayFromZero
@@ -756,7 +802,7 @@ mod tests {
 
     #[test]
     fn changes_made_before_changes_was_rebuilt_can_still_be_undone() {
-        // Layouts 8, 9 and 10 rebuild `changes`, and layout 13 adds a
+        // Layouts 8, 9, 10 and 14 rebuild `changes`, and layout 13 adds a
         // column to it; what a book recorded before stays.
         for version in 7..VERSION {
             undo_after_update(version);
@@ -798,6 +844,17 @@ mod tests {
             book.account(checking).expect("account").name,
             "Main account"
         );
+        // The updated `changed_accounts` records the columns layout 14 added,
+        // so a stated balance noted after the update can be undone too.
+        let stated = crate::StatedBalance {
+            amount: Money::from_minor_units(-5320, EUR),
+            on: Date::constant(2026, 10, 5),
+        };
+        book.set_stated_balance(checking, Some(&stated))
+            .expect("noted");
+        assert_eq!(book.stated_balance(checking).expect("read"), Some(stated));
+        book.undo().expect("undone");
+        assert_eq!(book.stated_balance(checking).expect("read"), None);
     }
 
     #[test]

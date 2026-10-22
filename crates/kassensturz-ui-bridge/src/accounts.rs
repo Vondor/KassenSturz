@@ -17,7 +17,7 @@ use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, CurrencyCode, Date, Money, Report, Split,
     Transaction, TransactionError, TransactionId,
 };
-use kassensturz_store::{AccountPart, Action, Book, StoreError};
+use kassensturz_store::{AccountPart, Action, Book, StatedBalance, StoreError};
 
 use crate::errors::{ErrorText, report_text};
 use crate::first_run::type_key;
@@ -110,6 +110,28 @@ pub struct AccountDetails {
     pub debt: bool,
     /// Whether it can be closed now: nothing is left in it (D-081).
     pub can_close: bool,
+    /// What the user said the bank showed, if they said (D-117).
+    pub stated: Option<Statement>,
+}
+
+/// The balance the user stated for an account, taken from the bank, against
+/// what KassenSturz has for that day (D-111, D-117).
+#[derive(Debug, PartialEq, Eq)]
+pub struct Statement {
+    /// What the bank showed; for a debt, what was owed. Its exact text is
+    /// what the user could type into "Check against my bank".
+    pub balance: Shown,
+    /// Whether that is shown as "owed".
+    pub owes: bool,
+    /// The day it was for, in the user's short format, which "Check against
+    /// my bank" reads back.
+    pub date: String,
+    /// What KassenSturz has at the end of that day; for a debt, what is owed.
+    pub held: Shown,
+    /// Whether that is shown as "owed".
+    pub held_owes: bool,
+    /// Whether the two agree.
+    pub matches: bool,
 }
 
 /// An account as the user entered it.
@@ -325,20 +347,38 @@ pub fn details(
     let account = find(book, id)?;
     let balance = book.balance(account.id)?;
     let writer = AmountWriter::new(book, account.currency, locale)?;
+    let stated = match book.stated_balance(account.id)? {
+        Some(stated) => {
+            let held = book.balance_on(account.id, stated.on)?;
+            let (balance, owes) = writer.balance(stated.amount, account.kind);
+            let (held_shown, held_owes) = writer.balance(held, account.kind);
+            Some(Statement {
+                balance,
+                owes,
+                date: locale.short_date(stated.on),
+                held: held_shown,
+                held_owes,
+                matches: held == stated.amount,
+            })
+        }
+        None => None,
+    };
     Ok(AccountDetails {
         card: card(&account, balance, &writer),
         currency: account.currency.to_string(),
         closed: account.closed,
         debt: account.kind == AccountKind::Liability,
         can_close: balance.is_zero(),
+        stated,
     })
 }
 
 /// Adds an account. If `new` says how much is in it, the account gets a
 /// starting balance dated on the day the user named, booked against the
 /// internal account for starting balances, so the account holds exactly the
-/// amount stated on that day (D-111). The account and its starting balance
-/// are added together or not at all (D-032).
+/// amount stated on that day (D-111), and the account keeps that statement
+/// (D-117). The account and its starting balance are added together or not
+/// at all (D-032).
 pub fn add_account(
     book: &mut Book,
     new: &NewAccount<'_>,
@@ -361,10 +401,11 @@ pub fn add_account(
             .iso_minor_digits()
             .ok_or(AccountsError::UnknownCurrency)?,
     };
-    let amount = if new.balance.trim().is_empty() {
-        Money::zero(currency)
-    } else {
+    let stated = !new.balance.trim().is_empty();
+    let amount = if stated {
         read_amount(new.balance, currency, minor_digits, locale)?
+    } else {
+        Money::zero(currency)
     };
     let amount = match new.account_type.kind() {
         AccountKind::Liability if amount.is_negative() => return Err(AccountsError::NegativeDebt),
@@ -400,6 +441,9 @@ pub fn add_account(
             )
             .map_err(AccountsError::Transaction)?;
             book.add_transaction(&transaction)?;
+        }
+        if stated {
+            book.set_stated_balance(id, Some(&StatedBalance { amount, on: day }))?;
         }
         Ok(id)
     })
@@ -507,8 +551,10 @@ pub fn check_against_bank(
 /// the bank says, typed as `bank` (D-111): the user confirmed the offer of
 /// [`check_against_bank`]. The latest starting balance dated on or before
 /// the day changes by the difference; an account without one gets one dated
-/// that day. Every other entry stays as it is. A starting balance dated after
-/// the day is refused, since it would count twice.
+/// that day. Every other entry stays as it is, and the account keeps what
+/// the bank said and the day as its stated balance (D-117); all of it is one
+/// change. A starting balance dated after the day is refused, since it would
+/// count twice.
 pub fn correct_starting_balance(
     book: &mut Book,
     id: &str,
@@ -537,6 +583,10 @@ pub fn correct_starting_balance(
     let (starting, _) = parts_by_origin(book, &account)?;
     let target = correctable(&starting, day).map_err(|()| AccountsError::StartingBalanceLater)?;
     let too_large = || AccountsError::Amount(AmountInputError::TooLarge, account.currency);
+    let stated = StatedBalance {
+        amount: bank,
+        on: day,
+    };
     match target {
         Some(part) => {
             let transaction = book.transaction(part.transaction)?;
@@ -562,14 +612,15 @@ pub fn correct_starting_balance(
                 splits,
             )
             .map_err(AccountsError::Transaction)?;
-            book.as_one_action(Action::EditTransaction, |book| {
-                book.update_transaction(&changed)
+            book.as_one_action(Action::CorrectStartingBalance, |book| {
+                book.update_transaction(&changed)?;
+                book.set_stated_balance(account.id, Some(&stated))
             })?;
         }
         None => {
             let balancing = difference.checked_neg().map_err(|_| too_large())?;
             book.as_one_action(
-                Action::AddTransaction,
+                Action::CorrectStartingBalance,
                 |book| -> Result<(), AccountsError> {
                     let equity = starting_balances_account(book, account.currency)?;
                     let transaction = Transaction::new(
@@ -583,6 +634,7 @@ pub fn correct_starting_balance(
                     )
                     .map_err(AccountsError::Transaction)?;
                     book.add_transaction(&transaction)?;
+                    book.set_stated_balance(account.id, Some(&stated))?;
                     Ok(())
                 },
             )?;
@@ -973,6 +1025,27 @@ mod tests {
         assert_eq!(rows[0].date, day("2026-10-01"));
         let shown = register_view(&book, account.id, &TestLocale).expect("register");
         assert_eq!(shown.balance.exact, "1250,50 €");
+        // The account keeps what the user said the bank showed (D-117), and
+        // the account page sees that it still holds it.
+        assert_eq!(
+            book.stated_balance(account.id).expect("statement"),
+            Some(StatedBalance {
+                amount: Money::from_minor_units(125_050, EUR),
+                on: day("2026-10-01"),
+            })
+        );
+        let details = details(&book, &id, &TestLocale).expect("details");
+        assert_eq!(
+            details.stated,
+            Some(Statement {
+                balance: shown.balance.clone(),
+                owes: false,
+                date: "2026-10-01".into(),
+                held: shown.balance,
+                held_owes: false,
+                matches: true,
+            })
+        );
     }
 
     #[test]
@@ -990,6 +1063,74 @@ mod tests {
                 .expect("accounts")
                 .iter()
                 .all(|account| account.kind != AccountKind::Equity)
+        );
+        // Nothing was stated, so nothing is kept or checked.
+        let id = id_of(&book, "Wallet");
+        assert_eq!(
+            details(&book, &id, &TestLocale).expect("details").stated,
+            None
+        );
+    }
+
+    #[test]
+    fn the_account_page_notices_when_the_stated_balance_no_longer_holds() {
+        // Told 1.000 on 1 October. An entry from before that day, e.g. one
+        // the user adds from an old statement, changes what the account
+        // held then: the account page says so, and the stated balance is
+        // what the check is prefilled with (D-117).
+        let mut book = book();
+        let id = checking(&mut book, "Checking account", "1.000,00");
+        pay(&mut book, &id, "2026-09-20", -2500, "Bakery");
+        let page = details(&book, &id, &TestLocale).expect("details");
+        let stated = page.stated.expect("stated");
+        assert_eq!(
+            (
+                stated.balance.exact.as_str(),
+                stated.date.as_str(),
+                stated.held.exact.as_str(),
+                stated.matches
+            ),
+            ("1000,00 €", "2026-10-01", "975,00 €", false)
+        );
+
+        // The check reads the stated text back and offers the correction;
+        // confirmed, the account holds what was stated again, and the
+        // statement itself is unchanged.
+        let check =
+            check_against_bank(&book, &id, &stated.balance.exact, &stated.date, &TestLocale)
+                .expect("checked");
+        assert!(!check.matches);
+        let offer = check.correction.as_ref().expect("a correction offered");
+        assert_eq!(offer.would_be.exact, "1025,00 €");
+        correct_starting_balance(
+            &mut book,
+            &id,
+            &stated.balance.exact,
+            &stated.date,
+            &TestLocale,
+        )
+        .expect("corrected");
+        let again = details(&book, &id, &TestLocale)
+            .expect("details")
+            .stated
+            .expect("stated");
+        assert!(again.matches);
+        assert_eq!(
+            (again.balance.exact.as_str(), again.date.as_str()),
+            ("1000,00 €", "2026-10-01")
+        );
+        assert_eq!(
+            starting_balances(&book, &id),
+            [("2026-10-01".to_owned(), 102_500)]
+        );
+        // Undo takes the correction back, and the page notices again.
+        book.undo().expect("undone");
+        assert!(
+            !details(&book, &id, &TestLocale)
+                .expect("details")
+                .stated
+                .expect("stated")
+                .matches
         );
     }
 
@@ -1524,11 +1665,29 @@ mod tests {
         );
         let history = book.history().expect("history");
         assert_eq!(history.len(), changes + 1);
-        assert_eq!(history[0].action, Action::EditTransaction);
+        assert_eq!(history[0].action, Action::CorrectStartingBalance);
+        // The account now keeps what the bank said on the day checked, and
+        // undo takes the correction and the statement back together.
+        let account = find(&book, &id).expect("account").id;
+        let day = |day: &str| day.parse().expect("day");
+        assert_eq!(
+            book.stated_balance(account).expect("statement"),
+            Some(StatedBalance {
+                amount: Money::from_minor_units(77_500, EUR),
+                on: day("2026-10-10"),
+            })
+        );
         book.undo().expect("undone");
         assert_eq!(
             starting_balances(&book, &id),
             [("2026-10-01".to_owned(), 100_000)]
+        );
+        assert_eq!(
+            book.stated_balance(account).expect("statement"),
+            Some(StatedBalance {
+                amount: Money::from_minor_units(100_000, EUR),
+                on: day("2026-10-01"),
+            })
         );
     }
 
@@ -1576,7 +1735,17 @@ mod tests {
         );
         assert_eq!(
             book.history().expect("history")[0].action,
-            Action::AddTransaction
+            Action::CorrectStartingBalance
+        );
+        // An account added without a balance had no stated balance; the
+        // correction gives it one.
+        assert_eq!(
+            book.stated_balance(find(&book, &id).expect("account").id)
+                .expect("statement"),
+            Some(StatedBalance {
+                amount: Money::from_minor_units(7500, EUR),
+                on: "2026-10-05".parse().expect("day"),
+            })
         );
     }
 

@@ -86,7 +86,12 @@ pub fn export_file(
     data.check()?;
     let (file, was_there) = match OpenOptions::new().write(true).create_new(true).open(path) {
         Ok(file) => (file, false),
-        Err(error) if error.kind() == ErrorKind::AlreadyExists => {
+        // Windows says "permission denied", not "already exists", when the
+        // name is a folder.
+        Err(error)
+            if error.kind() == ErrorKind::AlreadyExists
+                || (error.kind() == ErrorKind::PermissionDenied && path.exists()) =>
+        {
             let empty = fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.len() == 0);
             let file = empty
                 .then(|| OpenOptions::new().write(true).open(path).ok())

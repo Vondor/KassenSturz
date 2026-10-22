@@ -52,6 +52,10 @@ QString readShortDate(const QString &text);
 // Today's date on this computer, as ISO 8601.
 QString today();
 
+// The local date and time `seconds` after 1970-01-01 00:00 UTC, in the
+// locale's short format.
+QString dateTime(std::int64_t seconds);
+
 // Makes the locale `name` (e.g. "de_DE") the one used from now on.
 void setDefaultLocale(const QString &name);
 }

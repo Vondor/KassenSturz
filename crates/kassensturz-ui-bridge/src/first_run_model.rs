@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! The first-run mock (M1.M) as a QML object.
+//! The first-run mock (M1.M) as a QML object, on the book the app has open
+//! (`session.rs`).
 //!
 //! QML gets everything as text, flags and lists of them (D-065). The mock's
 //! lists hold a handful of rows, so they go to QML as plain lists of maps,
@@ -16,6 +17,7 @@ use kassensturz_core::CurrencyCode;
 use crate::first_run::{ErrorText, FirstRun, FirstRunError, NewTransaction, type_from_key};
 use crate::format::Locale;
 use crate::locale::QtLocale;
+use crate::session;
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -34,7 +36,7 @@ pub mod qobject {
     }
 
     extern "RustQt" {
-        /// The first-run mock: a book in memory that is never saved.
+        /// The first-run mock, on the book the app has open.
         #[qobject]
         #[qml_element]
         #[qproperty(QVariant, overview, READ, NOTIFY)]
@@ -45,8 +47,8 @@ pub mod qobject {
     }
 
     extern "RustQt" {
-        /// Starts over with an empty book and the given categories, named in
-        /// the user's language.
+        /// Reads the open book again. A book without categories gets the
+        /// given ones, named in the user's language.
         #[qinvokable]
         fn start(self: Pin<&mut FirstRunMock>, spending: &QStringList, income: &QStringList);
 
@@ -80,8 +82,8 @@ pub mod qobject {
         #[qinvokable]
         fn transactions(self: &FirstRunMock, account: i32) -> QVariant;
 
-        /// The categories for money in or money out, in the order `start`
-        /// got them.
+        /// The categories for money in or money out, in the order the UI
+        /// offers them.
         #[qinvokable]
         fn categories(self: &FirstRunMock, money_in: bool) -> QStringList;
     }
@@ -97,8 +99,6 @@ pub struct FirstRunMockRust {
     today: QString,
     amount_example: QString,
     state: Option<FirstRun>,
-    spending: QStringList,
-    income: QStringList,
 }
 
 impl cxx_qt::Initialize for qobject::FirstRunMock {
@@ -116,22 +116,24 @@ impl qobject::FirstRunMock {
                 .map(ToString::to_string)
                 .collect()
         };
-        // The locale's own currency if KassenSturz knows it, otherwise the
-        // euro: the mock has one currency, as most households do.
-        let state = QtLocale::currency()
-            .and_then(|currency| FirstRun::new(currency, &names(spending), &names(income)).ok())
-            .or_else(|| {
-                let euro = CurrencyCode::new("EUR").ok()?;
-                FirstRun::new(euro, &names(spending), &names(income)).ok()
+        let (spending, income) = (names(spending), names(income));
+        // In a book without accounts, the locale's own currency if
+        // KassenSturz knows it, otherwise the euro: the mock has one
+        // currency, as most households do.
+        let loaded = QtLocale::currency()
+            .or_else(|| CurrencyCode::new("EUR").ok())
+            .and_then(|currency| {
+                session::with_book_mut(|book| FirstRun::load(book, currency, &spending, &income))
             });
-        if state.is_none() {
-            // Only a bug can get here: the book is in memory.
-            eprintln!("kassensturz: couldn't create the first-run mock's book");
-        }
-        let mut model = self.as_mut().rust_mut();
-        model.state = state;
-        model.spending = spending.clone();
-        model.income = income.clone();
+        let state = match loaded {
+            Some(Ok(state)) => Some(state),
+            Some(Err(error)) => {
+                eprintln!("kassensturz: couldn't read the open book: {error:?}");
+                None
+            }
+            None => None,
+        };
+        self.as_mut().rust_mut().state = state;
         self.refresh();
     }
 
@@ -145,12 +147,16 @@ impl qobject::FirstRunMock {
             return self.error(&FirstRunError::NoSuchEntry);
         };
         let result = match self.as_mut().rust_mut().state.as_mut() {
-            Some(state) => state.add_account(
-                &name.to_string(),
-                account_type,
-                &starting_balance.to_string(),
-                &QtLocale,
-            ),
+            Some(state) => session::with_book_mut(|book| {
+                state.add_account(
+                    book,
+                    &name.to_string(),
+                    account_type,
+                    &starting_balance.to_string(),
+                    &QtLocale,
+                )
+            })
+            .unwrap_or(Err(FirstRunError::NoSuchEntry)),
             None => Err(FirstRunError::NoSuchEntry),
         };
         self.finish(result)
@@ -183,7 +189,10 @@ impl qobject::FirstRunMock {
             date: &date,
         };
         let result = match self.as_mut().rust_mut().state.as_mut() {
-            Some(state) => state.add_transaction(&entered, &QtLocale),
+            Some(state) => {
+                session::with_book_mut(|book| state.add_transaction(book, &entered, &QtLocale))
+                    .unwrap_or(Err(FirstRunError::NoSuchEntry))
+            }
             None => Err(FirstRunError::NoSuchEntry),
         };
         self.finish(result)
@@ -192,7 +201,9 @@ impl qobject::FirstRunMock {
     fn transactions(&self, account: i32) -> QVariant {
         let view = self.rust().state.as_ref().and_then(|state| {
             let account = usize::try_from(account).ok()?;
-            state.register(account, &QtLocale).ok().flatten()
+            session::with_book(|book| state.register(book, account, &QtLocale))?
+                .ok()
+                .flatten()
         });
         let Some(view) = view else {
             return QVariant::default();
@@ -216,11 +227,17 @@ impl qobject::FirstRunMock {
     }
 
     fn categories(&self, money_in: bool) -> QStringList {
-        if money_in {
-            self.rust().income.clone()
-        } else {
-            self.rust().spending.clone()
-        }
+        self.rust()
+            .state
+            .as_ref()
+            .map(|state| {
+                state
+                    .category_names(money_in)
+                    .iter()
+                    .map(|name| QString::from(name.as_str()))
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// Shows the new state after a change, or returns why it failed.
@@ -235,10 +252,13 @@ impl qobject::FirstRunMock {
     }
 
     fn error(&self, error: &FirstRunError) -> QVariant {
-        let Some(state) = self.rust().state.as_ref() else {
+        let shown =
+            self.rust().state.as_ref().and_then(|state| {
+                session::with_book(|book| state.error_text(book, error, &QtLocale))
+            });
+        let Some(ErrorText { code, params }) = shown else {
             return map([("code", text("input.no-such-entry"))]);
         };
-        let ErrorText { code, params } = state.error_text(error, &QtLocale);
         map(std::iter::once(("code", text(code)))
             .chain(params.iter().map(|(name, value)| (*name, text(value)))))
     }
@@ -248,21 +268,25 @@ impl qobject::FirstRunMock {
         let Some(state) = self.rust().state.as_ref() else {
             return;
         };
-        let overview = match state.overview(&QtLocale) {
-            Ok(overview) => overview,
-            Err(error) => {
-                // Only a bug can get here: the book is in memory.
+        let read = session::with_book(|book| {
+            Ok::<_, kassensturz_store::StoreError>((
+                state.overview(book, &QtLocale)?,
+                state.account_names(book)?,
+                state.amount_example(book, &QtLocale)?,
+            ))
+        });
+        let (overview, names, amount_example) = match read {
+            Some(Ok(read)) => read,
+            Some(Err(error)) => {
                 eprintln!("kassensturz: couldn't read the overview: {error:?}");
                 return;
             }
+            None => return,
         };
-        let accounts: QStringList = state
-            .account_names()
-            .unwrap_or_default()
+        let accounts: QStringList = names
             .iter()
             .map(|name| QString::from(name.as_str()))
             .collect();
-        let amount_example = state.amount_example(&QtLocale).unwrap_or_default();
 
         let cards = overview.accounts.iter().map(|card| {
             map([

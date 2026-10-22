@@ -229,8 +229,9 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             build-essential ca-certificates cmake curl extra-cmake-modules gettext git \
-            libkf6i18n-dev libkf6qqc2desktopstyle-dev libsqlite3-dev ninja-build pkgconf \
+            libkf6config-dev libkf6i18n-dev libkf6qqc2desktopstyle-dev libsqlite3-dev ninja-build pkgconf \
             qml6-module-org-kde-desktop qml6-module-org-kde-ki18n qml6-module-org-kde-kirigami \
+            qml6-module-org-kde-kirigamiaddons-formcard qml6-module-qtquick-dialogs \
             qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools rustup zstd
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # In a container, `github.workspace` is the runner's path, not the
@@ -302,14 +303,18 @@ jobs:
       QT_QPA_PLATFORM: offscreen
       CARGO_INCREMENTAL: "0"
     steps:
+      # Kirigami Addons is named by the file it installs: Fedora 44 has no
+      # package called kirigami-addons, and its name couldn't be checked
+      # beforehand (D-112).
       - name: Install the distribution's build tools, Qt, KDE Frameworks and SQLite
         run: |
           dnf install -y --setopt=install_weak_deps=False \
             cmake dejavu-sans-fonts extra-cmake-modules gcc-c++ gettext git \
-            kf6-ki18n kf6-ki18n-devel kf6-kirigami kf6-kirigami-devel \
+            kf6-kconfig-devel kf6-ki18n kf6-ki18n-devel kf6-kirigami kf6-kirigami-devel \
             kf6-qqc2-desktop-style ninja-build \
             pkgconf-pkg-config qt6-qtbase-devel qt6-qtdeclarative \
-            qt6-qtdeclarative-devel rustup sqlite-devel tar
+            qt6-qtdeclarative-devel rustup sqlite-devel tar \
+            /usr/lib64/qt6/qml/org/kde/kirigamiaddons/formcard/qmldir
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # In a container, `github.workspace` is the runner's path, not the
       # container's, so Cargo's folder is named here.

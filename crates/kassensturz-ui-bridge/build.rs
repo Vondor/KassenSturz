@@ -45,6 +45,7 @@ fn main() {
             "src/locale.rs",
             "src/number_format_model.rs",
             "src/platform.rs",
+            "src/register_model.rs",
             "src/settings.rs",
         ])
         .cpp_files(["cpp/locale.cpp", "cpp/platform.cpp", "cpp/settings.cpp"]);

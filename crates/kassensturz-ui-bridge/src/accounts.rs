@@ -901,7 +901,7 @@ mod tests {
     use crate::first_start::tests::started;
     use crate::number_format::{DecimalPlaces, NumberFormat, UserLocale};
     use crate::register::tests::TestLocale;
-    use crate::register::{entries, register_view};
+    use crate::register::{Sort, entries, register_view};
 
     const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
         Ok(code) => code,
@@ -1021,9 +1021,10 @@ mod tests {
         // The register shows the amount as the starting balance, on that day.
         let rows = entries(&book, account.id).expect("entries");
         assert_eq!(rows.len(), 1);
-        assert!(rows[0].starting_balance);
+        assert!(rows[0].starting_balance());
         assert_eq!(rows[0].date, day("2026-10-01"));
-        let shown = register_view(&book, account.id, &TestLocale).expect("register");
+        let shown =
+            register_view(&book, account.id, Sort::default(), &TestLocale).expect("register");
         assert_eq!(shown.balance.exact, "1250,50 €");
         // The account keeps what the user said the bank showed (D-117), and
         // the account page sees that it still holds it.
@@ -1726,9 +1727,14 @@ mod tests {
         );
         // The register shows it as a starting balance (the seam with the
         // mock's register, M1.M).
-        let rows = register_view(&book, find(&book, &id).expect("account").id, &TestLocale)
-            .expect("register")
-            .rows;
+        let rows = register_view(
+            &book,
+            find(&book, &id).expect("account").id,
+            Sort::default(),
+            &TestLocale,
+        )
+        .expect("register")
+        .rows;
         assert!(
             rows.iter()
                 .any(|row| row.starting_balance && row.date == "2026-10-05")

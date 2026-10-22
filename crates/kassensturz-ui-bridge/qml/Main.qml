@@ -150,6 +150,11 @@ Kirigami.ApplicationWindow {
         id: changeNames
     }
 
+    // The language (D-127), which applies at the next start.
+    LanguageSettings {
+        id: languageSettings
+    }
+
     // How amounts look (D-002): the screens show them again when it changes.
     NumberFormatSettings {
         id: numberFormatSettings
@@ -675,6 +680,7 @@ Kirigami.ApplicationWindow {
         SettingsPage {
             session: bookSession
             numberFormat: numberFormatSettings
+            language: languageSettings
             history: changeHistory
             onOpenAnotherClicked: root.chooseBookToOpen()
             onNewBookClicked: root.chooseNewBook()

@@ -3,7 +3,7 @@
 
 // The app's settings: which book is open, opening another one or starting a
 // new one (D-033, for people who want more than one book), how amounts look
-// (D-002, D-114), saving a copy of the data and starting a book from a file
+// (D-002, D-114), the language (D-127), saving a copy of the data and starting a book from a file
 // (M3.12), how long the history of changes is kept (D-066, M3.8), and
 // where the backups go.
 
@@ -18,10 +18,13 @@ FormCard.FormCardPage {
 
     required property BookSession session
     required property NumberFormatSettings numberFormat
+    required property LanguageSettings language
     required property ChangeHistory history
 
     // Whether a number format choice couldn't be saved for the next start.
     property bool formatNotSaved: false
+    // Whether the language choice couldn't be saved.
+    property bool languageNotSaved: false
 
     signal openAnotherClicked()
     signal newBookClicked()
@@ -144,6 +147,43 @@ FormCard.FormCardPage {
             description: page.i18nContext.i18nc("@info", "From a KMyMoney book, or a whole book you saved with KassenSturz.")
             onClicked: page.bookFromFileClicked()
         }
+    }
+
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "Language")
+    }
+
+    FormCard.FormCard {
+        FormCard.FormComboBoxDelegate {
+            id: languageBox
+
+            // Shows the saved choice. Set rather than bound: the delegate
+            // sets its index itself on phones, which would end a binding.
+            function showChoice() {
+                currentIndex = indexOfValue(page.language.choice);
+            }
+
+            text: page.i18nContext.i18nc("@label:listbox", "Language")
+            textRole: "text"
+            valueRole: "value"
+            // Each language is named in itself, so it is found whatever
+            // language the app is in now.
+            model: [
+                { value: "system", text: page.i18nContext.i18nc("@item:inlistbox", "As in your system") },
+                { value: "en", text: "English" },
+                { value: "de", text: "Deutsch" },
+            ]
+            Component.onCompleted: showChoice()
+            onActivated: page.languageNotSaved = !page.language.choose(currentValue)
+        }
+    }
+
+    FormCard.FormSectionText {
+        text: page.languageNotSaved
+            ? page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice. Check that your settings folder can be written to, then choose again.")
+            : page.language.restartNeeded
+                ? page.i18nContext.i18nc("@info", "The new language applies the next time you start KassenSturz.")
+                : page.i18nContext.i18nc("@info", "Dates and amounts keep following your regional settings; change how amounts look below.")
     }
 
     FormCard.FormHeader {

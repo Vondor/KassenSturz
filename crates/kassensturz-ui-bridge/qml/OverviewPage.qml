@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// The overview (M3.9): the accounts side by side (D-021), one month's money
-// in and money out with where it came from and where it went, and the
-// latest transactions. Money moved between the user's own accounts counts
-// as neither (D-021). Every amount, total and order comes from Rust, per
-// currency (D-065); this page only shows text.
+// The overview (M3.9): how the user is doing on one page: what all the
+// accounts hold together, and one month's money in and money out with where
+// it came from and where it went. The accounts and their transactions are on
+// their own screens (round 1). Money moved between the user's own accounts
+// counts as neither (D-021). Every amount, total and order comes from Rust,
+// per currency (D-065); this page only shows text.
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -21,37 +22,12 @@ Kirigami.ScrollablePage {
     readonly property var view: overview.view ?? ({})
     readonly property var sections: view.sections ?? []
     readonly property var totals: view.totals ?? []
-    readonly property var latest: view.latest ?? []
 
     signal addAccountClicked()
     signal addTransactionClicked()
-    // Open the account's register, by the account's ID.
-    signal accountClicked(accountId: string)
-    // Open a transaction, seen from the account with `accountId`.
-    signal transactionClicked(accountId: string, transactionId: string)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
-    }
-
-    function typeName(key: string): string {
-        switch (key) {
-        case "checking":
-            return i18nContext.i18nc("@item an account type", "Checking account");
-        case "savings":
-            return i18nContext.i18nc("@item an account type", "Savings account");
-        case "cash":
-            return i18nContext.i18nc("@item an account type", "Cash");
-        case "credit-card":
-            return i18nContext.i18nc("@item an account type", "Credit card");
-        default:
-            return "";
-        }
-    }
-
-    // A debt reads "You owe" (D-067).
-    function balanceText(balance: string, owes: bool): string {
-        return owes ? i18nContext.i18nc("@label %1 is an amount of money", "You owe %1", balance) : balance;
     }
 
     // All accounts of a currency together, with `amount` as shown or exactly.
@@ -93,11 +69,7 @@ Kirigami.ScrollablePage {
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
 
-        Kirigami.Heading {
-            text: page.i18nContext.i18nc("@title", "Your accounts")
-            level: 2
-        }
-
+        // What all the accounts hold, per currency.
         Repeater {
             model: page.sections
 
@@ -107,7 +79,7 @@ Kirigami.ScrollablePage {
                 required property var modelData
 
                 Layout.fillWidth: true
-                spacing: Kirigami.Units.largeSpacing
+                spacing: Kirigami.Units.smallSpacing
 
                 // Only a book with several currencies needs to say which.
                 Kirigami.Heading {
@@ -116,70 +88,12 @@ Kirigami.ScrollablePage {
                     level: 3
                 }
 
-                Kirigami.CardsLayout {
-                    Layout.fillWidth: true
-
-                    Repeater {
-                        model: section.modelData.accounts
-
-                        delegate: Kirigami.AbstractCard {
-                            id: card
-
-                            required property var modelData
-
-                            readonly property string balanceText: page.balanceText(modelData.balance, modelData.owes)
-                            readonly property string exactBalanceText: page.balanceText(modelData.exactBalance, modelData.owes)
-
-                            showClickFeedback: true
-                            Accessible.name: [modelData.name, page.typeName(modelData.type), exactBalanceText].join(", ")
-                            onClicked: page.accountClicked(modelData.id)
-
-                            contentItem: ColumnLayout {
-                                spacing: 0
-
-                                Controls.Label {
-                                    Layout.fillWidth: true
-                                    text: card.modelData.name
-                                    elide: Text.ElideRight
-                                    font.bold: true
-                                }
-
-                                Controls.Label {
-                                    Layout.fillWidth: true
-                                    text: page.typeName(card.modelData.type)
-                                    // An account named after its type needn't say it twice.
-                                    visible: text !== "" && text !== card.modelData.name
-                                    font: Kirigami.Theme.smallFont
-                                }
-
-                                Kirigami.Heading {
-                                    Layout.fillWidth: true
-                                    Layout.topMargin: Kirigami.Units.smallSpacing
-                                    level: 3
-                                    text: card.balanceText
-                                    horizontalAlignment: Text.AlignRight
-                                    // The exact balance, if it is shown rounded
-                                    // (D-002), as AmountLabel does.
-                                    Controls.ToolTip.visible: card.exactBalanceText !== text && balanceHover.hovered
-                                    Controls.ToolTip.text: card.exactBalanceText
-                                    Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
-
-                                    HoverHandler {
-                                        id: balanceHover
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
                 AmountLabel {
                     Layout.fillWidth: true
-                    // One account is its own total.
-                    visible: section.modelData.accounts.length > 1
                     text: page.togetherText(section.modelData.together, section.modelData.togetherOwes)
                     exactText: page.togetherText(section.modelData.exactTogether, section.modelData.togetherOwes)
                     font.bold: true
+                    font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.3
                     wrapMode: Text.Wrap
                 }
             }
@@ -323,46 +237,6 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18ncp("@info", "Money you moved between your accounts (once this month) isn't counted as money in or out.", "Money you moved between your accounts (%1 times this month) isn't counted as money in or out.", page.view.transfers ?? 0)
             wrapMode: Text.Wrap
             font: Kirigami.Theme.smallFont
-        }
-
-        Kirigami.Heading {
-            Layout.topMargin: Kirigami.Units.largeSpacing
-            text: page.i18nContext.i18nc("@title", "Latest transactions")
-            level: 2
-        }
-
-        Controls.Label {
-            Layout.fillWidth: true
-            visible: page.latest.length === 0
-            text: page.i18nContext.i18nc("@info", "No transactions yet. Add what you paid or received, and it shows up here.")
-            wrapMode: Text.Wrap
-        }
-
-        Repeater {
-            model: page.latest
-
-            delegate: Controls.ItemDelegate {
-                id: latestRow
-
-                required property var modelData
-
-                Layout.fillWidth: true
-                Accessible.name: transaction.Accessible.name
-                onClicked: page.transactionClicked(modelData.accountId, modelData.id)
-
-                contentItem: TransactionRow {
-                    id: transaction
-
-                    date: latestRow.modelData.date
-                    otherParty: latestRow.modelData.otherParty
-                    category: latestRow.modelData.category
-                    amount: latestRow.modelData.amount
-                    exactAmount: latestRow.modelData.exactAmount
-                    incoming: latestRow.modelData.incoming
-                    kind: latestRow.modelData.kind
-                    account: latestRow.modelData.account
-                }
-            }
         }
     }
 }

@@ -42,7 +42,7 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 
 ## Transactions (M3.5)
 
-- **Show transactions** on an account's page, or a click on an account card on the overview, lists everything that went into and out of that account, newest first. Each line says who the money came from ("From: Example Employer Ltd.") or went to ("To: Corner Grocery"), the date and the category, the amount, and what was in the account after it ("Then: 946,80 €"; on a credit card "Then you owed: 389,90 €"). The balance is at the bottom.
+- **Accounts** in the side menu, then a click on an account, lists everything that went into and out of that account, newest first. On a wide window it reads like the lines of a household book, with the columns Date, From or to, Category, Payment, Deposit and Balance after (on a credit card "You owed after"); every second line is shaded and the titles stay in view. On a narrow window each line says who the money came from ("From: Example Employer Ltd.") or went to ("To: Corner Grocery"), the date and the category, the amount, and what was in the account after it ("Then: 946,80 €"; on a credit card "Then you owed: 389,90 €"). The balance is at the bottom. **About this account** (top right) opens the account's name, closing it and "Check against my bank".
 - **Sorted by** in the toolbar changes the order: date, amount, from or to, or category, and turns it around ("Oldest first", "Smallest first", "Z to A"). The "Then" amounts don't change with the order: they always count in date order.
 - **Add transaction** on the list adds to that account; on the overview you choose the account first if you have more than one. Say what happened (paid or received), how much, from or to whom, what it was for and when. The amount is typed the way your settings show amounts, e.g. 53,20 in Germany. "Not sorted yet" leaves the category open; you can sort it later.
 - **Click a transaction** to change any of this or remove it. Removing takes it out of the list and the balance; Undo brings it back.
@@ -80,12 +80,12 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 
 ## The overview (M3.9)
 
-- **Overview** (side menu, and the screen after the first steps) shows your accounts side by side with what is in each today, then one month: "Money in", "Money out" and "Left over: 300,00 €" (or "Spent more than came in: 50,00 €"), then "Where your money went" and "Where your money came from" by category, largest first. Money you haven't sorted into a category yet is listed as "Not sorted yet".
+- **Overview** (side menu, and the screen after the first steps) says how you are doing: what all your accounts hold together today (per currency), then one month: "Money in", "Money out" and "Left over: 300,00 €" (or "Spent more than came in: 50,00 €"), then "Where your money went" and "Where your money came from" by category, largest first. Money you haven't sorted into a category yet is listed as "Not sorted yet".
 - **Another month:** the arrows next to the month's name go back as far as your book has transactions, and forward to this month or further if you entered something for a later month. "Back to this month" returns to today's month, as does coming back from another screen.
 - **Money moved between your accounts**, e.g. to savings, is neither money in nor money out, so the month says "Money you moved between your accounts (once this month) isn't counted as money in or out." A fee on such a move counts as money out. Starting balances aren't counted either.
 - **Several currencies:** each currency has its own accounts, totals and categories; nothing is added up across currencies. A category that counts in another currency, e.g. Travel in dollars, is listed with what you paid from your account.
-- **Latest transactions** lists the newest five across all your accounts; click one to change it, or click an account's card for everything in that account.
-- **Messages:** "Nothing came in or went out this month yet. Add what you paid or received, and it shows up here."; "No transactions yet. Add what you paid or received, and it shows up here."
+- The accounts and their transactions are on **Accounts**, not on the overview.
+- **Messages:** "Nothing came in or went out this month yet. Add what you paid or received, and it shows up here."
 
 ## Importing a file from your bank (M3.10)
 

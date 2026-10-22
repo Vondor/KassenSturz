@@ -27,8 +27,6 @@ Kirigami.ScrollablePage {
     signal checkClicked(string bank, string date)
     // The account was closed or opened again.
     signal accountClosedOrOpened()
-    // Show the account's transactions (M3.5).
-    signal transactionsClicked()
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -137,12 +135,6 @@ Kirigami.ScrollablePage {
                     onTriggered: page.checkClicked(page.account.stated.exactBalance, page.account.stated.date)
                 }
             ]
-        }
-
-        Controls.Button {
-            text: page.i18nContext.i18nc("@action:button", "Show transactions")
-            icon.name: "view-list-details"
-            onClicked: page.transactionsClicked()
         }
 
         Kirigami.Heading {

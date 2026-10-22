@@ -59,6 +59,18 @@ pub struct AccountPart {
     pub imported: Option<ImportedDetails>,
 }
 
+impl AccountPart {
+    /// The day the bank booked it, as the bank delivered it, or for a part
+    /// typed in by hand, its [`AccountPart::booking_date`]. This is the day
+    /// a bank's balance counts it from (D-029).
+    pub fn bank_date(&self) -> Date {
+        self.imported
+            .as_ref()
+            .and_then(|imported| imported.booking_date)
+            .unwrap_or(self.booking_date)
+    }
+}
+
 impl Book {
     /// Adds a transaction.
     ///
@@ -387,6 +399,24 @@ impl Book {
             amounts.push(account_amount(&account, transaction, row, 1)?);
         }
         Money::checked_sum(account.currency, amounts).map_err(|_| StoreError::AmountOverflow)
+    }
+
+    /// The balance of `account` at the end of `date`, in its currency:
+    /// everything booked to it on or before that day, by the day the bank
+    /// booked it where it says so, otherwise by the transaction's booking
+    /// date ([`AccountPart::bank_date`]), added up exactly. This is the
+    /// figure to hold against a bank's balance for that day (D-029).
+    pub fn balance_on(&self, account: AccountId, date: Date) -> Result<Money, StoreError> {
+        let currency = self.account(account)?.currency;
+        let parts = self.account_parts(account)?;
+        Money::checked_sum(
+            currency,
+            parts
+                .iter()
+                .filter(|part| part.bank_date() <= date)
+                .map(|part| part.amount),
+        )
+        .map_err(|_| StoreError::AmountOverflow)
     }
 
     /// Converts `amount` into the currency `to` with the exchange rate that

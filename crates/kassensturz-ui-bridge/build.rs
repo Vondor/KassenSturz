@@ -14,12 +14,21 @@ fn main() {
     let mut builder =
         CxxQtBuilder::new_qml_module(QmlModule::new("io.github.vondor.kassensturz").qml_files([
             "qml/Main.qml",
+            "qml/AccountCard.qml",
+            "qml/AccountDetailsPage.qml",
             "qml/AccountPage.qml",
+            "qml/AccountTypes.qml",
+            "qml/AccountsPage.qml",
             "qml/AmountLabel.qml",
             "qml/AmountLine.qml",
+            "qml/Balance.qml",
+            "qml/BankCheckPage.qml",
             "qml/BookProblemPage.qml",
+            "qml/CategoriesPage.qml",
+            "qml/CategoryPage.qml",
             "qml/FormError.qml",
             "qml/MockNotice.qml",
+            "qml/NewAccountPage.qml",
             "qml/OverviewPage.qml",
             "qml/RegisterPage.qml",
             "qml/SettingsPage.qml",
@@ -28,7 +37,9 @@ fn main() {
             "qml/WelcomePage.qml",
         ]))
         .files([
+            "src/accounts_model.rs",
             "src/book_session.rs",
+            "src/categories_model.rs",
             "src/first_run_model.rs",
             "src/locale.rs",
             "src/number_format_model.rs",

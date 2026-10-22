@@ -502,6 +502,14 @@ fn the_balance_is_checked_against_the_statements_closing_balance() {
     );
     assert!(report.balances[0].matches());
     assert!(!report.balances[1].matches());
+    // The balance the app holds against the bank's own, "Check against my
+    // bank" (D-029), is the one the import reports for the same day.
+    for check in &report.balances {
+        assert_eq!(
+            book.balance_on(checking, check.date).expect("balance"),
+            check.book
+        );
+    }
 }
 
 #[test]

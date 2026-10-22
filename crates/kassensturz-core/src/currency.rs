@@ -37,6 +37,13 @@ impl CurrencyCode {
         core::str::from_utf8(&self.0).expect("CurrencyCode::new accepts only ASCII letters")
     }
 
+    /// Every currency KassenSturz's ISO 4217 table lists
+    /// ([`CurrencyCode::iso_minor_digits`]), sorted by code: the choice a
+    /// user gets when an account needs a currency the book hasn't used yet.
+    pub fn iso_codes() -> impl Iterator<Item = Self> {
+        TABLE.iter().map(|&(code, _)| code)
+    }
+
     /// How many decimal places ISO 4217 gives this currency: 2 for the euro,
     /// 0 for the yen, 3 for the Bahraini dinar. `None` if KassenSturz's table
     /// doesn't list it: it isn't a current currency, or ISO 4217 gives it no
@@ -217,6 +224,16 @@ mod tests {
             CurrencyCode::new("EUR").map(|c| c.to_string()),
             Ok("EUR".into())
         );
+    }
+
+    #[test]
+    fn iso_codes_are_the_table_sorted_by_code() {
+        let codes: Vec<CurrencyCode> = CurrencyCode::iso_codes().collect();
+        assert!(codes.contains(&code("EUR")) && codes.contains(&code("USD")));
+        assert!(codes.windows(2).all(|pair| pair[0] < pair[1]));
+        assert!(codes.iter().all(|code| code.iso_minor_digits().is_some()));
+        // The German mark was withdrawn: it is not a choice for new accounts.
+        assert!(!codes.contains(&code("DEM")));
     }
 
     #[test]

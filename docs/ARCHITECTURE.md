@@ -63,7 +63,7 @@ kassensturz/
 ## First-run mock (M1.M)
 
 - A clickable mock of the first start: welcome, add an account, add a transaction, see the overview (D-068, D-089). It tests the simplicity goal (AGENTS.md §1, §6) before the real first-run flow in M3.
-- `kassensturz-ui-bridge/src/first_run.rs` turns what the user typed into accounts and transactions in the open book, through the public functions of core and store, so every balance and total is the real one. Since M3.1 it is saved in the book; the mock keeps to one currency and the accounts and categories in it, until M3.3, M3.4, M3.5 and M3.9 replace it.
+- `kassensturz-ui-bridge/src/first_run.rs` turns what the user typed into accounts and transactions in the open book, through the public functions of core and store, so every balance and total is the real one. Since M3.1 it is saved in the book; the mock keeps to one currency and the accounts and categories in it, until M3.4, M3.5 and M3.9 replace it; since M3.3 it reads the book again after every change made on the accounts and categories screens.
 - `src/first_run_model.rs` is its QML object, `FirstRunMock`. Its few lists go to QML as lists of maps of text, which QML views take as models; the real register in M3 uses list models.
 - `src/parse.rs` reads typed amounts in the user's regional format (D-065); `src/register.rs` writes an account's register and balances, a debt as "You owe" (D-067).
 - Mistakes in what the user typed come back as codes starting with `input.` plus parameters as text; the QML (`FormError.qml`) writes the message (D-034). They belong to the app, not to core or store, so `docs/ERROR_CODES.md` doesn't list them; store errors keep their codes from there.
@@ -81,6 +81,13 @@ kassensturz/
 - `src/format.rs` writes an amount from its exact value (D-065): the `Locale` trait supplies separators, grouping and the text around the digits, and `AmountFormat::format_rounded` rounds only for display when fewer decimal places are shown (D-002), in 128-bit integers.
 - `src/number_format.rs` holds the user's choices (`NumberFormat`, kept in `kassensturzrc`, D-114) and `UserLocale`, which applies them on top of Qt's locale data (`QtLocale`). Every screen writes and reads amounts through `number_format::app_locale()`, so the choices reach typing as well as display; `register.rs`'s `AmountWriter` returns each amount as shown and exactly (`Shown`), and QML shows the exact one on hover (`AmountLabel.qml`).
 - `src/number_format_model.rs` is the Settings page's QML object, `NumberFormatSettings`: each setting's choice as the word the settings file keeps, examples written the chosen way, and `choose()`, which saves; `Main.qml` reads the screens again when a choice changes.
+
+## Accounts and categories (M3.3)
+
+- `src/accounts.rs` and `src/categories.rs` hold the logic of the two screens, over the public functions of core and store, with no Qt in them, so their tests run on books in memory. They return plain structures (`AccountsView`, `CategoryView`, `BankCheck`) with every amount already as text (`Shown`, D-065) and report refusals as codes with parameters (`errors.rs`, D-034).
+- `src/accounts_model.rs` (`AccountList`) and `src/categories_model.rs` (`CategoryTree`) are the QML objects. They reach the open book through `session.rs` and name accounts and categories to QML by their ID as text; every change ends in their `changed` signal, which `Main.qml` answers by reading the other screens and the first-run mock again. `variant.rs` turns structures into the plain values QML takes.
+- `Book::balance_on` (store) is the balance of an account at the end of a day by the bank's booking date; the import's balance check (`kassensturz-pipeline`) and "Check against my bank" use the same rule through `AccountPart::bank_date`.
+- QML: one file per screen (`AccountsPage`, `NewAccountPage`, `AccountDetailsPage`, `BankCheckPage`, `CategoriesPage`, `CategoryPage`), with `AccountCard`, `Balance` and `AccountTypes` shared.
 
 ## Dependency rules
 

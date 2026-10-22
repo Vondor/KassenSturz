@@ -7,8 +7,13 @@
 //! (D-033), and shows it through one QML page per screen. The screens are
 //! still the first-run mock (M1.M, D-068) until the M3 steps replace them.
 
+mod accounts;
+mod accounts_model;
 mod book_session;
 mod books;
+mod categories;
+mod categories_model;
+mod errors;
 mod first_run;
 mod first_run_model;
 mod format;
@@ -22,6 +27,7 @@ mod session;
 mod settings;
 #[cfg(test)]
 mod test_folder;
+mod variant;
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQuickStyle, QString, QUrl};
 use cxx_qt_lib_extras::QApplication;

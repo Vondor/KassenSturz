@@ -1262,3 +1262,53 @@ fn an_original_amount_without_its_rate_in_the_file_is_reported() {
         Err(StoreError::Corrupt(Corruption::BadSplit(id))) if id == bought
     ));
 }
+
+#[test]
+fn balance_on_counts_what_was_booked_up_to_the_end_of_the_day() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        salary,
+    } = sample();
+    let pay = transaction(
+        date(2026, 10, 1),
+        "Example Employer",
+        &[(checking, eur(240_000)), (salary, eur(-240_000))],
+    );
+    // The bank booked this card payment three days after the date the
+    // transaction carries, so a bank's balance counts it from then on.
+    let delivered_later = ImportedDetails {
+        booking_date: Some(date(2026, 10, 8)),
+        ..delivered()
+    };
+    let shopping = Transaction::new(
+        TransactionId::generate(),
+        date(2026, 10, 5),
+        Some("Corner Grocery".into()),
+        vec![
+            Split {
+                imported: Some(delivered_later),
+                ..Split::new(checking, eur(-5320))
+            },
+            Split::new(groceries, eur(5320)),
+        ],
+    )
+    .expect("balanced");
+    book.add_transaction(&pay).expect("added");
+    book.add_transaction(&shopping).expect("added");
+
+    let on = |year, month, day| {
+        book.balance_on(checking, date(year, month, day))
+            .expect("balance")
+    };
+    assert_eq!(on(2026, 9, 30), eur(0));
+    assert_eq!(on(2026, 10, 1), eur(240_000));
+    assert_eq!(on(2026, 10, 7), eur(240_000));
+    assert_eq!(on(2026, 10, 8), eur(234_680));
+    assert_eq!(on(2026, 12, 31), book.balance(checking).expect("balance"));
+    assert!(matches!(
+        book.balance_on(AccountId::generate(), date(2026, 10, 8)),
+        Err(StoreError::UnknownAccount(_))
+    ));
+}

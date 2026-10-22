@@ -15,6 +15,7 @@ fn main() {
         CxxQtBuilder::new_qml_module(QmlModule::new("io.github.vondor.kassensturz").qml_files([
             "qml/Main.qml",
             "qml/AccountPage.qml",
+            "qml/AmountLabel.qml",
             "qml/AmountLine.qml",
             "qml/BookProblemPage.qml",
             "qml/FormError.qml",
@@ -30,6 +31,7 @@ fn main() {
             "src/book_session.rs",
             "src/first_run_model.rs",
             "src/locale.rs",
+            "src/number_format_model.rs",
             "src/platform.rs",
             "src/settings.rs",
         ])

@@ -26,15 +26,21 @@ Kirigami.ScrollablePage {
         translationDomain: "kassensturz"
     }
 
+    // The balance, with `amount` as shown or exactly. A debt reads "You owe"
+    // (D-067).
+    function balanceText(amount: string): string {
+        return view.owes
+            ? i18nContext.i18nc("@label %1 is an amount of money", "You owe: %1", amount)
+            : i18nContext.i18nc("@label %1 is an amount of money", "Balance: %1", amount);
+    }
+
     title: view.name
     header: MockNotice {}
 
     footer: Controls.ToolBar {
-        contentItem: Controls.Label {
-            // A debt reads "You owe" (D-067).
-            text: page.view.owes
-                ? page.i18nContext.i18nc("@label %1 is an amount of money", "You owe: %1", page.view.balance)
-                : page.i18nContext.i18nc("@label %1 is an amount of money", "Balance: %1", page.view.balance)
+        contentItem: AmountLabel {
+            text: page.balanceText(page.view.balance)
+            exactText: page.balanceText(page.view.exactBalance)
             font.bold: true
             horizontalAlignment: Text.AlignRight
         }

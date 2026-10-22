@@ -3,7 +3,8 @@
 
 //! The app's own settings, kept with KConfig the KDE way (D-112): what
 //! belongs to this computer rather than to a book, such as the book opened
-//! last (D-033). A book's own settings stay in the book.
+//! last (D-033) and the number format (D-002). A book's own settings stay in
+//! the book.
 
 use std::path::{Path, PathBuf};
 
@@ -91,19 +92,11 @@ impl Settings {
     }
 
     /// The text kept under `key` in `group`; empty if there is none.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "for the number format settings in M3.2 (D-002)")
-    )]
     pub fn text(&self, group: &str, key: &str) -> String {
         ffi::read_entry(&self.file, &QString::from(group), &QString::from(key)).to_string()
     }
 
     /// Keeps `value` under `key` in `group`. Returns whether it was saved.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "for the number format settings in M3.2 (D-002)")
-    )]
     pub fn set_text(&self, group: &str, key: &str, value: &str) -> bool {
         ffi::write_entry(
             &self.file,

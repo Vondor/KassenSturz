@@ -27,17 +27,23 @@ impl<'a, L: Locale> AmountWriter<'a, L> {
         })
     }
 
-    /// `amount` as text, e.g. "-53,20 €".
-    pub fn text(&self, amount: Money) -> String {
-        self.format.format(amount, self.minor_digits, |value| {
-            self.locale.group_digits(value)
-        })
+    /// `amount` as text, e.g. "-53,20 €", with the decimal places the user
+    /// chose to see, and exactly.
+    pub fn text(&self, amount: Money) -> Shown {
+        let group_digits = |value| self.locale.group_digits(value);
+        let shown_digits = self.locale.shown_decimal_places(self.minor_digits);
+        Shown {
+            text: self
+                .format
+                .format_rounded(amount, self.minor_digits, shown_digits, group_digits),
+            exact: self.format.format(amount, self.minor_digits, group_digits),
+        }
     }
 
     /// A balance as text, and whether it is shown as "You owe": a debt reads
     /// "You owe 300,00 €" rather than "-300,00 €" (D-067). Only accounts of
     /// money the user owes, such as credit cards, are shown that way.
-    pub fn balance(&self, balance: Money, kind: AccountKind) -> (String, bool) {
+    pub fn balance(&self, balance: Money, kind: AccountKind) -> (Shown, bool) {
         let owes = kind == AccountKind::Liability && balance.is_negative();
         match balance.checked_neg() {
             Ok(debt) if owes => (self.text(debt), true),
@@ -46,13 +52,24 @@ impl<'a, L: Locale> AmountWriter<'a, L> {
     }
 }
 
+/// An amount as the UI shows it, and exactly. They differ only when the
+/// user chose to see fewer decimal places than the currency has; the exact
+/// amount then shows on hover (D-002).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Shown {
+    /// As shown, e.g. "54 €".
+    pub text: String,
+    /// Exactly, e.g. "53,90 €".
+    pub exact: String,
+}
+
 /// What the transaction list shows for one account.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RegisterView {
     /// The account's name.
     pub account_name: String,
     /// Its balance; for a debt, what the user owes.
-    pub balance: String,
+    pub balance: Shown,
     /// Whether the balance is shown as "You owe" (D-067).
     pub owes: bool,
     /// Its transactions, newest first, like in a banking app.
@@ -69,7 +86,7 @@ pub struct RegisterRow {
     /// The category, if the transaction has exactly one.
     pub category: String,
     /// The amount, as seen from the account.
-    pub amount: String,
+    pub amount: Shown,
     /// Whether money came in, shown as "From" rather than "To" (D-034).
     pub incoming: bool,
     /// Whether this is the account's starting balance (`docs/GLOSSARY.md`).
@@ -178,6 +195,10 @@ pub(crate) mod tests {
                 positive: Affixes::spaced(String::new(), " €".into()),
                 negative: Affixes::spaced("-".into(), " €".into()),
             }
+        }
+
+        fn decimal_point(&self) -> String {
+            ",".into()
         }
 
         fn group_digits(&self, value: u64) -> String {

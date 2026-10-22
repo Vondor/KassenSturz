@@ -54,6 +54,13 @@ Kirigami.ApplicationWindow {
         id: mockBook
     }
 
+    // How amounts look (D-002): the screens show them again when it changes.
+    NumberFormatSettings {
+        id: numberFormatSettings
+
+        onChoicesChanged: mockBook.refresh()
+    }
+
     // The app's own book is called this in the user's language, e.g.
     // Haushalt.ksz in German.
     Component.onCompleted: bookSession.openLast(i18nContext.i18nc("@item the file name of the app's own book, without its extension", "Household"))
@@ -242,6 +249,7 @@ Kirigami.ApplicationWindow {
 
         SettingsPage {
             session: bookSession
+            numberFormat: numberFormatSettings
             onOpenAnotherClicked: root.chooseBookToOpen()
             onNewBookClicked: root.chooseNewBook()
         }

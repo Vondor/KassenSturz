@@ -13,6 +13,8 @@ mod first_run;
 mod first_run_model;
 mod format;
 mod locale;
+mod number_format;
+mod number_format_model;
 mod parse;
 mod platform;
 mod register;

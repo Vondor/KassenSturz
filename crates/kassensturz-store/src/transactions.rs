@@ -8,8 +8,9 @@
 use std::collections::HashMap;
 
 use kassensturz_core::{
-    Account, AccountId, CurrencyCode, Date, DatedRate, DatedRateId, ForeignAmount, ImportedDetails,
-    Money, OriginalAmount, PartStatus, Split, SplitId, TagId, Transaction, TransactionId,
+    Account, AccountId, Attachment, CurrencyCode, Date, DatedRate, DatedRateId, ForeignAmount,
+    ImportedDetails, Money, OriginalAmount, PartStatus, Split, SplitId, TagId, Transaction,
+    TransactionId,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 
@@ -115,7 +116,8 @@ impl Book {
                     transaction.entered_on().map(date_to_text).transpose()?,
                 ],
             )?;
-            insert_splits(&book.conn, transaction)
+            insert_splits(&book.conn, transaction)?;
+            insert_attachments(&book.conn, transaction)
         })
     }
 
@@ -179,7 +181,10 @@ impl Book {
             // really changed.
             book.conn
                 .execute("DELETE FROM splits WHERE transaction_id = ?1", [id])?;
-            insert_splits(&book.conn, transaction)
+            insert_splits(&book.conn, transaction)?;
+            book.conn
+                .execute("DELETE FROM attachments WHERE transaction_id = ?1", [id])?;
+            insert_attachments(&book.conn, transaction)
         })
     }
 
@@ -254,7 +259,11 @@ impl Book {
         for row in &mut rows {
             row.tags = tags.remove(&row.id).unwrap_or_default();
         }
-        assemble(id, header, rows, |account| {
+        let attachments = self
+            .attachments("WHERE a.transaction_id = ?1", params![id.to_bytes()])?
+            .remove(&id.to_bytes())
+            .unwrap_or_default();
+        assemble(id, header, attachments, rows, |account| {
             let currency: Option<String> = self
                 .conn
                 .query_row(
@@ -328,6 +337,10 @@ impl Book {
             &format!("JOIN transactions AS t ON t.id = s.transaction_id {filter}"),
             params,
         )?;
+        let mut attachments = self.attachments(
+            &format!("JOIN transactions AS t ON t.id = a.transaction_id {filter}"),
+            params,
+        )?;
         let mut rows = statement.query(params)?;
         while let Some(row) = rows.next()? {
             let transaction: [u8; 16] = row.get(SPLIT_ROW_COLUMNS)?;
@@ -350,11 +363,44 @@ impl Book {
         rows.into_iter()
             .map(|(id, header)| {
                 let own = parts.remove(&id).unwrap_or_default();
-                assemble(TransactionId::from_bytes(id), header, own, |account| {
-                    Ok(accounts.get(&account).copied())
-                })
+                let linked = attachments.remove(&id).unwrap_or_default();
+                assemble(
+                    TransactionId::from_bytes(id),
+                    header,
+                    linked,
+                    own,
+                    |account| Ok(accounts.get(&account).copied()),
+                )
             })
             .collect()
+    }
+
+    /// The attachments of the transactions `filter` (a clause over
+    /// `attachments AS a`) keeps, with its `params`, by transaction ID, each
+    /// transaction's in the user's order.
+    fn attachments(
+        &self,
+        filter: &str,
+        params: &[&dyn rusqlite::ToSql],
+    ) -> Result<HashMap<[u8; 16], Vec<Attachment>>, StoreError> {
+        let mut statement = self.conn.prepare(&format!(
+            "SELECT a.transaction_id, a.link, a.title FROM attachments AS a
+             {filter}
+             ORDER BY a.transaction_id, a.position"
+        ))?;
+        let mut attachments: HashMap<[u8; 16], Vec<Attachment>> = HashMap::new();
+        let mut rows = statement.query(params)?;
+        while let Some(row) = rows.next()? {
+            let transaction: [u8; 16] = row.get(0)?;
+            attachments
+                .entry(transaction)
+                .or_default()
+                .push(Attachment {
+                    link: row.get(1)?,
+                    title: row.get(2)?,
+                });
+        }
+        Ok(attachments)
     }
 
     /// The tags of the parts `filter` (a clause over `splits AS s`) keeps,
@@ -609,6 +655,7 @@ impl Book {
 fn assemble(
     id: TransactionId,
     header: TransactionRow,
+    attachments: Vec<Attachment>,
     rows: Vec<SplitRow>,
     account_currency: impl Fn(AccountId) -> Result<Option<CurrencyCode>, StoreError>,
 ) -> Result<Transaction, StoreError> {
@@ -631,7 +678,8 @@ fn assemble(
             })
         })?
         .with_note(header.note)
-        .with_entry_date(entered_on);
+        .with_entry_date(entered_on)
+        .with_attachments(attachments);
     for split in transaction.splits() {
         let Some(account) = split.account else {
             continue;
@@ -729,6 +777,27 @@ fn account_totals(transaction: &Transaction) -> Result<HashMap<AccountId, Money>
 }
 
 /// Writes the parts of `transaction`, with their rates and imported details.
+/// Writes the links to `transaction`'s documents (D-132).
+pub(crate) fn insert_attachments(
+    conn: &Connection,
+    transaction: &Transaction,
+) -> Result<(), StoreError> {
+    let mut insert = conn.prepare(
+        "INSERT INTO attachments (id, transaction_id, position, link, title)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+    )?;
+    for (position, attachment) in (0_i64..).zip(transaction.attachments()) {
+        insert.execute(params![
+            uuid::Uuid::now_v7().as_bytes(),
+            transaction.id().to_bytes(),
+            position,
+            attachment.link,
+            attachment.title,
+        ])?;
+    }
+    Ok(())
+}
+
 pub(crate) fn insert_splits(
     conn: &Connection,
     transaction: &Transaction,

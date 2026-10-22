@@ -40,8 +40,8 @@ pub use rules::{
     RuleNode, RuleOutcome, RuleSet, TextField, TextOperator,
 };
 pub use transaction::{
-    ForeignAmount, ImportedDetails, OriginalAmount, PartStatus, Split, SplitId, Transaction,
-    TransactionError, TransactionId,
+    Attachment, ForeignAmount, ImportedDetails, OriginalAmount, PartStatus, Split, SplitId,
+    Transaction, TransactionError, TransactionId,
 };
 pub use transfer::{
     MAX_BUSINESS_DAYS, TransferError, TransferMatch, TransferSide, business_days_apart,

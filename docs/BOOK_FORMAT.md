@@ -2,7 +2,7 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029), whose format is described in `docs/EXPORT_FORMAT.md` (D-100). Every change to the layout updates this document.
 
-**Status: development layout 15.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2), layout 4 the type and closed flag of accounts (M1.4), layout 5 the category tree (M1.5), layout 6 parts without a category, parts in another currency with their rates, and what a bank or file delivered (M1.6), layout 7 the [change history](#the-change-history) (M1.9), layout 8 the action that joins the two sides of a Transfer (M1.10), layout 9 the [Rules](#rules) and the actions that change and run them (M1.11), layout 10 the action that imports a statement into an account (M2.2), layout 11 the original amounts of parts converted out of a withdrawn currency (M2.9b, D-104), layout 12 a part's own date and payee, which the second side of a joined Transfer keeps (#44, D-108), layout 13 the name of the file a change read, such as an imported statement (#51, D-109), layout 14 the balance the user stated for an account and its day, with the action that corrects a starting balance (M3.4a, D-117), and layout 15 what a KMyMoney book holds beyond that (D-132): the [banks](#institutions), [payees](#payees) and [tags](#tags), an account's number, notes and bank, accounts grouped under accounts, a transaction's note and entry date, and a part's note, number and status. Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds much more.
+**Status: development layout 15.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2), layout 4 the type and closed flag of accounts (M1.4), layout 5 the category tree (M1.5), layout 6 parts without a category, parts in another currency with their rates, and what a bank or file delivered (M1.6), layout 7 the [change history](#the-change-history) (M1.9), layout 8 the action that joins the two sides of a Transfer (M1.10), layout 9 the [Rules](#rules) and the actions that change and run them (M1.11), layout 10 the action that imports a statement into an account (M2.2), layout 11 the original amounts of parts converted out of a withdrawn currency (M2.9b, D-104), layout 12 a part's own date and payee, which the second side of a joined Transfer keeps (#44, D-108), layout 13 the name of the file a change read, such as an imported statement (#51, D-109), layout 14 the balance the user stated for an account and its day, with the action that corrects a starting balance (M3.4a, D-117), and layout 15 what a KMyMoney book holds beyond that (D-132): the [banks](#institutions), [payees](#payees) and [tags](#tags), an account's number, notes and bank, accounts grouped under accounts, a transaction's note, entry date and [links to its documents](#attachments), and a part's note, number and status. Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds much more.
 
 ## The file
 
@@ -212,6 +212,18 @@ The conditions of each Rule, at least one per Rule. Which other columns are set 
 
 A text field that a transaction doesn't have, such as the purpose of one entered by hand, fails every condition on it. IBANs are compared without their spaces.
 
+### `attachments`
+
+Links to the documents that belong to a transaction, e.g. a receipt (D-132): the book keeps the link only, never the file, so it stays small and the file stays where the user put it. Added in layout 15 for the receipts a later companion app may capture (D-018); nothing writes them yet but the complete export.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | BLOB (16 bytes), primary key | UUIDv7, so the change history can name the row |
+| `transaction_id` | BLOB → `transactions.id` | The transaction; deleting it deletes this row |
+| `position` | INTEGER, from 0 | The order of the transaction's attachments; unique per transaction |
+| `link` | TEXT | A path on this computer or a URL, as the user or another program gave it; never empty |
+| `title` | TEXT, may be NULL | What the user calls it |
+
 ### `payees`
 
 The people and shops money goes to or comes from, with what the user or an imported file knows about them beyond the name (D-132). A transaction names its payee by text (`transactions.payee`), not by a row here, so the book works without any. Added in layout 15.
@@ -285,7 +297,7 @@ The change history (D-032, D-066): one row per user action, e.g. adding an accou
 
 ### `changed_settings`, `changed_currencies` and the other `changed_` tables
 
-For each table that holds the book's data (`settings`, `currencies`, `institutions`, `accounts`, `payees`, `tags`, `transactions`, `splits`, `split_tags`, `split_rates`, `split_imports`, `prices`, `rules`, `rule_conditions` and `split_rules`), a table named `changed_` plus its name, e.g. `changed_accounts`, holds copies of the rows each change touched.
+For each table that holds the book's data (`settings`, `currencies`, `institutions`, `accounts`, `payees`, `tags`, `transactions`, `splits`, `split_tags`, `attachments`, `split_rates`, `split_imports`, `prices`, `rules`, `rule_conditions` and `split_rules`), a table named `changed_` plus its name, e.g. `changed_accounts`, holds copies of the rows each change touched.
 
 | Column | Type | Meaning |
 |---|---|---|

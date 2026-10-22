@@ -234,17 +234,35 @@ fn a_transaction_keeps_its_notes_numbers_status_and_tags() {
     )
     .expect("balanced")
     .with_note(Some("Weekly shop".into()))
-    .with_entry_date(Some(date(2026, 10, 6)));
+    .with_entry_date(Some(date(2026, 10, 6)))
+    .with_attachments(vec![
+        kassensturz_core::Attachment {
+            link: "receipts/2026-10-05-grocery.pdf".into(),
+            title: Some("Receipt".into()),
+        },
+        kassensturz_core::Attachment {
+            link: "https://example.com/order/4711".into(),
+            title: None,
+        },
+        // Dropped: no link.
+        kassensturz_core::Attachment {
+            link: "  ".into(),
+            title: Some("Nothing".into()),
+        },
+    ]);
+    assert_eq!(shopping.attachments().len(), 2);
     book.add_transaction(&shopping).expect("transaction added");
     assert_eq!(book.transaction(shopping.id()).expect("read"), shopping);
     assert_eq!(book.transactions().expect("read"), vec![shopping.clone()]);
 
-    // A change keeps what the user doesn't touch, and can drop a tag.
+    // A change keeps what the user doesn't touch, and can drop a tag or
+    // an attachment.
     let mut parts = shopping.splits().to_vec();
     parts[1].tags = vec![holiday.id];
     let changed = Transaction::new(shopping.id(), date(2026, 10, 5), None, parts)
         .expect("balanced")
-        .with_note(Some("Weekly shop".into()));
+        .with_note(Some("Weekly shop".into()))
+        .with_attachments(shopping.attachments()[1..].to_vec());
     book.update_transaction(&changed).expect("changed");
     assert_eq!(book.transaction(shopping.id()).expect("read"), changed);
     book.undo().expect("undone");

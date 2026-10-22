@@ -630,6 +630,15 @@ CREATE TABLE split_tags (
 ) STRICT;
 CREATE INDEX split_tags_by_tag ON split_tags (tag_id);
 
+CREATE TABLE attachments (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    transaction_id BLOB NOT NULL REFERENCES transactions (id) ON DELETE CASCADE,
+    position INTEGER NOT NULL CHECK (position >= 0),
+    link TEXT NOT NULL CHECK (link <> ''),
+    title TEXT,
+    UNIQUE (transaction_id, position)
+) STRICT;
+
 CREATE TABLE new_accounts (
     id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
     name TEXT NOT NULL,
@@ -681,6 +690,17 @@ ALTER TABLE changed_transactions ADD COLUMN entered_on TEXT;
 ALTER TABLE changed_splits ADD COLUMN note TEXT;
 ALTER TABLE changed_splits ADD COLUMN number TEXT;
 ALTER TABLE changed_splits ADD COLUMN status TEXT;
+
+CREATE TABLE changed_attachments (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    transaction_id BLOB,
+    position INTEGER,
+    link TEXT,
+    title TEXT,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
 
 CREATE TABLE changed_institutions (
     change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
@@ -941,6 +961,7 @@ mod tests {
                 assert_eq!(part.tags, Vec::new());
             }
             assert_eq!((shopping.note(), shopping.entered_on()), (None, None));
+            assert_eq!(shopping.attachments(), []);
             // Accounts from before layout 4 have no type and are open.
             let account = book.account(checking).expect("account");
             assert_eq!(

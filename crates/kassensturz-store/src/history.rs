@@ -213,7 +213,7 @@ pub(crate) struct Recorded {
 
 /// Every table that holds the book's data. Only the history's own tables
 /// aren't recorded: `changes`, the `changed_` tables and `history_settings`.
-pub(crate) const RECORDED: [Recorded; 15] = [
+pub(crate) const RECORDED: [Recorded; 16] = [
     Recorded {
         name: "settings",
         key: "id",
@@ -392,6 +392,17 @@ pub(crate) const RECORDED: [Recorded; 15] = [
             ("split_id", "BLOB"),
             ("tag_id", "BLOB"),
             ("position", "INTEGER"),
+        ],
+    },
+    Recorded {
+        name: "attachments",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("transaction_id", "BLOB"),
+            ("position", "INTEGER"),
+            ("link", "TEXT"),
+            ("title", "TEXT"),
         ],
     },
 ];

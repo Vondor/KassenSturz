@@ -18,8 +18,8 @@ use std::io::Read;
 use std::path::Path;
 
 use kassensturz_core::{
-    Account, AccountId, Actions, AmountTest, BookTo, Condition, Currency, CurrencyCode, Date,
-    DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails, Institution,
+    Account, AccountId, Actions, AmountTest, Attachment, BookTo, Condition, Currency, CurrencyCode,
+    Date, DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails, Institution,
     InstitutionId, Money, OriginalAmount, Payee, PayeeId, PayeeRecognition, RateSource, Rule,
     RuleId, RuleNode, Split, SplitId, Tag, TagId, Transaction, TransactionId,
 };
@@ -389,7 +389,7 @@ impl Reader {
     ) -> Result<Transaction> {
         let mut keys = vec!["id", "date", "payee", "currency", "parts"];
         if self.version >= 4 {
-            keys.extend(["note", "entered"]);
+            keys.extend(["note", "entered", "attachments"]);
         }
         let transaction = Object::new(value, path, &keys)?;
         let id = TransactionId::from_bytes(transaction.id("id")?);
@@ -398,6 +398,20 @@ impl Reader {
         let currency = transaction.currency("currency")?;
         let note = transaction.optional_text("note")?;
         let entered_on = transaction.optional_date("entered")?;
+        let mut attachments = Vec::new();
+        if self.version >= 4 && transaction.optional("attachments").is_some() {
+            for (value, path) in transaction.list("attachments")? {
+                let attachment = Object::new(value, &path, &["link", "title"])?;
+                let link = attachment.text("link")?;
+                if link.trim().is_empty() {
+                    return Err(bad(&format!("{path}.link"), Expected::Text));
+                }
+                attachments.push(Attachment {
+                    link,
+                    title: attachment.optional_text("title")?,
+                });
+            }
+        }
         let mut splits = Vec::new();
         for (value, path) in transaction.list("parts")? {
             let mut keys = vec![
@@ -524,7 +538,12 @@ impl Reader {
             });
         }
         Transaction::new(id, booking_date, payee, splits)
-            .map(|transaction| transaction.with_note(note).with_entry_date(entered_on))
+            .map(|transaction| {
+                transaction
+                    .with_note(note)
+                    .with_entry_date(entered_on)
+                    .with_attachments(attachments)
+            })
             .map_err(|error| ExportError::InvalidTransaction {
                 path: path.to_owned(),
                 error,

@@ -9,11 +9,11 @@ use std::fs;
 use std::path::PathBuf;
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, AccountType, Actions, AmountTest, BookTo, Condition, Currency,
-    CurrencyCode, Date, DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails,
-    Institution, InstitutionId, MatchMode, Money, OriginalAmount, PartStatus, Payee, PayeeId,
-    PayeeRecognition, RateSource, RoundingMode, Rule, RuleId, RuleNode, Split, SplitId, Tag, TagId,
-    TextField, TextOperator, Transaction, TransactionError, TransactionId,
+    Account, AccountId, AccountKind, AccountType, Actions, AmountTest, Attachment, BookTo,
+    Condition, Currency, CurrencyCode, Date, DatedRate, DatedRateId, ExchangeRate, ForeignAmount,
+    ImportedDetails, Institution, InstitutionId, MatchMode, Money, OriginalAmount, PartStatus,
+    Payee, PayeeId, PayeeRecognition, RateSource, RoundingMode, Rule, RuleId, RuleNode, Split,
+    SplitId, Tag, TagId, TextField, TextOperator, Transaction, TransactionError, TransactionId,
 };
 use kassensturz_export::{
     BookData, BookExport, BookedByRule, CsvExport, Expected, ExportData, ExportError, ExportKind,
@@ -330,7 +330,17 @@ fn sample() -> BookData {
             ),
             transaction(34, day(5), None, vec![bought, rolls])
                 .with_note(Some("Saturday \"shopping\"\nwith the kids".into()))
-                .with_entry_date(Some(day(6))),
+                .with_entry_date(Some(day(6)))
+                .with_attachments(vec![
+                    Attachment {
+                        link: "receipts/2026-10-05-bakery.pdf".into(),
+                        title: Some("Receipt".into()),
+                    },
+                    Attachment {
+                        link: "https://example.com/orders/4711".into(),
+                        title: None,
+                    },
+                ]),
             transaction(
                 40,
                 day(4),
@@ -847,6 +857,40 @@ fn banks_payees_tags_and_notes_come_with_version_4() {
     assert_eq!(
         read_book(complete.replacen(r#""payees": []"#, payee, 1).as_bytes()),
         bad("payees[0].key_words", Expected::Null)
+    );
+    // An attachment is a link with a title, on the transaction, not on a
+    // part; a link that is empty is refused.
+    let linked = complete.replacen(
+        r#""note": "Rolls""#,
+        r#""note": "Rolls", "attachments": [{"link": "receipt.pdf", "title": null}]"#,
+        1,
+    );
+    assert_eq!(
+        read_book(linked.as_bytes()),
+        Err(ExportError::UnknownValue {
+            path: "transactions[0].parts[1].attachments".into()
+        })
+    );
+    let linked = complete.replacen(
+        r#""currency": "EUR", "parts""#,
+        r#""currency": "EUR", "attachments": [{"link": "receipt.pdf", "title": null}], "parts""#,
+        1,
+    );
+    let book = read_book(linked.as_bytes()).expect("read");
+    assert_eq!(
+        book.transactions[0].attachments(),
+        [Attachment {
+            link: "receipt.pdf".into(),
+            title: None
+        }]
+    );
+    assert_eq!(
+        read_book(
+            linked
+                .replacen(r#""link": "receipt.pdf""#, r#""link": " ""#, 1)
+                .as_bytes()
+        ),
+        bad("transactions[0].attachments[0].link", Expected::Text)
     );
     let payee = payee.replacen(
         r#""recognition": "name""#,

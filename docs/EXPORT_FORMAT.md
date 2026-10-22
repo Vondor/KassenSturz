@@ -8,7 +8,7 @@ In the command-line tool, `export FILE --format book` writes it and `create --fr
 
 ## What is in it
 
-Everything the book holds, with its IDs: the settings, the currencies with their decimal places, the banks, the accounts and categories, the payees, the tags, the price table, the Rules, the transactions with all their parts, what a bank or file delivered for a part, the amount a part had in a withdrawn currency before it was converted, the date and payee a part's account shows if they aren't its transaction's, the notes, numbers, status and tags of parts, and which parts a Rule booked.
+Everything the book holds, with its IDs: the settings, the currencies with their decimal places, the banks, the accounts and categories, the payees, the tags, the price table, the Rules, the transactions with all their parts, what a bank or file delivered for a part, the amount a part had in a withdrawn currency before it was converted, the date and payee a part's account shows if they aren't its transaction's, the notes, numbers, status and tags of parts, the links to a transaction's documents, and which parts a Rule booked.
 
 Left out is the **change history** (D-032, D-066). It belongs to the book file, not to its data, so a book made from the file starts with an empty history, as a new book does. How long it keeps its history is a setting and does come along.
 
@@ -38,7 +38,7 @@ Left out is the **change history** (D-032, D-066). It belongs to the book file, 
 | 1 | The first version (M2.8, D-100). |
 | 2 | A part can have an `original` amount, from before it was converted out of a withdrawn currency, and a rate's `source` can be `changeover` (M2.9b, D-104). |
 | 3 | A part can have a `date` and a `payee` of its own, which its account shows instead of the transaction's, as the second side of a joined Transfer does (#44, D-108). |
-| 4 | The file lists the `institutions` (banks), `payees` and `tags`. An account has a `number`, `notes` and an `institution`, and may sit inside another account (`parent`); a transaction has a `note` and the date it was `entered`; a part has a `note`, a `number`, a `status` and `tags`. What the KMyMoney import used to drop (D-132). |
+| 4 | The file lists the `institutions` (banks), `payees` and `tags`. An account has a `number`, `notes` and an `institution`, and may sit inside another account (`parent`); a transaction has a `note`, the date it was `entered` and `attachments` (links); a part has a `note`, a `number`, a `status` and `tags`. What the KMyMoney import used to drop (D-132). |
 
 An older file is read as version 4 without what came later: a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, and so is a version 1 to 3 file with any key of version 4 (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three new lists, even when they are empty (`export.missing-value`).
 
@@ -202,6 +202,7 @@ One object per transaction, sorted by booking date and ID.
 | `currency` | The currency the transaction balances in (D-043). |
 | `note` | What the user noted about the whole transaction, or `null`. Version 4 and later. |
 | `entered` | The day it was entered into the book, if known, or `null`. Version 4 and later. |
+| `attachments` | Links to the documents that belong to it, e.g. a receipt, in their order: objects with `link`, a path or URL that isn't empty, and `title`, text or `null`. The book keeps the link only, never the file. May be left out when empty. Version 4 and later. |
 | `parts` | Its [parts](#parts): their amounts add up to zero. |
 
 #### Parts
@@ -261,6 +262,7 @@ A book with one account, one category and one transaction:
       "currency": "EUR",
       "note": null,
       "entered": null,
+      "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000004", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-4.50", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
         {"id": "019a0000-0000-7000-8000-000000000005", "account": "019a0000-0000-7000-8000-000000000002", "amount": "4.50", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null}

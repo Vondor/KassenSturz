@@ -371,6 +371,21 @@ impl BookWriter {
             ("currency", Json::text(transaction.currency().as_str())),
             ("note", Json::optional_text(transaction.note())),
             ("entered", Json::optional_date(transaction.entered_on())),
+            (
+                "attachments",
+                Json::List(
+                    transaction
+                        .attachments()
+                        .iter()
+                        .map(|attachment| {
+                            Json::Object(vec![
+                                ("link", Json::text(&attachment.link)),
+                                ("title", Json::optional_text(attachment.title.as_deref())),
+                            ])
+                        })
+                        .collect(),
+                ),
+            ),
             ("parts", Json::List(parts)),
         ]))
     }

@@ -96,6 +96,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This entry came from your bank or a file, so its amount stays as it was delivered. You can change the rest.");
         case "store.account-closed":
             return i18nContext.i18nc("@info %1 is the name of an account", "%1 is closed. Open it again to add or change its transactions.", result.account);
+        case "store.corrupt.history-mismatch":
+            return i18nContext.i18nc("@info", "The book doesn't match its history anymore, probably because another program changed it. Nothing was changed. To go on with Undo, open Settings and use \"Clean up history\".");
         default:
             return i18nContext.i18nc("@info %1 is an error code", "Something went wrong (%1). Please report this, so it can be fixed.", result.code);
         }

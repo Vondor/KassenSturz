@@ -8,7 +8,8 @@
 //
 // Adding a screen: write its page in a file of its own, add it to
 // `build.rs`, and give it a `Component` and an entry in `screens` and in the
-// drawer's actions below. Amounts and dates arrive as finished text and go
+// drawer's actions below. Undo and redo are in the drawer too, with their
+// shortcuts, and name the change they act on (M3.8). Amounts and dates arrive as finished text and go
 // back as typed text (D-065), so nothing here calculates with them.
 
 import QtQuick
@@ -68,13 +69,13 @@ Kirigami.ApplicationWindow {
     AccountList {
         id: accountList
 
-        onChanged: root.bookChanged()
+        onChanged: root.screenChangedBook()
     }
 
     CategoryTree {
         id: categoryTree
 
-        onChanged: root.bookChanged()
+        onChanged: root.screenChangedBook()
     }
 
     // The register and its pages (M3.5): one list model, shown for the
@@ -82,7 +83,19 @@ Kirigami.ApplicationWindow {
     AccountRegister {
         id: accountRegister
 
+        onChanged: root.screenChangedBook()
+    }
+
+    // Undo, redo and the list of changes (M3.8). Undoing or redoing changes
+    // the book, so all the screens read it again.
+    ChangeHistory {
+        id: changeHistory
+
         onChanged: root.bookChanged()
+    }
+
+    ChangeNames {
+        id: changeNames
     }
 
     // How amounts look (D-002): the screens show them again when it changes.
@@ -119,6 +132,64 @@ Kirigami.ApplicationWindow {
         accountList.refresh();
         categoryTree.refresh();
         accountRegister.refresh();
+        changeHistory.refresh();
+    }
+
+    // A screen changed the book: every screen reads it again, and the user
+    // can undo the change from the notice (M3.8, D-086).
+    function screenChangedBook() {
+        bookChanged();
+        if (started && changeHistory.undoChange.action !== undefined) {
+            showPassiveNotification(changeNames.name(changeHistory.undoChange.action), 8000, i18nContext.i18nc("@action:button take the last change back", "Undo"), () => root.undoLast());
+        }
+    }
+
+    function undoLast() {
+        afterStep(changeHistory.undo(), false);
+    }
+
+    function redoLast() {
+        afterStep(changeHistory.redo(), true);
+    }
+
+    // Says what undo or redo did, or why it didn't work.
+    function afterStep(result: var, redone: bool) {
+        if (result.code !== undefined) {
+            const page = pageStack.currentItem;
+            if (page && page.failure !== undefined) {
+                page.failure = result;
+            } else {
+                pageStack.push(historyPage, { failure: result });
+            }
+            return;
+        }
+        if (result.change === undefined) {
+            return;
+        }
+        leaveStalePages();
+        const what = changeNames.describe(result.change);
+        if (redone) {
+            showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Made again: %1", what), 10000, i18nContext.i18nc("@action:button", "Undo"), () => root.undoLast());
+        } else {
+            showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Undone: %1", what), 10000, i18nContext.i18nc("@action:button", "Redo"), () => root.redoLast());
+        }
+    }
+
+    // After undo or redo, a page for something that may be gone (a form for
+    // a transaction, an account's page) is closed. The first-run steps show
+    // again if the book has no account anymore.
+    function leaveStalePages() {
+        if (!firstStartState.hasAccount) {
+            showBook();
+            return;
+        }
+        while (pageStack.depth > 1) {
+            const page = pageStack.currentItem;
+            if (page && page.survivesUndo !== undefined && page.survivesUndo()) {
+                break;
+            }
+            pageStack.pop();
+        }
     }
 
     // Says why a book didn't open. A book that was open stays open, and the
@@ -215,6 +286,27 @@ Kirigami.ApplicationWindow {
                 icon.name: "settings-configure"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Settings")
                 onTriggered: root.showScreen("settings")
+            },
+            Kirigami.Action {
+                separator: true
+            },
+            Kirigami.Action {
+                icon.name: "edit-undo"
+                enabled: root.started && changeHistory.undoChange.action !== undefined
+                text: enabled
+                    ? root.i18nContext.i18nc("@action:inmenu %1 is what was done, e.g. Added a transaction", "Undo: %1", changeNames.describe(changeHistory.undoChange))
+                    : root.i18nContext.i18nc("@action:inmenu there is nothing to undo", "Undo")
+                shortcut: StandardKey.Undo
+                onTriggered: root.undoLast()
+            },
+            Kirigami.Action {
+                icon.name: "edit-redo"
+                enabled: root.started && changeHistory.redoChange.action !== undefined
+                text: enabled
+                    ? root.i18nContext.i18nc("@action:inmenu %1 is what was done, e.g. Added a transaction", "Redo: %1", changeNames.describe(changeHistory.redoChange))
+                    : root.i18nContext.i18nc("@action:inmenu there is nothing to redo", "Redo")
+                shortcut: StandardKey.Redo
+                onTriggered: root.redoLast()
             }
         ]
     }
@@ -378,8 +470,18 @@ Kirigami.ApplicationWindow {
         SettingsPage {
             session: bookSession
             numberFormat: numberFormatSettings
+            history: changeHistory
             onOpenAnotherClicked: root.chooseBookToOpen()
             onNewBookClicked: root.chooseNewBook()
+            onShowHistoryClicked: root.pageStack.push(historyPage)
+        }
+    }
+
+    Component {
+        id: historyPage
+
+        HistoryPage {
+            history: changeHistory
         }
     }
 }

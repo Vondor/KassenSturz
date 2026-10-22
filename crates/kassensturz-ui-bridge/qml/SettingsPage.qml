@@ -3,7 +3,8 @@
 
 // The app's settings: which book is open, opening another one or starting a
 // new one (D-033, for people who want more than one book), how amounts look
-// (D-002, D-114), and where the backups go.
+// (D-002, D-114), how long the history of changes is kept (D-066, M3.8), and
+// where the backups go.
 
 import QtQuick
 import org.kde.kirigami as Kirigami
@@ -16,18 +17,70 @@ FormCard.FormCardPage {
 
     required property BookSession session
     required property NumberFormatSettings numberFormat
+    required property ChangeHistory history
 
     // Whether a number format choice couldn't be saved for the next start.
     property bool formatNotSaved: false
 
     signal openAnotherClicked()
     signal newBookClicked()
+    signal showHistoryClicked()
+
+    // The history setting the user chose and the dialog asks about, with how
+    // many changes it would delete, and why the last change of the history
+    // settings failed.
+    property string pendingRetention: ""
+    property int pendingCount: 0
+    property var historyResult: ({})
+
+    // How long the history can be kept, as the keys history_model.rs knows:
+    // a number of days, 0 for only while the book is open, or "forever". A
+    // number the screen doesn't offer, e.g. one set with the command-line
+    // tool, is added.
+    readonly property var keepChoices: {
+        const choices = [
+            { value: "0", text: i18nContext.i18nc("@item:inlistbox keep the history", "Only while the book is open") },
+            { value: "7", text: i18nContext.i18nc("@item:inlistbox keep the history", "1 week") },
+            { value: "30", text: i18nContext.i18nc("@item:inlistbox keep the history", "30 days") },
+            { value: "90", text: i18nContext.i18nc("@item:inlistbox keep the history", "3 months") },
+            { value: "365", text: i18nContext.i18nc("@item:inlistbox keep the history", "1 year") },
+            { value: "forever", text: i18nContext.i18nc("@item:inlistbox keep the history", "As long as the book exists") },
+        ];
+        if (choices.some(choice => choice.value === history.retention)) {
+            return choices;
+        }
+        return choices.concat([{
+            value: history.retention,
+            text: i18nContext.i18ncp("@item:inlistbox keep the history for this many days", "%1 day", "%1 days", parseInt(history.retention)),
+        }]);
+    }
+
+    // Keeps the history for `key`, or asks first if that deletes changes.
+    function chooseRetention(key: string) {
+        const count = key === "0" ? history.total : history.expiring(key);
+        if (count > 0) {
+            pendingRetention = key;
+            pendingCount = count;
+            shorterDialog.open();
+        } else {
+            saveRetention(key);
+        }
+    }
+
+    function saveRetention(key: string) {
+        historyResult = history.setRetention(key);
+        keepFor.showChoice();
+    }
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
     }
 
     title: i18nContext.i18nc("@title", "Settings")
+    // Why the last change to the history settings failed, if it did.
+    header: FormError {
+        result: page.historyResult
+    }
 
     FormCard.FormHeader {
         title: page.i18nContext.i18nc("@title:group", "Your book")
@@ -192,6 +245,103 @@ FormCard.FormCardPage {
         text: page.formatNotSaved
             ? page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice, so it applies only until you close KassenSturz. Check that your settings folder can be written to, then choose again.")
             : page.i18nContext.i18nc("@info", "This changes only how amounts look on this computer, not the amounts themselves. KassenSturz always calculates with the exact amounts, so rounded amounts may not add up exactly on screen: point at one to see it exactly. You can still type amounts with all their decimal places.")
+    }
+
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "Undo and history")
+    }
+
+    FormCard.FormCard {
+        FormCard.FormComboBoxDelegate {
+            id: keepFor
+
+            // Shows the history's setting, also after the dialog turned the
+            // choice down. Set rather than bound: the delegate sets its
+            // index itself on phones, which would end a binding.
+            function showChoice() {
+                currentIndex = indexOfValue(page.history.retention);
+            }
+
+            text: page.i18nContext.i18nc("@label:listbox", "Keep the history for")
+            textRole: "text"
+            valueRole: "value"
+            model: page.keepChoices
+            Component.onCompleted: showChoice()
+            onModelChanged: Qt.callLater(showChoice)
+            onActivated: page.chooseRetention(currentValue)
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            icon.name: "view-history"
+            text: page.i18nContext.i18nc("@action:button", "Show history")
+            description: page.i18nContext.i18ncp("@info %1 is how many changes there are", "%1 change so far.", "%1 changes so far.", page.history.total)
+            onClicked: page.showHistoryClicked()
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            icon.name: "edit-clear-history"
+            text: page.i18nContext.i18nc("@action:button", "Clean up history…")
+            description: page.i18nContext.i18nc("@info", "Deletes the whole history. Your accounts and transactions stay as they are.")
+            enabled: page.history.total > 0
+            onClicked: cleanUpDialog.open()
+        }
+    }
+
+    FormCard.FormSectionText {
+        text: page.i18nContext.i18nc("@info", "Undo takes back your changes, newest first, also after you close and open the book again. The longer the history is kept, the further back Undo goes. With \"Only while the book is open\", nothing is saved in the book: Undo works until you close it.")
+    }
+
+    Kirigami.PromptDialog {
+        id: shorterDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Delete part of the history?")
+        subtitle: page.pendingRetention === "0"
+            ? page.i18nContext.i18ncp("@info %1 is how many changes there are", "Undo will then work only until you close the book. The %1 change made so far will be gone by then. Your accounts and transactions are not affected.", "Undo will then work only until you close the book. The %1 changes made so far will be gone by then. Your accounts and transactions are not affected.", page.pendingCount)
+            : page.i18nContext.i18ncp("@info %1 is how many changes there are", "%1 change is older than this and will be deleted for good. You won't be able to undo it or make it again. Your accounts and transactions are not affected.", "%1 changes are older than this and will be deleted for good. You won't be able to undo them or make them again. Your accounts and transactions are not affected.", page.pendingCount)
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button", "Delete them")
+                icon.name: "edit-delete"
+                onTriggered: {
+                    page.saveRetention(page.pendingRetention);
+                    shorterDialog.close();
+                }
+            },
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button", "Keep the history as it is")
+                icon.name: "dialog-cancel"
+                onTriggered: shorterDialog.close()
+            }
+        ]
+        onClosed: keepFor.showChoice()
+    }
+
+    Kirigami.PromptDialog {
+        id: cleanUpDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Clean up the history?")
+        subtitle: page.i18nContext.i18nc("@info", "This deletes the whole history for good, so nothing you did so far can be undone or made again. Your accounts, transactions and everything else stay exactly as they are.\n\nCopies of the book that KassenSturz saved before an update (backups) keep their history; cleaning up does not touch them.")
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button", "Delete the history")
+                icon.name: "edit-clear-history"
+                onTriggered: {
+                    page.historyResult = page.history.cleanUp();
+                    cleanUpDialog.close();
+                }
+            },
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button", "Keep the history")
+                icon.name: "dialog-cancel"
+                onTriggered: cleanUpDialog.close()
+            }
+        ]
     }
 
     FormCard.FormHeader {

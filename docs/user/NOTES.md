@@ -65,3 +65,15 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **Yes, join them** makes them one move of your own money: it no longer counts as spending and income. Both accounts keep their balance and the date and name they showed, and Undo takes it apart again. **No, keep them apart** changes nothing; KassenSturz doesn't remember the answer, and asks again only if one of the two is saved again while it still has no category.
 - **Several at once:** the questions come one at a time ("Question 1 of 2"). Closing the window leaves the rest apart.
 - **Message:** "This choice isn't there anymore. Choose again." appears in the window if one of the two was changed while the question was open; choose "No, keep them apart" to go on.
+
+## Undo, redo and the history (M3.8)
+
+- **Undo and Redo** are in the side menu and on Ctrl+Z and Ctrl+Shift+Z, and they say what they act on: "Undo: Removed a transaction". With nothing to undo they are grayed out. Undo takes back the newest change first, an older one only after the newer ones, and it works after you close and open the book again.
+- **A notice after every change** says what was done, with an "Undo" button: "Removed a transaction". After an undo it says "Undone: Removed a transaction" with a "Redo" button, and after a redo "Made again: …" with "Undo".
+- **Telling similar changes apart:** the side menu's name is short, but Settings › Show history says what the next Undo and Redo touch: "2 transactions added · Checking account · 3 Oct 2026 to 9 Oct 2026", and for an imported statement the file's name.
+- **Show history** (Settings) lists the newest 100 changes, newest first, with the day and time; the ones taken back say "taken back; Redo can make it again". A new change ends what Redo could make again.
+- **Keep the history for** (Settings): only while the book is open, 1 week, 30 days (to begin with), 3 months, 1 year, or as long as the book exists. Choosing less asks first, e.g. "12 changes are older than this and will be deleted for good. You won't be able to undo them or make them again." Your accounts and transactions are not affected.
+- **Clean up history** (Settings) asks first: "This deletes the whole history for good, so nothing you did so far can be undone or made again. … Copies of the book that KassenSturz saved before an update (backups) keep their history; cleaning up does not touch them."
+- **Undoing a long way back:** after undoing everything, the book is empty again and KassenSturz shows the first steps; they work as on the first day.
+- **Messages:** "The book doesn't match its history anymore, probably because another program changed it. Nothing was changed. To go on with Undo, open Settings and use "Clean up history"."
+

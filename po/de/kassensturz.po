@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-22 22:30+0000\n"
+"POT-Creation-Date: 2026-10-22 22:58+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -4017,26 +4017,26 @@ msgctxt "@title:window"
 msgid "Start a book from a file"
 msgstr "Haushaltsbuch aus einer Datei anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:482
-#, kde-format
-msgctxt "@item:inlistbox a file type"
-msgid "Books (*.kmy *.sqlite *.db *.json)"
-msgstr "Haushaltsbücher (*.kmy *.sqlite *.db *.json)"
-
-#: crates/kassensturz-ui-bridge/qml/Main.qml:483
-#: crates/kassensturz-ui-bridge/qml/Main.qml:498
+#: crates/kassensturz-ui-bridge/qml/Main.qml:485
+#: crates/kassensturz-ui-bridge/qml/Main.qml:501
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "All files (*)"
 msgstr "Alle Dateien (*)"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:494
+#: crates/kassensturz-ui-bridge/qml/Main.qml:486
+#, kde-format
+msgctxt "@item:inlistbox a file type"
+msgid "Books (*.kmy *.sqlite *.db *.json)"
+msgstr "Haushaltsbücher (*.kmy *.sqlite *.db *.json)"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:497
 #, kde-format
 msgctxt "@title:window"
 msgid "Import a file from your bank"
 msgstr "Eine Datei von Ihrer Bank importieren"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:497
+#: crates/kassensturz-ui-bridge/qml/Main.qml:500
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "Bank files (*.xml *.sta *.ofx *.csv *.txt)"
@@ -4586,7 +4586,9 @@ msgstr "Hier ist noch nichts"
 #, kde-format
 msgctxt "@info"
 msgid "Try other words, or clear the filter to see all transactions."
-msgstr "Versuchen Sie andere Wörter oder leeren Sie den Filter, um alle Buchungen zu sehen."
+msgstr ""
+"Versuchen Sie andere Wörter oder leeren Sie den Filter, um alle Buchungen zu "
+"sehen."
 
 #: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:250
 #, kde-format

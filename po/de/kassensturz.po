@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-22 22:04+0000\n"
+"POT-Creation-Date: 2026-10-22 22:30+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -838,8 +838,8 @@ msgid "Where to keep the new book"
 msgstr "Wo das neue Haushaltsbuch gespeichert wird"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:69
-#: crates/kassensturz-ui-bridge/qml/Main.qml:431
-#: crates/kassensturz-ui-bridge/qml/Main.qml:442
+#: crates/kassensturz-ui-bridge/qml/Main.qml:461
+#: crates/kassensturz-ui-bridge/qml/Main.qml:472
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "KassenSturz books (*.ksz)"
@@ -1322,7 +1322,7 @@ msgstr "Woher Geld kommt"
 
 #: crates/kassensturz-ui-bridge/qml/CategoryPage.qml:96
 #: crates/kassensturz-ui-bridge/qml/NewAccountPage.qml:100
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:151
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:195
 #, kde-format
 msgctxt "@label:textbox"
 msgid "Name:"
@@ -1379,7 +1379,7 @@ msgstr ""
 
 #: crates/kassensturz-ui-bridge/qml/CategoryPage.qml:129
 #: crates/kassensturz-ui-bridge/qml/PartsPage.qml:272
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:303
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:386
 #: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:265
 #, kde-format
 msgctxt "@action:button"
@@ -3889,49 +3889,49 @@ msgctxt "@item a statement whose file names no account"
 msgid "Statement %1, without an account number"
 msgstr "Kontoauszug %1, ohne Kontonummer"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:171
+#: crates/kassensturz-ui-bridge/qml/Main.qml:175
 #, kde-format
 msgctxt "@item the file name of the app's own book, without its extension"
 msgid "Household"
 msgstr "Haushalt"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:201
+#: crates/kassensturz-ui-bridge/qml/Main.qml:205
 #, kde-format
 msgctxt "@action:button take the last change back"
 msgid "Undo"
 msgstr "Rückgängig"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:230
+#: crates/kassensturz-ui-bridge/qml/Main.qml:234
 #, kde-format
 msgctxt "@info %1 is what was done, e.g. Added a transaction"
 msgid "Made again: %1"
 msgstr "Wiederholt: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:230
+#: crates/kassensturz-ui-bridge/qml/Main.qml:234
 #, kde-format
 msgctxt "@action:button"
 msgid "Undo"
 msgstr "Rückgängig"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:232
+#: crates/kassensturz-ui-bridge/qml/Main.qml:236
 #, kde-format
 msgctxt "@info %1 is what was done, e.g. Added a transaction"
 msgid "Undone: %1"
 msgstr "Rückgängig gemacht: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:232
+#: crates/kassensturz-ui-bridge/qml/Main.qml:236
 #, kde-format
 msgctxt "@action:button"
 msgid "Redo"
 msgstr "Wiederholen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:328
+#: crates/kassensturz-ui-bridge/qml/Main.qml:358
 #, kde-format
 msgctxt "@action:button"
 msgid "Start a book from it"
 msgstr "Haushaltsbuch daraus anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:366
+#: crates/kassensturz-ui-bridge/qml/Main.qml:396
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -3945,98 +3945,98 @@ msgstr ""
 "Haushaltsbuch auf diesem Computer auf; ein Sync-Ordner, etwa von Nextcloud, "
 "ist in Ordnung."
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:378
+#: crates/kassensturz-ui-bridge/qml/Main.qml:408
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Overview"
 msgstr "Übersicht"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:383
+#: crates/kassensturz-ui-bridge/qml/Main.qml:413
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Accounts"
 msgstr "Konten"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:388
+#: crates/kassensturz-ui-bridge/qml/Main.qml:418
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Categories"
 msgstr "Kategorien"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:393
+#: crates/kassensturz-ui-bridge/qml/Main.qml:423
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Rules"
 msgstr "Regeln"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:398
+#: crates/kassensturz-ui-bridge/qml/Main.qml:428
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:408
+#: crates/kassensturz-ui-bridge/qml/Main.qml:438
 #, kde-format
 msgctxt "@action:inmenu %1 is what was done, e.g. Added a transaction"
 msgid "Undo: %1"
 msgstr "Rückgängig: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:409
+#: crates/kassensturz-ui-bridge/qml/Main.qml:439
 #, kde-format
 msgctxt "@action:inmenu there is nothing to undo"
 msgid "Undo"
 msgstr "Rückgängig"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:417
+#: crates/kassensturz-ui-bridge/qml/Main.qml:447
 #, kde-format
 msgctxt "@action:inmenu %1 is what was done, e.g. Added a transaction"
 msgid "Redo: %1"
 msgstr "Wiederholen: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:418
+#: crates/kassensturz-ui-bridge/qml/Main.qml:448
 #, kde-format
 msgctxt "@action:inmenu there is nothing to redo"
 msgid "Redo"
 msgstr "Wiederholen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:428
+#: crates/kassensturz-ui-bridge/qml/Main.qml:458
 #, kde-format
 msgctxt "@title:window"
 msgid "Open another book"
 msgstr "Anderes Haushaltsbuch öffnen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:438
+#: crates/kassensturz-ui-bridge/qml/Main.qml:468
 #, kde-format
 msgctxt "@title:window"
 msgid "Start a new book"
 msgstr "Neues Haushaltsbuch anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:449
+#: crates/kassensturz-ui-bridge/qml/Main.qml:479
 #, kde-format
 msgctxt "@title:window"
 msgid "Start a book from a file"
 msgstr "Haushaltsbuch aus einer Datei anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:452
+#: crates/kassensturz-ui-bridge/qml/Main.qml:482
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "Books (*.kmy *.sqlite *.db *.json)"
 msgstr "Haushaltsbücher (*.kmy *.sqlite *.db *.json)"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:453
-#: crates/kassensturz-ui-bridge/qml/Main.qml:468
+#: crates/kassensturz-ui-bridge/qml/Main.qml:483
+#: crates/kassensturz-ui-bridge/qml/Main.qml:498
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "All files (*)"
 msgstr "Alle Dateien (*)"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:464
+#: crates/kassensturz-ui-bridge/qml/Main.qml:494
 #, kde-format
 msgctxt "@title:window"
 msgid "Import a file from your bank"
 msgstr "Eine Datei von Ihrer Bank importieren"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:467
+#: crates/kassensturz-ui-bridge/qml/Main.qml:497
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "Bank files (*.xml *.sta *.ofx *.csv *.txt)"
@@ -4155,8 +4155,8 @@ msgid "Overview"
 msgstr "Übersicht"
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:59
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:81
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:215
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:85
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:254
 #: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:264
 #, kde-format
 msgctxt "@action:button"
@@ -4434,7 +4434,7 @@ msgid "The parts add up to %1, the whole transaction."
 msgstr "Die Teilbeträge ergeben zusammen %1, die ganze Buchung."
 
 #: crates/kassensturz-ui-bridge/qml/PartsPage.qml:279
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:318
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:401
 #: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:272
 #, kde-format
 msgctxt "@action:button"
@@ -4489,13 +4489,13 @@ msgctxt "@item:inmenu sort the transactions by"
 msgid "Date"
 msgstr "Datum"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:86
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:90
 #, kde-format
 msgctxt "@action:button"
 msgid "Import from my bank"
 msgstr "Von meiner Bank importieren"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:91
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:95
 #, kde-format
 msgctxt ""
 "@action:button settings of one account: its name, closing it, checking it "
@@ -4503,31 +4503,43 @@ msgctxt ""
 msgid "About this account"
 msgstr "Über dieses Konto"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:96
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:100
 #, kde-format
 msgctxt "@action:button %1 says what the list is sorted by"
 msgid "Sorted by %1"
 msgstr "Sortiert nach %1"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:127
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:131
 #, kde-format
 msgctxt "@action:inmenu turn the sort order around"
 msgid "Oldest first"
 msgstr "Älteste zuerst"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:129
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:133
 #, kde-format
 msgctxt "@action:inmenu turn the sort order around"
 msgid "Smallest first"
 msgstr "Kleinste zuerst"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:130
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:134
 #, kde-format
 msgctxt "@action:inmenu turn the sort order around"
 msgid "Z to A"
 msgstr "Z bis A"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:151
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:159
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Filter these transactions"
+msgstr "Diese Buchungen filtern"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:160
+#, kde-format
+msgctxt "@label"
+msgid "Filter transactions"
+msgstr "Buchungen filtern"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:183
 #: crates/kassensturz-ui-bridge/qml/RulesPage.qml:105
 #, kde-format
 msgctxt "@info %1 is a number, %2 a name, %3 a category"
@@ -4544,27 +4556,39 @@ msgstr[1] ""
 "Sie haben %2 schon %1 Mal von Hand der Kategorie %3 zugeordnet. Soll "
 "KassenSturz das ab jetzt für Sie erledigen?"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:155
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:187
 #: crates/kassensturz-ui-bridge/qml/RulesPage.qml:109
 #, kde-format
 msgctxt "@action:button"
 msgid "Create a Rule"
 msgstr "Regel erstellen"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:159
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:191
 #: crates/kassensturz-ui-bridge/qml/RulesPage.qml:113
 #, kde-format
 msgctxt "@action:button"
 msgid "No, thanks"
 msgstr "Nein, danke"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:211
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:246
+#, kde-format
+msgctxt "@info nothing fits what was typed in the filter"
+msgid "No transaction fits"
+msgstr "Keine Buchung passt"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:247
 #, kde-format
 msgctxt "@info"
 msgid "Nothing here yet"
 msgstr "Hier ist noch nichts"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:212
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:249
+#, kde-format
+msgctxt "@info"
+msgid "Try other words, or clear the filter to see all transactions."
+msgstr "Versuchen Sie andere Wörter oder leeren Sie den Filter, um alle Buchungen zu sehen."
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:250
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -4882,7 +4906,7 @@ msgid "For example EUR"
 msgstr "Zum Beispiel EUR"
 
 #: crates/kassensturz-ui-bridge/qml/RuleCondition.qml:217
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:233
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:316
 #: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:190
 #, kde-format
 msgctxt "@label:listbox"
@@ -4901,31 +4925,31 @@ msgctxt "@action:button"
 msgid "Remove this condition"
 msgstr "Diese Bedingung entfernen"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:47
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:52
 #, kde-format
 msgctxt "@title"
 msgid "Add a Rule"
 msgstr "Regel hinzufügen"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:48
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:53
 #, kde-format
 msgctxt "@title %1 is the name of a Rule"
 msgid "Change %1"
 msgstr "%1 ändern"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:152
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:196
 #, kde-format
 msgctxt "@info:placeholder"
 msgid "For example Supermarket"
 msgstr "Zum Beispiel Supermarkt"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:153
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:197
 #, kde-format
 msgctxt "@label:textbox"
 msgid "The name of the Rule"
 msgstr "Der Name der Regel"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:158
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:202
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -4937,86 +4961,110 @@ msgstr ""
 "Buchung passt, entscheidet; stellen Sie die genauesten in der Liste nach "
 "oben. Buchungen, die Sie selbst zugeordnet haben, werden nie geändert."
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:166
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:210
 #, kde-format
 msgctxt "@title"
 msgid "When a transaction fits"
 msgstr "Wenn eine Buchung passt"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:172
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:216
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "All of these conditions"
 msgstr "Alle dieser Bedingungen"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:173
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:217
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "At least one of these conditions"
 msgstr "Mindestens eine dieser Bedingungen"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:177
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:221
 #, kde-format
 msgctxt "@label:listbox"
 msgid "How many conditions have to fit"
 msgstr "Wie viele Bedingungen passen müssen"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:202
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:246
 #, kde-format
 msgctxt "@action:button"
 msgid "Add a condition"
 msgstr "Bedingung hinzufügen"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:209
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:255
+#, kde-format
+msgctxt "@title %1 is a number"
+msgid "These conditions fit %1 transaction"
+msgid_plural "These conditions fit %1 transactions"
+msgstr[0] "Diese Bedingungen passen auf %1 Buchung"
+msgstr[1] "Diese Bedingungen passen auf %1 Buchungen"
+
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:260
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Checked on their own: a Rule before this one in the list may still take a "
+"transaction first."
+msgstr ""
+"Für sich geprüft: Eine Regel vor dieser in der Liste kann sich eine Buchung "
+"trotzdem zuerst nehmen."
+
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:286
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "…and %1 more."
+msgstr "… und %1 weitere."
+
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:292
 #, kde-format
 msgctxt "@title"
 msgid "Then"
 msgstr "Dann"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:216
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:299
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Sort it:"
 msgstr "Zuordnen:"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:218
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:301
 #, kde-format
 msgctxt "@item:inlistbox the Rule does not sort"
 msgid "Leave as it is"
 msgstr "Nichts ändern"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:219
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:302
 #, kde-format
 msgctxt "@item:inlistbox the Rule sorts into a category"
 msgid "Into a category"
 msgstr "In eine Kategorie"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:220
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:303
 #, kde-format
 msgctxt ""
 "@item:inlistbox the Rule moves the money to one of the user's accounts"
 msgid "Move it to one of my accounts"
 msgstr "Auf eines meiner Konten umbuchen"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:227
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:310
 #, kde-format
 msgctxt "@label:listbox"
 msgid "What the Rule does with the transaction"
 msgstr "Was die Regel mit der Buchung macht"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:234
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:317
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Category:"
 msgstr "Kategorie:"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:238
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:321
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Where the transaction goes"
 msgstr "Wohin die Buchung kommt"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:244
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:327
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5026,31 +5074,31 @@ msgstr ""
 "Das Geld wird dann zwischen Ihren eigenen Konten bewegt, zum Beispiel bei "
 "Bargeld vom Automaten. Es zählt nicht als Ausgabe."
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:251
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:334
 #, kde-format
 msgctxt "@label:textbox"
 msgid "Show this name as From or To:"
 msgstr "Diesen Namen als Von oder An anzeigen:"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:252
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:335
 #, kde-format
 msgctxt "@info:placeholder"
 msgid "Leave empty to keep it"
 msgstr "Leer lassen, um den Namen zu behalten"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:253
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:336
 #, kde-format
 msgctxt "@label:textbox"
 msgid "The name to show"
 msgstr "Der anzuzeigende Name"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:263
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:346
 #, kde-format
 msgctxt "@option:check"
 msgid "Also sort again what this Rule sorted before"
 msgstr "Auch neu zuordnen, was diese Regel vorher zugeordnet hat"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:274
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:357
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5060,7 +5108,7 @@ msgstr ""
 "Ohne das folgen nur neue Buchungen der geänderten Regel. Buchungen, die Sie "
 "selbst geändert haben, bleiben in jedem Fall unangetastet."
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:284
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:367
 #, kde-format
 msgctxt "@info %1 is a number"
 msgid "%1 transaction would be sorted differently."
@@ -5068,31 +5116,31 @@ msgid_plural "%1 transactions would be sorted differently."
 msgstr[0] "%1 Buchung würde anders zugeordnet."
 msgstr[1] "%1 Buchungen würden anders zugeordnet."
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:286
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:369
 #, kde-format
 msgctxt "@info %1 is a number"
 msgid "%1 can't be changed, for example because an exchange rate is missing."
 msgstr "%1 lassen sich nicht ändern, zum Beispiel weil ein Wechselkurs fehlt."
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:293
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:376
 #, kde-format
 msgctxt "@action:button"
 msgid "Show what would change again"
 msgstr "Erneut zeigen, was sich ändern würde"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:302
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:385
 #, kde-format
 msgctxt "@action:button"
 msgid "Add Rule"
 msgstr "Regel hinzufügen"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:310
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:393
 #, kde-format
 msgctxt "@action:button"
 msgid "Add a Rule inside this one…"
 msgstr "Eine Regel innerhalb dieser hinzufügen…"
 
-#: crates/kassensturz-ui-bridge/qml/RulePage.qml:327
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml:410
 #, kde-format
 msgctxt "@info"
 msgid ""

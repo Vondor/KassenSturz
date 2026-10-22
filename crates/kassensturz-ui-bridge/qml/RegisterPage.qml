@@ -73,7 +73,11 @@ Kirigami.ScrollablePage {
     readonly property bool wide: width >= Kirigami.Units.gridUnit * 50
 
     title: register.accountName
-    Component.onCompleted: register.show(accountId)
+    Component.onCompleted: {
+        // The filter box of a new page starts empty.
+        register.setFilter("");
+        register.show(accountId);
+    }
 
     actions: [
         Kirigami.Action {
@@ -140,26 +144,55 @@ Kirigami.ScrollablePage {
     // The suggestion that has been waiting longest, if any.
     readonly property var suggestion: (rules.view.suggestions ?? [])[0]
 
-    header: Kirigami.InlineMessage {
-        id: ruleSuggestion
+    header: ColumnLayout {
+        spacing: 0
 
-        position: Kirigami.InlineMessage.Position.Header
-        visible: page.suggestion !== undefined
-        type: Kirigami.MessageType.Information
-        text: page.suggestion === undefined
-            ? ""
-            : page.i18nContext.i18ncp("@info %1 is a number, %2 a name, %3 a category", "You have sorted %2 into %3 by hand %1 time. Want KassenSturz to do it for you from now on?", "You have sorted %2 into %3 by hand %1 times. Want KassenSturz to do it for you from now on?", parseInt(page.suggestion.count), page.suggestion.payee, page.suggestion.categoryPath)
-        actions: [
-            Kirigami.Action {
-                icon.name: "view-filter"
-                text: page.i18nContext.i18nc("@action:button", "Create a Rule")
-                onTriggered: page.createRuleFromSuggestion(page.suggestion.payee, page.suggestion.category)
-            },
-            Kirigami.Action {
-                text: page.i18nContext.i18nc("@action:button", "No, thanks")
-                onTriggered: page.rules.dismissSuggestion(page.suggestion.payee, page.suggestion.category)
+        // The quick filter, like the search above a mailbox: it narrows the
+        // lines to those with every typed word in them (round 2). The balance
+        // below still counts all of the account.
+        Kirigami.SearchField {
+            id: quickFilter
+
+            Layout.fillWidth: true
+            Layout.margins: Kirigami.Units.smallSpacing
+            visible: page.register.unfiltered > 0
+            placeholderText: page.i18nContext.i18nc("@info:placeholder", "Filter these transactions")
+            Accessible.name: page.i18nContext.i18nc("@label", "Filter transactions")
+            onTextChanged: page.register.setFilter(text)
+            // A page for another account starts empty; text kept here would
+            // filter nothing.
+            Connections {
+                target: page.register
+                function onFilterChanged() {
+                    if (quickFilter.text !== page.register.filter) {
+                        quickFilter.text = page.register.filter;
+                    }
+                }
             }
-        ]
+        }
+
+        Kirigami.InlineMessage {
+            id: ruleSuggestion
+
+            Layout.fillWidth: true
+            position: Kirigami.InlineMessage.Position.Header
+            visible: page.suggestion !== undefined
+            type: Kirigami.MessageType.Information
+            text: page.suggestion === undefined
+                ? ""
+                : page.i18nContext.i18ncp("@info %1 is a number, %2 a name, %3 a category", "You have sorted %2 into %3 by hand %1 time. Want KassenSturz to do it for you from now on?", "You have sorted %2 into %3 by hand %1 times. Want KassenSturz to do it for you from now on?", parseInt(page.suggestion.count), page.suggestion.payee, page.suggestion.categoryPath)
+            actions: [
+                Kirigami.Action {
+                    icon.name: "view-filter"
+                    text: page.i18nContext.i18nc("@action:button", "Create a Rule")
+                    onTriggered: page.createRuleFromSuggestion(page.suggestion.payee, page.suggestion.category)
+                },
+                Kirigami.Action {
+                    text: page.i18nContext.i18nc("@action:button", "No, thanks")
+                    onTriggered: page.rules.dismissSuggestion(page.suggestion.payee, page.suggestion.category)
+                }
+            ]
+        }
     }
 
     footer: Controls.ToolBar {
@@ -208,9 +241,15 @@ Kirigami.ScrollablePage {
             anchors.centerIn: parent
             width: parent.width - Kirigami.Units.largeSpacing * 4
             visible: list.count === 0
-            text: page.i18nContext.i18nc("@info", "Nothing here yet")
-            explanation: page.i18nContext.i18nc("@info", "Add what you paid or received from this account, and it shows up here with what was left afterwards.")
-            helpfulAction: Kirigami.Action {
+            readonly property bool filtered: page.register.unfiltered > 0
+            text: filtered
+                ? page.i18nContext.i18nc("@info nothing fits what was typed in the filter", "No transaction fits")
+                : page.i18nContext.i18nc("@info", "Nothing here yet")
+            explanation: filtered
+                ? page.i18nContext.i18nc("@info", "Try other words, or clear the filter to see all transactions.")
+                : page.i18nContext.i18nc("@info", "Add what you paid or received from this account, and it shows up here with what was left afterwards.")
+            helpfulAction: filtered ? null : addAction
+            property Kirigami.Action addAction: Kirigami.Action {
                 icon.name: "list-add"
                 text: page.i18nContext.i18nc("@action:button", "Add transaction")
                 onTriggered: page.addTransactionClicked(page.accountId)

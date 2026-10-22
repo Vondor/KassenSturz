@@ -20,7 +20,7 @@ use kassensturz_core::{
     Money, Report, Rule, RuleFacts, RuleId, RuleNode, RuleSet, SplitId, TextField, TextOperator,
     Transaction, TransactionId,
 };
-use kassensturz_store::{Book, StoreError};
+use kassensturz_store::{Book, RuleMatch, StoreError};
 
 use crate::accounts::usual_currency;
 use crate::errors::{ErrorText, report_text};
@@ -718,21 +718,48 @@ pub fn matches(
     locale: &impl Locale,
 ) -> Result<Vec<LatestRow>, RuleEditError> {
     let id = find_rule(book, id)?;
+    let found = book
+        .rule_matches()?
+        .into_iter()
+        .filter(|found| found.rules.contains(&id))
+        .collect();
+    Ok(match_rows(book, found, locale)?)
+}
+
+/// The transactions the Rule the form describes fits on its own, as
+/// [`matches`] lists them, without the Rule being in the book: what the
+/// editor shows while the user types. The Rules before it and its sub-Rules
+/// aren't looked at (D-133).
+pub fn preview_matches(
+    book: &Book,
+    form: &RuleForm,
+    locale: &impl Locale,
+) -> Result<Vec<LatestRow>, RuleEditError> {
+    let (rule, _) = rule_of(book, form, locale)?;
+    let found = book.rule_preview(&rule)?;
+    Ok(match_rows(book, found, locale)?)
+}
+
+/// `found` as the register of the account each is in shows them, newest
+/// first.
+fn match_rows(
+    book: &Book,
+    found: Vec<RuleMatch>,
+    locale: &impl Locale,
+) -> Result<Vec<LatestRow>, StoreError> {
     let mut wanted: HashMap<AccountId, HashSet<TransactionId>> = HashMap::new();
-    for found in book.rule_matches()? {
-        if found.rules.contains(&id) {
-            wanted
-                .entry(found.account)
-                .or_default()
-                .insert(found.transaction);
-        }
+    for found in found {
+        wanted
+            .entry(found.account)
+            .or_default()
+            .insert(found.transaction);
     }
     let accounts: HashMap<AccountId, Account> = book
         .all_accounts()?
         .into_iter()
         .map(|account| (account.id, account))
         .collect();
-    let mut found = Vec::new();
+    let mut rows = Vec::new();
     for (account_id, transactions) in wanted {
         let Some(account) = accounts.get(&account_id) else {
             continue;
@@ -741,7 +768,7 @@ pub fn matches(
         for entry in entries(book, account_id)? {
             if transactions.contains(&entry.transaction) {
                 let row = entry.row(&writer, account.kind);
-                found.push((
+                rows.push((
                     entry.date,
                     entry.transaction,
                     LatestRow {
@@ -759,8 +786,8 @@ pub fn matches(
             }
         }
     }
-    found.sort_by_key(|(date, transaction, _)| core::cmp::Reverse((*date, *transaction)));
-    Ok(found.into_iter().map(|(_, _, row)| row).collect())
+    rows.sort_by_key(|(date, transaction, _)| core::cmp::Reverse((*date, *transaction)));
+    Ok(rows.into_iter().map(|(_, _, row)| row).collect())
 }
 
 /// Removes a Rule with its sub-Rules. What it booked keeps its booking.
@@ -1716,6 +1743,38 @@ mod tests {
             matches(&book, "gone", &TestLocale),
             Err(RuleEditError::NoSuchEntry)
         ));
+    }
+
+    #[test]
+    fn previews_what_a_rule_being_typed_fits_without_saving_it() {
+        let mut book = started();
+        let groceries = category(&book, "Food › Groceries");
+        let account = checking(&mut book);
+        add(
+            &mut book,
+            &text_form("Shops", "payee", "contains", "shop", &groceries),
+        );
+        let by_hand = typed(&mut book, &account, "Example Shop", "5", "", "2026-10-02");
+        let other = typed(&mut book, &account, "Example Bakery", "3", "", "2026-10-03");
+        let rules_before = view(&book).expect("view").len();
+
+        // A form that is not saved, and that the saved Rule before it would
+        // take first: the preview looks at its conditions alone.
+        let draft = text_form("Bread", "payee", "contains", "bakery", &groceries);
+        let found = preview_matches(&book, &draft, &TestLocale).expect("preview");
+        let ids: Vec<&str> = found.iter().map(|row| row.id.as_str()).collect();
+        assert_eq!(ids, [other.as_str()]);
+        assert_eq!(found[0].account, "Checking account");
+
+        let wide = text_form("Example", "payee", "contains", "example", &groceries);
+        let found = preview_matches(&book, &wide, &TestLocale).expect("preview");
+        let ids: Vec<&str> = found.iter().map(|row| row.id.as_str()).collect();
+        assert_eq!(ids, [other.as_str(), by_hand.as_str()], "newest first");
+        assert_eq!(view(&book).expect("view").len(), rules_before, "not saved");
+
+        // The editor shows nothing while the form isn't a Rule yet.
+        let empty = RuleForm::default();
+        assert!(preview_matches(&book, &empty, &TestLocale).is_err());
     }
 
     fn account_id(book: &Book, id: &str) -> AccountId {

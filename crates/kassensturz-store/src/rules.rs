@@ -361,6 +361,26 @@ impl Book {
             return Ok(Vec::new());
         }
         let rules = RuleSet::new(&tree).map_err(StoreError::Rule)?;
+        self.evaluate_all(&rules)
+    }
+
+    /// The transactions `rule` fits on its own, as [`Book::rule_matches`]
+    /// lists them, oldest first, whether or not the Rule is in the book yet:
+    /// what the Rule editor shows while the user types the conditions. The
+    /// Rule's sub-Rules and the Rules before it aren't looked at, so this
+    /// says what the conditions fit, not what ends up booked. Changes
+    /// nothing.
+    pub fn rule_preview(&self, rule: &Rule) -> Result<Vec<RuleMatch>, StoreError> {
+        let node = RuleNode {
+            rule: rule.clone(),
+            sub_rules: Vec::new(),
+        };
+        let rules = RuleSet::new(core::slice::from_ref(&node)).map_err(StoreError::Rule)?;
+        self.evaluate_all(&rules)
+    }
+
+    /// What `rules` match among the book's transactions, oldest first.
+    fn evaluate_all(&self, rules: &RuleSet) -> Result<Vec<RuleMatch>, StoreError> {
         let accounts: HashMap<AccountId, Account> = self
             .all_accounts()?
             .into_iter()

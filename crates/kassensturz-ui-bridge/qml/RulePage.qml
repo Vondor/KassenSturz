@@ -33,6 +33,11 @@ Kirigami.ScrollablePage {
     property string amountExample: ""
     // What the last "Show what would change" found.
     property var rebookPreview: ({})
+    // The transactions the conditions fit as typed now, newest first, and
+    // how many of them are listed (D-133).
+    property int previewCount: 0
+    property var previewRows: []
+    readonly property int previewLimit: 15
 
     // A Rule was added, changed or removed.
     signal done()
@@ -52,6 +57,44 @@ Kirigami.ScrollablePage {
 
     ListModel {
         id: conditionModel
+    }
+
+    // The list of what fits follows what is typed, a moment after the last
+    // change.
+    Timer {
+        id: previewTimer
+
+        interval: 300
+        onTriggered: page.refreshPreview()
+    }
+
+    Connections {
+        target: conditionModel
+
+        function onDataChanged() {
+            previewTimer.restart();
+        }
+        function onRowsInserted() {
+            previewTimer.restart();
+        }
+        function onRowsRemoved() {
+            previewTimer.restart();
+        }
+        function onModelReset() {
+            previewTimer.restart();
+        }
+    }
+
+    onMatchAllChanged: previewTimer.restart()
+
+    function refreshPreview() {
+        const found = rules.previewMatches(form());
+        const shown = [];
+        for (let at = 0; at < found.length && at < previewLimit; at++) {
+            shown.push(found[at]);
+        }
+        previewCount = found.length;
+        previewRows = shown;
     }
 
     // The Rule may have been removed by an undo (M3.8).
@@ -87,6 +130,7 @@ Kirigami.ScrollablePage {
             form = rules.newForm(parentId);
         }
         loadForm(form);
+        refreshPreview();
         dateExample = rules.dateExample();
         amountExample = rules.amountExample(choices.currency);
     }
@@ -202,6 +246,45 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@action:button", "Add a condition")
             icon.name: "list-add"
             onClicked: page.addCondition()
+        }
+
+        // What the conditions fit now, so a Rule can be checked before it is
+        // saved.
+        Kirigami.Heading {
+            level: 3
+            text: page.i18nContext.i18ncp("@title %1 is a number", "These conditions fit %1 transaction", "These conditions fit %1 transactions", page.previewCount)
+        }
+
+        Controls.Label {
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 28
+            text: page.i18nContext.i18nc("@info", "Checked on their own: a Rule before this one in the list may still take a transaction first.")
+            wrapMode: Text.Wrap
+            font: Kirigami.Theme.smallFont
+        }
+
+        Repeater {
+            model: page.previewRows
+
+            delegate: TransactionRow {
+                required property var modelData
+
+                Layout.fillWidth: true
+                date: modelData.date
+                otherParty: modelData.otherParty
+                category: modelData.category
+                amount: modelData.amount
+                exactAmount: modelData.exactAmount
+                incoming: modelData.incoming
+                kind: modelData.kind
+                account: modelData.account
+            }
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: page.previewCount > page.previewLimit
+            text: page.i18nContext.i18nc("@info %1 is a number", "…and %1 more.", page.previewCount - page.previewLimit)
+            font: Kirigami.Theme.smallFont
         }
 
         Kirigami.Heading {

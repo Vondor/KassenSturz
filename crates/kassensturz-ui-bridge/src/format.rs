@@ -26,6 +26,8 @@ pub trait Locale {
     fn group_separator(&self) -> String;
     /// `date` in the locale's short format.
     fn short_date(&self, date: Date) -> String;
+    /// The month `date` is in, with its year, e.g. "October 2026".
+    fn month_and_year(&self, date: Date) -> String;
     /// A date the user typed in the locale's short format, or as ISO 8601
     /// (2026-10-05); `None` if it isn't a date.
     fn read_date(&self, text: &str) -> Option<Date>;

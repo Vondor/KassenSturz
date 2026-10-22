@@ -16,10 +16,10 @@ use kassensturz_core::CurrencyCode;
 use kassensturz_store::{Book, StoreError};
 
 use crate::accounts::{
-    self, AccountCard, AccountDetails, AccountsError, AccountsView, BankCheck, NewAccount,
+    self, AccountCard, AccountDetails, AccountsError, AccountsView, BankCheck, CurrencySection,
+    NewAccount, type_from_key,
 };
 use crate::errors::ErrorText;
-use crate::first_run::type_from_key;
 use crate::format::Locale;
 use crate::locale::QtLocale;
 use crate::number_format::{UserLocale, app_locale};
@@ -311,7 +311,15 @@ fn fallback_currency() -> CurrencyCode {
 }
 
 fn view_object(view: &AccountsView) -> QVariant {
-    let sections = view.sections.iter().map(|section| {
+    map([
+        ("sections", sections_object(&view.sections)),
+        ("closed", list(view.closed.iter().map(card_object))),
+    ])
+}
+
+/// The accounts per currency as QML gets them, here and on the overview.
+pub(crate) fn sections_object(sections: &[CurrencySection]) -> QVariant {
+    list(sections.iter().map(|section| {
         map([
             ("currency", text(&section.currency)),
             ("accounts", list(section.accounts.iter().map(card_object))),
@@ -319,11 +327,7 @@ fn view_object(view: &AccountsView) -> QVariant {
             ("exactTogether", text(&section.together.exact)),
             ("togetherOwes", QVariant::from(&section.together_owes)),
         ])
-    });
-    map([
-        ("sections", list(sections)),
-        ("closed", list(view.closed.iter().map(card_object))),
-    ])
+    }))
 }
 
 fn card_object(card: &AccountCard) -> QVariant {

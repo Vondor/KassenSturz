@@ -50,6 +50,9 @@ mod ffi {
         #[cxx_name = "readShortDate"]
         fn read_short_date(text: &QString) -> QString;
 
+        #[cxx_name = "monthAndYear"]
+        fn month_and_year(year: i32, month: i32) -> QString;
+
         fn today() -> QString;
 
         #[cxx_name = "dateTime"]
@@ -126,6 +129,10 @@ impl Locale for QtLocale {
     fn short_date(&self, date: Date) -> String {
         let (year, month, day) = (date.year(), date.month(), date.day());
         ffi::short_date(year.into(), month.into(), day.into()).to_string()
+    }
+
+    fn month_and_year(&self, date: Date) -> String {
+        ffi::month_and_year(date.year().into(), date.month().into()).to_string()
     }
 
     fn read_date(&self, text: &str) -> Option<Date> {

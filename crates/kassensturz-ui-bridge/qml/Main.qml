@@ -54,18 +54,19 @@ Kirigami.ApplicationWindow {
         onFailed: root.showProblem()
     }
 
-    // The first start (M3.4) and what the mock (M1.M) still shows: the
-    // overview (M3.9).
+    // The first start (M3.4).
     FirstStart {
         id: firstStartState
     }
 
-    FirstRunMock {
-        id: mockBook
+    // The overview (M3.9): accounts, one month's money in and out, the
+    // latest transactions.
+    BookOverview {
+        id: bookOverview
     }
 
-    // The accounts and categories screens (M3.3). A change in one of them,
-    // or in the first-run mock, is read again by all the others.
+    // The accounts and categories screens (M3.3). A change in one of them
+    // is read again by all the others.
     AccountList {
         id: accountList
 
@@ -103,7 +104,7 @@ Kirigami.ApplicationWindow {
         id: numberFormatSettings
 
         onChoicesChanged: {
-            mockBook.refresh();
+            bookOverview.refresh();
             accountList.refresh();
             accountRegister.refresh();
         }
@@ -128,7 +129,7 @@ Kirigami.ApplicationWindow {
     // The book changed on one of its screens: every screen reads it again.
     function bookChanged() {
         firstStartState.refresh();
-        mockBook.start();
+        bookOverview.refresh();
         accountList.refresh();
         categoryTree.refresh();
         accountRegister.refresh();
@@ -381,10 +382,11 @@ Kirigami.ApplicationWindow {
         id: overviewPage
 
         OverviewPage {
-            mock: mockBook
+            overview: bookOverview
             onAddAccountClicked: root.addAccount(false)
             onAddTransactionClicked: root.addTransaction(false, "")
             onAccountClicked: accountId => root.showRegister(accountId)
+            onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
         }
     }
 

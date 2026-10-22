@@ -418,6 +418,10 @@ impl<L: Locale> Locale for UserLocale<L> {
         self.base.short_date(date)
     }
 
+    fn month_and_year(&self, date: Date) -> String {
+        self.base.month_and_year(date)
+    }
+
     fn read_date(&self, text: &str) -> Option<Date> {
         self.base.read_date(text)
     }
@@ -520,6 +524,10 @@ mod tests {
 
         fn short_date(&self, date: Date) -> String {
             date.to_string()
+        }
+
+        fn month_and_year(&self, date: Date) -> String {
+            format!("{:04}-{:02}", date.year(), date.month())
         }
 
         fn read_date(&self, text: &str) -> Option<Date> {

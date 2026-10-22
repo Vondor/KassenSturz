@@ -20,7 +20,6 @@ use kassensturz_core::{
 use kassensturz_store::{AccountPart, Action, Book, StatedBalance, StoreError};
 
 use crate::errors::{ErrorText, report_text};
-use crate::first_run::type_key;
 use crate::format::Locale;
 use crate::parse::{AmountInputError, AmountReader};
 use crate::register::{AmountWriter, Shown};
@@ -894,12 +893,29 @@ pub fn error_text(book: &Book, error: &AccountsError, locale: &impl Locale) -> E
     }
 }
 
+/// The key the UI translates an account type with (`AccountTypes.qml`).
+pub fn type_key(account_type: AccountType) -> &'static str {
+    match account_type {
+        AccountType::Checking => "checking",
+        AccountType::Savings => "savings",
+        AccountType::Cash => "cash",
+        AccountType::CreditCard => "credit-card",
+    }
+}
+
+/// The account type for a key from [`type_key`].
+pub fn type_from_key(key: &str) -> Option<AccountType> {
+    AccountType::ALL
+        .into_iter()
+        .find(|&account_type| type_key(account_type) == key)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::first_run::FirstRun;
     use crate::first_start::tests::started;
     use crate::number_format::{DecimalPlaces, NumberFormat, UserLocale};
+    use crate::overview::{self, Month};
     use crate::register::tests::TestLocale;
     use crate::register::{Sort, entries, register_view};
 
@@ -1415,18 +1431,21 @@ mod tests {
     }
 
     #[test]
-    fn the_first_run_mock_sees_the_accounts_made_by_this_screen() {
+    fn the_overview_sees_the_accounts_made_by_this_screen() {
         let mut book = started();
         checking(&mut book, "Checking account", "10,00");
         checking(&mut book, "Wallet", "20,00");
-        // The mock lists both, in the order they were added, and finds the
-        // default categories the first start wrote (D-116).
-        let mock = FirstRun::load(&book, usual_currency(&book, EUR).expect("usual")).expect("mock");
-        assert_eq!(
-            mock.account_names(&book).expect("names"),
-            ["Checking account", "Wallet"]
-        );
-        assert_eq!(mock.category_names(true), ["Salary", "Other income"]);
+        // The overview lists both, in the order they were added, with what
+        // they come to together (M3.9).
+        let overview =
+            overview::view(&book, Month::of(TestLocale.today()), &TestLocale).expect("overview");
+        let names: Vec<&str> = overview.accounts[0]
+            .accounts
+            .iter()
+            .map(|card| card.name.as_str())
+            .collect();
+        assert_eq!(names, ["Checking account", "Wallet"]);
+        assert_eq!(overview.accounts[0].together.exact, "30,00 €");
         let listed = view(&book, &TestLocale).expect("view");
         assert_eq!(listed.sections[0].together.exact, "30,00 €");
         // One internal account serves both starting balances.

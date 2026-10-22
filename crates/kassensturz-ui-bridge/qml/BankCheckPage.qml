@@ -3,10 +3,11 @@
 
 // "Check against my bank": the user types what the bank says is in the
 // account on a day, and KassenSturz says whether it agrees and, if not,
-// where the difference can come from (D-029, D-111). It changes nothing.
-// Every amount shows exactly, since a rounded one could hide the difference.
-// Rust returns codes and amounts as text; every sentence is written here
-// (D-034).
+// where the difference can come from (D-029, D-111). It changes nothing by
+// itself: it offers to correct the starting balance, and only the user's
+// click does it (D-116). Every amount shows exactly, since a rounded one
+// could hide the difference. Rust returns codes and amounts as text; every
+// sentence is written here (D-034).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -26,6 +27,9 @@ Kirigami.ScrollablePage {
     // The comparison, once the user asked for it.
     property var check: ({})
     readonly property bool checked: check.date !== undefined
+    // The correction KassenSturz offers, if any, and whether one was made.
+    readonly property var correction: check.correction ?? null
+    property bool corrected: false
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -40,9 +44,21 @@ Kirigami.ScrollablePage {
     }
 
     function compare() {
+        corrected = false;
         const result = accounts.checkAgainstBank(accountId, bankField.text, dateField.text);
         error.result = result;
         check = result.code === undefined ? result : ({});
+    }
+
+    // The user confirmed the offer: the starting balance changes so both
+    // agree, and the comparison is shown again.
+    function correct() {
+        const result = accounts.correctStartingBalance(accountId, bankField.text, dateField.text);
+        error.result = result;
+        if (result.code === undefined) {
+            compare();
+            corrected = true;
+        }
     }
 
     // What the bank or KassenSturz says: a debt reads "you owe".
@@ -132,9 +148,11 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             visible: page.checked && page.check.matches
             type: Kirigami.MessageType.Positive
-            text: page.checked
-                ? page.i18nContext.i18nc("@info %1 is a date, %2 says how much money there is or what is owed", "KassenSturz agrees with your bank. On %1 both say %2.", page.check.date, page.says(page.check.book, page.check.bookOwes))
-                : ""
+            text: !page.checked
+                ? ""
+                : page.corrected
+                    ? page.i18nContext.i18nc("@info %1 is a date, %2 says how much money there is or what is owed", "The starting balance is corrected. On %1 both your bank and KassenSturz now say %2.", page.check.date, page.says(page.check.book, page.check.bookOwes))
+                    : page.i18nContext.i18nc("@info %1 is a date, %2 says how much money there is or what is owed", "KassenSturz agrees with your bank. On %1 both say %2.", page.check.date, page.says(page.check.book, page.check.bookOwes))
         }
 
         ColumnLayout {
@@ -169,6 +187,37 @@ Kirigami.ScrollablePage {
                     // The other party's name could contain anything.
                     textFormat: Text.PlainText
                 }
+            }
+
+            // The offer (D-111): KassenSturz never changes the starting
+            // balance by itself.
+            Kirigami.Heading {
+                Layout.topMargin: Kirigami.Units.largeSpacing
+                visible: page.correction !== null
+                text: page.i18nContext.i18nc("@title", "Correct the starting balance")
+                level: 2
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                visible: page.correction !== null
+                text: page.correction === null
+                    ? ""
+                    : page.correction.adds
+                        ? page.i18nContext.i18nc("@info %1 is an amount of money, %2 and %3 are dates", "If the difference comes from before you started using KassenSturz, a starting balance of %1 dated %2 makes both agree. KassenSturz then has on %3 what your bank says. Your other entries stay as they are.", page.money(page.correction.wouldBe, page.correction.owes), page.correction.date, page.check.date)
+                        : page.i18nContext.i18nc("@info %1 is an amount of money, %2 and %3 are dates", "If the difference comes from before you started using KassenSturz, a starting balance of %1 (dated %2) makes both agree. KassenSturz then has on %3 what your bank says. Your other entries stay as they are.", page.money(page.correction.wouldBe, page.correction.owes), page.correction.date, page.check.date)
+                wrapMode: Text.Wrap
+            }
+
+            Controls.Button {
+                visible: page.correction !== null
+                text: page.correction === null
+                    ? ""
+                    : page.correction.adds
+                        ? page.i18nContext.i18nc("@action:button %1 is an amount of money", "Add a starting balance of %1", page.money(page.correction.wouldBe, page.correction.owes))
+                        : page.i18nContext.i18nc("@action:button %1 is an amount of money", "Set the starting balance to %1", page.money(page.correction.wouldBe, page.correction.owes))
+                icon.name: "dialog-ok-apply"
+                onClicked: page.correct()
             }
         }
     }

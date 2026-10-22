@@ -49,6 +49,10 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This day hasn't come yet. Type today or a day in the past.");
         case "input.unknown-currency":
             return i18nContext.i18nc("@info", "KassenSturz doesn't know this currency. Choose another one.");
+        case "input.no-such-parent":
+            return i18nContext.i18nc("@info %1 is the name of a category", "The default categories can't be written: %1 isn't among them. Please report this, so it can be fixed.", result.parent);
+        case "bank-check.cannot-correct":
+            return i18nContext.i18nc("@info", "The starting balance is dated after this day, so it can't be corrected from here. Check a day on or after the starting balance.");
         case "store.empty-account-name":
             return forCategory
                 ? i18nContext.i18nc("@info", "Give the category a name.")

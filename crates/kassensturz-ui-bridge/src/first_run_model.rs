@@ -11,11 +11,12 @@
 use core::pin::Pin;
 
 use cxx_qt::CxxQtType;
-use cxx_qt_lib::{QList, QString, QStringList, QVariant};
+use cxx_qt_lib::{QString, QStringList, QVariant};
 use kassensturz_core::CurrencyCode;
 
+use crate::accounts;
 use crate::errors::ErrorText;
-use crate::first_run::{FirstRun, FirstRunError, NewTransaction, type_from_key};
+use crate::first_run::{FirstRun, FirstRunError, NewTransaction};
 use crate::format::Locale;
 use crate::locale::QtLocale;
 use crate::number_format::app_locale;
@@ -50,21 +51,10 @@ pub mod qobject {
     }
 
     extern "RustQt" {
-        /// Reads the open book again. A book without categories gets the
-        /// given ones, named in the user's language.
+        /// Reads the open book again: its accounts and categories in the
+        /// household's usual currency.
         #[qinvokable]
-        fn start(self: Pin<&mut FirstRunMock>, spending: &QStringList, income: &QStringList);
-
-        /// Adds an account. Returns an empty map, or the error's `code` and
-        /// its parameters.
-        #[qinvokable]
-        #[cxx_name = "addAccount"]
-        fn add_account(
-            self: Pin<&mut FirstRunMock>,
-            account_type: &QString,
-            name: &QString,
-            starting_balance: &QString,
-        ) -> QVariant;
+        fn start(self: Pin<&mut FirstRunMock>);
 
         /// Adds a transaction to the account at `account` in `accounts`.
         /// Returns an empty map, or the error's `code` and its parameters.
@@ -117,22 +107,16 @@ impl cxx_qt::Initialize for qobject::FirstRunMock {
 }
 
 impl qobject::FirstRunMock {
-    fn start(mut self: Pin<&mut Self>, spending: &QStringList, income: &QStringList) {
-        let names = |list: &QStringList| -> Vec<String> {
-            QList::<QString>::from(list)
-                .iter()
-                .map(ToString::to_string)
-                .collect()
-        };
-        let (spending, income) = (names(spending), names(income));
-        // In a book without accounts, the locale's own currency if
-        // KassenSturz knows it, otherwise the euro: the mock has one
-        // currency, as most households do.
-        let loaded = QtLocale::currency()
+    fn start(mut self: Pin<&mut Self>) {
+        // The household's usual currency: the first account's, the one the
+        // first start chose, or the regional settings' (`accounts.rs`).
+        let regional = QtLocale::currency()
             .or_else(|| CurrencyCode::new("EUR").ok())
-            .and_then(|currency| {
-                session::with_book_mut(|book| FirstRun::load(book, currency, &spending, &income))
-            });
+            .expect("EUR is a valid code");
+        let loaded = session::with_book(|book| {
+            accounts::usual_currency(book, regional)
+                .and_then(|currency| FirstRun::load(book, currency))
+        });
         let state = match loaded {
             Some(Ok(state)) => Some(state),
             Some(Err(error)) => {
@@ -143,31 +127,6 @@ impl qobject::FirstRunMock {
         };
         self.as_mut().rust_mut().state = state;
         self.refresh();
-    }
-
-    fn add_account(
-        mut self: Pin<&mut Self>,
-        account_type: &QString,
-        name: &QString,
-        starting_balance: &QString,
-    ) -> QVariant {
-        let Some(account_type) = type_from_key(&account_type.to_string()) else {
-            return self.error(&FirstRunError::NoSuchEntry);
-        };
-        let result = match self.as_mut().rust_mut().state.as_mut() {
-            Some(state) => session::with_book_mut(|book| {
-                state.add_account(
-                    book,
-                    &name.to_string(),
-                    account_type,
-                    &starting_balance.to_string(),
-                    &app_locale(),
-                )
-            })
-            .unwrap_or(Err(FirstRunError::NoSuchEntry)),
-            None => Err(FirstRunError::NoSuchEntry),
-        };
-        self.finish(result)
     }
 
     fn add_transaction(
@@ -276,6 +235,18 @@ impl qobject::FirstRunMock {
         let Some(state) = self.rust().state.as_ref() else {
             return;
         };
+        if state.account_count() == 0 {
+            // Before the first account there is nothing to show, and the
+            // currency may not be in use yet.
+            let mut model = self.as_mut().rust_mut();
+            model.overview = QVariant::default();
+            model.accounts = QStringList::default();
+            model.amount_example = QString::default();
+            self.as_mut().overview_changed();
+            self.as_mut().accounts_changed();
+            self.as_mut().amount_example_changed();
+            return;
+        }
         let read = session::with_book(|book| {
             Ok::<_, kassensturz_store::StoreError>((
                 state.overview(book, &app_locale())?,

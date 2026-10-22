@@ -58,12 +58,12 @@ kassensturz/
 - CI runs the quick checks (REUSE, DCO, licenses, formatting) first and the slow jobs after them, keeps Cargo's downloads and build output between runs and skips the slow jobs for pull requests that only change documentation (D-110).
 - CMake runs `cargo build --locked` as a custom target, as KDE's guide does, and installs the program it builds. QML files live in `crates/kassensturz-ui-bridge/qml/` because cxx-qt-build registers QML files by their path inside the crate.
 - The Flatpak manifest (`packaging/flatpak/`) builds offline from `cargo-sources.json`, which is regenerated from `Cargo.lock` whenever that changes (`README.md`, "Building").
-- The first code is a walking skeleton through every layer, kept as real code (D-068). Since M1.M the app opens with the first-run mock instead of the skeleton's sample account (D-089).
+- The first code is a walking skeleton through every layer, kept as real code (D-068). Since M1.M the app opens with the first-run mock instead of the skeleton's sample account (D-089); since M3.4 the first start is real (D-116) and the mock keeps only the transaction page, the register and the overview.
 
 ## First-run mock (M1.M)
 
-- A clickable mock of the first start: welcome, add an account, add a transaction, see the overview (D-068, D-089). It tests the simplicity goal (AGENTS.md §1, §6) before the real first-run flow in M3.
-- `kassensturz-ui-bridge/src/first_run.rs` turns what the user typed into accounts and transactions in the open book, through the public functions of core and store, so every balance and total is the real one. Since M3.1 it is saved in the book; the mock keeps to one currency and the accounts and categories in it, until M3.4, M3.5 and M3.9 replace it; since M3.3 it reads the book again after every change made on the accounts and categories screens.
+- A clickable mock of the first start: welcome, add an account, add a transaction, see the overview (D-068, D-089). It tests the simplicity goal (AGENTS.md §1, §6) before the real screens in M3. Since M3.4 only its transaction page, register and overview remain (M3.5, M3.9); accounts and categories come from the M3.3 screens and the first start (`first_start.rs`).
+- `kassensturz-ui-bridge/src/first_run.rs` turns what the user typed into accounts and transactions in the open book, through the public functions of core and store, so every balance and total is the real one. Since M3.1 it is saved in the book; the mock keeps to the household's usual currency (`accounts::usual_currency`) and the accounts and categories in it, until M3.5 and M3.9 replace it; it reads the book again after every change made on the other screens.
 - `src/first_run_model.rs` is its QML object, `FirstRunMock`. Its few lists go to QML as lists of maps of text, which QML views take as models; the real register in M3 uses list models.
 - `src/parse.rs` reads typed amounts in the user's regional format (D-065); `src/register.rs` writes an account's register and balances, a debt as "You owe" (D-067).
 - Mistakes in what the user typed come back as codes starting with `input.` plus parameters as text; the QML (`FormError.qml`) writes the message (D-034). They belong to the app, not to core or store, so `docs/ERROR_CODES.md` doesn't list them; store errors keep their codes from there.
@@ -88,6 +88,12 @@ kassensturz/
 - `src/accounts_model.rs` (`AccountList`) and `src/categories_model.rs` (`CategoryTree`) are the QML objects. They reach the open book through `session.rs` and name accounts and categories to QML by their ID as text; every change ends in their `changed` signal, which `Main.qml` answers by reading the other screens and the first-run mock again. `variant.rs` turns structures into the plain values QML takes.
 - `Book::balance_on` (store) is the balance of an account at the end of a day by the bank's booking date; the import's balance check (`kassensturz-pipeline`) and "Check against my bank" use the same rule through `AccountPart::bank_date`.
 - QML: one file per screen (`AccountsPage`, `NewAccountPage`, `AccountDetailsPage`, `BankCheckPage`, `CategoriesPage`, `CategoryPage`), with `AccountCard`, `Balance` and `AccountTypes` shared.
+
+## First start (M3.4)
+
+- `src/first_start.rs` says where a book stands (`FirstStart`: whether it has an account, whether the currency must still be asked, the currencies to offer) and completes the first start: the chosen currency and the default categories, written as a tree in one user action (D-116). The names come from QML (`DefaultCategories.qml`), where KI18n translates them; Rust checks the list and writes it. `src/first_start_model.rs` is its QML object, `FirstStart`.
+- `accounts::correct_starting_balance` carries out the offer of "Check against my bank" (D-111): `BankCheck::correction` says what it would do, and only the user's click does it, as one edited or added transaction.
+- QML: `WelcomePage` (currency question and start), `NewAccountPage` with `firstRun` (the first account), the mock's `TransactionPage` for the optional first transaction. `Main.qml` shows the welcome page until the book has an account and reads every screen again after a change (`bookChanged`).
 
 ## Dependency rules
 

@@ -103,6 +103,19 @@ pub mod qobject {
         ) -> QVariant;
 
         /// An amount in `currency` written the way the user should type it.
+        /// Corrects the starting balance so the account holds on `date`
+        /// what the bank says, after the user confirmed the offer of
+        /// `checkAgainstBank` (D-111). Returns an empty map, or the error's
+        /// `code` and its parameters.
+        #[qinvokable]
+        #[cxx_name = "correctStartingBalance"]
+        fn correct_starting_balance(
+            self: Pin<&mut AccountList>,
+            id: &QString,
+            bank: &QString,
+            date: &QString,
+        ) -> QVariant;
+
         #[qinvokable]
         #[cxx_name = "amountExample"]
         fn amount_example(self: &AccountList, currency: &QString) -> QString;
@@ -231,6 +244,19 @@ impl qobject::AccountList {
         }
     }
 
+    fn correct_starting_balance(
+        self: Pin<&mut Self>,
+        id: &QString,
+        bank: &QString,
+        date: &QString,
+    ) -> QVariant {
+        let (id, bank, date) = (id.to_string(), bank.to_string(), date.to_string());
+        let result = change(|book, locale| {
+            accounts::correct_starting_balance(book, &id, &bank, &date, locale)
+        });
+        self.finish(result)
+    }
+
     fn amount_example(&self, currency: &QString) -> QString {
         let locale = app_locale();
         let example = CurrencyCode::new(&currency.to_string())
@@ -343,6 +369,20 @@ fn check_object(check: &BankCheck) -> QVariant {
         (
             "explanations",
             list(check.explanations.iter().map(error_object)),
+        ),
+        (
+            "correction",
+            check
+                .correction
+                .as_ref()
+                .map_or_else(QVariant::default, |correction| {
+                    map([
+                        ("wouldBe", exact(&correction.would_be)),
+                        ("owes", QVariant::from(&correction.owes)),
+                        ("adds", QVariant::from(&correction.adds)),
+                        ("date", text(&correction.date)),
+                    ])
+                }),
         ),
     ])
 }

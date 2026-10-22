@@ -254,6 +254,7 @@ mod tests {
     use super::*;
     use crate::accounts::{NewAccount, add_account};
     use crate::first_run::FirstRun;
+    use crate::first_start::tests::started;
     use crate::register::tests::TestLocale;
     use kassensturz_core::AccountType;
 
@@ -526,22 +527,33 @@ mod tests {
     }
 
     #[test]
-    fn the_categories_the_first_run_mock_makes_are_in_the_tree_and_can_be_changed() {
-        let mut book = book();
-        let spending = ["Groceries".to_owned(), "Rent".to_owned()];
-        let income = ["Salary".to_owned()];
-        FirstRun::load(&mut book, EUR, &spending, &income).expect("mock loaded");
-        assert_eq!(paths(&book), ["Salary", "Groceries", "Rent"]);
+    fn the_categories_of_the_first_start_are_in_the_tree_and_can_be_changed() {
+        let mut book = started();
+        assert_eq!(paths(&book)[..3], ["Other income", "Salary", "Clothes"]);
 
         // Changes made here reach the mock the next time it loads.
-        let groceries = view(&book).expect("view").rows[1].id.clone();
-        let food = add(&mut book, "Food", false, "");
-        move_category(&mut book, &groceries, &food).expect("moved");
+        let groceries = view(&book)
+            .expect("view")
+            .rows
+            .iter()
+            .find(|row| row.name == "Groceries")
+            .expect("groceries")
+            .id
+            .clone();
+        let home = add(&mut book, "Home", false, "");
+        move_category(&mut book, &groceries, &home).expect("moved");
         rename_category(&mut book, &groceries, "Supermarket").expect("renamed");
-        let mock = FirstRun::load(&mut book, EUR, &spending, &income).expect("mock loaded");
+        let mock = FirstRun::load(&book, EUR).expect("mock loaded");
         assert_eq!(
             mock.category_names(false),
-            ["Food › Supermarket", "Rent", "Food"]
+            [
+                "Food",
+                "Home › Supermarket",
+                "Food › Eating out",
+                "Rent",
+                "Clothes",
+                "Home"
+            ]
         );
     }
 }

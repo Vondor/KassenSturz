@@ -26,6 +26,7 @@ cxx-qt.workspace = true
 cxx-qt-lib.workspace = true
 cxx-qt-lib-extras.workspace = true
 kassensturz-core.workspace = true
+kassensturz-export.workspace = true
 kassensturz-import.workspace = true
 kassensturz-pipeline.workspace = true
 kassensturz-store.workspace = true

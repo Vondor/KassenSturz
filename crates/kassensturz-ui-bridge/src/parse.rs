@@ -9,7 +9,7 @@
 //! point groups thousands, is refused instead of being read as 1250, and
 //! more decimal places than the currency has are refused, never rounded.
 
-use kassensturz_core::{CurrencyCode, Money};
+use kassensturz_core::{CurrencyCode, DecimalError, ExchangeRate, MAX_DECIMAL_PLACES, Money};
 
 use crate::format::AmountFormat;
 
@@ -155,35 +155,93 @@ impl AmountReader<'_> {
         }
     }
 
-    /// The whole part's digits without group separators. Groups are checked:
-    /// the last one has three digits, the others two or three (Indian
-    /// formats group by two), so a decimal point typed in the wrong format
-    /// is refused instead of read as a group separator.
+    /// The whole part's digits without group separators, see [`ungrouped`].
     fn ungrouped(&self, whole: &str) -> Result<String, AmountInputError> {
-        let separator = self.group_separator;
-        // Some locales group with a (narrow) no-break space; any space will do.
-        let is_space = !separator.is_empty() && separator.chars().all(char::is_whitespace);
-        let groups: Vec<&str> = if is_space {
-            whole.split(char::is_whitespace).collect()
-        } else if separator.is_empty() {
-            vec![whole]
-        } else {
-            whole.split(separator).collect()
-        };
-        let digits_only = |group: &str| group.bytes().all(|byte| byte.is_ascii_digit());
-        if !groups.iter().all(|group| digits_only(group)) {
+        ungrouped(whole, self.group_separator)
+    }
+}
+
+/// The whole part's digits without group separators. Groups are checked:
+/// the last one has three digits, the others two or three (Indian formats
+/// group by two), so a decimal point typed in the wrong format is refused
+/// instead of read as a group separator.
+fn ungrouped(whole: &str, separator: &str) -> Result<String, AmountInputError> {
+    // Some locales group with a (narrow) no-break space; any space will do.
+    let is_space = !separator.is_empty() && separator.chars().all(char::is_whitespace);
+    let groups: Vec<&str> = if is_space {
+        whole.split(char::is_whitespace).collect()
+    } else if separator.is_empty() {
+        vec![whole]
+    } else {
+        whole.split(separator).collect()
+    };
+    let digits_only = |group: &str| group.bytes().all(|byte| byte.is_ascii_digit());
+    if !groups.iter().all(|group| digits_only(group)) {
+        return Err(AmountInputError::Malformed);
+    }
+    if let [first, middle @ .., last] = groups.as_slice() {
+        let fits = (1..=3).contains(&first.len())
+            && middle.iter().all(|group| (2..=3).contains(&group.len()))
+            && last.len() == 3;
+        if !fits {
             return Err(AmountInputError::Malformed);
         }
-        if let [first, middle @ .., last] = groups.as_slice() {
-            let fits = (1..=3).contains(&first.len())
-                && middle.iter().all(|group| (2..=3).contains(&group.len()))
-                && last.len() == 3;
-            if !fits {
-                return Err(AmountInputError::Malformed);
-            }
-        }
-        Ok(groups.concat())
     }
+    Ok(groups.concat())
+}
+
+/// Why typed text isn't an exchange rate.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RateInputError {
+    /// Nothing was typed.
+    Empty,
+    /// The text isn't a number in the user's regional format.
+    Malformed,
+    /// More decimal places than a rate can have.
+    TooManyDecimalPlaces {
+        /// How many it can have.
+        max: u8,
+    },
+    /// More digits than a rate can have.
+    TooLarge,
+    /// A rate is above zero.
+    NotPositive,
+}
+
+/// Reads an exchange rate the user typed, in their regional format: digits,
+/// optionally grouped, and a decimal point (D-065, D-106). As for amounts,
+/// "10.000" typed in German, where the point groups thousands, is read as
+/// ten thousand, and "10.5" is refused rather than read as 105.
+pub fn read_rate(
+    text: &str,
+    decimal_point: &str,
+    group_separator: &str,
+) -> Result<ExchangeRate, RateInputError> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Err(RateInputError::Empty);
+    }
+    let (whole, fraction) = text.split_once(decimal_point).unwrap_or((text, ""));
+    let whole = ungrouped(whole, group_separator).map_err(|_| RateInputError::Malformed)?;
+    let digits_only = |part: &str| part.bytes().all(|byte| byte.is_ascii_digit());
+    // "10," is unfinished; ",5" is clear enough.
+    let unfinished = text.contains(decimal_point) && fraction.is_empty();
+    if !digits_only(fraction) || unfinished || (whole.is_empty() && fraction.is_empty()) {
+        return Err(RateInputError::Malformed);
+    }
+    let plain = format!(
+        "{}{}{fraction}",
+        if whole.is_empty() { "0" } else { &whole },
+        if fraction.is_empty() { "" } else { "." }
+    );
+    plain.parse::<ExchangeRate>().map_err(|error| match error {
+        DecimalError::TooManyDigits => RateInputError::TooLarge,
+        DecimalError::TooManyDecimalPlaces => RateInputError::TooManyDecimalPlaces {
+            max: MAX_DECIMAL_PLACES,
+        },
+        DecimalError::NotPositive => RateInputError::NotPositive,
+        _ => RateInputError::Malformed,
+    })
 }
 
 #[cfg(test)]
@@ -349,5 +407,48 @@ mod tests {
             let text = format.format(Money::from_minor_units(minor, EUR), digits, group);
             prop_assert_eq!(read(&format, ".", digits, &text), Ok(minor));
         }
+    }
+
+    fn rate(
+        text: &str,
+        decimal_point: &str,
+        group_separator: &str,
+    ) -> Result<String, RateInputError> {
+        read_rate(text, decimal_point, group_separator).map(|rate| rate.to_string())
+    }
+
+    #[test]
+    fn rates_are_read_in_the_regional_format() {
+        assert_eq!(rate("1,95583", ",", "."), Ok("1.95583".into()));
+        assert_eq!(rate("10.000", ",", "."), Ok("10000".into()));
+        assert_eq!(rate("10.000,5", ",", "."), Ok("10000.5".into()));
+        assert_eq!(rate(" ,5 ", ",", "."), Ok("0.5".into()));
+        assert_eq!(rate("1.95583", ".", ","), Ok("1.95583".into()));
+        assert_eq!(rate("10,000", ".", ","), Ok("10000".into()));
+        assert_eq!(rate("1\u{a0}000", ",", "\u{a0}"), Ok("1000".into()));
+    }
+
+    #[test]
+    fn a_rate_in_the_wrong_format_is_refused_not_guessed() {
+        // A point groups thousands in German: "10.5" is not ten and a half.
+        assert_eq!(rate("10.5", ",", "."), Err(RateInputError::Malformed));
+    }
+
+    #[test]
+    fn a_rate_that_cannot_be_one_says_why() {
+        assert_eq!(rate("", ",", "."), Err(RateInputError::Empty));
+        assert_eq!(rate("  ", ",", "."), Err(RateInputError::Empty));
+        assert_eq!(rate("abc", ",", "."), Err(RateInputError::Malformed));
+        assert_eq!(rate("10,", ",", "."), Err(RateInputError::Malformed));
+        assert_eq!(rate("-2", ",", "."), Err(RateInputError::Malformed));
+        assert_eq!(rate("0", ",", "."), Err(RateInputError::NotPositive));
+        assert_eq!(
+            rate("0,1234567890123456789", ",", "."),
+            Err(RateInputError::TooManyDecimalPlaces { max: 18 })
+        );
+        assert_eq!(
+            rate("1.000.000.000.000.000.000.000", ",", "."),
+            Err(RateInputError::TooLarge)
+        );
     }
 }

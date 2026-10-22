@@ -19,6 +19,7 @@ Kirigami.ScrollablePage {
     required property FirstStart firstStart
 
     signal addAccountClicked()
+    signal startFromFileClicked()
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -103,6 +104,13 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Add your first account")
                 icon.name: "list-add"
                 onClicked: page.start()
+            }
+
+            Controls.Button {
+                text: page.i18nContext.i18nc("@action:button", "I have a KMyMoney book or a saved KassenSturz book")
+                icon.name: "document-import"
+                flat: true
+                onClicked: page.startFromFileClicked()
             }
         }
     }

@@ -11,6 +11,8 @@
 // drawer's actions below. Undo and redo are in the drawer too, with their
 // shortcuts, and name the change they act on (M3.8). The import of a bank's
 // file (M3.10) starts from the register and runs through its own pages.
+// Saving a copy of the data, and starting a book from a file, are reached
+// from Settings, and the second also from the first screen (M3.12).
 // Amounts and dates arrive as finished text and go back as typed text
 // (D-065), so nothing here calculates with them.
 
@@ -106,6 +108,27 @@ Kirigami.ApplicationWindow {
         id: statementImporter
 
         onChanged: root.screenChangedBook()
+    }
+
+    // Saving a copy of the data in a new file (M3.12).
+    DataExport {
+        id: dataExporter
+    }
+
+    // Starting a book from a complete export or a KMyMoney book (M3.12). It
+    // fills the open book if that is still empty (`changed`), otherwise it
+    // makes a new one and opens it (`created`); the report comes next.
+    BookFromFile {
+        id: bookFromFileState
+
+        onChanged: {
+            root.bookChanged();
+            root.pageStack.replace(bookFromFileDonePage);
+        }
+        onCreated: {
+            bookSession.adoptOpenBook();
+            root.pageStack.push(bookFromFileDonePage);
+        }
     }
 
     // Writes error codes as messages, for a notice.
@@ -247,6 +270,21 @@ Kirigami.ApplicationWindow {
         newBookDialog.open();
     }
 
+    function chooseFileForNewBook() {
+        fromFileDialog.open();
+    }
+
+    // Reads `file` and shows what it holds, or says why a book can't be
+    // started from it (M3.12).
+    function startBookFromFile(file: url) {
+        const result = bookFromFileState.start(file);
+        if (result.code !== undefined) {
+            showPassiveNotification(errorTexts.messageFor(result), 12000);
+            return;
+        }
+        pageStack.push(bookFromFilePage);
+    }
+
     function addAccount(firstRun: bool) {
         pageStack.push(newAccountPage, { firstRun: firstRun });
     }
@@ -280,6 +318,11 @@ Kirigami.ApplicationWindow {
 
     function startImport(accountId: string, file: url) {
         const result = statementImporter.start(accountId, file);
+        if (result.code === "input.whole-book") {
+            // A book from another program: a new book can be started from it.
+            showPassiveNotification(errorTexts.messageFor(result), 15000, i18nContext.i18nc("@action:button", "Start a book from it"), () => root.startBookFromFile(file));
+            return;
+        }
         if (result.code !== undefined) {
             showPassiveNotification(errorTexts.messageFor(result), 12000);
             return;
@@ -396,6 +439,18 @@ Kirigami.ApplicationWindow {
     }
 
     Dialogs.FileDialog {
+        id: fromFileDialog
+
+        title: root.i18nContext.i18nc("@title:window", "Start a book from a file")
+        fileMode: Dialogs.FileDialog.OpenFile
+        nameFilters: [
+            root.i18nContext.i18nc("@item:inlistbox a file type", "Books (*.kmy *.sqlite *.db *.json)"),
+            root.i18nContext.i18nc("@item:inlistbox a file type", "All files (*)")
+        ]
+        onAccepted: root.startBookFromFile(selectedFile)
+    }
+
+    Dialogs.FileDialog {
         id: importDialog
 
         // The account the file goes into.
@@ -459,6 +514,7 @@ Kirigami.ApplicationWindow {
         WelcomePage {
             firstStart: firstStartState
             onAddAccountClicked: root.addAccount(true)
+            onStartFromFileClicked: root.chooseFileForNewBook()
         }
     }
 
@@ -622,7 +678,43 @@ Kirigami.ApplicationWindow {
             history: changeHistory
             onOpenAnotherClicked: root.chooseBookToOpen()
             onNewBookClicked: root.chooseNewBook()
+            onSaveCopyClicked: root.pageStack.push(exportPage)
+            onBookFromFileClicked: root.chooseFileForNewBook()
             onShowHistoryClicked: root.pageStack.push(historyPage)
+        }
+    }
+
+    Component {
+        id: exportPage
+
+        ExportPage {
+            dataExport: dataExporter
+            folderUrl: bookSession.folderUrl
+        }
+    }
+
+    Component {
+        id: bookFromFilePage
+
+        BookFromFilePage {
+            bookFromFile: bookFromFileState
+            onCancelled: {
+                bookFromFileState.cancel();
+                root.pageStack.pop();
+            }
+        }
+    }
+
+    Component {
+        id: bookFromFileDonePage
+
+        BookFromFileDonePage {
+            bookFromFile: bookFromFileState
+            register: accountRegister
+            onDoneClicked: {
+                root.showBook();
+                bookFromFileState.cancel();
+            }
         }
     }
 

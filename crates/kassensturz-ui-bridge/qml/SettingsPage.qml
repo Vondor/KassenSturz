@@ -3,7 +3,8 @@
 
 // The app's settings: which book is open, opening another one or starting a
 // new one (D-033, for people who want more than one book), how amounts look
-// (D-002, D-114), how long the history of changes is kept (D-066, M3.8), and
+// (D-002, D-114), saving a copy of the data and starting a book from a file
+// (M3.12), how long the history of changes is kept (D-066, M3.8), and
 // where the backups go.
 
 import QtQuick
@@ -24,6 +25,8 @@ FormCard.FormCardPage {
 
     signal openAnotherClicked()
     signal newBookClicked()
+    signal saveCopyClicked()
+    signal bookFromFileClicked()
     signal showHistoryClicked()
 
     // The history setting the user chose and the dialog asks about, with how
@@ -118,6 +121,28 @@ FormCard.FormCardPage {
             text: page.i18nContext.i18nc("@action:button", "Start a new book…")
             description: page.i18nContext.i18nc("@info", "An empty book in a folder you choose, for example to try something out.")
             onClicked: page.newBookClicked()
+        }
+    }
+
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "Your data")
+    }
+
+    FormCard.FormCard {
+        FormCard.FormButtonDelegate {
+            icon.name: "document-save-as"
+            text: page.i18nContext.i18nc("@action:button", "Save a copy of my data…")
+            description: page.i18nContext.i18nc("@info", "For a spreadsheet, or the whole book as a backup.")
+            onClicked: page.saveCopyClicked()
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            icon.name: "document-import"
+            text: page.i18nContext.i18nc("@action:button", "Start a book from a file…")
+            description: page.i18nContext.i18nc("@info", "From a KMyMoney book, or a whole book you saved with KassenSturz.")
+            onClicked: page.bookFromFileClicked()
         }
     }
 

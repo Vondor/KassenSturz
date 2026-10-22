@@ -200,6 +200,26 @@ fn a_file_is_written_once_and_never_overwritten() {
 }
 
 #[test]
+fn an_empty_file_is_written_in_place_as_a_sandboxs_file_chooser_leaves_it() {
+    let path = folder("empty").join("transactions.csv");
+    fs::write(&path, b"").expect("made by the chooser");
+    export_file(&CsvExport::default(), &sample(), &path).expect("exported");
+    assert_eq!(fs::read(&path).expect("written"), golden("default.csv"));
+}
+
+#[test]
+fn a_folder_is_not_an_empty_file() {
+    let path = folder("directory").join("transactions.csv");
+    fs::create_dir(&path).expect("a folder of that name");
+    assert_eq!(
+        export_file(&CsvExport::default(), &sample(), &path),
+        Err(ExportError::AlreadyExists {
+            file: path.display().to_string()
+        })
+    );
+}
+
+#[test]
 fn a_missing_folder_is_an_io_error() {
     let path = folder("missing").join("nowhere/transactions.csv");
     assert_eq!(
@@ -256,4 +276,15 @@ fn a_failed_export_removes_the_file_it_began() {
         Err(ExportError::Io(std::io::ErrorKind::StorageFull))
     );
     assert!(!path.exists());
+}
+
+#[test]
+fn a_failed_export_into_an_empty_file_leaves_it_empty_and_there() {
+    let path = folder("failing-empty").join("transactions.txt");
+    fs::write(&path, b"").expect("made by the chooser");
+    assert_eq!(
+        export_file(&Failing, &sample(), &path),
+        Err(ExportError::Io(std::io::ErrorKind::StorageFull))
+    );
+    assert_eq!(fs::read(&path).expect("still there"), b"");
 }

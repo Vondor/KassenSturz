@@ -24,6 +24,8 @@ Kirigami.ScrollablePage {
 
     // Add a transaction to this account.
     signal addTransactionClicked(string accountId)
+    // Import a file from the bank into this account (M3.10).
+    signal importClicked(string accountId)
     // Open a transaction to change or remove it.
     signal transactionClicked(string accountId, string transactionId)
 
@@ -66,6 +68,11 @@ Kirigami.ScrollablePage {
             icon.name: "list-add"
             text: page.i18nContext.i18nc("@action:button", "Add transaction")
             onTriggered: page.addTransactionClicked(page.accountId)
+        },
+        Kirigami.Action {
+            icon.name: "document-import"
+            text: page.i18nContext.i18nc("@action:button", "Import from my bank")
+            onTriggered: page.importClicked(page.accountId)
         },
         Kirigami.Action {
             icon.name: "view-sort"

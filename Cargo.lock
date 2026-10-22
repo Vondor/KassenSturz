@@ -662,6 +662,8 @@ dependencies = [
  "cxx-qt-lib",
  "cxx-qt-lib-extras",
  "kassensturz-core",
+ "kassensturz-import",
+ "kassensturz-pipeline",
  "kassensturz-store",
  "proptest",
 ]

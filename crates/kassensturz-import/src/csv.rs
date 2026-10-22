@@ -69,6 +69,44 @@ impl Csv {
     }
 }
 
+/// The first `rows` rows of a CSV file as text, for a screen on which the
+/// user says which column holds what (M3.10, D-095): the file is decoded
+/// with `encoding` (`None` guesses as [`CsvSettings`] does), `skip_lines`
+/// lines are left out at the start, and each remaining line is split at
+/// `delimiter`. Empty rows are left out. The header, if the file has one, is
+/// the first row. Nothing is read as an amount or a date here; the rows are
+/// only shown, so the user can see whether the separator and the encoding
+/// fit before KassenSturz reads the file for real.
+///
+/// A row that can't be split, e.g. an unclosed quote, ends the list with its
+/// error, as reading the file would.
+pub fn csv_preview(
+    input: &[u8],
+    encoding: Option<TextEncoding>,
+    delimiter: char,
+    skip_lines: usize,
+    rows: usize,
+) -> Result<Vec<Vec<String>>, ImportError> {
+    let text = text::decode(input, encoding)?;
+    let body = without_first_lines(&text, skip_lines);
+    let first_line = u64::try_from(skip_lines)
+        .unwrap_or(u64::MAX)
+        .saturating_add(1);
+    let mut split = Rows::new(body, delimiter, first_line);
+    let mut shown = Vec::new();
+    while shown.len() < rows {
+        let Some(row) = split.next_row() else {
+            break;
+        };
+        let row = row?;
+        if row.is_empty() {
+            continue;
+        }
+        shown.push(row.fields.iter().map(|field| field.to_string()).collect());
+    }
+    Ok(shown)
+}
+
 impl Importer for Csv {
     fn info(&self) -> ImporterInfo {
         ImporterInfo {

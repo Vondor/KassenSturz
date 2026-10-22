@@ -50,6 +50,7 @@ pub use book::{
 pub use camt053::Camt053;
 pub use csv::{
     AmountColumns, Column, Csv, CsvSettings, DateOrder, MAX_COLUMNS, StatusColumn, TextEncoding,
+    csv_preview,
 };
 pub use error::ImportError;
 pub use importer::{

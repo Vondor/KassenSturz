@@ -9,8 +9,10 @@
 // Adding a screen: write its page in a file of its own, add it to
 // `build.rs`, and give it a `Component` and an entry in `screens` and in the
 // drawer's actions below. Undo and redo are in the drawer too, with their
-// shortcuts, and name the change they act on (M3.8). Amounts and dates arrive as finished text and go
-// back as typed text (D-065), so nothing here calculates with them.
+// shortcuts, and name the change they act on (M3.8). The import of a bank's
+// file (M3.10) starts from the register and runs through its own pages.
+// Amounts and dates arrive as finished text and go back as typed text
+// (D-065), so nothing here calculates with them.
 
 import QtQuick
 import QtQuick.Dialogs as Dialogs
@@ -85,6 +87,23 @@ Kirigami.ApplicationWindow {
         id: accountRegister
 
         onChanged: root.screenChangedBook()
+    }
+
+    // Importing a file from the bank into an account (M3.10): one file at a
+    // time, from the file dialog to the summary.
+    // Named differently from the pages' `statementImport` property, which
+    // would otherwise bind to itself.
+    StatementImport {
+        id: statementImporter
+
+        onChanged: root.screenChangedBook()
+    }
+
+    // Writes error codes as messages, for a notice.
+    FormError {
+        id: errorTexts
+
+        visible: false
     }
 
     // Undo, redo and the list of changes (M3.8). Undoing or redoing changes
@@ -242,6 +261,34 @@ Kirigami.ApplicationWindow {
         pageStack.push(registerPage, { accountId: accountId });
     }
 
+    // Imports a file from the bank into the account with `accountId`
+    // (M3.10): the file dialog first, then the screen the file needs.
+    function importStatement(accountId: string) {
+        importDialog.accountId = accountId;
+        importDialog.open();
+    }
+
+    function startImport(accountId: string, file: url) {
+        const result = statementImporter.start(accountId, file);
+        if (result.code !== undefined) {
+            showPassiveNotification(errorTexts.messageFor(result), 12000);
+            return;
+        }
+        pageStack.push(importStep());
+    }
+
+    // The screen for the step the import is at.
+    function importStep(): Component {
+        switch (statementImporter.step) {
+        case "statements":
+            return importStatementsPage;
+        case "csv":
+            return csvSettingsPage;
+        default:
+            return importPreviewPage;
+        }
+    }
+
     // Opens a transaction to change or remove it: one broken down into Parts
     // on the Parts page (M3.6), every other on the transaction page.
     function openTransaction(accountId: string, transactionId: string) {
@@ -333,6 +380,64 @@ Kirigami.ApplicationWindow {
         onAccepted: bookSession.createFile(selectedFile)
     }
 
+    Dialogs.FileDialog {
+        id: importDialog
+
+        // The account the file goes into.
+        property string accountId: ""
+
+        title: root.i18nContext.i18nc("@title:window", "Import a file from your bank")
+        fileMode: Dialogs.FileDialog.OpenFile
+        nameFilters: [
+            root.i18nContext.i18nc("@item:inlistbox a file type", "Bank files (*.xml *.sta *.ofx *.csv *.txt)"),
+            root.i18nContext.i18nc("@item:inlistbox a file type", "All files (*)")
+        ]
+        onAccepted: root.startImport(accountId, selectedFile)
+    }
+
+    Component {
+        id: importStatementsPage
+
+        ImportStatementsPage {
+            statementImport: statementImporter
+            onChosen: root.pageStack.replace(root.importStep())
+        }
+    }
+
+    Component {
+        id: csvSettingsPage
+
+        CsvSettingsPage {
+            statementImport: statementImporter
+            onRead: root.pageStack.replace(root.importStep())
+            onCancelled: root.pageStack.pop()
+        }
+    }
+
+    Component {
+        id: importPreviewPage
+
+        ImportPreviewPage {
+            statementImport: statementImporter
+            onImported: root.pageStack.replace(importDonePage)
+            onCancelled: root.pageStack.pop()
+        }
+    }
+
+    Component {
+        id: importDonePage
+
+        ImportDonePage {
+            statementImport: statementImporter
+            register: accountRegister
+            onDone: {
+                statementImporter.cancel();
+                root.pageStack.pop();
+            }
+            onCheckAgainstBankClicked: (accountId, bank, date) => root.pageStack.push(bankCheckPage, { accountId: accountId, initialBank: bank, initialDate: date })
+        }
+    }
+
     Component {
         id: welcomePage
 
@@ -396,6 +501,7 @@ Kirigami.ApplicationWindow {
         RegisterPage {
             register: accountRegister
             onAddTransactionClicked: accountId => root.addTransaction(false, accountId)
+            onImportClicked: accountId => root.importStatement(accountId)
             onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
         }
     }

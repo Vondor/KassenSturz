@@ -72,6 +72,56 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is a currency code", "This part counts in %1, and your book has no exchange rate for it yet. Type what the part was in %1, e.g. from the receipt.", result.currency);
         case "input.foreign-sign-mismatch":
             return i18nContext.i18nc("@info", "The two amounts of this part point different ways. Give both the same sign.");
+        case "input.whole-book":
+            return i18nContext.i18nc("@info", "This file holds a whole book, e.g. from KMyMoney, not a statement of one account, so it can't be imported into an account. A new book can be started from it instead.");
+        case "input.unknown-format":
+            return i18nContext.i18nc("@info", "KassenSturz doesn't recognize this file. It reads statements as CAMT.053 (.xml), MT940 (.sta), OFX (.ofx) or CSV (.csv, .txt) files; download one of these from your online banking.");
+        case "input.no-statements":
+            return i18nContext.i18nc("@info", "The file holds no statement. Check that it is the right file, or download it again.");
+        case "input.not-a-local-file":
+            return i18nContext.i18nc("@info", "Choose a file on this computer.");
+        case "import.io":
+            return i18nContext.i18nc("@info", "The file couldn't be read. It may have been moved or removed, or you may not have permission to read it. Choose it again.");
+        case "import.file-too-large":
+            return i18nContext.i18nc("@info", "This file is too large to be a bank statement KassenSturz can read safely. Check that it is the right file. Nothing was imported.");
+        case "import.too-deeply-nested":
+        case "import.text-too-long":
+            return i18nContext.i18nc("@info", "The file isn't built like a bank file; it may be damaged. Download it again. Nothing was imported.");
+        case "import.too-many-entries":
+            return i18nContext.i18nc("@info %1 is a number", "The file has more than %1 entries. Download a shorter period and import each part. Nothing was imported.", result.max);
+        case "import.malformed":
+            return result.line !== undefined
+                ? i18nContext.i18nc("@info %1 is a line number", "The file isn't in the format chosen, or it is damaged (line %1). Check the choices, or download the file again. Nothing was imported.", result.line)
+                : i18nContext.i18nc("@info", "The file isn't in the format chosen, or it is damaged. Check the choices, or download the file again. Nothing was imported.");
+        case "import.bad-amount":
+            return i18nContext.i18nc("@info %1 is text from the file", "\"%1\" should be an amount, but KassenSturz can't read it as one. Check the decimal mark and the amount columns. Nothing was imported.", result.found);
+        case "import.bad-date":
+            return i18nContext.i18nc("@info %1 is text from the file", "\"%1\" should be a date, but KassenSturz can't read it in the order of day, month and year chosen. Check that order. Nothing was imported.", result.found);
+        case "import.wrong-encoding":
+            return i18nContext.i18nc("@info", "The file has a character that doesn't exist in the text encoding chosen. Choose another encoding, or let KassenSturz tell it from the file. Nothing was imported.");
+        case "import.column-not-found":
+            return i18nContext.i18nc("@info %1 is the name of a column", "The file has no column called \"%1\". Your bank may have changed its file: check which column holds what. Nothing was imported.", result.column);
+        case "import.column-not-unique":
+            return i18nContext.i18nc("@info %1 is the name of a column", "The file has more than one column called \"%1\", so KassenSturz can't tell which one is meant. Nothing was imported.", result.column);
+        case "import.bad-settings":
+            return i18nContext.i18nc("@info", "The choices are incomplete or contradict each other, e.g. no column for the booking date or the amount, or a column name without a header line. Check them and try again.");
+        case "import.too-many-decimal-places":
+            return i18nContext.i18nc("@info %1 is text from the file, %2 a currency code", "The amount \"%1\" has more decimal places than %2 has. KassenSturz never rounds what a bank delivered, so nothing was imported. Check the decimal mark.", result.found, result.currency);
+        case "import.amount-too-large":
+            return i18nContext.i18nc("@info %1 is text from the file", "The amount \"%1\" is too large for KassenSturz to work with. The file may be damaged. Nothing was imported.", result.found);
+        case "import.unknown-currency":
+            return i18nContext.i18nc("@info %1 is a currency code", "The file uses the currency %1, which KassenSturz doesn't know. Nothing was imported.", result.currency);
+        case "import.currency-mismatch":
+            return i18nContext.i18nc("@info %1 and %2 are currency codes", "The file has an amount in %2 in a statement for an account in %1, so its entries can't be added up. Nothing was imported.", result.expected, result.found);
+        case "import.account-currency-differs":
+            return i18nContext.i18nc("@info %1 is a currency code, %2 the name of an account, %3 a currency code", "The statement is in %1, but %2 counts in %3. Import it into an account in %1. Nothing was imported.", result.statement_currency, result.account, result.account_currency);
+        case "import.replaced-currency-differs":
+            return i18nContext.i18nc("@info %1 and %2 are currency codes, %3 the name of an account, %4 a currency code", "The statement is in %1, which %2 replaced, but %3 counts in %4. Import it into an account in %2. Nothing was imported.", result.statement_currency, result.successor, result.account, result.account_currency);
+        case "import.successor-needed":
+        case "import.successor-not-current":
+            return i18nContext.i18nc("@info %1 is a currency code", "The file uses %1, a currency KassenSturz doesn't know, most likely one that another currency replaced long ago. Such files can't be imported yet. Nothing was imported.", result.currency);
+        case "import.decimal-places-differ":
+            return i18nContext.i18nc("@info %1 is a currency code, %2 and %3 are numbers", "The file counts %1 with %2 decimal places, your book with %3, so its amounts can't be read safely. Nothing was imported.", result.currency, result.file, result.book);
         case "bank-check.cannot-correct":
             return i18nContext.i18nc("@info", "The starting balance is dated after this day, so it can't be corrected from here. Check a day on or after the starting balance.");
         case "store.empty-account-name":

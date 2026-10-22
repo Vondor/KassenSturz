@@ -1174,3 +1174,82 @@ fn damaged_rules_are_reported() {
         Err(StoreError::Corrupt(Corruption::BadRuleTree(id))) if id == lowest
     ));
 }
+
+#[test]
+fn the_matches_of_the_rules_include_what_nobody_booked_through_them() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    assert_eq!(book.rule_matches().expect("matches"), [], "no Rules");
+    let shops = add(
+        &mut book,
+        "Shops",
+        "REWE",
+        Some(BookTo::Category(groceries)),
+        None,
+    );
+    let big = rule(
+        "Big",
+        vec![Condition::Amount(AmountTest::MoneyOut)],
+        Some(BookTo::Category(groceries)),
+    );
+    let big_shops = {
+        let mut sub = big.clone();
+        sub.id = RuleId::generate();
+        sub.name = "Big shop".into();
+        sub.conditions = vec![name_contains("Big Market")];
+        sub
+    };
+    book.add_rule(&big, None).expect("added");
+    book.add_rule(&big_shops, Some(big.id)).expect("added");
+    let booked = imported(&mut book, checking, -5320, 5, "REWE Markt");
+    let waiting = imported(&mut book, checking, -1250, 6, "REWE Express");
+    let sub = imported(&mut book, checking, -990, 7, "Big Market");
+    let other = imported(&mut book, checking, -300, 8, "Bakery");
+    book.run_rules().expect("run");
+
+    let found = book.rule_matches().expect("matches");
+    let seen: Vec<(TransactionId, Vec<RuleId>)> = found
+        .iter()
+        .map(|found| (found.transaction, found.rules.clone()))
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            (booked.id(), vec![shops.id]),
+            (waiting.id(), vec![shops.id]),
+            (sub.id(), vec![big.id, big_shops.id]),
+            (other.id(), vec![big.id]),
+        ],
+        "oldest first, with the chain of Rules down to the one that decided"
+    );
+    assert!(found.iter().all(|found| found.account == checking));
+
+    // What the user entered and sorted by hand matches too, but a move
+    // between two of the user's own accounts doesn't.
+    let household = account(&mut book, "Household", AccountKind::Expense, EUR);
+    let savings = account(&mut book, "Savings account", AccountKind::Asset, EUR);
+    let by_hand = transaction(
+        date(2026, 10, 9),
+        "Corner Hardware",
+        &[(checking, eur(-2000)), (household, eur(2000))],
+    );
+    book.add_transaction(&by_hand).expect("added");
+    let moved = transaction(
+        date(2026, 10, 10),
+        "Corner Hardware",
+        &[(checking, eur(-5000)), (savings, eur(5000))],
+    );
+    book.add_transaction(&moved).expect("added");
+    let found = book.rule_matches().expect("matches");
+    let hardware: Vec<(TransactionId, Vec<RuleId>)> = found
+        .iter()
+        .filter(|found| [by_hand.id(), moved.id()].contains(&found.transaction))
+        .map(|found| (found.transaction, found.rules.clone()))
+        .collect();
+    // "Big" comes before the others and takes every payment, so it decides.
+    assert_eq!(hardware, [(by_hand.id(), vec![big.id])]);
+}

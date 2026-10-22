@@ -16,7 +16,7 @@ use cxx_qt_lib::QVariant;
 use crate::accounts_model::sections_object;
 use crate::format::Locale;
 use crate::number_format::app_locale;
-use crate::overview::{self, Month, OverviewView};
+use crate::overview::{self, LatestRow, Month, OverviewView};
 use crate::session;
 use crate::variant::{list, map, text};
 
@@ -121,6 +121,22 @@ impl qobject::BookOverview {
     }
 }
 
+/// A transaction as seen from one of the user's accounts, as QML gets it.
+pub fn latest_row_object(row: &LatestRow) -> QVariant {
+    map([
+        ("accountId", text(&row.account_id)),
+        ("account", text(&row.account)),
+        ("id", text(&row.id)),
+        ("date", text(&row.date)),
+        ("otherParty", text(&row.other_party)),
+        ("category", text(&row.category)),
+        ("amount", text(&row.amount.text)),
+        ("exactAmount", text(&row.amount.exact)),
+        ("incoming", QVariant::from(&row.incoming)),
+        ("kind", text(row.kind)),
+    ])
+}
+
 fn view_object(view: &OverviewView) -> QVariant {
     let totals = view.totals.iter().map(|totals| {
         let categories = |list_of: &[overview::CategoryTotal]| {
@@ -146,20 +162,7 @@ fn view_object(view: &OverviewView) -> QVariant {
             ("spending", categories(&totals.spending)),
         ])
     });
-    let latest = view.latest.iter().map(|row| {
-        map([
-            ("accountId", text(&row.account_id)),
-            ("account", text(&row.account)),
-            ("id", text(&row.id)),
-            ("date", text(&row.date)),
-            ("otherParty", text(&row.other_party)),
-            ("category", text(&row.category)),
-            ("amount", text(&row.amount.text)),
-            ("exactAmount", text(&row.amount.exact)),
-            ("incoming", QVariant::from(&row.incoming)),
-            ("kind", text(row.kind)),
-        ])
-    });
+    let latest = view.latest.iter().map(latest_row_object);
     let transfers = i32::try_from(view.transfers).unwrap_or(i32::MAX);
     map([
         ("month", text(&view.month)),

@@ -659,6 +659,7 @@ Kirigami.ApplicationWindow {
             rules: ruleBook
             onAddRuleClicked: root.pageStack.push(rulePage)
             onRuleClicked: ruleId => root.pageStack.push(rulePage, { ruleId: ruleId })
+            onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
             onCreateFromSuggestion: (payee, category) => root.pageStack.push(rulePage, { initialForm: ruleBook.formFromSuggestion(payee, category) })
         }
     }

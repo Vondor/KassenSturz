@@ -11,6 +11,7 @@
 
 import QtQuick
 import QtQuick.Controls as Controls
+import QtQuick.Dialogs as Dialogs
 import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.formcard as FormCard
 import org.kde.ki18n
@@ -20,6 +21,7 @@ FormCard.FormCardPage {
     id: page
 
     required property BookFromFile bookFromFile
+    required property url folderUrl
     readonly property var file: bookFromFile.view ?? ({})
     readonly property var unlisted: file.unlisted ?? []
 
@@ -37,12 +39,35 @@ FormCard.FormCardPage {
         forNewBook: true
     }
 
-    function make() {
+    function answers(): var {
         const answers = [];
         for (let index = 0; index < currencyQuestions.count; ++index) {
             answers.push(currencyQuestions.itemAt(index).answer());
         }
-        error.result = bookFromFile.create(answers);
+        return answers;
+    }
+
+    // Where a new book is kept is the user's to choose, where the platform
+    // lets them (D-125); otherwise, and when the file fills the open book,
+    // there is nothing to ask.
+    function make() {
+        if (file.canChoosePlace) {
+            placeDialog.currentFolder = folderUrl;
+            placeDialog.currentFile = folderUrl + "/" + encodeURIComponent(file.bookName ?? "");
+            placeDialog.open();
+        } else {
+            error.result = bookFromFile.create(answers());
+        }
+    }
+
+    Dialogs.FileDialog {
+        id: placeDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Where to keep the new book")
+        fileMode: Dialogs.FileDialog.SaveFile
+        defaultSuffix: "ksz"
+        nameFilters: [page.i18nContext.i18nc("@item:inlistbox a file type", "KassenSturz books (*.ksz)")]
+        onAccepted: error.result = page.bookFromFile.createAt(page.answers(), selectedFile)
     }
 
     FormCard.FormHeader {
@@ -105,7 +130,9 @@ FormCard.FormCardPage {
                 : page.i18nContext.i18nc("@info", "Into a new book")
             description: page.file.intoOpenBook
                 ? page.i18nContext.i18nc("@info", "Your book is still empty, so the file fills it.")
-                : page.i18nContext.i18nc("@info %1 is a book's name", "KassenSturz makes a new book called \"%1\" and opens it. Your current book isn't changed; you can open it again in Settings with \"Open another book…\".", page.file.bookName ?? "")
+                : page.file.canChoosePlace
+                    ? page.i18nContext.i18nc("@info", "KassenSturz makes a new book and opens it. You choose where it is kept and what it is called. Your current book isn't changed; you can open it again in Settings with \"Open another book…\".")
+                    : page.i18nContext.i18nc("@info %1 is a book's name", "KassenSturz makes a new book called \"%1\" and opens it. Your current book isn't changed; you can open it again in Settings with \"Open another book…\".", page.file.bookName ?? "")
             descriptionItem.textFormat: Text.PlainText
         }
     }
@@ -131,7 +158,9 @@ FormCard.FormCardPage {
     FormCard.FormCard {
         FormCard.FormButtonDelegate {
             icon.name: "document-new"
-            text: page.i18nContext.i18nc("@action:button", "Make the book")
+            text: page.file.canChoosePlace
+                ? page.i18nContext.i18nc("@action:button", "Choose where to keep it…")
+                : page.i18nContext.i18nc("@action:button", "Make the book")
             onClicked: page.make()
         }
 

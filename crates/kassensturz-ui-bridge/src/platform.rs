@@ -59,6 +59,20 @@ pub fn computer() -> Computer {
     }
 }
 
+/// Whether the user can choose where a new book is kept. In the Flatpak
+/// they can't: the app can't reach the user's files (D-113), and the file
+/// chooser's portal would make an empty file the book can't live in
+/// (`Drive::Sandboxed`), so a new book goes into the data folder. This
+/// changes if the Flatpak is ever allowed the user's files (Q-071).
+pub fn can_choose_book_place() -> bool {
+    !in_flatpak(Path::new("/.flatpak-info"))
+}
+
+/// Whether the app runs in a Flatpak, which puts `marker` into every sandbox.
+fn in_flatpak(marker: &Path) -> bool {
+    cfg!(target_os = "linux") && marker.exists()
+}
+
 /// What kind of drive a book is on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Drive {
@@ -129,6 +143,15 @@ fn drive_of(file_system: &str) -> Drive {
 mod tests {
     use super::*;
     use crate::test_folder::TestFolder;
+
+    #[test]
+    fn a_flatpak_is_told_by_the_file_it_puts_into_every_sandbox() {
+        let folder = TestFolder::new();
+        let marker = folder.path().join(".flatpak-info");
+        assert!(!in_flatpak(&marker));
+        std::fs::write(&marker, b"").expect("marker");
+        assert_eq!(in_flatpak(&marker), cfg!(target_os = "linux"));
+    }
 
     #[test]
     fn tells_network_drives_and_sandbox_files_from_local_drives() {

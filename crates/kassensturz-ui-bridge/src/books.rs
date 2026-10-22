@@ -206,6 +206,18 @@ impl Books {
         fill: impl FnOnce(&mut Book) -> Result<T, E>,
     ) -> Result<(OpenBook, T), Filled<E>> {
         let path = self.free_path(stem).map_err(Filled::Problem)?;
+        self.create_filled_at(&path, fill)
+    }
+
+    /// Like [`Books::create_filled`], but at `path` the user chose: the
+    /// extension `.ksz` is added if it lacks it, and an existing file is
+    /// never replaced (D-125).
+    pub fn create_filled_at<T, E>(
+        &self,
+        path: &Path,
+        fill: impl FnOnce(&mut Book) -> Result<T, E>,
+    ) -> Result<(OpenBook, T), Filled<E>> {
+        let path = with_extension(path);
         let mut open = self
             .opened_unremembered(&path, |path| Book::create(path, &self.computer))
             .map_err(Filled::Problem)?;
@@ -522,6 +534,41 @@ mod tests {
         assert!(!setup.folder.join("data/From KMyMoney.ksz.lock").exists());
         let open = books.open_last("Household").expect("still the last");
         assert_eq!(open.path, home);
+    }
+
+    #[test]
+    fn a_book_from_a_file_can_go_where_the_user_chose_and_never_replaces_a_file() {
+        let setup = Setup::new();
+        let books = setup.books("Desk");
+        let chosen = setup.folder.join("chosen");
+        std::fs::create_dir_all(&chosen).expect("a folder");
+
+        // The extension is added, as for any new book.
+        let made = books
+            .create_filled_at::<(), StoreError>(&chosen.join("Savings"), |_| Ok(()))
+            .expect("book made");
+        assert_eq!(made.0.path, chosen.join("Savings.ksz"));
+        drop(made);
+        let open = books.open_last("Household").expect("remembered");
+        assert_eq!(open.path, chosen.join("Savings.ksz"));
+        drop(open);
+
+        // A file that is there stays as it is, whatever the dialog asked.
+        std::fs::write(chosen.join("Mine.ksz"), b"mine").expect("a file");
+        let refused =
+            books.create_filled_at::<(), StoreError>(&chosen.join("Mine.ksz"), |_| Ok(()));
+        assert!(matches!(refused, Err(Filled::Problem(_))));
+        assert_eq!(
+            std::fs::read(chosen.join("Mine.ksz")).expect("kept"),
+            b"mine"
+        );
+
+        // A refused file leaves no book at the chosen place either.
+        let refused = books
+            .create_filled_at::<(), _>(&chosen.join("Gone.ksz"), |_| Err(StoreError::NotEmpty));
+        assert!(matches!(refused, Err(Filled::Fill(StoreError::NotEmpty))));
+        assert!(!chosen.join("Gone.ksz").exists());
+        assert!(!chosen.join("Gone.ksz.lock").exists());
     }
 
     #[test]

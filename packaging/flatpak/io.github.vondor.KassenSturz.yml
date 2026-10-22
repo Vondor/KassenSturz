@@ -28,6 +28,11 @@ finish-args:
   # Deliberately nothing else: no network (AGENTS.md §3.1 rule 4) and no
   # access to the user's files. The household book lives in the app's own
   # data folder (D-033).
+  # Without the system bus, KDE's Solid can't ask UDisks2 for the drives a
+  # file dialog lists, and warns about it on every try (#77). The sandbox
+  # leaves that bus out on purpose, so only that warning is turned off.
+  # `flatpak run --env=QT_LOGGING_RULES=...` replaces this rule.
+  - --env=QT_LOGGING_RULES=kf.solid.backends.udisks2.warning=false
 modules:
   - name: kassensturz
     buildsystem: cmake-ninja

@@ -8,9 +8,11 @@
 //
 // Adding a screen: write its page in a file of its own, add it to
 // `build.rs`, and give it a `Component` and an entry in `screens` and in the
-// drawer's actions below. Undo and redo are in the drawer too, with their
-// shortcuts, and name the change they act on (M3.8). The import of a bank's
-// file (M3.10) starts from the register and runs through its own pages.
+// drawer's actions below. Pages are opened with `pushPage` and
+// `replacePage`, not with the page stack's own `push` and `replace` (#77).
+// Undo and redo are in the drawer too, with their shortcuts, and name the
+// change they act on (M3.8). The import of a bank's file (M3.10) starts
+// from the register and runs through its own pages.
 // Saving a copy of the data, and starting a book from a file, are reached
 // from Settings, and the second also from the first screen (M3.12).
 // Amounts and dates arrive as finished text and go back as typed text
@@ -26,10 +28,12 @@ Kirigami.ApplicationWindow {
     id: root
 
     // Translations come from the "kassensturz" catalog (D-034), set up from
-    // QML alone (D-074). KI18n then warns once at startup that it "cannot
-    // filter events for objects in a different thread": Qt loads its QML
-    // plugin on a loader thread. Translating works; only switching languages
-    // while the app runs wouldn't.
+    // QML alone (D-074). Qt then warns once at startup that it "cannot filter
+    // events for objects in a different thread" (#77): KI18n's QML library
+    // keeps its language watcher in a static object, made on the thread that
+    // loads the library, which is Qt's QML loader thread, and this context
+    // puts it to work on the main thread. Translating works; only switching
+    // languages while the app runs wouldn't.
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
     }
@@ -123,11 +127,11 @@ Kirigami.ApplicationWindow {
 
         onChanged: {
             root.bookChanged();
-            root.pageStack.replace(bookFromFileDonePage);
+            root.replacePage(bookFromFileDonePage);
         }
         onCreated: {
             bookSession.adoptOpenBook();
-            root.pageStack.push(bookFromFileDonePage);
+            root.pushPage(bookFromFileDonePage);
         }
     }
 
@@ -176,7 +180,7 @@ Kirigami.ApplicationWindow {
         bookChanged();
         if (!firstStartState.hasAccount) {
             pageStack.clear();
-            pageStack.push(welcomePage);
+            pushPage(welcomePage);
         } else {
             showScreen("overview");
         }
@@ -217,7 +221,7 @@ Kirigami.ApplicationWindow {
             if (page && page.failure !== undefined) {
                 page.failure = result;
             } else {
-                pageStack.push(historyPage, { failure: result });
+                pushPage(historyPage, { failure: result });
             }
             return;
         }
@@ -259,12 +263,38 @@ Kirigami.ApplicationWindow {
         if (!bookSession.open) {
             pageStack.clear();
         }
-        pageStack.push(problemPage);
+        pushPage(problemPage);
     }
 
     function showScreen(name: string) {
         pageStack.clear();
-        pageStack.push(screens[name]);
+        pushPage(screens[name]);
+    }
+
+    // Shows a new page made from `component` on top of the current one.
+    function pushPage(component: Component, properties: var): Item {
+        return pageStack.push(makePage(component, properties));
+    }
+
+    // Shows a new page made from `component` in place of the current one.
+    function replacePage(component: Component, properties: var): Item {
+        return pageStack.replace(makePage(component, properties));
+    }
+
+    // Makes a page for the page stack (#77). Given the component, Kirigami
+    // makes the page under an object that isn't drawn, and Qt warns that the
+    // page "was not placed in the graphics scene" until the stack takes it.
+    // Made under the window instead, it is taken out of the window again at
+    // once: the stack then owns it, as it would, and deletes it when the page
+    // leaves the stack. The window, as its owner, keeps it from being
+    // collected as garbage until then.
+    function makePage(component: Component, properties: var): Item {
+        const page = component.createObject(root, properties ?? {});
+        if (!page) {
+            throw new Error("Error while making a page: " + component.errorString());
+        }
+        page.parent = null;
+        return page;
     }
 
     function chooseBookToOpen() {
@@ -287,11 +317,11 @@ Kirigami.ApplicationWindow {
             showPassiveNotification(errorTexts.messageFor(result), 12000);
             return;
         }
-        pageStack.push(bookFromFilePage);
+        pushPage(bookFromFilePage);
     }
 
     function addAccount(firstRun: bool) {
-        pageStack.push(newAccountPage, { firstRun: firstRun });
+        pushPage(newAccountPage, { firstRun: firstRun });
     }
 
     // Adds a transaction to the account with `accountId`, or lets the user
@@ -304,14 +334,14 @@ Kirigami.ApplicationWindow {
             const accounts = accountRegister.accountChoices();
             const first = accounts.length > 0 ? accounts[accounts.length - 1].id : "";
             pageStack.pop(pageStack.get(0));
-            pageStack.replace(transactionPage, { firstRun: true, accountId: first });
+            replacePage(transactionPage, { firstRun: true, accountId: first });
         } else {
-            pageStack.push(transactionPage, { firstRun: false, accountId: accountId });
+            pushPage(transactionPage, { firstRun: false, accountId: accountId });
         }
     }
 
     function showRegister(accountId: string) {
-        pageStack.push(registerPage, { accountId: accountId });
+        pushPage(registerPage, { accountId: accountId });
     }
 
     // Imports a file from the bank into the account with `accountId`
@@ -332,7 +362,7 @@ Kirigami.ApplicationWindow {
             showPassiveNotification(errorTexts.messageFor(result), 12000);
             return;
         }
-        pageStack.push(importStep());
+        pushPage(importStep());
     }
 
     // The screen for the step the import is at.
@@ -351,7 +381,7 @@ Kirigami.ApplicationWindow {
     // on the Parts page (M3.6), every other on the transaction page.
     function openTransaction(accountId: string, transactionId: string) {
         const kind = accountRegister.details(accountId, transactionId).kind ?? "simple";
-        pageStack.push(kind === "parts" ? partsPage : transactionPage, { accountId: accountId, transactionId: transactionId });
+        pushPage(kind === "parts" ? partsPage : transactionPage, { accountId: accountId, transactionId: transactionId });
     }
 
     // One page at a time, also in a wide window.
@@ -475,7 +505,7 @@ Kirigami.ApplicationWindow {
 
         ImportStatementsPage {
             statementImport: statementImporter
-            onChosen: root.pageStack.replace(root.importStep())
+            onChosen: root.replacePage(root.importStep())
         }
     }
 
@@ -484,7 +514,7 @@ Kirigami.ApplicationWindow {
 
         CsvSettingsPage {
             statementImport: statementImporter
-            onRead: root.pageStack.replace(root.importStep())
+            onRead: root.replacePage(root.importStep())
             onCancelled: root.pageStack.pop()
         }
     }
@@ -494,7 +524,7 @@ Kirigami.ApplicationWindow {
 
         ImportPreviewPage {
             statementImport: statementImporter
-            onImported: root.pageStack.replace(importDonePage)
+            onImported: root.replacePage(importDonePage)
             onCancelled: root.pageStack.pop()
         }
     }
@@ -509,7 +539,7 @@ Kirigami.ApplicationWindow {
                 statementImporter.cancel();
                 root.pageStack.pop();
             }
-            onCheckAgainstBankClicked: (accountId, bank, date) => root.pageStack.push(bankCheckPage, { accountId: accountId, initialBank: bank, initialDate: date })
+            onCheckAgainstBankClicked: (accountId, bank, date) => root.pushPage(bankCheckPage, { accountId: accountId, initialBank: bank, initialDate: date })
         }
     }
 
@@ -543,13 +573,13 @@ Kirigami.ApplicationWindow {
         TransactionPage {
             register: accountRegister
             onDone: firstRun ? root.showScreen("overview") : root.pageStack.pop()
-            onCheckAgainstBankClicked: accountId => root.pageStack.push(bankCheckPage, { accountId: accountId, initialBank: "", initialDate: "" })
+            onCheckAgainstBankClicked: accountId => root.pushPage(bankCheckPage, { accountId: accountId, initialBank: "", initialDate: "" })
             // The Parts page takes this page's place, so saving goes back
             // to the list.
-            onBreakDownClicked: (accountId, transactionId) => root.pageStack.replace(partsPage, { accountId: accountId, transactionId: transactionId })
+            onBreakDownClicked: (accountId, transactionId) => root.replacePage(partsPage, { accountId: accountId, transactionId: transactionId })
             // "Create a Rule from this transaction" (D-088): the Rule's
             // page replaces this one, which has nothing left to do.
-            onCreateRuleClicked: (accountId, transactionId) => root.pageStack.replace(rulePage, { initialForm: ruleBook.formFromTransaction(accountId, transactionId) })
+            onCreateRuleClicked: (accountId, transactionId) => root.replacePage(rulePage, { initialForm: ruleBook.formFromTransaction(accountId, transactionId) })
         }
     }
 
@@ -581,7 +611,7 @@ Kirigami.ApplicationWindow {
             register: accountRegister
             rules: ruleBook
             onAddTransactionClicked: accountId => root.addTransaction(false, accountId)
-            onCreateRuleFromSuggestion: (payee, category) => root.pageStack.push(rulePage, { initialForm: ruleBook.formFromSuggestion(payee, category) })
+            onCreateRuleFromSuggestion: (payee, category) => root.pushPage(rulePage, { initialForm: ruleBook.formFromSuggestion(payee, category) })
             onImportClicked: accountId => root.importStatement(accountId)
             onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
         }
@@ -593,7 +623,7 @@ Kirigami.ApplicationWindow {
         AccountsPage {
             accounts: accountList
             onAddAccountClicked: root.addAccount(false)
-            onAccountClicked: accountId => root.pageStack.push(accountDetailsPage, { accountId: accountId })
+            onAccountClicked: accountId => root.pushPage(accountDetailsPage, { accountId: accountId })
         }
     }
 
@@ -611,7 +641,7 @@ Kirigami.ApplicationWindow {
 
         AccountDetailsPage {
             accounts: accountList
-            onCheckClicked: (bank, date) => root.pageStack.push(bankCheckPage, { accountId: accountId, initialBank: bank, initialDate: date })
+            onCheckClicked: (bank, date) => root.pushPage(bankCheckPage, { accountId: accountId, initialBank: bank, initialDate: date })
             onTransactionsClicked: root.showRegister(accountId)
             // Closed or opened again: back to the list.
             onAccountClosedOrOpened: root.pageStack.pop()
@@ -631,10 +661,10 @@ Kirigami.ApplicationWindow {
 
         CategoriesPage {
             categories: categoryTree
-            onAddCategoryClicked: root.pageStack.push(categoryPage)
+            onAddCategoryClicked: root.pushPage(categoryPage)
             onCategoryClicked: categoryId => {
                 const row = categoryTree.view.rows.find(row => row.id === categoryId);
-                root.pageStack.push(categoryPage, {
+                root.pushPage(categoryPage, {
                     categoryId: row.id,
                     categoryName: row.name,
                     income: row.income,
@@ -658,9 +688,9 @@ Kirigami.ApplicationWindow {
 
         RulesPage {
             rules: ruleBook
-            onAddRuleClicked: root.pageStack.push(rulePage)
-            onRuleClicked: ruleId => root.pageStack.push(rulePage, { ruleId: ruleId })
-            onCreateFromSuggestion: (payee, category) => root.pageStack.push(rulePage, { initialForm: ruleBook.formFromSuggestion(payee, category) })
+            onAddRuleClicked: root.pushPage(rulePage)
+            onRuleClicked: ruleId => root.pushPage(rulePage, { ruleId: ruleId })
+            onCreateFromSuggestion: (payee, category) => root.pushPage(rulePage, { initialForm: ruleBook.formFromSuggestion(payee, category) })
         }
     }
 
@@ -670,7 +700,7 @@ Kirigami.ApplicationWindow {
         RulePage {
             rules: ruleBook
             onDone: root.pageStack.pop()
-            onAddSubRuleClicked: ruleId => root.pageStack.replace(rulePage, { parentId: ruleId })
+            onAddSubRuleClicked: ruleId => root.replacePage(rulePage, { parentId: ruleId })
         }
     }
 
@@ -684,9 +714,9 @@ Kirigami.ApplicationWindow {
             history: changeHistory
             onOpenAnotherClicked: root.chooseBookToOpen()
             onNewBookClicked: root.chooseNewBook()
-            onSaveCopyClicked: root.pageStack.push(exportPage)
+            onSaveCopyClicked: root.pushPage(exportPage)
             onBookFromFileClicked: root.chooseFileForNewBook()
-            onShowHistoryClicked: root.pageStack.push(historyPage)
+            onShowHistoryClicked: root.pushPage(historyPage)
         }
     }
 

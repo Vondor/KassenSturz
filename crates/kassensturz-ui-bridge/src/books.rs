@@ -195,7 +195,75 @@ impl Books {
         self.opened(&path, |path| Book::create(path, &self.computer))
     }
 
+    /// Makes a new book in KassenSturz's data folder, called `stem` (the
+    /// name of the file it is made from, say), filled by `fill`, and opens it.
+    /// A name that is taken gets a number after it. If `fill` fails, the book
+    /// is removed again and the book opened last stays the one opened last
+    /// (D-125).
+    pub fn create_filled<T, E>(
+        &self,
+        stem: &str,
+        fill: impl FnOnce(&mut Book) -> Result<T, E>,
+    ) -> Result<(OpenBook, T), Filled<E>> {
+        let path = self.free_path(stem).map_err(Filled::Problem)?;
+        let mut open = self
+            .opened_unremembered(&path, |path| Book::create(path, &self.computer))
+            .map_err(Filled::Problem)?;
+        match fill(&mut open.book) {
+            Ok(value) => {
+                self.remember(&open.path);
+                Ok((open, value))
+            }
+            Err(error) => {
+                let path = open.path.clone();
+                // Closing it first lets go of its lock. The book is only
+                // just made and the fill takes back what it did, so nothing
+                // is lost.
+                drop(open);
+                let _ = std::fs::remove_file(&path);
+                Err(Filled::Fill(error))
+            }
+        }
+    }
+
+    /// A path in the data folder for a new book called `stem`: no book is
+    /// there yet.
+    fn free_path(&self, stem: &str) -> Result<PathBuf, Problem> {
+        let folder = self.app_folder.as_deref().ok_or(Problem::NoAppFolder)?;
+        std::fs::create_dir_all(folder).map_err(|error| Problem::Store {
+            path: folder.to_owned(),
+            error: error.into(),
+        })?;
+        let name = file_name(stem);
+        let base = name.strip_suffix(&format!(".{EXTENSION}")).unwrap_or(&name);
+        (1..)
+            .map(|number| match number {
+                1 => folder.join(&name),
+                number => folder.join(format!("{base} ({number}).{EXTENSION}")),
+            })
+            .find(|path| !path.exists())
+            .ok_or(Problem::NoAppFolder)
+    }
+
     fn opened(
+        &self,
+        path: &Path,
+        open: impl FnOnce(&Path) -> Result<Book, StoreError>,
+    ) -> Result<OpenBook, Problem> {
+        let book = self.opened_unremembered(path, open)?;
+        self.remember(&book.path);
+        Ok(book)
+    }
+
+    /// If this isn't saved, the app opens its own book next time, which is
+    /// safe: the user can open this one again.
+    fn remember(&self, path: &Path) {
+        if !self.settings.set_last_book(path) {
+            eprintln!("kassensturz: couldn't remember which book is open");
+        }
+    }
+
+    fn opened_unremembered(
         &self,
         path: &Path,
         open: impl FnOnce(&Path) -> Result<Book, StoreError>,
@@ -216,17 +284,22 @@ impl Books {
                 error,
             },
         })?;
-        // If this isn't saved, the app opens its own book next time, which
-        // is safe: the user can open this one again.
-        if !self.settings.set_last_book(&path) {
-            eprintln!("kassensturz: couldn't remember which book is open");
-        }
         Ok(OpenBook {
             book,
             path,
             on_network_drive: drive == Drive::Network,
         })
     }
+}
+
+/// Why a book made from a file wasn't made: the book couldn't be made, or
+/// what was to go into it was refused.
+#[derive(Debug)]
+pub enum Filled<E> {
+    /// The new book didn't open.
+    Problem(Problem),
+    /// The new book was made and opened, but refused what the file holds.
+    Fill(E),
 }
 
 /// The app's own book's file name, from the name the UI passes: without
@@ -403,5 +476,63 @@ mod tests {
             with_extension(Path::new("a/Book.v2")),
             Path::new("a/Book.v2.ksz")
         );
+    }
+
+    #[test]
+    fn a_book_made_from_a_file_is_filled_remembered_and_never_replaces_another() {
+        let setup = Setup::new();
+        let books = setup.books("Desk");
+        let first = books
+            .create_filled("Old KMyMoney book", |book| {
+                book.is_empty().map(|empty| assert!(empty))
+            })
+            .expect("book made");
+        assert_eq!(
+            first.0.path,
+            setup.folder.join("data/Old KMyMoney book.ksz")
+        );
+        drop(first);
+        // Opened last, so the next start opens it.
+        let open = books.open_last("Household").expect("opened");
+        assert_eq!(open.path, setup.folder.join("data/Old KMyMoney book.ksz"));
+        drop(open);
+
+        // The name is taken: the new book gets a number, the old one stays.
+        let second = books
+            .create_filled::<(), StoreError>("Old KMyMoney book", |_| Ok(()))
+            .expect("book made");
+        assert_eq!(
+            second.0.path,
+            setup.folder.join("data/Old KMyMoney book (2).ksz")
+        );
+        drop(second);
+        assert!(setup.folder.join("data/Old KMyMoney book.ksz").exists());
+    }
+
+    #[test]
+    fn a_refused_file_leaves_no_book_and_the_last_book_stays_the_last() {
+        let setup = Setup::new();
+        let books = setup.books("Desk");
+        drop(books.open_last("Household").expect("the app's own book"));
+        let home = setup.folder.join("data/Household.ksz");
+
+        let refused = books.create_filled::<(), _>("From KMyMoney", |_| Err(StoreError::NotEmpty));
+        assert!(matches!(refused, Err(Filled::Fill(StoreError::NotEmpty))));
+        assert!(!setup.folder.join("data/From KMyMoney.ksz").exists());
+        assert!(!setup.folder.join("data/From KMyMoney.ksz.lock").exists());
+        let open = books.open_last("Household").expect("still the last");
+        assert_eq!(open.path, home);
+    }
+
+    #[test]
+    fn a_book_from_a_file_needs_a_folder_to_live_in() {
+        let setup = Setup::new();
+        let mut books = setup.books("Desk");
+        books.app_folder = None;
+        let refused = books.create_filled::<(), StoreError>("From KMyMoney", |_| Ok(()));
+        assert!(matches!(
+            refused,
+            Err(Filled::Problem(Problem::NoAppFolder))
+        ));
     }
 }

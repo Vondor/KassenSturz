@@ -11,6 +11,27 @@ use crate::error::StoreError;
 use crate::{Action, Book, HistoryRetention};
 
 impl Book {
+    /// Whether nothing is in the book yet: no currency, account, rate,
+    /// Rule or transaction, and no change in its history. Only such a book
+    /// can be filled ([`Book::fill_new`]); one after the app's first start
+    /// has the household's currency and categories, so it is not empty.
+    pub fn is_empty(&self) -> Result<bool, StoreError> {
+        self.conn
+            .query_row(
+                "SELECT NOT (
+                     EXISTS (SELECT 1 FROM main.currencies)
+                     OR EXISTS (SELECT 1 FROM main.accounts)
+                     OR EXISTS (SELECT 1 FROM main.prices)
+                     OR EXISTS (SELECT 1 FROM main.rules)
+                     OR EXISTS (SELECT 1 FROM main.transactions)
+                     OR EXISTS (SELECT 1 FROM main.changes)
+                     OR EXISTS (SELECT 1 FROM temp.changes))",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(StoreError::from)
+    }
+
     /// Fills a new, empty book in one go, e.g. with a complete export read
     /// back (D-029, D-046), and sets how long it keeps its change history
     /// (D-066).
@@ -43,21 +64,7 @@ impl Book {
             !self.recording && !self.filling,
             "filling a new book can't be part of a user action"
         );
-        let empty: bool = self
-            .conn
-            .query_row(
-                "SELECT NOT (
-                     EXISTS (SELECT 1 FROM main.currencies)
-                     OR EXISTS (SELECT 1 FROM main.accounts)
-                     OR EXISTS (SELECT 1 FROM main.prices)
-                     OR EXISTS (SELECT 1 FROM main.rules)
-                     OR EXISTS (SELECT 1 FROM main.transactions)
-                     OR EXISTS (SELECT 1 FROM main.changes)
-                     OR EXISTS (SELECT 1 FROM temp.changes))",
-                [],
-                |row| row.get(0),
-            )
-            .map_err(StoreError::from)?;
+        let empty = self.is_empty()?;
         if !empty {
             return Err(StoreError::NotEmpty.into());
         }

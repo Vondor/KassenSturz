@@ -66,6 +66,12 @@ pub mod qobject {
         #[cxx_name = "createFile"]
         fn create_file(self: Pin<&mut BookSession>, file: &QUrl);
 
+        /// Shows the book that another screen just made and opened, e.g. a
+        /// new book started from a file (M3.12), as `openFile` shows one.
+        #[qinvokable]
+        #[cxx_name = "adoptOpenBook"]
+        fn adopt_open_book(self: Pin<&mut BookSession>);
+
         /// Opens the book `problem` says is locked, after the user was
         /// warned about that lock (D-080).
         #[qinvokable]
@@ -152,6 +158,16 @@ impl qobject::BookSession {
             return;
         };
         self.attempt(Attempt::Open(path.clone()), |books| books.create(&path));
+    }
+
+    fn adopt_open_book(mut self: Pin<&mut Self>) {
+        if session::path().is_none() {
+            return;
+        }
+        self.as_mut().rust_mut().last_attempt = None;
+        self.as_mut().set_problem(QVariant::default());
+        self.as_mut().show_open_book();
+        self.as_mut().opened();
     }
 
     fn open_anyway(self: Pin<&mut Self>) {

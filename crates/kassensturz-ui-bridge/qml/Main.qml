@@ -170,6 +170,13 @@ Kirigami.ApplicationWindow {
         pageStack.push(registerPage, { accountId: accountId });
     }
 
+    // Opens a transaction to change or remove it: one broken down into Parts
+    // on the Parts page (M3.6), every other on the transaction page.
+    function openTransaction(accountId: string, transactionId: string) {
+        const kind = accountRegister.details(accountId, transactionId).kind ?? "simple";
+        pageStack.push(kind === "parts" ? partsPage : transactionPage, { accountId: accountId, transactionId: transactionId });
+    }
+
     // One page at a time, also in a wide window.
     pageStack.columnView.columnResizeMode: Kirigami.ColumnView.SingleColumn
 
@@ -263,6 +270,18 @@ Kirigami.ApplicationWindow {
             register: accountRegister
             onDone: firstRun ? root.showScreen("overview") : root.pageStack.pop()
             onCheckAgainstBankClicked: accountId => root.pageStack.push(bankCheckPage, { accountId: accountId, initialBank: "", initialDate: "" })
+            // The Parts page takes this page's place, so saving goes back
+            // to the list.
+            onBreakDownClicked: (accountId, transactionId) => root.pageStack.replace(partsPage, { accountId: accountId, transactionId: transactionId })
+        }
+    }
+
+    Component {
+        id: partsPage
+
+        PartsPage {
+            register: accountRegister
+            onDone: root.pageStack.pop()
         }
     }
 
@@ -283,7 +302,7 @@ Kirigami.ApplicationWindow {
         RegisterPage {
             register: accountRegister
             onAddTransactionClicked: accountId => root.addTransaction(false, accountId)
-            onTransactionClicked: (accountId, transactionId) => root.pageStack.push(transactionPage, { accountId: accountId, transactionId: transactionId })
+            onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
         }
     }
 

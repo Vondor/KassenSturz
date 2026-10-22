@@ -8,7 +8,8 @@
 //! it is a `QAbstractListModel` whose rows live in Rust, and QML's list view
 //! asks for what it shows. Every row is text and flags (D-065): the sorting
 //! and the balance after each entry are worked out in `register.rs`. The
-//! writes behind the register's pages (`transaction_entry.rs`) are on the
+//! writes behind the register's pages (`transaction_entry.rs`, and
+//! `parts_entry.rs` for breaking a transaction down into Parts) are on the
 //! same object, so one page can add, change and remove transactions; every
 //! change asks the other screens to read the book again through `changed`.
 
@@ -16,8 +17,8 @@ use core::pin::Pin;
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{
-    QByteArray, QHash, QHashPair_i32_QByteArray, QMap, QMapPair_QString_QVariant, QModelIndex,
-    QString, QVariant,
+    QByteArray, QHash, QHashPair_i32_QByteArray, QList, QMap, QMapPair_QString_QVariant,
+    QModelIndex, QString, QVariant,
 };
 use kassensturz_store::Book;
 
@@ -25,6 +26,7 @@ use crate::errors::ErrorText;
 use crate::format::Locale;
 use crate::locale::QtLocale;
 use crate::number_format::app_locale;
+use crate::parts_entry::{self, PartInput, PartsError, PartsInput};
 use crate::register::{RegisterRow, Sort, SortKey, register_view};
 use crate::session;
 use crate::transaction_entry::{self, EntryError, NewEntry};
@@ -155,6 +157,60 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "amountExample"]
         fn amount_example(self: &AccountRegister, account_id: &QString) -> QString;
+
+        /// The transaction with `transaction_id` as the Parts page shows it
+        /// (M3.6, D-119): `total`, `totalFixed`, `otherParty`, `date`,
+        /// `currency`, `moneyIn`, its `parts` (each with `id`, `category`,
+        /// `amount`, `currency`, `foreignAmount`) and the `fixed` parts
+        /// booked to other accounts (`name`, `amount`, `incoming`); or an
+        /// error's `code`.
+        #[qinvokable]
+        #[cxx_name = "partsDetails"]
+        fn parts_details(
+            self: &AccountRegister,
+            account_id: &QString,
+            transaction_id: &QString,
+        ) -> QVariant;
+
+        /// The categories a Part of the transaction can be booked to, as a
+        /// list of `id`, `path`, `depth` and `currency` (empty for the
+        /// account's): those for money in or for money out, in any
+        /// currency, and the ones the transaction's Parts have already.
+        #[qinvokable]
+        #[cxx_name = "partCategoryChoices"]
+        fn part_category_choices(
+            self: &AccountRegister,
+            account_id: &QString,
+            transaction_id: &QString,
+            money_in: bool,
+        ) -> QVariant;
+
+        /// What the Parts page shows for its form, an object with `moneyIn`,
+        /// `total`, `otherParty`, `date` and `parts` (each with `id`,
+        /// `category`, `amount` and `foreignAmount`), all as typed: the
+        /// Part worked out from the rest, the amounts in other currencies
+        /// with their rate, what the Parts add up to and what is `missing`
+        /// or `over`; or an error's `code`. Nothing is written.
+        #[qinvokable]
+        #[cxx_name = "partsPreview"]
+        fn parts_preview(
+            self: &AccountRegister,
+            account_id: &QString,
+            transaction_id: &QString,
+            form: &QVariant,
+        ) -> QVariant;
+
+        /// Replaces the transaction's Parts, total, other party and date
+        /// from the same form. Returns an empty map, or the error's `code`
+        /// and its parameters.
+        #[qinvokable]
+        #[cxx_name = "saveParts"]
+        fn save_parts(
+            self: Pin<&mut AccountRegister>,
+            account_id: &QString,
+            transaction_id: &QString,
+            form: &QVariant,
+        ) -> QVariant;
     }
 
     extern "RustQt" {
@@ -424,6 +480,137 @@ impl qobject::AccountRegister {
         QString::from(example.unwrap_or_default().as_str())
     }
 
+    fn parts_details(&self, account_id: &QString, transaction_id: &QString) -> QVariant {
+        let (account_id, transaction_id) = (account_id.to_string(), transaction_id.to_string());
+        let found = session::with_book(|book| {
+            parts_entry::details(book, &account_id, &transaction_id, &app_locale())
+                .map_err(|error| parts_error_text(book, &error))
+        });
+        match found {
+            Some(Ok(form)) => map([
+                ("id", text(&form.id)),
+                ("account", text(&form.account)),
+                ("currency", text(&form.currency)),
+                ("moneyIn", QVariant::from(&form.money_in)),
+                ("total", text(&form.total)),
+                ("totalFixed", QVariant::from(&form.total_fixed)),
+                ("otherParty", text(&form.other_party)),
+                ("date", text(&form.date)),
+                (
+                    "parts",
+                    list(form.parts.iter().map(|part| {
+                        map([
+                            ("id", text(&part.id)),
+                            ("category", text(&part.category)),
+                            ("amount", text(&part.amount)),
+                            ("currency", text(&part.currency)),
+                            ("foreignAmount", text(&part.foreign_amount)),
+                        ])
+                    })),
+                ),
+                (
+                    "fixed",
+                    list(form.fixed.iter().map(|part| {
+                        map([
+                            ("name", text(&part.name)),
+                            ("amount", text(&part.amount)),
+                            ("incoming", QVariant::from(&part.incoming)),
+                        ])
+                    })),
+                ),
+            ]),
+            Some(Err(error)) => error_object(&error),
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        }
+    }
+
+    fn part_category_choices(
+        &self,
+        account_id: &QString,
+        transaction_id: &QString,
+        money_in: bool,
+    ) -> QVariant {
+        let (account_id, transaction_id) = (account_id.to_string(), transaction_id.to_string());
+        let found = session::with_book(|book| {
+            parts_entry::category_choices(book, &account_id, &transaction_id, money_in)
+                .map_err(|error| parts_error_text(book, &error))
+        });
+        match found {
+            Some(Ok(choices)) => list(choices.iter().map(|choice| {
+                map([
+                    ("id", text(&choice.id)),
+                    ("path", text(&choice.path)),
+                    (
+                        "depth",
+                        QVariant::from(&i32::try_from(choice.depth).unwrap_or(0)),
+                    ),
+                    ("currency", text(&choice.currency)),
+                ])
+            })),
+            Some(Err(error)) => error_object(&error),
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        }
+    }
+
+    fn parts_preview(
+        &self,
+        account_id: &QString,
+        transaction_id: &QString,
+        form: &QVariant,
+    ) -> QVariant {
+        let (account_id, transaction_id) = (account_id.to_string(), transaction_id.to_string());
+        let form = PartsFormData::read(form);
+        let parts = form.parts();
+        let entered = form.input(&parts);
+        let found = session::with_book(|book| {
+            parts_entry::preview(book, &account_id, &transaction_id, &entered, &app_locale())
+                .map_err(|error| parts_error_text(book, &error))
+        });
+        match found {
+            Some(Ok(preview)) => map([
+                (
+                    "parts",
+                    list(preview.parts.iter().map(|part| {
+                        map([
+                            ("amount", text(&part.amount)),
+                            ("open", QVariant::from(&part.open)),
+                            ("currency", text(&part.currency)),
+                            ("foreignAmount", text(&part.foreign_amount)),
+                            ("suggested", QVariant::from(&part.suggested)),
+                            ("rate", text(&part.rate)),
+                            ("rateFrom", text(&part.rate_from)),
+                            ("rateTo", text(&part.rate_to)),
+                            ("rateDate", text(&part.rate_date)),
+                        ])
+                    })),
+                ),
+                ("sum", text(&preview.sum)),
+                ("missing", text(&preview.missing)),
+                ("over", text(&preview.over)),
+            ]),
+            Some(Err(error)) => error_object(&error),
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        }
+    }
+
+    fn save_parts(
+        self: Pin<&mut Self>,
+        account_id: &QString,
+        transaction_id: &QString,
+        form: &QVariant,
+    ) -> QVariant {
+        let (account_id, transaction_id) = (account_id.to_string(), transaction_id.to_string());
+        let form = PartsFormData::read(form);
+        let parts = form.parts();
+        let entered = form.input(&parts);
+        let result = session::with_book_mut(|book| {
+            parts_entry::save(book, &account_id, &transaction_id, &entered, &app_locale())
+                .map_err(|error| parts_error_text(book, &error))
+        })
+        .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")));
+        self.finish(result)
+    }
+
     fn row_count(&self, _parent: &QModelIndex) -> i32 {
         self.rust().count
     }
@@ -486,21 +673,12 @@ impl Form {
         let map = form
             .value::<QMap<QMapPair_QString_QVariant>>()
             .unwrap_or_default();
-        let text = |key: &str| {
-            map.get(&QString::from(key))
-                .and_then(|value| value.value::<QString>())
-                .map(|value| value.to_string())
-                .unwrap_or_default()
-        };
         Self {
-            money_in: map
-                .get(&QString::from("moneyIn"))
-                .and_then(|value| value.value::<bool>())
-                .unwrap_or(false),
-            amount: text("amount"),
-            other_party: text("otherParty"),
-            category: text("category"),
-            date: text("date"),
+            money_in: flag(&map, "moneyIn"),
+            amount: field(&map, "amount"),
+            other_party: field(&map, "otherParty"),
+            category: field(&map, "category"),
+            date: field(&map, "date"),
         }
     }
 
@@ -514,6 +692,97 @@ impl Form {
             date: &self.date,
         }
     }
+}
+
+/// What the Parts page's form holds, as typed; a missing field counts as
+/// empty.
+struct PartsFormData {
+    money_in: bool,
+    total: String,
+    other_party: String,
+    date: String,
+    parts: Vec<PartData>,
+}
+
+/// One Part of that form.
+struct PartData {
+    id: String,
+    category: String,
+    amount: String,
+    foreign_amount: String,
+}
+
+impl PartsFormData {
+    fn read(form: &QVariant) -> Self {
+        let map = form
+            .value::<QMap<QMapPair_QString_QVariant>>()
+            .unwrap_or_default();
+        let parts = map
+            .get(&QString::from("parts"))
+            .and_then(|value| value.value::<QList<QVariant>>())
+            .unwrap_or_default();
+        Self {
+            money_in: flag(&map, "moneyIn"),
+            total: field(&map, "total"),
+            other_party: field(&map, "otherParty"),
+            date: field(&map, "date"),
+            parts: parts
+                .iter()
+                .map(|part| {
+                    let part = part
+                        .value::<QMap<QMapPair_QString_QVariant>>()
+                        .unwrap_or_default();
+                    PartData {
+                        id: field(&part, "id"),
+                        category: field(&part, "category"),
+                        amount: field(&part, "amount"),
+                        foreign_amount: field(&part, "foreignAmount"),
+                    }
+                })
+                .collect(),
+        }
+    }
+
+    fn parts(&self) -> Vec<PartInput<'_>> {
+        self.parts
+            .iter()
+            .map(|part| PartInput {
+                id: &part.id,
+                category: &part.category,
+                amount: &part.amount,
+                foreign_amount: &part.foreign_amount,
+            })
+            .collect()
+    }
+
+    fn input<'a>(&'a self, parts: &'a [PartInput<'a>]) -> PartsInput<'a> {
+        PartsInput {
+            money_in: self.money_in,
+            total: &self.total,
+            other_party: &self.other_party,
+            date: &self.date,
+            parts,
+        }
+    }
+}
+
+/// A text field of a form, empty if missing.
+fn field(map: &QMap<QMapPair_QString_QVariant>, key: &str) -> String {
+    map.get(&QString::from(key))
+        .and_then(|value| value.value::<QString>())
+        .map(|value| value.to_string())
+        .unwrap_or_default()
+}
+
+/// A yes-or-no field of a form, no if missing.
+fn flag(map: &QMap<QMapPair_QString_QVariant>, key: &str) -> bool {
+    map.get(&QString::from(key))
+        .and_then(|value| value.value::<bool>())
+        .unwrap_or(false)
+}
+
+fn parts_error_text(book: &Book, error: &PartsError) -> ErrorText {
+    parts_entry::error_text(book, error, &app_locale())
 }
 
 /// Changes the open book, turning an error into what the UI shows.

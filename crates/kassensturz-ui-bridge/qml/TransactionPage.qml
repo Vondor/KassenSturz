@@ -5,9 +5,10 @@
 // or received, how much, to or from whom, what for and when. The other
 // party reads "To" or "From" (D-034). Only a simple transaction, one account
 // and one category, can be changed here: a starting balance is corrected
-// through "Check against my bank" (D-116), a Transfer and a purchase broken
-// down into Parts get their own pages later (M3.6, M3.7); they can only be
-// removed from here.
+// through "Check against my bank" (D-116), a purchase broken down into Parts
+// has its own page (M3.6, D-119), which "Break down this transaction" opens
+// for a simple one too; a Transfer gets its own page later (M3.7) and can
+// only be removed from here.
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -60,6 +61,8 @@ Kirigami.ScrollablePage {
     signal done()
     // The user wants "Check against my bank" for the account.
     signal checkAgainstBankClicked(string accountId)
+    // The user wants to break the transaction down into Parts (D-017).
+    signal breakDownClicked(string accountId, string transactionId)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -145,7 +148,7 @@ Kirigami.ScrollablePage {
                 ? page.i18nContext.i18nc("@info", "This is the starting balance: what the account held when you began. To change it, check the account against your bank, and KassenSturz offers to correct it.")
                 : page.kind === "transfer"
                     ? page.i18nContext.i18nc("@info %1 is the name of an account", "This money was moved between this account and %1. Changing a Transfer isn't possible yet; you can remove it and add it again.", page.entry.otherAccount ?? "")
-                    : page.i18nContext.i18nc("@info", "This transaction is broken down into several parts. Changing the parts isn't possible yet; you can remove it and add it again.")
+                    : page.i18nContext.i18nc("@info", "This transaction is broken down into several parts, which have their own page.")
             wrapMode: Text.Wrap
         }
 
@@ -154,6 +157,13 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@action:button", "Check against my bank…")
             icon.name: "view-financial-account-checking"
             onClicked: page.checkAgainstBankClicked(page.chosenAccount)
+        }
+
+        Controls.Button {
+            visible: page.kind === "parts"
+            text: page.i18nContext.i18nc("@action:button", "Change the parts…")
+            icon.name: "view-list-details"
+            onClicked: page.breakDownClicked(page.chosenAccount, page.transactionId)
         }
 
         Controls.Label {
@@ -258,6 +268,17 @@ Kirigami.ScrollablePage {
                 flat: true
                 onClicked: page.done()
             }
+        }
+
+        // One step away from the simple form (progressive disclosure,
+        // AGENTS.md §6): a saved transaction can be broken down after the
+        // fact (D-017).
+        Controls.Button {
+            visible: !page.adding && page.kind === "simple"
+            text: page.i18nContext.i18nc("@action:button", "Break down this transaction…")
+            icon.name: "view-list-details"
+            flat: true
+            onClicked: page.breakDownClicked(page.chosenAccount, page.transactionId)
         }
 
         Controls.Label {

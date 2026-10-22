@@ -25,7 +25,14 @@ Kirigami.InlineMessage {
 
     type: Kirigami.MessageType.Error
     visible: result.code !== undefined
-    text: visible ? messageFor(result) : ""
+    text: visible ? withPart(result, messageFor(result)) : ""
+
+    // A message about one Part of a transaction names its number (M3.6).
+    function withPart(result: var, message: string): string {
+        return result.part === undefined
+            ? message
+            : i18nContext.i18nc("@info %1 is the number of a part of a transaction, %2 a message about it", "Part %1: %2", result.part, message);
+    }
 
     function messageFor(result: var): string {
         switch (result.code) {
@@ -53,6 +60,18 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is the name of a category", "The default categories can't be written: %1 isn't among them. Please report this, so it can be fixed.", result.parent);
         case "input.not-editable-here":
             return i18nContext.i18nc("@info", "This transaction can't be changed on this page. Go back to the list and open it again.");
+        case "input.no-parts":
+            return i18nContext.i18nc("@info", "Add at least one part, so the transaction says what it was for.");
+        case "input.too-many-open-parts":
+            return i18nContext.i18nc("@info", "Only one part can be left without an amount; KassenSturz works that one out. Type the amounts of the others.");
+        case "input.parts-dont-add-up":
+            return result.missing !== undefined
+                ? i18nContext.i18nc("@info %1, %2 and %3 are amounts of money", "The parts add up to %1, but the transaction is %2. Sort the remaining %3 into a part, or leave one part's amount empty and KassenSturz works it out.", result.parts, result.total, result.missing)
+                : i18nContext.i18nc("@info %1, %2 and %3 are amounts of money", "The parts add up to %1, but the transaction is only %2. Take %3 out of the parts, or leave one part's amount empty and KassenSturz works it out.", result.parts, result.total, result.over);
+        case "input.foreign-amount-needed":
+            return i18nContext.i18nc("@info %1 is a currency code", "This part counts in %1, and your book has no exchange rate for it yet. Type what the part was in %1, e.g. from the receipt.", result.currency);
+        case "input.foreign-sign-mismatch":
+            return i18nContext.i18nc("@info", "The two amounts of this part point different ways. Give both the same sign.");
         case "bank-check.cannot-correct":
             return i18nContext.i18nc("@info", "The starting balance is dated after this day, so it can't be corrected from here. Check a day on or after the starting balance.");
         case "store.empty-account-name":

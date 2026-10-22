@@ -106,7 +106,7 @@ pub fn error_text(book: &Book, error: &TransferPromptError, locale: &impl Locale
     }
 }
 
-fn suggestion_text(
+pub(crate) fn suggestion_text(
     book: &Book,
     accounts: &[Account],
     found: &TransferMatch,

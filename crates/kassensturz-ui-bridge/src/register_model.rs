@@ -31,7 +31,7 @@ use crate::parts_entry::{self, PartInput, PartsError, PartsInput};
 use crate::register::{RegisterRow, Sort, SortKey, register_view};
 use crate::session;
 use crate::transaction_entry::{self, EntryError, NewEntry};
-use crate::transfer_prompt::{self, SideText};
+use crate::transfer_prompt::{self, SideText, SuggestionText};
 use crate::variant::{error_object, list, map, text};
 
 #[cxx_qt::bridge]
@@ -652,18 +652,7 @@ impl qobject::AccountRegister {
                 .map_err(|error| transfer_prompt::error_text(book, &error, &app_locale()))
         });
         match found {
-            Some(Ok(suggestions)) => list(suggestions.iter().map(|found| {
-                map([
-                    ("outgoing", side_object(&found.outgoing)),
-                    ("incoming", side_object(&found.incoming)),
-                    ("amount", text(&found.amount.text)),
-                    ("exactAmount", text(&found.amount.exact)),
-                    (
-                        "businessDays",
-                        QVariant::from(&i32::try_from(found.business_days).unwrap_or(0)),
-                    ),
-                ])
-            })),
+            Some(Ok(suggestions)) => list(suggestions.iter().map(suggestion_object)),
             Some(Err(error)) => error_object(&error),
             None => error_object(&ErrorText::plain("input.no-such-entry")),
         }
@@ -725,6 +714,20 @@ impl qobject::AccountRegister {
             Err(error) => error_object(&error),
         }
     }
+}
+
+/// A suggested Transfer as `TransferPrompt.qml` takes it.
+pub(crate) fn suggestion_object(found: &SuggestionText) -> QVariant {
+    map([
+        ("outgoing", side_object(&found.outgoing)),
+        ("incoming", side_object(&found.incoming)),
+        ("amount", text(&found.amount.text)),
+        ("exactAmount", text(&found.amount.exact)),
+        (
+            "businessDays",
+            QVariant::from(&i32::try_from(found.business_days).unwrap_or(0)),
+        ),
+    ])
 }
 
 /// One side of a suggested Transfer as QML gets it.
@@ -845,7 +848,7 @@ impl PartsFormData {
 }
 
 /// A text field of a form, empty if missing.
-fn field(map: &QMap<QMapPair_QString_QVariant>, key: &str) -> String {
+pub(crate) fn field(map: &QMap<QMapPair_QString_QVariant>, key: &str) -> String {
     map.get(&QString::from(key))
         .and_then(|value| value.value::<QString>())
         .map(|value| value.to_string())
@@ -853,7 +856,7 @@ fn field(map: &QMap<QMapPair_QString_QVariant>, key: &str) -> String {
 }
 
 /// A yes-or-no field of a form, no if missing.
-fn flag(map: &QMap<QMapPair_QString_QVariant>, key: &str) -> bool {
+pub(crate) fn flag(map: &QMap<QMapPair_QString_QVariant>, key: &str) -> bool {
     map.get(&QString::from(key))
         .and_then(|value| value.value::<bool>())
         .unwrap_or(false)

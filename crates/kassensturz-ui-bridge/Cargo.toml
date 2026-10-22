@@ -18,7 +18,7 @@ path = "src/main.rs"
 [features]
 default = ["bundled-sqlite"]
 # See kassensturz-store (D-061).
-bundled-sqlite = ["kassensturz-store/bundled-sqlite"]
+bundled-sqlite = ["kassensturz-store/bundled-sqlite", "kassensturz-import/bundled-sqlite"]
 
 [dependencies]
 cxx.workspace = true
@@ -26,6 +26,8 @@ cxx-qt.workspace = true
 cxx-qt-lib.workspace = true
 cxx-qt-lib-extras.workspace = true
 kassensturz-core.workspace = true
+kassensturz-import.workspace = true
+kassensturz-pipeline.workspace = true
 kassensturz-store.workspace = true
 
 [build-dependencies]

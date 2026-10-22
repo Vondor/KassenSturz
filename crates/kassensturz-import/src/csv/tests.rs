@@ -605,3 +605,36 @@ proptest! {
         let _ = CsvSettings::from_text(&input);
     }
 }
+
+#[test]
+fn the_preview_shows_the_first_rows_as_text_without_reading_amounts() {
+    let input = "Kontoauszug\n\nDatum;Betrag;\"Verwendungs;zweck\"\n01.10.2026;-12,50;Kaffee\n\n02.10.2026;1.000,00;Gehalt\n";
+    let rows = csv_preview(input.as_bytes(), None, ';', 1, 2).expect("preview");
+    assert_eq!(
+        rows,
+        [
+            vec!["Datum", "Betrag", "Verwendungs;zweck"],
+            vec!["01.10.2026", "-12,50", "Kaffee"],
+        ]
+    );
+    let all = csv_preview(input.as_bytes(), None, ';', 1, 10).expect("preview");
+    assert_eq!(all.len(), 3);
+    assert_eq!(all[2], ["02.10.2026", "1.000,00", "Gehalt"]);
+    // Another separator shows one column per row, which the user sees.
+    let tabs = csv_preview(input.as_bytes(), None, '\t', 1, 10).expect("preview");
+    assert_eq!(tabs[0], ["Datum;Betrag;\"Verwendungs;zweck\""]);
+    // A character that doesn't exist in the chosen encoding is an error,
+    // as when reading the file for real.
+    let latin = b"Datum;Betrag\n01.10.2026;\xe4\n";
+    assert_eq!(
+        csv_preview(latin, Some(TextEncoding::Utf8), ';', 0, 10),
+        Err(ImportError::WrongEncoding {
+            encoding: TextEncoding::Utf8,
+            line: Some(2),
+        })
+    );
+    assert_eq!(
+        csv_preview(latin, None, ';', 0, 10).expect("Windows-1252 guessed")[1],
+        ["01.10.2026", "ä"]
+    );
+}

@@ -285,7 +285,7 @@ impl qobject::BookSession {
 }
 
 /// The local file `url` names; `None` for anything else.
-fn local_path(url: &QUrl) -> Option<PathBuf> {
+pub(crate) fn local_path(url: &QUrl) -> Option<PathBuf> {
     let path = url.to_local_file()?.to_string();
     (!path.is_empty()).then(|| PathBuf::from(path))
 }

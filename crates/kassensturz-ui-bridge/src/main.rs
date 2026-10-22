@@ -30,6 +30,8 @@ mod register;
 mod register_model;
 mod session;
 mod settings;
+mod statement_import;
+mod statement_import_model;
 #[cfg(test)]
 mod test_folder;
 mod transaction_entry;

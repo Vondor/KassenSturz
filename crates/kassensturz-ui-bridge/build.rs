@@ -26,9 +26,14 @@ fn main() {
             "qml/CategoriesPage.qml",
             "qml/CategoryPage.qml",
             "qml/ChangeNames.qml",
+            "qml/CsvColumnBox.qml",
+            "qml/CsvSettingsPage.qml",
             "qml/DefaultCategories.qml",
             "qml/FormError.qml",
             "qml/HistoryPage.qml",
+            "qml/ImportDonePage.qml",
+            "qml/ImportPreviewPage.qml",
+            "qml/ImportStatementsPage.qml",
             "qml/MockNotice.qml",
             "qml/NewAccountPage.qml",
             "qml/OverviewPage.qml",
@@ -53,6 +58,7 @@ fn main() {
             "src/platform.rs",
             "src/register_model.rs",
             "src/settings.rs",
+            "src/statement_import_model.rs",
         ])
         .cpp_files(["cpp/locale.cpp", "cpp/platform.cpp", "cpp/settings.cpp"]);
     // SAFETY: only adds include folders for KConfig's headers, which

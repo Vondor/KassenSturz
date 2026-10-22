@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-22 22:29+0000\n"
+"POT-Creation-Date: 2026-10-22 22:30+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -4155,8 +4155,8 @@ msgid "Overview"
 msgstr "Übersicht"
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:59
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:81
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:215
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:85
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:254
 #: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:264
 #, kde-format
 msgctxt "@action:button"
@@ -4489,13 +4489,13 @@ msgctxt "@item:inmenu sort the transactions by"
 msgid "Date"
 msgstr "Datum"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:86
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:90
 #, kde-format
 msgctxt "@action:button"
 msgid "Import from my bank"
 msgstr "Von meiner Bank importieren"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:91
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:95
 #, kde-format
 msgctxt ""
 "@action:button settings of one account: its name, closing it, checking it "
@@ -4503,31 +4503,43 @@ msgctxt ""
 msgid "About this account"
 msgstr "Über dieses Konto"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:96
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:100
 #, kde-format
 msgctxt "@action:button %1 says what the list is sorted by"
 msgid "Sorted by %1"
 msgstr "Sortiert nach %1"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:127
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:131
 #, kde-format
 msgctxt "@action:inmenu turn the sort order around"
 msgid "Oldest first"
 msgstr "Älteste zuerst"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:129
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:133
 #, kde-format
 msgctxt "@action:inmenu turn the sort order around"
 msgid "Smallest first"
 msgstr "Kleinste zuerst"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:130
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:134
 #, kde-format
 msgctxt "@action:inmenu turn the sort order around"
 msgid "Z to A"
 msgstr "Z bis A"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:151
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:159
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Filter these transactions"
+msgstr "Diese Buchungen filtern"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:160
+#, kde-format
+msgctxt "@label"
+msgid "Filter transactions"
+msgstr "Buchungen filtern"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:183
 #: crates/kassensturz-ui-bridge/qml/RulesPage.qml:105
 #, kde-format
 msgctxt "@info %1 is a number, %2 a name, %3 a category"
@@ -4544,27 +4556,39 @@ msgstr[1] ""
 "Sie haben %2 schon %1 Mal von Hand der Kategorie %3 zugeordnet. Soll "
 "KassenSturz das ab jetzt für Sie erledigen?"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:155
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:187
 #: crates/kassensturz-ui-bridge/qml/RulesPage.qml:109
 #, kde-format
 msgctxt "@action:button"
 msgid "Create a Rule"
 msgstr "Regel erstellen"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:159
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:191
 #: crates/kassensturz-ui-bridge/qml/RulesPage.qml:113
 #, kde-format
 msgctxt "@action:button"
 msgid "No, thanks"
 msgstr "Nein, danke"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:211
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:246
+#, kde-format
+msgctxt "@info nothing fits what was typed in the filter"
+msgid "No transaction fits"
+msgstr "Keine Buchung passt"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:247
 #, kde-format
 msgctxt "@info"
 msgid "Nothing here yet"
 msgstr "Hier ist noch nichts"
 
-#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:212
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:249
+#, kde-format
+msgctxt "@info"
+msgid "Try other words, or clear the filter to see all transactions."
+msgstr "Versuchen Sie andere Wörter oder leeren Sie den Filter, um alle Buchungen zu sehen."
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:250
 #, kde-format
 msgctxt "@info"
 msgid ""

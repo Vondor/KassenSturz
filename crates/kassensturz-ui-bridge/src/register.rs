@@ -108,6 +108,30 @@ pub struct RegisterRow {
     pub note: String,
 }
 
+impl RegisterRow {
+    /// Whether the row fits what the user typed in the quick filter: every
+    /// word of `query` appears, ignoring case, in its date, who it came from
+    /// or went to, category, amount (as shown or exactly) or note. An empty
+    /// query fits every row.
+    pub fn fits(&self, query: &str) -> bool {
+        let words: Vec<String> = query.split_whitespace().map(str::to_lowercase).collect();
+        if words.is_empty() {
+            return true;
+        }
+        let haystack = [
+            &self.date,
+            &self.other_party,
+            &self.category,
+            &self.amount.text,
+            &self.amount.exact,
+            &self.note,
+        ]
+        .map(|text| text.to_lowercase())
+        .join("\n");
+        words.iter().all(|word| haystack.contains(word.as_str()))
+    }
+}
+
 /// What a transaction is, seen from one account. The register's page can
 /// change only the simple kind here; the others get their own pages (D-118).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -476,5 +500,37 @@ mod sort_tests {
         ] {
             assert_eq!(SortKey::from_key(key.key()), Some(key));
         }
+    }
+
+    #[test]
+    fn the_quick_filter_needs_every_word_somewhere_in_the_row_ignoring_case() {
+        let row = RegisterRow {
+            id: String::new(),
+            date: "2026-03-05".into(),
+            other_party: "Corner Bakery".into(),
+            category: "Food".into(),
+            amount: Shown {
+                text: "-4 €".into(),
+                exact: "-3,80 €".into(),
+            },
+            incoming: false,
+            starting_balance: false,
+            kind: "simple",
+            balance: Shown {
+                text: "100 €".into(),
+                exact: "100,00 €".into(),
+            },
+            owes: false,
+            note: "Rolls for Sunday".into(),
+        };
+        assert!(row.fits(""));
+        assert!(row.fits("  "));
+        assert!(row.fits("bakery"));
+        assert!(row.fits("BAKERY food"));
+        assert!(row.fits("sunday 3,80"));
+        assert!(row.fits("2026-03"));
+        assert!(!row.fits("bakery rent"));
+        // What the account held afterwards is not part of the row's text.
+        assert!(!row.fits("100"));
     }
 }

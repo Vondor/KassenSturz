@@ -34,7 +34,7 @@ Kirigami.ScrollablePage {
     // What the last "Show what would change" found.
     property var rebookPreview: ({})
     // The transactions the conditions fit as typed now, newest first, and
-    // how many of them are listed (D-132).
+    // how many of them are listed (D-133).
     property int previewCount: 0
     property var previewRows: []
     readonly property int previewLimit: 15

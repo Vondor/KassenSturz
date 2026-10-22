@@ -729,7 +729,7 @@ pub fn matches(
 /// The transactions the Rule the form describes fits on its own, as
 /// [`matches`] lists them, without the Rule being in the book: what the
 /// editor shows while the user types. The Rules before it and its sub-Rules
-/// aren't looked at (D-132).
+/// aren't looked at (D-133).
 pub fn preview_matches(
     book: &Book,
     form: &RuleForm,

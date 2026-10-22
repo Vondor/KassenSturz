@@ -71,6 +71,8 @@ pub mod qobject {
         #[qproperty(QString, sort_key, cxx_name = "sortKey", READ, NOTIFY)]
         #[qproperty(bool, descending, READ, NOTIFY)]
         #[qproperty(i32, count, READ, NOTIFY)]
+        #[qproperty(i32, unfiltered, READ, NOTIFY)]
+        #[qproperty(QString, filter, READ, NOTIFY)]
         #[qproperty(QString, today, READ, CONSTANT)]
         type AccountRegister = super::AccountRegisterRust;
     }
@@ -91,6 +93,12 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "sortBy"]
         fn sort_by(self: Pin<&mut AccountRegister>, key: &QString, descending: bool);
+
+        /// Shows only the transactions that fit `text`, the words typed in
+        /// the quick filter (`RegisterRow::fits`). Empty text shows all.
+        #[qinvokable]
+        #[cxx_name = "setFilter"]
+        fn set_filter(self: Pin<&mut AccountRegister>, text: &QString);
 
         /// The open accounts a transaction can be added to, as a list of
         /// `id` and `name`.
@@ -301,6 +309,8 @@ pub struct AccountRegisterRust {
     sort_key: QString,
     descending: bool,
     count: i32,
+    unfiltered: i32,
+    filter: QString,
     today: QString,
     sort: Sort,
     rows: Vec<RegisterRow>,
@@ -320,8 +330,14 @@ impl cxx_qt::Initialize for qobject::AccountRegister {
 
 impl qobject::AccountRegister {
     fn show(mut self: Pin<&mut Self>, account_id: &QString) {
+        // Another account starts unfiltered, the same one keeps its filter.
+        let same = self.rust().account_id == *account_id;
         self.as_mut().rust_mut().account_id = account_id.clone();
         self.as_mut().account_id_changed();
+        if !same {
+            self.as_mut().rust_mut().filter = QString::default();
+            self.as_mut().filter_changed();
+        }
         self.refresh();
     }
 
@@ -372,14 +388,27 @@ impl qobject::AccountRegister {
                     model.rows = Vec::new();
                 }
             }
+            model.unfiltered = i32::try_from(model.rows.len()).unwrap_or(i32::MAX);
+            let query = model.filter.to_string();
+            model.rows.retain(|row| row.fits(&query));
             model.count = i32::try_from(model.rows.len()).unwrap_or(i32::MAX);
         }
         self.as_mut().end_reset_model();
+        self.as_mut().unfiltered_changed();
         self.as_mut().account_name_changed();
         self.as_mut().balance_changed();
         self.as_mut().exact_balance_changed();
         self.as_mut().owes_changed();
         self.as_mut().count_changed();
+    }
+
+    fn set_filter(mut self: Pin<&mut Self>, text: &QString) {
+        if self.rust().filter == *text {
+            return;
+        }
+        self.as_mut().rust_mut().filter = text.clone();
+        self.as_mut().filter_changed();
+        self.refresh();
     }
 
     fn sort_by(mut self: Pin<&mut Self>, key: &QString, descending: bool) {

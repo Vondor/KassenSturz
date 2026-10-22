@@ -22,6 +22,8 @@ mod first_start_model;
 mod format;
 mod history;
 mod history_model;
+mod language;
+mod language_model;
 mod locale;
 mod number_format;
 mod number_format_model;
@@ -50,6 +52,8 @@ use cxx_qt_lib_extras::QApplication;
 const MAIN_QML: &str = "qrc:/qt/qml/io/github/vondor/kassensturz/qml/Main.qml";
 
 fn main() {
+    // Before Qt starts: KI18n reads the language when it first translates.
+    language::apply_at_start();
     // A QApplication rather than a QGuiApplication: Plasma's style and, from
     // M4, Gwenhywfar's bank dialogs need Qt Widgets (D-054).
     let mut app = QApplication::new();

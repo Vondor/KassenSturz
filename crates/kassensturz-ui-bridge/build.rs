@@ -61,6 +61,7 @@ fn main() {
             "src/export_model.rs",
             "src/first_start_model.rs",
             "src/history_model.rs",
+            "src/language_model.rs",
             "src/locale.rs",
             "src/number_format_model.rs",
             "src/overview_model.rs",

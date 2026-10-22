@@ -1258,3 +1258,58 @@ fn the_matches_of_the_rules_include_what_nobody_booked_through_them() {
     // "Big" comes before the others and takes every payment, so it decides.
     assert_eq!(hardware, [(by_hand.id(), vec![big.id])]);
 }
+
+#[test]
+fn a_rule_that_is_not_in_the_book_yet_can_be_previewed_on_its_own() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let first = imported(&mut book, checking, -5320, 5, "REWE Markt");
+    let second = imported(&mut book, checking, -1250, 6, "REWE Express");
+    imported(&mut book, checking, -300, 7, "Bakery");
+    // A Rule before the previewed one takes everything it fits first, but a
+    // preview looks at the conditions alone.
+    add(
+        &mut book,
+        "Shops",
+        "REWE",
+        Some(BookTo::Category(groceries)),
+        None,
+    );
+    let draft = rule("Express", vec![name_contains("Express")], None);
+    let before = history_length(&book);
+
+    let found = book.rule_preview(&draft).expect("preview");
+    assert_eq!(
+        found
+            .iter()
+            .map(|found| (found.transaction, found.rules.clone()))
+            .collect::<Vec<_>>(),
+        [(second.id(), vec![draft.id])]
+    );
+    let wide = rule("Shops", vec![name_contains("rewe")], None);
+    let ids: Vec<TransactionId> = book
+        .rule_preview(&wide)
+        .expect("preview")
+        .iter()
+        .map(|found| found.transaction)
+        .collect();
+    assert_eq!(ids, [first.id(), second.id()], "oldest first");
+    assert_eq!(history_length(&book), before, "nothing was written");
+
+    // A Rule the book would refuse is refused here too.
+    let broken = rule(
+        "Broken",
+        vec![Condition::Text {
+            field: TextField::OtherPartyName,
+            operator: TextOperator::Matches,
+            value: "(".into(),
+            case_sensitive: false,
+        }],
+        None,
+    );
+    assert!(book.rule_preview(&broken).is_err());
+}

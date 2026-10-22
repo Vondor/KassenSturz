@@ -125,6 +125,13 @@ pub mod qobject {
         #[qinvokable]
         fn matches(self: &RuleBook, id: &QString) -> QVariant;
 
+        /// The transactions the Rule the form describes would fit on its own,
+        /// newest first, in the shape of `matches`; nothing is saved. Empty
+        /// while the form isn't a Rule that can be saved yet.
+        #[qinvokable]
+        #[cxx_name = "previewMatches"]
+        fn preview_matches(self: &RuleBook, form: &QVariant) -> QVariant;
+
         /// Removes the Rule with this ID and its sub-Rules.
         #[qinvokable]
         #[cxx_name = "removeRule"]
@@ -254,6 +261,14 @@ impl qobject::RuleBook {
     fn matches(&self, id: &QString) -> QVariant {
         let id = id.to_string();
         read_book(|book, locale| rules::matches(book, &id, locale)).map_or_else(
+            |_| list([]),
+            |rows| list(rows.iter().map(latest_row_object)),
+        )
+    }
+
+    fn preview_matches(&self, form: &QVariant) -> QVariant {
+        let form = read_form(form);
+        read_book(|book, locale| rules::preview_matches(book, &form, locale)).map_or_else(
             |_| list([]),
             |rows| list(rows.iter().map(latest_row_object)),
         )

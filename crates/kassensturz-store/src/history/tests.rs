@@ -1367,3 +1367,50 @@ fn a_book_without_its_history_setting_is_reported_when_opened() {
     ));
     assert!(!lock_path(&path).exists());
 }
+
+/// How long `count` more transactions take to add, each as an action of its
+/// own.
+fn time_to_add(book: &mut Book, checking: AccountId, food: AccountId, count: u32) -> f64 {
+    let started = std::time::Instant::now();
+    for index in 0..count {
+        let day = i8::try_from(index % 28 + 1).expect("a day");
+        let amount = 100 + i64::from(day);
+        book.add_transaction(&transaction(
+            date(2026, 1, day),
+            "Shop",
+            &[(checking, eur(-amount)), (food, eur(amount))],
+        ))
+        .expect("added");
+    }
+    started.elapsed().as_secs_f64()
+}
+
+#[test]
+fn an_action_costs_the_same_however_long_the_history_is() {
+    // #84: every action looked through the whole history for undone changes,
+    // so a book filled one action at a time slowed down with every action.
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency");
+    let checking = account(&mut book, "Checking", AccountKind::Asset, EUR);
+    let food = account(&mut book, "Food", AccountKind::Expense, EUR);
+    let short = (0..3)
+        .map(|_| time_to_add(&mut book, checking, food, 40))
+        .fold(f64::MAX, f64::min);
+    // A long history, made directly: as if 20,000 actions had come before.
+    book.conn
+        .execute(
+            "WITH RECURSIVE number (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM number WHERE n < 20000)
+             INSERT INTO main.changes (id, sequence, action, made_at, undone)
+             SELECT randomblob(16), 1000000 + n, 'add_transaction', ?1, 0 FROM number",
+            [whole_seconds(Timestamp::now()).to_string()],
+        )
+        .expect("history made");
+    let long = (0..3)
+        .map(|_| time_to_add(&mut book, checking, food, 40))
+        .fold(f64::MAX, f64::min);
+    // Before the fix, it was ten times as long; noise doesn't reach three.
+    assert!(
+        long < short * 3.0,
+        "40 actions took {short:.3} s with a short history and {long:.3} s with a long one"
+    );
+}

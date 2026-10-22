@@ -268,3 +268,40 @@ fn the_whole_book_is_read_in_a_fixed_order() {
         .collect();
     assert_eq!(accounts, ids);
 }
+
+#[test]
+fn filling_a_book_costs_the_same_per_transaction_however_big_it_gets() {
+    // #84: starting a book from a big file was slow. Filling one in one go
+    // costs the same for every transaction, so four times as many take about
+    // four times as long.
+    fn time_to_fill(count: u32) -> f64 {
+        let mut book = Book::create_in_memory().expect("book created");
+        let started = std::time::Instant::now();
+        book.fill_new(HistoryRetention::default(), |book| {
+            book.restore_currency(kassensturz_core::Currency::new(EUR, 2).expect("valid"))?;
+            let checking = account(book, "Checking", AccountKind::Asset, EUR);
+            let food = account(book, "Food", AccountKind::Expense, EUR);
+            for index in 0..count {
+                let day = i8::try_from(index % 28 + 1).expect("a day");
+                let amount = 100 + i64::from(day);
+                book.add_transaction(&transaction(
+                    date(2026, 1, day),
+                    "Shop",
+                    &[(checking, eur(-amount)), (food, eur(amount))],
+                ))?;
+            }
+            Ok::<_, StoreError>(())
+        })
+        .expect("filled");
+        assert_eq!(book.transactions().expect("read").len(), count as usize);
+        started.elapsed().as_secs_f64()
+    }
+    let small = (0..3).map(|_| time_to_fill(250)).fold(f64::MAX, f64::min);
+    let big = (0..3).map(|_| time_to_fill(1000)).fold(f64::MAX, f64::min);
+    // Four times the transactions; more than eight times the time would be
+    // the start of a growth of its own.
+    assert!(
+        big < small * 8.0,
+        "250 transactions took {small:.3} s to fill and 1000 took {big:.3} s"
+    );
+}

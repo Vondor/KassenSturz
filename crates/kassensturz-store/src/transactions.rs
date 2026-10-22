@@ -316,7 +316,7 @@ impl Book {
 
     /// The transactions `filter` (a `WHERE` clause over `transactions AS t`)
     /// keeps, with its `params`, sorted by booking date and then by ID.
-    fn transactions_where(
+    pub(crate) fn transactions_where(
         &self,
         filter: &str,
         params: &[&dyn rusqlite::ToSql],
@@ -782,6 +782,11 @@ pub(crate) fn insert_attachments(
     conn: &Connection,
     transaction: &Transaction,
 ) -> Result<(), StoreError> {
+    // Most transactions have none, and reading a statement's text costs more
+    // than running it (#84).
+    if transaction.attachments().is_empty() {
+        return Ok(());
+    }
     let mut insert = conn.prepare(
         "INSERT INTO attachments (id, transaction_id, position, link, title)
          VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -808,15 +813,6 @@ pub(crate) fn insert_splits(
               original_amount, original_currency, own_date, own_payee, note, number, status)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
     )?;
-    let mut insert_tag = conn.prepare(
-        "INSERT INTO split_tags (id, split_id, tag_id, position) VALUES (?1, ?2, ?3, ?4)",
-    )?;
-    let mut insert_imported = conn.prepare(
-        "INSERT INTO split_imports
-             (split_id, bank_id, booking_date, value_date,
-              other_party_name, other_party_iban, remittance_information)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-    )?;
     let optional_date = |date: Option<Date>| date.map(date_to_text).transpose();
     for (position, split) in (0_i64..).zip(transaction.splits()) {
         let id = split.id.to_bytes();
@@ -840,8 +836,18 @@ pub(crate) fn insert_splits(
             split.number,
             split.status.map(status_to_text),
         ])?;
+        // Prepared only for the parts that have them, which are few: reading
+        // a statement's text costs more than running it (#84).
+        let mut insert_tag = None;
         for (position, tag) in (0_i64..).zip(&split.tags) {
-            insert_tag.execute(params![
+            let statement = match &mut insert_tag {
+                Some(statement) => statement,
+                None => insert_tag.insert(conn.prepare(
+                    "INSERT INTO split_tags (id, split_id, tag_id, position)
+                     VALUES (?1, ?2, ?3, ?4)",
+                )?),
+            };
+            statement.execute(params![
                 uuid::Uuid::now_v7().as_bytes(),
                 id,
                 tag.to_bytes(),
@@ -852,7 +858,13 @@ pub(crate) fn insert_splits(
             insert_split_rate(conn, split.id, &rate)?;
         }
         if let Some(imported) = &split.imported {
-            insert_imported.execute(params![
+            conn.prepare(
+                "INSERT INTO split_imports
+                     (split_id, bank_id, booking_date, value_date,
+                      other_party_name, other_party_iban, remittance_information)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            )?
+            .execute(params![
                 id,
                 imported.bank_id,
                 optional_date(imported.booking_date)?,

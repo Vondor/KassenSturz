@@ -704,8 +704,22 @@ impl Book {
         }
         if changed {
             let schema = self.history_schema()?;
-            // What was undone can't be redone after a new change.
-            delete_changes(&self.conn, schema, "undone = 1", &[])?;
+            // What was undone can't be redone after a new change. Changes are
+            // undone newest first, so the undone ones are the newest ones: if
+            // the newest isn't undone, none is. Without this look, every
+            // change would scan the whole history, and a book filled one
+            // action at a time would slow down with every action (#84).
+            let undone: bool = self.conn.query_row(
+                &format!(
+                    "SELECT EXISTS (SELECT 1 FROM {schema}.changes
+                     WHERE sequence = (SELECT max(sequence) FROM {schema}.changes) AND undone = 1)"
+                ),
+                [],
+                |row| row.get(0),
+            )?;
+            if undone {
+                delete_changes(&self.conn, schema, "undone = 1", &[])?;
+            }
             let id = ChangeId::generate();
             let made_at = whole_seconds(Timestamp::now());
             self.conn.execute(
@@ -728,7 +742,7 @@ impl Book {
                     [id.to_bytes()],
                 )?;
             }
-            prune(&self.conn, self.history_retention()?, made_at)?;
+            prune_after_change(&self.conn, self.history_retention()?, made_at)?;
         }
         for table in &RECORDED {
             self.conn
@@ -1166,6 +1180,38 @@ fn move_history(conn: &Connection, from: &str, to: &str) -> Result<(), StoreErro
         )?;
     }
     delete_changes(conn, from, "1", &[])
+}
+
+/// [`prune`] after a change, which only has to look further if the oldest
+/// change is too old. Changes are made in the order of time, so the oldest
+/// is the first to be too old, and looking at it is cheap, where [`prune`]
+/// reads the whole history: done after every change, that made every change
+/// slower than the one before (#84). Changes made with a wrong clock are
+/// cleaned up when the book is opened, which does the whole look.
+fn prune_after_change(
+    conn: &Connection,
+    keep: HistoryRetention,
+    now: Timestamp,
+) -> Result<(), StoreError> {
+    if let HistoryRetention::Days(days @ 1..) = keep {
+        let oldest: Option<String> = conn
+            .query_row(
+                "SELECT made_at FROM main.changes ORDER BY sequence LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let expired = |made_at: &str| {
+            let limit = now.as_second().saturating_sub(86_400 * i64::from(days));
+            made_at
+                .parse::<Timestamp>()
+                .is_ok_and(|made_at| made_at.as_second() < limit)
+        };
+        if !oldest.as_deref().is_some_and(expired) {
+            return Ok(());
+        }
+    }
+    prune(conn, keep, now)
 }
 
 /// Deletes the changes the book no longer keeps at `now`: with 0 days every

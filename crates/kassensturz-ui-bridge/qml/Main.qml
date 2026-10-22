@@ -479,8 +479,11 @@ Kirigami.ApplicationWindow {
         title: root.i18nContext.i18nc("@title:window", "Start a book from a file")
         fileMode: Dialogs.FileDialog.OpenFile
         nameFilters: [
-            root.i18nContext.i18nc("@item:inlistbox a file type", "Books (*.kmy *.sqlite *.db *.json)"),
-            root.i18nContext.i18nc("@item:inlistbox a file type", "All files (*)")
+            // First, because a KMyMoney database may have no ending at all
+            // (it can be called just "KMyMoney"); KassenSturz tells the
+            // kind of file by what is in it.
+            root.i18nContext.i18nc("@item:inlistbox a file type", "All files (*)"),
+            root.i18nContext.i18nc("@item:inlistbox a file type", "Books (*.kmy *.sqlite *.db *.json)")
         ]
         onAccepted: root.startBookFromFile(selectedFile)
     }

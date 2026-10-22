@@ -37,6 +37,7 @@ Kirigami.ApplicationWindow {
         "overview": overviewPage,
         "accounts": accountsPage,
         "categories": categoriesPage,
+        "rules": rulesPage,
         "settings": settingsPage,
     })
     // Whether the first-run steps are done, so the side menu is offered.
@@ -77,6 +78,14 @@ Kirigami.ApplicationWindow {
 
     CategoryTree {
         id: categoryTree
+
+        onChanged: root.screenChangedBook()
+    }
+
+    // The Rules and their suggestions (M3.11). A change in them is read
+    // again by all the other screens, because a Rule can sort transactions.
+    RuleBook {
+        id: ruleBook
 
         onChanged: root.screenChangedBook()
     }
@@ -151,6 +160,7 @@ Kirigami.ApplicationWindow {
         bookOverview.refresh();
         accountList.refresh();
         categoryTree.refresh();
+        ruleBook.refresh();
         accountRegister.refresh();
         changeHistory.refresh();
     }
@@ -331,6 +341,11 @@ Kirigami.ApplicationWindow {
                 onTriggered: root.showScreen("categories")
             },
             Kirigami.Action {
+                icon.name: "view-filter"
+                text: root.i18nContext.i18nc("@action:inmenu a screen", "Rules")
+                onTriggered: root.showScreen("rules")
+            },
+            Kirigami.Action {
                 icon.name: "settings-configure"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Settings")
                 onTriggered: root.showScreen("settings")
@@ -471,6 +486,9 @@ Kirigami.ApplicationWindow {
             // The Parts page takes this page's place, so saving goes back
             // to the list.
             onBreakDownClicked: (accountId, transactionId) => root.pageStack.replace(partsPage, { accountId: accountId, transactionId: transactionId })
+            // "Create a Rule from this transaction" (D-088): the Rule's
+            // page replaces this one, which has nothing left to do.
+            onCreateRuleClicked: (accountId, transactionId) => root.pageStack.replace(rulePage, { initialForm: ruleBook.formFromTransaction(accountId, transactionId) })
         }
     }
 
@@ -500,7 +518,9 @@ Kirigami.ApplicationWindow {
 
         RegisterPage {
             register: accountRegister
+            rules: ruleBook
             onAddTransactionClicked: accountId => root.addTransaction(false, accountId)
+            onCreateRuleFromSuggestion: (payee, category) => root.pageStack.push(rulePage, { initialForm: ruleBook.formFromSuggestion(payee, category) })
             onImportClicked: accountId => root.importStatement(accountId)
             onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
         }
@@ -569,6 +589,27 @@ Kirigami.ApplicationWindow {
         CategoryPage {
             categories: categoryTree
             onDone: root.pageStack.pop()
+        }
+    }
+
+    Component {
+        id: rulesPage
+
+        RulesPage {
+            rules: ruleBook
+            onAddRuleClicked: root.pageStack.push(rulePage)
+            onRuleClicked: ruleId => root.pageStack.push(rulePage, { ruleId: ruleId })
+            onCreateFromSuggestion: (payee, category) => root.pageStack.push(rulePage, { initialForm: ruleBook.formFromSuggestion(payee, category) })
+        }
+    }
+
+    Component {
+        id: rulePage
+
+        RulePage {
+            rules: ruleBook
+            onDone: root.pageStack.pop()
+            onAddSubRuleClicked: ruleId => root.pageStack.replace(rulePage, { parentId: ruleId })
         }
     }
 

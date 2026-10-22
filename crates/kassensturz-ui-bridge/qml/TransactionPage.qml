@@ -64,6 +64,8 @@ Kirigami.ScrollablePage {
     signal checkAgainstBankClicked(string accountId)
     // The user wants to break the transaction down into Parts (D-017).
     signal breakDownClicked(string accountId, string transactionId)
+    // The user wants a Rule made from this transaction (D-088).
+    signal createRuleClicked(string accountId, string transactionId)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -289,6 +291,16 @@ Kirigami.ScrollablePage {
             icon.name: "view-list-details"
             flat: true
             onClicked: page.breakDownClicked(page.chosenAccount, page.transactionId)
+        }
+
+        // Likewise a Rule: sorting the next transactions like this one
+        // automatically (M3.11).
+        Controls.Button {
+            visible: !page.adding && page.kind === "simple"
+            text: page.i18nContext.i18nc("@action:button", "Create a Rule from this transaction…")
+            icon.name: "view-filter"
+            flat: true
+            onClicked: page.createRuleClicked(page.chosenAccount, page.transactionId)
         }
 
         Controls.Label {

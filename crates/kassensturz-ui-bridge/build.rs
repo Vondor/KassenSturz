@@ -40,6 +40,9 @@ fn main() {
             "qml/PartRow.qml",
             "qml/PartsPage.qml",
             "qml/RegisterPage.qml",
+            "qml/RuleCondition.qml",
+            "qml/RulePage.qml",
+            "qml/RulesPage.qml",
             "qml/SettingsPage.qml",
             "qml/TransactionPage.qml",
             "qml/TransactionRow.qml",
@@ -57,6 +60,7 @@ fn main() {
             "src/overview_model.rs",
             "src/platform.rs",
             "src/register_model.rs",
+            "src/rules_model.rs",
             "src/settings.rs",
             "src/statement_import_model.rs",
         ])

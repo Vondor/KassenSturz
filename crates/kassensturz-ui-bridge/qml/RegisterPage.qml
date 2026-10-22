@@ -21,6 +21,9 @@ Kirigami.ScrollablePage {
     // `accountId` in it.
     required property AccountRegister register
     required property string accountId
+    // The Rules, which suggest one when the same payee was sorted into the
+    // same category by hand several times (M3.11, D-071).
+    required property RuleBook rules
 
     // Add a transaction to this account.
     signal addTransactionClicked(string accountId)
@@ -28,6 +31,8 @@ Kirigami.ScrollablePage {
     signal importClicked(string accountId)
     // Open a transaction to change or remove it.
     signal transactionClicked(string accountId, string transactionId)
+    // The user wants the Rule that is suggested.
+    signal createRuleFromSuggestion(string payee, string category)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -119,6 +124,31 @@ Kirigami.ScrollablePage {
             }
         }
     ]
+
+    // The suggestion that has been waiting longest, if any.
+    readonly property var suggestion: (rules.view.suggestions ?? [])[0]
+
+    header: Kirigami.InlineMessage {
+        id: ruleSuggestion
+
+        position: Kirigami.InlineMessage.Position.Header
+        visible: page.suggestion !== undefined
+        type: Kirigami.MessageType.Information
+        text: page.suggestion === undefined
+            ? ""
+            : page.i18nContext.i18ncp("@info %1 is a number, %2 a name, %3 a category", "You have sorted %2 into %3 by hand %1 time. Want KassenSturz to do it for you from now on?", "You have sorted %2 into %3 by hand %1 times. Want KassenSturz to do it for you from now on?", parseInt(page.suggestion.count), page.suggestion.payee, page.suggestion.categoryPath)
+        actions: [
+            Kirigami.Action {
+                icon.name: "view-filter"
+                text: page.i18nContext.i18nc("@action:button", "Create a Rule")
+                onTriggered: page.createRuleFromSuggestion(page.suggestion.payee, page.suggestion.category)
+            },
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button", "No, thanks")
+                onTriggered: page.rules.dismissSuggestion(page.suggestion.payee, page.suggestion.category)
+            }
+        ]
+    }
 
     footer: Controls.ToolBar {
         contentItem: AmountLabel {

@@ -25,13 +25,22 @@ Kirigami.InlineMessage {
 
     type: Kirigami.MessageType.Error
     visible: result.code !== undefined
-    text: visible ? withPart(result, messageFor(result)) : ""
+    text: visible ? withCondition(result, withPart(result, messageFor(result))) : ""
 
     // A message about one Part of a transaction names its number (M3.6).
     function withPart(result: var, message: string): string {
         return result.part === undefined
             ? message
             : i18nContext.i18nc("@info %1 is the number of a part of a transaction, %2 a message about it", "Part %1: %2", result.part, message);
+    }
+
+    // A message about something the user typed in one condition of a Rule
+    // names its number (M3.11). The book's own messages about a condition
+    // (`rule.*`) already do.
+    function withCondition(result: var, message: string): string {
+        return result.condition === undefined || !result.code.startsWith("input.")
+            ? message
+            : i18nContext.i18nc("@info %1 is the number of a condition of a Rule, %2 a message about it", "Condition %1: %2", result.condition, message);
     }
 
     function messageFor(result: var): string {
@@ -122,6 +131,20 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is a currency code", "The file uses %1, a currency KassenSturz doesn't know, most likely one that another currency replaced long ago. Such files can't be imported yet. Nothing was imported.", result.currency);
         case "import.decimal-places-differ":
             return i18nContext.i18nc("@info %1 is a currency code, %2 and %3 are numbers", "The file counts %1 with %2 decimal places, your book with %3, so its amounts can't be read safely. Nothing was imported.", result.currency, result.file, result.book);
+        case "rule.no-conditions":
+            return i18nContext.i18nc("@info %1 is the name of a Rule", "%1 has no conditions, so it would apply to every transaction. Add at least one condition.", result.rule);
+        case "rule.empty-text":
+            return i18nContext.i18nc("@info %1 is the number of a condition, %2 the name of a Rule", "Condition %1 of %2 has no text to look for. Type some, or remove the condition.", result.condition, result.rule);
+        case "rule.bad-pattern":
+            return i18nContext.i18nc("@info %1 is the number of a condition, %2 the name of a Rule", "The pattern in condition %1 of %2 isn't one KassenSturz can use. Check its brackets and special characters, or look for plain text instead.", result.condition, result.rule);
+        case "rule.date-range-reversed":
+            return i18nContext.i18nc("@info %1 is the number of a condition, %2 the name of a Rule", "In condition %1 of %2, the last day is before the first. Swap them.", result.condition, result.rule);
+        case "store.empty-rule-name":
+            return i18nContext.i18nc("@info", "Give the Rule a name.");
+        case "store.duplicate-rule-name":
+            return i18nContext.i18nc("@info %1 is the name of a Rule", "%1 already has this name here. Choose another one, so you can tell them apart.", result.existing);
+        case "store.unknown-rule":
+            return i18nContext.i18nc("@info", "This Rule isn't in the book anymore. It may have just been removed.");
         case "bank-check.cannot-correct":
             return i18nContext.i18nc("@info", "The starting balance is dated after this day, so it can't be corrected from here. Check a day on or after the starting balance.");
         case "store.empty-account-name":

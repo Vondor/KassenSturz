@@ -32,9 +32,11 @@ set_package_properties(KF6QQC2DesktopStyle PROPERTIES
     PURPOSE "Gives the window Plasma's look"
 )
 # The QML code loads these at run time. Kirigami Addons gives the form pages
-# (D-112); 1.13 is the oldest version tested, Kubuntu 26.10's.
+# (D-112); 1.13 is the oldest version tested, Kubuntu 26.10's. No version is
+# asked for here: checking it runs qmlplugindump, which fails on this module
+# in the KDE Flatpak SDK.
 ecm_find_qmlmodule(org.kde.kirigami REQUIRED)
-ecm_find_qmlmodule(org.kde.kirigamiaddons.formcard 1.13 REQUIRED)
+ecm_find_qmlmodule(org.kde.kirigamiaddons.formcard REQUIRED)
 ecm_find_qmlmodule(org.kde.ki18n REQUIRED)
 ecm_find_qmlmodule(QtQuick.Dialogs REQUIRED)
 

@@ -23,15 +23,20 @@ include(ECMFindQmlModule)
 include(FeatureSummary)
 
 find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Widgets)
-find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS I18n)
+# The Rust program links KConfig's core library for the app's settings
+# (D-112); Cargo finds it through the paths passed to it below.
+find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS Config I18n)
 find_package(KF6QQC2DesktopStyle ${KF_MIN_VERSION})
 set_package_properties(KF6QQC2DesktopStyle PROPERTIES
     TYPE RUNTIME
     PURPOSE "Gives the window Plasma's look"
 )
-# The QML code loads these at run time.
+# The QML code loads these at run time. Kirigami Addons gives the form pages
+# (D-112); 1.13 is the oldest version tested, Kubuntu 26.10's.
 ecm_find_qmlmodule(org.kde.kirigami REQUIRED)
+ecm_find_qmlmodule(org.kde.kirigamiaddons.formcard 1.13 REQUIRED)
 ecm_find_qmlmodule(org.kde.ki18n REQUIRED)
+ecm_find_qmlmodule(QtQuick.Dialogs REQUIRED)
 
 find_program(CARGO_EXECUTABLE cargo REQUIRED)
 
@@ -54,6 +59,8 @@ endif()
 add_custom_target(kassensturz ALL
     COMMAND ${CMAKE_COMMAND} -E env
         QMAKE=$<TARGET_FILE:Qt6::qmake>
+        "KASSENSTURZ_KCONFIG_INCLUDE_DIRS=$<TARGET_PROPERTY:KF6::ConfigCore,INTERFACE_INCLUDE_DIRECTORIES>"
+        KASSENSTURZ_KCONFIG_LIBRARY_DIR=$<TARGET_LINKER_FILE_DIR:KF6::ConfigCore>
         CARGO_TARGET_DIR=${cargo_target_dir}
         ${CARGO_EXECUTABLE} ${cargo_args}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

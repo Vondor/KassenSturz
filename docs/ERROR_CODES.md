@@ -8,7 +8,7 @@ KassenSturz's Rust crates never produce user-facing text (D-034). Every error in
 
 The UI keeps one translated message per code and fills in the parameters (D-084).
 
-The app's own checks of what the user typed, e.g. an amount in the wrong regional format, aren't errors of core or store: their codes start with `input.`, they live in `kassensturz-ui-bridge` and aren't listed here (D-089).
+The app's own checks of what the user typed, e.g. an amount in the wrong regional format, aren't errors of core or store: their codes start with `input.`, they live in `kassensturz-ui-bridge` and aren't listed here (D-089). The same goes for the app's own problems opening a book, whose codes start with `book.` (D-113).
 
 This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, and one in `kassensturz-export` (`src/error/tests.rs`) against the `export.` codes, all with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
 

@@ -4,6 +4,7 @@
 #include "kassensturz-ui-bridge/cpp/locale.h"
 
 #include <QtCore/QDate>
+#include <QtCore/QDateTime>
 #include <QtCore/QLatin1StringView>
 #include <QtCore/QLocale>
 
@@ -124,6 +125,13 @@ QString readShortDate(const QString &text)
 QString today()
 {
     return QDate::currentDate().toString(Qt::ISODate);
+}
+
+QString dateTime(std::int64_t seconds)
+{
+    const QLocale locale;
+    const QDateTime time = QDateTime::fromSecsSinceEpoch(seconds).toLocalTime();
+    return locale.toString(time, shortDateFormat(locale) + QLatin1Char(' ') + locale.timeFormat(QLocale::ShortFormat));
 }
 
 void setDefaultLocale(const QString &name)

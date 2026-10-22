@@ -36,8 +36,8 @@ kassensturz/
 │   ├── kassensturz-sync/           # post-1.0: shared-host ↔ thin-client access for multi-user (Member-scoped) — see D-022, Q-021/Q-022
 │   ├── kassensturz-cli/            # CLI front end for testing the core and the store: English only, errors as codes, not installed (D-085)
 │   └── kassensturz-ui-bridge/      # the desktop app: cxx-qt bindings exposing the core to QML
-│       ├── qml/                    # Kirigami UI: overview, register, reports, settings, plugins
-│       └── cpp/                    # small C++ helpers, e.g. Qt's locale data for formatting (D-065)
+│       ├── qml/                    # Kirigami UI, one file per screen: overview, register, reports, settings, plugins
+│       └── cpp/                    # small C++ helpers: Qt's locale data for formatting (D-065), KConfig for the app's settings (D-112), what Qt knows about the computer
 ├── data/                           # desktop file and AppStream metadata
 ├── po/                             # translations, one folder per language (D-034)
 ├── plugins/examples/               # sample importer, report, automation (after 1.0)
@@ -63,10 +63,18 @@ kassensturz/
 ## First-run mock (M1.M)
 
 - A clickable mock of the first start: welcome, add an account, add a transaction, see the overview (D-068, D-089). It tests the simplicity goal (AGENTS.md §1, §6) before the real first-run flow in M3.
-- `kassensturz-ui-bridge/src/first_run.rs` keeps the mock's book in memory (`Book::create_in_memory`) and turns what the user typed into accounts and transactions through the public functions of core and store, so every balance and total is the real one. Nothing is saved.
+- `kassensturz-ui-bridge/src/first_run.rs` turns what the user typed into accounts and transactions in the open book, through the public functions of core and store, so every balance and total is the real one. Since M3.1 it is saved in the book; the mock keeps to one currency and the accounts and categories in it, until M3.3, M3.4, M3.5 and M3.9 replace it.
 - `src/first_run_model.rs` is its QML object, `FirstRunMock`. Its few lists go to QML as lists of maps of text, which QML views take as models; the real register in M3 uses list models.
 - `src/parse.rs` reads typed amounts in the user's regional format (D-065); `src/register.rs` writes an account's register and balances, a debt as "You owe" (D-067).
 - Mistakes in what the user typed come back as codes starting with `input.` plus parameters as text; the QML (`FormError.qml`) writes the message (D-034). They belong to the app, not to core or store, so `docs/ERROR_CODES.md` doesn't list them; store errors keep their codes from there.
+
+## The app's shell and its books (M3.1)
+
+- The window (`qml/Main.qml`) opens the book and shows one screen at a time, each in a QML file of its own, chosen from a side menu once the book has an account. A screen is added with its file, a line in `build.rs` and an entry in `Main.qml`, so steps can add screens side by side (D-113).
+- `src/books.rs` opens books (D-033, D-113): the book opened last, or at the first start the app's own book in KassenSturz's data folder; a missing book is never replaced by a new one. Problems come back as codes with parameters as text, `store.` codes from the store and the app's own `book.` codes (`book.missing`, `book.sandboxed`, `book.no-app-folder`); the QML (`BookProblemPage.qml`) writes the message and offers what to do next, such as "Open anyway" for a locked book (D-038, D-080).
+- `src/session.rs` keeps the open book for the GUI thread; `src/book_session.rs` is its QML object, `BookSession`, which opens and switches books and signals `opened` so every screen reads the book again. Every screen's Rust object reaches the book through `session::with_book` and `session::with_book_mut`. The app closes the book before it ends, which removes the lock file.
+- `src/settings.rs` keeps the app's own settings with KConfig, in `kassensturzrc` in the user's settings folder (D-112): the book opened last, and from M3.2 the number format. The Rust program links KConfig's core library through `cpp/settings.cpp`; `build.rs` finds it next to Qt, or where CMake's `KF6::ConfigCore` says when CMake drives the build.
+- `src/platform.rs` asks Qt for the computer's name, the data folder and the file system a book is on (`QStorageInfo`), to warn about network drives (D-038) and refuse files a sandbox's file chooser handed over (Q-071), until `kassensturz-platform` takes this over.
 
 ## Dependency rules
 
@@ -203,7 +211,7 @@ kassensturz/
 - Translations use KDE's KI18n (gettext). v1 ships in English (source language) and German.
 - Numbers are shown in the user's regional format by default (100,00 € in Germany, $100.00 in the US); the user can change the format and the number of decimal places shown. Display settings live in the app's settings, not in the book, and never change stored amounts or calculations (D-002).
 - Amounts reach QML only as text: Rust formats them from the exact value, with separators and currency symbol from Qt's locale data, and parses what the user types. Sorting and totals happen in Rust models; floating point appears only as chart drawing coordinates (D-065). How the pieces are taken from Qt: D-075.
-- QML gets its translations through KI18n's `KI18nContext`, created in QML, so the Rust program links no KDE Frameworks library (D-074).
+- QML gets its translations through KI18n's `KI18nContext`, created in QML, so the Rust program doesn't link KI18n (D-074). The only KDE Frameworks library it links is KConfig's core library, for the app's settings (D-112, D-113).
 - Plain-language terms come from `docs/GLOSSARY.md`; for example, the other side of a transaction is shown as "From"/"To" and is called "Other party" in the Rule editor.
 
 ## Data and portability

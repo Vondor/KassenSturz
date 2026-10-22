@@ -4,7 +4,7 @@
 //! The user's regional format, read from Qt's locale data (D-065): the
 //! system's regional settings, or the user's choice (D-002).
 
-use kassensturz_core::{CurrencyCode, Date};
+use kassensturz_core::{CurrencyCode, Date, Timestamp};
 
 use crate::format::{Affixes, AmountFormat, Locale};
 
@@ -52,6 +52,9 @@ mod ffi {
 
         fn today() -> QString;
 
+        #[cxx_name = "dateTime"]
+        fn date_time(seconds: i64) -> QString;
+
         #[cxx_name = "setDefaultLocale"]
         fn set_default_locale(name: &QString);
     }
@@ -68,6 +71,12 @@ impl QtLocale {
     )]
     pub fn set_default(name: &str) {
         ffi::set_default_locale(&ffi::QString::from(name));
+    }
+
+    /// `time` in the computer's time zone, in the locale's short format,
+    /// e.g. "21.10.2026 14:02".
+    pub fn date_time(time: Timestamp) -> String {
+        ffi::date_time(time.as_second()).to_string()
     }
 
     /// The locale's own currency, e.g. EUR in Germany, if it has one.
@@ -163,6 +172,8 @@ mod tests {
         assert_eq!(locale.read_date("5.10.26"), Some(date));
         assert_eq!(locale.read_date("2026-10-05"), Some(date));
         assert_eq!(locale.read_date("10/5/2026"), None);
+        let time: Timestamp = "2026-10-05T12:00:00Z".parse().expect("valid time");
+        assert!(QtLocale::date_time(time).starts_with("05.10.2026 "));
 
         QtLocale::set_default("en_US");
         assert_eq!(format(&locale, 123_456, "USD"), "$1,234.56");

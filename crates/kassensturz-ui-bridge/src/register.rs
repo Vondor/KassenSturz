@@ -376,6 +376,26 @@ pub(crate) mod tests {
             date.to_string()
         }
 
+        fn month_and_year(&self, date: Date) -> String {
+            // English, so the tests read like the window.
+            const MONTHS: [&str; 12] = [
+                "January",
+                "February",
+                "March",
+                "April",
+                "May",
+                "June",
+                "July",
+                "August",
+                "September",
+                "October",
+                "November",
+                "December",
+            ];
+            let month = usize::try_from(date.month() - 1).expect("months start at 1");
+            format!("{} {}", MONTHS[month], date.year())
+        }
+
         fn read_date(&self, text: &str) -> Option<Date> {
             text.parse().ok()
         }

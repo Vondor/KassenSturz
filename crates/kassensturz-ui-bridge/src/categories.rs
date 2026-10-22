@@ -253,9 +253,9 @@ pub fn error_text(book: &Book, error: &CategoryError, locale: &impl Locale) -> E
 mod tests {
     use super::*;
     use crate::accounts::{NewAccount, add_account};
-    use crate::first_run::FirstRun;
     use crate::first_start::tests::started;
     use crate::register::tests::TestLocale;
+    use crate::transaction_entry::category_choices;
     use kassensturz_core::AccountType;
 
     const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
@@ -543,16 +543,35 @@ mod tests {
         let home = add(&mut book, "Home", false, "");
         move_category(&mut book, &groceries, &home).expect("moved");
         rename_category(&mut book, &groceries, "Supermarket").expect("renamed");
-        let mock = FirstRun::load(&book, EUR).expect("mock loaded");
+        // The transaction page offers them by their new places, in the
+        // order of the tree (M3.5).
+        let account = add_account(
+            &mut book,
+            &NewAccount {
+                name: "Checking account",
+                account_type: AccountType::Checking,
+                currency: "EUR",
+                balance: "",
+                date: "",
+            },
+            &TestLocale,
+        )
+        .expect("account added")
+        .to_string();
+        let offered: Vec<String> = category_choices(&book, &account, false, "")
+            .expect("choices")
+            .into_iter()
+            .map(|choice| choice.path)
+            .collect();
         assert_eq!(
-            mock.category_names(false),
+            offered,
             [
-                "Food",
-                "Home › Supermarket",
-                "Food › Eating out",
-                "Rent",
                 "Clothes",
-                "Home"
+                "Food",
+                "Food › Eating out",
+                "Home",
+                "Home › Supermarket",
+                "Rent"
             ]
         );
     }

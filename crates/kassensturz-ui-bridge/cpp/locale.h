@@ -49,6 +49,10 @@ QString shortDate(std::int32_t year, std::int32_t month, std::int32_t day);
 // as ISO 8601 ("2026-10-05"). Empty if the text isn't such a date.
 QString readShortDate(const QString &text);
 
+// The month's name with its year in the locale's language, e.g.
+// "October 2026" or "Oktober 2026".
+QString monthAndYear(std::int32_t year, std::int32_t month);
+
 // Today's date on this computer, as ISO 8601.
 QString today();
 

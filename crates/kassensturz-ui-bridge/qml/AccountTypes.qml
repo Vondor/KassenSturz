@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // The kinds of account the user can choose from, and their names. The keys
-// are the ones the Rust side knows (first_run::type_key).
+// are the ones the Rust side knows (accounts::type_key).
 
 import QtQuick
 import org.kde.ki18n

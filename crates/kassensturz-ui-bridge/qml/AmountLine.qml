@@ -12,13 +12,16 @@ RowLayout {
 
     // name, amount and exactAmount, all text.
     required property var modelData
+    // The name shown, if it isn't the model's as it is, e.g. one the UI
+    // translates.
+    property string name: modelData.name
 
     Accessible.role: Accessible.StaticText
-    Accessible.name: modelData.name + ", " + modelData.exactAmount
+    Accessible.name: name + ", " + modelData.exactAmount
 
     Controls.Label {
         Layout.fillWidth: true
-        text: line.modelData.name
+        text: line.name
         elide: Text.ElideRight
     }
 

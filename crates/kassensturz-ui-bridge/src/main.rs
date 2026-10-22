@@ -4,8 +4,7 @@
 //! KassenSturz's desktop app.
 //!
 //! It opens the book the app manages, or the one the user opened last
-//! (D-033), and shows it through one QML page per screen. The overview is
-//! still the first-run mock's (M1.M, D-068) until M3.9 replaces it.
+//! (D-033), and shows it through one QML page per screen.
 
 mod accounts;
 mod accounts_model;
@@ -14,8 +13,6 @@ mod books;
 mod categories;
 mod categories_model;
 mod errors;
-mod first_run;
-mod first_run_model;
 mod first_start;
 mod first_start_model;
 mod format;
@@ -24,6 +21,8 @@ mod history_model;
 mod locale;
 mod number_format;
 mod number_format_model;
+mod overview;
+mod overview_model;
 mod parse;
 mod parts_entry;
 mod platform;

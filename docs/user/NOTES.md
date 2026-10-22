@@ -77,3 +77,12 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **Undoing a long way back:** after undoing everything, the book is empty again and KassenSturz shows the first steps; they work as on the first day.
 - **Messages:** "The book doesn't match its history anymore, probably because another program changed it. Nothing was changed. To go on with Undo, open Settings and use "Clean up history"."
 
+
+## The overview (M3.9)
+
+- **Overview** (side menu, and the screen after the first steps) shows your accounts side by side with what is in each today, then one month: "Money in", "Money out" and "Left over: 300,00 €" (or "Spent more than came in: 50,00 €"), then "Where your money went" and "Where your money came from" by category, largest first. Money you haven't sorted into a category yet is listed as "Not sorted yet".
+- **Another month:** the arrows next to the month's name go back as far as your book has transactions, and forward to this month or further if you entered something for a later month. "Back to this month" returns to today's month, as does coming back from another screen.
+- **Money moved between your accounts**, e.g. to savings, is neither money in nor money out, so the month says "Money you moved between your accounts (once this month) isn't counted as money in or out." A fee on such a move counts as money out. Starting balances aren't counted either.
+- **Several currencies:** each currency has its own accounts, totals and categories; nothing is added up across currencies. A category that counts in another currency, e.g. Travel in dollars, is listed with what you paid from your account.
+- **Latest transactions** lists the newest five across all your accounts; click one to change it, or click an account's card for everything in that account.
+- **Messages:** "Nothing came in or went out this month yet. Add what you paid or received, and it shows up here."; "No transactions yet. Add what you paid or received, and it shows up here."

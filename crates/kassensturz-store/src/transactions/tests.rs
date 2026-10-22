@@ -1312,3 +1312,51 @@ fn balance_on_counts_what_was_booked_up_to_the_end_of_the_day() {
         Err(StoreError::UnknownAccount(_))
     ));
 }
+
+#[test]
+fn a_months_transactions_are_read_by_booking_date_with_both_ends_included() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        salary,
+    } = sample();
+    assert_eq!(book.booking_date_range().expect("range"), None);
+    let september = transaction(
+        date(2026, 9, 30),
+        "Corner Grocery",
+        &[(checking, eur(-1000)), (groceries, eur(1000))],
+    );
+    let first = transaction(
+        date(2026, 10, 1),
+        "Example Employer Ltd.",
+        &[(checking, eur(250_000)), (salary, eur(-250_000))],
+    );
+    let last = transaction(
+        date(2026, 10, 31),
+        "Corner Grocery",
+        &[(checking, eur(-5320)), (groceries, eur(5320))],
+    );
+    let november = transaction(
+        date(2026, 11, 1),
+        "Corner Grocery",
+        &[(checking, eur(-2000)), (groceries, eur(2000))],
+    );
+    for transaction in [&november, &last, &september, &first] {
+        book.add_transaction(transaction).expect("added");
+    }
+
+    let october = book
+        .transactions_between(date(2026, 10, 1), date(2026, 10, 31))
+        .expect("read");
+    assert_eq!(october, vec![first, last]);
+    assert_eq!(
+        book.transactions_between(date(2026, 12, 1), date(2026, 12, 31))
+            .expect("read"),
+        vec![]
+    );
+    assert_eq!(
+        book.booking_date_range().expect("range"),
+        Some((date(2026, 9, 30), date(2026, 11, 1)))
+    );
+}

@@ -261,6 +261,47 @@ impl Book {
     /// each checked as [`Book::transaction`] checks it. Reads the book once,
     /// e.g. for the complete export (D-029).
     pub fn transactions(&self) -> Result<Vec<Transaction>, StoreError> {
+        self.transactions_where("", params![])
+    }
+
+    /// The transactions booked from `first` to `last`, both days included,
+    /// sorted and checked as [`Book::transactions`] does, e.g. for one
+    /// month's overview. A Transfer counts by its booking date, not by the
+    /// days its sides show (D-108).
+    pub fn transactions_between(
+        &self,
+        first: Date,
+        last: Date,
+    ) -> Result<Vec<Transaction>, StoreError> {
+        self.transactions_where(
+            "WHERE t.booking_date BETWEEN ?1 AND ?2",
+            params![date_to_text(first)?, date_to_text(last)?],
+        )
+    }
+
+    /// The earliest and the latest booking date in the book, or `None` in a
+    /// book without transactions.
+    pub fn booking_date_range(&self) -> Result<Option<(Date, Date)>, StoreError> {
+        let range: (Option<String>, Option<String>) = self.conn.query_row(
+            "SELECT min(booking_date), max(booking_date) FROM transactions",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        match range {
+            (Some(first), Some(last)) => {
+                Ok(Some((date_from_text(&first)?, date_from_text(&last)?)))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// The transactions `filter` (a `WHERE` clause over `transactions AS t`)
+    /// keeps, with its `params`, sorted by booking date and then by ID.
+    fn transactions_where(
+        &self,
+        filter: &str,
+        params: &[&dyn rusqlite::ToSql],
+    ) -> Result<Vec<Transaction>, StoreError> {
         let accounts: HashMap<AccountId, CurrencyCode> = self
             .all_accounts()?
             .into_iter()
@@ -268,10 +309,12 @@ impl Book {
             .collect();
         let mut statement = self.conn.prepare(&format!(
             "SELECT {SPLIT_COLUMNS}, {IMPORTED_COLUMNS}, s.transaction_id {SPLIT_TABLES}
+             JOIN transactions AS t ON t.id = s.transaction_id
+             {filter}
              ORDER BY s.transaction_id, s.position"
         ))?;
         let mut parts: HashMap<[u8; 16], Vec<SplitRow>> = HashMap::new();
-        let mut rows = statement.query([])?;
+        let mut rows = statement.query(params)?;
         while let Some(row) = rows.next()? {
             let transaction: [u8; 16] = row.get(SPLIT_ROW_COLUMNS)?;
             parts
@@ -280,11 +323,13 @@ impl Book {
                 .push(SplitRow::read(row)?);
         }
         drop(rows);
-        let mut statement = self.conn.prepare(
-            "SELECT id, booking_date, payee, currency FROM transactions ORDER BY booking_date, id",
-        )?;
+        let mut statement = self.conn.prepare(&format!(
+            "SELECT t.id, t.booking_date, t.payee, t.currency FROM transactions AS t
+             {filter}
+             ORDER BY t.booking_date, t.id"
+        ))?;
         let rows = statement
-            .query_map([], |row| {
+            .query_map(params, |row| {
                 Ok((
                     row.get::<_, [u8; 16]>(0)?,
                     row.get::<_, String>(1)?,

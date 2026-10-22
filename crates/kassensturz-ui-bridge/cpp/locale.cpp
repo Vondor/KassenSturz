@@ -122,6 +122,12 @@ QString readShortDate(const QString &text)
     return date.isValid() ? date.toString(Qt::ISODate) : QString();
 }
 
+QString monthAndYear(std::int32_t year, std::int32_t month)
+{
+    const QLocale locale;
+    return locale.toString(QDate(year, month, 1), QStringLiteral("MMMM yyyy"));
+}
+
 QString today()
 {
     return QDate::currentDate().toString(Qt::ISODate);

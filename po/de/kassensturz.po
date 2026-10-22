@@ -981,6 +981,19 @@ msgstr "Ihr Haushaltsbuch ist noch leer, deshalb füllt die Datei es."
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:108
 #, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz makes a new book and opens it. You choose where it is kept and "
+"what it is called. Your current book isn't changed; you can open it again in "
+"Settings with \"Open another book…\"."
+msgstr ""
+"KassenSturz legt ein neues Haushaltsbuch an und öffnet es. Sie wählen, wo es "
+"gespeichert wird und wie es heißt. Ihr aktuelles Haushaltsbuch bleibt "
+"unverändert; Sie können es in den Einstellungen mit „Anderes Haushaltsbuch "
+"öffnen…“ wieder öffnen."
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:108
+#, kde-format
 msgctxt "@info %1 is a book's name"
 msgid ""
 "KassenSturz makes a new book called \"%1\" and opens it. Your current book "
@@ -996,6 +1009,12 @@ msgstr ""
 msgctxt "@title:group"
 msgid "Currencies KassenSturz doesn't know"
 msgstr "Währungen, die KassenSturz nicht kennt"
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:134
+#, kde-format
+msgctxt "@action:button"
+msgid "Choose where to keep it…"
+msgstr "Speicherort wählen…"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:134
 #, kde-format
@@ -4030,6 +4049,7 @@ msgid "Open another book"
 msgstr "Anderes Haushaltsbuch öffnen"
 
 #: crates/kassensturz-ui-bridge/qml/Main.qml:431
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:69
 #: crates/kassensturz-ui-bridge/qml/Main.qml:442
 #, kde-format
 msgctxt "@item:inlistbox a file type"
@@ -6055,3 +6075,9 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:70
+#, kde-format
+msgctxt "@title:window"
+msgid "Where to keep the new book"
+msgstr "Wo das neue Haushaltsbuch gespeichert wird"

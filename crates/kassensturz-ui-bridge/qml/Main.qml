@@ -704,6 +704,7 @@ Kirigami.ApplicationWindow {
 
         BookFromFilePage {
             bookFromFile: bookFromFileState
+            folderUrl: bookSession.folderUrl
             onCancelled: {
                 bookFromFileState.cancel();
                 root.pageStack.pop();

@@ -7,6 +7,7 @@
 //! (D-065).
 
 use core::pin::Pin;
+use std::path::PathBuf;
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QList, QMap, QMapPair_QString_QVariant, QString, QStringList, QUrl, QVariant};
@@ -19,6 +20,7 @@ use crate::book_session::local_path;
 use crate::books::{Books, Filled};
 use crate::errors::ErrorText;
 use crate::number_format::app_locale;
+use crate::platform;
 use crate::session;
 use crate::variant::{error_object, list, map, text};
 
@@ -65,6 +67,13 @@ pub mod qobject {
         /// made.
         #[qinvokable]
         fn create(self: Pin<&mut BookFromFile>, answers: &QVariant) -> QVariant;
+
+        /// Like `create`, but a new book goes where the user chose, `file`,
+        /// instead of the data folder (D-125). If the open book is filled,
+        /// `file` is not used.
+        #[qinvokable]
+        #[cxx_name = "createAt"]
+        fn create_at(self: Pin<&mut BookFromFile>, answers: &QVariant, file: &QUrl) -> QVariant;
 
         /// Forgets the file.
         #[qinvokable]
@@ -120,7 +129,19 @@ impl qobject::BookFromFile {
         map([])
     }
 
-    fn create(mut self: Pin<&mut Self>, answers: &QVariant) -> QVariant {
+    fn create(self: Pin<&mut Self>, answers: &QVariant) -> QVariant {
+        self.make(answers, None)
+    }
+
+    fn create_at(self: Pin<&mut Self>, answers: &QVariant, file: &QUrl) -> QVariant {
+        let Some(path) = local_path(file) else {
+            return error_object(&ErrorText::plain("input.not-a-local-file"));
+        };
+        self.make(answers, Some(path))
+    }
+
+    /// Makes the book, in the data folder or at `place`.
+    fn make(mut self: Pin<&mut Self>, answers: &QVariant, place: Option<PathBuf>) -> QVariant {
         let Some(prepared) = self.rust().prepared.as_ref() else {
             return error_object(&ErrorText::plain("input.no-such-entry"));
         };
@@ -137,9 +158,12 @@ impl qobject::BookFromFile {
                 .map(|created| (created, false))
         } else {
             let books = Books::for_user();
-            match books.create_filled(&prepared.stem, |book| {
-                book_from_file::fill(book, prepared, &replaced, &locale)
-            }) {
+            let fill = |book: &mut _| book_from_file::fill(book, prepared, &replaced, &locale);
+            let made = match &place {
+                Some(place) => books.create_filled_at(place, fill),
+                None => books.create_filled(&prepared.stem, fill),
+            };
+            match made {
                 Ok((open, created)) => {
                     session::set(open);
                     Ok((created, true))
@@ -221,6 +245,10 @@ fn prepared_object(view: &PreparedView, into_open: bool, stem: &str) -> QVariant
         ("transactions", count(view.transactions)),
         ("unlisted", list(view.unlisted.iter().map(unlisted_object))),
         ("intoOpenBook", QVariant::from(&into_open)),
+        (
+            "canChoosePlace",
+            QVariant::from(&(!into_open && platform::can_choose_book_place())),
+        ),
         ("bookName", text(stem)),
     ])
 }

@@ -303,14 +303,18 @@ jobs:
       QT_QPA_PLATFORM: offscreen
       CARGO_INCREMENTAL: "0"
     steps:
+      # Kirigami Addons is named by the file it installs: Fedora 44 has no
+      # package called kirigami-addons, and its name couldn't be checked
+      # beforehand (D-112).
       - name: Install the distribution's build tools, Qt, KDE Frameworks and SQLite
         run: |
           dnf install -y --setopt=install_weak_deps=False \
             cmake dejavu-sans-fonts extra-cmake-modules gcc-c++ gettext git \
             kf6-kconfig-devel kf6-ki18n kf6-ki18n-devel kf6-kirigami kf6-kirigami-devel \
-            kf6-qqc2-desktop-style kirigami-addons ninja-build \
+            kf6-qqc2-desktop-style ninja-build \
             pkgconf-pkg-config qt6-qtbase-devel qt6-qtdeclarative \
-            qt6-qtdeclarative-devel rustup sqlite-devel tar
+            qt6-qtdeclarative-devel rustup sqlite-devel tar \
+            /usr/lib64/qt6/qml/org/kde/kirigamiaddons/formcard/qmldir
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # In a container, `github.workspace` is the runner's path, not the
       # container's, so Cargo's folder is named here.

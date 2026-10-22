@@ -30,20 +30,18 @@ impl Book {
     pub fn transfer_suggestions(&self) -> Result<Vec<TransferMatch>, StoreError> {
         let accounts = self.account_ids()?;
         // Only transactions with two parts, one of them without a category,
-        // can be sides; each is read and checked in full.
-        let mut statement = self.conn.prepare(
-            "SELECT transaction_id FROM splits
-             GROUP BY transaction_id
-             HAVING count(*) = 2 AND count(account_id) = 1 AND count(foreign_amount) = 0",
+        // can be sides; they are read together, in full, as a book's whole
+        // list is, not one by one (#84).
+        let candidates = self.transactions_where(
+            "WHERE t.id IN (SELECT transaction_id FROM splits
+                            GROUP BY transaction_id
+                            HAVING count(*) = 2 AND count(account_id) = 1
+                                   AND count(foreign_amount) = 0)",
+            &[],
         )?;
-        let ids = statement
-            .query_map([], |row| Ok(TransactionId::from_bytes(row.get(0)?)))?
-            .collect::<Result<Vec<_>, _>>()?;
-        drop(statement);
         let mut sides = Vec::new();
-        for id in ids {
-            let transaction = self.transaction(id)?;
-            if let Ok(side) = TransferSide::of(&transaction, |id| accounts.contains(&id)) {
+        for transaction in &candidates {
+            if let Ok(side) = TransferSide::of(transaction, |id| accounts.contains(&id)) {
                 sides.push(side);
             }
         }

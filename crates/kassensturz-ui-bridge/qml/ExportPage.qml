@@ -144,6 +144,7 @@ FormCard.FormCardPage {
 
     FormCard.FormCard {
         FormCard.FormButtonDelegate {
+            descriptionItem.textFormat: Text.PlainText
             icon.name: page.moreChoices ? "arrow-up" : "arrow-down"
             text: page.moreChoices
                 ? page.i18nContext.i18nc("@action:button", "Fewer choices")

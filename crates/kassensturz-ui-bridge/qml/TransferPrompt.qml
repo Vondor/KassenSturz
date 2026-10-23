@@ -101,6 +101,7 @@ Kirigami.PromptDialog {
         }
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             text: prompt.i18nContext.i18nc("@info %1 is an amount, %2 the name of an account, %3 a date", "%1 left %2 on %3.", prompt.suggestion.amount ?? "", prompt.outgoing.account ?? "", prompt.outgoing.date ?? "")
             wrapMode: Text.Wrap
@@ -108,6 +109,7 @@ Kirigami.PromptDialog {
         }
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             visible: (prompt.outgoing.otherParty ?? "") !== ""
             text: prompt.i18nContext.i18nc("@info %1 is a name that account shows for the money", "There it says: %1", prompt.outgoing.otherParty ?? "")
@@ -115,6 +117,7 @@ Kirigami.PromptDialog {
         }
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             text: prompt.i18nContext.i18nc("@info %1 is an amount, %2 the name of an account, %3 a date", "%1 arrived in %2 on %3.", prompt.suggestion.amount ?? "", prompt.incoming.account ?? "", prompt.incoming.date ?? "")
             wrapMode: Text.Wrap
@@ -122,6 +125,7 @@ Kirigami.PromptDialog {
         }
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             visible: (prompt.incoming.otherParty ?? "") !== ""
             text: prompt.i18nContext.i18nc("@info %1 is a name that account shows for the money", "There it says: %1", prompt.incoming.otherParty ?? "")

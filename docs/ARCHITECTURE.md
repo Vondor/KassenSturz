@@ -82,6 +82,7 @@ kassensturz/
 - `src/session.rs` keeps the open book for the GUI thread; `src/book_session.rs` is its QML object, `BookSession`, which opens and switches books and signals `opened` so every screen reads the book again. Every screen's Rust object reaches the book through `session::with_book` and `session::with_book_mut`. The app closes the book before it ends, which removes the lock file.
 - `src/settings.rs` keeps the app's own settings with KConfig, in `kassensturzrc` in the user's settings folder (D-112): the book opened last, and the number format (D-114). The Rust program links KConfig's core library through `cpp/settings.cpp`; `build.rs` finds it next to Qt, or where CMake's `KF6::ConfigCore` says when CMake drives the build.
 - `src/platform.rs` asks Qt for the computer's name, the data folder and the file system a book is on (`QStorageInfo`), to warn about network drives (D-038) and refuse files a sandbox's file chooser handed over (Q-071), until `kassensturz-platform` takes this over.
+- `src/network_guard.rs` and `cpp/local_only.cpp` give the QML engine a network access manager that refuses every address except local files and Qt resources, so no screen can reach the network, whatever a text contains (D-143). `qml/Plain.qml` is the helper for Kirigami messages that show outside text; `src/plain_text_audit.rs` is the test that every label with changing text is plain text.
 
 ## Number format (M3.2)
 

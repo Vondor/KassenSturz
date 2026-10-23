@@ -12,6 +12,9 @@ import org.kde.kirigami as Kirigami
 Controls.Label {
     id: label
 
+    // Amounts are numbers and a currency, never markup (D-143).
+    textFormat: Text.PlainText
+
     // The same text with the exact amount; nothing extra shows if it is the
     // same.
     property string exactText: text

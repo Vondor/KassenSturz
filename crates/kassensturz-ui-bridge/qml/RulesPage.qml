@@ -123,7 +123,7 @@ Kirigami.Page {
                         Layout.fillWidth: true
                         visible: true
                         type: Kirigami.MessageType.Information
-                        text: page.i18nContext.i18ncp("@info %1 is a number, %2 a name, %3 a category", "You have sorted %2 into %3 by hand %1 time. Want KassenSturz to do it for you from now on?", "You have sorted %2 into %3 by hand %1 times. Want KassenSturz to do it for you from now on?", parseInt(modelData.count), modelData.payee, modelData.categoryPath)
+                        text: Plain.plain(page.i18nContext.i18ncp("@info %1 is a number, %2 a name, %3 a category", "You have sorted %2 into %3 by hand %1 time. Want KassenSturz to do it for you from now on?", "You have sorted %2 into %3 by hand %1 times. Want KassenSturz to do it for you from now on?", parseInt(modelData.count), modelData.payee, modelData.categoryPath))
                         actions: [
                             Kirigami.Action {
                                 icon.name: "list-add"

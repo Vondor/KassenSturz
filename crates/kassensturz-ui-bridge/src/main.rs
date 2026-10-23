@@ -28,12 +28,14 @@ mod history_model;
 mod language;
 mod language_model;
 mod locale;
+mod network_guard;
 mod number_format;
 mod number_format_model;
 mod overview;
 mod overview_model;
 mod parse;
 mod parts_entry;
+mod plain_text_audit;
 mod platform;
 mod register;
 mod register_model;
@@ -80,6 +82,8 @@ fn main() {
                 std::process::exit(1);
             })
             .release();
+        // Before the first file loads: no screen reaches the network (D-143).
+        network_guard::install(engine.as_mut());
         engine.load(&QUrl::from(MAIN_QML));
     }
 

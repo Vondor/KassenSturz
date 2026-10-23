@@ -92,6 +92,7 @@ Kirigami.ScrollablePage {
         }
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             text: types.nameOf(page.account.type ?? "")
             visible: text !== ""
@@ -111,6 +112,7 @@ Kirigami.ScrollablePage {
         // showed on a day, and whether the account still holds it. Exact
         // amounts, since a rounded one could hide the difference.
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             visible: (page.account.stated ?? null) !== null && (page.account.stated.matches ?? false)
             text: visible
@@ -183,12 +185,14 @@ Kirigami.ScrollablePage {
         }
 
         Kirigami.Heading {
+            textFormat: Text.PlainText
             Layout.topMargin: Kirigami.Units.largeSpacing
             text: page.account.closed ? page.i18nContext.i18nc("@title", "Open again") : page.i18nContext.i18nc("@title", "Close account")
             level: 2
         }
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             text: page.account.closed
                 ? page.i18nContext.i18nc("@info", "Open the account again to add transactions to it.")

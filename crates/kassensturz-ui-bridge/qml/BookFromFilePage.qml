@@ -85,6 +85,7 @@ FormCard.FormCardPage {
         FormCard.FormDelegateSeparator {}
 
         FormCard.FormTextDelegate {
+            descriptionItem.textFormat: Text.PlainText
             text: page.i18nContext.i18nc("@label what sort of file it is", "Made by")
             description: page.file.kind === "export"
                 ? page.i18nContext.i18nc("@info", "KassenSturz, with \"Save the whole book\"")
@@ -94,6 +95,7 @@ FormCard.FormCardPage {
         FormCard.FormDelegateSeparator {}
 
         FormCard.FormTextDelegate {
+            descriptionItem.textFormat: Text.PlainText
             text: page.i18nContext.i18nc("@label", "Accounts")
             description: String(page.file.accounts ?? 0)
         }
@@ -101,6 +103,7 @@ FormCard.FormCardPage {
         FormCard.FormDelegateSeparator {}
 
         FormCard.FormTextDelegate {
+            descriptionItem.textFormat: Text.PlainText
             text: page.i18nContext.i18nc("@label", "Categories")
             description: String(page.file.categories ?? 0)
         }
@@ -108,12 +111,14 @@ FormCard.FormCardPage {
         FormCard.FormDelegateSeparator {}
 
         FormCard.FormTextDelegate {
+            descriptionItem.textFormat: Text.PlainText
             text: page.i18nContext.i18nc("@label", "Transactions")
             description: String(page.file.transactions ?? 0)
         }
     }
 
     FormCard.FormSectionText {
+        textFormat: Text.PlainText
         text: page.file.kind === "export"
             ? page.i18nContext.i18nc("@info", "Everything in the file comes back exactly as it was saved. The history of changes isn't part of the file, so Undo starts fresh.")
             : page.i18nContext.i18nc("@info", "KassenSturz reads your KMyMoney file and never changes it. What KassenSturz can't hold yet, such as budgets, is left out, and you will see exactly what.")
@@ -125,6 +130,7 @@ FormCard.FormCardPage {
 
     FormCard.FormCard {
         FormCard.FormTextDelegate {
+            textItem.textFormat: Text.PlainText
             text: page.file.intoOpenBook
                 ? page.i18nContext.i18nc("@info", "Into your book")
                 : page.i18nContext.i18nc("@info", "Into a new book")

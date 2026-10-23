@@ -154,6 +154,7 @@ Kirigami.ScrollablePage {
 
         // What can't be changed here, and where it can.
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.maximumWidth: Kirigami.Units.gridUnit * 20
             visible: !page.editable
             text: page.kind === "starting-balance"

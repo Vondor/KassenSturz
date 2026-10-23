@@ -28,7 +28,9 @@ Kirigami.InlineMessage {
 
     type: Kirigami.MessageType.Error
     visible: result.code !== undefined
-    text: visible ? withCondition(result, withPart(result, messageFor(result))) : ""
+    // An InlineMessage shows markup as markup: nothing from a file may look
+    // like it (D-143).
+    text: visible ? Plain.plain(withCondition(result, withPart(result, messageFor(result)))) : ""
 
     // A message about one Part of a transaction names its number (M3.6).
     function withPart(result: var, message: string): string {

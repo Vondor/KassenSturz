@@ -122,6 +122,7 @@ Kirigami.ScrollablePage {
 
         FormCard.FormCard {
             FormCard.FormTextDelegate {
+                descriptionItem.textFormat: Text.PlainText
                 icon.name: "document-import"
                 text: page.view.fromBank
                     ? page.i18nContext.i18nc("@info", "From your bank")
@@ -137,6 +138,7 @@ Kirigami.ScrollablePage {
             }
 
             FormCard.FormTextDelegate {
+                textItem.textFormat: Text.PlainText
                 visible: (page.view.rules ?? 0) > 0
                 icon.name: "view-filter"
                 text: page.i18nContext.i18ncp("@info", "Your Rules sort %1 of them into a category.", "Your Rules sort %1 of them into categories.", page.view.rules ?? 0)
@@ -147,6 +149,7 @@ Kirigami.ScrollablePage {
             }
 
             FormCard.FormTextDelegate {
+                textItem.textFormat: Text.PlainText
                 visible: (page.view.toDecide ?? 0) > 0
                 icon.name: "dialog-question"
                 text: page.i18nContext.i18ncp("@info", "%1 transaction looks like one already in your book.", "%1 transactions look like transactions already in your book.", page.view.toDecide ?? 0)
@@ -158,6 +161,7 @@ Kirigami.ScrollablePage {
             }
 
             FormCard.FormTextDelegate {
+                textItem.textFormat: Text.PlainText
                 visible: (page.view.duplicates ?? 0) > 0
                 icon.name: "edit-copy"
                 text: page.i18nContext.i18ncp("@info", "%1 transaction is already in your book and is skipped.", "%1 transactions are already in your book and are skipped.", page.view.duplicates ?? 0)
@@ -168,6 +172,7 @@ Kirigami.ScrollablePage {
             }
 
             FormCard.FormTextDelegate {
+                textItem.textFormat: Text.PlainText
                 visible: (page.view.pending ?? 0) > 0
                 icon.name: "chronometer"
                 text: page.i18nContext.i18ncp("@info", "%1 transaction isn't booked by your bank yet and is left out.", "%1 transactions aren't booked by your bank yet and are left out.", page.view.pending ?? 0)
@@ -179,6 +184,7 @@ Kirigami.ScrollablePage {
             }
 
             FormCard.FormTextDelegate {
+                textItem.textFormat: Text.PlainText
                 visible: (page.view.transfers ?? 0) > 0
                 icon.name: "edit-link"
                 text: page.i18nContext.i18ncp("@info", "%1 transaction looks like money moved between your own accounts.", "%1 transactions look like money moved between your own accounts.", page.view.transfers ?? 0)
@@ -211,6 +217,8 @@ Kirigami.ScrollablePage {
                     }
 
                     FormCard.FormTextDelegate {
+                        descriptionItem.textFormat: Text.PlainText
+                        textItem.textFormat: Text.PlainText
                         icon.name: balanceRow.modelData.matches ? "dialog-ok-apply" : "dialog-warning"
                         text: page.balanceText(balanceRow.modelData)
                         description: page.balanceDescription(balanceRow.modelData)
@@ -255,6 +263,7 @@ Kirigami.ScrollablePage {
                                 spacing: Kirigami.Units.largeSpacing
 
                                 Controls.Label {
+                                    textFormat: Text.PlainText
                                     text: entryRow.modelData.date
                                 }
 
@@ -269,6 +278,7 @@ Kirigami.ScrollablePage {
                                 }
 
                                 AmountLabel {
+                                    textFormat: Text.PlainText
                                     text: entryRow.modelData.amount
                                     exactText: entryRow.modelData.exactAmount
                                     horizontalAlignment: Text.AlignRight
@@ -290,6 +300,7 @@ Kirigami.ScrollablePage {
                             }
 
                             Controls.Label {
+                                textFormat: Text.PlainText
                                 Layout.fillWidth: true
                                 text: page.outcomeText(entryRow.modelData)
                                 wrapMode: Text.Wrap

@@ -102,6 +102,7 @@ Kirigami.ScrollablePage {
             }
 
             FormCard.FormTextDelegate {
+                textItem.textFormat: Text.PlainText
                 visible: (page.view.rules ?? 0) > 0
                 icon.name: "view-filter"
                 text: page.i18nContext.i18ncp("@info", "Your Rules sorted %1 of them into a category.", "Your Rules sorted %1 of them into categories.", page.view.rules ?? 0)
@@ -113,6 +114,8 @@ Kirigami.ScrollablePage {
             }
 
             FormCard.FormTextDelegate {
+                descriptionItem.textFormat: Text.PlainText
+                textItem.textFormat: Text.PlainText
                 visible: (page.view.toDecide ?? 0) > 0
                 icon.name: "dialog-question"
                 text: page.i18nContext.i18ncp("@info", "%1 transaction was left out because it looks like one you already have.", "%1 transactions were left out because they look like transactions you already have.", page.view.toDecide ?? 0)
@@ -126,6 +129,7 @@ Kirigami.ScrollablePage {
             }
 
             FormCard.FormTextDelegate {
+                textItem.textFormat: Text.PlainText
                 visible: (page.view.duplicates ?? 0) > 0
                 icon.name: "edit-copy"
                 text: page.i18nContext.i18ncp("@info", "%1 transaction was already in your book and was skipped.", "%1 transactions were already in your book and were skipped.", page.view.duplicates ?? 0)
@@ -136,6 +140,7 @@ Kirigami.ScrollablePage {
             }
 
             FormCard.FormTextDelegate {
+                textItem.textFormat: Text.PlainText
                 visible: (page.view.pending ?? 0) > 0
                 icon.name: "chronometer"
                 text: page.i18nContext.i18ncp("@info", "%1 transaction isn't booked by your bank yet and was left out.", "%1 transactions aren't booked by your bank yet and were left out.", page.view.pending ?? 0)
@@ -168,6 +173,8 @@ Kirigami.ScrollablePage {
                     }
 
                     FormCard.FormTextDelegate {
+                        descriptionItem.textFormat: Text.PlainText
+                        textItem.textFormat: Text.PlainText
                         icon.name: balanceRow.modelData.matches ? "dialog-ok-apply" : "dialog-warning"
                         text: page.balanceText(balanceRow.modelData)
                         description: page.balanceDescription(balanceRow.modelData)
@@ -185,6 +192,7 @@ Kirigami.ScrollablePage {
         }
 
         FormCard.FormSectionText {
+            textFormat: Text.PlainText
             visible: page.balances.length === 0
             text: page.view.fromBank
                 ? page.i18nContext.i18nc("@info", "Your bank didn't say what the account holds. To make sure the figures agree, open the account's page and use \"Check against my bank\".")

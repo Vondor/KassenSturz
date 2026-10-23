@@ -71,6 +71,7 @@ FormCard.FormCardPage {
     // are shown as plain text.
     FormCard.FormCard {
         FormCard.FormTextDelegate {
+            textItem.textFormat: Text.PlainText
             icon.name: "dialog-ok"
             text: page.report.newBook
                 ? page.i18nContext.i18nc("@info", "A new book was made and is open")
@@ -90,6 +91,7 @@ FormCard.FormCardPage {
 
     FormCard.FormCard {
         FormCard.FormTextDelegate {
+            descriptionItem.textFormat: Text.PlainText
             text: page.i18nContext.i18nc("@label", "Accounts")
             description: String(page.report.accounts ?? 0)
         }
@@ -97,6 +99,7 @@ FormCard.FormCardPage {
         FormCard.FormDelegateSeparator {}
 
         FormCard.FormTextDelegate {
+            descriptionItem.textFormat: Text.PlainText
             text: page.i18nContext.i18nc("@label", "Categories")
             description: String(page.report.categories ?? 0)
         }
@@ -104,6 +107,7 @@ FormCard.FormCardPage {
         FormCard.FormDelegateSeparator {}
 
         FormCard.FormTextDelegate {
+            descriptionItem.textFormat: Text.PlainText
             text: page.i18nContext.i18nc("@label", "Transactions")
             description: String(page.report.transactions ?? 0)
         }
@@ -113,6 +117,7 @@ FormCard.FormCardPage {
         }
 
         FormCard.FormTextDelegate {
+            descriptionItem.textFormat: Text.PlainText
             visible: (page.report.rates ?? 0) > 0
             text: page.i18nContext.i18nc("@label", "Exchange rates")
             description: String(page.report.rates ?? 0)
@@ -133,6 +138,7 @@ FormCard.FormCardPage {
             || (page.report.transfers ?? 0) > 0
 
         FormCard.FormTextDelegate {
+            textItem.textFormat: Text.PlainText
             visible: (page.report.uncategorized ?? 0) > 0
             text: page.i18nContext.i18ncp("@info %1 is how many", "%1 transaction has no category yet", "%1 transactions have no category yet", page.report.uncategorized ?? 0)
             description: page.i18nContext.i18nc("@info", "That is how they are in the file, as often happens with transactions that came from a bank. Give them a category when you like.")
@@ -143,6 +149,7 @@ FormCard.FormCardPage {
         }
 
         FormCard.FormTextDelegate {
+            textItem.textFormat: Text.PlainText
             visible: (page.report.completed ?? 0) > 0
             text: page.i18nContext.i18ncp("@info %1 is how many", "%1 transaction didn't add up in the file", "%1 transactions didn't add up in the file", page.report.completed ?? 0)
             description: page.i18nContext.i18nc("@info", "KassenSturz added a part without a category for the difference, so every amount still adds up. Look at them and give the difference a category.")
@@ -185,6 +192,8 @@ FormCard.FormCardPage {
             model: page.report.converted ?? []
 
             delegate: FormCard.FormTextDelegate {
+                descriptionItem.textFormat: Text.PlainText
+                textItem.textFormat: Text.PlainText
                 required property var modelData
 
                 text: page.i18nContext.i18nc("@info %1 and %2 are currency codes", "Amounts in %1 are counted in %2", modelData.old, modelData.new)
@@ -217,6 +226,7 @@ FormCard.FormCardPage {
             model: page.report.skipped ?? []
 
             delegate: FormCard.FormTextDelegate {
+                textItem.textFormat: Text.PlainText
                 required property var modelData
 
                 text: page.skippedName(modelData.what, modelData.count)

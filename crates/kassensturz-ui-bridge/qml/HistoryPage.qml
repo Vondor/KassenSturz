@@ -117,6 +117,7 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormSectionText {
+        textFormat: Text.PlainText
         visible: page.history.total > page.history.shown
         text: page.i18nContext.i18nc("@info %1 is how many changes there are, %2 how many are shown", "The newest %2 of %1 changes are shown. Undo goes back through all of them, newest first.", page.history.total, page.history.shown)
     }

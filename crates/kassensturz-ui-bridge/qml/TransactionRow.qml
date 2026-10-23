@@ -89,6 +89,7 @@ RowLayout {
 
     // The book's columns.
     Controls.Label {
+        textFormat: Text.PlainText
         Layout.preferredWidth: row.dateWidth
         visible: row.ledger
         text: row.header ? row.i18nContext.i18nc("@title:column", "Date") : row.date
@@ -107,6 +108,7 @@ RowLayout {
         spacing: 0
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             text: row.header
                 ? row.i18nContext.i18nc("@title:column whom the money came from or went to", "From or to")
@@ -116,6 +118,7 @@ RowLayout {
         }
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             visible: !row.header && row.note !== ""
             text: row.oneLineNote
@@ -126,6 +129,7 @@ RowLayout {
     }
 
     Controls.Label {
+        textFormat: Text.PlainText
         Layout.fillWidth: true
         Layout.preferredWidth: row.nameWidth
         visible: row.ledger
@@ -137,6 +141,7 @@ RowLayout {
     // A payment and a deposit each have their own column, so what went out
     // and what came in can be told apart at a glance.
     AmountLabel {
+        textFormat: Text.PlainText
         Layout.preferredWidth: row.amountWidth
         visible: row.ledger
         horizontalAlignment: Text.AlignRight
@@ -146,6 +151,7 @@ RowLayout {
     }
 
     AmountLabel {
+        textFormat: Text.PlainText
         Layout.preferredWidth: row.amountWidth
         visible: row.ledger
         horizontalAlignment: Text.AlignRight
@@ -156,6 +162,7 @@ RowLayout {
     }
 
     AmountLabel {
+        textFormat: Text.PlainText
         Layout.preferredWidth: row.amountWidth
         visible: row.ledger
         horizontalAlignment: Text.AlignRight
@@ -175,12 +182,14 @@ RowLayout {
         spacing: 0
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             text: row.title
             elide: Text.ElideRight
         }
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             text: row.details
             elide: Text.ElideRight
@@ -188,6 +197,7 @@ RowLayout {
         }
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             visible: row.note !== ""
             text: row.oneLineNote
@@ -202,6 +212,7 @@ RowLayout {
         spacing: 0
 
         AmountLabel {
+            textFormat: Text.PlainText
             Layout.alignment: Qt.AlignRight
             text: row.amount
             exactText: row.exactAmount
@@ -209,6 +220,7 @@ RowLayout {
         }
 
         AmountLabel {
+            textFormat: Text.PlainText
             Layout.alignment: Qt.AlignRight
             visible: row.balance !== ""
             text: row.balanceText

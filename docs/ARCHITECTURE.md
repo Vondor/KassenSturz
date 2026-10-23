@@ -106,13 +106,13 @@ kassensturz/
 ## Dependency rules
 
 - `kassensturz-core` depends on **no other workspace crate**.
-- `kassensturz-store`, `kassensturz-import`, `kassensturz-export`, `kassensturz-bank`, `kassensturz-charts`, `kassensturz-ai`, `kassensturz-plugin-host` depend on `kassensturz-core`.
+- `kassensturz-store`, `kassensturz-import`, `kassensturz-export`, `kassensturz-bank`, `kassensturz-platform`, `kassensturz-charts`, `kassensturz-ai`, `kassensturz-plugin-host` depend on `kassensturz-core`.
 - `kassensturz-bank` also depends on `kassensturz-import`, for the `Statement` it converts fetched data into and the checks every statement gets (D-145); it knows no book. Its tests alone depend on `kassensturz-pipeline` and `kassensturz-store`, to feed the fake bank's statements through the real import (AGENTS.md §9.4).
 - `kassensturz-store`, `kassensturz-import` and `kassensturz-export` don't depend on each other: a file format knows no database, and the book knows no file format (D-091, D-099). `kassensturz-pipeline` depends on core, import, export and store and joins them (D-092, D-099).
 - Only `kassensturz-store` touches the book's database; every other crate calls its functions (D-072). Reading another program's files, such as KMyMoney's SQLite format in `kassensturz-import`, isn't affected.
 - Only `kassensturz-bank` uses `kassensturz-aqbanking-sys`; no other crate calls AqBanking's C code (D-060).
 - Front ends (`kassensturz-cli`, `kassensturz-ui-bridge`, `kassensturz-mcp`) depend on core, store and plugin host, and on import, export and pipeline to import and export files. **Core never knows about a UI.**
-- OS-specific behavior lives only in `kassensturz-platform` behind traits.
+- OS-specific behavior lives only in `kassensturz-platform` behind traits. Since M4.1 that is the `Keychain` trait: `SystemKeychain` reaches the user's keychain through the `keyring` crate (the Secret Service on Linux, which KWallet and GNOME Keyring answer), `MemoryKeychain` is the fake for tests, and a `Secret` never shows its value and wipes itself (D-147). `kassensturz-platform` depends only on `kassensturz-core`; no other crate talks to a keychain (AGENTS.md §3.1 rule 7).
 - AI code lives only in `kassensturz-ai` and `kassensturz-mcp`. Front ends use them only behind one build feature (`ai`, on by default), so KassenSturz can be built without any AI code (D-039). `kassensturz-core` never depends on AI code.
 - Built-in importers and exporters implement the native Rust interface that the plugin API mirrors (D-069).
 

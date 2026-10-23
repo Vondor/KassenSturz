@@ -24,7 +24,10 @@ mkdir -p "$cache"
 
 # The display sockets let `cargo run` open the app window; builds don't use
 # them. Network access is only for Cargo's downloads: the app itself never gets
-# it (AGENTS.md §3.1 rule 4).
+# it (AGENTS.md §3.1 rule 4). The Secret Service is for the keychain test a
+# developer runs by hand (`cargo test -p kassensturz-platform -- --ignored`,
+# D-147); without it the SDK sandbox hides KWallet and GNOME Keyring. The
+# app's own Flatpak gets that permission in M4.8 (D-142), not here.
 exec flatpak run \
     --die-with-parent \
     --share=network \
@@ -32,6 +35,7 @@ exec flatpak run \
     --socket=wayland \
     --socket=fallback-x11 \
     --device=dri \
+    --talk-name=org.freedesktop.secrets \
     --filesystem="$repo" \
     --filesystem="$cache" \
     --env=CARGO_HOME="$cache/cargo" \

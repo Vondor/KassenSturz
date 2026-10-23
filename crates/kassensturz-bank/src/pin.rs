@@ -205,6 +205,24 @@ impl PinSession {
             .retain(|_, (_, mode)| *mode != PinMode::AskEachTime);
     }
 
+    /// Moves what is kept for `from` to `to`: the PIN a login got while
+    /// it was [`LoginId::pending`] becomes the new login's. A PIN saved in
+    /// the store is saved again under `to` and deleted under `from`.
+    pub fn rename(&mut self, from: &LoginId, to: &LoginId) -> Result<(), BankError> {
+        if let Some((pin, mode)) = self.remembered.remove(from) {
+            if mode == PinMode::SaveInKeychain {
+                self.store.save(to, &pin)?;
+            }
+            self.remembered.insert(to.clone(), (pin, mode));
+        } else if let Some(pin) = self.store.load(from)? {
+            self.store.save(to, &pin)?;
+        }
+        if self.rejected.remove(from) {
+            self.rejected.insert(to.clone());
+        }
+        self.store.delete(from)
+    }
+
     /// Forgets everything about `login`'s PIN: remembered and saved. For
     /// "Remove saved PIN" in Settings and for removing the login (D-057).
     pub fn forget(&mut self, login: &LoginId) -> Result<(), BankError> {
@@ -356,6 +374,28 @@ mod tests {
         session.forget(&login()).expect("forgotten");
         assert_eq!(session.answer(&login()), Ok(PinAnswer::Ask));
         assert_eq!(session.is_saved(&login()), Ok(false));
+    }
+
+    #[test]
+    fn a_pending_pin_is_moved_to_the_new_login() {
+        let mut session = session();
+        let pending = LoginId::pending();
+        session
+            .provide(&pending, pin("0000"), PinMode::SaveInKeychain)
+            .expect("provided");
+        session.rename(&pending, &login()).expect("renamed");
+        assert_eq!(session.answer(&pending), Ok(PinAnswer::Ask));
+        assert_eq!(session.is_saved(&pending), Ok(false));
+        assert_eq!(session.answer(&login()), Ok(PinAnswer::Known(pin("0000"))));
+        assert_eq!(session.is_saved(&login()), Ok(true));
+        // Renaming a login without a PIN changes nothing.
+        session
+            .rename(&LoginId::new("nobody"), &LoginId::new("still nobody"))
+            .expect("nothing to move");
+        assert_eq!(
+            session.answer(&LoginId::new("still nobody")),
+            Ok(PinAnswer::Ask)
+        );
     }
 
     #[test]

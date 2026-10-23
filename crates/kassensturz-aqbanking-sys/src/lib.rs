@@ -5,10 +5,11 @@
 //! KassenSturz reads bank data with (D-060).
 //!
 //! This is the only crate that talks to the two C libraries, and it holds no
-//! logic beyond loading them and checking their versions. Everything safe,
-//! from fetching a balance to turning a transaction into a statement, lives
-//! in `kassensturz-bank` (D-060); nothing here is called by any other crate
-//! (`docs/ARCHITECTURE.md`, dependency rules).
+//! logic beyond loading them, checking their versions and copying their
+//! answers out safely. Everything else, from the bank abstraction to
+//! turning a transaction into a statement, lives in `kassensturz-bank`
+//! (D-060), the only crate that uses this one (`docs/ARCHITECTURE.md`,
+//! dependency rules).
 //!
 //! # How the libraries are reached
 //!
@@ -28,7 +29,13 @@
 //! `AB_Banking_new` with KassenSturz's own data folder (D-139) and
 //! `AB_Banking_Init`; at the end `AB_Banking_Fini`, `AB_Banking_free`,
 //! `GWEN_Fini`. A [`Libraries`] value must outlive every pointer obtained
-//! through it: dropping it unloads the libraries.
+//! through it: dropping it unloads the libraries. [`session::Session`]
+//! does all of this behind a safe API (M4.5): it is the only code that
+//! calls the declarations, reads every answer into plain Rust values
+//! under the rules of threat T-09 (null checks, bounded copies, one rule
+//! for text that isn't UTF-8), and routes Gwenhywfar's callbacks (PIN,
+//! password status, log, certificate) to a handler the app supplies.
+//! `kassensturz-bank` builds the bank backend on it without unsafe code.
 //!
 //! # What the declarations leave out, on purpose
 //!
@@ -77,5 +84,37 @@ pub mod aqbanking;
 pub mod gwengui;
 pub mod gwenhywfar;
 mod load;
+pub mod session;
+#[cfg(feature = "stub")]
+pub mod stub;
+mod text;
 
 pub use load::{AQBANKING_LIBRARY, GWENHYWFAR_LIBRARY, Libraries, Library, LoadError, Version};
+pub use text::MAX_TEXT_BYTES;
+
+/// Loads the installed libraries only to read their versions (D-054,
+/// D-138), then unloads them again. This is how the app learns whether
+/// bank connections are possible without opening a session.
+pub fn probe() -> Result<(Version, Version), LoadError> {
+    // SAFETY: loading runs the libraries' initialisers; nothing is called
+    // but the version functions, and no pointer outlives the value.
+    let libraries = unsafe { Libraries::load() }?;
+    Ok((
+        libraries.gwenhywfar_version(),
+        libraries.aqbanking_version(),
+    ))
+}
+
+/// [`probe`] for libraries at the given paths, e.g. a stub library in a
+/// test.
+pub fn probe_from(
+    gwenhywfar: &std::path::Path,
+    aqbanking: &std::path::Path,
+) -> Result<(Version, Version), LoadError> {
+    // SAFETY: as in `probe`.
+    let libraries = unsafe { Libraries::load_from(gwenhywfar, aqbanking) }?;
+    Ok((
+        libraries.gwenhywfar_version(),
+        libraries.aqbanking_version(),
+    ))
+}

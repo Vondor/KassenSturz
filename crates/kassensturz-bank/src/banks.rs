@@ -10,7 +10,7 @@
 //! bank's server address and login kinds are the same for every customer.
 //! Never write a login name, account number, PIN or TAN here.
 
-use crate::directory::{BankInfo, FintsServer, LoginKind};
+use crate::directory::{BankInfo, CustomerId, FintsServer, LoginKind};
 use crate::iban::BankCode;
 
 /// One bank in the hand-checked list.
@@ -52,10 +52,52 @@ impl BankEntry {
     }
 }
 
-/// The list. Empty until the first test round with a real bank (Phase 2 of
-/// M4): every entry comes from a person who confirmed it, never from an
-/// agent's memory (`docs/BANK_LIST.md`).
-pub const HAND_CHECKED: &[BankEntry] = &[];
+/// The list: every entry comes from a person who confirmed it, never from
+/// an agent's memory (`docs/BANK_LIST.md`). The first entries are settings
+/// reported as working with AqBanking (item 77 of the Proposals list,
+/// 2026-10-23); `customer_id` is `Unknown` until a report says whether
+/// the bank asks for one.
+pub const HAND_CHECKED: &[BankEntry] = &[
+    BankEntry {
+        country: "DE",
+        code: "55190000",
+        name: "Volksbank Darmstadt Mainz",
+        bic: Some("MVBMDE55XXX"),
+        server: Some("https://fints2.atruvia.de/cgi-bin/hbciservlet"),
+        login_kinds: Some(&[LoginKind::PinTan {
+            customer_id: CustomerId::Unknown,
+        }]),
+        checked: "2026-10-23, settings reported as working with AqBanking (item 77): \
+                  numeric login name, HBCI 3.0, PIN/TAN",
+    },
+    BankEntry {
+        // The bank code of the former Volksbank Darmstadt - Südhessen,
+        // which AqBanking's data lists under the same name without a
+        // server; the merged bank runs on the same server.
+        country: "DE",
+        code: "50890000",
+        name: "Volksbank Darmstadt Mainz",
+        bic: Some("GENODEF1VBD"),
+        server: Some("https://fints2.atruvia.de/cgi-bin/hbciservlet"),
+        login_kinds: Some(&[LoginKind::PinTan {
+            customer_id: CustomerId::Unknown,
+        }]),
+        checked: "2026-10-23, the same settings as for 55190000 (item 77); this code is \
+                  the one AqBanking's data has no server for",
+    },
+    BankEntry {
+        country: "DE",
+        code: "50010517",
+        name: "ING",
+        bic: Some("INGDDEFFXXX"),
+        server: Some("https://fints.ing.de/fints"),
+        login_kinds: Some(&[LoginKind::PinTan {
+            customer_id: CustomerId::Unknown,
+        }]),
+        checked: "2026-10-23, settings reported as working with AqBanking (item 77): \
+                  login name, HBCI 3.0, PIN/TAN",
+    },
+];
 
 #[cfg(test)]
 mod tests {

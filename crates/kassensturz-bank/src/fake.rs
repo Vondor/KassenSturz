@@ -300,6 +300,11 @@ impl Bank for FakeBank {
     ) -> Result<LoginId, BankError> {
         self.availability.require()?;
         let id = LoginId::new(format!("fake-login-{}", self.next_login));
+        // The PIN typed in the setup is kept as pending until the login
+        // has its ID, as with the real backend.
+        if pins.answer(&id)? == PinAnswer::Ask && pins.is_remembered(&LoginId::pending()) {
+            pins.rename(&LoginId::pending(), &id)?;
+        }
         if let Err(error) = self.connect(&id, pins) {
             // Nothing is kept of a login that didn't work, including its
             // PIN (D-057).

@@ -12,14 +12,19 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+kassensturz-aqbanking-sys.workspace = true
 kassensturz-core.workspace = true
 kassensturz-import.workspace = true
+kassensturz-platform.workspace = true
 zeroize.workspace = true
 
 [dev-dependencies]
-# Only for the tests where this crate meets the import pipeline: the fake
-# bank's statements go through `import_statements` into a book in memory
-# (AGENTS.md §9.4). The crate itself knows no book.
+# The stub library stands in for AqBanking in the tests of the real
+# backend (threat T-09); the pipeline and the store are only for the tests
+# where this crate meets the import pipeline: fetched statements go
+# through `import_statements` into a book in memory (AGENTS.md §9.4). The
+# crate itself knows no book.
+kassensturz-aqbanking-sys = { workspace = true, features = ["stub"] }
 kassensturz-pipeline.workspace = true
 kassensturz-store.workspace = true
 

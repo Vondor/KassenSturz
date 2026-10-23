@@ -141,6 +141,15 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - Your PIN: by default you type it every time. You can choose to keep it until you close KassenSturz, or to save it in your system's keychain (KWallet or GNOME Keyring). If your bank says the PIN was wrong, KassenSturz forgets it at once, so your login isn't blocked by repeating it. Removing a bank login removes its saved PIN too.
 - Bank connections need AqBanking. Without it, or with one that is too old, KassenSturz works as before and tells you what to install; the Flatpak brings AqBanking along (M4.8).
 
+## The connection to your bank (M4.5)
+
+- KassenSturz talks to your bank through AqBanking, the same free software KMyMoney and GnuCash use, with the FinTS standard of the German banks. It keeps the bank settings in a folder of its own inside KassenSturz's data folder, separate from any other program's, and removes the message logs AqBanking writes there, so your statements don't lie around in plain text.
+- Setting up a login runs the same steps AqBanking's own tools run: the bank's parameters, your login's system ID and the list of your accounts. If one step fails, KassenSturz removes the half-done login and forgets the PIN you typed, so you can simply start over.
+- KassenSturz connects only to a server whose security certificate passes every check; there is no "connect anyway". If the check fails, it tells you so and sends nothing.
+- Until KassenSturz has its own registration with the banks' FinTS system, the connection says so and offers importing a file instead; the registration is the maintainer's job and takes a while.
+- A TAN (for example for a long statement period) can't be typed yet; that comes with the next step. A chip card is set up in the advanced setup, not with the IBAN.
+- If KassenSturz knows your bank's name but not its server address or how you log in there, you can enter these yourself. The list of known banks grows with what people confirm in test rounds; it names banks and their servers, never who banks where.
+
 ## Which account is filled from which bank account (M4.4a)
 
 - Your book remembers which of your bank accounts fills each account, by its IBAN (or, for a card, by its number at the bank), and the day it was last fetched. That is all: no login name, no PIN and nothing from your keychain is ever stored in the book, so copies and backups of the book give nothing away about your bank login.

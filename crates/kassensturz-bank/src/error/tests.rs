@@ -43,6 +43,14 @@ fn examples() -> Vec<BankError> {
         },
         BankError::Aborted,
         BankError::Keychain,
+        BankError::TanNeeded,
+        BankError::UntrustedServer,
+        BankError::NeedsSetupDialog,
+        BankError::SetupFailed {
+            text: Some("ERROR: Could not parse arguments".to_owned()),
+        },
+        BankError::Folder,
+        BankError::Busy,
         BankError::MalformedAmount {
             amount: "12.34".to_owned(),
         },

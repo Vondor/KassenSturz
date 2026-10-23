@@ -248,6 +248,12 @@ A bank connection couldn't be used, or what the bank delivered couldn't be turne
 | `bank.unreachable` | | | Your bank's server couldn't be reached. Check your internet connection and try again later. |
 | `bank.refused` | `text?` | | Your bank refused the request. It says: {text}. Try again later; if it keeps happening, ask your bank. |
 | `bank.aborted` | | | The bank dialog was closed before it finished. Nothing was fetched. Start again when you are ready. |
+| `bank.tan-needed` | | | Your bank asks for a TAN for this request, and KassenSturz can't ask you for one yet. Nothing was fetched. Try again later; the TAN entry comes with a later version. |
+| `bank.untrusted-server` | | | The bank server's security certificate didn't pass every check, so KassenSturz sent nothing to it. Check your internet connection and the server address; if it keeps happening, ask your bank. |
+| `bank.needs-setup-dialog` | | | A chip-card login is set up in the advanced setup, not with the IBAN. Open the advanced setup from the bank login's page. |
+| `bank.setup-failed` | `text?` | | The bank login couldn't be set up, so nothing of it was kept. The bank software says: {text}. Check the login name and the server address and try again. |
+| `bank.folder` | | | The folder KassenSturz keeps its bank settings in couldn't be created or opened. Check that your data folder is writable. |
+| `bank.busy` | | | Another bank connection is still running. Wait for it to finish and try again. |
 | `bank.keychain` | | | The system keychain couldn't be reached, so a saved PIN couldn't be saved, read or removed. Make sure the keychain (KWallet or GNOME Keyring) is unlocked, or choose to type the PIN each time. |
 | `bank.malformed-amount` | `amount` | | Your bank sent an amount KassenSturz can't read: {amount}. Nothing was imported. If it keeps happening, report it with the amount as shown. |
 | `bank.inexact-amount` | `amount` | | Your bank sent an amount with a fraction of the smallest unit ({amount}), which KassenSturz never rounds. Nothing was imported. If it keeps happening, report it with the amount as shown. |

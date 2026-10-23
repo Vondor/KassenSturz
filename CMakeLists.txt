@@ -44,6 +44,8 @@ find_program(CARGO_EXECUTABLE cargo REQUIRED)
 
 option(KASSENSTURZ_BUNDLED_SQLITE
     "Build the SQLite that rusqlite bundles; OFF uses the system's SQLite (D-061)" ON)
+option(KASSENSTURZ_BANK_DIALOGS
+    "Build the library for Gwenhywfar's Qt 6 bank dialogs where gwengui-qt6 is installed (D-054, Q-035)" ON)
 
 set(cargo_target_dir "${CMAKE_CURRENT_BINARY_DIR}/cargo")
 set(cargo_args build --locked --package kassensturz-ui-bridge --bin kassensturz)
@@ -72,6 +74,14 @@ add_custom_target(kassensturz ALL
 )
 
 install(PROGRAMS "${cargo_target_dir}/${cargo_profile_dir}/kassensturz" DESTINATION ${KDE_INSTALL_BINDIR})
+
+# Gwenhywfar's Qt 6 dialogs, wrapped in a small C++ library that the app
+# loads at runtime like AqBanking itself (Q-035, D-140). Its test runs
+# under ctest.
+enable_testing()
+if(KASSENSTURZ_BANK_DIALOGS)
+    add_subdirectory(crates/kassensturz-aqbanking-sys/gwengui)
+endif()
 install(FILES data/io.github.vondor.KassenSturz.desktop DESTINATION ${KDE_INSTALL_APPDIR})
 install(FILES data/io.github.vondor.KassenSturz.metainfo.xml DESTINATION ${KDE_INSTALL_METAINFODIR})
 ki18n_install(po)

@@ -24,7 +24,7 @@ kassensturz/
 │   ├── kassensturz-export/         # the Exporter interface, the data an export is made from, and the formats it writes: CSV (D-099) and the complete export of a book, which it also reads back (D-100)
 │   ├── kassensturz-pipeline/       # the import pipeline: statements into an account, with the duplicate check, Transfer suggestions, Rules and the balance check (D-030, D-092); gathering a book's transactions or the whole book for export, filling a new book from a complete export (D-099, D-100), and filling one from another program's book, such as KMyMoney's (D-101)
 │   ├── kassensturz-bank/           # read-only bank connections over AqBanking, fake backend for tests — see D-053, D-060
-│   ├── kassensturz-aqbanking-sys/  # raw AqBanking/Gwenhywfar declarations (bindgen, committed, loaded at runtime) — see D-060
+│   ├── kassensturz-aqbanking-sys/  # raw AqBanking/Gwenhywfar declarations (bindgen, committed, loaded at runtime) — see D-060; gwengui/ holds the C++ library for Gwenhywfar's Qt dialogs (Q-035)
 │   ├── kassensturz-plugin-api/     # stable, versioned plugin interface (after 1.0, D-071)
 │   ├── kassensturz-plugin-host/    # loads and sandboxes WASM plugins (D-007; after 1.0, D-071)
 │   ├── kassensturz-platform/       # keychain, config paths, notifications behind traits
@@ -58,6 +58,7 @@ kassensturz/
 - CI runs the quick checks (REUSE, DCO, licenses, formatting) first and the slow jobs after them, keeps Cargo's downloads and build output between runs and skips the slow jobs for pull requests that only change documentation (D-110).
 - CMake runs `cargo build --locked` as a custom target, as KDE's guide does, and installs the program it builds. QML files live in `crates/kassensturz-ui-bridge/qml/` because cxx-qt-build registers QML files by their path inside the crate.
 - The Flatpak manifest (`packaging/flatpak/`) builds offline from `cargo-sources.json`, which is regenerated from `Cargo.lock` whenever that changes (`README.md`, "Building").
+- CMake also builds `kassensturz-gwengui` (`crates/kassensturz-aqbanking-sys/gwengui/`), the small C++ library around Gwenhywfar's Qt 6 dialogs (Q-035, D-140), when pkg-config finds `gwengui-qt6`; without it the app builds and runs without bank dialogs (D-054). The library is installed under `lib/kassensturz/` and loaded at runtime, like AqBanking itself; its test runs under `ctest` in the Kubuntu and Fedora jobs. The Rust declarations in `kassensturz-aqbanking-sys` are regenerated only when AqBanking is upgraded, with `bindgen/generate.sh` (D-060, D-138).
 - The first code is a walking skeleton through every layer, kept as real code (D-068). Since M1.M the app opens with the first-run mock instead of the skeleton's sample account (D-089); since M3.4 the first start is real (D-116), since M3.5 the register and the transaction page are (D-118), and since M3.9 the overview is (D-122), which ends the mock.
 
 ## The app's screens (M3)

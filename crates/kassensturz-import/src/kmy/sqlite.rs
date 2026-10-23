@@ -38,9 +38,13 @@ use crate::limits::Limits;
 /// The first bytes of every SQLite database file.
 const MAGIC: &[u8] = b"SQLite format 3\0";
 
-/// The only version of KMyMoney's tables the importer reads
-/// (`kmmFileInfo.version`): the sample's.
-const VERSION: &str = "15";
+/// The versions of KMyMoney's tables the importer reads
+/// (`kmmFileInfo.version`): the sample's, 15, and the older ones back to 12,
+/// which a real book saved by an older KMyMoney still has (D-136). Of those
+/// only the payee table's columns differ; a column the importer needs and a
+/// file lacks fails as `import.malformed`, so a layout it can't read is
+/// never half-read.
+const VERSIONS: std::ops::RangeInclusive<u32> = 12..=15;
 
 /// A table every KMyMoney file has, whose name tells a KMyMoney file from
 /// another SQLite file.
@@ -225,10 +229,30 @@ impl<'a> Reader<'a> {
             versions.push(self.optional(row, 0)?);
             Ok(())
         })?;
-        if versions != [VERSION] {
-            return Err(malformed());
+        match versions.as_slice() {
+            [version]
+                if version
+                    .parse()
+                    .is_ok_and(|number| VERSIONS.contains(&number)) =>
+            {
+                Ok(())
+            }
+            _ => Err(malformed()),
         }
-        Ok(())
+    }
+
+    /// The names of the columns of `table`, one of the fixed names above.
+    fn columns(&self, table: &str) -> Result<HashSet<String>, ImportError> {
+        let mut names = HashSet::new();
+        let mut statement = self
+            .connection
+            .prepare(&format!("SELECT name FROM pragma_table_info('{table}')"))
+            .map_err(sql)?;
+        let mut rows = statement.query([]).map_err(sql)?;
+        while let Some(row) = rows.next().map_err(sql)? {
+            names.insert(row.get::<_, String>(0).map_err(sql)?);
+        }
+        Ok(names)
     }
 
     /// The names of the file's tables. A view of the same name is no table.
@@ -309,48 +333,54 @@ impl<'a> Reader<'a> {
         let with_identifiers = self.payees_with_identifiers()?;
         let mut owner = false;
         let mut identifiers = 0;
-        self.query(
+        // Older layouts lack the last two columns (D-136); they read as
+        // empty there.
+        let present = self.columns("kmmPayees")?;
+        let column = |name: &'static str| if present.contains(name) { name } else { "NULL" };
+        let query = format!(
             "SELECT id, name, reference, email, addressStreet, addressCity, \
              addressZipcode, addressState, telephone, notes, defaultAccountId, \
-             matchData, matchIgnoreCase, matchKeys, idPattern, urlTemplate \
+             matchData, matchIgnoreCase, matchKeys, {}, {} \
              FROM kmmPayees ORDER BY id",
-            |row| {
-                let id = self.required(row, 0)?;
-                let name = self.optional(row, 1)?;
-                if id == "USER" {
-                    // Anything besides the name, in the other columns.
-                    // Anything besides the name, in the other columns; how
-                    // KMyMoney would recognize the owner says nothing.
-                    let mut details = with_identifiers.contains(&id);
-                    for index in (2..16).filter(|index| ![11, 12].contains(index)) {
-                        details |= !self.optional(row, index)?.trim().is_empty();
-                    }
-                    owner |= details || !name.trim().is_empty();
-                    return Ok(());
+            column("idPattern"),
+            column("urlTemplate"),
+        );
+        self.query(&query, |row| {
+            let id = self.required(row, 0)?;
+            let name = self.optional(row, 1)?;
+            if id == "USER" {
+                // Anything besides the name, in the other columns.
+                // Anything besides the name, in the other columns; how
+                // KMyMoney would recognize the owner says nothing.
+                let mut details = with_identifiers.contains(&id);
+                for index in (2..16).filter(|index| ![11, 12].contains(index)) {
+                    details |= !self.optional(row, index)?.trim().is_empty();
                 }
-                if with_identifiers.contains(&id) {
-                    identifiers += 1;
-                }
-                records.payees.push(RawPayee {
-                    reference: self.optional(row, 2)?,
-                    email: self.optional(row, 3)?,
-                    address: RawAddress {
-                        street: self.optional(row, 4)?,
-                        city: self.optional(row, 5)?,
-                        postal_code: self.optional(row, 6)?,
-                        state: self.optional(row, 7)?,
-                        phone: self.optional(row, 8)?,
-                        country: String::new(),
-                    },
-                    matching: self.optional(row, 11)?,
-                    match_ignores_case: self.optional(row, 12)?,
-                    match_keys: self.optional(row, 13)?,
-                    id,
-                    name,
-                });
-                Ok(())
-            },
-        )?;
+                owner |= details || !name.trim().is_empty();
+                return Ok(());
+            }
+            if with_identifiers.contains(&id) {
+                identifiers += 1;
+            }
+            records.payees.push(RawPayee {
+                reference: self.optional(row, 2)?,
+                email: self.optional(row, 3)?,
+                address: RawAddress {
+                    street: self.optional(row, 4)?,
+                    city: self.optional(row, 5)?,
+                    postal_code: self.optional(row, 6)?,
+                    state: self.optional(row, 7)?,
+                    phone: self.optional(row, 8)?,
+                    country: String::new(),
+                },
+                matching: self.optional(row, 11)?,
+                match_ignores_case: self.optional(row, 12)?,
+                match_keys: self.optional(row, 13)?,
+                id,
+                name,
+            });
+            Ok(())
+        })?;
         records.skipped.add_many(SkippedData::Other, identifiers);
         Ok(owner)
     }

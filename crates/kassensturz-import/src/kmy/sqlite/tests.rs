@@ -114,6 +114,38 @@ fn the_sample_is_the_book_the_kmy_sample_is() {
     assert_eq!(read(SAMPLE), import(&Kmy, KMY_SAMPLE, &Limits::default()));
 }
 
+/// The sample as an older KMyMoney saves it: layout 12, whose payee table
+/// has no `idPattern` and `urlTemplate` (D-136). A book of that layout, the
+/// maintainer's own, was refused as damaged.
+fn older_layout(version: &str) -> Vec<u8> {
+    after(&format!(
+        "UPDATE kmmFileInfo SET version = '{version}';
+         ALTER TABLE kmmPayees DROP COLUMN idPattern;
+         ALTER TABLE kmmPayees DROP COLUMN urlTemplate;"
+    ))
+}
+
+#[test]
+fn a_book_of_an_older_layout_is_the_same_book() {
+    // Steps meeting: what the reader makes of the older layout is what it
+    // makes of the sample, which the `.kmy` file proves right.
+    for version in ["12", "13", "14"] {
+        assert_eq!(
+            read(&older_layout(version)),
+            read(SAMPLE),
+            "layout {version}"
+        );
+    }
+    // A column the importer needs, missing from the older layout, still
+    // fails whole instead of being read as empty.
+    let without_name =
+        after("UPDATE kmmFileInfo SET version = '12'; ALTER TABLE kmmPayees DROP COLUMN email;");
+    assert_eq!(
+        read(&without_name),
+        Err(ImportError::Malformed { line: None })
+    );
+}
+
 #[test]
 fn a_book_keeps_the_limits() {
     let few = Limits {
@@ -159,8 +191,16 @@ fn what_is_no_kmymoney_database_is_malformed() {
         ("garbage after the header", not_a_database),
         ("cut off", SAMPLE[..SAMPLE.len() / 2].to_vec()),
         (
-            "another layout of the tables",
-            after("UPDATE kmmFileInfo SET version = '14'"),
+            "a layout older than the oldest read",
+            after("UPDATE kmmFileInfo SET version = '11'"),
+        ),
+        (
+            "a layout newer than the newest read",
+            after("UPDATE kmmFileInfo SET version = '16'"),
+        ),
+        (
+            "a layout that isn't a number",
+            after("UPDATE kmmFileInfo SET version = 'twelve'"),
         ),
         ("no layout", after("DELETE FROM kmmFileInfo")),
         (

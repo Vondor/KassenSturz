@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+
+[package]
+name = "kassensturz-bank"
+description = "KassenSturz's read-only bank connections: the bank abstraction, the fake bank for tests, PIN handling and the conversion of fetched data into statements."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+kassensturz-core.workspace = true
+kassensturz-import.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+# Only for the tests where this crate meets the import pipeline: the fake
+# bank's statements go through `import_statements` into a book in memory
+# (AGENTS.md §9.4). The crate itself knows no book.
+kassensturz-pipeline.workspace = true
+kassensturz-store.workspace = true
+
+[lints]
+workspace = true

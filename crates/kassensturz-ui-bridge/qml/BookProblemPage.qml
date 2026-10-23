@@ -3,7 +3,8 @@
 
 // Says why a book didn't open, and what the user can do (AGENTS.md §6: no
 // dead ends): try again, open it anyway if it's locked (D-038, D-080), open
-// another book or start a new one, or go back to the book that is open.
+// another book, start a new one or start one from a file, or go back to the
+// book that is open.
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -24,6 +25,7 @@ Kirigami.Page {
 
     signal openAnotherClicked()
     signal newBookClicked()
+    signal startFromFileClicked()
     signal backClicked()
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -170,6 +172,11 @@ Kirigami.Page {
                 icon.name: "document-new"
                 text: page.i18nContext.i18nc("@action:button", "Start a new book…")
                 onClicked: page.newBookClicked()
+            }
+            Controls.Button {
+                icon.name: "document-import"
+                text: page.i18nContext.i18nc("@action:button", "Start a book from a file…")
+                onClicked: page.startFromFileClicked()
             }
             Controls.Button {
                 visible: page.session.open

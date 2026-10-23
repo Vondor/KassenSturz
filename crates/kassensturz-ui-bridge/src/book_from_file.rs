@@ -120,6 +120,24 @@ impl From<PipelineError> for FromFileError {
 /// `docs/ERROR_CODES.md`. An answer about a currency names it (`currency`)
 /// and the field (`field`).
 pub fn error_text(book: &Book, error: &FromFileError, locale: &impl Locale) -> ErrorText {
+    error_text_in(Some(book), error, locale)
+}
+
+/// [`error_text`] where there may be no open book: a book that was refused
+/// at the start leaves none, yet a file can still be started from, and its
+/// errors are told the same (a throwaway book in memory only reads the
+/// currencies' decimals for them).
+pub fn error_text_in(
+    book: Option<&Book>,
+    error: &FromFileError,
+    locale: &impl Locale,
+) -> ErrorText {
+    let Some(book) = book else {
+        return match Book::create_in_memory() {
+            Ok(scratch) => error_text_in(Some(&scratch), error, locale),
+            Err(_) => ErrorText::plain("input.no-such-entry"),
+        };
+    };
     match error {
         FromFileError::IsABook => ErrorText::plain("input.is-a-book"),
         FromFileError::IsAStatement => ErrorText::plain("input.is-a-statement"),
@@ -837,6 +855,16 @@ mod tests {
         // A damaged KMyMoney book is refused whole, with its place.
         let damaged = golden("kmy", "cut-off.kmy");
         assert_eq!(read_code(&damaged), "import.malformed");
+
+        // With no book open (the last one was refused at the start) a file
+        // is told the same, not as "no such entry".
+        for path in [&ksz, &notes, &folder.join("missing.kmy"), &damaged] {
+            let refused = read(path).expect_err("refused");
+            assert_eq!(
+                error_text_in(None, &refused, &TestLocale).code,
+                error_text(&book, &refused, &TestLocale).code
+            );
+        }
     }
 
     #[test]

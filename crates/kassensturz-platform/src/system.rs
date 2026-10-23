@@ -14,8 +14,10 @@ use crate::{Keychain, KeychainError, Secret, SecretKey};
 pub const APP_ID: &str = "io.github.vondor.KassenSturz";
 
 /// The user's system keychain: the Secret Service on Linux, which KWallet
-/// (through `ksecretd`) and GNOME Keyring answer; Windows' Credential
-/// Manager and the macOS Keychain once those builds come (M7).
+/// (through `ksecretd`), GNOME Keyring or KeePassXC with its Secret Service
+/// integration answers, whichever owns `org.freedesktop.secrets` (D-150);
+/// Windows' Credential Manager and the macOS Keychain once those builds
+/// come (M7).
 ///
 /// Each secret is one entry of the keychain, filed under [`APP_ID`] and the
 /// [`SecretKey`], so the user finds and removes it in the keychain's own

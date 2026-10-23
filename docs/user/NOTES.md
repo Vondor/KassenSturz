@@ -141,6 +141,13 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - Your PIN: by default you type it every time. You can choose to keep it until you close KassenSturz, or to save it in your system's keychain (KWallet or GNOME Keyring). If your bank says the PIN was wrong, KassenSturz forgets it at once, so your login isn't blocked by repeating it. Removing a bank login removes its saved PIN too.
 - Bank connections need AqBanking. Without it, or with one that is too old, KassenSturz works as before and tells you what to install; the Flatpak brings AqBanking along (M4.8).
 
+## Where a saved PIN lives: your keychain (M4.1)
+
+- If you choose to save a bank PIN, it goes into your computer's keychain, the place that keeps passwords for you and unlocks with your login: KWallet on KDE Plasma, "Passwords and Keys" on GNOME, later the Credential Manager on Windows and the Keychain on macOS. Any of them works, KassenSturz does not care which program keeps the keychain. It never writes a PIN anywhere else, and you can see and remove the entry in the keychain's own program (it is filed under "io.github.vondor.KassenSturz").
+- If the keychain is locked or not running, KassenSturz says so and you can type the PIN instead. It never asks for your keychain's password; the keychain does that itself.
+- **KeePassXC** can be your keychain too. KassenSturz talks to the desktop's "Secret Service", and KeePassXC can be that service: in KeePassXC open Tools → Settings → Secret Service Integration and enable it; then Database → Database Settings → Secret Service Integration, enable "Expose entries under this group" and pick a group (a new, empty group is fine). KeePassXC must be running and unlocked whenever KassenSturz saves or reads a PIN.
+- A desktop has one Secret Service, so on KDE Plasma you first hand it over from KWallet: add the lines `[KSecretD]` and `Enabled=false` to the file `~/.config/kwalletrc`, then log out and in. KDE calls this experimental; from then on every KDE program keeps its passwords in KeePassXC. If you also want the passwords already in KWallet moved over, add `[Migration]` and `MigrateTo3rdParty=true` before logging out. To go back, remove the `[KSecretD]` lines and log out and in again. On GNOME, stop GNOME Keyring's Secret Service instead (see KeePassXC's user guide).
+
 ## The connection to your bank (M4.5)
 
 - KassenSturz talks to your bank through AqBanking, the same free software KMyMoney and GnuCash use, with the FinTS standard of the German banks. It keeps the bank settings in a folder of its own inside KassenSturz's data folder, separate from any other program's, and removes the message logs AqBanking writes there, so your statements don't lie around in plain text.

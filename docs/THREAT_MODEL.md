@@ -12,7 +12,7 @@ Facts about AqBanking and Gwenhywfar below were read in their 6.9.2 and 5.14.1 s
 |---|---|---|
 | A-1 | **Banking PIN** (and a chip card's PIN) | With the login name it opens the user's online banking. Some banks let a PIN alone read statements without a TAN (D-057) |
 | A-2 | **TANs** | One-time codes. A TAN caught in flight could confirm something the user didn't mean. KassenSturz only reads, but the bank doesn't know that |
-| A-3 | **Saved PINs in the system keychain** | Saved only if the user chooses (D-057) |
+| A-3 | **Saved PINs in the system keychain** | Saved only if the user chooses (D-057), in whichever program owns the desktop's Secret Service: KWallet, GNOME Keyring or KeePassXC (D-150) |
 | A-4 | **Bank login data**: bank code, login name, customer ID, bank server address, TAN method | Not secret on its own, but the login name is half of a login. Treated as personal data |
 | A-5 | **Fetched balances and statements** | The household's financial life |
 | A-6 | **The book** | Everything the household recorded; it may sit in a sync folder (D-033, D-038) |

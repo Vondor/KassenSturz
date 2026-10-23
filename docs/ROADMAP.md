@@ -96,7 +96,7 @@ M4 is done in these steps, one small pull request each, the same way as M3. This
 | **M4.9 Plain language and German** | Every bank string reviewed against `docs/GLOSSARY.md`, German translation, `docs/user/NOTES.md`; includes the German wording pass parked from M3 for all screens | M4.1–M4.8 | todo |
 | **M4.U Parked improvements** | Account page opening lag: staged loading, measured first in a release build with the Space Colony book; read-back tests for the accounts and Rules bridge objects (AGENTS.md §9.4); no layout change | — | todo |
 
-Releases (D-036): the first usable release is **0.1, Linux only, after M0–M3**; it imports files, and bank connections follow in M4 (D-068). **1.0** is reached when M0–M7 are done; everything under "Later (post-1.0)" comes after it. macOS packages may follow 1.0 if their signing isn't funded by then (D-048).
+Releases (D-036, D-152): the first usable release is **Linux only, after M0–M3**; it imports files, and bank connections follow in M4 (D-068). Every build before the first shippable release is numbered **0.YYMMDD.N** (build date, then a counter from 0 for extra builds on the same day), so users can see how old it is. When M0–M7 are done, an **extended test sprint** follows that works like Phase 2 of a milestone (testing on real use and fixing); the maintainer decides when the result is shippable and calls it **1.0**. Everything under "Later (post-1.0)" comes after it. macOS packages may follow 1.0 if their signing isn't funded by then (D-048).
 
 ## How to pick work
 

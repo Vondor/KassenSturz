@@ -49,7 +49,7 @@ KassenSturz is a small volunteer project, so these are aims, not promises:
 
 ## Supported versions
 
-KassenSturz has no release yet. Until 1.0, only the newest release and the `main` branch get security fixes. Once 1.0 is out, this section says which versions are supported.
+KassenSturz has no release yet. Until 1.0 (builds before it are numbered `0.YYMMDD.N`), only the newest release and the `main` branch get security fixes. Once 1.0 is out, this section says which versions are supported.
 
 ## For contributors and AI agents
 

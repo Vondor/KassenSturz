@@ -39,6 +39,9 @@ SPDX-License-Identifier: CC0-1.0
   <url type="bugtracker">https://github.com/Vondor/KassenSturz/issues</url>
   <url type="vcs-browser">https://github.com/Vondor/KassenSturz</url>
   <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.261023.0" date="2026-10-23"/>
+  </releases>
   <provides>
     <binary>kassensturz</binary>
   </provides>

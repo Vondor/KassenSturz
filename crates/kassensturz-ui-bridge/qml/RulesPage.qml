@@ -25,6 +25,9 @@ Kirigami.Page {
     // The Rule whose transactions are shown, by ID; the first one to start
     // with. A Rule that is gone shows nothing.
     property string selectedId: ""
+    // Many suggestions would push the Rules off the page: from two on they
+    // are folded behind one line until the user asks to see them.
+    property bool suggestionsOpen: false
     readonly property var selected: rows.find(row => row.id === selectedId) ?? null
     // What the selected Rule matches now, newest first. Read again whenever
     // the Rules or what they act on change, which refreshes `rules.view`.
@@ -75,7 +78,9 @@ Kirigami.Page {
     // through the Rules and see their transactions.
     GridLayout {
         anchors.fill: parent
-        columns: page.wide ? 2 : 1
+        // The list, the line between, and the transactions: three cells side
+        // by side, one under the other on a narrow page.
+        columns: page.wide ? 3 : 1
         columnSpacing: 0
         rowSpacing: 0
 
@@ -91,8 +96,24 @@ Kirigami.Page {
                 width: master.availableWidth
                 spacing: Kirigami.Units.smallSpacing
 
+                Kirigami.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: page.suggestions.length > 1
+                    type: Kirigami.MessageType.Information
+                    text: page.i18nContext.i18ncp("@info %1 is a number", "KassenSturz has %1 suggestion for a Rule.", "KassenSturz has %1 suggestions for Rules.", page.suggestions.length)
+                    actions: [
+                        Kirigami.Action {
+                            icon.name: page.suggestionsOpen ? "go-up" : "go-down"
+                            text: page.suggestionsOpen
+                                ? page.i18nContext.i18nc("@action:button hide the list of suggested Rules", "Hide them")
+                                : page.i18nContext.i18nc("@action:button show the list of suggested Rules", "Show them")
+                            onTriggered: page.suggestionsOpen = !page.suggestionsOpen
+                        }
+                    ]
+                }
+
                 Repeater {
-                    model: page.suggestions
+                    model: page.suggestions.length > 1 && !page.suggestionsOpen ? [] : page.suggestions
 
                     delegate: Kirigami.InlineMessage {
                         id: suggestion

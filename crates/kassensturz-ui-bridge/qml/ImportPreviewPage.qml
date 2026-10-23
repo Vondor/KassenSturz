@@ -123,7 +123,9 @@ Kirigami.ScrollablePage {
         FormCard.FormCard {
             FormCard.FormTextDelegate {
                 icon.name: "document-import"
-                text: page.i18nContext.i18nc("@info %1 is a file name", "From %1", page.view.fileName ?? "")
+                text: page.view.fromBank
+                    ? page.i18nContext.i18nc("@info", "From your bank")
+                    : page.i18nContext.i18nc("@info %1 is a file name", "From %1", page.view.fileName ?? "")
                 textItem.textFormat: Text.PlainText
                 description: page.toImport > 0
                     ? page.i18nContext.i18ncp("@info", "%1 new transaction goes into the account.", "%1 new transactions go into the account.", page.toImport)

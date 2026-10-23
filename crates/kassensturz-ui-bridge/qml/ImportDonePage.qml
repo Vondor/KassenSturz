@@ -90,7 +90,9 @@ Kirigami.ScrollablePage {
         FormCard.FormCard {
             FormCard.FormTextDelegate {
                 icon.name: "dialog-ok-apply"
-                text: page.i18nContext.i18ncp("@info %2 is a file name", "%1 transaction from %2 was added.", "%1 transactions from %2 were added.", page.view.imported ?? 0, page.view.fileName ?? "")
+                text: page.view.fromBank
+                    ? page.i18nContext.i18ncp("@info", "%1 transaction from your bank was added.", "%1 transactions from your bank were added.", page.view.imported ?? 0)
+                    : page.i18nContext.i18ncp("@info %2 is a file name", "%1 transaction from %2 was added.", "%1 transactions from %2 were added.", page.view.imported ?? 0, page.view.fileName ?? "")
                 textItem.textFormat: Text.PlainText
                 description: page.i18nContext.i18nc("@info", "Each one is in the account's list now. Undo takes the whole import back.")
             }
@@ -114,7 +116,9 @@ Kirigami.ScrollablePage {
                 visible: (page.view.toDecide ?? 0) > 0
                 icon.name: "dialog-question"
                 text: page.i18nContext.i18ncp("@info", "%1 transaction was left out because it looks like one you already have.", "%1 transactions were left out because they look like transactions you already have.", page.view.toDecide ?? 0)
-                description: page.i18nContext.i18nc("@info", "Import the file again and tick it if it is a different transaction after all.")
+                description: page.view.fromBank
+                    ? page.i18nContext.i18nc("@info", "If one of them is a different transaction after all, add it by hand.")
+                    : page.i18nContext.i18nc("@info", "Import the file again and tick it if it is a different transaction after all.")
             }
 
             FormCard.FormDelegateSeparator {
@@ -182,7 +186,9 @@ Kirigami.ScrollablePage {
 
         FormCard.FormSectionText {
             visible: page.balances.length === 0
-            text: page.i18nContext.i18nc("@info", "The file didn't say what the account held afterwards. To make sure the figures agree, open the account's page and use \"Check against my bank\".")
+            text: page.view.fromBank
+                ? page.i18nContext.i18nc("@info", "Your bank didn't say what the account holds. To make sure the figures agree, open the account's page and use \"Check against my bank\".")
+                : page.i18nContext.i18nc("@info", "The file didn't say what the account held afterwards. To make sure the figures agree, open the account's page and use \"Check against my bank\".")
         }
     }
 }

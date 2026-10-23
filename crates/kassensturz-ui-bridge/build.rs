@@ -23,6 +23,7 @@ fn main() {
             "qml/Balance.qml",
             "qml/BankCheckPage.qml",
             "qml/BankDialogs.qml",
+            "qml/BankFetchPage.qml",
             "qml/BankSetupPage.qml",
             "qml/BookFromFileDonePage.qml",
             "qml/BookFromFilePage.qml",

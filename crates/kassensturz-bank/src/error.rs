@@ -45,6 +45,10 @@ pub enum BankError {
     /// No bank account has this ID; the bank may have closed it, or the
     /// login it belongs to was removed.
     UnknownAccount(BankAccountId),
+    /// No bank login lists the bank account an account in the book is
+    /// linked to (D-148): the login was removed or never set up on this
+    /// computer, or the bank no longer lists the account (M4.7).
+    NoBankAccount,
     /// The bank asks for the PIN and none is remembered or saved: the user
     /// has to type it ([`crate::PinSession`]).
     PinNeeded,
@@ -148,6 +152,7 @@ impl Report for BankError {
             Self::UnknownAccount(account) => {
                 ErrorReport::new("bank.unknown-account").with("account", text(account.as_str()))
             }
+            Self::NoBankAccount => ErrorReport::new("bank.no-bank-account"),
             Self::PinNeeded => ErrorReport::new("bank.pin-needed"),
             Self::PinRejected => ErrorReport::new("bank.pin-rejected"),
             Self::Unreachable => ErrorReport::new("bank.unreachable"),

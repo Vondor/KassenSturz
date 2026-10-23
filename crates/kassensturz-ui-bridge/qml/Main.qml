@@ -375,6 +375,28 @@ Kirigami.ApplicationWindow {
         pushPage(importStep());
     }
 
+    // Looks at the statement just fetched from the bank for the account with
+    // `accountId` (M4.7): the preview comes next, as for a file.
+    function startBankImport(accountId: string) {
+        const result = statementImporter.startFromBank(accountId);
+        if (result.code !== undefined) {
+            showPassiveNotification(errorTexts.messageFor(result), 12000);
+            return;
+        }
+        pushPage(importStep());
+    }
+
+    // Whether bank connections can be used, asked once: the bank connection
+    // starts its own thread the first time it is asked.
+    property var bankUsableCache: undefined
+
+    function bankUsable(): bool {
+        if (bankUsableCache === undefined) {
+            bankUsableCache = bankConnection.status().ready === true;
+        }
+        return bankUsableCache;
+    }
+
     // The screen for the step the import is at.
     function importStep(): Component {
         switch (statementImporter.step) {
@@ -626,7 +648,9 @@ Kirigami.ApplicationWindow {
             onDetailsClicked: accountId => root.pushPage(accountDetailsPage, { accountId: accountId })
             onCreateRuleFromSuggestion: (payee, category) => root.pushPage(rulePage, { initialForm: ruleBook.formFromSuggestion(payee, category) })
             onImportClicked: accountId => root.importStatement(accountId)
+            onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })
             onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
+            Component.onCompleted: bankReady = root.bankUsable()
         }
     }
 
@@ -637,6 +661,8 @@ Kirigami.ApplicationWindow {
             accounts: accountList
             onAddAccountClicked: root.addAccount(false)
             onAccountClicked: accountId => root.showRegister(accountId)
+            onGetTransactionsClicked: root.pushPage(bankFetchPage, { initialAccountId: "" })
+            Component.onCompleted: bankReady = root.bankUsable()
         }
     }
 
@@ -733,6 +759,19 @@ Kirigami.ApplicationWindow {
             onSaveCopyClicked: root.pushPage(exportPage)
             onBookFromFileClicked: root.chooseFileForNewBook()
             onShowHistoryClicked: root.pushPage(historyPage)
+        }
+    }
+
+    // Getting the accounts' new transactions from the bank (M4.7, D-153):
+    // the statement of an account is looked at like a file's.
+    Component {
+        id: bankFetchPage
+
+        BankFetchPage {
+            bank: bankConnection
+            onLinked: root.screenChangedBook()
+            onConnectBankClicked: root.pushPage(bankSetupPage)
+            onLookAtClicked: accountId => root.startBankImport(accountId)
         }
     }
 

@@ -197,6 +197,10 @@ pub struct Loaded {
     /// The entries the user wants imported although they look like
     /// transactions the account already has (D-092).
     pub choices: Choices,
+    /// The day the statement was fetched from the account's bank, when it
+    /// was (M4.7); `None` for a file. The import notes it on the account's
+    /// bank link, in the same user action (D-153).
+    pub fetched_on: Option<Date>,
 }
 
 impl Loaded {
@@ -218,6 +222,17 @@ impl Loaded {
             statements,
             chosen,
             choices: Choices::default(),
+            fetched_on: None,
+        }
+    }
+
+    /// The statement fetched from the bank of `account` on `day` (M4.7). It
+    /// is the account's own, so nothing is left for the user to choose, and
+    /// there is no file.
+    pub fn from_bank(account: AccountId, statement: Statement, day: Date) -> Self {
+        Self {
+            fetched_on: Some(day),
+            ..Self::new(account, PathBuf::new(), vec![statement])
         }
     }
 
@@ -398,7 +413,10 @@ pub struct BalanceText {
 /// What an import does or did, for the preview and the summary.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ImportView {
+    /// The file's name; empty for a statement fetched from the bank.
     pub file_name: String,
+    /// Whether the statement was fetched from the bank (M4.7).
+    pub from_bank: bool,
     pub account_name: String,
     /// Whether the account is a debt, e.g. a credit card.
     pub debt: bool,
@@ -459,6 +477,11 @@ fn perform(
     let stated = closing_to_keep(book, loaded.account, &report)?;
     if for_real && let Some(stated) = &stated {
         book.set_stated_balance(loaded.account, Some(stated))?;
+    }
+    // The fetch day is part of the import's action: undo takes back both,
+    // and a fetch the user didn't import is not noted (D-153).
+    if for_real && let Some(day) = loaded.fetched_on {
+        book.note_bank_fetch(loaded.account, day)?;
     }
     describe(book, loaded, statements, &report, stated.as_ref(), locale)
 }
@@ -601,6 +624,7 @@ fn describe(
 
     let summary = report.summary();
     Ok(ImportView {
+        from_bank: loaded.fetched_on.is_some(),
         file_name: loaded
             .path
             .file_name()
@@ -1201,6 +1225,124 @@ mod tests {
         assert_eq!(rows(&book, card), 1);
         let stated = book.stated_balance(card).expect("stated").expect("set");
         assert_eq!(stated.on, Date::new(2026, 9, 30).expect("a date"));
+    }
+
+    /// Never asked for a PIN: the session already has it.
+    struct NoQuestions;
+
+    impl kassensturz_bank::PinAsker for NoQuestions {
+        fn pin(
+            &mut self,
+            _login: &kassensturz_bank::Login,
+            _rejected: bool,
+        ) -> Option<(kassensturz_bank::Pin, kassensturz_bank::PinMode)> {
+            panic!("the PIN was remembered, so nothing should be asked");
+        }
+    }
+
+    /// What the fetch screen does for a linked account, with the fake bank:
+    /// the statement the bank crate builds from its fetch, as `Loaded`.
+    fn fetched_for(book: &mut Book, account: AccountId, day: Date) -> Loaded {
+        use kassensturz_bank::{
+            Bank, FakeBank, LoginId, MemoryPinStore, Pin, PinMode, PinSession, fetch_linked,
+        };
+        let mut bank = FakeBank::new();
+        let mut pins = PinSession::new(Box::new(MemoryPinStore::new()));
+        pins.provide(
+            &LoginId::pending(),
+            Pin::new(FakeBank::PIN.to_owned()),
+            PinMode::RememberUntilClose,
+        )
+        .expect("provided");
+        bank.add_login(&FakeBank::setup(), &mut pins)
+            .expect("login added");
+        book.link_bank_account(&kassensturz_core::BankLink {
+            account,
+            iban: Some("DE89370400440532013000".to_owned()),
+            bank_code: None,
+            number: None,
+            last_fetched_on: None,
+        })
+        .expect("linked");
+        let link = book.bank_link(account).expect("read").expect("linked");
+        let statement = fetch_linked(
+            &mut bank,
+            &mut pins,
+            &mut NoQuestions,
+            &link,
+            &Limits::default(),
+        )
+        .expect("a statement");
+        Loaded::from_bank(account, statement, day)
+    }
+
+    #[test]
+    fn a_statement_fetched_from_the_bank_is_imported_like_a_file_and_notes_its_day() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking",
+            AccountType::Checking,
+            "1000,00",
+            "2026-09-30",
+        );
+        let day = Date::new(2026, 10, 9).expect("a date");
+        let loaded = fetched_for(&mut book, checking, day);
+        assert!(!loaded.needs_statement_choice());
+
+        let shown = preview(&mut book, &loaded, &TestLocale).expect("preview");
+        assert!(shown.from_bank);
+        assert_eq!(shown.file_name, "");
+        assert_eq!(
+            (
+                shown.imported,
+                shown.to_decide,
+                shown.duplicates,
+                shown.pending
+            ),
+            (3, 0, 0, 1)
+        );
+        // The bank's balance is checked against the book's (D-029): they
+        // agree, since the account started with what the bank had before
+        // October, and it is kept as what the bank said (D-123).
+        let closing = shown.balances.last().expect("a closing balance");
+        assert_eq!(closing.which, "closing");
+        assert_eq!(closing.bank.exact, "3254,77 €");
+        assert!(closing.matches && closing.stated, "{closing:?}");
+        assert_eq!(rows(&book, checking), 1);
+        let link = book.bank_link(checking).expect("read").expect("linked");
+        assert_eq!(link.last_fetched_on, None, "a preview notes nothing");
+
+        let done = import(&mut book, &loaded, &TestLocale).expect("imported");
+        assert_eq!(done.imported, 3);
+        assert_eq!(rows(&book, checking), 4);
+        let link = book.bank_link(checking).expect("read").expect("linked");
+        assert_eq!(link.last_fetched_on, Some(day));
+        // One undo takes back the transactions, the bank's balance and the
+        // day together.
+        book.undo().expect("undone");
+        assert_eq!(rows(&book, checking), 1);
+        let link = book.bank_link(checking).expect("read").expect("linked");
+        assert_eq!(link.last_fetched_on, None);
+    }
+
+    #[test]
+    fn a_fetched_statement_for_an_account_that_lost_its_link_imports_nothing() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking",
+            AccountType::Checking,
+            "1000,00",
+            "2026-09-30",
+        );
+        let day = Date::new(2026, 10, 9).expect("a date");
+        let loaded = fetched_for(&mut book, checking, day);
+        book.unlink_bank_account(checking).expect("unlinked");
+        let before = rows(&book, checking);
+        let error = import(&mut book, &loaded, &TestLocale).expect_err("refused");
+        assert_eq!(code(&error), "store.not-linked");
+        assert_eq!(rows(&book, checking), before, "all or nothing");
     }
 
     #[test]

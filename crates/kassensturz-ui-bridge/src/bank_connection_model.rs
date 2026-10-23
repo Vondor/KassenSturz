@@ -3,7 +3,10 @@
 
 //! The QML object behind the bank screens (M4.6, D-151): setting up a bank
 //! login, the TAN and question dialogs the bank asks for on the way, and
-//! removing a login and its PIN in Settings. The work is in
+//! removing a login and its PIN in Settings. Since M4.7 it also fetches the
+//! statements of the linked accounts (D-153), asks for the PIN when the
+//! bank needs it, and links an account of the book to a bank account from
+//! the fetch screen. The work is in
 //! `bank_connection.rs`, on its own thread; this file moves text between it
 //! and QML (D-065) and brings the worker's requests to the GUI thread as
 //! signals.
@@ -13,14 +16,16 @@ use std::sync::Arc;
 
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QList, QMap, QMapPair_QString_QVariant, QString, QVariant};
-use kassensturz_bank::{BankError, BankQuestion, Tan, TanRequest};
+use kassensturz_bank::{BankError, BankQuestion, Pin as BankPin, Tan, TanRequest};
 use kassensturz_core::Report;
 
 use crate::bank_connection::{
-    self, Answer, Connection, Event, FoundAccount, LoginRow, Lookup, SetupDone, SetupForm, Status,
-    Worker,
+    self, Answer, Connection, Event, FetchOutcome, FetchRow, FoundAccount, ListedBankAccount,
+    LoginRow, Lookup, PinRequest, SetupDone, SetupForm, Status, Worker,
 };
 use crate::errors::ErrorText;
+use crate::format::Locale;
+use crate::number_format::app_locale;
 use crate::platform;
 use crate::register_model::field;
 use crate::session;
@@ -118,6 +123,54 @@ pub mod qobject {
         #[qinvokable]
         fn link(self: &BankConnection, choices: &QVariant) -> QVariant;
 
+        /// The open accounts of the book with what the fetch screen needs:
+        /// an object with `accounts`, a list of objects with `id`, `name`,
+        /// `linked`, `bankAccount` (the IBAN or number it is linked to) and
+        /// `lastFetched` (a date as text, empty if never), or an error
+        /// object.
+        #[qinvokable]
+        #[cxx_name = "fetchAccounts"]
+        fn fetch_accounts(self: &BankConnection) -> QVariant;
+
+        /// The bank accounts the logins list that the account `account_id`
+        /// of the book could be linked to: an object with `choices`, a list
+        /// of objects with `key`, `bank`, `iban`, `number`, `name` and
+        /// `kind`, and `suggested`, the key of the one whose IBAN or number
+        /// is the account's own, or empty; or an error object.
+        #[qinvokable]
+        #[cxx_name = "bankAccountChoices"]
+        fn bank_account_choices(self: Pin<&mut BankConnection>, account_id: &QString) -> QVariant;
+
+        /// Links the account `account_id` of the book to the bank account
+        /// `key` named (one of `bankAccountChoices`), as a change the user
+        /// can undo. An empty object, or an error object.
+        #[qinvokable]
+        #[cxx_name = "linkAccount"]
+        fn link_account(
+            self: Pin<&mut BankConnection>,
+            account_id: &QString,
+            key: &QString,
+        ) -> QVariant;
+
+        /// Starts fetching the statements of the accounts with these IDs (a
+        /// list), which must be linked. An error object when it can't
+        /// start, else an empty object; `fetchStarted` says which account
+        /// the bank is asked about, `pinRequested` and `tanRequested` what
+        /// it needs on the way, and `fetchFinished` the result.
+        #[qinvokable]
+        fn fetch(self: Pin<&mut BankConnection>, accounts: &QVariant) -> QVariant;
+
+        /// Sends the PIN the user typed, to be kept as `mode` says (`ask`,
+        /// `remember`, `save`).
+        #[qinvokable]
+        #[cxx_name = "answerPin"]
+        fn answer_pin(self: &BankConnection, pin: &QString, mode: &QString);
+
+        /// The user cancelled the PIN dialog.
+        #[qinvokable]
+        #[cxx_name = "cancelPin"]
+        fn cancel_pin(self: &BankConnection);
+
         /// The bank asks for a TAN: an object with `title`, `challenge`,
         /// `minLength` and `maxLength`.
         #[qsignal]
@@ -129,6 +182,26 @@ pub mod qobject {
         #[qsignal]
         #[cxx_name = "questionAsked"]
         fn question_asked(self: Pin<&mut BankConnection>, question: QVariant);
+
+        /// The bank needs the PIN of a login: an object with `bank` (its
+        /// name) and `rejected`, true when the bank has just called the PIN
+        /// typed before wrong.
+        #[qsignal]
+        #[cxx_name = "pinRequested"]
+        fn pin_requested(self: Pin<&mut BankConnection>, request: QVariant);
+
+        /// The fetch has reached the account with this ID.
+        #[qsignal]
+        #[cxx_name = "fetchStarted"]
+        fn fetch_started(self: Pin<&mut BankConnection>, account: QString);
+
+        /// A fetch ended: an object with `outcomes`, a list of objects with
+        /// `account`, `name`, `state` (`ready`, `failed` or `skipped`),
+        /// `transactions` and `error` (an error object, empty unless it
+        /// failed); or an error object when none was tried.
+        #[qsignal]
+        #[cxx_name = "fetchFinished"]
+        fn fetch_finished(self: Pin<&mut BankConnection>, result: QVariant);
 
         /// Setting up a login ended: an object with `login` and `accounts`,
         /// or an error object.
@@ -266,6 +339,105 @@ impl qobject::BankConnection {
         }
     }
 
+    fn fetch_accounts(&self) -> QVariant {
+        match session::with_book(|book| {
+            bank_connection::fetch_rows(book, &app_locale())
+                .map_err(|error| crate::errors::report_text(book, &error.report(), &app_locale()))
+        }) {
+            Some(Ok(rows)) => map([("accounts", list(rows.iter().map(fetch_row_object)))]),
+            Some(Err(error)) => error_object(&error),
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        }
+    }
+
+    fn bank_account_choices(mut self: Pin<&mut Self>, account_id: &QString) -> QVariant {
+        let listed = match self
+            .as_mut()
+            .worker()
+            .run(bank_connection::bank_account_choices)
+        {
+            Ok(listed) => listed,
+            Err(error) => return error_object(&bank_connection::error_text(&error)),
+        };
+        let account_id = account_id.to_string();
+        match session::with_book(|book| {
+            let account = crate::transaction_entry::find_account(book, &account_id)
+                .map_err(|_| ErrorText::plain("input.no-such-entry"))?;
+            bank_connection::linkable(book, account.id, &listed)
+                .map(|(free, suggested)| bank_account_choices_object(&free, &suggested))
+                .map_err(|error| crate::errors::report_text(book, &error.report(), &app_locale()))
+        }) {
+            Some(Ok(choices)) => choices,
+            Some(Err(error)) => error_object(&error),
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        }
+    }
+
+    fn link_account(mut self: Pin<&mut Self>, account_id: &QString, key: &QString) -> QVariant {
+        let listed = match self
+            .as_mut()
+            .worker()
+            .run(bank_connection::bank_account_choices)
+        {
+            Ok(listed) => listed,
+            Err(error) => return error_object(&bank_connection::error_text(&error)),
+        };
+        let (account_id, key) = (account_id.to_string(), key.to_string());
+        let Some(chosen) = listed.iter().find(|entry| entry.key == key) else {
+            return error_object(&ErrorText::plain("input.no-such-entry"));
+        };
+        match session::with_book_mut(|book| {
+            let account = crate::transaction_entry::find_account(book, &account_id)
+                .map_err(|_| ErrorText::plain("input.no-such-entry"))?;
+            bank_connection::link_one(book, &chosen.found, account.id)
+                .map_err(|error| crate::errors::report_text(book, &error.report(), &app_locale()))
+        }) {
+            Some(Ok(())) => map([]),
+            Some(Err(error)) => error_object(&error),
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        }
+    }
+
+    fn fetch(mut self: Pin<&mut Self>, accounts: &QVariant) -> QVariant {
+        let ids = strings(accounts);
+        let locale = app_locale();
+        let requests = match session::with_book(|book| {
+            bank_connection::fetch_requests(book, &ids, &locale)
+        }) {
+            Some(Ok(requests)) if !requests.is_empty() => requests,
+            Some(Ok(_)) | None => return error_object(&ErrorText::plain("input.no-such-entry")),
+            Some(Err(error)) => return error_object(&error),
+        };
+        let today = locale.today();
+        let started = self.as_mut().worker().spawn(move |connection, notify| {
+            let result = bank_connection::fetch(connection, requests, today);
+            notify(Event::FetchDone(result));
+        });
+        match started {
+            Ok(()) => {
+                self.as_mut().set_busy(true);
+                map([])
+            }
+            Err(error) => error_object(&bank_connection::error_text(&error)),
+        }
+    }
+
+    fn answer_pin(&self, pin: &QString, mode: &QString) {
+        if let Some(worker) = &self.worker {
+            let pin = BankPin::new(pin.to_string());
+            worker.answer(Answer::Pin(Some((
+                pin,
+                bank_connection::pin_mode(&mode.to_string()),
+            ))));
+        }
+    }
+
+    fn cancel_pin(&self) {
+        if let Some(worker) = &self.worker {
+            worker.answer(Answer::Pin(None));
+        }
+    }
+
     fn remove_login(mut self: Pin<&mut Self>, id: &QString) -> QVariant {
         let id = id.to_string();
         done_object(
@@ -293,20 +465,7 @@ impl qobject::BankConnection {
     }
 
     fn link(&self, choices: &QVariant) -> QVariant {
-        let choices: Vec<String> = choices
-            .value::<QList<QVariant>>()
-            .map(|choices| {
-                choices
-                    .iter()
-                    .map(|choice| {
-                        choice
-                            .value::<QString>()
-                            .map(|choice| choice.to_string())
-                            .unwrap_or_default()
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
+        let choices = strings(choices);
         let found = &self.found;
         match session::with_book_mut(|book| {
             bank_connection::link(book, found, &choices).map_err(|error| {
@@ -332,6 +491,12 @@ fn deliver(mut qobject: Pin<&mut qobject::BankConnection>, event: Event) {
     match event {
         Event::Tan(request) => qobject.tan_requested(tan_object(&request)),
         Event::Question(question) => qobject.question_asked(question_object(&question)),
+        Event::Pin(request) => qobject.pin_requested(pin_object(&request)),
+        Event::FetchStarted(account) => qobject.fetch_started(QString::from(account.as_str())),
+        Event::FetchDone(result) => {
+            qobject.as_mut().set_busy(false);
+            qobject.fetch_finished(fetch_object(&result));
+        }
         Event::SetupDone(result) => {
             qobject.as_mut().rust_mut().found = result
                 .as_ref()
@@ -483,6 +648,83 @@ fn link_choices_object(
     ])
 }
 
+/// The texts of a list of text values from QML.
+fn strings(value: &QVariant) -> Vec<String> {
+    value
+        .value::<QList<QVariant>>()
+        .map(|values| {
+            values
+                .iter()
+                .map(|value| {
+                    value
+                        .value::<QString>()
+                        .map(|value| value.to_string())
+                        .unwrap_or_default()
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn pin_object(request: &PinRequest) -> QVariant {
+    map([
+        ("bank", text(&request.bank)),
+        ("rejected", QVariant::from(&request.rejected)),
+    ])
+}
+
+fn fetch_row_object(row: &FetchRow) -> QVariant {
+    map([
+        ("id", text(&row.id)),
+        ("name", text(&row.name)),
+        ("linked", QVariant::from(&row.linked)),
+        ("bankAccount", text(&row.bank_account)),
+        ("lastFetched", text(&row.last_fetched)),
+    ])
+}
+
+fn bank_account_choices_object(free: &[&ListedBankAccount], suggested: &str) -> QVariant {
+    map([
+        (
+            "choices",
+            list(free.iter().map(|entry| {
+                map([
+                    ("key", text(&entry.key)),
+                    ("bank", text(&entry.bank)),
+                    ("iban", text(&entry.found.iban)),
+                    ("number", text(&entry.found.number)),
+                    ("name", text(&entry.found.name)),
+                    ("kind", text(entry.found.kind)),
+                ])
+            })),
+        ),
+        ("suggested", text(suggested)),
+    ])
+}
+
+fn outcome_object(outcome: &FetchOutcome) -> QVariant {
+    map([
+        ("account", text(&outcome.account)),
+        ("name", text(&outcome.name)),
+        ("state", text(outcome.state)),
+        (
+            "transactions",
+            QVariant::from(&i32::try_from(outcome.transactions).unwrap_or(i32::MAX)),
+        ),
+        (
+            "error",
+            outcome.error.as_ref().map_or_else(|| map([]), error_object),
+        ),
+    ])
+}
+
+fn fetch_object(result: &Result<Vec<FetchOutcome>, ErrorText>) -> QVariant {
+    match result {
+        Ok(outcomes) => map([("outcomes", list(outcomes.iter().map(outcome_object)))]),
+        Err(error) => error_object(error),
+    }
+}
+
 /// An empty object when `done` worked, else the error object.
 fn done_object(done: Result<(), BankError>) -> QVariant {
     match done {
@@ -493,7 +735,10 @@ fn done_object(done: Result<(), BankError>) -> QVariant {
 
 #[cfg(test)]
 mod tests {
-    use kassensturz_bank::QuestionLevel;
+    use kassensturz_bank::{
+        BankAccount, BankAccountId, BankAccountKind, BankCode, Login, LoginId, LoginKind,
+        QuestionLevel,
+    };
 
     use super::*;
 
@@ -661,5 +906,122 @@ mod tests {
         let found = list_of(&choices, "found");
         assert_eq!(text_of(&found[0], "suggested"), "a1");
         assert_eq!(text_of(&found[0], "iban"), "DE89 3704 0044 0532 0130 00");
+    }
+
+    #[test]
+    fn the_fetch_screen_reads_back_as_qml_reads_it() {
+        // The PIN dialog never gets more than the bank's name and whether
+        // the last PIN was wrong.
+        let pin = pin_object(&PinRequest {
+            bank: "Testbank".to_owned(),
+            rejected: true,
+        });
+        assert_eq!(text_of(&pin, "bank"), "Testbank");
+        assert!(flag_of(&pin, "rejected"));
+        assert_eq!(object(&pin).len(), 2);
+
+        let row = fetch_row_object(&FetchRow {
+            id: "a1".to_owned(),
+            name: "Current account".to_owned(),
+            linked: true,
+            bank_account: "DE89 3704 0044 0532 0130 00".to_owned(),
+            last_fetched: "2026-10-09".to_owned(),
+        });
+        for (key, expected) in [
+            ("id", "a1"),
+            ("name", "Current account"),
+            ("bankAccount", "DE89 3704 0044 0532 0130 00"),
+            ("lastFetched", "2026-10-09"),
+        ] {
+            assert_eq!(text_of(&row, key), expected, "{key}");
+        }
+        assert!(flag_of(&row, "linked"));
+
+        let listed = ListedBankAccount {
+            key: "7\n9".to_owned(),
+            bank: "Testbank".to_owned(),
+            login: Login {
+                id: LoginId::new("7"),
+                bank: BankCode::new("DE", "37040044"),
+                kind: LoginKind::ChipCard,
+            },
+            account: BankAccount {
+                id: BankAccountId::new("9"),
+                login: LoginId::new("7"),
+                kind: BankAccountKind::Current,
+                iban: None,
+                number: None,
+                currency: None,
+                name: None,
+            },
+            found: found(),
+        };
+        let choices = bank_account_choices_object(&[&listed], "7\n9");
+        assert_eq!(text_of(&choices, "suggested"), "7\n9");
+        let entries = list_of(&choices, "choices");
+        assert_eq!(entries.len(), 1);
+        for (key, expected) in [
+            ("key", "7\n9"),
+            ("bank", "Testbank"),
+            ("iban", "DE89 3704 0044 0532 0130 00"),
+            ("number", "0532013000"),
+            ("name", "Current account"),
+            ("kind", "current"),
+        ] {
+            assert_eq!(text_of(&entries[0], key), expected, "{key}");
+        }
+    }
+
+    #[test]
+    fn a_fetchs_result_reads_back_as_qml_reads_it() {
+        let result = fetch_object(&Ok(vec![
+            FetchOutcome {
+                account: "a1".to_owned(),
+                name: "Current account".to_owned(),
+                state: "ready",
+                transactions: 3,
+                error: None,
+            },
+            FetchOutcome {
+                account: "a2".to_owned(),
+                name: "Card".to_owned(),
+                state: "failed",
+                transactions: 0,
+                error: Some(ErrorText {
+                    code: "bank.refused",
+                    params: vec![("text", "made-up message".to_owned())],
+                }),
+            },
+            FetchOutcome {
+                account: "a3".to_owned(),
+                name: "Savings".to_owned(),
+                state: "skipped",
+                transactions: 0,
+                error: None,
+            },
+        ]));
+        let outcomes = list_of(&result, "outcomes");
+        assert_eq!(outcomes.len(), 3);
+        let number = |value: &QVariant| {
+            object(value)
+                .get(&QString::from("transactions"))
+                .and_then(|value| value.value::<i32>())
+        };
+        assert_eq!(text_of(&outcomes[0], "account"), "a1");
+        assert_eq!(text_of(&outcomes[0], "name"), "Current account");
+        assert_eq!(text_of(&outcomes[0], "state"), "ready");
+        assert_eq!(number(&outcomes[0]), Some(3));
+        // An error is an object QML can hand to FormError as it is; without
+        // one the object is empty, so `error.code` is undefined.
+        let error = object(&outcomes[1]).get(&QString::from("error"));
+        let error = error.expect("an error object");
+        assert_eq!(text_of(&error, "code"), "bank.refused");
+        assert_eq!(text_of(&error, "text"), "made-up message");
+        let none = object(&outcomes[0]).get(&QString::from("error"));
+        assert!(object(&none.expect("an object")).is_empty());
+        assert_eq!(text_of(&outcomes[2], "state"), "skipped");
+
+        let refused = fetch_object(&Err(ErrorText::plain("bank.not-registered")));
+        assert_eq!(text_of(&refused, "code"), "bank.not-registered");
     }
 }

@@ -243,6 +243,7 @@ A bank connection couldn't be used, or what the bank delivered couldn't be turne
 | `bank.malformed-iban` | | | This isn't an IBAN. It has two letters, two digits and then up to 30 letters or digits, e.g. DE89 3704 0044 0532 0130 00; spaces don't matter. Check it against what your bank shows. |
 | `bank.unknown-login` | `login` | | This bank login no longer exists in KassenSturz. Set it up again. |
 | `bank.unknown-account` | `account` | | The bank doesn't list this account for your login anymore. Check the accounts of the bank login, or link the account in KassenSturz to another one. |
+| `bank.no-bank-account` | | | None of your bank logins lists the bank account this account is linked to. Connect the bank again in Settings, or link the account to another bank account. |
 | `bank.pin-needed` | | | Your bank asks for your PIN. Type it to continue. |
 | `bank.pin-rejected` | | | Your bank says the PIN is wrong. KassenSturz has forgotten the PIN it had, so it won't be sent again. Check it and type it again; after a few wrong PINs a bank blocks the login. |
 | `bank.unreachable` | | | Your bank's server couldn't be reached. Check your internet connection and try again later. |

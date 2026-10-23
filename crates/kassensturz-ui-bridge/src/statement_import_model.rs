@@ -13,6 +13,7 @@ use cxx_qt_lib::{QMap, QMapPair_QString_QVariant, QString, QUrl, QVariant};
 use kassensturz_core::TransactionId;
 use kassensturz_import::{Limits, read_file};
 
+use crate::bank_fetch;
 use crate::book_session::local_path;
 use crate::errors::ErrorText;
 use crate::number_format::app_locale;
@@ -58,6 +59,15 @@ pub mod qobject {
         /// what comes next.
         #[qinvokable]
         fn start(self: Pin<&mut StatementImport>, account_id: &QString, file: &QUrl) -> QVariant;
+
+        /// Looks at the statement just fetched from the bank for
+        /// `account_id` (M4.7, D-153) the way a file's is looked at: the
+        /// preview comes next. An error object says why it can't be shown,
+        /// e.g. `input.no-such-entry` when nothing was fetched for the
+        /// account.
+        #[qinvokable]
+        #[cxx_name = "startFromBank"]
+        fn start_from_bank(self: Pin<&mut StatementImport>, account_id: &QString) -> QVariant;
 
         /// The statement at `index` in the file is the account's.
         #[qinvokable]
@@ -175,6 +185,36 @@ impl qobject::StatementImport {
                 self.loaded(read)
             }
         }
+    }
+
+    fn start_from_bank(mut self: Pin<&mut Self>, account_id: &QString) -> QVariant {
+        self.as_mut().cancel();
+        let account = account_id.to_string();
+        let found = session::with_book(|book| {
+            crate::transaction_entry::find_account(book, &account)
+                .map(|account| account.id)
+                .map_err(|_| StatementImportError::NoSuchEntry)
+        })
+        .unwrap_or(Err(StatementImportError::NoSuchEntry));
+        let fetched = found.and_then(|id| {
+            bank_fetch::take(id)
+                .map(|fetch| Loaded::from_bank(id, fetch.statement, fetch.day))
+                .ok_or(StatementImportError::NoSuchEntry)
+        });
+        let loaded = match fetched {
+            Ok(loaded) => loaded,
+            Err(error) => return self.fail(&error),
+        };
+        {
+            let mut rust = self.as_mut().rust_mut();
+            rust.account_id = QString::from(account.as_str());
+            rust.file_name = QString::default();
+            rust.path = PathBuf::new();
+            rust.loaded = Some(loaded);
+        }
+        self.as_mut().account_id_changed();
+        self.as_mut().file_name_changed();
+        self.show_preview()
     }
 
     fn choose_statement(mut self: Pin<&mut Self>, index: i32) -> QVariant {
@@ -403,6 +443,7 @@ fn view_object(view: &ImportView) -> QVariant {
     let count = |value: usize| QVariant::from(&i32::try_from(value).unwrap_or(i32::MAX));
     map([
         ("fileName", text(&view.file_name)),
+        ("fromBank", QVariant::from(&view.from_bank)),
         ("accountName", text(&view.account_name)),
         ("debt", QVariant::from(&view.debt)),
         ("entries", list(view.entries.iter().map(entry_object))),

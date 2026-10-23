@@ -187,7 +187,11 @@ mod tests {
         // The same ID names the app's folders and its Flatpak (D-049), so a
         // keychain manager shows which app an entry belongs to.
         let manifest = include_str!("../../../packaging/flatpak/io.github.vondor.KassenSturz.yml");
-        assert!(manifest.contains(&format!("\nid: {APP_ID}\n")), "{APP_ID}");
+        // Line by line: a Windows checkout has CRLF line endings.
+        assert!(
+            manifest.lines().any(|line| line == format!("id: {APP_ID}")),
+            "{APP_ID}"
+        );
         assert_eq!(SystemKeychain::new().service(), APP_ID);
         assert_eq!(SystemKeychain::default().service(), APP_ID);
         assert_eq!(

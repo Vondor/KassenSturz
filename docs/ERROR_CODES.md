@@ -10,12 +10,12 @@ The UI keeps one translated message per code and fills in the parameters (D-084)
 
 The app's own checks of what the user typed, e.g. an amount in the wrong regional format, aren't errors of core or store: their codes start with `input.`, they live in `kassensturz-ui-bridge` and aren't listed here (D-089). The same goes for the app's own problems opening a book, whose codes start with `book.` (D-113).
 
-This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, and one in `kassensturz-export` (`src/error/tests.rs`) against the `export.` codes, all with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
+This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, and one in `kassensturz-export` (`src/error/tests.rs`) against the `export.` codes, and one in `kassensturz-platform` (`src/error/tests.rs`) against the `platform.` codes, all with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
 
 ## Rules
 
 - **Codes are stable.** A code keeps its meaning. One that is no longer needed is retired, never given to another error. Before 0.1, codes can still change, like the book's layout (D-045).
-- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import` or `export`. Damage found in a book starts with `store.corrupt`.
+- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import`, `export` or `platform`. Damage found in a book starts with `store.corrupt`.
 - **Parameters** are listed in the order the report gives them. A name ending in `?` is optional: the report leaves it out when it isn't known.
 - **Parameter types** (`ErrorParam`):
   - Amounts (`Money`), currencies, dates and timestamps stay typed. The UI formats them for the user's locale (D-002, D-065) and shows timestamps in the user's time zone.
@@ -227,3 +227,14 @@ Data couldn't be written to a file (D-099), or a complete export couldn't be rea
 | `export.bad-value` | `path`, `expected` | `object`, `list`, `text`, `number`, `yes-or-no`, `null`, `id`, `date`, `amount`, `currency`, `rate`, `keyword` | In the complete export, {path} isn't what it should be: an object, a list, text, a whole number in its range, true or false, null (because another value rules it out), an ID, a date like 2026-10-05, an amount like -12.50 with at most the currency's decimal places, a currency code like EUR, an exchange rate like 1.0856, or one of the words the format lists for it (`docs/EXPORT_FORMAT.md`). Correct it, or export the book again. Nothing was read. |
 | `export.duplicate` | `path` | | In the complete export, {path} has the same ID as an entry before it, or names a currency twice. Correct it, or export the book again. Nothing was read. |
 | `export.invalid-transaction` | `path` | | In the complete export, the transaction at {path} doesn't add up or contradicts itself; the detail below says how. Correct it, or export the book again. Nothing was read. |
+
+## The system keychain (`kassensturz-platform`)
+
+The system keychain couldn't save, read or remove a secret, such as a banking PIN the user chose to save (D-057, D-146). No report carries the secret, the key or the keychain's own text (threat T-02). The front end, or `kassensturz-bank` on its behalf, tells the user to unlock the keychain or to type the PIN each time instead.
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `platform.keychain-unavailable` | | | The system keychain (KWallet or GNOME Keyring) couldn't be reached. Make sure it is running and unlocked, or choose to type the PIN each time instead. |
+| `platform.keychain-failed` | | | The system keychain answered with an error, so the PIN wasn't saved, read or removed. Try again; if it keeps happening, look at the keychain in its own manager (e.g. KWalletManager), or choose to type the PIN each time instead. |
+| `platform.keychain-not-text` | | | What the keychain holds for this login isn't a PIN that KassenSturz saved. Remove the entry in the keychain's manager and save the PIN again, or type it each time. |
+| `platform.invalid-secret-key` | | | KassenSturz asked the keychain with a name it can't use. This is a bug in KassenSturz: please report it. |

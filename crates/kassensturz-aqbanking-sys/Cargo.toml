@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+
+[package]
+name = "kassensturz-aqbanking-sys"
+description = "Raw declarations of the AqBanking and Gwenhywfar C functions KassenSturz reads bank data with, loaded at runtime by their ABI names (D-060, D-138)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+libloading.workspace = true
+
+[lints]
+workspace = true

@@ -108,7 +108,7 @@ When strings in the UI change, update the translations with `tools/sdk.sh tools/
 
 When Debian's [iso-codes](https://salsa.debian.org/iso-codes-team/iso-codes) has a new release, download it and update KassenSturz's currency table with `python3 tools/update-currency-table.py VERSION iso-codes-VERSION/data/iso_4217.json`. A currency it adds needs its decimal places from ISO 4217, given once as `CODE=DIGITS` after the file (D-077 in [`docs/DECISIONS.md`](docs/DECISIONS.md)).
 
-Building without Flatpak works too, with CMake, Extra CMake Modules, Qt 6.11, KDE Frameworks 6.29 and Rust 1.98 or newer: `cmake -B build/cmake && cmake --build build/cmake`. CI also builds it on Kubuntu 26.10 (D-094) and Fedora 44 (D-097) from the distributions' packages.
+Building without Flatpak works too, with CMake, Extra CMake Modules, Qt 6.11, KDE Frameworks 6.29 and Rust 1.98 or newer: `cmake -B build/cmake && cmake --build build/cmake`. CI also builds it on Kubuntu 26.10 (D-094) and Fedora 44 (D-097) from the distributions' packages. Bank connections need AqBanking 6.9.2 and Gwenhywfar 5.14.1 or newer at runtime, found by their ABI names (D-138); the dialogs for bank setup, PIN and TAN are built when Gwenhywfar's Qt 6 GUI development package (`libgwengui-qt6-dev` on Kubuntu) is installed, and the app works without any of them.
 
 ## For AI agents
 

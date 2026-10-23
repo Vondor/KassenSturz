@@ -232,7 +232,15 @@ jobs:
             libkf6config-dev libkf6i18n-dev libkf6qqc2desktopstyle-dev libsqlite3-dev ninja-build pkgconf \
             qml6-module-org-kde-desktop qml6-module-org-kde-ki18n qml6-module-org-kde-kirigami \
             qml6-module-org-kde-kirigamiaddons-formcard qml6-module-qtquick-dialogs \
-            qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools rustup zstd
+            qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools rustup zstd \
+            libaqbanking-dev libgwenhywfar-core-dev libgwengui-qt6-dev
+      # The versions the bindings were made for (D-138); the Rust test below
+      # loads the libraries by their ABI names.
+      - name: AqBanking and Gwenhywfar are the pinned versions
+        run: |
+          pkg-config --modversion aqbanking gwenhywfar gwengui-qt6
+          test "$(pkg-config --modversion aqbanking)" = 6.9.2
+          test "$(pkg-config --modversion gwenhywfar)" = 5.14.1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # In a container, `github.workspace` is the runner's path, not the
       # container's, so Cargo's folder is named here.
@@ -263,6 +271,11 @@ jobs:
         run: cmake -S . -B build/cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DKASSENSTURZ_BUNDLED_SQLITE=OFF
       - name: Build
         run: cmake --build build/cmake
+      # The library for Gwenhywfar's Qt dialogs and its test (M4.2, D-140).
+      - name: The bank dialog library is built and passes its test
+        run: |
+          test -f build/cmake/crates/kassensturz-aqbanking-sys/gwengui/libkassensturz-gwengui.so
+          ctest --test-dir build/cmake --output-on-failure
       - name: Install into a staging folder
         run: DESTDIR="$PWD/build/stage" cmake --install build/cmake
       # Without its catalog the app would speak English on a German system.
@@ -272,6 +285,9 @@ jobs:
         run: cargo test --workspace --no-default-features --locked
         env:
           QMAKE: /usr/bin/qmake6
+          # The distribution's AqBanking is installed, so the loading test
+          # must find it (D-138).
+          KASSENSTURZ_REQUIRE_AQBANKING: "1"
       # The window opens and keeps running; timeout ends it with status 124.
       # A missing QML module or a crash at start-up ends it sooner.
       - name: The installed app starts
@@ -317,7 +333,18 @@ jobs:
             kf6-qqc2-desktop-style ninja-build \
             pkgconf-pkg-config qt6-qtbase-devel qt6-qtdeclarative \
             qt6-qtdeclarative-devel rustup sqlite-devel tar \
-            /usr/lib64/qt6/qml/org/kde/kirigamiaddons/formcard/qmldir
+            /usr/lib64/qt6/qml/org/kde/kirigamiaddons/formcard/qmldir \
+            aqbanking-devel gwenhywfar-devel
+      # Fedora's package names for the Qt 6 build of Gwenhywfar's GUI couldn't
+      # be checked beforehand (D-138), so it is asked for by the file it
+      # installs, and the build goes on without it.
+      - name: Gwenhywfar's Qt 6 dialogs, if Fedora 44 has them
+        run: |
+          dnf install -y --setopt=install_weak_deps=False /usr/lib64/libgwengui-qt6.so \
+            || echo "::warning::Fedora 44 has no package with libgwengui-qt6.so"
+      # Recorded in docs/THIRD_PARTY.md (D-138).
+      - name: Fedora's AqBanking and Gwenhywfar versions
+        run: rpm -qa --qf '%{NAME} %{VERSION}-%{RELEASE} %{LICENSE}\n' 'aqbanking*' 'gwenhywfar*' 'libchipcard*'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # In a container, `github.workspace` is the runner's path, not the
       # container's, so Cargo's folder is named here.
@@ -350,6 +377,15 @@ jobs:
         run: cmake -S . -B build/cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DKASSENSTURZ_BUNDLED_SQLITE=OFF
       - name: Build
         run: cmake --build build/cmake
+      # The library for Gwenhywfar's Qt dialogs and its test (M4.2, D-140),
+      # when Fedora has the Qt 6 build of Gwenhywfar's GUI.
+      - name: The bank dialog library passes its test where it is built
+        run: |
+          if test -f build/cmake/crates/kassensturz-aqbanking-sys/gwengui/libkassensturz-gwengui.so; then
+            ctest --test-dir build/cmake --output-on-failure
+          else
+            echo "::warning::No gwengui-qt6 on Fedora 44: the bank dialog library was not built"
+          fi
       - name: Install into a staging folder
         run: DESTDIR="$PWD/build/stage" cmake --install build/cmake
       # Without its catalog the app would speak English on a German system.
@@ -359,6 +395,9 @@ jobs:
         run: cargo test --workspace --no-default-features --locked
         env:
           QMAKE: /usr/bin/qmake6
+          # The distribution's AqBanking is installed, so the loading test
+          # must find it (D-138).
+          KASSENSTURZ_REQUIRE_AQBANKING: "1"
       # The window opens and keeps running; timeout ends it with status 124.
       # A missing QML module or a crash at start-up ends it sooner.
       - name: The installed app starts

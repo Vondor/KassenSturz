@@ -1,0 +1,1535 @@
+recognized: maybe
+book
+  institution "I000001": "Lunar Credit Union", bank code -, contact -, address -, phone -
+  institution "I000002": "Ceres Savings Cooperative", bank code -, contact -, address -, phone -
+  institution "I000003": "Jovian Trade Bank", bank code -, contact -, address -, phone -
+  account "A000002": "Lunar Credit Union", asset, type -, EUR with 2 decimal places, inside -
+    number -, notes -, at "I000003"
+  account "A000004": "Everyday Checking", asset, type checking, EUR with 2 decimal places, inside "A000002"
+    number -, notes -, at "I000002"
+  account "A000005": "Ceres Savings Cooperative", asset, type checking, EUR with 2 decimal places, inside "A000002"
+    number -, notes -, at "I000002"
+  account "A000006": "Habitat", expense, type -, EUR with 2 decimal places, inside -
+  account "A000007": "Rent", expense, type -, EUR with 2 decimal places, inside "A000006"
+  account "A000008": "Air Recycling", expense, type -, EUR with 2 decimal places, inside "A000006"
+  account "A000009": "Fusion Power", expense, type -, EUR with 2 decimal places, inside "A000006"
+  account "A000010": "Oxygen and Water", expense, type -, EUR with 2 decimal places, inside "A000006"
+  account "A000011": "Subspace Communications", expense, type -, EUR with 2 decimal places, inside -
+  account "A000012": "Insurance", expense, type -, EUR with 2 decimal places, inside -
+  account "A000013": "Hull Breach Cover", expense, type -, EUR with 2 decimal places, inside "A000012"
+  account "A000014": "Academy Tuition", expense, type -, EUR with 2 decimal places, inside -
+  account "A000015": "Health", expense, type -, EUR with 2 decimal places, inside -
+  account "A000016": "Transport", expense, type -, EUR with 2 decimal places, inside -
+  account "A000017": "Food", expense, type -, EUR with 2 decimal places, inside -
+  account "A000018": "Leisure", expense, type -, EUR with 2 decimal places, inside -
+  account "A000019": "Miscellaneous", expense, type -, EUR with 2 decimal places, inside -
+  account "A000020": "Small Expenses", expense, type -, EUR with 2 decimal places, inside "A000019"
+  account "A000021": "Everyday Spending", expense, type -, EUR with 2 decimal places, inside "A000019"
+  account "A000022": "Rover and Vehicles", expense, type -, EUR with 2 decimal places, inside -
+  account "A000023": "Clothing and Gear", expense, type -, EUR with 2 decimal places, inside -
+  account "A000024": "Pressure Suits", expense, type -, EUR with 2 decimal places, inside "A000023"
+  account "A000025": "Helmets", expense, type -, EUR with 2 decimal places, inside "A000023"
+  account "A000026": "Gloves", expense, type -, EUR with 2 decimal places, inside "A000023"
+  account "A000027": "Boots", expense, type -, EUR with 2 decimal places, inside "A000023"
+  account "A000028": "Radios", expense, type -, EUR with 2 decimal places, inside "A000023"
+  account "A000029": "Tools", expense, type -, EUR with 2 decimal places, inside "A000023"
+  account "A000030": "Leisure Pursuits", expense, type -, EUR with 2 decimal places, inside -
+  account "A000031": "Dome 3 Cinema", expense, type -, EUR with 2 decimal places, inside "A000030"
+  account "A000032": "Books and Data Crystals", expense, type -, EUR with 2 decimal places, inside "A000030"
+  account "A000033": "Subspace Music Streaming", expense, type -, EUR with 2 decimal places, inside "A000030"
+  account "A000034": "Taxes and Fees", expense, type -, EUR with 2 decimal places, inside -
+  account "A000035": "Colony Income Tax", expense, type -, EUR with 2 decimal places, inside "A000034"
+  account "A000036": "Oxygen Quota Fee", expense, type -, EUR with 2 decimal places, inside "A000034"
+  account "A000037": "Land Lease", expense, type -, EUR with 2 decimal places, inside "A000034"
+  account "A000039": "Gifts and Donations", expense, type -, EUR with 2 decimal places, inside -
+  account "A000040": "Club Donations", expense, type -, EUR with 2 decimal places, inside "A000039"
+  account "A000041": "Council Party Donations", expense, type -, EUR with 2 decimal places, inside "A000039"
+  account "A000042": "Travel", expense, type -, EUR with 2 decimal places, inside -
+  account "A000043": "Earth-Mars Flights", expense, type -, EUR with 2 decimal places, inside "A000042"
+  account "A000044": "Holidays", expense, type -, EUR with 2 decimal places, inside "A000042"
+  account "A000045": "Orbital Hotel", expense, type -, EUR with 2 decimal places, inside "A000044"
+  account "A000046": "Meals on the Road", expense, type -, EUR with 2 decimal places, inside "A000044"
+  account "A000047": "Olympus Mons Tours", expense, type -, EUR with 2 decimal places, inside "A000044"
+  account "A000048": "Souvenirs", expense, type -, EUR with 2 decimal places, inside "A000044"
+  account "A000049": "Colony Employment", income, type -, EUR with 2 decimal places, inside -
+  account "A000050": "Salary Hydroponics Engineer", income, type -, EUR with 2 decimal places, inside "A000049"
+  account "A000051": "Mine Shift Bonus", income, type -, EUR with 2 decimal places, inside "A000049"
+  account "A000052": "Mineral Sales", income, type -, EUR with 2 decimal places, inside -
+  account "A000053": "Credit Union Interest", income, type -, EUR with 2 decimal places, inside -
+  account "A000054": "Refunds", income, type -, EUR with 2 decimal places, inside -
+  account "A000055": "Refund Radiation Shielding", income, type -, EUR with 2 decimal places, inside "A000054"
+  account "A000056": "Refund Oxygen Tax", income, type -, EUR with 2 decimal places, inside "A000054"
+  account "A000057": "Refund Shuttle Fares", income, type -, EUR with 2 decimal places, inside "A000054"
+  account "A000058": "Shipyard Loan", liability, type -, EUR with 2 decimal places, inside -
+  account "A000060": "Dome Petty Cash", asset, type checking, EUR with 2 decimal places, inside "A000005"
+    number -, notes -, at "I000001"
+  account "A000061": "Mars Rainy-Day Savings", asset, type savings, EUR with 2 decimal places, inside "A000005"
+    number -, notes -, at "I000001"
+  account "A000062": "Shuttle Travel Fund", asset, type checking, EUR with 2 decimal places, inside "A000004"
+    number -, notes -, at "I000001"
+  account "A000063": "Asteroid Claim Shares", asset, type -, EUR with 2 decimal places, inside -
+    number "1000200030", notes -, at "I000001"
+  account "A000064": "Colony Founding Capital", equity, type -, EUR with 2 decimal places, inside -
+  account "A000066": "Colony Salary and Allowances", income, type -, EUR with 2 decimal places, inside -
+  account "A000067": "Colony Pension Fund", expense, type -, EUR with 2 decimal places, inside "A000034"
+  account "A000068": "Radiation Cover", expense, type -, EUR with 2 decimal places, inside "A000012"
+  account "A000069": "Hydroponic Greens", expense, type -, EUR with 2 decimal places, inside "A000017"
+  account "A000070": "Rover Maintenance", expense, type -, EUR with 2 decimal places, inside "A000022"
+  account "A000071": "Rover Batteries", expense, type -, EUR with 2 decimal places, inside "A000022"
+  account "A000072": "Rover Parking", expense, type -, EUR with 2 decimal places, inside "A000022"
+  account "A000073": "Algae Bars and Nutrient Paste", expense, type -, EUR with 2 decimal places, inside "A000017"
+  account "A000074": "Birthdays", expense, type -, EUR with 2 decimal places, inside "A000039"
+  account "A000075": "Observatory Visits", expense, type -, EUR with 2 decimal places, inside "A000030"
+  account "A000076": "Suit Liability", expense, type -, EUR with 2 decimal places, inside "A000012"
+  account "A000077": "Low-Gravity Allowance", income, type -, EUR with 2 decimal places, inside "A000049"
+  account "A000078": "Zero-G Dentist", expense, type -, EUR with 2 decimal places, inside "A000015"
+  account "A000079": "Colonial Legal Cover", expense, type -, EUR with 2 decimal places, inside "A000012"
+  account "A000080": "Holodeck", expense, type -, EUR with 2 decimal places, inside "A000018"
+  account "A000081": "Zero-G Sports", expense, type -, EUR with 2 decimal places, inside "A000018"
+  account "A000082": "Mars Relief Fund", expense, type -, EUR with 2 decimal places, inside "A000039"
+  account "A000083": "Minor Repairs", expense, type -, EUR with 2 decimal places, inside "A000019"
+  account "A000084": "Other Spending", expense, type -, EUR with 2 decimal places, inside -
+  payee "P000007": "Hydroponics Cooperative", address -, email -, phone -, reference -, recognized by ["^Hydroponics\\ Cooperative$"] ignoring case
+  payee "P000020": "Suit Tailors Guild", address -, email -, phone -, reference -, recognized by ["^Suit\\ Tailors\\ Guild$"] ignoring case
+  payee "P000029": "Rover Garage Gamma", address -, email -, phone -, reference -, recognized by ["^Rover\\ Garage\\ Gamma$"] ignoring case
+  payee "P000031": "Olympus Mons Market", address -, email -, phone -, reference -, recognized by ["^Olympus\\ Mons\\ Market$"] ignoring case
+  payee "P000033": "Venus Library", address -, email -, phone -, reference -, recognized by ["^Venus\\ Library$"] ignoring case
+  payee "P000043": "Europa Water Board", address -, email -, phone -, reference -, recognized by ["^Europa\\ Water\\ Board$"] ignoring case
+  payee "P000045": "Moonbase Medical Center", address -, email -, phone -, reference -, recognized by ["^Moonbase\\ Medical\\ Center$"] ignoring case
+  payee "P000049": "Callisto Cafe", address -, email -, phone -, reference -, recognized by ["^Callisto\\ Cafe$"] ignoring case
+  payee "P000085": "Galaxy Electronics", address -, email -, phone -, reference -, recognized by ["^Galaxy\\ Electronics$"] ignoring case
+  payee "P000096": "Kepler Sports Club", address -, email -, phone -, reference -, recognized by ["^Kepler\\ Sports\\ Club$"] ignoring case
+  payee "P000097": "Redwood Seed Bank", address -, email -, phone -, reference -, recognized by ["^Redwood\\ Seed\\ Bank$"] ignoring case
+  payee "P000098": "Asteroid Mining Corp.", address -, email -, phone -, reference -, recognized by ["^Asteroid\\ Mining\\ Corp.$"] ignoring case
+  payee "P000099": "Subspace Telecom", address -, email -, phone -, reference -, recognized by ["^Subspace\\ Telecom$"] ignoring case
+  payee "P000100": "Aurora Dome Cinema", address -, email -, phone -, reference -, recognized by ["^Aurora\\ Dome\\ Cinema$"] ignoring case
+  payee "P000101": "Titan Fuel Station", address -, email -, phone -, reference -, recognized by ["^Titan\\ Fuel\\ Station$"] ignoring case
+  payee "P000106": "Helios Insurance", address -, email -, phone -, reference -, recognized by ["^Helios\\ Insurance$"] ignoring case
+  payee "P000107": "Nebula Streaming", address -, email -, phone -, reference -, recognized by ["^Nebula\\ Streaming$"] ignoring case
+  payee "P000110": "Pioneer Fund", address -, email -, phone -, reference -, recognized by ["^Pioneer\\ Fund$"] ignoring case
+  payee "P000112": "Colony Council Tax Office", address -, email -, phone -, reference -, recognized by ["^Colony\\ Council\\ Tax\\ Office$"] ignoring case
+  payee "P000113": "Phobos Canteen", address -, email -, phone -, reference -, recognized by ["^Phobos\\ Canteen$"] ignoring case
+  payee "P000114": "Northern Ice Works", address -, email -, phone -, reference -, recognized by ["^Northern\\ Ice\\ Works$"] ignoring case
+  payee "P000115": "Andromeda Travel Agency", address -, email -, phone -, reference -, recognized by ["^Andromeda\\ Travel\\ Agency$"] ignoring case
+  payee "P000116": "Dome Management Co.", address -, email -, phone -, reference -, recognized by ["^Dome\\ Management\\ Co.$"] ignoring case
+  payee "P000117": "Crater Bakery", address -, email -, phone -, reference -, recognized by ["^Crater\\ Bakery$"] ignoring case
+  payee "P000118": "Ceres Greengrocer", address -, email -, phone -, reference -, recognized by ["^Ceres\\ Greengrocer$"] ignoring case
+  payee "P000119": "Luna Pharmacy", address -, email -, phone -, reference -, recognized by ["^Luna\\ Pharmacy$"] ignoring case
+  transaction 1 on 2026-06-03, payee "Luna Pharmacy", note "Library fine 25", entered 2026-06-03
+    part "A000060": 140.00 EUR, in the account -, bank id "ID-1", other party - -, text "Library fine 25", cleared
+    part "A000066": -140.00 EUR, in the account -, note "Library fine 25"
+  transaction 2 on 2026-07-03, payee "Luna Pharmacy", note "Library fine 25", entered 2026-07-03
+    part "A000060": 150.00 EUR, in the account -, bank id "ID-2", other party - -, text "Library fine 25", cleared
+    part "A000066": -150.00 EUR, in the account -, note "Library fine 25"
+  transaction 3 on 2026-07-03, payee "Luna Pharmacy", note "Cinema night 36", entered 2026-07-03
+    part "A000060": 150.00 EUR, in the account -, bank id "ID-3", other party - -, text "Cinema night 36", cleared
+    part "A000066": -150.00 EUR, in the account -, note "Cinema night 36"
+  transaction 4 on 2026-07-27, payee -, entered 2026-07-27
+    part "A000060": -0.02 EUR, in the account -, bank id "ID-4", other party - -, text -, cleared
+    part "A000066": 0.02 EUR, in the account -
+  transaction 5 on 2026-07-21, payee -, entered 2026-07-21
+    part "A000060": 0.95 EUR, in the account -, bank id "ID-5", other party - -, text -, cleared
+    part "A000066": -0.95 EUR, in the account -
+  transaction 6 on 2025-07-28, payee "Luna Pharmacy", note "Library fine 25", entered 2025-07-28
+    part "A000060": 133.49 EUR, in the account -, bank id "ID-6", other party - -, text "Library fine 25", cleared
+    part "A000066": -133.49 EUR, in the account -, note "Library fine 25"
+  transaction 7 on 2025-08-13, payee "Luna Pharmacy", note "Rover check-up 2", entered 2025-08-13
+    part "A000061": -275.49 EUR, in the account -, bank id "ID-7", other party - -, text "Rover check-up 2", cleared
+    part "A000066": 275.49 EUR, in the account -, note "Rover check-up 2"
+  transaction 8 on 2025-08-30, payee "Luna Pharmacy", note "Algae bars 33", entered 2025-08-30
+    part "A000061": 265.00 EUR, in the account -, bank id "ID-8", other party - -, text "Algae bars 33", cleared
+    part "A000066": -265.00 EUR, in the account -, note "Algae bars 33"
+  transaction 9 on 2025-09-28, payee "Luna Pharmacy", note "Seed order 25", entered 2025-09-28
+    part "A000061": -275.49 EUR, in the account -, bank id "ID-9", other party - -, text "Seed order 25", cleared
+    part "A000066": 275.49 EUR, in the account -, note "Seed order 25"
+  transaction 10 on 2025-09-29, payee "Luna Pharmacy", note "Algae bars 33", entered 2025-09-29
+    part "A000061": 275.00 EUR, in the account -, bank id "ID-10", other party - -, text "Algae bars 33", cleared
+    part "A000066": -275.00 EUR, in the account -, note "Algae bars 33"
+  transaction 11 on 2025-10-12, payee -, note "Fuel top-up 38", entered 2025-10-12
+    part "A000061": 1.96 EUR, in the account -, bank id "ID-11", other party - -, text "Fuel top-up 38", cleared
+    part "A000066": -1.96 EUR, in the account -, note "Fuel top-up 38"
+  transaction 12 on 2025-10-09, payee -, note "Library fine 25", entered 2025-10-09
+    part "A000061": 0.20 EUR, in the account -, bank id "ID-12", other party - -, text "Library fine 25", cleared
+    part "A000066": -0.20 EUR, in the account -, note "Library fine 25"
+  transaction 13 on 2025-10-26, payee "Luna Pharmacy", note "Algae bars 33", entered 2025-10-26
+    part "A000061": 270.00 EUR, in the account -, bank id "ID-13", other party - -, text "Algae bars 33", cleared
+    part "A000066": -270.00 EUR, in the account -, note "Algae bars 33"
+  transaction 14 on 2025-11-27, payee "Luna Pharmacy", note "Algae bars 33", entered 2025-11-27
+    part "A000061": 275.00 EUR, in the account -, bank id "ID-14", other party - -, text "Algae bars 33", cleared
+    part "A000066": -275.00 EUR, in the account -, note "Algae bars 33"
+  transaction 15 on 2025-12-26, payee "Luna Pharmacy", note "Seed order 25", entered 2025-12-26
+    part "A000061": -265.00 EUR, in the account -, bank id "ID-15", other party - -, text "Seed order 25", cleared
+    part "A000066": 265.00 EUR, in the account -, note "Seed order 25"
+  transaction 16 on 2025-12-27, payee "Luna Pharmacy", note "Algae bars 33", entered 2025-12-27
+    part "A000061": 260.00 EUR, in the account -, bank id "ID-16", other party - -, text "Algae bars 33", cleared
+    part "A000066": -260.00 EUR, in the account -, note "Algae bars 33"
+  transaction 17 on 2026-01-09, payee -, note "Fuel top-up 38", entered 2026-01-09
+    part "A000061": 5.50 EUR, in the account -, bank id "ID-17", other party - -, text "Fuel top-up 38", cleared
+    part "A000066": -5.50 EUR, in the account -, note "Fuel top-up 38"
+  transaction 18 on 2026-01-08, payee -, note "Reactor spare parts 5", entered 2026-01-08
+    part "A000061": 2.85 EUR, in the account -, bank id "ID-18", other party - -, text "Reactor spare parts 5", cleared
+    part "A000066": -2.85 EUR, in the account -, note "Reactor spare parts 5"
+  transaction 19 on 2026-01-29, payee "Luna Pharmacy", note "Algae bars 33", entered 2026-01-29
+    part "A000061": 275.00 EUR, in the account -, bank id "ID-19", other party - -, text "Algae bars 33", cleared
+    part "A000066": -275.00 EUR, in the account -, note "Algae bars 33"
+  transaction 20 on 2026-02-22, payee "Luna Pharmacy", note "Algae bars 33", entered 2026-02-22
+    part "A000061": 264.49 EUR, in the account -, bank id "ID-20", other party - -, text "Algae bars 33", cleared
+    part "A000066": -264.49 EUR, in the account -, note "Algae bars 33"
+  transaction 21 on 2026-03-24, payee "Luna Pharmacy", note "Seed order 25", entered 2026-03-24
+    part "A000061": -260.00 EUR, in the account -, bank id "ID-21", other party - -, text "Seed order 25", cleared
+    part "A000066": 260.00 EUR, in the account -, note "Seed order 25"
+  transaction 22 on 2026-03-31, payee "Luna Pharmacy", note "Algae bars 33", entered 2026-03-31
+    part "A000061": 230.00 EUR, in the account -, bank id "ID-22", other party - -, text "Algae bars 33", cleared
+    part "A000066": -230.00 EUR, in the account -, note "Algae bars 33"
+  transaction 23 on 2026-04-03, payee -, note "Subspace fee 45", entered 2026-04-03
+    part "A000061": 7.75 EUR, in the account -, bank id "ID-23", other party - -, text "Subspace fee 45", cleared
+    part "A000066": -7.75 EUR, in the account -, note "Subspace fee 45"
+  transaction 24 on 2026-04-13, payee -, note "Fuel top-up 38", entered 2026-04-13
+    part "A000061": 8.75 EUR, in the account -, bank id "ID-24", other party - -, text "Fuel top-up 38", cleared
+    part "A000066": -8.75 EUR, in the account -, note "Fuel top-up 38"
+  transaction 25 on 2026-05-02, payee "Luna Pharmacy", note "Algae bars 33", entered 2026-05-02
+    part "A000061": 262.99 EUR, in the account -, bank id "ID-25", other party - -, text "Algae bars 33", cleared
+    part "A000066": -262.99 EUR, in the account -, note "Algae bars 33"
+  transaction 26 on 2026-04-30, payee -, note "Greens, week 38", entered 2026-04-30
+    part "A000061": 0.20 EUR, in the account -, bank id "ID-26", other party - -, text "Greens, week 38", cleared
+    part "A000066": -0.20 EUR, in the account -, note "Greens, week 38"
+  transaction 27 on 2026-06-02, payee "Luna Pharmacy", note "Algae bars 33", entered 2026-06-02
+    part "A000061": 270.00 EUR, in the account -, bank id "ID-27", other party - -, text "Algae bars 33", cleared
+    part "A000066": -270.00 EUR, in the account -, note "Algae bars 33"
+  transaction 28 on 2026-06-21, payee "Luna Pharmacy", note "Seed order 25", entered 2026-06-21
+    part "A000061": -270.00 EUR, in the account -, bank id "ID-28", other party - -, text "Seed order 25", cleared
+    part "A000066": 270.00 EUR, in the account -, note "Seed order 25"
+  transaction 29 on 2026-06-26, payee "Luna Pharmacy", note "Suit repair 6", entered 2026-06-26
+    part "A000061": -264.00 EUR, in the account -, bank id "ID-29", other party - -, text "Suit repair 6", cleared
+    part "A000066": 264.00 EUR, in the account -, note "Suit repair 6"
+  transaction 30 on 2026-06-27, payee "Luna Pharmacy", note "Algae bars 33", entered 2026-06-27
+    part "A000061": 262.99 EUR, in the account -, bank id "ID-30", other party - -, text "Algae bars 33", cleared
+    part "A000066": -262.99 EUR, in the account -, note "Algae bars 33"
+  transaction 31 on 2026-07-12, payee -, note "Fuel top-up 38", entered 2026-07-12
+    part "A000061": 1.75 EUR, in the account -, bank id "ID-31", other party - -, text "Fuel top-up 38", cleared
+    part "A000066": -1.75 EUR, in the account -, note "Fuel top-up 38"
+  transaction 32 on 2026-07-13, payee -, note "Reactor spare parts 5", entered 2026-07-13
+    part "A000061": 0.95 EUR, in the account -, bank id "ID-32", other party - -, text "Reactor spare parts 5", cleared
+    part "A000066": -0.95 EUR, in the account -, note "Reactor spare parts 5"
+  transaction 33 on 2026-07-28, payee "Luna Pharmacy", note "Cinema night 6", entered 2026-07-28
+    part "A000061": -272.99 EUR, in the account -, bank id "ID-33", other party - -, text "Cinema night 6", cleared
+    part "A000066": 272.99 EUR, in the account -, note "Cinema night 6"
+  transaction 34 on 2026-07-23, payee -, entered 2026-07-23
+    part "A000061": 10.75 EUR, in the account -, bank id "ID-34", other party - -, text -, cleared
+    part "A000066": -10.75 EUR, in the account -
+  transaction 35 on 2026-07-27, payee "Luna Pharmacy", note "Algae bars 33", entered 2026-07-27
+    part "A000061": 264.50 EUR, in the account -, bank id "ID-35", other party - -, text "Algae bars 33", cleared
+    part "A000066": -264.50 EUR, in the account -, note "Algae bars 33"
+  transaction 36 on 2026-09-01, payee "Luna Pharmacy", note "Algae bars 33", entered 2026-09-01
+    part "A000061": 530.00 EUR, in the account -, bank id "ID-36", other party - -, text "Algae bars 33", cleared
+    part "A000066": -530.00 EUR, in the account -, note "Algae bars 33"
+  transaction 37 on 2026-09-01, payee "Luna Pharmacy", note "Reactor spare parts 34", entered 2026-09-01
+    part "A000004": -530.00 EUR, in the account -, bank id "ID-37", other party - -, text "Reactor spare parts 34", cleared
+    part "A000021": 530.00 EUR, in the account -, note "Reactor spare parts 34"
+  transaction 38 on 2026-08-31, payee "Luna Pharmacy", note "Canteen lunch 48", entered 2026-08-31
+    part "A000004": -285.00 EUR, in the account -, bank id "ID-38", other party - -, text "Canteen lunch 48", cleared
+    part "A000021": 285.00 EUR, in the account -, note "Canteen lunch 48"
+  transaction 39 on 2026-09-03, payee "Luna Pharmacy", note "Habitat supplies 21", entered 2026-09-03
+    part "A000004": -285.00 EUR, in the account -, bank id "ID-39", other party - -, text "Habitat supplies 21", cleared
+    part "A000021": 285.00 EUR, in the account -, note "Habitat supplies 21"
+  transaction 40 on 2026-08-30, payee "Colony Council Tax Office", note "Hull patch kit 3", entered 2026-08-30
+    part "A000004": -5.95 EUR, in the account -, bank id "ID-40", other party - -, text "Hull patch kit 3", cleared
+    part "A000021": 5.95 EUR, in the account -, note "Hull patch kit 3"
+  transaction 41 on 2026-08-28, payee "Pioneer Fund", note "Library fine 18", entered 2026-08-28
+    part "A000004": -55.49 EUR, in the account -, bank id "ID-41", other party - -, text "Library fine 18", cleared
+    part "A000021": 55.49 EUR, in the account -, note "Library fine 18"
+  transaction 42 on 2026-08-30, payee "Crater Bakery", note "Fuel top-up 11", entered 2026-08-30
+    part "A000004": -34.02 EUR, in the account -, bank id "ID-42", other party - -, text "Fuel top-up 11", cleared
+    part "A000021": 34.02 EUR, in the account -, note "Fuel top-up 11"
+  transaction 43 on 2026-08-30, payee "Pioneer Fund", note "Rover check-up 48", entered 2026-08-30
+    part "A000004": -54.73 EUR, in the account -, bank id "ID-43", other party - -, text "Rover check-up 48", cleared
+    part "A000021": 54.73 EUR, in the account -, note "Rover check-up 48"
+  transaction 44 on 2026-08-31, payee "Pioneer Fund", note "Rover check-up 23", entered 2026-08-31
+    part "A000004": -57.75 EUR, in the account -, bank id "ID-44", other party - -, text "Rover check-up 23", cleared
+    part "A000021": 57.75 EUR, in the account -, note "Rover check-up 23"
+  transaction 45 on 2026-08-29, payee "Kepler Sports Club", note "Subspace fee 30", entered 2026-08-29
+    part "A000004": -18.90 EUR, in the account -, bank id "ID-45", other party - -, text "Subspace fee 30", cleared
+    part "A000021": 18.90 EUR, in the account -, note "Subspace fee 30"
+  transaction 46 on 2026-08-31, payee "Subspace Telecom", note "Shuttle pass 33", entered 2026-08-31
+    part "A000004": -11.95 EUR, in the account -, bank id "ID-46", other party - -, text "Shuttle pass 33", cleared
+    part "A000021": 11.95 EUR, in the account -, note "Shuttle pass 33"
+  transaction 47 on 2026-09-01, payee "Kepler Sports Club", note "Reactor spare parts 51", entered 2026-09-01
+    part "A000004": -18.00 EUR, in the account -, bank id "ID-47", other party - -, text "Reactor spare parts 51", cleared
+    part "A000021": 18.00 EUR, in the account -, note "Reactor spare parts 51"
+  transaction 48 on 2026-08-28, payee "Northern Ice Works", note "Hull patch kit 14", entered 2026-08-28
+    part "A000004": -13.20 EUR, in the account -, bank id "ID-48", other party - -, text "Hull patch kit 14", cleared
+    part "A000021": 13.20 EUR, in the account -, note "Hull patch kit 14"
+  transaction 49 on 2026-08-30, payee "Northern Ice Works", note "Zero-G class 36", entered 2026-08-30
+    part "A000004": -12.49 EUR, in the account -, bank id "ID-49", other party - -, text "Zero-G class 36", cleared
+    part "A000021": 12.49 EUR, in the account -, note "Zero-G class 36"
+  transaction 50 on 2026-08-30, payee "Suit Tailors Guild", note "Greens, week 10", entered 2026-08-30
+    part "A000004": -54.95 EUR, in the account -, bank id "ID-50", other party - -, text "Greens, week 10", cleared
+    part "A000021": 54.95 EUR, in the account -, note "Greens, week 10"
+  transaction 51 on 2026-08-27, payee "Kepler Sports Club", note "Habitat supplies 3", entered 2026-08-27
+    part "A000004": -17.75 EUR, in the account -, bank id "ID-51", other party - -, text "Habitat supplies 3", cleared
+    part "A000021": 17.75 EUR, in the account -, note "Habitat supplies 3"
+  transaction 52 on 2026-09-01, payee "Crater Bakery", note "Seed order 16", entered 2026-09-01
+    part "A000004": -35.75 EUR, in the account -, bank id "ID-52", other party - -, text "Seed order 16", cleared
+    part "A000021": 35.75 EUR, in the account -, note "Seed order 16"
+  transaction 53 on 2026-08-31, payee "Kepler Sports Club", note "Fuel top-up 40", entered 2026-08-31
+    part "A000004": -17.49 EUR, in the account -, bank id "ID-53", other party - -, text "Fuel top-up 40", cleared
+    part "A000021": 17.49 EUR, in the account -, note "Fuel top-up 40"
+  transaction 54 on 2026-09-01, payee "Phobos Canteen", note "Water allotment 38", entered 2026-09-01
+    part "A000004": -15.20 EUR, in the account -, bank id "ID-54", other party - -, text "Water allotment 38", cleared
+    part "A000021": 15.20 EUR, in the account -, note "Water allotment 38"
+  transaction 55 on 2026-09-06, payee "Luna Pharmacy", note "Water allotment 16", entered 2026-09-06
+    part "A000004": 280.00 EUR, in the account -, bank id "ID-55", other party - -, text "Water allotment 16", cleared
+    part "A000021": -280.00 EUR, in the account -, note "Water allotment 16"
+  transaction 56 on 2026-08-30, payee "Kepler Sports Club", note "Oxygen refill 29", entered 2026-08-30
+    part "A000004": -18.99 EUR, in the account -, bank id "ID-56", other party - -, text "Oxygen refill 29", cleared
+    part "A000021": 18.99 EUR, in the account -, note "Oxygen refill 29"
+  transaction 57 on 2026-08-28, payee "Northern Ice Works", note "Algae bars 19", entered 2026-08-28
+    part "A000004": -13.20 EUR, in the account -, bank id "ID-57", other party - -, text "Algae bars 19", cleared
+    part "A000021": 13.20 EUR, in the account -, note "Algae bars 19"
+  transaction 58 on 2026-09-04, payee "Kepler Sports Club", note "Fuel top-up 1", entered 2026-09-04
+    part "A000004": -18.20 EUR, in the account -, bank id "ID-58", other party - -, text "Fuel top-up 1", cleared
+    part "A000021": 18.20 EUR, in the account -, note "Fuel top-up 1"
+  transaction 59 on 2026-09-06, payee "Northern Ice Works", note "Dome rent share 26", entered 2026-09-06
+    part "A000004": -13.20 EUR, in the account -, bank id "ID-59", other party - -, text "Dome rent share 26", cleared
+    part "A000021": 13.20 EUR, in the account -, note "Dome rent share 26"
+  transaction 60 on 2026-09-02, payee "Kepler Sports Club", note "Reactor spare parts 39", entered 2026-09-02
+    part "A000004": -17.75 EUR, in the account -, bank id "ID-60", other party - -, text "Reactor spare parts 39", cleared
+    part "A000021": 17.75 EUR, in the account -, note "Reactor spare parts 39"
+  transaction 61 on 2026-08-29, payee "Kepler Sports Club", note "Water allotment 5", entered 2026-08-29
+    part "A000004": -18.90 EUR, in the account -, bank id "ID-61", other party - -, text "Water allotment 5", cleared
+    part "A000021": 18.90 EUR, in the account -, note "Water allotment 5"
+  transaction 62 on 2026-09-10, payee "Kepler Sports Club", note "Subspace fee 31", entered 2026-09-10
+    part "A000004": -36.99 EUR, in the account -, bank id "ID-62", other party - -, text "Subspace fee 31", cleared
+    part "A000021": 36.99 EUR, in the account -, note "Subspace fee 31"
+  transaction 63 on 2026-09-04, payee "Subspace Telecom", note "Suit repair 34", entered 2026-09-04
+    part "A000004": -12.75 EUR, in the account -, bank id "ID-63", other party - -, text "Suit repair 34", cleared
+    part "A000021": 12.75 EUR, in the account -, note "Suit repair 34"
+  transaction 64 on 2026-09-03, payee "Pioneer Fund", note "Reactor spare parts 11", entered 2026-09-03
+    part "A000004": -55.20 EUR, in the account -, bank id "ID-64", other party - -, text "Reactor spare parts 11", cleared
+    part "A000021": 55.20 EUR, in the account -, note "Reactor spare parts 11"
+  transaction 65 on 2026-09-10, payee "Asteroid Mining Corp.", note "Greens, week 28", entered 2026-09-10
+    part "A000004": -10.75 EUR, in the account -, bank id "ID-65", other party - -, text "Greens, week 28", cleared
+    part "A000021": 10.75 EUR, in the account -, note "Greens, week 28"
+  transaction 66 on 2026-09-05, payee "Northern Ice Works", note "Subspace fee 8", entered 2026-09-05
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-66", other party - -, text "Subspace fee 8", cleared
+    part "A000021": 13.75 EUR, in the account -, note "Subspace fee 8"
+  transaction 67 on 2026-09-02, payee "Rover Garage Gamma", note "Cinema night 32", entered 2026-09-02
+    part "A000004": -15.98 EUR, in the account -, bank id "ID-67", other party - -, text "Cinema night 32", cleared
+    part "A000021": 15.98 EUR, in the account -, note "Cinema night 32"
+  transaction 68 on 2026-09-02, payee "Northern Ice Works", note "Water allotment 1", entered 2026-09-02
+    part "A000004": -13.95 EUR, in the account -, bank id "ID-68", other party - -, text "Water allotment 1", cleared
+    part "A000021": 13.95 EUR, in the account -, note "Water allotment 1"
+  transaction 69 on 2026-09-04, payee "Kepler Sports Club", note "Reactor spare parts 8", entered 2026-09-04
+    part "A000004": -17.20 EUR, in the account -, bank id "ID-69", other party - -, text "Reactor spare parts 8", cleared
+    part "A000021": 17.20 EUR, in the account -, note "Reactor spare parts 8"
+  transaction 70 on 2026-09-04, payee "Ceres Greengrocer", note "Cinema night 18", entered 2026-09-04
+    part "A000004": -61.50 EUR, in the account -, bank id "ID-70", other party - -, text "Cinema night 18", cleared
+    part "A000021": 61.50 EUR, in the account -, note "Cinema night 18"
+  transaction 71 on 2026-09-12, payee "Kepler Sports Club", note "Oxygen refill 1", entered 2026-09-12
+    part "A000004": -17.20 EUR, in the account -, bank id "ID-71", other party - -, text "Oxygen refill 1", cleared
+    part "A000021": 17.20 EUR, in the account -, note "Oxygen refill 1"
+  transaction 72 on 2026-09-08, payee "Olympus Mons Market", note "Data crystals 36", entered 2026-09-08
+    part "A000004": -33.90 EUR, in the account -, bank id "ID-72", other party - -, text "Data crystals 36", cleared
+    part "A000021": 33.90 EUR, in the account -, note "Data crystals 36"
+  transaction 73 on 2026-09-11, payee "Northern Ice Works", note "Cinema night 13", entered 2026-09-11
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-73", other party - -, text "Cinema night 13", cleared
+    part "A000021": 13.75 EUR, in the account -, note "Cinema night 13"
+  transaction 74 on 2026-09-07, payee "Northern Ice Works", note "Reactor spare parts 11", entered 2026-09-07
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-74", other party - -, text "Reactor spare parts 11", cleared
+    part "A000021": 13.75 EUR, in the account -, note "Reactor spare parts 11"
+  transaction 75 on 2026-09-11, payee "Northern Ice Works", note "Suit repair 47", entered 2026-09-11
+    part "A000004": -13.49 EUR, in the account -, bank id "ID-75", other party - -, text "Suit repair 47", cleared
+    part "A000021": 13.49 EUR, in the account -, note "Suit repair 47"
+  transaction 76 on 2026-09-11, payee "Kepler Sports Club", note "Habitat supplies 9", entered 2026-09-11
+    part "A000004": -18.99 EUR, in the account -, bank id "ID-76", other party - -, text "Habitat supplies 9", cleared
+    part "A000021": 18.99 EUR, in the account -, note "Habitat supplies 9"
+  transaction 77 on 2026-09-09, payee "Kepler Sports Club", note "Canteen lunch 14", entered 2026-09-09
+    part "A000004": -17.49 EUR, in the account -, bank id "ID-77", other party - -, text "Canteen lunch 14", cleared
+    part "A000021": 17.49 EUR, in the account -, note "Canteen lunch 14"
+  transaction 78 on 2026-09-11, payee "Subspace Telecom", note "Water allotment 35", entered 2026-09-11
+    part "A000004": -11.20 EUR, in the account -, bank id "ID-78", other party - -, text "Water allotment 35", cleared
+    part "A000021": 11.20 EUR, in the account -, note "Water allotment 35"
+  transaction 79 on 2026-09-09, payee "Kepler Sports Club", note "Algae bars 4", entered 2026-09-09
+    part "A000004": -17.75 EUR, in the account -, bank id "ID-79", other party - -, text "Algae bars 4", cleared
+    part "A000021": 17.75 EUR, in the account -, note "Algae bars 4"
+  transaction 80 on 2026-09-10, payee "Kepler Sports Club", note "Library fine 18", entered 2026-09-10
+    part "A000004": -36.99 EUR, in the account -, bank id "ID-80", other party - -, text "Library fine 18", cleared
+    part "A000021": 36.99 EUR, in the account -, note "Library fine 18"
+  transaction 81 on 2026-09-15, payee "Venus Library", note "Fuel top-up 10", entered 2026-09-15
+    part "A000004": -12.96 EUR, in the account -, bank id "ID-81", other party - -, text "Fuel top-up 10", cleared
+    part "A000021": 12.96 EUR, in the account -, note "Fuel top-up 10"
+  transaction 82 on 2026-09-08, payee "Kepler Sports Club", note "Canteen lunch 23", entered 2026-09-08
+    part "A000004": -18.00 EUR, in the account -, bank id "ID-82", other party - -, text "Canteen lunch 23", cleared
+    part "A000021": 18.00 EUR, in the account -, note "Canteen lunch 23"
+  transaction 83 on 2026-09-15, payee "Kepler Sports Club", note "Subspace fee 11", entered 2026-09-15
+    part "A000004": -17.90 EUR, in the account -, bank id "ID-83", other party - -, text "Subspace fee 11", cleared
+    part "A000021": 17.90 EUR, in the account -, note "Subspace fee 11"
+  transaction 84 on 2026-09-10, payee "Northern Ice Works", note "Rover check-up 32", entered 2026-09-10
+    part "A000004": -13.90 EUR, in the account -, bank id "ID-84", other party - -, text "Rover check-up 32", cleared
+    part "A000021": 13.90 EUR, in the account -, note "Rover check-up 32"
+  transaction 85 on 2026-09-15, payee "Northern Ice Works", note "Radiation badge 43", entered 2026-09-15
+    part "A000004": -8.90 EUR, in the account -, bank id "ID-85", other party - -, text "Radiation badge 43", cleared
+    part "A000021": 8.90 EUR, in the account -, note "Radiation badge 43"
+  transaction 86 on 2026-09-12, payee "Northern Ice Works", note "Seed order 30", entered 2026-09-12
+    part "A000004": -13.20 EUR, in the account -, bank id "ID-86", other party - -, text "Seed order 30", cleared
+    part "A000021": 13.20 EUR, in the account -, note "Seed order 30"
+  transaction 87 on 2026-09-15, payee "Northern Ice Works", note "Seed order 13", entered 2026-09-15
+    part "A000004": -8.90 EUR, in the account -, bank id "ID-87", other party - -, text "Seed order 13", cleared
+    part "A000021": 8.90 EUR, in the account -, note "Seed order 13"
+  transaction 88 on 2026-09-13, payee "Kepler Sports Club", note "Hull patch kit 10", entered 2026-09-13
+    part "A000004": -18.88 EUR, in the account -, bank id "ID-88", other party - -, text "Hull patch kit 10", cleared
+    part "A000021": 18.88 EUR, in the account -, note "Hull patch kit 10"
+  transaction 89 on 2026-09-15, payee "Northern Ice Works", note "Fuel top-up 11", entered 2026-09-15
+    part "A000004": -13.49 EUR, in the account -, bank id "ID-89", other party - -, text "Fuel top-up 11", cleared
+    part "A000021": 13.49 EUR, in the account -, note "Fuel top-up 11"
+  transaction 90 on 2026-09-19, payee "Northern Ice Works", note "Hull patch kit 12", entered 2026-09-19
+    part "A000004": -13.20 EUR, in the account -, bank id "ID-90", other party - -, text "Hull patch kit 12", cleared
+    part "A000021": 13.20 EUR, in the account -, note "Hull patch kit 12"
+  transaction 91 on 2026-09-17, payee "Northern Ice Works", note "Hull patch kit 14", entered 2026-09-17
+    part "A000004": -13.49 EUR, in the account -, bank id "ID-91", other party - -, text "Hull patch kit 14", cleared
+    part "A000021": 13.49 EUR, in the account -, note "Hull patch kit 14"
+  transaction 92 on 2026-09-15, payee "Northern Ice Works", note "Habitat supplies 14", entered 2026-09-15
+    part "A000004": -13.20 EUR, in the account -, bank id "ID-92", other party - -, text "Habitat supplies 14", cleared
+    part "A000021": 13.20 EUR, in the account -, note "Habitat supplies 14"
+  transaction 93 on 2026-09-14, payee "Venus Library", note "Fuel top-up 12", entered 2026-09-14
+    part "A000004": -14.95 EUR, in the account -, bank id "ID-93", other party - -, text "Fuel top-up 12", cleared
+    part "A000021": 14.95 EUR, in the account -, note "Fuel top-up 12"
+  transaction 94 on 2026-09-16, payee "Redwood Seed Bank", note "Canteen lunch 44", entered 2026-09-16
+    part "A000004": -6.20 EUR, in the account -, bank id "ID-94", other party - -, text "Canteen lunch 44", cleared
+    part "A000021": 6.20 EUR, in the account -, note "Canteen lunch 44"
+  transaction 95 on 2026-09-15, payee "Kepler Sports Club", note "Zero-G class 37", entered 2026-09-15
+    part "A000004": -18.90 EUR, in the account -, bank id "ID-95", other party - -, text "Zero-G class 37", cleared
+    part "A000021": 18.90 EUR, in the account -, note "Zero-G class 37"
+  transaction 96 on 2026-09-20, payee "Kepler Sports Club", note "Fuel top-up 11", entered 2026-09-20
+    part "A000004": -18.50 EUR, in the account -, bank id "ID-96", other party - -, text "Fuel top-up 11", cleared
+    part "A000021": 18.50 EUR, in the account -, note "Fuel top-up 11"
+  transaction 97 on 2026-09-20, payee "Redwood Seed Bank", note "Canteen lunch 24", entered 2026-09-20
+    part "A000004": -6.50 EUR, in the account -, bank id "ID-97", other party - -, text "Canteen lunch 24", cleared
+    part "A000021": 6.50 EUR, in the account -, note "Canteen lunch 24"
+  transaction 98 on 2026-09-19, payee "Northern Ice Works", note "Hull patch kit 43", entered 2026-09-19
+    part "A000004": -13.95 EUR, in the account -, bank id "ID-98", other party - -, text "Hull patch kit 43", cleared
+    part "A000021": 13.95 EUR, in the account -, note "Hull patch kit 43"
+  transaction 99 on 2026-09-20, payee "Northern Ice Works", note "Library fine 47", entered 2026-09-20
+    part "A000004": -13.49 EUR, in the account -, bank id "ID-99", other party - -, text "Library fine 47", cleared
+    part "A000021": 13.49 EUR, in the account -, note "Library fine 47"
+  transaction 100 on 2026-09-20, payee "Northern Ice Works", note "Seed order 52", entered 2026-09-20
+    part "A000004": -13.90 EUR, in the account -, bank id "ID-100", other party - -, text "Seed order 52", cleared
+    part "A000021": 13.90 EUR, in the account -, note "Seed order 52"
+  transaction 101 on 2026-09-16, payee "Kepler Sports Club", note "Water allotment 22", entered 2026-09-16
+    part "A000004": -18.99 EUR, in the account -, bank id "ID-101", other party - -, text "Water allotment 22", cleared
+    part "A000021": 18.99 EUR, in the account -, note "Water allotment 22"
+  transaction 102 on 2026-09-17, payee "Northern Ice Works", note "Rover check-up 11", entered 2026-09-17
+    part "A000004": -13.49 EUR, in the account -, bank id "ID-102", other party - -, text "Rover check-up 11", cleared
+    part "A000021": 13.49 EUR, in the account -, note "Rover check-up 11"
+  transaction 103 on 2026-09-20, payee "Kepler Sports Club", note "Dome rent share 11", entered 2026-09-20
+    part "A000004": -17.20 EUR, in the account -, bank id "ID-103", other party - -, text "Dome rent share 11", cleared
+    part "A000021": 17.20 EUR, in the account -, note "Dome rent share 11"
+  transaction 104 on 2026-09-20, payee "Kepler Sports Club", note "Data crystals 3", entered 2026-09-20
+    part "A000004": -6.00 EUR, in the account -, bank id "ID-104", other party - -, text "Data crystals 3", cleared
+    part "A000021": 6.00 EUR, in the account -, note "Data crystals 3"
+  transaction 105 on 2026-09-20, payee "Europa Water Board", note "Water allotment 1", entered 2026-09-20
+    part "A000004": 971.99 EUR, in the account -, bank id "ID-105", other party - -, text "Water allotment 1", cleared
+    part "A000021": -971.99 EUR, in the account -, note "Water allotment 1"
+  transaction 106 on 2026-09-19, payee "Northern Ice Works", note "Canteen lunch 32", entered 2026-09-19
+    part "A000004": -13.49 EUR, in the account -, bank id "ID-106", other party - -, text "Canteen lunch 32", cleared
+    part "A000021": 13.49 EUR, in the account -, note "Canteen lunch 32"
+  transaction 107 on 2026-09-24, payee "Kepler Sports Club", note "Shuttle pass 43", entered 2026-09-24
+    part "A000004": -18.55 EUR, in the account -, bank id "ID-107", other party - -, text "Shuttle pass 43", cleared
+    part "A000021": 18.55 EUR, in the account -, note "Shuttle pass 43"
+  transaction 108 on 2026-09-25, payee "Northern Ice Works", note "Rover check-up 45", entered 2026-09-25
+    part "A000004": -13.20 EUR, in the account -, bank id "ID-108", other party - -, text "Rover check-up 45", cleared
+    part "A000021": 13.20 EUR, in the account -, note "Rover check-up 45"
+  transaction 109 on 2026-09-22, payee "Luna Pharmacy", note "Water allotment 19", entered 2026-09-22
+    part "A000004": 710.00 EUR, in the account -, bank id "ID-109", other party - -, text "Water allotment 19", cleared
+    part "A000021": -710.00 EUR, in the account -, note "Water allotment 19"
+  transaction 110 on 2026-09-26, payee "Kepler Sports Club", note "Cinema night 29", entered 2026-09-26
+    part "A000004": -17.90 EUR, in the account -, bank id "ID-110", other party - -, text "Cinema night 29", cleared
+    part "A000021": 17.90 EUR, in the account -, note "Cinema night 29"
+  transaction 111 on 2026-09-23, payee "Ceres Greengrocer", note "Hull patch kit 34", entered 2026-09-23
+    part "A000004": -64.50 EUR, in the account -, bank id "ID-111", other party - -, text "Hull patch kit 34", cleared
+    part "A000021": 64.50 EUR, in the account -, note "Hull patch kit 34"
+  transaction 112 on 2026-09-23, payee "Luna Pharmacy", note "Reactor spare parts 34", entered 2026-09-23
+    part "A000004": -350.00 EUR, in the account -, bank id "ID-112", other party - -, text "Reactor spare parts 34", cleared
+    part "A000021": 350.00 EUR, in the account -, note "Reactor spare parts 34"
+  transaction 113 on 2026-09-22, payee "Moonbase Medical Center", note "Seed order 9", entered 2026-09-22
+    part "A000004": -710.00 EUR, in the account -, bank id "ID-113", other party - -, text "Seed order 9", cleared
+    part "A000021": 710.00 EUR, in the account -, note "Seed order 9"
+  transaction 114 on 2026-09-23, payee "Luna Pharmacy", note "Canteen lunch 48", entered 2026-09-23
+    part "A000004": -287.99 EUR, in the account -, bank id "ID-114", other party - -, text "Canteen lunch 48", cleared
+    part "A000021": 287.99 EUR, in the account -, note "Canteen lunch 48"
+  transaction 115 on 2026-09-24, payee "Luna Pharmacy", note "Habitat supplies 21", entered 2026-09-24
+    part "A000004": -279.00 EUR, in the account -, bank id "ID-115", other party - -, text "Habitat supplies 21", cleared
+    part "A000021": 279.00 EUR, in the account -, note "Habitat supplies 21"
+  transaction 116 on 2026-09-26, payee "Pioneer Fund", note "Fuel top-up 9", entered 2026-09-26
+    part "A000004": -57.49 EUR, in the account -, bank id "ID-116", other party - -, text "Fuel top-up 9", cleared
+    part "A000021": 57.49 EUR, in the account -, note "Fuel top-up 9"
+  transaction 117 on 2026-09-28, payee "Pioneer Fund", note "Zero-G class 46", entered 2026-09-28
+    part "A000004": -54.50 EUR, in the account -, bank id "ID-117", other party - -, text "Zero-G class 46", cleared
+    part "A000021": 54.50 EUR, in the account -, note "Zero-G class 46"
+  transaction 118 on 2026-09-20, payee "Colony Council Tax Office", note "Water allotment 2", entered 2026-09-20
+    part "A000004": -6.00 EUR, in the account -, bank id "ID-118", other party - -, text "Water allotment 2", cleared
+    part "A000021": 6.00 EUR, in the account -, note "Water allotment 2"
+  transaction 119 on 2026-09-26, payee "Crater Bakery", note "Radiation badge 31", entered 2026-09-26
+    part "A000004": -35.50 EUR, in the account -, bank id "ID-119", other party - -, text "Radiation badge 31", cleared
+    part "A000021": 35.50 EUR, in the account -, note "Radiation badge 31"
+  transaction 120 on 2026-09-29, payee "Northern Ice Works", note "Water allotment 39", entered 2026-09-29
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-120", other party - -, text "Water allotment 39", cleared
+    part "A000021": 13.75 EUR, in the account -, note "Water allotment 39"
+  transaction 121 on 2026-09-26, payee "Pioneer Fund", note "Library fine 46", entered 2026-09-26
+    part "A000004": -56.77 EUR, in the account -, bank id "ID-121", other party - -, text "Library fine 46", cleared
+    part "A000021": 56.77 EUR, in the account -, note "Library fine 46"
+  transaction 122 on 2026-09-24, payee "Subspace Telecom", note "Water allotment 47", entered 2026-09-24
+    part "A000004": -11.75 EUR, in the account -, bank id "ID-122", other party - -, text "Water allotment 47", cleared
+    part "A000021": 11.75 EUR, in the account -, note "Water allotment 47"
+  transaction 123 on 2026-09-28, payee "Kepler Sports Club", note "Oxygen refill 34", entered 2026-09-28
+    part "A000004": -17.55 EUR, in the account -, bank id "ID-123", other party - -, text "Oxygen refill 34", cleared
+    part "A000021": 17.55 EUR, in the account -, note "Oxygen refill 34"
+  transaction 124 on 2026-09-27, payee "Kepler Sports Club", note "Dome rent share 21", entered 2026-09-27
+    part "A000004": -17.50 EUR, in the account -, bank id "ID-124", other party - -, text "Dome rent share 21", cleared
+    part "A000021": 17.50 EUR, in the account -, note "Dome rent share 21"
+  transaction 125 on 2026-09-29, payee "Northern Ice Works", note "Subspace fee 24", entered 2026-09-29
+    part "A000004": -12.90 EUR, in the account -, bank id "ID-125", other party - -, text "Subspace fee 24", cleared
+    part "A000021": 12.90 EUR, in the account -, note "Subspace fee 24"
+  transaction 126 on 2026-09-22, payee "Northern Ice Works", note "Suit repair 35", entered 2026-09-22
+    part "A000004": -14.95 EUR, in the account -, bank id "ID-126", other party - -, text "Suit repair 35", cleared
+    part "A000021": 14.95 EUR, in the account -, note "Suit repair 35"
+  transaction 127 on 2026-09-23, payee "Suit Tailors Guild", note "Subspace fee 4", entered 2026-09-23
+    part "A000004": -55.95 EUR, in the account -, bank id "ID-127", other party - -, text "Subspace fee 4", cleared
+    part "A000021": 55.95 EUR, in the account -, note "Subspace fee 4"
+  transaction 128 on 2026-09-26, payee "Northern Ice Works", note "Oxygen refill 22", entered 2026-09-26
+    part "A000004": -12.20 EUR, in the account -, bank id "ID-128", other party - -, text "Oxygen refill 22", cleared
+    part "A000021": 12.20 EUR, in the account -, note "Oxygen refill 22"
+  transaction 129 on 2026-09-22, payee "Northern Ice Works", note "Oxygen refill 31", entered 2026-09-22
+    part "A000004": -14.95 EUR, in the account -, bank id "ID-129", other party - -, text "Oxygen refill 31", cleared
+    part "A000021": 14.95 EUR, in the account -, note "Oxygen refill 31"
+  transaction 130 on 2026-09-30, payee "Northern Ice Works", note "Shuttle pass 34", entered 2026-09-30
+    part "A000004": -13.49 EUR, in the account -, bank id "ID-130", other party - -, text "Shuttle pass 34", cleared
+    part "A000021": 13.49 EUR, in the account -, note "Shuttle pass 34"
+  transaction 131 on 2026-10-01, payee "Kepler Sports Club", note "Oxygen refill 21", entered 2026-10-01
+    part "A000004": -18.95 EUR, in the account -, bank id "ID-131", other party - -, text "Oxygen refill 21", cleared
+    part "A000021": 18.95 EUR, in the account -, note "Oxygen refill 21"
+  transaction 132 on 2026-09-29, payee "Kepler Sports Club", note "Fuel top-up 3", entered 2026-09-29
+    part "A000004": -17.20 EUR, in the account -, bank id "ID-132", other party - -, text "Fuel top-up 3", cleared
+    part "A000021": 17.20 EUR, in the account -, note "Fuel top-up 3"
+  transaction 133 on 2026-09-27, payee "Subspace Telecom", note "Fuel top-up 2", entered 2026-09-27
+    part "A000004": -12.00 EUR, in the account -, bank id "ID-133", other party - -, text "Fuel top-up 2", cleared
+    part "A000021": 12.00 EUR, in the account -, note "Fuel top-up 2"
+  transaction 134 on 2026-10-01, payee "Northern Ice Works", note "Subspace fee 32", entered 2026-10-01
+    part "A000004": -13.49 EUR, in the account -, bank id "ID-134", other party - -, text "Subspace fee 32", cleared
+    part "A000021": 13.49 EUR, in the account -, note "Subspace fee 32"
+  transaction 135 on 2026-09-28, payee "Phobos Canteen", note "Algae bars 7", entered 2026-09-28
+    part "A000004": -14.90 EUR, in the account -, bank id "ID-135", other party - -, text "Algae bars 7", cleared
+    part "A000021": 14.90 EUR, in the account -, note "Algae bars 7"
+  transaction 136 on 2026-09-28, payee "Kepler Sports Club", note "Cinema night 47", entered 2026-09-28
+    part "A000004": -17.75 EUR, in the account -, bank id "ID-136", other party - -, text "Cinema night 47", cleared
+    part "A000021": 17.75 EUR, in the account -, note "Cinema night 47"
+  transaction 137 on 2026-09-29, payee "Northern Ice Works", note "Dome rent share 25", entered 2026-09-29
+    part "A000004": -13.90 EUR, in the account -, bank id "ID-137", other party - -, text "Dome rent share 25", cleared
+    part "A000021": 13.90 EUR, in the account -, note "Dome rent share 25"
+  transaction 138 on 2026-10-02, payee "Callisto Cafe", note "Suit repair 6", entered 2026-10-02
+    part "A000004": -46.50 EUR, in the account -, bank id "ID-138", other party - -, text "Suit repair 6", cleared
+    part "A000021": 46.50 EUR, in the account -, note "Suit repair 6"
+  transaction 139 on 2026-09-30, payee "Northern Ice Works", note "Subspace fee 28", entered 2026-09-30
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-139", other party - -, text "Subspace fee 28", cleared
+    part "A000021": 13.75 EUR, in the account -, note "Subspace fee 28"
+  transaction 140 on 2026-10-02, payee "Kepler Sports Club", note "Hull patch kit 25", entered 2026-10-02
+    part "A000004": -18.75 EUR, in the account -, bank id "ID-140", other party - -, text "Hull patch kit 25", cleared
+    part "A000021": 18.75 EUR, in the account -, note "Hull patch kit 25"
+  transaction 141 on 2026-09-30, payee "Kepler Sports Club", note "Subspace fee 50", entered 2026-09-30
+    part "A000004": -17.75 EUR, in the account -, bank id "ID-141", other party - -, text "Subspace fee 50", cleared
+    part "A000021": 17.75 EUR, in the account -, note "Subspace fee 50"
+  transaction 142 on 2026-10-01, payee "Northern Ice Works", note "Rover check-up 1", entered 2026-10-01
+    part "A000004": -13.50 EUR, in the account -, bank id "ID-142", other party - -, text "Rover check-up 1", cleared
+    part "A000021": 13.50 EUR, in the account -, note "Rover check-up 1"
+  transaction 143 on 2026-10-03, payee "Northern Ice Works", note "Canteen lunch 27", entered 2026-10-03
+    part "A000004": -13.49 EUR, in the account -, bank id "ID-143", other party - -, text "Canteen lunch 27", cleared
+    part "A000021": 13.49 EUR, in the account -, note "Canteen lunch 27"
+  transaction 144 on 2026-10-06, payee "Subspace Telecom", note "Oxygen refill 21", entered 2026-10-06
+    part "A000004": -12.49 EUR, in the account -, bank id "ID-144", other party - -, text "Oxygen refill 21", cleared
+    part "A000021": 12.49 EUR, in the account -, note "Oxygen refill 21"
+  transaction 145 on 2026-10-05, payee "Subspace Telecom", note "Fuel top-up 19", entered 2026-10-05
+    part "A000004": -11.47 EUR, in the account -, bank id "ID-145", other party - -, text "Fuel top-up 19", cleared
+    part "A000021": 11.47 EUR, in the account -, note "Fuel top-up 19"
+  transaction 146 on 2026-09-28, payee "Kepler Sports Club", note "Zero-G class 33", entered 2026-09-28
+    part "A000004": -17.49 EUR, in the account -, bank id "ID-146", other party - -, text "Zero-G class 33", cleared
+    part "A000021": 17.49 EUR, in the account -, note "Zero-G class 33"
+  transaction 147 on 2026-10-06, payee "Kepler Sports Club", note "Fuel top-up 10", entered 2026-10-06
+    part "A000004": -17.95 EUR, in the account -, bank id "ID-147", other party - -, text "Fuel top-up 10", cleared
+    part "A000021": 17.95 EUR, in the account -, note "Fuel top-up 10"
+  transaction 148 on 2026-10-04, payee "Kepler Sports Club", note "Data crystals 14", entered 2026-10-04
+    part "A000004": -18.75 EUR, in the account -, bank id "ID-148", other party - -, text "Data crystals 14", cleared
+    part "A000021": 18.75 EUR, in the account -, note "Data crystals 14"
+  transaction 149 on 2026-10-04, payee "Kepler Sports Club", note "Greens, week 15", entered 2026-10-04
+    part "A000004": -17.90 EUR, in the account -, bank id "ID-149", other party - -, text "Greens, week 15", cleared
+    part "A000021": 17.90 EUR, in the account -, note "Greens, week 15"
+  transaction 150 on 2026-10-05, payee "Pioneer Fund", note "Seed order 26", entered 2026-10-05
+    part "A000004": -54.90 EUR, in the account -, bank id "ID-150", other party - -, text "Seed order 26", cleared
+    part "A000021": 54.90 EUR, in the account -, note "Seed order 26"
+  transaction 151 on 2026-10-04, payee "Asteroid Mining Corp.", note "Suit repair 9", entered 2026-10-04
+    part "A000004": -10.49 EUR, in the account -, bank id "ID-151", other party - -, text "Suit repair 9", cleared
+    part "A000021": 10.49 EUR, in the account -, note "Suit repair 9"
+  transaction 152 on 2026-10-06, payee "Northern Ice Works", note "Oxygen refill 27", entered 2026-10-06
+    part "A000004": -13.00 EUR, in the account -, bank id "ID-152", other party - -, text "Oxygen refill 27", cleared
+    part "A000021": 13.00 EUR, in the account -, note "Oxygen refill 27"
+  transaction 153 on 2026-10-04, payee "Rover Garage Gamma", note "Greens, week 4", entered 2026-10-04
+    part "A000004": -14.49 EUR, in the account -, bank id "ID-153", other party - -, text "Greens, week 4", cleared
+    part "A000021": 14.49 EUR, in the account -, note "Greens, week 4"
+  transaction 154 on 2026-10-05, payee "Northern Ice Works", note "Fuel top-up 39", entered 2026-10-05
+    part "A000004": -13.90 EUR, in the account -, bank id "ID-154", other party - -, text "Fuel top-up 39", cleared
+    part "A000021": 13.90 EUR, in the account -, note "Fuel top-up 39"
+  transaction 155 on 2026-10-09, payee "Northern Ice Works", note "Greens, week 10", entered 2026-10-09
+    part "A000004": -13.20 EUR, in the account -, bank id "ID-155", other party - -, text "Greens, week 10", cleared
+    part "A000021": 13.20 EUR, in the account -, note "Greens, week 10"
+  transaction 156 on 2026-10-08, payee "Kepler Sports Club", note "Seed order 30", entered 2026-10-08
+    part "A000004": -17.00 EUR, in the account -, bank id "ID-156", other party - -, text "Seed order 30", cleared
+    part "A000021": 17.00 EUR, in the account -, note "Seed order 30"
+  transaction 157 on 2026-09-30, payee "Kepler Sports Club", note "Shuttle pass 24", entered 2026-09-30
+    part "A000004": -18.49 EUR, in the account -, bank id "ID-157", other party - -, text "Shuttle pass 24", cleared
+    part "A000021": 18.49 EUR, in the account -, note "Shuttle pass 24"
+  transaction 158 on 2026-10-05, payee "Kepler Sports Club", note "Rover check-up 37", entered 2026-10-05
+    part "A000004": -18.50 EUR, in the account -, bank id "ID-158", other party - -, text "Rover check-up 37", cleared
+    part "A000021": 18.50 EUR, in the account -, note "Rover check-up 37"
+  transaction 159 on 2026-10-09, payee "Ceres Greengrocer", note "Habitat supplies 38", entered 2026-10-09
+    part "A000004": -70.00 EUR, in the account -, bank id "ID-159", other party - -, text "Habitat supplies 38", cleared
+    part "A000021": 70.00 EUR, in the account -, note "Habitat supplies 38"
+  transaction 160 on 2026-10-05, payee "Kepler Sports Club", note "Data crystals 7", entered 2026-10-05
+    part "A000004": -17.90 EUR, in the account -, bank id "ID-160", other party - -, text "Data crystals 7", cleared
+    part "A000021": 17.90 EUR, in the account -, note "Data crystals 7"
+  transaction 161 on 2026-10-09, payee "Subspace Telecom", note "Hull patch kit 30", entered 2026-10-09
+    part "A000004": -12.75 EUR, in the account -, bank id "ID-161", other party - -, text "Hull patch kit 30", cleared
+    part "A000021": 12.75 EUR, in the account -, note "Hull patch kit 30"
+  transaction 162 on 2026-10-09, payee "Northern Ice Works", note "Rover check-up 39", entered 2026-10-09
+    part "A000004": -13.00 EUR, in the account -, bank id "ID-162", other party - -, text "Rover check-up 39", cleared
+    part "A000021": 13.00 EUR, in the account -, note "Rover check-up 39"
+  transaction 163 on 2026-10-03, payee "Kepler Sports Club", note "Cinema night 10", entered 2026-10-03
+    part "A000004": -18.26 EUR, in the account -, bank id "ID-163", other party - -, text "Cinema night 10", cleared
+    part "A000021": 18.26 EUR, in the account -, note "Cinema night 10"
+  transaction 164 on 2026-10-06, payee "Andromeda Travel Agency", note "Habitat supplies 45", entered 2026-10-06
+    part "A000004": -83.95 EUR, in the account -, bank id "ID-164", other party - -, text "Habitat supplies 45", cleared
+    part "A000021": 83.95 EUR, in the account -, note "Habitat supplies 45"
+  transaction 165 on 2026-10-10, payee "Olympus Mons Market", note "Oxygen refill 48", entered 2026-10-10
+    part "A000004": -34.20 EUR, in the account -, bank id "ID-165", other party - -, text "Oxygen refill 48", cleared
+    part "A000021": 34.20 EUR, in the account -, note "Oxygen refill 48"
+  transaction 166 on 2026-10-09, payee "Kepler Sports Club", note "Suit repair 7", entered 2026-10-09
+    part "A000004": -17.90 EUR, in the account -, bank id "ID-166", other party - -, text "Suit repair 7", cleared
+    part "A000021": 17.90 EUR, in the account -, note "Suit repair 7"
+  transaction 167 on 2026-10-05, payee "Kepler Sports Club", note "Fuel top-up 28", entered 2026-10-05
+    part "A000004": -17.95 EUR, in the account -, bank id "ID-167", other party - -, text "Fuel top-up 28", cleared
+    part "A000021": 17.95 EUR, in the account -, note "Fuel top-up 28"
+  transaction 168 on 2026-10-10, payee "Northern Ice Works", note "Water allotment 31", entered 2026-10-10
+    part "A000004": -6.75 EUR, in the account -, bank id "ID-168", other party - -, text "Water allotment 31", cleared
+    part "A000021": 6.75 EUR, in the account -, note "Water allotment 31"
+  transaction 169 on 2026-10-08, payee "Northern Ice Works", note "Zero-G class 42", entered 2026-10-08
+    part "A000004": -13.73 EUR, in the account -, bank id "ID-169", other party - -, text "Zero-G class 42", cleared
+    part "A000021": 13.73 EUR, in the account -, note "Zero-G class 42"
+  transaction 170 on 2026-10-12, payee "Kepler Sports Club", note "Radiation badge 23", entered 2026-10-12
+    part "A000004": -17.00 EUR, in the account -, bank id "ID-170", other party - -, text "Radiation badge 23", cleared
+    part "A000021": 17.00 EUR, in the account -, note "Radiation badge 23"
+  transaction 171 on 2026-10-14, payee "Subspace Telecom", note "Zero-G class 40", entered 2026-10-14
+    part "A000004": -12.90 EUR, in the account -, bank id "ID-171", other party - -, text "Zero-G class 40", cleared
+    part "A000021": 12.90 EUR, in the account -, note "Zero-G class 40"
+  transaction 172 on 2026-10-13, payee "Kepler Sports Club", note "Shuttle pass 14", entered 2026-10-13
+    part "A000004": -17.15 EUR, in the account -, bank id "ID-172", other party - -, text "Shuttle pass 14", cleared
+    part "A000021": 17.15 EUR, in the account -, note "Shuttle pass 14"
+  transaction 173 on 2026-10-06, payee "Subspace Telecom", note "Hull patch kit 19", entered 2026-10-06
+    part "A000004": -12.75 EUR, in the account -, bank id "ID-173", other party - -, text "Hull patch kit 19", cleared
+    part "A000021": 12.75 EUR, in the account -, note "Hull patch kit 19"
+  transaction 174 on 2026-10-11, payee "Kepler Sports Club", note "Water allotment 16", entered 2026-10-11
+    part "A000004": -17.20 EUR, in the account -, bank id "ID-174", other party - -, text "Water allotment 16", cleared
+    part "A000021": 17.20 EUR, in the account -, note "Water allotment 16"
+  transaction 175 on 2026-10-10, payee "Kepler Sports Club", note "Rover check-up 25", entered 2026-10-10
+    part "A000004": -18.95 EUR, in the account -, bank id "ID-175", other party - -, text "Rover check-up 25", cleared
+    part "A000021": 18.95 EUR, in the account -, note "Rover check-up 25"
+  transaction 176 on 2026-10-12, payee "Kepler Sports Club", note "Rover check-up 45", entered 2026-10-12
+    part "A000004": -17.20 EUR, in the account -, bank id "ID-176", other party - -, text "Rover check-up 45", cleared
+    part "A000021": 17.20 EUR, in the account -, note "Rover check-up 45"
+  transaction 177 on 2026-10-11, payee "Northern Ice Works", note "Dome rent share 40", entered 2026-10-11
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-177", other party - -, text "Dome rent share 40", cleared
+    part "A000021": 13.75 EUR, in the account -, note "Dome rent share 40"
+  transaction 178 on 2026-10-11, payee "Northern Ice Works", note "Reactor spare parts 8", entered 2026-10-11
+    part "A000004": -13.20 EUR, in the account -, bank id "ID-178", other party - -, text "Reactor spare parts 8", cleared
+    part "A000021": 13.20 EUR, in the account -, note "Reactor spare parts 8"
+  transaction 179 on 2026-10-08, payee "Northern Ice Works", note "Reactor spare parts 48", entered 2026-10-08
+    part "A000004": -12.20 EUR, in the account -, bank id "ID-179", other party - -, text "Reactor spare parts 48", cleared
+    part "A000021": 12.20 EUR, in the account -, note "Reactor spare parts 48"
+  transaction 180 on 2026-10-10, payee "Northern Ice Works", note "Subspace fee 40", entered 2026-10-10
+    part "A000004": -6.75 EUR, in the account -, bank id "ID-180", other party - -, text "Subspace fee 40", cleared
+    part "A000021": 6.75 EUR, in the account -, note "Subspace fee 40"
+  transaction 181 on 2026-10-12, payee "Northern Ice Works", note "Greens, week 14", entered 2026-10-12
+    part "A000004": -13.50 EUR, in the account -, bank id "ID-181", other party - -, text "Greens, week 14", cleared
+    part "A000021": 13.50 EUR, in the account -, note "Greens, week 14"
+  transaction 182 on 2026-10-06, payee "Northern Ice Works", note "Shuttle pass 7", entered 2026-10-06
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-182", other party - -, text "Shuttle pass 7", cleared
+    part "A000021": 13.75 EUR, in the account -, note "Shuttle pass 7"
+  transaction 183 on 2026-10-13, payee "Kepler Sports Club", note "Suit repair 18", entered 2026-10-13
+    part "A000004": -17.00 EUR, in the account -, bank id "ID-183", other party - -, text "Suit repair 18", cleared
+    part "A000021": 17.00 EUR, in the account -, note "Suit repair 18"
+  transaction 184 on 2026-10-11, payee "Northern Ice Works", note "Oxygen refill 38", entered 2026-10-11
+    part "A000004": -13.50 EUR, in the account -, bank id "ID-184", other party - -, text "Oxygen refill 38"
+    part "A000021": 13.50 EUR, in the account -, note "Oxygen refill 38"
+  transaction 185 on 2026-10-13, payee "Northern Ice Works", note "Fuel top-up 27", entered 2026-10-13
+    part "A000004": -13.49 EUR, in the account -, bank id "ID-185", other party - -, text "Fuel top-up 27"
+    part "A000021": 13.49 EUR, in the account -, note "Fuel top-up 27"
+  transaction 186 on 2026-10-11, payee "Kepler Sports Club", note "Reactor spare parts 38", entered 2026-10-11
+    part "A000004": -18.95 EUR, in the account -, bank id "ID-186", other party - -, text "Reactor spare parts 38"
+    part "A000021": 18.95 EUR, in the account -, note "Reactor spare parts 38"
+  transaction 187 on 2027-03-04, payee "Subspace Telecom", note "Data crystals 51", entered 2027-03-04
+    part "A000004": -4.75 EUR, in the account -, bank id "ID-187", other party - -, text "Data crystals 51"
+    part "A000019": 4.75 EUR, in the account -, note "Data crystals 51"
+  transaction 188 on 2027-03-03, payee "Kepler Sports Club", note "Hull patch kit 30", entered 2027-03-03
+    part "A000004": -17.95 EUR, in the account -, bank id "ID-188", other party - -, text "Hull patch kit 30"
+    part "A000021": 17.95 EUR, in the account -, note "Hull patch kit 30"
+  transaction 189 on 2027-03-08, payee "Ceres Greengrocer", note "Algae bars 24", entered 2027-03-08
+    part "A000004": -21.99 EUR, in the account -, bank id "ID-189", other party - -, text "Algae bars 24"
+    part "A000021": 21.99 EUR, in the account -, note "Algae bars 24"
+  transaction 190 on 2027-03-06, payee "Ceres Greengrocer", note "Greens, week 25", entered 2027-03-06
+    part "A000004": -63.95 EUR, in the account -, bank id "ID-190", other party - -, text "Greens, week 25"
+    part "A000021": 63.95 EUR, in the account -, note "Greens, week 25"
+  transaction 191 on 2027-03-08, payee "Ceres Greengrocer", note "Fuel top-up 42", entered 2027-03-08
+    part "A000004": -21.99 EUR, in the account -, bank id "ID-191", other party - -, text "Shuttle pass 24"
+    part "A000021": 21.99 EUR, in the account -, note "Shuttle pass 24"
+  transaction 192 on 2027-03-08, payee "Asteroid Mining Corp.", note "Zero-G class 25", entered 2027-03-08
+    part "A000004": -21.99 EUR, in the account -, bank id "ID-192", other party - -, text "Zero-G class 25"
+    part "A000070": 21.99 EUR, in the account -, note "Zero-G class 25"
+  transaction 193 on 2027-03-05, payee "Rover Garage Gamma", note "Water allotment 24", entered 2027-03-05
+    part "A000004": -10.95 EUR, in the account -, bank id "ID-193", other party - -, text "Water allotment 24", cleared
+    part "A000036": 10.95 EUR, in the account -, note "Water allotment 24"
+  transaction 194 on 2026-03-06, payee "Northern Ice Works", note "Data crystals 52", entered 2026-03-06
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-194", other party - -, text "Data crystals 52"
+    part "A000021": 13.75 EUR, in the account -, note "Data crystals 52"
+  transaction 195 on 2027-03-03, payee "Northern Ice Works", note "Algae bars 51", entered 2027-03-03
+    part "A000004": 32.50 EUR, in the account -, bank id "ID-195", other party - -, text "Algae bars 51"
+    part "A000067": -32.50 EUR, in the account -, note "Algae bars 51"
+  transaction 196 on 2027-03-11, payee "Northern Ice Works", note "Greens, week 35", entered 2027-03-11
+    part "A000004": 13.49 EUR, in the account -, bank id "ID-196", other party - -, text "Greens, week 35"
+    part "A000021": -13.49 EUR, in the account -, note "Greens, week 35"
+  transaction 197 on 2026-03-06, payee "Titan Fuel Station", note "Data crystals 45", entered 2026-03-06
+    part "A000004": -29.20 EUR, in the account -, bank id "ID-197", other party - -, text "Data crystals 45"
+    part "A000021": 29.20 EUR, in the account -, note "Data crystals 45"
+  transaction 198 on 2026-03-07, payee "Subspace Telecom", note "Algae bars 38", entered 2026-03-07
+    part "A000004": -12.75 EUR, in the account -, bank id "ID-198", other party - -, text "Algae bars 38"
+    part "A000021": 12.75 EUR, in the account -, note "Algae bars 38"
+  transaction 199 on 2027-03-09, payee "Subspace Telecom", note "Shuttle pass 32", entered 2027-03-09
+    part "A000004": -7.50 EUR, in the account -, bank id "ID-199", other party - -, text "Shuttle pass 32"
+    part "A000069": 7.50 EUR, in the account -, note "Shuttle pass 32"
+  transaction 200 on 2027-03-07, payee "Kepler Sports Club", note "Algae bars 21", entered 2027-03-07
+    part "A000004": -17.90 EUR, in the account -, bank id "ID-200", other party - -, text "Algae bars 21"
+    part "A000021": 17.90 EUR, in the account -, note "Algae bars 21"
+  transaction 201 on 2027-03-12, payee "Kepler Sports Club", note "Rover check-up 48", entered 2027-03-12
+    part "A000004": -18.00 EUR, in the account -, bank id "ID-201", other party - -, text "Rover check-up 48"
+    part "A000021": 18.00 EUR, in the account -, note "Rover check-up 48"
+  transaction 202 on 2026-03-10, payee "Kepler Sports Club", note "Subspace fee 52", entered 2026-03-10
+    part "A000004": -17.30 EUR, in the account -, bank id "ID-202", other party - -, text "Subspace fee 52"
+    part "A000021": 17.30 EUR, in the account -, note "Subspace fee 52"
+  transaction 203 on 2027-03-10, payee "Subspace Telecom", note "Reactor spare parts 3", entered 2027-03-10
+    part "A000004": -7.59 EUR, in the account -, bank id "ID-203", other party - -, text "Reactor spare parts 3"
+    part "A000069": 7.59 EUR, in the account -, note "Reactor spare parts 3"
+  transaction 204 on 2027-03-08, payee "Subspace Telecom", note "Seed order 27", entered 2027-03-08
+    part "A000004": -7.49 EUR, in the account -, bank id "ID-204", other party - -, text "Seed order 27"
+    part "A000069": 7.49 EUR, in the account -, note "Seed order 27"
+  transaction 205 on 2026-03-12, payee "Northern Ice Works", note "Dome rent share 50", entered 2026-03-12
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-205", other party - -, text "Dome rent share 50"
+    part "A000021": 13.75 EUR, in the account -, note "Dome rent share 50"
+  transaction 206 on 2026-03-11, payee "Northern Ice Works", note "Zero-G class 49", entered 2026-03-11
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-206", other party - -, text "Zero-G class 49"
+    part "A000021": 13.75 EUR, in the account -, note "Zero-G class 49"
+  transaction 207 on 2026-03-14, payee "Northern Ice Works", note "Oxygen refill 42", entered 2026-03-14
+    part "A000004": -12.95 EUR, in the account -, bank id "ID-207", other party - -, text "Oxygen refill 42"
+    part "A000021": 12.95 EUR, in the account -, note "Oxygen refill 42"
+  transaction 208 on 2026-03-05, payee "Northern Ice Works", note "Rover check-up 42", entered 2026-03-05
+    part "A000004": -13.37 EUR, in the account -, bank id "ID-208", other party - -, text "Rover check-up 42"
+    part "A000021": 13.37 EUR, in the account -, note "Rover check-up 42"
+  transaction 209 on 2027-03-07, payee "Subspace Telecom", note "Fuel top-up 24", entered 2027-03-07
+    part "A000004": -7.75 EUR, in the account -, bank id "ID-209", other party - -, text "Fuel top-up 24"
+    part "A000069": 7.75 EUR, in the account -, note "Fuel top-up 24"
+  transaction 210 on 2026-03-06, payee "Northern Ice Works", note "Greens, week 6", entered 2026-03-06
+    part "A000004": -12.95 EUR, in the account -, bank id "ID-210", other party - -, text "Greens, week 6"
+    part "A000021": 12.95 EUR, in the account -, note "Greens, week 6"
+  transaction 211 on 2026-03-08, payee "Subspace Telecom", note "Seed order 41", entered 2026-03-08
+    part "A000004": -12.20 EUR, in the account -, bank id "ID-211", other party - -, text "Seed order 41"
+    part "A000021": 12.20 EUR, in the account -, note "Seed order 41"
+  transaction 212 on 2026-03-13, payee "Northern Ice Works", note "Data crystals 50", entered 2026-03-13
+    part "A000004": -18.50 EUR, in the account -, bank id "ID-212", other party - -, text "Data crystals 50"
+    part "A000019": 18.50 EUR, in the account -, note "Data crystals 50"
+  transaction 213 on 2026-03-06, payee "Northern Ice Works", note "Habitat supplies 34", entered 2026-03-06
+    part "A000004": -0.90 EUR, in the account -, bank id "ID-213", other party - -, text "Habitat supplies 34"
+    part "A000021": 0.90 EUR, in the account -, note "Habitat supplies 34"
+  transaction 214 on 2026-03-11, payee "Northern Ice Works", note "Rover check-up 1", entered 2026-03-11
+    part "A000004": -5.50 EUR, in the account -, bank id "ID-214", other party - -, text "Rover check-up 1"
+    part "A000021": 5.50 EUR, in the account -, note "Rover check-up 1"
+  transaction 215 on 2026-03-10, payee "Dome Management Co.", note "Reactor spare parts 6", entered 2026-03-10
+    part "A000004": -58.20 EUR, in the account -, bank id "ID-215", other party - -, text "Reactor spare parts 6"
+    part "A000021": 58.20 EUR, in the account -, note "Reactor spare parts 6"
+  transaction 216 on 2026-03-06, payee "Northern Ice Works", note "Rover check-up 46", entered 2026-03-06
+    part "A000004": -0.90 EUR, in the account -, bank id "ID-216", other party - -, text "Rover check-up 46"
+    part "A000021": 0.90 EUR, in the account -, note "Rover check-up 46"
+  transaction 217 on 2026-03-11, payee "Northern Ice Works", note "Suit repair 8", entered 2026-03-11
+    part "A000004": -13.00 EUR, in the account -, bank id "ID-217", other party - -, text "Suit repair 8"
+    part "A000021": 13.00 EUR, in the account -, note "Suit repair 8"
+  transaction 218 on 2026-03-09, payee "Kepler Sports Club", note "Rover check-up 49", entered 2026-03-09
+    part "A000004": -17.30 EUR, in the account -, bank id "ID-218", other party - -, text "Rover check-up 49"
+    part "A000021": 17.30 EUR, in the account -, note "Rover check-up 49"
+  transaction 219 on 2026-03-08, payee "Kepler Sports Club", note "Canteen lunch 44", entered 2026-03-08
+    part "A000004": -18.49 EUR, in the account -, bank id "ID-219", other party - -, text "Canteen lunch 44"
+    part "A000021": 18.49 EUR, in the account -, note "Canteen lunch 44"
+  transaction 220 on 2026-03-09, payee "Ceres Greengrocer", note "Library fine 31", entered 2026-03-09
+    part "A000004": -61.50 EUR, in the account -, bank id "ID-220", other party - -, text "Library fine 31"
+    part "A000021": 61.50 EUR, in the account -, note "Library fine 31"
+  transaction 221 on 2026-03-11, payee "Ceres Greengrocer", note "Rover check-up 14", entered 2026-03-11
+    part "A000004": -9.49 EUR, in the account -, bank id "ID-221", other party - -, text "Rover check-up 14"
+    part "A000021": 9.49 EUR, in the account -, note "Rover check-up 14"
+  transaction 222 on 2026-03-12, payee "Subspace Telecom", note "Radiation badge 12", entered 2026-03-12
+    part "A000004": -12.49 EUR, in the account -, bank id "ID-222", other party - -, text "Radiation badge 12"
+    part "A000021": 12.49 EUR, in the account -, note "Radiation badge 12"
+  transaction 223 on 2026-03-11, payee "Kepler Sports Club", note "Canteen lunch 34", entered 2026-03-11
+    part "A000004": -18.50 EUR, in the account -, bank id "ID-223", other party - -, text "Canteen lunch 34"
+    part "A000021": 18.50 EUR, in the account -, note "Canteen lunch 34"
+  transaction 224 on 2026-03-12, payee "Ceres Greengrocer", note "Cinema night 18", entered 2026-03-12
+    part "A000004": -61.49 EUR, in the account -, bank id "ID-224", other party - -, text "Cinema night 18"
+    part "A000021": 61.49 EUR, in the account -, note "Cinema night 18"
+  transaction 225 on 2026-03-10, payee "Northern Ice Works", note "Greens, week 42", entered 2026-03-10
+    part "A000004": -13.20 EUR, in the account -, bank id "ID-225", other party - -, text "Greens, week 42"
+    part "A000021": 13.20 EUR, in the account -, note "Greens, week 42"
+  transaction 226 on 2026-03-13, payee "Subspace Telecom", note "Library fine 24", entered 2026-03-13
+    part "A000004": -12.75 EUR, in the account -, bank id "ID-226", other party - -, text "Library fine 24"
+    part "A000021": 12.75 EUR, in the account -, note "Library fine 24"
+  transaction 227 on 2026-03-11, payee "Northern Ice Works", note "Water allotment 12", entered 2026-03-11
+    part "A000004": -9.49 EUR, in the account -, bank id "ID-227", other party - -, text "Water allotment 12"
+    part "A000021": 9.49 EUR, in the account -, note "Water allotment 12"
+  transaction 228 on 2026-03-14, payee "Ceres Greengrocer", note "Habitat supplies 13", entered 2026-03-14
+    part "A000004": -63.75 EUR, in the account -, bank id "ID-228", other party - -, text "Habitat supplies 13"
+    part "A000021": 63.75 EUR, in the account -, note "Habitat supplies 13"
+  transaction 229 on 2026-03-16, payee "Northern Ice Works", note "Hull patch kit 38", entered 2026-03-16
+    part "A000004": 13.50 EUR, in the account -, bank id "ID-229", other party - -, text "Hull patch kit 38"
+    part "A000021": -13.50 EUR, in the account -, note "Hull patch kit 38"
+  transaction 230 on 2026-03-11, payee "Subspace Telecom", note "Fuel top-up 30", entered 2026-03-11
+    part "A000004": -9.49 EUR, in the account -, bank id "ID-230", other party - -, text "Fuel top-up 30"
+    part "A000021": 9.49 EUR, in the account -, note "Fuel top-up 30"
+  transaction 231 on 2026-03-13, payee "Subspace Telecom", note "Habitat supplies 52", entered 2026-03-13
+    part "A000004": -12.00 EUR, in the account -, bank id "ID-231", other party - -, text "Habitat supplies 52"
+    part "A000021": 12.00 EUR, in the account -, note "Habitat supplies 52"
+  transaction 232 on 2026-03-11, payee "Subspace Telecom", note "Reactor spare parts 45", entered 2026-03-11
+    part "A000004": -12.95 EUR, in the account -, bank id "ID-232", other party - -, text "Reactor spare parts 45"
+    part "A000021": 12.95 EUR, in the account -, note "Reactor spare parts 45"
+  transaction 233 on 2026-03-13, payee "Kepler Sports Club", note "Algae bars 16", entered 2026-03-13
+    part "A000004": -18.99 EUR, in the account -, bank id "ID-233", other party - -, text "Algae bars 16"
+    part "A000021": 18.99 EUR, in the account -, note "Algae bars 16"
+  transaction 234 on 2027-03-18, payee "Subspace Telecom", note "Library fine 43", entered 2027-03-18
+    part "A000004": -7.90 EUR, in the account -, bank id "ID-234", other party - -, text "Library fine 43"
+    part "A000069": 7.90 EUR, in the account -, note "Library fine 43"
+  transaction 235 on 2026-03-15, payee "Redwood Seed Bank", note "Zero-G class 11", entered 2026-03-15
+    part "A000004": -6.90 EUR, in the account -, bank id "ID-235", other party - -, text "Zero-G class 11"
+    part "A000021": 6.90 EUR, in the account -, note "Zero-G class 11"
+  transaction 236 on 2026-03-15, payee "Northern Ice Works", note "Dome rent share 23", entered 2026-03-15
+    part "A000004": -13.49 EUR, in the account -, bank id "ID-236", other party - -, text "Dome rent share 23"
+    part "A000021": 13.49 EUR, in the account -, note "Dome rent share 23"
+  transaction 237 on 2026-03-16, payee "Northern Ice Works", note "Seed order 45", entered 2026-03-16
+    part "A000004": -13.90 EUR, in the account -, bank id "ID-237", other party - -, text "Seed order 45"
+    part "A000021": 13.90 EUR, in the account -, note "Seed order 45"
+  transaction 238 on 2026-03-11, payee "Northern Ice Works", note "Oxygen refill 22", entered 2026-03-11
+    part "A000004": -5.50 EUR, in the account -, bank id "ID-238", other party - -, text "Oxygen refill 22"
+    part "A000021": 5.50 EUR, in the account -, note "Oxygen refill 22"
+  transaction 239 on 2026-03-16, payee "Northern Ice Works", note "Canteen lunch 34", entered 2026-03-16
+    part "A000004": -13.00 EUR, in the account -, bank id "ID-239", other party - -, text "Canteen lunch 34"
+    part "A000021": 13.00 EUR, in the account -, note "Canteen lunch 34"
+  transaction 240 on 2026-03-14, payee "Kepler Sports Club", note "Data crystals 7", entered 2026-03-14
+    part "A000004": -17.00 EUR, in the account -, bank id "ID-240", other party - -, text "Data crystals 7"
+    part "A000021": 17.00 EUR, in the account -, note "Data crystals 7"
+  transaction 241 on 2026-03-20, payee "Northern Ice Works", note "Water allotment 46", entered 2026-03-20
+    part "A000004": -18.50 EUR, in the account -, bank id "ID-241", other party - -, text "Water allotment 46"
+    part "A000019": 18.50 EUR, in the account -, note "Water allotment 46"
+  transaction 242 on 2026-03-19, payee "Kepler Sports Club", note "Cinema night 33", entered 2026-03-19
+    part "A000004": -17.50 EUR, in the account -, bank id "ID-242", other party - -, text "Cinema night 33"
+    part "A000021": 17.50 EUR, in the account -, note "Cinema night 33"
+  transaction 243 on 2026-03-19, payee "Kepler Sports Club", note "Reactor spare parts 18", entered 2026-03-19
+    part "A000004": -17.90 EUR, in the account -, bank id "ID-243", other party - -, text "Reactor spare parts 18"
+    part "A000021": 17.90 EUR, in the account -, note "Reactor spare parts 18"
+  transaction 244 on 2026-03-17, payee "Kepler Sports Club", note "Reactor spare parts 14", entered 2026-03-17
+    part "A000004": -17.49 EUR, in the account -, bank id "ID-244", other party - -, text "Reactor spare parts 14"
+    part "A000021": 17.49 EUR, in the account -, note "Reactor spare parts 14"
+  transaction 245 on 2026-03-19, payee "Ceres Greengrocer", note "Water allotment 8", entered 2026-03-19
+    part "A000004": -64.63 EUR, in the account -, bank id "ID-245", other party - -, text "Water allotment 8"
+    part "A000021": 64.63 EUR, in the account -, note "Water allotment 8"
+  transaction 246 on 2026-03-20, payee "Titan Fuel Station", note "Oxygen refill 14", entered 2026-03-20
+    part "A000004": -25.75 EUR, in the account -, bank id "ID-246", other party - -, text "Oxygen refill 14"
+    part "A000021": 25.75 EUR, in the account -, note "Oxygen refill 14"
+  transaction 247 on 2026-03-19, payee "Kepler Sports Club", note "Suit repair 18", entered 2026-03-19
+    part "A000004": -1.75 EUR, in the account -, bank id "ID-247", other party - -, text "Suit repair 18"
+    part "A000021": 1.75 EUR, in the account -, note "Suit repair 18"
+  transaction 248 on 2026-03-22, payee "Ceres Greengrocer", note "Reactor spare parts 28", entered 2026-03-22
+    part "A000004": -63.75 EUR, in the account -, bank id "ID-248", other party - -, text "Reactor spare parts 28"
+    part "A000021": 63.75 EUR, in the account -, note "Reactor spare parts 28"
+  transaction 249 on 2026-03-23, payee "Aurora Dome Cinema", note "Seed order 47", entered 2026-03-23
+    part "A000004": -46.90 EUR, in the account -, bank id "ID-249", other party - -, text "Seed order 47"
+    part "A000021": 46.90 EUR, in the account -, note "Seed order 47"
+  transaction 250 on 2026-03-19, payee "Northern Ice Works", note "Subspace fee 23", entered 2026-03-19
+    part "A000004": -13.90 EUR, in the account -, bank id "ID-250", other party - -, text "Subspace fee 23"
+    part "A000021": 13.90 EUR, in the account -, note "Subspace fee 23"
+  transaction 251 on 2026-03-26, payee "Northern Ice Works", note "Reactor spare parts 9", entered 2026-03-26
+    part "A000004": -18.20 EUR, in the account -, bank id "ID-251", other party - -, text "Reactor spare parts 9"
+    part "A000019": 18.20 EUR, in the account -, note "Reactor spare parts 9"
+  transaction 252 on 2026-03-21, payee "Northern Ice Works", note "Water allotment 39", entered 2026-03-21
+    part "A000004": -13.90 EUR, in the account -, bank id "ID-252", other party - -, text "Water allotment 39"
+    part "A000021": 13.90 EUR, in the account -, note "Water allotment 39"
+  transaction 253 on 2026-03-23, payee "Subspace Telecom", note "Dome rent share 34", entered 2026-03-23
+    part "A000004": -12.00 EUR, in the account -, bank id "ID-253", other party - -, text "Dome rent share 34"
+    part "A000021": 12.00 EUR, in the account -, note "Dome rent share 34"
+  transaction 254 on 2026-03-26, payee "Subspace Telecom", note "Canteen lunch 41", entered 2026-03-26
+    part "A000004": -11.20 EUR, in the account -, bank id "ID-254", other party - -, text "Canteen lunch 41"
+    part "A000021": 11.20 EUR, in the account -, note "Canteen lunch 41"
+  transaction 255 on 2026-03-22, payee "Subspace Telecom", note "Zero-G class 33", entered 2026-03-22
+    part "A000004": -12.15 EUR, in the account -, bank id "ID-255", other party - -, text "Zero-G class 33"
+    part "A000021": 12.15 EUR, in the account -, note "Zero-G class 33"
+  transaction 256 on 2026-03-20, payee "Kepler Sports Club", note "Suit repair 26", entered 2026-03-20
+    part "A000004": -17.20 EUR, in the account -, bank id "ID-256", other party - -, text "Suit repair 26"
+    part "A000021": 17.20 EUR, in the account -, note "Suit repair 26"
+  transaction 257 on 2026-03-19, payee "Kepler Sports Club", note "Subspace fee 24", entered 2026-03-19
+    part "A000004": -1.75 EUR, in the account -, bank id "ID-257", other party - -, text "Subspace fee 24"
+    part "A000021": 1.75 EUR, in the account -, note "Subspace fee 24"
+  transaction 258 on 2026-03-21, payee "Subspace Telecom", note "Shuttle pass 12", entered 2026-03-21
+    part "A000004": -7.90 EUR, in the account -, bank id "ID-258", other party - -, text "Shuttle pass 12"
+    part "A000069": 7.90 EUR, in the account -, note "Shuttle pass 12"
+  transaction 259 on 2026-03-26, payee "Subspace Telecom", note "Dome rent share 49", entered 2026-03-26
+    part "A000004": -7.75 EUR, in the account -, bank id "ID-259", other party - -, text "Dome rent share 49"
+    part "A000069": 7.75 EUR, in the account -, note "Dome rent share 49"
+  transaction 260 on 2026-03-26, payee "Subspace Telecom", note "Dome rent share 26", entered 2026-03-26
+    part "A000004": -12.20 EUR, in the account -, bank id "ID-260", other party - -, text "Dome rent share 26"
+    part "A000021": 12.20 EUR, in the account -, note "Dome rent share 26"
+  transaction 261 on 2026-03-20, payee "Ceres Greengrocer", note "Cinema night 5", entered 2026-03-20
+    part "A000004": -63.98 EUR, in the account -, bank id "ID-261", other party - -, text "Cinema night 5"
+    part "A000021": 63.98 EUR, in the account -, note "Cinema night 5"
+  transaction 262 on 2026-03-21, payee "Ceres Greengrocer", note "Canteen lunch 21", entered 2026-03-21
+    part "A000004": -64.00 EUR, in the account -, bank id "ID-262", other party - -, text "Canteen lunch 21"
+    part "A000021": 64.00 EUR, in the account -, note "Canteen lunch 21"
+  transaction 263 on 2026-03-25, payee "Ceres Greengrocer", note "Reactor spare parts 27", entered 2026-03-25
+    part "A000004": -62.75 EUR, in the account -, bank id "ID-263", other party - -, text "Reactor spare parts 27"
+    part "A000021": 62.75 EUR, in the account -, note "Reactor spare parts 27"
+  transaction 264 on 2026-03-28, payee "Northern Ice Works", note "Suit repair 45", entered 2026-03-28
+    part "A000004": -13.90 EUR, in the account -, bank id "ID-264", other party - -, text "Suit repair 45"
+    part "A000021": 13.90 EUR, in the account -, note "Suit repair 45"
+  transaction 265 on 2026-03-22, payee "Northern Ice Works", note "Cinema night 6", entered 2026-03-22
+    part "A000004": -13.20 EUR, in the account -, bank id "ID-265", other party - -, text "Cinema night 6"
+    part "A000021": 13.20 EUR, in the account -, note "Cinema night 6"
+  transaction 266 on 2026-03-23, payee "Northern Ice Works", note "Algae bars 37", entered 2026-03-23
+    part "A000004": -13.95 EUR, in the account -, bank id "ID-266", other party - -, text "Algae bars 37"
+    part "A000021": 13.95 EUR, in the account -, note "Algae bars 37"
+  transaction 267 on 2026-03-25, payee "Kepler Sports Club", note "Reactor spare parts 42", entered 2026-03-25
+    part "A000004": -18.99 EUR, in the account -, bank id "ID-267", other party - -, text "Reactor spare parts 42"
+    part "A000021": 18.99 EUR, in the account -, note "Reactor spare parts 42"
+  transaction 268 on 2026-03-23, payee "Northern Ice Works", note "Radiation badge 45", entered 2026-03-23
+    part "A000004": -12.75 EUR, in the account -, bank id "ID-268", other party - -, text "Radiation badge 45"
+    part "A000021": 12.75 EUR, in the account -, note "Radiation badge 45"
+  transaction 269 on 2026-03-28, payee "Kepler Sports Club", note "Seed order 35", entered 2026-03-28
+    part "A000004": -18.20 EUR, in the account -, bank id "ID-269", other party - -, text "Seed order 35"
+    part "A000021": 18.20 EUR, in the account -, note "Seed order 35"
+  transaction 270 on 2026-03-25, payee "Europa Water Board", note "Greens, week 23", entered 2026-03-25
+    part "A000004": 981.00 EUR, in the account -, bank id "ID-270", other party - -, text "Greens, week 23"
+    part "A000021": -981.00 EUR, in the account -, note "Greens, week 23"
+  transaction 271 on 2026-03-29, payee "Northern Ice Works", note "Subspace fee 9", entered 2026-03-29
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-271", other party - -, text "Subspace fee 9"
+    part "A000021": 13.75 EUR, in the account -, note "Subspace fee 9"
+  transaction 272 on 2026-03-27, payee "Olympus Mons Market", note "Canteen lunch 47", entered 2026-03-27
+    part "A000004": -35.95 EUR, in the account -, bank id "ID-272", other party - -, text "Canteen lunch 47"
+    part "A000021": 35.95 EUR, in the account -, note "Canteen lunch 47"
+  transaction 273 on 2026-03-26, payee "Kepler Sports Club", note "Water allotment 9", entered 2026-03-26
+    part "A000004": -17.90 EUR, in the account -, bank id "ID-273", other party - -, text "Water allotment 9"
+    part "A000021": 17.90 EUR, in the account -, note "Water allotment 9"
+  transaction 274 on 2026-03-24, payee "Luna Pharmacy", note "Data crystals 10", entered 2026-03-24
+    part "A000004": 260.00 EUR, in the account -, bank id "ID-274", other party - -, text "Data crystals 10"
+    part "A000021": -260.00 EUR, in the account -, note "Data crystals 10"
+  transaction 275 on 2026-03-25, payee "Subspace Telecom", note "Greens, week 52", entered 2026-03-25
+    part "A000004": -12.75 EUR, in the account -, bank id "ID-275", other party - -, text "Greens, week 52"
+    part "A000021": 12.75 EUR, in the account -, note "Greens, week 52"
+  transaction 276 on 2026-03-24, payee "Kepler Sports Club", note "Hull patch kit 45", entered 2026-03-24
+    part "A000004": -17.90 EUR, in the account -, bank id "ID-276", other party - -, text "Hull patch kit 45"
+    part "A000021": 17.90 EUR, in the account -, note "Hull patch kit 45"
+  transaction 277 on 2026-03-31, payee "Luna Pharmacy", note "Reactor spare parts 3", entered 2026-03-31
+    part "A000004": -230.00 EUR, in the account -, bank id "ID-277", other party - -, text "Reactor spare parts 3"
+    part "A000021": 230.00 EUR, in the account -, note "Reactor spare parts 3"
+  transaction 278 on 2026-03-24, payee "Moonbase Medical Center", note "Hull patch kit 41", entered 2026-03-24
+    part "A000004": -260.00 EUR, in the account -, bank id "ID-278", other party - -, text "Hull patch kit 41"
+    part "A000021": 260.00 EUR, in the account -, note "Hull patch kit 41"
+  transaction 279 on 2026-03-26, payee "Hydroponics Cooperative", note "Hull patch kit 51", entered 2026-03-26
+    part "A000004": -670.99 EUR, in the account -, bank id "ID-279", other party - -, text "Hull patch kit 51"
+    part "A000021": 670.99 EUR, in the account -, note "Hull patch kit 51"
+  transaction 280 on 2026-03-29, payee "Colony Council Tax Office", note "Habitat supplies 33", entered 2026-03-29
+    part "A000004": -5.49 EUR, in the account -, bank id "ID-280", other party - -, text "Habitat supplies 33"
+    part "A000021": 5.49 EUR, in the account -, note "Habitat supplies 33"
+  transaction 281 on 2026-03-29, payee "Pioneer Fund", note "Zero-G class 36", entered 2026-03-29
+    part "A000004": -54.90 EUR, in the account -, bank id "ID-281", other party - -, text "Zero-G class 36"
+    part "A000021": 54.90 EUR, in the account -, note "Zero-G class 36"
+  transaction 282 on 2026-03-26, payee "Crater Bakery", note "Data crystals 10", entered 2026-03-26
+    part "A000004": -35.50 EUR, in the account -, bank id "ID-282", other party - -, text "Data crystals 10"
+    part "A000021": 35.50 EUR, in the account -, note "Data crystals 10"
+  transaction 283 on 2026-03-27, payee "Pioneer Fund", note "Water allotment 45", entered 2026-03-27
+    part "A000004": -56.50 EUR, in the account -, bank id "ID-283", other party - -, text "Water allotment 45"
+    part "A000021": 56.50 EUR, in the account -, note "Water allotment 45"
+  transaction 284 on 2026-03-27, payee "Phobos Canteen", note "Algae bars 25", entered 2026-03-27
+    part "A000004": -14.37 EUR, in the account -, bank id "ID-284", other party - -, text "Algae bars 25"
+    part "A000021": 14.37 EUR, in the account -, note "Algae bars 25"
+  transaction 285 on 2026-03-28, payee "Pioneer Fund", note "Seed order 14", entered 2026-03-28
+    part "A000004": -57.50 EUR, in the account -, bank id "ID-285", other party - -, text "Seed order 14"
+    part "A000021": 57.50 EUR, in the account -, note "Seed order 14"
+  transaction 286 on 2026-03-25, payee "Northern Ice Works", note "Radiation badge 50", entered 2026-03-25
+    part "A000004": -13.95 EUR, in the account -, bank id "ID-286", other party - -, text "Radiation badge 50"
+    part "A000021": 13.95 EUR, in the account -, note "Radiation badge 50"
+  transaction 287 on 2026-04-01, payee "Kepler Sports Club", note "Hull patch kit 32", entered 2026-04-01
+    part "A000004": -17.66 EUR, in the account -, bank id "ID-287", other party - -, text "Hull patch kit 32"
+    part "A000021": 17.66 EUR, in the account -, note "Hull patch kit 32"
+  transaction 288 on 2026-03-30, payee "Northern Ice Works", note "Habitat supplies 35", entered 2026-03-30
+    part "A000004": -13.00 EUR, in the account -, bank id "ID-288", other party - -, text "Habitat supplies 35"
+    part "A000021": 13.00 EUR, in the account -, note "Habitat supplies 35"
+  transaction 289 on 2026-03-28, payee "Subspace Telecom", note "Habitat supplies 10", entered 2026-03-28
+    part "A000004": -12.95 EUR, in the account -, bank id "ID-289", other party - -, text "Habitat supplies 10"
+    part "A000021": 12.95 EUR, in the account -, note "Habitat supplies 10"
+  transaction 290 on 2026-04-03, payee "Crater Bakery", note "Seed order 29", entered 2026-04-03
+    part "A000004": -36.49 EUR, in the account -, bank id "ID-290", other party - -, text "Seed order 29"
+    part "A000021": 36.49 EUR, in the account -, note "Seed order 29"
+  transaction 291 on 2026-03-30, payee "Suit Tailors Guild", note "Subspace fee 48", entered 2026-03-30
+    part "A000004": -56.20 EUR, in the account -, bank id "ID-291", other party - -, text "Subspace fee 48"
+    part "A000021": 56.20 EUR, in the account -, note "Subspace fee 48"
+  transaction 292 on 2026-03-28, payee "Northern Ice Works", note "Radiation badge 48", entered 2026-03-28
+    part "A000004": 13.75 EUR, in the account -, bank id "ID-292", other party - -, text "Radiation badge 48"
+    part "A000021": -13.75 EUR, in the account -, note "Radiation badge 48"
+  transaction 293 on 2026-03-29, payee "Subspace Telecom", note "Habitat supplies 17", entered 2026-03-29
+    part "A000004": -7.49 EUR, in the account -, bank id "ID-293", other party - -, text "Habitat supplies 17"
+    part "A000069": 7.49 EUR, in the account -, note "Habitat supplies 17"
+  transaction 294 on 2026-03-26, payee "Kepler Sports Club", note "Water allotment 35", entered 2026-03-26
+    part "A000004": -17.00 EUR, in the account -, bank id "ID-294", other party - -, text "Water allotment 35"
+    part "A000021": 17.00 EUR, in the account -, note "Water allotment 35"
+  transaction 295 on 2026-04-01, payee "Northern Ice Works", note "Hull patch kit 16", entered 2026-04-01
+    part "A000004": -13.55 EUR, in the account -, bank id "ID-295", other party - -, text "Hull patch kit 16"
+    part "A000021": 13.55 EUR, in the account -, note "Hull patch kit 16"
+  transaction 296 on 2026-04-03, payee "Kepler Sports Club", note "Oxygen refill 27", entered 2026-04-03
+    part "A000004": -18.49 EUR, in the account -, bank id "ID-296", other party - -, text "Oxygen refill 27"
+    part "A000021": 18.49 EUR, in the account -, note "Oxygen refill 27"
+  transaction 297 on 2026-04-01, payee "Kepler Sports Club", note "Habitat supplies 34", entered 2026-04-01
+    part "A000004": -17.20 EUR, in the account -, bank id "ID-297", other party - -, text "Habitat supplies 34"
+    part "A000021": 17.20 EUR, in the account -, note "Habitat supplies 34"
+  transaction 298 on 2026-03-31, payee "Andromeda Travel Agency", note "Rover check-up 19", entered 2026-03-31
+    part "A000004": -88.20 EUR, in the account -, bank id "ID-298", other party - -, text "Rover check-up 19"
+    part "A000021": 88.20 EUR, in the account -, note "Rover check-up 19"
+  transaction 299 on 2026-03-31, payee "Subspace Telecom", note "Radiation badge 7", entered 2026-03-31
+    part "A000004": -12.90 EUR, in the account -, bank id "ID-299", other party - -, text "Radiation badge 7"
+    part "A000021": 12.90 EUR, in the account -, note "Radiation badge 7"
+  transaction 300 on 2026-04-05, payee "Kepler Sports Club", note "Habitat supplies 15", entered 2026-04-05
+    part "A000004": -18.20 EUR, in the account -, bank id "ID-300", other party - -, text "Habitat supplies 15"
+    part "A000021": 18.20 EUR, in the account -, note "Habitat supplies 15"
+  transaction 301 on 2026-04-02, payee "Kepler Sports Club", note "Hull patch kit 38", entered 2026-04-02
+    part "A000004": -17.75 EUR, in the account -, bank id "ID-301", other party - -, text "Hull patch kit 38"
+    part "A000021": 17.75 EUR, in the account -, note "Hull patch kit 38"
+  transaction 302 on 2026-04-04, payee "Subspace Telecom", note "Zero-G class 21", entered 2026-04-04
+    part "A000004": -12.49 EUR, in the account -, bank id "ID-302", other party - -, text "Zero-G class 21"
+    part "A000021": 12.49 EUR, in the account -, note "Zero-G class 21"
+  transaction 303 on 2026-04-05, payee "Northern Ice Works", note "Algae bars 13", entered 2026-04-05
+    part "A000004": -19.90 EUR, in the account -, bank id "ID-303", other party - -, text "Algae bars 13"
+    part "A000021": 19.90 EUR, in the account -, note "Algae bars 13"
+  transaction 304 on 2026-04-08, payee "Northern Ice Works", note "Subspace fee 21", entered 2026-04-08
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-304", other party - -, text "Subspace fee 21"
+    part "A000021": 13.75 EUR, in the account -, note "Subspace fee 21"
+  transaction 305 on 2026-04-08, payee "Subspace Telecom", note "Algae bars 23", entered 2026-04-08
+    part "A000004": -7.49 EUR, in the account -, bank id "ID-305", other party - -, text "Algae bars 23"
+    part "A000069": 7.49 EUR, in the account -, note "Algae bars 23"
+  transaction 306 on 2026-04-07, payee "Subspace Telecom", note "Canteen lunch 20", entered 2026-04-07
+    part "A000004": -7.75 EUR, in the account -, bank id "ID-306", other party - -, text "Canteen lunch 20"
+    part "A000069": 7.75 EUR, in the account -, note "Canteen lunch 20"
+  transaction 307 on 2026-04-08, payee "Kepler Sports Club", note "Rover check-up 17", entered 2026-04-08
+    part "A000004": -17.90 EUR, in the account -, bank id "ID-307", other party - -, text "Rover check-up 17"
+    part "A000021": 17.90 EUR, in the account -, note "Rover check-up 17"
+  transaction 308 on 2026-04-09, payee "Kepler Sports Club", note "Dome rent share 40", entered 2026-04-09
+    part "A000004": -18.44 EUR, in the account -, bank id "ID-308", other party - -, text "Dome rent share 40"
+    part "A000021": 18.44 EUR, in the account -, note "Dome rent share 40"
+  transaction 309 on 2026-04-06, payee "Kepler Sports Club", note "Canteen lunch 49", entered 2026-04-06
+    part "A000004": -17.47 EUR, in the account -, bank id "ID-309", other party - -, text "Canteen lunch 49"
+    part "A000021": 17.47 EUR, in the account -, note "Canteen lunch 49"
+  transaction 310 on 2026-04-05, payee "Subspace Telecom", note "Radiation badge 2", entered 2026-04-05
+    part "A000004": -7.75 EUR, in the account -, bank id "ID-310", other party - -, text "Radiation badge 2"
+    part "A000069": 7.75 EUR, in the account -, note "Radiation badge 2"
+  transaction 311 on 2026-04-03, payee "Subspace Telecom", note "Hull patch kit 40", entered 2026-04-03
+    part "A000004": -12.95 EUR, in the account -, bank id "ID-311", other party - -, text "Hull patch kit 40"
+    part "A000021": 12.95 EUR, in the account -, note "Hull patch kit 40"
+  transaction 312 on 2026-04-05, payee "Kepler Sports Club", note "Water allotment 45", entered 2026-04-05
+    part "A000004": -17.00 EUR, in the account -, bank id "ID-312", other party - -, text "Water allotment 45"
+    part "A000021": 17.00 EUR, in the account -, note "Water allotment 45"
+  transaction 313 on 2026-04-07, payee "Kepler Sports Club", note "Zero-G class 22", entered 2026-04-07
+    part "A000004": -17.20 EUR, in the account -, bank id "ID-313", other party - -, text "Zero-G class 22"
+    part "A000021": 17.20 EUR, in the account -, note "Zero-G class 22"
+  transaction 314 on 2026-04-05, payee "Ceres Greengrocer", note "Oxygen refill 35", entered 2026-04-05
+    part "A000004": -19.90 EUR, in the account -, bank id "ID-314", other party - -, text "Oxygen refill 35"
+    part "A000021": 19.90 EUR, in the account -, note "Oxygen refill 35"
+  transaction 315 on 2026-04-05, payee "Asteroid Mining Corp.", note "Data crystals 1", entered 2026-04-05
+    part "A000004": -19.90 EUR, in the account -, bank id "ID-315", other party - -, text "Data crystals 1"
+    part "A000021": 19.90 EUR, in the account -, note "Data crystals 1"
+  transaction 316 on 2026-04-05, payee "Rover Garage Gamma", note "Greens, week 25", entered 2026-04-05
+    part "A000004": -15.95 EUR, in the account -, bank id "ID-316", other party - -, text "Greens, week 25"
+    part "A000021": 15.95 EUR, in the account -, note "Greens, week 25"
+  transaction 317 on 2026-04-07, payee "Pioneer Fund", note "Habitat supplies 1", entered 2026-04-07
+    part "A000004": -90.00 EUR, in the account -, bank id "ID-317", other party - -, text "Habitat supplies 1"
+    part "A000021": 90.00 EUR, in the account -, note "Habitat supplies 1"
+  transaction 318 on 2026-04-08, payee "Galaxy Electronics", note "Reactor spare parts 24", entered 2026-04-08
+    part "A000004": 5470.00 EUR, in the account -, bank id "ID-318", other party - -, text "Reactor spare parts 24"
+    part "A000021": -5470.00 EUR, in the account -, note "Reactor spare parts 24"
+  transaction 319 on 2026-04-05, payee "Europa Water Board", note "Radiation badge 52", entered 2026-04-05
+    part "A000004": -11.75 EUR, in the account -, bank id "ID-319", other party - -, text "Radiation badge 52"
+    part "A000021": 11.75 EUR, in the account -, note "Radiation badge 52"
+  transaction 320 on 2026-04-05, payee "Europa Water Board", note "Zero-G class 19", entered 2026-04-05
+    part "A000004": -11.75 EUR, in the account -, bank id "ID-320", other party - -, text "Zero-G class 19"
+    part "A000021": 11.75 EUR, in the account -, note "Zero-G class 19"
+  transaction 321 on 2026-04-08, payee "Subspace Telecom", note "Subspace fee 22", entered 2026-04-08
+    part "A000004": -6.20 EUR, in the account -, bank id "ID-321", other party - -, text "Subspace fee 22"
+    part "A000073": 6.20 EUR, in the account -, note "Subspace fee 22"
+  transaction 322 on 2026-04-12, payee "Redwood Seed Bank", note "Suit repair 6", entered 2026-04-12
+    part "A000004": -5.75 EUR, in the account -, bank id "ID-322", other party - -, text "Suit repair 6"
+    part "A000073": 5.75 EUR, in the account -, note "Suit repair 6"
+  transaction 323 on 2026-04-09, payee "Kepler Sports Club", note "Rover check-up 31", entered 2026-04-09
+    part "A000004": -10.04 EUR, in the account -, bank id "ID-323", other party - -, text "Rover check-up 31"
+    part "A000017": 10.04 EUR, in the account -, note "Rover check-up 31"
+  transaction 324 on 2026-04-04, payee "Subspace Telecom", note "Habitat supplies 41", entered 2026-04-04
+    part "A000004": -7.32 EUR, in the account -, bank id "ID-324", other party - -, text "Habitat supplies 41"
+    part "A000069": 7.32 EUR, in the account -, note "Habitat supplies 41"
+  transaction 325 on 2026-04-10, payee "Dome Management Co.", note "Dome rent share 47", entered 2026-04-10
+    part "A000004": -80.69 EUR, in the account -, bank id "ID-325", other party - -, text "Dome rent share 47"
+    part "A000075": 80.69 EUR, in the account -, note "Dome rent share 47"
+  transaction 326 on 2026-04-07, payee "Northern Ice Works", note "Radiation badge 10", entered 2026-04-07
+    part "A000004": -13.00 EUR, in the account -, bank id "ID-326", other party - -, text "Radiation badge 10"
+    part "A000021": 13.00 EUR, in the account -, note "Radiation badge 10"
+  transaction 327 on 2026-04-07, payee "Ceres Greengrocer", note "Hull patch kit 32", entered 2026-04-07
+    part "A000004": -90.00 EUR, in the account -, bank id "ID-327", other party - -, text "Hull patch kit 32"
+    part "A000021": 90.00 EUR, in the account -, note "Hull patch kit 32"
+  transaction 328 on 2026-04-10, payee "Subspace Telecom", note "Greens, week 44", entered 2026-04-10
+    part "A000004": -7.50 EUR, in the account -, bank id "ID-328", other party - -, text "Greens, week 44"
+    part "A000069": 7.50 EUR, in the account -, note "Greens, week 44"
+  transaction 329 on 2026-04-07, payee "Subspace Telecom", note "Dome rent share 14", entered 2026-04-07
+    part "A000004": -7.78 EUR, in the account -, bank id "ID-329", other party - -, text "Dome rent share 14"
+    part "A000069": 7.78 EUR, in the account -, note "Dome rent share 14"
+  transaction 330 on 2026-04-04, payee "Kepler Sports Club", note "Habitat supplies 16", entered 2026-04-04
+    part "A000004": -10.20 EUR, in the account -, bank id "ID-330", other party - -, text "Habitat supplies 16"
+    part "A000017": 10.20 EUR, in the account -, note "Habitat supplies 16"
+  transaction 331 on 2026-04-12, payee "Kepler Sports Club", note "Water allotment 18", entered 2026-04-12
+    part "A000004": -10.95 EUR, in the account -, bank id "ID-331", other party - -, text "Water allotment 18"
+    part "A000017": 10.95 EUR, in the account -, note "Water allotment 18"
+  transaction 332 on 2026-04-11, payee "Redwood Seed Bank", note "Rover check-up 50", entered 2026-04-11
+    part "A000004": -20.49 EUR, in the account -, bank id "ID-332", other party - -, text "Rover check-up 50"
+    part "A000073": 20.49 EUR, in the account -, note "Rover check-up 50"
+  transaction 333 on 2026-04-11, payee "Northern Ice Works", note "Habitat supplies 27", entered 2026-04-11
+    part "A000004": -13.00 EUR, in the account -, bank id "ID-333", other party - -, text "Habitat supplies 27"
+    part "A000021": 13.00 EUR, in the account -, note "Habitat supplies 27"
+  transaction 334 on 2026-04-09, payee "Northern Ice Works", note "Greens, week 21", entered 2026-04-09
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-334", other party - -, text "Greens, week 21"
+    part "A000021": 13.75 EUR, in the account -, note "Greens, week 21"
+  transaction 335 on 2026-04-10, payee "Kepler Sports Club", note "Algae bars 36", entered 2026-04-10
+    part "A000004": -10.20 EUR, in the account -, bank id "ID-335", other party - -, text "Algae bars 36"
+    part "A000017": 10.20 EUR, in the account -, note "Algae bars 36"
+  transaction 336 on 2026-04-13, payee "Kepler Sports Club", note "Suit repair 16", entered 2026-04-13
+    part "A000004": -10.95 EUR, in the account -, bank id "ID-336", other party - -, text "Suit repair 16"
+    part "A000017": 10.95 EUR, in the account -, note "Suit repair 16"
+  transaction 337 on 2026-12-26, payee "Hydroponics Cooperative", note "Seed order 37", entered 2026-12-26
+    part "A000043": 515.00 EUR, in the account -, note "Seed order 37"
+    part "A000062": -515.00 EUR, in the account -, bank id "ID-337", other party - -, text "Seed order 37", cleared
+  transaction 338 on 2026-12-27, payee "Luna Pharmacy", note "Zero-G class 21", entered 2026-12-27
+    part "A000062": 105.00 EUR, in the account -, bank id "ID-338", other party - -, text "Zero-G class 21", cleared
+    part "A000066": -105.00 EUR, in the account -, note "Zero-G class 21"
+  transaction 339 on 2026-12-23, payee "Luna Pharmacy", note "Suit repair 3", entered 2026-12-23
+    part "A000062": 90.00 EUR, in the account -, bank id "ID-339", other party - -, text "Suit repair 3", cleared
+    part "A000066": -90.00 EUR, in the account -, note "Suit repair 3"
+  transaction 340 on 2026-12-23, payee "Aurora Dome Cinema", note "Algae bars 52", entered 2026-12-23
+    part "A000047": 90.00 EUR, in the account -, note "Algae bars 52"
+    part "A000062": -90.00 EUR, in the account -, bank id "ID-340", other party - -, text "Algae bars 52", cleared
+  transaction 341 on 2026-12-29, payee "Luna Pharmacy", note "Library fine 25", entered 2026-12-29
+    part "A000062": 110.00 EUR, in the account -, bank id "ID-341", other party - -, text "Library fine 25", cleared
+    part "A000066": -110.00 EUR, in the account -, note "Library fine 25"
+  transaction 342 on 2027-01-03, payee "Luna Pharmacy", note "Hull patch kit 46", entered 2027-01-03
+    part "A000062": 105.00 EUR, in the account -, bank id "ID-342", other party - -, text "Hull patch kit 46", cleared
+    part "A000066": -105.00 EUR, in the account -, note "Hull patch kit 46"
+  transaction 343 on 2027-01-06, payee "Luna Pharmacy", note "Habitat supplies 29", entered 2027-01-06
+    part "A000062": -130.00 EUR, in the account -, bank id "ID-343", other party - -, text "Habitat supplies 29", cleared
+    part "A000066": 130.00 EUR, in the account -, note "Habitat supplies 29"
+  transaction 344 on 2027-01-04, payee "Dome Management Co.", note "Data crystals 14", entered 2027-01-04
+    part "A000075": 48.42 EUR, in the account -, note "Data crystals 14"
+    part "A000062": -48.42 EUR, in the account -, bank id "ID-344", other party - -, text "Data crystals 14", cleared
+  transaction 345 on 2027-01-24, payee "Aurora Dome Cinema", note "Algae bars 10", entered 2027-01-24
+    part "A000047": 90.00 EUR, in the account -, note "Algae bars 10"
+    part "A000062": -90.00 EUR, in the account -, bank id "ID-345", other party - -, text "Algae bars 10", cleared
+  transaction 346 on 2027-01-22, payee "Hydroponics Cooperative", note "Seed order 37", entered 2027-01-22
+    part "A000043": 746.00 EUR, in the account -, note "Seed order 37"
+    part "A000062": -746.00 EUR, in the account -, bank id "ID-346", other party - -, text "Seed order 37", cleared
+  transaction 347 on 2027-01-26, payee "Luna Pharmacy", note "Zero-G class 21", entered 2027-01-26
+    part "A000062": 105.00 EUR, in the account -, bank id "ID-347", other party - -, text "Zero-G class 21", cleared
+    part "A000066": -105.00 EUR, in the account -, note "Zero-G class 21"
+  transaction 348 on 2027-01-24, payee "Luna Pharmacy", note "Suit repair 3", entered 2027-01-24
+    part "A000062": 90.00 EUR, in the account -, bank id "ID-348", other party - -, text "Suit repair 3", cleared
+    part "A000066": -90.00 EUR, in the account -, note "Suit repair 3"
+  transaction 349 on 2027-01-26, payee "Luna Pharmacy", note "Library fine 25", entered 2027-01-26
+    part "A000062": 110.00 EUR, in the account -, bank id "ID-349", other party - -, text "Library fine 25", cleared
+    part "A000066": -110.00 EUR, in the account -, note "Library fine 25"
+  transaction 350 on 2027-02-02, payee "Luna Pharmacy", note "Hull patch kit 46", entered 2027-02-02
+    part "A000062": 110.00 EUR, in the account -, bank id "ID-350", other party - -, text "Hull patch kit 46", cleared
+    part "A000066": -110.00 EUR, in the account -, note "Hull patch kit 46"
+  transaction 351 on 2027-02-03, payee "Luna Pharmacy", note "Habitat supplies 29", entered 2027-02-03
+    part "A000062": -190.00 EUR, in the account -, bank id "ID-351", other party - -, text "Habitat supplies 29", cleared
+    part "A000066": 190.00 EUR, in the account -, note "Habitat supplies 29"
+  transaction 352 on 2027-02-04, payee "Dome Management Co.", note "Zero-G class 48", entered 2027-02-04
+    part "A000075": 102.99 EUR, in the account -, note "Zero-G class 48"
+    part "A000062": -102.99 EUR, in the account -, bank id "ID-352", other party - -, text "Zero-G class 48", cleared
+  transaction 353 on 2027-02-21, payee "Aurora Dome Cinema", note "Water allotment 18", entered 2027-02-21
+    part "A000047": 46.75 EUR, in the account -, note "Water allotment 18"
+    part "A000062": -46.75 EUR, in the account -, bank id "ID-353", other party - -, text "Water allotment 18", cleared
+  transaction 354 on 2027-02-24, payee "Hydroponics Cooperative", note "Seed order 37", entered 2027-02-24
+    part "A000043": 834.49 EUR, in the account -, note "Seed order 37"
+    part "A000062": -834.49 EUR, in the account -, bank id "ID-354", other party - -, text "Seed order 37", cleared
+  transaction 355 on 2027-02-28, payee "Luna Pharmacy", note "Zero-G class 21", entered 2027-02-28
+    part "A000062": 110.00 EUR, in the account -, bank id "ID-355", other party - -, text "Zero-G class 21", cleared
+    part "A000066": -110.00 EUR, in the account -, note "Zero-G class 21"
+  transaction 356 on 2027-02-21, payee "Luna Pharmacy", note "Suit repair 3", entered 2027-02-21
+    part "A000062": 46.75 EUR, in the account -, bank id "ID-356", other party - -, text "Suit repair 3", cleared
+    part "A000066": -46.75 EUR, in the account -, note "Suit repair 3"
+  transaction 357 on 2027-02-26, payee "Luna Pharmacy", note "Library fine 25", entered 2027-02-26
+    part "A000062": 110.00 EUR, in the account -, bank id "ID-357", other party - -, text "Library fine 25", cleared
+    part "A000066": -110.00 EUR, in the account -, note "Library fine 25"
+  transaction 358 on 2027-03-05, payee "Luna Pharmacy", note "Hull patch kit 46", entered 2027-03-05
+    part "A000062": 110.00 EUR, in the account -, bank id "ID-358", other party - -, text "Hull patch kit 46", cleared
+    part "A000066": -110.00 EUR, in the account -, note "Hull patch kit 46"
+  transaction 359 on 2027-03-09, payee "Luna Pharmacy", note "Habitat supplies 29", entered 2027-03-09
+    part "A000062": -110.00 EUR, in the account -, bank id "ID-359", other party - -, text "Habitat supplies 29", cleared
+    part "A000066": 110.00 EUR, in the account -, note "Habitat supplies 29"
+  transaction 360 on 2027-03-09, payee "Dome Management Co.", note "Data crystals 12", entered 2027-03-09
+    part "A000075": 77.73 EUR, in the account -, note "Data crystals 12"
+    part "A000062": -77.73 EUR, in the account -, bank id "ID-360", other party - -, text "Data crystals 12", cleared
+  transaction 361 on 2024-07-29, payee -, entered 2024-07-29
+    part "A000004": 3020.00 EUR, in the account -
+    part "A000064": -3020.00 EUR, in the account -
+  transaction 362 on 2026-07-28, payee -, entered 2026-07-28
+    part "A000062": 2090.00 EUR, in the account -
+    part "A000064": -2090.00 EUR, in the account -
+  transaction 363 on 2025-07-23, payee -, entered 2025-07-23
+    part "A000061": 3640.00 EUR, in the account -
+    part "A000066": -3640.00 EUR, in the account -
+  transaction 364 on 2026-09-22, payee "Luna Pharmacy", note "Seed order 25", entered 2026-09-22
+    part "A000066": 710.00 EUR, in the account -, note "Fuel top-up 16"
+    part "A000061": -710.00 EUR, in the account -, bank id "ID-361", other party - -, text "Fuel top-up 16", cleared
+  transaction 365 on 2026-09-23, payee "Luna Pharmacy", note "Algae bars 33", entered 2026-09-23
+    part "A000066": -350.00 EUR, in the account -, note "Algae bars 33"
+    part "A000061": 350.00 EUR, in the account -, bank id "ID-362", other party - -, text "Algae bars 33", cleared
+  transaction 366 on 2026-10-13, payee -, note "Reactor spare parts 5", entered 2026-10-13
+    part "A000061": 0.34 EUR, in the account -, bank id "ID-363", other party - -, text "Reactor spare parts 5", cleared
+    part "A000057": -0.34 EUR, in the account -, note "Reactor spare parts 5"
+  transaction 367 on 2026-10-09, payee -, note "Habitat supplies 3", entered 2026-10-09
+    part "A000061": 2.90 EUR, in the account -, bank id "ID-364", other party - -, text "Habitat supplies 3", cleared
+    part "A000057": -2.90 EUR, in the account -, note "Habitat supplies 3"
+  transaction 368 on 2026-10-26, payee "Luna Pharmacy", note "Algae bars 33", entered 2026-10-26
+    part "A000066": -275.49 EUR, in the account -, note "Algae bars 33"
+    part "A000061": 275.49 EUR, in the account -, bank id "ID-365", other party - -, text "Algae bars 33", cleared
+  transaction 369 on 2026-12-01, payee "Luna Pharmacy", note "Algae bars 33", entered 2026-12-01
+    part "A000066": -275.50 EUR, in the account -, note "Algae bars 33"
+    part "A000061": 275.50 EUR, in the account -, bank id "ID-366", other party - -, text "Algae bars 33", cleared
+  transaction 370 on 2026-12-21, payee "Luna Pharmacy", note "Algae bars 33", entered 2026-12-21
+    part "A000066": -270.49 EUR, in the account -, note "Algae bars 33"
+    part "A000061": 270.49 EUR, in the account -, bank id "ID-367", other party - -, text "Algae bars 33", cleared
+  transaction 371 on 2027-01-08, payee -, note "Habitat supplies 3", entered 2027-01-08
+    part "A000061": 9.49 EUR, in the account -, bank id "ID-368", other party - -, text "Habitat supplies 3", cleared
+    part "A000057": -9.49 EUR, in the account -, note "Habitat supplies 3"
+  transaction 372 on 2027-01-08, payee -, note "Reactor spare parts 5", entered 2027-01-08
+    part "A000061": 2.90 EUR, in the account -, bank id "ID-369", other party - -, text "Reactor spare parts 5", cleared
+    part "A000057": -2.90 EUR, in the account -, note "Reactor spare parts 5"
+  transaction 373 on 2027-01-27, payee "Luna Pharmacy", note "Algae bars 33", entered 2027-01-27
+    part "A000066": -275.00 EUR, in the account -, note "Algae bars 33"
+    part "A000061": 275.00 EUR, in the account -, bank id "ID-370", other party - -, text "Algae bars 33", cleared
+  transaction 374 on 2027-03-02, payee "Luna Pharmacy", note "Algae bars 33", entered 2027-03-02
+    part "A000066": -272.50 EUR, in the account -, note "Algae bars 33"
+    part "A000061": 272.50 EUR, in the account -, bank id "ID-371", other party - -, text "Algae bars 33", cleared
+  transaction 375 on 2026-09-06, payee "Luna Pharmacy", note "Library fine 25", entered 2026-09-06
+    part "A000066": -133.99 EUR, in the account -, note "Library fine 25", cleared
+    part "A000060": 133.99 EUR, in the account -, bank id "ID-372", other party - -, text "Library fine 25", cleared
+  transaction 376 on 2026-10-09, payee "Luna Pharmacy", note "Library fine 25", entered 2026-10-09
+    part "A000066": -70.00 EUR, in the account -, note "Library fine 25", cleared
+    part "A000060": 70.00 EUR, in the account -, bank id "ID-373", other party - -, text "Library fine 25", cleared
+  transaction 377 on 2026-11-05, payee "Luna Pharmacy", note "Library fine 25", entered 2026-11-05
+    part "A000066": -140.00 EUR, in the account -, note "Library fine 25", cleared
+    part "A000060": 140.00 EUR, in the account -, bank id "ID-374", other party - -, text "Library fine 25", cleared
+  transaction 378 on 2026-12-07, payee "Luna Pharmacy", note "Library fine 25", entered 2026-12-07
+    part "A000066": -132.50 EUR, in the account -, note "Library fine 25", cleared
+    part "A000060": 132.50 EUR, in the account -, bank id "ID-375", other party - -, text "Library fine 25", cleared
+  transaction 379 on 2027-01-06, payee "Luna Pharmacy", note "Library fine 25", entered 2027-01-06
+    part "A000066": -130.00 EUR, in the account -, note "Library fine 25", cleared
+    part "A000060": 130.00 EUR, in the account -, bank id "ID-376", other party - -, text "Library fine 25", cleared
+  transaction 380 on 2027-02-03, payee "Luna Pharmacy", note "Library fine 25", entered 2027-02-03
+    part "A000066": -190.00 EUR, in the account -, note "Library fine 25", cleared
+    part "A000060": 190.00 EUR, in the account -, bank id "ID-377", other party - -, text "Library fine 25", cleared
+  transaction 381 on 2027-03-09, payee "Luna Pharmacy", note "Library fine 25", entered 2027-03-09
+    part "A000066": -110.00 EUR, in the account -, note "Library fine 25", cleared
+    part "A000060": 110.00 EUR, in the account -, bank id "ID-378", other party - -, text "Library fine 25", cleared
+  transaction 382 on 2024-07-23, payee -, entered 2024-07-23
+    part "A000061": -1540.00 EUR, in the account -
+    part "A000064": 1540.00 EUR, in the account -
+  transaction 383 on 2027-03-09, payee "Ceres Greengrocer", note "Library fine 7", entered 2027-03-09
+    part "A000021": 110.00 EUR, in the account -, note "Library fine 7"
+    part "A000004": -110.00 EUR, in the account -, bank id "ID-379", other party - -, text "Library fine 7", cleared
+  transaction 384 on 2027-03-14, payee "Northern Ice Works", note "Fuel top-up 8", entered 2027-03-14
+    part "A000067": 32.99 EUR, in the account -, note "Fuel top-up 8"
+    part "A000004": -32.99 EUR, in the account -, bank id "ID-380", other party - -, text "Fuel top-up 8"
+  transaction 385 on 2027-03-14, payee "Kepler Sports Club", note "Library fine 4", entered 2027-03-14
+    part "A000017": 10.20 EUR, in the account -, note "Hull patch kit 11"
+    part "A000004": -10.20 EUR, in the account -, bank id "ID-381", other party - -, text "Hull patch kit 11"
+  transaction 386 on 2027-03-13, payee "Northern Ice Works", note "Radiation badge 13", entered 2027-03-13
+    part "A000017": 17.20 EUR, in the account -, note "Radiation badge 13"
+    part "A000004": -17.20 EUR, in the account -, bank id "ID-382", other party - -, text "Radiation badge 13"
+  transaction 387 on 2027-03-12, payee "Northern Ice Works", note "Reactor spare parts 24", entered 2027-03-12
+    part "A000067": 31.50 EUR, in the account -, note "Reactor spare parts 24"
+    part "A000004": -31.50 EUR, in the account -, bank id "ID-383", other party - -, text "Reactor spare parts 24"
+  transaction 388 on 2027-03-18, payee "Northern Ice Works", note "Zero-G class 2", entered 2027-03-18
+    part "A000021": 13.67 EUR, in the account -, note "Zero-G class 2"
+    part "A000004": -13.67 EUR, in the account -, bank id "ID-384", other party - -, text "Zero-G class 2", cleared
+  transaction 389 on 2027-03-13, payee "Northern Ice Works", note "Rover check-up 49", entered 2027-03-13
+    part "A000021": 13.45 EUR, in the account -, note "Rover check-up 49"
+    part "A000004": -13.45 EUR, in the account -, bank id "ID-385", other party - -, text "Rover check-up 49", cleared
+  transaction 390 on 2027-03-15, payee "Northern Ice Works", note "Hull patch kit 11", entered 2027-03-15
+    part "A000017": 17.20 EUR, in the account -, note "Hull patch kit 11"
+    part "A000004": -17.20 EUR, in the account -, bank id "ID-386", other party - -, text "Hull patch kit 11"
+  transaction 391 on 2027-03-12, payee "Northern Ice Works", note "Algae bars 15", entered 2027-03-12
+    part "A000021": 13.00 EUR, in the account -, note "Algae bars 15", cleared
+    part "A000004": -13.00 EUR, in the account -, bank id "ID-387", other party - -, text "Algae bars 15", cleared
+  transaction 392 on 2027-03-14, payee "Northern Ice Works", note "Reactor spare parts 46", entered 2027-03-14
+    part "A000021": 13.75 EUR, in the account -, note "Reactor spare parts 46"
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-388", other party - -, text "Reactor spare parts 46", cleared
+  transaction 393 on 2027-03-14, payee "Northern Ice Works", note "Subspace fee 44", entered 2027-03-14
+    part "A000021": 13.20 EUR, in the account -, note "Subspace fee 44", cleared
+    part "A000004": -13.20 EUR, in the account -, bank id "ID-389", other party - -, text "Subspace fee 44", cleared
+  transaction 394 on 2027-03-14, payee "Northern Ice Works", note "Dome rent share 20", entered 2027-03-14
+    part "A000021": 13.75 EUR, in the account -, note "Dome rent share 20"
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-390", other party - -, text "Dome rent share 20", cleared
+  transaction 395 on 2027-03-20, payee "Northern Ice Works", note "Fuel top-up 12", entered 2027-03-20
+    part "A000021": 13.95 EUR, in the account -, note "Fuel top-up 12"
+    part "A000004": -13.95 EUR, in the account -, bank id "ID-391", other party - -, text "Fuel top-up 12", cleared
+  transaction 396 on 2027-03-17, payee "Northern Ice Works", note "Subspace fee 22", entered 2027-03-17
+    part "A000021": 13.59 EUR, in the account -, note "Subspace fee 22"
+    part "A000004": -13.59 EUR, in the account -, bank id "ID-392", other party - -, text "Subspace fee 22", cleared
+  transaction 397 on 2027-03-12, payee "Northern Ice Works", note "Cinema night 12", entered 2027-03-12
+    part "A000017": 17.50 EUR, in the account -, note "Cinema night 12"
+    part "A000004": -17.50 EUR, in the account -, bank id "ID-393", other party - -, text "Cinema night 12"
+  transaction 398 on 2027-03-21, payee "Northern Ice Works", note "Dome rent share 41", entered 2027-03-21
+    part "A000017": 18.99 EUR, in the account -, note "Dome rent share 41"
+    part "A000004": -18.99 EUR, in the account -, bank id "ID-394", other party - -, text "Dome rent share 41"
+  transaction 399 on 2027-03-19, payee "Northern Ice Works", note "Subspace fee 29", entered 2027-03-19
+    part "A000031": 8.50 EUR, in the account -, note "Subspace fee 29"
+    part "A000004": -8.50 EUR, in the account -, bank id "ID-395", other party - -, text "Subspace fee 29"
+  transaction 400 on 2027-03-20, payee "Northern Ice Works", note "Algae bars 44", entered 2027-03-20
+    part "A000076": 49.49 EUR, in the account -, note "Algae bars 44"
+    part "A000004": -49.49 EUR, in the account -, bank id "ID-396", other party - -, text "Algae bars 44"
+  transaction 401 on 2027-03-19, payee "Titan Fuel Station", note "Radiation badge 29", entered 2027-03-19
+    part "A000035": 33.00 EUR, in the account -, note "Radiation badge 29", cleared
+    part "A000004": -33.00 EUR, in the account -, bank id "ID-397", other party - -, text "Radiation badge 29", cleared
+  transaction 402 on 2027-03-24, payee "Titan Fuel Station", note "Habitat supplies 36", entered 2027-03-24
+    part "A000035": 33.90 EUR, in the account -, note "Habitat supplies 36", cleared
+    part "A000004": -33.90 EUR, in the account -, bank id "ID-398", other party - -, text "Habitat supplies 36", cleared
+  transaction 403 on 2027-03-24, payee "Titan Fuel Station", note "Fuel top-up 2", entered 2027-03-24
+    part "A000035": 32.00 EUR, in the account -, note "Fuel top-up 2", cleared
+    part "A000004": -32.00 EUR, in the account -, bank id "ID-399", other party - -, text "Fuel top-up 2", cleared
+  transaction 404 on 2027-03-18, payee "Kepler Sports Club", note "Seed order 11", entered 2027-03-18
+    part "A000017": 9.50 EUR, in the account -, note "Seed order 11", cleared
+    part "A000004": -9.50 EUR, in the account -, bank id "ID-400", other party - -, text "Seed order 11", cleared
+  transaction 405 on 2027-03-24, payee "Northern Ice Works", note "Greens, week 16", entered 2027-03-24
+    part "A000021": 13.50 EUR, in the account -, note "Greens, week 16"
+    part "A000004": -13.50 EUR, in the account -, bank id "ID-401", other party - -, text "Greens, week 16", cleared
+  transaction 406 on 2027-03-25, payee "Northern Ice Works", note "Algae bars 42", entered 2027-03-25
+    part "A000021": 13.75 EUR, in the account -, note "Algae bars 42", cleared
+    part "A000004": -13.75 EUR, in the account -, bank id "ID-402", other party - -, text "Algae bars 42", cleared
+  transaction 407 on 2027-03-24, payee "Northern Ice Works", note "Dome rent share 4", entered 2027-03-24
+    part "A000067": 32.02 EUR, in the account -, note "Dome rent share 4"
+    part "A000004": -32.02 EUR, in the account -, bank id "ID-403", other party - -, text "Dome rent share 4"
+  transaction 408 on 2027-03-20, payee "Northern Ice Works", note "Shuttle pass 22", entered 2027-03-20
+    part "A000021": 13.95 EUR, in the account -, note "Shuttle pass 22"
+    part "A000004": -13.95 EUR, in the account -, bank id "ID-404", other party - -, text "Shuttle pass 22", cleared
+  transaction 409 on 2027-03-22, payee "Kepler Sports Club", note "Water allotment 35", entered 2027-03-22
+    part "A000017": 10.20 EUR, in the account -, note "Library fine 48"
+    part "A000004": -10.20 EUR, in the account -, bank id "ID-405", other party - -, text "Library fine 48"
+  transaction 410 on 2027-03-21, payee "Northern Ice Works", note "Seed order 19", entered 2027-03-21
+    part "A000021": 13.50 EUR, in the account -, note "Seed order 19"
+    part "A000004": -13.50 EUR, in the account -, bank id "ID-406", other party - -, text "Seed order 19", cleared
+  transaction 411 on 2027-03-22, payee "Kepler Sports Club", note "Suit repair 27", entered 2027-03-22
+    part "A000017": 10.95 EUR, in the account -, note "Suit repair 27"
+    part "A000004": -10.95 EUR, in the account -, bank id "ID-407", other party - -, text "Suit repair 27"
+  transaction 412 on 2027-03-28, payee "Galaxy Electronics", note "Shuttle pass 24", entered 2027-03-28
+    part "A000004": 1710.00 EUR, in the account -, bank id "ID-408", other party - -, text "Shuttle pass 24"
+    part "A000077": -1710.00 EUR, in the account -, note "Shuttle pass 24"
+  transaction 413 on 2027-03-20, payee "Europa Water Board", note "Suit repair 5", entered 2027-03-20
+    part "A000050": -3970.00 EUR, in the account -, note "Suit repair 5", cleared
+    part "A000004": 3970.00 EUR, in the account -, bank id "ID-409", other party - -, text "Suit repair 5", cleared
+  transaction 414 on 2027-03-21, payee "Olympus Mons Market", note "Greens, week 48", entered 2027-03-21
+    part "A000033": 31.95 EUR, in the account -, note "Greens, week 48", cleared
+    part "A000004": -31.95 EUR, in the account -, bank id "ID-410", other party - -, text "Greens, week 48", cleared
+  transaction 415 on 2027-03-29, payee "Luna Pharmacy", note "Water allotment 25", entered 2027-03-29
+    part "A000004": -62.95 EUR, in the account -, bank id "ID-411", other party - -, text "Water allotment 25"
+    part "A000053": 62.95 EUR, in the account -, note "Water allotment 25"
+  transaction 416 on 2027-03-22, payee "Luna Pharmacy", note "Rover check-up 31", entered 2027-03-22
+    part "A000004": -39.20 EUR, in the account -, bank id "ID-412", other party - -, text "Rover check-up 31"
+    part "A000053": 39.20 EUR, in the account -, note "Rover check-up 31"
+  transaction 417 on 2027-03-31, payee "Northern Ice Works", note "Cinema night 43", entered 2027-03-31
+    part "A000067": 30.86 EUR, in the account -, note "Cinema night 43"
+    part "A000004": -30.86 EUR, in the account -, bank id "ID-413", other party - -, text "Cinema night 43"
+  transaction 418 on 2027-03-25, payee "Northern Ice Works", note "Zero-G class 43", entered 2027-03-25
+    part "A000021": 13.49 EUR, in the account -, note "Dome rent share 17"
+    part "A000004": -13.49 EUR, in the account -, bank id "ID-414", other party - -, text "Dome rent share 17"
+  transaction 419 on 2027-03-25, payee "Northern Ice Works", note "Water allotment 16", entered 2027-03-25
+    part "A000021": -12.49 EUR, in the account -, note "Subspace fee 50"
+    part "A000004": 12.49 EUR, in the account -, bank id "ID-415", other party - -, text "Subspace fee 50"
+  transaction 420 on 2027-03-31, payee "Northern Ice Works", note "Reactor spare parts 24", entered 2027-03-31
+    part "A000021": -12.95 EUR, in the account -, note "Shuttle pass 19"
+    part "A000004": 12.95 EUR, in the account -, bank id "ID-416", other party - -, text "Shuttle pass 19"
+  transaction 421 on 2027-03-27, payee "Northern Ice Works", note "Rover check-up 8", entered 2027-03-27
+    part "A000021": -13.20 EUR, in the account -, note "Algae bars 9"
+    part "A000004": 13.20 EUR, in the account -, bank id "ID-417", other party - -, text "Algae bars 9"
+  transaction 422 on 2027-04-01, payee "Kepler Sports Club", note "Canteen lunch 13", entered 2027-04-01
+    part "A000017": 10.20 EUR, in the account -, note "Data crystals 7"
+    part "A000004": -10.20 EUR, in the account -, bank id "ID-418", other party - -, text "Data crystals 7"
+  transaction 423 on 2027-03-26, payee "Kepler Sports Club", note "Radiation badge 48", entered 2027-03-26
+    part "A000017": 10.95 EUR, in the account -, note "Rover check-up 3"
+    part "A000004": -10.95 EUR, in the account -, bank id "ID-419", other party - -, text "Rover check-up 3"
+  transaction 424 on 2027-03-26, payee "Pioneer Fund", note "Rover check-up 38", entered 2027-03-26
+    part "A000026": 52.00 EUR, in the account -, note "Rover check-up 38"
+    part "A000004": -52.00 EUR, in the account -, bank id "ID-420", other party - -, text "Rover check-up 38"
+  transaction 425 on 2027-03-27, payee "Colony Council Tax Office", note "Shuttle pass 51", entered 2027-03-27
+    part "A000041": 15.30 EUR, in the account -, note "Shuttle pass 51", cleared
+    part "A000004": -15.30 EUR, in the account -, bank id "ID-421", other party - -, text "Shuttle pass 51"
+  transaction 426 on 2027-03-22, payee "Pioneer Fund", note "Canteen lunch 14", entered 2027-03-22
+    part "A000026": 39.20 EUR, in the account -, note "Canteen lunch 14"
+    part "A000004": -39.20 EUR, in the account -, bank id "ID-422", other party - -, text "Canteen lunch 14"
+  transaction 427 on 2027-04-02, payee "Crater Bakery", note "Suit repair 24", entered 2027-04-02
+    part "A000078": 18.53 EUR, in the account -, note "Suit repair 24"
+    part "A000004": -18.53 EUR, in the account -, bank id "ID-423", other party - -, text "Suit repair 24"
+  transaction 428 on 2027-03-25, payee "Northern Ice Works", note "Greens, week 13", entered 2027-03-25
+    part "A000067": 28.90 EUR, in the account -, note "Greens, week 13"
+    part "A000004": -28.90 EUR, in the account -, bank id "ID-424", other party - -, text "Greens, week 13"
+  transaction 429 on 2027-03-27, payee "Northern Ice Works", note "Data crystals 35", entered 2027-03-27
+    part "A000067": 32.90 EUR, in the account -, note "Data crystals 35"
+    part "A000004": -32.90 EUR, in the account -, bank id "ID-425", other party - -, text "Data crystals 35"
+  transaction 430 on 2027-03-22, payee "Northern Ice Works", note "Zero-G class 10", entered 2027-03-22
+    part "A000021": 39.20 EUR, in the account -, note "Zero-G class 10"
+    part "A000004": -39.20 EUR, in the account -, bank id "ID-426", other party - -, text "Zero-G class 10"
+  transaction 431 on 2027-03-31, payee "Pioneer Fund", note "Library fine 43", entered 2027-03-31
+    part "A000026": 53.90 EUR, in the account -, note "Library fine 43"
+    part "A000004": -53.90 EUR, in the account -, bank id "ID-427", other party - -, text "Library fine 43"
+  transaction 432 on 2027-03-27, payee "Northern Ice Works", note "Rover check-up 36", entered 2027-03-27
+    part "A000021": 13.95 EUR, in the account -, note "Canteen lunch 13"
+    part "A000004": -13.95 EUR, in the account -, bank id "ID-428", other party - -, text "Canteen lunch 13"
+  transaction 433 on 2027-03-30, payee "Northern Ice Works", note "Subspace fee 40", entered 2027-03-30
+    part "A000021": 12.49 EUR, in the account -, note "Zero-G class 49"
+    part "A000004": -12.49 EUR, in the account -, bank id "ID-429", other party - -, text "Zero-G class 49"
+  transaction 434 on 2027-03-25, payee "Luna Pharmacy", note "Reactor spare parts 34", entered 2027-03-25
+    part "A000021": 350.00 EUR, in the account -, note "Greens, week 8"
+    part "A000004": -350.00 EUR, in the account -, bank id "ID-430", other party - -, text "Greens, week 8"
+  transaction 435 on 2027-03-30, payee "Luna Pharmacy", note "Canteen lunch 48", entered 2027-03-30
+    part "A000021": 310.00 EUR, in the account -, note "Shuttle pass 20"
+    part "A000004": -310.00 EUR, in the account -, bank id "ID-431", other party - -, text "Shuttle pass 20"
+  transaction 436 on 2027-03-26, payee "Luna Pharmacy", note "Habitat supplies 21", entered 2027-03-26
+    part "A000021": 47.50 EUR, in the account -, note "Algae bars 29"
+    part "A000004": -47.50 EUR, in the account -, bank id "ID-432", other party - -, text "Algae bars 29"
+  transaction 437 on 2027-03-30, payee "Kepler Sports Club", note "Reactor spare parts 31", entered 2027-03-30
+    part "A000017": 10.75 EUR, in the account -, note "Reactor spare parts 3"
+    part "A000004": -10.75 EUR, in the account -, bank id "ID-433", other party - -, text "Reactor spare parts 3"
+  transaction 438 on 2027-03-30, payee "Suit Tailors Guild", note "Rover check-up 10", entered 2027-03-30
+    part "A000013": 42.99 EUR, in the account -, note "Rover check-up 10", cleared
+    part "A000004": -42.99 EUR, in the account -, bank id "ID-434", other party - -, text "Rover check-up 10"
+  transaction 439 on 2027-04-02, payee "Kepler Sports Club", note "Cinema night 39", entered 2027-04-02
+    part "A000017": 10.49 EUR, in the account -, note "Cinema night 39", cleared
+    part "A000004": -10.49 EUR, in the account -, bank id "ID-435", other party - -, text "Cinema night 39"
+  transaction 440 on 2027-04-03, payee "Kepler Sports Club", note "Zero-G class 25", entered 2027-04-03
+    part "A000017": 10.49 EUR, in the account -, note "Seed order 7"
+    part "A000004": -10.49 EUR, in the account -, bank id "ID-436", other party - -, text "Seed order 7"
+  transaction 441 on 2027-03-25, payee "Phobos Canteen", note "Dome rent share 39", entered 2027-03-25
+    part "A000074": 28.90 EUR, in the account -, note "Dome rent share 39", cleared
+    part "A000004": -28.90 EUR, in the account -, bank id "ID-437", other party - -, text "Dome rent share 39"
+  transaction 442 on 2027-03-26, payee "Kepler Sports Club", note "Algae bars 47", entered 2027-03-26
+    part "A000017": 10.49 EUR, in the account -, note "Greens, week 3"
+    part "A000004": -10.49 EUR, in the account -, bank id "ID-438", other party - -, text "Greens, week 3"
+  transaction 443 on 2027-03-26, payee "Luna Pharmacy", note "Habitat supplies 9", entered 2027-03-26
+    part "A000004": 47.50 EUR, in the account -, bank id "ID-439", other party - -, text "Habitat supplies 9"
+    part "A000056": -47.50 EUR, in the account -, note "Habitat supplies 9"
+  transaction 444 on 2027-03-25, payee "Luna Pharmacy", note "Suit repair 20", entered 2027-03-25
+    part "A000004": 275.00 EUR, in the account -, bank id "ID-440", other party - -, text "Suit repair 20"
+    part "A000056": -275.00 EUR, in the account -, note "Suit repair 20"
+  transaction 445 on 2027-03-30, payee "Kepler Sports Club", note "Reactor spare parts 21", entered 2027-03-30
+    part "A000017": 9.20 EUR, in the account -, note "Oxygen refill 11"
+    part "A000004": -9.20 EUR, in the account -, bank id "ID-441", other party - -, text "Oxygen refill 11"
+  transaction 446 on 2027-04-03, payee "Northern Ice Works", note "Rover check-up 13", entered 2027-04-03
+    part "A000067": 32.99 EUR, in the account -, note "Rover check-up 13"
+    part "A000004": -32.99 EUR, in the account -, bank id "ID-442", other party - -, text "Rover check-up 13"
+  transaction 447 on 2027-04-02, payee "Kepler Sports Club", note "Shuttle pass 19", entered 2027-04-02
+    part "A000017": 10.75 EUR, in the account -, note "Reactor spare parts 2"
+    part "A000004": -10.75 EUR, in the account -, bank id "ID-443", other party - -, text "Reactor spare parts 2"
+  transaction 448 on 2027-04-04, payee "Kepler Sports Club", note "Subspace fee 39", entered 2027-04-04
+    part "A000017": 10.95 EUR, in the account -, note "Subspace fee 39", cleared
+    part "A000004": -10.95 EUR, in the account -, bank id "ID-444", other party - -, text "Subspace fee 39"
+  transaction 449 on 2027-03-29, payee "Ceres Greengrocer", note "Zero-G class 43", entered 2027-03-29
+    part "A000021": 150.00 EUR, in the account -, note "Zero-G class 43"
+    part "A000004": -150.00 EUR, in the account -, bank id "ID-445", other party - -, text "Zero-G class 43"
+  transaction 450 on 2027-04-07, payee "Northern Ice Works", note "Seed order 8", entered 2027-04-07
+    part "A000021": 13.90 EUR, in the account -, note "Suit repair 26"
+    part "A000004": -13.90 EUR, in the account -, bank id "ID-446", other party - -, text "Suit repair 26"
+  transaction 451 on 2027-04-08, payee "Northern Ice Works", note "Algae bars 14", entered 2027-04-08
+    part "A000021": -13.49 EUR, in the account -, note "Algae bars 26"
+    part "A000004": 13.49 EUR, in the account -, bank id "ID-447", other party - -, text "Algae bars 26"
+  transaction 452 on 2027-04-01, payee "Titan Fuel Station", note "Seed order 33", entered 2027-04-01
+    part "A000035": 32.95 EUR, in the account -, note "Seed order 33", cleared
+    part "A000004": -32.95 EUR, in the account -, bank id "ID-448", other party - -, text "Reactor spare parts 16"
+  transaction 453 on 2027-04-01, payee "Kepler Sports Club", note "Dome rent share 16", entered 2027-04-01
+    part "A000017": 10.20 EUR, in the account -, note "Dome rent share 16", cleared
+    part "A000004": -10.20 EUR, in the account -, bank id "ID-449", other party - -, text "Dome rent share 16"
+  transaction 454 on 2027-04-08, payee "Helios Insurance", note "Water allotment 41", entered 2027-04-08
+    part "A000004": -148.50 EUR, in the account -, bank id "ID-450", other party - -, text "Water allotment 41"
+    part "A000079": 148.50 EUR, in the account -, note "Water allotment 41"
+  transaction 455 on 2027-04-01, payee "Rover Garage Gamma", note "Hull patch kit 32", entered 2027-04-01
+    part "A000036": 21.03 EUR, in the account -, note "Hull patch kit 32", cleared
+    part "A000004": -21.03 EUR, in the account -, bank id "ID-451", other party - -, text "Hull patch kit 32"
+  transaction 456 on 2027-04-01, payee "Northern Ice Works", note "Zero-G class 19", entered 2027-04-01
+    part "A000021": 13.49 EUR, in the account -, note "Zero-G class 19"
+    part "A000004": -13.49 EUR, in the account -, bank id "ID-452", other party - -, text "Zero-G class 19"
+  transaction 457 on 2027-04-04, payee "Northern Ice Works", note "Reactor spare parts 16", entered 2027-04-04
+    part "A000071": 5.72 EUR, in the account -, note "Reactor spare parts 16"
+    part "A000004": -5.72 EUR, in the account -, bank id "ID-453", other party - -, text "Reactor spare parts 16"
+  transaction 458 on 2027-04-07, payee "Pioneer Fund", note "Oxygen refill 18", entered 2027-04-07
+    part "A000026": 54.99 EUR, in the account -, note "Oxygen refill 18"
+    part "A000004": -54.99 EUR, in the account -, bank id "ID-454", other party - -, text "Oxygen refill 18"
+  transaction 459 on 2027-04-02, payee "Asteroid Mining Corp.", note "Habitat supplies 16", entered 2027-04-02
+    part "A000070": 23.90 EUR, in the account -, note "Habitat supplies 16", cleared
+    part "A000004": -23.90 EUR, in the account -, bank id "ID-455", other party - -, text "Algae bars 28"
+  transaction 460 on 2027-04-07, payee "Northern Ice Works", note "Fuel top-up 24", entered 2027-04-07
+    part "A000021": 13.05 EUR, in the account -, note "Cinema night 40"
+    part "A000004": -13.05 EUR, in the account -, bank id "ID-456", other party - -, text "Cinema night 40"
+  transaction 461 on 2027-04-07, payee "Nebula Streaming", note "Canteen lunch 28", entered 2027-04-07
+    part "A000004": -85.50 EUR, in the account -, bank id "ID-457", other party - -, text "Canteen lunch 28"
+    part "A000081": 85.50 EUR, in the account -, note "Canteen lunch 28"
+  transaction 462 on 2027-03-26, payee "Aurora Dome Cinema", note "Canteen lunch 46", entered 2027-03-26
+    part "A000047": 47.50 EUR, in the account -, note "Canteen lunch 46", cleared
+    part "A000062": -47.50 EUR, in the account -, bank id "ID-458", other party - -, text "Algae bars 52"
+  transaction 463 on 2027-03-28, payee "Hydroponics Cooperative", note "Seed order 37", entered 2027-03-28
+    part "A000043": 555.00 EUR, in the account -, note "Seed order 37", cleared
+    part "A000062": -555.00 EUR, in the account -, bank id "ID-459", other party - -, text "Seed order 37"
+  transaction 464 on 2027-03-30, payee "Luna Pharmacy", note "Zero-G class 21", entered 2027-03-30
+    part "A000066": -310.00 EUR, in the account -, note "Zero-G class 21"
+    part "A000062": 310.00 EUR, in the account -, bank id "ID-460", other party - -, text "Zero-G class 21"
+  transaction 465 on 2027-03-26, payee "Luna Pharmacy", note "Suit repair 3", entered 2027-03-26
+    part "A000066": -47.50 EUR, in the account -, note "Suit repair 3"
+    part "A000062": 47.50 EUR, in the account -, bank id "ID-461", other party - -, text "Suit repair 3"
+  transaction 466 on 2027-03-30, payee "Luna Pharmacy", note "Hull patch kit 46", entered 2027-03-30
+    part "A000066": -112.49 EUR, in the account -, note "Hull patch kit 46", cleared
+    part "A000062": 112.49 EUR, in the account -, bank id "ID-462", other party - -, text "Shuttle pass 15"
+  transaction 467 on 2027-04-07, payee "Luna Pharmacy", note "Library fine 25", entered 2027-04-07
+    part "A000066": -110.00 EUR, in the account -, note "Library fine 25", cleared
+    part "A000062": 110.00 EUR, in the account -, bank id "ID-463", other party - -, text "Habitat supplies 46"
+  transaction 468 on 2027-03-29, payee "Luna Pharmacy", note "Habitat supplies 29", entered 2027-03-29
+    part "A000066": 150.00 EUR, in the account -, note "Habitat supplies 29", cleared
+    part "A000062": -150.00 EUR, in the account -, bank id "ID-464", other party - -, text "Habitat supplies 29"
+  transaction 469 on 2027-03-29, payee "Luna Pharmacy", note "Library fine 25", entered 2027-03-29
+    part "A000066": -150.00 EUR, in the account -, note "Library fine 25", cleared
+    part "A000060": 150.00 EUR, in the account -, bank id "ID-465", other party - -, text "Library fine 25"
+  transaction 470 on 2027-03-25, payee "Luna Pharmacy", note "Algae bars 33", entered 2027-03-25
+    part "A000066": -350.00 EUR, in the account -, note "Algae bars 33"
+    part "A000061": 350.00 EUR, in the account -, bank id "ID-466", other party - -, text "Algae bars 33"
+  transaction 471 on 2027-03-31, payee -, note "Subspace fee 45", entered 2027-03-31
+    part "A000061": 9.75 EUR, in the account -, bank id "ID-467", other party - -, text "Subspace fee 45"
+    part "A000054": -9.75 EUR, in the account -, note "Subspace fee 45"
+  skipped budgets: 1
+  skipped reports: 1
+  skipped rates: 6
+  skipped online-banking: 5
+  skipped owner: 1

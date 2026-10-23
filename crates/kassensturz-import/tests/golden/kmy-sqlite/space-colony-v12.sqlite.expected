@@ -1,0 +1,220 @@
+recognized: maybe
+book
+  institution "I000001": "Lunar Credit Union", bank code -, contact -, address -, phone -
+  institution "I000002": "Ceres Savings Cooperative", bank code -, contact -, address -, phone -
+  account "A000001": "Wallet Credits", asset, type checking, EUR with 2 decimal places, inside -
+  account "A000002": "Lunar Credit Union", asset, type -, EUR with 2 decimal places, inside -
+  account "A000003": "Pocket Cash", asset, type cash, EUR with 2 decimal places, inside "A000002"
+  account "A000004": "Everyday Checking", asset, type checking, EUR with 2 decimal places, inside "A000002"
+  account "A000005": "Ceres Savings Cooperative", asset, type checking, EUR with 2 decimal places, inside "A000002"
+  account "A000006": "Habitat", expense, type -, EUR with 2 decimal places, inside -
+  account "A000007": "Rent", expense, type -, EUR with 2 decimal places, inside "A000006"
+  account "A000008": "Air Recycling", expense, type -, EUR with 2 decimal places, inside "A000006"
+  account "A000009": "Fusion Power", expense, type -, EUR with 2 decimal places, inside "A000006"
+  account "A000010": "Oxygen and Water", expense, type -, EUR with 2 decimal places, inside "A000006"
+  account "A000011": "Subspace Communications", expense, type -, EUR with 2 decimal places, inside -
+  account "A000012": "Insurance", expense, type -, EUR with 2 decimal places, inside -
+  account "A000013": "Hull Breach Cover", expense, type -, EUR with 2 decimal places, inside "A000012"
+  account "A000014": "Academy Tuition", expense, type -, EUR with 2 decimal places, inside -
+  account "A000015": "Health", expense, type -, EUR with 2 decimal places, inside -
+  account "A000016": "Transport", expense, type -, EUR with 2 decimal places, inside -
+  account "A000017": "Food", expense, type -, EUR with 2 decimal places, inside -
+  account "A000018": "Leisure", expense, type -, EUR with 2 decimal places, inside -
+  account "A000019": "Miscellaneous", expense, type -, EUR with 2 decimal places, inside -
+  account "A000020": "Small Expenses", expense, type -, EUR with 2 decimal places, inside "A000019"
+  account "A000021": "Everyday Spending", expense, type -, EUR with 2 decimal places, inside "A000019"
+  account "A000022": "Rover and Vehicles", expense, type -, EUR with 2 decimal places, inside -
+  account "A000023": "Clothing and Gear", expense, type -, EUR with 2 decimal places, inside -
+  account "A000024": "Pressure Suits", expense, type -, EUR with 2 decimal places, inside "A000023"
+  account "A000025": "Helmets", expense, type -, EUR with 2 decimal places, inside "A000023"
+  account "A000026": "Gloves", expense, type -, EUR with 2 decimal places, inside "A000023"
+  account "A000027": "Boots", expense, type -, EUR with 2 decimal places, inside "A000023"
+  account "A000028": "Radios", expense, type -, EUR with 2 decimal places, inside "A000023"
+  account "A000029": "Tools", expense, type -, EUR with 2 decimal places, inside "A000023"
+  account "A000030": "Leisure Pursuits", expense, type -, EUR with 2 decimal places, inside -
+  account "A000031": "Dome 3 Cinema", expense, type -, EUR with 2 decimal places, inside "A000030"
+  account "A000032": "Books and Data Crystals", expense, type -, EUR with 2 decimal places, inside "A000030"
+  account "A000033": "Subspace Music Streaming", expense, type -, EUR with 2 decimal places, inside "A000030"
+  account "A000034": "Taxes and Fees", expense, type -, EUR with 2 decimal places, inside -
+  account "A000035": "Colony Income Tax", expense, type -, EUR with 2 decimal places, inside "A000034"
+  account "A000036": "Oxygen Quota Fee", expense, type -, EUR with 2 decimal places, inside "A000034"
+  account "A000037": "Land Lease", expense, type -, EUR with 2 decimal places, inside "A000034"
+  account "A000038": "Dome Maintenance Levy", expense, type -, EUR with 2 decimal places, inside "A000034"
+  account "A000039": "Gifts and Donations", expense, type -, EUR with 2 decimal places, inside -
+  account "A000040": "Club Donations", expense, type -, EUR with 2 decimal places, inside "A000039"
+  account "A000041": "Council Party Donations", expense, type -, EUR with 2 decimal places, inside "A000039"
+  account "A000042": "Travel", expense, type -, EUR with 2 decimal places, inside -
+  account "A000043": "Earth-Mars Flights", expense, type -, EUR with 2 decimal places, inside "A000042"
+  account "A000044": "Holidays", expense, type -, EUR with 2 decimal places, inside "A000042"
+  account "A000045": "Orbital Hotel", expense, type -, EUR with 2 decimal places, inside "A000044"
+  account "A000046": "Meals on the Road", expense, type -, EUR with 2 decimal places, inside "A000044"
+  account "A000047": "Olympus Mons Tours", expense, type -, EUR with 2 decimal places, inside "A000044"
+  account "A000048": "Souvenirs", expense, type -, EUR with 2 decimal places, inside "A000044"
+  account "A000049": "Colony Employment", income, type -, EUR with 2 decimal places, inside -
+  account "A000050": "Salary Hydroponics Engineer", income, type -, EUR with 2 decimal places, inside "A000049"
+  account "A000051": "Mine Shift Bonus", income, type -, EUR with 2 decimal places, inside "A000049"
+  account "A000052": "Mineral Sales", income, type -, EUR with 2 decimal places, inside -
+  account "A000053": "Credit Union Interest", income, type -, EUR with 2 decimal places, inside -
+  account "A000054": "Refunds", income, type -, EUR with 2 decimal places, inside -
+  account "A000055": "Refund Radiation Shielding", income, type -, EUR with 2 decimal places, inside "A000054"
+  account "A000056": "Refund Oxygen Tax", income, type -, EUR with 2 decimal places, inside "A000054"
+  account "A000057": "Refund Shuttle Fares", income, type -, EUR with 2 decimal places, inside "A000054"
+  account "A000058": "Shipyard Loan", liability, type -, EUR with 2 decimal places, inside -
+  account "A000059": "Credit Card Olympus", liability, type -, EUR with 2 decimal places, inside "A000058"
+  account "A000060": "Dome Petty Cash", asset, type checking, EUR with 2 decimal places, inside "A000005"
+    number -, notes -, at "I000001"
+  account "A000061": "Mars Rainy-Day Savings", asset, type savings, EUR with 2 decimal places, inside "A000005"
+    number -, notes -, at "I000001"
+  account "A000062": "Shuttle Travel Fund", asset, type checking, EUR with 2 decimal places, inside "A000004"
+    number -, notes -, at "I000001"
+  account "A000063": "Asteroid Claim Shares", asset, type -, EUR with 2 decimal places, inside -
+    number "1000200030", notes -, at "I000001"
+  account "A000064": "Colony Founding Capital", equity, type -, EUR with 2 decimal places, inside -
+  account "A000065": "Joint Account Phobos", asset, type checking, EUR with 2 decimal places, inside "A000004"
+    number -, notes -, at "I000002"
+  payee "P000001": "Colony Council Tax Office", address -, email -, phone -, reference -, recognized never ignoring case
+  payee "P000002": "Dome Management Co.", address -, email -, phone -, reference -, recognized never ignoring case
+  payee "P000003": "Moonbase Medical Center", address -, email -, phone -, reference -, recognized never ignoring case
+  payee "P000004": "Northern Ice Works", address -, email -, phone -, reference -, recognized never ignoring case
+  payee "P000005": "Pioneer Fund", address -, email -, phone -, reference -, recognized never ignoring case
+  payee "P000006": "Crater Bakery", address -, email -, phone -, reference -, recognized never ignoring case
+  payee "P000007": "Luna Pharmacy", address -, email -, phone -, reference -, recognized never ignoring case
+  payee "P000008": "Asteroid Mining Corp.", address -, email -, phone -, reference -, recognized never ignoring case
+  payee "P000009": "Hydroponics Cooperative", address -, email -, phone -, reference -, recognized never ignoring case
+  transaction 1 on 2026-06-14, payee "Colony Council Tax Office", note "Greens, week 11", entered 2026-06-14
+    part "A000060": 90.00 EUR, in the account -, bank id "ID-1-24", other party - -, text "Greens, week 11"
+  transaction 2 on 2026-07-10, payee "Colony Council Tax Office", note "Suit repair 36", entered 2026-07-10
+    part "A000060": 130.00 EUR, in the account -, bank id "ID-2-39", other party - -, text "Suit repair 36"
+  transaction 3 on 2026-07-10, payee "Dome Management Co.", note "Oxygen refill 31", entered 2026-07-10
+    part "A000060": 130.00 EUR, in the account -, bank id "ID-3-40", other party - -, text "Oxygen refill 31"
+  transaction 4 on 2026-08-03, payee -, entered 2026-08-03
+    part "A000060": -0.75 EUR, in the account -, bank id "ID-4-47", other party - -, text -
+  transaction 5 on 2026-08-02, payee -, entered 2026-08-02
+    part "A000060": 1.49 EUR, in the account -, bank id "ID-5-48", other party - -, text -
+  transaction 6 on 2026-08-11, payee "Colony Council Tax Office", note "Cinema night 35", entered 2026-08-11
+    part "A000060": 110.00 EUR, in the account -, bank id "ID-6-62", other party - -, text "Cinema night 35"
+  transaction 7 on 2025-08-16, payee "Moonbase Medical Center", note "Library fine 18", entered 2025-08-16
+    part "A000061": -396.99 EUR, in the account -, bank id "ID-7-1", other party - -, text "Library fine 18"
+  transaction 8 on 2025-09-05, payee "Northern Ice Works", note "Suit repair 34", entered 2025-09-05
+    part "A000061": 286.99 EUR, in the account -, bank id "ID-8-2", other party - -, text "Suit repair 34"
+  transaction 9 on 2025-09-30, payee "Moonbase Medical Center", note "Algae bars 1", entered 2025-09-30
+    part "A000061": -385.00 EUR, in the account -, bank id "ID-9-3", other party - -, text "Algae bars 1"
+  transaction 10 on 2025-10-04, payee "Northern Ice Works", note "Oxygen refill 12", entered 2025-10-04
+    part "A000061": 190.00 EUR, in the account -, bank id "ID-10-4", other party - -, text "Oxygen refill 12"
+  transaction 11 on 2025-10-18, payee -, note "Water allotment 27", entered 2025-10-18
+    part "A000061": 2.49 EUR, in the account -, bank id "ID-11-5", other party - -, text "Water allotment 27"
+  transaction 12 on 2025-10-20, payee -, note "Rover check-up 33", entered 2025-10-20
+    part "A000061": 0.81 EUR, in the account -, bank id "ID-12-6", other party - -, text "Rover check-up 33"
+  transaction 13 on 2025-11-01, payee "Northern Ice Works", note "Canteen lunch 32", entered 2025-11-01
+    part "A000061": 257.50 EUR, in the account -, bank id "ID-13-7", other party - -, text "Canteen lunch 32"
+  transaction 14 on 2025-12-04, payee "Northern Ice Works", note "Fuel top-up 37", entered 2025-12-04
+    part "A000061": 493.49 EUR, in the account -, bank id "ID-14-8", other party - -, text "Fuel top-up 37"
+  transaction 15 on 2026-01-02, payee "Moonbase Medical Center", note "Seed order 3", entered 2026-01-02
+    part "A000061": -461.00 EUR, in the account -, bank id "ID-15-9", other party - -, text "Seed order 3"
+  transaction 16 on 2025-12-31, payee "Northern Ice Works", note "Rover check-up 1", entered 2025-12-31
+    part "A000061": 520.00 EUR, in the account -, bank id "ID-16-10", other party - -, text "Rover check-up 1"
+  transaction 17 on 2026-01-17, payee -, note "Reactor spare parts 47", entered 2026-01-17
+    part "A000061": 8.90 EUR, in the account -, bank id "ID-17-11", other party - -, text "Reactor spare parts 47"
+  transaction 18 on 2026-01-13, payee -, note "Zero-G class 9", entered 2026-01-13
+    part "A000061": 3.87 EUR, in the account -, bank id "ID-18-12", other party - -, text "Zero-G class 9"
+  transaction 19 on 2026-02-01, payee "Northern Ice Works", note "Habitat supplies 38", entered 2026-02-01
+    part "A000061": 403.50 EUR, in the account -, bank id "ID-19-13", other party - -, text "Habitat supplies 38"
+  transaction 20 on 2026-03-03, payee "Northern Ice Works", note "Oxygen refill 4", entered 2026-03-03
+    part "A000061": 485.00 EUR, in the account -, bank id "ID-20-14", other party - -, text "Oxygen refill 4"
+  transaction 21 on 2026-04-01, payee "Moonbase Medical Center", note "Canteen lunch 10", entered 2026-04-01
+    part "A000061": -390.50 EUR, in the account -, bank id "ID-21-15", other party - -, text "Canteen lunch 10"
+  transaction 22 on 2026-04-08, payee "Northern Ice Works", note "Greens, week 50", entered 2026-04-08
+    part "A000061": 211.00 EUR, in the account -, bank id "ID-22-16", other party - -, text "Greens, week 50"
+  transaction 23 on 2026-04-09, payee -, note "Cinema night 52", entered 2026-04-09
+    part "A000061": 8.20 EUR, in the account -, bank id "ID-23-17", other party - -, text "Cinema night 52"
+  transaction 24 on 2026-04-17, payee -, note "Reactor spare parts 3", entered 2026-04-17
+    part "A000061": 4.99 EUR, in the account -, bank id "ID-24-18", other party - -, text "Reactor spare parts 3"
+  transaction 25 on 2026-05-03, payee "Northern Ice Works", note "Shuttle pass 27", entered 2026-05-03
+    part "A000061": 580.00 EUR, in the account -, bank id "ID-25-19", other party - -, text "Shuttle pass 27"
+  transaction 26 on 2026-05-07, payee -, note "Reactor spare parts 37", entered 2026-05-07
+    part "A000061": 0.50 EUR, in the account -, bank id "ID-26-20", other party - -, text "Reactor spare parts 37"
+  transaction 27 on 2026-06-07, payee "Northern Ice Works", note "Reactor spare parts 6", entered 2026-06-07
+    part "A000061": 425.00 EUR, in the account -, bank id "ID-27-21", other party - -, text "Reactor spare parts 6"
+  transaction 28 on 2026-06-28, payee "Moonbase Medical Center", note "Canteen lunch 2", entered 2026-06-28
+    part "A000061": -286.49 EUR, in the account -, bank id "ID-28-28", other party - -, text "Canteen lunch 2"
+  transaction 29 on 2026-07-02, payee "Moonbase Medical Center", note "Shuttle pass 30", entered 2026-07-02
+    part "A000061": -930.00 EUR, in the account -, bank id "ID-29-29", other party - -, text "Shuttle pass 30"
+  transaction 30 on 2026-07-01, payee "Northern Ice Works", note "Hull patch kit 15", entered 2026-07-01
+    part "A000061": 190.00 EUR, in the account -, bank id "ID-30-30", other party - -, text "Hull patch kit 15"
+  transaction 31 on 2026-07-18, payee -, note "Cinema night 51", entered 2026-07-18
+    part "A000061": 0.50 EUR, in the account -, bank id "ID-31-44", other party - -, text "Cinema night 51"
+  transaction 32 on 2026-07-15, payee -, note "Cinema night 37", entered 2026-07-15
+    part "A000061": 0.90 EUR, in the account -, bank id "ID-32-45", other party - -, text "Cinema night 37"
+  transaction 33 on 2026-07-30, payee "Moonbase Medical Center", note "Cinema night 21", entered 2026-07-30
+    part "A000061": -130.49 EUR, in the account -, bank id "ID-33-49", other party - -, text "Cinema night 21"
+  transaction 34 on 2026-07-30, payee -, entered 2026-07-30
+    part "A000061": 18.20 EUR, in the account -, bank id "ID-34-50", other party - -, text -
+  transaction 35 on 2026-07-31, payee "Northern Ice Works", note "Zero-G class 7", entered 2026-07-31
+    part "A000061": 126.99 EUR, in the account -, bank id "ID-35-53", other party - -, text "Zero-G class 7"
+  transaction 36 on 2026-09-03, payee "Northern Ice Works", note "Zero-G class 18", entered 2026-09-03
+    part "A000061": 525.00 EUR, in the account -, bank id "ID-36-66", other party - -, text "Zero-G class 18"
+  transaction 37 on 2026-06-09, payee "Pioneer Fund", note "Library fine 37", entered 2026-06-09
+    part "A000062": 441.99 EUR, in the account -, bank id "ID-37-22", other party - -, text "Library fine 37"
+  transaction 38 on 2026-06-10, payee "Pioneer Fund", note "Library fine 33", entered 2026-06-10
+    part "A000062": 34.49 EUR, in the account -, bank id "ID-38-23", other party - -, text "Library fine 33"
+  transaction 39 on 2026-06-14, payee "Colony Council Tax Office", note "Fuel top-up 29", entered 2026-06-14
+    part "A000062": -90.00 EUR, in the account -, bank id "ID-39-25", other party - -, text "Fuel top-up 29"
+  transaction 40 on 2026-06-18, payee "Crater Bakery", note "Radiation badge 21", entered 2026-06-18
+    part "A000062": -26.95 EUR, in the account -, bank id "ID-40-26", other party - -, text "Radiation badge 21"
+    part "A000032": 26.95 EUR, in the account -, note "Radiation badge 21"
+  transaction 41 on 2026-06-30, payee "Luna Pharmacy", note "Shuttle pass 46", entered 2026-06-30
+    part "A000062": -1120.00 EUR, in the account -, bank id "ID-41-31", other party - -, text "Shuttle pass 46"
+    part "A000043": 1120.00 EUR, in the account -, note "Shuttle pass 46"
+  transaction 42 on 2026-07-01, payee "Asteroid Mining Corp.", note "Fuel top-up 12", entered 2026-07-01
+    part "A000062": -65.95 EUR, in the account -, bank id "ID-42-33", other party - -, text "Fuel top-up 12"
+    part "A000047": 65.95 EUR, in the account -, note "Fuel top-up 12"
+  transaction 43 on 2026-07-03, payee "Northern Ice Works", note "Water allotment 26", entered 2026-07-03
+    part "A000062": 748.00 EUR, in the account -, bank id "ID-43-35", other party - -, text "Water allotment 26"
+  transaction 44 on 2026-07-04, payee "Northern Ice Works", note "Greens, week 5", entered 2026-07-04
+    part "A000062": 115.00 EUR, in the account -, bank id "ID-44-36", other party - -, text "Greens, week 5"
+  transaction 45 on 2026-07-10, payee "Pioneer Fund", note "Hull patch kit 7", entered 2026-07-10
+    part "A000062": 35.49 EUR, in the account -, bank id "ID-45-37", other party - -, text "Hull patch kit 7"
+  transaction 46 on 2026-07-10, payee "Pioneer Fund", note "Shuttle pass 51", entered 2026-07-10
+    part "A000062": 346.50 EUR, in the account -, bank id "ID-46-38", other party - -, text "Shuttle pass 51"
+  transaction 47 on 2026-07-10, payee "Colony Council Tax Office", note "Cinema night 3", entered 2026-07-10
+    part "A000062": -130.00 EUR, in the account -, bank id "ID-47-41", other party - -, text "Cinema night 3"
+  transaction 48 on 2026-07-15, payee "Hydroponics Cooperative", note "Oxygen refill 12", entered 2026-07-15
+    part "A000062": -81.75 EUR, in the account -, bank id "ID-48-42", other party - -, text "Oxygen refill 12"
+    part "A000032": 81.75 EUR, in the account -, note "Oxygen refill 12"
+  transaction 49 on 2026-07-30, payee "Northern Ice Works", note "Habitat supplies 41", entered 2026-07-30
+    part "A000062": 145.00 EUR, in the account -, bank id "ID-49-46", other party - -, text "Habitat supplies 41"
+  transaction 50 on 2026-08-03, payee "Asteroid Mining Corp.", note "Fuel top-up 16", entered 2026-08-03
+    part "A000062": -68.75 EUR, in the account -, bank id "ID-50-54", other party - -, text "Fuel top-up 16", cleared
+    part "A000047": 68.75 EUR, in the account -, note "Fuel top-up 16"
+  transaction 51 on 2026-08-02, payee "Luna Pharmacy", note "Radiation badge 41", entered 2026-08-02
+    part "A000062": -1070.00 EUR, in the account -, bank id "ID-51-56", other party - -, text "Radiation badge 41"
+    part "A000043": 1070.00 EUR, in the account -, note "Radiation badge 41"
+  transaction 52 on 2026-08-04, payee "Northern Ice Works", note "Fuel top-up 38", entered 2026-08-04
+    part "A000062": 285.00 EUR, in the account -, bank id "ID-52-58", other party - -, text "Fuel top-up 38"
+  transaction 53 on 2026-08-07, payee "Northern Ice Works", note "Cinema night 26", entered 2026-08-07
+    part "A000062": 110.00 EUR, in the account -, bank id "ID-53-59", other party - -, text "Cinema night 26"
+  transaction 54 on 2026-08-12, payee "Pioneer Fund", note "Greens, week 23", entered 2026-08-12
+    part "A000062": 14.50 EUR, in the account -, bank id "ID-54-60", other party - -, text "Greens, week 23"
+  transaction 55 on 2026-08-15, payee "Pioneer Fund", note "Suit repair 16", entered 2026-08-15
+    part "A000062": 555.00 EUR, in the account -, bank id "ID-55-61", other party - -, text "Suit repair 16"
+  transaction 56 on 2026-08-11, payee "Colony Council Tax Office", note "Shuttle pass 21", entered 2026-08-11
+    part "A000062": -110.00 EUR, in the account -, bank id "ID-56-63", other party - -, text "Shuttle pass 21"
+  transaction 57 on 2026-08-15, payee "Hydroponics Cooperative", note "Radiation badge 44", entered 2026-08-15
+    part "A000062": -24.99 EUR, in the account -, bank id "ID-57-64", other party - -, text "Radiation badge 44"
+    part "A000032": 24.99 EUR, in the account -, note "Radiation badge 44"
+  transaction 58 on 2026-09-05, payee "Luna Pharmacy", note "Zero-G class 4", entered 2026-09-05
+    part "A000062": -1090.00 EUR, in the account -, bank id "ID-58-67", other party - -, text "Zero-G class 4"
+    part "A000043": 1090.00 EUR, in the account -, note "Zero-G class 4"
+  transaction 59 on 2026-09-08, payee "Asteroid Mining Corp.", note "Rover check-up 28", entered 2026-09-08
+    part "A000062": -66.99 EUR, in the account -, bank id "ID-59-69", other party - -, text "Rover check-up 28"
+    part "A000047": 66.99 EUR, in the account -, note "Rover check-up 28"
+  transaction 60 on 2026-09-06, payee "Northern Ice Works", note "Habitat supplies 42", entered 2026-09-06
+    part "A000062": 455.00 EUR, in the account -, bank id "ID-60-71", other party - -, text "Habitat supplies 42"
+  transaction 61 on 2026-09-04, payee "Northern Ice Works", note "Data crystals 25", entered 2026-09-04
+    part "A000062": 124.50 EUR, in the account -, bank id "ID-61-72", other party - -, text "Data crystals 25"
+  transaction 62 on 2026-08-07, payee -, entered 2026-08-07
+    part "A000062": 915.00 EUR, in the account -
+    part "A000064": -915.00 EUR, in the account -
+  skipped rates: 6
+  skipped online-banking: 8
+  skipped owner: 1

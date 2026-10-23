@@ -376,6 +376,34 @@ fn books_with_another_layout_version_are_turned_away() {
 }
 
 #[test]
+fn books_from_development_builds_are_turned_away() {
+    // Layouts 1 to 15 were merged into the starting layout (D-045, D-135).
+    let folder = TempFolder::new();
+    let path = folder.join("Old.ksz");
+    let laptop = folder.computer("Laptop");
+    drop(Book::create(&path, &laptop).expect("book created"));
+    for found in [1, 15] {
+        rusqlite::Connection::open(&path)
+            .and_then(|conn| conn.pragma_update(None, "user_version", found))
+            .expect("layout version changed");
+        assert!(matches!(
+            open_error(&path, &laptop),
+            StoreError::DevelopmentLayout { found: reported } if reported == found
+        ));
+    }
+    // A layout no KassenSturz ever wrote isn't a development one.
+    rusqlite::Connection::open(&path)
+        .and_then(|conn| conn.pragma_update(None, "user_version", 0))
+        .expect("layout version changed");
+    assert!(matches!(
+        open_error(&path, &laptop),
+        StoreError::UnsupportedLayout { found: 0 }
+    ));
+    assert_eq!(side_files(&path), Vec::<PathBuf>::new());
+    assert!(!laptop.backup_folder.exists());
+}
+
+#[test]
 fn a_book_is_open_in_one_place_at_a_time() {
     let folder = TempFolder::new();
     let path = folder.join("Household.ksz");

@@ -93,7 +93,8 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.not-found` | | | There is no book at this place. It may have been moved or renamed. Choose it again. |
 | `store.book-not-empty` | | | A complete export can only be read into a new, empty book, and this one has something in it already. It wasn't changed. Choose a new book to read the export into. |
 | `store.not-a-book` | | | This file isn't a KassenSturz book. It wasn't changed. Choose another file, or import it if it comes from another program. |
-| `store.unsupported-layout` | `found`, `current` | | This book was made by a newer KassenSturz, or by a test version. Update KassenSturz to open it. |
+| `store.unsupported-layout` | `found`, `current` | | This book was made by a newer KassenSturz. Update KassenSturz to open it. It wasn't changed. |
+| `store.development-layout` | `found`, `current` | | This book was made by a test version of KassenSturz from before 0.1 (D-045). Open it with that version, choose "Save the whole book" there, and start a new book from the saved file. It wasn't changed. |
 | `store.locked` | `computer?`, `since?` | | This book is open on {computer} since {since}, or wasn't closed properly there. Close it there first. If that computer crashed, you can open it here anyway. |
 | `store.backup-failed` | | | KassenSturz couldn't make a backup before updating this book, so it left the book as it was. The detail below says why. Free up space or check the backup folder, then try again. |
 | `store.journal-mode-refused` | `mode` | | The book's file couldn't be set up safely, so KassenSturz didn't open it. Copy the book to a local folder and open it from there. |

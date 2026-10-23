@@ -33,9 +33,17 @@ pub enum StoreError {
     NotEmpty,
     /// The file isn't a KassenSturz book. It was left untouched.
     NotABook,
-    /// The book's layout is a different version: it was made by a newer
-    /// KassenSturz, or by a development build from before 0.1 (D-045).
+    /// The book's layout is a newer version than this KassenSturz knows: a
+    /// newer KassenSturz made it. It wasn't changed.
     UnsupportedLayout {
+        /// The layout version stored in the file.
+        found: i32,
+    },
+    /// The book was made by a development build from before 0.1, whose
+    /// layouts 0.1 merged into its starting layout (D-045, D-135). It wasn't
+    /// changed; the way over is the complete export made with that build,
+    /// read into a new book.
+    DevelopmentLayout {
         /// The layout version stored in the file.
         found: i32,
     },
@@ -350,6 +358,9 @@ impl Report for StoreError {
             Self::NotEmpty => new("store.book-not-empty"),
             Self::NotABook => new("store.not-a-book"),
             Self::UnsupportedLayout { found } => new("store.unsupported-layout")
+                .with("found", P::Number((*found).into()))
+                .with("current", P::Number(layout::VERSION.into())),
+            Self::DevelopmentLayout { found } => new("store.development-layout")
                 .with("found", P::Number((*found).into()))
                 .with("current", P::Number(layout::VERSION.into())),
             Self::Locked(lock) => {

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! The system keychain, through the `keyring` crate (Q-085, D-146).
+//! The system keychain, through the `keyring` crate (Q-085, D-147).
 
 use std::fmt;
 
@@ -220,7 +220,7 @@ mod tests {
     /// through `tools/sdk.sh`, whose sandbox may talk to the Secret
     /// Service. The secret is made up and removed again; it isn't run in
     /// CI, where no keychain answers. Checked on the maintainer's Plasma
-    /// 6.6.6, where `ksecretd` answers as the Secret Service (D-146).
+    /// 6.6.6, where `ksecretd` answers as the Secret Service (D-147).
     #[test]
     #[ignore = "needs a system keychain: run with --ignored on a desktop"]
     fn a_secret_survives_the_round_trip_through_the_system_keychain() {

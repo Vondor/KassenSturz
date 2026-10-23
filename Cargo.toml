@@ -21,6 +21,7 @@ kassensturz-aqbanking-sys = { path = "crates/kassensturz-aqbanking-sys" }
 kassensturz-core = { path = "crates/kassensturz-core" }
 kassensturz-export = { path = "crates/kassensturz-export" }
 kassensturz-import = { path = "crates/kassensturz-import", default-features = false }
+kassensturz-bank = { path = "crates/kassensturz-bank" }
 kassensturz-pipeline = { path = "crates/kassensturz-pipeline", default-features = false }
 kassensturz-platform = { path = "crates/kassensturz-platform" }
 kassensturz-store = { path = "crates/kassensturz-store", default-features = false }

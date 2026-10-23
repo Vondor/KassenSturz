@@ -1046,6 +1046,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "kassensturz-bank"
+version = "0.0.0"
+dependencies = [
+ "kassensturz-core",
+ "kassensturz-import",
+ "kassensturz-pipeline",
+ "kassensturz-store",
+ "zeroize",
+]
+
+[[package]]
 name = "kassensturz-cli"
 version = "0.0.0"
 dependencies = [

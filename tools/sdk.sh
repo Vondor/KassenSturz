@@ -26,7 +26,7 @@ mkdir -p "$cache"
 # them. Network access is only for Cargo's downloads: the app itself never gets
 # it (AGENTS.md §3.1 rule 4). The Secret Service is for the keychain test a
 # developer runs by hand (`cargo test -p kassensturz-platform -- --ignored`,
-# D-146); without it the SDK sandbox hides KWallet and GNOME Keyring. The
+# D-147); without it the SDK sandbox hides KWallet and GNOME Keyring. The
 # app's own Flatpak gets that permission in M4.8 (D-142), not here.
 exec flatpak run \
     --die-with-parent \

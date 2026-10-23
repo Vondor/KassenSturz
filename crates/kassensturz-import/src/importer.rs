@@ -122,6 +122,15 @@ pub fn import(
     Ok(imported)
 }
 
+/// Checks statements that didn't come through an importer, such as those a
+/// bank connection delivers (`kassensturz-bank`, M4.3), exactly as [`import`]
+/// checks an importer's: the limits on entries and text, and that every
+/// amount is in its statement's currency. The pipeline relies on these
+/// checks whichever way a statement arrives.
+pub fn check_statements(statements: &[Statement], limits: &Limits) -> Result<(), ImportError> {
+    check(&Imported::Statements(statements.to_vec()), limits)
+}
+
 /// Reads the file at `path` with `importer`, as [`import`] does. A file
 /// larger than `limits.max_file_bytes` is refused without reading more than
 /// that.

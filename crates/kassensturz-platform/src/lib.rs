@@ -7,7 +7,7 @@
 //!
 //! The [`Keychain`] trait stores, reads and deletes one [`Secret`] under a
 //! [`SecretKey`]. [`SystemKeychain`] is the real one: through the `keyring`
-//! crate (the maintainer's choice for Q-085, D-146) it reaches the Secret
+//! crate (the maintainer's choice for Q-085, D-147) it reaches the Secret
 //! Service on Linux, which KWallet and GNOME Keyring answer, and later
 //! Windows' Credential Manager and the macOS Keychain (M7).
 //! [`MemoryKeychain`] is the fake for tests and for a session without a

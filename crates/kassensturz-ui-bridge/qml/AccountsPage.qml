@@ -23,6 +23,10 @@ Kirigami.ScrollablePage {
 
     signal addAccountClicked()
     signal accountClicked(accountId: string)
+    // Fetch the new transactions of the accounts from the bank (M4.7).
+    signal getTransactionsClicked()
+    // Whether bank connections can be used here, so the action is offered.
+    property bool bankReady: false
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -35,6 +39,12 @@ Kirigami.ScrollablePage {
             icon.name: "list-add"
             text: page.i18nContext.i18nc("@action:button", "Add account")
             onTriggered: page.addAccountClicked()
+        },
+        Kirigami.Action {
+            icon.name: "mail-receive"
+            visible: page.bankReady && page.sections.length > 0
+            text: page.i18nContext.i18nc("@action:button get the accounts' new transactions from the bank over the internet", "Get new transactions")
+            onTriggered: page.getTransactionsClicked()
         },
         Kirigami.Action {
             icon.name: "view-visible"

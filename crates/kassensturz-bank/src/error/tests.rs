@@ -35,6 +35,7 @@ fn examples() -> Vec<BankError> {
         BankError::MalformedIban,
         BankError::UnknownLogin(LoginId::new("login-1")),
         BankError::UnknownAccount(BankAccountId::new("account-1")),
+        BankError::NoBankAccount,
         BankError::PinNeeded,
         BankError::PinRejected,
         BankError::Unreachable,

@@ -10,6 +10,7 @@ mod accounts;
 mod accounts_model;
 mod bank_connection;
 mod bank_connection_model;
+mod bank_fetch;
 mod book_from_file;
 mod book_from_file_model;
 mod book_session;

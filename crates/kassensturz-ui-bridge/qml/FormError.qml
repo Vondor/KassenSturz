@@ -289,6 +289,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This isn't an IBAN. It has two letters, two digits and then up to 30 letters or digits, for example DE89 3704 0044 0532 0130 00; spaces don't matter. Check it against what your bank shows.");
         case "bank.unknown-login":
             return i18nContext.i18nc("@info", "This bank login no longer exists in KassenSturz. Set it up again.");
+        case "bank.no-bank-account":
+            return i18nContext.i18nc("@info", "None of your bank logins lists the bank account this account is linked to. Connect the bank again in Settings, or link the account to another bank account.");
         case "bank.pin-needed":
             return i18nContext.i18nc("@info", "Your bank asks for your PIN. Type it to continue.");
         case "bank.pin-rejected":
@@ -319,6 +321,26 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "KassenSturz is still talking to your bank. Wait for it to finish and try again.");
         case "bank.keychain":
             return i18nContext.i18nc("@info", "The system keychain couldn't be reached, so the PIN couldn't be saved, read or removed. Make sure the keychain (for example KWallet) is unlocked, or choose to type the PIN each time.");
+        case "bank.malformed-amount":
+            return i18nContext.i18nc("@info %1 is an amount as the bank sent it", "Your bank sent an amount KassenSturz can't read: %1. Nothing was imported. If it keeps happening, report it with the amount as shown.", result.amount);
+        case "bank.inexact-amount":
+            return i18nContext.i18nc("@info %1 is an amount as the bank sent it", "Your bank sent an amount with a fraction of the smallest unit (%1), which KassenSturz never rounds. Nothing was imported. If it keeps happening, report it.", result.amount);
+        case "bank.amount-too-large":
+            return i18nContext.i18nc("@info %1 is an amount as the bank sent it", "Your bank sent an amount too large for KassenSturz to work with: %1. Nothing was imported.", result.amount);
+        case "bank.missing-currency":
+            return i18nContext.i18nc("@info", "Your bank didn't say which currency the amounts are in. Nothing was imported. Check the account's currency with your bank.");
+        case "bank.currency-mismatch":
+            return i18nContext.i18nc("@info %1 and %2 are currency codes", "Your bank sent amounts in %2 for an account in %1. Nothing was imported. Check the account's currency with your bank.", result.expected, result.found);
+        case "bank.missing-date":
+            return i18nContext.i18nc("@info", "Your bank sent a transaction without a date. Nothing was imported. If it keeps happening, report it.");
+        case "bank.statement":
+            return result.cause !== undefined
+                ? i18nContext.i18nc("@info %1 is an error code", "The transactions your bank sent couldn't be used (%1). Nothing was imported. If it keeps happening, report it.", result.cause)
+                : i18nContext.i18nc("@info", "The transactions your bank sent couldn't be used. Nothing was imported. If it keeps happening, report it.");
+        case "store.not-linked":
+            return i18nContext.i18nc("@info %1 is the name of an account", "%1 isn't linked to a bank account yet. Link it first, then get its new transactions.", result.account);
+        case "store.bank-account-already-linked":
+            return i18nContext.i18nc("@info %1 is the name of an account", "%1 is already linked to this bank account. Choose another bank account.", result.existing);
         case "input.no-fints":
             return i18nContext.i18nc("@info", "Banks outside Germany can't be connected yet. Import the files your bank offers instead.");
         case "input.empty-bank-address":

@@ -357,7 +357,7 @@ Kirigami.ScrollablePage {
                 wrapMode: Text.Wrap
                 font: Kirigami.Theme.smallFont
                 visible: page.choices.accounts !== undefined && page.choices.accounts.length === 0
-                text: page.i18nContext.i18nc("@info", "Your book has no account yet that the bank could fill. Add your accounts first, then remove this bank login in Settings and connect the bank again.")
+                text: page.i18nContext.i18nc("@info", "Your book has no account yet that the bank could fill. Add your accounts first; you can link them to the bank's accounts when you get new transactions.")
             }
 
             Controls.Button {

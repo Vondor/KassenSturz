@@ -8,8 +8,8 @@
 //! pipeline's real output first (M3 retro R3).
 
 use kassensturz_bank::{
-    Bank, BankAccount, BankAccountId, Failure, FakeBank, LoginId, MemoryPinStore, Pin, PinMode,
-    PinSession, statement,
+    Bank, BankAccount, BankAccountId, Failure, FakeBank, LoginId, MemoryPinStore, Pin, PinAsker,
+    PinMode, PinSession, fetch_linked, find_bank_account, statement,
 };
 use kassensturz_core::{Account, AccountId, AccountKind, BankLink, CurrencyCode, Date, Money};
 use kassensturz_import::{EntryStatus, Limits, Statement};
@@ -235,31 +235,21 @@ fn fetching_again_imports_nothing_twice() {
 
 #[test]
 fn the_links_find_the_banks_accounts_again() {
-    // As the fetch screen will (M4.7): the book's links, matched against
+    // As the fetch screen does (M4.7): the book's links, matched against
     // what the bank lists, by IBAN or by bank code and number. The card has
     // no IBAN, and the number is kept as the bank shows it.
     let setup = setup();
-    let listed = setup
-        .bank
-        .accounts(&LoginId::new("fake-login-1"))
-        .expect("accounts");
     let links = setup.book.bank_links().expect("links");
     assert_eq!(links.len(), 2);
     for link in &links {
-        let found: Vec<&BankAccount> = listed
-            .iter()
-            .filter(|account| {
-                (link.iban.is_some() && account.iban == link.iban)
-                    || (link.iban.is_none() && account.number == link.number)
-            })
-            .collect();
-        assert_eq!(found.len(), 1, "{link:?}");
+        let (login, found) = find_bank_account(&setup.bank, link).expect("found");
+        assert_eq!(login.id, LoginId::new("fake-login-1"));
         let expected = if link.account == setup.checking {
             &setup.current
         } else {
             &setup.card
         };
-        assert_eq!(&found[0].id, expected);
+        assert_eq!(&found.id, expected);
     }
     let card = links
         .iter()
@@ -311,6 +301,85 @@ fn broken_data_from_the_bank_imports_nothing() {
             amount: "1/3".to_owned()
         }
     );
+    assert_eq!(
+        setup
+            .book
+            .balance_on(setup.checking, october(9))
+            .expect("a balance"),
+        eur(0)
+    );
+}
+
+/// Never asked for a PIN: the session already has it.
+struct NoQuestions;
+
+impl PinAsker for NoQuestions {
+    fn pin(&mut self, _login: &kassensturz_bank::Login, _rejected: bool) -> Option<(Pin, PinMode)> {
+        panic!("the PIN was remembered, so nothing should be asked");
+    }
+}
+
+#[test]
+fn a_linked_account_is_fetched_and_imported_with_its_day_as_one_change() {
+    // What "Get new transactions" does for a linked account (M4.7): the
+    // link finds the bank account, the fetch starts on the link's day, and
+    // the import and the day are one user action that undo takes back
+    // together.
+    let mut setup = setup();
+    let link = setup
+        .book
+        .bank_link(setup.checking)
+        .expect("read")
+        .expect("linked");
+    assert_eq!(link.last_fetched_on, None);
+    let first = fetch_linked(
+        &mut setup.bank,
+        &mut setup.pins,
+        &mut NoQuestions,
+        &link,
+        &Limits::default(),
+    )
+    .expect("a statement");
+    assert_eq!(first.entries.len(), 4);
+    let checking = setup.checking;
+    setup
+        .book
+        .as_one_action(
+            kassensturz_store::Action::ImportStatement,
+            |book| -> Result<(), kassensturz_pipeline::PipelineError> {
+                import_statements(book, checking, &[first], &Choices::default(), None)?;
+                book.note_bank_fetch(checking, october(9))?;
+                Ok(())
+            },
+        )
+        .expect("imported");
+    let link = setup
+        .book
+        .bank_link(setup.checking)
+        .expect("read")
+        .expect("linked");
+    assert_eq!(link.last_fetched_on, Some(october(9)));
+
+    // The next fetch starts on that day: the 9th's pending payment only.
+    let second = fetch_linked(
+        &mut setup.bank,
+        &mut setup.pins,
+        &mut NoQuestions,
+        &link,
+        &Limits::default(),
+    )
+    .expect("a statement");
+    assert_eq!(second.entries.len(), 1);
+    assert_eq!(second.entries[0].status, EntryStatus::Pending);
+
+    // One undo takes back the transactions and the day.
+    setup.book.undo().expect("undone").expect("a change");
+    let link = setup
+        .book
+        .bank_link(setup.checking)
+        .expect("read")
+        .expect("linked");
+    assert_eq!(link.last_fetched_on, None);
     assert_eq!(
         setup
             .book

@@ -10,6 +10,7 @@
 #![forbid(unsafe_code)]
 
 mod backup;
+mod cached;
 mod details;
 mod error;
 mod fill;
@@ -174,6 +175,7 @@ impl Book {
     }
 
     fn finish(conn: Connection, lock: Option<HeldLock>) -> Result<Self, StoreError> {
+        conn.set_prepared_statement_cache_capacity(cached::CAPACITY);
         // SQLite checks foreign keys only if asked to, on every connection.
         conn.pragma_update(None, "foreign_keys", true)?;
         // SQLite overwrites what is deleted, so a change history that is

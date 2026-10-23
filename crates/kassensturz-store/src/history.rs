@@ -21,6 +21,7 @@ use std::path::Path;
 use kassensturz_core::{AccountId, Date, Timestamp};
 use rusqlite::{Connection, OptionalExtension, ToSql, params};
 
+use crate::cached::Cached;
 use crate::error::{Corruption, StoreError};
 use crate::{Book, date_from_text};
 
@@ -600,7 +601,7 @@ impl Book {
         }
         self.in_savepoint(|book| {
             book.conn
-                .execute("INSERT INTO temp.history_state (recording) VALUES (1)", [])
+                .execute_cached("INSERT INTO temp.history_state (recording) VALUES (1)", [])
                 .map_err(StoreError::from)?;
             book.recording = true;
             let changed = change(book);
@@ -637,7 +638,7 @@ impl Book {
         } else {
             // Recorded like a real action, so it fails where that would.
             self.conn
-                .execute("INSERT INTO temp.history_state (recording) VALUES (1)", [])
+                .execute_cached("INSERT INTO temp.history_state (recording) VALUES (1)", [])
                 .map(|_| ())
         };
         let result = match started {
@@ -670,7 +671,7 @@ impl Book {
             "only a user action can note the file it reads"
         );
         if let Some(name) = path.file_name() {
-            self.conn.execute(
+            self.conn.execute_cached(
                 "UPDATE temp.history_state SET file_name = ?1",
                 [name.to_string_lossy()],
             )?;
@@ -686,7 +687,7 @@ impl Book {
             let name = table.name;
             let key = table.key;
             // A row the action changed and then changed back isn't a change.
-            self.conn.execute(
+            self.conn.execute_cached(
                 &format!(
                     "DELETE FROM temp.staged_{name} WHERE {key} IN (
                          SELECT b.{key} FROM temp.staged_{name} AS b
@@ -696,7 +697,7 @@ impl Book {
                 ),
                 [],
             )?;
-            changed |= self.conn.query_row(
+            changed |= self.conn.query_row_cached(
                 &format!("SELECT EXISTS (SELECT 1 FROM temp.staged_{name})"),
                 [],
                 |row| row.get::<_, bool>(0),
@@ -709,7 +710,7 @@ impl Book {
             // the newest isn't undone, none is. Without this look, every
             // change would scan the whole history, and a book filled one
             // action at a time would slow down with every action (#84).
-            let undone: bool = self.conn.query_row(
+            let undone: bool = self.conn.query_row_cached(
                 &format!(
                     "SELECT EXISTS (SELECT 1 FROM {schema}.changes
                      WHERE sequence = (SELECT max(sequence) FROM {schema}.changes) AND undone = 1)"
@@ -722,7 +723,7 @@ impl Book {
             }
             let id = ChangeId::generate();
             let made_at = whole_seconds(Timestamp::now());
-            self.conn.execute(
+            self.conn.execute_cached(
                 &format!(
                     "INSERT INTO {schema}.changes (id, sequence, action, made_at, undone, file_name)
                      SELECT ?1, coalesce(max(sequence), 0) + 1, ?2, ?3, 0,
@@ -734,7 +735,7 @@ impl Book {
             for table in &RECORDED {
                 let name = table.name;
                 let columns = table.names("");
-                self.conn.execute(
+                self.conn.execute_cached(
                     &format!(
                         "INSERT INTO {schema}.changed_{name} (change_id, side, {columns})
                          SELECT ?1, side, {columns} FROM temp.staged_{name}"
@@ -746,9 +747,10 @@ impl Book {
         }
         for table in &RECORDED {
             self.conn
-                .execute(&format!("DELETE FROM temp.staged_{}", table.name), [])?;
+                .execute_cached(&format!("DELETE FROM temp.staged_{}", table.name), [])?;
         }
-        self.conn.execute("DELETE FROM temp.history_state", [])?;
+        self.conn
+            .execute_cached("DELETE FROM temp.history_state", [])?;
         Ok(())
     }
 
@@ -819,7 +821,7 @@ impl Book {
     /// in its order.
     fn changes(&self, rest: &str) -> Result<Vec<Change>, StoreError> {
         let schema = self.history_schema()?;
-        let mut statement = self.conn.prepare(&format!(
+        let mut statement = self.conn.prepare_cached(&format!(
             "SELECT id, action, made_at, undone, file_name FROM {schema}.changes {rest}"
         ))?;
         let rows = statement
@@ -865,7 +867,7 @@ impl Book {
              UNION SELECT transaction_id FROM {schema}.changed_splits WHERE change_id = ?1"
         );
         let mut summary = ChangeSummary::default();
-        let mut statement = self.conn.prepare(&format!(
+        let mut statement = self.conn.prepare_cached(&format!(
             "SELECT
                  EXISTS (SELECT 1 FROM {schema}.changed_transactions
                          WHERE change_id = ?1 AND id = touched.id AND side = 'before'),
@@ -883,7 +885,7 @@ impl Book {
         }
         drop(rows);
         drop(statement);
-        let mut statement = self.conn.prepare(&format!(
+        let mut statement = self.conn.prepare_cached(&format!(
             "SELECT DISTINCT account_id FROM (
                  SELECT account_id FROM {schema}.changed_splits WHERE change_id = ?1
                  UNION ALL
@@ -894,7 +896,7 @@ impl Book {
         summary.accounts = statement
             .query_map([id], |row| Ok(AccountId::from_bytes(row.get(0)?)))?
             .collect::<Result<_, _>>()?;
-        let (first, last): (Option<String>, Option<String>) = self.conn.query_row(
+        let (first, last): (Option<String>, Option<String>) = self.conn.query_row_cached(
             &format!(
                 "SELECT min(booking_date), max(booking_date) FROM (
                      SELECT booking_date FROM {schema}.changed_transactions WHERE change_id = ?1
@@ -932,13 +934,13 @@ impl Book {
 
     fn write_back(&mut self, schema: &str, change: ChangeId, side: Side) -> Result<(), StoreError> {
         self.conn
-            .execute("INSERT INTO temp.history_state (recording) VALUES (0)", [])?;
+            .execute_cached("INSERT INTO temp.history_state (recording) VALUES (0)", [])?;
         let id = change.to_bytes();
         // The book must hold what the other side says, or the values written
         // back wouldn't fit what is around them.
         for table in &RECORDED {
             let Recorded { name, key, .. } = table;
-            let differs: bool = self.conn.query_row(
+            let differs: bool = self.conn.query_row_cached(
                 &format!(
                     "SELECT EXISTS (
                          SELECT 1 FROM (
@@ -961,7 +963,7 @@ impl Book {
             let Recorded { name, key, .. } = table;
             let columns = table.names("");
             self.conn
-                .execute(
+                .execute_cached(
                     &format!(
                         "DELETE FROM main.{name} WHERE {key} IN (
                              SELECT {key} FROM {schema}.changed_{name} WHERE change_id = ?1)"
@@ -970,7 +972,7 @@ impl Book {
                 )
                 .map_err(mismatch_if_refused)?;
             self.conn
-                .execute(
+                .execute_cached(
                     &format!(
                         "INSERT INTO main.{name} ({columns})
                          SELECT {columns} FROM {schema}.changed_{name}
@@ -980,19 +982,20 @@ impl Book {
                 )
                 .map_err(mismatch_if_refused)?;
         }
-        let broken_references: i64 =
-            self.conn
-                .query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |row| {
-                    row.get(0)
-                })?;
+        let broken_references: i64 = self.conn.query_row_cached(
+            "SELECT count(*) FROM pragma_foreign_key_check",
+            [],
+            |row| row.get(0),
+        )?;
         if broken_references > 0 {
             return Err(StoreError::Corrupt(Corruption::HistoryMismatch));
         }
-        self.conn.execute(
+        self.conn.execute_cached(
             &format!("UPDATE {schema}.changes SET undone = ?2 WHERE id = ?1"),
             params![id, side == Side::Before],
         )?;
-        self.conn.execute("DELETE FROM temp.history_state", [])?;
+        self.conn
+            .execute_cached("DELETE FROM temp.history_state", [])?;
         Ok(())
     }
 
@@ -1001,7 +1004,7 @@ impl Book {
     pub fn history_retention(&self) -> Result<HistoryRetention, StoreError> {
         let days: Option<Option<i64>> = self
             .conn
-            .query_row(
+            .query_row_cached(
                 "SELECT keep_days FROM main.history_settings WHERE id = 1",
                 [],
                 |row| row.get(0),
@@ -1037,7 +1040,7 @@ impl Book {
                 HistoryRetention::Days(days) => Some(i64::from(days)),
                 HistoryRetention::Forever => None,
             };
-            let changed = book.conn.execute(
+            let changed = book.conn.execute_cached(
                 "UPDATE main.history_settings SET keep_days = ?1 WHERE id = 1",
                 [days],
             )?;
@@ -1142,7 +1145,7 @@ fn delete_changes(
     params: &[&dyn ToSql],
 ) -> Result<(), StoreError> {
     for table in &RECORDED {
-        conn.execute(
+        conn.execute_cached(
             &format!(
                 "DELETE FROM {schema}.changed_{name}
                  WHERE change_id IN (SELECT id FROM {schema}.changes WHERE {which})",
@@ -1151,7 +1154,7 @@ fn delete_changes(
             params,
         )?;
     }
-    conn.execute(
+    conn.execute_cached(
         &format!("DELETE FROM {schema}.changes WHERE {which}"),
         params,
     )?;
@@ -1161,7 +1164,7 @@ fn delete_changes(
 /// Moves the whole history from the database `from` into `to`, which holds
 /// none, e.g. into memory when the user keeps it for 0 days.
 fn move_history(conn: &Connection, from: &str, to: &str) -> Result<(), StoreError> {
-    conn.execute(
+    conn.execute_cached(
         &format!(
             "INSERT INTO {to}.changes (id, sequence, action, made_at, undone, file_name)
              SELECT id, sequence, action, made_at, undone, file_name FROM {from}.changes"
@@ -1171,7 +1174,7 @@ fn move_history(conn: &Connection, from: &str, to: &str) -> Result<(), StoreErro
     for table in &RECORDED {
         let name = table.name;
         let columns = table.names("");
-        conn.execute(
+        conn.execute_cached(
             &format!(
                 "INSERT INTO {to}.changed_{name} (change_id, side, {columns})
                  SELECT change_id, side, {columns} FROM {from}.changed_{name}"
@@ -1195,7 +1198,7 @@ fn prune_after_change(
 ) -> Result<(), StoreError> {
     if let HistoryRetention::Days(days @ 1..) = keep {
         let oldest: Option<String> = conn
-            .query_row(
+            .query_row_cached(
                 "SELECT made_at FROM main.changes ORDER BY sequence LIMIT 1",
                 [],
                 |row| row.get(0),
@@ -1223,7 +1226,7 @@ fn prune(conn: &Connection, keep: HistoryRetention, now: Timestamp) -> Result<()
     let last: Option<i64> = match keep {
         HistoryRetention::Forever => None,
         HistoryRetention::Days(0) => {
-            conn.query_row("SELECT max(sequence) FROM main.changes", [], |row| {
+            conn.query_row_cached("SELECT max(sequence) FROM main.changes", [], |row| {
                 row.get(0)
             })?
         }
@@ -1233,7 +1236,7 @@ fn prune(conn: &Connection, keep: HistoryRetention, now: Timestamp) -> Result<()
                 .checked_sub(86_400 * i64::from(days))
                 .and_then(|second| Timestamp::from_second(second).ok());
             match limit {
-                Some(limit) => conn.query_row(
+                Some(limit) => conn.query_row_cached(
                     "SELECT max(sequence) FROM main.changes WHERE made_at < ?1",
                     [limit.to_string()],
                     |row| row.get(0),

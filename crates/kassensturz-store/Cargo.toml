@@ -20,7 +20,8 @@ bundled-sqlite = ["rusqlite/bundled"]
 
 [dependencies]
 kassensturz-core.workspace = true
-rusqlite.workspace = true
+# `cache` keeps prepared statements (Q-084); it adds `hashlink`.
+rusqlite = { workspace = true, features = ["cache"] }
 uuid.workspace = true
 
 [lints]

@@ -1040,14 +1040,14 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-aqbanking-stub"
-version = "0.0.0"
+version = "0.261023.0"
 dependencies = [
  "kassensturz-aqbanking-sys",
 ]
 
 [[package]]
 name = "kassensturz-aqbanking-sys"
-version = "0.0.0"
+version = "0.261023.0"
 dependencies = [
  "kassensturz-aqbanking-sys",
  "libloading",
@@ -1056,7 +1056,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-bank"
-version = "0.0.0"
+version = "0.261023.0"
 dependencies = [
  "kassensturz-aqbanking-sys",
  "kassensturz-core",
@@ -1069,7 +1069,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-cli"
-version = "0.0.0"
+version = "0.261023.0"
 dependencies = [
  "kassensturz-core",
  "kassensturz-export",
@@ -1081,7 +1081,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-core"
-version = "0.0.0"
+version = "0.261023.0"
 dependencies = [
  "jiff",
  "proptest",
@@ -1092,7 +1092,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-export"
-version = "0.0.0"
+version = "0.261023.0"
 dependencies = [
  "kassensturz-core",
  "proptest",
@@ -1102,7 +1102,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-import"
-version = "0.0.0"
+version = "0.261023.0"
 dependencies = [
  "flate2",
  "kassensturz-core",
@@ -1113,7 +1113,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-pipeline"
-version = "0.0.0"
+version = "0.261023.0"
 dependencies = [
  "kassensturz-core",
  "kassensturz-export",
@@ -1123,7 +1123,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-platform"
-version = "0.0.0"
+version = "0.261023.0"
 dependencies = [
  "kassensturz-core",
  "keyring",
@@ -1132,7 +1132,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-store"
-version = "0.0.0"
+version = "0.261023.0"
 dependencies = [
  "kassensturz-core",
  "rusqlite",
@@ -1141,7 +1141,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-ui-bridge"
-version = "0.0.0"
+version = "0.261023.0"
 dependencies = [
  "cxx",
  "cxx-qt",

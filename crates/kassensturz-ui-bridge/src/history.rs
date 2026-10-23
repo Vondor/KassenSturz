@@ -124,6 +124,9 @@ pub fn action_key(action: Action) -> &'static str {
         Action::AddInstitution => "add-institution",
         Action::AddPayee => "add-payee",
         Action::AddTag => "add-tag",
+        Action::LinkBankAccount => "link-bank-account",
+        Action::UnlinkBankAccount => "unlink-bank-account",
+        Action::FetchStatement => "fetch-statement",
     }
 }
 

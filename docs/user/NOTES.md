@@ -140,3 +140,10 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - What the bank sends is imported exactly like a file from your bank: new transactions are shown first, look-alikes are yours to decide, transactions the bank hasn't booked yet are counted but not imported, and KassenSturz checks its balance against the bank's. An amount KassenSturz can't read exactly stops the import; nothing is ever rounded or guessed.
 - Your PIN: by default you type it every time. You can choose to keep it until you close KassenSturz, or to save it in your system's keychain (KWallet or GNOME Keyring). If your bank says the PIN was wrong, KassenSturz forgets it at once, so your login isn't blocked by repeating it. Removing a bank login removes its saved PIN too.
 - Bank connections need AqBanking. Without it, or with one that is too old, KassenSturz works as before and tells you what to install; the Flatpak brings AqBanking along (M4.8).
+
+## Which account is filled from which bank account (M4.4a)
+
+- Your book remembers which of your bank accounts fills each account, by its IBAN (or, for a card, by its number at the bank), and the day it was last fetched. That is all: no login name, no PIN and nothing from your keychain is ever stored in the book, so copies and backups of the book give nothing away about your bank login.
+- If you open your book on another computer, the links come along; you only set up the bank login there once, and KassenSturz finds the bank accounts again.
+- Linking an account, removing the link and fetching from the bank each show up in the history and can be undone like any other change; undoing a fetch takes back what it imported and the fetch day together.
+- A copy of your book (the complete export) keeps the links too, so a book made from it needs only the bank logins set up again.

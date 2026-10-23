@@ -39,8 +39,9 @@ Left out is the **change history** (D-032, D-066). It belongs to the book file, 
 | 2 | A part can have an `original` amount, from before it was converted out of a withdrawn currency, and a rate's `source` can be `changeover` (M2.9b, D-104). |
 | 3 | A part can have a `date` and a `payee` of its own, which its account shows instead of the transaction's, as the second side of a joined Transfer does (#44, D-108). |
 | 4 | The file lists the `institutions` (banks), `payees` and `tags`. An account has a `number`, `notes` and an `institution`, and may sit inside another account (`parent`); a transaction has a `note`, the date it was `entered` and `attachments` (links); a part has a `note`, a `number`, a `status` and `tags`. What the KMyMoney import used to drop (D-132). |
+| 5 | The file lists the `bank_links`: which bank account an account is filled from and the day it was last fetched, without any login data (M4.4a, D-147). |
 
-An older file is read as version 4 without what came later: a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, and so is a version 1 to 3 file with any key of version 4 (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three new lists, even when they are empty (`export.missing-value`).
+An older file is read as version 5 without what came later: a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, so is a version 1 to 3 file with any key of version 4, and so is a version 1 to 4 file with `bank_links` (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three lists of version 4, and a version 5 file the `bank_links` list too, even when they are empty (`export.missing-value`).
 
 ## The top level
 
@@ -52,6 +53,7 @@ An older file is read as version 4 without what came later: a version 1 file wit
   "currencies": [...],
   "institutions": [...],
   "accounts": [...],
+  "bank_links": [...],
   "payees": [...],
   "tags": [...],
   "rates": [...],
@@ -63,11 +65,12 @@ An older file is read as version 4 without what came later: a version 1 file wit
 | Key | Value |
 |---|---|
 | `format` | Always `"kassensturz-book"`. A JSON file without it isn't a complete export (`export.not-a-book`). |
-| `version` | The [version](#versions) of the format: `4`. |
+| `version` | The [version](#versions) of the format: `5`. |
 | `settings` | The book's [settings](#settings). |
 | `currencies` | The [currencies](#currencies) the book uses. |
 | `institutions` | The [banks](#banks) the accounts are held at. Version 4 and later. |
 | `accounts` | The [accounts and categories](#accounts-and-categories). |
+| `bank_links` | The [bank links](#bank-links): which bank account an account is filled from. Version 5 and later. |
 | `payees` | The [payees](#payees) with their details. Version 4 and later. |
 | `tags` | The [tags](#tags) parts can carry. Version 4 and later. |
 | `rates` | The [price table](#rates). |
@@ -121,6 +124,18 @@ One object per account and category, including the internal account for starting
 | `number` | For an account: its number or IBAN at the bank, or `null`. Always `null` for a category and the internal account. Version 4 and later. |
 | `notes` | What the user noted about it, or `null`. Version 4 and later. |
 | `institution` | For an account: the ID of the [bank](#banks) it is held at, or `null`. Always `null` for a category and the internal account. Version 4 and later. |
+
+### Bank links
+
+One object per account that is filled from a bank account (D-147), sorted by account ID. Version 5 and later. A link names the bank account so that it is found again in any bank login that lists it, on this computer or another: it holds no login name, PIN or anything else from a login (D-139).
+
+| Key | Value |
+|---|---|
+| `account` | The ID of the [account](#accounts-and-categories) in the book: an `asset` or `liability` account. One link per account. |
+| `iban` | The bank account's IBAN, without spaces and in capitals, or `null` if it has none, as a credit card usually hasn't. |
+| `bank_code` | The bank's code in its country, e.g. a German bank code, or `null`. Required with `number` when `iban` is `null`. |
+| `number` | The number the bank lists the account by, e.g. a card number as the bank shows it, or `null`. Required with `bank_code` when `iban` is `null`. |
+| `last_fetched` | The day the account was last fetched from the bank, as a date, or `null` before the first fetch. |
 
 ### Payees
 
@@ -240,7 +255,7 @@ A book with one account, one category and one transaction:
 ```json
 {
   "format": "kassensturz-book",
-  "version": 4,
+  "version": 5,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2}
@@ -249,6 +264,9 @@ A book with one account, one category and one transaction:
   "accounts": [
     {"id": "019a0000-0000-7000-8000-000000000001", "name": "Checking account", "kind": "asset", "currency": "EUR", "type": "checking", "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
     {"id": "019a0000-0000-7000-8000-000000000002", "name": "Food", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null}
+  ],
+  "bank_links": [
+    {"account": "019a0000-0000-7000-8000-000000000001", "iban": "DE89370400440532013000", "bank_code": null, "number": null, "last_fetched": "2026-10-05"}
   ],
   "payees": [],
   "tags": [],

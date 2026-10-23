@@ -85,11 +85,19 @@ pub enum Action {
     AddPayee,
     /// Added a tag (D-132).
     AddTag,
+    /// Linked an account to the bank account it is filled from, or changed
+    /// that link (Q-086, D-147).
+    LinkBankAccount,
+    /// Removed an account's bank link.
+    UnlinkBankAccount,
+    /// Fetched an account's statement from its bank, imported it, and noted
+    /// the day on the bank link (D-147).
+    FetchStatement,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 25] = [
+    pub const ALL: [Self; 28] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -115,6 +123,9 @@ impl Action {
         Self::AddInstitution,
         Self::AddPayee,
         Self::AddTag,
+        Self::LinkBankAccount,
+        Self::UnlinkBankAccount,
+        Self::FetchStatement,
     ];
 }
 
@@ -214,7 +225,7 @@ pub(crate) struct Recorded {
 
 /// Every table that holds the book's data. Only the history's own tables
 /// aren't recorded: `changes`, the `changed_` tables and `history_settings`.
-pub(crate) const RECORDED: [Recorded; 16] = [
+pub(crate) const RECORDED: [Recorded; 17] = [
     Recorded {
         name: "settings",
         key: "id",
@@ -404,6 +415,17 @@ pub(crate) const RECORDED: [Recorded; 16] = [
             ("position", "INTEGER"),
             ("link", "TEXT"),
             ("title", "TEXT"),
+        ],
+    },
+    Recorded {
+        name: "bank_links",
+        key: "account_id",
+        columns: &[
+            ("account_id", "BLOB"),
+            ("iban", "TEXT"),
+            ("bank_code", "TEXT"),
+            ("number", "TEXT"),
+            ("last_fetched_on", "TEXT"),
         ],
     },
 ];
@@ -1295,6 +1317,9 @@ fn action_to_text(action: Action) -> &'static str {
         Action::AddInstitution => "add_institution",
         Action::AddPayee => "add_payee",
         Action::AddTag => "add_tag",
+        Action::LinkBankAccount => "link_bank_account",
+        Action::UnlinkBankAccount => "unlink_bank_account",
+        Action::FetchStatement => "fetch_statement",
     }
 }
 

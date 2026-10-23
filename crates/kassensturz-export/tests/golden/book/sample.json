@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 4,
+  "version": 5,
   "settings": {"rounding_mode": "half_even", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2},
@@ -19,6 +19,10 @@
     {"id": "019a0000-0000-7000-8000-000000000004", "name": "Food", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
     {"id": "019a0000-0000-7000-8000-000000000005", "name": "Bakery", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": "019a0000-0000-7000-8000-000000000004", "number": null, "notes": null, "institution": null},
     {"id": "019a0000-0000-7000-8000-000000000006", "name": "Travel", "kind": "expense", "currency": "USD", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null}
+  ],
+  "bank_links": [
+    {"account": "019a0000-0000-7000-8000-000000000001", "iban": "DE89370400440532013000", "bank_code": "37040044", "number": null, "last_fetched": "2026-10-08"},
+    {"account": "019a0000-0000-7000-8000-000000000007", "iban": null, "bank_code": "37040044", "number": "0532013001", "last_fetched": null}
   ],
   "payees": [
     {

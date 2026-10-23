@@ -6,7 +6,7 @@
 //! the IBAN is the example for Germany in SWIFT's IBAN Registry (D-055).
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, AccountType, Actions, AmountTest, BookTo, Condition,
+    Account, AccountId, AccountKind, AccountType, Actions, AmountTest, BankLink, BookTo, Condition,
     CurrencyCode, Date, DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails,
     MatchMode, Money, RateSource, RoundingMode, Rule, RuleId, Split, TextField, TextOperator,
     Transaction, TransactionId,
@@ -161,6 +161,26 @@ fn household() -> Book {
         EUR,
         None,
     );
+    // The checking account is filled from the bank account with SWIFT's
+    // example IBAN and was fetched once; the card is linked by its number
+    // (M4.4a, D-147).
+    book.link_bank_account(&BankLink {
+        account: checking,
+        iban: Some("DE89370400440532013000".into()),
+        bank_code: None,
+        number: None,
+        last_fetched_on: None,
+    })
+    .expect("linked");
+    book.note_bank_fetch(checking, day(20)).expect("fetched");
+    book.link_bank_account(&BankLink {
+        account: card,
+        iban: None,
+        bank_code: Some("37040044".into()),
+        number: Some("4000 0000 0000 0001".into()),
+        last_fetched_on: None,
+    })
+    .expect("linked");
     let cash = add(
         &mut book,
         "Dollars",
@@ -435,6 +455,9 @@ fn a_book_comes_back_from_its_export_as_it_was() {
             .count(),
         1
     );
+    assert_eq!(data.bank_links, book.bank_links().expect("read"));
+    assert_eq!(data.bank_links.len(), 2);
+    assert_eq!(data.bank_links[0].last_fetched_on, Some(day(20)));
 
     let file = export(&BookExport, &ExportData::Book(data.clone())).expect("written");
     let read = read_book(&file).expect("read back");
@@ -465,6 +488,10 @@ fn a_book_comes_back_from_its_export_as_it_was() {
         book.categories().expect("read")
     );
     assert_eq!(copy.rules().expect("read"), book.rules().expect("read"));
+    assert_eq!(
+        copy.bank_links().expect("read"),
+        book.bank_links().expect("read")
+    );
     assert_eq!(copy.rounding_mode().expect("read"), RoundingMode::HalfEven);
     assert_eq!(
         copy.history_retention().expect("read"),

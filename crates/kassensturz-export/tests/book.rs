@@ -9,11 +9,12 @@ use std::fs;
 use std::path::PathBuf;
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, AccountType, Actions, AmountTest, Attachment, BookTo,
-    Condition, Currency, CurrencyCode, Date, DatedRate, DatedRateId, ExchangeRate, ForeignAmount,
-    ImportedDetails, Institution, InstitutionId, MatchMode, Money, OriginalAmount, PartStatus,
-    Payee, PayeeId, PayeeRecognition, RateSource, RoundingMode, Rule, RuleId, RuleNode, Split,
-    SplitId, Tag, TagId, TextField, TextOperator, Transaction, TransactionError, TransactionId,
+    Account, AccountId, AccountKind, AccountType, Actions, AmountTest, Attachment, BankLink,
+    BookTo, Condition, Currency, CurrencyCode, Date, DatedRate, DatedRateId, ExchangeRate,
+    ForeignAmount, ImportedDetails, Institution, InstitutionId, MatchMode, Money, OriginalAmount,
+    PartStatus, Payee, PayeeId, PayeeRecognition, RateSource, RoundingMode, Rule, RuleId, RuleNode,
+    Split, SplitId, Tag, TagId, TextField, TextOperator, Transaction, TransactionError,
+    TransactionId,
 };
 use kassensturz_export::{
     BookData, BookExport, BookedByRule, CsvExport, Expected, ExportData, ExportError, ExportKind,
@@ -414,6 +415,25 @@ fn sample() -> BookData {
                 name: "Weekend".into(),
             },
         ],
+        // The current account is filled from the bank account with SWIFT's
+        // example IBAN, last fetched on the 8th; the old savings account was
+        // linked by its number at the bank and never fetched (D-147).
+        bank_links: vec![
+            BankLink {
+                account: AccountId::from_bytes(id(checking)),
+                iban: Some("DE89370400440532013000".into()),
+                bank_code: Some("37040044".into()),
+                number: None,
+                last_fetched_on: Some(day(8)),
+            },
+            BankLink {
+                account: AccountId::from_bytes(id(7)),
+                iban: None,
+                bank_code: Some("37040044".into()),
+                number: Some("0532013001".into()),
+                last_fetched_on: None,
+            },
+        ],
     }
 }
 
@@ -541,6 +561,7 @@ fn values_that_may_be_empty_can_be_left_out() {
             institutions: Vec::new(),
             payees: Vec::new(),
             tags: Vec::new(),
+            bank_links: Vec::new(),
         }
     );
 }
@@ -571,13 +592,13 @@ fn what_is_not_a_complete_export_is_refused() {
     assert_eq!(read_book(b"[1, 2]"), Err(ExportError::NotABook));
     assert_eq!(read_book(b"{\"name\": \"x\"}"), Err(ExportError::NotABook));
     assert_eq!(
-        read_book(&changed("\"version\": 4", "\"version\": 5")),
-        Err(ExportError::NewerVersion { version: 5 })
+        read_book(&changed("\"version\": 5", "\"version\": 6")),
+        Err(ExportError::NewerVersion { version: 6 })
     );
     for version in ["\"2\"", "0", "-1", "2.5"] {
         assert_eq!(
             read_book(&changed(
-                "\"version\": 4",
+                "\"version\": 5",
                 &format!("\"version\": {version}")
             )),
             bad("version", Expected::Number),
@@ -901,6 +922,66 @@ fn banks_payees_tags_and_notes_come_with_version_4() {
     assert_eq!(
         book.payees[0].recognition,
         PayeeRecognition::ByKeyWords(vec!["Bread".into()])
+    );
+}
+
+#[test]
+fn bank_links_come_with_version_5() {
+    // An older file has no bank links; a version 5 file must list them,
+    // even when there are none (D-147).
+    let lists = r#""institutions": [], "payees": [], "tags": [], "rates": []"#;
+    let version_4 = SHORT
+        .replacen("\"version\": 1", "\"version\": 4", 1)
+        .replacen(r#""rates": []"#, lists, 1);
+    let with_links = version_4.replacen(r#""rates": []"#, r#""rates": [], "bank_links": []"#, 1);
+    assert_eq!(
+        read_book(with_links.as_bytes()),
+        Err(ExportError::UnknownValue {
+            path: "bank_links".into()
+        })
+    );
+    let version_5 = version_4.replacen("\"version\": 4", "\"version\": 5", 1);
+    assert_eq!(
+        read_book(version_5.as_bytes()),
+        Err(ExportError::MissingValue {
+            path: "bank_links".into()
+        })
+    );
+    let link = r#""bank_links": [{"account": "019a0000-0000-7000-8000-000000000001", "iban": "DE89370400440532013000", "bank_code": null, "number": null, "last_fetched": "2026-10-08"}]"#;
+    let linked = version_5.replacen(r#""rates": []"#, &format!(r#""rates": [], {link}"#), 1);
+    let book = read_book(linked.as_bytes()).expect("read");
+    assert_eq!(
+        book.bank_links,
+        vec![BankLink {
+            account: AccountId::from_bytes(id(1)),
+            iban: Some("DE89370400440532013000".into()),
+            bank_code: None,
+            number: None,
+            last_fetched_on: Some(day(8)),
+        }]
+    );
+    // One link per account; the file says nothing about which account.
+    let twice = linked.replacen(r#""bank_links": ["#, r#""bank_links": [{"account": "019a0000-0000-7000-8000-000000000001", "iban": null, "bank_code": "37040044", "number": "1", "last_fetched": null}, "#, 1);
+    assert_eq!(
+        read_book(twice.as_bytes()),
+        Err(ExportError::Duplicate {
+            path: "bank_links[1].account".into()
+        })
+    );
+    // A value that may be null may be left out; a date is a date.
+    let short = linked.replacen(r#", "last_fetched": "2026-10-08""#, "", 1);
+    assert_eq!(
+        read_book(short.as_bytes()).expect("read").bank_links[0].last_fetched_on,
+        None
+    );
+    let wrong = linked.replacen(
+        r#""last_fetched": "2026-10-08""#,
+        r#""last_fetched": "8.10.2026""#,
+        1,
+    );
+    assert_eq!(
+        read_book(wrong.as_bytes()),
+        bad("bank_links[0].last_fetched", Expected::Date)
     );
 }
 

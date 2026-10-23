@@ -150,6 +150,9 @@ fn examples() -> Vec<ErrorReport> {
         StoreError::UnknownCurrency(USD),
         StoreError::UnknownAccount(account),
         StoreError::EmptyAccountName,
+        StoreError::IncompleteBankLink(account),
+        StoreError::BankAccountAlreadyLinked { existing: account },
+        StoreError::NotLinked(account),
         StoreError::DuplicateAccountName { existing: account },
         StoreError::AccountTypeMismatch {
             account_type: AccountType::CreditCard,

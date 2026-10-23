@@ -70,6 +70,12 @@ QtObject {
             return i18nContext.i18nc("@info a change you made", "Added someone you pay or get money from");
         case "add-tag":
             return i18nContext.i18nc("@info a change you made", "Added a tag");
+        case "link-bank-account":
+            return i18nContext.i18nc("@info a change you made", "Linked an account to your bank");
+        case "unlink-bank-account":
+            return i18nContext.i18nc("@info a change you made", "Removed an account's link to your bank");
+        case "fetch-statement":
+            return i18nContext.i18nc("@info a change you made", "Fetched new transactions from your bank");
         default:
             // A newer version of KassenSturz knows more changes than this
             // one; the book still opens, and its history says so.

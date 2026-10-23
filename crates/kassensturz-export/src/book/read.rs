@@ -18,10 +18,10 @@ use std::io::Read;
 use std::path::Path;
 
 use kassensturz_core::{
-    Account, AccountId, Actions, AmountTest, Attachment, BookTo, Condition, Currency, CurrencyCode,
-    Date, DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails, Institution,
-    InstitutionId, Money, OriginalAmount, Payee, PayeeId, PayeeRecognition, RateSource, Rule,
-    RuleId, RuleNode, Split, SplitId, Tag, TagId, Transaction, TransactionId,
+    Account, AccountId, Actions, AmountTest, Attachment, BankLink, BookTo, Condition, Currency,
+    CurrencyCode, Date, DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails,
+    Institution, InstitutionId, Money, OriginalAmount, Payee, PayeeId, PayeeRecognition,
+    RateSource, Rule, RuleId, RuleNode, Split, SplitId, Tag, TagId, Transaction, TransactionId,
 };
 use serde_json::{Map, Value};
 
@@ -93,6 +93,9 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
     ];
     if version >= 4 {
         keys.extend(["institutions", "payees", "tags"]);
+    }
+    if version >= 5 {
+        keys.push("bank_links");
     }
     let top = Object::new(&file, "", &keys)?;
     let mut reader = Reader {
@@ -186,6 +189,31 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
                 .optional_id("institution")?
                 .map(InstitutionId::from_bytes),
         });
+    }
+
+    let mut bank_links = Vec::new();
+    if version >= 5 {
+        let mut linked = HashSet::new();
+        for (value, path) in top.list("bank_links")? {
+            let link = Object::new(
+                value,
+                &path,
+                &["account", "iban", "bank_code", "number", "last_fetched"],
+            )?;
+            let account = AccountId::from_bytes(link.id("account")?);
+            if !linked.insert(account) {
+                return Err(ExportError::Duplicate {
+                    path: format!("{path}.account"),
+                });
+            }
+            bank_links.push(BankLink {
+                account,
+                iban: link.optional_text("iban")?,
+                bank_code: link.optional_text("bank_code")?,
+                number: link.optional_text("number")?,
+                last_fetched_on: link.optional_date("last_fetched")?,
+            });
+        }
     }
 
     let mut payees = Vec::new();
@@ -315,6 +343,7 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         institutions,
         payees,
         tags,
+        bank_links,
     })
 }
 

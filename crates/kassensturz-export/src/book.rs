@@ -16,9 +16,9 @@ use std::collections::{HashMap, HashSet};
 use std::io::Write;
 
 use kassensturz_core::{
-    Account, AccountKind, AccountType, AmountTest, Condition, Currency, CurrencyCode, DatedRate,
-    Institution, MatchMode, Money, PartStatus, Payee, PayeeRecognition, RateSource, RoundingMode,
-    RuleId, RuleNode, SplitId, Tag, TextField, TextOperator, Transaction,
+    Account, AccountKind, AccountType, AmountTest, BankLink, Condition, Currency, CurrencyCode,
+    DatedRate, Institution, MatchMode, Money, PartStatus, Payee, PayeeRecognition, RateSource,
+    RoundingMode, RuleId, RuleNode, SplitId, Tag, TextField, TextOperator, Transaction,
 };
 
 use crate::data::ExportData;
@@ -41,8 +41,9 @@ pub const FORMAT: &str = "kassensturz-book";
 /// out of a withdrawn currency (D-104), version 3 a part's own date and
 /// payee, which its account shows instead of the transaction's (D-108),
 /// version 4 institutions, payees and tags, and the notes, numbers and
-/// status that came over from another program's book with them (D-132).
-pub const VERSION: u64 = 4;
+/// status that came over from another program's book with them (D-132),
+/// version 5 the bank links (M4.4a, D-147).
+pub const VERSION: u64 = 5;
 
 /// How deep Rules can sit inside each other in the file: a top-level Rule is
 /// at depth 1. Deeper trees are refused when writing and reading, so a file
@@ -79,6 +80,9 @@ pub struct BookData {
     pub payees: Vec<Payee>,
     /// The tags (D-132).
     pub tags: Vec<Tag>,
+    /// Which bank account an account is filled from, and the day it was
+    /// last fetched; no login data (D-147).
+    pub bank_links: Vec<BankLink>,
 }
 
 /// A part a Rule booked, which the Rules may book again when the user
@@ -149,6 +153,10 @@ impl Exporter for BookExport {
             (
                 "accounts",
                 Json::List(book.accounts.iter().map(account).collect()),
+            ),
+            (
+                "bank_links",
+                Json::List(book.bank_links.iter().map(bank_link).collect()),
             ),
             (
                 "payees",
@@ -495,6 +503,19 @@ fn account(account: &Account) -> Json {
         ("number", Json::optional_text(account.number.as_deref())),
         ("notes", Json::optional_text(account.notes.as_deref())),
         ("institution", Json::optional_id(account.institution)),
+    ])
+}
+
+fn bank_link(link: &BankLink) -> Json {
+    Json::Object(vec![
+        ("account", Json::id(link.account)),
+        ("iban", Json::optional_text(link.iban.as_deref())),
+        ("bank_code", Json::optional_text(link.bank_code.as_deref())),
+        ("number", Json::optional_text(link.number.as_deref())),
+        (
+            "last_fetched",
+            link.last_fetched_on.map_or(Json::Null, Json::date),
+        ),
     ])
 }
 

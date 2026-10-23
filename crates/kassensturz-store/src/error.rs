@@ -74,6 +74,16 @@ pub enum StoreError {
     UnknownAccount(AccountId),
     /// The account's name is empty.
     EmptyAccountName,
+    /// A bank link must name a bank account: an IBAN, or a bank code with an
+    /// account number (D-147).
+    IncompleteBankLink(AccountId),
+    /// Another account is already linked to this bank account.
+    BankAccountAlreadyLinked {
+        /// The account that is.
+        existing: AccountId,
+    },
+    /// The account has no bank link, so there is nothing to note a fetch on.
+    NotLinked(AccountId),
     /// Another account already has this name, ignoring capitals. The user
     /// can pick another name.
     DuplicateAccountName {
@@ -390,6 +400,15 @@ impl Report for StoreError {
                 new("store.unknown-account").with("account", P::Account(*account))
             }
             Self::EmptyAccountName => new("store.empty-account-name"),
+            Self::IncompleteBankLink(account) => {
+                new("store.incomplete-bank-link").with("account", P::Account(*account))
+            }
+            Self::BankAccountAlreadyLinked { existing } => {
+                new("store.bank-account-already-linked").with("existing", P::Account(*existing))
+            }
+            Self::NotLinked(account) => {
+                new("store.not-linked").with("account", P::Account(*account))
+            }
             Self::DuplicateAccountName { existing } => {
                 new("store.duplicate-account-name").with("existing", P::Account(*existing))
             }

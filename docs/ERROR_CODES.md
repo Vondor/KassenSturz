@@ -103,6 +103,9 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.unknown-currency` | `currency` | | The currency {currency} isn't used in this book yet. Add it first. |
 | `store.unknown-account` | `account` | | This account or category isn't in the book anymore. It may have just been removed. |
 | `store.empty-account-name` | | | Give the account a name. |
+| `store.incomplete-bank-link` | `account` | | To link {account} to your bank, KassenSturz needs the bank account's IBAN, or its bank code with its account number. |
+| `store.bank-account-already-linked` | `existing` | | {existing} is already linked to this bank account. Remove that link first, or choose another bank account. |
+| `store.not-linked` | `account` | | {account} isn't linked to a bank account yet. Link it first, then fetch. |
 | `store.duplicate-account-name` | `existing` | | {existing} already has this name. Choose another one, so you can tell them apart. |
 | `store.account-type-mismatch` | `account_type`, `kind` | | {account_type} doesn't fit this kind of account. Choose another type. |
 | `store.not-an-account` | `account` | | {account} is a category, not an account. Choose an account. |

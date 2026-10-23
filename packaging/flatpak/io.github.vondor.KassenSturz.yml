@@ -92,6 +92,9 @@ modules:
   - name: gwenhywfar
     config-opts:
       - --with-guis=qt6
+      # The runtime's libgcrypt has no libgcrypt-config any more; Gwenhywfar's
+      # configure asks gpgrt-config instead, as GnuCash's Flathub module does.
+      - GPGRT_CONFIG=/usr/bin/gpgrt-config
     cleanup:
       - /bin
     sources:

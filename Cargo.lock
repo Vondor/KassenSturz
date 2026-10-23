@@ -1148,10 +1148,12 @@ dependencies = [
  "cxx-qt-build",
  "cxx-qt-lib",
  "cxx-qt-lib-extras",
+ "kassensturz-bank",
  "kassensturz-core",
  "kassensturz-export",
  "kassensturz-import",
  "kassensturz-pipeline",
+ "kassensturz-platform",
  "kassensturz-store",
  "proptest",
 ]

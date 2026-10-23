@@ -22,6 +22,8 @@ fn main() {
             "qml/AmountLine.qml",
             "qml/Balance.qml",
             "qml/BankCheckPage.qml",
+            "qml/BankDialogs.qml",
+            "qml/BankSetupPage.qml",
             "qml/BookFromFileDonePage.qml",
             "qml/BookFromFilePage.qml",
             "qml/BookProblemPage.qml",
@@ -55,6 +57,7 @@ fn main() {
         ]))
         .files([
             "src/accounts_model.rs",
+            "src/bank_connection_model.rs",
             "src/book_from_file_model.rs",
             "src/book_session.rs",
             "src/categories_model.rs",

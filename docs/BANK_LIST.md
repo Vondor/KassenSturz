@@ -9,15 +9,15 @@ This document is the "Agent Info" the maintainer asked for (item 94 of the Propo
 
 ## What the app shows when something is missing
 
-Every gap is an explicit state (`kassensturz_bank::Setup`), shown in plain language with what to do next (AGENTS.md §6). The screens (M4.6) and the wording (M4.9) build on these states; the words below are the suggested English.
+Every gap is an explicit state (`kassensturz_bank::Setup`), shown in plain language with what to do next (AGENTS.md §6). The setup page (M4.6, D-151) shows each state as below; the wording is reviewed in M4.9.
 
 | State | When | What the user sees, and can do |
 |---|---|---|
 | `Ready` | The bank, its server and its login kinds are known | The bank's name is shown for confirmation; the app asks the login kind's questions (`LoginKind::questions`): login name, a customer ID only where the bank has one, PIN; or the chip card. |
-| `NoFints` | The IBAN is from another country than Germany | "Banks in {country} don't offer the connection KassenSturz uses (FinTS). You can import a file from your bank instead." No bank lookup happens. |
-| `UnknownBank` | No source knows the bank code | "KassenSturz doesn't know a bank with the code {code}. You can enter its name and server yourself, or import a file instead." The fallback is the manual setup (Gwenhywfar's dialog, Q-035). The code goes into a bug report so the list can be completed. |
-| `NoServer` | The bank is known, but no FinTS server address is | "{bank} is known, but not how to reach it. If your bank offers FinTS (also called HBCI), enter the server address from your bank's website, or import a file instead." |
-| `UnknownLoginKind` | The bank and its server are known, but not how customers log in | "{bank} is known, but not how you log in there. Choose: login name and PIN, or chip card." The user's choice goes into the report. |
+| `NoFints` | The IBAN is from another country than Germany | "Banks outside Germany can't be connected yet: the system KassenSturz uses for this (FinTS) is a German one. Import the files your bank offers instead." No bank lookup happens. |
+| `UnknownBank` | No source knows the bank code | "KassenSturz's bank lists don't know this bank yet. If your bank offers FinTS (some call it HBCI), type the address it gives for it below…" The page shows the bank code and a FinTS address field (`https://` only, D-151); Gwenhywfar's own setup dialog as a further fallback waits for Q-089. The code goes into a bug report so the list can be completed. |
+| `NoServer` | The bank is known, but no FinTS server address is | "KassenSturz's bank lists don't have this bank's FinTS address. If your bank offers FinTS (some call it HBCI), type the address it gives for it below…", with the same address field. |
+| `UnknownLoginKind` | The bank and its server are known, but not how customers log in | "KassenSturz's bank lists don't say how you log in at this bank. KassenSturz tries a login with a PIN and a TAN, which most banks use." A chip card can't be set up yet (Q-089). |
 
 Errors while connecting are the `bank.` codes in `docs/ERROR_CODES.md`, each with what to do next.
 

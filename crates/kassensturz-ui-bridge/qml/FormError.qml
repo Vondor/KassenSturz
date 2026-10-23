@@ -279,6 +279,58 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "KassenSturz found no folder to keep a new book in. Check that your user folder can be written to.");
         case "store.already-exists":
             return i18nContext.i18nc("@info %1 is a file name", "There is a book called \"%1\" already. Nothing was made.", result.file);
+        case "bank.not-installed":
+            return i18nContext.i18nc("@info", "Bank connections need AqBanking, which isn't installed on this computer. Install it from your distribution, or import a file from your bank instead.");
+        case "bank.too-old":
+            return i18nContext.i18nc("@info %1 is a program's name, %2 and %3 version numbers", "The installed %1 is version %2; KassenSturz needs %3 or newer. Update it, or import a file from your bank instead.", result.library === "gwenhywfar" ? "Gwenhywfar" : "AqBanking", result.found, result.minimum);
+        case "bank.not-registered":
+            return i18nContext.i18nc("@info", "This version of KassenSturz isn't registered with the German banks' FinTS system yet, so it can't connect to a bank. Import a file from your bank instead.");
+        case "bank.malformed-iban":
+            return i18nContext.i18nc("@info", "This isn't an IBAN. It has two letters, two digits and then up to 30 letters or digits, for example DE89 3704 0044 0532 0130 00; spaces don't matter. Check it against what your bank shows.");
+        case "bank.unknown-login":
+            return i18nContext.i18nc("@info", "This bank login no longer exists in KassenSturz. Set it up again.");
+        case "bank.pin-needed":
+            return i18nContext.i18nc("@info", "Your bank asks for your PIN. Type it to continue.");
+        case "bank.pin-rejected":
+            return i18nContext.i18nc("@info", "Your bank says the PIN is wrong. KassenSturz has forgotten it, so it won't be sent again. Check it and type it again; after a few wrong PINs a bank blocks the login.");
+        case "bank.unreachable":
+            return i18nContext.i18nc("@info", "Your bank's server couldn't be reached. Check your internet connection and the bank's address, and try again later.");
+        case "bank.refused":
+            return result.text !== undefined
+                ? i18nContext.i18nc("@info %1 is the bank's own message", "Your bank refused the request. It says: %1. Try again later; if it keeps happening, ask your bank.", result.text)
+                : i18nContext.i18nc("@info", "Your bank refused the request. Try again later; if it keeps happening, ask your bank.");
+        case "bank.aborted":
+            return i18nContext.i18nc("@info", "The bank's question was closed before it was answered, so nothing was done. Start again when you are ready.");
+        case "bank.tan-needed":
+            return i18nContext.i18nc("@info", "Your bank asks for a TAN, and KassenSturz had no way to ask you for it. Nothing was done. Try again.");
+        case "bank.tan-method-unsupported":
+            return i18nContext.i18nc("@info", "Your bank shows the TAN as a picture (a flicker code, photoTAN or QR code), which KassenSturz can't show yet. Choose a TAN method at your bank that sends the TAN as text or asks you to approve in its app, then try again.");
+        case "bank.untrusted-server":
+            return i18nContext.i18nc("@info", "The bank server's security certificate didn't pass every check, so KassenSturz sent nothing to it. Check your internet connection and the bank's address; if it keeps happening, ask your bank.");
+        case "bank.needs-setup-dialog":
+            return i18nContext.i18nc("@info", "A chip-card login can't be set up in KassenSturz yet. Use a login with PIN and TAN for this bank, or import a file from your bank instead.");
+        case "bank.setup-failed":
+            return result.text !== undefined
+                ? i18nContext.i18nc("@info %1 is the bank software's own message", "The bank login couldn't be set up, so nothing of it was kept. The bank software says: %1. Check the login name and the bank's address and try again.", result.text)
+                : i18nContext.i18nc("@info", "The bank login couldn't be set up, so nothing of it was kept. Check the login name and the bank's address and try again.");
+        case "bank.folder":
+            return i18nContext.i18nc("@info", "The folder KassenSturz keeps its bank settings in couldn't be created or opened. Check that your user folder can be written to.");
+        case "bank.busy":
+            return i18nContext.i18nc("@info", "KassenSturz is still talking to your bank. Wait for it to finish and try again.");
+        case "bank.keychain":
+            return i18nContext.i18nc("@info", "The system keychain couldn't be reached, so the PIN couldn't be saved, read or removed. Make sure the keychain (for example KWallet) is unlocked, or choose to type the PIN each time.");
+        case "input.no-fints":
+            return i18nContext.i18nc("@info", "Banks outside Germany can't be connected yet. Import the files your bank offers instead.");
+        case "input.empty-bank-address":
+            return i18nContext.i18nc("@info", "Type your bank's FinTS address. Your bank's website or support can tell you.");
+        case "input.bank-address-not-https":
+            return i18nContext.i18nc("@info", "A FinTS address starts with https:// and has no spaces, for example %1. Check it against what your bank gives.", "https://fints.example-bank.de/fints");
+        case "input.empty-login-name":
+            return i18nContext.i18nc("@info", "Type the login name you use for your bank's website.");
+        case "input.empty-customer-id":
+            return i18nContext.i18nc("@info", "This bank gives its customers a customer ID next to the login name. Type it too; you find it in your bank's letters.");
+        case "input.empty-pin":
+            return i18nContext.i18nc("@info", "Type your PIN. KassenSturz keeps it only as long as you choose below.");
         default:
             return i18nContext.i18nc("@info %1 is an error code", "Something went wrong (%1). Please report this, so it can be fixed.", result.code);
         }

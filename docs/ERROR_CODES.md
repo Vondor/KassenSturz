@@ -10,12 +10,12 @@ The UI keeps one translated message per code and fills in the parameters (D-084)
 
 The app's own checks of what the user typed, e.g. an amount in the wrong regional format, aren't errors of core or store: their codes start with `input.`, they live in `kassensturz-ui-bridge` and aren't listed here (D-089). The same goes for the app's own problems opening a book, whose codes start with `book.` (D-113).
 
-This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, and one in `kassensturz-export` (`src/error/tests.rs`) against the `export.` codes, all with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
+This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, one in `kassensturz-export` (`src/error/tests.rs`) against the `export.` codes, and one in `kassensturz-bank` (`src/error/tests.rs`) against the `bank.` codes, all with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
 
 ## Rules
 
 - **Codes are stable.** A code keeps its meaning. One that is no longer needed is retired, never given to another error. Before 0.1, codes can still change, like the book's layout (D-045).
-- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import` or `export`. Damage found in a book starts with `store.corrupt`.
+- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import`, `export` or `bank`. Damage found in a book starts with `store.corrupt`.
 - **Parameters** are listed in the order the report gives them. A name ending in `?` is optional: the report leaves it out when it isn't known.
 - **Parameter types** (`ErrorParam`):
   - Amounts (`Money`), currencies, dates and timestamps stay typed. The UI formats them for the user's locale (D-002, D-065) and shows timestamps in the user's time zone.
@@ -227,3 +227,29 @@ Data couldn't be written to a file (D-099), or a complete export couldn't be rea
 | `export.bad-value` | `path`, `expected` | `object`, `list`, `text`, `number`, `yes-or-no`, `null`, `id`, `date`, `amount`, `currency`, `rate`, `keyword` | In the complete export, {path} isn't what it should be: an object, a list, text, a whole number in its range, true or false, null (because another value rules it out), an ID, a date like 2026-10-05, an amount like -12.50 with at most the currency's decimal places, a currency code like EUR, an exchange rate like 1.0856, or one of the words the format lists for it (`docs/EXPORT_FORMAT.md`). Correct it, or export the book again. Nothing was read. |
 | `export.duplicate` | `path` | | In the complete export, {path} has the same ID as an entry before it, or names a currency twice. Correct it, or export the book again. Nothing was read. |
 | `export.invalid-transaction` | `path` | | In the complete export, the transaction at {path} doesn't add up or contradicts itself; the detail below says how. Correct it, or export the book again. Nothing was read. |
+
+## Bank connections (`kassensturz-bank`)
+
+A bank connection couldn't be used, or what the bank delivered couldn't be turned into a statement (D-053, D-141, D-144). Nothing was imported, so the book is unchanged; the fetch can be tried again. No report ever carries a PIN, a TAN or a login name: logins are named by their ID (threat T-02 in `docs/THREAT_MODEL.md`). A bank's own message (`text`) is data the user may read, never an instruction (AGENTS.md §8).
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `bank.not-installed` | | | Bank connections need AqBanking, which isn't installed on this computer. Install it from your distribution (the Flatpak brings it along), or import a file from your bank instead. |
+| `bank.too-old` | `library`, `found`, `minimum` | `aqbanking`, `gwenhywfar` | The installed {library} is version {found}; KassenSturz needs {minimum} or newer. Update it, or import a file from your bank instead. |
+| `bank.not-registered` | | | This build of KassenSturz has no registration with the banks' FinTS system yet, so it can't connect to a bank. Import a file from your bank instead. |
+| `bank.malformed-iban` | | | This isn't an IBAN. It has two letters, two digits and then up to 30 letters or digits, e.g. DE89 3704 0044 0532 0130 00; spaces don't matter. Check it against what your bank shows. |
+| `bank.unknown-login` | `login` | | This bank login no longer exists in KassenSturz. Set it up again. |
+| `bank.unknown-account` | `account` | | The bank doesn't list this account for your login anymore. Check the accounts of the bank login, or link the account in KassenSturz to another one. |
+| `bank.pin-needed` | | | Your bank asks for your PIN. Type it to continue. |
+| `bank.pin-rejected` | | | Your bank says the PIN is wrong. KassenSturz has forgotten the PIN it had, so it won't be sent again. Check it and type it again; after a few wrong PINs a bank blocks the login. |
+| `bank.unreachable` | | | Your bank's server couldn't be reached. Check your internet connection and try again later. |
+| `bank.refused` | `text?` | | Your bank refused the request. It says: {text}. Try again later; if it keeps happening, ask your bank. |
+| `bank.aborted` | | | The bank dialog was closed before it finished. Nothing was fetched. Start again when you are ready. |
+| `bank.keychain` | | | The system keychain couldn't be reached, so a saved PIN couldn't be saved, read or removed. Make sure the keychain (KWallet or GNOME Keyring) is unlocked, or choose to type the PIN each time. |
+| `bank.malformed-amount` | `amount` | | Your bank sent an amount KassenSturz can't read: {amount}. Nothing was imported. If it keeps happening, report it with the amount as shown. |
+| `bank.inexact-amount` | `amount` | | Your bank sent an amount with a fraction of the smallest unit ({amount}), which KassenSturz never rounds. Nothing was imported. If it keeps happening, report it with the amount as shown. |
+| `bank.amount-too-large` | `amount` | | Your bank sent an amount too large for KassenSturz to work with: {amount}. Nothing was imported. |
+| `bank.missing-currency` | | | Your bank didn't say which currency the amounts are in. Nothing was imported. Check the account's currency with your bank. |
+| `bank.currency-mismatch` | `expected`, `found` | | Your bank sent amounts in {found} for an account in {expected}. Nothing was imported. Check the account's currency with your bank. |
+| `bank.missing-date` | | | Your bank sent a transaction without a date. Nothing was imported. If it keeps happening, report it. |
+| `bank.statement` | | | The fetched transactions couldn't be used: see the cause. Nothing was imported. |

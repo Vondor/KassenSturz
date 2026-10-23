@@ -54,8 +54,8 @@ pub use csv::{
 };
 pub use error::ImportError;
 pub use importer::{
-    ImportKind, Imported, Importer, ImporterInfo, RECOGNITION_BYTES, Recognition, import,
-    import_file,
+    ImportKind, Imported, Importer, ImporterInfo, RECOGNITION_BYTES, Recognition, check_statements,
+    import, import_file,
 };
 pub use kmy::{Kmy, KmySqlite};
 pub use limits::{Limits, read_file};

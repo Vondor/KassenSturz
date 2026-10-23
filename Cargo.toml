@@ -20,6 +20,7 @@ publish = false
 kassensturz-core = { path = "crates/kassensturz-core" }
 kassensturz-export = { path = "crates/kassensturz-export" }
 kassensturz-import = { path = "crates/kassensturz-import", default-features = false }
+kassensturz-bank = { path = "crates/kassensturz-bank" }
 kassensturz-pipeline = { path = "crates/kassensturz-pipeline", default-features = false }
 kassensturz-store = { path = "crates/kassensturz-store", default-features = false }
 
@@ -51,6 +52,9 @@ serde_json = "=1.0.154"
 # Without serde: KassenSturz stores rates as two INTEGER columns (D-051).
 rust_decimal = { version = "=1.43.0", default-features = false, features = ["std"] }
 uuid = { version = "=1.28.0", features = ["v7"] }
+# Wipes a banking PIN from memory when it is no longer needed (D-057, threat
+# T-02). Without its default features: `alloc` is enough for a wiped String.
+zeroize = { version = "=1.9.1", default-features = false, features = ["alloc"] }
 
 # Test-only dependencies, covered by the license allowlist (D-026).
 proptest = { version = "=1.12.0", default-features = false, features = ["std"] }

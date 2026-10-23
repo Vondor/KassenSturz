@@ -311,6 +311,8 @@ pub struct AccountRegisterRust {
     count: i32,
     unfiltered: i32,
     filter: QString,
+    /// The account the rows were last read for.
+    read_for: QString,
     today: QString,
     sort: Sort,
     rows: Vec<RegisterRow>,
@@ -332,6 +334,12 @@ impl qobject::AccountRegister {
     fn show(mut self: Pin<&mut Self>, account_id: &QString) {
         // Another account starts unfiltered, the same one keeps its filter.
         let same = self.rust().account_id == *account_id;
+        // Already read: every change to the book makes the screens read it
+        // again (`Main.bookChanged`), so reading it a second time on the way
+        // in only costs time.
+        if same && self.rust().read_for == *account_id {
+            return;
+        }
         self.as_mut().rust_mut().account_id = account_id.clone();
         self.as_mut().account_id_changed();
         if !same {
@@ -394,6 +402,8 @@ impl qobject::AccountRegister {
             model.count = i32::try_from(model.rows.len()).unwrap_or(i32::MAX);
         }
         self.as_mut().end_reset_model();
+        let read_for = self.rust().account_id.clone();
+        self.as_mut().rust_mut().read_for = read_for;
         self.as_mut().unfiltered_changed();
         self.as_mut().account_name_changed();
         self.as_mut().balance_changed();

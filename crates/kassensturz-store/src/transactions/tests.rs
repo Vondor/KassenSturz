@@ -1360,3 +1360,47 @@ fn a_months_transactions_are_read_by_booking_date_with_both_ends_included() {
         Some((date(2026, 9, 30), date(2026, 11, 1)))
     );
 }
+
+#[test]
+fn the_transactions_of_an_account_are_those_with_a_part_in_it_as_read_one_by_one() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        salary,
+    } = sample();
+    let savings = account(&mut book, "Savings", AccountKind::Asset, EUR);
+    let shopping = transaction(
+        date(2026, 10, 5),
+        "Corner Grocery",
+        &[(checking, eur(-5320)), (groceries, eur(5320))],
+    );
+    let pay = transaction(
+        date(2026, 10, 1),
+        "Example Employer",
+        &[(checking, eur(240_000)), (salary, eur(-240_000))],
+    );
+    let saving = transaction(
+        date(2026, 10, 2),
+        "Savings plan",
+        &[(savings, eur(10_000)), (salary, eur(-10_000))],
+    );
+    for added in [&shopping, &pay, &saving] {
+        book.add_transaction(added).expect("added");
+    }
+
+    let found = book.transactions_of(checking).expect("read");
+    assert_eq!(found, vec![pay.clone(), shopping.clone()]);
+    for transaction in &found {
+        assert_eq!(
+            &book.transaction(transaction.id()).expect("one"),
+            transaction
+        );
+    }
+    assert_eq!(book.transactions_of(savings).expect("read"), vec![saving]);
+    assert!(
+        book.transactions_of(AccountId::generate())
+            .expect("read")
+            .is_empty()
+    );
+}

@@ -7,6 +7,8 @@
 //! (D-065, D-118). The writes behind the register's pages are in
 //! `transaction_entry.rs`.
 
+use std::collections::HashMap;
+
 use kassensturz_core::{AccountId, AccountKind, CurrencyCode, Date, Money, TransactionId};
 use kassensturz_store::{Book, StoreError};
 
@@ -216,6 +218,16 @@ pub fn kind_of(
     account: AccountId,
     transaction: &kassensturz_core::Transaction,
 ) -> Result<(EntryKind, String), StoreError> {
+    kind_of_with(account, transaction, |id| book.account(id))
+}
+
+/// [`kind_of`] with the other part's account looked up by `lookup`, so a
+/// whole register can use one list of accounts instead of a query per line.
+fn kind_of_with(
+    account: AccountId,
+    transaction: &kassensturz_core::Transaction,
+    lookup: impl Fn(AccountId) -> Result<kassensturz_core::Account, StoreError>,
+) -> Result<(EntryKind, String), StoreError> {
     let mut own = 0;
     let mut others = Vec::new();
     for split in transaction.splits() {
@@ -234,7 +246,7 @@ pub fn kind_of(
     let Some(id) = other.account else {
         return Ok((EntryKind::Simple, String::new()));
     };
-    let other = book.account(id)?;
+    let other = lookup(id)?;
     Ok(match other.kind {
         AccountKind::Income | AccountKind::Expense => (EntryKind::Simple, other.name),
         AccountKind::Equity => (EntryKind::StartingBalance, String::new()),
@@ -249,9 +261,27 @@ pub fn entries(book: &Book, account: AccountId) -> Result<Vec<Entry>, StoreError
     let details = book.account(account)?;
     let mut balance = Money::zero(details.currency);
     let mut entries = Vec::new();
+    // Read once, not once per line.
+    let transactions: HashMap<TransactionId, kassensturz_core::Transaction> = book
+        .transactions_of(account)?
+        .into_iter()
+        .map(|transaction| (transaction.id(), transaction))
+        .collect();
+    let accounts: HashMap<AccountId, kassensturz_core::Account> = book
+        .all_accounts()?
+        .into_iter()
+        .map(|account| (account.id, account))
+        .collect();
     for entry in book.register(account)? {
-        let transaction = book.transaction(entry.transaction)?;
-        let (kind, category) = kind_of(book, account, &transaction)?;
+        let transaction = transactions
+            .get(&entry.transaction)
+            .ok_or(StoreError::UnknownTransaction(entry.transaction))?;
+        let (kind, category) = kind_of_with(account, transaction, |id| {
+            accounts
+                .get(&id)
+                .cloned()
+                .ok_or(StoreError::UnknownAccount(id))
+        })?;
         balance = balance
             .checked_add(entry.amount)
             .map_err(|_| StoreError::AmountOverflow)?;

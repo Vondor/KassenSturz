@@ -14,6 +14,7 @@ use kassensturz_core::{
 };
 use rusqlite::{Connection, OptionalExtension, params};
 
+use crate::cached::Cached;
 use crate::error::{Corruption, StoreError};
 use crate::{
     Action, Book, RateRow, currency_from_text, date_from_text, date_to_text, source_to_text,
@@ -87,7 +88,7 @@ impl Book {
         let accounts = self.check_transaction(transaction)?;
         let exists: Option<i64> = self
             .conn
-            .query_row(
+            .query_row_cached(
                 "SELECT 1 FROM transactions WHERE id = ?1",
                 [transaction.id().to_bytes()],
                 |row| row.get(0),
@@ -104,7 +105,7 @@ impl Book {
             }
         }
         self.as_one_action(Action::AddTransaction, |book| {
-            book.conn.execute(
+            book.conn.execute_cached(
                 "INSERT INTO transactions (id, booking_date, payee, currency, note, entered_on)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                 params![
@@ -163,7 +164,7 @@ impl Book {
         }
         let id = transaction.id().to_bytes();
         self.as_one_action(Action::EditTransaction, |book| {
-            book.conn.execute(
+            book.conn.execute_cached(
                 "UPDATE transactions
                  SET booking_date = ?2, payee = ?3, currency = ?4, note = ?5, entered_on = ?6
                  WHERE id = ?1",
@@ -180,10 +181,10 @@ impl Book {
             // with the new parts. The history records only the parts that
             // really changed.
             book.conn
-                .execute("DELETE FROM splits WHERE transaction_id = ?1", [id])?;
+                .execute_cached("DELETE FROM splits WHERE transaction_id = ?1", [id])?;
             insert_splits(&book.conn, transaction)?;
             book.conn
-                .execute("DELETE FROM attachments WHERE transaction_id = ?1", [id])?;
+                .execute_cached("DELETE FROM attachments WHERE transaction_id = ?1", [id])?;
             insert_attachments(&book.conn, transaction)
         })
     }
@@ -197,7 +198,7 @@ impl Book {
     pub fn remove_transaction(&mut self, id: TransactionId) -> Result<(), StoreError> {
         // What the transaction books to each closed account, in the
         // account's currency, added up in 128 bits.
-        let mut statement = self.conn.prepare(
+        let mut statement = self.conn.prepare_cached(
             "SELECT s.account_id, coalesce(s.foreign_amount, s.amount)
              FROM splits AS s JOIN accounts AS a ON a.id = s.account_id
              WHERE s.transaction_id = ?1 AND a.closed = 1
@@ -224,7 +225,7 @@ impl Book {
         self.as_one_action(Action::RemoveTransaction, |book| {
             let removed = book
                 .conn
-                .execute("DELETE FROM transactions WHERE id = ?1", [id.to_bytes()])?;
+                .execute_cached("DELETE FROM transactions WHERE id = ?1", [id.to_bytes()])?;
             if removed == 1 {
                 Ok(())
             } else {
@@ -239,7 +240,7 @@ impl Book {
     pub fn transaction(&self, id: TransactionId) -> Result<Transaction, StoreError> {
         let row: Option<TransactionRow> = self
             .conn
-            .query_row(
+            .query_row_cached(
                 "SELECT booking_date, payee, currency, note, entered_on FROM transactions
                  WHERE id = ?1",
                 [id.to_bytes()],
@@ -248,7 +249,7 @@ impl Book {
             .optional()?;
         let header = row.ok_or(StoreError::UnknownTransaction(id))?;
 
-        let mut statement = self.conn.prepare(&format!(
+        let mut statement = self.conn.prepare_cached(&format!(
             "SELECT {SPLIT_COLUMNS}, {IMPORTED_COLUMNS} {SPLIT_TABLES}
              WHERE s.transaction_id = ?1 ORDER BY s.position"
         ))?;
@@ -266,7 +267,7 @@ impl Book {
         assemble(id, header, attachments, rows, |account| {
             let currency: Option<String> = self
                 .conn
-                .query_row(
+                .query_row_cached(
                     "SELECT currency FROM accounts WHERE id = ?1",
                     [account.to_bytes()],
                     |row| row.get(0),
@@ -311,7 +312,7 @@ impl Book {
     /// The earliest and the latest booking date in the book, or `None` in a
     /// book without transactions.
     pub fn booking_date_range(&self) -> Result<Option<(Date, Date)>, StoreError> {
-        let range: (Option<String>, Option<String>) = self.conn.query_row(
+        let range: (Option<String>, Option<String>) = self.conn.query_row_cached(
             "SELECT min(booking_date), max(booking_date) FROM transactions",
             [],
             |row| Ok((row.get(0)?, row.get(1)?)),
@@ -336,7 +337,7 @@ impl Book {
             .into_iter()
             .map(|account| (account.id, account.currency))
             .collect();
-        let mut statement = self.conn.prepare(&format!(
+        let mut statement = self.conn.prepare_cached(&format!(
             "SELECT {SPLIT_COLUMNS}, {IMPORTED_COLUMNS}, s.transaction_id {SPLIT_TABLES}
              JOIN transactions AS t ON t.id = s.transaction_id
              {filter}
@@ -359,7 +360,7 @@ impl Book {
             parts.entry(transaction).or_default().push(split);
         }
         drop(rows);
-        let mut statement = self.conn.prepare(&format!(
+        let mut statement = self.conn.prepare_cached(&format!(
             "SELECT t.id, t.booking_date, t.payee, t.currency, t.note, t.entered_on
              FROM transactions AS t
              {filter}
@@ -393,7 +394,7 @@ impl Book {
         filter: &str,
         params: &[&dyn rusqlite::ToSql],
     ) -> Result<HashMap<[u8; 16], Vec<Attachment>>, StoreError> {
-        let mut statement = self.conn.prepare(&format!(
+        let mut statement = self.conn.prepare_cached(&format!(
             "SELECT a.transaction_id, a.link, a.title FROM attachments AS a
              {filter}
              ORDER BY a.transaction_id, a.position"
@@ -420,7 +421,7 @@ impl Book {
         filter: &str,
         params: &[&dyn rusqlite::ToSql],
     ) -> Result<HashMap<SplitId, Vec<TagId>>, StoreError> {
-        let mut statement = self.conn.prepare(&format!(
+        let mut statement = self.conn.prepare_cached(&format!(
             "SELECT s.id, g.tag_id FROM split_tags AS g
              JOIN splits AS s ON s.id = g.split_id
              {filter}
@@ -441,7 +442,7 @@ impl Book {
     /// with (D-108).
     pub fn register(&self, account: AccountId) -> Result<Vec<RegisterEntry>, StoreError> {
         let account = self.account(account)?;
-        let mut statement = self.conn.prepare(
+        let mut statement = self.conn.prepare_cached(
             "SELECT t.id, coalesce(s.own_date, t.booking_date), coalesce(s.own_payee, t.payee),
                     t.currency, s.id, s.amount, s.foreign_amount, s.foreign_currency
              FROM splits AS s JOIN transactions AS t ON t.id = s.transaction_id
@@ -482,7 +483,7 @@ impl Book {
     /// account gives one entry per part.
     pub fn account_parts(&self, account: AccountId) -> Result<Vec<AccountPart>, StoreError> {
         let account = self.account(account)?;
-        let mut statement = self.conn.prepare(&format!(
+        let mut statement = self.conn.prepare_cached(&format!(
             "SELECT t.id, coalesce(s.own_date, t.booking_date), t.currency,
                     s.id, s.amount, s.foreign_amount, s.foreign_currency,
                     s.original_amount, s.original_currency, {IMPORTED_COLUMNS}
@@ -515,7 +516,7 @@ impl Book {
     /// transaction's, that's its foreign amount (D-043).
     pub fn balance(&self, account: AccountId) -> Result<Money, StoreError> {
         let account = self.account(account)?;
-        let mut statement = self.conn.prepare(
+        let mut statement = self.conn.prepare_cached(
             "SELECT t.id, t.currency, s.id, s.amount, s.foreign_amount, s.foreign_currency
              FROM splits AS s JOIN transactions AS t ON t.id = s.transaction_id
              WHERE s.account_id = ?1",
@@ -620,7 +621,7 @@ impl Book {
                 }
                 let known: Option<i64> = self
                     .conn
-                    .query_row(
+                    .query_row_cached(
                         "SELECT 1 FROM tags WHERE id = ?1",
                         [tag.to_bytes()],
                         |row| row.get(0),
@@ -632,7 +633,7 @@ impl Book {
             }
             let used_by: Option<[u8; 16]> = self
                 .conn
-                .query_row(
+                .query_row_cached(
                     "SELECT transaction_id FROM splits WHERE id = ?1",
                     [split.id.to_bytes()],
                     |row| row.get(0),
@@ -797,7 +798,7 @@ pub(crate) fn insert_attachments(
     if transaction.attachments().is_empty() {
         return Ok(());
     }
-    let mut insert = conn.prepare(
+    let mut insert = conn.prepare_cached(
         "INSERT INTO attachments (id, transaction_id, position, link, title)
          VALUES (?1, ?2, ?3, ?4, ?5)",
     )?;
@@ -817,7 +818,7 @@ pub(crate) fn insert_splits(
     conn: &Connection,
     transaction: &Transaction,
 ) -> Result<(), StoreError> {
-    let mut insert = conn.prepare(
+    let mut insert = conn.prepare_cached(
         "INSERT INTO splits
              (id, transaction_id, position, account_id, amount, foreign_amount, foreign_currency,
               original_amount, original_currency, own_date, own_payee, note, number, status)
@@ -852,7 +853,7 @@ pub(crate) fn insert_splits(
         for (position, tag) in (0_i64..).zip(&split.tags) {
             let statement = match &mut insert_tag {
                 Some(statement) => statement,
-                None => insert_tag.insert(conn.prepare(
+                None => insert_tag.insert(conn.prepare_cached(
                     "INSERT INTO split_tags (id, split_id, tag_id, position)
                      VALUES (?1, ?2, ?3, ?4)",
                 )?),
@@ -868,7 +869,7 @@ pub(crate) fn insert_splits(
             insert_split_rate(conn, split.id, &rate)?;
         }
         if let Some(imported) = &split.imported {
-            conn.prepare(
+            conn.prepare_cached(
                 "INSERT INTO split_imports
                      (split_id, bank_id, booking_date, value_date,
                       other_party_name, other_party_iban, remittance_information)
@@ -903,7 +904,7 @@ pub(crate) fn insert_split_rate(
     split: SplitId,
     rate: &DatedRate,
 ) -> Result<(), StoreError> {
-    conn.prepare(
+    conn.prepare_cached(
         "INSERT INTO split_rates
              (split_id, rate_id, date, from_currency, to_currency,
               rate_digits, rate_decimal_places, source)

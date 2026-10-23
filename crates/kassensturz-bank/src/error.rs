@@ -60,16 +60,22 @@ pub enum BankError {
         /// The bank's message, if it sent one.
         text: Option<String>,
     },
-    /// The bank asks for a TAN and there is no dialog to type it in: the
-    /// backend runs without Gwenhywfar's dialogs (M4.6 brings them).
+    /// The bank asks for a TAN and the backend was given no dialogs to ask
+    /// the user with ([`crate::Bank::set_dialogs`], D-151).
     TanNeeded,
+    /// The bank shows the TAN's challenge as a picture (a flicker code, a
+    /// photoTAN or a QR code), which KassenSturz can't show yet: the user
+    /// chooses a TAN method at their bank that works as text or as an
+    /// approval in an app (D-151, Q-089).
+    TanMethodUnsupported,
     /// The bank server's certificate didn't pass every check, so nothing
     /// was sent to it (D-140, threat T-12).
     UntrustedServer,
     /// The user closed the bank's dialog, e.g. the TAN entry.
     Aborted,
-    /// This kind of login (a chip card) is set up in the advanced setup
-    /// dialog, not in the IBAN-first flow (Q-035, D-144).
+    /// This kind of login (a chip card) needs the setup dialog of the
+    /// bank's library, which KassenSturz doesn't offer yet (Q-035, D-144,
+    /// D-151, Q-089).
     NeedsSetupDialog,
     /// A setup command of the bank backend failed before the login was
     /// complete; nothing is kept. The text, if any, is the backend's own
@@ -153,6 +159,7 @@ impl Report for BankError {
                 }
             }
             Self::TanNeeded => ErrorReport::new("bank.tan-needed"),
+            Self::TanMethodUnsupported => ErrorReport::new("bank.tan-method-unsupported"),
             Self::UntrustedServer => ErrorReport::new("bank.untrusted-server"),
             Self::Aborted => ErrorReport::new("bank.aborted"),
             Self::NeedsSetupDialog => ErrorReport::new("bank.needs-setup-dialog"),

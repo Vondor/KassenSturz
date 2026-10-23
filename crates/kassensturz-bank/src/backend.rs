@@ -14,6 +14,7 @@ use std::fmt;
 use kassensturz_core::{CurrencyCode, Date};
 
 use crate::availability::Availability;
+use crate::dialogs::BankDialogs;
 use crate::directory::{BankDirectory, LoginKind};
 use crate::error::BankError;
 use crate::fetched::Fetched;
@@ -164,6 +165,12 @@ pub trait Bank {
 
     /// Where banks are looked up for the setup screens (D-145).
     fn directory(&self) -> &dyn BankDirectory;
+
+    /// Gives the backend the app's dialogs for what a bank asks while a
+    /// call runs: a TAN, or a question such as an approval in the bank's
+    /// app (D-151). Without them a TAN request ends the call with
+    /// [`BankError::TanNeeded`].
+    fn set_dialogs(&mut self, dialogs: Box<dyn BankDialogs>);
 
     /// The logins set up in this backend.
     fn logins(&self) -> Result<Vec<Login>, BankError>;

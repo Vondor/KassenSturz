@@ -16,6 +16,10 @@
 //!   removes the login again when one of them fails, so nothing half set
 //!   up is kept (D-057). A chip-card login is left to the setup dialog
 //!   (`bank.needs-setup-dialog`, M4.6).
+//! - **TANs and questions** (D-151): the app's [`BankDialogs`] answer what
+//!   the bank asks while a call runs, through the [`Handler`]; a TAN shown
+//!   as a picture ends the call as `bank.tan-method-unsupported`, a
+//!   cancelled dialog as `bank.aborted`.
 //! - **The PIN**: before a call that may reach the bank, the PIN the
 //!   [`PinSession`] allows is put into the [`Handler`], which answers
 //!   AqBanking's request with it or declines; a declined request ends as
@@ -65,7 +69,8 @@ use crate::fetched::{Fetched, FetchedAmount, FetchedBalance, FetchedTransaction}
 use crate::iban::BankCode;
 use crate::pin::{Pin, PinAnswer, PinSession};
 
-use self::handler::Handler;
+use self::handler::{Handler, Refusal};
+use crate::dialogs::BankDialogs;
 
 /// The name AqBanking knows KassenSturz by, e.g. in its user settings.
 const APP_NAME: &str = "KassenSturz";
@@ -231,6 +236,7 @@ impl AqBankingBank {
         Outcome {
             result,
             rejected: handler.rejected,
+            refusal: handler.refusal,
             message: handler.last_message(),
         }
     }
@@ -253,9 +259,7 @@ impl AqBankingBank {
             pins.rejected(login)?;
             return Err(BankError::PinRejected);
         }
-        outcome
-            .result
-            .map_err(|error| map_error(error, outcome.message, true))
+        outcome.into_result(true)
     }
 
     /// The commands that make a new login usable, after `adduser`.
@@ -313,7 +317,20 @@ impl AqBankingBank {
 struct Outcome<T> {
     result: Result<T, SessionError>,
     rejected: bool,
+    refusal: Option<Refusal>,
     message: Option<String>,
+}
+
+impl<T> Outcome<T> {
+    /// The call's result with its error code: why the handler declined a
+    /// request, if it did, says more than the error the call ended with.
+    fn into_result(self, setup: bool) -> Result<T, BankError> {
+        self.result.map_err(|error| match self.refusal {
+            Some(Refusal::PictureTan) => BankError::TanMethodUnsupported,
+            Some(Refusal::Cancelled) => BankError::Aborted,
+            None => map_error(error, self.message, setup),
+        })
+    }
 }
 
 impl Bank for AqBankingBank {
@@ -323,6 +340,12 @@ impl Bank for AqBankingBank {
 
     fn directory(&self) -> &dyn BankDirectory {
         &self.directory
+    }
+
+    fn set_dialogs(&mut self, dialogs: Box<dyn BankDialogs>) {
+        if let Some(session) = &self.session {
+            session.handler().dialogs = Some(dialogs);
+        }
     }
 
     fn logins(&self) -> Result<Vec<Login>, BankError> {
@@ -409,9 +432,7 @@ impl Bank for AqBankingBank {
         let uid = self.user_id(login)?.to_string();
         let outcome = Self::call(session, None, || session.control("deluser", &["-u", &uid]));
         self.clean_logs();
-        outcome
-            .result
-            .map_err(|error| map_error(error, outcome.message, true))
+        outcome.into_result(true)
     }
 
     fn accounts(&self, login: &LoginId) -> Result<Vec<BankAccount>, BankError> {
@@ -448,9 +469,7 @@ impl Bank for AqBankingBank {
             pins.rejected(&login)?;
             return Err(BankError::PinRejected);
         }
-        let record = outcome
-            .result
-            .map_err(|error| map_error(error, outcome.message, false))?;
+        let record = outcome.into_result(false)?;
         pins.end_session();
         Ok(fetched(bank_account, aid, record))
     }

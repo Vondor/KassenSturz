@@ -19,6 +19,9 @@
 //! - the PIN and the user's choice how long to keep it ([`Pin`],
 //!   [`PinMode`], [`PinSession`], D-057), with a wrong PIN forgotten at once
 //!   (D-140, threat T-05);
+//! - what a bank asks the user while a call runs, a TAN or a question
+//!   such as "approve this in your banking app", through the app's own
+//!   [`BankDialogs`] (D-151);
 //! - whether AqBanking is there and new enough ([`Availability`], D-054,
 //!   D-138);
 //! - the fake bank for tests, [`FakeBank`] (D-055).
@@ -35,6 +38,7 @@ mod aqbanking;
 mod availability;
 mod backend;
 pub mod banks;
+mod dialogs;
 mod directory;
 mod error;
 mod fake;
@@ -52,12 +56,13 @@ pub use availability::{
 pub use backend::{
     Bank, BankAccount, BankAccountId, BankAccountKind, Login, LoginId, LoginSetup, remove_login,
 };
+pub use dialogs::{BankDialogs, BankQuestion, QuestionLevel, Tan, TanRequest};
 pub use directory::{
     BankDirectory, BankInfo, Corrected, CustomerId, FintsServer, HandCheckedList, LoginKind,
     Question, Setup, setup_for,
 };
 pub use error::BankError;
-pub use fake::{Failure, FakeBank, FakeDirectory};
+pub use fake::{Failure, FakeBank, FakeDirectory, SecondFactor};
 pub use fetched::{Fetched, FetchedAmount, FetchedBalance, FetchedTransaction};
 pub use iban::{BankCode, Iban};
 pub use keychain::KeychainPinStore;

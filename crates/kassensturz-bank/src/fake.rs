@@ -7,9 +7,11 @@
 //! (AGENTS.md §3.1 rule 2).
 //!
 //! It behaves like a real backend in what matters for the code around it:
-//! it asks the [`PinSession`] for the PIN, calls the wrong one wrong, lists
-//! accounts only after a login, filters by date, delivers a pending
-//! transaction, and can be told to fail in the ways a real bank does.
+//! it asks the [`PinSession`] for the PIN, calls the wrong one wrong, can
+//! ask for a TAN or an approval in the bank's app through the app's
+//! [`BankDialogs`] ([`SecondFactor`], D-151), lists accounts only after a
+//! login, filters by date, delivers a pending transaction, and can be told
+//! to fail in the ways a real bank does.
 
 use kassensturz_core::{Currency, CurrencyCode, Date};
 
@@ -17,6 +19,7 @@ use crate::availability::{AQBANKING_MINIMUM, Availability, GWENHYWFAR_MINIMUM, L
 use crate::backend::{
     Bank, BankAccount, BankAccountId, BankAccountKind, Login, LoginId, LoginSetup,
 };
+use crate::dialogs::{BankDialogs, BankQuestion, QuestionLevel, TanRequest};
 use crate::directory::{BankDirectory, BankInfo, CustomerId, FintsServer, LoginKind};
 use crate::error::BankError;
 use crate::fetched::{Fetched, FetchedAmount, FetchedBalance, FetchedTransaction};
@@ -57,9 +60,32 @@ pub enum Failure {
     InexactAmount,
 }
 
+/// What the fake bank asks for after the PIN, on every connection, as
+/// banks do under the EU's strong customer authentication.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SecondFactor {
+    /// A TAN shown as text; it accepts [`FakeBank::TAN`].
+    Tan,
+    /// A TAN shown as a picture, which the app can't show (D-151).
+    PictureTan,
+    /// An approval in the bank's app: a question whose first button goes
+    /// on.
+    Approval,
+}
+
 #[derive(Clone, Debug)]
 struct FakeLogin {
     login: Login,
+}
+
+/// The app's dialogs, if it gave the fake bank some.
+#[derive(Default)]
+struct Dialogs(Option<Box<dyn BankDialogs>>);
+
+impl std::fmt::Debug for Dialogs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(if self.0.is_some() { "Dialogs" } else { "None" })
+    }
 }
 
 /// The fake bank. Every login it gets has the same two accounts, a current
@@ -70,6 +96,8 @@ pub struct FakeBank {
     logins: Vec<FakeLogin>,
     next_login: u32,
     failure: Option<Failure>,
+    second_factor: Option<SecondFactor>,
+    dialogs: Dialogs,
 }
 
 impl Default for FakeBank {
@@ -83,6 +111,9 @@ impl FakeBank {
     /// bank's PIN is never in this repository (D-055).
     pub const PIN: &'static str = "12345";
 
+    /// The TAN the fake bank accepts when it asks for one. Made up.
+    pub const TAN: &'static str = "123456";
+
     /// An installed fake bank with no logins yet.
     pub fn new() -> Self {
         Self {
@@ -93,7 +124,16 @@ impl FakeBank {
             logins: Vec::new(),
             next_login: 1,
             failure: None,
+            second_factor: None,
+            dialogs: Dialogs::default(),
         }
+    }
+
+    /// Makes the fake bank ask for `factor` after the PIN on every
+    /// connection.
+    pub fn with_second_factor(mut self, factor: SecondFactor) -> Self {
+        self.second_factor = Some(factor);
+        self
     }
 
     /// A fake bank on a computer without AqBanking (D-054).
@@ -181,7 +221,51 @@ impl FakeBank {
                 }
             });
         }
-        self.check_pin(login, pins)
+        self.check_pin(login, pins)?;
+        self.check_second_factor()
+    }
+
+    /// Asks for the second factor, if the fake bank wants one, the way the
+    /// real backend does: through the dialogs, or not at all.
+    fn check_second_factor(&mut self) -> Result<(), BankError> {
+        let Some(factor) = self.second_factor else {
+            return Ok(());
+        };
+        if factor == SecondFactor::PictureTan {
+            return Err(BankError::TanMethodUnsupported);
+        }
+        let Some(dialogs) = self.dialogs.0.as_mut() else {
+            return Err(BankError::TanNeeded);
+        };
+        match factor {
+            SecondFactor::Tan => {
+                let tan = dialogs
+                    .tan(&TanRequest {
+                        title: "TAN".to_owned(),
+                        challenge: "Type the TAN your TAN app shows for this login.".to_owned(),
+                        min_len: 6,
+                        max_len: 6,
+                    })
+                    .ok_or(BankError::Aborted)?;
+                if tan.as_str() == Self::TAN {
+                    Ok(())
+                } else {
+                    Err(BankError::Refused {
+                        text: Some("9941 TAN wrong (made-up message of the fake bank)".to_owned()),
+                    })
+                }
+            }
+            SecondFactor::Approval => match dialogs.question(&BankQuestion {
+                level: QuestionLevel::Info,
+                title: "Waiting for approval".to_owned(),
+                text: "Approve this login in your banking app, then choose Approved.".to_owned(),
+                buttons: vec!["Approved".to_owned(), "Abort".to_owned()],
+            }) {
+                Some(0) => Ok(()),
+                _ => Err(BankError::Aborted),
+            },
+            SecondFactor::PictureTan => Err(BankError::TanMethodUnsupported),
+        }
     }
 
     fn check_pin(&self, login: &LoginId, pins: &mut PinSession) -> Result<(), BankError> {
@@ -286,6 +370,10 @@ impl Bank for FakeBank {
 
     fn directory(&self) -> &dyn BankDirectory {
         &FakeDirectory
+    }
+
+    fn set_dialogs(&mut self, dialogs: Box<dyn BankDialogs>) {
+        self.dialogs = Dialogs(Some(dialogs));
     }
 
     fn logins(&self) -> Result<Vec<Login>, BankError> {
@@ -657,5 +745,101 @@ mod tests {
         ));
         assert_eq!(FakeDirectory.lookup(&BankCode::new("DE", "99999999")), None);
         assert_eq!(FakeDirectory.lookup(&BankCode::new("AT", BANK_CODE)), None);
+    }
+
+    /// Dialogs with fixed answers.
+    struct Answers {
+        tan: Option<&'static str>,
+        button: Option<usize>,
+    }
+
+    impl BankDialogs for Answers {
+        fn tan(&mut self, _request: &TanRequest) -> Option<crate::Tan> {
+            self.tan.map(|tan| crate::Tan::new(tan.to_owned()))
+        }
+
+        fn question(&mut self, _question: &BankQuestion) -> Option<usize> {
+            self.button
+        }
+    }
+
+    #[test]
+    fn a_second_factor_is_asked_through_the_dialogs() {
+        let setup = FakeBank::setup();
+        let pin = || {
+            let mut pins = PinSession::new(Box::new(crate::MemoryPinStore::new()));
+            pins.provide(
+                &LoginId::pending(),
+                crate::Pin::new(FakeBank::PIN.to_owned()),
+                crate::PinMode::AskEachTime,
+            )
+            .expect("provided");
+            pins
+        };
+        let cases = [
+            (SecondFactor::Tan, None, Err(BankError::TanNeeded)),
+            (
+                SecondFactor::Tan,
+                Some(Answers {
+                    tan: Some(FakeBank::TAN),
+                    button: None,
+                }),
+                Ok(()),
+            ),
+            (
+                SecondFactor::Tan,
+                Some(Answers {
+                    tan: Some("000000"),
+                    button: None,
+                }),
+                Err(BankError::Refused {
+                    text: Some("9941 TAN wrong (made-up message of the fake bank)".to_owned()),
+                }),
+            ),
+            (
+                SecondFactor::Tan,
+                Some(Answers {
+                    tan: None,
+                    button: None,
+                }),
+                Err(BankError::Aborted),
+            ),
+            (
+                SecondFactor::Approval,
+                Some(Answers {
+                    tan: None,
+                    button: Some(0),
+                }),
+                Ok(()),
+            ),
+            (
+                SecondFactor::Approval,
+                Some(Answers {
+                    tan: None,
+                    button: Some(1),
+                }),
+                Err(BankError::Aborted),
+            ),
+            (
+                SecondFactor::PictureTan,
+                Some(Answers {
+                    tan: Some(FakeBank::TAN),
+                    button: None,
+                }),
+                Err(BankError::TanMethodUnsupported),
+            ),
+        ];
+        for (factor, answers, expected) in cases {
+            let mut bank = FakeBank::new().with_second_factor(factor);
+            if let Some(answers) = answers {
+                bank.set_dialogs(Box::new(answers));
+            }
+            let added = bank.add_login(&setup, &mut pin()).map(|_| ());
+            assert_eq!(added, expected, "{factor:?}");
+            assert_eq!(
+                bank.logins().map(|logins| logins.len()),
+                Ok(usize::from(expected.is_ok()))
+            );
+        }
     }
 }

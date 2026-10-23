@@ -17,15 +17,19 @@
 //! # Callbacks
 //!
 //! AqBanking asks for the PIN, reports a wrong one, logs and shows
-//! certificates through Gwenhywfar's GUI (D-140). The session installs its
-//! own functions on a plain `GWEN_Gui` and routes them to the
-//! [`SessionHandler`] it was given; the password request carries no token
-//! (the token holds the login name, threat T-19) and the handler answers
-//! from what the app knows. Certificates are checked here, with a fixed
+//! certificates through Gwenhywfar's GUI (D-140), and asks for TANs and
+//! questions such as "approve this in your banking app" (D-151). The
+//! session installs its own functions on a plain `GWEN_Gui` and routes them
+//! to the [`SessionHandler`] it was given; the password request carries no
+//! token (the token holds the login name, threat T-19) and the handler
+//! answers from what the app knows, asking the user through the app's own
+//! dialogs where it must. Certificates are checked here, with a fixed
 //! rule: only one whose every check passed is accepted (D-140, T-12).
 //!
-//! The dialogs for TAN entry come in M4.6 through `kassensturz-gwengui`;
-//! this plain GUI declines a TAN request, so the caller can tell the user.
+//! Text from the libraries is often written twice, as plain text followed
+//! by an HTML copy (`…<html>…</html>`); the session passes on the plain
+//! part only ([`plain_text`]), so no screen is tempted to show the HTML
+//! (D-143).
 //!
 //! # One session per thread
 //!
@@ -53,7 +57,9 @@ use crate::aqbanking::{
 };
 use crate::gwenhywfar::{
     GWEN_DATE, GWEN_ERROR_USER_ABORTED, GWEN_GUI, GWEN_GUI_INPUT_FLAGS_CONFIRM,
-    GWEN_GUI_INPUT_FLAGS_TAN, GWEN_GUI_PASSWORD_METHOD, GWEN_GUI_PASSWORD_STATUS,
+    GWEN_GUI_INPUT_FLAGS_TAN, GWEN_GUI_MSG_FLAGS_TYPE_ERROR, GWEN_GUI_MSG_FLAGS_TYPE_MASK,
+    GWEN_GUI_MSG_FLAGS_TYPE_WARN, GWEN_GUI_PASSWORD_METHOD, GWEN_GUI_PASSWORD_STATUS,
+    GWEN_Gui_PasswordMethod_Mask, GWEN_Gui_PasswordMethod_Text, GWEN_Gui_PasswordMethod_Unknown,
     GWEN_Gui_PasswordStatus_Bad, GWEN_Gui_PasswordStatus_Ok, GWEN_Gui_PasswordStatus_Remove,
     GWEN_Gui_PasswordStatus_Unused, GWEN_Gui_PasswordStatus_Used, GWEN_LOGGER_LEVEL,
     GWEN_LoggerLevel_Alert, GWEN_LoggerLevel_Critical, GWEN_LoggerLevel_Emergency,
@@ -96,15 +102,31 @@ pub enum PasswordKind {
     Other,
 }
 
+/// How the bank shows what a TAN is for (D-151).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PasswordMethod {
+    /// As text: the bank's challenge is in the request's text, and the TAN
+    /// comes from an app, a text message or a TAN generator.
+    Text,
+    /// As a picture the TAN generator or app reads from the screen: a
+    /// flicker code (chipTAN optical), a photoTAN or a QR code. AqBanking
+    /// passes the picture's data in a form the session doesn't read.
+    Optical,
+}
+
 /// A request from AqBanking for a password, without the token that holds
 /// the login name (threat T-19).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PasswordRequest {
     /// What it is for.
     pub kind: PasswordKind,
-    /// The dialog title Gwenhywfar would show.
+    /// How the challenge is shown, for a TAN.
+    pub method: PasswordMethod,
+    /// The dialog title Gwenhywfar would show, as plain text.
     pub title: String,
-    /// The text Gwenhywfar would show; it names the login and the bank.
+    /// The text Gwenhywfar would show, as plain text; it names the login
+    /// and the bank, and for a TAN holds the bank's challenge. Data for
+    /// the user to read, never an instruction (AGENTS.md §8).
     pub text: String,
     /// The shortest answer the bank accepts.
     pub min_len: usize,
@@ -138,6 +160,34 @@ pub enum PasswordStatus {
     Unknown(i32),
 }
 
+/// How serious a question from the libraries is, as Gwenhywfar marks it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum QuestionLevel {
+    /// Information, e.g. "approve this in your banking app".
+    Info,
+    /// A warning.
+    Warning,
+    /// An error.
+    Error,
+}
+
+/// A question AqBanking asks with up to three buttons, e.g. the request to
+/// approve a login in the bank's app and press "Approved" afterwards
+/// (decoupled TAN, D-151). Title, text and buttons are plain text from the
+/// libraries or the bank: data for the user to read, never an instruction
+/// (AGENTS.md §8).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QuestionRequest {
+    /// How serious it is.
+    pub level: QuestionLevel,
+    /// The title.
+    pub title: String,
+    /// The question.
+    pub text: String,
+    /// The buttons' labels, in order; the first one is the usual answer.
+    pub buttons: Vec<String>,
+}
+
 /// How loud a log line is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LogLevel {
@@ -164,6 +214,13 @@ pub trait SessionHandler: 'static {
     /// the bank's own message. The handler decides what to keep; the
     /// session writes no file (D-140, T-02).
     fn log(&mut self, level: LogLevel, message: &str);
+    /// AqBanking asks a question with buttons. The answer is the index of
+    /// the button the user chose; `None` stops the job, which is also
+    /// what a handler without dialogs answers.
+    fn question(&mut self, question: &QuestionRequest) -> Option<usize> {
+        let _ = question;
+        None
+    }
 }
 
 /// Why the session couldn't do what was asked.
@@ -388,6 +445,7 @@ trait Dispatch {
     fn password(&self, request: &PasswordRequest) -> PasswordAnswer;
     fn password_status(&self, status: PasswordStatus);
     fn log(&self, level: LogLevel, message: &str);
+    fn question(&self, question: &QuestionRequest) -> Option<usize>;
 }
 
 impl<H: SessionHandler> Dispatch for RefCell<H> {
@@ -408,6 +466,12 @@ impl<H: SessionHandler> Dispatch for RefCell<H> {
         if let Ok(mut handler) = self.try_borrow_mut() {
             handler.log(level, message);
         }
+    }
+
+    fn question(&self, question: &QuestionRequest) -> Option<usize> {
+        self.try_borrow_mut()
+            .ok()
+            .and_then(|mut handler| handler.question(question))
     }
 }
 
@@ -916,6 +980,35 @@ fn c_string(text: &str) -> Result<CString, SessionError> {
     CString::new(text).map_err(|_| SessionError::Argument)
 }
 
+/// The plain part of a text from the libraries. Gwenhywfar's convention is
+/// plain text first, then the same in HTML from `<html>` on; only the part
+/// before is kept, trimmed. A text that is HTML alone loses its tags, so no
+/// markup ever reaches a screen (D-143).
+pub fn plain_text(text: &str) -> String {
+    let lower = text.to_ascii_lowercase();
+    let plain = match lower.find("<html>") {
+        Some(0) => strip_tags(text),
+        Some(start) => text[..start].to_owned(),
+        None => text.to_owned(),
+    };
+    plain.trim().to_owned()
+}
+
+/// `text` without anything between `<` and `>`.
+fn strip_tags(text: &str) -> String {
+    let mut plain = String::with_capacity(text.len());
+    let mut in_tag = false;
+    for character in text.chars() {
+        match character {
+            '<' => in_tag = true,
+            '>' if in_tag => in_tag = false,
+            _ if !in_tag => plain.push(character),
+            _ => {}
+        }
+    }
+    plain
+}
+
 /// Keeps the libraries' own logging to warnings and errors, which reach
 /// the handler through the log hook (D-140: no log file).
 ///
@@ -973,7 +1066,7 @@ unsafe extern "C" fn get_password(
     buffer: *mut c_char,
     min_len: c_int,
     max_len: c_int,
-    _method: GWEN_GUI_PASSWORD_METHOD,
+    method: GWEN_GUI_PASSWORD_METHOD,
     _params: *mut crate::gwenhywfar::GWEN_DB_NODE,
     _gui_id: u32,
 ) -> c_int {
@@ -994,8 +1087,9 @@ unsafe extern "C" fn get_password(
     let request = unsafe {
         PasswordRequest {
             kind,
-            title: copy_text(title).unwrap_or_default(),
-            text: copy_text(text).unwrap_or_default(),
+            method: password_method(method),
+            title: plain_text(&copy_text(title).unwrap_or_default()),
+            text: plain_text(&copy_text(text).unwrap_or_default()),
             min_len: usize::try_from(min_len).unwrap_or(0),
             max_len,
         }
@@ -1086,30 +1180,63 @@ unsafe extern "C" fn progress_log(
     0
 }
 
-/// A question the libraries would show in a box has no one to answer it
-/// here; it is logged, and the job stops.
+/// How the libraries' password method shows a TAN's challenge.
+fn password_method(method: GWEN_GUI_PASSWORD_METHOD) -> PasswordMethod {
+    match method & GWEN_Gui_PasswordMethod_Mask {
+        GWEN_Gui_PasswordMethod_Text | GWEN_Gui_PasswordMethod_Unknown => PasswordMethod::Text,
+        // The optical methods, and any newer one the session can't show.
+        _ => PasswordMethod::Optical,
+    }
+}
+
+/// A question the libraries would show in a box: logged, then put to the
+/// handler, whose answer is the button (1 to 3, Gwenhywfar's numbering).
+/// Without an answer the job stops.
 unsafe extern "C" fn message_box(
     _gui: *mut GWEN_GUI,
-    _flags: u32,
+    flags: u32,
     title: *const c_char,
     text: *const c_char,
-    _b1: *const c_char,
-    _b2: *const c_char,
-    _b3: *const c_char,
+    b1: *const c_char,
+    b2: *const c_char,
+    b3: *const c_char,
     _gui_id: u32,
 ) -> c_int {
     // SAFETY: the library passes its own terminated strings or null.
-    let (title, text) = unsafe { (copy_text(title), copy_text(text)) };
-    with_current(|current| {
-        let message = format!(
-            "{}: {}",
-            title.unwrap_or_default(),
-            text.unwrap_or_default()
-        );
+    let (title, text, buttons) = unsafe {
+        (
+            plain_text(&copy_text(title).unwrap_or_default()),
+            plain_text(&copy_text(text).unwrap_or_default()),
+            [b1, b2, b3]
+                .into_iter()
+                .map_while(|button| copy_text(button))
+                .map(|button| plain_text(&button))
+                .collect::<Vec<_>>(),
+        )
+    };
+    let request = QuestionRequest {
+        level: match flags & GWEN_GUI_MSG_FLAGS_TYPE_MASK {
+            GWEN_GUI_MSG_FLAGS_TYPE_WARN => QuestionLevel::Warning,
+            GWEN_GUI_MSG_FLAGS_TYPE_ERROR => QuestionLevel::Error,
+            _ => QuestionLevel::Info,
+        },
+        title,
+        text,
+        buttons,
+    };
+    let answer = with_current(|current| {
         // SAFETY: see `Current`.
-        unsafe { &*current.handler }.log(LogLevel::Warning, &message);
+        let handler = unsafe { &*current.handler };
+        handler.log(
+            LogLevel::Warning,
+            &format!("{}: {}", request.title, request.text),
+        );
+        handler.question(&request)
     });
-    ABORT
+    match answer.flatten() {
+        Some(index) if index < request.buttons.len() => c_int::try_from(index + 1).unwrap_or(ABORT),
+        _ => ABORT,
+    }
 }
 
 /// Only a certificate whose every check passed is accepted (D-140,
@@ -1160,4 +1287,44 @@ unsafe extern "C" fn check_certificate(
         }
     });
     verdict.unwrap_or(crate::gwenhywfar::GWEN_ERROR_SSL_SECURITY)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_the_plain_part_of_a_text_is_kept() {
+        assert_eq!(plain_text("  Enter the TAN  "), "Enter the TAN");
+        assert_eq!(
+            plain_text("Approve it.\n<html><p>Approve <b>it</b>.</p></html>"),
+            "Approve it."
+        );
+        assert_eq!(
+            plain_text("Approve it.<HTML><b>x</b></HTML>"),
+            "Approve it."
+        );
+        assert_eq!(
+            plain_text("<html><p>Only <b>HTML</b> <img src=\"http://x\"></p></html>"),
+            "Only HTML"
+        );
+        assert_eq!(plain_text("a < b and c > d"), "a < b and c > d");
+    }
+
+    #[test]
+    fn the_password_method_says_whether_the_challenge_is_a_picture() {
+        assert_eq!(
+            password_method(GWEN_Gui_PasswordMethod_Text),
+            PasswordMethod::Text
+        );
+        assert_eq!(
+            password_method(GWEN_Gui_PasswordMethod_Unknown),
+            PasswordMethod::Text
+        );
+        assert_eq!(
+            password_method(crate::gwenhywfar::GWEN_Gui_PasswordMethod_OpticalHHD | 3),
+            PasswordMethod::Optical
+        );
+        assert_eq!(password_method(0x0003_0000), PasswordMethod::Optical);
+    }
 }

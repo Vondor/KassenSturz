@@ -76,7 +76,9 @@ Kirigami.Page {
         case "store.not-a-book":
             return i18nContext.i18nc("@info %1 is a file name", "%1 isn't a KassenSturz book. It wasn't changed. Choose another file.", page.where);
         case "store.unsupported-layout":
-            return i18nContext.i18nc("@info", "This book was made by a newer KassenSturz, or by a test version. Update KassenSturz to open it. The book wasn't changed.");
+            return i18nContext.i18nc("@info", "This book was made by a newer KassenSturz. Update KassenSturz to open it. The book wasn't changed.");
+        case "store.development-layout":
+            return i18nContext.i18nc("@info", "This book was made by a test version of KassenSturz from before 0.1. Open it with that version, choose \"Save the whole book\" there, and start a new book from the saved file. The book wasn't changed.");
         case "store.backup-failed":
             return i18nContext.i18nc("@info", "Before it updates a book to work with this version, KassenSturz saves a copy, and that didn't work, so the book was left as it was. Free up space on the drive, then try again.");
         case "store.journal-mode-refused":

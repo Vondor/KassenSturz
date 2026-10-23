@@ -2,13 +2,13 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029), whose format is described in `docs/EXPORT_FORMAT.md` (D-100). Every change to the layout updates this document.
 
-**Status: development layout 15.** Layout 1 was the M0 walking skeleton (D-068); layout 2 added the book's settings (M1.1), layout 3 the price table (M1.2), layout 4 the type and closed flag of accounts (M1.4), layout 5 the category tree (M1.5), layout 6 parts without a category, parts in another currency with their rates, and what a bank or file delivered (M1.6), layout 7 the [change history](#the-change-history) (M1.9), layout 8 the action that joins the two sides of a Transfer (M1.10), layout 9 the [Rules](#rules) and the actions that change and run them (M1.11), layout 10 the action that imports a statement into an account (M2.2), layout 11 the original amounts of parts converted out of a withdrawn currency (M2.9b, D-104), layout 12 a part's own date and payee, which the second side of a joined Transfer keeps (#44, D-108), layout 13 the name of the file a change read, such as an imported statement (#51, D-109), layout 14 the balance the user stated for an account and its day, with the action that corrects a starting balance (M3.4a, D-117), and layout 15 what a KMyMoney book holds beyond that (D-132): the [banks](#institutions), [payees](#payees) and [tags](#tags), an account's number, notes and bank, accounts grouped under accounts, a transaction's note, entry date and [links to its documents](#attachments), and a part's note, number and status. Books with an earlier layout are updated after a backup (see [Migrations](#migrations)). Until 0.1 the layout may change freely; before 0.1 all development changes are merged into one starting layout, and books from development builds aren't opened by 0.1 (D-045). M1 adds much more.
+**Status: layout 16**, the starting layout of 0.1 (D-045, D-135). The 15 development layouts of M0 to M3 were merged into it: every table a 0.1 book has is built in one go, and a book one of the development builds wrote (layouts 1 to 15) isn't opened by 0.1 but turned away with `store.development-layout`; its data moves over through the complete export made with that build. From 0.1 on, every change to the layout is a migration of its own, run after a backup (see [Migrations](#migrations)), and this document is updated with each.
 
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).
 - `PRAGMA application_id` is `0x4B535A42` (1263753794), the letters `KSZB` for KassenSturz book (D-037, D-080). KassenSturz reads it, and SQLite's header, from the file's first bytes before SQLite opens the file. Only a file with both is opened, so another program's SQLite file is never changed, not even its journal mode.
-- `PRAGMA user_version` holds the layout version: currently `15`.
+- `PRAGMA user_version` holds the layout version: currently `16`. Versions 1 to 15 belong to books from development builds before 0.1, which KassenSturz turns away (D-045).
 - The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033). While the book is open, its [lock file](#the-lock-file) sits next to it.
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
 - Deleted content is overwritten (`PRAGMA secure_delete = ON` on every connection), so what KassenSturz deletes, such as a change history the user cleans up, is gone from the file too, though not from copies of it such as backups (D-066, D-086).
@@ -46,7 +46,7 @@ A withdrawn currency such as the German mark (DEM) is listed here too, with the 
 
 ### `institutions`
 
-The banks the user's accounts are held at (D-132). Added in layout 15. Nothing checks the texts; they are kept as the user or an imported file gave them.
+The banks the user's accounts are held at (D-132). Nothing checks the texts; they are kept as the user or an imported file gave them.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -67,14 +67,14 @@ Accounts and categories (`docs/GLOSSARY.md`).
 | `name` | TEXT | The name the user gave it |
 | `kind` | TEXT | `asset` or `liability` (shown as accounts), `income` or `expense` (shown as categories), `equity` (internal, for starting balances) |
 | `currency` | TEXT → `currencies.code` | The currency of its amounts |
-| `account_type` | TEXT, may be NULL | What sort of account it is, if known: `checking`, `savings`, `cash` or `credit_card`. Only accounts have one, never categories. `checking`, `savings` and `cash` need `kind` `asset`, `credit_card` needs `liability`. Books from before layout 4 have none (D-081) |
+| `account_type` | TEXT, may be NULL | What sort of account it is, if known: `checking`, `savings`, `cash` or `credit_card`. Only accounts have one, never categories. `checking`, `savings` and `cash` need `kind` `asset`, `credit_card` needs `liability` (D-081) |
 | `closed` | INTEGER, 0 or 1 | `1` if the user closed the account: its history stays, but it takes no new transactions and is hidden from the lists. Only an account whose balance is zero can be closed |
-| `parent_id` | BLOB (16 bytes) → `accounts.id`, may be NULL | For a category: the category it sits inside, e.g. Groceries inside Food. From layout 15 also for an account: the account it was grouped under, as a KMyMoney book groups them (D-132); the lists still show every account on its own. NULL for a top-level category or account. The `equity` account never has one, and no row is its own parent |
-| `stated_balance` | INTEGER, may be NULL | The balance the user stated for the account, taken from the bank, in minor units of `currency`: what the account should hold at the end of `stated_on`. For a debt it is negative, like the account's parts. Set when the user adds an account with a balance or corrects its starting balance, NULL when they never did and in books from before layout 14. Only `asset` and `liability` accounts can have one (D-111, D-117) |
+| `parent_id` | BLOB (16 bytes) → `accounts.id`, may be NULL | For a category: the category it sits inside, e.g. Groceries inside Food. Also for an account: the account it was grouped under, as a KMyMoney book groups them (D-132); the lists still show every account on its own. NULL for a top-level category or account. The `equity` account never has one, and no row is its own parent |
+| `stated_balance` | INTEGER, may be NULL | The balance the user stated for the account, taken from the bank, in minor units of `currency`: what the account should hold at the end of `stated_on`. For a debt it is negative, like the account's parts. Set when the user adds an account with a balance or corrects its starting balance, NULL when they never did. Only `asset` and `liability` accounts can have one (D-111, D-117) |
 | `stated_on` | TEXT, may be NULL | The day the stated balance was for, ISO 8601. NULL exactly when `stated_balance` is |
-| `number` | TEXT, may be NULL | The account's number or IBAN at its bank, as the user or an imported file gave it. Only `asset` and `liability` accounts can have one. Added in layout 15 (D-132) |
-| `notes` | TEXT, may be NULL | What the user noted about the account or category. Added in layout 15 |
-| `institution_id` | BLOB (16 bytes) → `institutions.id`, may be NULL | The bank the account is held at. Only `asset` and `liability` accounts can have one. Added in layout 15 |
+| `number` | TEXT, may be NULL | The account's number or IBAN at its bank, as the user or an imported file gave it. Only `asset` and `liability` accounts can have one (D-132) |
+| `notes` | TEXT, may be NULL | What the user noted about the account or category |
+| `institution_id` | BLOB (16 bytes) → `institutions.id`, may be NULL | The bank the account is held at. Only `asset` and `liability` accounts can have one |
 
 Indexes: `accounts_by_parent` on `accounts (parent_id)`, `accounts_by_institution` on `accounts (institution_id)`.
 
@@ -92,8 +92,8 @@ Account names are never empty. No two accounts (kind `asset` or `liability`) sha
 | `booking_date` | TEXT | ISO 8601 date the transaction is shown with: the date the bank booked it, or the user entered. The user can change it; what the bank delivered is kept in [`split_imports`](#split_imports) (D-030, D-083) |
 | `payee` | TEXT, may be NULL | Who the money came from or went to, as the user wants it shown |
 | `currency` | TEXT → `currencies.code` | The currency the transaction counts in: the `amount` of every part is in it |
-| `note` | TEXT, may be NULL | What the user noted about the whole transaction, never empty text. Added in layout 15 (D-132) |
-| `entered_on` | TEXT, may be NULL | The ISO 8601 date the transaction was entered into the book, if known, e.g. from a KMyMoney book; KassenSturz itself doesn't set it yet. Added in layout 15 |
+| `note` | TEXT, may be NULL | What the user noted about the whole transaction, never empty text (D-132) |
+| `entered_on` | TEXT, may be NULL | The ISO 8601 date the transaction was entered into the book, if known, e.g. from a KMyMoney book; KassenSturz itself doesn't set it yet |
 
 ### `splits`
 
@@ -108,13 +108,13 @@ The parts of each transaction (shown to users as "Parts", D-017). A transaction'
 | `amount` | INTEGER | Minor units in the transaction's currency |
 | `foreign_amount` | INTEGER, may be NULL | For a part booked to an account in another currency than the transaction's: its amount in minor units of that currency, e.g. `10856` for 108.56 USD in a transaction in euros (D-043). It has the same sign as `amount`, unless one of them is zero. NULL otherwise |
 | `foreign_currency` | TEXT → `currencies.code`, may be NULL | The currency of `foreign_amount`: the account's currency, never the transaction's. Set exactly when `foreign_amount` is |
-| `original_amount` | INTEGER, may be NULL | For a part converted out of a withdrawn currency, e.g. from a book another program kept in German marks: the amount it had in that currency, in its minor units, e.g. `-4841` for -48.41 DEM (D-077, D-104). It has the same sign as the amount it was converted into, unless one of them is zero. NULL otherwise. Added in layout 11 |
-| `original_currency` | TEXT → `currencies.code`, may be NULL | The withdrawn currency of `original_amount`, never the transaction's or `foreign_currency`. Set exactly when `original_amount` is, which the database checks. Added in layout 11 |
-| `own_date` | TEXT, may be NULL | The ISO 8601 date the part's account shows it with, if not the transaction's `booking_date`: on the second side of a joined Transfer, the day that account's bank booked it (D-108). NULL otherwise. Added in layout 12 |
-| `own_payee` | TEXT, may be NULL | The payee the part's account shows, if not the transaction's `payee`: on the second side of a joined Transfer, the one that side had (D-108). NULL otherwise. Added in layout 12 |
-| `note` | TEXT, may be NULL | What the user noted about this part. What a bank or file delivered for it stays in [`split_imports`](#split_imports). Added in layout 15 (D-132) |
-| `number` | TEXT, may be NULL | A cheque or document number. Added in layout 15 |
-| `status` | TEXT, may be NULL | `cleared` if the part was seen on the bank's side, `reconciled` if it was checked against a statement, NULL if neither is known. Added in layout 15 |
+| `original_amount` | INTEGER, may be NULL | For a part converted out of a withdrawn currency, e.g. from a book another program kept in German marks: the amount it had in that currency, in its minor units, e.g. `-4841` for -48.41 DEM (D-077, D-104). It has the same sign as the amount it was converted into, unless one of them is zero. NULL otherwise |
+| `original_currency` | TEXT → `currencies.code`, may be NULL | The withdrawn currency of `original_amount`, never the transaction's or `foreign_currency`. Set exactly when `original_amount` is, which the database checks |
+| `own_date` | TEXT, may be NULL | The ISO 8601 date the part's account shows it with, if not the transaction's `booking_date`: on the second side of a joined Transfer, the day that account's bank booked it (D-108). NULL otherwise |
+| `own_payee` | TEXT, may be NULL | The payee the part's account shows, if not the transaction's `payee`: on the second side of a joined Transfer, the one that side had (D-108). NULL otherwise |
+| `note` | TEXT, may be NULL | What the user noted about this part. What a bank or file delivered for it stays in [`split_imports`](#split_imports) (D-132) |
+| `number` | TEXT, may be NULL | A cheque or document number |
+| `status` | TEXT, may be NULL | `cleared` if the part was seen on the bank's side, `reconciled` if it was checked against a statement, NULL if neither is known |
 
 A part with a `foreign_amount` always has an `account_id`. Every part is in its account's currency: `foreign_currency` if it has one, otherwise the transaction's currency. KassenSturz checks this, not the database.
 
@@ -137,7 +137,7 @@ For a part with an `original_amount`, the row is the fixed rate of the changeove
 | `to_currency` | TEXT → `currencies.code` | As in `prices`. The two currencies are the part's two currencies, in either order |
 | `rate_digits` | INTEGER, 1 to 999999999999999999 | As in `prices` |
 | `rate_decimal_places` | INTEGER, 0–18 | As in `prices` |
-| `source` | TEXT | `manual` as in `prices`, or `changeover` for the fixed rate a withdrawn currency was replaced at (layout 11) |
+| `source` | TEXT | `manual` as in `prices`, or `changeover` for the fixed rate a withdrawn currency was replaced at (D-104) |
 
 KassenSturz converts with the newest rate on or before the date it converts for, usually the transaction's, in either direction, multiplying by a rate from the amount's currency and dividing by one the other way; on a day with a rate in each direction, the one from the amount's currency counts. It rounds once, in the book's rounding mode (D-027, D-083).
 
@@ -214,7 +214,7 @@ A text field that a transaction doesn't have, such as the purpose of one entered
 
 ### `attachments`
 
-Links to the documents that belong to a transaction, e.g. a receipt (D-132): the book keeps the link only, never the file, so it stays small and the file stays where the user put it. Added in layout 15 for the receipts a later companion app may capture (D-018); nothing writes them yet but the complete export.
+Links to the documents that belong to a transaction, e.g. a receipt (D-132): the book keeps the link only, never the file, so it stays small and the file stays where the user put it. For the receipts a later companion app may capture (D-018); nothing writes them yet but the complete export.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -226,7 +226,7 @@ Links to the documents that belong to a transaction, e.g. a receipt (D-132): the
 
 ### `payees`
 
-The people and shops money goes to or comes from, with what the user or an imported file knows about them beyond the name (D-132). A transaction names its payee by text (`transactions.payee`), not by a row here, so the book works without any. Added in layout 15.
+The people and shops money goes to or comes from, with what the user or an imported file knows about them beyond the name (D-132). A transaction names its payee by text (`transactions.payee`), not by a row here, so the book works without any.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -242,7 +242,7 @@ The people and shops money goes to or comes from, with what the user or an impor
 
 ### `tags`
 
-The tags parts can carry, e.g. "Holiday 2026" across several categories (D-132). Added in layout 15.
+The tags parts can carry, e.g. "Holiday 2026" across several categories (D-132).
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -251,7 +251,7 @@ The tags parts can carry, e.g. "Holiday 2026" across several categories (D-132).
 
 ### `split_tags`
 
-Which tags each part carries (D-132). Added in layout 15.
+Which tags each part carries (D-132).
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -290,10 +290,10 @@ The change history (D-032, D-066): one row per user action, e.g. adding an accou
 |---|---|---|
 | `id` | BLOB (16 bytes), primary key | UUIDv7 |
 | `sequence` | INTEGER, from 1, unique | The order the changes were made in. Undo and redo follow it, not `made_at`, since a computer's clock can be wrong |
-| `action` | TEXT | What the user did: `set_rounding_mode`, `use_currency`, `add_account`, `rename_account`, `close_account`, `reopen_account`, `add_category`, `rename_category`, `move_category`, `add_rate`, `remove_rate`, `add_transaction`, `edit_transaction`, `remove_transaction`, `join_transfer` (joining the two sides of a Transfer into one transaction, D-087), `add_rule`, `edit_rule`, `move_rule`, `remove_rule`, `run_rules` (running the Rules on the book's transactions, D-088), `import_statement` (importing bank statements into one account, with the Rules run on what it added, D-092), `correct_starting_balance` (correcting an account's starting balance so it holds what the bank said on a day, and noting that balance on the account, D-117), or, from layout 15, `add_institution`, `add_payee` or `add_tag` (D-132) |
+| `action` | TEXT | What the user did: `set_rounding_mode`, `use_currency`, `add_account`, `rename_account`, `close_account`, `reopen_account`, `add_category`, `rename_category`, `move_category`, `add_rate`, `remove_rate`, `add_transaction`, `edit_transaction`, `remove_transaction`, `join_transfer` (joining the two sides of a Transfer into one transaction, D-087), `add_rule`, `edit_rule`, `move_rule`, `remove_rule`, `run_rules` (running the Rules on the book's transactions, D-088), `import_statement` (importing bank statements into one account, with the Rules run on what it added, D-092), `correct_starting_balance` (correcting an account's starting balance so it holds what the bank said on a day, and noting that balance on the account, D-117), or `add_institution`, `add_payee` or `add_tag` (adding a bank, a payee or a tag, D-132) |
 | `made_at` | TEXT | When, ISO 8601 in UTC, in whole seconds, e.g. `2026-10-19T11:04:02Z`, by the clock of the computer it was made on |
 | `undone` | INTEGER, 0 or 1 | `1` if it is undone, so redo can make it again |
-| `file_name` | TEXT, may be NULL | The name of the file the change read, without its folder, e.g. `october.xml` for an import of that statement file, so undo can say which import it takes back (D-109). NULL for changes that read no file and for those made before layout 13 |
+| `file_name` | TEXT, may be NULL | The name of the file the change read, without its folder, e.g. `october.xml` for an import of that statement file, so undo can say which import it takes back (D-109). NULL for changes that read no file |
 
 ### `changed_settings`, `changed_currencies` and the other `changed_` tables
 
@@ -324,7 +324,7 @@ Every change KassenSturz makes to a book's data is a user action, recorded as on
 
 ## Migrations
 
-Every book is built by the same migrations, oldest first: a new book runs all of them on an empty database, and a book with an older layout runs the ones it lacks (D-045). They run in one transaction, which also sets the application ID and `user_version`, so an update either finishes or leaves the book exactly as it was. Foreign keys are off while they run, so a migration can rebuild a table without deleting the rows that refer to it; every reference is checked before the transaction is committed. A book is updated only after a [backup](#backups) of it was made (AGENTS.md §3.1 rule 8). A book with a newer layout, or with a layout older than the first migration KassenSturz still has, is turned away. A migration isn't a change in the [change history](#the-change-history): the backup made before it is the way back.
+Every book is built by the same migrations, oldest first: a new book runs all of them on an empty database, and a book with an older layout runs the ones it lacks (D-045). The first migration builds layout 16, the starting layout of 0.1, in which the 15 development layouts from before 0.1 were merged (D-135); KassenSturz's own tests prove that it builds, table for table, what those 15 built together. They run in one transaction, which also sets the application ID and `user_version`, so an update either finishes or leaves the book exactly as it was. Foreign keys are off while they run, so a migration can rebuild a table without deleting the rows that refer to it; every reference is checked before the transaction is committed. A book is updated only after a [backup](#backups) of it was made (AGENTS.md §3.1 rule 8). A book with a newer layout is turned away (`store.unsupported-layout`), and so is a book a development build wrote, with layout 1 to 15 (`store.development-layout`): KassenSturz doesn't update it, since the development migrations are gone; the way over is the complete export made with that build, read into a new book. A migration isn't a change in the [change history](#the-change-history): the backup made before it is the way back.
 
 ## Backups
 

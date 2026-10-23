@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-23 00:00+0000\n"
+"POT-Creation-Date: 2026-10-23 00:37+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -1119,14 +1119,27 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid ""
-"This book was made by a newer KassenSturz, or by a test version. Update "
-"KassenSturz to open it. The book wasn't changed."
+"This book was made by a newer KassenSturz. Update KassenSturz to open it. "
+"The book wasn't changed."
 msgstr ""
-"Dieses Haushaltsbuch wurde mit einer neueren Version von KassenSturz oder "
-"mit einer Testversion angelegt. Aktualisieren Sie KassenSturz, um es zu "
-"öffnen. Das Haushaltsbuch wurde nicht verändert."
+"Dieses Haushaltsbuch wurde mit einer neueren Version von KassenSturz "
+"angelegt. Aktualisieren Sie KassenSturz, um es zu öffnen. Das Haushaltsbuch "
+"wurde nicht verändert."
 
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:81
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This book was made by a test version of KassenSturz from before 0.1. Open it "
+"with that version, choose \"Save the whole book\" there, and start a new "
+"book from the saved file. The book wasn't changed."
+msgstr ""
+"Dieses Haushaltsbuch wurde mit einer Testversion von KassenSturz vor 0.1 "
+"angelegt. Öffnen Sie es mit dieser Version, wählen Sie dort „Das ganze "
+"Haushaltsbuch speichern“ und beginnen Sie ein neues Haushaltsbuch aus der "
+"gespeicherten Datei. Das Haushaltsbuch wurde nicht verändert."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:83
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1139,7 +1152,7 @@ msgstr ""
 "Haushaltsbuch, wie es war. Schaffen Sie Platz auf dem Laufwerk und versuchen "
 "Sie es erneut."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:83
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:85
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1150,7 +1163,7 @@ msgstr ""
 "KassenSturz sie nicht geöffnet. Kopieren Sie das Haushaltsbuch in einen "
 "Ordner auf diesem Computer und öffnen Sie es von dort."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:88
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:90
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1160,13 +1173,13 @@ msgstr ""
 "KassenSturz darf in diesem Ordner keine Dateien ändern. Wählen Sie einen "
 "Ordner, in den Sie schreiben dürfen."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:91
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:93
 #, kde-format
 msgctxt "@info"
 msgid "The drive is full. Free up some space, then try again."
 msgstr "Das Laufwerk ist voll. Schaffen Sie Platz und versuchen Sie es erneut."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:93
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:95
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1176,7 +1189,7 @@ msgstr ""
 "Die Datei konnte nicht gelesen oder geschrieben werden. Prüfen Sie, ob das "
 "Laufwerk angeschlossen ist, und versuchen Sie es erneut."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:97
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:99
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1187,7 +1200,7 @@ msgstr ""
 "Ihre Sicherungen liegen im Sicherungsordner von KassenSturz; öffnen Sie "
 "stattdessen die neueste."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:99
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:101
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1198,39 +1211,39 @@ msgstr ""
 "erneut. Passiert es wieder, öffnen Sie eine Sicherung aus dem "
 "Sicherungsordner von KassenSturz."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:103
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:105
 #, kde-format
 msgctxt "@title"
 msgid "Opening a book"
 msgstr "Ein Haushaltsbuch öffnen"
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:153
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:155
 #, kde-format
 msgctxt "@action:button"
 msgid "Open anyway"
 msgstr "Trotzdem öffnen"
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:159
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:161
 #, kde-format
 msgctxt "@action:button"
 msgid "Try again"
 msgstr "Erneut versuchen"
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:164
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:166
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:115
 #, kde-format
 msgctxt "@action:button"
 msgid "Open another book…"
 msgstr "Anderes Haushaltsbuch öffnen…"
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:169
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:171
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:124
 #, kde-format
 msgctxt "@action:button"
 msgid "Start a new book…"
 msgstr "Neues Haushaltsbuch anlegen…"
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:175
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:177
 #, kde-format
 msgctxt "@action:button %1 is a file name"
 msgid "Back to %1"

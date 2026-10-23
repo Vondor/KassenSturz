@@ -14,7 +14,21 @@ A free, open-source personal finance app for the desktop, **simpler than KMyMone
 
 ## Status
 
-Pre-alpha. The core and the book file are being built (milestone M1 in [`docs/ROADMAP.md`](docs/ROADMAP.md)). The app opens with a clickable mock of the first start (D-068, D-089 in [`docs/DECISIONS.md`](docs/DECISIONS.md)): add an account, add a transaction, see the overview. Try it with made-up numbers: it keeps them in memory only and saves nothing.
+Pre-alpha. The core and the book file (milestones M1 and M2 in [`docs/ROADMAP.md`](docs/ROADMAP.md)) and the first usable app (M3) are in place; the first release, 0.1, is not tagged yet. Bank connections (M4) and AI features (M5) come later.
+
+What the app does today, with all numbers worked out by the core and shown in your regional format:
+
+- **Your books.** KassenSturz keeps your book in its own folder and opens another one on request. It says so when a book is open on another computer or lies on a network drive. It saves backups automatically.
+- **Starting.** A first start that asks for your currency and sets up a default set of categories, or a new book made from a file: a KMyMoney book (`.kmy`, or SQLite of layouts 12 to 15) or a whole-book file saved by KassenSturz.
+- **Accounts and categories.** Accounts side by side with their balances (in several currencies), debts shown as "You owe", categories as a tree, starting balances, and "Check against my bank" to see why your balance differs from your bank's.
+- **Transactions.** A register you can sort, transactions broken down into Parts, Transfers between your own accounts (suggested, and joined once you confirm), and undo, redo and a history of changes.
+- **Overview.** One month's money in and out, where it came from and where it went, and what is left over.
+- **Import.** Bank files (CSV with a screen for choosing the columns, CAMT.053, MT940, OFX) with a check for duplicates and a check against the statement's balance.
+- **Rules.** Rules that sort transactions by what they say, with plain-text matching by default, a suggestion when you keep sorting the same payee by hand, and a preview before a changed Rule sorts again.
+- **Saving.** Transactions as CSV, and "Save the whole book" in an open format that KassenSturz can read back.
+- **Languages.** English and German.
+
+The book's layout is now one starting layout (layout 16, D-045). A book made by an earlier development build is turned away with a pointer to its complete export, so save one with the old build before you install a newer one. Try the app with made-up numbers only, never your own (AGENTS.md §3.1 rule 2).
 
 ## Trying a build from CI
 
@@ -38,7 +52,7 @@ Then, for each build you want to try:
    flatpak run io.github.vondor.KassenSturz
    ```
 
-The app also appears in the app menu. Books and settings stay in `~/.var/app/io.github.vondor.KassenSturz/` when a build is replaced or removed; until 0.1, a development build may not open a book made by a later one (D-045). Try builds with synthetic data only, never with your own (AGENTS.md §3.1 rule 2). To remove the build: `flatpak uninstall --user io.github.vondor.KassenSturz`.
+The app also appears in the app menu. Books and settings stay in `~/.var/app/io.github.vondor.KassenSturz/` when a build is replaced or removed; until 0.1, a development build may not open a book made by a later one, and a book from before layout 16 is turned away (D-045). Try builds with synthetic data only, never with your own (AGENTS.md §3.1 rule 2). To remove the build: `flatpak uninstall --user io.github.vondor.KassenSturz`.
 
 ## Building
 

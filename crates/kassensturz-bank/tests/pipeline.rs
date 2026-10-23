@@ -360,7 +360,9 @@ fn a_linked_account_is_fetched_and_imported_with_its_day_as_one_change() {
         .expect("linked");
     assert_eq!(link.last_fetched_on, Some(october(9)));
 
-    // The next fetch starts on that day: the 9th's pending payment only.
+    // The next fetch starts five days before that day (Q-090): the 4th
+    // on, so it brings the entries of the 5th again and the 9th's pending
+    // payment, and the duplicate check keeps them from being added twice.
     let second = fetch_linked(
         &mut setup.bank,
         &mut setup.pins,
@@ -369,8 +371,37 @@ fn a_linked_account_is_fetched_and_imported_with_its_day_as_one_change() {
         &Limits::default(),
     )
     .expect("a statement");
-    assert_eq!(second.entries.len(), 1);
-    assert_eq!(second.entries[0].status, EntryStatus::Pending);
+    let before = setup
+        .book
+        .balance_on(setup.checking, october(9))
+        .expect("a balance");
+    let report = import_statements(
+        &mut setup.book,
+        setup.checking,
+        &[second],
+        &Choices::default(),
+        None,
+    )
+    .expect("imported");
+    let summary = report.summary();
+    assert_eq!(
+        (
+            summary.imported,
+            summary.to_decide,
+            summary.duplicates,
+            summary.pending
+        ),
+        (0, 0, 1, 1)
+    );
+    assert_eq!(
+        setup
+            .book
+            .balance_on(setup.checking, october(9))
+            .expect("a balance"),
+        before
+    );
+    // One undo of that import, then the first import with its day.
+    setup.book.undo().expect("undone").expect("a change");
 
     // One undo takes back the transactions and the day.
     setup.book.undo().expect("undone").expect("a change");

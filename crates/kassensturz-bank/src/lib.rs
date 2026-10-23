@@ -25,8 +25,9 @@
 //! - whether AqBanking is there and new enough ([`Availability`], D-054,
 //!   D-138);
 //! - the fetch of an account that is linked to a bank account
-//!   ([`fetch_linked`], D-153): the link finds the bank account, the PIN is
-//!   asked again when the bank needs it, and the result is a statement;
+//!   ([`fetch_linked`], D-153): the link finds the bank account, the fetch
+//!   starts [`FETCH_OVERLAP_DAYS`] days before the last one (Q-090), the PIN
+//!   is asked again when the bank needs it, and the result is a statement;
 //! - the fake bank for tests, [`FakeBank`] (D-055).
 //!
 //! The real backend is [`AqBankingBank`] (D-149): the [`Bank`] over the
@@ -70,6 +71,8 @@ pub use fake::{Failure, FakeBank, FakeDirectory, SecondFactor};
 pub use fetched::{Fetched, FetchedAmount, FetchedBalance, FetchedTransaction};
 pub use iban::{BankCode, Iban};
 pub use keychain::KeychainPinStore;
-pub use linked::{PinAsker, fetch_linked, find_bank_account, names_account};
+pub use linked::{
+    FETCH_OVERLAP_DAYS, PinAsker, fetch_linked, fetch_start, find_bank_account, names_account,
+};
 pub use pin::{MemoryPinStore, Pin, PinAnswer, PinMode, PinSession, PinStore};
 pub use statement::statement;

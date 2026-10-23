@@ -8,7 +8,7 @@
 //! brings the link and the answers of the user; what the fetch comes to is
 //! decided here, once, for the screens and for the tests.
 
-use kassensturz_core::BankLink;
+use kassensturz_core::{BankLink, Date};
 use kassensturz_import::{Limits, Statement};
 
 use crate::backend::{Bank, BankAccount, Login};
@@ -86,13 +86,31 @@ pub fn find_bank_account(
     Err(BankError::NoBankAccount)
 }
 
-/// Fetches what the bank has for the account `link` names, from the day of
-/// the last fetch on (`since`, so that day is fetched again and the
-/// duplicate check of the import pipeline skips what the book has, D-030),
-/// or as far back as the bank goes at the first fetch, and turns it into a
-/// statement within `limits`. A PIN the bank needs is asked through `asker`;
-/// nothing else is asked here (a TAN comes through the backend's dialogs,
-/// D-151).
+/// How many days before the last fetched day a fetch starts (Q-090, D-153):
+/// a bank may book a transaction a day or two late, with the booking date of
+/// the day before, so a fetch that began on the last fetched day itself
+/// would miss it. What the book has already is skipped by the import
+/// pipeline's duplicate check (D-030), so the overlap adds nothing twice.
+pub const FETCH_OVERLAP_DAYS: u8 = 5;
+
+/// The day a fetch asks the bank from, given the day of the last fetch:
+/// [`FETCH_OVERLAP_DAYS`] days earlier, or `None` (as far back as the bank
+/// goes) for an account never fetched and, since a day cannot be before the
+/// first one the calendar has, when the subtraction has no result.
+pub fn fetch_start(last_fetched_on: Option<Date>) -> Option<Date> {
+    let mut day = last_fetched_on?;
+    for _ in 0..FETCH_OVERLAP_DAYS {
+        day = day.yesterday().ok()?;
+    }
+    Some(day)
+}
+
+/// Fetches what the bank has for the account `link` names, from
+/// [`FETCH_OVERLAP_DAYS`] days before the day of the last fetch on (see
+/// [`fetch_start`]), or as far back as the bank goes at the first fetch, and
+/// turns it into a statement within `limits`. A PIN the bank needs is asked
+/// through `asker`; nothing else is asked here (a TAN comes through the
+/// backend's dialogs, D-151).
 ///
 /// This changes nothing in the book: the statement goes through the same
 /// import pipeline as a file, and the day is noted there, in the import's
@@ -107,7 +125,7 @@ pub fn fetch_linked(
     let (login, account) = find_bank_account(bank, link)?;
     let mut rejected = 0;
     loop {
-        match bank.fetch(&account.id, link.last_fetched_on, pins) {
+        match bank.fetch(&account.id, fetch_start(link.last_fetched_on), pins) {
             Ok(fetched) => return statement(&fetched, limits),
             Err(BankError::PinNeeded) => {}
             Err(BankError::PinRejected) if rejected + 1 < MAX_REJECTED_PINS => rejected += 1,
@@ -274,7 +292,9 @@ mod tests {
             Ok(crate::pin::PinAnswer::Ask)
         );
 
-        everything.last_fetched_on = Some(Date::new(2026, 10, 5).expect("a date"));
+        // The last fetch was on the 10th, so this one starts five days
+        // earlier, on the 5th (Q-090).
+        everything.last_fetched_on = Some(Date::new(2026, 10, 10).expect("a date"));
         let mut asker = Answers::new(&[Some(FakeBank::PIN)]);
         let later = fetch_linked(
             &mut bank,
@@ -285,9 +305,24 @@ mod tests {
         )
         .expect("a statement");
         // The fake bank has the 5th and the (unbooked) 9th on or after it;
-        // the day itself is included, so nothing is missed.
+        // the start day itself is included, so nothing is missed.
         assert_eq!(later.entries.len(), 2);
         assert_eq!(later.entries[0].booking_date.to_string(), "2026-10-05");
+    }
+
+    #[test]
+    fn a_fetch_starts_five_days_before_the_day_of_the_last_one() {
+        let day = |year, month, d| Some(Date::new(year, month, d).expect("a date"));
+        assert_eq!(FETCH_OVERLAP_DAYS, 5);
+        assert_eq!(fetch_start(day(2026, 10, 23)), day(2026, 10, 18));
+        // Across a month, a year and a leap day.
+        assert_eq!(fetch_start(day(2026, 10, 3)), day(2026, 9, 28));
+        assert_eq!(fetch_start(day(2027, 1, 2)), day(2026, 12, 28));
+        assert_eq!(fetch_start(day(2028, 3, 2)), day(2028, 2, 26));
+        // Never fetched: as far back as the bank goes.
+        assert_eq!(fetch_start(None), None);
+        // No day before the calendar's first one.
+        assert_eq!(fetch_start(Some(Date::MIN)), None);
     }
 
     #[test]

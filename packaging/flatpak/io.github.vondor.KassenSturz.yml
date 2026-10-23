@@ -25,15 +25,115 @@ finish-args:
   - --socket=fallback-x11
   - --share=ipc
   - --device=dri
-  # Deliberately nothing else: no network (AGENTS.md §3.1 rule 4) and no
-  # access to the user's files. The household book lives in the app's own
-  # data folder (D-033).
+  # Bank connections (D-142, approved by the maintainer in M4 Phase 0). A
+  # sandbox can't limit the network to banks, so this rests on the code:
+  # only the bank backend connects, only when the user fetches (threat T-13,
+  # checked by `crates/kassensturz-bank/tests/network.rs`), and the screens
+  # refuse remote addresses (D-143).
+  - --share=network
+  # The keychain for a saved banking PIN: whichever program provides the
+  # Secret Service, e.g. KWallet, GNOME Keyring or KeePassXC (D-147, D-150).
+  - --talk-name=org.freedesktop.secrets
+  # The computer's card reader service, for chip-card logins (D-059).
+  - --socket=pcsc
+  # Deliberately nothing else: no access to the user's files. The household
+  # book lives in the app's own data folder (D-033). CI compares these
+  # permissions with the list in its Flatpak job, so a new one can't slip in.
   # Without the system bus, KDE's Solid can't ask UDisks2 for the drives a
   # file dialog lists, and warns about it on every try (#77). The sandbox
   # leaves that bus out on purpose, so only that warning is turned off.
   # `flatpak run --env=QT_LOGGING_RULES=...` replaces this rule.
   - --env=QT_LOGGING_RULES=kf.solid.backends.udisks2.warning=false
+# Headers, pkg-config files and libtool archives of the bundled libraries are
+# only for building them and KassenSturz.
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /lib/cmake
+  - /share/aclocal
+  - /share/doc
+  - /share/man
+  - "*.la"
+  - "*.a"
 modules:
+  # AqBanking and Gwenhywfar for bank connections, bundled because a sandbox
+  # can't use the computer's own (D-054). The app finds them at runtime by
+  # their ABI names and works fully without them (D-138): leaving these
+  # modules and the kassensturz module's loading test out gives a Flatpak
+  # without bank connections. Each source is the
+  # upstream tarball, pinned by the SHA-256 recorded in docs/THIRD_PARTY.md;
+  # Ubuntu's copy of it (the same bytes) is the mirror. Their command-line
+  # tools are removed: KassenSturz never sends payments (D-053), and
+  # aqbanking-cli and aqhbci-tool4 could.
+
+  # The client library that talks to the computer's card reader service
+  # (`--socket=pcsc`), for libchipcard. The service itself is the host's, so
+  # its daemon isn't kept; nor is the spy tool, which is only for debugging.
+  - name: pcsc-lite
+    buildsystem: meson
+    config-opts:
+      - -Dlibsystemd=false
+      - -Dlibudev=false
+      - -Dpolkit=false
+    cleanup:
+      - /bin
+      - /sbin
+      - /lib/libpcscspy.so*
+    sources:
+      - type: archive
+        url: https://pcsclite.apdu.fr/files/pcsc-lite-2.5.1.tar.xz
+        mirror-urls:
+          - https://archive.ubuntu.com/ubuntu/pool/main/p/pcsc-lite/pcsc-lite_2.5.1.orig.tar.xz
+        sha256: bfcfe38a20afc49849c6bf55325e38f449fc4b26d3923fdc32b969ae41a8741b
+
+  # Gwenhywfar with its Qt 6 dialog library, which KassenSturz's small
+  # library around it (crates/kassensturz-aqbanking-sys/gwengui) needs
+  # (D-140). GnuTLS, libgcrypt and GMP come from the KDE runtime.
+  - name: gwenhywfar
+    config-opts:
+      - --with-guis=qt6
+    cleanup:
+      - /bin
+    sources:
+      - type: archive
+        url: https://www.aquamaniac.de/rdm/attachments/download/630/gwenhywfar-5.14.1.tar.gz
+        mirror-urls:
+          - https://archive.ubuntu.com/ubuntu/pool/universe/libg/libgwenhywfar/libgwenhywfar_5.14.1.orig.tar.gz
+        sha256: 8916feaa99cb954f963f2cba8dd2dffe57cacf7f284daf00eab071aad6fe2ab3
+
+  # Chip-card logins (D-059): Gwenhywfar loads it as a plugin.
+  - name: libchipcard
+    cleanup:
+      - /bin
+    sources:
+      - type: archive
+        url: https://www.aquamaniac.de/rdm/attachments/download/382/libchipcard-5.1.6.tar.gz
+        mirror-urls:
+          - https://archive.ubuntu.com/ubuntu/pool/universe/libc/libchipcard/libchipcard_5.1.6.orig.tar.gz
+        sha256: 6c07f527417f7562074f99012da4d11eb4dbafd33f49e66b442ccd6e3b8cfd20
+
+  # Only the FinTS backend (D-142), which also leaves out EBICS and the XML
+  # signing library only EBICS needs. Every file format AqBanking reads or
+  # writes but ERI2, whose license is unclear (docs/THIRD_PARTY.md); FinTS
+  # itself needs SWIFT (MT940/MT942), XML (camt) and SEPA.
+  - name: aqbanking
+    config-opts:
+      - --with-backends=aqhbci
+      - --with-imexporters=csv ofx openhbci1 swift xmldb yellownet sepa ctxfile q43 camt xml
+      - --disable-cli
+      - --disable-tutorials
+    # One job at a time, as GnuCash's Flathub module builds the same tarball
+    # (docs/THIRD_PARTY.md, log of 2026-10-23).
+    no-parallel-make: true
+    cleanup:
+      - /bin
+    sources:
+      - type: archive
+        url: https://www.aquamaniac.de/rdm/attachments/download/654/aqbanking-6.9.2.tar.gz
+        mirror-urls:
+          - https://archive.ubuntu.com/ubuntu/pool/universe/liba/libaqbanking/libaqbanking_6.9.2.orig.tar.gz
+        sha256: 244b5f7a139f829928f5cdc3f5f7488517b3e8aa63625a92741c3efc1892bb3f
+
   - name: kassensturz
     buildsystem: cmake-ninja
     builddir: true
@@ -45,6 +145,17 @@ modules:
         # The module's folder holds the crates from cargo-sources.json.
         CARGO_HOME: /run/build/kassensturz/cargo
         CARGO_NET_OFFLINE: "true"
+    # The bundled bank libraries are tested where they are installed (/app):
+    # ctest runs the test of the library for Gwenhywfar's dialogs (D-140), and
+    # the Rust test loads AqBanking and Gwenhywfar by their ABI names and
+    # checks their versions (D-138), here required to find them.
+    run-tests: true
+    test-commands:
+      - >-
+        KASSENSTURZ_REQUIRE_AQBANKING=1
+        CARGO_TARGET_DIR=/run/build/kassensturz/_flatpak_build/cargo
+        cargo test --locked --release --manifest-path /run/build/kassensturz/Cargo.toml
+        --package kassensturz-aqbanking-sys --test load
     sources:
       - type: dir
         path: ../..

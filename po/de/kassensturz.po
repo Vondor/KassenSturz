@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-22 22:58+0000\n"
+"POT-Creation-Date: 2026-10-23 00:00+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -4540,7 +4540,7 @@ msgid "Filter transactions"
 msgstr "Buchungen filtern"
 
 #: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:183
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:105
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:126
 #, kde-format
 msgctxt "@info %1 is a number, %2 a name, %3 a category"
 msgid ""
@@ -4557,14 +4557,14 @@ msgstr[1] ""
 "KassenSturz das ab jetzt für Sie erledigen?"
 
 #: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:187
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:109
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:130
 #, kde-format
 msgctxt "@action:button"
 msgid "Create a Rule"
 msgstr "Regel erstellen"
 
 #: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:191
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:113
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:134
 #, kde-format
 msgctxt "@action:button"
 msgid "No, thanks"
@@ -5155,50 +5155,70 @@ msgstr ""
 "festlegen. Entfernen Sie eine Regel, werden die Regeln darin mit entfernt. "
 "Was sie zugeordnet hat, bleibt zugeordnet. „Rückgängig“ holt sie zurück."
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:50
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:53
 #, kde-format
 msgctxt "@title"
 msgid "Rules"
 msgstr "Regeln"
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:55
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:127
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:58
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:148
 #, kde-format
 msgctxt "@action:button"
 msgid "Add a Rule"
 msgstr "Regel hinzufügen"
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:64
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:67
 #, kde-format
 msgctxt "@info %1 is the name of a category"
 msgid "Sorts into %1"
 msgstr "Ordnet in %1 ein"
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:66
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:69
 #, kde-format
 msgctxt "@info %1 is the name of an account"
 msgid "Moves the money to %1"
 msgstr "Bucht das Geld um auf %1"
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:69
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:72
 #, kde-format
 msgctxt "@info %1 is a name"
 msgid "Shows the name %1 as From or To"
 msgstr "Zeigt den Namen %1 als Von oder An"
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:71
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:74
 #, kde-format
 msgctxt "@info"
 msgid "Leaves it as it is"
 msgstr "Lässt es, wie es ist"
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:123
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:103
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "KassenSturz has %1 suggestion for a Rule."
+msgid_plural "KassenSturz has %1 suggestions for Rules."
+msgstr[0] "KassenSturz hat %1 Vorschlag für eine Regel."
+msgstr[1] "KassenSturz hat %1 Vorschläge für Regeln."
+
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:108
+#, kde-format
+msgctxt "@action:button hide the list of suggested Rules"
+msgid "Hide them"
+msgstr "Ausblenden"
+
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:109
+#, kde-format
+msgctxt "@action:button show the list of suggested Rules"
+msgid "Show them"
+msgstr "Anzeigen"
+
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:144
 #, kde-format
 msgctxt "@info"
 msgid "You have no Rules yet"
 msgstr "Sie haben noch keine Regeln"
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:124
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:145
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5209,7 +5229,7 @@ msgstr ""
 "Supermarkt den Lebensmitteln. Sie können eine auch aus einer Buchung heraus "
 "beginnen."
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:136
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:157
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5219,31 +5239,31 @@ msgstr ""
 "Die erste Regel, die auf eine Buchung passt, entscheidet. Mit den Pfeilen "
 "ändern Sie die Reihenfolge."
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:184
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:205
 #, kde-format
 msgctxt "@action:button %1 is the name of a Rule"
 msgid "Edit %1"
 msgstr "Regel „%1“ bearbeiten"
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:194
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:215
 #, kde-format
 msgctxt "@action:button %1 is the name of a Rule"
 msgid "Move %1 up"
 msgstr "%1 nach oben"
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:204
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:225
 #, kde-format
 msgctxt "@action:button %1 is the name of a Rule"
 msgid "Move %1 down"
 msgstr "%1 nach unten"
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:233
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:254
 #, kde-format
 msgctxt "@info"
 msgid "Pick a Rule to see its transactions"
 msgstr "Wählen Sie eine Regel, um ihre Buchungen zu sehen"
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:234
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:255
 #, kde-format
 msgctxt "@info"
 msgid "Click a Rule in the list, and the transactions it fits show up here."
@@ -5251,7 +5271,7 @@ msgstr ""
 "Klicken Sie in der Liste auf eine Regel, dann erscheinen hier die Buchungen, "
 "auf die sie passt."
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:249
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:270
 #, kde-format
 msgctxt "@title %2 is the name of a Rule, %1 how many transactions it fits"
 msgid "%2 fits %1 transaction"
@@ -5259,13 +5279,13 @@ msgid_plural "%2 fits %1 transactions"
 msgstr[0] "%2 passt auf %1 Buchung"
 msgstr[1] "%2 passt auf %1 Buchungen"
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:256
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:277
 #, kde-format
 msgctxt "@action:button"
 msgid "Edit this Rule"
 msgstr "Diese Regel bearbeiten"
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:265
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:286
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5276,7 +5296,7 @@ msgstr ""
 "einsortiert hat oder nicht, außer denen, die eine frühere Regel zuerst "
 "bekommt."
 
-#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:274
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml:295
 #, kde-format
 msgctxt "@info"
 msgid "No transactions fit this Rule yet"

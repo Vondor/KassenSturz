@@ -216,9 +216,11 @@ mod tests {
     const TEST_SERVICE: &str = "io.github.vondor.KassenSturz.test";
 
     /// The round trip on a real keychain, for a desktop with one: run with
-    /// `cargo test -p kassensturz-platform -- --ignored`. The secret is
-    /// made up and removed again; it isn't run in CI, where no keychain
-    /// answers.
+    /// `cargo test -p kassensturz-platform -- --ignored`, natively or
+    /// through `tools/sdk.sh`, whose sandbox may talk to the Secret
+    /// Service. The secret is made up and removed again; it isn't run in
+    /// CI, where no keychain answers. Checked on the maintainer's Plasma
+    /// 6.6.6, where `ksecretd` answers as the Secret Service (D-146).
     #[test]
     #[ignore = "needs a system keychain: run with --ignored on a desktop"]
     fn a_secret_survives_the_round_trip_through_the_system_keychain() {
@@ -226,7 +228,15 @@ mod tests {
         let key = SecretKey::new("test", &format!("round-trip-{}", std::process::id())).unwrap();
         let secret = Secret::new("0000".to_owned());
 
-        assert_eq!(keychain.read(&key), Ok(None));
+        match keychain.read(&key) {
+            Ok(None) => {}
+            Err(KeychainError::Unavailable) => panic!(
+                "no keychain answered: this test needs a desktop whose Secret Service \
+                 (KWallet, GNOME Keyring) is running and reachable; a sandbox without \
+                 --talk-name=org.freedesktop.secrets hides it"
+            ),
+            other => panic!("{other:?}"),
+        }
         keychain.store(&key, &secret).unwrap();
         assert_eq!(keychain.read(&key), Ok(Some(secret)));
         keychain

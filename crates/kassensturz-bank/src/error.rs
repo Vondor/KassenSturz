@@ -60,8 +60,29 @@ pub enum BankError {
         /// The bank's message, if it sent one.
         text: Option<String>,
     },
+    /// The bank asks for a TAN and there is no dialog to type it in: the
+    /// backend runs without Gwenhywfar's dialogs (M4.6 brings them).
+    TanNeeded,
+    /// The bank server's certificate didn't pass every check, so nothing
+    /// was sent to it (D-140, threat T-12).
+    UntrustedServer,
     /// The user closed the bank's dialog, e.g. the TAN entry.
     Aborted,
+    /// This kind of login (a chip card) is set up in the advanced setup
+    /// dialog, not in the IBAN-first flow (Q-035, D-144).
+    NeedsSetupDialog,
+    /// A setup command of the bank backend failed before the login was
+    /// complete; nothing is kept. The text, if any, is the backend's own
+    /// message, data for the user to read (AGENTS.md §8).
+    SetupFailed {
+        /// The backend's message, if it gave one.
+        text: Option<String>,
+    },
+    /// AqBanking's own folder in KassenSturz's data folder couldn't be
+    /// created or opened (D-139).
+    Folder,
+    /// Another bank connection is still running on this thread.
+    Busy,
     /// The system keychain couldn't be reached to save, read or delete a PIN
     /// (D-057).
     Keychain,
@@ -131,7 +152,19 @@ impl Report for BankError {
                     None => report,
                 }
             }
+            Self::TanNeeded => ErrorReport::new("bank.tan-needed"),
+            Self::UntrustedServer => ErrorReport::new("bank.untrusted-server"),
             Self::Aborted => ErrorReport::new("bank.aborted"),
+            Self::NeedsSetupDialog => ErrorReport::new("bank.needs-setup-dialog"),
+            Self::SetupFailed { text: message } => {
+                let report = ErrorReport::new("bank.setup-failed");
+                match message {
+                    Some(message) => report.with("text", text(message)),
+                    None => report,
+                }
+            }
+            Self::Folder => ErrorReport::new("bank.folder"),
+            Self::Busy => ErrorReport::new("bank.busy"),
             Self::Keychain => ErrorReport::new("bank.keychain"),
             Self::MalformedAmount { amount } => {
                 ErrorReport::new("bank.malformed-amount").with("amount", text(amount))

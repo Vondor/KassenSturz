@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+
+[package]
+name = "kassensturz-aqbanking-stub"
+description = "A stand-in for AqBanking and Gwenhywfar in tests: a shared library with every function the bindings declare, playing scenarios of good and broken bank data (threat T-09). Never shipped."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+kassensturz-aqbanking-sys.workspace = true
+
+[lints]
+workspace = true

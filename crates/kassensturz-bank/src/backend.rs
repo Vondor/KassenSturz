@@ -54,6 +54,17 @@ text_id! {
     LoginId
 }
 
+impl LoginId {
+    /// The ID a login has while it is being set up and the backend hasn't
+    /// named it yet. The app keeps the PIN the user typed in the setup
+    /// under this ID ([`crate::PinSession::provide`]); [`Bank::add_login`]
+    /// answers the bank from it and moves it to the new login's ID when
+    /// the setup worked, or forgets it when it didn't.
+    pub fn pending() -> Self {
+        Self::new("pending")
+    }
+}
+
 text_id! {
     /// Names a bank account in its backend, e.g. AqBanking's account ID as
     /// text.
@@ -158,7 +169,10 @@ pub trait Bank {
     fn logins(&self) -> Result<Vec<Login>, BankError>;
 
     /// Sets up a login and fetches its accounts from the bank, which needs
-    /// the PIN. Returns the new login's ID. On failure nothing is kept.
+    /// the PIN: the one kept under [`LoginId::pending`], or, for a
+    /// backend that names the login beforehand, under that name. Returns
+    /// the new login's ID, which now holds the PIN. On failure nothing is
+    /// kept, not even the PIN (D-057).
     fn add_login(
         &mut self,
         setup: &LoginSetup,

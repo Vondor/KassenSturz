@@ -23,12 +23,15 @@
 //!   D-138);
 //! - the fake bank for tests, [`FakeBank`] (D-055).
 //!
-//! The real backend over AqBanking comes in M4.5, on top of the raw
-//! declarations in `kassensturz-aqbanking-sys` (M4.2); this crate has no
-//! unsafe code and opens no network connection itself.
+//! The real backend is [`AqBankingBank`] (D-149): the [`Bank`] over the
+//! safe session of `kassensturz-aqbanking-sys`, which holds every unsafe
+//! call; this crate has none, and opens no network connection itself. The
+//! saved PINs live in the system keychain through [`KeychainPinStore`]
+//! (D-057), the only way a PIN reaches `kassensturz-platform`'s keychain.
 
 #![forbid(unsafe_code)]
 
+mod aqbanking;
 mod availability;
 mod backend;
 pub mod banks;
@@ -37,9 +40,11 @@ mod error;
 mod fake;
 mod fetched;
 mod iban;
+mod keychain;
 mod pin;
 mod statement;
 
+pub use aqbanking::AqBankingBank;
 pub use availability::{
     AQBANKING_LIBRARY, AQBANKING_MINIMUM, Availability, FINTS_REGISTRATION_KEY,
     GWENGUI_QT6_LIBRARY, GWENHYWFAR_LIBRARY, GWENHYWFAR_MINIMUM, Library, Version,
@@ -55,5 +60,6 @@ pub use error::BankError;
 pub use fake::{Failure, FakeBank, FakeDirectory};
 pub use fetched::{Fetched, FetchedAmount, FetchedBalance, FetchedTransaction};
 pub use iban::{BankCode, Iban};
+pub use keychain::KeychainPinStore;
 pub use pin::{MemoryPinStore, Pin, PinAnswer, PinMode, PinSession, PinStore};
 pub use statement::statement;

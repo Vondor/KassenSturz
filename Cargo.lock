@@ -1039,19 +1039,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "kassensturz-aqbanking-stub"
+version = "0.0.0"
+dependencies = [
+ "kassensturz-aqbanking-sys",
+]
+
+[[package]]
 name = "kassensturz-aqbanking-sys"
 version = "0.0.0"
 dependencies = [
+ "kassensturz-aqbanking-sys",
  "libloading",
+ "zeroize",
 ]
 
 [[package]]
 name = "kassensturz-bank"
 version = "0.0.0"
 dependencies = [
+ "kassensturz-aqbanking-sys",
  "kassensturz-core",
  "kassensturz-import",
  "kassensturz-pipeline",
+ "kassensturz-platform",
  "kassensturz-store",
  "zeroize",
 ]

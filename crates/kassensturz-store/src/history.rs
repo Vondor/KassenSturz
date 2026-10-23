@@ -86,12 +86,12 @@ pub enum Action {
     /// Added a tag (D-132).
     AddTag,
     /// Linked an account to the bank account it is filled from, or changed
-    /// that link (Q-086, D-147).
+    /// that link (Q-086, D-148).
     LinkBankAccount,
     /// Removed an account's bank link.
     UnlinkBankAccount,
     /// Fetched an account's statement from its bank, imported it, and noted
-    /// the day on the bank link (D-147).
+    /// the day on the bank link (D-148).
     FetchStatement,
 }
 

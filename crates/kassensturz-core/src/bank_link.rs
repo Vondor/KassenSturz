@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Which bank account an account is filled from (Q-086, D-147).
+//! Which bank account an account is filled from (Q-086, D-148).
 
 use crate::Date;
 use crate::account::AccountId;
 
 /// The link between an account in the book and the bank account it is
-/// filled from, with the day it was last fetched (Q-086, D-147).
+/// filled from, with the day it was last fetched (Q-086, D-148).
 ///
 /// It holds no login data: not the login name, not a PIN, nothing from the
 /// keychain. The bank login lives in the backend's own folder on each

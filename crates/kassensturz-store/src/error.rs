@@ -75,7 +75,7 @@ pub enum StoreError {
     /// The account's name is empty.
     EmptyAccountName,
     /// A bank link must name a bank account: an IBAN, or a bank code with an
-    /// account number (D-147).
+    /// account number (D-148).
     IncompleteBankLink(AccountId),
     /// Another account is already linked to this bank account.
     BankAccountAlreadyLinked {

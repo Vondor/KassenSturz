@@ -163,7 +163,7 @@ fn household() -> Book {
     );
     // The checking account is filled from the bank account with SWIFT's
     // example IBAN and was fetched once; the card is linked by its number
-    // (M4.4a, D-147).
+    // (M4.4a, D-148).
     book.link_bank_account(&BankLink {
         account: checking,
         iban: Some("DE89370400440532013000".into()),

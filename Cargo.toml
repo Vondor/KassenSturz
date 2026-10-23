@@ -23,6 +23,7 @@ kassensturz-export = { path = "crates/kassensturz-export" }
 kassensturz-import = { path = "crates/kassensturz-import", default-features = false }
 kassensturz-bank = { path = "crates/kassensturz-bank" }
 kassensturz-pipeline = { path = "crates/kassensturz-pipeline", default-features = false }
+kassensturz-platform = { path = "crates/kassensturz-platform" }
 kassensturz-store = { path = "crates/kassensturz-store", default-features = false }
 
 # Direct dependencies. Each one is approved by the maintainer and listed in
@@ -46,6 +47,12 @@ flate2 = { version = "=1.1.10", default-features = false, features = ["rust_back
 # starts and works without them (D-054, D-060, D-138). Approved by the
 # maintainer in M4 Phase 0.
 libloading = "=0.9.0"
+# The system keychain for saved banking PINs (D-057): the Secret Service on
+# Linux, which KWallet and GNOME Keyring answer, and the Windows and macOS
+# keychains for M7 (Q-085 answer A, D-146). Only its `v1` feature: the
+# stores the API needs, nothing from its command-line sample. Approved by
+# the maintainer in M4 Phase 0.
+keyring = { version = "=4.2.0", default-features = false, features = ["v1"] }
 # Patterns in Rules (D-015): linear-time matching, so no pattern can hang the
 # app.
 regex = "=1.13.1"

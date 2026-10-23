@@ -57,7 +57,7 @@ fn add_account(book: &mut Book, name: &str, kind: AccountKind, number: Option<&s
     id
 }
 
-/// The bank link (M4.4a, D-147) for a bank account as the backend lists it:
+/// The bank link (M4.4a, D-148) for a bank account as the backend lists it:
 /// by IBAN when it has one, otherwise by the login's bank code and the
 /// number the bank gives, so that it finds the bank account again after the
 /// login is set up on another computer.

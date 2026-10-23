@@ -417,7 +417,7 @@ fn sample() -> BookData {
         ],
         // The current account is filled from the bank account with SWIFT's
         // example IBAN, last fetched on the 8th; the old savings account was
-        // linked by its number at the bank and never fetched (D-147).
+        // linked by its number at the bank and never fetched (D-148).
         bank_links: vec![
             BankLink {
                 account: AccountId::from_bytes(id(checking)),
@@ -928,7 +928,7 @@ fn banks_payees_tags_and_notes_come_with_version_4() {
 #[test]
 fn bank_links_come_with_version_5() {
     // An older file has no bank links; a version 5 file must list them,
-    // even when there are none (D-147).
+    // even when there are none (D-148).
     let lists = r#""institutions": [], "payees": [], "tags": [], "rates": []"#;
     let version_4 = SHORT
         .replacen("\"version\": 1", "\"version\": 4", 1)

@@ -42,7 +42,7 @@ pub const FORMAT: &str = "kassensturz-book";
 /// payee, which its account shows instead of the transaction's (D-108),
 /// version 4 institutions, payees and tags, and the notes, numbers and
 /// status that came over from another program's book with them (D-132),
-/// version 5 the bank links (M4.4a, D-147).
+/// version 5 the bank links (M4.4a, D-148).
 pub const VERSION: u64 = 5;
 
 /// How deep Rules can sit inside each other in the file: a top-level Rule is
@@ -81,7 +81,7 @@ pub struct BookData {
     /// The tags (D-132).
     pub tags: Vec<Tag>,
     /// Which bank account an account is filled from, and the day it was
-    /// last fetched; no login data (D-147).
+    /// last fetched; no login data (D-148).
     pub bank_links: Vec<BankLink>,
 }
 

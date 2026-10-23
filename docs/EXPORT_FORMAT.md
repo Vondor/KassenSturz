@@ -39,7 +39,7 @@ Left out is the **change history** (D-032, D-066). It belongs to the book file, 
 | 2 | A part can have an `original` amount, from before it was converted out of a withdrawn currency, and a rate's `source` can be `changeover` (M2.9b, D-104). |
 | 3 | A part can have a `date` and a `payee` of its own, which its account shows instead of the transaction's, as the second side of a joined Transfer does (#44, D-108). |
 | 4 | The file lists the `institutions` (banks), `payees` and `tags`. An account has a `number`, `notes` and an `institution`, and may sit inside another account (`parent`); a transaction has a `note`, the date it was `entered` and `attachments` (links); a part has a `note`, a `number`, a `status` and `tags`. What the KMyMoney import used to drop (D-132). |
-| 5 | The file lists the `bank_links`: which bank account an account is filled from and the day it was last fetched, without any login data (M4.4a, D-147). |
+| 5 | The file lists the `bank_links`: which bank account an account is filled from and the day it was last fetched, without any login data (M4.4a, D-148). |
 
 An older file is read as version 5 without what came later: a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, so is a version 1 to 3 file with any key of version 4, and so is a version 1 to 4 file with `bank_links` (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three lists of version 4, and a version 5 file the `bank_links` list too, even when they are empty (`export.missing-value`).
 
@@ -127,7 +127,7 @@ One object per account and category, including the internal account for starting
 
 ### Bank links
 
-One object per account that is filled from a bank account (D-147), sorted by account ID. Version 5 and later. A link names the bank account so that it is found again in any bank login that lists it, on this computer or another: it holds no login name, PIN or anything else from a login (D-139).
+One object per account that is filled from a bank account (D-148), sorted by account ID. Version 5 and later. A link names the bank account so that it is found again in any bank login that lists it, on this computer or another: it holds no login name, PIN or anything else from a login (D-139).
 
 | Key | Value |
 |---|---|

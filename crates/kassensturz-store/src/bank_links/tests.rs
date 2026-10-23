@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Tests of bank links (Q-086, D-147) on books in memory. The IBANs are the
+//! Tests of bank links (Q-086, D-148) on books in memory. The IBANs are the
 //! examples from SWIFT's IBAN Registry (D-055); all data is made up
 //! (AGENTS.md §3.1 rule 2).
 

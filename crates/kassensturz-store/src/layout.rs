@@ -523,7 +523,7 @@ CREATE TABLE changed_split_rules (
 ) STRICT;
 ";
 
-/// Layout 17 (M4.4a): bank links (Q-086, D-147). `bank_links` says which
+/// Layout 17 (M4.4a): bank links (Q-086, D-148). `bank_links` says which
 /// bank account an account is filled from, by IBAN or by bank code and
 /// account number, and the day it was last fetched; it holds no login data
 /// (D-139). Linking, unlinking and fetching are user actions of their own,

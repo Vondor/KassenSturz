@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Bank links: which bank account an account is filled from, and the day it
-//! was last fetched (Q-086, D-147; layout 17). The book keeps no login data
+//! was last fetched (Q-086, D-148; layout 17). The book keeps no login data
 //! (D-139): the link names the bank account by IBAN, or by bank code and
 //! account number, so that it finds it again in any login that lists it,
 //! on this computer or another.

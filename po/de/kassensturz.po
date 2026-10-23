@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-23 07:23+0000\n"
+"POT-Creation-Date: 2026-10-23 13:52+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -1556,19 +1556,37 @@ msgctxt "@info a change you made"
 msgid "Added a tag"
 msgstr "Ein Schlagwort hinzugefügt"
 
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:74
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Linked an account to your bank"
+msgstr "Ein Konto mit Ihrer Bank verknüpft"
+
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:76
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Removed an account's link to your bank"
+msgstr "Die Verknüpfung eines Kontos mit Ihrer Bank entfernt"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:78
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Fetched new transactions from your bank"
+msgstr "Neue Buchungen von Ihrer Bank abgerufen"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:82
 #, kde-format
 msgctxt "@info a change you made that this version doesn't know"
 msgid "Made a change"
 msgstr "Eine Änderung vorgenommen"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:85
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:91
 #, kde-format
 msgctxt "@info %1 is what was done, %2 the name of a file"
 msgid "%1 (%2)"
 msgstr "%1 (%2)"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:95
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:101
 #, kde-format
 msgctxt "@info"
 msgid "%1 transaction added"
@@ -1576,7 +1594,7 @@ msgid_plural "%1 transactions added"
 msgstr[0] "%1 Buchung hinzugefügt"
 msgstr[1] "%1 Buchungen hinzugefügt"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:98
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:104
 #, kde-format
 msgctxt "@info"
 msgid "%1 transaction removed"
@@ -1584,7 +1602,7 @@ msgid_plural "%1 transactions removed"
 msgstr[0] "%1 Buchung entfernt"
 msgstr[1] "%1 Buchungen entfernt"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:101
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:107
 #, kde-format
 msgctxt "@info"
 msgid "%1 transaction changed"
@@ -1592,7 +1610,7 @@ msgid_plural "%1 transactions changed"
 msgstr[0] "%1 Buchung geändert"
 msgstr[1] "%1 Buchungen geändert"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:112
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:118
 #, kde-format
 msgctxt "@info %1 and %2 are dates"
 msgid "%1 to %2"
@@ -2767,12 +2785,12 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid ""
-"KassenSturz doesn't recognize this file. It reads statements as CAMT.053 (."
-"xml), MT940 (.sta), OFX (.ofx) or CSV (.csv, .txt) files; download one of "
+"KassenSturz doesn't recognize this file. It reads statements as CAMT.053 "
+"(.xml), MT940 (.sta), OFX (.ofx) or CSV (.csv, .txt) files; download one of "
 "these from your online banking."
 msgstr ""
-"KassenSturz erkennt diese Datei nicht. Es liest Kontoauszüge als CAMT.053- (."
-"xml), MT940- (.sta), OFX- (.ofx) oder CSV-Dateien (.csv, .txt); laden Sie "
+"KassenSturz erkennt diese Datei nicht. Es liest Kontoauszüge als CAMT.053- "
+"(.xml), MT940- (.sta), OFX- (.ofx) oder CSV-Dateien (.csv, .txt); laden Sie "
 "eine davon in Ihrem Online-Banking herunter."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:150

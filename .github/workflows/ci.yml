@@ -334,14 +334,7 @@ jobs:
             pkgconf-pkg-config qt6-qtbase-devel qt6-qtdeclarative \
             qt6-qtdeclarative-devel rustup sqlite-devel tar \
             /usr/lib64/qt6/qml/org/kde/kirigamiaddons/formcard/qmldir \
-            aqbanking-devel gwenhywfar-devel
-      # Fedora's package names for the Qt 6 build of Gwenhywfar's GUI couldn't
-      # be checked beforehand (D-138), so it is asked for by the file it
-      # installs, and the build goes on without it.
-      - name: Gwenhywfar's Qt 6 dialogs, if Fedora 44 has them
-        run: |
-          dnf install -y --setopt=install_weak_deps=False /usr/lib64/libgwengui-qt6.so \
-            || echo "::warning::Fedora 44 has no package with libgwengui-qt6.so"
+            aqbanking-devel gwenhywfar-devel gwenhywfar-gui-qt6-devel
       # Recorded in docs/THIRD_PARTY.md (D-138).
       - name: Fedora's AqBanking and Gwenhywfar versions
         run: rpm -qa --qf '%{NAME} %{VERSION}-%{RELEASE} %{LICENSE}\n' 'aqbanking*' 'gwenhywfar*' 'libchipcard*'
@@ -377,15 +370,11 @@ jobs:
         run: cmake -S . -B build/cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DKASSENSTURZ_BUNDLED_SQLITE=OFF
       - name: Build
         run: cmake --build build/cmake
-      # The library for Gwenhywfar's Qt dialogs and its test (M4.2, D-140),
-      # when Fedora has the Qt 6 build of Gwenhywfar's GUI.
-      - name: The bank dialog library passes its test where it is built
+      # The library for Gwenhywfar's Qt dialogs and its test (M4.2, D-140).
+      - name: The bank dialog library is built and passes its test
         run: |
-          if test -f build/cmake/crates/kassensturz-aqbanking-sys/gwengui/libkassensturz-gwengui.so; then
-            ctest --test-dir build/cmake --output-on-failure
-          else
-            echo "::warning::No gwengui-qt6 on Fedora 44: the bank dialog library was not built"
-          fi
+          test -f build/cmake/crates/kassensturz-aqbanking-sys/gwengui/libkassensturz-gwengui.so
+          ctest --test-dir build/cmake --output-on-failure
       - name: Install into a staging folder
         run: DESTDIR="$PWD/build/stage" cmake --install build/cmake
       # Without its catalog the app would speak English on a German system.

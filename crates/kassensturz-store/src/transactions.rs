@@ -298,6 +298,16 @@ impl Book {
         )
     }
 
+    /// The transactions with a part booked to `account`, sorted and checked
+    /// as [`Book::transactions`] does. They are read in a few queries instead
+    /// of one by one, so a register with thousands of lines opens quickly.
+    pub fn transactions_of(&self, account: AccountId) -> Result<Vec<Transaction>, StoreError> {
+        self.transactions_where(
+            "WHERE t.id IN (SELECT transaction_id FROM splits WHERE account_id = ?1)",
+            params![account.to_bytes()],
+        )
+    }
+
     /// The earliest and the latest booking date in the book, or `None` in a
     /// book without transactions.
     pub fn booking_date_range(&self) -> Result<Option<(Date, Date)>, StoreError> {

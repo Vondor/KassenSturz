@@ -43,7 +43,7 @@ The first entries of `HAND_CHECKED` are settings reported on 2026-10-23 as worki
 | Volksbank Darmstadt Mainz | `55190000` (BIC `MVBMDE55XXX`), and `50890000` (BIC `GENODEF1VBD`, the former Volksbank Darmstadt - Südhessen) | Server `https://fints2.atruvia.de/cgi-bin/hbciservlet`, HBCI 3.0, HTTP 1.1, numeric login name, TAN method 946 "SecureGo plus" (version 7), TAN mechanism "text", statements as CAMT preferred | `55190000`: PIN/TAN with that address, after several key-file services. `50890000`: 30 records, none with a service, so `NoServer` without the entry. |
 | ING | `50010517` (BIC `INGDDEFFXXX`) | Server `https://fints.ing.de/fints`, HBCI 3.0, HTTP 1.1, login name, TAN method 900 "iTAN" (version 1), TAN mechanism "auto" | PIN/TAN with `https://fints.ing.de/fints/`, protocol version empty. |
 
-Both entries have `customer_id: CustomerId::Unknown` until a report says whether the bank asks for a customer ID apart from the login name; the app then asks for it as optional. Which of the two codes a Volksbank Darmstadt Mainz IBAN carries depends on the account; both are listed. The TAN method and mechanism aren't part of an entry (there is no field for them, Q-088); they are kept here for M4.6.
+At both banks the customer ID is the login name (AqBanking's setup shows the same value as user ID, customer ID and user name), so the entries have `customer_id: CustomerId::SameAsLoginName` and the app doesn't ask for one. Which of the two codes a Volksbank Darmstadt Mainz IBAN carries depends on the account; both are listed. The TAN method and mechanism aren't part of an entry (there is no field for them, Q-088); they are kept here for M4.6.
 
 ## How a test round completes the list
 

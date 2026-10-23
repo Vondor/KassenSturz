@@ -119,14 +119,15 @@ impl From<PipelineError> for FromFileError {
 /// import crate's, the export crate's and the store's are those of
 /// `docs/ERROR_CODES.md`. An answer about a currency names it (`currency`)
 /// and the field (`field`).
-pub fn error_text(book: &Book, error: &FromFileError, locale: &impl Locale) -> ErrorText {
+#[cfg(test)]
+fn error_text(book: &Book, error: &FromFileError, locale: &impl Locale) -> ErrorText {
     error_text_in(Some(book), error, locale)
 }
 
-/// [`error_text`] where there may be no open book: a book that was refused
-/// at the start leaves none, yet a file can still be started from, and its
-/// errors are told the same (a throwaway book in memory only reads the
-/// currencies' decimals for them).
+/// The error as the UI gets it (see the tests' `error_text`), where there may
+/// be no open book: a book that was refused at the start leaves none, yet a
+/// file can still be started from, and its errors are told the same (a
+/// throwaway book in memory only reads the currencies' decimals for them).
 pub fn error_text_in(
     book: Option<&Book>,
     error: &FromFileError,

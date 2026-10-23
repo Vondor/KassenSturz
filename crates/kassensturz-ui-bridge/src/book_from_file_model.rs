@@ -211,8 +211,10 @@ fn into_open_book() -> bool {
 
 /// Says why a file couldn't be used.
 fn fail(error: &FromFileError) -> QVariant {
-    let shown = session::with_book(|book| book_from_file::error_text(book, error, &app_locale()))
-        .unwrap_or_else(|| ErrorText::plain("input.no-such-entry"));
+    let locale = app_locale();
+    let shown =
+        session::with_book(|book| book_from_file::error_text_in(Some(book), error, &locale))
+            .unwrap_or_else(|| book_from_file::error_text_in(None, error, &locale));
     error_object(&shown)
 }
 

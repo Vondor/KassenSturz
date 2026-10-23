@@ -69,6 +69,9 @@ RowLayout {
     // When, what for, and on the overview which account it belongs to.
     readonly property string details: [date, otherParty === "" ? "" : whatFor, account]
         .filter(text => text !== "").join(" · ")
+    // A note from a bank statement can run over several lines; Text only
+    // elides a single line, so the rest would spill into the next column.
+    readonly property string oneLineNote: note.replace(/\s*\n\s*/g, " ")
     readonly property string balanceText: balance === "" ? "" : balanceLabel(balance)
     readonly property string exactBalanceText: balance === "" ? "" : balanceLabel(exactBalance)
 
@@ -98,7 +101,9 @@ RowLayout {
     ColumnLayout {
         Layout.fillWidth: true
         Layout.preferredWidth: row.nameWidth
+        Layout.minimumWidth: 0
         visible: row.ledger
+        clip: true
         spacing: 0
 
         Controls.Label {
@@ -113,7 +118,7 @@ RowLayout {
         Controls.Label {
             Layout.fillWidth: true
             visible: !row.header && row.note !== ""
-            text: row.note
+            text: row.oneLineNote
             elide: Text.ElideRight
             font: Kirigami.Theme.smallFont
             color: Kirigami.Theme.disabledTextColor
@@ -185,7 +190,7 @@ RowLayout {
         Controls.Label {
             Layout.fillWidth: true
             visible: row.note !== ""
-            text: row.note
+            text: row.oneLineNote
             elide: Text.ElideRight
             font: Kirigami.Theme.smallFont
             color: Kirigami.Theme.disabledTextColor

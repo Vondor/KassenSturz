@@ -179,6 +179,7 @@ Kirigami.AbstractCard {
             }
 
             Controls.Label {
+                textFormat: Text.PlainText
                 visible: card.condition.kind === "amount" && card.condition.amountTest !== "any"
                 Kirigami.FormData.label: card.i18nContext.i18nc("@label", "Currency:")
                 text: card.condition.currency

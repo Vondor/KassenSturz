@@ -84,6 +84,7 @@ Kirigami.ScrollablePage {
 
                 // Only a book with several currencies needs to say which.
                 Kirigami.Heading {
+                    textFormat: Text.PlainText
                     visible: page.sections.length > 1
                     text: section.modelData.currency
                     level: 2
@@ -102,6 +103,7 @@ Kirigami.ScrollablePage {
                 }
 
                 Balance {
+                    textFormat: Text.PlainText
                     id: together
 
                     Layout.fillWidth: true

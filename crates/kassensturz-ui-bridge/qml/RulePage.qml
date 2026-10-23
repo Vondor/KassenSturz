@@ -251,6 +251,7 @@ Kirigami.ScrollablePage {
         // What the conditions fit now, so a Rule can be checked before it is
         // saved.
         Kirigami.Heading {
+            textFormat: Text.PlainText
             level: 3
             text: page.i18nContext.i18ncp("@title %1 is a number", "These conditions fit %1 transaction", "These conditions fit %1 transactions", page.previewCount)
         }
@@ -281,6 +282,7 @@ Kirigami.ScrollablePage {
         }
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             visible: page.previewCount > page.previewLimit
             text: page.i18nContext.i18nc("@info %1 is a number", "…and %1 more.", page.previewCount - page.previewLimit)
@@ -360,6 +362,7 @@ Kirigami.ScrollablePage {
             }
 
             Controls.Label {
+                textFormat: Text.PlainText
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 20
                 visible: rebookBox.checked && page.rebookPreview.changed !== undefined
                 text: page.rebookPreview.changed === undefined

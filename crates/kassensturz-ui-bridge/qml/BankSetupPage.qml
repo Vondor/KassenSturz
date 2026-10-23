@@ -255,6 +255,7 @@ Kirigami.ScrollablePage {
             }
 
             Controls.Label {
+                textFormat: Text.PlainText
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
                 wrapMode: Text.Wrap
                 font: Kirigami.Theme.smallFont

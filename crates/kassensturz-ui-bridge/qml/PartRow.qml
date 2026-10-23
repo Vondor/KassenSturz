@@ -103,6 +103,7 @@ ColumnLayout {
     // What is left for the open Part, written out for screen readers and
     // when the field is focused and the placeholder goes away.
     Controls.Label {
+        textFormat: Text.PlainText
         visible: row.open && row.preview.amount !== undefined
         text: row.i18nContext.i18nc("@info %1 is an amount of money without its currency, %2 is the number of the part", "Part %2 gets what is left: %1", row.preview.amount ?? "", row.number)
         font: Kirigami.Theme.smallFont
@@ -113,6 +114,7 @@ ColumnLayout {
         spacing: Kirigami.Units.smallSpacing
 
         Controls.Label {
+            textFormat: Text.PlainText
             text: row.i18nContext.i18nc("@label:textbox %1 is a currency code", "In %1:", row.currency)
         }
 
@@ -129,6 +131,7 @@ ColumnLayout {
         }
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             visible: (row.preview.rate ?? "") !== ""
             text: (row.preview.rateDate ?? "") === ""
@@ -140,6 +143,7 @@ ColumnLayout {
     }
 
     Controls.Label {
+        textFormat: Text.PlainText
         visible: row.currency !== "" && !(row.preview.suggested ?? false) && (row.preview.foreignAmount ?? "") === ""
         text: row.i18nContext.i18nc("@info %1 is a currency code", "Your book has no exchange rate for %1 yet, so type what this part was in %1, e.g. from the receipt.", row.currency)
         font: Kirigami.Theme.smallFont

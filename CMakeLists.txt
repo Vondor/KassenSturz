@@ -22,7 +22,7 @@ include(ECMUninstallTarget)
 include(ECMFindQmlModule)
 include(FeatureSummary)
 
-find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Widgets)
+find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gui Network Qml Quick QuickControls2 Widgets)
 # The Rust program links KConfig's core library for the app's settings
 # (D-112); Cargo finds it through the paths passed to it below.
 find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS Config I18n)

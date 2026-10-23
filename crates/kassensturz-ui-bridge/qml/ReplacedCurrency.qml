@@ -43,6 +43,7 @@ FormCard.FormCard {
             spacing: Kirigami.Units.smallSpacing
 
             Controls.Label {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: row.label
                 wrapMode: Text.Wrap
@@ -74,6 +75,8 @@ FormCard.FormCard {
     }
 
     FormCard.FormTextDelegate {
+        descriptionItem.textFormat: Text.PlainText
+        textItem.textFormat: Text.PlainText
         text: card.i18nContext.i18nc("@label %1 is a currency code", "The file has amounts in %1", card.info.currency)
         description: card.i18nContext.i18nc("@info %1 is a currency code", "KassenSturz doesn't know %1. It was most likely replaced by another currency a long time ago. Say which one, so the amounts can be counted in it. Every amount keeps its original value in %1.", card.info.currency)
     }
@@ -83,6 +86,7 @@ FormCard.FormCard {
     }
 
     FormCard.FormButtonDelegate {
+        descriptionItem.textFormat: Text.PlainText
         visible: card.info.hasSuggestion
         icon.name: "dialog-information"
         text: card.i18nContext.i18nc("@action:button %1 is a currency code", "Use what the file suggests for %1", card.info.currency)

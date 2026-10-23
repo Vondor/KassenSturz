@@ -204,6 +204,7 @@ Kirigami.ScrollablePage {
                 model: page.entry.fixed ?? []
 
                 Controls.Label {
+                    textFormat: Text.PlainText
                     required property var modelData
 
                     text: modelData.incoming
@@ -257,6 +258,7 @@ Kirigami.ScrollablePage {
 
         // Whether it all adds up, from the exact amounts (D-065).
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24
             visible: (page.preview.sum ?? "") !== ""
             text: (page.preview.missing ?? "") !== ""

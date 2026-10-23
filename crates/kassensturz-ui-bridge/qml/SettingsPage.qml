@@ -204,6 +204,7 @@ FormCard.FormCardPage {
                 }
 
                 FormCard.FormTextDelegate {
+                    descriptionItem.textFormat: Text.PlainText
                     text: login.modelData.bank
                     // From the bank lists: plain text (D-143).
                     textItem.textFormat: Text.PlainText
@@ -235,6 +236,7 @@ FormCard.FormCardPage {
         }
 
         FormCard.FormButtonDelegate {
+            descriptionItem.textFormat: Text.PlainText
             icon.name: "network-connect"
             text: page.i18nContext.i18nc("@action:button", "Connect a bank…")
             description: page.bankStatus.ready
@@ -308,6 +310,7 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormSectionText {
+        textFormat: Text.PlainText
         text: page.languageNotSaved
             ? page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice. Check that your settings folder can be written to, then choose again.")
             : page.language.restartNeeded
@@ -358,6 +361,7 @@ FormCard.FormCardPage {
 
     FormCard.FormCard {
         FormCard.FormTextDelegate {
+            descriptionItem.textFormat: Text.PlainText
             text: page.i18nContext.i18nc("@label an example amount", "Example")
             description: page.numberFormat.example + "    " + page.numberFormat.negativeExample
         }
@@ -436,6 +440,7 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormSectionText {
+        textFormat: Text.PlainText
         text: page.formatNotSaved
             ? page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice, so it applies only until you close KassenSturz. Check that your settings folder can be written to, then choose again.")
             : page.i18nContext.i18nc("@info", "This changes only how amounts look on this computer, not the amounts themselves. KassenSturz always calculates with the exact amounts, so rounded amounts may not add up exactly on screen: point at one to see it exactly. You can still type amounts with all their decimal places.")
@@ -468,6 +473,7 @@ FormCard.FormCardPage {
         FormCard.FormDelegateSeparator {}
 
         FormCard.FormButtonDelegate {
+            descriptionItem.textFormat: Text.PlainText
             icon.name: "view-history"
             text: page.i18nContext.i18nc("@action:button", "Show history")
             description: page.i18nContext.i18ncp("@info %1 is how many changes there are", "%1 change so far.", "%1 changes so far.", page.history.total)

@@ -83,12 +83,14 @@ Kirigami.ScrollablePage {
 
                 // Only a book with several currencies needs to say which.
                 Kirigami.Heading {
+                    textFormat: Text.PlainText
                     visible: page.sections.length > 1
                     text: section.modelData.currency
                     level: 3
                 }
 
                 AmountLabel {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true
                     text: page.togetherText(section.modelData.together, section.modelData.togetherOwes)
                     exactText: page.togetherText(section.modelData.exactTogether, section.modelData.togetherOwes)
@@ -120,6 +122,7 @@ Kirigami.ScrollablePage {
             }
 
             Kirigami.Heading {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: page.view.month ?? ""
                 level: 2
@@ -168,6 +171,7 @@ Kirigami.ScrollablePage {
                 visible: !(page.view.empty ?? false)
 
                 Kirigami.Heading {
+                    textFormat: Text.PlainText
                     Layout.topMargin: Kirigami.Units.largeSpacing
                     text: page.totals.length > 1
                         ? page.i18nContext.i18nc("@title %1 is a currency code, e.g. EUR", "Money in and out in %1", monthTotals.modelData.currency)
@@ -187,6 +191,7 @@ Kirigami.ScrollablePage {
                 }
 
                 AmountLabel {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true
                     text: page.leftText(monthTotals.modelData.left, monthTotals.modelData.overspent)
                     exactText: page.leftText(monthTotals.modelData.exactLeft, monthTotals.modelData.overspent)
@@ -232,6 +237,7 @@ Kirigami.ScrollablePage {
         // Transfers are left out of the totals (D-021); the page says so
         // only when the month has one.
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             visible: (page.view.transfers ?? 0) > 0
             text: page.i18nContext.i18ncp("@info", "Money you moved between your accounts (once this month) isn't counted as money in or out.", "Money you moved between your accounts (%1 times this month) isn't counted as money in or out.", page.view.transfers ?? 0)

@@ -115,6 +115,7 @@ Kirigami.ScrollablePage {
         }
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.maximumWidth: Kirigami.Units.gridUnit * 20
             text: page.adding
                 ? page.i18nContext.i18nc("@info", "A category can go inside another one, for example Groceries inside Food.")

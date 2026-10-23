@@ -37,6 +37,7 @@ Kirigami.AbstractCard {
         }
 
         Controls.Label {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             text: types.nameOf(card.modelData.type)
             // An account named after its type needn't say it twice.

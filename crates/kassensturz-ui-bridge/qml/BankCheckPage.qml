@@ -212,6 +212,7 @@ Kirigami.ScrollablePage {
             }
 
             Controls.Label {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 visible: page.correction !== null
                 text: page.correction === null

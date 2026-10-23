@@ -20,12 +20,14 @@ RowLayout {
     Accessible.name: name + ", " + modelData.exactAmount
 
     Controls.Label {
+        textFormat: Text.PlainText
         Layout.fillWidth: true
         text: line.name
         elide: Text.ElideRight
     }
 
     AmountLabel {
+        textFormat: Text.PlainText
         text: line.modelData.amount
         exactText: line.modelData.exactAmount
     }

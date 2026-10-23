@@ -119,6 +119,7 @@ Kirigami.Page {
         }
 
         Kirigami.Heading {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap

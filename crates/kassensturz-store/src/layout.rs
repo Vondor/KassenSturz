@@ -32,7 +32,7 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 1] = [LAYOUT_16];
+pub(crate) const MIGRATIONS: [&str; 2] = [LAYOUT_16, LAYOUT_17];
 
 /// The layout version the first migration creates. Layouts 1 to 15 were the
 /// development layouts from before 0.1, merged into layout 16 (D-045,
@@ -523,6 +523,62 @@ CREATE TABLE changed_split_rules (
 ) STRICT;
 ";
 
+/// Layout 17 (M4.4a): bank links (Q-086, D-148). `bank_links` says which
+/// bank account an account is filled from, by IBAN or by bank code and
+/// account number, and the day it was last fetched; it holds no login data
+/// (D-139). Linking, unlinking and fetching are user actions of their own,
+/// so `changes` is rebuilt with `link_bank_account`, `unlink_bank_account`
+/// and `fetch_statement` in its list of actions; its rows stay as they were,
+/// and the `changed_` tables refer to it by name and keep their rows too.
+const LAYOUT_17: &str = "
+CREATE TABLE bank_links (
+    account_id BLOB PRIMARY KEY NOT NULL REFERENCES accounts (id) ON DELETE CASCADE
+        CHECK (length(account_id) = 16),
+    iban TEXT CHECK (iban IS NULL OR (iban <> '' AND iban NOT GLOB '*[^A-Z0-9]*')),
+    bank_code TEXT CHECK (bank_code IS NULL OR bank_code <> ''),
+    number TEXT CHECK (number IS NULL OR number <> ''),
+    last_fetched_on TEXT
+        CHECK (last_fetched_on IS NULL
+               OR last_fetched_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    CHECK (iban IS NOT NULL OR (bank_code IS NOT NULL AND number IS NOT NULL))
+) STRICT;
+CREATE UNIQUE INDEX bank_links_by_iban ON bank_links (iban) WHERE iban IS NOT NULL;
+CREATE UNIQUE INDEX bank_links_by_number ON bank_links (bank_code, number)
+    WHERE number IS NOT NULL;
+CREATE TABLE changed_bank_links (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    account_id BLOB NOT NULL,
+    iban TEXT,
+    bank_code TEXT,
+    number TEXT,
+    last_fetched_on TEXT,
+    PRIMARY KEY (change_id, account_id, side)
+) STRICT;
+CREATE TABLE new_changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction', 'join_transfer',
+        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
+        'import_statement', 'correct_starting_balance',
+        'add_institution', 'add_payee', 'add_tag',
+        'link_bank_account', 'unlink_bank_account', 'fetch_statement'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
+    file_name TEXT
+) STRICT;
+INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
+    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
+DROP TABLE changes;
+ALTER TABLE new_changes RENAME TO changes;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -574,6 +630,9 @@ pub(crate) fn migrate_with(
     transaction.commit()?;
     Ok(())
 }
+
+#[cfg(test)]
+mod development_layouts;
 
 #[cfg(test)]
 mod tests {
@@ -646,8 +705,8 @@ mod tests {
     }
 
     /// The migrations a KassenSturz after this one may have: the current
-    /// ones and one more, which adds a table. Until there is a layout after
-    /// the starting one, the tests of an update use these (D-135).
+    /// ones and one more, which adds a table. The tests of an update use
+    /// these, so the update is tried before that layout exists (D-135).
     const WITH_A_LATER_LAYOUT: [&str; MIGRATIONS.len() + 1] = {
         let mut migrations = [""; MIGRATIONS.len() + 1];
         let mut index = 0;
@@ -731,9 +790,7 @@ mod tests {
     }
 
     #[test]
-    // Nothing to check until the starting layout has a successor (D-135);
-    // from then on, every layout since 0.1 (AGENTS.md §9).
-    #[allow(clippy::reversed_empty_ranges)]
+    // Every layout since 0.1 (AGENTS.md §9).
     fn books_with_every_earlier_layout_are_updated_after_a_backup() {
         let current = schema(&Book::create_in_memory().expect("book created").conn);
         for version in FIRST_VERSION..VERSION {
@@ -845,6 +902,18 @@ mod tests {
         assert_eq!(book.stated_balance(checking).expect("read"), Some(stated));
         book.undo().expect("undone");
         assert_eq!(book.stated_balance(checking).expect("read"), None);
+        // So does a table a later layout added (layout 17).
+        let link = kassensturz_core::BankLink {
+            account: checking,
+            iban: Some("DE89370400440532013000".into()),
+            bank_code: None,
+            number: None,
+            last_fetched_on: Some(Date::constant(2026, 10, 23)),
+        };
+        book.link_bank_account(&link).expect("linked");
+        assert_eq!(book.bank_link(checking).expect("read"), Some(link));
+        book.undo().expect("undone");
+        assert_eq!(book.bank_link(checking).expect("read"), None);
     }
 
     #[test]

@@ -2,7 +2,7 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029), whose format is described in `docs/EXPORT_FORMAT.md` (D-100). Every change to the layout updates this document.
 
-**Status: layout 16**, the starting layout of 0.1 (D-045, D-135). The 15 development layouts of M0 to M3 were merged into it: every table a 0.1 book has is built in one go, and a book one of the development builds wrote (layouts 1 to 15) isn't opened by 0.1 but turned away with `store.development-layout`; its data moves over through the complete export made with that build. From 0.1 on, every change to the layout is a migration of its own, run after a backup (see [Migrations](#migrations)), and this document is updated with each.
+**Status: layout 17** (M4.4a, D-148): layout 16, the starting layout of 0.1 (D-045, D-135), plus the bank links. The 15 development layouts of M0 to M3 were merged into layout 16: every table a 0.1 book has is built in one go, and a book one of the development builds wrote (layouts 1 to 15) isn't opened by 0.1 but turned away with `store.development-layout`; its data moves over through the complete export made with that build. From 0.1 on, every change to the layout is a migration of its own, run after a backup (see [Migrations](#migrations)), and this document is updated with each.
 
 ## The file
 
@@ -83,6 +83,20 @@ Indexes: `accounts_by_parent` on `accounts (parent_id)`, `accounts_by_institutio
 **Account groups** (D-132): an account's `parent_id` names an account of the same kind (`asset` under `asset`, `liability` under `liability`), in any currency, with no loops. KassenSturz checks this when it writes. A group adds nothing up and hides nothing: the account lists show every account on its own.
 
 Account names are never empty. No two accounts (kind `asset` or `liability`) share a name, ignoring capitals and spaces around it, closed ones included. KassenSturz checks this when it writes, not the database (D-081).
+
+### `bank_links`
+
+Which bank account an account is filled from, and the day it was last fetched (Q-086, D-148; layout 17). A link names the bank account so that KassenSturz finds it again in whatever bank login lists it, on this computer or another: by IBAN, or by the bank's code and the number the bank gives when there is no IBAN, as for a credit card. The book holds **no login data**: not the login name, not the PIN, nothing from the keychain. The bank login lives in AqBanking's folder on each computer (D-139), so a book opened on another computer only needs the login set up again there.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `account_id` | BLOB → `accounts.id`, primary key | The account; deleting it deletes this row. One link per account, and only an `asset` or `liability` account has one, which KassenSturz checks when it writes |
+| `iban` | TEXT, may be NULL | The bank account's IBAN, without spaces and in capitals (letters and digits only); NULL if it has none |
+| `bank_code` | TEXT, may be NULL | The bank's code in its country, e.g. a German bank code, as the login knows it. Never empty |
+| `number` | TEXT, may be NULL | The number the bank lists the account by when it has no IBAN, e.g. a card number as the bank shows it. Never empty |
+| `last_fetched_on` | TEXT, may be NULL | The day the account was last fetched from the bank, ISO 8601, by the clock of the computer that fetched it. NULL before the first fetch |
+
+A row has an `iban`, or a `bank_code` with a `number`, or all three; the database checks this. No two accounts are linked to the same bank account: `iban` is unique, and so is `bank_code` with `number` (the unique indexes `bank_links_by_iban` and `bank_links_by_number`, which skip NULLs).
 
 ### `transactions`
 
@@ -290,7 +304,7 @@ The change history (D-032, D-066): one row per user action, e.g. adding an accou
 |---|---|---|
 | `id` | BLOB (16 bytes), primary key | UUIDv7 |
 | `sequence` | INTEGER, from 1, unique | The order the changes were made in. Undo and redo follow it, not `made_at`, since a computer's clock can be wrong |
-| `action` | TEXT | What the user did: `set_rounding_mode`, `use_currency`, `add_account`, `rename_account`, `close_account`, `reopen_account`, `add_category`, `rename_category`, `move_category`, `add_rate`, `remove_rate`, `add_transaction`, `edit_transaction`, `remove_transaction`, `join_transfer` (joining the two sides of a Transfer into one transaction, D-087), `add_rule`, `edit_rule`, `move_rule`, `remove_rule`, `run_rules` (running the Rules on the book's transactions, D-088), `import_statement` (importing bank statements into one account, with the Rules run on what it added, D-092), `correct_starting_balance` (correcting an account's starting balance so it holds what the bank said on a day, and noting that balance on the account, D-117), or `add_institution`, `add_payee` or `add_tag` (adding a bank, a payee or a tag, D-132) |
+| `action` | TEXT | What the user did: `set_rounding_mode`, `use_currency`, `add_account`, `rename_account`, `close_account`, `reopen_account`, `add_category`, `rename_category`, `move_category`, `add_rate`, `remove_rate`, `add_transaction`, `edit_transaction`, `remove_transaction`, `join_transfer` (joining the two sides of a Transfer into one transaction, D-087), `add_rule`, `edit_rule`, `move_rule`, `remove_rule`, `run_rules` (running the Rules on the book's transactions, D-088), `import_statement` (importing bank statements into one account, with the Rules run on what it added, D-092), `correct_starting_balance` (correcting an account's starting balance so it holds what the bank said on a day, and noting that balance on the account, D-117), `add_institution`, `add_payee` or `add_tag` (adding a bank, a payee or a tag, D-132), or `link_bank_account`, `unlink_bank_account` (linking an account to the bank account it is filled from, or removing that link) or `fetch_statement` (fetching an account's statement from its bank, importing it, and noting the day on the link, D-148) |
 | `made_at` | TEXT | When, ISO 8601 in UTC, in whole seconds, e.g. `2026-10-19T11:04:02Z`, by the clock of the computer it was made on |
 | `undone` | INTEGER, 0 or 1 | `1` if it is undone, so redo can make it again |
 | `file_name` | TEXT, may be NULL | The name of the file the change read, without its folder, e.g. `october.xml` for an import of that statement file, so undo can say which import it takes back (D-109). NULL for changes that read no file |
@@ -324,7 +338,7 @@ Every change KassenSturz makes to a book's data is a user action, recorded as on
 
 ## Migrations
 
-Every book is built by the same migrations, oldest first: a new book runs all of them on an empty database, and a book with an older layout runs the ones it lacks (D-045). The first migration builds layout 16, the starting layout of 0.1, in which the 15 development layouts from before 0.1 were merged (D-135); KassenSturz's own tests prove that it builds, table for table, what those 15 built together. They run in one transaction, which also sets the application ID and `user_version`, so an update either finishes or leaves the book exactly as it was. Foreign keys are off while they run, so a migration can rebuild a table without deleting the rows that refer to it; every reference is checked before the transaction is committed. A book is updated only after a [backup](#backups) of it was made (AGENTS.md §3.1 rule 8). A book with a newer layout is turned away (`store.unsupported-layout`), and so is a book a development build wrote, with layout 1 to 15 (`store.development-layout`): KassenSturz doesn't update it, since the development migrations are gone; the way over is the complete export made with that build, read into a new book. A migration isn't a change in the [change history](#the-change-history): the backup made before it is the way back.
+Every book is built by the same migrations, oldest first: a new book runs all of them on an empty database, and a book with an older layout runs the ones it lacks (D-045). The first migration builds layout 16, the starting layout of 0.1, in which the 15 development layouts from before 0.1 were merged (D-135); KassenSturz's own tests prove that it builds, table for table, what those 15 built together. The second builds layout 17: the `bank_links` table with its `changed_` table, and `changes` rebuilt with the three actions around bank links in its list (M4.4a, D-148). They run in one transaction, which also sets the application ID and `user_version`, so an update either finishes or leaves the book exactly as it was. Foreign keys are off while they run, so a migration can rebuild a table without deleting the rows that refer to it; every reference is checked before the transaction is committed. A book is updated only after a [backup](#backups) of it was made (AGENTS.md §3.1 rule 8). A book with a newer layout is turned away (`store.unsupported-layout`), and so is a book a development build wrote, with layout 1 to 15 (`store.development-layout`): KassenSturz doesn't update it, since the development migrations are gone; the way over is the complete export made with that build, read into a new book. A migration isn't a change in the [change history](#the-change-history): the backup made before it is the way back.
 
 ## Backups
 

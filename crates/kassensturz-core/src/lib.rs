@@ -12,6 +12,7 @@
 #![forbid(unsafe_code)]
 
 mod account;
+mod bank_link;
 mod changeover;
 mod currency;
 mod decimal;
@@ -27,6 +28,7 @@ mod transfer;
 mod withdrawn;
 
 pub use account::{Account, AccountId, AccountKind, AccountType};
+pub use bank_link::BankLink;
 pub use changeover::{Changeover, ConvertedPart};
 pub use currency::{Currency, CurrencyCode, CurrencyCodeError};
 pub use decimal::{DecimalError, ExchangeRate, MAX_DECIMAL_PLACES, MAX_DIGITS, Price, Quantity};

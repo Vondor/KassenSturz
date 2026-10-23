@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! The 15 development layouts of M0 to M3, as the migrations in
-//! `src/layout.rs` built them until layout 16 merged them into the starting
+//! `layout.rs` built them until layout 16 merged them into the starting
 //! layout of 0.1 (D-045, D-135). They prove that the merged layout is table
 //! for table what they built together, and nothing else: no KassenSturz runs
-//! them anymore, and this file goes once 0.1 is tagged.
+//! them anymore, and this file goes once 0.1 is tagged. It compares against
+//! layout 16 alone, not a new book, since layouts after it add to it
+//! (M4.4a).
 
-use std::path::PathBuf;
-
-use kassensturz_core::AccountId;
-use kassensturz_store::{Book, Computer};
 use rusqlite::Connection;
+
+use super::{FIRST_VERSION, MIGRATIONS, migrate_with};
 
 /// Layout 1, the M0 walking skeleton (D-068): currencies, accounts,
 /// transactions and their parts.
@@ -808,16 +808,14 @@ fn the_starting_layout_is_what_the_development_layouts_built() {
     }
     transaction.commit().expect("committed");
 
-    // The starting layout, as a new book gets it.
-    let folder = std::env::temp_dir().join(format!("kassensturz-test-{}", AccountId::generate()));
-    std::fs::create_dir(&folder).expect("temporary folder created");
-    let path: PathBuf = folder.join("New.ksz");
-    let computer = Computer {
-        name: "Laptop".into(),
-        backup_folder: folder.join("Backups"),
-    };
-    drop(Book::create(&path, &computer).expect("book created"));
-    let new = Connection::open(&path).expect("book opened");
+    // The starting layout, as a new book got it before layout 17.
+    let mut new = Connection::open_in_memory().expect("database opened");
+    migrate_with(&mut new, &MIGRATIONS[..1], FIRST_VERSION, 0).expect("starting layout");
+    assert_eq!(
+        new.pragma_query_value(None, "user_version", |row| row.get::<_, i32>(0))
+            .expect("version read"),
+        FIRST_VERSION
+    );
 
     let (old_schema, new_schema) = (schema(&old), schema(&new));
     for (was, is) in old_schema.iter().zip(&new_schema) {
@@ -834,6 +832,4 @@ fn the_starting_layout_is_what_the_development_layouts_built() {
         assert_eq!(was, is, "{sql}");
         assert_eq!(was.0, 1);
     }
-    drop(new);
-    std::fs::remove_dir_all(&folder).expect("temporary folder removed");
 }

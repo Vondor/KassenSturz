@@ -185,5 +185,8 @@ fn action_text(action: Action) -> &'static str {
         Action::AddInstitution => "added a bank",
         Action::AddPayee => "added a payee",
         Action::AddTag => "added a tag",
+        Action::LinkBankAccount => "linked an account to its bank account",
+        Action::UnlinkBankAccount => "removed an account's bank link",
+        Action::FetchStatement => "fetched a statement from the bank",
     }
 }

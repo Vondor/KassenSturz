@@ -8,10 +8,10 @@
 //! pipeline's real output first (M3 retro R3).
 
 use kassensturz_bank::{
-    Bank, BankAccountId, Failure, FakeBank, LoginId, MemoryPinStore, Pin, PinMode, PinSession,
-    statement,
+    Bank, BankAccount, BankAccountId, Failure, FakeBank, LoginId, MemoryPinStore, Pin, PinMode,
+    PinSession, statement,
 };
-use kassensturz_core::{Account, AccountId, AccountKind, CurrencyCode, Date, Money};
+use kassensturz_core::{Account, AccountId, AccountKind, BankLink, CurrencyCode, Date, Money};
 use kassensturz_import::{EntryStatus, Limits, Statement};
 use kassensturz_pipeline::{Choices, Duplicate, EntryOutcome, import_statements, preview_import};
 use kassensturz_store::Book;
@@ -57,6 +57,26 @@ fn add_account(book: &mut Book, name: &str, kind: AccountKind, number: Option<&s
     id
 }
 
+/// The bank link (M4.4a, D-148) for a bank account as the backend lists it:
+/// by IBAN when it has one, otherwise by the login's bank code and the
+/// number the bank gives, so that it finds the bank account again after the
+/// login is set up on another computer.
+fn link_for(bank: &dyn Bank, account: &BankAccount, to: AccountId) -> BankLink {
+    let login = bank
+        .logins()
+        .expect("logins")
+        .into_iter()
+        .find(|login| login.id == account.login)
+        .expect("the account's login");
+    BankLink {
+        account: to,
+        iban: account.iban.clone(),
+        bank_code: Some(login.bank.code().to_owned()),
+        number: account.number.clone(),
+        last_fetched_on: None,
+    }
+}
+
 /// A fake bank with one login, and a book with an account for each of its
 /// bank accounts.
 fn setup() -> Setup {
@@ -81,6 +101,10 @@ fn setup() -> Setup {
         accounts[0].iban.as_deref(),
     );
     let credit_card = add_account(&mut book, "Credit card", AccountKind::Liability, None);
+    book.link_bank_account(&link_for(&bank, &accounts[0], checking))
+        .expect("linked");
+    book.link_bank_account(&link_for(&bank, &accounts[1], credit_card))
+        .expect("linked");
     Setup {
         current: accounts[0].id.clone(),
         card: accounts[1].id.clone(),
@@ -174,8 +198,20 @@ fn fetching_again_imports_nothing_twice() {
         None,
     )
     .expect("imported");
-    // The next fetch from the last fetch day on (M4.4a keeps that day).
-    let again = setup.fetch(&setup.current.clone(), Some(october(5)));
+    // The fetch day is noted on the bank link within the import's change
+    // (M4.4a); the next fetch starts from it.
+    setup
+        .book
+        .note_bank_fetch(setup.checking, october(5))
+        .expect("noted");
+    let since = setup
+        .book
+        .bank_link(setup.checking)
+        .expect("read")
+        .expect("linked")
+        .last_fetched_on;
+    assert_eq!(since, Some(october(5)));
+    let again = setup.fetch(&setup.current.clone(), since);
     assert_eq!(again.entries.len(), 2);
     let report = preview_import(
         &mut setup.book,
@@ -195,6 +231,43 @@ fn fetching_again_imports_nothing_twice() {
     );
     assert_eq!(outcomes[1], &EntryOutcome::Pending);
     assert_eq!(report.summary().imported, 0);
+}
+
+#[test]
+fn the_links_find_the_banks_accounts_again() {
+    // As the fetch screen will (M4.7): the book's links, matched against
+    // what the bank lists, by IBAN or by bank code and number. The card has
+    // no IBAN, and the number is kept as the bank shows it.
+    let setup = setup();
+    let listed = setup
+        .bank
+        .accounts(&LoginId::new("fake-login-1"))
+        .expect("accounts");
+    let links = setup.book.bank_links().expect("links");
+    assert_eq!(links.len(), 2);
+    for link in &links {
+        let found: Vec<&BankAccount> = listed
+            .iter()
+            .filter(|account| {
+                (link.iban.is_some() && account.iban == link.iban)
+                    || (link.iban.is_none() && account.number == link.number)
+            })
+            .collect();
+        assert_eq!(found.len(), 1, "{link:?}");
+        let expected = if link.account == setup.checking {
+            &setup.current
+        } else {
+            &setup.card
+        };
+        assert_eq!(&found[0].id, expected);
+    }
+    let card = links
+        .iter()
+        .find(|link| link.account == setup.credit_card)
+        .expect("the card's link");
+    assert_eq!(card.iban, None);
+    assert_eq!(card.bank_code.as_deref(), Some("37040044"));
+    assert_eq!(card.number.as_deref(), Some("4000 0000 0000 0001"));
 }
 
 #[test]

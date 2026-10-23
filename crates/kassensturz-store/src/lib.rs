@@ -10,6 +10,7 @@
 #![forbid(unsafe_code)]
 
 mod backup;
+mod bank_links;
 mod cached;
 mod details;
 mod error;

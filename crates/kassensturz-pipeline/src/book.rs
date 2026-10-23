@@ -53,6 +53,7 @@ pub fn export_book(book: &Book) -> Result<ExportData, StoreError> {
             })
             .collect(),
         institutions: book.institutions()?,
+        bank_links: book.bank_links()?,
         payees: book.payees()?,
         tags: book.tags()?,
     }))
@@ -87,6 +88,9 @@ pub fn fill_book(book: &mut Book, data: &BookData) -> Result<(), StoreError> {
                 closed: false,
                 ..account.clone()
             })?;
+        }
+        for link in &data.bank_links {
+            book.link_bank_account(link)?;
         }
         for rate in &data.rates {
             book.add_rate(rate)?;

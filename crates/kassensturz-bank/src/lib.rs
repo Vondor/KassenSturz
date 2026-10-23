@@ -14,8 +14,8 @@
 //!   (D-030, threat T-11);
 //! - the way from an IBAN to the bank and to what its login needs
 //!   ([`Iban`], [`BankDirectory`], [`setup_for`]), with every gap in the
-//!   sources as an explicit state ([`Setup`], D-144) and the hand-checked
-//!   bank list for corrections ([`banks`], D-145, `docs/BANK_LIST.md`);
+//!   sources as an explicit state ([`Setup`], D-145) and the hand-checked
+//!   bank list for corrections ([`banks`], D-146, `docs/BANK_LIST.md`);
 //! - the PIN and the user's choice how long to keep it ([`Pin`],
 //!   [`PinMode`], [`PinSession`], D-057), with a wrong PIN forgotten at once
 //!   (D-140, threat T-05);

@@ -3,7 +3,7 @@
 
 //! The hand-checked bank list: corrections to the external bank information
 //! (AqBanking's), checked by a person in a test round (item 93 of the
-//! Proposals list, D-145). How to add an entry is in `docs/BANK_LIST.md`.
+//! Proposals list, D-146). How to add an entry is in `docs/BANK_LIST.md`.
 //!
 //! An entry here wins over the external source entirely, so write the whole
 //! entry, not just the field that was wrong. Nothing here is a secret: a

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! The bank abstraction: what every backend offers KassenSturz (D-012,
-//! D-060, D-144). The real one speaks FinTS through AqBanking (M4.5); the
+//! D-060, D-145). The real one speaks FinTS through AqBanking (M4.5); the
 //! fake one is for tests ([`crate::FakeBank`], D-055).
 //!
 //! Everything here only reads. There is no function that starts a transfer,
@@ -151,7 +151,7 @@ pub trait Bank {
     /// Whether the backend can be used on this computer (D-054).
     fn availability(&self) -> Availability;
 
-    /// Where banks are looked up for the setup screens (D-144).
+    /// Where banks are looked up for the setup screens (D-145).
     fn directory(&self) -> &dyn BankDirectory;
 
     /// The logins set up in this backend.

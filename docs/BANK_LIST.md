@@ -1,6 +1,6 @@
 # The bank list: how agents complete it and how the app shows what is missing
 
-KassenSturz finds a bank from the IBAN the user types and then asks only what that bank's login needs (D-144). The bank's details come from two sources, in this order (D-145):
+KassenSturz finds a bank from the IBAN the user types and then asks only what that bank's login needs (D-145). The bank's details come from two sources, in this order (D-146):
 
 1. **The hand-checked list** in this repository: `crates/kassensturz-bank/src/banks.rs`, `HAND_CHECKED`. Corrections and additions a person confirmed in a test round. An entry here wins over the external source entirely.
 2. **The external source**: AqBanking's bank information, read by the real backend (M4.5). It covers most German banks but can be out of date: a moved server, a bank that merged, a login kind it doesn't know.

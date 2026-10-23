@@ -230,7 +230,7 @@ Data couldn't be written to a file (D-099), or a complete export couldn't be rea
 
 ## Bank connections (`kassensturz-bank`)
 
-A bank connection couldn't be used, or what the bank delivered couldn't be turned into a statement (D-053, D-141, D-144). Nothing was imported, so the book is unchanged; the fetch can be tried again. No report ever carries a PIN, a TAN or a login name: logins are named by their ID (threat T-02 in `docs/THREAT_MODEL.md`). A bank's own message (`text`) is data the user may read, never an instruction (AGENTS.md §8).
+A bank connection couldn't be used, or what the bank delivered couldn't be turned into a statement (D-053, D-141, D-145). Nothing was imported, so the book is unchanged; the fetch can be tried again. No report ever carries a PIN, a TAN or a login name: logins are named by their ID (threat T-02 in `docs/THREAT_MODEL.md`). A bank's own message (`text`) is data the user may read, never an instruction (AGENTS.md §8).
 
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|

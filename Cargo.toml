@@ -17,6 +17,7 @@ repository = "https://github.com/Vondor/KassenSturz"
 publish = false
 
 [workspace.dependencies]
+kassensturz-aqbanking-sys = { path = "crates/kassensturz-aqbanking-sys" }
 kassensturz-core = { path = "crates/kassensturz-core" }
 kassensturz-export = { path = "crates/kassensturz-export" }
 kassensturz-import = { path = "crates/kassensturz-import", default-features = false }
@@ -41,6 +42,10 @@ quick-xml = { version = "=0.42.0", default-features = false }
 # gzip for KMyMoney's .kmy files (M2.9): the pure-Rust backend only, so no C
 # zlib is built or linked.
 flate2 = { version = "=1.1.10", default-features = false, features = ["rust_backend"] }
+# Loads AqBanking and Gwenhywfar at runtime by their ABI names, so KassenSturz
+# starts and works without them (D-054, D-060, D-138). Approved by the
+# maintainer in M4 Phase 0.
+libloading = "=0.9.0"
 # Patterns in Rules (D-015): linear-time matching, so no pattern can hang the
 # app.
 regex = "=1.13.1"

@@ -3,7 +3,7 @@
 
 //! Which bank an IBAN belongs to and what setting up a login there needs,
 //! so the app asks for the IBAN first and then only for what that bank needs
-//! (the maintainer's answer to Q-035, D-144).
+//! (the maintainer's answer to Q-035, D-145).
 //!
 //! Banks come from two sources, layered: the hand-checked list in this
 //! repository ([`crate::banks`]) first, for corrections, then an external

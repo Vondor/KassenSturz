@@ -126,7 +126,7 @@ fn check_digits_remainder(text: &str) -> u32 {
 }
 
 /// A bank's national code, e.g. a German bank code (Bankleitzahl), with its
-/// country: the key the bank directory is looked up by (D-144).
+/// country: the key the bank directory is looked up by (D-145).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct BankCode {
     country: String,

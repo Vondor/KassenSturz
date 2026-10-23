@@ -8,7 +8,10 @@
 //! place of `libgwenhywfar.so.79` and `libaqbanking.so.44` and drives the
 //! real safe wrapper and the real bank backend through the C ABI. The
 //! functions here play **scenarios**: a bank answering well, a wrong PIN,
-//! a TAN request, an unreachable server, a refused certificate, and
+//! a TAN request as text (`tan`) or as a picture (`optical-tan`), a
+//! request to approve in the bank's app (`approval`), each at the fetch or,
+//! with the prefix `setup-`, at the setup's `getsysid`, an unreachable
+//! server, a refused certificate, and
 //! malformed data of every kind the wrapper must survive. The rest of the
 //! functions are generated defaults that answer nothing (`generated.rs`,
 //! made by `generate.py`).
@@ -320,6 +323,76 @@ fn progress(message: &str) {
     }
 }
 
+/// What the bank asks for after the PIN in `scenario`, the way AqBanking
+/// does: a TAN as text or as a picture, or an approval in the bank's app.
+/// `0` means the job may go on.
+fn second_factor(scenario: &str) -> c_int {
+    match scenario {
+        "tan" => ask_password(true),
+        "optical-tan" => ask_tan(GWEN_Gui_PasswordMethod_OpticalHHD),
+        "approval" => ask_approval(),
+        _ => 0,
+    }
+}
+
+/// Asks the wrapper for a TAN shown as `method`.
+fn ask_tan(method: GWEN_GUI_PASSWORD_METHOD) -> c_int {
+    let Some(get_password) = gui().and_then(|gui| gui.get_password) else {
+        return GWEN_ERROR_NOT_IMPLEMENTED;
+    };
+    let mut buffer = [0 as c_char; 64];
+    let token = CString::new("TAN_made-up-token").unwrap_or_default();
+    // SAFETY: calling the wrapper's own callback with live strings and a
+    // buffer of the length passed.
+    let rv = unsafe {
+        get_password(
+            ptr::null_mut(),
+            GWEN_GUI_INPUT_FLAGS_TAN | GWEN_GUI_INPUT_FLAGS_SHOW | GWEN_GUI_INPUT_FLAGS_DIRECT,
+            token.as_ptr(),
+            c"Enter TAN".as_ptr(),
+            c"Scan the picture with your TAN app".as_ptr(),
+            buffer.as_mut_ptr(),
+            4,
+            c_int::try_from(buffer.len()).unwrap_or(c_int::MAX),
+            method,
+            ptr::null_mut(),
+            0,
+        )
+    };
+    let length = buffer.iter().position(|&byte| byte == 0).unwrap_or(0);
+    journal(&if rv < 0 {
+        format!("password: optical tan declined ({rv})")
+    } else {
+        format!("password: optical tan with {length} characters")
+    });
+    rv
+}
+
+/// Asks the wrapper to have the login approved in the bank's app, the
+/// way AqBanking 6.9.2 does for a decoupled TAN method
+/// (`applayer/cbox_voptan.c`): a box with "Approved" and "Abort", whose
+/// text is plain first and HTML after.
+fn ask_approval() -> c_int {
+    let Some(message_box) = gui().and_then(|gui| gui.message_box) else {
+        return GWEN_ERROR_NOT_IMPLEMENTED;
+    };
+    // SAFETY: calling the wrapper's own callback with live strings.
+    let rv = unsafe {
+        message_box(
+            ptr::null_mut(),
+            GWEN_GUI_MSG_FLAGS_TYPE_INFO | GWEN_GUI_MSG_FLAGS_CONFIRM_B1,
+            c"Decoupled Mode: Waiting for Approval".as_ptr(),
+            c"Your approval is required.\nPlease use your smart phone app.\n<html><p>Your <b>approval</b> is required.</p></html>".as_ptr(),
+            c"Approved".as_ptr(),
+            c"Abort".as_ptr(),
+            ptr::null(),
+            0,
+        )
+    };
+    journal(&format!("question: approval answered {rv}"));
+    if rv == 1 { 0 } else { GWEN_ERROR_USER_ABORTED }
+}
+
 /// Asks the wrapper for the PIN (or a TAN) the way AqBanking does, and
 /// plays the scenario's answer to it. `0` means the job may go on.
 fn ask_password(tan: bool) -> c_int {
@@ -337,8 +410,12 @@ fn ask_password(tan: bool) -> c_int {
     let mut buffer = [0 as c_char; 64];
     let token = CString::new("PIN_made-up-token").unwrap_or_default();
     let title = CString::new(if tan { "Enter TAN" } else { "Enter PIN" }).unwrap_or_default();
-    let text =
-        CString::new("Please enter the PIN for user made-up-login at Testbank").unwrap_or_default();
+    let text = CString::new(if tan {
+        "Challenge: type the TAN your app shows for job 4711\n<html><p>Challenge: type the TAN</p></html>"
+    } else {
+        "Please enter the PIN for user made-up-login at Testbank"
+    })
+    .unwrap_or_default();
     // SAFETY: calling the wrapper's own callback with live strings and a
     // buffer of the length passed.
     let rv = unsafe {
@@ -792,6 +869,11 @@ pub unsafe extern "C" fn AB_Banking_ProviderControl(
                 return rv;
             }
             let rv = ask_password(false);
+            if rv != 0 {
+                return rv;
+            }
+            let scenario = state().scenario.clone();
+            let rv = second_factor(scenario.strip_prefix("setup-").unwrap_or_default());
             if rv != 0 {
                 return rv;
             }
@@ -1473,11 +1555,9 @@ pub unsafe extern "C" fn AB_Banking_SendCommands(
     if rv != 0 {
         return rv;
     }
-    if scenario == "tan" {
-        let rv = ask_password(true);
-        if rv != 0 {
-            return rv;
-        }
+    let rv = second_factor(&scenario);
+    if rv != 0 {
+        return rv;
     }
     write_message_log();
     let known = state()

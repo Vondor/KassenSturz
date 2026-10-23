@@ -248,9 +248,10 @@ A bank connection couldn't be used, or what the bank delivered couldn't be turne
 | `bank.unreachable` | | | Your bank's server couldn't be reached. Check your internet connection and try again later. |
 | `bank.refused` | `text?` | | Your bank refused the request. It says: {text}. Try again later; if it keeps happening, ask your bank. |
 | `bank.aborted` | | | The bank dialog was closed before it finished. Nothing was fetched. Start again when you are ready. |
-| `bank.tan-needed` | | | Your bank asks for a TAN for this request, and KassenSturz can't ask you for one yet. Nothing was fetched. Try again later; the TAN entry comes with a later version. |
+| `bank.tan-needed` | | | Your bank asks for a TAN for this request, and KassenSturz had no way to ask you for it. Nothing was fetched. Try again from the app's window. |
+| `bank.tan-method-unsupported` | | | Your bank shows this TAN as a picture (a flicker code, photoTAN or QR code), which KassenSturz can't show yet. Choose a TAN method at your bank that sends the TAN as text or asks you to approve in its app, then try again. |
 | `bank.untrusted-server` | | | The bank server's security certificate didn't pass every check, so KassenSturz sent nothing to it. Check your internet connection and the server address; if it keeps happening, ask your bank. |
-| `bank.needs-setup-dialog` | | | A chip-card login is set up in the advanced setup, not with the IBAN. Open the advanced setup from the bank login's page. |
+| `bank.needs-setup-dialog` | | | A chip-card login can't be set up in KassenSturz yet. Use a login with PIN and TAN for this bank, or import a file from your bank instead. |
 | `bank.setup-failed` | `text?` | | The bank login couldn't be set up, so nothing of it was kept. The bank software says: {text}. Check the login name and the server address and try again. |
 | `bank.folder` | | | The folder KassenSturz keeps its bank settings in couldn't be created or opened. Check that your data folder is writable. |
 | `bank.busy` | | | Another bank connection is still running. Wait for it to finish and try again. |

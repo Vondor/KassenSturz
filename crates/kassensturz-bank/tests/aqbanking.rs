@@ -18,8 +18,9 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use kassensturz_aqbanking_sys::stub;
 use kassensturz_bank::{
     AqBankingBank, Availability, Bank, BankAccount, BankAccountId, BankAccountKind, BankCode,
-    BankError, CustomerId, Iban, KeychainPinStore, Library, Login, LoginId, LoginKind, LoginSetup,
-    MemoryPinStore, Pin, PinMode, PinSession, Setup, Version, remove_login, setup_for, statement,
+    BankDialogs, BankError, BankQuestion, CustomerId, Iban, KeychainPinStore, Library, Login,
+    LoginId, LoginKind, LoginSetup, MemoryPinStore, Pin, PinMode, PinSession, QuestionLevel, Setup,
+    Tan, TanRequest, Version, remove_login, setup_for, statement,
 };
 use kassensturz_core::{Account, AccountId, AccountKind, BankLink, CurrencyCode, Date};
 use kassensturz_import::{EntryStatus, Limits};
@@ -491,6 +492,119 @@ fn a_fetch_is_imported_like_a_file() {
 
 /// A session whose PIN was given for one bank session, which the setup
 /// used up.
+/// Dialogs that answer with a TAN and a button, and note what they were
+/// asked.
+struct Answers {
+    tan: Option<&'static str>,
+    button: Option<usize>,
+    asked: Arc<Mutex<Vec<String>>>,
+}
+
+impl BankDialogs for Answers {
+    fn tan(&mut self, request: &TanRequest) -> Option<Tan> {
+        self.asked
+            .lock()
+            .expect("not poisoned")
+            .push(format!("tan: {} / {}", request.title, request.challenge));
+        self.tan.map(|tan| Tan::new(tan.to_owned()))
+    }
+
+    fn question(&mut self, question: &BankQuestion) -> Option<usize> {
+        assert_eq!(question.level, QuestionLevel::Info);
+        self.asked.lock().expect("not poisoned").push(format!(
+            "question: {} / {} / {:?}",
+            question.title, question.text, question.buttons
+        ));
+        self.button
+    }
+}
+
+fn answers(
+    bank: &mut AqBankingBank,
+    tan: Option<&'static str>,
+    button: Option<usize>,
+) -> Arc<Mutex<Vec<String>>> {
+    let asked = Arc::default();
+    bank.set_dialogs(Box::new(Answers {
+        tan,
+        button,
+        asked: Arc::clone(&asked),
+    }));
+    asked
+}
+
+#[test]
+fn tans_and_approvals_are_asked_through_the_apps_dialogs() {
+    let _guard = lock();
+    let mut bank = open("second-factor");
+    // The first login asks for an approval in the bank's app (D-151).
+    let asked = answers(&mut bank, None, Some(0));
+    stub::set_scenario("setup-approval");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    let (login, accounts) = connect(&mut bank, &mut pins);
+    assert_eq!(
+        *asked.lock().expect("not poisoned"),
+        vec![
+            "question: Decoupled Mode: Waiting for Approval / Your approval is required.\nPlease \
+             use your smart phone app. / [\"Approved\", \"Abort\"]"
+                .to_owned()
+        ]
+    );
+    // A TAN as text at the fetch: the challenge without its HTML.
+    let asked = answers(&mut bank, Some("123456"), None);
+    stub::set_scenario("tan");
+    bank.fetch(&accounts[0].id, None, &mut pins)
+        .expect("fetched with the TAN");
+    assert_eq!(
+        *asked.lock().expect("not poisoned"),
+        vec!["tan: Enter TAN / Challenge: type the TAN your app shows for job 4711".to_owned()]
+    );
+    assert!(journal_of(&bank).contains("password: tan with 6 characters"));
+    // A TAN as a picture can't be shown; the dialogs aren't asked.
+    let asked = answers(&mut bank, Some("123456"), None);
+    stub::set_scenario("optical-tan");
+    assert_eq!(
+        bank.fetch(&accounts[0].id, None, &mut pins),
+        Err(BankError::TanMethodUnsupported)
+    );
+    assert!(asked.lock().expect("not poisoned").is_empty());
+    // The user cancels the TAN or closes the approval.
+    for scenario in ["tan", "approval"] {
+        answers(&mut bank, None, None);
+        stub::set_scenario(scenario);
+        assert_eq!(
+            bank.fetch(&accounts[0].id, None, &mut pins),
+            Err(BankError::Aborted),
+            "{scenario}"
+        );
+        assert!(pins.is_remembered(&login), "{scenario} keeps the PIN");
+    }
+    // "Abort" in the approval is the user's choice too.
+    answers(&mut bank, None, Some(1));
+    assert_eq!(
+        bank.fetch(&accounts[0].id, None, &mut pins),
+        Err(BankError::Aborted)
+    );
+    stub::set_scenario("ok");
+}
+
+#[test]
+fn a_setup_whose_approval_is_refused_keeps_nothing() {
+    let _guard = lock();
+    let mut bank = open("setup-refused");
+    answers(&mut bank, None, Some(1));
+    stub::set_scenario("setup-approval");
+    let mut pins = pins_with(PinMode::SaveInKeychain);
+    assert_eq!(
+        bank.add_login(&login_setup(), &mut pins),
+        Err(BankError::Aborted)
+    );
+    assert_eq!(bank.logins(), Ok(Vec::new()));
+    assert!(!pins.is_remembered(&LoginId::pending()));
+    assert_eq!(pins.is_saved(&LoginId::pending()), Ok(false));
+    stub::set_scenario("ok");
+}
+
 fn pins_once(bank: &mut AqBankingBank) -> PinSession {
     let mut pins = pins_with(PinMode::AskEachTime);
     let _ = bank.add_login(&login_setup(), &mut pins);

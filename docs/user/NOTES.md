@@ -154,8 +154,18 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - Setting up a login runs the same steps AqBanking's own tools run: the bank's parameters, your login's system ID and the list of your accounts. If one step fails, KassenSturz removes the half-done login and forgets the PIN you typed, so you can simply start over.
 - KassenSturz connects only to a server whose security certificate passes every check; there is no "connect anyway". If the check fails, it tells you so and sends nothing.
 - Until KassenSturz has its own registration with the banks' FinTS system, the connection says so and offers importing a file instead; the registration is the maintainer's job and takes a while.
-- A TAN (for example for a long statement period) can't be typed yet; that comes with the next step. A chip card is set up in the advanced setup, not with the IBAN.
+- TANs and approvals in your bank's app are asked in KassenSturz's own windows (see below). A chip card can't be set up yet.
 - If KassenSturz knows your bank's name but not its server address or how you log in there, you can enter these yourself. The list of known banks grows with what people confirm in test rounds; it names banks and their servers, never who banks where.
+
+## Connecting a bank (M4.6)
+
+- Settings → Bank connections → "Connect a bank…". Type the IBAN of one of your accounts at the bank; KassenSturz finds the bank from it and asks only what that bank needs: your login name, a customer ID where the bank has one, and your PIN, plus how long to keep the PIN (ask each time, until you close KassenSturz, or in your keychain).
+- If the bank lists don't know your bank or its FinTS address, you can type the address your bank gives for it; it must start with `https://`. Banks outside Germany can't be connected, since FinTS is a German system: import your bank's files instead.
+- While KassenSturz connects, your bank may ask for a TAN or for your approval in its app. KassenSturz shows the bank's own message and buttons in a window of its own. A TAN is sent once and never kept. Closing the window cancels, and nothing of the half-done login is kept.
+- A TAN that your bank shows as a picture (a flicker code, photoTAN or QR code) can't be shown yet: KassenSturz says so before sending anything. Choose a TAN method at your bank that sends the TAN as text or asks in its app. Which TAN method is used is chosen automatically.
+- At the end, KassenSturz lists the accounts your bank shows and suggests which account in your book each one fills; you confirm or change each choice.
+- In Settings, each bank login has "Forget the PIN" and "Remove bank login and saved PIN…". Removing a login keeps your accounts, their transactions and their links to the bank accounts.
+- To try the screens without a bank, start KassenSturz with `KASSENSTURZ_FAKE_BANK=1`: a made-up bank (PIN 12345, TAN 123456) stands in, and a note on the screen says so.
 
 ## Which account is filled from which bank account (M4.4a)
 

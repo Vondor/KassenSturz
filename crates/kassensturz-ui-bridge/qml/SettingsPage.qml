@@ -4,10 +4,12 @@
 // The app's settings: which book is open, opening another one or starting a
 // new one (D-033, for people who want more than one book), how amounts look
 // (D-002, D-114), the language (D-127), saving a copy of the data and starting a book from a file
-// (M3.12), how long the history of changes is kept (D-066, M3.8), and
-// where the backups go.
+// (M3.12), the bank logins on this computer and their PINs (M4.6, D-057),
+// how long the history of changes is kept (D-066, M3.8), and where the
+// backups go.
 
 import QtQuick
+import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.formcard as FormCard
 import org.kde.ki18n
@@ -20,6 +22,7 @@ FormCard.FormCardPage {
     required property NumberFormatSettings numberFormat
     required property LanguageSettings language
     required property ChangeHistory history
+    required property BankConnection bank
 
     // Whether a number format choice couldn't be saved for the next start.
     property bool formatNotSaved: false
@@ -31,6 +34,36 @@ FormCard.FormCardPage {
     signal saveCopyClicked()
     signal bookFromFileClicked()
     signal showHistoryClicked()
+    signal connectBankClicked()
+
+    // What bank.status() and bank.logins() returned, and why the last
+    // change to a login failed.
+    property var bankStatus: ({})
+    property var bankLogins: []
+    property var bankResult: ({})
+    // The login the removal dialog asks about.
+    property var pendingLogin: ({})
+
+    // Reads the bank logins again, e.g. after one was set up or removed.
+    function refreshBanks() {
+        bankStatus = bank.status();
+        const result = bankStatus.ready ? bank.logins() : ({ logins: [] });
+        bankLogins = result.logins ?? [];
+        if (result.code !== undefined) {
+            bankResult = result;
+        }
+    }
+
+    Component.onCompleted: refreshBanks()
+
+    // A login set up on its page is listed here at once.
+    Connections {
+        target: page.bank
+
+        function onSetupFinished() {
+            page.refreshBanks();
+        }
+    }
 
     // The history setting the user chose and the dialog asks about, with how
     // many changes it would delete, and why the last change of the history
@@ -147,6 +180,102 @@ FormCard.FormCardPage {
             description: page.i18nContext.i18nc("@info", "From a KMyMoney book, or a whole book you saved with KassenSturz.")
             onClicked: page.bookFromFileClicked()
         }
+    }
+
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "Bank connections")
+    }
+
+    FormCard.FormCard {
+        Repeater {
+            model: page.bankLogins
+
+            delegate: ColumnLayout {
+                id: login
+
+                required property var modelData
+                required property int index
+
+                Layout.fillWidth: true
+                spacing: 0
+
+                FormCard.FormDelegateSeparator {
+                    visible: login.index > 0
+                }
+
+                FormCard.FormTextDelegate {
+                    text: login.modelData.bank
+                    // From the bank lists: plain text (D-143).
+                    textItem.textFormat: Text.PlainText
+                    description: login.modelData.kind === "chip-card"
+                        ? page.i18nContext.i18nc("@info", "Login with a chip card")
+                        : page.i18nContext.i18nc("@info", "Login with PIN and TAN")
+                }
+
+                FormCard.FormButtonDelegate {
+                    icon.name: "edit-clear"
+                    text: page.i18nContext.i18nc("@action:button", "Forget the PIN")
+                    description: page.i18nContext.i18nc("@info", "Removes the PIN KassenSturz remembers or saved for this login. You type it at the next connection.")
+                    onClicked: page.bankResult = page.bank.forgetPin(login.modelData.id)
+                }
+
+                FormCard.FormButtonDelegate {
+                    icon.name: "edit-delete"
+                    text: page.i18nContext.i18nc("@action:button", "Remove bank login and saved PIN…")
+                    onClicked: {
+                        page.pendingLogin = login.modelData;
+                        removeLoginDialog.open();
+                    }
+                }
+            }
+        }
+
+        FormCard.FormDelegateSeparator {
+            visible: page.bankLogins.length > 0
+        }
+
+        FormCard.FormButtonDelegate {
+            icon.name: "network-connect"
+            text: page.i18nContext.i18nc("@action:button", "Connect a bank…")
+            description: page.bankStatus.ready
+                ? page.i18nContext.i18nc("@info", "Fetch your transactions from your bank instead of typing them. KassenSturz only reads; it never sends money.")
+                : ""
+            enabled: page.bankStatus.ready ?? false
+            onClicked: page.connectBankClicked()
+        }
+    }
+
+    // Why bank connections can't be used here, or why the last change to a
+    // login failed.
+    FormError {
+        Layout.fillWidth: true
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 30
+        Layout.alignment: Qt.AlignHCenter
+        result: page.bankResult.code !== undefined ? page.bankResult : page.bankStatus.ready === false ? page.bankStatus : ({})
+    }
+
+    Kirigami.PromptDialog {
+        id: removeLoginDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Remove this bank login?")
+        subtitle: page.i18nContext.i18nc("@info", "KassenSturz forgets the login and its saved PIN on this computer. Your accounts and their transactions stay as they are, and so does which bank account fills which of them: set the login up again to fetch once more.")
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button", "Remove the login")
+                icon.name: "edit-delete"
+                onTriggered: {
+                    page.bankResult = page.bank.removeLogin(page.pendingLogin.id);
+                    removeLoginDialog.close();
+                    page.refreshBanks();
+                }
+            },
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button", "Keep it")
+                icon.name: "dialog-cancel"
+                onTriggered: removeLoginDialog.close()
+            }
+        ]
     }
 
     FormCard.FormHeader {

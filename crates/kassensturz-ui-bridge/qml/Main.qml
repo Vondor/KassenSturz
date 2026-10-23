@@ -154,6 +154,16 @@ Kirigami.ApplicationWindow {
         id: changeNames
     }
 
+    // The bank connection (M4.6): one per app, with the dialogs for what a
+    // bank asks while it is contacted.
+    BankConnection {
+        id: bankConnection
+    }
+
+    BankDialogs {
+        bank: bankConnection
+    }
+
     // The language (D-127), which applies at the next start.
     LanguageSettings {
         id: languageSettings
@@ -716,11 +726,29 @@ Kirigami.ApplicationWindow {
             numberFormat: numberFormatSettings
             language: languageSettings
             history: changeHistory
+            bank: bankConnection
+            onConnectBankClicked: root.pushPage(bankSetupPage)
             onOpenAnotherClicked: root.chooseBookToOpen()
             onNewBookClicked: root.chooseNewBook()
             onSaveCopyClicked: root.pushPage(exportPage)
             onBookFromFileClicked: root.chooseFileForNewBook()
             onShowHistoryClicked: root.pushPage(historyPage)
+        }
+    }
+
+    Component {
+        id: bankSetupPage
+
+        BankSetupPage {
+            bank: bankConnection
+            onLinked: root.screenChangedBook()
+            onDone: {
+                root.pageStack.pop();
+                const settings = root.pageStack.currentItem;
+                if (settings && settings.refreshBanks !== undefined) {
+                    settings.refreshBanks();
+                }
+            }
         }
     }
 

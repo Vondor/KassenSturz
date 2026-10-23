@@ -15,7 +15,7 @@ use crate::parse::AmountInputError;
 use crate::register::AmountWriter;
 
 /// An error as the UI gets it: a code and its parameters, already as text.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ErrorText {
     /// The code, e.g. `input.malformed-amount` or `store.duplicate-account-name`.
     pub code: &'static str,

@@ -14,10 +14,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use kassensturz_aqbanking_sys::gwenhywfar::{GWEN_ERROR_GENERIC, GWEN_ERROR_NET_UNREACHABLE};
+use kassensturz_aqbanking_sys::gwenhywfar::{
+    GWEN_ERROR_GENERIC, GWEN_ERROR_NET_UNREACHABLE, GWEN_ERROR_USER_ABORTED,
+};
 use kassensturz_aqbanking_sys::session::{
-    AccountKind, BalanceKind, DateRecord, LogLevel, PasswordAnswer, PasswordKind, PasswordRequest,
-    PasswordStatus, Session, SessionError, SessionHandler, SessionOptions, TransactionKind,
+    AccountKind, BalanceKind, DateRecord, LogLevel, PasswordAnswer, PasswordKind, PasswordMethod,
+    PasswordRequest, PasswordStatus, QuestionLevel, QuestionRequest, Session, SessionError,
+    SessionHandler, SessionOptions, TransactionKind,
 };
 use kassensturz_aqbanking_sys::{Library, LoadError, MAX_TEXT_BYTES, Version, probe_from, stub};
 use zeroize::Zeroizing;
@@ -28,11 +31,16 @@ fn lock() -> MutexGuard<'static, ()> {
     LOCK.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// A handler that answers with one PIN and records what it was asked.
+/// A handler that answers with one PIN, a TAN and a button if it has
+/// them, and records what it was asked.
 #[derive(Default)]
 struct Recorder {
     pin: Option<String>,
+    tan: Option<String>,
+    button: Option<usize>,
     requests: Vec<PasswordKind>,
+    tan_requests: Vec<PasswordRequest>,
+    questions: Vec<QuestionRequest>,
     statuses: Vec<PasswordStatus>,
     lines: Vec<(LogLevel, String)>,
 }
@@ -40,10 +48,23 @@ struct Recorder {
 impl SessionHandler for Recorder {
     fn password(&mut self, request: &PasswordRequest) -> PasswordAnswer {
         self.requests.push(request.kind);
-        match (&self.pin, request.kind) {
-            (Some(pin), PasswordKind::Pin) => PasswordAnswer::Text(Zeroizing::new(pin.clone())),
-            _ => PasswordAnswer::Decline,
+        if request.kind == PasswordKind::Tan {
+            self.tan_requests.push(request.clone());
         }
+        let answer = match request.kind {
+            PasswordKind::Pin => self.pin.clone(),
+            PasswordKind::Tan => self.tan.clone(),
+            PasswordKind::Other => None,
+        };
+        match answer {
+            Some(text) => PasswordAnswer::Text(Zeroizing::new(text)),
+            None => PasswordAnswer::Decline,
+        }
+    }
+
+    fn question(&mut self, question: &QuestionRequest) -> Option<usize> {
+        self.questions.push(question.clone());
+        self.button
     }
 
     fn password_status(&mut self, status: PasswordStatus) {
@@ -351,12 +372,84 @@ fn a_declined_pin_a_bad_pin_and_a_tan_request_stop_the_fetch() {
     stub::set_scenario("ok");
 }
 
+#[test]
+fn a_tan_and_an_approval_are_asked_for_with_plain_text() {
+    let _guard = lock();
+    let (session, data_dir) = open("ok", "second-factor", Some("1234"));
+    let account = set_up_login(&session);
+    // A text TAN: the challenge comes without its HTML copy.
+    stub::set_scenario("tan");
+    session.handler().tan = Some("123456".to_owned());
+    session.fetch(account, None).expect("the TAN is accepted");
+    {
+        let handler = session.handler();
+        let request = &handler.tan_requests[0];
+        assert_eq!(request.method, PasswordMethod::Text);
+        assert_eq!(request.title, "Enter TAN");
+        assert_eq!(
+            request.text,
+            "Challenge: type the TAN your app shows for job 4711"
+        );
+    }
+    assert!(journal(&data_dir).contains("password: tan with 6 characters"));
+    // A picture TAN is marked as such, so the app can say it can't show it.
+    clear(&session, Some("1234"));
+    stub::set_scenario("optical-tan");
+    session.handler().tan = None;
+    assert_eq!(
+        session.fetch(account, None),
+        Err(SessionError::Declined(PasswordKind::Tan))
+    );
+    assert_eq!(
+        session.handler().tan_requests[0].method,
+        PasswordMethod::Optical
+    );
+    // An approval in the bank's app: the first button goes on.
+    clear(&session, Some("1234"));
+    stub::set_scenario("approval");
+    session.handler().button = Some(0);
+    session.fetch(account, None).expect("approved");
+    {
+        let handler = session.handler();
+        let question = &handler.questions[0];
+        assert_eq!(question.level, QuestionLevel::Info);
+        assert_eq!(question.title, "Decoupled Mode: Waiting for Approval");
+        assert_eq!(
+            question.text,
+            "Your approval is required.\nPlease use your smart phone app."
+        );
+        assert_eq!(question.buttons, vec!["Approved", "Abort"]);
+    }
+    assert!(journal(&data_dir).contains("question: approval answered 1"));
+    // "Abort", no answer and a button that isn't there all stop the job.
+    for button in [Some(1), None, Some(5)] {
+        clear(&session, Some("1234"));
+        session.handler().button = button;
+        assert_eq!(
+            session.fetch(account, None),
+            Err(SessionError::Library(GWEN_ERROR_USER_ABORTED)),
+            "{button:?}"
+        );
+    }
+    // During the setup too: the bank asks at the first login.
+    clear(&session, Some("1234"));
+    stub::set_scenario("setup-approval");
+    session.handler().button = Some(0);
+    session
+        .control("getsysid", &["-u", "1"])
+        .expect("approved at getsysid");
+    assert_eq!(session.handler().questions.len(), 1);
+    stub::set_scenario("ok");
+}
+
 /// Gives the handler a new PIN and a clean record, between the calls of
 /// one test.
 fn clear(session: &Session<Recorder>, pin: Option<&str>) {
     let mut handler = session.handler();
     handler.pin = pin.map(str::to_owned);
     handler.requests.clear();
+    handler.tan_requests.clear();
+    handler.questions.clear();
     handler.statuses.clear();
     handler.lines.clear();
 }

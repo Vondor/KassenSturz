@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 # CMake drives Cargo (D-063): Cargo builds the program, CMake installs what a
-# desktop app needs besides it (desktop file, AppStream data, translations).
+# desktop app needs besides it (desktop file, AppStream data, icons, translations).
 
 cmake_minimum_required(VERSION 3.27)
 
@@ -84,6 +84,8 @@ if(KASSENSTURZ_BANK_DIALOGS)
 endif()
 install(FILES data/io.github.vondor.KassenSturz.desktop DESTINATION ${KDE_INSTALL_APPDIR})
 install(FILES data/io.github.vondor.KassenSturz.metainfo.xml DESTINATION ${KDE_INSTALL_METAINFODIR})
+# The app icon in the freedesktop icon theme layout: an SVG and PNG sizes (D-163).
+install(DIRECTORY data/icons/hicolor DESTINATION ${KDE_INSTALL_ICONDIR})
 ki18n_install(po)
 
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)

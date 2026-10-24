@@ -281,6 +281,17 @@ jobs:
       # Without its catalog the app would speak English on a German system.
       - name: The German translation is installed (D-126)
         run: test -f build/stage/usr/share/locale/de/LC_MESSAGES/kassensturz.mo
+      # The desktop file names the icon, and the icon theme has it (D-163).
+      - name: The app icon is installed (D-163)
+        run: |
+          set -eu
+          icons=build/stage/usr/share/icons/hicolor
+          test -s "$icons/scalable/apps/io.github.vondor.KassenSturz.svg"
+          for size in 16 22 24 32 48 64 128 256; do
+            test -s "$icons/${size}x${size}/apps/io.github.vondor.KassenSturz.png"
+          done
+          grep -qx 'Icon=io.github.vondor.KassenSturz' \
+            build/stage/usr/share/applications/io.github.vondor.KassenSturz.desktop
       - name: Tests, with the system's SQLite
         run: cargo test --workspace --no-default-features --locked
         env:
@@ -380,6 +391,17 @@ jobs:
       # Without its catalog the app would speak English on a German system.
       - name: The German translation is installed (D-126)
         run: test -f build/stage/usr/share/locale/de/LC_MESSAGES/kassensturz.mo
+      # The desktop file names the icon, and the icon theme has it (D-163).
+      - name: The app icon is installed (D-163)
+        run: |
+          set -eu
+          icons=build/stage/usr/share/icons/hicolor
+          test -s "$icons/scalable/apps/io.github.vondor.KassenSturz.svg"
+          for size in 16 22 24 32 48 64 128 256; do
+            test -s "$icons/${size}x${size}/apps/io.github.vondor.KassenSturz.png"
+          done
+          grep -qx 'Icon=io.github.vondor.KassenSturz' \
+            build/stage/usr/share/applications/io.github.vondor.KassenSturz.desktop
       - name: Tests, with the system's SQLite
         run: cargo test --workspace --no-default-features --locked
         env:
@@ -444,6 +466,20 @@ jobs:
           "$flatpak" install --user --noninteractive --bundle KassenSturz.flatpak
           where=$("$flatpak" info --show-location io.github.vondor.KassenSturz)
           test -f "$where/files/share/locale/de/LC_MESSAGES/kassensturz.mo"
+      # The icon is in the bundle, and the desktop file asks for it by name,
+      # which is what shows the launcher and the window its icon (D-163).
+      - name: The app icon is in the Flatpak (D-163)
+        run: |
+          set -eu
+          flatpak=$(command -v flatpak || echo /app/bin/flatpak)
+          files="$("$flatpak" info --show-location io.github.vondor.KassenSturz)/files"
+          icons="$files/share/icons/hicolor"
+          test -s "$icons/scalable/apps/io.github.vondor.KassenSturz.svg"
+          for size in 16 22 24 32 48 64 128 256; do
+            test -s "$icons/${size}x${size}/apps/io.github.vondor.KassenSturz.png"
+          done
+          grep -qx 'Icon=io.github.vondor.KassenSturz' \
+            "$files/share/applications/io.github.vondor.KassenSturz.desktop"
       # Network, the Secret Service and the card reader are the only
       # permissions beyond a window (D-142); a new one must change this list.
       # The KDE runtime adds its own: reading the desktop's kdeglobals and

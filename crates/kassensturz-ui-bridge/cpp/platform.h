@@ -15,6 +15,10 @@ QString dataFolder();
 
 QString computerName();
 
+// Gives every window the icon the icon theme has under `name`. Without one
+// in the theme, the windows keep Qt's default.
+void setWindowIcon(const QString &name);
+
 // The name of the file system `path` is on, e.g. "ext4" or "cifs"; empty if
 // Qt can't tell.
 QString fileSystemType(const QString &path);

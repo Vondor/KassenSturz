@@ -8,6 +8,7 @@
 
 mod accounts;
 mod accounts_model;
+mod app_icon_audit;
 mod bank_connection;
 mod bank_connection_model;
 mod bank_fetch;
@@ -67,6 +68,7 @@ fn main() {
     // Naming the desktop file after the app ID (D-049) gives the window the
     // right name and icon, also on Wayland.
     QGuiApplication::set_desktop_file_name(&QString::from(platform::APP_ID));
+    platform::set_window_icon();
     // Plasma's style, unless the user chose another one.
     if std::env::var_os("QT_QUICK_CONTROLS_STYLE").is_none() {
         QQuickStyle::set_style(&QString::from("org.kde.desktop"));

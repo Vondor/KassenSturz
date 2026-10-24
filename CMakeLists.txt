@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 # CMake drives Cargo (D-063): Cargo builds the program, CMake installs what a
-# desktop app needs besides it (desktop file, AppStream data, translations).
+# desktop app needs besides it (desktop file, AppStream data, icons, translations).
 
 cmake_minimum_required(VERSION 3.27)
 
@@ -46,6 +46,8 @@ option(KASSENSTURZ_BUNDLED_SQLITE
     "Build the SQLite that rusqlite bundles; OFF uses the system's SQLite (D-061)" ON)
 option(KASSENSTURZ_BANK_DIALOGS
     "Build the library for Gwenhywfar's Qt 6 bank dialogs where gwengui-qt6 is installed (D-054, Q-035)" ON)
+option(KASSENSTURZ_INSTALL_SVG_ICON
+    "Install the scalable SVG of the app icon next to its PNG sizes; the Flatpak turns it off, because AppStream in the Flatpak build image can't read SVG (D-165)" ON)
 
 set(cargo_target_dir "${CMAKE_CURRENT_BINARY_DIR}/cargo")
 set(cargo_args build --locked --package kassensturz-ui-bridge --bin kassensturz)
@@ -84,6 +86,12 @@ if(KASSENSTURZ_BANK_DIALOGS)
 endif()
 install(FILES data/io.github.vondor.KassenSturz.desktop DESTINATION ${KDE_INSTALL_APPDIR})
 install(FILES data/io.github.vondor.KassenSturz.metainfo.xml DESTINATION ${KDE_INSTALL_METAINFODIR})
+# The app icon in the freedesktop icon theme layout: an SVG and PNG sizes (D-165).
+if(KASSENSTURZ_INSTALL_SVG_ICON)
+    install(DIRECTORY data/icons/hicolor DESTINATION ${KDE_INSTALL_ICONDIR})
+else()
+    install(DIRECTORY data/icons/hicolor DESTINATION ${KDE_INSTALL_ICONDIR} PATTERN "scalable" EXCLUDE)
+endif()
 ki18n_install(po)
 
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)

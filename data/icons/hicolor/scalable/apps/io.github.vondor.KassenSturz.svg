@@ -1,0 +1,34 @@
+<!--
+SPDX-FileCopyrightText: 2026 KassenSturz contributors
+SPDX-License-Identifier: CC-BY-SA-4.0
+
+KassenSturz's app icon: original artwork, drawn for this project. A household
+ledger with a green check: "trust the numbers". Picked by the maintainer
+(D-165). Keep it readable at 16 px.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="cover" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2b4a63"/><stop offset=".12" stop-color="#2b4a63"/>
+      <stop offset=".12" stop-color="#3a6a8c"/><stop offset="1" stop-color="#4b8bb5"/>
+    </linearGradient>
+    <linearGradient id="badge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3fd17c"/><stop offset="1" stop-color="#1e9e55"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="30" cy="59" rx="20" ry="2.6" fill="#000" opacity=".18"/>
+  <!-- pages -->
+  <rect x="11" y="9" width="40" height="48" rx="3" fill="#e9edf0"/>
+  <rect x="12" y="8" width="40" height="48" rx="3" fill="#cfd6db"/>
+  <!-- cover -->
+  <rect x="9" y="5" width="40" height="50" rx="3" fill="url(#cover)"/>
+  <!-- label with ledger columns -->
+  <rect x="19" y="12" width="26" height="22" rx="1.5" fill="#f4f6f8"/>
+  <path d="M19 18h26M19 23h26M19 28h26" stroke="#9fb4c4" stroke-width="1.2"/>
+  <path d="M33 12v22" stroke="#9fb4c4" stroke-width="1.2"/>
+  <!-- check badge -->
+  <circle cx="44" cy="46" r="13" fill="#000" opacity=".15"/>
+  <circle cx="44" cy="45" r="12.5" fill="#fff"/>
+  <circle cx="44" cy="45" r="10.5" fill="url(#badge)"/>
+  <path d="M38.5 45.4l4 4 7.2-8" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

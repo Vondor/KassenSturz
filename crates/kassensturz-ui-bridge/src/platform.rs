@@ -28,6 +28,9 @@ mod ffi {
         #[cxx_name = "computerName"]
         fn computer_name() -> QString;
 
+        #[cxx_name = "setWindowIcon"]
+        fn set_window_icon(name: &QString);
+
         #[cxx_name = "fileSystemType"]
         fn file_system_type(path: &QString) -> QString;
     }
@@ -36,6 +39,13 @@ mod ffi {
 /// The app ID (D-049), also the name of KassenSturz's data folder, which the
 /// command-line tool uses too.
 pub const APP_ID: &str = "io.github.vondor.KassenSturz";
+
+/// Gives the windows the app's icon from the icon theme, where the desktop
+/// file isn't what the window is matched with (an X11 window manager, or a
+/// Wayland compositor that doesn't read it) (D-165).
+pub fn set_window_icon() {
+    ffi::set_window_icon(&QString::from(APP_ID));
+}
 
 /// KassenSturz's own data folder, e.g. `~/.local/share/io.github.vondor.KassenSturz`
 /// on Linux, where the app keeps its book and the backups (D-033).

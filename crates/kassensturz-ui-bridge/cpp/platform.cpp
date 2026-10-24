@@ -6,6 +6,8 @@
 #include <QtCore/QStandardPaths>
 #include <QtCore/QStorageInfo>
 #include <QtCore/QSysInfo>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QIcon>
 
 namespace kassensturz::platform
 {
@@ -17,6 +19,14 @@ QString dataFolder()
 QString computerName()
 {
     return QSysInfo::machineHostName();
+}
+
+void setWindowIcon(const QString &name)
+{
+    const QIcon icon = QIcon::fromTheme(name);
+    if (!icon.isNull()) {
+        QGuiApplication::setWindowIcon(icon);
+    }
 }
 
 QString fileSystemType(const QString &path)

@@ -453,7 +453,7 @@ pub struct Lookup {
     /// For `guessed-server` it is the guess, which the user can change.
     pub url: String,
     /// Whether the address field is shown: the address must be typed by
-    /// hand, or is a guess to check (D-156).
+    /// hand, or is a guess to check (D-157).
     pub ask_url: bool,
     /// `none`, `required` or `optional`: whether the customer ID is asked.
     pub customer_id: &'static str,

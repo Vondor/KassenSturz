@@ -282,7 +282,7 @@ Kirigami.InlineMessage {
         case "store.already-exists":
             return i18nContext.i18nc("@info %1 is a file name", "There is a book called \"%1\" already. Nothing was made.", result.file);
         case "bank.not-installed":
-            return i18nContext.i18nc("@info", "Bank connections need AqBanking, which isn't installed on this computer. Install it from your distribution, or import a file from your bank instead.");
+            return i18nContext.i18nc("@info", "Bank connections need AqBanking, a free program KassenSturz uses to talk to banks, and it isn't installed on this computer. Install it from your distribution, or import a file from your bank instead.");
         case "bank.too-old":
             return i18nContext.i18nc("@info %1 is a program's name, %2 and %3 version numbers", "The installed %1 is version %2; KassenSturz needs %3 or newer. Update it, or import a file from your bank instead.", result.library === "gwenhywfar" ? "Gwenhywfar" : "AqBanking", result.found, result.minimum);
         case "bank.not-registered":
@@ -291,6 +291,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This isn't an IBAN. It has two letters, two digits and then up to 30 letters or digits, for example DE89 3704 0044 0532 0130 00; spaces don't matter. Check it against what your bank shows.");
         case "bank.unknown-login":
             return i18nContext.i18nc("@info", "This bank login no longer exists in KassenSturz. Set it up again.");
+        case "bank.unknown-account":
+            return i18nContext.i18nc("@info", "Your bank doesn't list the bank account this account is linked to for this login anymore. Link the account to another bank account, or connect the bank again in Settings.");
         case "bank.no-bank-account":
             return i18nContext.i18nc("@info", "None of your bank logins lists the bank account this account is linked to. Connect the bank again in Settings, or link the account to another bank account.");
         case "bank.pin-needed":

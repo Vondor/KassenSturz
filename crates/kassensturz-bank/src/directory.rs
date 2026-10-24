@@ -11,7 +11,7 @@
 //! explicit state the screens show in plain language: unknown bank, no
 //! server, unknown login type (`docs/BANK_LIST.md`). The one guess there is
 //! says so: a cooperative bank without a server is offered the Atruvia
-//! server its neighbours use, marked as a guess (D-156, [`guess_server`]).
+//! server its neighbours use, marked as a guess (D-157, [`guess_server`]).
 
 use crate::banks::{self, BankEntry};
 use crate::iban::{BankCode, Iban};
@@ -155,7 +155,7 @@ pub enum Setup {
     /// The bank is known and the sources have no FinTS server address for
     /// it, but the banks next to it in the bank code list all use one
     /// Atruvia server: the app offers that address, marked as a guess the
-    /// user can change (D-156). The customer ID is asked as optional, as
+    /// user can change (D-157). The customer ID is asked as optional, as
     /// the sources don't say whether the bank has one.
     GuessedServer {
         /// The bank.
@@ -225,7 +225,7 @@ pub fn setup_for(iban: &Iban, directory: &dyn BankDirectory) -> Setup {
 const GUESS_PREFIXES: [usize; 3] = [5, 4, 3];
 
 /// The Atruvia server a cooperative bank without a server of its own most
-/// likely uses (D-156), or `None` when nothing safe can be said.
+/// likely uses (D-157), or `None` when nothing safe can be said.
 ///
 /// Atruvia, the computing centre of the Volksbanken and Raiffeisenbanken,
 /// has two FinTS servers, one for the banks that came from each of its

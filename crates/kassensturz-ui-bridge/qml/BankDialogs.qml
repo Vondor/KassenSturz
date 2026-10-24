@@ -97,7 +97,7 @@ Item {
             Controls.Label {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: dialogs.i18nContext.i18nc("@info", "Your bank wants you to confirm this with a TAN. Its message says what for, and where the TAN comes from, for example your TAN app or a text message:")
+                text: dialogs.i18nContext.i18nc("@info", "Your bank wants you to confirm this with a TAN. The bank's message below says what it is for and where the TAN comes from, for example your TAN app or a text message:")
             }
 
             Controls.Label {

@@ -919,3 +919,34 @@ fn change(
 fn error_text(book: &Book, account_id: &str, error: &EntryError) -> ErrorText {
     transaction_entry::error_text(book, account_id, error, &app_locale())
 }
+
+#[cfg(test)]
+mod tests {
+    /// The account page must not read the account while it is still being
+    /// made: a list filled before it has a size makes a row for every
+    /// transaction (D-156). The test reads the QML as text, like
+    /// `plain_text_audit.rs`.
+    #[test]
+    fn the_register_page_reads_the_account_only_when_its_list_has_a_size() {
+        let page = include_str!("../qml/RegisterPage.qml");
+        let reads: Vec<&str> = page
+            .lines()
+            .map(str::trim)
+            .filter(|line| line.contains("register.show("))
+            .collect();
+        assert_eq!(
+            reads,
+            [
+                "register.show(accountId);",
+                "onVisibleChanged: if (visible && page.loaded) { page.register.show(page.accountId); }",
+            ],
+            "the account is read in `load()`, or again once it was loaded"
+        );
+        // `load()` is what the list's size, and a timer, call.
+        assert!(page.contains("model: page.loaded ? page.register : null"));
+        assert!(page.contains(
+            "onHeightChanged: {\n            if (height > 0) {\n                page.load();"
+        ));
+        assert!(page.contains("onTriggered: page.load()"));
+    }
+}

@@ -5,20 +5,20 @@ KassenSturz finds a bank from the IBAN the user types and then asks only what th
 1. **The hand-checked list** in this repository: `crates/kassensturz-bank/src/banks.rs`, `HAND_CHECKED`. Corrections and additions a person confirmed in a test round. An entry here wins over the external source entirely.
 2. **The external source**: AqBanking's bank information, read by the real backend (M4.5). It covers most German banks but can be out of date: a moved server, a bank that merged, a login kind it doesn't know; what it carries and what it lacks is below.
 
-One guess stands on top of the two (D-156): a cooperative bank (Volksbank, Raiffeisenbank, PSD bank) with no server in either source is offered the Atruvia server its neighbours use, marked as a guess. It is described in "The Atruvia guess" below and never becomes an entry by itself.
+One guess stands on top of the two (D-157): a cooperative bank (Volksbank, Raiffeisenbank, PSD bank) with no server in either source is offered the Atruvia server its neighbours use, marked as a guess. It is described in "The Atruvia guess" below and never becomes an entry by itself.
 
 This document is the "Agent Info" the maintainer asked for (item 94 of the Proposals list): how a finding from a test round becomes an entry, and what the app shows while a bank isn't fully known. Only a few banks can be tested by hand in a test round, so the list grows one confirmed entry at a time.
 
 ## What the app shows when something is missing
 
-Every gap is an explicit state (`kassensturz_bank::Setup`), shown in plain language with what to do next (AGENTS.md §6). The setup page (M4.6, D-151) shows each state as below; the wording is reviewed in M4.9.
+Every gap is an explicit state (`kassensturz_bank::Setup`), shown in plain language with what to do next (AGENTS.md §6). The setup page (M4.6, D-151) shows each state as below; the wording was reviewed in M4.9 (D-155) and found to be in plain language. Every `bank.` error code the crate raises has its own message on the screens, which a test checks, so no bank problem ends as "Something went wrong".
 
 | State | When | What the user sees, and can do |
 |---|---|---|
 | `Ready` | The bank, its server and its login kinds are known | The bank's name is shown for confirmation; the app asks the login kind's questions (`LoginKind::questions`): login name, a customer ID only where the bank has one, PIN; or the chip card. |
 | `NoFints` | The IBAN is from another country than Germany | "Banks outside Germany can't be connected yet: the system KassenSturz uses for this (FinTS) is a German one. Import the files your bank offers instead." No bank lookup happens. |
 | `UnknownBank` | No source knows the bank code | "KassenSturz's bank lists don't know this bank yet. If your bank offers FinTS (some call it HBCI), type the address it gives for it below…" The page shows the bank code and a FinTS address field (`https://` only, D-151); Gwenhywfar's own setup dialog as a further fallback waits for Q-089. The code goes into a bug report so the list can be completed. |
-| `GuessedServer` | A cooperative bank with no server in the sources, whose neighbours in the bank code list use one Atruvia server (D-156) | "KassenSturz's bank lists don't have this bank's FinTS address. Banks of your bank's kind nearby use the address below, so it is probably yours, but this is a guess. If connecting fails, check the address on your bank's website or ask its support, and type the right one." The address field is filled with the guess and can be changed; the customer ID is asked as optional. |
+| `GuessedServer` | A cooperative bank with no server in the sources, whose neighbours in the bank code list use one Atruvia server (D-157) | "KassenSturz's bank lists don't have this bank's FinTS address. Banks of your bank's kind nearby use the address below, so it is probably yours, but this is a guess. If connecting fails, check the address on your bank's website or ask its support, and type the right one." The address field is filled with the guess and can be changed; the customer ID is asked as optional. |
 | `NoServer` | The bank is known, but no FinTS server address is, and none can be guessed | "KassenSturz's bank lists don't have this bank's FinTS address. If your bank offers FinTS (some call it HBCI), type the address it gives for it below…", with the same address field. |
 | `UnknownLoginKind` | The bank and its server are known, but not how customers log in | "KassenSturz's bank lists don't say how you log in at this bank. KassenSturz tries a login with a PIN and a TAN, which most banks use." A chip card can't be set up yet (Q-089). |
 
@@ -37,11 +37,11 @@ The maintainer chose AqBanking's bank information as the default source, with th
 
 So for about 1,260 of Germany's bank codes (1,192 whose first record has a server, and 68 whose server is in a later record) the IBAN-first flow is `Ready` from AqBanking's data alone; for most of the cooperative banks among the rest the Atruvia guess below offers an address, and for the others the user sees `NoServer` or `UnknownBank` and the list needs an entry. A test round at a bank the data gets wrong is the way to find out which (second next section).
 
-## The Atruvia guess (D-156)
+## The Atruvia guess (D-157)
 
 Atruvia, the computing centre of the Volksbanken and Raiffeisenbanken (and of most PSD and many Sparda banks), has **two** FinTS servers, both with the path `/cgi-bin/hbciservlet`: `fints1.atruvia.de` for the banks that came from its former GAD centre (north and west) and `fints2.atruvia.de` for those from the former Fiducia centre (south and middle). Since 2024-03-13 these are the addresses banks tell their customers. So one bank's settings do **not** apply to all Volksbanken: the server differs by region, the TAN method is each customer's own choice among those the bank offers, and whether the customer ID equals the login name is confirmed for a few banks only.
 
-What the data says (AqBanking 6.9 data, counted for D-156):
+What the data says (AqBanking 6.9 data, counted for D-157):
 
 | What | Count |
 |---|---|

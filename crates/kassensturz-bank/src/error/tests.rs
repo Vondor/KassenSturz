@@ -4,6 +4,8 @@
 //! The `bank.` error codes against `docs/ERROR_CODES.md`.
 
 use std::collections::HashSet;
+use std::fs;
+use std::path::Path;
 
 use kassensturz_core::CurrencyCode;
 use kassensturz_import::ImportError;
@@ -122,6 +124,23 @@ fn a_failed_statement_names_its_cause() {
         report.cause.map(|cause| cause.code),
         Some("import.too-many-entries")
     );
+}
+
+#[test]
+fn every_code_has_a_message_on_the_screens() {
+    // The screens keep one message per code (`FormError.qml`, D-034). A
+    // code without one reaches the user as "Something went wrong", which
+    // tells them neither what happened nor what to do next (AGENTS.md §6).
+    let path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../kassensturz-ui-bridge/qml/FormError.qml");
+    let screens = fs::read_to_string(&path).expect("FormError.qml is part of the workspace");
+    for error in examples() {
+        let code = error.report().code;
+        assert!(
+            screens.contains(&format!("case \"{code}\":")),
+            "{code} has no message in FormError.qml"
+        );
+    }
 }
 
 #[test]

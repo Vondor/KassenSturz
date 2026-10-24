@@ -58,7 +58,7 @@ When two principles conflict, the lower number wins.
 - Anything touching keychain, cryptography, bank connections, or AI data sharing
 - Any use of code from other projects (see 3.1 rule 5)
 
-Do not merge your own pull requests.
+Do not merge your own pull requests. The maintainer may delegate merging of pull requests that touch no human gate to his own agent team, through that team's rules (the Agent-Teams repository); everyone else still needs his approval to merge (D-154).
 
 ### 3.3 Non-goals for v1
 

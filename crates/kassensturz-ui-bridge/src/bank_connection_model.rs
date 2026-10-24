@@ -65,7 +65,7 @@ pub mod qobject {
         fn status(self: Pin<&mut BankConnection>) -> QVariant;
 
         /// The logins set up on this computer: an object with `logins`, a
-        /// list of objects with `id`, `bank`, `bankCode` and `kind`
+        /// list of objects with `id`, `bank`, `bankCode`, `iban` and `kind`
         /// (`pin-tan` or `chip-card`), or an error object.
         #[qinvokable]
         fn logins(self: Pin<&mut BankConnection>) -> QVariant;
@@ -79,8 +79,9 @@ pub mod qobject {
         fn look_up(self: Pin<&mut BankConnection>, iban: &QString) -> QVariant;
 
         /// Starts setting up a login from `form`, an object with `iban`,
-        /// `url`, `loginName`, `customerId`, `customerIdRule`, `pin` and
-        /// `pinMode` (`ask`, `remember`, `save`). An error object when the
+        /// `url`, `loginName`, `customerId`, `customerIdRule`, `pin`,
+        /// `pinMode` (`ask`, `remember`, `save`) and `replaces`, the ID of
+        /// a login to remove once the new one is set up (or empty). An error object when the
         /// form isn't complete, else an empty object; the result comes
         /// with `setupFinished`.
         #[qinvokable]
@@ -176,6 +177,13 @@ pub mod qobject {
             account_id: &QString,
             key: &QString,
         ) -> QVariant;
+
+        /// Removes the link of the account `account_id` of the book to its
+        /// bank account, as a change the user can undo; the account keeps
+        /// its transactions. An empty object, or an error object.
+        #[qinvokable]
+        #[cxx_name = "unlinkAccount"]
+        fn unlink_account(self: &BankConnection, account_id: &QString) -> QVariant;
 
         /// Starts fetching the statements of the accounts with these IDs (a
         /// list), which must be linked. An error object when it can't
@@ -323,6 +331,7 @@ impl qobject::BankConnection {
             customer_id: field(&fields, "customerId"),
             pin: kassensturz_bank::Pin::new(field(&fields, "pin")),
             pin_mode: bank_connection::pin_mode(&field(&fields, "pinMode")),
+            replaces: field(&fields, "replaces"),
         };
         let rule = field(&fields, "customerIdRule");
         let rule = Lookup {
@@ -420,6 +429,20 @@ impl qobject::BankConnection {
             let account = crate::transaction_entry::find_account(book, &account_id)
                 .map_err(|_| ErrorText::plain("input.no-such-entry"))?;
             bank_connection::link_one(book, &chosen.found, account.id)
+                .map_err(|error| crate::errors::report_text(book, &error.report(), &app_locale()))
+        }) {
+            Some(Ok(())) => map([]),
+            Some(Err(error)) => error_object(&error),
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        }
+    }
+
+    fn unlink_account(&self, account_id: &QString) -> QVariant {
+        let account_id = account_id.to_string();
+        match session::with_book_mut(|book| {
+            let account = crate::transaction_entry::find_account(book, &account_id)
+                .map_err(|_| ErrorText::plain("input.no-such-entry"))?;
+            bank_connection::unlink_one(book, account.id)
                 .map_err(|error| crate::errors::report_text(book, &error.report(), &app_locale()))
         }) {
             Some(Ok(())) => map([]),
@@ -604,6 +627,7 @@ fn logins_object(rows: &[LoginRow]) -> QVariant {
                 ("bank", text(&row.bank)),
                 ("bankCode", text(&row.bank_code)),
                 ("kind", text(row.kind)),
+                ("iban", text(&row.iban)),
             ])
         })),
     )])
@@ -659,6 +683,7 @@ fn setup_object(result: &Result<SetupDone, ErrorText>) -> QVariant {
     match result {
         Ok(done) => map([
             ("login", text(&done.login)),
+            ("oldLoginLeft", QVariant::from(&done.old_login_left)),
             (
                 "accounts",
                 list(
@@ -896,6 +921,7 @@ mod tests {
             bank: "Testbank".to_owned(),
             bank_code: "37040044".to_owned(),
             kind: "pin-tan",
+            iban: "DE89 3704 0044 0532 0130 00".to_owned(),
         }]);
         let rows = list_of(&logins, "logins");
         assert_eq!(rows.len(), 1);
@@ -904,6 +930,7 @@ mod tests {
             ("bank", "Testbank"),
             ("bankCode", "37040044"),
             ("kind", "pin-tan"),
+            ("iban", "DE89 3704 0044 0532 0130 00"),
         ] {
             assert_eq!(text_of(&rows[0], key), expected, "{key}");
         }
@@ -998,8 +1025,10 @@ mod tests {
         let done = setup_object(&Ok(SetupDone {
             login: "3".to_owned(),
             accounts: vec![found()],
+            old_login_left: true,
         }));
         assert_eq!(text_of(&done, "login"), "3");
+        assert!(flag_of(&done, "oldLoginLeft"));
         let accounts = list_of(&done, "accounts");
         for (key, expected) in [
             ("iban", "DE89 3704 0044 0532 0130 00"),

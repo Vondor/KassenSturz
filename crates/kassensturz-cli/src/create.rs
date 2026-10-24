@@ -71,7 +71,7 @@ pub(crate) enum Created {
     /// A complete export.
     Export,
     /// Another program's book, with what filling the new book did.
-    Imported(BookImportReport),
+    Imported(Box<BookImportReport>),
 }
 
 /// Creates the book at `path`, filled from `from` if given: a complete
@@ -126,7 +126,7 @@ pub(crate) fn create(
         fill_new(path, computer, |book| {
             Ok(fill_book_from(book, &imported, replaced)?)
         })
-        .map(|(book, report)| (book, Created::Imported(report)))
+        .map(|(book, report)| (book, Created::Imported(Box::new(report))))
     } else {
         if !replaced.is_empty() {
             return Err(CliError::usage(
@@ -300,6 +300,26 @@ fn write_report(
             new = withdrawn.successor(),
             rate = withdrawn.rate(),
             date = withdrawn.date(),
+        )?;
+    }
+    if report.rules > 0 {
+        writeln!(
+            out,
+            "{} made from the payees the file recognizes in imported entries; see `rule list`.",
+            counted(report.rules, "Rule", "Rules")
+        )?;
+    }
+    for left_out in &report.patterns_left_out {
+        writeln!(
+            out,
+            "Can't use the matching text {} of {}{}.",
+            plain(&left_out.pattern),
+            plain(&left_out.payee),
+            if left_out.rule_made {
+                ": the Rule keeps the others"
+            } else {
+                ": no Rule was made for it"
+            }
         )?;
     }
     if !report.skipped.is_empty() {

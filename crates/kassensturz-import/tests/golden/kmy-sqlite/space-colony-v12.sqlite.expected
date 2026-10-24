@@ -72,15 +72,17 @@ book
   account "A000064": "Colony Founding Capital", equity, type -, EUR with 2 decimal places, inside -
   account "A000065": "Joint Account Phobos", asset, type checking, EUR with 2 decimal places, inside "A000004"
     number -, notes -, at "I000002"
-  payee "P000001": "Colony Council Tax Office", address -, email -, phone -, reference -, recognized never ignoring case
-  payee "P000002": "Dome Management Co.", address -, email -, phone -, reference -, recognized never ignoring case
+  payee "P000001": "Colony Council Tax Office", address -, email -, phone -, reference -, recognized by ["^Colony\\ Council\\ Tax\\ Office$"] ignoring case
+  payee "P000002": "Dome Management Co.", address -, email -, phone -, reference -, recognized by ["^Dome\\ Management\\ Co.$"] ignoring case
   payee "P000003": "Moonbase Medical Center", address -, email -, phone -, reference -, recognized never ignoring case
   payee "P000004": "Northern Ice Works", address -, email -, phone -, reference -, recognized never ignoring case
   payee "P000005": "Pioneer Fund", address -, email -, phone -, reference -, recognized never ignoring case
   payee "P000006": "Crater Bakery", address -, email -, phone -, reference -, recognized never ignoring case
   payee "P000007": "Luna Pharmacy", address -, email -, phone -, reference -, recognized never ignoring case
   payee "P000008": "Asteroid Mining Corp.", address -, email -, phone -, reference -, recognized never ignoring case
-  payee "P000009": "Hydroponics Cooperative", address -, email -, phone -, reference -, recognized never ignoring case
+  payee "P000009": "Hydroponics Cooperative", address -, email -, phone -, reference -, recognized by ["^Hydroponics\\ Cooperative$", "^HYDRO\\ COOP$"] ignoring case
+  rule "Colony Council Tax Office": Any of [OtherPartyName Matches "^Colony\\ Council\\ Tax\\ Office$"], ignoring case, book to "A000007", set payee "Colony Council Tax Office"
+  rule "Hydroponics Cooperative": Any of [OtherPartyName Matches "^Hydroponics\\ Cooperative$"; OtherPartyName Matches "^HYDRO\\ COOP$"], ignoring case, book to "A000050", set payee "Hydroponics Cooperative"
   transaction 1 on 2026-06-14, payee "Colony Council Tax Office", note "Greens, week 11", entered 2026-06-14
     part "A000060": 90.00 EUR, in the account -, bank id "ID-1-24", other party - -, text "Greens, week 11"
   transaction 2 on 2026-07-10, payee "Colony Council Tax Office", note "Suit repair 36", entered 2026-07-10
@@ -218,3 +220,4 @@ book
   skipped rates: 6
   skipped online-banking: 8
   skipped owner: 1
+  skipped payee-rules: 1

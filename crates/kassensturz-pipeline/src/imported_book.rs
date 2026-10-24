@@ -8,15 +8,15 @@
 use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, Changeover, ConvertedPart, Currency, CurrencyCode, DatedRate,
-    DatedRateId, ForeignAmount, Institution, InstitutionId, Money, MoneyError, OriginalAmount,
-    Payee, PayeeId, RateSource, RoundingMode, Split, Tag, TagId, Transaction, TransactionId,
-    TransferMatch, Withdrawn,
+    Account, AccountId, AccountKind, Actions, BookTo, Changeover, Condition, ConvertedPart,
+    Currency, CurrencyCode, DatedRate, DatedRateId, ForeignAmount, Institution, InstitutionId,
+    Money, MoneyError, OriginalAmount, Payee, PayeeId, RateSource, RoundingMode, Rule, RuleId,
+    RuleNode, Split, Tag, TagId, Transaction, TransactionId, TransferMatch, Withdrawn,
 };
 use kassensturz_export::BookData;
 use kassensturz_import::{
-    BookAccount, BookInstitution, BookPart, BookPayee, BookTag, BookTransaction, ImportError,
-    ImportedBook, Replacement, Skipped, currency,
+    BookAccount, BookInstitution, BookPart, BookPayee, BookRule, BookTag, BookTransaction,
+    ImportError, ImportedBook, Replacement, Skipped, currency,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -61,9 +61,26 @@ pub struct BookImportReport {
     /// two transactions without a category yet that look like the two
     /// sides of one. Nothing is joined: the user confirms each one.
     pub transfers: Vec<TransferMatch>,
+    /// How many Rules the file's payee recognition became (D-160).
+    pub rules: usize,
+    /// Matching texts of those Rules that KassenSturz can't use, such as
+    /// patterns written for another program's regular expressions (D-160).
+    pub patterns_left_out: Vec<PatternLeftOut>,
     /// What the file held that the book can't, as the importer counted it
     /// (D-029).
     pub skipped: Vec<Skipped>,
+}
+
+/// A matching text of a payee that KassenSturz can't use (D-160).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PatternLeftOut {
+    /// The payee, whose name the Rule has.
+    pub payee: String,
+    /// The pattern, as the file has it.
+    pub pattern: String,
+    /// Whether the payee still got a Rule, with its other patterns. If not,
+    /// none of its patterns could be used.
+    pub rule_made: bool,
 }
 
 /// A withdrawn currency an imported book used, and what was converted out of
@@ -123,6 +140,7 @@ pub fn fill_book_from(
     let tags = mapper.tags(&imported.tags)?;
     let payees = Mapper::payees(&imported.payees);
     let mut accounts = mapper.accounts(&imported.accounts)?;
+    let (rules, patterns_left_out) = mapper.rules(&imported.rules)?;
     let mut changeover = Changeover::new(rounding);
     let mut uncategorized = 0;
     let mut completed = 0;
@@ -182,7 +200,7 @@ pub fn fill_book_from(
         currencies: mapper.currencies,
         accounts,
         rates,
-        rules: Vec::new(),
+        rules,
         transactions,
         rule_marks: Vec::new(),
         institutions,
@@ -209,6 +227,8 @@ pub fn fill_book_from(
         left_open,
         converted: mapper.converted,
         transfers: book.transfer_suggestions()?,
+        rules: data.rules.len(),
+        patterns_left_out,
         skipped: imported.skipped.clone(),
     })
 }
@@ -454,6 +474,70 @@ impl Mapper {
                 recognition_ignores_case: payee.recognition_ignores_case,
             })
             .collect()
+    }
+
+    /// The Rules the file asks for, with new IDs and names that differ, as
+    /// the book asks. A pattern KassenSturz can't use is left out of its
+    /// Rule and reported; a Rule with no usable condition left isn't made.
+    fn rules(
+        &self,
+        imported: &[BookRule],
+    ) -> Result<(Vec<RuleNode>, Vec<PatternLeftOut>), PipelineError> {
+        let mut taken = HashSet::new();
+        let mut rules = Vec::with_capacity(imported.len());
+        let mut left_out = Vec::new();
+        for wanted in imported {
+            let mut conditions = Vec::new();
+            let mut unusable = Vec::new();
+            for given in &wanted.conditions {
+                let condition = Condition::Text {
+                    field: given.field,
+                    operator: given.operator,
+                    value: given.value.clone(),
+                    case_sensitive: wanted.case_sensitive,
+                };
+                if alone(&condition, wanted).check().is_ok() {
+                    conditions.push(condition);
+                } else {
+                    unusable.push(given.value.clone());
+                }
+            }
+            for pattern in unusable {
+                left_out.push(PatternLeftOut {
+                    payee: wanted.payee.clone(),
+                    pattern,
+                    rule_made: !conditions.is_empty(),
+                });
+            }
+            if conditions.is_empty() {
+                continue;
+            }
+            let book_to = match &wanted.book_to {
+                Some(key) => {
+                    let id = self.id(key)?;
+                    Some(if self.user_accounts.get(key) == Some(&true) {
+                        BookTo::Transfer(id)
+                    } else {
+                        BookTo::Category(id)
+                    })
+                }
+                None => None,
+            };
+            rules.push(RuleNode {
+                rule: Rule {
+                    id: RuleId::generate(),
+                    name: unique_name(&wanted.name, &mut taken),
+                    match_mode: wanted.match_mode,
+                    conditions,
+                    actions: Actions {
+                        book_to,
+                        payee: Some(wanted.payee.clone()),
+                    },
+                },
+                sub_rules: Vec::new(),
+            });
+        }
+        Ok((rules, left_out))
     }
 
     fn accounts(&mut self, imported: &[BookAccount]) -> Result<Vec<Account>, PipelineError> {
@@ -755,6 +839,17 @@ fn unique_name(wanted: &str, taken: &mut HashSet<String>) -> String {
         name = format!("{wanted} ({number})");
     }
     name
+}
+
+/// `condition` as a Rule of its own, to check it without the others.
+fn alone(condition: &Condition, wanted: &BookRule) -> Rule {
+    Rule {
+        id: RuleId::generate(),
+        name: wanted.name.clone(),
+        match_mode: wanted.match_mode,
+        conditions: vec![condition.clone()],
+        actions: Actions::default(),
+    }
 }
 
 fn money_error(error: MoneyError) -> PipelineError {

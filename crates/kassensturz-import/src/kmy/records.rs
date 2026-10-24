@@ -128,6 +128,9 @@ pub(super) struct RawPayee {
     pub match_ignores_case: String,
     /// The key words, as the file has them.
     pub match_keys: String,
+    /// The ID of the account or category KMyMoney suggests for the payee's
+    /// entries (its "default category"), or empty.
+    pub default_account: String,
 }
 
 /// A `TRANSACTION` of the file's list of transactions.
@@ -280,6 +283,7 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
                     },
                     match_ignores_case: optional(element, "matchignorecase"),
                     match_keys: optional(element, "matchkey"),
+                    default_account: optional(element, "defaultaccountid"),
                 });
             }
             [ROOT, "PAYEES", "PAYEE"] if name == "ADDRESS" => {

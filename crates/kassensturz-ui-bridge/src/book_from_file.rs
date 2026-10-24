@@ -525,6 +525,21 @@ pub struct Created {
     /// How many pairs of transactions look like Transfers between the
     /// accounts (D-087).
     pub transfers: usize,
+    /// How many Rules the file's payee recognition became (D-160).
+    pub rules: usize,
+    /// Matching texts KassenSturz can't use (D-160).
+    pub patterns_left_out: Vec<PatternText>,
+}
+
+/// A matching text of a payee that couldn't become part of a Rule (D-160).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PatternText {
+    /// The payee.
+    pub payee: String,
+    /// The pattern, as the file has it.
+    pub pattern: String,
+    /// Whether the payee still got a Rule with its other patterns.
+    pub rule_made: bool,
 }
 
 /// One currency converted into the one that replaced it (D-104, D-106).
@@ -618,6 +633,16 @@ fn created_text(
             .map(|skipped| (skipped.what.keyword(), skipped.count))
             .collect(),
         transfers: report.transfers.len(),
+        rules: report.rules,
+        patterns_left_out: report
+            .patterns_left_out
+            .iter()
+            .map(|left_out| PatternText {
+                payee: left_out.payee.clone(),
+                pattern: left_out.pattern.clone(),
+                rule_made: left_out.rule_made,
+            })
+            .collect(),
     })
 }
 
@@ -720,6 +745,31 @@ mod tests {
         for account in book.accounts(true).expect("accounts") {
             register_view(&book, account.id, Sort::default(), &TestLocale).expect("register");
         }
+    }
+
+    #[test]
+    fn a_kmymoney_books_payee_recognition_comes_in_as_rules_and_says_what_it_couldnt() {
+        let prepared = read(&golden("kmy", "payee-rules.kmy")).expect("read");
+        let mut book = empty();
+        let created = fill(&mut book, &prepared, &HashMap::new(), &TestLocale).expect("filled");
+        assert_eq!(created.rules, 3);
+        assert_eq!(book.rules().expect("Rules").len(), 3);
+        assert_eq!(
+            created.patterns_left_out,
+            vec![
+                PatternText {
+                    payee: "Corner Grocery".into(),
+                    pattern: "^(?!x)Corner$".into(),
+                    rule_made: true,
+                },
+                PatternText {
+                    payee: "Only Unusable".into(),
+                    pattern: "^(?=a).*$".into(),
+                    rule_made: false,
+                },
+            ]
+        );
+        assert!(created.skipped.contains(&("payee-rules", 3)));
     }
 
     #[test]

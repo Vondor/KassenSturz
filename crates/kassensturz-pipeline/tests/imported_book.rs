@@ -216,6 +216,7 @@ fn household() -> ImportedBook {
         ),
     ];
     ImportedBook {
+        rules: Vec::new(),
         accounts,
         transactions,
         rates: vec![BookRate {
@@ -411,6 +412,7 @@ fn household_in_marks() -> ImportedBook {
         ),
     ];
     ImportedBook {
+        rules: Vec::new(),
         accounts,
         transactions,
         rates: Vec::new(),
@@ -584,6 +586,7 @@ fn parts_in_other_currencies_keep_what_the_file_gave() {
         ),
     ];
     let imported = ImportedBook {
+        rules: Vec::new(),
         accounts,
         transactions,
         rates: Vec::new(),
@@ -659,6 +662,7 @@ fn holiday_in_lei() -> ImportedBook {
         ..transaction(date, payee, parts)
     };
     ImportedBook {
+        rules: Vec::new(),
         accounts: vec![
             account("A1", "Checking", AccountKind::Asset),
             in_lei("A2", "Lei in cash", AccountKind::Asset),

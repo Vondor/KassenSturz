@@ -7301,3 +7301,63 @@ msgstr "Über KassenSturz"
 msgctxt "@label the version of KassenSturz that is running"
 msgid "Version"
 msgstr "Version"
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:52
+#, kde-format
+msgctxt "@item what was left out, %1 is how many"
+msgid ""
+"%1 name that couldn't become a Rule: your file has a matching text or a "
+"default category for it, not both"
+msgid_plural ""
+"%1 names that couldn't become a Rule: your file has a matching text or a "
+"default category for each, not both"
+msgstr[0] "%1 Name konnte keine Regel werden: Ihre Datei hat dafür einen Suchtext oder eine Standardkategorie, nicht beides"
+msgstr[1] "%1 Namen konnten keine Regel werden: Ihre Datei hat für jeden einen Suchtext oder eine Standardkategorie, nicht beides"
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:221
+#, kde-format
+msgctxt "@title:group"
+msgid "Rules from your file"
+msgstr "Regeln aus Ihrer Datei"
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:229
+#, kde-format
+msgctxt "@info %1 is how many"
+msgid "%1 Rule was made from the matching texts in your file"
+msgid_plural "%1 Rules were made from the matching texts in your file"
+msgstr[0] "Aus den Suchtexten Ihrer Datei wurde %1 Regel gemacht"
+msgstr[1] "Aus den Suchtexten Ihrer Datei wurden %1 Regeln gemacht"
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:230
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Each one puts what your bank sends into the category your file had chosen "
+"for that name. You can look at them and change them under Rules."
+msgstr "Jede legt fest, dass das, was Ihre Bank schickt, in die Kategorie kommt, die Ihre Datei für diesen Namen gewählt hatte. Sie können sie unter „Regeln“ ansehen und ändern."
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:241
+#, kde-format
+msgctxt "@info %1 is a name shown on transactions, %2 a matching text"
+msgid "The matching text for %1 can't be used: %2"
+msgstr "Der Suchtext für %1 kann nicht verwendet werden: %2"
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:243
+#, kde-format
+msgctxt "@info"
+msgid "The Rule for this name uses its other matching texts."
+msgstr "Die Regel für diesen Namen verwendet seine anderen Suchtexte."
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:244
+#, kde-format
+msgctxt "@info"
+msgid "No Rule was made for this name. You can make one under Rules."
+msgstr "Für diesen Namen wurde keine Regel gemacht. Sie können unter „Regeln“ eine anlegen."
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:251
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz understands most, but not every, way of writing a matching text. "
+"Your file still has them: it was not changed."
+msgstr "KassenSturz versteht die meisten, aber nicht alle Schreibweisen eines Suchtexts. Ihre Datei hat sie noch: Sie wurde nicht verändert."

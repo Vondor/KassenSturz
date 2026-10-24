@@ -408,3 +408,238 @@ fn check_object(check: &BankCheck) -> QVariant {
         ),
     ])
 }
+
+#[cfg(test)]
+mod tests {
+    use kassensturz_core::AccountType;
+
+    use super::*;
+    use crate::accounts::{NewAccount, add_account, close_account};
+    use crate::register::tests::TestLocale;
+    use crate::variant::read_back::{flag_of, is_null, keys, list_of, object_of, text_of};
+
+    fn open(
+        book: &mut Book,
+        name: &str,
+        kind: AccountType,
+        currency: &str,
+        balance: &str,
+    ) -> String {
+        add_account(
+            book,
+            &NewAccount {
+                name,
+                account_type: kind,
+                currency,
+                balance,
+                date: "2026-10-01",
+            },
+            &TestLocale,
+        )
+        .expect("account added")
+        .to_string()
+    }
+
+    /// A checking account and a card with a debt in euros, a savings account
+    /// in francs and a closed account, made the way the screens make them.
+    fn book_with_accounts() -> (Book, [String; 4]) {
+        let mut book = Book::create_in_memory().expect("book in memory");
+        let giro = open(&mut book, "Giro", AccountType::Checking, "EUR", "1.000,00");
+        let card = open(&mut book, "Card", AccountType::CreditCard, "EUR", "200,00");
+        let franc = open(&mut book, "Franc box", AccountType::Savings, "CHF", "50,00");
+        let old = open(&mut book, "Old", AccountType::Cash, "EUR", "");
+        close_account(&mut book, &old).expect("closed");
+        (book, [giro, card, franc, old])
+    }
+
+    #[test]
+    fn the_accounts_read_back_as_qml_reads_them() {
+        let (book, [giro, card, _, old]) = book_with_accounts();
+        let view = view_object(&accounts::view(&book, &TestLocale).expect("view"));
+        assert_eq!(keys(&view), ["closed", "sections"]);
+
+        let sections = list_of(&view, "sections");
+        assert_eq!(sections.len(), 2, "one section per currency");
+        let euros = &sections[0];
+        assert_eq!(
+            keys(euros),
+            [
+                "accounts",
+                "currency",
+                "exactTogether",
+                "together",
+                "togetherOwes"
+            ]
+        );
+        assert_eq!(text_of(euros, "currency"), "EUR");
+        // 1.000,00 held minus 200,00 owed, added up from the exact amounts.
+        assert_eq!(text_of(euros, "together"), "800,00 €");
+        assert_eq!(text_of(euros, "exactTogether"), "800,00 €");
+        assert!(!flag_of(euros, "togetherOwes"));
+
+        let cards = list_of(euros, "accounts");
+        assert_eq!(cards.len(), 2);
+        assert_eq!(
+            keys(&cards[0]),
+            ["balance", "exactBalance", "id", "name", "owes", "type"]
+        );
+        for (key, expected) in [
+            ("id", giro.as_str()),
+            ("name", "Giro"),
+            ("type", "checking"),
+            ("balance", "1000,00 €"),
+            ("exactBalance", "1000,00 €"),
+        ] {
+            assert_eq!(text_of(&cards[0], key), expected, "{key}");
+        }
+        assert!(!flag_of(&cards[0], "owes"));
+        // A debt reads as what is owed, flagged for "You owe".
+        assert_eq!(text_of(&cards[1], "id"), card);
+        assert_eq!(text_of(&cards[1], "type"), "credit-card");
+        assert_eq!(text_of(&cards[1], "balance"), "200,00 €");
+        assert!(flag_of(&cards[1], "owes"));
+
+        assert_eq!(text_of(&sections[1], "currency"), "CHF");
+        assert_eq!(text_of(&sections[1], "together"), "50,00 €");
+
+        let closed = list_of(&view, "closed");
+        assert_eq!(closed.len(), 1);
+        assert_eq!(text_of(&closed[0], "id"), old);
+        assert_eq!(text_of(&closed[0], "type"), "cash");
+    }
+
+    #[test]
+    fn an_account_in_detail_reads_back_as_qml_reads_it() {
+        let (mut book, [giro, card, _, _]) = book_with_accounts();
+        let details = |book: &Book, id: &str| {
+            details_object(&accounts::details(book, id, &TestLocale).expect("details"))
+        };
+
+        // Told its balance at the start, the account keeps that statement.
+        let shown = details(&book, &giro);
+        assert_eq!(
+            keys(&shown),
+            [
+                "balance",
+                "canClose",
+                "closed",
+                "currency",
+                "debt",
+                "exactBalance",
+                "id",
+                "name",
+                "owes",
+                "stated",
+                "type"
+            ]
+        );
+        for (key, expected) in [
+            ("id", giro.as_str()),
+            ("name", "Giro"),
+            ("type", "checking"),
+            ("currency", "EUR"),
+            ("balance", "1000,00 €"),
+            ("exactBalance", "1000,00 €"),
+        ] {
+            assert_eq!(text_of(&shown, key), expected, "{key}");
+        }
+        for (key, expected) in [
+            ("owes", false),
+            ("closed", false),
+            ("debt", false),
+            ("canClose", false),
+        ] {
+            assert_eq!(flag_of(&shown, key), expected, "{key}");
+        }
+        let stated = object_of(&shown, "stated");
+        assert_eq!(
+            keys(&stated),
+            [
+                "balance",
+                "date",
+                "exactBalance",
+                "exactHeld",
+                "held",
+                "heldOwes",
+                "matches",
+                "owes"
+            ]
+        );
+        assert_eq!(text_of(&stated, "balance"), "1000,00 €");
+        assert_eq!(text_of(&stated, "date"), "2026-10-01");
+        assert_eq!(text_of(&stated, "held"), "1000,00 €");
+        assert!(flag_of(&stated, "matches"));
+        assert!(!flag_of(&stated, "owes") && !flag_of(&stated, "heldOwes"));
+
+        let debt = details(&book, &card);
+        assert!(flag_of(&debt, "debt") && flag_of(&debt, "owes"));
+        assert!(flag_of(&object_of(&debt, "stated"), "owes"));
+
+        // Without a statement, QML reads `stated` as null.
+        let plain = open(&mut book, "Wallet", AccountType::Cash, "EUR", "");
+        let shown = details(&book, &plain);
+        assert!(is_null(&shown, "stated"));
+        assert!(
+            flag_of(&shown, "canClose"),
+            "nothing in it, so it can close"
+        );
+    }
+
+    #[test]
+    fn the_check_against_the_bank_reads_back_as_qml_reads_it() {
+        let (book, [giro, ..]) = book_with_accounts();
+        let check = |bank: &str| {
+            check_object(
+                &accounts::check_against_bank(&book, &giro, bank, "2026-10-05", &TestLocale)
+                    .expect("checked"),
+            )
+        };
+
+        let same = check("1.000,00");
+        assert_eq!(
+            keys(&same),
+            [
+                "bank",
+                "bankOwes",
+                "book",
+                "bookHigher",
+                "bookOwes",
+                "correction",
+                "date",
+                "debt",
+                "difference",
+                "explanations",
+                "matches"
+            ]
+        );
+        assert!(flag_of(&same, "matches"));
+        assert_eq!(text_of(&same, "date"), "2026-10-05");
+        assert_eq!(text_of(&same, "bank"), "1000,00 €");
+        assert_eq!(text_of(&same, "book"), "1000,00 €");
+        assert_eq!(text_of(&same, "difference"), "0,00 €");
+        assert!(list_of(&same, "explanations").is_empty());
+        assert!(is_null(&same, "correction"));
+
+        // The bank holds less than the book: it offers to correct the
+        // starting balance, and says where the difference may come from.
+        let apart = check("800,00");
+        assert!(!flag_of(&apart, "matches"));
+        assert!(flag_of(&apart, "bookHigher"));
+        assert!(!flag_of(&apart, "debt"));
+        assert!(!flag_of(&apart, "bankOwes") && !flag_of(&apart, "bookOwes"));
+        assert_eq!(text_of(&apart, "bank"), "800,00 €");
+        assert_eq!(text_of(&apart, "difference"), "200,00 €");
+        let explanations = list_of(&apart, "explanations");
+        assert!(!explanations.is_empty());
+        assert!(
+            explanations
+                .iter()
+                .all(|explanation| !text_of(explanation, "code").is_empty())
+        );
+        let correction = object_of(&apart, "correction");
+        assert_eq!(keys(&correction), ["adds", "date", "owes", "wouldBe"]);
+        assert_eq!(text_of(&correction, "wouldBe"), "800,00 €");
+        assert_eq!(text_of(&correction, "date"), "2026-10-01");
+        assert!(!flag_of(&correction, "adds") && !flag_of(&correction, "owes"));
+    }
+}

@@ -473,3 +473,271 @@ fn read_form(form: &QVariant) -> RuleForm {
         payee: field(&map, "payee"),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use kassensturz_core::AccountType;
+
+    use super::*;
+    use crate::accounts::{NewAccount, add_account};
+    use crate::first_start::tests::started;
+    use crate::register::tests::TestLocale;
+    use crate::transaction_entry::{self, NewEntry};
+    use crate::variant::read_back::{flag_of, keys, list_of, number_of, text_of};
+
+    fn eur() -> CurrencyCode {
+        CurrencyCode::new("EUR").expect("EUR is a valid code")
+    }
+
+    fn checking(book: &mut Book) -> String {
+        add_account(
+            book,
+            &NewAccount {
+                name: "Giro",
+                account_type: AccountType::Checking,
+                currency: "EUR",
+                balance: "1000",
+                date: "2026-09-01",
+            },
+            &TestLocale,
+        )
+        .expect("account added")
+        .to_string()
+    }
+
+    fn category(book: &Book, path: &str) -> String {
+        book.categories()
+            .expect("categories")
+            .into_iter()
+            .find(|entry| entry.path.join(" › ") == path)
+            .expect("category")
+            .category
+            .id
+            .to_string()
+    }
+
+    fn pay(book: &mut Book, account: &str, other_party: &str, category: &str, date: &str) {
+        transaction_entry::add(
+            book,
+            &NewEntry {
+                account,
+                money_in: false,
+                amount: "5",
+                other_party,
+                category,
+                date,
+            },
+            &TestLocale,
+        )
+        .expect("transaction added");
+    }
+
+    fn payee_is(name: &str, payee: &str, to: &str) -> RuleForm {
+        RuleForm {
+            name: name.into(),
+            match_all: true,
+            conditions: vec![ConditionForm {
+                kind: "text".into(),
+                field: "payee".into(),
+                operator: "is".into(),
+                value: payee.into(),
+                case_sensitive: true,
+                ..ConditionForm::default()
+            }],
+            book_to_kind: "category".into(),
+            book_to: to.into(),
+            ..RuleForm::default()
+        }
+    }
+
+    /// A book with a Rule that has a Rule inside it, and a payee sorted into
+    /// a category by hand often enough to be suggested.
+    fn book_with_rules() -> (Book, String) {
+        let mut book = started();
+        let groceries = category(&book, "Food › Groceries");
+        let eating_out = category(&book, "Food › Eating out");
+        let account = checking(&mut book);
+        let shop = rules::add_rule(
+            &mut book,
+            &payee_is("Shop", "Corner Shop", &groceries),
+            &TestLocale,
+        )
+        .expect("Rule added")
+        .to_string();
+        let mut inside = payee_is("Bakery", "Bakery", "");
+        inside.parent = shop;
+        inside.book_to_kind = String::new();
+        inside.payee = "Fresh bread".into();
+        rules::add_rule(&mut book, &inside, &TestLocale).expect("Rule added");
+        for day in 1..=rules::SUGGEST_AFTER {
+            pay(
+                &mut book,
+                &account,
+                "Canteen",
+                &eating_out,
+                &format!("2026-10-0{day}"),
+            );
+        }
+        (book, account)
+    }
+
+    #[test]
+    fn the_rules_and_the_suggestions_read_back_as_qml_reads_them() {
+        let (book, _) = book_with_rules();
+        let rows = rules::view(&book).expect("view");
+        let suggestions = rules::suggestions(&book, &[]).expect("suggestions");
+        let view = view_object(&rows, &suggestions);
+        assert_eq!(keys(&view), ["rows", "suggestions"]);
+
+        let listed = list_of(&view, "rows");
+        assert_eq!(listed.len(), 2);
+        assert_eq!(
+            keys(&listed[0]),
+            [
+                "bookTo",
+                "bookToKind",
+                "conditions",
+                "depth",
+                "id",
+                "name",
+                "payee",
+                "position",
+                "siblings"
+            ]
+        );
+        assert_eq!(text_of(&listed[0], "id"), rows[0].id);
+        assert_eq!(text_of(&listed[0], "name"), "Shop");
+        assert_eq!(text_of(&listed[0], "bookToKind"), "category");
+        assert_eq!(text_of(&listed[0], "bookTo"), "Food › Groceries");
+        assert_eq!(text_of(&listed[0], "payee"), "");
+        for (key, expected) in [
+            ("depth", 0),
+            ("position", 0),
+            ("siblings", 1),
+            ("conditions", 1),
+        ] {
+            assert_eq!(number_of(&listed[0], key), expected, "{key}");
+        }
+        // The Rule inside the first one.
+        assert_eq!(text_of(&listed[1], "name"), "Bakery");
+        assert_eq!(text_of(&listed[1], "bookToKind"), "");
+        assert_eq!(text_of(&listed[1], "payee"), "Fresh bread");
+        assert_eq!(number_of(&listed[1], "depth"), 1);
+
+        let offered = list_of(&view, "suggestions");
+        assert_eq!(offered.len(), 1);
+        assert_eq!(
+            keys(&offered[0]),
+            ["category", "categoryPath", "count", "payee"]
+        );
+        assert_eq!(text_of(&offered[0], "payee"), "Canteen");
+        assert_eq!(text_of(&offered[0], "category"), suggestions[0].category);
+        assert_eq!(text_of(&offered[0], "categoryPath"), "Food › Eating out");
+        assert_eq!(
+            number_of(&offered[0], "count"),
+            i32::try_from(rules::SUGGEST_AFTER).expect("a small number")
+        );
+    }
+
+    #[test]
+    fn the_choices_read_back_as_qml_reads_them() {
+        let (book, account) = book_with_rules();
+        let choices = choices_object(&rules::choices(&book, eur()).expect("choices"));
+        assert_eq!(keys(&choices), ["accounts", "categories", "currency"]);
+        assert_eq!(text_of(&choices, "currency"), "EUR");
+
+        let accounts = list_of(&choices, "accounts");
+        assert_eq!(accounts.len(), 1);
+        assert_eq!(keys(&accounts[0]), ["depth", "id", "income", "name"]);
+        assert_eq!(text_of(&accounts[0], "id"), account);
+        assert_eq!(text_of(&accounts[0], "name"), "Giro");
+        assert!(!flag_of(&accounts[0], "income"));
+
+        let categories = list_of(&choices, "categories");
+        let find = |name: &str| {
+            categories
+                .iter()
+                .find(|choice| text_of(choice, "name") == name)
+                .unwrap_or_else(|| panic!("no category `{name}`"))
+        };
+        let groceries = find("Food › Groceries");
+        assert_eq!(number_of(groceries, "depth"), 1);
+        assert!(!flag_of(groceries, "income"));
+        assert!(
+            categories.iter().any(|choice| flag_of(choice, "income")),
+            "the income categories are marked"
+        );
+    }
+
+    #[test]
+    fn the_editor_form_reads_back_and_is_what_the_screen_sends_back() {
+        let (book, _) = book_with_rules();
+        let id = rules::view(&book).expect("view")[0].id.clone();
+        let form = rules::form_of(&book, &id, &TestLocale).expect("form");
+        let shown = form_object(&form);
+        assert_eq!(
+            keys(&shown),
+            [
+                "bookTo",
+                "bookToKind",
+                "conditions",
+                "id",
+                "matchAll",
+                "name",
+                "parent",
+                "payee"
+            ]
+        );
+        assert_eq!(text_of(&shown, "id"), id);
+        assert_eq!(text_of(&shown, "name"), "Shop");
+        assert_eq!(text_of(&shown, "bookToKind"), "category");
+        assert!(flag_of(&shown, "matchAll"));
+
+        let conditions = list_of(&shown, "conditions");
+        assert_eq!(conditions.len(), 1);
+        assert_eq!(
+            keys(&conditions[0]),
+            [
+                "account",
+                "amount",
+                "amountTest",
+                "amountTo",
+                "caseSensitive",
+                "currency",
+                "direction",
+                "field",
+                "firstDate",
+                "kind",
+                "lastDate",
+                "operator",
+                "value"
+            ]
+        );
+        for (key, expected) in [
+            ("kind", "text"),
+            ("field", "payee"),
+            ("operator", "is"),
+            ("value", "Corner Shop"),
+        ] {
+            assert_eq!(text_of(&conditions[0], key), expected, "{key}");
+        }
+        assert!(flag_of(&conditions[0], "caseSensitive"));
+
+        // The editor sends the object back as it got it: nothing is lost on
+        // the way out and in again.
+        assert_eq!(read_form(&shown), form);
+        let new = rules::new_form("");
+        assert_eq!(read_form(&form_object(&new)), new);
+    }
+
+    #[test]
+    fn what_changing_a_rule_did_reads_back_as_qml_reads_it() {
+        let done = rebooked_object(Rebooked {
+            changed: 3,
+            skipped: 1,
+        });
+        assert_eq!(keys(&done), ["changed", "skipped"]);
+        assert_eq!(number_of(&done, "changed"), 3);
+        assert_eq!(number_of(&done, "skipped"), 1);
+    }
+}

@@ -52,6 +52,7 @@ fn main() {
                 "qml/RuleCondition.qml",
                 "qml/RulePage.qml",
                 "qml/RulesPage.qml",
+                "qml/SecretField.qml",
                 "qml/SettingsPage.qml",
                 "qml/TransactionPage.qml",
                 "qml/TransactionRow.qml",

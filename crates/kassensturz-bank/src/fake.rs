@@ -142,6 +142,35 @@ impl FakeBank {
         self
     }
 
+    /// The made-up ID the fake bank gives its `n`th login, from 1.
+    pub fn login_id(n: u32) -> LoginId {
+        LoginId::new(format!("fake-login-{n}"))
+    }
+
+    /// Adds `login`, a login for the fake bank's own code that was set up
+    /// before, in an earlier run of the app: the fake bank keeps nothing
+    /// when the app closes, but a PIN saved for the login may be kept in
+    /// the keychain (D-159). Its later logins get the IDs after it.
+    pub fn with_login(mut self, login: LoginId) -> Self {
+        let number = login
+            .as_str()
+            .strip_prefix("fake-login-")
+            .and_then(|n| n.parse::<u32>().ok());
+        if let Some(number) = number {
+            self.next_login = self.next_login.max(number.saturating_add(1));
+        }
+        if self.find(&login).is_err() {
+            self.logins.push(FakeLogin {
+                login: Login {
+                    id: login,
+                    bank: BankCode::new("DE", BANK_CODE),
+                    kind: FakeDirectory::PIN_TAN,
+                },
+            });
+        }
+        self
+    }
+
     /// A fake bank on a computer without AqBanking (D-054).
     pub fn not_installed() -> Self {
         Self {
@@ -393,7 +422,7 @@ impl Bank for FakeBank {
         pins: &mut PinSession,
     ) -> Result<LoginId, BankError> {
         self.availability.require()?;
-        let id = LoginId::new(format!("fake-login-{}", self.next_login));
+        let id = Self::login_id(self.next_login);
         // The PIN typed in the setup is kept as pending until the login
         // has its ID, as with the real backend.
         if pins.answer(&id)? == PinAnswer::Ask && pins.is_remembered(&LoginId::pending()) {
@@ -625,6 +654,47 @@ mod tests {
         assert_eq!(
             bank.accounts(&LoginId::new("nobody")),
             Err(BankError::UnknownLogin(LoginId::new("nobody")))
+        );
+    }
+
+    #[test]
+    fn a_login_from_an_earlier_run_needs_its_pin_and_keeps_its_id() {
+        let mut pins = session();
+        let earlier = FakeBank::login_id(2);
+        let mut bank = FakeBank::new()
+            .with_login(earlier.clone())
+            .with_login(earlier.clone());
+        assert_eq!(
+            bank.logins(),
+            Ok(vec![Login {
+                id: earlier.clone(),
+                bank: BankCode::new("DE", BANK_CODE),
+                kind: FakeDirectory::PIN_TAN,
+            }])
+        );
+        // Nothing is kept of its PIN: the bank asks, as a real one would.
+        let account = bank.accounts(&earlier).expect("accounts")[0].id.clone();
+        assert_eq!(
+            bank.fetch(&account, None, &mut pins).map(|_| ()),
+            Err(BankError::PinNeeded)
+        );
+        pins.provide(
+            &earlier,
+            Pin::new(FakeBank::PIN.to_owned()),
+            PinMode::RememberUntilClose,
+        )
+        .expect("provided");
+        assert!(bank.fetch(&account, None, &mut pins).is_ok());
+        // A new login gets the next ID, not one already taken.
+        pins.provide(
+            &LoginId::pending(),
+            Pin::new(FakeBank::PIN.to_owned()),
+            PinMode::RememberUntilClose,
+        )
+        .expect("provided");
+        assert_eq!(
+            bank.add_login(&FakeBank::setup(), &mut pins),
+            Ok(FakeBank::login_id(3))
         );
     }
 

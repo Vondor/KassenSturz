@@ -419,8 +419,13 @@ fn book_rule() -> BookRule {
             operator: TextOperator::Matches,
             value: "^Corner$".to_owned(),
         }],
+        name_conditions: vec![BookCondition {
+            field: TextField::Payee,
+            operator: TextOperator::Equals,
+            value: "Corner Grocery".to_owned(),
+        }],
         case_sensitive: false,
-        book_to: Some("E2".to_owned()),
+        book_to: "E2".to_owned(),
         payee: "Corner Grocery".to_owned(),
     }
 }
@@ -435,18 +440,20 @@ fn a_rule_has_a_name_a_condition_and_an_account_the_book_has() {
         book_checked(book, &Limits::default())
     };
     assert_eq!(with(&|_| {}), Ok(()));
-    assert_eq!(with(&|rule| rule.book_to = None), Ok(()));
+    // A payee without a matching text still has its name to look at.
+    assert_eq!(with(&|rule| rule.conditions.clear()), Ok(()));
     assert_eq!(with(&|rule| rule.name = " ".to_owned()), MALFORMED);
     assert_eq!(with(&|rule| rule.payee = String::new()), MALFORMED);
-    assert_eq!(with(&|rule| rule.conditions.clear()), MALFORMED);
+    assert_eq!(with(&|rule| rule.name_conditions.clear()), MALFORMED);
     assert_eq!(
         with(&|rule| rule.conditions[0].value = "  ".to_owned()),
         MALFORMED
     );
     assert_eq!(
-        with(&|rule| rule.book_to = Some("E9".to_owned())),
+        with(&|rule| rule.name_conditions[0].value = "  ".to_owned()),
         MALFORMED
     );
+    assert_eq!(with(&|rule| rule.book_to = "E9".to_owned()), MALFORMED);
     let limits = Limits {
         max_text_bytes: 4,
         ..Limits::default()

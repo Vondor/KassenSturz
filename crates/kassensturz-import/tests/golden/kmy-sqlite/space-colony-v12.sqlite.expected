@@ -81,8 +81,8 @@ book
   payee "P000007": "Luna Pharmacy", address -, email -, phone -, reference -, recognized never ignoring case
   payee "P000008": "Asteroid Mining Corp.", address -, email -, phone -, reference -, recognized never ignoring case
   payee "P000009": "Hydroponics Cooperative", address -, email -, phone -, reference -, recognized by ["^Hydroponics\\ Cooperative$", "^HYDRO\\ COOP$"] ignoring case
-  rule "Colony Council Tax Office": Any of [OtherPartyName Matches "^Colony\\ Council\\ Tax\\ Office$"], ignoring case, book to "A000007", set payee "Colony Council Tax Office"
-  rule "Hydroponics Cooperative": Any of [OtherPartyName Matches "^Hydroponics\\ Cooperative$"; OtherPartyName Matches "^HYDRO\\ COOP$"], ignoring case, book to "A000050", set payee "Hydroponics Cooperative"
+  rule "Colony Council Tax Office": Any of [OtherPartyName Matches "^Colony\\ Council\\ Tax\\ Office$"], or its name [Payee Equals "Colony Council Tax Office"; OtherPartyName Equals "Colony Council Tax Office"], ignoring case, book to "A000007", set payee "Colony Council Tax Office"
+  rule "Hydroponics Cooperative": Any of [OtherPartyName Matches "^Hydroponics\\ Cooperative$"; OtherPartyName Matches "^HYDRO\\ COOP$"], or its name [Payee Equals "Hydroponics Cooperative"; OtherPartyName Equals "Hydroponics Cooperative"], ignoring case, book to "A000050", set payee "Hydroponics Cooperative"
   transaction 1 on 2026-06-14, payee "Colony Council Tax Office", note "Greens, week 11", entered 2026-06-14
     part "A000060": 90.00 EUR, in the account -, bank id "ID-1-24", other party - -, text "Greens, week 11"
   transaction 2 on 2026-07-10, payee "Colony Council Tax Office", note "Suit repair 36", entered 2026-07-10

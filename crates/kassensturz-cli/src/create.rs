@@ -17,7 +17,7 @@ use kassensturz_import::{
     Imported, ImportedBook, Importer, Kmy, KmySqlite, Limits, RECOGNITION_BYTES, Recognition,
     Replacement, import,
 };
-use kassensturz_pipeline::{BookImportReport, fill_book, fill_book_from};
+use kassensturz_pipeline::{BookImportReport, RuleScope, fill_book, fill_book_from_with};
 use kassensturz_store::{Book, Computer};
 
 use crate::error::CliError;
@@ -77,7 +77,8 @@ pub(crate) enum Created {
 /// Creates the book at `path`, filled from `from` if given: a complete
 /// export, or another program's book in the format `format` names, or the
 /// one `from` is recognized as, with the currencies `replaced` says
-/// replaced old ones it uses (D-106). The file is read first, so a file
+/// replaced old ones it uses (D-106) and `scope` saying which payees get
+/// Rules (D-160). The file is read first, so a file
 /// that isn't one leaves nothing behind; if the book refuses what it holds,
 /// the new book is removed again.
 pub(crate) fn create(
@@ -86,6 +87,7 @@ pub(crate) fn create(
     from: Option<&Path>,
     format: Option<&str>,
     replaced: &Replaced,
+    scope: RuleScope,
 ) -> Result<(Book, Created), CliError> {
     let Some(from) = from else {
         if format.is_some() {
@@ -124,13 +126,18 @@ pub(crate) fn create(
         };
         check_replaced(&imported, replaced)?;
         fill_new(path, computer, |book| {
-            Ok(fill_book_from(book, &imported, replaced)?)
+            Ok(fill_book_from_with(book, &imported, replaced, scope)?)
         })
         .map(|(book, report)| (book, Created::Imported(Box::new(report))))
     } else {
         if !replaced.is_empty() {
             return Err(CliError::usage(
                 "--replaced is for another program's book; a complete export has none to replace",
+            ));
+        }
+        if scope != RuleScope::default() {
+            return Err(CliError::usage(
+                "--rules-only-with-text is for another program's book; a complete export keeps its Rules as they are",
             ));
         }
         let data = read_book_file(from)?;
@@ -305,7 +312,7 @@ fn write_report(
     if report.rules > 0 {
         writeln!(
             out,
-            "{} made from the payees the file recognizes in imported entries; see `rule list`.",
+            "{} made from the payees in the file, to sort the entries an import adds; see `rule list`.",
             counted(report.rules, "Rule", "Rules")
         )?;
     }

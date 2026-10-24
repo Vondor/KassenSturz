@@ -142,22 +142,20 @@ fn check_book(book: &ImportedBook, limits: &Limits) -> Result<(), ImportError> {
         }
     }
     for rule in &book.rules {
-        // A Rule has a name, a payee to set and a condition, and books to
-        // an account the file has.
+        // A Rule has a name, a payee to set, something to look at and an
+        // account the file has to book to.
+        let conditions = || rule.conditions.iter().chain(&rule.name_conditions);
         if rule.name.trim().is_empty()
             || rule.payee.trim().is_empty()
-            || rule.conditions.is_empty()
-            || rule.conditions.iter().any(|c| c.value.trim().is_empty())
-            || rule
-                .book_to
-                .as_ref()
-                .is_some_and(|key| !accounts.contains_key(key.as_str()))
+            || rule.name_conditions.is_empty()
+            || conditions().any(|condition| condition.value.trim().is_empty())
+            || !accounts.contains_key(rule.book_to.as_str())
         {
             return Err(malformed());
         }
         for text in [&rule.name, &rule.payee]
             .into_iter()
-            .chain(rule.conditions.iter().map(|c| &c.value))
+            .chain(conditions().map(|condition| &condition.value))
         {
             limits.check_text(text, None)?;
         }

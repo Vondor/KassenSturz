@@ -2260,7 +2260,7 @@ fn a_kmymoney_file_makes_a_new_book() {
 /// A KMyMoney file whose payees have matching texts and default categories
 /// (D-160), written by hand with made-up data.
 #[test]
-fn a_kmymoney_files_payee_recognition_becomes_rules() {
+fn a_kmymoney_files_payees_become_rules() {
     let session = Session::new();
     let file = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../kassensturz-import/tests/golden/kmy/payee-rules.kmy")
@@ -2271,21 +2271,49 @@ fn a_kmymoney_files_payee_recognition_becomes_rules() {
         format!(
             "Created the book from {file}: 3 accounts, 4 categories, 6 transactions, 2 rates.\n\
              Moved Travel to the top level: it is in another currency than the category it was in.\n\
-             3 Rules made from the payees the file recognizes in imported entries; \
+             5 Rules made from the payees in the file, to sort the entries an import adds; \
              see `rule list`.\n\
              Can't use the matching text ^(?!x)Corner$ of Corner Grocery: \
              the Rule keeps the others.\n\
-             Can't use the matching text ^(?=a).*$ of Only Unusable: no Rule was made for it.\n\
+             Can't use the matching text ^(?=a).*$ of Only Unusable: the Rule keeps the others.\n\
              Not imported, because KassenSturz can't hold it yet:\n  \
              investments: 1\n  schedules: 1\n  budgets: 1\n  reports: 1\n  rates: 3\n  \
-             owner: 1\n  payee-rules: 3\n  other: 2\n"
+             owner: 1\n  payee-rules: 2\n  other: 2\n"
         )
     );
     let rules = session.ok(&["rule", "list"]);
-    for name in ["Corner Grocery", "Hotel Example", "Pays Salary"] {
+    for name in [
+        "Corner Grocery",
+        "Hotel Example",
+        "Pays Salary",
+        "Only Default",
+        "Only Unusable",
+    ] {
         assert!(rules.contains(name), "{rules}");
     }
-    assert!(!rules.contains("Only Unusable"), "{rules}");
+}
+
+#[test]
+fn rules_only_with_text_leaves_out_payees_the_file_cant_recognize() {
+    let session = Session::new();
+    let file = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../kassensturz-import/tests/golden/kmy/payee-rules.kmy")
+        .display()
+        .to_string();
+    let said = session.ok(&["create", "--from", &file, "--rules-only-with-text"]);
+    assert!(said.contains("3 Rules made from the payees"), "{said}");
+    assert!(
+        said.contains(
+            "Can't use the matching text ^(?=a).*$ of Only Unusable: no Rule was made for it."
+        ),
+        "{said}"
+    );
+    assert!(said.contains("payee-rules: 3"), "{said}");
+    let rules = session.ok(&["rule", "list"]);
+    for name in ["Only Default", "Only Unusable"] {
+        assert!(!rules.contains(name), "{rules}");
+    }
+    assert!(rules.contains("Hotel Example"), "{rules}");
 }
 
 /// The same book saved by KMyMoney as a SQLite file (D-102, D-103).

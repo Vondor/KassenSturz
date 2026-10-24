@@ -132,22 +132,28 @@ pub struct BookPayee {
 /// in the text of an imported entry and, usually, filled in a default
 /// category (D-160). Like everything in [`ImportedBook`] it names accounts
 /// by the file's keys; the pipeline makes the Rule, checks its patterns and
-/// reports the ones KassenSturz can't use.
+/// reports the ones KassenSturz can't use. Only a payee with a default
+/// category has one: the Rule books to it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BookRule {
     /// The name of the Rule: the payee's.
     pub name: String,
     /// Whether one of the conditions is enough or all are needed.
     pub match_mode: MatchMode,
-    /// The conditions: what text field is compared, how, and with what.
-    /// Never empty.
+    /// The conditions that come from how the file recognizes the payee in
+    /// the text of an imported entry. Empty if it doesn't.
     pub conditions: Vec<BookCondition>,
+    /// The conditions that look for the payee's own name, for the Rule to
+    /// have something to look at where the file has no matching text: the
+    /// name as the other party and as the payee of a transaction. Never
+    /// empty. The pipeline adds them to the Rule unless the user asks for
+    /// Rules only where the file has a matching text.
+    pub name_conditions: Vec<BookCondition>,
     /// Whether capitals count in the conditions.
     pub case_sensitive: bool,
-    /// The key of the account or category to book to, if the file has one
-    /// for the payee. The pipeline books to a category, or makes a Transfer
-    /// if it is one of the user's accounts.
-    pub book_to: Option<String>,
+    /// The key of the account or category to book to. The pipeline books to
+    /// a category, or makes a Transfer if it is one of the user's accounts.
+    pub book_to: String,
     /// The payee to set. Never empty.
     pub payee: String,
 }
@@ -307,9 +313,10 @@ pub enum SkippedData {
     OnlineBanking,
     /// The owner's name and address.
     Owner,
-    /// Payees that couldn't become a Rule, because the file has only one of
-    /// a way to recognize them in imported entries and a default category,
-    /// or a way this importer doesn't know, counted as payees (D-160).
+    /// Payees that couldn't become a Rule, because the file has a way to
+    /// recognize them in imported entries but no default category to book
+    /// to, or the user asked for Rules only where the file has a matching
+    /// text and the payee has none, counted as payees (D-160).
     PayeeRules,
     /// Anything else the file holds, such as cost centers, the bank
     /// identifiers a plug-in kept, or a part of the file KassenSturz doesn't

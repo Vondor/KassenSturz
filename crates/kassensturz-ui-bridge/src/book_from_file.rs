@@ -21,7 +21,9 @@ use kassensturz_import::{
     Camt053, ImportError, Imported, ImportedBook, Importer, Kmy, KmySqlite, Limits, Mt940, Ofx,
     RECOGNITION_BYTES, Recognition, Replacement, UnlistedCurrency, import, read_file,
 };
-use kassensturz_pipeline::{BookImportReport, PipelineError, fill_book, fill_book_from};
+use kassensturz_pipeline::{
+    BookImportReport, PipelineError, RuleScope, fill_book, fill_book_from_with,
+};
 use kassensturz_store::{Book, StoreError};
 
 use crate::errors::{ErrorText, report_text};
@@ -251,6 +253,10 @@ pub struct PreparedView {
     /// The currencies KassenSturz's tables don't list that the file uses,
     /// each of which needs the user's word (D-106).
     pub unlisted: Vec<UnlistedView>,
+    /// How many payees the file has a default category for but no matching
+    /// text: by default they get a Rule that recognizes them by name, and
+    /// the user can choose to leave them out (D-160).
+    pub rules_by_name_only: usize,
 }
 
 /// A currency the file uses that KassenSturz's tables don't list.
@@ -293,6 +299,7 @@ impl Prepared {
                     .count(),
                 transactions: data.transactions.len(),
                 unlisted: Vec::new(),
+                rules_by_name_only: 0,
             },
             Source::Other(book) => PreparedView {
                 file_name: self.file_name.clone(),
@@ -313,6 +320,11 @@ impl Prepared {
                     .iter()
                     .map(|unlisted| unlisted_view(unlisted, locale))
                     .collect(),
+                rules_by_name_only: book
+                    .rules
+                    .iter()
+                    .filter(|rule| rule.conditions.is_empty())
+                    .count(),
             },
         }
     }
@@ -561,12 +573,14 @@ pub struct ConvertedText {
 }
 
 /// Fills the empty `book` with what `prepared` holds, with `replaced` as
-/// the user's word about currencies the tables don't list. If anything is
-/// refused, the book stays empty.
+/// the user's word about currencies the tables don't list and `scope` as
+/// their choice of which payees get Rules. If anything is refused, the book
+/// stays empty.
 pub fn fill(
     book: &mut Book,
     prepared: &Prepared,
     replaced: &HashMap<CurrencyCode, Replacement>,
+    scope: RuleScope,
     locale: &impl Locale,
 ) -> Result<Created, FromFileError> {
     match &prepared.source {
@@ -581,7 +595,7 @@ pub fn fill(
             })
         }
         Source::Other(imported) => {
-            let report = fill_book_from(book, imported, replaced)?;
+            let report = fill_book_from_with(book, imported, replaced, scope)?;
             created_text(book, &report, locale)
         }
     }
@@ -700,7 +714,14 @@ mod tests {
 
         let mut copy = empty();
         assert!(copy.is_empty().expect("empty"));
-        let created = fill(&mut copy, &prepared, &HashMap::new(), &TestLocale).expect("filled");
+        let created = fill(
+            &mut copy,
+            &prepared,
+            &HashMap::new(),
+            RuleScope::default(),
+            &TestLocale,
+        )
+        .expect("filled");
         assert_eq!(created.categories, shown.categories);
         assert_eq!(created.transactions, shown.transactions);
         assert!(created.skipped.is_empty());
@@ -713,7 +734,14 @@ mod tests {
             std::fs::read(&again).expect("second")
         );
         // A book with something in it refuses, and is left as it was.
-        let error = fill(&mut book, &prepared, &HashMap::new(), &TestLocale).expect_err("refused");
+        let error = fill(
+            &mut book,
+            &prepared,
+            &HashMap::new(),
+            RuleScope::default(),
+            &TestLocale,
+        )
+        .expect_err("refused");
         assert_eq!(code(&book, &error), "store.book-not-empty");
     }
 
@@ -727,7 +755,14 @@ mod tests {
         assert!(shown.unlisted.is_empty());
 
         let mut book = empty();
-        let created = fill(&mut book, &prepared, &HashMap::new(), &TestLocale).expect("filled");
+        let created = fill(
+            &mut book,
+            &prepared,
+            &HashMap::new(),
+            RuleScope::default(),
+            &TestLocale,
+        )
+        .expect("filled");
         assert_eq!(created.accounts, shown.accounts);
         assert_eq!(created.categories, shown.categories);
         assert_eq!(created.transactions, shown.transactions);
@@ -751,9 +786,16 @@ mod tests {
     fn a_kmymoney_books_payee_recognition_comes_in_as_rules_and_says_what_it_couldnt() {
         let prepared = read(&golden("kmy", "payee-rules.kmy")).expect("read");
         let mut book = empty();
-        let created = fill(&mut book, &prepared, &HashMap::new(), &TestLocale).expect("filled");
-        assert_eq!(created.rules, 3);
-        assert_eq!(book.rules().expect("Rules").len(), 3);
+        let created = fill(
+            &mut book,
+            &prepared,
+            &HashMap::new(),
+            RuleScope::default(),
+            &TestLocale,
+        )
+        .expect("filled");
+        assert_eq!(created.rules, 5);
+        assert_eq!(book.rules().expect("Rules").len(), 5);
         assert_eq!(
             created.patterns_left_out,
             vec![
@@ -765,11 +807,36 @@ mod tests {
                 PatternText {
                     payee: "Only Unusable".into(),
                     pattern: "^(?=a).*$".into(),
-                    rule_made: false,
+                    rule_made: true,
                 },
             ]
         );
+        assert!(created.skipped.contains(&("payee-rules", 2)));
+    }
+
+    #[test]
+    fn the_advanced_choice_makes_rules_only_for_payees_with_a_matching_text() {
+        let prepared = read(&golden("kmy", "payee-rules.kmy")).expect("read");
+        // The screen offers the choice and says how many it concerns.
+        assert_eq!(prepared.view(&TestLocale).rules_by_name_only, 1);
+        let mut book = empty();
+        let created = fill(
+            &mut book,
+            &prepared,
+            &HashMap::new(),
+            RuleScope::WithMatchingText,
+            &TestLocale,
+        )
+        .expect("filled");
+        assert_eq!(created.rules, 3);
+        assert_eq!(book.rules().expect("Rules").len(), 3);
         assert!(created.skipped.contains(&("payee-rules", 3)));
+    }
+
+    #[test]
+    fn a_file_without_rules_to_choose_about_offers_no_choice() {
+        let prepared = read(&golden("kmy", "kassensturz-sample.kmy")).expect("read");
+        assert_eq!(prepared.view(&TestLocale).rules_by_name_only, 0);
     }
 
     #[test]
@@ -848,7 +915,14 @@ mod tests {
         ];
         let replaced = replacements(&prepared, &answers, &TestLocale).expect("answered");
         let mut book = empty();
-        let created = fill(&mut book, &prepared, &replaced, &TestLocale).expect("filled");
+        let created = fill(
+            &mut book,
+            &prepared,
+            &replaced,
+            RuleScope::default(),
+            &TestLocale,
+        )
+        .expect("filled");
         assert_eq!(created.converted.len(), 3);
         let rol = created
             .converted
@@ -923,7 +997,14 @@ mod tests {
         // Steps meeting: what a KMyMoney book became is exported again.
         let prepared = read(&golden("kmy", "kassensturz-sample.kmy")).expect("read");
         let mut book = empty();
-        fill(&mut book, &prepared, &HashMap::new(), &TestLocale).expect("filled");
+        fill(
+            &mut book,
+            &prepared,
+            &HashMap::new(),
+            RuleScope::default(),
+            &TestLocale,
+        )
+        .expect("filled");
         let ids: Vec<String> = book
             .accounts(true)
             .expect("accounts")

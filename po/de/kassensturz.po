@@ -7306,13 +7306,13 @@ msgstr "Version"
 #, kde-format
 msgctxt "@item what was left out, %1 is how many"
 msgid ""
-"%1 name that couldn't become a Rule: your file has a matching text or a "
-"default category for it, not both"
+"%1 name that didn't become a Rule: your file has no category to book it to, "
+"or no text to recognize it by"
 msgid_plural ""
-"%1 names that couldn't become a Rule: your file has a matching text or a "
-"default category for each, not both"
-msgstr[0] "%1 Name konnte keine Regel werden: Ihre Datei hat dafür einen Suchtext oder eine Standardkategorie, nicht beides"
-msgstr[1] "%1 Namen konnten keine Regel werden: Ihre Datei hat für jeden einen Suchtext oder eine Standardkategorie, nicht beides"
+"%1 names that didn't become a Rule: your file has no category to book each "
+"to, or no text to recognize each by"
+msgstr[0] "%1 Name wurde keine Regel: Ihre Datei hat keine Kategorie, in die gebucht werden könnte, oder keinen Text, an dem er zu erkennen wäre"
+msgstr[1] "%1 Namen wurden keine Regel: Ihre Datei hat für sie keine Kategorie, in die gebucht werden könnte, oder keinen Text, an dem sie zu erkennen wären"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:221
 #, kde-format
@@ -7323,10 +7323,10 @@ msgstr "Regeln aus Ihrer Datei"
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:229
 #, kde-format
 msgctxt "@info %1 is how many"
-msgid "%1 Rule was made from the matching texts in your file"
-msgid_plural "%1 Rules were made from the matching texts in your file"
-msgstr[0] "Aus den Suchtexten Ihrer Datei wurde %1 Regel gemacht"
-msgstr[1] "Aus den Suchtexten Ihrer Datei wurden %1 Regeln gemacht"
+msgid "%1 Rule was made from the names in your file"
+msgid_plural "%1 Rules were made from the names in your file"
+msgstr[0] "Aus den Namen Ihrer Datei wurde %1 Regel gemacht"
+msgstr[1] "Aus den Namen Ihrer Datei wurden %1 Regeln gemacht"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:230
 #, kde-format
@@ -7361,3 +7361,35 @@ msgid ""
 "KassenSturz understands most, but not every, way of writing a matching text. "
 "Your file still has them: it was not changed."
 msgstr "KassenSturz versteht die meisten, aber nicht alle Schreibweisen eines Suchtexts. Ihre Datei hat sie noch: Sie wurde nicht verändert."
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:268
+#, kde-format
+msgctxt "@action:button"
+msgid "Advanced"
+msgstr "Erweitert"
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:270
+#, kde-format
+msgctxt "@info"
+msgid "Which of your KMyMoney names get a Rule."
+msgstr "Welche Ihrer KMyMoney-Namen eine Regel bekommen."
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:282
+#, kde-format
+msgctxt "@option:check"
+msgid "Make Rules only for names with a matching text"
+msgstr "Nur für Namen mit einem Suchtext Regeln machen"
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:283
+#, kde-format
+msgctxt "@info %1 is how many"
+msgid ""
+"Your file has %1 name with a default category but no matching text. Usually "
+"KassenSturz makes a Rule for it too, which recognizes it by its name. Turn "
+"this on to leave it out."
+msgid_plural ""
+"Your file has %1 names with a default category but no matching text. "
+"Usually KassenSturz makes a Rule for each, which recognizes it by its name. "
+"Turn this on to leave them out."
+msgstr[0] "Ihre Datei hat %1 Name mit einer Standardkategorie, aber ohne Suchtext. Normalerweise macht KassenSturz auch dafür eine Regel, die den Namen an seinem Wortlaut erkennt. Schalten Sie das ein, um ihn wegzulassen."
+msgstr[1] "Ihre Datei hat %1 Namen mit einer Standardkategorie, aber ohne Suchtext. Normalerweise macht KassenSturz auch für jeden eine Regel, die ihn an seinem Wortlaut erkennt. Schalten Sie das ein, um sie wegzulassen."

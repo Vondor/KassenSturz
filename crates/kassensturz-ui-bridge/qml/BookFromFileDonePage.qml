@@ -49,7 +49,7 @@ FormCard.FormCardPage {
         case "owner":
             return i18nContext.i18nc("@item what was left out", "your name and address");
         case "payee-rules":
-            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 name that couldn't become a Rule: your file has a matching text or a default category for it, not both", "%1 names that couldn't become a Rule: your file has a matching text or a default category for each, not both", count);
+            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 name that didn't become a Rule: your file has no category to book it to, or no text to recognize it by", "%1 names that didn't become a Rule: your file has no category to book each to, or no text to recognize each by", count);
         default:
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 other entry", "%1 other entries", count);
         }
@@ -228,7 +228,7 @@ FormCard.FormCardPage {
             descriptionItem.textFormat: Text.PlainText
             textItem.textFormat: Text.PlainText
             visible: (page.report.rules ?? 0) > 0
-            text: page.i18nContext.i18ncp("@info %1 is how many", "%1 Rule was made from the matching texts in your file", "%1 Rules were made from the matching texts in your file", page.report.rules ?? 0)
+            text: page.i18nContext.i18ncp("@info %1 is how many", "%1 Rule was made from the names in your file", "%1 Rules were made from the names in your file", page.report.rules ?? 0)
             description: page.i18nContext.i18nc("@info", "Each one puts what your bank sends into the category your file had chosen for that name. You can look at them and change them under Rules.")
         }
 

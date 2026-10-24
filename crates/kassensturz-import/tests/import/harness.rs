@@ -252,28 +252,31 @@ fn render_book(out: &mut String, book: &ImportedBook) {
         );
     }
     for rule in &book.rules {
-        let conditions: Vec<String> = rule
-            .conditions
-            .iter()
-            .map(|condition| {
-                format!(
-                    "{:?} {:?} {:?}",
-                    condition.field, condition.operator, condition.value
-                )
-            })
-            .collect();
+        let list = |conditions: &[kassensturz_import::BookCondition]| -> String {
+            conditions
+                .iter()
+                .map(|condition| {
+                    format!(
+                        "{:?} {:?} {:?}",
+                        condition.field, condition.operator, condition.value
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("; ")
+        };
         let _ = writeln!(
             out,
-            "  rule {:?}: {:?} of [{}], {}, book to {}, set payee {:?}",
+            "  rule {:?}: {:?} of [{}], or its name [{}], {}, book to {:?}, set payee {:?}",
             rule.name,
             rule.match_mode,
-            conditions.join("; "),
+            list(&rule.conditions),
+            list(&rule.name_conditions),
             if rule.case_sensitive {
                 "capitals count"
             } else {
                 "ignoring case"
             },
-            text(&rule.book_to),
+            rule.book_to,
             rule.payee,
         );
     }

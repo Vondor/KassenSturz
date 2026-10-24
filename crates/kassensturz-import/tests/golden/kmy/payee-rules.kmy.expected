@@ -16,10 +16,11 @@ book
   payee "P000005": "Only Default", address -, email -, phone -, reference -, recognized never ignoring case
   payee "P000006": "No Default", address -, email -, phone -, reference -, recognized by ["^No\\ Default$"] ignoring case
   payee "P000007": "Only Unusable", address -, email -, phone -, reference -, recognized by ["^(?=a).*$"] ignoring case
-  rule "Corner Grocery": Any of [OtherPartyName Matches "^Corner\\ Grocery$"; OtherPartyName Matches "^CORNER\\/GROC.*$"; OtherPartyName Matches "^(?!x)Corner$"], ignoring case, book to "A000006", set payee "Corner Grocery"
-  rule "Hotel Example": All of [OtherPartyName Contains "Hotel Example"], capitals count, book to "A000007", set payee "Hotel Example"
-  rule "Pays Salary": Any of [OtherPartyName Matches "^Pays\\ Salary$"], ignoring case, book to "A000008", set payee "Pays Salary"
-  rule "Only Unusable": Any of [OtherPartyName Matches "^(?=a).*$"], ignoring case, book to "A000006", set payee "Only Unusable"
+  rule "Corner Grocery": Any of [OtherPartyName Matches "^Corner\\ Grocery$"; OtherPartyName Matches "^CORNER\\/GROC.*$"; OtherPartyName Matches "^(?!x)Corner$"], or its name [Payee Equals "Corner Grocery"; OtherPartyName Equals "Corner Grocery"], ignoring case, book to "A000006", set payee "Corner Grocery"
+  rule "Hotel Example": All of [OtherPartyName Contains "Hotel Example"], or its name [Payee Equals "Hotel Example"; OtherPartyName Equals "Hotel Example"], capitals count, book to "A000007", set payee "Hotel Example"
+  rule "Pays Salary": Any of [OtherPartyName Matches "^Pays\\ Salary$"], or its name [Payee Equals "Pays Salary"; OtherPartyName Equals "Pays Salary"], ignoring case, book to "A000008", set payee "Pays Salary"
+  rule "Only Default": All of [], or its name [Payee Equals "Only Default"; OtherPartyName Equals "Only Default"], ignoring case, book to "A000006", set payee "Only Default"
+  rule "Only Unusable": Any of [OtherPartyName Matches "^(?=a).*$"], or its name [Payee Equals "Only Unusable"; OtherPartyName Equals "Only Unusable"], ignoring case, book to "A000006", set payee "Only Unusable"
   tag "G000001": "Holiday"
   transaction 1 on 2020-01-01, payee -, entered 2020-01-01
     part "A000001": 1500.00 EUR, in the account -
@@ -47,5 +48,5 @@ book
   skipped reports: 1
   skipped rates: 3
   skipped owner: 1
-  skipped payee-rules: 3
+  skipped payee-rules: 2
   skipped other: 2

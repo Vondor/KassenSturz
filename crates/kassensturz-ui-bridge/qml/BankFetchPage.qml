@@ -318,7 +318,7 @@ Kirigami.ScrollablePage {
                 textFormat: Text.PlainText
                 visible: page.fetching
                 text: page.current !== ""
-                    ? page.i18nContext.i18nc("@info %1 is the name of an account", "Asking your bank about %1… Your bank may ask for a TAN, or for your approval in its app.", page.nameOf(page.current))
+                    ? page.i18nContext.i18nc("@info %1 is the name of an account", "Getting the new transactions for %1 from your bank… Your bank may ask for a TAN, or for your approval in its app.", page.nameOf(page.current))
                     : page.i18nContext.i18nc("@info", "Talking to your bank…")
             }
         }

@@ -9,7 +9,7 @@ This document is the "Agent Info" the maintainer asked for (item 94 of the Propo
 
 ## What the app shows when something is missing
 
-Every gap is an explicit state (`kassensturz_bank::Setup`), shown in plain language with what to do next (AGENTS.md §6). The setup page (M4.6, D-151) shows each state as below; the wording is reviewed in M4.9.
+Every gap is an explicit state (`kassensturz_bank::Setup`), shown in plain language with what to do next (AGENTS.md §6). The setup page (M4.6, D-151) shows each state as below; the wording was reviewed in M4.9 (D-155) and found to be in plain language. Every `bank.` error code the crate raises has its own message on the screens, which a test checks, so no bank problem ends as "Something went wrong".
 
 | State | When | What the user sees, and can do |
 |---|---|---|

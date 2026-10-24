@@ -7557,20 +7557,8 @@ msgstr "Eine KeePassXC-Datenbank"
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
 msgctxt "@info"
-msgid ""
-"For a KeePassXC database you open only when needed, apart from your "
-"desktop's keychain. KassenSturz saves the PIN in the database open in "
-"KeePassXC, through KeePassXC's Browser Integration, which you turn on in its "
-"settings. KeePassXC asks once to allow KassenSturz, and asks you to unlock "
-"the database when it is locked. KassenSturz never sees the database's "
-"password."
-msgstr ""
-"Für eine KeePassXC-Datenbank, die Sie nur bei Bedarf öffnen, getrennt vom "
-"Passwortspeicher Ihres Desktops. KassenSturz speichert die PIN in der in "
-"KeePassXC geöffneten Datenbank, über die Browser-Integration von KeePassXC, "
-"die Sie in dessen Einstellungen einschalten. KeePassXC fragt einmal, ob "
-"KassenSturz zugreifen darf, und bittet Sie, die Datenbank zu entsperren, "
-"wenn sie gesperrt ist. KassenSturz sieht das Passwort der Datenbank nie."
+msgid "For a KeePassXC database you open only when needed, apart from your desktop's keychain. KassenSturz never sees the database's password."
+msgstr "Für eine KeePassXC-Datenbank, die Sie nur bei Bedarf öffnen, getrennt vom Passwortspeicher Ihres Desktops. KassenSturz sieht das Passwort der Datenbank nie."
 
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
@@ -7580,24 +7568,40 @@ msgstr "In KeePassXC speichern"
 
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
 msgctxt "@info"
-msgid ""
-"KassenSturz saves the PIN in the database open in KeePassXC, not in your "
-"book. KeePassXC must be running; it asks you to unlock the database when "
-"needed."
-msgstr ""
-"KassenSturz speichert die PIN in der in KeePassXC geöffneten Datenbank, nicht "
-"in Ihrem Haushaltsbuch. KeePassXC muss laufen; es bittet Sie bei Bedarf, die "
-"Datenbank zu entsperren."
+msgid "KassenSturz saves the PIN in the database open in KeePassXC, in its group “KassenSturz”, not in your book. KeePassXC must be running; it asks you to unlock the database when needed."
+msgstr "KassenSturz speichert die PIN in der in KeePassXC geöffneten Datenbank, in deren Gruppe „KassenSturz“, nicht in Ihrem Haushaltsbuch. KeePassXC muss laufen; es bittet Sie bei Bedarf, die Datenbank zu entsperren."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml
 msgctxt "@info"
-msgid ""
-"KeePassXC couldn't be reached, so the PIN couldn't be saved, read or removed "
-"there. Start KeePassXC, open and unlock your database, make sure Browser "
-"Integration is on in its settings, and try again; or type the PIN this time."
-msgstr ""
-"KeePassXC war nicht erreichbar, deshalb ließ sich die PIN dort nicht "
-"speichern, lesen oder entfernen. Starten Sie KeePassXC, öffnen und "
-"entsperren Sie Ihre Datenbank, achten Sie darauf, dass die Browser-"
-"Integration in den Einstellungen eingeschaltet ist, und versuchen Sie es "
-"noch einmal; oder geben Sie die PIN diesmal ein."
+msgid "KeePassXC couldn't be reached, or it said no. Start KeePassXC, open and unlock your database, make sure Browser Integration is on in its settings, allow KassenSturz when KeePassXC asks, and try again. Until then, type the PIN each time."
+msgstr "KeePassXC war nicht erreichbar oder hat abgelehnt. Starten Sie KeePassXC, öffnen und entsperren Sie Ihre Datenbank, achten Sie darauf, dass die Browser-Integration in den Einstellungen eingeschaltet ist, erlauben Sie KassenSturz den Zugriff, wenn KeePassXC fragt, und versuchen Sie es noch einmal. Bis dahin geben Sie die PIN jedes Mal ein."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@info"
+msgid "Waiting for KeePassXC…"
+msgstr "Warten auf KeePassXC …"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@info %1 a KeePassXC database's name, %2 a group in it"
+msgid "PINs are saved in the KeePassXC database “%1”, in its group “%2”."
+msgstr "PINs werden in der KeePassXC-Datenbank „%1“ gespeichert, in deren Gruppe „%2“."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@info"
+msgid "PINs are saved in the KeePassXC database open in front, in its group “KassenSturz”."
+msgstr "PINs werden in der Datenbank gespeichert, die KeePassXC gerade anzeigt, in deren Gruppe „KassenSturz“."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@info"
+msgid "Switch to KeePassXC: unlock the database there, and allow KassenSturz when KeePassXC asks. If KeePassXC isn't running, start it first."
+msgstr "Wechseln Sie zu KeePassXC: Entsperren Sie dort die Datenbank und erlauben Sie KassenSturz den Zugriff, wenn KeePassXC fragt. Läuft KeePassXC nicht, starten Sie es zuerst."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@info"
+msgid "KeePassXC keeps the database file: you choose there where it is saved and how it is encrypted. To keep your PINs in a file of their own, create a new database in KeePassXC (Database → New Database), keep it open in front, and connect again. KassenSturz reaches KeePassXC through its Browser Integration, which you turn on in KeePassXC's settings."
+msgstr "KeePassXC verwaltet die Datenbankdatei: Dort legen Sie fest, wo sie gespeichert und wie sie verschlüsselt wird. Sollen Ihre PINs in einer eigenen Datei liegen, legen Sie in KeePassXC eine neue Datenbank an (Datenbank → Neue Datenbank), lassen Sie sie vorne geöffnet und verbinden Sie erneut. KassenSturz erreicht KeePassXC über dessen Browser-Integration, die Sie in den Einstellungen von KeePassXC einschalten."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@action:button"
+msgid "Connect to KeePassXC again"
+msgstr "Erneut mit KeePassXC verbinden"

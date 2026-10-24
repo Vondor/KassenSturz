@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use super::fake::FakeKeePassXc;
 use super::*;
-use crate::MemoryKeychain;
+use crate::{KeychainPlace, MemoryKeychain};
 
 /// The system keychain the connection keys go to, shared with the test.
 #[derive(Clone)]
@@ -269,6 +269,73 @@ fn a_lost_connection_is_opened_again_once() {
         .filter(|action| *action == "change-public-keys")
         .count();
     assert_eq!(opened, 2);
+}
+
+#[test]
+fn opening_names_the_database_and_makes_kassensturz_s_group_once() {
+    let fake = FakeKeePassXc::start("open");
+    fake.state().locked = true;
+    let keychain = keychain(&fake, &links());
+    let place = keychain.open().expect("opened").expect("a place");
+    assert_eq!(
+        place,
+        KeychainPlace {
+            name: "Household".to_owned(),
+            group: "KassenSturz".to_owned(),
+        }
+    );
+    // The user unlocked the database and allowed KassenSturz first.
+    assert!(!fake.state().locked);
+    assert_eq!(fake.state().links.len(), 1);
+    let group = fake.state().groups[0].clone();
+    assert_eq!(group.0, "KassenSturz");
+
+    keychain
+        .store(&key("login-1"), &Secret::new("0000".to_owned()))
+        .expect("stored");
+    assert_eq!(fake.state().entries[0].group, group.1);
+
+    // Opening again, e.g. in a new run, finds the group: no second one.
+    // The made-up KeePassXC serves one connection at a time.
+    drop(keychain);
+    let again = KeePassXcKeychain::at(SERVICE, Some(fake.socket.clone()), Box::new(links()))
+        .waiting(Duration::from_secs(5));
+    assert_eq!(again.open().expect("opened"), Some(place));
+    assert_eq!(fake.state().groups.len(), 1);
+}
+
+#[test]
+fn without_kassensturz_s_group_entries_go_into_keepassxc_s_own() {
+    let fake = FakeKeePassXc::start("no-group");
+    fake.state().refuse_group = true;
+    let keychain = keychain(&fake, &links());
+    let place = keychain.open().expect("opened").expect("a place");
+    assert_eq!(place.group, "KeePassXC-Browser Passwords");
+    keychain
+        .store(&key("login-1"), &Secret::new("0000".to_owned()))
+        .expect("stored");
+    let state = fake.state();
+    assert!(state.groups.is_empty());
+    assert_eq!(state.entries[0].group, "");
+    // Asked once per connection, not at every save.
+    assert_eq!(
+        state
+            .actions
+            .iter()
+            .filter(|action| *action == "create-new-group")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn opening_without_keepassxc_is_unavailable() {
+    let missing = KeePassXcKeychain::at(
+        SERVICE,
+        Some(std::env::temp_dir().join("ks-no-keepassxc-here.socket")),
+        Box::new(links()),
+    );
+    assert_eq!(missing.open(), Err(KeychainError::KeePassXcUnavailable));
 }
 
 #[test]

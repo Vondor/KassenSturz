@@ -11,7 +11,7 @@
 //! user is told to unlock the keychain or to type the PIN each time
 //! (threat T-02).
 
-use kassensturz_platform::{Keychain, KeychainError, Secret, SecretKey};
+use kassensturz_platform::{Keychain, KeychainError, KeychainPlace, Secret, SecretKey};
 
 use crate::backend::LoginId;
 use crate::error::BankError;
@@ -60,6 +60,10 @@ impl PinStore for KeychainPinStore {
     fn delete(&mut self, login: &LoginId) -> Result<(), BankError> {
         self.keychain.delete(&Self::key(login)?).map_err(bank_error)
     }
+
+    fn open(&self) -> Result<Option<KeychainPlace>, BankError> {
+        self.keychain.open().map_err(bank_error)
+    }
 }
 
 /// The keychain's error as `bank.keepassxc` when KeePassXC was the place
@@ -95,6 +99,10 @@ mod tests {
 
         fn delete(&self, key: &SecretKey) -> Result<(), KeychainError> {
             self.0.delete(key)
+        }
+
+        fn open(&self) -> Result<Option<KeychainPlace>, KeychainError> {
+            self.0.open()
         }
     }
 
@@ -144,5 +152,24 @@ mod tests {
             store.load(&LoginId::new("has a space")),
             Err(BankError::Keychain)
         );
+    }
+
+    #[test]
+    fn opening_says_where_pins_go_and_keepassxc_s_absence_is_its_own_code() {
+        let keychain = Shared(Arc::new(MemoryKeychain::new()));
+        let session = PinSession::new(Box::new(KeychainPinStore::new(Box::new(keychain.clone()))));
+        assert_eq!(session.open_store(), Ok(None));
+        let place = KeychainPlace {
+            name: "Household".to_owned(),
+            group: "KassenSturz".to_owned(),
+        };
+        keychain.0.place(Some(place.clone()));
+        assert_eq!(session.open_store(), Ok(Some(place)));
+        keychain
+            .0
+            .fail_with(Some(KeychainError::KeePassXcUnavailable));
+        assert_eq!(session.open_store(), Err(BankError::KeePassXc));
+        keychain.0.fail_with(Some(KeychainError::Unavailable));
+        assert_eq!(session.open_store(), Err(BankError::Keychain));
     }
 }

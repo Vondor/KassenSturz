@@ -6,8 +6,8 @@
 //! left out (D-029).
 
 use kassensturz_core::{
-    AccountKind, AccountType, Currency, CurrencyCode, Date, ExchangeRate, ImportedDetails, Money,
-    PartStatus, PayeeRecognition,
+    AccountKind, AccountType, Currency, CurrencyCode, Date, ExchangeRate, ImportedDetails,
+    MatchMode, Money, PartStatus, PayeeRecognition, TextField, TextOperator,
 };
 
 /// Another program's book, read from its file.
@@ -39,6 +39,9 @@ pub struct ImportedBook {
     /// file (D-132). Every payee comes in, whether a transaction names it
     /// or not.
     pub payees: Vec<BookPayee>,
+    /// The Rules the file's own payee recognition amounts to, in the order
+    /// of the payees (D-160).
+    pub rules: Vec<BookRule>,
     /// The tags, in the order of the file (D-132).
     pub tags: Vec<BookTag>,
     /// The transactions, in the order of the file.
@@ -123,6 +126,42 @@ pub struct BookPayee {
     pub recognition: PayeeRecognition,
     /// Whether that ignored capitals.
     pub recognition_ignores_case: bool,
+}
+
+/// A Rule an imported book asks for: the other program recognized a payee
+/// in the text of an imported entry and, usually, filled in a default
+/// category (D-160). Like everything in [`ImportedBook`] it names accounts
+/// by the file's keys; the pipeline makes the Rule, checks its patterns and
+/// reports the ones KassenSturz can't use.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BookRule {
+    /// The name of the Rule: the payee's.
+    pub name: String,
+    /// Whether one of the conditions is enough or all are needed.
+    pub match_mode: MatchMode,
+    /// The conditions: what text field is compared, how, and with what.
+    /// Never empty.
+    pub conditions: Vec<BookCondition>,
+    /// Whether capitals count in the conditions.
+    pub case_sensitive: bool,
+    /// The key of the account or category to book to, if the file has one
+    /// for the payee. The pipeline books to a category, or makes a Transfer
+    /// if it is one of the user's accounts.
+    pub book_to: Option<String>,
+    /// The payee to set. Never empty.
+    pub payee: String,
+}
+
+/// One text condition of a [`BookRule`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BookCondition {
+    /// The field it looks at.
+    pub field: TextField,
+    /// How it compares.
+    pub operator: TextOperator,
+    /// The text, or for [`TextOperator::Matches`] the pattern as the file
+    /// has it.
+    pub value: String,
 }
 
 /// A tag of an imported book (D-132).
@@ -268,6 +307,10 @@ pub enum SkippedData {
     OnlineBanking,
     /// The owner's name and address.
     Owner,
+    /// Payees that couldn't become a Rule, because the file has only one of
+    /// a way to recognize them in imported entries and a default category,
+    /// or a way this importer doesn't know, counted as payees (D-160).
+    PayeeRules,
     /// Anything else the file holds, such as cost centers, the bank
     /// identifiers a plug-in kept, or a part of the file KassenSturz doesn't
     /// know, counted as entries.
@@ -276,7 +319,7 @@ pub enum SkippedData {
 
 impl SkippedData {
     /// Every kind, in the order a report lists them.
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::Investments,
         Self::Schedules,
         Self::Budgets,
@@ -285,6 +328,7 @@ impl SkippedData {
         Self::Rates,
         Self::OnlineBanking,
         Self::Owner,
+        Self::PayeeRules,
         Self::Other,
     ];
 
@@ -299,6 +343,7 @@ impl SkippedData {
             Self::Rates => "rates",
             Self::OnlineBanking => "online-banking",
             Self::Owner => "owner",
+            Self::PayeeRules => "payee-rules",
             Self::Other => "other",
         }
     }

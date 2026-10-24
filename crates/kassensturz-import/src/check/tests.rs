@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use kassensturz_core::{AccountKind, AccountType, Currency, CurrencyCode, Date};
+use kassensturz_core::{
+    AccountKind, AccountType, Currency, CurrencyCode, Date, MatchMode, TextField, TextOperator,
+};
 
 use super::*;
-use crate::book::{BookPart, BookRate, Replacement, UnlistedCurrency};
+use crate::book::{BookCondition, BookPart, BookRate, BookRule, Replacement, UnlistedCurrency};
 use crate::statement::{Balance, Entry, StatementAccount};
 
 fn code(text: &str) -> CurrencyCode {
@@ -196,6 +198,7 @@ fn book() -> ImportedBook {
         skipped: Vec::new(),
         institutions: Vec::new(),
         payees: Vec::new(),
+        rules: Vec::new(),
         tags: Vec::new(),
     }
 }
@@ -217,6 +220,7 @@ fn a_consistent_book_passes() {
         skipped: Vec::new(),
         institutions: Vec::new(),
         payees: Vec::new(),
+        rules: Vec::new(),
         tags: Vec::new(),
     };
     assert_eq!(book_checked(empty, &Limits::default()), Ok(()));
@@ -404,4 +408,53 @@ fn a_book_keeps_the_limits() {
         ..ImportedDetails::default()
     });
     assert_eq!(book_checked(details, &limits), too_long);
+}
+
+fn book_rule() -> BookRule {
+    BookRule {
+        name: "Corner Grocery".to_owned(),
+        match_mode: MatchMode::Any,
+        conditions: vec![BookCondition {
+            field: TextField::OtherPartyName,
+            operator: TextOperator::Matches,
+            value: "^Corner$".to_owned(),
+        }],
+        case_sensitive: false,
+        book_to: Some("E2".to_owned()),
+        payee: "Corner Grocery".to_owned(),
+    }
+}
+
+#[test]
+fn a_rule_has_a_name_a_condition_and_an_account_the_book_has() {
+    let with = |change: &dyn Fn(&mut BookRule)| {
+        let mut rule = book_rule();
+        change(&mut rule);
+        let mut book = book();
+        book.rules = vec![rule];
+        book_checked(book, &Limits::default())
+    };
+    assert_eq!(with(&|_| {}), Ok(()));
+    assert_eq!(with(&|rule| rule.book_to = None), Ok(()));
+    assert_eq!(with(&|rule| rule.name = " ".to_owned()), MALFORMED);
+    assert_eq!(with(&|rule| rule.payee = String::new()), MALFORMED);
+    assert_eq!(with(&|rule| rule.conditions.clear()), MALFORMED);
+    assert_eq!(
+        with(&|rule| rule.conditions[0].value = "  ".to_owned()),
+        MALFORMED
+    );
+    assert_eq!(
+        with(&|rule| rule.book_to = Some("E9".to_owned())),
+        MALFORMED
+    );
+    let limits = Limits {
+        max_text_bytes: 4,
+        ..Limits::default()
+    };
+    let mut long = book();
+    long.rules = vec![book_rule()];
+    assert!(matches!(
+        book_checked(long, &limits),
+        Err(ImportError::TextTooLong { .. })
+    ));
 }

@@ -376,6 +376,7 @@ impl<'a> Reader<'a> {
                 matching: self.optional(row, 11)?,
                 match_ignores_case: self.optional(row, 12)?,
                 match_keys: self.optional(row, 13)?,
+                default_account: self.optional(row, 10)?,
                 id,
                 name,
             });

@@ -8,8 +8,8 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use kassensturz_core::{
-    AccountKind, AccountType, Currency, CurrencyCode, Date, ImportedDetails, PartStatus,
-    PayeeRecognition,
+    AccountKind, AccountType, Currency, CurrencyCode, Date, ImportedDetails, MatchMode, PartStatus,
+    PayeeRecognition, TextField, TextOperator,
 };
 
 use super::fraction::Fraction;
@@ -18,8 +18,8 @@ use super::records::{
 };
 use crate::amount;
 use crate::book::{
-    BookAccount, BookInstitution, BookPart, BookPayee, BookRate, BookTag, BookTransaction,
-    ImportedBook, Replacement, Skipped, SkippedData, UnlistedCurrency,
+    BookAccount, BookCondition, BookInstitution, BookPart, BookPayee, BookRate, BookRule, BookTag,
+    BookTransaction, ImportedBook, Replacement, Skipped, SkippedData, UnlistedCurrency,
 };
 use crate::error::ImportError;
 
@@ -79,6 +79,7 @@ pub(super) fn book(records: Records) -> Result<ImportedBook, ImportError> {
         .map(|payee| (payee.id.as_str(), payee.name.as_str()))
         .collect();
     let book_payees: Vec<BookPayee> = records.payees.iter().map(payee).collect();
+    let rules = payee_rules(&records.payees, &book_accounts, &mut skipped);
     let tags: Vec<BookTag> = records
         .tags
         .iter()
@@ -130,6 +131,7 @@ pub(super) fn book(records: Records) -> Result<ImportedBook, ImportError> {
         institutions,
         accounts: book_accounts,
         payees: book_payees,
+        rules,
         tags,
         transactions,
         rates,
@@ -507,15 +509,19 @@ fn part(
     })
 }
 
-/// A payee of the book, with what the file keeps about it (D-132).
-fn payee(raw: &RawPayee) -> BookPayee {
-    let key_words: Vec<String> = raw
-        .match_keys
+/// The key words of a payee, one on each line, without the empty ones.
+fn key_words(raw: &RawPayee) -> Vec<String> {
+    raw.match_keys
         .lines()
         .map(str::trim)
         .filter(|word| !word.is_empty())
         .map(str::to_owned)
-        .collect();
+        .collect()
+}
+
+/// A payee of the book, with what the file keeps about it (D-132).
+fn payee(raw: &RawPayee) -> BookPayee {
+    let key_words = key_words(raw);
     let recognition = match (raw.matching.trim(), key_words.is_empty()) {
         ("1", _) => PayeeRecognition::ByName,
         ("2", false) => PayeeRecognition::ByKeyWords(key_words),
@@ -531,6 +537,88 @@ fn payee(raw: &RawPayee) -> BookPayee {
         recognition,
         recognition_ignores_case: matches!(raw.match_ignores_case.trim(), "1" | "Y"),
     }
+}
+
+/// The Rules that KMyMoney's payee recognition amounts to (D-160).
+///
+/// KMyMoney compares the payee text of an imported entry with each payee:
+/// by the payee's name, which has to appear in the text, or by a list of
+/// key words, each a regular expression, of which one has to match; the
+/// payee found gets its default category. A Rule does the same with the
+/// other party's name, the text a bank delivers for the payee: it books to
+/// the default category and sets the payee. The patterns are passed on as
+/// the file has them: the pipeline checks that KassenSturz can use each one
+/// (it doesn't take everything a Qt regular expression does) and reports
+/// the others.
+///
+/// A payee gets a Rule only if it has both a way of being recognized and a
+/// default category the book has. Without a category the Rule would only
+/// set the payee, and since the first Rule that matches decides, it would
+/// keep the user's own later Rules from booking the entry. A payee with
+/// only one of the two, or a way of recognizing that this importer doesn't
+/// know, is counted as left out (`SkippedData::PayeeRules`).
+fn payee_rules(
+    payees: &[RawPayee],
+    accounts: &[BookAccount],
+    skipped: &mut Skips,
+) -> Vec<BookRule> {
+    let usable: HashSet<&str> = accounts
+        .iter()
+        .filter(|account| account.kind != AccountKind::Equity)
+        .map(|account| account.key.as_str())
+        .collect();
+    let mut rules = Vec::new();
+    for raw in payees {
+        let name = raw.name.trim();
+        let by = |operator, value: &str| BookCondition {
+            field: TextField::OtherPartyName,
+            operator,
+            value: value.to_owned(),
+        };
+        let key_words = key_words(raw);
+        let (match_mode, conditions, known) = match raw.matching.trim() {
+            "1" if !name.is_empty() => {
+                (MatchMode::All, vec![by(TextOperator::Contains, name)], true)
+            }
+            "2" => (
+                MatchMode::Any,
+                key_words
+                    .iter()
+                    .map(|key| by(TextOperator::Matches, key))
+                    .collect(),
+                true,
+            ),
+            "" | "0" | "1" => (MatchMode::All, Vec::new(), true),
+            _ => (MatchMode::All, Vec::new(), false),
+        };
+        let default = usable
+            .contains(raw.default_account.as_str())
+            .then(|| raw.default_account.clone());
+        if name.is_empty() || conditions.is_empty() || default.is_none() {
+            // Recognizing by name, which KMyMoney does for every new payee,
+            // says nothing the name doesn't: without a category it is no loss.
+            let by_name_only = default.is_none() && raw.matching.trim() == "1";
+            let lost = match (conditions.is_empty(), default.is_some()) {
+                (true, true) => true,
+                (false, false) => !by_name_only,
+                (true, false) => !known,
+                (false, true) => false,
+            };
+            if lost {
+                skipped.add(SkippedData::PayeeRules);
+            }
+            continue;
+        }
+        rules.push(BookRule {
+            name: name.to_owned(),
+            match_mode,
+            conditions,
+            case_sensitive: !matches!(raw.match_ignores_case.trim(), "1" | "Y"),
+            book_to: default,
+            payee: name.to_owned(),
+        });
+    }
+    rules
 }
 
 /// `text` as an optional text: `None` if it is empty or only spaces.

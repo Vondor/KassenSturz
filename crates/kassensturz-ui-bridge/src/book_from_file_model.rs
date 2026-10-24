@@ -333,6 +333,17 @@ fn created_object(
             ),
         ),
         ("transfers", count(created.transfers)),
+        ("rules", count(created.rules)),
+        (
+            "patternsLeftOut",
+            list(created.patterns_left_out.iter().map(|left_out| {
+                map([
+                    ("payee", text(&left_out.payee)),
+                    ("pattern", text(&left_out.pattern)),
+                    ("ruleMade", QVariant::from(&left_out.rule_made)),
+                ])
+            })),
+        ),
     ])
 }
 
@@ -355,4 +366,67 @@ fn read_answers(answers: &QVariant) -> Vec<Answer> {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::book_from_file::PatternText;
+    use crate::variant::read_back::{flag_of, keys, list_of, number_of, text_of};
+
+    #[test]
+    fn what_came_in_reads_back_as_qml_reads_it() {
+        let created = Created {
+            rules: 2,
+            patterns_left_out: vec![
+                PatternText {
+                    payee: "Corner Grocery".into(),
+                    pattern: "^(?!x)Corner$".into(),
+                    rule_made: true,
+                },
+                PatternText {
+                    payee: "Only Unusable".into(),
+                    pattern: "^(?=a).*$".into(),
+                    rule_made: false,
+                },
+            ],
+            skipped: vec![("payee-rules", 3)],
+            ..Created::default()
+        };
+        let object = created_object(&created, true, None);
+        assert_eq!(
+            keys(&object),
+            [
+                "accounts",
+                "categories",
+                "completed",
+                "converted",
+                "fileName",
+                "folder",
+                "leftOpen",
+                "movedToTop",
+                "newBook",
+                "patternsLeftOut",
+                "previousFileName",
+                "rates",
+                "renamed",
+                "rules",
+                "skipped",
+                "transactions",
+                "transfers",
+                "uncategorized",
+            ]
+        );
+        assert_eq!(number_of(&object, "rules"), 2);
+        let left_out = list_of(&object, "patternsLeftOut");
+        assert_eq!(left_out.len(), 2);
+        assert_eq!(keys(&left_out[0]), ["pattern", "payee", "ruleMade"]);
+        assert_eq!(text_of(&left_out[0], "payee"), "Corner Grocery");
+        assert_eq!(text_of(&left_out[0], "pattern"), "^(?!x)Corner$");
+        assert!(flag_of(&left_out[0], "ruleMade"));
+        assert!(!flag_of(&left_out[1], "ruleMade"));
+        let skipped = list_of(&object, "skipped");
+        assert_eq!(text_of(&skipped[0], "what"), "payee-rules");
+        assert_eq!(number_of(&skipped[0], "count"), 3);
+    }
 }

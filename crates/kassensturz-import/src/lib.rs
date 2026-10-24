@@ -44,8 +44,8 @@ mod test_format;
 
 pub use amount::{DecimalMark, currency, parse_amount};
 pub use book::{
-    BookAccount, BookInstitution, BookPart, BookPayee, BookRate, BookTag, BookTransaction,
-    ImportedBook, Replacement, Skipped, SkippedData, UnlistedCurrency,
+    BookAccount, BookCondition, BookInstitution, BookPart, BookPayee, BookRate, BookRule, BookTag,
+    BookTransaction, ImportedBook, Replacement, Skipped, SkippedData, UnlistedCurrency,
 };
 pub use camt053::Camt053;
 pub use csv::{

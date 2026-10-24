@@ -141,6 +141,27 @@ fn check_book(book: &ImportedBook, limits: &Limits) -> Result<(), ImportError> {
             return Err(malformed());
         }
     }
+    for rule in &book.rules {
+        // A Rule has a name, a payee to set and a condition, and books to
+        // an account the file has.
+        if rule.name.trim().is_empty()
+            || rule.payee.trim().is_empty()
+            || rule.conditions.is_empty()
+            || rule.conditions.iter().any(|c| c.value.trim().is_empty())
+            || rule
+                .book_to
+                .as_ref()
+                .is_some_and(|key| !accounts.contains_key(key.as_str()))
+        {
+            return Err(malformed());
+        }
+        for text in [&rule.name, &rule.payee]
+            .into_iter()
+            .chain(rule.conditions.iter().map(|c| &c.value))
+        {
+            limits.check_text(text, None)?;
+        }
+    }
     let mut tags = HashSet::new();
     for tag in &book.tags {
         limits.check_text(&tag.key, None)?;

@@ -251,6 +251,32 @@ fn render_book(out: &mut String, book: &ImportedBook) {
             },
         );
     }
+    for rule in &book.rules {
+        let conditions: Vec<String> = rule
+            .conditions
+            .iter()
+            .map(|condition| {
+                format!(
+                    "{:?} {:?} {:?}",
+                    condition.field, condition.operator, condition.value
+                )
+            })
+            .collect();
+        let _ = writeln!(
+            out,
+            "  rule {:?}: {:?} of [{}], {}, book to {}, set payee {:?}",
+            rule.name,
+            rule.match_mode,
+            conditions.join("; "),
+            if rule.case_sensitive {
+                "capitals count"
+            } else {
+                "ignoring case"
+            },
+            text(&rule.book_to),
+            rule.payee,
+        );
+    }
     for tag in &book.tags {
         let _ = writeln!(out, "  tag {:?}: {:?}", tag.key, tag.name);
     }

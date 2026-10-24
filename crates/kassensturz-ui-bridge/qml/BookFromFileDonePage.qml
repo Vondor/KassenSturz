@@ -48,6 +48,8 @@ FormCard.FormCardPage {
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 online banking setting", "%1 online banking settings", count);
         case "owner":
             return i18nContext.i18nc("@item what was left out", "your name and address");
+        case "payee-rules":
+            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 name that couldn't become a Rule: your file has a matching text or a default category for it, not both", "%1 names that couldn't become a Rule: your file has a matching text or a default category for each, not both", count);
         default:
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 other entry", "%1 other entries", count);
         }
@@ -212,6 +214,43 @@ FormCard.FormCardPage {
             description: page.i18nContext.i18nc("@info", "KassenSturz asks about each pair, one at a time. Nothing is joined without your click.")
             onClicked: transferPrompt.ask(page.register.transferSuggestions(""))
         }
+    }
+
+    FormCard.FormHeader {
+        visible: (page.report.rules ?? 0) > 0 || (page.report.patternsLeftOut ?? []).length > 0
+        title: page.i18nContext.i18nc("@title:group", "Rules from your file")
+    }
+
+    FormCard.FormCard {
+        visible: (page.report.rules ?? 0) > 0 || (page.report.patternsLeftOut ?? []).length > 0
+
+        FormCard.FormTextDelegate {
+            descriptionItem.textFormat: Text.PlainText
+            textItem.textFormat: Text.PlainText
+            visible: (page.report.rules ?? 0) > 0
+            text: page.i18nContext.i18ncp("@info %1 is how many", "%1 Rule was made from the matching texts in your file", "%1 Rules were made from the matching texts in your file", page.report.rules ?? 0)
+            description: page.i18nContext.i18nc("@info", "Each one puts what your bank sends into the category your file had chosen for that name. You can look at them and change them under Rules.")
+        }
+
+        Repeater {
+            model: page.report.patternsLeftOut ?? []
+
+            delegate: FormCard.FormTextDelegate {
+                descriptionItem.textFormat: Text.PlainText
+                textItem.textFormat: Text.PlainText
+                required property var modelData
+
+                text: page.i18nContext.i18nc("@info %1 is a name shown on transactions, %2 a matching text", "The matching text for %1 can't be used: %2", modelData.payee, modelData.pattern)
+                description: modelData.ruleMade
+                    ? page.i18nContext.i18nc("@info", "The Rule for this name uses its other matching texts.")
+                    : page.i18nContext.i18nc("@info", "No Rule was made for this name. You can make one under Rules.")
+            }
+        }
+    }
+
+    FormCard.FormSectionText {
+        visible: (page.report.patternsLeftOut ?? []).length > 0
+        text: page.i18nContext.i18nc("@info", "KassenSturz understands most, but not every, way of writing a matching text. Your file still has them: it was not changed.")
     }
 
     FormCard.FormHeader {

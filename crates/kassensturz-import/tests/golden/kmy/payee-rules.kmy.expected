@@ -1,0 +1,51 @@
+recognized: yes
+book
+  account "A000001": "Checking", asset, type checking, EUR with 2 decimal places, inside -
+    number -, notes "The everyday account", at -
+  account "A000002": "Card", liability, type -, EUR with 2 decimal places, inside -
+  account "A000003": "Brokerage", asset, type -, EUR with 2 decimal places, inside -
+  account "A000005": "Food", expense, type -, EUR with 2 decimal places, inside -
+  account "A000006": "Groceries", expense, type -, EUR with 2 decimal places, inside "A000005"
+  account "A000007": "Travel", expense, type -, USD with 2 decimal places, inside "A000005"
+  account "A000008": "Salary", income, type -, EUR with 2 decimal places, inside -
+  account "A000009": "Opening Balances", equity, type -, EUR with 2 decimal places, inside -
+  payee "P000001": "Corner Grocery", address -, email -, phone -, reference -, recognized by ["^Corner\\ Grocery$", "^CORNER\\/GROC.*$", "^(?!x)Corner$"] ignoring case
+  payee "P000002": "Hotel Example", address -, email -, phone -, reference -, recognized by name
+  payee "P000003": "Nobody Paid", address -, email -, phone -, reference -, recognized by ["^Nobody$"] ignoring case
+  payee "P000004": "Pays Salary", address -, email -, phone -, reference -, recognized by ["^Pays\\ Salary$"] ignoring case
+  payee "P000005": "Only Default", address -, email -, phone -, reference -, recognized never ignoring case
+  payee "P000006": "No Default", address -, email -, phone -, reference -, recognized by ["^No\\ Default$"] ignoring case
+  payee "P000007": "Only Unusable", address -, email -, phone -, reference -, recognized by ["^(?=a).*$"] ignoring case
+  rule "Corner Grocery": Any of [OtherPartyName Matches "^Corner\\ Grocery$"; OtherPartyName Matches "^CORNER\\/GROC.*$"; OtherPartyName Matches "^(?!x)Corner$"], ignoring case, book to "A000006", set payee "Corner Grocery"
+  rule "Hotel Example": All of [OtherPartyName Contains "Hotel Example"], capitals count, book to "A000007", set payee "Hotel Example"
+  rule "Pays Salary": Any of [OtherPartyName Matches "^Pays\\ Salary$"], ignoring case, book to "A000008", set payee "Pays Salary"
+  rule "Only Unusable": Any of [OtherPartyName Matches "^(?=a).*$"], ignoring case, book to "A000006", set payee "Only Unusable"
+  tag "G000001": "Holiday"
+  transaction 1 on 2020-01-01, payee -, entered 2020-01-01
+    part "A000001": 1500.00 EUR, in the account -
+    part "A000009": -1500.00 EUR, in the account -
+  transaction 2 on 2020-01-03, payee "Corner Grocery", note "Weekly shop", entered 2020-01-03
+    part "A000001": -24.75 EUR, in the account -, bank id "REF-0001", other party - -, text "Weekly shop", cleared
+    part "A000006": 24.75 EUR, in the account -, note "Fruit and bread"
+  transaction 3 on 2020-02-10, payee "Hotel Example", note "Two nights", entered 2020-02-10
+    part "A000002": -185.00 EUR, in the account -, bank id -, other party - -, text "Hotel\nTwo nights"
+    part "A000007": 185.00 EUR, in the account 200.00 USD
+  transaction 4 on 2020-02-28, payee -, entered 2020-02-28
+    part "A000001": 2100.00 EUR, in the account -, number "1042", reconciled
+    part "A000008": -2100.00 EUR, in the account -
+  transaction 5 on 2020-03-02, payee -, entered 2020-03-02
+    part "A000001": -500.00 EUR, in the account -
+    part "A000003": 500.00 EUR, in the account -
+  transaction 6 on 2020-03-03, payee -, entered 2020-03-03
+    part "A000003": -500.00 EUR, in the account -
+    part -: 500.00 EUR, in the account -, note "Bought shares"
+  rate on 2020-02-11: 1 EUR = 1.0811 USD
+  rate on 2020-02-11: 1 USD = 0.925 EUR
+  skipped investments: 1
+  skipped schedules: 1
+  skipped budgets: 1
+  skipped reports: 1
+  skipped rates: 3
+  skipped owner: 1
+  skipped payee-rules: 3
+  skipped other: 2

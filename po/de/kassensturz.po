@@ -7477,3 +7477,75 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@title:group"
+msgid "Password storage"
+msgstr "Passwortspeicher"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@option:radio where PINs are saved"
+msgid "Don't save PINs"
+msgstr "PINs nicht speichern"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@option:radio where PINs are saved"
+msgid "System keychain"
+msgstr "Passwortspeicher des Systems"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@info"
+msgid ""
+"KassenSturz never saves a PIN. You type it at each connection, or it "
+"remembers it until you close KassenSturz."
+msgstr ""
+"KassenSturz speichert nie eine PIN. Sie geben sie bei jeder Verbindung ein, "
+"oder KassenSturz merkt sie sich, bis Sie es schließen."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@info"
+msgid ""
+"Recommended. The Windows Credential Manager keeps your PINs safe in the "
+"background."
+msgstr ""
+"Empfohlen. Die Windows-Anmeldeinformationsverwaltung bewahrt Ihre PINs im "
+"Hintergrund sicher auf."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@info"
+msgid "Recommended. The macOS Keychain keeps your PINs safe in the background."
+msgstr ""
+"Empfohlen. Der macOS-Schlüsselbund bewahrt Ihre PINs im Hintergrund sicher "
+"auf."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@info"
+msgid ""
+"Recommended. Your desktop's keychain keeps your PINs safe in the background: "
+"KWallet, GNOME Keyring, or KeePassXC if you set it up to take their place."
+msgstr ""
+"Empfohlen. Der Passwortspeicher Ihres Desktops bewahrt Ihre PINs im "
+"Hintergrund sicher auf: KWallet, GNOME Schlüsselbund oder KeePassXC, wenn "
+"Sie es an deren Stelle eingerichtet haben."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@action:button"
+msgid "Hide advanced choices"
+msgstr "Erweiterte Möglichkeiten ausblenden"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@action:button"
+msgid "Show advanced choices"
+msgstr "Erweiterte Möglichkeiten anzeigen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@info"
+msgid ""
+"KassenSturz saves a PIN only when you choose so as you type it. When you "
+"choose another place here, the PINs saved in the old one are removed, and "
+"you type each PIN again at the next connection."
+msgstr ""
+"KassenSturz speichert eine PIN nur, wenn Sie das bei der Eingabe wählen. "
+"Wählen Sie hier einen anderen Ort, werden die am alten Ort gespeicherten "
+"PINs entfernt, und Sie geben jede PIN bei der nächsten Verbindung noch "
+"einmal ein."

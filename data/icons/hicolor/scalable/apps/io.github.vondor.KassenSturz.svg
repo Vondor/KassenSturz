@@ -4,7 +4,7 @@ SPDX-License-Identifier: CC-BY-SA-4.0
 
 KassenSturz's app icon: original artwork, drawn for this project. A household
 ledger with a green check: "trust the numbers". Picked by the maintainer
-(D-163). Keep it readable at 16 px.
+(D-164). Keep it readable at 16 px.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>

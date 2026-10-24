@@ -37,8 +37,8 @@ kassensturz/
 │   ├── kassensturz-cli/            # CLI front end for testing the core and the store: English only, errors as codes, not installed (D-085)
 │   └── kassensturz-ui-bridge/      # the desktop app: cxx-qt bindings exposing the core to QML
 │       ├── qml/                    # Kirigami UI, one file per screen: overview, register, reports, settings, plugins
-│       └── cpp/                    # small C++ helpers: the window icon (D-163), Qt's locale data for formatting (D-065), KConfig for the app's settings (D-112), what Qt knows about the computer
-├── data/                           # desktop file, AppStream metadata and the app icon (icons/, D-163)
+│       └── cpp/                    # small C++ helpers: the window icon (D-164), Qt's locale data for formatting (D-065), KConfig for the app's settings (D-112), what Qt knows about the computer
+├── data/                           # desktop file, AppStream metadata and the app icon (icons/, D-164)
 ├── po/                             # translations, one folder per language (D-034)
 ├── plugins/examples/               # sample importer, report, automation (after 1.0)
 ├── packaging/                      # flatpak/ (manifest and its offline crate list), windows/, macos/
@@ -49,7 +49,7 @@ kassensturz/
 
 ## Build and development
 
-- CMake (with KDE's Extra CMake Modules) drives Cargo: Cargo builds the Rust crates, CMake installs the desktop file, AppStream data, icons (`data/icons/`, D-163) and translations (D-063).
+- CMake (with KDE's Extra CMake Modules) drives Cargo: Cargo builds the Rust crates, CMake installs the desktop file, AppStream data, icons (`data/icons/`, D-164) and translations (D-063).
 - Development, CI and the Flatpak use one environment, the KDE Flatpak SDK with the Rust extension; Flatpak builds use vendored Cargo dependencies (D-063).
 - `tools/sdk.sh <command>` runs any command in that environment, e.g. `tools/sdk.sh cargo test --workspace`; CI uses the same script. Versions are pinned in D-073.
 - Two more CI jobs lint and test every crate except the app crate, one on Windows and one on macOS, with `rustup` installing the same Rust version; the Qt builds on Windows and macOS come with their packaging (M7, D-090).

@@ -42,7 +42,7 @@ pub const APP_ID: &str = "io.github.vondor.KassenSturz";
 
 /// Gives the windows the app's icon from the icon theme, where the desktop
 /// file isn't what the window is matched with (an X11 window manager, or a
-/// Wayland compositor that doesn't read it) (D-163).
+/// Wayland compositor that doesn't read it) (D-164).
 pub fn set_window_icon() {
     ffi::set_window_icon(&QString::from(APP_ID));
 }

@@ -10,7 +10,7 @@ Comment[de]=Das Geld des Haushalts im Blick behalten
 Exec=kassensturz
 Icon=io.github.vondor.KassenSturz
 # The window class Qt gives an X11 window, its name from the program; Wayland
-# finds this file by the desktop file name the app sets (D-163).
+# finds this file by the desktop file name the app sets (D-164).
 StartupWMClass=kassensturz
 Terminal=false
 Categories=Qt;KDE;Office;Finance;

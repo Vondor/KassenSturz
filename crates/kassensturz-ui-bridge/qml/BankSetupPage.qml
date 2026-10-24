@@ -255,11 +255,17 @@ Kirigami.ScrollablePage {
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox", "Remember the PIN:")
                 textRole: "text"
                 valueRole: "value"
-                model: [
-                    { value: "ask", text: page.i18nContext.i18nc("@item:inlistbox keep the PIN", "No, ask me each time") },
-                    { value: "remember", text: page.i18nContext.i18nc("@item:inlistbox keep the PIN", "Until I close KassenSturz") },
-                    { value: "save", text: page.i18nContext.i18nc("@item:inlistbox keep the PIN", "Save it in my keychain") },
-                ]
+                // Saving is offered unless the user chose to save PINs
+                // nowhere in Settings (D-163).
+                model: {
+                    const choices = [
+                        { value: "ask", text: page.i18nContext.i18nc("@item:inlistbox keep the PIN", "No, ask me each time") },
+                        { value: "remember", text: page.i18nContext.i18nc("@item:inlistbox keep the PIN", "Until I close KassenSturz") },
+                    ];
+                    if (page.bank.pinStorage !== "nowhere")
+                        choices.push({ value: "save", text: page.i18nContext.i18nc("@item:inlistbox keep the PIN", "Save it in my keychain") });
+                    return choices;
+                }
             }
 
             Controls.Label {

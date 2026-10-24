@@ -281,8 +281,8 @@ jobs:
       # Without its catalog the app would speak English on a German system.
       - name: The German translation is installed (D-126)
         run: test -f build/stage/usr/share/locale/de/LC_MESSAGES/kassensturz.mo
-      # The desktop file names the icon, and the icon theme has it (D-163).
-      - name: The app icon is installed (D-163)
+      # The desktop file names the icon, and the icon theme has it (D-164).
+      - name: The app icon is installed (D-164)
         run: |
           set -eu
           icons=build/stage/usr/share/icons/hicolor
@@ -391,8 +391,8 @@ jobs:
       # Without its catalog the app would speak English on a German system.
       - name: The German translation is installed (D-126)
         run: test -f build/stage/usr/share/locale/de/LC_MESSAGES/kassensturz.mo
-      # The desktop file names the icon, and the icon theme has it (D-163).
-      - name: The app icon is installed (D-163)
+      # The desktop file names the icon, and the icon theme has it (D-164).
+      - name: The app icon is installed (D-164)
         run: |
           set -eu
           icons=build/stage/usr/share/icons/hicolor
@@ -453,8 +453,8 @@ jobs:
       # "icon-file-read-error" and no detail. This runs the same program from
       # this image on the icon as a whole, on the SVG alone and on each PNG
       # size alone, and prints its full report, to find which file it can't
-      # read (D-163). Remove it once the Flatpak builds.
-      - name: Which icon file does AppStream's compose fail on (D-163)
+      # read (D-164). Remove it once the Flatpak builds.
+      - name: Which icon file does AppStream's compose fail on (D-164)
         continue-on-error: true
         run: |
           appstreamcli --version
@@ -486,7 +486,7 @@ jobs:
           # Stable across commits, so Cargo's source downloads are reused; it
           # changes with the manifest and cargo-sources.json (D-110).
           cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/**') }}
-      - name: Print the icon diagnostic (D-163)
+      - name: Print the icon diagnostic (D-164)
         if: always()
         run: cat /tmp/icon-diagnostic.txt
       # Installed from the bundle that people get, since a catalog in the build
@@ -500,8 +500,8 @@ jobs:
           where=$("$flatpak" info --show-location io.github.vondor.KassenSturz)
           test -f "$where/files/share/locale/de/LC_MESSAGES/kassensturz.mo"
       # The icon is in the bundle, and the desktop file asks for it by name,
-      # which is what shows the launcher and the window its icon (D-163).
-      - name: The app icon is in the Flatpak (D-163)
+      # which is what shows the launcher and the window its icon (D-164).
+      - name: The app icon is in the Flatpak (D-164)
         run: |
           set -eu
           flatpak=$(command -v flatpak || echo /app/bin/flatpak)

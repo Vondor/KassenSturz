@@ -23,4 +23,5 @@ maintainer's explicit approval, not just a review. Keep the whole list and tick 
 - [ ] A breaking change to the plugin API
 - [ ] Keychain, cryptography, bank connections, or AI data sharing
 - [ ] Code adapted from another project (AGENTS.md §3.1 rule 5)
+- [ ] Author is not the maintainer's own agent team (another contributor or team, or outside commits)
 - [ ] No human gate applies

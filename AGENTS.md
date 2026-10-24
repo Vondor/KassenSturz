@@ -57,6 +57,7 @@ When two principles conflict, the lower number wins.
 - Breaking changes to the plugin API
 - Anything touching keychain, cryptography, bank connections, or AI data sharing
 - Any use of code from other projects (see 3.1 rule 5)
+- A pull request from anyone who is not the maintainer's own agent team (another contributor or team, or a commit that is not signed off by this team under D-040)
 
 Do not merge your own pull requests. The maintainer may delegate merging of pull requests that touch no human gate to his own agent team, through that team's rules (the Agent-Teams repository); everyone else still needs his approval to merge (D-154).
 

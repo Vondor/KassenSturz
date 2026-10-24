@@ -237,26 +237,26 @@ A bank connection couldn't be used, or what the bank delivered couldn't be turne
 
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
-| `bank.not-installed` | | | Bank connections need AqBanking, which isn't installed on this computer. Install it from your distribution (the Flatpak brings it along), or import a file from your bank instead. |
+| `bank.not-installed` | | | Bank connections need AqBanking, a free program KassenSturz uses to talk to banks, and it isn't installed on this computer. Install it from your distribution (the Flatpak brings it along), or import a file from your bank instead. |
 | `bank.too-old` | `library`, `found`, `minimum` | `aqbanking`, `gwenhywfar` | The installed {library} is version {found}; KassenSturz needs {minimum} or newer. Update it, or import a file from your bank instead. |
 | `bank.not-registered` | | | This build of KassenSturz has no registration with the banks' FinTS system yet, so it can't connect to a bank. Import a file from your bank instead. |
 | `bank.malformed-iban` | | | This isn't an IBAN. It has two letters, two digits and then up to 30 letters or digits, e.g. DE89 3704 0044 0532 0130 00; spaces don't matter. Check it against what your bank shows. |
 | `bank.unknown-login` | `login` | | This bank login no longer exists in KassenSturz. Set it up again. |
-| `bank.unknown-account` | `account` | | The bank doesn't list this account for your login anymore. Check the accounts of the bank login, or link the account in KassenSturz to another one. |
+| `bank.unknown-account` | `account` | | Your bank doesn't list the bank account this account is linked to for this login anymore. Link the account to another bank account, or connect the bank again in Settings. |
 | `bank.no-bank-account` | | | None of your bank logins lists the bank account this account is linked to. Connect the bank again in Settings, or link the account to another bank account. |
 | `bank.pin-needed` | | | Your bank asks for your PIN. Type it to continue. |
 | `bank.pin-rejected` | | | Your bank says the PIN is wrong. KassenSturz has forgotten the PIN it had, so it won't be sent again. Check it and type it again; after a few wrong PINs a bank blocks the login. |
-| `bank.unreachable` | | | Your bank's server couldn't be reached. Check your internet connection and try again later. |
+| `bank.unreachable` | | | Your bank's server couldn't be reached. Check your internet connection and the bank's address, and try again later. |
 | `bank.refused` | `text?` | | Your bank refused the request. It says: {text}. Try again later; if it keeps happening, ask your bank. |
-| `bank.aborted` | | | The bank dialog was closed before it finished. Nothing was fetched. Start again when you are ready. |
-| `bank.tan-needed` | | | Your bank asks for a TAN for this request, and KassenSturz had no way to ask you for it. Nothing was fetched. Try again from the app's window. |
+| `bank.aborted` | | | The bank's question was closed before it was answered, so nothing was done. Start again when you are ready. |
+| `bank.tan-needed` | | | Your bank asks for a TAN, and KassenSturz had no way to ask you for it. Nothing was done. Try again. |
 | `bank.tan-method-unsupported` | | | Your bank shows this TAN as a picture (a flicker code, photoTAN or QR code), which KassenSturz can't show yet. Choose a TAN method at your bank that sends the TAN as text or asks you to approve in its app, then try again. |
 | `bank.untrusted-server` | | | The bank server's security certificate didn't pass every check, so KassenSturz sent nothing to it. Check your internet connection and the server address; if it keeps happening, ask your bank. |
 | `bank.needs-setup-dialog` | | | A chip-card login can't be set up in KassenSturz yet. Use a login with PIN and TAN for this bank, or import a file from your bank instead. |
 | `bank.setup-failed` | `text?` | | The bank login couldn't be set up, so nothing of it was kept. The bank software says: {text}. Check the login name and the server address and try again. |
-| `bank.folder` | | | The folder KassenSturz keeps its bank settings in couldn't be created or opened. Check that your data folder is writable. |
+| `bank.folder` | | | The folder KassenSturz keeps its bank settings in couldn't be created or opened. Check that your user folder can be written to. |
 | `bank.busy` | | | Another bank connection is still running. Wait for it to finish and try again. |
-| `bank.keychain` | | | The system keychain couldn't be reached, so a saved PIN couldn't be saved, read or removed. Make sure the keychain (KWallet or GNOME Keyring) is unlocked, or choose to type the PIN each time. |
+| `bank.keychain` | | | The system keychain couldn't be reached, so a saved PIN couldn't be saved, read or removed. Make sure the keychain (for example KWallet) is unlocked, or choose to type the PIN each time. |
 | `bank.malformed-amount` | `amount` | | Your bank sent an amount KassenSturz can't read: {amount}. Nothing was imported. If it keeps happening, report it with the amount as shown. |
 | `bank.inexact-amount` | `amount` | | Your bank sent an amount with a fraction of the smallest unit ({amount}), which KassenSturz never rounds. Nothing was imported. If it keeps happening, report it with the amount as shown. |
 | `bank.amount-too-large` | `amount` | | Your bank sent an amount too large for KassenSturz to work with: {amount}. Nothing was imported. |

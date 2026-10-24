@@ -10,6 +10,10 @@ use std::process::Command;
 use cxx_qt_build::{CxxQtBuilder, QmlFile, QmlModule};
 
 fn main() {
+    println!(
+        "cargo:rustc-env=KASSENSTURZ_BUILD_COMMIT={}",
+        build_commit()
+    );
     let kconfig = KConfigCore::find();
     let mut builder = CxxQtBuilder::new_qml_module(
         QmlModule::new("io.github.vondor.kassensturz")
@@ -105,6 +109,38 @@ fn main() {
         kconfig.library_dir.display()
     );
     println!("cargo:rustc-link-lib=KF6ConfigCore");
+}
+
+/// The short id of the commit this build is made from, so a tester can tell
+/// builds apart that have the same version number (D-152). In order: the
+/// `KASSENSTURZ_COMMIT` variable, the file `build-commit` in the repository's
+/// top folder (CI writes it before the Flatpak build, whose copy of the sources
+/// has no `.git`), and git itself. Empty when none of them knows.
+fn build_commit() -> String {
+    println!("cargo:rerun-if-env-changed=KASSENSTURZ_COMMIT");
+    println!("cargo:rerun-if-changed=../../build-commit");
+    println!("cargo:rerun-if-changed=../../.git/HEAD");
+    let from_git = || {
+        let output = Command::new("git")
+            .args(["rev-parse", "--short=7", "HEAD"])
+            .output()
+            .ok()?;
+        output
+            .status
+            .success()
+            .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
+    };
+    let commit = std::env::var("KASSENSTURZ_COMMIT")
+        .ok()
+        .or_else(|| std::fs::read_to_string("../../build-commit").ok())
+        .or_else(from_git)
+        .unwrap_or_default();
+    commit
+        .trim()
+        .chars()
+        .take(7)
+        .filter(char::is_ascii_hexdigit)
+        .collect()
 }
 
 /// Where KConfig's core library is (D-112). The app's settings are kept

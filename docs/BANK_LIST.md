@@ -5,6 +5,8 @@ KassenSturz finds a bank from the IBAN the user types and then asks only what th
 1. **The hand-checked list** in this repository: `crates/kassensturz-bank/src/banks.rs`, `HAND_CHECKED`. Corrections and additions a person confirmed in a test round. An entry here wins over the external source entirely.
 2. **The external source**: AqBanking's bank information, read by the real backend (M4.5). It covers most German banks but can be out of date: a moved server, a bank that merged, a login kind it doesn't know; what it carries and what it lacks is below.
 
+One guess stands on top of the two (D-156): a cooperative bank (Volksbank, Raiffeisenbank, PSD bank) with no server in either source is offered the Atruvia server its neighbours use, marked as a guess. It is described in "The Atruvia guess" below and never becomes an entry by itself.
+
 This document is the "Agent Info" the maintainer asked for (item 94 of the Proposals list): how a finding from a test round becomes an entry, and what the app shows while a bank isn't fully known. Only a few banks can be tested by hand in a test round, so the list grows one confirmed entry at a time.
 
 ## What the app shows when something is missing
@@ -16,7 +18,8 @@ Every gap is an explicit state (`kassensturz_bank::Setup`), shown in plain langu
 | `Ready` | The bank, its server and its login kinds are known | The bank's name is shown for confirmation; the app asks the login kind's questions (`LoginKind::questions`): login name, a customer ID only where the bank has one, PIN; or the chip card. |
 | `NoFints` | The IBAN is from another country than Germany | "Banks outside Germany can't be connected yet: the system KassenSturz uses for this (FinTS) is a German one. Import the files your bank offers instead." No bank lookup happens. |
 | `UnknownBank` | No source knows the bank code | "KassenSturz's bank lists don't know this bank yet. If your bank offers FinTS (some call it HBCI), type the address it gives for it below…" The page shows the bank code and a FinTS address field (`https://` only, D-151); Gwenhywfar's own setup dialog as a further fallback waits for Q-089. The code goes into a bug report so the list can be completed. |
-| `NoServer` | The bank is known, but no FinTS server address is | "KassenSturz's bank lists don't have this bank's FinTS address. If your bank offers FinTS (some call it HBCI), type the address it gives for it below…", with the same address field. |
+| `GuessedServer` | A cooperative bank with no server in the sources, whose neighbours in the bank code list use one Atruvia server (D-156) | "KassenSturz's bank lists don't have this bank's FinTS address. Banks of your bank's kind nearby use the address below, so it is probably yours, but this is a guess. If connecting fails, check the address on your bank's website or ask its support, and type the right one." The address field is filled with the guess and can be changed; the customer ID is asked as optional. |
+| `NoServer` | The bank is known, but no FinTS server address is, and none can be guessed | "KassenSturz's bank lists don't have this bank's FinTS address. If your bank offers FinTS (some call it HBCI), type the address it gives for it below…", with the same address field. |
 | `UnknownLoginKind` | The bank and its server are known, but not how customers log in | "KassenSturz's bank lists don't say how you log in at this bank. KassenSturz tries a login with a PIN and a TAN, which most banks use." A chip card can't be set up yet (Q-089). |
 
 Errors while connecting are the `bank.` codes in `docs/ERROR_CODES.md`, each with what to do next.
@@ -27,12 +30,29 @@ The maintainer chose AqBanking's bank information as the default source, with th
 
 | What | Found | What the backend makes of it |
 |---|---|---|
-| Records | 14,101 for 3,513 bank codes: most codes have several records (branches, and old names marked `-alt-`, 589 of them) | AqBanking answers with the **first record of a code**; the others are never seen. Where the first record has no services but a later one has, the bank shows as `NoServer`: an entry in the hand-checked list is the fix. |
+| Records | 14,101 for 3,513 bank codes: most codes have several records (branches, and old names marked `-alt-`, 589 of them) | `AB_Banking_GetBankInfo` answers with the **first record of a code**, but the server sits in a later record for 68 codes (25 of them cooperative banks). The backend therefore lists every record of the code (`Session::bank_infos`, a search by pattern) and merges them: the first record names the bank, the first BIC any record has is the BIC, the first server any record has is the server. |
 | Name, BIC, place | Name and BIC in most records, the BIC sometimes empty; names percent-escaped (`%28Gf P2%29`) and occasionally not UTF-8 | The name is shown as the bank's, unreadable bytes replaced; an empty BIC is "unknown". |
 | Services | 10,753 `HBCI` services, each with an address, a mode (`PINTAN` or `RDH1` to `RDH10`; no `DDV` chip-card service in this data) and a protocol version (`3.0` in 10,470, empty in 281) | **Only `https://` addresses count**: the 3,040 PIN/TAN services have one (at 1,260 bank codes), the key-file services carry a bare host name (`fints2.atruvia.de`) that isn't a usable address. A bank with key-file services only shows as `NoServer`. PIN/TAN gives `LoginKind::PinTan` with the customer ID unknown (the data doesn't say), a `DDV` service would give a chip card; key-file modes give no login kind (D-059). |
 | TAN methods, HTTP version, CAMT | Not in the data | AqBanking chooses the TAN method itself after the first contact (Q-088); the hand-checked list notes what worked. |
 
-So for about 1,260 of Germany's bank codes the IBAN-first flow is `Ready` from AqBanking's data alone, for roughly 2,250 the user sees `NoServer` or `UnknownBank` and the list needs an entry. A test round at a bank the data gets wrong is the way to find out which (next section).
+So for about 1,260 of Germany's bank codes (1,192 whose first record has a server, and 68 whose server is in a later record) the IBAN-first flow is `Ready` from AqBanking's data alone; for most of the cooperative banks among the rest the Atruvia guess below offers an address, and for the others the user sees `NoServer` or `UnknownBank` and the list needs an entry. A test round at a bank the data gets wrong is the way to find out which (second next section).
+
+## The Atruvia guess (D-156)
+
+Atruvia, the computing centre of the Volksbanken and Raiffeisenbanken (and of most PSD and many Sparda banks), has **two** FinTS servers, both with the path `/cgi-bin/hbciservlet`: `fints1.atruvia.de` for the banks that came from its former GAD centre (north and west) and `fints2.atruvia.de` for those from the former Fiducia centre (south and middle). Since 2024-03-13 these are the addresses banks tell their customers. So one bank's settings do **not** apply to all Volksbanken: the server differs by region, the TAN method is each customer's own choice among those the bank offers, and whether the customer ID equals the login name is confirmed for a few banks only.
+
+What the data says (AqBanking 6.9 data, counted for D-156):
+
+| What | Count |
+|---|---|
+| Codes with an Atruvia PIN/TAN server | 434: 317 on `fints2`, 117 on `fints1`. Codes starting 50 to 55 and 60 to 79 are almost all `fints2`, 20 to 49 almost all `fints1` |
+| Codes with a `GENODE…` BIC (cooperative banks) | 1,239; 847 of them have no PIN/TAN server in the first record (448 of those 847 are old `-alt-` entries) |
+| Banks that aren't cooperative but use Atruvia | 43, e.g. a Berliner Volksbank with a different BIC: a rule by name or BIC alone misses them |
+| Exceptions | Sparda-Bank West has its own server (`fints.bankingonline.de`); a bank with no entry at all, like the code of an old Volksbank that merged, can only be helped by a hand-checked entry |
+
+**The rule** (`kassensturz_bank::guess_server`): for a bank in Germany with a BIC starting `GENODE`, a name without "Sparda" and no server in either source, the directory lists the banks whose code starts with the same five digits (else four, else three). Only neighbours whose server is an `https://` address on `atruvia.de` count, and the guess is the address most of them use. If the nearest neighbourhood that has one is split evenly, or none has, nothing is guessed. Left out one at a time, the known Atruvia banks were guessed right 327 times and wrong 5 times (76 had no guess); for the banks without a server it would offer an address for 647 codes and leave 170 as `NoServer`.
+
+**What a guess is not:** it is not an entry. It is never saved, the app says it is a guess, and the user can change the address. A login that works through a guess is worth a test round: report the bank code and the address that worked, and an agent adds the entry (next sections). A guess that fails (`bank.setup-failed`, `bank.unreachable`) is no bug of the list; if the bank is on another server, the entry is the fix.
 
 ## The first entries (item 77)
 

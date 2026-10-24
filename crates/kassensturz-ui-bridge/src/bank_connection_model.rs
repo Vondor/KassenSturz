@@ -840,6 +840,26 @@ mod tests {
     }
 
     #[test]
+    fn a_guessed_server_reads_back_as_qml_reads_it() {
+        let lookup = lookup_object(&Lookup {
+            state: "guessed-server",
+            iban: "DE89 3704 0044 0532 0130 00".to_owned(),
+            country: "DE".to_owned(),
+            bank_code: "37040044".to_owned(),
+            bank_name: "Testbank".to_owned(),
+            url: "https://fints1.atruvia.de/cgi-bin/hbciservlet".to_owned(),
+            ask_url: true,
+            customer_id: "optional",
+        });
+        assert_eq!(text_of(&lookup, "state"), "guessed-server");
+        assert_eq!(
+            text_of(&lookup, "url"),
+            "https://fints1.atruvia.de/cgi-bin/hbciservlet"
+        );
+        assert!(flag_of(&lookup, "askUrl"));
+    }
+
+    #[test]
     fn what_the_bank_asks_reads_back_as_qml_reads_it() {
         let tan = tan_object(&TanRequest {
             title: "Enter TAN".to_owned(),

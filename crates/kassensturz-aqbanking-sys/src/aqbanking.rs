@@ -511,6 +511,7 @@ pub struct AqBanking {
         unsafe extern "C" fn(st: *const AB_IMEXPORTER_CONTEXT) -> ::std::os::raw::c_int,
     pub AB_ImExporterContext_GetFirstMessage:
         unsafe extern "C" fn(st: *const AB_IMEXPORTER_CONTEXT) -> *mut AB_MESSAGE,
+    pub AB_BankInfo_List2_new: unsafe extern "C" fn() -> *mut AB_BANKINFO_LIST2,
     pub AB_BankInfo_List2_free: unsafe extern "C" fn(l: *mut AB_BANKINFO_LIST2),
     pub AB_BankInfo_List2_GetFront:
         unsafe extern "C" fn(l: *const AB_BANKINFO_LIST2) -> *mut AB_BANKINFO,
@@ -1244,6 +1245,8 @@ impl AqBanking {
                 .map(|sym| *sym)?;
         let AB_ImExporterContext_GetFirstMessage =
             unsafe { __library.get(b"AB_ImExporterContext_GetFirstMessage\0") }.map(|sym| *sym)?;
+        let AB_BankInfo_List2_new =
+            unsafe { __library.get(b"AB_BankInfo_List2_new\0") }.map(|sym| *sym)?;
         let AB_BankInfo_List2_free =
             unsafe { __library.get(b"AB_BankInfo_List2_free\0") }.map(|sym| *sym)?;
         let AB_BankInfo_List2_GetFront =
@@ -1601,6 +1604,7 @@ impl AqBanking {
             AB_ImExporterContext_GetFirstAccountInfo,
             AB_ImExporterContext_GetAccountInfoCount,
             AB_ImExporterContext_GetFirstMessage,
+            AB_BankInfo_List2_new,
             AB_BankInfo_List2_free,
             AB_BankInfo_List2_GetFront,
             AB_BankInfo_List2_GetSize,
@@ -2659,6 +2663,9 @@ impl AqBanking {
         st: *const AB_IMEXPORTER_CONTEXT,
     ) -> *mut AB_MESSAGE {
         unsafe { (self.AB_ImExporterContext_GetFirstMessage)(st) }
+    }
+    pub unsafe fn AB_BankInfo_List2_new(&self) -> *mut AB_BANKINFO_LIST2 {
+        unsafe { (self.AB_BankInfo_List2_new)() }
     }
     pub unsafe fn AB_BankInfo_List2_free(&self, l: *mut AB_BANKINFO_LIST2) {
         unsafe { (self.AB_BankInfo_List2_free)(l) }

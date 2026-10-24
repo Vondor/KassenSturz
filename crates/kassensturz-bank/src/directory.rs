@@ -8,8 +8,10 @@
 //! Banks come from two sources, layered: the hand-checked list in this
 //! repository ([`crate::banks`]) first, for corrections, then an external
 //! source, AqBanking's bank information (M4.5). What neither knows is an
-//! explicit state the screens show in plain language, never a guess:
-//! unknown bank, no server, unknown login type (`docs/BANK_LIST.md`).
+//! explicit state the screens show in plain language: unknown bank, no
+//! server, unknown login type (`docs/BANK_LIST.md`). The one guess there is
+//! says so: a cooperative bank without a server is offered the Atruvia
+//! server its neighbours use, marked as a guess (D-156, [`guess_server`]).
 
 use crate::banks::{self, BankEntry};
 use crate::iban::{BankCode, Iban};
@@ -20,6 +22,14 @@ pub trait BankDirectory {
     /// What is known about the bank with `code`; `None` for a code the
     /// source has never heard of.
     fn lookup(&self, code: &BankCode) -> Option<BankInfo>;
+
+    /// The banks of `country` whose code starts with `prefix`, one entry
+    /// per code, as [`BankDirectory::lookup`] would give each. A source
+    /// that can't list banks by their code answers with none, which only
+    /// takes away the guess of a server ([`guess_server`]).
+    fn banks_starting_with(&self, _country: &str, _prefix: &str) -> Vec<BankInfo> {
+        Vec::new()
+    }
 }
 
 /// What a directory knows about a bank. Nothing here is a secret: it is
@@ -142,9 +152,23 @@ pub enum Setup {
         /// The code nothing was found for.
         code: BankCode,
     },
-    /// The bank is known but no FinTS server address is: the bank may not
-    /// offer FinTS, or the sources lack it. The user can give the address
-    /// by hand.
+    /// The bank is known and the sources have no FinTS server address for
+    /// it, but the banks next to it in the bank code list all use one
+    /// Atruvia server: the app offers that address, marked as a guess the
+    /// user can change (D-156). The customer ID is asked as optional, as
+    /// the sources don't say whether the bank has one.
+    GuessedServer {
+        /// The bank.
+        bank: BankInfo,
+        /// The guessed server's address.
+        url: String,
+        /// The account number within the bank, read from the IBAN where the
+        /// layout is known.
+        account_number: Option<String>,
+    },
+    /// The bank is known but no FinTS server address is, and none can be
+    /// guessed: the bank may not offer FinTS, or the sources lack it. The
+    /// user can give the address by hand.
     NoServer {
         /// The bank.
         bank: BankInfo,
@@ -171,7 +195,14 @@ pub fn setup_for(iban: &Iban, directory: &dyn BankDirectory) -> Setup {
         return Setup::UnknownBank { code };
     };
     let Some(server) = bank.server.clone() else {
-        return Setup::NoServer { bank };
+        return match guess_server(&bank, directory) {
+            Some(url) => Setup::GuessedServer {
+                bank,
+                url,
+                account_number: iban.account_number().map(str::to_owned),
+            },
+            None => Setup::NoServer { bank },
+        };
     };
     match server.login_kinds {
         Some(login_kinds) if !login_kinds.is_empty() => Setup::Ready {
@@ -187,6 +218,90 @@ pub fn setup_for(iban: &Iban, directory: &dyn BankDirectory) -> Setup {
     }
 }
 
+/// The longest bank code prefixes [`guess_server`] looks at, longest first.
+/// The first three digits of a German bank code name the region the bank
+/// was founded in; with fewer the neighbourhood is too wide to say which of
+/// Atruvia's two servers a bank is on.
+const GUESS_PREFIXES: [usize; 3] = [5, 4, 3];
+
+/// The Atruvia server a cooperative bank without a server of its own most
+/// likely uses (D-156), or `None` when nothing safe can be said.
+///
+/// Atruvia, the computing centre of the Volksbanken and Raiffeisenbanken,
+/// has two FinTS servers, one for the banks that came from each of its
+/// former centres, and which one a bank is on follows its region: the
+/// neighbours in the bank code list are on the same one (95% of the 434
+/// banks with a known Atruvia server, checked against AqBanking's data).
+/// So the guess is the server most of the bank's neighbours use, looking at
+/// the nearest codes first. It is made only when
+///
+/// - the bank's BIC says it is a cooperative bank (`GENODE…`) in Germany,
+///   and its name doesn't say Sparda: Sparda banks are not all on Atruvia,
+/// - at least one neighbour is on an Atruvia server (an address on
+///   `atruvia.de`), and no other server is ever guessed, and
+/// - the nearest neighbourhood that has one is not split evenly.
+///
+/// The guess is never stored, and the app shows it as a guess.
+pub fn guess_server(bank: &BankInfo, directory: &dyn BankDirectory) -> Option<String> {
+    if bank.server.is_some() || bank.code.country() != "DE" {
+        return None;
+    }
+    let cooperative = bank
+        .bic
+        .as_deref()
+        .and_then(|bic| bic.get(..6))
+        .is_some_and(|start| start.eq_ignore_ascii_case("GENODE"));
+    if !cooperative || bank.name.to_lowercase().contains("sparda") {
+        return None;
+    }
+    for length in GUESS_PREFIXES {
+        let prefix = bank.code.code().get(..length)?;
+        let mut counts: Vec<(String, usize)> = Vec::new();
+        for neighbour in directory.banks_starting_with(bank.code.country(), prefix) {
+            if neighbour.code == bank.code {
+                continue;
+            }
+            let Some(server) = neighbour.server else {
+                continue;
+            };
+            let url = server.url.trim();
+            if !is_atruvia(url) {
+                continue;
+            }
+            match counts.iter_mut().find(|(known, _)| known == url) {
+                Some((_, count)) => *count += 1,
+                None => counts.push((url.to_owned(), 1)),
+            }
+        }
+        counts.sort_by_key(|(_, count)| std::cmp::Reverse(*count));
+        match counts.as_slice() {
+            [] => {}
+            [(url, _)] => return Some(url.clone()),
+            [(url, most), (_, next), ..] if most > next => return Some(url.clone()),
+            // Split evenly: a wider neighbourhood is no better.
+            _ => return None,
+        }
+    }
+    None
+}
+
+/// Whether `url` is an `https://` address on Atruvia's domain.
+fn is_atruvia(url: &str) -> bool {
+    let Some(rest) = url
+        .get(..8)
+        .filter(|scheme| scheme.eq_ignore_ascii_case("https://"))
+        .map(|_| &url[8..])
+    else {
+        return false;
+    };
+    let host = rest
+        .split(['/', ':', '?', '#'])
+        .next()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    host == "atruvia.de" || host.ends_with(".atruvia.de")
+}
+
 /// The hand-checked list in this repository as a directory
 /// ([`crate::banks::HAND_CHECKED`]).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -198,6 +313,14 @@ impl BankDirectory for HandCheckedList {
             .iter()
             .find(|entry| entry.country == code.country() && entry.code == code.code())
             .map(BankEntry::info)
+    }
+
+    fn banks_starting_with(&self, country: &str, prefix: &str) -> Vec<BankInfo> {
+        banks::HAND_CHECKED
+            .iter()
+            .filter(|entry| entry.country == country && entry.code.starts_with(prefix))
+            .map(BankEntry::info)
+            .collect()
     }
 }
 
@@ -225,12 +348,30 @@ impl<D: BankDirectory> BankDirectory for Corrected<D> {
             .lookup(code)
             .or_else(|| self.external.lookup(code))
     }
+
+    /// The external source's banks, each replaced by the hand-checked
+    /// entry of its code if there is one, and the entries it doesn't have.
+    fn banks_starting_with(&self, country: &str, prefix: &str) -> Vec<BankInfo> {
+        let checked = HandCheckedList.banks_starting_with(country, prefix);
+        let mut banks: Vec<BankInfo> = self
+            .external
+            .banks_starting_with(country, prefix)
+            .into_iter()
+            .filter(|bank| !checked.iter().any(|entry| entry.code == bank.code))
+            .collect();
+        banks.extend(checked);
+        banks
+    }
 }
 
 /// Makes a trait object usable where a directory is given by reference.
 impl BankDirectory for &dyn BankDirectory {
     fn lookup(&self, code: &BankCode) -> Option<BankInfo> {
         (**self).lookup(code)
+    }
+
+    fn banks_starting_with(&self, country: &str, prefix: &str) -> Vec<BankInfo> {
+        (**self).banks_starting_with(country, prefix)
     }
 }
 
@@ -244,6 +385,16 @@ mod tests {
     impl BankDirectory for Listed {
         fn lookup(&self, code: &BankCode) -> Option<BankInfo> {
             self.0.iter().find(|bank| &bank.code == code).cloned()
+        }
+
+        fn banks_starting_with(&self, country: &str, prefix: &str) -> Vec<BankInfo> {
+            self.0
+                .iter()
+                .filter(|bank| {
+                    bank.code.country() == country && bank.code.code().starts_with(prefix)
+                })
+                .cloned()
+                .collect()
         }
     }
 
@@ -367,5 +518,150 @@ mod tests {
             let code = BankCode::new(entry.country, entry.code);
             assert_eq!(corrected.lookup(&code), Some(entry.info()));
         }
+    }
+
+    const NORTH: &str = "https://fints1.atruvia.de/cgi-bin/hbciservlet";
+    const SOUTH: &str = "https://fints2.atruvia.de/cgi-bin/hbciservlet";
+
+    fn listed(code: &str, name: &str, bic: Option<&str>, url: Option<&str>) -> BankInfo {
+        BankInfo {
+            code: BankCode::new("DE", code),
+            name: name.to_owned(),
+            bic: bic.map(str::to_owned),
+            server: url.map(|url| FintsServer {
+                url: url.to_owned(),
+                login_kinds: None,
+            }),
+        }
+    }
+
+    fn cooperative(code: &str, url: Option<&str>) -> BankInfo {
+        listed(code, "Genossenbank", Some("GENODEF1XXX"), url)
+    }
+
+    #[test]
+    fn a_cooperative_bank_without_a_server_gets_the_server_of_its_neighbours() {
+        let target = cooperative("55500003", None);
+        let directory = Listed(vec![
+            cooperative("55500001", Some(SOUTH)),
+            cooperative("55500002", Some(SOUTH)),
+            target.clone(),
+            // Farther away and of the other server: the nearest wins.
+            cooperative("55400001", Some(NORTH)),
+            cooperative("55400002", Some(NORTH)),
+            cooperative("55400003", Some(NORTH)),
+        ]);
+        assert_eq!(guess_server(&target, &directory), Some(SOUTH.to_owned()));
+        // The same through the setup, as a guess and not a known server.
+        let iban = Iban::parse("DE36555000030000000001").expect("an IBAN");
+        let setup = setup_for(&iban, &directory);
+        assert!(
+            matches!(&setup, Setup::GuessedServer { url, .. } if url == SOUTH),
+            "{setup:?}"
+        );
+    }
+
+    #[test]
+    fn the_nearest_neighbourhood_with_a_server_decides() {
+        // Nobody within the first five digits; four digits find a majority.
+        let target = cooperative("55500003", None);
+        let directory = Listed(vec![
+            cooperative("55510001", Some(NORTH)),
+            cooperative("55520001", Some(NORTH)),
+            cooperative("55530001", Some(SOUTH)),
+        ]);
+        assert_eq!(guess_server(&target, &directory), Some(NORTH.to_owned()));
+        // Three digits are the widest look: nothing within them, no guess.
+        let far = Listed(vec![cooperative("55610001", Some(SOUTH))]);
+        assert_eq!(guess_server(&target, &far), None);
+    }
+
+    #[test]
+    fn nothing_is_guessed_where_it_would_be_a_coin_toss_or_not_atruvia() {
+        let target = cooperative("55500003", None);
+        // Split evenly, and a wider look is no better.
+        let split = Listed(vec![
+            cooperative("55500001", Some(NORTH)),
+            cooperative("55500002", Some(SOUTH)),
+            cooperative("55400001", Some(SOUTH)),
+            cooperative("55400002", Some(SOUTH)),
+        ]);
+        assert_eq!(guess_server(&target, &split), None);
+        // Neighbours on another computing centre, or not on https.
+        let other = Listed(vec![
+            cooperative("55500001", Some("https://fints.other.example/")),
+            cooperative("55500002", Some("https://atruvia.de.example/fints")),
+            cooperative(
+                "55500004",
+                Some("http://fints2.atruvia.de/cgi-bin/hbciservlet"),
+            ),
+        ]);
+        assert_eq!(guess_server(&target, &other), None);
+        // No neighbour at all.
+        assert_eq!(guess_server(&target, &Listed(vec![target.clone()])), None);
+    }
+
+    #[test]
+    fn only_cooperative_banks_in_germany_without_a_server_are_guessed_for() {
+        let neighbours = |target: BankInfo| {
+            Listed(vec![
+                cooperative("55500001", Some(SOUTH)),
+                cooperative("55500002", Some(SOUTH)),
+                target,
+            ])
+        };
+        for (target, why) in [
+            (
+                listed("55500003", "Sparda-Bank Test", Some("GENODEF1S99"), None),
+                "a Sparda bank",
+            ),
+            (
+                listed("55500003", "Bank", Some("TESTDEFFXXX"), None),
+                "another kind of bank",
+            ),
+            (listed("55500003", "Bank", None, None), "no BIC"),
+            (
+                listed("55500003", "Bank", Some("GEN"), None),
+                "a BIC too short to say",
+            ),
+            (
+                cooperative("55500003", Some("https://fints.own.example/")),
+                "a server of its own",
+            ),
+        ] {
+            assert_eq!(
+                guess_server(&target, &neighbours(target.clone())),
+                None,
+                "{why}"
+            );
+        }
+        let mut austrian = cooperative("55500003", None);
+        austrian.code = BankCode::new("AT", "55500003");
+        assert_eq!(guess_server(&austrian, &neighbours(austrian.clone())), None);
+        // A trailing space in the data doesn't make a second server.
+        let target = cooperative("55500003", None);
+        let spaced = Listed(vec![
+            cooperative(
+                "55500001",
+                Some("https://fints2.atruvia.de/cgi-bin/hbciservlet "),
+            ),
+            cooperative("55500002", Some(SOUTH)),
+        ]);
+        assert_eq!(guess_server(&target, &spaced), Some(SOUTH.to_owned()));
+    }
+
+    #[test]
+    fn a_hand_checked_entry_stands_in_the_neighbours_too() {
+        // The hand-checked list's banks replace the external source's for
+        // the same code and are listed when the source lacks them.
+        let external = Listed(vec![cooperative("55190000", None)]);
+        let corrected = Corrected::new(&external as &dyn BankDirectory);
+        let banks = corrected.banks_starting_with("DE", "5519");
+        let entry = banks::HAND_CHECKED
+            .iter()
+            .find(|entry| entry.code == "55190000")
+            .expect("an entry");
+        assert_eq!(banks, vec![entry.info()]);
+        assert!(corrected.banks_starting_with("DE", "9999").is_empty());
     }
 }

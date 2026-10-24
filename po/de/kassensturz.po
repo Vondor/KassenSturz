@@ -946,6 +946,21 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid ""
+"KassenSturz's bank lists don't have this bank's FinTS address. Banks of your "
+"bank's kind nearby use the address below, so it is probably yours, but this "
+"is a guess. If connecting fails, check the address on your bank's website or "
+"ask its support, and type the right one."
+msgstr ""
+"Den Bankenlisten von KassenSturz fehlt die FinTS-Adresse dieser Bank. Banken "
+"derselben Art in der Nähe Ihrer Bank nutzen die Adresse unten, es ist also "
+"wahrscheinlich Ihre – aber das ist nur eine Vermutung. Wenn die Verbindung "
+"nicht klappt, prüfen Sie die Adresse auf der Website Ihrer Bank oder fragen "
+"Sie deren Kundendienst, und geben Sie die richtige ein."
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:197
+#, kde-format
+msgctxt "@info"
+msgid ""
 "KassenSturz's bank lists don't say how you log in at this bank. KassenSturz "
 "tries a login with a PIN and a TAN, which most banks use."
 msgstr ""

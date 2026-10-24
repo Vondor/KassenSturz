@@ -1420,26 +1420,6 @@ pub unsafe extern "C" fn AB_BankInfo_List2_GetSize(
     0
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn AB_BankInfo_List2_First(
-    l: *const AB_BANKINFO_LIST2,
-) -> *mut AB_BANKINFO_LIST2_ITERATOR {
-    ::std::ptr::null_mut()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn AB_BankInfo_List2Iterator_free(li: *mut AB_BANKINFO_LIST2_ITERATOR) {}
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn AB_BankInfo_List2Iterator_Next(
-    li: *mut AB_BANKINFO_LIST2_ITERATOR,
-) -> *mut AB_BANKINFO {
-    ::std::ptr::null_mut()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn AB_BankInfo_List2Iterator_Data(
-    li: *mut AB_BANKINFO_LIST2_ITERATOR,
-) -> *mut AB_BANKINFO {
-    ::std::ptr::null_mut()
-}
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn AB_BankInfoService_List_GetCount(
     l: *const AB_BANKINFO_SERVICE_LIST,
 ) -> u32 {
@@ -1488,10 +1468,6 @@ pub unsafe extern "C" fn AB_BankInfoService_GetUserFlags(
     0
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn AB_BankInfo_new() -> *mut AB_BANKINFO {
-    ::std::ptr::null_mut()
-}
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn AB_BankInfo_GetCountry(
     p_struct: *const AB_BANKINFO,
 ) -> *const ::std::os::raw::c_char {
@@ -1499,12 +1475,6 @@ pub unsafe extern "C" fn AB_BankInfo_GetCountry(
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn AB_BankInfo_GetBranchId(
-    p_struct: *const AB_BANKINFO,
-) -> *const ::std::os::raw::c_char {
-    ::std::ptr::null()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn AB_BankInfo_GetBankId(
     p_struct: *const AB_BANKINFO,
 ) -> *const ::std::os::raw::c_char {
     ::std::ptr::null()
@@ -1570,12 +1540,6 @@ pub unsafe extern "C" fn AB_BankInfo_SetCountry(
 ) {
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn AB_BankInfo_SetBankId(
-    p_struct: *mut AB_BANKINFO,
-    p_src: *const ::std::os::raw::c_char,
-) {
-}
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn AB_BankInfo_SetBic(
     p_struct: *mut AB_BANKINFO,
     p_src: *const ::std::os::raw::c_char,
@@ -1598,21 +1562,6 @@ pub unsafe extern "C" fn AB_BankInfo_SetCity(
     p_struct: *mut AB_BANKINFO,
     p_src: *const ::std::os::raw::c_char,
 ) {
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn AB_BankInfo_List2_freeAll(
-    tl: *mut AB_BANKINFO_LIST2,
-) -> ::std::os::raw::c_int {
-    0
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn AB_Banking_GetBankInfoByTemplate(
-    ab: *mut AB_BANKING,
-    country: *const ::std::os::raw::c_char,
-    tbi: *mut AB_BANKINFO,
-    bl: *mut AB_BANKINFO_LIST2,
-) -> ::std::os::raw::c_int {
-    0
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn AB_Banking_CheckAccount(

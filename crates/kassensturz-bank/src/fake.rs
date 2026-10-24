@@ -39,6 +39,12 @@ pub const BANK_CODE: &str = "37040044";
 pub const BANK_CODE_WITHOUT_SERVER: &str = "10000000";
 /// A bank code the fake directory knows with a server but no login kinds.
 pub const BANK_CODE_WITHOUT_LOGIN_KINDS: &str = "20000000";
+/// A cooperative bank's code the fake directory knows without a server; its
+/// neighbour [`BANK_CODE_NEIGHBOUR`] is on an Atruvia server, so the setup
+/// offers that address as a guess.
+pub const BANK_CODE_GUESSED: &str = "40000010";
+/// The neighbour of [`BANK_CODE_GUESSED`], with an Atruvia server.
+pub const BANK_CODE_NEIGHBOUR: &str = "40000011";
 /// SWIFT's example IBAN for the Netherlands: the other party of some
 /// transactions.
 const GROCER_IBAN: &str = "NL91ABNA0417164300";
@@ -481,8 +487,9 @@ impl Bank for FakeBank {
     }
 }
 
-/// The fake bank's directory: its own bank, one without a server and one
-/// without known login kinds, so every setup state can be tried.
+/// The fake bank's directory: its own bank, one without a server, one
+/// without known login kinds, and a cooperative bank next to one on an
+/// Atruvia server, so every setup state can be tried.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct FakeDirectory;
 
@@ -494,6 +501,18 @@ impl FakeDirectory {
     pub const PIN_TAN: LoginKind = LoginKind::PinTan {
         customer_id: CustomerId::SameAsLoginName,
     };
+    /// The Atruvia server of [`BANK_CODE_NEIGHBOUR`], which the setup offers
+    /// for [`BANK_CODE_GUESSED`] as a guess.
+    pub const ATRUVIA_URL: &'static str = "https://fints1.atruvia.de/cgi-bin/hbciservlet";
+
+    /// Every bank the directory knows, by code.
+    const CODES: [&'static str; 5] = [
+        BANK_CODE,
+        BANK_CODE_WITHOUT_SERVER,
+        BANK_CODE_WITHOUT_LOGIN_KINDS,
+        BANK_CODE_GUESSED,
+        BANK_CODE_NEIGHBOUR,
+    ];
 }
 
 impl BankDirectory for FakeDirectory {
@@ -525,8 +544,31 @@ impl BankDirectory for FakeDirectory {
                     login_kinds: None,
                 }),
             )),
+            BANK_CODE_GUESSED => Some(info(
+                "Cooperative bank without FinTS",
+                Some("GENODEF1XXX"),
+                None,
+            )),
+            BANK_CODE_NEIGHBOUR => Some(info(
+                "Cooperative bank next door",
+                Some("GENODEF1YYY"),
+                Some(FintsServer {
+                    url: Self::ATRUVIA_URL.to_owned(),
+                    login_kinds: Some(vec![LoginKind::PinTan {
+                        customer_id: CustomerId::Unknown,
+                    }]),
+                }),
+            )),
             _ => None,
         }
+    }
+
+    fn banks_starting_with(&self, country: &str, prefix: &str) -> Vec<BankInfo> {
+        Self::CODES
+            .iter()
+            .filter(|code| code.starts_with(prefix))
+            .filter_map(|code| self.lookup(&BankCode::new(country, code)))
+            .collect()
     }
 }
 
@@ -745,6 +787,15 @@ mod tests {
         ));
         assert_eq!(FakeDirectory.lookup(&BankCode::new("DE", "99999999")), None);
         assert_eq!(FakeDirectory.lookup(&BankCode::new("AT", BANK_CODE)), None);
+        // A cooperative bank without a server gets its neighbour's.
+        let iban = Iban::parse("DE38400000100000000001").expect("an IBAN");
+        match setup_for(&iban, bank.directory()) {
+            Setup::GuessedServer { bank, url, .. } => {
+                assert_eq!(bank.name, "Cooperative bank without FinTS");
+                assert_eq!(url, FakeDirectory::ATRUVIA_URL);
+            }
+            other => panic!("{other:?}"),
+        }
     }
 
     /// Dialogs with fixed answers.

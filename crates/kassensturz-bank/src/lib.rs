@@ -64,7 +64,7 @@ pub use backend::{
 pub use dialogs::{BankDialogs, BankQuestion, QuestionLevel, Tan, TanRequest};
 pub use directory::{
     BankDirectory, BankInfo, Corrected, CustomerId, FintsServer, HandCheckedList, LoginKind,
-    Question, Setup, setup_for,
+    Question, Setup, guess_server, setup_for,
 };
 pub use error::BankError;
 pub use fake::{Failure, FakeBank, FakeDirectory, SecondFactor};

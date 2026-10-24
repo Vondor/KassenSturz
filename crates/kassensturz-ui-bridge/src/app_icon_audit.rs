@@ -89,6 +89,12 @@ mod tests {
         assert!(!svg.contains("<image"), "no embedded or linked pictures");
         assert!(!svg.contains("href"), "no link to anything else");
         assert!(!svg.contains("<script"), "no script");
+        // A drawing program or a tool that handled the file can add a
+        // `<metadata>` block (a provenance manifest of several KB was in the
+        // first version). The Flatpak build's AppStream step failed to read
+        // such an icon ("icon-file-read-error"), so the SVG has none.
+        assert!(!svg.contains("<metadata"), "no metadata block");
+        assert!(!svg.contains("xmlns:"), "only the SVG namespace");
     }
 
     /// Every size is there and really that size (read from the PNG header).

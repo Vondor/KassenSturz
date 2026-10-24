@@ -45,6 +45,7 @@ pub mod qobject {
         #[qproperty(QString, folder_url, cxx_name = "folderUrl", READ, NOTIFY)]
         #[qproperty(bool, network_drive, cxx_name = "networkDrive", READ, NOTIFY)]
         #[qproperty(QString, backup_folder, cxx_name = "backupFolder", READ, CONSTANT)]
+        #[qproperty(QString, version, READ, CONSTANT)]
         #[qproperty(QVariant, problem, READ, NOTIFY)]
         type BookSession = super::BookSessionRust;
     }
@@ -111,6 +112,7 @@ pub struct BookSessionRust {
     folder_url: QString,
     network_drive: bool,
     backup_folder: QString,
+    version: QString,
     problem: QVariant,
     books: Option<Books>,
     /// What `problem` is about: the book to try again, the lock the user
@@ -130,6 +132,7 @@ impl cxx_qt::Initialize for qobject::BookSession {
         let backup_folder = display(books.backup_folder());
         let mut state = self.as_mut().rust_mut();
         state.backup_folder = QString::from(backup_folder.as_str());
+        state.version = QString::from(app_version());
         state.books = Some(books);
     }
 }
@@ -306,10 +309,43 @@ pub(crate) fn local_path(url: &QUrl) -> Option<PathBuf> {
     (!path.is_empty()).then(|| PathBuf::from(path))
 }
 
+/// The version the app was built as (D-152): the one in `Cargo.toml`, which
+/// the build files carry too, so Settings never shows a number typed by hand.
+fn app_version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
+
 fn display(path: &Path) -> String {
     path.display().to_string()
 }
 
 fn qtext(value: &str) -> QVariant {
     QVariant::from(&QString::from(value))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The version Settings shows is the one the build files carry
+    /// (D-152), and has the form 0.YYMMDD.N.
+    #[test]
+    fn shows_the_version_of_the_build() {
+        let version = app_version();
+        let cmake = std::fs::read_to_string(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../CMakeLists.txt"),
+        )
+        .expect("CMakeLists.txt is in the repository");
+        assert!(
+            cmake.contains(&format!("project(kassensturz VERSION {version} ")),
+            "CMakeLists.txt has another version than Cargo.toml's {version}"
+        );
+        let parts: Vec<&str> = version.split('.').collect();
+        assert_eq!(parts.len(), 3, "{version}");
+        assert!(
+            parts.iter().all(|part| part.parse::<u32>().is_ok()),
+            "{version}"
+        );
+        assert_eq!(parts[1].len(), 6, "{version} has no YYMMDD date");
+    }
 }

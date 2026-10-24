@@ -182,3 +182,12 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - Undo takes back the transactions and the fetch day together, so the next fetch starts from the earlier day again.
 - A fetch starts five days before the day of the last one, because a bank may book a transaction a day or two late. What your book has already is recognized and not added twice (it shows as "already in your book" in the preview). Transactions that "look like one you have" and were left out aren't offered again; if one was a different transaction, add it by hand.
 - If something goes wrong, the line under the account says what happened and what to do, e.g. that the bank can't be reached, that the PIN was wrong, or that the account's link no longer matches any of your bank logins. After a problem with the bank connection itself, the accounts after it show "Not fetched, because the one before failed. Try again."
+
+## What the Flatpak may do (M4.8)
+
+- Bank connections are built into the Flatpak: nothing extra to install. The Flatpak brings its own copy of AqBanking, the library that talks to banks.
+- Software centers list three permissions besides showing a window, and say why each is there:
+  - **Network access**, so KassenSturz can reach your bank. It connects only when you choose "Get new transactions" or connect a bank, and only to your bank's address. Without a bank connected it never uses the network.
+  - **Your keychain** (KWallet, GNOME Keyring or KeePassXC), so a PIN you choose to save is kept there and nowhere else (see "Where a saved PIN lives: your keychain").
+  - **Your card reader**, for banks where you log in with your bank card in a card reader.
+- It still can't see your files: the book lives in KassenSturz's own folder.

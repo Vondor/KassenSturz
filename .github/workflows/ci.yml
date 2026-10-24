@@ -444,3 +444,47 @@ jobs:
           "$flatpak" install --user --noninteractive --bundle KassenSturz.flatpak
           where=$("$flatpak" info --show-location io.github.vondor.KassenSturz)
           test -f "$where/files/share/locale/de/LC_MESSAGES/kassensturz.mo"
+      # Network, the Secret Service and the card reader are the only
+      # permissions beyond a window (D-142); a new one must change this list.
+      # The KDE runtime adds its own: reading the desktop's kdeglobals and
+      # three of KDE's settings and menu services.
+      - name: The Flatpak's permissions are the approved ones (D-142)
+        run: |
+          set -eu
+          flatpak=$(command -v flatpak || echo /app/bin/flatpak)
+          "$flatpak" info --show-permissions io.github.vondor.KassenSturz | grep -v '^$' > permissions.txt
+          cat > expected.txt <<'LIST'
+          [Context]
+          shared=ipc;network;
+          sockets=fallback-x11;pcsc;wayland;
+          devices=dri;
+          filesystems=xdg-config/kdeglobals:ro;
+          [Session Bus Policy]
+          com.canonical.AppMenu.Registrar=talk
+          org.kde.kconfig.notify=talk
+          org.kde.KGlobalSettings=talk
+          org.freedesktop.secrets=talk
+          [Environment]
+          QT_LOGGING_RULES=kf.solid.backends.udisks2.warning=false
+          LIST
+          diff -u expected.txt permissions.txt
+      # The bank libraries are in the bundle, built as D-142 says, and the
+      # command-line tools that could send payments are not (D-053).
+      - name: AqBanking is bundled for bank connections (D-054, D-142)
+        run: |
+          set -eu
+          flatpak=$(command -v flatpak || echo /app/bin/flatpak)
+          files="$("$flatpak" info --show-location io.github.vondor.KassenSturz)/files"
+          for library in libaqbanking.so.44 libgwenhywfar.so.79 libgwengui-qt6.so.79 \
+              libchipcard.so.6 libpcsclite.so.1 libpcsclite_real.so.1 kassensturz/libkassensturz-gwengui.so; do
+            test -e "$files/lib/$library"
+          done
+          test -s "$files/share/aqbanking/bankinfo/de/banks.data"
+          plugins="$files/lib/aqbanking/plugins/44"
+          test "$(ls "$plugins/providers" | tr '\n' ' ')" = "aqhbci.xml aqnone.xml "
+          test -f "$plugins/imexporters/swift.xml"
+          test ! -e "$plugins/imexporters/eri2.xml"
+          test "$(ls "$files/bin")" = kassensturz
+          # Gwenhywfar checks a bank's certificate against this file only.
+          runtime="$("$flatpak" info --show-location org.kde.Platform//6.11)/files"
+          test -s "$runtime/etc/ssl/certs/ca-certificates.crt"

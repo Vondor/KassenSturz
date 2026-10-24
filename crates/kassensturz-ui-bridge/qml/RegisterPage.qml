@@ -76,11 +76,45 @@ Kirigami.ScrollablePage {
     // Columns need room: the row's two lines are used on a narrow page.
     readonly property bool wide: width >= Kirigami.Units.gridUnit * 50
 
-    title: register.accountName
+    // Staged loading (M4.U, D-156). The page opens at once with the account's
+    // name, and its transactions are read when the list has its size. A list
+    // that is filled while the page is still being made has no size yet and
+    // makes a row for every transaction instead of the few in view: 500
+    // transactions took seconds to open, 3,000 took a minute. Until then
+    // the list has no model, so it shows nothing of an account seen before.
+    property bool loaded: false
+
+    // The account's name from the list of accounts, for the title until the
+    // register is read.
+    readonly property string chosenName: {
+        const choices = register.accountChoices();
+        const found = choices.findIndex(choice => choice.id === accountId);
+        return found >= 0 ? choices[found].name : "";
+    }
+
+    function load() {
+        if (loaded) {
+            return;
+        }
+        register.show(accountId);
+        loaded = true;
+    }
+
+    title: loaded ? register.accountName : chosenName
     Component.onCompleted: {
         // The filter box of a new page starts empty.
         register.setFilter("");
-        register.show(accountId);
+        if (list.height > 0) {
+            load();
+        }
+    }
+
+    // Should the list never get a size, e.g. in a window that is hidden, the
+    // account is read anyway, so nothing waits for a size forever.
+    Timer {
+        interval: 500
+        running: !page.loaded
+        onTriggered: page.load()
     }
 
     actions: [
@@ -165,7 +199,7 @@ Kirigami.ScrollablePage {
 
             Layout.fillWidth: true
             Layout.margins: Kirigami.Units.smallSpacing
-            visible: page.register.unfiltered > 0
+            visible: page.loaded && page.register.unfiltered > 0
             placeholderText: page.i18nContext.i18nc("@info:placeholder", "Filter these transactions")
             Accessible.name: page.i18nContext.i18nc("@label", "Filter transactions")
             onTextChanged: page.register.setFilter(text)
@@ -206,6 +240,7 @@ Kirigami.ScrollablePage {
     }
 
     footer: Controls.ToolBar {
+        visible: page.loaded
         contentItem: AmountLabel {
             textFormat: Text.PlainText
             text: page.balanceText(page.register.balance)
@@ -218,10 +253,16 @@ Kirigami.ScrollablePage {
     ListView {
         id: list
 
-        model: page.register
+        // Set once the account is read (`page.load`).
+        model: page.loaded ? page.register : null
+        onHeightChanged: {
+            if (height > 0) {
+                page.load();
+            }
+        }
         // The page shows the chosen account; the model also serves the
         // transaction page, which may have shown another one.
-        onVisibleChanged: if (visible) { page.register.show(page.accountId); }
+        onVisibleChanged: if (visible && page.loaded) { page.register.show(page.accountId); }
 
         // The book's column titles stay in view while the lines scroll.
         headerPositioning: ListView.OverlayHeader
@@ -251,7 +292,7 @@ Kirigami.ScrollablePage {
         Kirigami.PlaceholderMessage {
             anchors.centerIn: parent
             width: parent.width - Kirigami.Units.largeSpacing * 4
-            visible: list.count === 0
+            visible: page.loaded && list.count === 0
             readonly property bool filtered: page.register.unfiltered > 0
             text: filtered
                 ? page.i18nContext.i18nc("@info nothing fits what was typed in the filter", "No transaction fits")

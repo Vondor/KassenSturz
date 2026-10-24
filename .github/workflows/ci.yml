@@ -474,7 +474,7 @@ jobs:
             esac
             cp data/*.desktop /tmp/tree/share/applications/
             cp data/*.metainfo.xml /tmp/tree/share/metainfo/
-            appstreamcli compose --prefix=/app --origin=flatpak \
+            appstreamcli compose --prefix=/ --origin=flatpak \
               --components=io.github.vondor.KassenSturz,io.github.vondor.KassenSturz.desktop \
               --result-root=/tmp/compose --data-dir=/tmp/compose/data --icons-dir=/tmp/compose/icons \
               --print-report=full /tmp/tree 2>&1 | tail -15 || true

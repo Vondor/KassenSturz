@@ -6,7 +6,8 @@
 // Approved", or, when no PIN is remembered or saved, the PIN (M4.7). The bank's words are shown as plain text (D-143): they are
 // data for the user to read, never instructions. Every request gets
 // exactly one answer, also when the dialog is closed, since the bank
-// connection waits for it.
+// connection waits for it. The PIN and the TAN are typed into a
+// `SecretField`, which shows dots until the user asks to see them (D-162).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -24,6 +25,30 @@ Item {
         translationDomain: "kassensturz"
     }
 
+    // The made-up bank of `KASSENSTURZ_FAKE_BANK` has English words in its
+    // code, which the German app would show as they are, so for it, and
+    // only for the sentences it is known to ask, the words come from the
+    // catalog. A real bank's words are shown as they come (D-143).
+    function bankWords(text: string): string {
+        if (!dialogs.bank.fake) {
+            return text;
+        }
+        switch (text) {
+        case "Type the TAN your TAN app shows for this login.":
+            return dialogs.i18nContext.i18nc("@info the made-up bank asks for a TAN", "Type the TAN your TAN app shows for this login.");
+        case "Waiting for approval":
+            return dialogs.i18nContext.i18nc("@title the made-up bank waits for an approval", "Waiting for approval");
+        case "Approve this login in your banking app, then choose Approved.":
+            return dialogs.i18nContext.i18nc("@info the made-up bank waits for an approval", "Approve this login in your banking app, then choose Approved.");
+        case "Approved":
+            return dialogs.i18nContext.i18nc("@action:button the made-up bank's approval was given", "Approved");
+        case "Abort":
+            return dialogs.i18nContext.i18nc("@action:button stop the login", "Abort");
+        default:
+            return text;
+        }
+    }
+
     Connections {
         target: dialogs.bank
 
@@ -31,6 +56,7 @@ Item {
             tanDialog.request = request;
             tanDialog.answered = false;
             tanField.text = "";
+            tanField.hide();
             tanDialog.open();
             tanField.forceActiveFocus();
         }
@@ -39,6 +65,7 @@ Item {
             pinDialog.request = request;
             pinDialog.answered = false;
             pinField.text = "";
+            pinField.hide();
             pinMode.currentIndex = 0;
             pinDialog.open();
             pinField.forceActiveFocus();
@@ -106,18 +133,17 @@ Item {
                 // The bank's own words: data, shown as plain text (D-143).
                 textFormat: Text.PlainText
                 font.italic: true
-                text: tanDialog.request.challenge ?? ""
+                text: dialogs.bankWords(tanDialog.request.challenge ?? "")
                 Accessible.name: dialogs.i18nContext.i18nc("@info:whatsthis", "Your bank's message")
             }
 
-            Controls.TextField {
+            SecretField {
                 id: tanField
 
                 Layout.fillWidth: true
                 placeholderText: dialogs.i18nContext.i18nc("@info:placeholder", "TAN")
                 Accessible.name: dialogs.i18nContext.i18nc("@label:textbox", "TAN")
                 maximumLength: Math.max(1, tanDialog.request.maxLength ?? 64)
-                inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhSensitiveData
                 onAccepted: tanDialog.send()
             }
 
@@ -191,10 +217,11 @@ Item {
                 text: dialogs.i18nContext.i18nc("@info %1 is the name of a bank", "Type the PIN you use for %1.", pinDialog.request.bank ?? "")
             }
 
-            Kirigami.PasswordField {
+            SecretField {
                 id: pinField
 
                 Layout.fillWidth: true
+                placeholderText: dialogs.i18nContext.i18nc("@info:placeholder", "PIN")
                 Accessible.name: dialogs.i18nContext.i18nc("@label:textbox", "PIN")
                 onAccepted: pinDialog.send()
             }
@@ -254,7 +281,7 @@ Item {
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
                 font.bold: true
-                text: questionDialog.question.title ?? ""
+                text: dialogs.bankWords(questionDialog.question.title ?? "")
                 visible: text.length > 0
             }
 
@@ -263,7 +290,7 @@ Item {
                 wrapMode: Text.Wrap
                 // The bank's own words: data, shown as plain text (D-143).
                 textFormat: Text.PlainText
-                text: questionDialog.question.text ?? ""
+                text: dialogs.bankWords(questionDialog.question.text ?? "")
             }
 
             // The bank's buttons, in its order: the first is the usual answer.
@@ -279,7 +306,7 @@ Item {
                         required property string modelData
                         required property int index
 
-                        text: modelData
+                        text: dialogs.bankWords(modelData)
                         highlighted: index === 0
                         // The label comes from the bank's library: plain
                         // text too.

@@ -112,6 +112,7 @@ Kirigami.ScrollablePage {
 
         function onSetupFinished(result: var) {
             pinField.text = "";
+            pinField.hide();
             error.result = result.code !== undefined ? result : ({});
             if (result.code !== undefined) {
                 page.step = "details";
@@ -242,9 +243,10 @@ Kirigami.ScrollablePage {
                 onAccepted: pinField.forceActiveFocus()
             }
 
-            Kirigami.PasswordField {
+            SecretField {
                 id: pinField
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "PIN:")
+                placeholderText: page.i18nContext.i18nc("@info:placeholder", "PIN")
                 onAccepted: page.connect()
             }
 

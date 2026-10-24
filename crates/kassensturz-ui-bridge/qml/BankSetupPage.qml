@@ -38,7 +38,7 @@ Kirigami.ScrollablePage {
         translationDomain: "kassensturz"
     }
 
-    readonly property bool canContinue: ["ready", "unknown-bank", "no-server", "unknown-login-kind"].includes(lookup.state ?? "")
+    readonly property bool canContinue: ["ready", "unknown-bank", "no-server", "guessed-server", "unknown-login-kind"].includes(lookup.state ?? "")
 
     title: i18nContext.i18nc("@title", "Connect a bank")
     header: ColumnLayout {
@@ -193,6 +193,8 @@ Kirigami.ScrollablePage {
                         return page.i18nContext.i18nc("@info", "KassenSturz's bank lists don't know this bank yet. If your bank offers FinTS (some call it HBCI), type the address it gives for it below; your bank's website or support can tell you.");
                     case "no-server":
                         return page.i18nContext.i18nc("@info", "KassenSturz's bank lists don't have this bank's FinTS address. If your bank offers FinTS (some call it HBCI), type the address it gives for it below; your bank's website or support can tell you.");
+                    case "guessed-server":
+                        return page.i18nContext.i18nc("@info", "KassenSturz's bank lists don't have this bank's FinTS address. Banks of your bank's kind nearby use the address below, so it is probably yours, but this is a guess. If connecting fails, check the address on your bank's website or ask its support, and type the right one.");
                     case "unknown-login-kind":
                         return page.i18nContext.i18nc("@info", "KassenSturz's bank lists don't say how you log in at this bank. KassenSturz tries a login with a PIN and a TAN, which most banks use.");
                     default:

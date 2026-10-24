@@ -895,6 +895,7 @@ pub unsafe extern "C" fn AB_Banking_ProviderControl(
 
 /// A bank information record with its services.
 pub struct BankInfo {
+    code: *const c_char,
     name: *const c_char,
     bic: *const c_char,
     services: *mut Service,
@@ -909,6 +910,173 @@ pub struct Service {
     next: *mut Service,
 }
 
+/// A FinTS service of a stub bank.
+fn service(address: &str, mode: &str, next: *mut Service) -> *mut Service {
+    leak(Service {
+        kind: leak_text("HBCI"),
+        address: leak_text(address),
+        mode: leak_text(mode),
+        version: leak_text("3.0"),
+        next,
+    })
+}
+
+/// A PIN/TAN service alone.
+fn pin_tan(address: &str) -> *mut Service {
+    service(address, "PINTAN", ptr::null_mut())
+}
+
+fn record(code: &str, name: &str, bic: Option<&str>, services: *mut Service) -> BankInfo {
+    BankInfo {
+        code: leak_text(code),
+        name: leak_text(name),
+        bic: bic.map_or(ptr::null(), leak_text),
+        services,
+    }
+}
+
+/// The server of the two Atruvia hosts the cooperative stub banks use.
+const ATRUVIA_NORTH: &str = "https://fints1.atruvia.de/cgi-bin/hbciservlet";
+const ATRUVIA_SOUTH: &str = "https://fints2.atruvia.de/cgi-bin/hbciservlet";
+
+/// Every record of the stub's bank information, in the order of the data.
+/// A code can have several records, and only the first is what
+/// `AB_Banking_GetBankInfo` returns, as in AqBanking's data.
+fn records() -> Vec<BankInfo> {
+    vec![
+        record(
+            BANK_CODE,
+            "Testbank",
+            Some("COBADEFFXXX"),
+            service(
+                "https://fints.testbank.example/",
+                "PINTAN",
+                service("https://fints.testbank.example/", "RDH10", ptr::null_mut()),
+            ),
+        ),
+        // A bank without any service, and one whose service has no address.
+        record(
+            "10000000",
+            "Bundesbank",
+            Some("MARKDEF1100"),
+            ptr::null_mut(),
+        ),
+        record(
+            "20000000",
+            "Bank ohne Adresse",
+            None,
+            leak(Service {
+                kind: leak_text("HBCI"),
+                address: ptr::null(),
+                mode: ptr::null(),
+                version: ptr::null(),
+                next: ptr::null_mut(),
+            }),
+        ),
+        // Text that isn't UTF-8 in a bank's name (T-09).
+        BankInfo {
+            code: leak_text("30000000"),
+            name: leak_bytes(b"Sparkasse K\xf6ln"),
+            bic: ptr::null(),
+            services: pin_tan("https://fints.koeln.example/"),
+        },
+        // Cooperative banks of one region: two on the southern Atruvia
+        // server, one with no service at all, and one whose first record
+        // has no service while a later record of the same code has.
+        record(
+            "55500001",
+            "Genossenbank Testhausen",
+            Some("GENODEF1TS1"),
+            pin_tan(ATRUVIA_SOUTH),
+        ),
+        record(
+            "55500002",
+            "Genossenbank Beispielstadt",
+            Some("GENODEF1BS1"),
+            pin_tan(ATRUVIA_SOUTH),
+        ),
+        record(
+            "55500003",
+            "Genossenbank Muster",
+            Some("GENODEF1MU1"),
+            ptr::null_mut(),
+        ),
+        // The first record has no service and no BIC; the second has both.
+        record("55600001", "Genossenbank Spaet", None, ptr::null_mut()),
+        record(
+            "55600001",
+            "Genossenbank Spaet (Geschaeftsstelle)",
+            Some("GENODEF1SP1"),
+            pin_tan("https://fints.spaet.example/"),
+        ),
+        // A cooperative bank next to a Sparda bank on a northern server.
+        record(
+            "77700001",
+            "Sparda-Bank Teststadt",
+            Some("GENODEF1S99"),
+            ptr::null_mut(),
+        ),
+        record(
+            "77700002",
+            "Genossenbank Nachbar",
+            Some("GENODEF1NB1"),
+            pin_tan(ATRUVIA_NORTH),
+        ),
+        // A cooperative bank with no neighbour at all.
+        record(
+            "88800001",
+            "Genossenbank Allein",
+            Some("GENODEF1AL1"),
+            ptr::null_mut(),
+        ),
+        // A bank that isn't cooperative next to one that is.
+        record(
+            "88900001",
+            "Testbank Anders",
+            Some("TESTDEFFXXX"),
+            ptr::null_mut(),
+        ),
+        record(
+            "88900002",
+            "Genossenbank Daneben",
+            Some("GENODEF1DN1"),
+            pin_tan(ATRUVIA_SOUTH),
+        ),
+        // Neighbours that aren't on an Atruvia server, and two that are
+        // split between the two hosts.
+        record(
+            "99900001",
+            "Genossenbank Eigenrechner",
+            Some("GENODEF1EG1"),
+            ptr::null_mut(),
+        ),
+        record(
+            "99900002",
+            "Genossenbank Fremd",
+            Some("GENODEF1FR1"),
+            pin_tan("https://fints.fremd.example/"),
+        ),
+        record(
+            "99800001",
+            "Genossenbank Unentschieden",
+            Some("GENODEF1UE1"),
+            ptr::null_mut(),
+        ),
+        record(
+            "99800002",
+            "Genossenbank Norden",
+            Some("GENODEF1NO1"),
+            pin_tan(ATRUVIA_NORTH),
+        ),
+        record(
+            "99800003",
+            "Genossenbank Sueden",
+            Some("GENODEF1SU1"),
+            pin_tan(ATRUVIA_SOUTH),
+        ),
+    ]
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn AB_Banking_GetBankInfo(
     _ab: *mut AB_BANKING,
@@ -920,56 +1088,125 @@ pub unsafe extern "C" fn AB_Banking_GetBankInfo(
     let Some(code) = (unsafe { text(bank_id) }) else {
         return ptr::null_mut();
     };
-    let info = match code {
-        BANK_CODE => BankInfo {
-            name: leak_text("Testbank"),
-            bic: leak_text("COBADEFFXXX"),
-            services: leak(Service {
-                kind: leak_text("HBCI"),
-                address: leak_text("https://fints.testbank.example/"),
-                mode: leak_text("PINTAN"),
-                version: leak_text("3.0"),
-                next: leak(Service {
-                    kind: leak_text("HBCI"),
-                    address: leak_text("https://fints.testbank.example/"),
-                    mode: leak_text("RDH10"),
-                    version: leak_text("3.0"),
-                    next: ptr::null_mut(),
-                }),
-            }),
-        },
-        // A bank without any service, and one whose service has no address.
-        "10000000" => BankInfo {
-            name: leak_text("Bundesbank"),
-            bic: leak_text("MARKDEF1100"),
-            services: ptr::null_mut(),
-        },
-        "20000000" => BankInfo {
-            name: leak_text("Bank ohne Adresse"),
-            bic: ptr::null(),
-            services: leak(Service {
-                kind: leak_text("HBCI"),
-                address: ptr::null(),
-                mode: ptr::null(),
-                version: ptr::null(),
-                next: ptr::null_mut(),
-            }),
-        },
-        // Text that isn't UTF-8 in a bank's name (T-09).
-        "30000000" => BankInfo {
-            name: leak_bytes(b"Sparkasse K\xf6ln"),
-            bic: ptr::null(),
-            services: leak(Service {
-                kind: leak_text("HBCI"),
-                address: leak_text("https://fints.koeln.example/"),
-                mode: leak_text("PINTAN"),
-                version: leak_text("3.0"),
-                next: ptr::null_mut(),
-            }),
-        },
-        _ => return ptr::null_mut(),
-    };
-    leak(info).cast::<AB_BANKINFO>()
+    records()
+        .into_iter()
+        // SAFETY: the code of a record the stub made.
+        .find(|info| unsafe { text(info.code) } == Some(code))
+        .map_or(ptr::null_mut(), |info| leak(info).cast::<AB_BANKINFO>())
+}
+
+/// A list of bank information records, with the position of its iterator.
+pub struct BankList {
+    items: Vec<*mut BankInfo>,
+}
+
+/// An iterator over a [`BankList`].
+pub struct BankListIterator {
+    list: *const BankList,
+    position: usize,
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn AB_BankInfo_new() -> *mut AB_BANKINFO {
+    leak(record("", "", None, ptr::null_mut())).cast::<AB_BANKINFO>()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn AB_BankInfo_SetBankId(info: *mut AB_BANKINFO, code: *const c_char) {
+    // SAFETY: a leaked `BankInfo`; the wrapper passes a terminated string.
+    unsafe {
+        (*info.cast::<BankInfo>()).code = code;
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn AB_BankInfo_List2_new() -> *mut AB_BANKINFO_LIST2 {
+    leak(BankList { items: Vec::new() }).cast::<AB_BANKINFO_LIST2>()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn AB_BankInfo_List2_freeAll(_list: *mut AB_BANKINFO_LIST2) -> c_int {
+    0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn AB_BankInfo_List2_First(
+    list: *const AB_BANKINFO_LIST2,
+) -> *mut AB_BANKINFO_LIST2_ITERATOR {
+    // SAFETY: a leaked `BankList`.
+    if unsafe { (*list.cast::<BankList>()).items.is_empty() } {
+        return ptr::null_mut();
+    }
+    leak(BankListIterator {
+        list: list.cast::<BankList>(),
+        position: 0,
+    })
+    .cast::<AB_BANKINFO_LIST2_ITERATOR>()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn AB_BankInfo_List2Iterator_Data(
+    iterator: *mut AB_BANKINFO_LIST2_ITERATOR,
+) -> *mut AB_BANKINFO {
+    // SAFETY: a leaked iterator over a leaked list.
+    unsafe {
+        let iterator = &*iterator.cast::<BankListIterator>();
+        let list = &*iterator.list;
+        list.items
+            .get(iterator.position)
+            .map_or(ptr::null_mut(), |info| info.cast::<AB_BANKINFO>())
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn AB_BankInfo_List2Iterator_Next(
+    iterator: *mut AB_BANKINFO_LIST2_ITERATOR,
+) -> *mut AB_BANKINFO {
+    // SAFETY: a leaked iterator over a leaked list.
+    unsafe {
+        let iterator = &mut *iterator.cast::<BankListIterator>();
+        iterator.position += 1;
+        let list = &*iterator.list;
+        list.items
+            .get(iterator.position)
+            .map_or(ptr::null_mut(), |info| info.cast::<AB_BANKINFO>())
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn AB_BankInfo_List2Iterator_free(
+    _iterator: *mut AB_BANKINFO_LIST2_ITERATOR,
+) {
+}
+
+/// Like AqBanking's search by template: the template's code, where a `*`
+/// at the end stands for any further digits, picks the records; the
+/// others are not looked at.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn AB_Banking_GetBankInfoByTemplate(
+    _ab: *mut AB_BANKING,
+    _country: *const c_char,
+    template: *mut AB_BANKINFO,
+    list: *mut AB_BANKINFO_LIST2,
+) -> c_int {
+    // SAFETY: leaked objects of the stub's own types.
+    unsafe {
+        let Some(pattern) = text((*template.cast::<BankInfo>()).code) else {
+            return -1;
+        };
+        let list = &mut *list.cast::<BankList>();
+        for info in records() {
+            let code = text(info.code).unwrap_or_default();
+            let matches = match pattern.strip_suffix('*') {
+                Some(prefix) => code.starts_with(prefix),
+                None => code == pattern,
+            };
+            if matches {
+                list.items.push(leak(info));
+            }
+        }
+        if list.items.is_empty() { -1 } else { 0 }
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -996,6 +1233,13 @@ macro_rules! next_getter {
     };
 }
 
+getter!(
+    AB_BankInfo_GetBankId,
+    AB_BANKINFO,
+    BankInfo,
+    code,
+    *const c_char
+);
 getter!(
     AB_BankInfo_GetBankName,
     AB_BANKINFO,

@@ -53,7 +53,7 @@ use crate::aqbanking::{
     AB_AccountType_MoneyMarket, AB_AccountType_Savings, AB_BALANCE, AB_BANKINFO, AB_BANKING,
     AB_Balance_TypeBooked, AB_Balance_TypeNoted, AB_IMEXPORTER_ACCOUNTINFO, AB_TRANSACTION,
     AB_Transaction_CommandGetBalance, AB_Transaction_CommandGetTransactions,
-    AB_Transaction_TypeNotedStatement, AB_Transaction_TypeStatement, AB_VALUE,
+    AB_Transaction_TypeNotedStatement, AB_Transaction_TypeStatement, AB_VALUE, AqBanking,
 };
 use crate::gwenhywfar::{
     GWEN_DATE, GWEN_ERROR_USER_ABORTED, GWEN_GUI, GWEN_GUI_INPUT_FLAGS_CONFIRM,
@@ -273,6 +273,8 @@ impl From<LoadError> for SessionError {
 /// Proposals list: the external source).
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct BankRecord {
+    /// The bank's code, as the record gives it.
+    pub code: Option<String>,
     /// The bank's name.
     pub name: Option<String>,
     /// Its BIC.
@@ -665,7 +667,8 @@ impl<H: SessionHandler> Session<H> {
     }
 
     /// The bank information AqBanking has for the bank `code` in `country`
-    /// (two lower-case letters), if any.
+    /// (two lower-case letters), if any. AqBanking answers with the first
+    /// record of the code; [`Session::bank_infos`] reads all of them.
     pub fn bank_info(&self, country: &str, code: &str) -> Result<Option<BankRecord>, SessionError> {
         let country = c_string(country)?;
         let code = c_string(code)?;
@@ -678,26 +681,58 @@ impl<H: SessionHandler> Session<H> {
             if info.is_null() {
                 return Ok(None);
             }
-            let mut record = BankRecord {
-                name: copy_text(aq.AB_BankInfo_GetBankName(info)),
-                bic: copy_text(aq.AB_BankInfo_GetBic(info)),
-                services: Vec::new(),
-            };
-            let services = aq.AB_BankInfo_GetServices(info);
-            if !services.is_null() {
-                let mut service = aq.AB_BankInfoService_List_First(services);
-                while !service.is_null() {
-                    record.services.push(ServiceRecord {
-                        kind: copy_text(aq.AB_BankInfoService_GetType(service)),
-                        address: copy_text(aq.AB_BankInfoService_GetAddress(service)),
-                        mode: copy_text(aq.AB_BankInfoService_GetMode(service)),
-                        version: copy_text(aq.AB_BankInfoService_GetPversion(service)),
-                    });
-                    service = aq.AB_BankInfoService_List_Next(service);
-                }
-            }
+            let record = bank_record(aq, info);
             aq.AB_BankInfo_free(info);
             Ok(Some(record))
+        }
+    }
+
+    /// Every record of AqBanking's bank information whose code matches
+    /// `pattern` in `country` (two lower-case letters), in the order of the
+    /// data. A code is eight digits; a `*` at the end stands for any
+    /// further digits, so `5519*` lists the banks of one region. A code can
+    /// have several records (branches, old names); the first of them is
+    /// the one [`Session::bank_info`] returns, and a service can sit in a
+    /// later one.
+    pub fn bank_infos(
+        &self,
+        country: &str,
+        pattern: &str,
+    ) -> Result<Vec<BankRecord>, SessionError> {
+        let country = c_string(country)?;
+        let pattern = c_string(pattern)?;
+        let aq = self.libraries.aqbanking();
+        // SAFETY: `ab` is open; the template and the list are owned here and
+        // freed on every path (the list's records with it); every pointer is
+        // null-checked.
+        unsafe {
+            let template = aq.AB_BankInfo_new();
+            let list = aq.AB_BankInfo_List2_new();
+            if template.is_null() || list.is_null() {
+                if !template.is_null() {
+                    aq.AB_BankInfo_free(template);
+                }
+                if !list.is_null() {
+                    aq.AB_BankInfo_List2_freeAll(list);
+                }
+                return Err(SessionError::BadData("no bank information list"));
+            }
+            aq.AB_BankInfo_SetBankId(template, pattern.as_ptr());
+            // "Not found" is an answer, not an error: no record matches.
+            let _ = aq.AB_Banking_GetBankInfoByTemplate(self.ab, country.as_ptr(), template, list);
+            let mut records = Vec::new();
+            let iterator = aq.AB_BankInfo_List2_First(list);
+            if !iterator.is_null() {
+                let mut info = aq.AB_BankInfo_List2Iterator_Data(iterator);
+                while !info.is_null() {
+                    records.push(bank_record(aq, info));
+                    info = aq.AB_BankInfo_List2Iterator_Next(iterator);
+                }
+                aq.AB_BankInfo_List2Iterator_free(iterator);
+            }
+            aq.AB_BankInfo_List2_freeAll(list);
+            aq.AB_BankInfo_free(template);
+            Ok(records)
         }
     }
 
@@ -973,6 +1008,38 @@ impl<H: SessionHandler> Drop for Session<H> {
             CURRENT.with(|cell| cell.set(None));
             gwen.GWEN_Fini();
         }
+    }
+}
+
+/// Copies the text of a bank record and of its services.
+///
+/// # Safety
+///
+/// `info` is a valid `AB_BANKINFO`.
+unsafe fn bank_record(aq: &AqBanking, info: *mut AB_BANKINFO) -> BankRecord {
+    // SAFETY: the caller passes a valid record; the services' list and
+    // every text are null-checked before use.
+    unsafe {
+        let mut record = BankRecord {
+            code: copy_text(aq.AB_BankInfo_GetBankId(info)),
+            name: copy_text(aq.AB_BankInfo_GetBankName(info)),
+            bic: copy_text(aq.AB_BankInfo_GetBic(info)),
+            services: Vec::new(),
+        };
+        let services = aq.AB_BankInfo_GetServices(info);
+        if !services.is_null() {
+            let mut service = aq.AB_BankInfoService_List_First(services);
+            while !service.is_null() {
+                record.services.push(ServiceRecord {
+                    kind: copy_text(aq.AB_BankInfoService_GetType(service)),
+                    address: copy_text(aq.AB_BankInfoService_GetAddress(service)),
+                    mode: copy_text(aq.AB_BankInfoService_GetMode(service)),
+                    version: copy_text(aq.AB_BankInfoService_GetPversion(service)),
+                });
+                service = aq.AB_BankInfoService_List_Next(service);
+            }
+        }
+        record
     }
 }
 

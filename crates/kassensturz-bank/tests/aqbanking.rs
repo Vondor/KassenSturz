@@ -786,6 +786,80 @@ fn the_directory_is_aqbankings_bank_information_behind_the_hand_checked_list() {
     );
 }
 
+/// A German IBAN with valid check digits for `code` and an account number.
+fn german_iban(code: &str, account: &str) -> Iban {
+    let digits = format!("{code}{account}131400");
+    let remainder = digits.bytes().fold(0_u32, |rest, digit| {
+        (rest * 10 + u32::from(digit - b'0')) % 97
+    });
+    Iban::parse(&format!("DE{:02}{code}{account}", 98 - remainder)).expect("an IBAN")
+}
+
+#[test]
+fn a_server_in_a_later_record_of_the_code_is_found() {
+    let _guard = lock();
+    let bank = open("later-record");
+    let late = bank
+        .directory()
+        .lookup(&BankCode::new("DE", "55600001"))
+        .expect("known to AqBanking");
+    // The first record names the bank and has no service and no BIC; the
+    // second has both (AqBanking's own answer is the first record only).
+    assert_eq!(late.name, "Genossenbank Spaet");
+    assert_eq!(late.bic.as_deref(), Some("GENODEF1SP1"));
+    assert_eq!(
+        late.server.expect("a server").url,
+        "https://fints.spaet.example/"
+    );
+    assert!(matches!(
+        setup_for(&german_iban("55600001", "0000000001"), bank.directory()),
+        Setup::Ready { url, .. } if url == "https://fints.spaet.example/"
+    ));
+}
+
+#[test]
+fn a_cooperative_bank_without_a_server_is_offered_the_server_of_its_neighbours() {
+    let _guard = lock();
+    let bank = open("guessed-server");
+    let directory = bank.directory();
+    let south = "https://fints2.atruvia.de/cgi-bin/hbciservlet";
+    // Its neighbours (the same first five digits) both use the southern
+    // Atruvia server.
+    match setup_for(&german_iban("55500003", "0000000001"), directory) {
+        Setup::GuessedServer {
+            bank,
+            url,
+            account_number,
+        } => {
+            assert_eq!(bank.name, "Genossenbank Muster");
+            assert_eq!(url, south);
+            assert_eq!(account_number.as_deref(), Some("0000000001"));
+        }
+        other => panic!("a guessed server: {other:?}"),
+    }
+    // A bank with a server of its own keeps it: nothing is guessed.
+    assert!(matches!(
+        setup_for(&german_iban("55500001", "0000000001"), directory),
+        Setup::Ready { url, .. } if url == south
+    ));
+    // Where nothing safe can be said, the address is asked for as before.
+    for (code, why) in [
+        ("77700001", "a Sparda bank"),
+        ("88800001", "no neighbour"),
+        ("88900001", "not a cooperative bank"),
+        ("99900001", "neighbours not on Atruvia"),
+        ("99800001", "neighbours split evenly"),
+    ] {
+        assert!(
+            matches!(
+                setup_for(&german_iban(code, "0000000001"), directory),
+                Setup::NoServer { .. }
+            ),
+            "{code}: {why}"
+        );
+    }
+}
+
 #[test]
 fn only_one_backend_runs_per_thread() {
     let _guard = lock();

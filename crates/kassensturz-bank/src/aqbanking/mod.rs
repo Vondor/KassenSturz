@@ -667,11 +667,75 @@ pub(crate) struct AqBankingDirectory {
 impl BankDirectory for AqBankingDirectory {
     fn lookup(&self, code: &BankCode) -> Option<BankInfo> {
         let session = self.session.as_ref()?;
-        let record = session
-            .bank_info(&code.country().to_ascii_lowercase(), code.code())
-            .ok()??;
+        let country = code.country().to_ascii_lowercase();
+        // AqBanking's own answer is the first record of a code, but a
+        // server can sit in a later one, so all records are read and
+        // merged; if listing them fails, its answer stands.
+        if let Ok(records) = session.bank_infos(&country, code.code()) {
+            let records: Vec<_> = records
+                .into_iter()
+                .filter(|record| record.code.as_deref() == Some(code.code()))
+                .collect();
+            if let Some(info) = merge_records(code, records) {
+                return Some(info);
+            }
+        }
+        let record = session.bank_info(&country, code.code()).ok()??;
         Some(bank_info(code, record))
     }
+
+    fn banks_starting_with(&self, country: &str, prefix: &str) -> Vec<BankInfo> {
+        let Some(session) = self.session.as_ref() else {
+            return Vec::new();
+        };
+        let country_code = country.to_ascii_lowercase();
+        let Ok(records) = session.bank_infos(&country_code, &format!("{prefix}*")) else {
+            return Vec::new();
+        };
+        // One bank per code, in the order of the data.
+        let mut codes: Vec<String> = Vec::new();
+        for record in &records {
+            if let Some(code) = record
+                .code
+                .as_deref()
+                .filter(|code| code.starts_with(prefix))
+                && !codes.iter().any(|known| known == code)
+            {
+                codes.push(code.to_owned());
+            }
+        }
+        codes
+            .into_iter()
+            .filter_map(|code| {
+                let bank = BankCode::new(country, &code);
+                let own: Vec<_> = records
+                    .iter()
+                    .filter(|record| record.code.as_deref() == Some(code.as_str()))
+                    .cloned()
+                    .collect();
+                merge_records(&bank, own)
+            })
+            .collect()
+    }
+}
+
+/// One bank from all the records AqBanking has for its code: the first
+/// record names it, the first BIC any record has is its BIC, and the server
+/// is the first one a record has. Banks of the cooperative group have old
+/// names and branches as extra records, and the server is not always in
+/// the first.
+fn merge_records(code: &BankCode, records: Vec<BankRecord>) -> Option<BankInfo> {
+    let mut infos = records.into_iter().map(|record| bank_info(code, record));
+    let mut bank = infos.next()?;
+    for info in infos {
+        if bank.bic.is_none() {
+            bank.bic = info.bic;
+        }
+        if bank.server.is_none() {
+            bank.server = info.server;
+        }
+    }
+    Some(bank)
 }
 
 /// What AqBanking's record says about the bank `code`.
@@ -693,7 +757,7 @@ fn bank_info(code: &BankCode, record: BankRecord) -> BankInfo {
                 .is_some_and(|kind| kind.eq_ignore_ascii_case(FINTS_SERVICE))
         })
         .filter_map(|service| {
-            let address = service.address.as_deref()?;
+            let address = service.address.as_deref()?.trim();
             if !address
                 .get(..8)
                 .is_some_and(|scheme| scheme.eq_ignore_ascii_case("https://"))
@@ -781,6 +845,7 @@ mod tests {
         let info = bank_info(
             &code(),
             BankRecord {
+                code: None,
                 name: Some("Testbank".to_owned()),
                 bic: Some("COBADEFFXXX".to_owned()),
                 services: vec![
@@ -825,6 +890,7 @@ mod tests {
         let info = bank_info(
             &code(),
             BankRecord {
+                code: None,
                 name: None,
                 bic: Some(String::new()),
                 services: vec![],
@@ -838,6 +904,7 @@ mod tests {
         let info = bank_info(
             &code(),
             BankRecord {
+                code: None,
                 name: Some(" ".to_owned()),
                 bic: None,
                 services: vec![
@@ -851,6 +918,7 @@ mod tests {
         let info = bank_info(
             &code(),
             BankRecord {
+                code: None,
                 name: None,
                 bic: None,
                 services: vec![service("HBCI", Some("https://fints.example/"), None)],
@@ -861,6 +929,7 @@ mod tests {
         let info = bank_info(
             &code(),
             BankRecord {
+                code: None,
                 name: None,
                 bic: None,
                 services: vec![service(
@@ -871,6 +940,75 @@ mod tests {
             },
         );
         assert_eq!(info.server.expect("a server").login_kinds, Some(vec![]));
+    }
+
+    #[test]
+    fn a_server_with_trailing_space_is_trimmed() {
+        // AqBanking's data has one address written with a space at the end.
+        let info = bank_info(
+            &code(),
+            BankRecord {
+                services: vec![service(
+                    "HBCI",
+                    Some("https://fints.example/hbci "),
+                    Some("PINTAN"),
+                )],
+                ..BankRecord::default()
+            },
+        );
+        assert_eq!(
+            info.server.expect("a server").url,
+            "https://fints.example/hbci"
+        );
+    }
+
+    #[test]
+    fn the_records_of_one_code_are_merged() {
+        let first = BankRecord {
+            code: Some("37040044".to_owned()),
+            name: Some("Genossenbank".to_owned()),
+            bic: None,
+            services: vec![],
+        };
+        let later = BankRecord {
+            code: Some("37040044".to_owned()),
+            name: Some("Genossenbank (Geschäftsstelle)".to_owned()),
+            bic: Some("GENODEF1XXX".to_owned()),
+            services: vec![service(
+                "HBCI",
+                Some("https://fints.example/"),
+                Some("PINTAN"),
+            )],
+        };
+        let merged = merge_records(&code(), vec![first.clone(), later.clone()]).expect("a bank");
+        // The first record names the bank; the server and the BIC come from
+        // the first record that has one.
+        assert_eq!(merged.name, "Genossenbank");
+        assert_eq!(merged.bic.as_deref(), Some("GENODEF1XXX"));
+        assert_eq!(
+            merged.server.expect("a server").url,
+            "https://fints.example/"
+        );
+        // Without the later record the bank has no server.
+        assert_eq!(
+            merge_records(&code(), vec![first]).expect("a bank").server,
+            None
+        );
+        assert_eq!(merge_records(&code(), vec![]), None);
+        // A first record with a server keeps it.
+        let other = BankRecord {
+            services: vec![service(
+                "HBCI",
+                Some("https://fints.first.example/"),
+                Some("PINTAN"),
+            )],
+            ..BankRecord::default()
+        };
+        let merged = merge_records(&code(), vec![other, later]).expect("a bank");
+        assert_eq!(
+            merged.server.expect("a server").url,
+            "https://fints.first.example/"
+        );
     }
 
     #[test]

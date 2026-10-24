@@ -439,7 +439,7 @@ fn kind_key(kind: LoginKind) -> &'static str {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Lookup {
     /// `ready`, `no-fints`, `unknown-bank`, `no-server`,
-    /// `unknown-login-kind` or `chip-card-only`.
+    /// `guessed-server`, `unknown-login-kind` or `chip-card-only`.
     pub state: &'static str,
     /// The IBAN, grouped by four as banks print it.
     pub iban: String,
@@ -450,8 +450,10 @@ pub struct Lookup {
     /// The bank's name, if known.
     pub bank_name: String,
     /// The FinTS server's address, if known; the user types it otherwise.
+    /// For `guessed-server` it is the guess, which the user can change.
     pub url: String,
-    /// Whether the address must be typed by hand.
+    /// Whether the address field is shown: the address must be typed by
+    /// hand, or is a guess to check (D-157).
     pub ask_url: bool,
     /// `none`, `required` or `optional`: whether the customer ID is asked.
     pub customer_id: &'static str,
@@ -497,6 +499,12 @@ pub fn look_up(connection: &mut Connection, iban: &str) -> Result<Lookup, BankEr
         Setup::NoFints { .. } => lookup.state = "no-fints",
         Setup::UnknownBank { .. } => {
             lookup.state = "unknown-bank";
+            lookup.ask_url = true;
+        }
+        Setup::GuessedServer { bank, url, .. } => {
+            lookup.state = "guessed-server";
+            lookup.bank_name = bank.name;
+            lookup.url = url;
             lookup.ask_url = true;
         }
         Setup::NoServer { bank } => {
@@ -1212,12 +1220,40 @@ mod tests {
             ("10000000", "no-server", true),
             ("20000000", "unknown-login-kind", false),
             ("30000000", "unknown-bank", true),
+            // Offered with the neighbour's Atruvia server, to be checked.
+            ("40000010", "guessed-server", true),
         ] {
             let iban = german_iban(code, "0000000001");
             let lookup = look_up(&mut fake(None), &iban).expect("looked up");
             assert_eq!((lookup.state, lookup.ask_url), (state, ask_url), "{code}");
             assert_eq!(lookup.customer_id, "optional", "{code}");
         }
+    }
+
+    #[test]
+    fn a_guessed_server_is_filled_in_and_can_be_changed() {
+        let iban = german_iban("40000010", "0000000001");
+        let lookup = look_up(&mut fake(None), &iban).expect("looked up");
+        assert_eq!(lookup.state, "guessed-server");
+        assert_eq!(lookup.url, kassensturz_bank::FakeDirectory::ATRUVIA_URL);
+        assert_eq!(lookup.bank_name, "Cooperative bank without FinTS");
+        // A guess still has to pass the same checks as a typed address.
+        let form = |url: &str| SetupForm {
+            iban: lookup.iban.clone(),
+            url: url.to_owned(),
+            login_name: "login".to_owned(),
+            customer_id: String::new(),
+            pin: Pin::new("12345".to_owned()),
+            pin_mode: PinMode::AskEachTime,
+        };
+        assert_eq!(
+            check_form(&form(&lookup.url), &lookup).map_err(|error| error.code),
+            Ok(())
+        );
+        assert_eq!(
+            check_form(&form("http://fints.example/"), &lookup).map_err(|error| error.code),
+            Err("input.bank-address-not-https")
+        );
     }
 
     /// A German IBAN with valid check digits.

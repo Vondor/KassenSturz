@@ -205,6 +205,34 @@ fn bank_information_comes_back_with_every_gap_kept() {
 }
 
 #[test]
+fn all_records_of_a_bank_code_or_a_region_can_be_listed() {
+    let _guard = lock();
+    let (session, _) = open("ok", "bank-infos", None);
+    // A code with two records: the first has no service, the second has.
+    let both = session.bank_infos("de", "55600001").expect("listed");
+    assert_eq!(both.len(), 2);
+    assert!(both[0].services.is_empty());
+    assert_eq!(both[1].services.len(), 1);
+    assert_eq!(both[1].code.as_deref(), Some("55600001"));
+    assert_eq!(both[1].bic.as_deref(), Some("GENODEF1SP1"));
+    // A `*` at the end stands for any further digits.
+    let region = session.bank_infos("de", "5550000*").expect("listed");
+    let codes: Vec<_> = region
+        .iter()
+        .map(|record| record.code.as_deref().unwrap_or_default())
+        .collect();
+    assert_eq!(codes, ["55500001", "55500002", "55500003"]);
+    assert_eq!(
+        session.bank_infos("de", "99999999").expect("listed"),
+        Vec::new()
+    );
+    assert_eq!(
+        session.bank_infos("de", "bad\0code"),
+        Err(SessionError::Argument)
+    );
+}
+
+#[test]
 fn setup_commands_reach_the_backend_with_their_options() {
     let _guard = lock();
     let (session, data_dir) = open("ok", "control", Some("1234"));

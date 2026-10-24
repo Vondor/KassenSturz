@@ -135,7 +135,7 @@ header='// SPDX-FileCopyrightText: 2026 KassenSturz contributors
     --allowlist-function 'AB_ImExporterContext_(new|free|Clear|GetAccountInfoList|GetAccountInfoCount|GetFirstAccountInfo|GetMessageList|GetFirstMessage)' \
     --allowlist-function 'AB_ImExporterAccountInfo_(free|List_(First|Next|free|GetCount|GetByIban|GetByAccountId))' \
     --allowlist-function 'AB_ImExporterAccountInfo_Get(AccountNumber|BankCode|Iban|Bic|Currency|AccountName|OwnerName|Owner|AccountType|AccountId|SubAccountId|BankName|Country|Description|TransactionList|TransactionCount|BalanceList|FirstTransaction|FirstBalance)' \
-    --allowlist-function 'AB_BankInfo_(free|List2_(free|freeAll|First|GetFront|GetSize)|List2Iterator_(Data|Next|free))' \
+    --allowlist-function 'AB_BankInfo_(free|List2_(new|free|freeAll|First|GetFront|GetSize)|List2Iterator_(Data|Next|free))' \
     --allowlist-function 'AB_BankInfo_(new|Set(Country|BankId|Bic|BankName|Location|City))' \
     --allowlist-function 'AB_BankInfo_Get(Country|BranchId|BankId|Bic|BankName|Location|Street|Zipcode|City|Region|Phone|Fax|Email|Website|Services)' \
     --allowlist-function 'AB_BankInfoService_List_(First|Next|GetCount)' \

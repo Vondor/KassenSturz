@@ -18,8 +18,16 @@
 //! service in lower case (e.g. `kassensturz://io.github.vondor.kassensturz`,
 //! which is also the entry's title), its user name is the
 //! [`SecretKey`] (`bank-pin/<login ID>`), its password the secret. New
-//! entries go into KeePassXC's own group for them ("KeePassXC-Browser
-//! Passwords"), in the database that is open in front.
+//! entries go into the group "KassenSturz" at the top of the database that
+//! is open in front, which KassenSturz asks KeePassXC to make the first
+//! time (KeePassXC asks the user); if the user says no, into KeePassXC's
+//! own group for new entries (D-166).
+//!
+//! The interface can't choose a database file: it always works with the
+//! database open in front in KeePassXC, which keeps the file and decides
+//! where it is saved and how it is encrypted. [`Keychain::open`] connects
+//! to it at once and names it by its top group, which carries the
+//! database's name, so the user sees which database is used (D-166).
 //!
 //! The interface can't delete an entry. Deleting a secret empties the
 //! entry's password, which KeePassXC asks the user to allow; an entry with
@@ -47,7 +55,7 @@ use crypto_box::{Nonce, PublicKey, SalsaBox, SecretKey as BoxKey};
 use serde_json::{Map, Value, json};
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::{Keychain, KeychainError, Secret, SecretKey};
+use crate::{Keychain, KeychainError, KeychainPlace, Secret, SecretKey};
 
 /// The name of KeePassXC's socket for its browser interface.
 const SOCKET_NAME: &str = "org.keepassxc.KeePassXC.BrowserServer";
@@ -60,6 +68,13 @@ const SOCKET_FOLDER: &str = "app/org.keepassxc.KeePassXC";
 /// The kind part of the key a database's connection key is kept under in
 /// the system keychain.
 const LINK_KIND: &str = "keepassxc-link";
+
+/// The group at the top of the database that KassenSturz's entries go
+/// into: the app's name, not translated, like the entries' URL.
+const GROUP: &str = "KassenSturz";
+
+/// KeePassXC's own group for new entries, when the user set no other.
+const KEEPASSXC_GROUP: &str = "KeePassXC-Browser Passwords";
 
 /// How long KassenSturz waits for KeePassXC's answer: long enough for the
 /// user to unlock the database or answer KeePassXC's question.
@@ -132,7 +147,7 @@ impl KeePassXcKeychain {
     /// connection was lost, once more on a new one.
     fn with_session<T>(
         &self,
-        job: impl Fn(&mut Session, &Link) -> Result<T, Problem>,
+        job: impl Fn(&mut Session, &Front) -> Result<T, Problem>,
     ) -> Result<T, KeychainError> {
         let mut slot = self.session.lock().unwrap_or_else(PoisonError::into_inner);
         for attempt in 0..2 {
@@ -144,7 +159,7 @@ impl KeePassXcKeychain {
                 *slot = Some(Session::open(socket, self.wait).map_err(Problem::into_error)?);
             }
             let session = slot.as_mut().expect("opened above");
-            let result = self.link(session).and_then(|link| job(session, &link));
+            let result = self.link(session).and_then(|front| job(session, &front));
             match result {
                 Err(Problem::Lost) if attempt == 0 => *slot = None,
                 Err(problem) => {
@@ -162,24 +177,58 @@ impl KeePassXcKeychain {
     /// The connection key for the database open in front, after asking
     /// KeePassXC to unlock it if needed: the one kept for it if KeePassXC
     /// still knows it, else a new one the user allows in KeePassXC.
-    fn link(&self, session: &mut Session) -> Result<Link, Problem> {
+    fn link(&self, session: &mut Session) -> Result<Front, Problem> {
         let hash = session.database_hash()?;
         if let Some((_, link)) = session.links.iter().find(|(known, _)| *known == hash) {
-            return Ok(link.clone());
+            let link = link.clone();
+            return Ok(Front { hash, link });
         }
         let key = SecretKey::new(LINK_KIND, &hash).map_err(|_| Problem::Refused)?;
         if let Ok(Some(kept)) = self.links.read(&key)
             && let Some(link) = Link::parse(kept.expose())
             && session.test_link(&link)?
         {
-            session.links.push((hash, link.clone()));
-            return Ok(link);
+            session.links.push((hash.clone(), link.clone()));
+            return Ok(Front { hash, link });
         }
         let link = session.associate()?;
         // Without a system keychain the key lives until the app closes.
         let _ = self.links.store(&key, &Secret::new(link.to_text()));
-        session.links.push((hash, link.clone()));
-        Ok(link)
+        session.links.push((hash.clone(), link.clone()));
+        Ok(Front { hash, link })
+    }
+
+    /// Where new entries go in the database in front: the group
+    /// [`GROUP`], made the first time if the user allows it in KeePassXC,
+    /// else KeePassXC's own group for new entries. Looked up once per
+    /// database and connection, or again when `fresh`.
+    fn group(&self, session: &mut Session, front: &Front, fresh: bool) -> Result<Group, Problem> {
+        if fresh {
+            session.groups.retain(|(hash, _)| *hash != front.hash);
+        }
+        if let Some((_, group)) = session.groups.iter().find(|(hash, _)| *hash == front.hash) {
+            return Ok(group.clone());
+        }
+        let tree = session.database_groups(&front.link)?;
+        let uuid = match tree.ours {
+            Some(uuid) => Some(uuid),
+            None => match session.create_group(&front.link) {
+                Ok(uuid) => Some(uuid),
+                Err(Problem::Refused) => None,
+                Err(problem) => return Err(problem),
+            },
+        };
+        let group = Group {
+            database: tree.name,
+            name: if uuid.is_some() {
+                GROUP.to_owned()
+            } else {
+                tree.default
+            },
+            uuid,
+        };
+        session.groups.push((front.hash.clone(), group.clone()));
+        Ok(group)
     }
 
     /// KassenSturz's entry for `key`: its UUID and whether its password is
@@ -200,35 +249,61 @@ impl KeePassXcKeychain {
 
 impl Keychain for KeePassXcKeychain {
     fn store(&self, key: &SecretKey, secret: &Secret) -> Result<(), KeychainError> {
-        self.with_session(|session, link| {
-            let uuid = self.find(session, link, key)?.map(|entry| entry.uuid);
+        self.with_session(|session, front| {
+            let found = self.find(session, &front.link, key)?;
+            let target = match found {
+                Some(entry) => Target::Entry(entry.uuid),
+                None => Target::Group(self.group(session, front, false)?),
+            };
             session.set_login(
                 &self.url(),
-                link,
+                &front.link,
                 &key.to_string(),
                 secret.expose(),
-                uuid.as_deref(),
+                &target,
             )
         })
     }
 
     fn read(&self, key: &SecretKey) -> Result<Option<Secret>, KeychainError> {
-        self.with_session(|session, link| {
+        self.with_session(|session, front| {
             Ok(self
-                .find(session, link, key)?
+                .find(session, &front.link, key)?
                 .and_then(|entry| entry.password)
                 .map(|password| Secret::new(password.to_string())))
         })
     }
 
     fn delete(&self, key: &SecretKey) -> Result<(), KeychainError> {
-        self.with_session(|session, link| match self.find(session, link, key)? {
-            Some(Entry {
-                uuid,
-                password: Some(_),
-                ..
-            }) => session.set_login(&self.url(), link, &key.to_string(), "", Some(&uuid)),
-            _ => Ok(()),
+        self.with_session(
+            |session, front| match self.find(session, &front.link, key)? {
+                Some(Entry {
+                    uuid,
+                    password: Some(_),
+                    ..
+                }) => session.set_login(
+                    &self.url(),
+                    &front.link,
+                    &key.to_string(),
+                    "",
+                    &Target::Entry(uuid),
+                ),
+                _ => Ok(()),
+            },
+        )
+    }
+
+    /// Connects now: KeePassXC shows its unlock window when the database
+    /// is locked and asks to allow KassenSturz the first time; then the
+    /// group for KassenSturz's entries is looked up, or made if the user
+    /// allows it. Names the database open in front and that group.
+    fn open(&self) -> Result<Option<KeychainPlace>, KeychainError> {
+        self.with_session(|session, front| {
+            let group = self.group(session, front, true)?;
+            Ok(Some(KeychainPlace {
+                name: group.database,
+                group: group.name,
+            }))
         })
     }
 }
@@ -290,6 +365,41 @@ impl Link {
     }
 }
 
+/// The database open in front: its hash and KassenSturz's connection key
+/// for it.
+struct Front {
+    hash: String,
+    link: Link,
+}
+
+/// Where KassenSturz's new entries go in one database.
+#[derive(Clone)]
+struct Group {
+    /// The database's name: the name of its top group.
+    database: String,
+    /// The group's name.
+    name: String,
+    /// The group's UUID, or `None` for KeePassXC's own group for new
+    /// entries.
+    uuid: Option<String>,
+}
+
+/// What `set-login` changes: an entry, or a new one in a group.
+enum Target {
+    Entry(String),
+    Group(Group),
+}
+
+/// What KassenSturz needs of a database's groups.
+struct Tree {
+    /// The top group's name, which is the database's.
+    name: String,
+    /// The UUID of the group [`GROUP`] at the top, if there is one.
+    ours: Option<String>,
+    /// The group KeePassXC puts new entries into.
+    default: String,
+}
+
 /// One entry KeePassXC returned for KassenSturz's URL.
 struct Entry {
     uuid: String,
@@ -308,6 +418,8 @@ struct Session {
     wait: Duration,
     /// The connection keys checked in this connection, by database hash.
     links: Vec<(String, Link)>,
+    /// Where new entries go, by database hash.
+    groups: Vec<(String, Group)>,
 }
 
 impl Session {
@@ -333,6 +445,7 @@ impl Session {
             client_id,
             wait,
             links: Vec::new(),
+            groups: Vec::new(),
         };
         let answer = session.answer_to("change-public-keys", Instant::now() + wait)?;
         if answer.get("errorCode").is_some() || text(&answer, "success") != Some("true") {
@@ -436,15 +549,16 @@ impl Session {
             .collect())
     }
 
-    /// Saves `password` for `login` at `url`: a new entry, or the entry
-    /// `uuid` updated, which KeePassXC asks the user to allow.
+    /// Saves `password` for `login` at `url`: a new entry in the target's
+    /// group, or the target entry updated, which KeePassXC asks the user to
+    /// allow.
     fn set_login(
         &mut self,
         url: &str,
         link: &Link,
         login: &str,
         password: &str,
-        uuid: Option<&str>,
+        target: &Target,
     ) -> Result<(), Problem> {
         let mut message = json!({
             "action": "set-login",
@@ -454,11 +568,72 @@ impl Session {
             "login": login,
             "password": password,
         });
-        if let Some(uuid) = uuid {
-            message["uuid"] = json!(uuid);
+        match target {
+            Target::Entry(uuid) => message["uuid"] = json!(uuid),
+            Target::Group(Group {
+                name,
+                uuid: Some(uuid),
+                ..
+            }) => {
+                message["group"] = json!(name);
+                message["groupUuid"] = json!(uuid);
+            }
+            Target::Group(_) => {}
         }
         let result = self.request("set-login", message, false);
         result.map(|_| ()).map_err(Reply::into_problem)
+    }
+
+    /// The database's name, its group [`GROUP`] and KeePassXC's group for
+    /// new entries.
+    fn database_groups(&mut self, link: &Link) -> Result<Tree, Problem> {
+        let message = json!({
+            "action": "get-database-groups",
+            "keys": [{ "id": link.id, "key": link.key }],
+        });
+        let answer = self
+            .request("get-database-groups", message, false)
+            .map_err(Reply::into_problem)?;
+        let top = answer
+            .get("groups")
+            .and_then(Value::as_array)
+            .and_then(|groups| groups.first())
+            .ok_or(Problem::Garbled)?;
+        let name = text(top, "name").ok_or(Problem::Garbled)?.to_owned();
+        let ours = top
+            .get("children")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .find(|child| text(child, "name") == Some(GROUP))
+            .and_then(|child| text(child, "uuid"))
+            .map(str::to_owned);
+        let default = text(&answer, "defaultGroup")
+            .filter(|group| !group.is_empty())
+            .unwrap_or(KEEPASSXC_GROUP)
+            .to_owned();
+        Ok(Tree {
+            name,
+            ours,
+            default,
+        })
+    }
+
+    /// Asks KeePassXC to make the group [`GROUP`] at the top of the
+    /// database; KeePassXC asks the user. Its UUID.
+    fn create_group(&mut self, link: &Link) -> Result<String, Problem> {
+        let message = json!({
+            "action": "create-new-group",
+            "groupName": GROUP,
+            "keys": [{ "id": link.id, "key": link.key }],
+        });
+        let answer = self
+            .request("create-new-group", message, false)
+            .map_err(Reply::into_problem)?;
+        text(&answer, "uuid")
+            .filter(|uuid| !uuid.is_empty())
+            .map(str::to_owned)
+            .ok_or(Problem::Garbled)
     }
 
     /// Sends `message` encrypted and returns KeePassXC's decrypted answer.

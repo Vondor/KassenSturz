@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::Mutex;
 
-use crate::{Keychain, KeychainError, Secret, SecretKey};
+use crate::{Keychain, KeychainError, KeychainPlace, Secret, SecretKey};
 
 /// A keychain in memory, for tests and for a session without a system
 /// keychain: nothing is written anywhere, and everything is wiped when it
@@ -20,6 +20,8 @@ use crate::{Keychain, KeychainError, Secret, SecretKey};
 pub struct MemoryKeychain {
     secrets: Mutex<HashMap<SecretKey, Secret>>,
     failure: Mutex<Option<KeychainError>>,
+    /// The place [`Keychain::open`] gives, as a KeePassXC database does.
+    place: Mutex<Option<KeychainPlace>>,
 }
 
 impl MemoryKeychain {
@@ -32,6 +34,12 @@ impl MemoryKeychain {
     /// again. What is stored stays stored either way.
     pub fn fail_with(&self, error: Option<KeychainError>) {
         *self.failure.lock().expect("no panic holds the failure") = error;
+    }
+
+    /// From now on [`Keychain::open`] answers `place`, as a keychain the
+    /// user can tell apart from others does (D-166).
+    pub fn place(&self, place: Option<KeychainPlace>) {
+        *self.place.lock().expect("no panic holds the place") = place;
     }
 
     /// How many secrets are stored.
@@ -105,6 +113,11 @@ impl Keychain for MemoryKeychain {
             .expect("no panic holds the secrets")
             .remove(key);
         Ok(())
+    }
+
+    fn open(&self) -> Result<Option<KeychainPlace>, KeychainError> {
+        self.check()?;
+        Ok(self.place.lock().expect("no panic holds the place").clone())
     }
 }
 

@@ -66,4 +66,24 @@ pub trait Keychain: Send + Sync {
     /// Removes the secret saved under `key`; nothing happens if there is
     /// none.
     fn delete(&self, key: &SecretKey) -> Result<(), KeychainError>;
+
+    /// Gets the place ready to save secrets, asking the user for what it
+    /// needs (e.g. to unlock a KeePassXC database and allow KassenSturz),
+    /// and says where in it secrets go, when the user can tell that place
+    /// apart from others (D-166). A keychain that needs nothing first
+    /// answers `None`.
+    fn open(&self) -> Result<Option<KeychainPlace>, KeychainError> {
+        Ok(None)
+    }
+}
+
+/// Where in a keychain the user can see saved secrets (D-166): e.g. a
+/// KeePassXC database's name and the group the entries go into. Names the
+/// user gave, shown as they are; never a secret.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KeychainPlace {
+    /// The keychain's name, e.g. the KeePassXC database's.
+    pub name: String,
+    /// The group or folder in it the secrets go into.
+    pub group: String,
 }

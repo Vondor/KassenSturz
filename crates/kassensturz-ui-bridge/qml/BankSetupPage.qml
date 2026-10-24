@@ -281,7 +281,7 @@ Kirigami.ScrollablePage {
                         return page.i18nContext.i18nc("@info", "KassenSturz keeps the PIN in memory only, never in a file, and forgets it when you close it.");
                     case "save":
                         if (page.bank.pinStorage === "keepassxc")
-                            return page.i18nContext.i18nc("@info", "KassenSturz saves the PIN in the database open in KeePassXC, not in your book. KeePassXC must be running; it asks you to unlock the database when needed.");
+                            return page.i18nContext.i18nc("@info", "KassenSturz saves the PIN in the database open in KeePassXC, in its group “KassenSturz”, not in your book. KeePassXC must be running; it asks you to unlock the database when needed.");
                         return page.i18nContext.i18nc("@info", "KassenSturz saves the PIN in your system's keychain (for example KWallet), not in your book. You can remove it in Settings at any time.");
                     default:
                         return page.i18nContext.i18nc("@info", "KassenSturz forgets the PIN as soon as it has talked to your bank. This is the safest choice.");

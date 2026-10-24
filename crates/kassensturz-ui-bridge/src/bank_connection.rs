@@ -29,7 +29,9 @@
 //! it is the same fake bank, but a PIN the user saves goes into the real
 //! system keychain, filed under [`FAKE_BANK_SERVICE`], so saving, reading
 //! back and removing a PIN can be tried with the desktop's own keychain
-//! before KassenSturz may talk to a real bank (D-159).
+//! before KassenSturz may talk to a real bank (D-159). With `1`, a PIN goes
+//! to a KeePassXC database when the user chose one in Settings, so that
+//! choice can be tried with the fake bank too (D-166).
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -46,7 +48,7 @@ use kassensturz_bank::{
 };
 use kassensturz_core::{AccountId, BankLink, Date, ErrorParam, Report};
 use kassensturz_import::{EntryStatus, Limits};
-use kassensturz_platform::{APP_ID, Keychain, SecretStorage};
+use kassensturz_platform::{APP_ID, Keychain, KeychainPlace, SecretStorage};
 use kassensturz_store::Book;
 
 use crate::bank_fetch::{self, Fetch};
@@ -93,6 +95,22 @@ fn memory_stores() -> PinStores {
     Box::new(|storage| match storage {
         SecretStorage::Nowhere => Box::new(NoPinStore) as Box<dyn PinStore>,
         _ => Box::new(MemoryPinStore::new()),
+    })
+}
+
+/// The fake bank's PINs with `KASSENSTURZ_FAKE_BANK=1`: in a KeePassXC
+/// database when the user chose one, filed under [`FAKE_BANK_SERVICE`]
+/// (D-166), else as [`memory_stores`] keeps them; the system keychain only
+/// with [`FAKE_BANK_WITH_KEYCHAIN`] (D-159). `keychain` gives the
+/// KeePassXC keychain: in the app [`SecretStorage::keychain`].
+fn fake_stores(
+    keychain: impl Fn(SecretStorage) -> Option<Box<dyn Keychain>> + Send + 'static,
+) -> PinStores {
+    let keychains = keychain_stores(keychain);
+    let memory = memory_stores();
+    Box::new(move |storage| match storage {
+        SecretStorage::KeePassXc => keychains(storage),
+        _ => memory(storage),
     })
 }
 
@@ -180,10 +198,14 @@ impl Connection {
             .as_ref()
             .is_some_and(|value| value == FAKE_BANK_WITH_KEYCHAIN);
         match folder {
-            _ if wants_fake => Self::fake(
-                FakeBank::new().with_second_factor(SecondFactor::Tan),
-                PinSession::new(memory_stores()(storage)),
-            ),
+            _ if wants_fake => {
+                let pin_stores = fake_stores(|storage| storage.keychain(FAKE_BANK_SERVICE));
+                let pins = PinSession::new(pin_stores(storage));
+                Self {
+                    pin_stores,
+                    ..Self::fake(FakeBank::new().with_second_factor(SecondFactor::Tan), pins)
+                }
+            }
             _ if wants_keychain => Self::fake_with_keychain(
                 FakeBank::new().with_second_factor(SecondFactor::Tan),
                 keychain_stores(|storage| storage.keychain(FAKE_BANK_SERVICE)),
@@ -257,6 +279,12 @@ pub enum Event {
     FetchStarted(String),
     /// A fetch ended: what came of each account, or why none was tried.
     FetchDone(Result<Vec<FetchOutcome>, ErrorText>),
+    /// Choosing the place `storage` for saved PINs, or getting it ready
+    /// again, ended (D-166): what it did, or why nothing changed.
+    PinStorageDone {
+        storage: SecretStorage,
+        result: Result<PinStorageChange, ErrorText>,
+    },
 }
 
 /// What the PIN dialog says: which bank asks, and whether the bank has just
@@ -792,14 +820,18 @@ pub fn forget_pin(connection: &mut Connection, id: &str) -> Result<(), BankError
     connection.pins.forget(&LoginId::new(id))
 }
 
-/// Saves PINs in `storage` from now on (D-163). The PINs of the logins set
-/// up here are removed from the old place, never copied: the user types
-/// each again at the next connection. The new place is used even when the
-/// old one can't be reached; `bank.keychain` then says so.
+/// Saves PINs in `storage` from now on (D-163), after getting it ready
+/// (D-166): for a KeePassXC database, KeePassXC asks the user to unlock it
+/// and to allow KassenSturz, and the answer names the database and the
+/// group. When it can't be got ready, the error says why and nothing
+/// changes. The PINs of the logins set up here are removed from the old
+/// place, never copied: the user types each again at the next connection.
+/// The new place is used even when the old one can't be reached;
+/// `removal` then says so. May wait for the user: runs in the background.
 pub fn choose_pin_storage(
     connection: &mut Connection,
     storage: SecretStorage,
-) -> Result<(), BankError> {
+) -> Result<PinStorageChange, BankError> {
     let logins: Vec<LoginId> = match &connection.bank {
         Ok(bank) => bank
             .logins()
@@ -808,7 +840,31 @@ pub fn choose_pin_storage(
         Err(_) => Vec::new(),
     };
     let store = (connection.pin_stores)(storage);
-    connection.pins.replace_store(store, &logins)
+    // The new place first: when it can't be got ready, e.g. KeePassXC
+    // isn't running or the user said no there, nothing changes (D-166).
+    let place = store.open()?;
+    let removal = connection.pins.replace_store(store, &logins);
+    Ok(PinStorageChange { place, removal })
+}
+
+/// Gets the place PINs are saved in ready again and says where they go,
+/// e.g. after the user opened another database in KeePassXC (D-166).
+pub fn open_pin_storage(connection: &mut Connection) -> Result<PinStorageChange, BankError> {
+    Ok(PinStorageChange {
+        place: connection.pins.open_store()?,
+        removal: Ok(()),
+    })
+}
+
+/// What choosing a place for saved PINs did (D-163, D-166).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PinStorageChange {
+    /// Where in the new place PINs go, when the user can tell it apart
+    /// from others: a KeePassXC database's name and group.
+    pub place: Option<KeychainPlace>,
+    /// Removing the PINs saved in the old place: an error when it
+    /// couldn't be reached; the new place is used anyway.
+    pub removal: Result<(), BankError>,
 }
 
 /// An account in the book that a bank account can be linked to.
@@ -1955,16 +2011,123 @@ mod tests {
         ) -> Result<(), kassensturz_platform::KeychainError> {
             self.0.delete(key)
         }
+
+        fn open(&self) -> Result<Option<KeychainPlace>, kassensturz_platform::KeychainError> {
+            self.0.open()
+        }
+    }
+
+    fn shared() -> SharedKeychain {
+        SharedKeychain(Arc::new(kassensturz_platform::MemoryKeychain::new()))
     }
 
     /// The stores for each place: the shared fake keychain for the system
     /// keychain, none for "nowhere".
     fn stores(keychain: &SharedKeychain) -> PinStores {
-        let keychain = keychain.clone();
-        keychain_stores(move |storage| {
-            (storage == SecretStorage::System)
-                .then(|| Box::new(keychain.clone()) as Box<dyn Keychain>)
+        stores_with(keychain, &shared())
+    }
+
+    /// The same with `keepassxc` as the KeePassXC database.
+    fn stores_with(system: &SharedKeychain, keepassxc: &SharedKeychain) -> PinStores {
+        let (system, keepassxc) = (system.clone(), keepassxc.clone());
+        keychain_stores(move |storage| match storage {
+            SecretStorage::System => Some(Box::new(system.clone()) as Box<dyn Keychain>),
+            SecretStorage::KeePassXc => Some(Box::new(keepassxc.clone()) as Box<dyn Keychain>),
+            SecretStorage::Nowhere => None,
         })
+    }
+
+    fn household() -> KeychainPlace {
+        KeychainPlace {
+            name: "Household".to_owned(),
+            group: "KassenSturz".to_owned(),
+        }
+    }
+
+    #[test]
+    fn keepassxc_is_got_ready_first_and_nothing_changes_when_it_cant_be() {
+        let (system, keepassxc) = (shared(), shared());
+        let mut connection = Connection::fake_with_keychain(
+            FakeBank::new(),
+            stores_with(&system, &keepassxc),
+            SecretStorage::System,
+        );
+        let mut setup = form(FakeBank::PIN);
+        setup.pin_mode = PinMode::SaveInKeychain;
+        set_up(&mut connection, setup).expect("set up");
+        assert_eq!(system.0.len(), 1);
+
+        // KeePassXC isn't running: the PIN stays where it is.
+        keepassxc.0.fail_with(Some(
+            kassensturz_platform::KeychainError::KeePassXcUnavailable,
+        ));
+        let refused = choose_pin_storage(&mut connection, SecretStorage::KeePassXc);
+        assert_eq!(refused, Err(BankError::KeePassXc));
+        assert_eq!(error_text(&BankError::KeePassXc).code, "bank.keepassxc");
+        assert_eq!(system.0.len(), 1);
+        assert_eq!(
+            open_pin_storage(&mut connection),
+            Ok(PinStorageChange {
+                place: None,
+                removal: Ok(()),
+            })
+        );
+
+        // Now it answers and names the database and the group.
+        keepassxc.0.fail_with(None);
+        keepassxc.0.place(Some(household()));
+        let chosen = choose_pin_storage(&mut connection, SecretStorage::KeePassXc);
+        assert_eq!(
+            chosen,
+            Ok(PinStorageChange {
+                place: Some(household()),
+                removal: Ok(()),
+            })
+        );
+        assert!(system.0.is_empty());
+        let mut setup = form(FakeBank::PIN);
+        setup.pin_mode = PinMode::SaveInKeychain;
+        set_up(&mut connection, setup).expect("set up");
+        assert_eq!(keepassxc.0.len(), 1);
+        assert!(system.0.is_empty());
+
+        // Connecting again names it again, and says when it can't.
+        assert_eq!(
+            open_pin_storage(&mut connection).map(|change| change.place),
+            Ok(Some(household()))
+        );
+        keepassxc.0.fail_with(Some(
+            kassensturz_platform::KeychainError::KeePassXcUnavailable,
+        ));
+        assert_eq!(open_pin_storage(&mut connection), Err(BankError::KeePassXc));
+    }
+
+    #[test]
+    fn the_fake_bank_in_memory_saves_in_keepassxc_when_chosen() {
+        let keepassxc = shared();
+        keepassxc.0.place(Some(household()));
+        let shared_keepassxc = keepassxc.clone();
+        let pin_stores = fake_stores(move |storage| {
+            (storage == SecretStorage::KeePassXc)
+                .then(|| Box::new(shared_keepassxc.clone()) as Box<dyn Keychain>)
+        });
+        let pins = PinSession::new(pin_stores(SecretStorage::System));
+        let mut connection = Connection {
+            pin_stores,
+            ..Connection::fake(FakeBank::new(), pins)
+        };
+        // The system keychain stays out of it: in memory (D-159).
+        let mut setup = form(FakeBank::PIN);
+        setup.pin_mode = PinMode::SaveInKeychain;
+        set_up(&mut connection, setup).expect("set up");
+        assert!(keepassxc.0.is_empty());
+
+        let chosen = choose_pin_storage(&mut connection, SecretStorage::KeePassXc);
+        assert_eq!(chosen.map(|change| change.place), Ok(Some(household())));
+        let mut setup = form(FakeBank::PIN);
+        setup.pin_mode = PinMode::SaveInKeychain;
+        set_up(&mut connection, setup).expect("set up");
+        assert_eq!(keepassxc.0.len(), 1);
     }
 
     #[test]
@@ -2028,7 +2191,10 @@ mod tests {
 
         let result = choose_pin_storage(&mut connection, SecretStorage::Nowhere);
 
-        assert_eq!(result, Err(BankError::Keychain));
+        assert_eq!(
+            result.map(|change| change.removal),
+            Ok(Err(BankError::Keychain))
+        );
         assert_eq!(
             error_text(&BankError::Keychain).code,
             "bank.keychain",

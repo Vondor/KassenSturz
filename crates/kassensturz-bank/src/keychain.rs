@@ -11,7 +11,7 @@
 //! user is told to unlock the keychain or to type the PIN each time
 //! (threat T-02).
 
-use kassensturz_platform::{Keychain, Secret, SecretKey};
+use kassensturz_platform::{Keychain, KeychainError, Secret, SecretKey};
 
 use crate::backend::LoginId;
 use crate::error::BankError;
@@ -39,7 +39,7 @@ impl KeychainPinStore {
     }
 
     fn key(login: &LoginId) -> Result<SecretKey, BankError> {
-        SecretKey::new(KIND, login.as_str()).map_err(|_| BankError::Keychain)
+        SecretKey::new(KIND, login.as_str()).map_err(bank_error)
     }
 }
 
@@ -47,20 +47,27 @@ impl PinStore for KeychainPinStore {
     fn save(&mut self, login: &LoginId, pin: &Pin) -> Result<(), BankError> {
         self.keychain
             .store(&Self::key(login)?, &Secret::new(pin.as_str().to_owned()))
-            .map_err(|_| BankError::Keychain)
+            .map_err(bank_error)
     }
 
     fn load(&self, login: &LoginId) -> Result<Option<Pin>, BankError> {
         self.keychain
             .read(&Self::key(login)?)
             .map(|secret| secret.map(|secret| Pin::new(secret.expose().to_owned())))
-            .map_err(|_| BankError::Keychain)
+            .map_err(bank_error)
     }
 
     fn delete(&mut self, login: &LoginId) -> Result<(), BankError> {
-        self.keychain
-            .delete(&Self::key(login)?)
-            .map_err(|_| BankError::Keychain)
+        self.keychain.delete(&Self::key(login)?).map_err(bank_error)
+    }
+}
+
+/// The keychain's error as `bank.keepassxc` when KeePassXC was the place
+/// (D-164), else `bank.keychain`, without the keychain's own text.
+fn bank_error(error: KeychainError) -> BankError {
+    match error {
+        KeychainError::KeePassXcUnavailable => BankError::KeePassXc,
+        _ => BankError::Keychain,
     }
 }
 

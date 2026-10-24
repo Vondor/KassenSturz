@@ -323,6 +323,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "The folder KassenSturz keeps its bank settings in couldn't be created or opened. Check that your user folder can be written to.");
         case "bank.busy":
             return i18nContext.i18nc("@info", "KassenSturz is still talking to your bank. Wait for it to finish and try again.");
+        case "bank.keepassxc":
+            return i18nContext.i18nc("@info", "KeePassXC couldn't be reached, so the PIN couldn't be saved, read or removed there. Start KeePassXC, open and unlock your database, make sure Browser Integration is on in its settings, and try again; or type the PIN this time.");
         case "bank.keychain":
             return i18nContext.i18nc("@info", "The system keychain couldn't be reached, so the PIN couldn't be saved, read or removed. Make sure the keychain (for example KWallet) is unlocked, or choose to type the PIN each time.");
         case "bank.malformed-amount":

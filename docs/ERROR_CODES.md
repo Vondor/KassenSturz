@@ -256,6 +256,7 @@ A bank connection couldn't be used, or what the bank delivered couldn't be turne
 | `bank.setup-failed` | `text?` | | The bank login couldn't be set up, so nothing of it was kept. The bank software says: {text}. Check the login name and the server address and try again. |
 | `bank.folder` | | | The folder KassenSturz keeps its bank settings in couldn't be created or opened. Check that your user folder can be written to. |
 | `bank.busy` | | | Another bank connection is still running. Wait for it to finish and try again. |
+| `bank.keepassxc` | | | KeePassXC couldn't be reached, so the PIN couldn't be saved, read or removed there. Start KeePassXC, open and unlock your database, make sure Browser Integration is on, and try again; or type the PIN this time (D-164). |
 | `bank.keychain` | | | The system keychain couldn't be reached, so a saved PIN couldn't be saved, read or removed. Make sure the keychain (for example KWallet) is unlocked, or choose to type the PIN each time. |
 | `bank.malformed-amount` | `amount` | | Your bank sent an amount KassenSturz can't read: {amount}. Nothing was imported. If it keeps happening, report it with the amount as shown. |
 | `bank.inexact-amount` | `amount` | | Your bank sent an amount with a fraction of the smallest unit ({amount}), which KassenSturz never rounds. Nothing was imported. If it keeps happening, report it with the amount as shown. |
@@ -273,5 +274,6 @@ The system keychain couldn't save, read or remove a secret, such as a banking PI
 |---|---|---|---|
 | `platform.keychain-unavailable` | | | The system keychain (KWallet or GNOME Keyring) couldn't be reached. Make sure it is running and unlocked, or choose to type the PIN each time instead. |
 | `platform.keychain-failed` | | | The system keychain answered with an error, so the PIN wasn't saved, read or removed. Try again; if it keeps happening, look at the keychain in its own manager (e.g. KWalletManager), or choose to type the PIN each time instead. |
+| `platform.keepassxc-unavailable` | | | KeePassXC couldn't be used to save, read or remove the PIN: it isn't running, its browser integration is off, the database stayed locked, or KassenSturz wasn't allowed in KeePassXC. Start KeePassXC, open and unlock your database, turn on Tools → Settings → Browser Integration, and try again; or type the PIN this time (D-164). |
 | `platform.keychain-not-text` | | | What the keychain holds for this login isn't a PIN that KassenSturz saved. Remove the entry in the keychain's manager and save the PIN again, or type it each time. |
 | `platform.invalid-secret-key` | | | KassenSturz asked the keychain with a name it can't use. This is a bug in KassenSturz: please report it. |

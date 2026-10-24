@@ -292,6 +292,8 @@ FormCard.FormCardPage {
                 checked: page.bank.pinStorage === modelData.key
                 text: {
                     switch (modelData.key) {
+                    case "keepassxc":
+                        return page.i18nContext.i18nc("@option:radio where PINs are saved", "A KeePassXC database");
                     case "nowhere":
                         return page.i18nContext.i18nc("@option:radio where PINs are saved", "Don't save PINs");
                     default:
@@ -300,6 +302,8 @@ FormCard.FormCardPage {
                 }
                 description: {
                     switch (modelData.key) {
+                    case "keepassxc":
+                        return page.i18nContext.i18nc("@info", "For a KeePassXC database you open only when needed, apart from your desktop's keychain. KassenSturz saves the PIN in the database open in KeePassXC, through KeePassXC's Browser Integration, which you turn on in its settings. KeePassXC asks once to allow KassenSturz, and asks you to unlock the database when it is locked. KassenSturz never sees the database's password.");
                     case "nowhere":
                         return page.i18nContext.i18nc("@info", "KassenSturz never saves a PIN. You type it at each connection, or it remembers it until you close KassenSturz.");
                     default:

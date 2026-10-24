@@ -7549,3 +7549,55 @@ msgstr ""
 "Wählen Sie hier einen anderen Ort, werden die am alten Ort gespeicherten "
 "PINs entfernt, und Sie geben jede PIN bei der nächsten Verbindung noch "
 "einmal ein."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@option:radio where PINs are saved"
+msgid "A KeePassXC database"
+msgstr "Eine KeePassXC-Datenbank"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+msgctxt "@info"
+msgid ""
+"For a KeePassXC database you open only when needed, apart from your "
+"desktop's keychain. KassenSturz saves the PIN in the database open in "
+"KeePassXC, through KeePassXC's Browser Integration, which you turn on in its "
+"settings. KeePassXC asks once to allow KassenSturz, and asks you to unlock "
+"the database when it is locked. KassenSturz never sees the database's "
+"password."
+msgstr ""
+"Für eine KeePassXC-Datenbank, die Sie nur bei Bedarf öffnen, getrennt vom "
+"Passwortspeicher Ihres Desktops. KassenSturz speichert die PIN in der in "
+"KeePassXC geöffneten Datenbank, über die Browser-Integration von KeePassXC, "
+"die Sie in dessen Einstellungen einschalten. KeePassXC fragt einmal, ob "
+"KassenSturz zugreifen darf, und bittet Sie, die Datenbank zu entsperren, "
+"wenn sie gesperrt ist. KassenSturz sieht das Passwort der Datenbank nie."
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
+msgctxt "@item:inlistbox keep the PIN"
+msgid "Save it in KeePassXC"
+msgstr "In KeePassXC speichern"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
+msgctxt "@info"
+msgid ""
+"KassenSturz saves the PIN in the database open in KeePassXC, not in your "
+"book. KeePassXC must be running; it asks you to unlock the database when "
+"needed."
+msgstr ""
+"KassenSturz speichert die PIN in der in KeePassXC geöffneten Datenbank, nicht "
+"in Ihrem Haushaltsbuch. KeePassXC muss laufen; es bittet Sie bei Bedarf, die "
+"Datenbank zu entsperren."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml
+msgctxt "@info"
+msgid ""
+"KeePassXC couldn't be reached, so the PIN couldn't be saved, read or removed "
+"there. Start KeePassXC, open and unlock your database, make sure Browser "
+"Integration is on in its settings, and try again; or type the PIN this time."
+msgstr ""
+"KeePassXC war nicht erreichbar, deshalb ließ sich die PIN dort nicht "
+"speichern, lesen oder entfernen. Starten Sie KeePassXC, öffnen und "
+"entsperren Sie Ihre Datenbank, achten Sie darauf, dass die Browser-"
+"Integration in den Einstellungen eingeschaltet ist, und versuchen Sie es "
+"noch einmal; oder geben Sie die PIN diesmal ein."

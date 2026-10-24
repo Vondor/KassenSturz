@@ -240,7 +240,9 @@ Item {
                         { value: "ask", text: dialogs.i18nContext.i18nc("@item:inlistbox keep the PIN", "No, ask me each time") },
                         { value: "remember", text: dialogs.i18nContext.i18nc("@item:inlistbox keep the PIN", "Until I close KassenSturz") },
                     ];
-                    if (dialogs.bank.pinStorage !== "nowhere")
+                    if (dialogs.bank.pinStorage === "keepassxc")
+                        choices.push({ value: "save", text: dialogs.i18nContext.i18nc("@item:inlistbox keep the PIN", "Save it in KeePassXC") });
+                    else if (dialogs.bank.pinStorage !== "nowhere")
                         choices.push({ value: "save", text: dialogs.i18nContext.i18nc("@item:inlistbox keep the PIN", "Save it in my keychain") });
                     return choices;
                 }

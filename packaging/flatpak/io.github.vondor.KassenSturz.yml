@@ -34,6 +34,12 @@ finish-args:
   # The keychain for a saved banking PIN: whichever program provides the
   # Secret Service, e.g. KWallet, GNOME Keyring or KeePassXC (D-147, D-150).
   - --talk-name=org.freedesktop.secrets
+  # A KeePassXC database for saved banking PINs, when the user chooses it in
+  # Settings (D-164): only the folder that holds KeePassXC's socket for its
+  # browser interface, the same for KeePassXC installed natively or as a
+  # Flatpak, not the rest of the user's runtime folder. `create` makes the
+  # folder when KeePassXC starts after KassenSturz, so it is still seen.
+  - --filesystem=xdg-run/app/org.keepassxc.KeePassXC:create
   # The computer's card reader service, for chip-card logins (D-059).
   - --socket=pcsc
   # Deliberately nothing else: no access to the user's files. The household

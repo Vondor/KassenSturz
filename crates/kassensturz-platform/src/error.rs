@@ -28,6 +28,10 @@ pub enum KeychainError {
     /// What the keychain holds under the key isn't text, so it can't have
     /// been saved by KassenSturz, or it was damaged. The value is not kept.
     NotText,
+    /// KeePassXC couldn't be used (D-164): it isn't running, its browser
+    /// integration is off, the database stayed locked, or the user said no
+    /// in KeePassXC. Nothing was saved, read or removed.
+    KeePassXcUnavailable,
     /// The key isn't two short ASCII words (see
     /// [`SecretKey::new`](crate::SecretKey::new)).
     InvalidKey,
@@ -39,6 +43,7 @@ impl fmt::Display for KeychainError {
             Self::Unavailable => f.write_str("the system keychain couldn't be reached"),
             Self::Failed { kind } => write!(f, "the system keychain failed ({kind})"),
             Self::NotText => f.write_str("the saved value isn't text"),
+            Self::KeePassXcUnavailable => f.write_str("KeePassXC couldn't be reached"),
             Self::InvalidKey => f.write_str("the key isn't two short ASCII words"),
         }
     }
@@ -52,6 +57,7 @@ impl Report for KeychainError {
             Self::Unavailable => ErrorReport::new("platform.keychain-unavailable"),
             Self::Failed { .. } => ErrorReport::new("platform.keychain-failed"),
             Self::NotText => ErrorReport::new("platform.keychain-not-text"),
+            Self::KeePassXcUnavailable => ErrorReport::new("platform.keepassxc-unavailable"),
             Self::InvalidKey => ErrorReport::new("platform.invalid-secret-key"),
         }
     }

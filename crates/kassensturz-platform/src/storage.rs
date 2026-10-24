@@ -17,6 +17,12 @@ pub enum SecretStorage {
     /// macOS Keychain.
     #[default]
     System,
+    /// A KeePassXC database, through KeePassXC's browser interface
+    /// ([`crate::KeePassXcKeychain`], D-164): the database open in front
+    /// in KeePassXC, unlocked when needed, apart from the system keychain.
+    /// Offered on Linux, where KassenSturz knows where KeePassXC's socket
+    /// is.
+    KeePassXc,
     /// Nowhere: nothing is saved, and KassenSturz doesn't offer to. A
     /// secret is typed each time or remembered until the app closes.
     Nowhere,
@@ -27,13 +33,18 @@ impl SecretStorage {
     /// What a later build adds for one system only is left out on the
     /// others.
     pub const fn available() -> &'static [Self] {
-        &[Self::System, Self::Nowhere]
+        if cfg!(target_os = "linux") {
+            &[Self::System, Self::KeePassXc, Self::Nowhere]
+        } else {
+            &[Self::System, Self::Nowhere]
+        }
     }
 
     /// The word the choice is kept under in the app's settings.
     pub const fn key(self) -> &'static str {
         match self {
             Self::System => "system",
+            Self::KeePassXc => "keepassxc",
             Self::Nowhere => "nowhere",
         }
     }
@@ -57,10 +68,19 @@ impl SecretStorage {
     }
 
     /// The keychain that keeps secrets filed under `service` (usually
-    /// [`crate::APP_ID`]), or `None` when nothing is to be saved.
+    /// [`crate::APP_ID`]), or `None` when nothing is to be saved. KeePassXC
+    /// keeps the keys of its connections to KassenSturz in the system
+    /// keychain, under the app ID.
     pub fn keychain(self, service: &str) -> Option<Box<dyn Keychain>> {
         match self {
             Self::System => Some(Box::new(SystemKeychain::for_service(service))),
+            #[cfg(unix)]
+            Self::KeePassXc => Some(Box::new(crate::KeePassXcKeychain::new(
+                service,
+                Box::new(SystemKeychain::for_service(crate::APP_ID)),
+            ))),
+            #[cfg(not(unix))]
+            Self::KeePassXc => None,
             Self::Nowhere => None,
         }
     }
@@ -69,7 +89,6 @@ impl SecretStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::APP_ID;
 
     #[test]
     fn the_system_keychain_is_the_default_and_comes_first() {
@@ -85,6 +104,7 @@ mod tests {
             assert_eq!(SecretStorage::from_key(storage.key()), storage);
         }
         assert_eq!(SecretStorage::System.key(), "system");
+        assert_eq!(SecretStorage::KeePassXc.key(), "keepassxc");
         assert_eq!(SecretStorage::Nowhere.key(), "nowhere");
     }
 
@@ -96,8 +116,24 @@ mod tests {
     }
 
     #[test]
+    fn keepassxc_is_an_advanced_choice_where_it_is_offered() {
+        assert!(SecretStorage::KeePassXc.is_advanced());
+        let offered = SecretStorage::available().contains(&SecretStorage::KeePassXc);
+        assert_eq!(offered, cfg!(target_os = "linux"));
+        let expected = if offered {
+            SecretStorage::KeePassXc
+        } else {
+            SecretStorage::System
+        };
+        assert_eq!(SecretStorage::from_key("keepassxc"), expected);
+        if offered {
+            assert!(SecretStorage::KeePassXc.keychain(crate::APP_ID).is_some());
+        }
+    }
+
+    #[test]
     fn nowhere_has_no_keychain() {
-        assert!(SecretStorage::Nowhere.keychain(APP_ID).is_none());
-        assert!(SecretStorage::System.keychain(APP_ID).is_some());
+        assert!(SecretStorage::Nowhere.keychain(crate::APP_ID).is_none());
+        assert!(SecretStorage::System.keychain(crate::APP_ID).is_some());
     }
 }

@@ -96,6 +96,9 @@ pub enum BankError {
     /// The system keychain couldn't be reached to save, read or delete a PIN
     /// (D-057).
     Keychain,
+    /// KeePassXC, the place the user chose for saved PINs, couldn't be
+    /// reached to save, read or delete a PIN (D-164).
+    KeePassXc,
     /// An amount the bank sent isn't a fraction of whole numbers, or names a
     /// currency that isn't a code (D-141).
     MalformedAmount {
@@ -178,6 +181,7 @@ impl Report for BankError {
             Self::Folder => ErrorReport::new("bank.folder"),
             Self::Busy => ErrorReport::new("bank.busy"),
             Self::Keychain => ErrorReport::new("bank.keychain"),
+            Self::KeePassXc => ErrorReport::new("bank.keepassxc"),
             Self::MalformedAmount { amount } => {
                 ErrorReport::new("bank.malformed-amount").with("amount", text(amount))
             }

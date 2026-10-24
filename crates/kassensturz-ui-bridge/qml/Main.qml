@@ -211,7 +211,7 @@ Kirigami.ApplicationWindow {
     // can undo the change from the notice (M3.8, D-086).
     function screenChangedBook() {
         bookChanged();
-        if (started && changeHistory.undoChange.action !== undefined) {
+        if (started && changeHistory.undoChange?.action !== undefined) {
             showPassiveNotification(changeNames.name(changeHistory.undoChange.action), 8000, i18nContext.i18nc("@action:button take the last change back", "Undo"), () => root.undoLast());
         }
     }
@@ -295,9 +295,9 @@ Kirigami.ApplicationWindow {
     // makes the page under an object that isn't drawn, and Qt warns that the
     // page "was not placed in the graphics scene" until the stack takes it.
     // Made under the window instead, it is taken out of the window again at
-    // once: the stack then owns it, as it would, and deletes it when the page
-    // leaves the stack. The window, as its owner, keeps it from being
-    // collected as garbage until then.
+    // once. The window, as its owner, keeps it from being collected as
+    // garbage while it is in the stack; `onPageRemoved` below deletes it
+    // when it leaves, which the stack does not always do (D-161).
     function makePage(component: Component, properties: var): Item {
         const page = component.createObject(root, properties ?? {});
         if (!page) {
@@ -465,7 +465,7 @@ Kirigami.ApplicationWindow {
             },
             Kirigami.Action {
                 icon.name: "edit-undo"
-                enabled: root.started && changeHistory.undoChange.action !== undefined
+                enabled: root.started && changeHistory.undoChange?.action !== undefined
                 text: enabled
                     ? root.i18nContext.i18nc("@action:inmenu %1 is what was done, e.g. Added a transaction", "Undo: %1", changeNames.describe(changeHistory.undoChange))
                     : root.i18nContext.i18nc("@action:inmenu there is nothing to undo", "Undo")
@@ -474,7 +474,7 @@ Kirigami.ApplicationWindow {
             },
             Kirigami.Action {
                 icon.name: "edit-redo"
-                enabled: root.started && changeHistory.redoChange.action !== undefined
+                enabled: root.started && changeHistory.redoChange?.action !== undefined
                 text: enabled
                     ? root.i18nContext.i18nc("@action:inmenu %1 is what was done, e.g. Added a transaction", "Redo: %1", changeNames.describe(changeHistory.redoChange))
                     : root.i18nContext.i18nc("@action:inmenu there is nothing to redo", "Redo")
@@ -741,6 +741,21 @@ Kirigami.ApplicationWindow {
             rules: ruleBook
             onDone: root.pageStack.pop()
             onAddSubRuleClicked: ruleId => root.replacePage(rulePage, { parentId: ruleId })
+        }
+    }
+
+    // A page that leaves the stack is deleted (D-161). The stack leaves a
+    // page that was popped in a one-page window alive, hidden away to the
+    // right of the visible page; it shows again as soon as the window is
+    // made wider, over the page that is open (M4 Phase 2: "Done" on the bank
+    // setup seemed not to close it). The delay lets the stack's own slide
+    // out finish; if the stack deletes the page first, there is nothing left
+    // to delete.
+    Connections {
+        target: root.pageStack
+
+        function onPageRemoved(page: Item) {
+            page.destroy(1000);
         }
     }
 

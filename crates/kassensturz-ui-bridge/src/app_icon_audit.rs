@@ -140,14 +140,38 @@ mod tests {
     }
 
     /// CMake puts the icon folder into the icon theme, and the Flatpak builds
-    /// with CMake, so this is the one place that installs it.
+    /// with CMake, so this is the one place that installs it. The Flatpak
+    /// leaves out the SVG, which AppStream in its build image can't read
+    /// ("Unrecognized image file format" failed the build), and says so in its
+    /// manifest; every other package keeps it.
     #[test]
     fn cmake_installs_the_icons() {
         let cmake = fs::read_to_string(root().join("CMakeLists.txt")).expect("CMakeLists.txt");
+        let lines: Vec<&str> = cmake.lines().map(str::trim).collect();
         assert!(
-            cmake.lines().any(|line| line.trim()
-                == "install(DIRECTORY data/icons/hicolor DESTINATION ${KDE_INSTALL_ICONDIR})"),
+            lines.contains(
+                &"install(DIRECTORY data/icons/hicolor DESTINATION ${KDE_INSTALL_ICONDIR})"
+            ),
             "CMakeLists.txt must install data/icons/hicolor"
+        );
+        assert!(
+            lines.contains(&"install(DIRECTORY data/icons/hicolor DESTINATION ${KDE_INSTALL_ICONDIR} PATTERN \"scalable\" EXCLUDE)"),
+            "without the SVG option, everything but the scalable folder"
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.starts_with("option(KASSENSTURZ_INSTALL_SVG_ICON")),
+            "the SVG is an option"
+        );
+        let manifest =
+            fs::read_to_string(root().join("packaging/flatpak/io.github.vondor.KassenSturz.yml"))
+                .expect("the Flatpak manifest");
+        assert!(
+            manifest
+                .lines()
+                .any(|line| line.trim() == "- -DKASSENSTURZ_INSTALL_SVG_ICON=OFF"),
+            "the Flatpak installs the PNG sizes only"
         );
     }
 

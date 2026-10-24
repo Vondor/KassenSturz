@@ -449,36 +449,6 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # The Flatpak build's own AppStream step fails on the icon with only
-      # "icon-file-read-error" and no detail. This runs the same program from
-      # this image on the icon as a whole, on the SVG alone and on each PNG
-      # size alone, and prints its full report, to find which file it can't
-      # read (D-165). Remove it once the Flatpak builds.
-      - name: Which icon file does AppStream's compose fail on (D-165)
-        continue-on-error: true
-        run: |
-          appstreamcli --version
-          sizes="16 22 24 32 48 64 128 256"
-          for variant in all svg $sizes; do
-            echo "== $variant"
-            rm -rf /tmp/tree /tmp/compose
-            mkdir -p /tmp/tree/share/applications /tmp/tree/share/metainfo /tmp/tree/share/icons
-            cp -r data/icons/hicolor /tmp/tree/share/icons/hicolor
-            case "$variant" in
-              all) ;;
-              svg) find /tmp/tree/share/icons -name '*.png' -delete ;;
-              *) rm -r /tmp/tree/share/icons/hicolor/scalable
-                 for other in $sizes; do
-                   [ "$other" = "$variant" ] || rm -r "/tmp/tree/share/icons/hicolor/${other}x${other}"
-                 done ;;
-            esac
-            cp data/*.desktop /tmp/tree/share/applications/
-            cp data/*.metainfo.xml /tmp/tree/share/metainfo/
-            appstreamcli compose --prefix=/ --origin=flatpak \
-              --components=io.github.vondor.KassenSturz,io.github.vondor.KassenSturz.desktop \
-              --result-root=/tmp/compose --data-dir=/tmp/compose/data --icons-dir=/tmp/compose/icons \
-              --print-report=full /tmp/tree 2>&1 | tail -15 || true
-          done > /tmp/icon-diagnostic.txt 2>&1
       - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
         with:
           manifest-path: packaging/flatpak/io.github.vondor.KassenSturz.yml
@@ -486,9 +456,6 @@ jobs:
           # Stable across commits, so Cargo's source downloads are reused; it
           # changes with the manifest and cargo-sources.json (D-110).
           cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/**') }}
-      - name: Print the icon diagnostic (D-165)
-        if: always()
-        run: cat /tmp/icon-diagnostic.txt
       # Installed from the bundle that people get, since a catalog in the build
       # but not in the bundle left the Flatpak in English on a German system
       # (D-128).
@@ -507,10 +474,11 @@ jobs:
           flatpak=$(command -v flatpak || echo /app/bin/flatpak)
           files="$("$flatpak" info --show-location io.github.vondor.KassenSturz)/files"
           icons="$files/share/icons/hicolor"
-          test -s "$icons/scalable/apps/io.github.vondor.KassenSturz.svg"
           for size in 16 22 24 32 48 64 128 256; do
             test -s "$icons/${size}x${size}/apps/io.github.vondor.KassenSturz.png"
           done
+          # Only the PNG sizes: AppStream in the build image can't read SVG.
+          test ! -e "$icons/scalable"
           grep -qx 'Icon=io.github.vondor.KassenSturz' \
             "$files/share/applications/io.github.vondor.KassenSturz.desktop"
       # Network, the Secret Service and the card reader are the only

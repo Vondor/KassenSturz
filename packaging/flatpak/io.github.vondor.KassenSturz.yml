@@ -145,6 +145,10 @@ modules:
     builddir: true
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
+      # The PNG sizes of the app icon only: the build's AppStream step fails
+      # with "Unrecognized image file format" on the SVG in the Flatpak build
+      # image, which has no SVG loader (D-165).
+      - -DKASSENSTURZ_INSTALL_SVG_ICON=OFF
     build-options:
       append-path: /usr/lib/sdk/rust-stable/bin
       env:

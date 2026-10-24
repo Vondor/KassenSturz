@@ -6,7 +6,8 @@
 //! database in memory. It answers like KeePassXC where KassenSturz depends
 //! on it: plain key exchange, encrypted messages with the nonce plus one,
 //! plain error answers with a code as text, a locked database that the
-//! "user" unlocks after `triggerUnlock`, and no way to delete an entry.
+//! "user" unlocks after `triggerUnlock`, groups the "user" may refuse to
+//! make, and no way to delete an entry.
 
 use std::io::{Read, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -29,6 +30,8 @@ pub struct FakeEntry {
     pub url: String,
     pub login: String,
     pub password: String,
+    /// The UUID of the group it is in; empty for KeePassXC's own group.
+    pub group: String,
 }
 
 /// What the made-up KeePassXC holds and how its "user" answers.
@@ -38,6 +41,12 @@ pub struct FakeState {
     pub locked: bool,
     /// Whether the user allows a new connection.
     pub refuse_association: bool,
+    /// The database's name: its top group's.
+    pub name: String,
+    /// The groups at the top of the database: name and UUID.
+    pub groups: Vec<(String, String)>,
+    /// Whether the user refuses to make a new group.
+    pub refuse_group: bool,
     /// The connections allowed: name and key.
     pub links: Vec<(String, String)>,
     pub entries: Vec<FakeEntry>,
@@ -69,7 +78,10 @@ impl FakeKeePassXc {
         std::fs::create_dir_all(&folder).expect("test folder");
         let socket = folder.join("browser.socket");
         let listener = UnixListener::bind(&socket).expect("socket");
-        let state = Arc::new(Mutex::new(FakeState::default()));
+        let state = Arc::new(Mutex::new(FakeState {
+            name: "Household".to_owned(),
+            ..FakeState::default()
+        }));
         let shared = Arc::clone(&state);
         thread::spawn(move || {
             for stream in listener.incoming() {
@@ -246,17 +258,49 @@ fn answer(
             let uuid = field(&message, "uuid").to_owned();
             if uuid.is_empty() {
                 let uuid = format!("{:032x}", state.entries.len() + 1);
+                // Like KeePassXC: the group named, if it has that UUID.
+                let group = state
+                    .groups
+                    .iter()
+                    .find(|(name, uuid)| {
+                        name == field(&message, "group") && uuid == field(&message, "groupUuid")
+                    })
+                    .map(|(_, uuid)| uuid.clone())
+                    .unwrap_or_default();
                 let entry = FakeEntry {
                     uuid,
                     url: field(&message, "url").to_owned(),
                     login: field(&message, "login").to_owned(),
                     password: field(&message, "password").to_owned(),
+                    group,
                 };
                 state.entries.push(entry);
             } else if let Some(entry) = state.entries.iter_mut().find(|entry| entry.uuid == uuid) {
                 entry.password = field(&message, "password").to_owned();
             }
             json!({ "count": null, "entries": null, "error": "", "success": "true" })
+        }
+        "get-database-groups" => {
+            let children: Vec<Value> = state
+                .groups
+                .iter()
+                .map(|(name, uuid)| json!({ "name": name, "uuid": uuid, "children": [] }))
+                .collect();
+            json!({
+                "defaultGroup": "",
+                "defaultGroupAlwaysAllow": false,
+                "groups": [{ "name": state.name, "uuid": "00", "children": children }],
+                "success": "true",
+            })
+        }
+        "create-new-group" => {
+            if state.refuse_group {
+                return vec![error(&action, 11)];
+            }
+            let name = field(&message, "groupName").to_owned();
+            let uuid = format!("{:032x}", 0x100 + state.groups.len());
+            state.groups.push((name.clone(), uuid.clone()));
+            json!({ "name": name, "uuid": uuid, "success": "true" })
         }
         _ => return vec![error(&action, 12)],
     };

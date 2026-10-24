@@ -22,7 +22,7 @@ use kassensturz_platform::SecretStorage;
 
 use crate::bank_connection::{
     self, Answer, Connection, Event, FetchOutcome, FetchRow, FoundAccount, ListedBankAccount,
-    LoginRow, Lookup, PinRequest, SetupDone, SetupForm, Status, Worker,
+    LoginRow, Lookup, PinRequest, PinStorageChange, SetupDone, SetupForm, Status, Worker,
 };
 use crate::errors::ErrorText;
 use crate::format::Locale;
@@ -124,16 +124,22 @@ pub mod qobject {
         #[cxx_name = "pinStorageChoices"]
         fn pin_storage_choices(self: &BankConnection) -> QVariant;
 
-        /// Saves PINs in the place `key` names from now on (D-163): the
-        /// PINs saved in the old place are removed there, and the choice is
-        /// kept in the settings. An object with `saved`, false when the
-        /// settings couldn't be written, and `removal`, empty or the error
-        /// object when the old place couldn't be reached (the new one is
-        /// used anyway); or an error object when nothing changed, e.g.
-        /// while KassenSturz talks to a bank.
+        /// Starts saving PINs in the place `key` names (D-163, D-167): the
+        /// place is got ready first, which may wait for the user (KeePassXC
+        /// asks to unlock the database and to allow KassenSturz), so this
+        /// runs in the background and ends with `pinStorageFinished`. An
+        /// empty object when it started, or an error object, e.g. while
+        /// KassenSturz talks to a bank.
         #[qinvokable]
         #[cxx_name = "choosePinStorage"]
         fn choose_pin_storage(self: Pin<&mut BankConnection>, key: &QString) -> QVariant;
+
+        /// Gets the chosen place ready again, e.g. connects to KeePassXC
+        /// after the user opened another database there (D-167); ends with
+        /// `pinStorageFinished` like `choosePinStorage`.
+        #[qinvokable]
+        #[cxx_name = "openPinStorage"]
+        fn open_pin_storage(self: Pin<&mut BankConnection>) -> QVariant;
 
         /// What the accounts the last setup found can be linked to: an
         /// object with `accounts` (the book's, `id` and `name`) and
@@ -241,6 +247,17 @@ pub mod qobject {
         #[qsignal]
         #[cxx_name = "setupFinished"]
         fn setup_finished(self: Pin<&mut BankConnection>, result: QVariant);
+
+        /// Choosing a place for saved PINs, or getting it ready again,
+        /// ended (D-163, D-167): an object with `saved`, false when the
+        /// settings couldn't be written, `removal`, empty or the error
+        /// object when the old place couldn't be reached (the new one is
+        /// used anyway), and `place` (`name` and `group`) when the place
+        /// has a name to show, a KeePassXC database; or an error object
+        /// when nothing changed.
+        #[qsignal]
+        #[cxx_name = "pinStorageFinished"]
+        fn pin_storage_finished(self: Pin<&mut BankConnection>, result: QVariant);
     }
 
     impl cxx_qt::Initialize for BankConnection {}
@@ -515,15 +532,35 @@ impl qobject::BankConnection {
 
     fn choose_pin_storage(mut self: Pin<&mut Self>, key: &QString) -> QVariant {
         let storage = SecretStorage::from_key(&key.to_string());
-        let removal = self
-            .as_mut()
-            .worker()
-            .run(move |connection| Ok(bank_connection::choose_pin_storage(connection, storage)));
-        match removal {
-            Ok(removal) => {
-                let saved = Settings::user().set_pin_storage(storage);
-                self.as_mut().set_pin_storage(QString::from(storage.key()));
-                pin_storage_object(saved, removal)
+        let started = self.as_mut().worker().spawn(move |connection, notify| {
+            let result = bank_connection::choose_pin_storage(connection, storage);
+            notify(Event::PinStorageDone {
+                storage,
+                result: result.map_err(|error| bank_connection::error_text(&error)),
+            });
+        });
+        self.started(started)
+    }
+
+    fn open_pin_storage(mut self: Pin<&mut Self>) -> QVariant {
+        let storage = SecretStorage::from_key(&self.pin_storage.to_string());
+        let started = self.as_mut().worker().spawn(move |connection, notify| {
+            let result = bank_connection::open_pin_storage(connection);
+            notify(Event::PinStorageDone {
+                storage,
+                result: result.map_err(|error| bank_connection::error_text(&error)),
+            });
+        });
+        self.started(started)
+    }
+
+    /// Marks the object busy when a background call `started`: an empty
+    /// object, else the error object.
+    fn started(mut self: Pin<&mut Self>, started: Result<(), BankError>) -> QVariant {
+        match started {
+            Ok(()) => {
+                self.as_mut().set_busy(true);
+                map([])
             }
             Err(error) => error_object(&bank_connection::error_text(&error)),
         }
@@ -569,6 +606,20 @@ fn deliver(mut qobject: Pin<&mut qobject::BankConnection>, event: Event) {
         Event::FetchDone(result) => {
             qobject.as_mut().set_busy(false);
             qobject.fetch_finished(fetch_object(&result));
+        }
+        Event::PinStorageDone { storage, result } => {
+            qobject.as_mut().set_busy(false);
+            let object = match result {
+                Ok(change) => {
+                    let saved = Settings::user().set_pin_storage(storage);
+                    qobject
+                        .as_mut()
+                        .set_pin_storage(QString::from(storage.key()));
+                    pin_storage_object(saved, &change)
+                }
+                Err(error) => error_object(&error),
+            };
+            qobject.pin_storage_finished(object);
         }
         Event::SetupDone(result) => {
             qobject.as_mut().rust_mut().found = result
@@ -814,12 +865,20 @@ fn pin_storage_choices_object(choices: &[SecretStorage]) -> QVariant {
 }
 
 /// What choosing a place for saved PINs did: whether the choice was
-/// `saved` in the settings, and the `removal` from the old place.
-fn pin_storage_object(saved: bool, removal: Result<(), BankError>) -> QVariant {
-    map([
+/// `saved` in the settings, the `removal` from the old place, and the
+/// `place` when it has a name to show (D-167).
+fn pin_storage_object(saved: bool, change: &PinStorageChange) -> QVariant {
+    let mut entries = vec![
         ("saved", QVariant::from(&saved)),
-        ("removal", done_object(removal)),
-    ])
+        ("removal", done_object(change.removal.clone())),
+    ];
+    if let Some(place) = &change.place {
+        entries.push((
+            "place",
+            map([("name", text(&place.name)), ("group", text(&place.group))]),
+        ));
+    }
+    map(entries)
 }
 
 /// An empty object when `done` worked, else the error object.
@@ -892,15 +951,44 @@ mod tests {
         assert!(!flag_of(&rows[0], "advanced"));
         assert_eq!(text_of(rows.last().expect("a choice"), "key"), "nowhere");
 
-        let chosen = pin_storage_object(true, Ok(()));
+        let chosen = pin_storage_object(
+            true,
+            &PinStorageChange {
+                place: None,
+                removal: Ok(()),
+            },
+        );
         assert!(flag_of(&chosen, "saved"));
         let removal = chosen
             .value::<QMap<QMapPair_QString_QVariant>>()
             .and_then(|object| object.get(&QString::from("removal")))
             .expect("removal");
         assert!(object(&removal).is_empty());
+        assert!(object(&chosen).get(&QString::from("place")).is_none());
 
-        let kept = pin_storage_object(false, Err(BankError::Keychain));
+        let keepassxc = pin_storage_object(
+            true,
+            &PinStorageChange {
+                place: Some(kassensturz_platform::KeychainPlace {
+                    name: "Household".to_owned(),
+                    group: "KassenSturz".to_owned(),
+                }),
+                removal: Ok(()),
+            },
+        );
+        let place = object(&keepassxc)
+            .get(&QString::from("place"))
+            .expect("place");
+        assert_eq!(text_of(&place, "name"), "Household");
+        assert_eq!(text_of(&place, "group"), "KassenSturz");
+
+        let kept = pin_storage_object(
+            false,
+            &PinStorageChange {
+                place: None,
+                removal: Err(BankError::Keychain),
+            },
+        );
         assert!(!flag_of(&kept, "saved"));
         let removal = object(&kept)
             .get(&QString::from("removal"))

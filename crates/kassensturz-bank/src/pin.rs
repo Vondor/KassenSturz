@@ -10,6 +10,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
+use kassensturz_platform::KeychainPlace;
 use zeroize::Zeroizing;
 
 use crate::backend::LoginId;
@@ -67,6 +68,14 @@ pub trait PinStore {
     /// Whether the store saves PINs at all: [`NoPinStore`] doesn't.
     fn saves(&self) -> bool {
         true
+    }
+
+    /// Gets the place ready to save PINs, asking the user for what it
+    /// needs, and says where in it they go, when the user can tell that
+    /// place apart from others, e.g. a KeePassXC database (D-167). A store
+    /// that needs nothing first answers `None`.
+    fn open(&self) -> Result<Option<KeychainPlace>, BankError> {
+        Ok(None)
     }
 }
 
@@ -274,6 +283,12 @@ impl PinSession {
     /// nowhere (D-163).
     pub fn saves(&self) -> bool {
         self.store.saves()
+    }
+
+    /// Gets the place PINs are saved in ready, e.g. connects to KeePassXC
+    /// again, and says where they go: [`PinStore::open`] (D-167).
+    pub fn open_store(&self) -> Result<Option<KeychainPlace>, BankError> {
+        self.store.open()
     }
 
     /// Saves PINs in `store` from now on, because the user chose another

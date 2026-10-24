@@ -9,6 +9,7 @@
 // backups go, and which version of the app is running (D-152).
 
 import QtQuick
+import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.formcard as FormCard
@@ -47,14 +48,22 @@ FormCard.FormCardPage {
     property var pendingLogin: ({})
 
     // Where saved PINs go (D-163): the places this build offers here, what
-    // choosing one did, and whether the advanced ones are shown.
+    // choosing one did, and whether the advanced ones are shown. The place
+    // being got ready, e.g. KeePassXC waiting for the user (D-167).
     property var pinStorageChoices: []
     property var pinStorageResult: ({})
     property bool showAdvancedStorage: false
+    property string pinStorageWaiting: ""
 
+    // Gets the place `key` ready and saves PINs there from now on; the
+    // chosen place again connects to it once more (D-167).
     function choosePinStorage(key: string) {
-        if (key !== bank.pinStorage)
-            pinStorageResult = bank.choosePinStorage(key);
+        pinStorageResult = ({});
+        const started = key === bank.pinStorage ? bank.openPinStorage() : bank.choosePinStorage(key);
+        if (started.code !== undefined)
+            pinStorageResult = started;
+        else
+            pinStorageWaiting = key;
     }
 
     // Reads the bank logins again, e.g. after one was set up or removed.
@@ -78,6 +87,11 @@ FormCard.FormCardPage {
 
         function onSetupFinished() {
             page.refreshBanks();
+        }
+
+        function onPinStorageFinished(result) {
+            page.pinStorageWaiting = "";
+            page.pinStorageResult = result;
         }
     }
 
@@ -296,6 +310,7 @@ FormCard.FormCardPage {
                 required property var modelData
 
                 visible: !modelData.advanced || page.showAdvancedStorage || page.bank.pinStorage === modelData.key
+                enabled: page.pinStorageWaiting === ""
                 // The choice follows the setting, not the click: a choice
                 // that couldn't be made stays unticked.
                 checkable: false
@@ -313,7 +328,7 @@ FormCard.FormCardPage {
                 description: {
                     switch (modelData.key) {
                     case "keepassxc":
-                        return page.i18nContext.i18nc("@info", "For a KeePassXC database you open only when needed, apart from your desktop's keychain. KassenSturz saves the PIN in the database open in KeePassXC, through KeePassXC's Browser Integration, which you turn on in its settings. KeePassXC asks once to allow KassenSturz, and asks you to unlock the database when it is locked. KassenSturz never sees the database's password.");
+                        return page.i18nContext.i18nc("@info", "For a KeePassXC database you open only when needed, apart from your desktop's keychain. KassenSturz never sees the database's password.");
                     case "nowhere":
                         return page.i18nContext.i18nc("@info", "KassenSturz never saves a PIN. You type it at each connection, or it remembers it until you close KassenSturz.");
                     default:
@@ -327,8 +342,46 @@ FormCard.FormCardPage {
                         }
                     }
                 }
-                onClicked: page.choosePinStorage(modelData.key)
+                onClicked: {
+                    if (modelData.key !== page.bank.pinStorage)
+                        page.choosePinStorage(modelData.key);
+                }
             }
+        }
+
+        // KeePassXC keeps the file; KassenSturz uses the database open in
+        // front there and says which one (D-167).
+        FormCard.FormDelegateSeparator {
+            visible: keepassxcHelp.visible
+        }
+
+        FormCard.FormTextDelegate {
+            id: keepassxcHelp
+
+            // The database's and group's names are the user's own text.
+            textItem.textFormat: Text.PlainText
+            textItem.wrapMode: Text.Wrap
+            descriptionItem.textFormat: Text.PlainText
+            visible: page.bank.pinStorage === "keepassxc" || page.pinStorageWaiting === "keepassxc"
+            text: page.pinStorageWaiting === "keepassxc"
+                ? page.i18nContext.i18nc("@info", "Waiting for KeePassXC…")
+                : page.pinStorageResult.place !== undefined
+                    ? page.i18nContext.i18nc("@info %1 a KeePassXC database's name, %2 a group in it", "PINs are saved in the KeePassXC database “%1”, in its group “%2”.", page.pinStorageResult.place.name, page.pinStorageResult.place.group)
+                    : page.i18nContext.i18nc("@info", "PINs are saved in the KeePassXC database open in front, in its group “KassenSturz”.")
+            description: page.pinStorageWaiting === "keepassxc"
+                ? page.i18nContext.i18nc("@info", "Switch to KeePassXC: unlock the database there, and allow KassenSturz when KeePassXC asks. If KeePassXC isn't running, start it first.")
+                : page.i18nContext.i18nc("@info", "KeePassXC keeps the database file: you choose there where it is saved and how it is encrypted. To keep your PINs in a file of their own, create a new database in KeePassXC (Database → New Database), keep it open in front, and connect again. KassenSturz reaches KeePassXC through its Browser Integration, which you turn on in KeePassXC's settings.")
+            trailing: Controls.BusyIndicator {
+                visible: page.pinStorageWaiting !== ""
+                running: visible
+            }
+        }
+
+        FormCard.FormButtonDelegate {
+            icon.name: "view-refresh"
+            text: page.i18nContext.i18nc("@action:button", "Connect to KeePassXC again")
+            visible: page.bank.pinStorage === "keepassxc" && page.pinStorageWaiting === ""
+            onClicked: page.choosePinStorage("keepassxc")
         }
 
         FormCard.FormDelegateSeparator {}

@@ -25,7 +25,11 @@
 //!
 //! Without AqBanking, or with `KASSENSTURZ_FAKE_BANK=1` (for trying the
 //! screens, marked in them), the worker holds the fake bank, which asks
-//! for a TAN at every connection (D-055).
+//! for a TAN at every connection (D-055). With `KASSENSTURZ_FAKE_BANK=keychain`
+//! it is the same fake bank, but a PIN the user saves goes into the real
+//! system keychain, filed under [`FAKE_BANK_SERVICE`], so saving, reading
+//! back and removing a PIN can be tried with the desktop's own keychain
+//! before KassenSturz may talk to a real bank (D-159).
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -41,15 +45,31 @@ use kassensturz_bank::{
 };
 use kassensturz_core::{AccountId, BankLink, Date, ErrorParam, Report};
 use kassensturz_import::{EntryStatus, Limits};
-use kassensturz_platform::SystemKeychain;
+use kassensturz_platform::{Keychain, SystemKeychain};
 use kassensturz_store::Book;
 
 use crate::bank_fetch::{self, Fetch};
 use crate::errors::{ErrorText, report_text};
 use crate::format::Locale;
 
-/// The environment variable that puts the fake bank behind the screens.
+/// The environment variable that puts the fake bank behind the screens:
+/// `1` with the PINs in memory, [`FAKE_BANK_WITH_KEYCHAIN`] with the PINs in
+/// the system keychain.
 pub const FAKE_BANK_VARIABLE: &str = "KASSENSTURZ_FAKE_BANK";
+
+/// The value of [`FAKE_BANK_VARIABLE`] that saves the fake bank's PINs in
+/// the system keychain (D-159).
+pub const FAKE_BANK_WITH_KEYCHAIN: &str = "keychain";
+
+/// The name the keychain files the fake bank's PINs under, apart from
+/// KassenSturz's own [`kassensturz_platform::APP_ID`], so a made-up PIN is
+/// never mistaken for a real one and the user sees in the keychain's
+/// manager that it belongs to the fake bank (D-159).
+pub const FAKE_BANK_SERVICE: &str = "io.github.vondor.KassenSturz.FakeBank";
+
+/// How many of the fake bank's login IDs are looked up in the keychain
+/// when the app starts: more than anyone sets up while trying it out.
+const FAKE_LOGINS_LOOKED_UP: u32 = 9;
 
 /// What the worker holds: the backend, or why it couldn't be opened, and
 /// the PINs of this run of the app (D-057).
@@ -94,15 +114,43 @@ impl Connection {
         }
     }
 
+    /// The fake `bank` with its PINs saved in `keychain` (D-159): the
+    /// system keychain under [`FAKE_BANK_SERVICE`] in the app, a
+    /// [`kassensturz_platform::MemoryKeychain`] in tests.
+    ///
+    /// The fake bank forgets its logins when the app closes, so a login
+    /// whose PIN the keychain still holds from an earlier run is added
+    /// again; the saved PIN is then read back from the keychain the first
+    /// time the bank asks for it. A keychain that can't be read now adds
+    /// none, and says so when a PIN is saved.
+    pub fn fake_with_keychain(mut bank: FakeBank, keychain: Box<dyn Keychain>) -> Self {
+        let pins = PinSession::new(Box::new(KeychainPinStore::new(keychain)));
+        for n in 1..=FAKE_LOGINS_LOOKED_UP {
+            let login = FakeBank::login_id(n);
+            if pins.is_saved(&login) == Ok(true) {
+                bank = bank.with_login(login);
+            }
+        }
+        Self::fake(bank, pins)
+    }
+
     /// The connection the app uses: the fake bank when asked for, else
     /// AqBanking in KassenSturz's data folder, or `bank.folder` without
     /// one.
     pub fn for_app(folder: Option<PathBuf>) -> Self {
-        let wants_fake = std::env::var_os(FAKE_BANK_VARIABLE).is_some_and(|value| value == "1");
+        let fake = std::env::var_os(FAKE_BANK_VARIABLE);
+        let wants_fake = fake.as_ref().is_some_and(|value| value == "1");
+        let wants_keychain = fake
+            .as_ref()
+            .is_some_and(|value| value == FAKE_BANK_WITH_KEYCHAIN);
         match folder {
             _ if wants_fake => Self::fake(
                 FakeBank::new().with_second_factor(SecondFactor::Tan),
                 PinSession::new(Box::new(kassensturz_bank::MemoryPinStore::new())),
+            ),
+            _ if wants_keychain => Self::fake_with_keychain(
+                FakeBank::new().with_second_factor(SecondFactor::Tan),
+                Box::new(SystemKeychain::for_service(FAKE_BANK_SERVICE)),
             ),
             Some(folder) => Self::real(&folder.join("aqbanking")),
             // Without a data folder AqBanking has nowhere to keep its
@@ -1821,5 +1869,88 @@ mod tests {
         let outcomes =
             fetch(&mut connection, requests(&book, &[current]), today()).expect("fetched");
         assert_eq!(outcomes[0].state, "ready");
+    }
+
+    /// A keychain the test can look inside while a connection uses it.
+    #[derive(Clone)]
+    struct SharedKeychain(Arc<kassensturz_platform::MemoryKeychain>);
+
+    impl Keychain for SharedKeychain {
+        fn store(
+            &self,
+            key: &kassensturz_platform::SecretKey,
+            secret: &kassensturz_platform::Secret,
+        ) -> Result<(), kassensturz_platform::KeychainError> {
+            self.0.store(key, secret)
+        }
+
+        fn read(
+            &self,
+            key: &kassensturz_platform::SecretKey,
+        ) -> Result<Option<kassensturz_platform::Secret>, kassensturz_platform::KeychainError>
+        {
+            self.0.read(key)
+        }
+
+        fn delete(
+            &self,
+            key: &kassensturz_platform::SecretKey,
+        ) -> Result<(), kassensturz_platform::KeychainError> {
+            self.0.delete(key)
+        }
+    }
+
+    #[test]
+    fn the_fake_banks_pin_is_saved_read_back_and_removed_through_the_keychain() {
+        let keychain = SharedKeychain(Arc::new(kassensturz_platform::MemoryKeychain::new()));
+        let key = kassensturz_platform::SecretKey::new("bank-pin", "fake-login-1").expect("key");
+        // First run: the setup saves the PIN in the keychain.
+        let mut first = Connection::fake_with_keychain(FakeBank::new(), Box::new(keychain.clone()));
+        assert!(first.fake);
+        assert_eq!(first.status(), Status::Ready { fake: true });
+        assert!(logins(&mut first).expect("logins").is_empty());
+        let mut setup = form(FakeBank::PIN);
+        setup.pin_mode = PinMode::SaveInKeychain;
+        let done = set_up(&mut first, setup).expect("set up");
+        assert_eq!(done.login, "fake-login-1");
+        assert!(keychain.0.contains(&key));
+        assert_eq!(keychain.0.len(), 1);
+        drop(first);
+
+        // Next run: the login is back, and the fetch reads the PIN from the
+        // keychain; without screens, asking the user would end it.
+        let mut next = Connection::fake_with_keychain(FakeBank::new(), Box::new(keychain.clone()));
+        let rows = logins(&mut next).expect("logins");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, "fake-login-1");
+        assert!(!next.pins.is_remembered(&LoginId::new("fake-login-1")));
+        let statement = bank_statement(&mut next);
+        assert!(!statement.entries.is_empty());
+        // A second setup gets a new ID instead of taking the old login's.
+        let done = set_up(&mut next, form(FakeBank::PIN)).expect("set up");
+        assert_eq!(done.login, "fake-login-2");
+
+        // Removing the login removes its saved PIN from the keychain.
+        remove(&mut next, "fake-login-1").expect("removed");
+        assert!(keychain.0.is_empty());
+        drop(next);
+        let mut after = Connection::fake_with_keychain(FakeBank::new(), Box::new(keychain));
+        assert!(logins(&mut after).expect("logins").is_empty());
+    }
+
+    #[test]
+    fn a_keychain_that_cant_be_read_brings_back_no_fake_login() {
+        let keychain = kassensturz_platform::MemoryKeychain::new();
+        keychain.fail_with(Some(kassensturz_platform::KeychainError::Unavailable));
+        let mut connection = Connection::fake_with_keychain(FakeBank::new(), Box::new(keychain));
+        assert!(logins(&mut connection).expect("logins").is_empty());
+        let mut setup = form(FakeBank::PIN);
+        setup.pin_mode = PinMode::SaveInKeychain;
+        assert_eq!(
+            set_up(&mut connection, setup)
+                .map(|_| ())
+                .map_err(|e| e.code),
+            Err("bank.keychain")
+        );
     }
 }

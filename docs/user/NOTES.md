@@ -167,6 +167,7 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - At the end, KassenSturz lists the accounts your bank shows and suggests which account in your book each one fills; you confirm or change each choice.
 - In Settings, each bank login has "Forget the PIN" and "Remove bank login and saved PIN…". Removing a login keeps your accounts, their transactions and their links to the bank accounts.
 - To try the screens without a bank, start KassenSturz with `KASSENSTURZ_FAKE_BANK=1`: a made-up bank (PIN 12345, TAN 123456) stands in, and a note on the screen says so.
+- To try saving a PIN in your real keychain (KWallet, GNOME Keyring or KeePassXC) before you connect a real bank, start KassenSturz with `KASSENSTURZ_FAKE_BANK=keychain` instead. It is the same made-up bank, but when you choose to keep its PIN in your keychain, the made-up PIN 12345 is saved there, under the name `io.github.vondor.KassenSturz.FakeBank` and the entry `bank-pin/fake-login-1`, apart from the PINs of real banks. The made-up bank forgets its logins when you close KassenSturz, but a login whose PIN is still in the keychain comes back at the next start and uses that PIN without asking. "Remove bank login and saved PIN…" removes the entry from the keychain again; you can also delete it in the keychain's own manager.
 
 ## Which account is filled from which bank account (M4.4a)
 

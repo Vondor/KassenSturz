@@ -132,7 +132,7 @@ impl cxx_qt::Initialize for qobject::BookSession {
         let backup_folder = display(books.backup_folder());
         let mut state = self.as_mut().rust_mut();
         state.backup_folder = QString::from(backup_folder.as_str());
-        state.version = QString::from(app_version());
+        state.version = QString::from(version_label().as_str());
         state.books = Some(books);
     }
 }
@@ -315,6 +315,16 @@ fn app_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+/// What Settings shows: the version, and the commit the build is made from
+/// (empty when the build doesn't know it), since a build is numbered only when
+/// it is prepared for users and many builds share one number (D-152).
+fn version_label() -> String {
+    match option_env!("KASSENSTURZ_BUILD_COMMIT") {
+        Some(commit) if !commit.is_empty() => format!("{} ({commit})", app_version()),
+        _ => app_version().to_owned(),
+    }
+}
+
 fn display(path: &Path) -> String {
     path.display().to_string()
 }
@@ -326,6 +336,22 @@ fn qtext(value: &str) -> QVariant {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_label_names_the_version_and_the_commit_when_known() {
+        let label = version_label();
+        assert!(label.starts_with(app_version()), "{label}");
+        let rest = label.strip_prefix(app_version()).unwrap();
+        assert!(
+            rest.is_empty()
+                || (rest.starts_with(" (")
+                    && rest.ends_with(')')
+                    && rest[2..rest.len() - 1]
+                        .chars()
+                        .all(|c| c.is_ascii_hexdigit())),
+            "{label}"
+        );
+    }
 
     /// The version Settings shows is the one the build files carry
     /// (D-152), and has the form 0.YYMMDD.N.

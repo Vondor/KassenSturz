@@ -9,6 +9,9 @@ Cargo.lock.bak
 # Cargo's folder in the Kubuntu and Fedora CI jobs (D-110)
 /.cargo-home/
 
+# The commit id CI writes before the Flatpak build (crates/kassensturz-ui-bridge/build.rs)
+/build-commit
+
 # flatpak-builder's state
 /.flatpak-builder/
 

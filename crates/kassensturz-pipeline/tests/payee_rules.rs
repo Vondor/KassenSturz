@@ -340,3 +340,21 @@ fn rules_of_a_handed_over_book_get_names_that_differ_and_a_known_account() {
     assert!(fill_book_from(&mut book, &imported, &HashMap::new()).is_err());
     assert_eq!(book.rules().expect("Rules"), Vec::new());
 }
+
+/// KMyMoney writes a name as a pattern by escaping everything that isn't a
+/// letter, a digit or an underscore; the `regex` crate takes all of those
+/// escapes, so a name KMyMoney wrote in full is never left out (D-160).
+#[test]
+fn every_escaped_punctuation_mark_is_usable() {
+    let escaped: String = (0x21_u8..0x7f)
+        .map(char::from)
+        .filter(|c| !c.is_ascii_alphanumeric() && *c != '_')
+        .map(|c| format!("\\{c}"))
+        .collect();
+    let mut imported = two_accounts();
+    imported.rules = vec![rule_for("Shop", &format!("^a\\ {escaped}b$"), Some("E1"))];
+    let mut book = Book::create_in_memory().expect("book created");
+    let report = fill_book_from(&mut book, &imported, &HashMap::new()).expect("filled");
+    assert_eq!(report.rules, 1);
+    assert_eq!(report.patterns_left_out, Vec::new());
+}

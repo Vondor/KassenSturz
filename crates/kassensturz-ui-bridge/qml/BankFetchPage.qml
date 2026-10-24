@@ -53,6 +53,10 @@ Kirigami.ScrollablePage {
         translationDomain: "kassensturz"
     }
 
+    BankAccountNames {
+        id: accountNames
+    }
+
     title: i18nContext.i18nc("@title", "Get new transactions")
     header: ColumnLayout {
         spacing: 0
@@ -432,7 +436,7 @@ Kirigami.ScrollablePage {
                     Controls.RadioButton {
                         Controls.ButtonGroup.group: group
                         checked: choice.modelData.key === linkDialog.chosen
-                        Accessible.name: choice.modelData.name !== "" ? choice.modelData.name : choice.modelData.iban
+                        Accessible.name: accountNames.name(choice.modelData, page.bank.fake)
                         onToggled: linkDialog.chosen = choice.modelData.key
                     }
 
@@ -445,9 +449,7 @@ Kirigami.ScrollablePage {
                             wrapMode: Text.Wrap
                             textFormat: Text.PlainText
                             font.bold: true
-                            text: choice.modelData.name !== ""
-                                ? choice.modelData.name
-                                : page.i18nContext.i18nc("@label an account at the bank without a name", "Account")
+                            text: accountNames.name(choice.modelData, page.bank.fake)
                         }
 
                         Controls.Label {

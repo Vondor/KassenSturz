@@ -38,6 +38,10 @@ Kirigami.ScrollablePage {
         translationDomain: "kassensturz"
     }
 
+    BankAccountNames {
+        id: accountNames
+    }
+
     readonly property bool canContinue: ["ready", "unknown-bank", "no-server", "guessed-server", "unknown-login-kind"].includes(lookup.state ?? "")
 
     title: i18nContext.i18nc("@title", "Connect a bank")
@@ -335,7 +339,7 @@ Kirigami.ScrollablePage {
                         textFormat: Text.PlainText
                         font.bold: true
                         text: {
-                            const what = choice.modelData.name !== "" ? choice.modelData.name : page.i18nContext.i18nc("@label an account at the bank without a name", "Account");
+                            const what = accountNames.name(choice.modelData, page.bank.fake);
                             const number = choice.modelData.iban !== "" ? choice.modelData.iban : choice.modelData.number;
                             return number !== "" ? page.i18nContext.i18nc("@label %1 is the bank's name of an account, %2 its IBAN or number", "%1, %2", what, number) : what;
                         }

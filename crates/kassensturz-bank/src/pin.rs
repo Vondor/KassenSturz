@@ -64,6 +64,37 @@ pub trait PinStore {
     fn load(&self, login: &LoginId) -> Result<Option<Pin>, BankError>;
     /// Removes the saved PIN for `login`; nothing happens if there is none.
     fn delete(&mut self, login: &LoginId) -> Result<(), BankError>;
+    /// Whether the store saves PINs at all: [`NoPinStore`] doesn't.
+    fn saves(&self) -> bool {
+        true
+    }
+}
+
+/// The store when the user chose to save PINs nowhere (D-163): it holds
+/// none, and the session keeps a PIN the user wanted saved only until the
+/// app closes instead.
+#[derive(Debug, Default)]
+pub struct NoPinStore;
+
+impl PinStore for NoPinStore {
+    /// Never reached through [`PinSession`], which asks [`Self::saves`]
+    /// first; fails like a keychain that can't be reached, so nothing is
+    /// ever lost silently.
+    fn save(&mut self, _login: &LoginId, _pin: &Pin) -> Result<(), BankError> {
+        Err(BankError::Keychain)
+    }
+
+    fn load(&self, _login: &LoginId) -> Result<Option<Pin>, BankError> {
+        Ok(None)
+    }
+
+    fn delete(&mut self, _login: &LoginId) -> Result<(), BankError> {
+        Ok(())
+    }
+
+    fn saves(&self) -> bool {
+        false
+    }
 }
 
 /// A store in memory, for tests and for a build without a keychain.
@@ -179,9 +210,11 @@ impl PinSession {
     /// Takes the PIN the user typed for `login`, to be kept as `mode`
     /// says. A PIN to save goes to the store at once and is remembered
     /// until the app closes too, so the keychain isn't asked on every
-    /// request.
+    /// request. When the user chose to save PINs nowhere (D-163), a PIN to
+    /// save is only remembered until the app closes.
     pub fn provide(&mut self, login: &LoginId, pin: Pin, mode: PinMode) -> Result<(), BankError> {
         self.rejected.remove(login);
+        let mode = self.keepable(mode);
         if mode == PinMode::SaveInKeychain {
             self.store.save(login, &pin)?;
         }
@@ -235,6 +268,50 @@ impl PinSession {
     /// show "Remove saved PIN".
     pub fn is_saved(&self, login: &LoginId) -> Result<bool, BankError> {
         Ok(self.store.load(login)?.is_some())
+    }
+
+    /// Whether the store saves PINs: the user didn't choose to save them
+    /// nowhere (D-163).
+    pub fn saves(&self) -> bool {
+        self.store.saves()
+    }
+
+    /// Saves PINs in `store` from now on, because the user chose another
+    /// place for them (D-163). The PINs of `logins` saved in the old place
+    /// are deleted there and never copied over: the user types each again
+    /// at the next connection and chooses to save it in the new place. A
+    /// PIN remembered because it was saved stays remembered until the app
+    /// closes. The store is replaced even when the old place can't be
+    /// reached; the first error then says so, and the PINs it holds stay
+    /// there until the user removes them in that place's own manager.
+    pub fn replace_store(
+        &mut self,
+        store: Box<dyn PinStore>,
+        logins: &[LoginId],
+    ) -> Result<(), BankError> {
+        let mut result = Ok(());
+        for login in logins {
+            if let Err(error) = self.store.delete(login) {
+                result = result.and(Err(error));
+            }
+        }
+        self.store = store;
+        for (_, mode) in self.remembered.values_mut() {
+            if *mode == PinMode::SaveInKeychain {
+                *mode = PinMode::RememberUntilClose;
+            }
+        }
+        result
+    }
+
+    /// `mode`, or remembering until the app closes when it asks to save
+    /// and the store saves nothing.
+    fn keepable(&self, mode: PinMode) -> PinMode {
+        if mode == PinMode::SaveInKeychain && !self.store.saves() {
+            PinMode::RememberUntilClose
+        } else {
+            mode
+        }
     }
 
     /// Whether a PIN for `login` is remembered in memory, however long.
@@ -401,5 +478,115 @@ mod tests {
     #[test]
     fn asking_each_time_is_the_default() {
         assert_eq!(PinMode::default(), PinMode::AskEachTime);
+    }
+
+    /// A memory store the test can look into after the session took it.
+    #[derive(Clone, Default)]
+    struct Shared(std::sync::Arc<std::sync::Mutex<MemoryPinStore>>);
+
+    impl PinStore for Shared {
+        fn save(&mut self, login: &LoginId, pin: &Pin) -> Result<(), BankError> {
+            self.0.lock().expect("store").save(login, pin)
+        }
+
+        fn load(&self, login: &LoginId) -> Result<Option<Pin>, BankError> {
+            self.0.lock().expect("store").load(login)
+        }
+
+        fn delete(&mut self, login: &LoginId) -> Result<(), BankError> {
+            self.0.lock().expect("store").delete(login)
+        }
+    }
+
+    #[test]
+    fn saving_nowhere_only_remembers_the_pin_until_the_app_closes() {
+        let mut session = PinSession::new(Box::new(NoPinStore));
+        assert!(!session.saves());
+        session
+            .provide(&login(), pin("0000"), PinMode::SaveInKeychain)
+            .expect("remembered instead");
+        assert_eq!(session.answer(&login()), Ok(PinAnswer::Known(pin("0000"))));
+        assert_eq!(session.is_saved(&login()), Ok(false));
+        // It outlives the bank session, like a remembered PIN.
+        session.end_session();
+        assert!(session.is_remembered(&login()));
+        // A login set up while pending keeps it under its new ID.
+        let pending = LoginId::pending();
+        session
+            .provide(&pending, pin("1111"), PinMode::SaveInKeychain)
+            .expect("remembered instead");
+        let new = LoginId::new("login-2");
+        session.rename(&pending, &new).expect("moved");
+        assert_eq!(session.answer(&new), Ok(PinAnswer::Known(pin("1111"))));
+        assert_eq!(session.is_saved(&new), Ok(false));
+        session.forget(&new).expect("forgotten");
+        assert_eq!(session.answer(&new), Ok(PinAnswer::Ask));
+    }
+
+    #[test]
+    fn a_new_place_starts_empty_and_the_old_one_is_emptied() {
+        let old = Shared::default();
+        let new = Shared::default();
+        let mut session = PinSession::new(Box::new(old.clone()));
+        let other = LoginId::new("login-2");
+        session
+            .provide(&login(), pin("0000"), PinMode::SaveInKeychain)
+            .expect("saved");
+        session
+            .provide(&other, pin("1111"), PinMode::SaveInKeychain)
+            .expect("saved");
+        assert_eq!(old.0.lock().expect("store").len(), 2);
+
+        session
+            .replace_store(Box::new(new.clone()), &[login(), other.clone()])
+            .expect("replaced");
+
+        // Removed from the old place, not copied to the new one.
+        assert!(old.0.lock().expect("store").is_empty());
+        assert!(new.0.lock().expect("store").is_empty());
+        assert!(session.saves());
+        assert_eq!(session.is_saved(&login()), Ok(false));
+        // Still remembered until the app closes, now only in memory.
+        assert_eq!(session.answer(&login()), Ok(PinAnswer::Known(pin("0000"))));
+        session
+            .rename(&login(), &LoginId::new("login-3"))
+            .expect("moved");
+        assert!(new.0.lock().expect("store").is_empty());
+        // The next PIN to save goes to the new place.
+        session
+            .provide(&other, pin("2222"), PinMode::SaveInKeychain)
+            .expect("saved");
+        assert_eq!(
+            new.0.lock().expect("store").load(&other),
+            Ok(Some(pin("2222")))
+        );
+    }
+
+    #[test]
+    fn an_old_place_out_of_reach_is_still_left_and_says_so() {
+        let old = Shared::default();
+        let mut session = PinSession::new(Box::new(old.clone()));
+        session
+            .provide(&login(), pin("0000"), PinMode::SaveInKeychain)
+            .expect("saved");
+        old.0.lock().expect("store").unavailable = true;
+
+        let result = session.replace_store(Box::new(NoPinStore), &[login()]);
+
+        assert_eq!(result, Err(BankError::Keychain));
+        assert!(!session.saves());
+        assert_eq!(session.is_saved(&login()), Ok(false));
+        old.0.lock().expect("store").unavailable = false;
+        assert_eq!(old.0.lock().expect("store").len(), 1);
+    }
+
+    #[test]
+    fn the_empty_store_saves_nothing() {
+        let mut store = NoPinStore;
+        assert!(!store.saves());
+        assert_eq!(store.save(&login(), &pin("0000")), Err(BankError::Keychain));
+        assert_eq!(store.load(&login()), Ok(None));
+        assert_eq!(store.delete(&login()), Ok(()));
+        assert!(MemoryPinStore::new().saves());
     }
 }

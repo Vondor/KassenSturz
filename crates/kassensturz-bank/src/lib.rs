@@ -74,5 +74,5 @@ pub use keychain::KeychainPinStore;
 pub use linked::{
     FETCH_OVERLAP_DAYS, PinAsker, fetch_linked, fetch_start, find_bank_account, names_account,
 };
-pub use pin::{MemoryPinStore, Pin, PinAnswer, PinMode, PinSession, PinStore};
+pub use pin::{MemoryPinStore, NoPinStore, Pin, PinAnswer, PinMode, PinSession, PinStore};
 pub use statement::statement;

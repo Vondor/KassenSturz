@@ -14,6 +14,9 @@
 //! keychain: it keeps secrets in memory only and can be told to fail like
 //! an unreachable keychain.
 //!
+//! [`SecretStorage`] is the user's choice of where saved secrets go: the
+//! system keychain by default, or, as an advanced choice, nowhere (D-163).
+//!
 //! A [`Secret`] never shows its value, not even in `Debug`, and wipes its
 //! memory when dropped (threat T-02 in `docs/THREAT_MODEL.md`). Errors are
 //! codes without values ([`KeychainError`], D-034): no error, log or report
@@ -29,12 +32,14 @@ mod error;
 mod key;
 mod memory;
 mod secret;
+mod storage;
 mod system;
 
 pub use error::KeychainError;
 pub use key::SecretKey;
 pub use memory::MemoryKeychain;
 pub use secret::Secret;
+pub use storage::SecretStorage;
 pub use system::{APP_ID, SystemKeychain};
 
 /// A place that keeps secrets for the user, such as a saved banking PIN

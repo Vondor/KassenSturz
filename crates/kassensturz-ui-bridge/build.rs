@@ -22,6 +22,7 @@ fn main() {
                 "qml/AmountLabel.qml",
                 "qml/AmountLine.qml",
                 "qml/Balance.qml",
+                "qml/BankAccountNames.qml",
                 "qml/BankCheckPage.qml",
                 "qml/BankDialogs.qml",
                 "qml/BankFetchPage.qml",

@@ -44,6 +44,17 @@ FormCard.FormCardPage {
     // The login the removal dialog asks about.
     property var pendingLogin: ({})
 
+    // Where saved PINs go (D-163): the places this build offers here, what
+    // choosing one did, and whether the advanced ones are shown.
+    property var pinStorageChoices: []
+    property var pinStorageResult: ({})
+    property bool showAdvancedStorage: false
+
+    function choosePinStorage(key: string) {
+        if (key !== bank.pinStorage)
+            pinStorageResult = bank.choosePinStorage(key);
+    }
+
     // Reads the bank logins again, e.g. after one was set up or removed.
     function refreshBanks() {
         bankStatus = bank.status();
@@ -54,7 +65,10 @@ FormCard.FormCardPage {
         }
     }
 
-    Component.onCompleted: refreshBanks()
+    Component.onCompleted: {
+        refreshBanks();
+        pinStorageChoices = Array.from(bank.pinStorageChoices().choices ?? []);
+    }
 
     // A login set up on its page is listed here at once.
     Connections {
@@ -254,6 +268,81 @@ FormCard.FormCardPage {
         Layout.maximumWidth: Kirigami.Units.gridUnit * 30
         Layout.alignment: Qt.AlignHCenter
         result: page.bankResult.code !== undefined ? page.bankResult : page.bankStatus.ready === false ? page.bankStatus : ({})
+    }
+
+    // Where KassenSturz saves a PIN the user chooses to save (D-057,
+    // D-163): the system keychain first, the other places one step away.
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "Password storage")
+    }
+
+    FormCard.FormCard {
+        Repeater {
+            model: page.pinStorageChoices
+
+            delegate: FormCard.FormRadioDelegate {
+                id: storage
+
+                required property var modelData
+
+                visible: !modelData.advanced || page.showAdvancedStorage || page.bank.pinStorage === modelData.key
+                // The choice follows the setting, not the click: a choice
+                // that couldn't be made stays unticked.
+                checkable: false
+                checked: page.bank.pinStorage === modelData.key
+                text: {
+                    switch (modelData.key) {
+                    case "nowhere":
+                        return page.i18nContext.i18nc("@option:radio where PINs are saved", "Don't save PINs");
+                    default:
+                        return page.i18nContext.i18nc("@option:radio where PINs are saved", "System keychain");
+                    }
+                }
+                description: {
+                    switch (modelData.key) {
+                    case "nowhere":
+                        return page.i18nContext.i18nc("@info", "KassenSturz never saves a PIN. You type it at each connection, or it remembers it until you close KassenSturz.");
+                    default:
+                        switch (Qt.platform.os) {
+                        case "windows":
+                            return page.i18nContext.i18nc("@info", "Recommended. The Windows Credential Manager keeps your PINs safe in the background.");
+                        case "osx":
+                            return page.i18nContext.i18nc("@info", "Recommended. The macOS Keychain keeps your PINs safe in the background.");
+                        default:
+                            return page.i18nContext.i18nc("@info", "Recommended. Your desktop's keychain keeps your PINs safe in the background: KWallet, GNOME Keyring, or KeePassXC if you set it up to take their place.");
+                        }
+                    }
+                }
+                onClicked: page.choosePinStorage(modelData.key)
+            }
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            icon.name: page.showAdvancedStorage ? "arrow-up" : "arrow-down"
+            text: page.showAdvancedStorage
+                ? page.i18nContext.i18nc("@action:button", "Hide advanced choices")
+                : page.i18nContext.i18nc("@action:button", "Show advanced choices")
+            visible: page.pinStorageChoices.some(choice => choice.advanced && choice.key !== page.bank.pinStorage)
+            onClicked: page.showAdvancedStorage = !page.showAdvancedStorage
+        }
+    }
+
+    FormCard.FormSectionText {
+        textFormat: Text.PlainText
+        text: page.pinStorageResult.saved === false
+            ? page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice. Check that your settings folder can be written to, then choose again.")
+            : page.i18nContext.i18nc("@info", "KassenSturz saves a PIN only when you choose so as you type it. When you choose another place here, the PINs saved in the old one are removed, and you type each PIN again at the next connection.")
+    }
+
+    // Why the choice couldn't be made, or why the old place couldn't be
+    // emptied.
+    FormError {
+        Layout.fillWidth: true
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 30
+        Layout.alignment: Qt.AlignHCenter
+        result: page.pinStorageResult.code !== undefined ? page.pinStorageResult : page.pinStorageResult.removal ?? ({})
     }
 
     Kirigami.PromptDialog {

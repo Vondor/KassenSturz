@@ -18,6 +18,7 @@ use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QList, QMap, QMapPair_QString_QVariant, QString, QVariant};
 use kassensturz_bank::{BankError, BankQuestion, Pin as BankPin, Tan, TanRequest};
 use kassensturz_core::Report;
+use kassensturz_platform::SecretStorage;
 
 use crate::bank_connection::{
     self, Answer, Connection, Event, FetchOutcome, FetchRow, FoundAccount, ListedBankAccount,
@@ -29,6 +30,7 @@ use crate::number_format::app_locale;
 use crate::platform;
 use crate::register_model::field;
 use crate::session;
+use crate::settings::Settings;
 use crate::variant::{error_object, list, map, text};
 
 #[cxx_qt::bridge]
@@ -47,6 +49,10 @@ pub mod qobject {
         #[qml_element]
         #[qproperty(bool, busy, READ, WRITE, NOTIFY)]
         #[qproperty(bool, fake, READ, WRITE, NOTIFY)]
+        /// Where saved PINs go, the key of the user's choice: `system` or
+        /// `nowhere` (D-163). The PIN dialogs offer saving only when it
+        /// isn't `nowhere`.
+        #[qproperty(QString, pin_storage, cxx_name = "pinStorage", READ, WRITE, NOTIFY)]
         type BankConnection = super::BankConnectionRust;
     }
 
@@ -108,6 +114,25 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "forgetPin"]
         fn forget_pin(self: Pin<&mut BankConnection>, id: &QString) -> QVariant;
+
+        /// The places for saved PINs this build offers on this system, the
+        /// default first: an object with `choices`, a list of objects with
+        /// `key` (`system`, `nowhere`) and `advanced`, true for the choices
+        /// one step away from the default (D-163).
+        #[qinvokable]
+        #[cxx_name = "pinStorageChoices"]
+        fn pin_storage_choices(self: &BankConnection) -> QVariant;
+
+        /// Saves PINs in the place `key` names from now on (D-163): the
+        /// PINs saved in the old place are removed there, and the choice is
+        /// kept in the settings. An object with `saved`, false when the
+        /// settings couldn't be written, and `removal`, empty or the error
+        /// object when the old place couldn't be reached (the new one is
+        /// used anyway); or an error object when nothing changed, e.g.
+        /// while KassenSturz talks to a bank.
+        #[qinvokable]
+        #[cxx_name = "choosePinStorage"]
+        fn choose_pin_storage(self: Pin<&mut BankConnection>, key: &QString) -> QVariant;
 
         /// What the accounts the last setup found can be linked to: an
         /// object with `accounts` (the book's, `id` and `name`) and
@@ -218,6 +243,7 @@ pub mod qobject {
 pub struct BankConnectionRust {
     busy: bool,
     fake: bool,
+    pin_storage: QString,
     /// The worker, started when a screen first needs it.
     worker: Option<Worker>,
     /// What the last setup found, for linking.
@@ -225,7 +251,10 @@ pub struct BankConnectionRust {
 }
 
 impl cxx_qt::Initialize for qobject::BankConnection {
-    fn initialize(self: Pin<&mut Self>) {}
+    fn initialize(self: Pin<&mut Self>) {
+        let storage = Settings::user().pin_storage();
+        self.set_pin_storage(QString::from(storage.key()));
+    }
 }
 
 impl qobject::BankConnection {
@@ -240,7 +269,8 @@ impl qobject::BankConnection {
                 let _ = thread.queue(move |qobject| deliver(qobject, event));
             });
             let folder = platform::app_folder();
-            let worker = Worker::start(move || Connection::for_app(folder), notify);
+            let storage = SecretStorage::from_key(&self.pin_storage.to_string());
+            let worker = Worker::start(move || Connection::for_app(folder, storage), notify);
             self.as_mut().rust_mut().worker = Some(worker);
         }
         self.into_ref()
@@ -454,6 +484,26 @@ impl qobject::BankConnection {
                 .worker()
                 .run(move |connection| bank_connection::forget_pin(connection, &id)),
         )
+    }
+
+    fn pin_storage_choices(&self) -> QVariant {
+        pin_storage_choices_object(SecretStorage::available())
+    }
+
+    fn choose_pin_storage(mut self: Pin<&mut Self>, key: &QString) -> QVariant {
+        let storage = SecretStorage::from_key(&key.to_string());
+        let removal = self
+            .as_mut()
+            .worker()
+            .run(move |connection| Ok(bank_connection::choose_pin_storage(connection, storage)));
+        match removal {
+            Ok(removal) => {
+                let saved = Settings::user().set_pin_storage(storage);
+                self.as_mut().set_pin_storage(QString::from(storage.key()));
+                pin_storage_object(saved, removal)
+            }
+            Err(error) => error_object(&bank_connection::error_text(&error)),
+        }
     }
 
     fn link_choices(&self) -> QVariant {
@@ -725,6 +775,28 @@ fn fetch_object(result: &Result<Vec<FetchOutcome>, ErrorText>) -> QVariant {
     }
 }
 
+/// The places for saved PINs to choose from (D-163).
+fn pin_storage_choices_object(choices: &[SecretStorage]) -> QVariant {
+    map([(
+        "choices",
+        list(choices.iter().map(|choice| {
+            map([
+                ("key", text(choice.key())),
+                ("advanced", QVariant::from(&choice.is_advanced())),
+            ])
+        })),
+    )])
+}
+
+/// What choosing a place for saved PINs did: whether the choice was
+/// `saved` in the settings, and the `removal` from the old place.
+fn pin_storage_object(saved: bool, removal: Result<(), BankError>) -> QVariant {
+    map([
+        ("saved", QVariant::from(&saved)),
+        ("removal", done_object(removal)),
+    ])
+}
+
 /// An empty object when `done` worked, else the error object.
 fn done_object(done: Result<(), BankError>) -> QVariant {
     match done {
@@ -780,6 +852,32 @@ mod tests {
             currency: "EUR".to_owned(),
             bank_code: "37040044".to_owned(),
         }
+    }
+
+    #[test]
+    fn the_password_storage_choices_read_back_as_qml_reads_them() {
+        let choices = pin_storage_choices_object(SecretStorage::available());
+        let rows = list_of(&choices, "choices");
+        assert_eq!(rows.len(), SecretStorage::available().len());
+        assert_eq!(text_of(&rows[0], "key"), "system");
+        assert!(!flag_of(&rows[0], "advanced"));
+        assert_eq!(text_of(&rows[1], "key"), "nowhere");
+        assert!(flag_of(&rows[1], "advanced"));
+
+        let chosen = pin_storage_object(true, Ok(()));
+        assert!(flag_of(&chosen, "saved"));
+        let removal = chosen
+            .value::<QMap<QMapPair_QString_QVariant>>()
+            .and_then(|object| object.get(&QString::from("removal")))
+            .expect("removal");
+        assert!(object(&removal).is_empty());
+
+        let kept = pin_storage_object(false, Err(BankError::Keychain));
+        assert!(!flag_of(&kept, "saved"));
+        let removal = object(&kept)
+            .get(&QString::from("removal"))
+            .expect("removal");
+        assert_eq!(text_of(&removal, "code"), "bank.keychain");
     }
 
     #[test]

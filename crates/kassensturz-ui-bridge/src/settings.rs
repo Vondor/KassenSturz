@@ -9,6 +9,7 @@
 use std::path::{Path, PathBuf};
 
 use cxx_qt_lib::QString;
+use kassensturz_platform::SecretStorage;
 
 #[cxx_qt::bridge]
 mod ffi {
@@ -46,6 +47,12 @@ const BOOKS: &str = "Books";
 
 /// The book opened last, which the app opens at the next start.
 const LAST_BOOK: &str = "LastBook";
+
+/// The group of the settings about bank connections.
+const BANK: &str = "Bank";
+
+/// Where saved PINs go (D-163).
+const PIN_STORAGE: &str = "PinStorage";
 
 /// The app's settings in one settings file.
 pub struct Settings {
@@ -91,6 +98,17 @@ impl Settings {
         )
     }
 
+    /// Where the user chose to keep saved PINs (D-163); the system
+    /// keychain when nothing, or nothing this build offers here, is kept.
+    pub fn pin_storage(&self) -> SecretStorage {
+        SecretStorage::from_key(&self.text(BANK, PIN_STORAGE))
+    }
+
+    /// Keeps where saved PINs go. Returns whether that was saved.
+    pub fn set_pin_storage(&self, storage: SecretStorage) -> bool {
+        self.set_text(BANK, PIN_STORAGE, storage.key())
+    }
+
     /// The text kept under `key` in `group`; empty if there is none.
     pub fn text(&self, group: &str, key: &str) -> String {
         ffi::read_entry(&self.file, &QString::from(group), &QString::from(key)).to_string()
@@ -131,6 +149,21 @@ mod tests {
         let written = std::fs::read_to_string(&file).expect("settings file written");
         assert!(written.contains("[Books]"), "{written}");
         assert!(written.contains("[Display]\nDecimalPlaces=0"), "{written}");
+    }
+
+    #[test]
+    fn keeps_where_saved_pins_go() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        assert_eq!(settings.pin_storage(), SecretStorage::System);
+        assert!(settings.set_pin_storage(SecretStorage::Nowhere));
+        assert_eq!(Settings::at(&file).pin_storage(), SecretStorage::Nowhere);
+        let written = std::fs::read_to_string(&file).expect("settings file written");
+        assert!(written.contains("[Bank]\nPinStorage=nowhere"), "{written}");
+        // A word another build wrote gives the default.
+        assert!(settings.set_text("Bank", "PinStorage", "elsewhere"));
+        assert_eq!(settings.pin_storage(), SecretStorage::System);
     }
 
     #[test]

@@ -40,12 +40,13 @@ use std::thread;
 use kassensturz_bank::{
     AqBankingBank, Availability, Bank, BankAccount, BankAccountKind, BankCode, BankDialogs,
     BankError, BankQuestion, CustomerId, FINTS_REGISTRATION_KEY, FakeBank, Iban, KeychainPinStore,
-    Login, LoginId, LoginKind, LoginSetup, Pin, PinAsker, PinMode, PinSession, QuestionLevel,
-    SecondFactor, Setup, Tan, TanRequest, fetch_linked, names_account, remove_login, setup_for,
+    Login, LoginId, LoginKind, LoginSetup, MemoryPinStore, NoPinStore, Pin, PinAsker, PinMode,
+    PinSession, PinStore, QuestionLevel, SecondFactor, Setup, Tan, TanRequest, fetch_linked,
+    names_account, remove_login, setup_for,
 };
 use kassensturz_core::{AccountId, BankLink, Date, ErrorParam, Report};
 use kassensturz_import::{EntryStatus, Limits};
-use kassensturz_platform::{Keychain, SystemKeychain};
+use kassensturz_platform::{APP_ID, Keychain, SecretStorage};
 use kassensturz_store::Book;
 
 use crate::bank_fetch::{self, Fetch};
@@ -71,12 +72,38 @@ pub const FAKE_BANK_SERVICE: &str = "io.github.vondor.KassenSturz.FakeBank";
 /// when the app starts: more than anyone sets up while trying it out.
 const FAKE_LOGINS_LOOKED_UP: u32 = 9;
 
+/// Makes the store for the PINs the user chooses to save, for each place
+/// they can choose in Settings (D-163).
+pub type PinStores = Box<dyn Fn(SecretStorage) -> Box<dyn PinStore> + Send>;
+
+/// The stores in the keychain `keychain` gives for each place, or none
+/// where it gives no keychain ("nowhere").
+pub fn keychain_stores(
+    keychain: impl Fn(SecretStorage) -> Option<Box<dyn Keychain>> + Send + 'static,
+) -> PinStores {
+    Box::new(move |storage| match keychain(storage) {
+        Some(keychain) => Box::new(KeychainPinStore::new(keychain)) as Box<dyn PinStore>,
+        None => Box::new(NoPinStore),
+    })
+}
+
+/// The fake bank's PINs saved in memory only (`KASSENSTURZ_FAKE_BANK=1`),
+/// or none for "nowhere".
+fn memory_stores() -> PinStores {
+    Box::new(|storage| match storage {
+        SecretStorage::Nowhere => Box::new(NoPinStore) as Box<dyn PinStore>,
+        _ => Box::new(MemoryPinStore::new()),
+    })
+}
+
 /// What the worker holds: the backend, or why it couldn't be opened, and
 /// the PINs of this run of the app (D-057).
 pub struct Connection {
     bank: Result<Box<dyn Bank>, BankError>,
     /// The PINs, remembered or through the keychain.
     pub pins: PinSession,
+    /// Makes the store when the user chooses another place for the PINs.
+    pin_stores: PinStores,
     /// Whether the backend may talk to a bank: this build has a FinTS
     /// registration (D-058), or the backend is the fake bank.
     pub registered: bool,
@@ -89,14 +116,14 @@ pub struct Connection {
 }
 
 impl Connection {
-    /// The real backend in `folder` (D-139), with the PINs in the system
-    /// keychain.
-    pub fn real(folder: &std::path::Path) -> Self {
+    /// The real backend in `folder` (D-139), with the saved PINs in
+    /// `storage`, filed under the app ID (D-163).
+    pub fn real(folder: &std::path::Path, storage: SecretStorage) -> Self {
+        let pin_stores = keychain_stores(|storage| storage.keychain(APP_ID));
         Self {
             bank: AqBankingBank::open(folder).map(|bank| Box::new(bank) as Box<dyn Bank>),
-            pins: PinSession::new(Box::new(KeychainPinStore::new(Box::new(
-                SystemKeychain::new(),
-            )))),
+            pins: PinSession::new(pin_stores(storage)),
+            pin_stores,
             registered: FINTS_REGISTRATION_KEY.is_some(),
             fake: false,
             screens: None,
@@ -108,14 +135,16 @@ impl Connection {
         Self {
             bank: Ok(Box::new(bank)),
             pins,
+            pin_stores: memory_stores(),
             registered: true,
             fake: true,
             screens: None,
         }
     }
 
-    /// The fake `bank` with its PINs saved in `keychain` (D-159): the
-    /// system keychain under [`FAKE_BANK_SERVICE`] in the app, a
+    /// The fake `bank` with its PINs saved in the store `pin_stores` makes
+    /// for `storage` (D-159, D-163): in the app the keychain the user chose,
+    /// under [`FAKE_BANK_SERVICE`]; a
     /// [`kassensturz_platform::MemoryKeychain`] in tests.
     ///
     /// The fake bank forgets its logins when the app closes, so a login
@@ -123,21 +152,28 @@ impl Connection {
     /// again; the saved PIN is then read back from the keychain the first
     /// time the bank asks for it. A keychain that can't be read now adds
     /// none, and says so when a PIN is saved.
-    pub fn fake_with_keychain(mut bank: FakeBank, keychain: Box<dyn Keychain>) -> Self {
-        let pins = PinSession::new(Box::new(KeychainPinStore::new(keychain)));
+    pub fn fake_with_keychain(
+        mut bank: FakeBank,
+        pin_stores: PinStores,
+        storage: SecretStorage,
+    ) -> Self {
+        let pins = PinSession::new(pin_stores(storage));
         for n in 1..=FAKE_LOGINS_LOOKED_UP {
             let login = FakeBank::login_id(n);
             if pins.is_saved(&login) == Ok(true) {
                 bank = bank.with_login(login);
             }
         }
-        Self::fake(bank, pins)
+        Self {
+            pin_stores,
+            ..Self::fake(bank, pins)
+        }
     }
 
     /// The connection the app uses: the fake bank when asked for, else
     /// AqBanking in KassenSturz's data folder, or `bank.folder` without
-    /// one.
-    pub fn for_app(folder: Option<PathBuf>) -> Self {
+    /// one. Saved PINs go to `storage`, the user's choice (D-163).
+    pub fn for_app(folder: Option<PathBuf>, storage: SecretStorage) -> Self {
         let fake = std::env::var_os(FAKE_BANK_VARIABLE);
         let wants_fake = fake.as_ref().is_some_and(|value| value == "1");
         let wants_keychain = fake
@@ -146,18 +182,20 @@ impl Connection {
         match folder {
             _ if wants_fake => Self::fake(
                 FakeBank::new().with_second_factor(SecondFactor::Tan),
-                PinSession::new(Box::new(kassensturz_bank::MemoryPinStore::new())),
+                PinSession::new(memory_stores()(storage)),
             ),
             _ if wants_keychain => Self::fake_with_keychain(
                 FakeBank::new().with_second_factor(SecondFactor::Tan),
-                Box::new(SystemKeychain::for_service(FAKE_BANK_SERVICE)),
+                keychain_stores(|storage| storage.keychain(FAKE_BANK_SERVICE)),
+                storage,
             ),
-            Some(folder) => Self::real(&folder.join("aqbanking")),
+            Some(folder) => Self::real(&folder.join("aqbanking"), storage),
             // Without a data folder AqBanking has nowhere to keep its
             // settings: the screens say so.
             None => Self {
                 bank: Err(BankError::Folder),
-                pins: PinSession::new(Box::new(kassensturz_bank::MemoryPinStore::new())),
+                pins: PinSession::new(memory_stores()(storage)),
+                pin_stores: memory_stores(),
                 registered: FINTS_REGISTRATION_KEY.is_some(),
                 fake: false,
                 screens: None,
@@ -752,6 +790,25 @@ pub fn remove(connection: &mut Connection, id: &str) -> Result<(), BankError> {
 /// Forgets the PIN of the login `id`, remembered and saved (D-057).
 pub fn forget_pin(connection: &mut Connection, id: &str) -> Result<(), BankError> {
     connection.pins.forget(&LoginId::new(id))
+}
+
+/// Saves PINs in `storage` from now on (D-163). The PINs of the logins set
+/// up here are removed from the old place, never copied: the user types
+/// each again at the next connection. The new place is used even when the
+/// old one can't be reached; `bank.keychain` then says so.
+pub fn choose_pin_storage(
+    connection: &mut Connection,
+    storage: SecretStorage,
+) -> Result<(), BankError> {
+    let logins: Vec<LoginId> = match &connection.bank {
+        Ok(bank) => bank
+            .logins()
+            .map(|logins| logins.into_iter().map(|login| login.id).collect())
+            .unwrap_or_default(),
+        Err(_) => Vec::new(),
+    };
+    let store = (connection.pin_stores)(storage);
+    connection.pins.replace_store(store, &logins)
 }
 
 /// An account in the book that a bank account can be linked to.
@@ -1900,12 +1957,96 @@ mod tests {
         }
     }
 
+    /// The stores for each place: the shared fake keychain for the system
+    /// keychain, none for "nowhere".
+    fn stores(keychain: &SharedKeychain) -> PinStores {
+        let keychain = keychain.clone();
+        keychain_stores(move |storage| {
+            (storage == SecretStorage::System)
+                .then(|| Box::new(keychain.clone()) as Box<dyn Keychain>)
+        })
+    }
+
+    #[test]
+    fn choosing_nowhere_removes_the_saved_pins_and_offers_no_saving() {
+        let keychain = SharedKeychain(Arc::new(kassensturz_platform::MemoryKeychain::new()));
+        let mut connection = Connection::fake_with_keychain(
+            FakeBank::new(),
+            stores(&keychain),
+            SecretStorage::System,
+        );
+        let mut setup = form(FakeBank::PIN);
+        setup.pin_mode = PinMode::SaveInKeychain;
+        set_up(&mut connection, setup).expect("set up");
+        assert_eq!(keychain.0.len(), 1);
+        assert!(connection.pins.saves());
+
+        choose_pin_storage(&mut connection, SecretStorage::Nowhere).expect("chosen");
+
+        // Removed from the keychain; the fetch still has it until the app
+        // closes, since it was typed in this run.
+        assert!(keychain.0.is_empty());
+        assert!(!connection.pins.saves());
+        assert!(!bank_statement(&mut connection).entries.is_empty());
+        // A second login "saved" now stays out of the keychain.
+        let mut setup = form(FakeBank::PIN);
+        setup.pin_mode = PinMode::SaveInKeychain;
+        let done = set_up(&mut connection, setup).expect("set up");
+        assert!(keychain.0.is_empty());
+        assert!(connection.pins.is_remembered(&LoginId::new(done.login)));
+        drop(connection);
+
+        // The next run with "nowhere" brings no fake login back, and
+        // choosing the keychain again saves the next PIN there.
+        let mut next = Connection::fake_with_keychain(
+            FakeBank::new(),
+            stores(&keychain),
+            SecretStorage::Nowhere,
+        );
+        assert!(logins(&mut next).expect("logins").is_empty());
+        choose_pin_storage(&mut next, SecretStorage::System).expect("chosen");
+        let mut setup = form(FakeBank::PIN);
+        setup.pin_mode = PinMode::SaveInKeychain;
+        set_up(&mut next, setup).expect("set up");
+        assert_eq!(keychain.0.len(), 1);
+    }
+
+    #[test]
+    fn a_keychain_out_of_reach_is_still_left_and_says_so() {
+        let keychain = SharedKeychain(Arc::new(kassensturz_platform::MemoryKeychain::new()));
+        let mut connection = Connection::fake_with_keychain(
+            FakeBank::new(),
+            stores(&keychain),
+            SecretStorage::System,
+        );
+        let mut setup = form(FakeBank::PIN);
+        setup.pin_mode = PinMode::SaveInKeychain;
+        set_up(&mut connection, setup).expect("set up");
+        keychain
+            .0
+            .fail_with(Some(kassensturz_platform::KeychainError::Unavailable));
+
+        let result = choose_pin_storage(&mut connection, SecretStorage::Nowhere);
+
+        assert_eq!(result, Err(BankError::Keychain));
+        assert_eq!(
+            error_text(&BankError::Keychain).code,
+            "bank.keychain",
+            "the screens explain it"
+        );
+        assert!(!connection.pins.saves());
+    }
+
     #[test]
     fn the_fake_banks_pin_is_saved_read_back_and_removed_through_the_keychain() {
         let keychain = SharedKeychain(Arc::new(kassensturz_platform::MemoryKeychain::new()));
         let key = kassensturz_platform::SecretKey::new("bank-pin", "fake-login-1").expect("key");
         // First run: the setup saves the PIN in the keychain.
-        let mut first = Connection::fake_with_keychain(FakeBank::new(), Box::new(keychain.clone()));
+        let mut first = Connection::fake_with_keychain(
+            FakeBank::new(),
+            stores(&keychain),
+            SecretStorage::System,
+        );
         assert!(first.fake);
         assert_eq!(first.status(), Status::Ready { fake: true });
         assert!(logins(&mut first).expect("logins").is_empty());
@@ -1919,7 +2060,11 @@ mod tests {
 
         // Next run: the login is back, and the fetch reads the PIN from the
         // keychain; without screens, asking the user would end it.
-        let mut next = Connection::fake_with_keychain(FakeBank::new(), Box::new(keychain.clone()));
+        let mut next = Connection::fake_with_keychain(
+            FakeBank::new(),
+            stores(&keychain),
+            SecretStorage::System,
+        );
         let rows = logins(&mut next).expect("logins");
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].id, "fake-login-1");
@@ -1934,15 +2079,25 @@ mod tests {
         remove(&mut next, "fake-login-1").expect("removed");
         assert!(keychain.0.is_empty());
         drop(next);
-        let mut after = Connection::fake_with_keychain(FakeBank::new(), Box::new(keychain));
+        let mut after = Connection::fake_with_keychain(
+            FakeBank::new(),
+            stores(&keychain),
+            SecretStorage::System,
+        );
         assert!(logins(&mut after).expect("logins").is_empty());
     }
 
     #[test]
     fn a_keychain_that_cant_be_read_brings_back_no_fake_login() {
-        let keychain = kassensturz_platform::MemoryKeychain::new();
-        keychain.fail_with(Some(kassensturz_platform::KeychainError::Unavailable));
-        let mut connection = Connection::fake_with_keychain(FakeBank::new(), Box::new(keychain));
+        let keychain = SharedKeychain(Arc::new(kassensturz_platform::MemoryKeychain::new()));
+        keychain
+            .0
+            .fail_with(Some(kassensturz_platform::KeychainError::Unavailable));
+        let mut connection = Connection::fake_with_keychain(
+            FakeBank::new(),
+            stores(&keychain),
+            SecretStorage::System,
+        );
         assert!(logins(&mut connection).expect("logins").is_empty());
         let mut setup = form(FakeBank::PIN);
         setup.pin_mode = PinMode::SaveInKeychain;

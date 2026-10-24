@@ -35,6 +35,8 @@ FormCard.FormCardPage {
     signal bookFromFileClicked()
     signal showHistoryClicked()
     signal connectBankClicked()
+    // The user wants to change this login (an object from bank.logins()).
+    signal changeBankClicked(var login)
 
     // What bank.status() and bank.logins() returned, and why the last
     // change to a login failed.
@@ -225,6 +227,14 @@ FormCard.FormCardPage {
                     description: login.modelData.kind === "chip-card"
                         ? page.i18nContext.i18nc("@info", "Login with a chip card")
                         : page.i18nContext.i18nc("@info", "Login with PIN and TAN")
+                }
+
+                FormCard.FormButtonDelegate {
+                    icon.name: "configure"
+                    text: page.i18nContext.i18nc("@action:button", "Change this bank login…")
+                    description: page.i18nContext.i18nc("@info", "Change the login name, the bank's address or how you log in. You type your login details and PIN again; your accounts stay linked.")
+                    enabled: page.bankStatus.ready ?? false
+                    onClicked: page.changeBankClicked(login.modelData)
                 }
 
                 FormCard.FormButtonDelegate {

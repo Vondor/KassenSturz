@@ -123,6 +123,18 @@ Kirigami.ScrollablePage {
         error.result = bank.fetch(ids);
     }
 
+    // Removes an account's link; the account and its transactions stay.
+    function unlink(account: var) {
+        const result = bank.unlinkAccount(account.id);
+        error.result = result.code !== undefined ? result : ({});
+        if (result.code !== undefined) {
+            return;
+        }
+        setTicked(account.id, false);
+        linked();
+        refresh();
+    }
+
     function lookAt(id: string) {
         const next = Object.assign({}, looked);
         next[id] = true;
@@ -257,6 +269,25 @@ Kirigami.ScrollablePage {
                         text: page.i18nContext.i18nc("@action:button", "Link to a bank account…")
                         icon.name: "link"
                         onClicked: linkDialog.show(row.modelData)
+                    }
+
+                    // A link can be changed or removed later (Phase 2).
+                    Controls.ToolButton {
+                        visible: row.modelData.linked
+                        enabled: page.usable && !page.fetching
+                        icon.name: "link"
+                        text: page.i18nContext.i18nc("@action:button", "Change…")
+                        Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of an account", "Link %1 to another bank account", row.modelData.name)
+                        onClicked: linkDialog.show(row.modelData)
+                    }
+
+                    Controls.ToolButton {
+                        visible: row.modelData.linked
+                        enabled: !page.fetching
+                        icon.name: "link-broken"
+                        text: page.i18nContext.i18nc("@action:button", "Unlink")
+                        Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of an account", "Unlink %1 from its bank account", row.modelData.name)
+                        onClicked: page.unlink(row.modelData)
                     }
                 }
 
@@ -397,6 +428,13 @@ Kirigami.ScrollablePage {
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
                 text: page.i18nContext.i18nc("@info %1 is the name of an account", "Which bank account fills %1? Its new transactions are fetched into it.", linkDialog.account.name ?? "")
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                visible: linkDialog.account.linked === true && linkDialog.choices.length > 0
+                text: page.i18nContext.i18nc("@info", "This account is linked to another bank account now. After the change, the next fetch asks your bank for everything it still has; transactions your book already has are recognized and not added twice.")
             }
 
             Controls.Label {

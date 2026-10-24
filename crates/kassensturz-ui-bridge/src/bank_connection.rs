@@ -489,6 +489,9 @@ pub struct LoginRow {
     pub bank_code: String,
     /// `pin-tan` or `chip-card`.
     pub kind: &'static str,
+    /// The IBAN of the first of its accounts that has one, grouped by
+    /// four; empty if none has. Changing the login starts from it.
+    pub iban: String,
 }
 
 /// The logins set up on this computer.
@@ -503,11 +506,22 @@ pub fn logins(connection: &mut Connection) -> Result<Vec<LoginRow>, BankError> {
                 .lookup(&login.bank)
                 .map(|info| info.name)
                 .filter(|name| !name.trim().is_empty());
+            let iban = bank
+                .accounts(&login.id)
+                .ok()
+                .and_then(|accounts| {
+                    accounts.iter().find_map(|account| {
+                        account.iban.as_deref().and_then(|i| Iban::parse(i).ok())
+                    })
+                })
+                .map(|iban| iban.grouped())
+                .unwrap_or_default();
             LoginRow {
                 id: login.id.to_string(),
                 bank: name.unwrap_or_else(|| login.bank.code().to_owned()),
                 bank_code: login.bank.code().to_owned(),
                 kind: kind_key(login.kind),
+                iban,
             }
         })
         .collect())
@@ -622,6 +636,10 @@ pub struct SetupForm {
     pub pin: Pin,
     /// How long to keep it (D-057).
     pub pin_mode: PinMode,
+    /// The ID of the login this one replaces, empty for a new login: the
+    /// old login is removed, with its PIN, only after the new one is set
+    /// up, so a change that fails changes nothing.
+    pub replaces: String,
 }
 
 impl std::fmt::Debug for SetupForm {
@@ -691,6 +709,9 @@ pub struct SetupDone {
     pub login: String,
     /// The accounts the bank lists for it.
     pub accounts: Vec<FoundAccount>,
+    /// Whether a login that was to be replaced is still there, because it
+    /// could not be removed. The new login works either way.
+    pub old_login_left: bool,
 }
 
 /// Sets up a login from `form` and lists its accounts (D-145, D-149). The
@@ -705,7 +726,12 @@ pub fn set_up(connection: &mut Connection, form: SetupForm) -> Result<SetupDone,
     if !connection.registered {
         return Err(error_text(&BankError::NotRegistered));
     }
-    add_login(connection, form, code).map_err(|error| error_text(&error))
+    let replaces = form.replaces.clone();
+    let mut done = add_login(connection, form, code).map_err(|error| error_text(&error))?;
+    if !replaces.is_empty() && replaces != done.login {
+        done.old_login_left = remove(connection, &replaces).is_err();
+    }
+    Ok(done)
 }
 
 fn add_login(
@@ -745,6 +771,7 @@ fn add_login(
             .into_iter()
             .map(|account| found(account, &code))
             .collect(),
+        old_login_left: false,
     })
 }
 
@@ -903,13 +930,36 @@ pub fn link_one(
         .chars()
         .filter(|character| !character.is_whitespace())
         .collect();
-    book.link_bank_account(&BankLink {
+    let mut link = BankLink {
         account,
         iban: Some(iban).filter(|iban| !iban.is_empty()),
         bank_code: Some(found.bank_code.clone()),
         number: Some(found.number.trim().to_owned()).filter(|n| !n.is_empty()),
         last_fetched_on: None,
-    })
+    };
+    // Linking the account to the bank account it is linked to already, as
+    // setting up a login again does, keeps the day of its last fetch.
+    if let Some(old) = book.bank_link(account)? {
+        let same = match (&old.iban, &link.iban) {
+            (Some(old), Some(new)) => plain(old) == plain(new),
+            (None, None) => old.bank_code == link.bank_code && old.number == link.number,
+            _ => false,
+        };
+        if same {
+            link.last_fetched_on = old.last_fetched_on;
+        }
+    }
+    book.link_bank_account(&link)
+}
+
+/// Removes the link of `account` to its bank account, as one change the
+/// user can undo (D-148). The account keeps its transactions; nothing is
+/// asked of the bank, so no login is needed.
+pub fn unlink_one(
+    book: &mut Book,
+    account: AccountId,
+) -> Result<(), kassensturz_store::StoreError> {
+    book.unlink_bank_account(account)
 }
 
 /// An account of the book as the fetch screen lists it (M4.7).
@@ -1262,6 +1312,7 @@ mod tests {
             customer_id: String::new(),
             pin: Pin::new(pin.to_owned()),
             pin_mode: PinMode::RememberUntilClose,
+            replaces: String::new(),
         }
     }
 
@@ -1350,6 +1401,7 @@ mod tests {
             customer_id: String::new(),
             pin: Pin::new("12345".to_owned()),
             pin_mode: PinMode::AskEachTime,
+            replaces: String::new(),
         };
         assert_eq!(
             check_form(&form(&lookup.url), &lookup).map_err(|error| error.code),
@@ -1926,6 +1978,78 @@ mod tests {
         let outcomes =
             fetch(&mut connection, requests(&book, &[current]), today()).expect("fetched");
         assert_eq!(outcomes[0].state, "ready");
+    }
+
+    #[test]
+    fn a_link_is_changed_to_another_bank_account_or_removed_again() {
+        let mut connection = fake(None);
+        set_up(&mut connection, form(FakeBank::PIN)).expect("set up");
+        let listed = bank_account_choices(&mut connection).expect("listed");
+        let mut book = Book::create_in_memory().expect("book");
+        let current = account(&mut book, "Current account", None);
+        let card = listed
+            .iter()
+            .find(|entry| entry.found.kind == "credit-card")
+            .expect("the card");
+        let checking = listed
+            .iter()
+            .find(|entry| entry.found.iban == IBAN)
+            .expect("the current account");
+
+        link_one(&mut book, &checking.found, current).expect("linked");
+        // The bank account it is linked to is not offered again, but the
+        // other one is: that is what "change" shows.
+        let (free, _) = linkable(&book, current, &listed).expect("choices");
+        assert_eq!(free.len(), 1);
+        assert_eq!(free[0].key, card.key);
+        // Linking again replaces the link, and the new link is what the
+        // fetch screen lists.
+        link_one(&mut book, &card.found, current).expect("changed");
+        let rows = fetch_rows(&book, &TestLocale).expect("rows");
+        assert!(rows[0].linked);
+        assert!(!rows[0].bank_account.contains("DE89"));
+        let (free, _) = linkable(&book, current, &listed).expect("choices");
+        assert_eq!(free.len(), 1);
+        assert_eq!(free[0].key, checking.key);
+
+        // Linking it to the same bank account again keeps the last fetch.
+        book.note_bank_fetch(current, today()).expect("fetched");
+        link_one(&mut book, &card.found, current).expect("again");
+        let kept = book.bank_link(current).expect("read").expect("linked");
+        assert_eq!(kept.last_fetched_on, Some(today()));
+
+        unlink_one(&mut book, current).expect("unlinked");
+        assert!(book.bank_link(current).expect("read").is_none());
+        let (free, _) = linkable(&book, current, &listed).expect("choices");
+        assert_eq!(free.len(), 2);
+        // An account that isn't linked is left as it is.
+        unlink_one(&mut book, current).expect("nothing to do");
+    }
+
+    #[test]
+    fn changing_a_login_sets_up_the_new_one_and_then_removes_the_old_one() {
+        let mut connection = fake(None);
+        let first = set_up(&mut connection, form(FakeBank::PIN)).expect("set up");
+        let rows = logins(&mut connection).expect("logins");
+        assert_eq!(rows.len(), 1);
+        // The IBAN of the login's account is what a change starts from.
+        assert_eq!(rows[0].iban, "DE89 3704 0044 0532 0130 00");
+
+        // A change that fails (wrong PIN) leaves the old login as it was.
+        let mut change = form("00000");
+        change.replaces = first.login.clone();
+        assert!(set_up(&mut connection, change).is_err());
+        assert_eq!(logins(&mut connection).expect("logins").len(), 1);
+
+        // One that works leaves only the new login.
+        let mut change = form(FakeBank::PIN);
+        change.replaces = first.login.clone();
+        let second = set_up(&mut connection, change).expect("changed");
+        assert!(!second.old_login_left);
+        assert_ne!(second.login, first.login);
+        let rows = logins(&mut connection).expect("logins");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, second.login);
     }
 
     /// A keychain the test can look inside while a connection uses it.

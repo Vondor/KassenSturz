@@ -564,3 +564,22 @@ fn form_object(form: &CsvForm) -> QVariant {
         ("account", text(&form.account)),
     ])
 }
+
+#[cfg(test)]
+mod tests {
+    /// A statement can hold thousands of entries. A `Repeater` in a scrolling
+    /// page makes a row for every one of them before the first frame
+    /// (100 s for 3,000 entries, D-158), so the preview lists them in a
+    /// `ListView`, which makes only the rows in view. The test reads the QML
+    /// as text, like `register_model.rs` does for D-156.
+    #[test]
+    fn the_import_preview_lists_the_entries_in_a_list_view_that_makes_only_the_rows_in_view() {
+        let page = include_str!("../qml/ImportPreviewPage.qml");
+        assert!(page.contains("ListView {\n        id: entryList"));
+        assert!(page.contains("model: page.entries"));
+        assert!(
+            !page.contains("Repeater {\n                model: page.entries"),
+            "the entries must not be made all at once"
+        );
+    }
+}

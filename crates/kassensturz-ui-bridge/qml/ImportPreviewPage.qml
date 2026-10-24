@@ -113,232 +113,243 @@ Kirigami.ScrollablePage {
         }
     }
 
-    ColumnLayout {
-        spacing: 0
+    // A ListView, not a Repeater: a statement can hold thousands of
+    // entries, and a Repeater builds a row for every one of them before the
+    // first frame (M4.W); the ListView builds the visible rows only.
+    ListView {
+        id: entryList
 
-        FormCard.FormHeader {
-            title: page.i18nContext.i18nc("@title:group", "What the import does")
-        }
+        clip: true
+        model: page.entries
 
-        FormCard.FormCard {
-            FormCard.FormTextDelegate {
-                descriptionItem.textFormat: Text.PlainText
-                icon.name: "document-import"
-                text: page.view.fromBank
-                    ? page.i18nContext.i18nc("@info", "From your bank")
-                    : page.i18nContext.i18nc("@info %1 is a file name", "From %1", page.view.fileName ?? "")
-                textItem.textFormat: Text.PlainText
-                description: page.toImport > 0
-                    ? page.i18nContext.i18ncp("@info", "%1 new transaction goes into the account.", "%1 new transactions go into the account.", page.toImport)
-                    : page.i18nContext.i18nc("@info", "Nothing new: every transaction is already in your book or waits for your decision below.")
+        header: ColumnLayout {
+            width: entryList.width
+            spacing: 0
+
+            FormCard.FormHeader {
+                title: page.i18nContext.i18nc("@title:group", "What the import does")
             }
 
-            FormCard.FormDelegateSeparator {
-                visible: (page.view.rules ?? 0) > 0
-            }
+            FormCard.FormCard {
+                FormCard.FormTextDelegate {
+                    descriptionItem.textFormat: Text.PlainText
+                    icon.name: "document-import"
+                    text: page.view.fromBank
+                        ? page.i18nContext.i18nc("@info", "From your bank")
+                        : page.i18nContext.i18nc("@info %1 is a file name", "From %1", page.view.fileName ?? "")
+                    textItem.textFormat: Text.PlainText
+                    description: page.toImport > 0
+                        ? page.i18nContext.i18ncp("@info", "%1 new transaction goes into the account.", "%1 new transactions go into the account.", page.toImport)
+                        : page.i18nContext.i18nc("@info", "Nothing new: every transaction is already in your book or waits for your decision below.")
+                }
 
-            FormCard.FormTextDelegate {
-                textItem.textFormat: Text.PlainText
-                visible: (page.view.rules ?? 0) > 0
-                icon.name: "view-filter"
-                text: page.i18nContext.i18ncp("@info", "Your Rules sort %1 of them into a category.", "Your Rules sort %1 of them into categories.", page.view.rules ?? 0)
-            }
+                FormCard.FormDelegateSeparator {
+                    visible: (page.view.rules ?? 0) > 0
+                }
 
-            FormCard.FormDelegateSeparator {
-                visible: (page.view.toDecide ?? 0) > 0
-            }
+                FormCard.FormTextDelegate {
+                    textItem.textFormat: Text.PlainText
+                    visible: (page.view.rules ?? 0) > 0
+                    icon.name: "view-filter"
+                    text: page.i18nContext.i18ncp("@info", "Your Rules sort %1 of them into a category.", "Your Rules sort %1 of them into categories.", page.view.rules ?? 0)
+                }
 
-            FormCard.FormTextDelegate {
-                textItem.textFormat: Text.PlainText
-                visible: (page.view.toDecide ?? 0) > 0
-                icon.name: "dialog-question"
-                text: page.i18nContext.i18ncp("@info", "%1 transaction looks like one already in your book.", "%1 transactions look like transactions already in your book.", page.view.toDecide ?? 0)
-                description: page.i18nContext.i18nc("@info", "Maybe you typed it in before the statement came. It is left out unless you tick \"Import it anyway\" below.")
-            }
+                FormCard.FormDelegateSeparator {
+                    visible: (page.view.toDecide ?? 0) > 0
+                }
 
-            FormCard.FormDelegateSeparator {
-                visible: (page.view.duplicates ?? 0) > 0
-            }
+                FormCard.FormTextDelegate {
+                    textItem.textFormat: Text.PlainText
+                    visible: (page.view.toDecide ?? 0) > 0
+                    icon.name: "dialog-question"
+                    text: page.i18nContext.i18ncp("@info", "%1 transaction looks like one already in your book.", "%1 transactions look like transactions already in your book.", page.view.toDecide ?? 0)
+                    description: page.i18nContext.i18nc("@info", "Maybe you typed it in before the statement came. It is left out unless you tick \"Import it anyway\" below.")
+                }
 
-            FormCard.FormTextDelegate {
-                textItem.textFormat: Text.PlainText
-                visible: (page.view.duplicates ?? 0) > 0
-                icon.name: "edit-copy"
-                text: page.i18nContext.i18ncp("@info", "%1 transaction is already in your book and is skipped.", "%1 transactions are already in your book and are skipped.", page.view.duplicates ?? 0)
-            }
+                FormCard.FormDelegateSeparator {
+                    visible: (page.view.duplicates ?? 0) > 0
+                }
 
-            FormCard.FormDelegateSeparator {
-                visible: (page.view.pending ?? 0) > 0
-            }
+                FormCard.FormTextDelegate {
+                    textItem.textFormat: Text.PlainText
+                    visible: (page.view.duplicates ?? 0) > 0
+                    icon.name: "edit-copy"
+                    text: page.i18nContext.i18ncp("@info", "%1 transaction is already in your book and is skipped.", "%1 transactions are already in your book and are skipped.", page.view.duplicates ?? 0)
+                }
 
-            FormCard.FormTextDelegate {
-                textItem.textFormat: Text.PlainText
-                visible: (page.view.pending ?? 0) > 0
-                icon.name: "chronometer"
-                text: page.i18nContext.i18ncp("@info", "%1 transaction isn't booked by your bank yet and is left out.", "%1 transactions aren't booked by your bank yet and are left out.", page.view.pending ?? 0)
-                description: page.i18nContext.i18nc("@info", "It comes with a later statement, once the bank has booked it.")
-            }
+                FormCard.FormDelegateSeparator {
+                    visible: (page.view.pending ?? 0) > 0
+                }
 
-            FormCard.FormDelegateSeparator {
-                visible: (page.view.transfers ?? 0) > 0
-            }
+                FormCard.FormTextDelegate {
+                    textItem.textFormat: Text.PlainText
+                    visible: (page.view.pending ?? 0) > 0
+                    icon.name: "chronometer"
+                    text: page.i18nContext.i18ncp("@info", "%1 transaction isn't booked by your bank yet and is left out.", "%1 transactions aren't booked by your bank yet and are left out.", page.view.pending ?? 0)
+                    description: page.i18nContext.i18nc("@info", "It comes with a later statement, once the bank has booked it.")
+                }
 
-            FormCard.FormTextDelegate {
-                textItem.textFormat: Text.PlainText
-                visible: (page.view.transfers ?? 0) > 0
-                icon.name: "edit-link"
-                text: page.i18nContext.i18ncp("@info", "%1 transaction looks like money moved between your own accounts.", "%1 transactions look like money moved between your own accounts.", page.view.transfers ?? 0)
-                description: page.i18nContext.i18nc("@info", "KassenSturz asks you about each one after the import.")
-            }
-        }
+                FormCard.FormDelegateSeparator {
+                    visible: (page.view.transfers ?? 0) > 0
+                }
 
-        FormCard.FormHeader {
-            visible: page.balances.length > 0
-            title: page.i18nContext.i18nc("@title:group", "Your bank's balances")
-        }
-
-        FormCard.FormCard {
-            visible: page.balances.length > 0
-
-            Repeater {
-                model: page.balances
-
-                delegate: ColumnLayout {
-                    id: balanceRow
-
-                    required property int index
-                    required property var modelData
-
-                    Layout.fillWidth: true
-                    spacing: 0
-
-                    FormCard.FormDelegateSeparator {
-                        visible: balanceRow.index > 0
-                    }
-
-                    FormCard.FormTextDelegate {
-                        descriptionItem.textFormat: Text.PlainText
-                        textItem.textFormat: Text.PlainText
-                        icon.name: balanceRow.modelData.matches ? "dialog-ok-apply" : "dialog-warning"
-                        text: page.balanceText(balanceRow.modelData)
-                        description: page.balanceDescription(balanceRow.modelData)
-                    }
+                FormCard.FormTextDelegate {
+                    textItem.textFormat: Text.PlainText
+                    visible: (page.view.transfers ?? 0) > 0
+                    icon.name: "edit-link"
+                    text: page.i18nContext.i18ncp("@info", "%1 transaction looks like money moved between your own accounts.", "%1 transactions look like money moved between your own accounts.", page.view.transfers ?? 0)
+                    description: page.i18nContext.i18nc("@info", "KassenSturz asks you about each one after the import.")
                 }
             }
-        }
 
-        FormCard.FormHeader {
-            title: page.i18nContext.i18ncp("@title:group", "%1 transaction in the file", "%1 transactions in the file", page.entries.length)
-        }
+            FormCard.FormHeader {
+                visible: page.balances.length > 0
+                title: page.i18nContext.i18nc("@title:group", "Your bank's balances")
+            }
 
-        FormCard.FormCard {
-            Repeater {
-                model: page.entries
+            FormCard.FormCard {
+                visible: page.balances.length > 0
 
-                delegate: ColumnLayout {
-                    id: entryRow
+                Repeater {
+                    model: page.balances
 
-                    required property int index
-                    required property var modelData
-                    readonly property bool waiting: modelData.outcome === "similar" || (modelData.outcome === "imported" && modelData.similar.length > 0)
+                    delegate: ColumnLayout {
+                        id: balanceRow
 
-                    Layout.fillWidth: true
-                    spacing: 0
+                        required property int index
+                        required property var modelData
 
-                    FormCard.FormDelegateSeparator {
-                        visible: entryRow.index > 0
-                    }
-
-                    FormCard.AbstractFormDelegate {
                         Layout.fillWidth: true
-                        background: null
-                        // Text from a bank file could contain anything.
-                        Accessible.name: entryRow.modelData.date + " " + entryRow.modelData.otherParty + " " + entryRow.modelData.exactAmount
+                        spacing: 0
 
-                        contentItem: ColumnLayout {
-                            spacing: Kirigami.Units.smallSpacing
+                        FormCard.FormDelegateSeparator {
+                            visible: balanceRow.index > 0
+                        }
 
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: Kirigami.Units.largeSpacing
-
-                                Controls.Label {
-                                    textFormat: Text.PlainText
-                                    text: entryRow.modelData.date
-                                }
-
-                                Controls.Label {
-                                    Layout.fillWidth: true
-                                    text: entryRow.modelData.otherParty !== ""
-                                        ? entryRow.modelData.otherParty
-                                        : page.i18nContext.i18nc("@info an entry that names nobody", "Without a name")
-                                    textFormat: Text.PlainText
-                                    elide: Text.ElideRight
-                                    opacity: entryRow.modelData.otherParty !== "" ? 1 : 0.6
-                                }
-
-                                AmountLabel {
-                                    textFormat: Text.PlainText
-                                    text: entryRow.modelData.amount
-                                    exactText: entryRow.modelData.exactAmount
-                                    horizontalAlignment: Text.AlignRight
-                                    color: entryRow.modelData.incoming ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.textColor
-                                    opacity: entryRow.modelData.outcome === "imported" ? 1 : 0.6
-                                }
-                            }
-
-                            Controls.Label {
-                                Layout.fillWidth: true
-                                visible: entryRow.modelData.purpose !== ""
-                                text: entryRow.modelData.purpose
-                                textFormat: Text.PlainText
-                                wrapMode: Text.Wrap
-                                maximumLineCount: 2
-                                elide: Text.ElideRight
-                                font: Kirigami.Theme.smallFont
-                                opacity: 0.8
-                            }
-
-                            Controls.Label {
-                                textFormat: Text.PlainText
-                                Layout.fillWidth: true
-                                text: page.outcomeText(entryRow.modelData)
-                                wrapMode: Text.Wrap
-                                font: Kirigami.Theme.smallFont
-                                color: entryRow.modelData.outcome === "similar" ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.textColor
-                            }
-
-                            Repeater {
-                                model: entryRow.modelData.similar
-
-                                delegate: Controls.Label {
-                                    required property var modelData
-
-                                    Layout.fillWidth: true
-                                    Layout.leftMargin: Kirigami.Units.largeSpacing
-                                    text: modelData.category === ""
-                                        ? page.i18nContext.i18nc("@info a transaction in the book: %1 is a date, %2 a name, %3 an amount", "In your book: %1 · %2 · %3", modelData.date, modelData.otherParty, modelData.exactAmount)
-                                        : page.i18nContext.i18nc("@info a transaction in the book: %1 is a date, %2 a name, %3 an amount, %4 a category", "In your book: %1 · %2 · %3 · %4", modelData.date, modelData.otherParty, modelData.exactAmount, modelData.category)
-                                    textFormat: Text.PlainText
-                                    wrapMode: Text.Wrap
-                                    font: Kirigami.Theme.smallFont
-                                }
-                            }
-
-                            Controls.CheckBox {
-                                visible: entryRow.waiting
-                                text: page.i18nContext.i18nc("@option:check import an entry that looks like one already in the book", "Import it anyway, it is a different transaction")
-                                checked: entryRow.modelData.importAnyway
-                                onToggled: page.decide(entryRow.modelData.key, checked)
-                            }
+                        FormCard.FormTextDelegate {
+                            descriptionItem.textFormat: Text.PlainText
+                            textItem.textFormat: Text.PlainText
+                            icon.name: balanceRow.modelData.matches ? "dialog-ok-apply" : "dialog-warning"
+                            text: page.balanceText(balanceRow.modelData)
+                            description: page.balanceDescription(balanceRow.modelData)
                         }
                     }
                 }
             }
+
+            FormCard.FormHeader {
+                title: page.i18nContext.i18ncp("@title:group", "%1 transaction in the file", "%1 transactions in the file", page.entries.length)
+            }
         }
 
-        FormCard.FormSectionText {
-            text: page.i18nContext.i18nc("@info", "Nothing has changed yet. The import is one change, so Undo takes all of it back at once.")
+        delegate: ColumnLayout {
+            id: entryRow
+            width: ListView.view.width
+
+            required property int index
+            required property var modelData
+            readonly property bool waiting: modelData.outcome === "similar" || (modelData.outcome === "imported" && modelData.similar.length > 0)
+
+            Layout.fillWidth: true
+            spacing: 0
+
+            FormCard.FormDelegateSeparator {
+                visible: entryRow.index > 0
+            }
+
+            FormCard.AbstractFormDelegate {
+                Layout.fillWidth: true
+                background: null
+                // Text from a bank file could contain anything.
+                Accessible.name: entryRow.modelData.date + " " + entryRow.modelData.otherParty + " " + entryRow.modelData.exactAmount
+
+                contentItem: ColumnLayout {
+                    spacing: Kirigami.Units.smallSpacing
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Kirigami.Units.largeSpacing
+
+                        Controls.Label {
+                            textFormat: Text.PlainText
+                            text: entryRow.modelData.date
+                        }
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            text: entryRow.modelData.otherParty !== ""
+                                ? entryRow.modelData.otherParty
+                                : page.i18nContext.i18nc("@info an entry that names nobody", "Without a name")
+                            textFormat: Text.PlainText
+                            elide: Text.ElideRight
+                            opacity: entryRow.modelData.otherParty !== "" ? 1 : 0.6
+                        }
+
+                        AmountLabel {
+                            textFormat: Text.PlainText
+                            text: entryRow.modelData.amount
+                            exactText: entryRow.modelData.exactAmount
+                            horizontalAlignment: Text.AlignRight
+                            color: entryRow.modelData.incoming ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.textColor
+                            opacity: entryRow.modelData.outcome === "imported" ? 1 : 0.6
+                        }
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: entryRow.modelData.purpose !== ""
+                        text: entryRow.modelData.purpose
+                        textFormat: Text.PlainText
+                        wrapMode: Text.Wrap
+                        maximumLineCount: 2
+                        elide: Text.ElideRight
+                        font: Kirigami.Theme.smallFont
+                        opacity: 0.8
+                    }
+
+                    Controls.Label {
+                        textFormat: Text.PlainText
+                        Layout.fillWidth: true
+                        text: page.outcomeText(entryRow.modelData)
+                        wrapMode: Text.Wrap
+                        font: Kirigami.Theme.smallFont
+                        color: entryRow.modelData.outcome === "similar" ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.textColor
+                    }
+
+                    Repeater {
+                        model: entryRow.modelData.similar
+
+                        delegate: Controls.Label {
+                            required property var modelData
+
+                            Layout.fillWidth: true
+                            Layout.leftMargin: Kirigami.Units.largeSpacing
+                            text: modelData.category === ""
+                                ? page.i18nContext.i18nc("@info a transaction in the book: %1 is a date, %2 a name, %3 an amount", "In your book: %1 · %2 · %3", modelData.date, modelData.otherParty, modelData.exactAmount)
+                                : page.i18nContext.i18nc("@info a transaction in the book: %1 is a date, %2 a name, %3 an amount, %4 a category", "In your book: %1 · %2 · %3 · %4", modelData.date, modelData.otherParty, modelData.exactAmount, modelData.category)
+                            textFormat: Text.PlainText
+                            wrapMode: Text.Wrap
+                            font: Kirigami.Theme.smallFont
+                        }
+                    }
+
+                    Controls.CheckBox {
+                        visible: entryRow.waiting
+                        text: page.i18nContext.i18nc("@option:check import an entry that looks like one already in the book", "Import it anyway, it is a different transaction")
+                        checked: entryRow.modelData.importAnyway
+                        onToggled: page.decide(entryRow.modelData.key, checked)
+                    }
+                }
+            }
+        }
+
+        footer: ColumnLayout {
+            width: entryList.width
+            spacing: 0
+
+            FormCard.FormSectionText {
+                text: page.i18nContext.i18nc("@info", "Nothing has changed yet. The import is one change, so Undo takes all of it back at once.")
+            }
         }
     }
 }

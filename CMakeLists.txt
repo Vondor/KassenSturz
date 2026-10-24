@@ -84,7 +84,7 @@ if(KASSENSTURZ_BANK_DIALOGS)
 endif()
 install(FILES data/io.github.vondor.KassenSturz.desktop DESTINATION ${KDE_INSTALL_APPDIR})
 install(FILES data/io.github.vondor.KassenSturz.metainfo.xml DESTINATION ${KDE_INSTALL_METAINFODIR})
-# The app icon in the freedesktop icon theme layout: an SVG and PNG sizes (D-164).
+# The app icon in the freedesktop icon theme layout: an SVG and PNG sizes (D-165).
 install(DIRECTORY data/icons/hicolor DESTINATION ${KDE_INSTALL_ICONDIR})
 ki18n_install(po)
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Tests that the app has an icon and that everything that shows it can find
-//! it (D-164). Before this the desktop file had no `Icon=` and nothing
+//! it (D-165). Before this the desktop file had no `Icon=` and nothing
 //! installed an icon, so Plasma showed its placeholder for the window and the
 //! launcher. The tests read the files as text, as `plain_text_audit` does for
 //! the QML, because the install itself happens in CMake and in the Flatpak,

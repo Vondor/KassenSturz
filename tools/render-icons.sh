@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 KassenSturz contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Draws the app icon's PNG sizes from its SVG (D-164):
+# Draws the app icon's PNG sizes from its SVG (D-165):
 #
 #   tools/render-icons.sh
 #

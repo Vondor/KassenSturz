@@ -539,7 +539,8 @@ fn payee(raw: &RawPayee) -> BookPayee {
     }
 }
 
-/// The Rules that KMyMoney's payee recognition amounts to (D-160).
+/// The Rules that KMyMoney's payee recognition and default categories
+/// amount to (D-160).
 ///
 /// KMyMoney compares the payee text of an imported entry with each payee:
 /// by the payee's name, which has to appear in the text, or by a list of
@@ -551,12 +552,15 @@ fn payee(raw: &RawPayee) -> BookPayee {
 /// (it doesn't take everything a Qt regular expression does) and reports
 /// the others.
 ///
-/// A payee gets a Rule only if it has both a way of being recognized and a
-/// default category the book has. Without a category the Rule would only
-/// set the payee, and since the first Rule that matches decides, it would
-/// keep the user's own later Rules from booking the entry. A payee with
-/// only one of the two, or a way of recognizing that this importer doesn't
-/// know, is counted as left out (`SkippedData::PayeeRules`).
+/// Every payee with a default category the book has gets a Rule. Where the
+/// file has no matching text for it, the Rule has only its name to look at
+/// (`BookRule::name_conditions`), which KMyMoney's own default category
+/// does too: it is offered when the user picks the payee. A payee with a
+/// way of being recognized but no default category gets none, since a Rule
+/// that only sets the payee would still be the first match and keep the
+/// user's own later Rules from booking the entry; it is counted as left out
+/// (`SkippedData::PayeeRules`), unless it is recognized by its name only,
+/// which KMyMoney does for every new payee.
 fn payee_rules(
     payees: &[RawPayee],
     accounts: &[BookAccount],
@@ -570,21 +574,27 @@ fn payee_rules(
     let mut rules = Vec::new();
     for raw in payees {
         let name = raw.name.trim();
-        let by = |operator, value: &str| BookCondition {
-            field: TextField::OtherPartyName,
+        let condition = |field, operator, value: &str| BookCondition {
+            field,
             operator,
             value: value.to_owned(),
         };
         let key_words = key_words(raw);
         let (match_mode, conditions, known) = match raw.matching.trim() {
-            "1" if !name.is_empty() => {
-                (MatchMode::All, vec![by(TextOperator::Contains, name)], true)
-            }
+            "1" if !name.is_empty() => (
+                MatchMode::All,
+                vec![condition(
+                    TextField::OtherPartyName,
+                    TextOperator::Contains,
+                    name,
+                )],
+                true,
+            ),
             "2" => (
                 MatchMode::Any,
                 key_words
                     .iter()
-                    .map(|key| by(TextOperator::Matches, key))
+                    .map(|key| condition(TextField::OtherPartyName, TextOperator::Matches, key))
                     .collect(),
                 true,
             ),
@@ -594,27 +604,24 @@ fn payee_rules(
         let default = usable
             .contains(raw.default_account.as_str())
             .then(|| raw.default_account.clone());
-        if name.is_empty() || conditions.is_empty() || default.is_none() {
-            // Recognizing by name, which KMyMoney does for every new payee,
-            // says nothing the name doesn't: without a category it is no loss.
-            let by_name_only = default.is_none() && raw.matching.trim() == "1";
-            let lost = match (conditions.is_empty(), default.is_some()) {
-                (true, true) => true,
-                (false, false) => !by_name_only,
-                (true, false) => !known,
-                (false, true) => false,
-            };
-            if lost {
+        let (Some(book_to), false) = (default, name.is_empty()) else {
+            // By name only says nothing the name doesn't: no loss.
+            let by_name_only = raw.matching.trim() == "1";
+            if !name.is_empty() && (known && !conditions.is_empty() && !by_name_only || !known) {
                 skipped.add(SkippedData::PayeeRules);
             }
             continue;
-        }
+        };
         rules.push(BookRule {
             name: name.to_owned(),
             match_mode,
             conditions,
+            name_conditions: vec![
+                condition(TextField::Payee, TextOperator::Equals, name),
+                condition(TextField::OtherPartyName, TextOperator::Equals, name),
+            ],
             case_sensitive: !matches!(raw.match_ignores_case.trim(), "1" | "Y"),
-            book_to: default,
+            book_to,
             payee: name.to_owned(),
         });
     }

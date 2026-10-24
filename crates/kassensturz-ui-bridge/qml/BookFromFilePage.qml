@@ -24,6 +24,11 @@ FormCard.FormCardPage {
     required property url folderUrl
     readonly property var file: bookFromFile.view ?? ({})
     readonly property var unlisted: file.unlisted ?? []
+    // The Advanced choice about Rules from a KMyMoney file (D-160): whether
+    // they are shown, and whether Rules are made only for names the file
+    // has a matching text for.
+    property bool advanced: false
+    property bool rulesOnlyWithText: false
 
     // The user decided against making the book.
     signal cancelled()
@@ -56,7 +61,7 @@ FormCard.FormCardPage {
             placeDialog.currentFile = folderUrl + "/" + encodeURIComponent(file.bookName ?? "");
             placeDialog.open();
         } else {
-            error.result = bookFromFile.create(answers());
+            error.result = bookFromFile.create(answers(), rulesOnlyWithText);
         }
     }
 
@@ -67,7 +72,7 @@ FormCard.FormCardPage {
         fileMode: Dialogs.FileDialog.SaveFile
         defaultSuffix: "ksz"
         nameFilters: [page.i18nContext.i18nc("@item:inlistbox a file type", "KassenSturz books (*.ksz)")]
-        onAccepted: error.result = page.bookFromFile.createAt(page.answers(), selectedFile)
+        onAccepted: error.result = page.bookFromFile.createAt(page.answers(), page.rulesOnlyWithText, selectedFile)
     }
 
     FormCard.FormHeader {
@@ -158,6 +163,34 @@ FormCard.FormCardPage {
 
             info: modelData
             currencies: page.bookFromFile.currencies
+        }
+    }
+
+    FormCard.FormCard {
+        visible: (page.file.rulesByNameOnly ?? 0) > 0
+
+        FormCard.FormButtonDelegate {
+            descriptionItem.textFormat: Text.PlainText
+            icon.name: page.advanced ? "arrow-up" : "arrow-down"
+            text: page.advanced
+                ? page.i18nContext.i18nc("@action:button", "Fewer choices")
+                : page.i18nContext.i18nc("@action:button", "Advanced")
+            description: page.advanced
+                ? ""
+                : page.i18nContext.i18nc("@info", "Which of your KMyMoney names get a Rule.")
+            onClicked: page.advanced = !page.advanced
+        }
+
+        FormCard.FormDelegateSeparator {
+            visible: page.advanced
+        }
+
+        FormCard.FormSwitchDelegate {
+            visible: page.advanced
+            text: page.i18nContext.i18nc("@option:check", "Make Rules only for names with a matching text")
+            description: page.i18nContext.i18ncp("@info %1 is how many", "Your file has %1 name with a default category but no matching text. Usually KassenSturz makes a Rule for it too, which recognizes it by its name. Turn this on to leave it out.", "Your file has %1 names with a default category but no matching text. Usually KassenSturz makes a Rule for each, which recognizes it by its name. Turn this on to leave them out.", page.file.rulesByNameOnly ?? 0)
+            checked: page.rulesOnlyWithText
+            onToggled: page.rulesOnlyWithText = checked
         }
     }
 

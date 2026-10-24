@@ -19,7 +19,9 @@ use kassensturz_import::{
     BookAccount, BookCondition, BookRule, Imported, ImportedBook, Kmy, KmySqlite, Limits,
     SkippedData, currency, import,
 };
-use kassensturz_pipeline::{BookImportReport, PatternLeftOut, fill_book_from};
+use kassensturz_pipeline::{
+    BookImportReport, PatternLeftOut, RuleScope, fill_book_from, fill_book_from_with,
+};
 use kassensturz_store::Book;
 
 fn golden(folder: &str, name: &str) -> Vec<u8> {
@@ -30,20 +32,25 @@ fn golden(folder: &str, name: &str) -> Vec<u8> {
     fs::read(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
 }
 
-fn filled(imported: Imported) -> (Book, BookImportReport) {
+fn filled_with(imported: Imported, scope: RuleScope) -> (Book, BookImportReport) {
     let Imported::Book(imported) = imported else {
         panic!("a book");
     };
     let mut book = Book::create_in_memory().expect("book created");
-    let report = fill_book_from(&mut book, &imported, &HashMap::new()).expect("filled");
+    let report = fill_book_from_with(&mut book, &imported, &HashMap::new(), scope).expect("filled");
     (book, report)
 }
 
-fn payee_rules_kmy() -> (Book, BookImportReport) {
-    filled(
+fn payee_rules_kmy_with(scope: RuleScope) -> (Book, BookImportReport) {
+    filled_with(
         import(&Kmy, &golden("kmy", "payee-rules.kmy"), &Limits::default())
             .expect("the file reads"),
+        scope,
     )
+}
+
+fn payee_rules_kmy() -> (Book, BookImportReport) {
+    payee_rules_kmy_with(RuleScope::default())
 }
 
 fn account(book: &Book, name: &str) -> AccountId {
@@ -109,7 +116,7 @@ fn booked(
 }
 
 #[test]
-fn a_payee_with_matching_texts_and_a_default_category_becomes_a_rule() {
+fn a_payee_with_a_default_category_becomes_a_rule() {
     let (book, report) = payee_rules_kmy();
     let names: Vec<String> = book
         .rules()
@@ -119,10 +126,16 @@ fn a_payee_with_matching_texts_and_a_default_category_becomes_a_rule() {
         .collect();
     assert_eq!(
         names,
-        ["Corner Grocery", "Hotel Example", "Pays Salary"],
+        [
+            "Corner Grocery",
+            "Hotel Example",
+            "Pays Salary",
+            "Only Default",
+            "Only Unusable"
+        ],
         "in the order of the payees"
     );
-    assert_eq!(report.rules, 3);
+    assert_eq!(report.rules, 5);
 
     let grocery = rule(&book, "Corner Grocery");
     assert_eq!(
@@ -130,9 +143,11 @@ fn a_payee_with_matching_texts_and_a_default_category_becomes_a_rule() {
         Some(BookTo::Category(account(&book, "Groceries")))
     );
     assert_eq!(grocery.actions.payee.as_deref(), Some("Corner Grocery"));
-    // Two of its three texts: one is a pattern KassenSturz can't use.
-    assert_eq!(grocery.conditions.len(), 2);
-    for condition in &grocery.conditions {
+    assert_eq!(grocery.match_mode, MatchMode::Any);
+    // Two of its three texts (one is a pattern KassenSturz can't use), then
+    // the name itself, as the payee and as the other party.
+    assert_eq!(grocery.conditions.len(), 4);
+    for condition in &grocery.conditions[..2] {
         assert!(matches!(
             condition,
             Condition::Text {
@@ -142,23 +157,67 @@ fn a_payee_with_matching_texts_and_a_default_category_becomes_a_rule() {
             }
         ));
     }
+    for (condition, wanted_field) in grocery.conditions[2..]
+        .iter()
+        .zip([TextField::Payee, TextField::OtherPartyName])
+    {
+        assert!(matches!(
+            condition,
+            Condition::Text {
+                field,
+                operator: TextOperator::Equals,
+                case_sensitive: false,
+                ..
+            } if *field == wanted_field
+        ));
+    }
 
     // Recognizing by the name is "contains", and capitals count when the
-    // file says so.
+    // file says so; the name itself is added.
     let hotel = rule(&book, "Hotel Example");
+    assert_eq!(hotel.conditions.len(), 3);
     assert!(matches!(
-        &hotel.conditions[..],
-        [Condition::Text {
+        &hotel.conditions[0],
+        Condition::Text {
             operator: TextOperator::Contains,
             case_sensitive: true,
             ..
-        }]
+        }
     ));
+
+    // A payee that has only a default category is recognized by its name.
+    let only_default = rule(&book, "Only Default");
+    assert_eq!(only_default.conditions.len(), 2);
+    assert_eq!(
+        only_default.actions.book_to,
+        Some(BookTo::Category(account(&book, "Groceries")))
+    );
 }
 
+/// The "Advanced" choice: only payees the file has a matching text for.
 #[test]
-fn what_cant_become_part_of_a_rule_is_reported_not_dropped() {
-    let (_, report) = payee_rules_kmy();
+fn only_with_matching_text_leaves_out_what_the_file_cant_recognize() {
+    let (book, report) = payee_rules_kmy_with(RuleScope::WithMatchingText);
+    let names: Vec<String> = book
+        .rules()
+        .expect("Rules")
+        .into_iter()
+        .map(|node| node.rule.name)
+        .collect();
+    assert_eq!(names, ["Corner Grocery", "Hotel Example", "Pays Salary"]);
+    assert_eq!(report.rules, 3);
+    // The file's texts only: no name added.
+    assert_eq!(rule(&book, "Corner Grocery").conditions.len(), 2);
+    assert_eq!(rule(&book, "Corner Grocery").match_mode, MatchMode::Any);
+    assert_eq!(rule(&book, "Hotel Example").conditions.len(), 1);
+    assert_eq!(rule(&book, "Hotel Example").match_mode, MatchMode::All);
+    // The two without a default category, and the one without a text.
+    let skipped = report
+        .skipped
+        .iter()
+        .find(|skipped| skipped.what == SkippedData::PayeeRules)
+        .expect("counted");
+    assert_eq!(skipped.count, 3);
     assert_eq!(
         report.patterns_left_out,
         vec![
@@ -174,15 +233,34 @@ fn what_cant_become_part_of_a_rule_is_reported_not_dropped() {
             },
         ]
     );
-    // A matching text without a default category, a default category without
-    // a way to recognize the payee, and a default category in an account
-    // the book doesn't have.
+}
+
+#[test]
+fn what_cant_become_part_of_a_rule_is_reported_not_dropped() {
+    let (_, report) = payee_rules_kmy();
+    // The name itself still recognizes "Only Unusable", so it has a Rule.
+    assert_eq!(
+        report.patterns_left_out,
+        vec![
+            PatternLeftOut {
+                payee: "Corner Grocery".into(),
+                pattern: "^(?!x)Corner$".into(),
+                rule_made: true,
+            },
+            PatternLeftOut {
+                payee: "Only Unusable".into(),
+                pattern: "^(?=a).*$".into(),
+                rule_made: true,
+            },
+        ]
+    );
+    // Matching texts without a default category: nothing to book to.
     let skipped = report
         .skipped
         .iter()
         .find(|skipped| skipped.what == SkippedData::PayeeRules)
         .expect("counted");
-    assert_eq!(skipped.count, 3);
+    assert_eq!(skipped.count, 2);
 }
 
 #[test]
@@ -199,8 +277,10 @@ fn the_rules_book_what_a_bank_delivers_as_kmymoney_recognized_it() {
     let hotel = delivered(&mut book, checking, -12_000, "The Hotel Example Berlin");
     let lower = delivered(&mut book, checking, -8_000, "the hotel example berlin");
     let pay = delivered(&mut book, checking, 250_000, "PAYS SALARY");
+    let named = delivered(&mut book, checking, -1_000, "only default");
+    let named_longer = delivered(&mut book, checking, -1_000, "Only Default Shop");
     let run = book.run_rules().expect("Rules run");
-    assert_eq!(run.changed.len(), 4);
+    assert_eq!(run.changed.len(), 5);
 
     let grocery = Some("Corner Grocery".to_owned());
     // Anchored texts match the whole name and ignore capitals.
@@ -220,37 +300,95 @@ fn the_rules_book_what_a_bank_delivers_as_kmymoney_recognized_it() {
         booked(&book, &pay, checking),
         (Some(salary), Some("Pays Salary".to_owned()))
     );
+    // A payee with only a default category: its name, whole, ignoring
+    // capitals.
+    assert_eq!(
+        booked(&book, &named, checking),
+        (Some(groceries), Some("Only Default".to_owned()))
+    );
+    assert_eq!(booked(&book, &named_longer, checking), (None, None));
 }
 
 #[test]
-fn a_default_account_of_the_user_makes_a_transfer_rule() {
-    let (book, report) = filled(
+fn only_with_matching_text_the_name_alone_books_nothing() {
+    let (mut book, _) = payee_rules_kmy_with(RuleScope::WithMatchingText);
+    let checking = account(&book, "Checking");
+    let groceries = account(&book, "Groceries");
+    let named = delivered(&mut book, checking, -1_000, "only default");
+    let text = delivered(&mut book, checking, -990, "Corner/Grocery Market 12");
+    let run = book.run_rules().expect("Rules run");
+    assert_eq!(run.changed.len(), 1);
+    assert_eq!(booked(&book, &named, checking), (None, None));
+    assert_eq!(
+        booked(&book, &text, checking),
+        (Some(groceries), Some("Corner Grocery".to_owned()))
+    );
+}
+
+fn space_colony_v15(scope: RuleScope) -> (Book, BookImportReport) {
+    filled_with(
         import(
             &KmySqlite,
             &golden("kmy-sqlite", "space-colony-v15.sqlite"),
             &Limits::default(),
         )
         .expect("the file reads"),
-    );
-    // 26 payees: 22 have a way to be recognized and a default category the
-    // book has, one of them an account of the user's; four had only one of
-    // the two, or something the importer doesn't know. One of the 22 has
-    // only a pattern KassenSturz can't use, so 21 Rules are made.
-    assert_eq!(report.rules, 21);
-    assert_eq!(
-        report
-            .skipped
-            .iter()
-            .find(|skipped| skipped.what == SkippedData::PayeeRules)
-            .map(|skipped| skipped.count),
-        Some(4)
-    );
+        scope,
+    )
+}
+
+fn payee_rules_skipped(report: &BookImportReport) -> Option<usize> {
+    report
+        .skipped
+        .iter()
+        .find(|skipped| skipped.what == SkippedData::PayeeRules)
+        .map(|skipped| skipped.count)
+}
+
+#[test]
+fn a_default_account_of_the_user_makes_a_transfer_rule() {
+    let (book, report) = space_colony_v15(RuleScope::default());
+    // 26 payees: 24 have a default category the book has, one of them an
+    // account of the user's, so 24 Rules are made, two of them recognizing
+    // the payee by its name only. Two had no default category, or
+    // something the importer doesn't know.
+    assert_eq!(report.rules, 24);
+    assert_eq!(payee_rules_skipped(&report), Some(2));
     let water = rule(&book, "Europa Water Board");
     assert_eq!(
         water.actions.book_to,
         Some(BookTo::Transfer(account(&book, "Everyday Checking")))
     );
-    // Both of its texts, and the one with a lookahead, which isn't usable.
+    // Both of its texts and its name twice, and the one with a lookahead,
+    // which isn't usable, has its name.
+    assert_eq!(rule(&book, "Hydroponics Cooperative").conditions.len(), 4);
+    assert_eq!(rule(&book, "Suit Tailors Guild").conditions.len(), 3);
+    assert_eq!(rule(&book, "Rover Garage Gamma").conditions.len(), 2);
+    assert_eq!(
+        report.patterns_left_out,
+        vec![
+            PatternLeftOut {
+                payee: "Suit Tailors Guild".into(),
+                pattern: "^(?!Test).*Tailors$".into(),
+                rule_made: true,
+            },
+            PatternLeftOut {
+                payee: "Rover Garage Gamma".into(),
+                pattern: "^(?=Rover).*Gamma$".into(),
+                rule_made: true,
+            },
+        ]
+    );
+}
+
+#[test]
+fn only_with_matching_text_a_book_gets_the_rules_it_had_before() {
+    let (book, report) = space_colony_v15(RuleScope::WithMatchingText);
+    // 22 payees have a matching text and a default category; one has only
+    // a pattern KassenSturz can't use. The other four have no text or no
+    // default category.
+    assert_eq!(report.rules, 21);
+    assert_eq!(payee_rules_skipped(&report), Some(4));
     assert_eq!(rule(&book, "Hydroponics Cooperative").conditions.len(), 2);
     assert_eq!(rule(&book, "Suit Tailors Guild").conditions.len(), 1);
     assert_eq!(
@@ -270,7 +408,7 @@ fn a_default_account_of_the_user_makes_a_transfer_rule() {
     );
 }
 
-fn rule_for(name: &str, pattern: &str, book_to: Option<&str>) -> BookRule {
+fn rule_for(name: &str, pattern: &str, book_to: &str) -> BookRule {
     BookRule {
         name: name.into(),
         match_mode: MatchMode::Any,
@@ -279,8 +417,13 @@ fn rule_for(name: &str, pattern: &str, book_to: Option<&str>) -> BookRule {
             operator: TextOperator::Matches,
             value: pattern.into(),
         }],
+        name_conditions: vec![BookCondition {
+            field: TextField::OtherPartyName,
+            operator: TextOperator::Equals,
+            value: name.into(),
+        }],
         case_sensitive: false,
-        book_to: book_to.map(str::to_owned),
+        book_to: book_to.into(),
         payee: name.into(),
     }
 }
@@ -312,8 +455,8 @@ fn two_accounts() -> ImportedBook {
 fn rules_of_a_handed_over_book_get_names_that_differ_and_a_known_account() {
     let mut imported = two_accounts();
     imported.rules = vec![
-        rule_for("Shop", "^shop$", Some("E1")),
-        rule_for("shop", "^other$", Some("A1")),
+        rule_for("Shop", "^shop$", "E1"),
+        rule_for("shop", "^other$", "A1"),
     ];
     let mut book = Book::create_in_memory().expect("book created");
     let report = fill_book_from(&mut book, &imported, &HashMap::new()).expect("filled");
@@ -335,7 +478,7 @@ fn rules_of_a_handed_over_book_get_names_that_differ_and_a_known_account() {
     );
 
     // A key no account has is a broken book, not a guess.
-    imported.rules = vec![rule_for("Shop", "^shop$", Some("nowhere"))];
+    imported.rules = vec![rule_for("Shop", "^shop$", "nowhere")];
     let mut book = Book::create_in_memory().expect("book created");
     assert!(fill_book_from(&mut book, &imported, &HashMap::new()).is_err());
     assert_eq!(book.rules().expect("Rules"), Vec::new());
@@ -352,7 +495,7 @@ fn every_escaped_punctuation_mark_is_usable() {
         .map(|c| format!("\\{c}"))
         .collect();
     let mut imported = two_accounts();
-    imported.rules = vec![rule_for("Shop", &format!("^a\\ {escaped}b$"), Some("E1"))];
+    imported.rules = vec![rule_for("Shop", &format!("^a\\ {escaped}b$"), "E1")];
     let mut book = Book::create_in_memory().expect("book created");
     let report = fill_book_from(&mut book, &imported, &HashMap::new()).expect("filled");
     assert_eq!(report.rules, 1);

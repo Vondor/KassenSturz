@@ -10,13 +10,13 @@ use std::collections::{HashMap, HashSet};
 use kassensturz_core::{
     Account, AccountId, AccountKind, Actions, BookTo, Changeover, Condition, ConvertedPart,
     Currency, CurrencyCode, DatedRate, DatedRateId, ForeignAmount, Institution, InstitutionId,
-    Money, MoneyError, OriginalAmount, Payee, PayeeId, RateSource, RoundingMode, Rule, RuleId,
-    RuleNode, Split, Tag, TagId, Transaction, TransactionId, TransferMatch, Withdrawn,
+    MatchMode, Money, MoneyError, OriginalAmount, Payee, PayeeId, RateSource, RoundingMode, Rule,
+    RuleId, RuleNode, Split, Tag, TagId, Transaction, TransactionId, TransferMatch, Withdrawn,
 };
 use kassensturz_export::BookData;
 use kassensturz_import::{
-    BookAccount, BookInstitution, BookPart, BookPayee, BookRule, BookTag, BookTransaction,
-    ImportError, ImportedBook, Replacement, Skipped, currency,
+    BookAccount, BookCondition, BookInstitution, BookPart, BookPayee, BookRule, BookTag,
+    BookTransaction, ImportError, ImportedBook, Replacement, Skipped, SkippedData, currency,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -131,6 +131,30 @@ pub fn fill_book_from(
     imported: &ImportedBook,
     replaced: &HashMap<CurrencyCode, Replacement>,
 ) -> Result<BookImportReport, PipelineError> {
+    fill_book_from_with(book, imported, replaced, RuleScope::default())
+}
+
+/// Which payees of an imported book get a Rule (D-160).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum RuleScope {
+    /// Every payee with a default category: where the file has a matching
+    /// text for it, the Rule looks for that text or the payee's name;
+    /// otherwise for the name only, as the other party and as the payee of
+    /// a transaction. What most people want.
+    #[default]
+    AlsoByName,
+    /// Only payees whose file has a matching text and a default category,
+    /// each Rule looking for that text. The others are counted as left out.
+    WithMatchingText,
+}
+
+/// [`fill_book_from`] with the choice of which payees get a Rule (D-160).
+pub fn fill_book_from_with(
+    book: &mut Book,
+    imported: &ImportedBook,
+    replaced: &HashMap<CurrencyCode, Replacement>,
+    scope: RuleScope,
+) -> Result<BookImportReport, PipelineError> {
     let rounding = book.rounding_mode()?;
     let mut mapper = Mapper {
         replaced: replaced_currencies(imported, replaced)?,
@@ -140,7 +164,7 @@ pub fn fill_book_from(
     let tags = mapper.tags(&imported.tags)?;
     let payees = Mapper::payees(&imported.payees);
     let mut accounts = mapper.accounts(&imported.accounts)?;
-    let (rules, patterns_left_out) = mapper.rules(&imported.rules)?;
+    let (rules, patterns_left_out, without_text) = mapper.rules(&imported.rules, scope)?;
     let mut changeover = Changeover::new(rounding);
     let mut uncategorized = 0;
     let mut completed = 0;
@@ -229,7 +253,7 @@ pub fn fill_book_from(
         transfers: book.transfer_suggestions()?,
         rules: data.rules.len(),
         patterns_left_out,
-        skipped: imported.skipped.clone(),
+        skipped: with_counted(&imported.skipped, SkippedData::PayeeRules, without_text),
     })
 }
 
@@ -477,30 +501,48 @@ impl Mapper {
     }
 
     /// The Rules the file asks for, with new IDs and names that differ, as
-    /// the book asks. A pattern KassenSturz can't use is left out of its
-    /// Rule and reported; a Rule with no usable condition left isn't made.
+    /// the book asks, and how many payees `scope` left without one. A
+    /// pattern KassenSturz can't use is left out of its Rule and reported;
+    /// a Rule with no usable condition left isn't made.
     fn rules(
         &self,
         imported: &[BookRule],
-    ) -> Result<(Vec<RuleNode>, Vec<PatternLeftOut>), PipelineError> {
+        scope: RuleScope,
+    ) -> Result<(Vec<RuleNode>, Vec<PatternLeftOut>, usize), PipelineError> {
         let mut taken = HashSet::new();
         let mut rules = Vec::with_capacity(imported.len());
         let mut left_out = Vec::new();
+        let mut without_text = 0;
         for wanted in imported {
-            let mut conditions = Vec::new();
-            let mut unusable = Vec::new();
-            for given in &wanted.conditions {
+            let usable = |given: &BookCondition| {
                 let condition = Condition::Text {
                     field: given.field,
                     operator: given.operator,
                     value: given.value.clone(),
                     case_sensitive: wanted.case_sensitive,
                 };
-                if alone(&condition, wanted).check().is_ok() {
-                    conditions.push(condition);
-                } else {
-                    unusable.push(given.value.clone());
+                alone(&condition, wanted)
+                    .check()
+                    .is_ok()
+                    .then_some(condition)
+            };
+            if scope == RuleScope::WithMatchingText && wanted.conditions.is_empty() {
+                without_text += 1;
+                continue;
+            }
+            let mut conditions = Vec::new();
+            let mut unusable = Vec::new();
+            for given in &wanted.conditions {
+                match usable(given) {
+                    Some(condition) => conditions.push(condition),
+                    None => unusable.push(given.value.clone()),
                 }
+            }
+            let mut match_mode = wanted.match_mode;
+            if scope == RuleScope::AlsoByName {
+                // Either the file's texts or the name: one is enough.
+                conditions.extend(wanted.name_conditions.iter().filter_map(usable));
+                match_mode = MatchMode::Any;
             }
             for pattern in unusable {
                 left_out.push(PatternLeftOut {
@@ -512,32 +554,27 @@ impl Mapper {
             if conditions.is_empty() {
                 continue;
             }
-            let book_to = match &wanted.book_to {
-                Some(key) => {
-                    let id = self.id(key)?;
-                    Some(if self.user_accounts.get(key) == Some(&true) {
-                        BookTo::Transfer(id)
-                    } else {
-                        BookTo::Category(id)
-                    })
-                }
-                None => None,
+            let id = self.id(&wanted.book_to)?;
+            let book_to = if self.user_accounts.get(&wanted.book_to) == Some(&true) {
+                BookTo::Transfer(id)
+            } else {
+                BookTo::Category(id)
             };
             rules.push(RuleNode {
                 rule: Rule {
                     id: RuleId::generate(),
                     name: unique_name(&wanted.name, &mut taken),
-                    match_mode: wanted.match_mode,
+                    match_mode,
                     conditions,
                     actions: Actions {
-                        book_to,
+                        book_to: Some(book_to),
                         payee: Some(wanted.payee.clone()),
                     },
                 },
                 sub_rules: Vec::new(),
             });
         }
-        Ok((rules, left_out))
+        Ok((rules, left_out, without_text))
     }
 
     fn accounts(&mut self, imported: &[BookAccount]) -> Result<Vec<Account>, PipelineError> {
@@ -839,6 +876,20 @@ fn unique_name(wanted: &str, taken: &mut HashSet<String>) -> String {
         name = format!("{wanted} ({number})");
     }
     name
+}
+
+/// `skipped` with `more` added to the count of `what`, in the order of
+/// [`SkippedData::ALL`].
+fn with_counted(skipped: &[Skipped], what: SkippedData, more: usize) -> Vec<Skipped> {
+    let mut counts: Vec<Skipped> = skipped.to_vec();
+    if more > 0 {
+        match counts.iter_mut().find(|counted| counted.what == what) {
+            Some(counted) => counted.count = counted.count.saturating_add(more),
+            None => counts.push(Skipped { what, count: more }),
+        }
+        counts.sort_by_key(|counted| counted.what);
+    }
+    counts
 }
 
 /// `condition` as a Rule of its own, to check it without the others.

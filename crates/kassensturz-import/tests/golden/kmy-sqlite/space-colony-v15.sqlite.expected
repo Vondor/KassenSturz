@@ -115,28 +115,30 @@ book
   payee "P000117": "Crater Bakery", address -, email -, phone -, reference -, recognized by ["^Crater\\ Bakery$"] ignoring case
   payee "P000118": "Ceres Greengrocer", address -, email -, phone -, reference -, recognized by ["^Ceres\\ Greengrocer$"] ignoring case
   payee "P000119": "Luna Pharmacy", address -, email -, phone -, reference -, recognized by ["^Luna\\ Pharmacy$"] ignoring case
-  rule "Hydroponics Cooperative": Any of [OtherPartyName Matches "^Hydroponics\\ Cooperative$"; OtherPartyName Matches "^HYDRO\\ COOP\\/.*$"], ignoring case, book to "A000043", set payee "Hydroponics Cooperative"
-  rule "Suit Tailors Guild": Any of [OtherPartyName Matches "^Suit\\ Tailors\\ Guild$"; OtherPartyName Matches "^(?!Test).*Tailors$"], ignoring case, book to "A000013", set payee "Suit Tailors Guild"
-  rule "Rover Garage Gamma": Any of [OtherPartyName Matches "^(?=Rover).*Gamma$"], ignoring case, book to "A000036", set payee "Rover Garage Gamma"
-  rule "Olympus Mons Market": All of [OtherPartyName Contains "Olympus Mons Market"], ignoring case, book to "A000033", set payee "Olympus Mons Market"
-  rule "Venus Library": Any of [OtherPartyName Matches "^Venus\\ Library$"], capitals count, book to "A000080", set payee "Venus Library"
-  rule "Europa Water Board": Any of [OtherPartyName Matches "^Europa\\ Water\\ Board$"], ignoring case, book to "A000004", set payee "Europa Water Board"
-  rule "Redwood Seed Bank": Any of [OtherPartyName Matches "^Redwood\\ Seed\\ Bank$"], ignoring case, book to "A000073", set payee "Redwood Seed Bank"
-  rule "Asteroid Mining Corp.": Any of [OtherPartyName Matches "^Asteroid\\ Mining\\ Corp.$"], ignoring case, book to "A000070", set payee "Asteroid Mining Corp."
-  rule "Subspace Telecom": Any of [OtherPartyName Matches "^Subspace\\ Telecom$"], ignoring case, book to "A000069", set payee "Subspace Telecom"
-  rule "Aurora Dome Cinema": Any of [OtherPartyName Matches "^Aurora\\ Dome\\ Cinema$"], ignoring case, book to "A000047", set payee "Aurora Dome Cinema"
-  rule "Titan Fuel Station": Any of [OtherPartyName Matches "^Titan\\ Fuel\\ Station$"], ignoring case, book to "A000035", set payee "Titan Fuel Station"
-  rule "Helios Insurance": Any of [OtherPartyName Matches "^Helios\\ Insurance$"], ignoring case, book to "A000079", set payee "Helios Insurance"
-  rule "Nebula Streaming": Any of [OtherPartyName Matches "^Nebula\\ Streaming$"], ignoring case, book to "A000081", set payee "Nebula Streaming"
-  rule "Pioneer Fund": Any of [OtherPartyName Matches "^Pioneer\\ Fund$"], ignoring case, book to "A000082", set payee "Pioneer Fund"
-  rule "Colony Council Tax Office": Any of [OtherPartyName Matches "^Colony\\ Council\\ Tax\\ Office$"], ignoring case, book to "A000041", set payee "Colony Council Tax Office"
-  rule "Phobos Canteen": Any of [OtherPartyName Matches "^Phobos\\ Canteen$"], ignoring case, book to "A000074", set payee "Phobos Canteen"
-  rule "Northern Ice Works": Any of [OtherPartyName Matches "^Northern\\ Ice\\ Works$"], ignoring case, book to "A000021", set payee "Northern Ice Works"
-  rule "Andromeda Travel Agency": Any of [OtherPartyName Matches "^Andromeda\\ Travel\\ Agency$"], ignoring case, book to "A000068", set payee "Andromeda Travel Agency"
-  rule "Dome Management Co.": Any of [OtherPartyName Matches "^Dome\\ Management\\ Co.$"], ignoring case, book to "A000075", set payee "Dome Management Co."
-  rule "Crater Bakery": Any of [OtherPartyName Matches "^Crater\\ Bakery$"], ignoring case, book to "A000078", set payee "Crater Bakery"
-  rule "Ceres Greengrocer": Any of [OtherPartyName Matches "^Ceres\\ Greengrocer$"], ignoring case, book to "A000083", set payee "Ceres Greengrocer"
-  rule "Luna Pharmacy": Any of [OtherPartyName Matches "^Luna\\ Pharmacy$"], ignoring case, book to "A000053", set payee "Luna Pharmacy"
+  rule "Hydroponics Cooperative": Any of [OtherPartyName Matches "^Hydroponics\\ Cooperative$"; OtherPartyName Matches "^HYDRO\\ COOP\\/.*$"], or its name [Payee Equals "Hydroponics Cooperative"; OtherPartyName Equals "Hydroponics Cooperative"], ignoring case, book to "A000043", set payee "Hydroponics Cooperative"
+  rule "Suit Tailors Guild": Any of [OtherPartyName Matches "^Suit\\ Tailors\\ Guild$"; OtherPartyName Matches "^(?!Test).*Tailors$"], or its name [Payee Equals "Suit Tailors Guild"; OtherPartyName Equals "Suit Tailors Guild"], ignoring case, book to "A000013", set payee "Suit Tailors Guild"
+  rule "Rover Garage Gamma": Any of [OtherPartyName Matches "^(?=Rover).*Gamma$"], or its name [Payee Equals "Rover Garage Gamma"; OtherPartyName Equals "Rover Garage Gamma"], ignoring case, book to "A000036", set payee "Rover Garage Gamma"
+  rule "Olympus Mons Market": All of [OtherPartyName Contains "Olympus Mons Market"], or its name [Payee Equals "Olympus Mons Market"; OtherPartyName Equals "Olympus Mons Market"], ignoring case, book to "A000033", set payee "Olympus Mons Market"
+  rule "Venus Library": Any of [OtherPartyName Matches "^Venus\\ Library$"], or its name [Payee Equals "Venus Library"; OtherPartyName Equals "Venus Library"], capitals count, book to "A000080", set payee "Venus Library"
+  rule "Europa Water Board": Any of [OtherPartyName Matches "^Europa\\ Water\\ Board$"], or its name [Payee Equals "Europa Water Board"; OtherPartyName Equals "Europa Water Board"], ignoring case, book to "A000004", set payee "Europa Water Board"
+  rule "Callisto Cafe": All of [], or its name [Payee Equals "Callisto Cafe"; OtherPartyName Equals "Callisto Cafe"], ignoring case, book to "A000040", set payee "Callisto Cafe"
+  rule "Galaxy Electronics": All of [], or its name [Payee Equals "Galaxy Electronics"; OtherPartyName Equals "Galaxy Electronics"], ignoring case, book to "A000077", set payee "Galaxy Electronics"
+  rule "Redwood Seed Bank": Any of [OtherPartyName Matches "^Redwood\\ Seed\\ Bank$"], or its name [Payee Equals "Redwood Seed Bank"; OtherPartyName Equals "Redwood Seed Bank"], ignoring case, book to "A000073", set payee "Redwood Seed Bank"
+  rule "Asteroid Mining Corp.": Any of [OtherPartyName Matches "^Asteroid\\ Mining\\ Corp.$"], or its name [Payee Equals "Asteroid Mining Corp."; OtherPartyName Equals "Asteroid Mining Corp."], ignoring case, book to "A000070", set payee "Asteroid Mining Corp."
+  rule "Subspace Telecom": Any of [OtherPartyName Matches "^Subspace\\ Telecom$"], or its name [Payee Equals "Subspace Telecom"; OtherPartyName Equals "Subspace Telecom"], ignoring case, book to "A000069", set payee "Subspace Telecom"
+  rule "Aurora Dome Cinema": Any of [OtherPartyName Matches "^Aurora\\ Dome\\ Cinema$"], or its name [Payee Equals "Aurora Dome Cinema"; OtherPartyName Equals "Aurora Dome Cinema"], ignoring case, book to "A000047", set payee "Aurora Dome Cinema"
+  rule "Titan Fuel Station": Any of [OtherPartyName Matches "^Titan\\ Fuel\\ Station$"], or its name [Payee Equals "Titan Fuel Station"; OtherPartyName Equals "Titan Fuel Station"], ignoring case, book to "A000035", set payee "Titan Fuel Station"
+  rule "Helios Insurance": Any of [OtherPartyName Matches "^Helios\\ Insurance$"], or its name [Payee Equals "Helios Insurance"; OtherPartyName Equals "Helios Insurance"], ignoring case, book to "A000079", set payee "Helios Insurance"
+  rule "Nebula Streaming": Any of [OtherPartyName Matches "^Nebula\\ Streaming$"], or its name [Payee Equals "Nebula Streaming"; OtherPartyName Equals "Nebula Streaming"], ignoring case, book to "A000081", set payee "Nebula Streaming"
+  rule "Pioneer Fund": Any of [OtherPartyName Matches "^Pioneer\\ Fund$"], or its name [Payee Equals "Pioneer Fund"; OtherPartyName Equals "Pioneer Fund"], ignoring case, book to "A000082", set payee "Pioneer Fund"
+  rule "Colony Council Tax Office": Any of [OtherPartyName Matches "^Colony\\ Council\\ Tax\\ Office$"], or its name [Payee Equals "Colony Council Tax Office"; OtherPartyName Equals "Colony Council Tax Office"], ignoring case, book to "A000041", set payee "Colony Council Tax Office"
+  rule "Phobos Canteen": Any of [OtherPartyName Matches "^Phobos\\ Canteen$"], or its name [Payee Equals "Phobos Canteen"; OtherPartyName Equals "Phobos Canteen"], ignoring case, book to "A000074", set payee "Phobos Canteen"
+  rule "Northern Ice Works": Any of [OtherPartyName Matches "^Northern\\ Ice\\ Works$"], or its name [Payee Equals "Northern Ice Works"; OtherPartyName Equals "Northern Ice Works"], ignoring case, book to "A000021", set payee "Northern Ice Works"
+  rule "Andromeda Travel Agency": Any of [OtherPartyName Matches "^Andromeda\\ Travel\\ Agency$"], or its name [Payee Equals "Andromeda Travel Agency"; OtherPartyName Equals "Andromeda Travel Agency"], ignoring case, book to "A000068", set payee "Andromeda Travel Agency"
+  rule "Dome Management Co.": Any of [OtherPartyName Matches "^Dome\\ Management\\ Co.$"], or its name [Payee Equals "Dome Management Co."; OtherPartyName Equals "Dome Management Co."], ignoring case, book to "A000075", set payee "Dome Management Co."
+  rule "Crater Bakery": Any of [OtherPartyName Matches "^Crater\\ Bakery$"], or its name [Payee Equals "Crater Bakery"; OtherPartyName Equals "Crater Bakery"], ignoring case, book to "A000078", set payee "Crater Bakery"
+  rule "Ceres Greengrocer": Any of [OtherPartyName Matches "^Ceres\\ Greengrocer$"], or its name [Payee Equals "Ceres Greengrocer"; OtherPartyName Equals "Ceres Greengrocer"], ignoring case, book to "A000083", set payee "Ceres Greengrocer"
+  rule "Luna Pharmacy": Any of [OtherPartyName Matches "^Luna\\ Pharmacy$"], or its name [Payee Equals "Luna Pharmacy"; OtherPartyName Equals "Luna Pharmacy"], ignoring case, book to "A000053", set payee "Luna Pharmacy"
   transaction 1 on 2026-06-03, payee "Luna Pharmacy", note "Library fine 25", entered 2026-06-03
     part "A000060": 140.00 EUR, in the account -, bank id "ID-1", other party - -, text "Library fine 25", cleared
     part "A000066": -140.00 EUR, in the account -, note "Library fine 25"
@@ -1555,4 +1557,4 @@ book
   skipped rates: 6
   skipped online-banking: 5
   skipped owner: 1
-  skipped payee-rules: 4
+  skipped payee-rules: 2

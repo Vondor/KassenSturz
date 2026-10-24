@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-24 10:52+0000\n"
+"POT-Creation-Date: 2026-10-24 11:40+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -1213,17 +1213,17 @@ msgstr "Ihr Name und Ihre Anschrift"
 #, kde-format
 msgctxt "@item what was left out, %1 is how many"
 msgid ""
-"%1 name that couldn't become a Rule: your file has a matching text or a "
-"default category for it, not both"
+"%1 name that didn't become a Rule: your file has no category to book it to, "
+"or no text to recognize it by"
 msgid_plural ""
-"%1 names that couldn't become a Rule: your file has a matching text or a "
-"default category for each, not both"
+"%1 names that didn't become a Rule: your file has no category to book each "
+"to, or no text to recognize each by"
 msgstr[0] ""
-"%1 Name konnte keine Regel werden: Ihre Datei hat dafür einen Suchtext oder "
-"eine Standardkategorie, nicht beides"
+"%1 Name wurde keine Regel: Ihre Datei hat keine Kategorie, in die gebucht "
+"werden könnte, oder keinen Text, an dem er zu erkennen wäre"
 msgstr[1] ""
-"%1 Namen konnten keine Regel werden: Ihre Datei hat für jeden einen Suchtext "
-"oder eine Standardkategorie, nicht beides"
+"%1 Namen wurden keine Regel: Ihre Datei hat für sie keine Kategorie, in die "
+"gebucht werden könnte, oder keinen Text, an dem sie zu erkennen wären"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:54
 #, kde-format
@@ -1271,21 +1271,21 @@ msgid "What came in"
 msgstr "Das ist hereingekommen"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:97
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:99
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:104
 #, kde-format
 msgctxt "@label"
 msgid "Accounts"
 msgstr "Konten"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:105
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:107
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:112
 #, kde-format
 msgctxt "@label"
 msgid "Categories"
 msgstr "Kategorien"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:113
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:115
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:120
 #, kde-format
 msgctxt "@label"
 msgid "Transactions"
@@ -1435,10 +1435,10 @@ msgstr "Regeln aus Ihrer Datei"
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:231
 #, kde-format
 msgctxt "@info %1 is how many"
-msgid "%1 Rule was made from the matching texts in your file"
-msgid_plural "%1 Rules were made from the matching texts in your file"
-msgstr[0] "Aus den Suchtexten Ihrer Datei wurde %1 Regel gemacht"
-msgstr[1] "Aus den Suchtexten Ihrer Datei wurden %1 Regeln gemacht"
+msgid "%1 Rule was made from the names in your file"
+msgid_plural "%1 Rules were made from the names in your file"
+msgstr[0] "Aus den Namen Ihrer Datei wurde %1 Regel gemacht"
+msgstr[1] "Aus den Namen Ihrer Datei wurden %1 Regeln gemacht"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:232
 #, kde-format
@@ -1504,19 +1504,19 @@ msgctxt "@action:button"
 msgid "Go on with the book"
 msgstr "Mit dem Haushaltsbuch weitermachen"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:35
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:40
 #, kde-format
 msgctxt "@title"
 msgid "Start a book from a file"
 msgstr "Haushaltsbuch aus einer Datei anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:66
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:71
 #, kde-format
 msgctxt "@title:window"
 msgid "Where to keep the new book"
 msgstr "Wo das neue Haushaltsbuch gespeichert wird"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:69
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:74
 #: crates/kassensturz-ui-bridge/qml/Main.qml:493
 #: crates/kassensturz-ui-bridge/qml/Main.qml:504
 #, kde-format
@@ -1524,37 +1524,37 @@ msgctxt "@item:inlistbox a file type"
 msgid "KassenSturz books (*.ksz)"
 msgstr "KassenSturz-Haushaltsbücher (*.ksz)"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:74
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:79
 #, kde-format
 msgctxt "@title:group"
 msgid "What the file holds"
 msgstr "Was die Datei enthält"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:79
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:84
 #, kde-format
 msgctxt "@label"
 msgid "File"
 msgstr "Datei"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:89
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:94
 #, kde-format
 msgctxt "@label what sort of file it is"
 msgid "Made by"
 msgstr "Erstellt von"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:91
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:96
 #, kde-format
 msgctxt "@info"
 msgid "KassenSturz, with \"Save the whole book\""
 msgstr "KassenSturz, mit „Das ganze Haushaltsbuch speichern“"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:92
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:97
 #, kde-format
 msgctxt "@info"
 msgid "KMyMoney"
 msgstr "KMyMoney"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:123
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:128
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1565,7 +1565,7 @@ msgstr ""
 "Verlauf der Änderungen gehört nicht zur Datei, deshalb beginnt „Rückgängig“ "
 "von vorn."
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:124
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:129
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1576,31 +1576,31 @@ msgstr ""
 "noch nicht speichern kann, zum Beispiel Budgets, wird weggelassen, und Sie "
 "sehen genau, was."
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:128
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:133
 #, kde-format
 msgctxt "@title:group"
 msgid "Where it goes"
 msgstr "Wohin es kommt"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:135
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:140
 #, kde-format
 msgctxt "@info"
 msgid "Into your book"
 msgstr "In Ihr Haushaltsbuch"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:136
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:141
 #, kde-format
 msgctxt "@info"
 msgid "Into a new book"
 msgstr "In ein neues Haushaltsbuch"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:138
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:143
 #, kde-format
 msgctxt "@info"
 msgid "Your book is still empty, so the file fills it."
 msgstr "Ihr Haushaltsbuch ist noch leer, deshalb füllt die Datei es."
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:140
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:145
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1613,7 +1613,7 @@ msgstr ""
 "unverändert; Sie können es in den Einstellungen mit „Anderes Haushaltsbuch "
 "öffnen…“ wieder öffnen."
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:141
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:146
 #, kde-format
 msgctxt "@info %1 is a book's name"
 msgid ""
@@ -1624,31 +1624,76 @@ msgstr ""
 "aktuelles Haushaltsbuch bleibt unverändert; Sie können es in den "
 "Einstellungen mit „Anderes Haushaltsbuch öffnen…“ wieder öffnen."
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:148
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:153
 #, kde-format
 msgctxt "@title:group"
 msgid "Currencies KassenSturz doesn't know"
 msgstr "Währungen, die KassenSturz nicht kennt"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:168
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:176
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:150
+#, kde-format
+msgctxt "@action:button"
+msgid "Fewer choices"
+msgstr "Weniger Optionen"
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:177
+#, kde-format
+msgctxt "@action:button"
+msgid "Advanced"
+msgstr "Erweitert"
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:180
+#, kde-format
+msgctxt "@info"
+msgid "Which of your KMyMoney names get a Rule."
+msgstr "Welche Ihrer KMyMoney-Namen eine Regel bekommen."
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:190
+#, kde-format
+msgctxt "@option:check"
+msgid "Make Rules only for names with a matching text"
+msgstr "Nur für Namen mit einem Suchtext Regeln machen"
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:191
+#, kde-format
+msgctxt "@info %1 is how many"
+msgid ""
+"Your file has %1 name with a default category but no matching text. Usually "
+"KassenSturz makes a Rule for it too, which recognizes it by its name. Turn "
+"this on to leave it out."
+msgid_plural ""
+"Your file has %1 names with a default category but no matching text. Usually "
+"KassenSturz makes a Rule for each, which recognizes it by its name. Turn "
+"this on to leave them out."
+msgstr[0] ""
+"Ihre Datei hat %1 Name mit einer Standardkategorie, aber ohne Suchtext. "
+"Normalerweise macht KassenSturz auch dafür eine Regel, die den Namen an "
+"seinem Wortlaut erkennt. Schalten Sie das ein, um ihn wegzulassen."
+msgstr[1] ""
+"Ihre Datei hat %1 Namen mit einer Standardkategorie, aber ohne Suchtext. "
+"Normalerweise macht KassenSturz auch für jeden eine Regel, die ihn an seinem "
+"Wortlaut erkennt. Schalten Sie das ein, um sie wegzulassen."
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:201
 #, kde-format
 msgctxt "@action:button"
 msgid "Choose where to keep it…"
 msgstr "Speicherort wählen…"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:169
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:202
 #, kde-format
 msgctxt "@action:button"
 msgid "Make the book"
 msgstr "Haushaltsbuch anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:177
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:210
 #, kde-format
 msgctxt "@action:button"
 msgid "Don't make a book"
 msgstr "Kein Haushaltsbuch anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:178
+#: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:211
 #, kde-format
 msgctxt "@info"
 msgid "The file stays as it is."
@@ -2968,12 +3013,6 @@ msgstr ""
 msgctxt "@info %1 is a currency code"
 msgid "%1, closed"
 msgstr "%1, geschlossen"
-
-#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:150
-#, kde-format
-msgctxt "@action:button"
-msgid "Fewer choices"
-msgstr "Weniger Optionen"
 
 #: crates/kassensturz-ui-bridge/qml/ExportPage.qml:151
 #, kde-format

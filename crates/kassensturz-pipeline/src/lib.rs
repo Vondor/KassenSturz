@@ -66,7 +66,9 @@ use entries::{Decision, bank_date, decide};
 pub use book::{export_book, fill_book};
 pub use error::PipelineError;
 pub use export::export_transactions;
-pub use imported_book::{BookImportReport, PatternLeftOut, fill_book_from};
+pub use imported_book::{
+    BookImportReport, PatternLeftOut, RuleScope, fill_book_from, fill_book_from_with,
+};
 pub use report::{
     BalanceCheck, Duplicate, EntryOutcome, EntryRef, EntryResult, ImportReport, Summary,
 };

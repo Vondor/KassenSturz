@@ -38,6 +38,7 @@ mod transfer;
 use std::io::Write;
 use std::path::PathBuf;
 
+use kassensturz_pipeline::RuleScope;
 use kassensturz_store::{Book, Computer, StoreError};
 
 use args::Arguments;
@@ -107,7 +108,8 @@ money out of the account. Dates are written 2026-10-05. Names ignore capitals.
 Categories can be named by their path, like Food/Groceries.
 
 Commands:
-  create [--from FILE [--format ID] [--replaced CODE=NEW:RATE:DAY ...]]
+  create [--from FILE [--format ID] [--replaced CODE=NEW:RATE:DAY ...]
+          [--rules-only-with-text]]
                                  make a new, empty book; with --from, a new
                                  book holding what a complete export (export
                                  --format book) holds, with the same IDs, or
@@ -118,7 +120,13 @@ Commands:
                                  --replaced says which currency NEW replaced
                                  an old one KassenSturz doesn't know from DAY
                                  on, one NEW being worth RATE of the old one,
-                                 like ROL=RON:10000:2005-07-01
+                                 like ROL=RON:10000:2005-07-01.
+                                 From a KMyMoney file, every payee with a
+                                 default category gets a Rule that books
+                                 entries to it, recognizing the payee by the
+                                 file's matching texts or by its name;
+                                 --rules-only-with-text makes Rules only for
+                                 payees the file has a matching text for
   account add NAME --type TYPE --currency CODE
                                  TYPE is checking, savings, cash or credit-card
   account list [--all]           --all includes closed accounts
@@ -345,10 +353,16 @@ impl<'a> CommandLine<'a> {
     }
 
     /// The file `create --from FILE` makes the book from, the format
-    /// `--format ID` names for it, and the currencies `--replaced` says
-    /// replaced old ones (D-106).
-    fn create_from(&self) -> Result<(Option<PathBuf>, Option<String>, Replaced), CliError> {
-        let args = Arguments::parse(self.rest, &["from", "format", "replaced"], &[])?;
+    /// `--format ID` names for it, the currencies `--replaced` says
+    /// replaced old ones (D-106), and which payees get Rules (D-160).
+    fn create_from(
+        &self,
+    ) -> Result<(Option<PathBuf>, Option<String>, Replaced, RuleScope), CliError> {
+        let args = Arguments::parse(
+            self.rest,
+            &["from", "format", "replaced"],
+            &["rules-only-with-text"],
+        )?;
         args.exactly([])?;
         let from = args.value("from")?.map(PathBuf::from);
         let format = args.value("format")?.map(str::to_owned);
@@ -360,8 +374,16 @@ impl<'a> CommandLine<'a> {
             if !replaced.is_empty() {
                 return Err(CliError::usage("--replaced needs --from FILE"));
             }
+            if args.flag("rules-only-with-text") {
+                return Err(CliError::usage("--rules-only-with-text needs --from FILE"));
+            }
         }
-        Ok((from, format, create::parse_replaced(&replaced)?))
+        let scope = if args.flag("rules-only-with-text") {
+            RuleScope::WithMatchingText
+        } else {
+            RuleScope::default()
+        };
+        Ok((from, format, create::parse_replaced(&replaced)?, scope))
     }
 
     fn execute(
@@ -375,7 +397,7 @@ impl<'a> CommandLine<'a> {
             Some("create") => {
                 // `open` made the book, and filled it; saying so is all that
                 // is left.
-                let (from, _, _) = self.create_from()?;
+                let (from, _, _, _) = self.create_from()?;
                 let created = created.expect("`open` creates the book for `create`");
                 create::write_created(book, from.as_deref(), created, out)
             }
@@ -423,13 +445,14 @@ fn open(
         backup_folder,
     };
     if command_line.command == Some("create") {
-        let (from, format, replaced) = command_line.create_from()?;
+        let (from, format, replaced, scope) = command_line.create_from()?;
         let (book, created) = create::create(
             &path,
             &computer,
             from.as_deref(),
             format.as_deref(),
             &replaced,
+            scope,
         )?;
         return Ok((book, Some(created)));
     }

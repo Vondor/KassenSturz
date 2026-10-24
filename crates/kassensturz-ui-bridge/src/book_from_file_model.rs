@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QList, QMap, QMapPair_QString_QVariant, QString, QStringList, QUrl, QVariant};
 use kassensturz_core::CurrencyCode;
+use kassensturz_pipeline::RuleScope;
 
 use crate::book_from_file::{
     self, Answer, Created, FromFileError, Prepared, PreparedView, UnlistedView,
@@ -64,16 +65,26 @@ pub mod qobject {
         /// `currency`, `successor`, `rate` and `date`. The open book is
         /// filled if nothing is in it yet, otherwise a new book is made and
         /// opened. An error object says why it didn't work, and nothing was
-        /// made.
+        /// made. `rules_only_with_text` is the "Advanced" choice to make Rules
+        /// only for payees the file has a matching text for (D-160).
         #[qinvokable]
-        fn create(self: Pin<&mut BookFromFile>, answers: &QVariant) -> QVariant;
+        fn create(
+            self: Pin<&mut BookFromFile>,
+            answers: &QVariant,
+            rules_only_with_text: bool,
+        ) -> QVariant;
 
         /// Like `create`, but a new book goes where the user chose, `file`,
         /// instead of the data folder (D-125). If the open book is filled,
         /// `file` is not used.
         #[qinvokable]
         #[cxx_name = "createAt"]
-        fn create_at(self: Pin<&mut BookFromFile>, answers: &QVariant, file: &QUrl) -> QVariant;
+        fn create_at(
+            self: Pin<&mut BookFromFile>,
+            answers: &QVariant,
+            rules_only_with_text: bool,
+            file: &QUrl,
+        ) -> QVariant;
 
         /// Forgets the file.
         #[qinvokable]
@@ -129,19 +140,29 @@ impl qobject::BookFromFile {
         map([])
     }
 
-    fn create(self: Pin<&mut Self>, answers: &QVariant) -> QVariant {
-        self.make(answers, None)
+    fn create(self: Pin<&mut Self>, answers: &QVariant, rules_only_with_text: bool) -> QVariant {
+        self.make(answers, rules_only_with_text, None)
     }
 
-    fn create_at(self: Pin<&mut Self>, answers: &QVariant, file: &QUrl) -> QVariant {
+    fn create_at(
+        self: Pin<&mut Self>,
+        answers: &QVariant,
+        rules_only_with_text: bool,
+        file: &QUrl,
+    ) -> QVariant {
         let Some(path) = local_path(file) else {
             return error_object(&ErrorText::plain("input.not-a-local-file"));
         };
-        self.make(answers, Some(path))
+        self.make(answers, rules_only_with_text, Some(path))
     }
 
     /// Makes the book, in the data folder or at `place`.
-    fn make(mut self: Pin<&mut Self>, answers: &QVariant, place: Option<PathBuf>) -> QVariant {
+    fn make(
+        mut self: Pin<&mut Self>,
+        answers: &QVariant,
+        rules_only_with_text: bool,
+        place: Option<PathBuf>,
+    ) -> QVariant {
         let Some(prepared) = self.rust().prepared.as_ref() else {
             return error_object(&ErrorText::plain("input.no-such-entry"));
         };
@@ -151,14 +172,22 @@ impl qobject::BookFromFile {
             Ok(replaced) => replaced,
             Err(error) => return fail(&error),
         };
+        let scope = if rules_only_with_text {
+            RuleScope::WithMatchingText
+        } else {
+            RuleScope::default()
+        };
         let previous = session::path();
         let made = if into_open_book() {
-            session::with_book_mut(|book| book_from_file::fill(book, prepared, &replaced, &locale))
-                .unwrap_or(Err(FromFileError::NoSuchEntry))
-                .map(|created| (created, false))
+            session::with_book_mut(|book| {
+                book_from_file::fill(book, prepared, &replaced, scope, &locale)
+            })
+            .unwrap_or(Err(FromFileError::NoSuchEntry))
+            .map(|created| (created, false))
         } else {
             let books = Books::for_user();
-            let fill = |book: &mut _| book_from_file::fill(book, prepared, &replaced, &locale);
+            let fill =
+                |book: &mut _| book_from_file::fill(book, prepared, &replaced, scope, &locale);
             let made = match &place {
                 Some(place) => books.create_filled_at(place, fill),
                 None => books.create_filled(&prepared.stem, fill),
@@ -246,6 +275,7 @@ fn prepared_object(view: &PreparedView, into_open: bool, stem: &str) -> QVariant
         ("categories", count(view.categories)),
         ("transactions", count(view.transactions)),
         ("unlisted", list(view.unlisted.iter().map(unlisted_object))),
+        ("rulesByNameOnly", count(view.rules_by_name_only)),
         ("intoOpenBook", QVariant::from(&into_open)),
         (
             "canChoosePlace",
@@ -373,6 +403,36 @@ mod tests {
     use super::*;
     use crate::book_from_file::PatternText;
     use crate::variant::read_back::{flag_of, keys, list_of, number_of, text_of};
+
+    #[test]
+    fn what_the_file_holds_reads_back_as_qml_reads_it() {
+        let view = PreparedView {
+            file_name: "book.kmy".into(),
+            kind: crate::book_from_file::Kind::Other,
+            accounts: 3,
+            categories: 4,
+            transactions: 6,
+            unlisted: Vec::new(),
+            rules_by_name_only: 7,
+        };
+        let object = prepared_object(&view, false, "book");
+        assert_eq!(
+            keys(&object),
+            [
+                "accounts",
+                "bookName",
+                "canChoosePlace",
+                "categories",
+                "fileName",
+                "intoOpenBook",
+                "kind",
+                "rulesByNameOnly",
+                "transactions",
+                "unlisted",
+            ]
+        );
+        assert_eq!(number_of(&object, "rulesByNameOnly"), 7);
+    }
 
     #[test]
     fn what_came_in_reads_back_as_qml_reads_it() {

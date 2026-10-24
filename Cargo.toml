@@ -53,6 +53,15 @@ libloading = "=0.9.0"
 # stores the API needs, nothing from its command-line sample. Approved by
 # the maintainer in M4 Phase 0.
 keyring = { version = "=4.2.0", default-features = false, features = ["v1"] }
+# KeePassXC's browser interface for saved banking PINs (D-164): base64 for
+# its keys and messages. Standard alphabet only, no default features beyond
+# `std`.
+base64 = { version = "=0.23.1", default-features = false, features = ["std"] }
+# KeePassXC's browser interface encrypts every message with NaCl's
+# crypto_box (X25519, XSalsa20-Poly1305), libsodium's format (D-164).
+# RustCrypto's implementation, so KassenSturz writes no cryptography of its
+# own (AGENTS.md §3.1 rule 7).
+crypto_box = { version = "=0.9.1", default-features = false, features = ["alloc", "std", "getrandom", "salsa20"] }
 # Patterns in Rules (D-015): linear-time matching, so no pattern can hang the
 # app.
 regex = "=1.13.1"

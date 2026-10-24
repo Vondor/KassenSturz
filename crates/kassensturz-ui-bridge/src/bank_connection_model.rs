@@ -49,8 +49,8 @@ pub mod qobject {
         #[qml_element]
         #[qproperty(bool, busy, READ, WRITE, NOTIFY)]
         #[qproperty(bool, fake, READ, WRITE, NOTIFY)]
-        /// Where saved PINs go, the key of the user's choice: `system` or
-        /// `nowhere` (D-163). The PIN dialogs offer saving only when it
+        /// Where saved PINs go, the key of the user's choice: `system`,
+        /// `keepassxc` (D-164) or `nowhere` (D-163). The PIN dialogs offer saving only when it
         /// isn't `nowhere`.
         #[qproperty(QString, pin_storage, cxx_name = "pinStorage", READ, WRITE, NOTIFY)]
         type BankConnection = super::BankConnectionRust;
@@ -117,7 +117,7 @@ pub mod qobject {
 
         /// The places for saved PINs this build offers on this system, the
         /// default first: an object with `choices`, a list of objects with
-        /// `key` (`system`, `nowhere`) and `advanced`, true for the choices
+        /// `key` (`system`, `keepassxc`, `nowhere`) and `advanced`, true for the choices
         /// one step away from the default (D-163).
         #[qinvokable]
         #[cxx_name = "pinStorageChoices"]
@@ -859,10 +859,13 @@ mod tests {
         let choices = pin_storage_choices_object(SecretStorage::available());
         let rows = list_of(&choices, "choices");
         assert_eq!(rows.len(), SecretStorage::available().len());
+        for (row, choice) in rows.iter().zip(SecretStorage::available()) {
+            assert_eq!(text_of(row, "key"), choice.key());
+            assert_eq!(flag_of(row, "advanced"), choice.is_advanced());
+        }
         assert_eq!(text_of(&rows[0], "key"), "system");
         assert!(!flag_of(&rows[0], "advanced"));
-        assert_eq!(text_of(&rows[1], "key"), "nowhere");
-        assert!(flag_of(&rows[1], "advanced"));
+        assert_eq!(text_of(rows.last().expect("a choice"), "key"), "nowhere");
 
         let chosen = pin_storage_object(true, Ok(()));
         assert!(flag_of(&chosen, "saved"));

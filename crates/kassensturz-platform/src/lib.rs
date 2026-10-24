@@ -15,7 +15,9 @@
 //! an unreachable keychain.
 //!
 //! [`SecretStorage`] is the user's choice of where saved secrets go: the
-//! system keychain by default, or, as an advanced choice, nowhere (D-163).
+//! system keychain by default, or, as advanced choices, a KeePassXC database
+//! through KeePassXC's browser interface ([`KeePassXcKeychain`], on Linux,
+//! D-164) or nowhere (D-163).
 //!
 //! A [`Secret`] never shows its value, not even in `Debug`, and wipes its
 //! memory when dropped (threat T-02 in `docs/THREAT_MODEL.md`). Errors are
@@ -29,6 +31,8 @@
 #![forbid(unsafe_code)]
 
 mod error;
+#[cfg(unix)]
+mod keepassxc;
 mod key;
 mod memory;
 mod secret;
@@ -36,6 +40,8 @@ mod storage;
 mod system;
 
 pub use error::KeychainError;
+#[cfg(unix)]
+pub use keepassxc::KeePassXcKeychain;
 pub use key::SecretKey;
 pub use memory::MemoryKeychain;
 pub use secret::Secret;

@@ -444,8 +444,9 @@ jobs:
           "$flatpak" install --user --noninteractive --bundle KassenSturz.flatpak
           where=$("$flatpak" info --show-location io.github.vondor.KassenSturz)
           test -f "$where/files/share/locale/de/LC_MESSAGES/kassensturz.mo"
-      # Network, the Secret Service and the card reader are the only
-      # permissions beyond a window (D-142); a new one must change this list.
+      # Network, the Secret Service, KeePassXC's browser socket (D-164) and
+      # the card reader are the only permissions beyond a window (D-142); a
+      # new one must change this list.
       # The KDE runtime adds its own: reading the desktop's kdeglobals and
       # three of KDE's settings and menu services.
       - name: The Flatpak's permissions are the approved ones (D-142)
@@ -458,7 +459,7 @@ jobs:
           shared=ipc;network;
           sockets=fallback-x11;pcsc;wayland;
           devices=dri;
-          filesystems=xdg-config/kdeglobals:ro;
+          filesystems=xdg-config/kdeglobals:ro;xdg-run/app/org.keepassxc.KeePassXC:create;
           [Session Bus Policy]
           com.canonical.AppMenu.Registrar=talk
           org.kde.kconfig.notify=talk

@@ -46,6 +46,7 @@ fn examples() -> Vec<BankError> {
         },
         BankError::Aborted,
         BankError::Keychain,
+        BankError::KeePassXc,
         BankError::TanNeeded,
         BankError::TanMethodUnsupported,
         BankError::UntrustedServer,

@@ -3,7 +3,7 @@
 
 [package]
 name = "kassensturz-platform"
-description = "What differs between desktops, behind traits: the system keychain for saved banking PINs (D-057), with an in-memory fake for tests."
+description = "What differs between desktops, behind traits: the system keychain or a KeePassXC database for saved banking PINs (D-057, D-164), with an in-memory fake for tests."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,8 +12,11 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+base64.workspace = true
+crypto_box.workspace = true
 kassensturz-core.workspace = true
 keyring.workspace = true
+serde_json.workspace = true
 zeroize.workspace = true
 
 [lints]

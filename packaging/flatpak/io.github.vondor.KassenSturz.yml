@@ -116,12 +116,15 @@ modules:
         sha256: 6c07f527417f7562074f99012da4d11eb4dbafd33f49e66b442ccd6e3b8cfd20
 
   # Only the FinTS backend (D-142), which also leaves out EBICS and the XML
-  # signing library only EBICS needs. Every file format AqBanking reads or
+  # signing library only EBICS needs, plus "aqnone": an empty backend for
+  # accounts without a connection, which AqBanking 6.9.2 always refers to
+  # (`configure.ac` defines it whatever the list says) and which connects
+  # nowhere. Every file format AqBanking reads or
   # writes but ERI2, whose license is unclear (docs/THIRD_PARTY.md); FinTS
   # itself needs SWIFT (MT940/MT942), XML (camt) and SEPA.
   - name: aqbanking
     config-opts:
-      - --with-backends=aqhbci
+      - --with-backends=aqhbci aqnone
       - --with-imexporters=csv ofx openhbci1 swift xmldb yellownet sepa ctxfile q43 camt xml
       - --disable-cli
       - --disable-tutorials

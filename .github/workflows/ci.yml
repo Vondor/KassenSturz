@@ -475,7 +475,7 @@ jobs:
           done
           test -s "$files/share/aqbanking/bankinfo/de/banks.data"
           plugins="$files/lib/aqbanking/plugins/44"
-          test "$(ls "$plugins/providers")" = aqhbci.xml
+          test "$(ls "$plugins/providers" | tr '\n' ' ')" = "aqhbci.xml aqnone.xml "
           test -f "$plugins/imexporters/swift.xml"
           test ! -e "$plugins/imexporters/eri2.xml"
           test "$(ls "$files/bin")" = kassensturz

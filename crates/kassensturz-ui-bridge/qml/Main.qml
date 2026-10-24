@@ -769,6 +769,7 @@ Kirigami.ApplicationWindow {
             history: changeHistory
             bank: bankConnection
             onConnectBankClicked: root.pushPage(bankSetupPage)
+            onChangeBankClicked: login => root.pushPage(bankSetupPage, { replacesLogin: login.id, startIban: login.iban })
             onOpenAnotherClicked: root.chooseBookToOpen()
             onNewBookClicked: root.chooseNewBook()
             onSaveCopyClicked: root.pushPage(exportPage)

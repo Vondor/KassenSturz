@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-24 12:25+0000\n"
+"POT-Creation-Date: 2026-10-24 15:18+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -227,7 +227,7 @@ msgid "Show closed accounts"
 msgstr "Geschlossene Konten anzeigen"
 
 #: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:65
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:182
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:194
 #, kde-format
 msgctxt "@info"
 msgid "You have no accounts yet"
@@ -424,7 +424,7 @@ msgstr ""
 "würden beide übereinstimmen."
 
 #: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:112
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:361
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:363
 #, kde-format
 msgctxt "@info %1 is an error code"
 msgid "Something went wrong (%1). Please report this, so it can be fixed."
@@ -588,7 +588,9 @@ msgstr "Warten auf Freigabe"
 #, kde-format
 msgctxt "@info the made-up bank waits for an approval"
 msgid "Approve this login in your banking app, then choose Approved."
-msgstr "Geben Sie diese Anmeldung in Ihrer Banking-App frei und wählen Sie dann „Freigegeben“."
+msgstr ""
+"Geben Sie diese Anmeldung in Ihrer Banking-App frei und wählen Sie dann "
+"„Freigegeben“."
 
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:44
 #, kde-format
@@ -616,7 +618,7 @@ msgstr "TAN senden"
 
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:109
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:188
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:381
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:412
 #, kde-format
 msgctxt "@action:button"
 msgid "Cancel"
@@ -693,7 +695,7 @@ msgid "Type the PIN you use for %1."
 msgstr "Geben Sie die PIN ein, die Sie für %1 verwenden."
 
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:224
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:249
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:274
 #, kde-format
 msgctxt "@info:placeholder"
 msgid "PIN"
@@ -706,34 +708,41 @@ msgid "PIN"
 msgstr "PIN"
 
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:233
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:255
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:280
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Remember the PIN:"
 msgstr "PIN merken:"
 
-#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:237
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:259
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:240
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:287
 #, kde-format
 msgctxt "@item:inlistbox keep the PIN"
 msgid "No, ask me each time"
 msgstr "Nein, jedes Mal fragen"
 
-#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:238
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:260
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:241
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:288
 #, kde-format
 msgctxt "@item:inlistbox keep the PIN"
 msgid "Until I close KassenSturz"
 msgstr "Bis ich KassenSturz schließe"
 
-#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:239
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:261
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:244
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:291
+#, kde-format
+msgctxt "@item:inlistbox keep the PIN"
+msgid "Save it in KeePassXC"
+msgstr "In KeePassXC speichern"
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:246
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:293
 #, kde-format
 msgctxt "@item:inlistbox keep the PIN"
 msgid "Save it in my keychain"
 msgstr "Im Passwortspeicher speichern"
 
-#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:247
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:255
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -743,7 +752,7 @@ msgstr ""
 "KassenSturz sendet die PIN an Ihre Bank und behält sie nur so lange, wie Sie "
 "es wählen. Es liest nur von Ihrer Bank und überweist nie Geld."
 
-#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:264
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:272
 #, kde-format
 msgctxt "@title:window"
 msgid "Your bank asks"
@@ -756,7 +765,7 @@ msgid "Get new transactions"
 msgstr "Neue Buchungen abrufen"
 
 #: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:69
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:56
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:64
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -766,7 +775,7 @@ msgstr ""
 "Zum Ausprobieren: Eine erfundene Bank steht für Ihre. PIN: 12345, TAN: "
 "123456; nichts erreicht eine echte Bank."
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:176
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:188
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -778,7 +787,7 @@ msgstr ""
 "zeigt sie Ihnen zuerst. Nichts kommt in Ihr Haushaltsbuch, bevor Sie "
 "zustimmen. Es liest nur von Ihrer Bank und überweist nie Geld."
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:183
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:195
 #, kde-format
 msgctxt "@info"
 msgid "Add an account first, then link it to your bank account here."
@@ -786,31 +795,55 @@ msgstr ""
 "Legen Sie zuerst ein Konto an und verknüpfen Sie es dann hier mit Ihrem "
 "Bankkonto."
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:240
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:252
 #, kde-format
 msgctxt "@info"
 msgid "Not linked to a bank account yet"
 msgstr "Noch nicht mit einem Bankkonto verknüpft"
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:243
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:255
 #, kde-format
 msgctxt "@info %1 is a bank account number"
 msgid "Linked to %1 · not fetched yet"
 msgstr "Verknüpft mit %1 · noch nichts abgerufen"
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:244
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:256
 #, kde-format
 msgctxt "@info %1 is a bank account number, %2 a date"
 msgid "Linked to %1 · last fetched on %2"
 msgstr "Verknüpft mit %1 · zuletzt abgerufen am %2"
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:257
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:269
 #, kde-format
 msgctxt "@action:button"
 msgid "Link to a bank account…"
 msgstr "Mit einem Bankkonto verknüpfen…"
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:273
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:279
+#, kde-format
+msgctxt "@action:button"
+msgid "Change…"
+msgstr "Ändern…"
+
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:280
+#, kde-format
+msgctxt "@action:button %1 is the name of an account"
+msgid "Link %1 to another bank account"
+msgstr "%1 mit einem anderen Bankkonto verknüpfen"
+
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:288
+#, kde-format
+msgctxt "@action:button"
+msgid "Unlink"
+msgstr "Verknüpfung lösen"
+
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:289
+#, kde-format
+msgctxt "@action:button %1 is the name of an account"
+msgid "Unlink %1 from its bank account"
+msgstr "Verknüpfung von %1 mit seinem Bankkonto lösen"
+
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:304
 #, kde-format
 msgctxt "@info"
 msgid "Not fetched, because the one before failed. Try again."
@@ -818,7 +851,7 @@ msgstr ""
 "Nicht abgerufen, weil der Abruf davor fehlgeschlagen ist. Versuchen Sie es "
 "noch einmal."
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:284
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:315
 #, kde-format
 msgctxt "@action:button"
 msgid "Look at %1 transaction from your bank"
@@ -826,13 +859,13 @@ msgid_plural "Look at %1 transactions from your bank"
 msgstr[0] "%1 Buchung von Ihrer Bank ansehen"
 msgstr[1] "%1 Buchungen von Ihrer Bank ansehen"
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:285
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:316
 #, kde-format
 msgctxt "@action:button"
 msgid "Look at what your bank sent"
 msgstr "Ansehen, was Ihre Bank geschickt hat"
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:294
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:325
 #, kde-format
 msgctxt "@info"
 msgid "You looked at it. Get the transactions again to see them once more."
@@ -840,19 +873,19 @@ msgstr ""
 "Sie haben es angesehen. Rufen Sie die Buchungen noch einmal ab, um sie "
 "wieder zu sehen."
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:295
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:326
 #, kde-format
 msgctxt "@info"
 msgid "Nothing is added to your book before you say so."
 msgstr "Nichts kommt in Ihr Haushaltsbuch, bevor Sie zustimmen."
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:313
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:344
 #, kde-format
 msgctxt "@action:button"
 msgid "Get new transactions"
 msgstr "Neue Buchungen abrufen"
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:325
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:356
 #, kde-format
 msgctxt "@info %1 is the name of an account"
 msgid ""
@@ -862,40 +895,53 @@ msgstr ""
 "Neue Buchungen für %1 werden bei Ihrer Bank abgerufen… Ihre Bank verlangt "
 "vielleicht eine TAN oder Ihre Freigabe in ihrer App."
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:326
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:357
 #, kde-format
 msgctxt "@info"
 msgid "Talking to your bank…"
 msgstr "Verbindung zu Ihrer Bank wird hergestellt…"
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:332
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:411
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:241
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:363
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:449
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:265
 #, kde-format
 msgctxt "@action:button"
 msgid "Connect a bank…"
 msgstr "Eine Bank verbinden…"
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:369
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:400
 #, kde-format
 msgctxt "@title:window"
 msgid "Link to a bank account"
 msgstr "Mit einem Bankkonto verknüpfen"
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:375
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:406
 #, kde-format
 msgctxt "@action:button"
 msgid "Link"
 msgstr "Verknüpfen"
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:399
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:430
 #, kde-format
 msgctxt "@info %1 is the name of an account"
 msgid "Which bank account fills %1? Its new transactions are fetched into it."
 msgstr ""
 "Aus welchem Bankkonto sollen die neuen Buchungen für %1 abgerufen werden?"
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:406
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:437
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This account is linked to another bank account now. After the change, the "
+"next fetch asks your bank for everything it still has; transactions your "
+"book already has are recognized and not added twice."
+msgstr ""
+"Dieses Konto ist derzeit mit einem anderen Bankkonto verknüpft. Nach der "
+"Änderung fragt der nächste Abruf bei Ihrer Bank alles ab, was sie noch "
+"hat; Buchungen, die Ihr Haushaltsbuch schon hat, werden erkannt und nicht "
+"doppelt hinzugefügt."
+
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:444
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -907,19 +953,38 @@ msgstr ""
 "Verbinden Sie zuerst Ihre Bank oder prüfen Sie, ob das Bankkonto schon mit "
 "einem anderen Konto verknüpft ist."
 
-#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:461
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:499
 #, kde-format
 msgctxt "@info %1 is an IBAN or account number, %2 the name of a bank"
 msgid "%1 · %2"
 msgstr "%1 · %2"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:47
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:54
+#, kde-format
+msgctxt "@title"
+msgid "Change a bank login"
+msgstr "Bankzugang ändern"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:55
 #, kde-format
 msgctxt "@title"
 msgid "Connect a bank"
 msgstr "Eine Bank verbinden"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:139
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:157
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Check the IBAN, then change what is different. KassenSturz sets the new "
+"login up first and removes the old one only when the new one works, so if "
+"something goes wrong nothing is lost. The accounts you linked stay linked."
+msgstr ""
+"Prüfen Sie die IBAN und ändern Sie dann, was anders ist. KassenSturz "
+"richtet den neuen Zugang zuerst ein und entfernt den alten erst, wenn der "
+"neue funktioniert; wenn etwas schiefgeht, geht also nichts verloren. Die "
+"verknüpften Konten bleiben verknüpft."
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:164
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -933,19 +998,19 @@ msgstr ""
 "IBAN eines Ihrer Konten bei der Bank: Sie finden sie auf Ihrer Bankkarte "
 "oder in der App Ihrer Bank."
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:144
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:169
 #, kde-format
 msgctxt "@label:textbox"
 msgid "IBAN:"
 msgstr "IBAN:"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:145
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:170
 #, kde-format
 msgctxt "@info:placeholder an example IBAN"
 msgid "For example DE89 3704 0044 0532 0130 00"
 msgstr "Zum Beispiel DE89 3704 0044 0532 0130 00"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:156
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:181
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -956,7 +1021,7 @@ msgstr ""
 "Verfahren, das KassenSturz dafür nutzt (FinTS), ist ein deutsches. "
 "Importieren Sie stattdessen die Dateien, die Ihre Bank anbietet."
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:157
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:182
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -967,31 +1032,31 @@ msgstr ""
 "einrichten kann. Importieren Sie stattdessen die Dateien, die Ihre Bank "
 "anbietet."
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:161
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:186
 #, kde-format
 msgctxt "@action:button"
 msgid "Find my bank"
 msgstr "Meine Bank finden"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:175
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:200
 #, kde-format
 msgctxt "@label"
 msgid "Bank:"
 msgstr "Bank:"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:182
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:207
 #, kde-format
 msgctxt "@info %1 is a bank code"
 msgid "Bank code %1"
 msgstr "Bankleitzahl %1"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:186
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:211
 #, kde-format
 msgctxt "@label"
 msgid "Account:"
 msgstr "Konto:"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:198
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:223
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1004,7 +1069,7 @@ msgstr ""
 "die sie dafür nennt; die Website oder der Kundendienst Ihrer Bank kann sie "
 "Ihnen sagen."
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:200
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:225
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1017,7 +1082,7 @@ msgstr ""
 "ein, die sie dafür nennt; die Website oder der Kundendienst Ihrer Bank kann "
 "sie Ihnen sagen."
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:202
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:227
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1032,7 +1097,7 @@ msgstr ""
 "nicht klappt, prüfen Sie die Adresse auf der Website Ihrer Bank oder fragen "
 "Sie deren Kundendienst, und geben Sie die richtige ein."
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:204
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:229
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1043,19 +1108,19 @@ msgstr ""
 "anmelden. KassenSturz versucht eine Anmeldung mit PIN und TAN, wie sie die "
 "meisten Banken nutzen."
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:213
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:238
 #, kde-format
 msgctxt "@label:textbox the bank's FinTS server address"
 msgid "FinTS address:"
 msgstr "FinTS-Adresse:"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:221
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:246
 #, kde-format
 msgctxt "@label:textbox"
 msgid "Login name:"
 msgstr "Anmeldename:"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:230
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:255
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1066,31 +1131,31 @@ msgstr ""
 "anmelden. Banken nennen das unterschiedlich, zum Beispiel Anmeldename, "
 "Benutzerkennung oder Kundennummer."
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:236
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:261
 #, kde-format
 msgctxt "@label:textbox"
 msgid "Customer ID:"
 msgstr "Kunden-ID:"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:237
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:262
 #, kde-format
 msgctxt "@label:textbox"
 msgid "Customer ID (if any):"
 msgstr "Kunden-ID (falls vorhanden):"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:241
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:266
 #, kde-format
 msgctxt "@info:placeholder"
 msgid "Only if your bank gave you one"
 msgstr "Nur wenn Ihre Bank Ihnen eine gegeben hat"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:248
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:273
 #, kde-format
 msgctxt "@label:textbox"
 msgid "PIN:"
 msgstr "PIN:"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:273
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:306
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1100,7 +1165,13 @@ msgstr ""
 "KassenSturz behält die PIN nur im Arbeitsspeicher, nie in einer Datei, und "
 "vergisst sie, wenn Sie es schließen."
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:275
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:309
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz saves the PIN in the database open in KeePassXC, in its group “KassenSturz”, not in your book. KeePassXC must be running; it asks you to unlock the database when needed."
+msgstr "KassenSturz speichert die PIN in der in KeePassXC geöffneten Datenbank, in deren Gruppe „KassenSturz“, nicht in Ihrem Haushaltsbuch. KeePassXC muss laufen; es bittet Sie bei Bedarf, die Datenbank zu entsperren."
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:310
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1111,7 +1182,7 @@ msgstr ""
 "Beispiel KWallet), nicht in Ihrem Haushaltsbuch. Sie können sie jederzeit in "
 "den Einstellungen entfernen."
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:277
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:312
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1121,13 +1192,13 @@ msgstr ""
 "KassenSturz vergisst die PIN, sobald es mit Ihrer Bank gesprochen hat. Das "
 "ist die sicherste Wahl."
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:283
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:318
 #, kde-format
 msgctxt "@action:button"
 msgid "Connect"
 msgstr "Verbinden"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:303
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:338
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1137,7 +1208,17 @@ msgstr ""
 "Verbindung zu Ihrer Bank wird hergestellt… Das kann eine Minute dauern. Ihre "
 "Bank fragt vielleicht nach einer TAN oder nach Ihrer Freigabe in ihrer App."
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:318
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:354
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The new login works, but the old one could not be removed. Remove it in "
+"Settings, under Bank connections."
+msgstr ""
+"Der neue Zugang funktioniert, aber der alte ließ sich nicht entfernen. "
+"Entfernen Sie ihn in den Einstellungen unter „Bankverbindungen“."
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:360
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1147,25 +1228,25 @@ msgstr ""
 "Verbunden. Ihre Bank zeigt diese Konten. Wählen Sie für jedes, in welches "
 "Konto in KassenSturz seine Buchungen abgerufen werden sollen."
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:346
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:388
 #, kde-format
 msgctxt "@label %1 is the bank's name of an account, %2 its IBAN or number"
 msgid "%1, %2"
 msgstr "%1, %2"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:354
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:396
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Account in KassenSturz"
 msgstr "Konto in KassenSturz"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:357
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:399
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "Don't fill an account from it"
 msgstr "Kein Konto daraus füllen"
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:369
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:411
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1177,7 +1258,7 @@ msgstr ""
 "zuerst Ihre Konten an; Sie können sie beim Abrufen neuer Buchungen mit den "
 "Konten der Bank verknüpfen."
 
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:373
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:415
 #: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:42
 #, kde-format
 msgctxt "@action:button"
@@ -1991,21 +2072,21 @@ msgid "Try again"
 msgstr "Erneut versuchen"
 
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:169
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:148
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:164
 #, kde-format
 msgctxt "@action:button"
 msgid "Open another book…"
 msgstr "Anderes Haushaltsbuch öffnen…"
 
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:174
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:157
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:173
 #, kde-format
 msgctxt "@action:button"
 msgid "Start a new book…"
 msgstr "Neues Haushaltsbuch anlegen…"
 
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:179
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:179
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:195
 #, kde-format
 msgctxt "@action:button"
 msgid "Start a book from a file…"
@@ -3540,12 +3621,12 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid ""
-"KassenSturz doesn't recognize this file. It reads statements as CAMT.053 (."
-"xml), MT940 (.sta), OFX (.ofx) or CSV (.csv, .txt) files; download one of "
+"KassenSturz doesn't recognize this file. It reads statements as CAMT.053 "
+"(.xml), MT940 (.sta), OFX (.ofx) or CSV (.csv, .txt) files; download one of "
 "these from your online banking."
 msgstr ""
-"KassenSturz erkennt diese Datei nicht. Es liest Kontoauszüge als CAMT.053- (."
-"xml), MT940- (.sta), OFX- (.ofx) oder CSV-Dateien (.csv, .txt); laden Sie "
+"KassenSturz erkennt diese Datei nicht. Es liest Kontoauszüge als CAMT.053- "
+"(.xml), MT940- (.sta), OFX- (.ofx) oder CSV-Dateien (.csv, .txt); laden Sie "
 "eine davon in Ihrem Online-Banking herunter."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:152
@@ -4373,6 +4454,12 @@ msgstr ""
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:327
 #, kde-format
 msgctxt "@info"
+msgid "KeePassXC couldn't be reached, or it said no. Start KeePassXC, open and unlock your database, make sure Browser Integration is on in its settings, allow KassenSturz when KeePassXC asks, and try again. Until then, type the PIN each time."
+msgstr "KeePassXC war nicht erreichbar oder hat abgelehnt. Starten Sie KeePassXC, öffnen und entsperren Sie Ihre Datenbank, achten Sie darauf, dass die Browser-Integration in den Einstellungen eingeschaltet ist, erlauben Sie KassenSturz den Zugriff, wenn KeePassXC fragt, und versuchen Sie es noch einmal. Bis dahin geben Sie die PIN jedes Mal ein."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:329
+#, kde-format
+msgctxt "@info"
 msgid ""
 "The system keychain couldn't be reached, so the PIN couldn't be saved, read "
 "or removed. Make sure the keychain (for example KWallet) is unlocked, or "
@@ -4383,7 +4470,7 @@ msgstr ""
 "Passwortspeicher (zum Beispiel KWallet) entsperrt ist, oder wählen Sie, die "
 "PIN jedes Mal einzugeben."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:329
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:331
 #, kde-format
 msgctxt "@info %1 is an amount as the bank sent it"
 msgid ""
@@ -4394,7 +4481,7 @@ msgstr ""
 "Es wurde nichts übernommen. Wenn das wieder vorkommt, melden Sie es mit dem "
 "Betrag, wie er hier steht."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:331
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:333
 #, kde-format
 msgctxt "@info %1 is an amount as the bank sent it"
 msgid ""
@@ -4406,7 +4493,7 @@ msgstr ""
 "geschickt (%1), den KassenSturz nie rundet. Es wurde nichts übernommen. Wenn "
 "das wieder vorkommt, melden Sie es."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:333
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:335
 #, kde-format
 msgctxt "@info %1 is an amount as the bank sent it"
 msgid ""
@@ -4416,7 +4503,7 @@ msgstr ""
 "Ihre Bank hat einen Betrag geschickt, der für KassenSturz zu groß ist: %1. "
 "Es wurde nichts übernommen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:335
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:337
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -4426,7 +4513,7 @@ msgstr ""
 "Ihre Bank hat nicht gesagt, in welcher Währung die Beträge sind. Es wurde "
 "nichts übernommen. Fragen Sie Ihre Bank nach der Währung des Kontos."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:337
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:339
 #, kde-format
 msgctxt "@info %1 and %2 are currency codes"
 msgid ""
@@ -4436,7 +4523,7 @@ msgstr ""
 "Ihre Bank hat Beträge in %2 für ein Konto in %1 geschickt. Es wurde nichts "
 "übernommen. Fragen Sie Ihre Bank nach der Währung des Kontos."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:339
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:341
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -4446,7 +4533,7 @@ msgstr ""
 "Ihre Bank hat eine Buchung ohne Datum geschickt. Es wurde nichts übernommen. "
 "Wenn das wieder vorkommt, melden Sie es."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:342
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:344
 #, kde-format
 msgctxt "@info %1 is an error code"
 msgid ""
@@ -4456,7 +4543,7 @@ msgstr ""
 "Die Buchungen Ihrer Bank konnten nicht verwendet werden (%1). Es wurde "
 "nichts übernommen. Wenn das wieder vorkommt, melden Sie es."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:343
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:345
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -4466,7 +4553,7 @@ msgstr ""
 "Die Buchungen Ihrer Bank konnten nicht verwendet werden. Es wurde nichts "
 "übernommen. Wenn das wieder vorkommt, melden Sie es."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:345
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:347
 #, kde-format
 msgctxt "@info %1 is the name of an account"
 msgid ""
@@ -4476,7 +4563,7 @@ msgstr ""
 "%1 ist noch nicht mit einem Bankkonto verknüpft. Verknüpfen Sie es zuerst "
 "und rufen Sie dann die neuen Buchungen ab."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:347
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:349
 #, kde-format
 msgctxt "@info %1 is the name of an account"
 msgid "%1 is already linked to this bank account. Choose another bank account."
@@ -4484,7 +4571,7 @@ msgstr ""
 "%1 ist schon mit diesem Bankkonto verknüpft. Wählen Sie ein anderes "
 "Bankkonto."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:349
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:351
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -4494,7 +4581,7 @@ msgstr ""
 "Banken außerhalb Deutschlands lassen sich noch nicht verbinden. Importieren "
 "Sie stattdessen die Dateien, die Ihre Bank anbietet."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:351
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:353
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -4503,7 +4590,7 @@ msgstr ""
 "Geben Sie die FinTS-Adresse Ihrer Bank ein. Die Website oder der "
 "Kundendienst Ihrer Bank kann sie Ihnen sagen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:353
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:355
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -4513,14 +4600,14 @@ msgstr ""
 "Eine FinTS-Adresse beginnt mit https:// und hat keine Leerzeichen, zum "
 "Beispiel %1. Vergleichen Sie sie mit dem, was Ihre Bank angibt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:355
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:357
 #, kde-format
 msgctxt "@info"
 msgid "Type the login name you use for your bank's website."
 msgstr ""
 "Geben Sie den Anmeldenamen ein, den Sie für die Website Ihrer Bank nutzen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:357
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:359
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -4530,7 +4617,7 @@ msgstr ""
 "Diese Bank gibt ihren Kunden neben dem Anmeldenamen eine Kunden-ID. Geben "
 "Sie auch sie ein; Sie finden sie in den Briefen Ihrer Bank."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:359
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:361
 #, kde-format
 msgctxt "@info"
 msgid "Type your PIN. KassenSturz keeps it only as long as you choose below."
@@ -6526,55 +6613,55 @@ msgctxt "@info"
 msgid "No transactions fit this Rule yet"
 msgstr "Auf diese Regel passt noch keine Buchung"
 
-#: crates/kassensturz-ui-bridge/qml/SecretField.qml:33
+#: crates/kassensturz-ui-bridge/qml/SecretField.qml:38
 #, kde-format
 msgctxt "@action:button hide what was typed in a secret field"
 msgid "Hide what you typed"
 msgstr "Eingabe verbergen"
 
-#: crates/kassensturz-ui-bridge/qml/SecretField.qml:34
+#: crates/kassensturz-ui-bridge/qml/SecretField.qml:39
 #, kde-format
 msgctxt "@action:button show what was typed in a secret field"
 msgid "Show what you typed"
 msgstr "Eingabe anzeigen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:81
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:97
 #, kde-format
 msgctxt "@item:inlistbox keep the history"
 msgid "Only while the book is open"
 msgstr "Nur solange das Haushaltsbuch geöffnet ist"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:82
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:98
 #, kde-format
 msgctxt "@item:inlistbox keep the history"
 msgid "1 week"
 msgstr "1 Woche"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:83
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:99
 #, kde-format
 msgctxt "@item:inlistbox keep the history"
 msgid "30 days"
 msgstr "30 Tage"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:84
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:100
 #, kde-format
 msgctxt "@item:inlistbox keep the history"
 msgid "3 months"
 msgstr "3 Monate"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:85
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:101
 #, kde-format
 msgctxt "@item:inlistbox keep the history"
 msgid "1 year"
 msgstr "1 Jahr"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:86
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:102
 #, kde-format
 msgctxt "@item:inlistbox keep the history"
 msgid "As long as the book exists"
 msgstr "Solange das Haushaltsbuch existiert"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:93
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:109
 #, kde-format
 msgctxt "@item:inlistbox keep the history for this many days"
 msgid "%1 day"
@@ -6582,31 +6669,31 @@ msgid_plural "%1 days"
 msgstr[0] "%1 Tag"
 msgstr[1] "%1 Tage"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:118
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:134
 #, kde-format
 msgctxt "@title"
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:125
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:141
 #, kde-format
 msgctxt "@title:group"
 msgid "Your book"
 msgstr "Ihr Haushaltsbuch"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:130
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:146
 #, kde-format
 msgctxt "@label"
 msgid "Book"
 msgstr "Haushaltsbuch"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:139
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:155
 #, kde-format
 msgctxt "@label the folder a file is in"
 msgid "Folder"
 msgstr "Ordner"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:149
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:165
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -6615,7 +6702,7 @@ msgstr ""
 "KassenSturz öffnet das Haushaltsbuch, das Sie zuletzt benutzt haben. Die "
 "meisten Haushalte brauchen nur eines."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:158
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:174
 #, kde-format
 msgctxt "@info"
 msgid "An empty book in a folder you choose, for example to try something out."
@@ -6623,25 +6710,25 @@ msgstr ""
 "Ein leeres Haushaltsbuch in einem Ordner Ihrer Wahl, zum Beispiel zum "
 "Ausprobieren."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:164
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:180
 #, kde-format
 msgctxt "@title:group"
 msgid "Your data"
 msgstr "Ihre Daten"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:170
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:186
 #, kde-format
 msgctxt "@action:button"
 msgid "Save a copy of my data…"
 msgstr "Eine Kopie meiner Daten speichern…"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:171
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:187
 #, kde-format
 msgctxt "@info"
 msgid "For a spreadsheet, or the whole book as a backup."
 msgstr "Für eine Tabelle oder das ganze Haushaltsbuch als Sicherung."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:180
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:196
 #, kde-format
 msgctxt "@info"
 msgid "From a KMyMoney book, or a whole book you saved with KassenSturz."
@@ -6649,31 +6736,48 @@ msgstr ""
 "Aus einem KMyMoney-Haushaltsbuch oder einem ganzen Haushaltsbuch, das Sie "
 "mit KassenSturz gespeichert haben."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:186
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:202
 #, kde-format
 msgctxt "@title:group"
 msgid "Bank connections"
 msgstr "Bankverbindungen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:212
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:228
 #, kde-format
 msgctxt "@info"
 msgid "Login with a chip card"
 msgstr "Zugang mit Chipkarte"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:213
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:229
 #, kde-format
 msgctxt "@info"
 msgid "Login with PIN and TAN"
 msgstr "Zugang mit PIN und TAN"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:218
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:234
+#, kde-format
+msgctxt "@action:button"
+msgid "Change this bank login…"
+msgstr "Bankzugang ändern…"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:235
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Change the login name, the bank's address or how you log in. You type your "
+"login details and PIN again; your accounts stay linked."
+msgstr ""
+"Ändern Sie den Anmeldenamen, die Adresse der Bank oder die Art der "
+"Anmeldung. Sie geben Ihre Zugangsdaten und die PIN noch einmal ein; Ihre "
+"Konten bleiben verknüpft."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:242
 #, kde-format
 msgctxt "@action:button"
 msgid "Forget the PIN"
 msgstr "PIN vergessen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:219
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:243
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -6683,13 +6787,13 @@ msgstr ""
 "Entfernt die PIN, die KassenSturz für diesen Zugang behält oder gespeichert "
 "hat. Sie geben sie bei der nächsten Verbindung ein."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:225
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:249
 #, kde-format
 msgctxt "@action:button"
 msgid "Remove bank login and saved PIN…"
 msgstr "Bankzugang und gespeicherte PIN entfernen…"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:243
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:267
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -6699,13 +6803,118 @@ msgstr ""
 "Rufen Sie Ihre Buchungen von Ihrer Bank ab, statt sie abzutippen. "
 "KassenSturz liest nur; es überweist nie Geld."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:262
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:286
+#, kde-format
+msgctxt "@title:group"
+msgid "Password storage"
+msgstr "Passwortspeicher"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:306
+#, kde-format
+msgctxt "@option:radio where PINs are saved"
+msgid "A KeePassXC database"
+msgstr "Eine KeePassXC-Datenbank"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:308
+#, kde-format
+msgctxt "@option:radio where PINs are saved"
+msgid "Don't save PINs"
+msgstr "PINs nicht speichern"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:310
+#, kde-format
+msgctxt "@option:radio where PINs are saved"
+msgid "System keychain"
+msgstr "Passwortspeicher des Systems"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:316
+#, kde-format
+msgctxt "@info"
+msgid "For a KeePassXC database you open only when needed, apart from your desktop's keychain. KassenSturz never sees the database's password."
+msgstr "Für eine KeePassXC-Datenbank, die Sie nur bei Bedarf öffnen, getrennt vom Passwortspeicher Ihres Desktops. KassenSturz sieht das Passwort der Datenbank nie."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:318
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz never saves a PIN. You type it at each connection, or it "
+"remembers it until you close KassenSturz."
+msgstr ""
+"KassenSturz speichert nie eine PIN. Sie geben sie bei jeder Verbindung ein, "
+"oder KassenSturz merkt sie sich, bis Sie es schließen."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:322
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Recommended. The Windows Credential Manager keeps your PINs safe in the "
+"background."
+msgstr ""
+"Empfohlen. Die Windows-Anmeldeinformationsverwaltung bewahrt Ihre PINs im "
+"Hintergrund sicher auf."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:324
+#, kde-format
+msgctxt "@info"
+msgid "Recommended. The macOS Keychain keeps your PINs safe in the background."
+msgstr ""
+"Empfohlen. Der macOS-Schlüsselbund bewahrt Ihre PINs im Hintergrund sicher "
+"auf."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:326
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Recommended. Your desktop's keychain keeps your PINs safe in the background: "
+"KWallet, GNOME Keyring, or KeePassXC if you set it up to take their place."
+msgstr ""
+"Empfohlen. Der Passwortspeicher Ihres Desktops bewahrt Ihre PINs im "
+"Hintergrund sicher auf: KWallet, GNOME Schlüsselbund oder KeePassXC, wenn "
+"Sie es an deren Stelle eingerichtet haben."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:339
+#, kde-format
+msgctxt "@action:button"
+msgid "Hide advanced choices"
+msgstr "Erweiterte Möglichkeiten ausblenden"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:340
+#, kde-format
+msgctxt "@action:button"
+msgid "Show advanced choices"
+msgstr "Erweiterte Möglichkeiten anzeigen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:349
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:418
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz couldn't save this choice. Check that your settings folder can "
+"be written to, then choose again."
+msgstr ""
+"KassenSturz konnte diese Auswahl nicht speichern. Prüfen Sie, ob in Ihren "
+"Einstellungsordner geschrieben werden kann, und wählen Sie dann erneut."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:350
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz saves a PIN only when you choose so as you type it. When you "
+"choose another place here, the PINs saved in the old one are removed, and "
+"you type each PIN again at the next connection."
+msgstr ""
+"KassenSturz speichert eine PIN nur, wenn Sie das bei der Eingabe wählen. "
+"Wählen Sie hier einen anderen Ort, werden die am alten Ort gespeicherten "
+"PINs entfernt, und Sie geben jede PIN bei der nächsten Verbindung noch "
+"einmal ein."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:365
 #, kde-format
 msgctxt "@title:window"
 msgid "Remove this bank login?"
 msgstr "Diesen Bankzugang entfernen?"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:263
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:366
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -6718,53 +6927,43 @@ msgstr ""
 "welches Bankkonto welches davon füllt: Richten Sie den Zugang neu ein, um "
 "wieder Buchungen abzurufen."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:267
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:370
 #, kde-format
 msgctxt "@action:button"
 msgid "Remove the login"
 msgstr "Zugang entfernen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:276
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:379
 #, kde-format
 msgctxt "@action:button"
 msgid "Keep it"
 msgstr "Behalten"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:284
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:387
 #, kde-format
 msgctxt "@title:group"
 msgid "Language"
 msgstr "Sprache"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:297
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:400
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Language"
 msgstr "Sprache"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:303
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:406
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "As in your system"
 msgstr "Wie im System"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:315
-#, kde-format
-msgctxt "@info"
-msgid ""
-"KassenSturz couldn't save this choice. Check that your settings folder can "
-"be written to, then choose again."
-msgstr ""
-"KassenSturz konnte diese Auswahl nicht speichern. Prüfen Sie, ob in Ihren "
-"Einstellungsordner geschrieben werden kann, und wählen Sie dann erneut."
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:317
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:420
 #, kde-format
 msgctxt "@info"
 msgid "The new language applies the next time you start KassenSturz."
 msgstr "Die neue Sprache gilt, wenn Sie KassenSturz das nächste Mal starten."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:318
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:421
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -6774,136 +6973,136 @@ msgstr ""
 "Datum und Beträge folgen weiterhin Ihren Regionseinstellungen; wie Beträge "
 "aussehen, ändern Sie unten."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:322
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:425
 #, kde-format
 msgctxt "@title:group"
 msgid "How amounts look"
 msgstr "Wie Beträge aussehen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:365
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:468
 #, kde-format
 msgctxt "@label an example amount"
 msgid "Example"
 msgstr "Beispiel"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:375
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:478
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Decimal separator"
 msgstr "Dezimaltrennzeichen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:377
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:391
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:408
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:422
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:480
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:494
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:511
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:525
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "As in your regional settings"
 msgstr "Wie in Ihren Regionseinstellungen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:378
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:481
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "Comma: 1,50"
 msgstr "Komma: 1,50"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:379
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:482
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "Point: 1.50"
 msgstr "Punkt: 1.50"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:389
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:492
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Thousands separator"
 msgstr "Tausendertrennzeichen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:392
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:495
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "Point: 1.000.000"
 msgstr "Punkt: 1.000.000"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:393
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:496
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "Comma: 1,000,000"
 msgstr "Komma: 1,000,000"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:394
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:497
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "Space: 1 000 000"
 msgstr "Leerzeichen: 1 000 000"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:395
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:498
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "Apostrophe: 1'000'000"
 msgstr "Apostroph: 1'000'000"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:396
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:499
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "None: 1000000"
 msgstr "Keines: 1000000"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:406
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:509
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Currency symbol"
 msgstr "Währungssymbol"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:409
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:512
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "Before the amount: €5"
 msgstr "Vor dem Betrag: €5"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:410
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:513
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "After the amount: 5 €"
 msgstr "Nach dem Betrag: 5 €"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:420
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:523
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Amounts below zero"
 msgstr "Beträge unter null"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:423
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:526
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "With a minus sign: -5"
 msgstr "Mit Minuszeichen: -5"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:424
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:527
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "In parentheses: (5)"
 msgstr "In Klammern: (5)"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:434
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:537
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Decimal places"
 msgstr "Dezimalstellen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:436
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:539
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "All the currency has: 5,00"
 msgstr "Alle Stellen der Währung: 5,00"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:437
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:540
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "None, rounded: 5"
 msgstr "Keine, gerundet: 5"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:445
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:548
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -6915,7 +7114,7 @@ msgstr ""
 "Sie KassenSturz schließen. Prüfen Sie, ob in Ihren Einstellungsordner "
 "geschrieben werden kann, und wählen Sie dann erneut."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:446
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:549
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -6930,25 +7129,25 @@ msgstr ""
 "auf einen, um ihn genau zu sehen. Beträge können Sie weiterhin mit allen "
 "Dezimalstellen eingeben."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:450
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:553
 #, kde-format
 msgctxt "@title:group"
 msgid "Undo and history"
 msgstr "Rückgängig und Verlauf"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:464
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:567
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Keep the history for"
 msgstr "Verlauf aufbewahren für"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:478
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:581
 #, kde-format
 msgctxt "@action:button"
 msgid "Show history"
 msgstr "Verlauf anzeigen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:479
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:582
 #, kde-format
 msgctxt "@info %1 is how many changes there are"
 msgid "%1 change so far."
@@ -6956,13 +7155,13 @@ msgid_plural "%1 changes so far."
 msgstr[0] "%1 Änderung bisher."
 msgstr[1] "%1 Änderungen bisher."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:487
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:590
 #, kde-format
 msgctxt "@action:button"
 msgid "Clean up history…"
 msgstr "Verlauf bereinigen…"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:488
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:591
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -6970,7 +7169,7 @@ msgid ""
 msgstr ""
 "Löscht den ganzen Verlauf. Ihre Konten und Buchungen bleiben, wie sie sind."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:495
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:598
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -6985,13 +7184,13 @@ msgstr ""
 "solange das Haushaltsbuch geöffnet ist“ wird nichts im Haushaltsbuch "
 "gespeichert: „Rückgängig“ funktioniert, bis Sie es schließen."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:501
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:604
 #, kde-format
 msgctxt "@title:window"
 msgid "Delete part of the history?"
 msgstr "Einen Teil des Verlaufs löschen?"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:503
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:606
 #, kde-format
 msgctxt "@info %1 is how many changes there are"
 msgid ""
@@ -7009,7 +7208,7 @@ msgstr[1] ""
 "schließen. Die bisher gemachten %1 Änderungen sind dann weg. Ihre Konten und "
 "Buchungen sind davon nicht betroffen."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:504
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:607
 #, kde-format
 msgctxt "@info %1 is how many changes there are"
 msgid ""
@@ -7028,25 +7227,25 @@ msgstr[1] ""
 "gelöscht. Sie können sie nicht mehr rückgängig machen oder wiederholen. Ihre "
 "Konten und Buchungen sind davon nicht betroffen."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:508
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:611
 #, kde-format
 msgctxt "@action:button"
 msgid "Delete them"
 msgstr "Löschen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:516
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:619
 #, kde-format
 msgctxt "@action:button"
 msgid "Keep the history as it is"
 msgstr "Verlauf unverändert lassen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:527
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:630
 #, kde-format
 msgctxt "@title:window"
 msgid "Clean up the history?"
 msgstr "Den Verlauf bereinigen?"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:528
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:631
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -7065,31 +7264,31 @@ msgstr ""
 "gespeichert hat (Sicherungen), behalten ihren Verlauf; das Bereinigen "
 "berührt sie nicht."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:532
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:635
 #, kde-format
 msgctxt "@action:button"
 msgid "Delete the history"
 msgstr "Verlauf löschen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:540
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:643
 #, kde-format
 msgctxt "@action:button"
 msgid "Keep the history"
 msgstr "Verlauf behalten"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:548
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:651
 #, kde-format
 msgctxt "@title:group"
 msgid "Backups"
 msgstr "Sicherungen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:553
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:656
 #, kde-format
 msgctxt "@label"
 msgid "Backup folder"
 msgstr "Sicherungsordner"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:560
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:663
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -7100,13 +7299,13 @@ msgstr ""
 "speichert es hier eine Kopie davon. Es behält die letzten 10 Kopien jedes "
 "Haushaltsbuchs."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:564
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:667
 #, kde-format
 msgctxt "@title:group"
 msgid "About"
 msgstr "Über KassenSturz"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:570
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:673
 #, kde-format
 msgctxt "@label the version of KassenSturz that is running"
 msgid "Version"
@@ -7477,104 +7676,6 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
-msgctxt "@title:group"
-msgid "Password storage"
-msgstr "Passwortspeicher"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
-msgctxt "@option:radio where PINs are saved"
-msgid "Don't save PINs"
-msgstr "PINs nicht speichern"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
-msgctxt "@option:radio where PINs are saved"
-msgid "System keychain"
-msgstr "Passwortspeicher des Systems"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
-msgctxt "@info"
-msgid ""
-"KassenSturz never saves a PIN. You type it at each connection, or it "
-"remembers it until you close KassenSturz."
-msgstr ""
-"KassenSturz speichert nie eine PIN. Sie geben sie bei jeder Verbindung ein, "
-"oder KassenSturz merkt sie sich, bis Sie es schließen."
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
-msgctxt "@info"
-msgid ""
-"Recommended. The Windows Credential Manager keeps your PINs safe in the "
-"background."
-msgstr ""
-"Empfohlen. Die Windows-Anmeldeinformationsverwaltung bewahrt Ihre PINs im "
-"Hintergrund sicher auf."
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
-msgctxt "@info"
-msgid "Recommended. The macOS Keychain keeps your PINs safe in the background."
-msgstr ""
-"Empfohlen. Der macOS-Schlüsselbund bewahrt Ihre PINs im Hintergrund sicher "
-"auf."
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
-msgctxt "@info"
-msgid ""
-"Recommended. Your desktop's keychain keeps your PINs safe in the background: "
-"KWallet, GNOME Keyring, or KeePassXC if you set it up to take their place."
-msgstr ""
-"Empfohlen. Der Passwortspeicher Ihres Desktops bewahrt Ihre PINs im "
-"Hintergrund sicher auf: KWallet, GNOME Schlüsselbund oder KeePassXC, wenn "
-"Sie es an deren Stelle eingerichtet haben."
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
-msgctxt "@action:button"
-msgid "Hide advanced choices"
-msgstr "Erweiterte Möglichkeiten ausblenden"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
-msgctxt "@action:button"
-msgid "Show advanced choices"
-msgstr "Erweiterte Möglichkeiten anzeigen"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
-msgctxt "@info"
-msgid ""
-"KassenSturz saves a PIN only when you choose so as you type it. When you "
-"choose another place here, the PINs saved in the old one are removed, and "
-"you type each PIN again at the next connection."
-msgstr ""
-"KassenSturz speichert eine PIN nur, wenn Sie das bei der Eingabe wählen. "
-"Wählen Sie hier einen anderen Ort, werden die am alten Ort gespeicherten "
-"PINs entfernt, und Sie geben jede PIN bei der nächsten Verbindung noch "
-"einmal ein."
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
-msgctxt "@option:radio where PINs are saved"
-msgid "A KeePassXC database"
-msgstr "Eine KeePassXC-Datenbank"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
-msgctxt "@info"
-msgid "For a KeePassXC database you open only when needed, apart from your desktop's keychain. KassenSturz never sees the database's password."
-msgstr "Für eine KeePassXC-Datenbank, die Sie nur bei Bedarf öffnen, getrennt vom Passwortspeicher Ihres Desktops. KassenSturz sieht das Passwort der Datenbank nie."
-
-#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
-msgctxt "@item:inlistbox keep the PIN"
-msgid "Save it in KeePassXC"
-msgstr "In KeePassXC speichern"
-
-#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
-msgctxt "@info"
-msgid "KassenSturz saves the PIN in the database open in KeePassXC, in its group “KassenSturz”, not in your book. KeePassXC must be running; it asks you to unlock the database when needed."
-msgstr "KassenSturz speichert die PIN in der in KeePassXC geöffneten Datenbank, in deren Gruppe „KassenSturz“, nicht in Ihrem Haushaltsbuch. KeePassXC muss laufen; es bittet Sie bei Bedarf, die Datenbank zu entsperren."
-
-#: crates/kassensturz-ui-bridge/qml/FormError.qml
-msgctxt "@info"
-msgid "KeePassXC couldn't be reached, or it said no. Start KeePassXC, open and unlock your database, make sure Browser Integration is on in its settings, allow KassenSturz when KeePassXC asks, and try again. Until then, type the PIN each time."
-msgstr "KeePassXC war nicht erreichbar oder hat abgelehnt. Starten Sie KeePassXC, öffnen und entsperren Sie Ihre Datenbank, achten Sie darauf, dass die Browser-Integration in den Einstellungen eingeschaltet ist, erlauben Sie KassenSturz den Zugriff, wenn KeePassXC fragt, und versuchen Sie es noch einmal. Bis dahin geben Sie die PIN jedes Mal ein."
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
 msgctxt "@info"

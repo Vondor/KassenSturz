@@ -29,6 +29,12 @@ Kirigami.ScrollablePage {
     property var lookup: ({})
     // What linkChoices() returned after the setup.
     property var choices: ({})
+    // Changing a login: the one the new login replaces, and the IBAN of its
+    // account to begin with. Empty for a new login.
+    property string replacesLogin: ""
+    property string startIban: ""
+    // The old login could not be removed after the change.
+    property bool oldLoginLeft: false
 
     // The book changed: the accounts were linked.
     signal linked()
@@ -44,7 +50,9 @@ Kirigami.ScrollablePage {
 
     readonly property bool canContinue: ["ready", "unknown-bank", "no-server", "guessed-server", "unknown-login-kind"].includes(lookup.state ?? "")
 
-    title: i18nContext.i18nc("@title", "Connect a bank")
+    title: replacesLogin !== ""
+        ? i18nContext.i18nc("@title", "Change a bank login")
+        : i18nContext.i18nc("@title", "Connect a bank")
     header: ColumnLayout {
         spacing: 0
 
@@ -85,6 +93,7 @@ Kirigami.ScrollablePage {
             customerIdRule: lookup.customerId,
             pin: pinField.text,
             pinMode: pinMode.currentValue,
+            replaces: replacesLogin,
         });
         error.result = result;
         if (result.code === undefined) {
@@ -118,10 +127,18 @@ Kirigami.ScrollablePage {
                 page.step = "details";
                 return;
             }
+            page.oldLoginLeft = result.oldLoginLeft ?? false;
             const choices = page.bank.linkChoices();
             page.choices = choices.code === undefined ? choices : ({});
             error.result = choices.code !== undefined ? choices : ({});
             page.step = "accounts";
+        }
+    }
+
+    Component.onCompleted: {
+        if (startIban !== "") {
+            ibanField.text = startIban;
+            findBank();
         }
     }
 
@@ -136,6 +153,14 @@ Kirigami.ScrollablePage {
             Controls.Label {
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
                 wrapMode: Text.Wrap
+                visible: page.replacesLogin !== ""
+                text: page.i18nContext.i18nc("@info", "Check the IBAN, then change what is different. KassenSturz sets the new login up first and removes the old one only when the new one works, so if something goes wrong nothing is lost. The accounts you linked stay linked.")
+            }
+
+            Controls.Label {
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                wrapMode: Text.Wrap
+                visible: page.replacesLogin === ""
                 text: page.i18nContext.i18nc("@info", "KassenSturz can fetch your transactions from your bank, so you don't have to type them. It only reads; it never sends money. Start with the IBAN of one of your accounts at the bank: you find it on your bank card or in your bank's app.")
             }
 
@@ -321,6 +346,13 @@ Kirigami.ScrollablePage {
             Layout.maximumWidth: Kirigami.Units.gridUnit * 22
             visible: page.step === "accounts"
             spacing: Kirigami.Units.largeSpacing
+
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                type: Kirigami.MessageType.Warning
+                visible: page.oldLoginLeft
+                text: page.i18nContext.i18nc("@info", "The new login works, but the old one could not be removed. Remove it in Settings, under Bank connections.")
+            }
 
             Controls.Label {
                 Layout.fillWidth: true

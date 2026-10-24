@@ -7289,3 +7289,15 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:565
+#, kde-format
+msgctxt "@title:group"
+msgid "About"
+msgstr "Über KassenSturz"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:570
+#, kde-format
+msgctxt "@label the version of KassenSturz that is running"
+msgid "Version"
+msgstr "Version"

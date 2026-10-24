@@ -5,8 +5,8 @@
 // new one (D-033, for people who want more than one book), how amounts look
 // (D-002, D-114), the language (D-127), saving a copy of the data and starting a book from a file
 // (M3.12), the bank logins on this computer and their PINs (M4.6, D-057),
-// how long the history of changes is kept (D-066, M3.8), and where the
-// backups go.
+// how long the history of changes is kept (D-066, M3.8), where the
+// backups go, and which version of the app is running (D-152).
 
 import QtQuick
 import QtQuick.Layouts
@@ -558,5 +558,17 @@ FormCard.FormCardPage {
 
     FormCard.FormSectionText {
         text: page.i18nContext.i18nc("@info", "Before KassenSturz updates a book to work with a new version, it saves a copy of it here. It keeps the last 10 copies of each book.")
+    }
+
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "About")
+    }
+
+    FormCard.FormCard {
+        FormCard.FormTextDelegate {
+            descriptionItem.textFormat: Text.PlainText
+            text: page.i18nContext.i18nc("@label the version of KassenSturz that is running", "Version")
+            description: page.session.version
+        }
     }
 }

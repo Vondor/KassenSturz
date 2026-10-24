@@ -70,14 +70,14 @@ pub trait Keychain: Send + Sync {
     /// Gets the place ready to save secrets, asking the user for what it
     /// needs (e.g. to unlock a KeePassXC database and allow KassenSturz),
     /// and says where in it secrets go, when the user can tell that place
-    /// apart from others (D-166). A keychain that needs nothing first
+    /// apart from others (D-167). A keychain that needs nothing first
     /// answers `None`.
     fn open(&self) -> Result<Option<KeychainPlace>, KeychainError> {
         Ok(None)
     }
 }
 
-/// Where in a keychain the user can see saved secrets (D-166): e.g. a
+/// Where in a keychain the user can see saved secrets (D-167): e.g. a
 /// KeePassXC database's name and the group the entries go into. Names the
 /// user gave, shown as they are; never a secret.
 #[derive(Clone, Debug, PartialEq, Eq)]

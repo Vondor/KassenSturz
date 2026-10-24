@@ -47,14 +47,14 @@ FormCard.FormCardPage {
 
     // Where saved PINs go (D-163): the places this build offers here, what
     // choosing one did, and whether the advanced ones are shown. The place
-    // being got ready, e.g. KeePassXC waiting for the user (D-166).
+    // being got ready, e.g. KeePassXC waiting for the user (D-167).
     property var pinStorageChoices: []
     property var pinStorageResult: ({})
     property bool showAdvancedStorage: false
     property string pinStorageWaiting: ""
 
     // Gets the place `key` ready and saves PINs there from now on; the
-    // chosen place again connects to it once more (D-166).
+    // chosen place again connects to it once more (D-167).
     function choosePinStorage(key: string) {
         pinStorageResult = ({});
         const started = key === bank.pinStorage ? bank.openPinStorage() : bank.choosePinStorage(key);
@@ -340,7 +340,7 @@ FormCard.FormCardPage {
         }
 
         // KeePassXC keeps the file; KassenSturz uses the database open in
-        // front there and says which one (D-166).
+        // front there and says which one (D-167).
         FormCard.FormDelegateSeparator {
             visible: keepassxcHelp.visible
         }

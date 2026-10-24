@@ -21,13 +21,13 @@
 //! entries go into the group "KassenSturz" at the top of the database that
 //! is open in front, which KassenSturz asks KeePassXC to make the first
 //! time (KeePassXC asks the user); if the user says no, into KeePassXC's
-//! own group for new entries (D-166).
+//! own group for new entries (D-167).
 //!
 //! The interface can't choose a database file: it always works with the
 //! database open in front in KeePassXC, which keeps the file and decides
 //! where it is saved and how it is encrypted. [`Keychain::open`] connects
 //! to it at once and names it by its top group, which carries the
-//! database's name, so the user sees which database is used (D-166).
+//! database's name, so the user sees which database is used (D-167).
 //!
 //! The interface can't delete an entry. Deleting a secret empties the
 //! entry's password, which KeePassXC asks the user to allow; an entry with

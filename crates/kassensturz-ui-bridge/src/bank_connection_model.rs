@@ -123,7 +123,7 @@ pub mod qobject {
         #[cxx_name = "pinStorageChoices"]
         fn pin_storage_choices(self: &BankConnection) -> QVariant;
 
-        /// Starts saving PINs in the place `key` names (D-163, D-166): the
+        /// Starts saving PINs in the place `key` names (D-163, D-167): the
         /// place is got ready first, which may wait for the user (KeePassXC
         /// asks to unlock the database and to allow KassenSturz), so this
         /// runs in the background and ends with `pinStorageFinished`. An
@@ -134,7 +134,7 @@ pub mod qobject {
         fn choose_pin_storage(self: Pin<&mut BankConnection>, key: &QString) -> QVariant;
 
         /// Gets the chosen place ready again, e.g. connects to KeePassXC
-        /// after the user opened another database there (D-166); ends with
+        /// after the user opened another database there (D-167); ends with
         /// `pinStorageFinished` like `choosePinStorage`.
         #[qinvokable]
         #[cxx_name = "openPinStorage"]
@@ -241,7 +241,7 @@ pub mod qobject {
         fn setup_finished(self: Pin<&mut BankConnection>, result: QVariant);
 
         /// Choosing a place for saved PINs, or getting it ready again,
-        /// ended (D-163, D-166): an object with `saved`, false when the
+        /// ended (D-163, D-167): an object with `saved`, false when the
         /// settings couldn't be written, `removal`, empty or the error
         /// object when the old place couldn't be reached (the new one is
         /// used anyway), and `place` (`name` and `group`) when the place
@@ -841,7 +841,7 @@ fn pin_storage_choices_object(choices: &[SecretStorage]) -> QVariant {
 
 /// What choosing a place for saved PINs did: whether the choice was
 /// `saved` in the settings, the `removal` from the old place, and the
-/// `place` when it has a name to show (D-166).
+/// `place` when it has a name to show (D-167).
 fn pin_storage_object(saved: bool, change: &PinStorageChange) -> QVariant {
     let mut entries = vec![
         ("saved", QVariant::from(&saved)),

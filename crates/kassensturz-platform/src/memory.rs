@@ -37,7 +37,7 @@ impl MemoryKeychain {
     }
 
     /// From now on [`Keychain::open`] answers `place`, as a keychain the
-    /// user can tell apart from others does (D-166).
+    /// user can tell apart from others does (D-167).
     pub fn place(&self, place: Option<KeychainPlace>) {
         *self.place.lock().expect("no panic holds the place") = place;
     }

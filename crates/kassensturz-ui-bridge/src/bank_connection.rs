@@ -31,7 +31,7 @@
 //! back and removing a PIN can be tried with the desktop's own keychain
 //! before KassenSturz may talk to a real bank (D-159). With `1`, a PIN goes
 //! to a KeePassXC database when the user chose one in Settings, so that
-//! choice can be tried with the fake bank too (D-166).
+//! choice can be tried with the fake bank too (D-167).
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -100,7 +100,7 @@ fn memory_stores() -> PinStores {
 
 /// The fake bank's PINs with `KASSENSTURZ_FAKE_BANK=1`: in a KeePassXC
 /// database when the user chose one, filed under [`FAKE_BANK_SERVICE`]
-/// (D-166), else as [`memory_stores`] keeps them; the system keychain only
+/// (D-167), else as [`memory_stores`] keeps them; the system keychain only
 /// with [`FAKE_BANK_WITH_KEYCHAIN`] (D-159). `keychain` gives the
 /// KeePassXC keychain: in the app [`SecretStorage::keychain`].
 fn fake_stores(
@@ -280,7 +280,7 @@ pub enum Event {
     /// A fetch ended: what came of each account, or why none was tried.
     FetchDone(Result<Vec<FetchOutcome>, ErrorText>),
     /// Choosing the place `storage` for saved PINs, or getting it ready
-    /// again, ended (D-166): what it did, or why nothing changed.
+    /// again, ended (D-167): what it did, or why nothing changed.
     PinStorageDone {
         storage: SecretStorage,
         result: Result<PinStorageChange, ErrorText>,
@@ -821,7 +821,7 @@ pub fn forget_pin(connection: &mut Connection, id: &str) -> Result<(), BankError
 }
 
 /// Saves PINs in `storage` from now on (D-163), after getting it ready
-/// (D-166): for a KeePassXC database, KeePassXC asks the user to unlock it
+/// (D-167): for a KeePassXC database, KeePassXC asks the user to unlock it
 /// and to allow KassenSturz, and the answer names the database and the
 /// group. When it can't be got ready, the error says why and nothing
 /// changes. The PINs of the logins set up here are removed from the old
@@ -841,14 +841,14 @@ pub fn choose_pin_storage(
     };
     let store = (connection.pin_stores)(storage);
     // The new place first: when it can't be got ready, e.g. KeePassXC
-    // isn't running or the user said no there, nothing changes (D-166).
+    // isn't running or the user said no there, nothing changes (D-167).
     let place = store.open()?;
     let removal = connection.pins.replace_store(store, &logins);
     Ok(PinStorageChange { place, removal })
 }
 
 /// Gets the place PINs are saved in ready again and says where they go,
-/// e.g. after the user opened another database in KeePassXC (D-166).
+/// e.g. after the user opened another database in KeePassXC (D-167).
 pub fn open_pin_storage(connection: &mut Connection) -> Result<PinStorageChange, BankError> {
     Ok(PinStorageChange {
         place: connection.pins.open_store()?,
@@ -856,7 +856,7 @@ pub fn open_pin_storage(connection: &mut Connection) -> Result<PinStorageChange,
     })
 }
 
-/// What choosing a place for saved PINs did (D-163, D-166).
+/// What choosing a place for saved PINs did (D-163, D-167).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PinStorageChange {
     /// Where in the new place PINs go, when the user can tell it apart

@@ -72,7 +72,7 @@ pub trait PinStore {
 
     /// Gets the place ready to save PINs, asking the user for what it
     /// needs, and says where in it they go, when the user can tell that
-    /// place apart from others, e.g. a KeePassXC database (D-166). A store
+    /// place apart from others, e.g. a KeePassXC database (D-167). A store
     /// that needs nothing first answers `None`.
     fn open(&self) -> Result<Option<KeychainPlace>, BankError> {
         Ok(None)
@@ -286,7 +286,7 @@ impl PinSession {
     }
 
     /// Gets the place PINs are saved in ready, e.g. connects to KeePassXC
-    /// again, and says where they go: [`PinStore::open`] (D-166).
+    /// again, and says where they go: [`PinStore::open`] (D-167).
     pub fn open_store(&self) -> Result<Option<KeychainPlace>, BankError> {
         self.store.open()
     }

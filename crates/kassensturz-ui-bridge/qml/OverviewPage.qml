@@ -22,9 +22,11 @@ Kirigami.ScrollablePage {
     readonly property var view: overview.view ?? ({})
     readonly property var sections: view.sections ?? []
     readonly property var totals: view.totals ?? []
+    readonly property var fetchGaps: view.fetchGaps ?? []
 
     signal addAccountClicked()
     signal addTransactionClicked()
+    signal getTransactionsClicked(string accountId)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -68,6 +70,30 @@ Kirigami.ScrollablePage {
 
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
+
+        // An account linked to the bank that was last updated from it long
+        // ago (M5.U, D-180).
+        Repeater {
+            model: page.fetchGaps
+
+            delegate: Kirigami.InlineMessage {
+                id: gap
+
+                required property var modelData
+
+                Layout.fillWidth: true
+                type: Kirigami.MessageType.Warning
+                visible: true
+                text: Plain.plain(page.i18nContext.i18nc("@info %1 is how many days, %2 an account's name, %3 a date", "It has been %1 days since you last got new transactions for %2 from your bank (%3). Your bank only lists its recent transactions, so some may be missing if you wait longer.", gap.modelData.days, gap.modelData.account, gap.modelData.lastFetched))
+                actions: [
+                    Kirigami.Action {
+                        icon.name: "view-refresh"
+                        text: page.i18nContext.i18nc("@action:button", "Get new transactions")
+                        onTriggered: page.getTransactionsClicked(gap.modelData.accountId)
+                    }
+                ]
+            }
+        }
 
         // What all the accounts hold, per currency.
         Repeater {

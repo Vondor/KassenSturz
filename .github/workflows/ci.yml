@@ -150,6 +150,14 @@ jobs:
         run: tools/sdk.sh cargo test --workspace --locked
       - name: Tests with the system's SQLite instead of the bundled one (D-061)
         run: tools/sdk.sh cargo test --package kassensturz-store --no-default-features --locked
+      # The build without AI (D-039): lints and tests of every crate with the
+      # AI feature off, and a check that no AI crate is in what it builds.
+      - name: Lints, build without AI (D-039)
+        run: tools/sdk.sh cargo clippy --workspace --all-targets --no-default-features --features bundled-sqlite --locked -- -D warnings
+      - name: Tests, build without AI (D-039)
+        run: tools/sdk.sh cargo test --workspace --no-default-features --features bundled-sqlite --locked
+      - name: The build without AI holds no AI crate (D-039)
+        run: tools/sdk.sh tools/check-no-ai.sh
       - name: Translations are valid, complete and current (D-126)
         run: tools/sdk.sh tools/check-translations.sh
       # Saved even when a check failed, so the next push doesn't start cold.
@@ -293,7 +301,7 @@ jobs:
           grep -qx 'Icon=io.github.vondor.KassenSturz' \
             build/stage/usr/share/applications/io.github.vondor.KassenSturz.desktop
       - name: Tests, with the system's SQLite
-        run: cargo test --workspace --no-default-features --locked
+        run: cargo test --workspace --no-default-features --features ai --locked
         env:
           QMAKE: /usr/bin/qmake6
           # The distribution's AqBanking is installed, so the loading test
@@ -403,7 +411,7 @@ jobs:
           grep -qx 'Icon=io.github.vondor.KassenSturz' \
             build/stage/usr/share/applications/io.github.vondor.KassenSturz.desktop
       - name: Tests, with the system's SQLite
-        run: cargo test --workspace --no-default-features --locked
+        run: cargo test --workspace --no-default-features --features ai --locked
         env:
           QMAKE: /usr/bin/qmake6
           # The distribution's AqBanking is installed, so the loading test

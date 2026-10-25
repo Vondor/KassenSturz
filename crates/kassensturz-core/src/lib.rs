@@ -12,6 +12,8 @@
 #![forbid(unsafe_code)]
 
 mod account;
+#[cfg(feature = "ai")]
+pub mod ai_switch;
 mod bank_link;
 mod changeover;
 mod currency;

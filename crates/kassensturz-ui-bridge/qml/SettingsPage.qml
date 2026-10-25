@@ -22,6 +22,7 @@ FormCard.FormCardPage {
     required property BookSession session
     required property NumberFormatSettings numberFormat
     required property LanguageSettings language
+    required property AiSwitch ai
     required property ChangeHistory history
     required property BankConnection bank
 
@@ -29,6 +30,8 @@ FormCard.FormCardPage {
     property bool formatNotSaved: false
     // Whether the language choice couldn't be saved.
     property bool languageNotSaved: false
+    // Whether the AI switch couldn't be saved.
+    property bool aiNotSaved: false
 
     signal openAnotherClicked()
     signal newBookClicked()
@@ -473,6 +476,29 @@ FormCard.FormCardPage {
                 ? page.i18nContext.i18nc("@info", "The new language applies the next time you start KassenSturz.")
                 : page.i18nContext.i18nc("@info", "Dates and amounts keep following your regional settings; change how amounts look below.")
     }
+
+    // ai-toggle-begin: the one place AI shows while it is off (D-013). A
+    // build without AI doesn't show it at all.
+    FormCard.FormCard {
+        visible: page.ai.available
+
+        FormCard.FormSwitchDelegate {
+            text: page.i18nContext.i18nc("@option:check", "AI features")
+            description: page.i18nContext.i18nc("@info", "Off unless you turn it on. While it is off, nothing about AI is shown or runs.")
+            checked: page.ai.enabled
+            onToggled: {
+                page.aiNotSaved = !page.ai.switchTo(checked);
+                checked = Qt.binding(() => page.ai.enabled);
+            }
+        }
+    }
+
+    FormCard.FormSectionText {
+        visible: page.ai.available && page.aiNotSaved
+        textFormat: Text.PlainText
+        text: page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice. Check that your settings folder can be written to, then try again.")
+    }
+    // ai-toggle-end
 
     FormCard.FormHeader {
         title: page.i18nContext.i18nc("@title:group", "How amounts look")

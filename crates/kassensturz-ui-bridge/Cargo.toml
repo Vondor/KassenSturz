@@ -16,9 +16,14 @@ name = "kassensturz"
 path = "src/main.rs"
 
 [features]
-default = ["bundled-sqlite"]
+default = ["bundled-sqlite", "ai"]
 # See kassensturz-store (D-061).
 bundled-sqlite = ["kassensturz-store/bundled-sqlite", "kassensturz-import/bundled-sqlite"]
+
+# AI features (D-039): on by default, off with `--no-default-features`
+# (plus `bundled-sqlite` to keep the bundled SQLite). Without it the screens
+# hold no AI code and the one switch is never shown.
+ai = ["kassensturz-core/ai"]
 
 [dependencies]
 cxx.workspace = true

@@ -6973,6 +6973,33 @@ msgstr ""
 "Datum und Beträge folgen weiterhin Ihren Regionseinstellungen; wie Beträge "
 "aussehen, ändern Sie unten."
 
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:486
+#, kde-format
+msgctxt "@option:check"
+msgid "AI features"
+msgstr "KI-Funktionen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:487
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Off unless you turn it on. While it is off, nothing about AI is shown or "
+"runs."
+msgstr ""
+"Aus, solange Sie es nicht einschalten. Solange es aus ist, wird nichts zu KI "
+"angezeigt und nichts davon läuft."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:499
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz couldn't save this choice. Check that your settings folder can "
+"be written to, then try again."
+msgstr ""
+"KassenSturz konnte diese Auswahl nicht speichern. Prüfen Sie, ob in Ihren "
+"Einstellungsordner geschrieben werden kann, und versuchen Sie es dann "
+"erneut."
+
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:425
 #, kde-format
 msgctxt "@title:group"

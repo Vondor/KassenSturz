@@ -31,7 +31,7 @@ kassensturz/
 │   ├── kassensturz-charts/         # ChartProvider interface + implementations
 │   ├── kassensturz-ai/             # LLM provider abstraction (OpenAI-compatible adapter in v1), consent, redaction
 │   ├── kassensturz-ai-tools/       # the fixed list of read functions the AI may call, the overview, the number check, change sets (D-170); shared by chat and MCP
-│   ├── kassensturz-mcp/            # local MCP server exposing the core (read-only by default)
+│   ├── kassensturz-mcp/            # local MCP server exposing the core (read-only by default); until M5.6 a stub that only checks the AI switch (D-179)
 │   ├── kassensturz-receipts/       # post-1.0: OCR + transaction-matching for photographed/scanned receipts
 │   ├── kassensturz-mobile-bridge/  # post-1.0: Rust↔Kotlin FFI exposing core+receipts to the native Android app — see D-019, Q-018
 │   ├── kassensturz-sync/           # post-1.0: shared-host ↔ thin-client access for multi-user (Member-scoped) — see D-022, Q-021/Q-022

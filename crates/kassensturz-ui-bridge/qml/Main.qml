@@ -164,6 +164,12 @@ Kirigami.ApplicationWindow {
         bank: bankConnection
     }
 
+    // The one AI switch (D-013): every AI element in the screens hides
+    // behind its `enabled`.
+    AiSwitch {
+        id: aiSwitch
+    }
+
     // The language (D-127), which applies at the next start.
     LanguageSettings {
         id: languageSettings
@@ -766,6 +772,7 @@ Kirigami.ApplicationWindow {
             session: bookSession
             numberFormat: numberFormatSettings
             language: languageSettings
+            ai: aiSwitch
             history: changeHistory
             bank: bankConnection
             onConnectBankClicked: root.pushPage(bankSetupPage)

@@ -44,6 +44,8 @@ find_program(CARGO_EXECUTABLE cargo REQUIRED)
 
 option(KASSENSTURZ_BUNDLED_SQLITE
     "Build the SQLite that rusqlite bundles; OFF uses the system's SQLite (D-061)" ON)
+option(KASSENSTURZ_AI
+    "Build the AI features; OFF leaves all AI code out (D-039). Official packages build with AI, switched off by default in the app (D-013)" ON)
 option(KASSENSTURZ_BANK_DIALOGS
     "Build the library for Gwenhywfar's Qt 6 bank dialogs where gwengui-qt6 is installed (D-054, Q-035)" ON)
 option(KASSENSTURZ_INSTALL_SVG_ICON
@@ -51,8 +53,19 @@ option(KASSENSTURZ_INSTALL_SVG_ICON
 
 set(cargo_target_dir "${CMAKE_CURRENT_BINARY_DIR}/cargo")
 set(cargo_args build --locked --package kassensturz-ui-bridge --bin kassensturz)
-if(NOT KASSENSTURZ_BUNDLED_SQLITE)
-    list(APPEND cargo_args --no-default-features)
+# The Cargo features are named in full, so one option never switches another
+# off (the default features include both).
+set(cargo_features "")
+if(KASSENSTURZ_BUNDLED_SQLITE)
+    list(APPEND cargo_features bundled-sqlite)
+endif()
+if(KASSENSTURZ_AI)
+    list(APPEND cargo_features ai)
+endif()
+list(APPEND cargo_args --no-default-features)
+if(cargo_features)
+    list(JOIN cargo_features "," cargo_features_arg)
+    list(APPEND cargo_args --features ${cargo_features_arg})
 endif()
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(cargo_profile_dir debug)

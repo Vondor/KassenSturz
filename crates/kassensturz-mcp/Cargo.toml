@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+
+[package]
+name = "kassensturz-mcp"
+description = "KassenSturz's local MCP server for the user's own AI tools, over stdio (D-050). A stub until M5.6: it only checks the AI switch."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = ["ai"]
+# Without it the program holds no AI code and only says so (D-039).
+ai = ["dep:kassensturz-core", "kassensturz-core/ai"]
+
+[dependencies]
+kassensturz-core = { workspace = true, optional = true }
+
+[lints]
+workspace = true

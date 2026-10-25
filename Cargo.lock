@@ -1240,6 +1240,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "kassensturz-mcp"
+version = "0.261023.0"
+dependencies = [
+ "kassensturz-core",
+]
+
+[[package]]
 name = "kassensturz-pipeline"
 version = "0.261023.0"
 dependencies = [

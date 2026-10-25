@@ -413,7 +413,7 @@ fn form_object(form: &RuleForm) -> QVariant {
     ])
 }
 
-fn condition_object(condition: &ConditionForm) -> QVariant {
+pub(crate) fn condition_object(condition: &ConditionForm) -> QVariant {
     map([
         ("kind", text(&condition.kind)),
         ("field", text(&condition.field)),

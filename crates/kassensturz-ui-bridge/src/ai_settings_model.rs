@@ -391,7 +391,7 @@ mod engine {
             let store = Store::user();
             // The key is looked up under the lock, the provider is asked
             // without it, so saving elsewhere never waits for a provider.
-            let result = with_keys(|keys| store.key_for_test(keys, typed))
+            let result = with_keys(|keys| store.key_for(keys, typed))
                 .and_then(|key| store.test_connection(key, ai_settings::fake_model()));
             let model = store
                 .config()

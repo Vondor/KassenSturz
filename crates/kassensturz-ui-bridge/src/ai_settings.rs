@@ -59,9 +59,14 @@ fn with_keys_in<R>(storage: SecretStorage, f: impl FnOnce(&mut ProviderKeys) -> 
 /// then nothing is sent anywhere, and "Test connection" answers from the
 /// app itself (D-205).
 pub fn fake_model() -> bool {
+    demo_model().is_some()
+}
+
+/// The fake model `KASSENSTURZ_FAKE_AI` asks for, if it is switched on.
+pub fn demo_model() -> Option<DemoModel> {
     std::env::var(DEMO_ENV)
         .ok()
-        .is_some_and(|value| DemoModel::from_env_value(&value).is_some())
+        .and_then(|value| DemoModel::from_env_value(&value))
 }
 
 /// The consent as the screen shows it.
@@ -269,9 +274,9 @@ impl Store {
         .all(|name| self.put(name, ""))
     }
 
-    /// The key for a test: the one typed for it, else the one kept for the
-    /// saved provider, if it needs one.
-    pub fn key_for_test(
+    /// The key for a test or a question: the one typed for it, else the one
+    /// kept for the saved provider, if it needs one.
+    pub fn key_for(
         &self,
         keys: &ProviderKeys,
         typed: Option<Secret>,
@@ -317,7 +322,7 @@ impl Store {
 }
 
 /// The commit the build is made from, empty when it isn't known.
-fn build_commit() -> &'static str {
+pub(crate) fn build_commit() -> &'static str {
     option_env!("KASSENSTURZ_BUILD_COMMIT").unwrap_or("")
 }
 
@@ -542,11 +547,11 @@ mod tests {
 
         // The test gets the kept key unless one is typed for it.
         assert_eq!(
-            store.key_for_test(&keys, None).unwrap(),
+            store.key_for(&keys, None).unwrap(),
             Some(secret("test-key-ui-1"))
         );
         assert_eq!(
-            store.key_for_test(&keys, Some(secret("typed"))).unwrap(),
+            store.key_for(&keys, Some(secret("typed"))).unwrap(),
             Some(secret("typed"))
         );
 
@@ -559,7 +564,7 @@ mod tests {
             None,
         );
         assert_eq!(memory.len(), 0);
-        assert_eq!(store.key_for_test(&keys, None).unwrap(), None);
+        assert_eq!(store.key_for(&keys, None).unwrap(), None);
 
         // Neither does a change to typing it each time.
         store.save(

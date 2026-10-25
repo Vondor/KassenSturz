@@ -1,0 +1,304 @@
+// SPDX-FileCopyrightText: 2026 KassenSturz contributors
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// The review of the changes the AI prepared (M5.8, D-047, D-200, threat
+// T-27): every change in words, the new categories, the new Rules and the
+// transactions that get a category, with the amount and day as the register
+// shows them. Nothing has changed yet. The confirm button below is the only
+// way to apply the set (`AiChat.confirm`): all of it is made or none, as one
+// change that Undo takes back, which this page offers once it is done. The
+// texts come from the model or the book and are shown as plain text (T-08).
+// Hidden with the rest of AI while the switch is off (D-013).
+
+import QtQuick
+import QtQuick.Controls as Controls
+import QtQuick.Layouts
+import org.kde.kirigami as Kirigami
+import org.kde.ki18n
+import io.github.vondor.kassensturz
+
+Kirigami.ScrollablePage {
+    id: page
+
+    required property AiSwitch ai
+    required property AiChat chat
+    // The set to read, by the ID the chat gave it.
+    required property string setId
+
+    // The set was applied or thrown away.
+    signal applied(string setId)
+    signal discarded(string setId)
+    // The user wants the applied set taken back.
+    signal undoClicked()
+    signal doneClicked()
+
+    readonly property KI18nContext i18nContext: KI18nContext {
+        translationDomain: "kassensturz"
+    }
+
+    // The changes, or an error object when the set can't be shown.
+    property var changes: []
+    // What confirm answered, once it was pressed.
+    property var result: ({})
+    property bool done: false
+
+    readonly property var newCategories: changes.filter ? changes.filter(change => change.kind === "newCategory") : []
+    readonly property var newRules: changes.filter ? changes.filter(change => change.kind === "newRule") : []
+    readonly property var transactions: changes.filter ? changes.filter(change => change.kind === "categorize") : []
+    readonly property bool shows: changes.code === undefined && !done
+
+    // A Rule's condition in words.
+    function conditionText(condition: var): string {
+        if (condition.kind === "text") {
+            return i18nContext.i18nc("@info %1 is what a Rule looks at, %2 how it compares, %3 the text", "%1 %2 “%3”", fieldName(condition.field), operatorName(condition.operator), condition.value);
+        }
+        if (condition.kind === "amount") {
+            const way = condition.direction === "in" ? i18nContext.i18nc("@info", "Money received") : i18nContext.i18nc("@info", "Money paid");
+            if (condition.amountTest === "exactly") {
+                return i18nContext.i18nc("@info %1 is money paid or received, %2 an amount, %3 a currency", "%1: exactly %2 %3", way, condition.amount, condition.currency);
+            }
+            if (condition.amountTest === "between") {
+                return i18nContext.i18nc("@info %1 is money paid or received, %2 and %3 amounts, %4 a currency", "%1: between %2 and %3 %4", way, condition.amount, condition.amountTo, condition.currency);
+            }
+            return way;
+        }
+        return i18nContext.i18nc("@info %1 is the kind of a condition", "Another condition (%1)", condition.kind);
+    }
+
+    function fieldName(field: string): string {
+        switch (field) {
+        case "other-party-name":
+            return i18nContext.i18nc("@item:inlistbox what a Rule looks at: the name the bank gave for who paid or was paid", "Other party");
+        case "other-party-iban":
+            return i18nContext.i18nc("@item:inlistbox what a Rule looks at: the other party's account number", "Other party's IBAN");
+        case "purpose":
+            return i18nContext.i18nc("@item:inlistbox what a Rule looks at: the text a payment came with", "Purpose");
+        default:
+            return i18nContext.i18nc("@item:inlistbox what a Rule looks at: the name shown as From or To", "Name shown");
+        }
+    }
+
+    function operatorName(operator: string): string {
+        switch (operator) {
+        case "is":
+            return i18nContext.i18nc("@item:inlistbox a text has to", "is exactly");
+        case "starts-with":
+            return i18nContext.i18nc("@item:inlistbox a text has to", "starts with");
+        case "ends-with":
+            return i18nContext.i18nc("@item:inlistbox a text has to", "ends with");
+        case "pattern":
+            return i18nContext.i18nc("@item:inlistbox a text has to", "matches the pattern");
+        default:
+            return i18nContext.i18nc("@item:inlistbox a text has to", "contains");
+        }
+    }
+
+    // The user's yes: the only call that applies the set.
+    function confirm() {
+        result = chat.confirm(setId);
+        if (result.ok === true) {
+            done = true;
+            applied(setId);
+        }
+    }
+
+    function throwAway() {
+        chat.discard(setId);
+        discarded(setId);
+    }
+
+    title: i18nContext.i18nc("@title", "Changes the AI prepared")
+    visible: ai.enabled
+    Component.onCompleted: changes = chat.changes(setId)
+
+    actions: [
+        Kirigami.Action {
+            visible: page.shows
+            icon.name: "dialog-ok-apply"
+            text: page.i18nContext.i18nc("@action:button make all the changes shown", "Confirm and make these changes")
+            onTriggered: page.confirm()
+        },
+        Kirigami.Action {
+            visible: page.shows
+            icon.name: "edit-delete"
+            text: page.i18nContext.i18nc("@action:button throw the prepared changes away", "Throw away")
+            onTriggered: page.throwAway()
+        }
+    ]
+
+    ColumnLayout {
+        spacing: Kirigami.Units.largeSpacing
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Information
+            visible: page.shows
+            text: page.i18nContext.i18nc("@info", "The AI prepared these changes. Nothing in your book has changed yet. Read them: they are made together when you confirm, and you can take them back with Undo.")
+        }
+
+        AiErrorMessage {
+            Layout.fillWidth: true
+            ai: page.ai
+            result: page.changes.code !== undefined ? page.changes : page.result
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Positive
+            visible: page.done
+            text: page.i18nContext.i18nc("@info", "The changes were made. You can take them back with Undo.")
+            actions: [
+                Kirigami.Action {
+                    icon.name: "edit-undo"
+                    text: page.i18nContext.i18nc("@action:button take the last change back", "Undo")
+                    onTriggered: page.undoClicked()
+                },
+                Kirigami.Action {
+                    icon.name: "dialog-close"
+                    text: page.i18nContext.i18nc("@action:button leave this page", "Close")
+                    onTriggered: page.doneClicked()
+                }
+            ]
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.newCategories.length > 0
+            text: page.i18nContext.i18nc("@title:group", "New categories")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.newCategories : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        font.bold: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.path
+                    }
+
+                    Controls.Label {
+                        text: modelData.income ? page.i18nContext.i18nc("@info", "For money you receive") : page.i18nContext.i18nc("@info", "For money you spend")
+                        textFormat: Text.PlainText
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.newRules.length > 0
+            text: page.i18nContext.i18nc("@title:group", "New Rules")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.newRules : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        font.bold: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.name
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is the path of a category", "Books matching transactions to %1.", modelData.bookTo)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.matchAll ? page.i18nContext.i18nc("@info", "When all of these hold:") : page.i18nContext.i18nc("@info", "When one of these holds:")
+                    }
+
+                    Repeater {
+                        model: modelData.conditions
+
+                        Controls.Label {
+                            required property var modelData
+
+                            Layout.fillWidth: true
+                            Layout.leftMargin: Kirigami.Units.largeSpacing
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            text: "• " + page.conditionText(modelData)
+                        }
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.transactions.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Transactions that get a category")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.transactions : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            font.bold: true
+                            textFormat: Text.PlainText
+                            text: modelData.payee !== "" ? modelData.payee : page.i18nContext.i18nc("@info a transaction without a name", "(no name)")
+                        }
+
+                        Controls.Label {
+                            textFormat: Text.PlainText
+                            text: modelData.amount
+                        }
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is a date, %2 the name of an account", "%1 · %2", modelData.date, modelData.account)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.before !== ""
+                            ? page.i18nContext.i18nc("@info %1 and %2 are paths of categories", "Category: %1 → %2", modelData.before, modelData.after)
+                            : page.i18nContext.i18nc("@info %1 is the path of a category", "Category: %1 (none before)", modelData.after)
+                    }
+                }
+            }
+        }
+    }
+}

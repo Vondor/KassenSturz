@@ -1554,6 +1554,7 @@ dependencies = [
  "cxx-qt-lib-extras",
  "kassensturz-ai",
  "kassensturz-ai-chat",
+ "kassensturz-ai-tools",
  "kassensturz-bank",
  "kassensturz-core",
  "kassensturz-export",

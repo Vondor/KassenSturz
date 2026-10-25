@@ -134,7 +134,8 @@ mod tests {
         }
     }
 
-    /// Every `ai.` code has its message, in words that say what to do next.
+    /// Every `ai.`, `ai-chat.` and `ai-changes.` code has its message, in
+    /// words that say what to do next.
     #[test]
     fn every_ai_error_code_has_a_message() {
         let codes = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/ERROR_CODES.md");
@@ -142,19 +143,23 @@ mod tests {
         let messages = qml("AiErrorMessage.qml");
         let mut found = 0;
         for line in codes.lines() {
-            let Some(code) = line
-                .strip_prefix("| `ai.")
-                .and_then(|rest| rest.split('`').next())
+            let Some(code) = ["ai.", "ai-chat.", "ai-changes."]
+                .iter()
+                .find_map(|prefix| {
+                    line.strip_prefix(&format!("| `{prefix}"))
+                        .and_then(|rest| rest.split('`').next())
+                        .map(|code| format!("{prefix}{code}"))
+                })
             else {
                 continue;
             };
             found += 1;
             assert!(
-                messages.contains(&format!("case \"ai.{code}\":")),
-                "AiErrorMessage.qml has no message for ai.{code}"
+                messages.contains(&format!("case \"{code}\":")),
+                "AiErrorMessage.qml has no message for {code}"
             );
         }
-        assert!(found >= 20, "the ai. codes weren't found ({found})");
+        assert!(found >= 26, "the ai codes weren't found ({found})");
     }
 
     /// The provider's key goes in through `SecretField` and out through
@@ -183,5 +188,61 @@ mod tests {
             );
         }
         assert!(uses >= 4, "the key field's uses weren't found");
+    }
+
+    /// The key typed for one question goes to `ask` and nowhere else
+    /// (D-211, threat T-25).
+    #[test]
+    fn the_chats_key_field_is_a_secret_field_and_its_text_goes_only_to_ask() {
+        let panel = qml("AiChatPanel.qml");
+        assert!(panel.contains("SecretField {\n        id: keyField"));
+        let allowed = ["chat.ask(", "keyField.text = \"\""];
+        let mut uses = 0;
+        for (number, line) in panel.lines().enumerate() {
+            if line.trim_start().starts_with("//") || !line.contains("keyField.text") {
+                continue;
+            }
+            uses += 1;
+            assert!(
+                allowed.iter().any(|ok| line.contains(ok)),
+                "AiChatPanel.qml:{}: the key's text is used for more than asking: {line}",
+                number + 1
+            );
+        }
+        assert_eq!(uses, 2, "the key field's uses weren't found");
+    }
+
+    /// The sidebar and its toggles show only while AI is on (D-013, D-210),
+    /// and the only QML that confirms a set is the review page's button.
+    #[test]
+    fn the_sidebar_and_its_toggles_hide_with_the_switch_and_only_the_review_page_confirms() {
+        let main = qml("Main.qml");
+        let drawer = &main[main.find("contextDrawer:").expect("the sidebar")..];
+        let drawer = &drawer[..drawer.find("contentItem:").expect("its content")];
+        for needle in [
+            "enabled: aiSwitch.enabled",
+            "handleVisible: aiSwitch.enabled",
+        ] {
+            assert!(drawer.contains(needle), "the sidebar lacks `{needle}`");
+        }
+        let toggle = &main[main
+            .find("text: chatPanel.toggleText")
+            .expect("the menu entry")..];
+        let toggle_start = main[..main.len() - toggle.len()]
+            .rfind("Kirigami.Action {")
+            .expect("its action");
+        let action = &main[toggle_start..main.len() - toggle.len() + toggle.find("},").unwrap()];
+        assert!(action.contains("visible: aiSwitch.enabled"), "{action}");
+        assert!(action.contains("enabled: aiSwitch.enabled"), "{action}");
+        for (name, text) in qml_files() {
+            let confirms = text
+                .lines()
+                .filter(|line| {
+                    !line.trim_start().starts_with("//") && line.contains("chat.confirm(")
+                })
+                .count();
+            let expected = usize::from(name == "AiChangeReviewPage.qml");
+            assert_eq!(confirms, expected, "{name}: calls of confirm");
+        }
     }
 }

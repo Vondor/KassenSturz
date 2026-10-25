@@ -22,7 +22,10 @@ fn repository() -> PathBuf {
 }
 
 fn read(path: &Path) -> String {
-    fs::read_to_string(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
+    // Windows checks files out with CRLF line endings.
+    fs::read_to_string(path)
+        .unwrap_or_else(|error| panic!("{}: {error}", path.display()))
+        .replace("\r\n", "\n")
 }
 
 /// Every file of `folder` with this extension, at any depth.
@@ -62,7 +65,7 @@ fn only_the_confirm_button_makes_a_confirmation() {
             .filter(|line| line.contains("by_the_user(") && !line.trim_start().starts_with("//"))
             .count();
         if calls > 0 {
-            callers.push(relative.to_string_lossy().into_owned());
+            callers.push(relative.to_string_lossy().replace('\\', "/"));
         }
     }
     callers.sort();

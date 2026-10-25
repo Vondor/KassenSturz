@@ -143,4 +143,4 @@ KassenSturz is published by [SerpentSoftware](https://serpentsoftware.de).
 
 ## License
 
-Code: GPL-3.0-or-later, see [`LICENSE`](LICENSE). The SerpentSoftware logo is the publisher's and may be shown unmodified with KassenSturz only (`LicenseRef-SerpentSoftware-Logo`). Documentation: CC-BY-SA-4.0. CMake files: BSD-2-Clause. Small configuration files and templates: CC0-1.0. [`REUSE.toml`](REUSE.toml) and the [`LICENSES/`](LICENSES/) folder say which license covers which file (D-064 in [`docs/DECISIONS.md`](docs/DECISIONS.md)).
+Code: GPL-3.0-or-later, see [`LICENSE`](LICENSE). The SerpentSoftware logo is the publisher's brand mark and is not covered by these licenses (`LicenseRef-SerpentSoftware-Logo`): copy it unmodified with the project, but remove it if you publish a fork under your own name. Documentation: CC-BY-SA-4.0. CMake files: BSD-2-Clause. Small configuration files and templates: CC0-1.0. [`REUSE.toml`](REUSE.toml) and the [`LICENSES/`](LICENSES/) folder say which license covers which file (D-064 in [`docs/DECISIONS.md`](docs/DECISIONS.md)).

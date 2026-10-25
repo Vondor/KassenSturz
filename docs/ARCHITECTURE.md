@@ -30,6 +30,7 @@ kassensturz/
 │   ├── kassensturz-platform/       # keychain, config paths, notifications behind traits
 │   ├── kassensturz-charts/         # ChartProvider interface + implementations
 │   ├── kassensturz-ai/             # LLM provider abstraction (OpenAI-compatible adapter in v1), consent, redaction
+│   ├── kassensturz-ai-tools/       # the fixed list of read functions the AI may call, the overview, the number check, change sets (D-170); shared by chat and MCP
 │   ├── kassensturz-mcp/            # local MCP server exposing the core (read-only by default)
 │   ├── kassensturz-receipts/       # post-1.0: OCR + transaction-matching for photographed/scanned receipts
 │   ├── kassensturz-mobile-bridge/  # post-1.0: Rust↔Kotlin FFI exposing core+receipts to the native Android app — see D-019, Q-018
@@ -114,7 +115,7 @@ kassensturz/
 - Only `kassensturz-bank` uses `kassensturz-aqbanking-sys`; no other crate calls AqBanking's C code (D-060). `kassensturz-bank` also depends on `kassensturz-platform` for the keychain its saved PINs live in (`KeychainPinStore`, D-057). The tests of both crates load `kassensturz-aqbanking-stub`, a `cdylib` that is never shipped, in place of the real libraries (feature `stub` of the `-sys` crate builds it; the `-sys` crate turns the feature on for its own tests through a dependency on itself).
 - Front ends (`kassensturz-cli`, `kassensturz-ui-bridge`, `kassensturz-mcp`) depend on core, store and plugin host, and on import, export and pipeline to import and export files; the desktop app also on `kassensturz-bank` and `kassensturz-platform` for bank connections (D-151). **Core never knows about a UI.**
 - OS-specific behavior lives only in `kassensturz-platform` behind traits. Since M4.1 that is the `Keychain` trait: `SystemKeychain` reaches the user's keychain through the `keyring` crate (the Secret Service on Linux, which KWallet and GNOME Keyring answer), `MemoryKeychain` is the fake for tests, and a `Secret` never shows its value and wipes itself (D-147). `kassensturz-platform` depends only on `kassensturz-core`; no other crate talks to a keychain (AGENTS.md §3.1 rule 7).
-- AI code lives only in `kassensturz-ai` and `kassensturz-mcp`. Front ends use them only behind one build feature (`ai`, on by default), so KassenSturz can be built without any AI code (D-039). `kassensturz-core` never depends on AI code.
+- AI code lives only in `kassensturz-ai`, `kassensturz-ai-tools` and `kassensturz-mcp`; `kassensturz-ai-tools` reads the book through `kassensturz-store` and has no connection crate, `kassensturz-ai` alone holds the HTTP client (D-175, T-13), and `kassensturz-mcp` has none. Front ends use them only behind one build feature (`ai`, on by default), so KassenSturz can be built without any AI code (D-039). `kassensturz-core` never depends on AI code.
 - Built-in importers and exporters implement the native Rust interface that the plugin API mirrors (D-069).
 
 ## Plugin model
@@ -234,6 +235,7 @@ kassensturz/
 - A consent layer decides what data may leave the machine, per provider, with preview and redaction. A model on another computer, even one at home, counts as leaving the machine (D-035).
 - Changes proposed by AI are represented as reviewable change sets and applied only after user confirmation. Writes requested through `kassensturz-mcp` are confirmed in the KassenSturz window (D-035).
 - `kassensturz-mcp` serves the core to the user's own AI tools outside KassenSturz (e.g. Claude Desktop, LM Studio), over stdio only: the outside tool starts it, and no network port is opened (D-050). Read-only by default; write tools can be switched on separately, and every write is confirmed in the KassenSturz window (D-035). The chat panel doesn't use it.
+- AI settings (on or off, provider address and model, consent record) are kept in the app's config file on this computer, never in the book (D-168); the provider's key is only in the keychain (D-169). Threats and the rules for AI code are in `docs/THREAT_MODEL.md` (T-21 to T-35).
 - A global AI-off switch is a kill switch: `kassensturz-mcp` refuses to start while AI is off, and `kassensturz-ai` runs no provider code. The UI layer hides (not disables) every AI-related element in that state, except one "AI features" toggle in Settings. See AGENTS.md §8, D-013.
 
 ## AI memory (post-1.0)

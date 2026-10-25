@@ -67,6 +67,9 @@ fn rmcp_has_only_its_server_and_stdio_features() {
 
     // Only this crate uses it, and adds no feature of its own.
     let crates = repository().join("crates");
+    let this_crate = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .canonicalize()
+        .expect("this crate");
     for entry in fs::read_dir(&crates).expect("crates folder") {
         let manifest = entry.expect("entry").path().join("Cargo.toml");
         if !manifest.exists() {
@@ -77,7 +80,7 @@ fn rmcp_has_only_its_server_and_stdio_features() {
             .lines()
             .filter(|line| line.trim_start().starts_with("rmcp"))
             .collect();
-        if manifest.starts_with(env!("CARGO_MANIFEST_DIR")) {
+        if manifest.starts_with(&this_crate) {
             assert_eq!(uses, ["rmcp = { workspace = true, optional = true }"]);
         } else {
             assert!(uses.is_empty(), "{} uses rmcp", manifest.display());
@@ -90,12 +93,10 @@ fn rmcp_has_only_its_server_and_stdio_features() {
     }
 
     let lock = read(&repository().join("Cargo.lock"));
-    let entry = lock
-        .split("[[package]]")
-        .find(|package| package.contains("\nname = \"rmcp\"\n"))
-        .expect("rmcp is in Cargo.lock");
-    let dependencies: Vec<&str> = entry
+    // Line by line, so a checkout with Windows line endings reads the same.
+    let dependencies: Vec<&str> = lock
         .lines()
+        .skip_while(|line| *line != "name = \"rmcp\"")
         .skip_while(|line| *line != "dependencies = [")
         .skip(1)
         .take_while(|line| *line != "]")

@@ -163,6 +163,9 @@ mod tests {
         PathBuf::from(text)
     }
 
+    // Unix paths: the app's settings file is read only on Linux yet
+    // (D-177), and on Windows "/home/ada" isn't an absolute path.
+    #[cfg(unix)]
     #[test]
     fn the_path_the_app_wrote_is_read_with_the_home_folder() {
         assert_eq!(

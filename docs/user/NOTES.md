@@ -210,6 +210,16 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **If it doesn't start,** the AI tool's log shows why: AI is switched off, KassenSturz hasn't opened a book yet, or the book has to be opened in KassenSturz once after an update before it can be read.
 - **Pre-release builds** tell the AI tool that the build may have bugs, so the AI can say when a result looks wrong.
 
+## Choosing the AI and what it may see (M5.7)
+
+- **Where:** Settings → **AI provider and privacy…**. It appears only after you switch on "AI features" in Settings; while they are off, nothing about AI shows and nothing runs. The settings belong to this computer, never to your book, so a copy of your book carries neither a provider nor your agreement.
+- **The provider:** type its address and the model's name. For a program on your own computer the address looks like `http://localhost:11434/v1` (Ollama) or `http://localhost:1234/v1` (LM Studio). For an online service, or a computer at home, the address must start with `https://`; KassenSturz refuses unencrypted `http://` to any other computer.
+- **The key:** a program on your own computer usually needs none. For an online service choose how the key is kept: *I type it each time*, *Keep it until I close KassenSturz*, or *Save it with my other saved secrets*, which uses the place chosen under **Password storage** in Settings (your keychain, KeePassXC, or nowhere). The key is never shown again and never written to your book or a file. Changing to another server, or to another way of keeping the key, removes the key kept for the earlier one; **Remove the key from this computer** does it on request.
+- **Test connection:** after saving, it asks the provider which models it offers, which shows that the address and key work. It sends nothing from your book. You can pick one of the listed models.
+- **What is sent:** for a provider on another computer, even one at home, KassenSturz shows what leaves your computer (your questions, the information from your book that the AI asks for, KassenSturz's own instructions to it, and your key) and what never does (bank logins, PINs and TANs, links to your bank, the keys of other providers). Nothing is sent until you press **I agree**. **Show an example of a request** displays the first request of a made-up question exactly as KassenSturz would build it, and lets you try leaving a word out of it. You are asked again for a new address or when the list of what is sent grows; **Take my agreement back** stops it at any time. A provider on this computer needs no agreement.
+- **Trying it without any AI:** start the app with `KASSENSTURZ_FAKE_AI=1` (for the Flatpak: `flatpak run --env=KASSENSTURZ_FAKE_AI=1 io.github.vondor.KassenSturz`). The page says it is in test mode, offers **Use the built-in test model**, and nothing you do there is sent anywhere, so you can try the agreement, the key choices and removing a key with any made-up address.
+- **In German:** *KI-Anbieter und Datenschutz*, *Was gesendet wird*.
+
 ## What the Flatpak may do (M4.8)
 
 - Bank connections are built into the Flatpak: nothing extra to install. The Flatpak brings its own copy of AqBanking, the library that talks to banks.

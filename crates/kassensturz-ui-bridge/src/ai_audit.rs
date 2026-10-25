@@ -110,4 +110,78 @@ mod tests {
             );
         }
     }
+
+    fn qml(name: &str) -> String {
+        qml_files()
+            .into_iter()
+            .find(|(file, _)| file == name)
+            .unwrap_or_else(|| panic!("{name} is a screen"))
+            .1
+    }
+
+    /// The consent dialog has a sentence for each thing the statement
+    /// names, so a wider statement (a new `SentData`) can't reach the user
+    /// as silence (D-204).
+    #[cfg(feature = "ai")]
+    #[test]
+    fn the_consent_dialog_has_a_sentence_for_every_word_of_the_statement() {
+        let page = qml("AiSettingsPage.qml");
+        for word in crate::ai_settings::statement_words() {
+            assert!(
+                page.contains(&format!("case \"{word}\":")),
+                "AiSettingsPage.qml has no sentence for \"{word}\""
+            );
+        }
+    }
+
+    /// Every `ai.` code has its message, in words that say what to do next.
+    #[test]
+    fn every_ai_error_code_has_a_message() {
+        let codes = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/ERROR_CODES.md");
+        let codes = fs::read_to_string(codes).expect("the list of error codes");
+        let messages = qml("AiErrorMessage.qml");
+        let mut found = 0;
+        for line in codes.lines() {
+            let Some(code) = line
+                .strip_prefix("| `ai.")
+                .and_then(|rest| rest.split('`').next())
+            else {
+                continue;
+            };
+            found += 1;
+            assert!(
+                messages.contains(&format!("case \"ai.{code}\":")),
+                "AiErrorMessage.qml has no message for ai.{code}"
+            );
+        }
+        assert!(found >= 20, "the ai. codes weren't found ({found})");
+    }
+
+    /// The provider's key goes in through `SecretField` and out through
+    /// nothing: the page only hands the field's text to `save` and
+    /// `testConnection`, clears it, and asks whether it is empty (D-203).
+    #[test]
+    fn the_key_field_is_a_secret_field_and_its_text_goes_nowhere_else() {
+        let page = qml("AiSettingsPage.qml");
+        assert!(page.contains("SecretField {\n                id: keyField"));
+        let allowed = [
+            "settings.save(",
+            "settings.testConnection(",
+            "keyField.text = \"\"",
+            "keyField.text !== \"\"",
+        ];
+        let mut uses = 0;
+        for (number, line) in page.lines().enumerate() {
+            if line.trim_start().starts_with("//") || !line.contains("keyField.text") {
+                continue;
+            }
+            uses += 1;
+            assert!(
+                allowed.iter().any(|ok| line.contains(ok)),
+                "AiSettingsPage.qml:{}: the key's text is used for more than saving or testing: {line}",
+                number + 1
+            );
+        }
+        assert!(uses >= 4, "the key field's uses weren't found");
+    }
 }

@@ -311,7 +311,7 @@ pub(crate) fn local_path(url: &QUrl) -> Option<PathBuf> {
 
 /// The version the app was built as (D-152): the one in `Cargo.toml`, which
 /// the build files carry too, so Settings never shows a number typed by hand.
-fn app_version() -> &'static str {
+pub(crate) fn app_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 

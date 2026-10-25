@@ -367,6 +367,26 @@ impl ChatSession {
     }
 }
 
+/// The first request of a question, as the provider would get it for
+/// `question` asked without any earlier conversation, but with nothing
+/// sent: the screens show it as an example of what a request holds
+/// (M5.7). Its parts are the ones [`ChatSession::ask`] builds, and a test
+/// holds the two together.
+pub fn sample_request(
+    provider: &dyn Provider,
+    build: &BuildInfo,
+    today: Date,
+    question: &str,
+) -> Result<PreparedRequest, AiError> {
+    provider.prepare(
+        vec![
+            Message::system(prompt::with_functions(build, today)),
+            Message::user(question),
+        ],
+        function_specs(),
+    )
+}
+
 /// The read functions and the one that prepares changes, as the provider
 /// gets them.
 fn function_specs() -> Vec<FunctionSpec> {

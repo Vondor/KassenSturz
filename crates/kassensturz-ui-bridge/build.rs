@@ -23,6 +23,9 @@ fn main() {
                 "qml/AccountDetailsPage.qml",
                 "qml/AccountTypes.qml",
                 "qml/AccountsPage.qml",
+                "qml/AiErrorMessage.qml",
+                "qml/AiSettingsEntry.qml",
+                "qml/AiSettingsPage.qml",
                 "qml/AmountLabel.qml",
                 "qml/AmountLine.qml",
                 "qml/Balance.qml",
@@ -69,6 +72,7 @@ fn main() {
     .qt_module("Network")
     .files([
         "src/accounts_model.rs",
+        "src/ai_settings_model.rs",
         "src/ai_switch_model.rs",
         "src/bank_connection_model.rs",
         "src/book_from_file_model.rs",

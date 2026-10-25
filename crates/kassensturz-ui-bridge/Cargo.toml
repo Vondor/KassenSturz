@@ -23,13 +23,21 @@ bundled-sqlite = ["kassensturz-store/bundled-sqlite", "kassensturz-import/bundle
 # AI features (D-039): on by default, off with `--no-default-features`
 # (plus `bundled-sqlite` to keep the bundled SQLite). Without it the screens
 # hold no AI code and the one switch is never shown.
-ai = ["kassensturz-core/ai"]
+ai = [
+    "kassensturz-core/ai",
+    "dep:kassensturz-ai",
+    "kassensturz-ai/ai",
+    "dep:kassensturz-ai-chat",
+    "kassensturz-ai-chat/ai",
+]
 
 [dependencies]
 cxx.workspace = true
 cxx-qt.workspace = true
 cxx-qt-lib.workspace = true
 cxx-qt-lib-extras.workspace = true
+kassensturz-ai = { workspace = true, optional = true }
+kassensturz-ai-chat = { workspace = true, optional = true }
 kassensturz-bank.workspace = true
 kassensturz-core.workspace = true
 kassensturz-export.workspace = true

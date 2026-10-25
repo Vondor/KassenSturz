@@ -39,7 +39,7 @@ static IBAN: LazyLock<Regex> = LazyLock::new(|| {
 /// Whether `c` changes how text around it is shown without being shown
 /// itself: zero-width characters, direction marks and overrides, the byte
 /// order mark. They can make text read differently from what it says.
-fn hides_text(c: char) -> bool {
+pub(crate) fn hides_text(c: char) -> bool {
     matches!(
         c,
         '\u{200B}'..='\u{200F}'

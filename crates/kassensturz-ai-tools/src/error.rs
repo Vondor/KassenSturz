@@ -28,6 +28,18 @@ pub enum ToolError {
     UnknownCategory,
     /// The period ends before it starts.
     BadPeriod,
+    /// No transaction has that ID.
+    UnknownTransaction,
+    /// A change set would hold more than [`crate::MAX_CHANGES`] changes.
+    TooManyChanges,
+    /// A new category or Rule would have the name of one that is there
+    /// already, or of another new one.
+    NameTaken,
+    /// The transaction can't simply get a category: it is a transfer, a
+    /// starting balance, or split over several categories.
+    NotCategorizable,
+    /// The category is in another currency than the transaction.
+    OtherCurrency,
     /// The book couldn't be read.
     Store(StoreError),
 }
@@ -55,6 +67,11 @@ impl Report for ToolError {
             Self::UnknownAccount => ErrorReport::new("ai-tools.unknown-account"),
             Self::UnknownCategory => ErrorReport::new("ai-tools.unknown-category"),
             Self::BadPeriod => ErrorReport::new("ai-tools.bad-period"),
+            Self::UnknownTransaction => ErrorReport::new("ai-tools.unknown-transaction"),
+            Self::TooManyChanges => ErrorReport::new("ai-tools.too-many-changes"),
+            Self::NameTaken => ErrorReport::new("ai-tools.name-taken"),
+            Self::NotCategorizable => ErrorReport::new("ai-tools.not-categorizable"),
+            Self::OtherCurrency => ErrorReport::new("ai-tools.other-currency"),
             Self::Store(error) => {
                 ErrorReport::new("ai-tools.book-unreadable").caused_by(error.report())
             }
@@ -74,6 +91,7 @@ mod tests {
 
     use super::list::{check, documented, unused};
     use super::*;
+    use crate::changes::{ARGUMENTS as CHANGE_ARGUMENTS, ChangeError};
     use crate::functions::ARGUMENTS;
 
     /// One error of each kind. A new error needs an example here.
@@ -83,11 +101,17 @@ mod tests {
             ToolError::UnknownAccount,
             ToolError::UnknownCategory,
             ToolError::BadPeriod,
+            ToolError::UnknownTransaction,
+            ToolError::TooManyChanges,
+            ToolError::NameTaken,
+            ToolError::NotCategorizable,
+            ToolError::OtherCurrency,
             ToolError::Store(StoreError::AmountOverflow),
         ];
         examples.extend(
             ARGUMENTS
                 .iter()
+                .chain(CHANGE_ARGUMENTS)
                 .map(|&argument| ToolError::BadArgument { argument }),
         );
         examples
@@ -107,5 +131,21 @@ mod tests {
             unused.is_empty(),
             "listed in docs/ERROR_CODES.md but no error has them: {unused:?}"
         );
+    }
+
+    #[test]
+    fn every_change_set_code_is_listed() {
+        let rows = documented();
+        let mut seen = HashSet::new();
+        for error in [
+            ChangeError::OutOfDate,
+            ChangeError::NotApplied(StoreError::AmountOverflow),
+        ] {
+            let report = error.report();
+            assert!(report.code.starts_with("ai-changes."), "{}", report.code);
+            check(&report, &rows, &mut seen);
+        }
+        let unused = unused(&rows, &seen, &["ai-changes"]);
+        assert!(unused.is_empty(), "{unused:?}");
     }
 }

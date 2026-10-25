@@ -188,6 +188,13 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - A fetch starts five days before the day of the last one, because a bank may book a transaction a day or two late. What your book has already is recognized and not added twice (it shows as "already in your book" in the preview). Transactions that "look like one you have" and were left out aren't offered again; if one was a different transaction, add it by hand.
 - If something goes wrong, the line under the account says what happened and what to do, e.g. that the bank can't be reached, that the PIN was wrong, or that the account's link no longer matches any of your bank logins. After a problem with the bank connection itself, the accounts after it show "Not fetched, because the one before failed. Try again."
 
+## Reminder to get new transactions (M5.U)
+
+- If an account linked to your bank was last updated from it longer ago than a limit, the overview shows a warning with the account's name, the day and how many days ago that was. Banks only list their recent transactions, so a long wait can leave some out. The button "Get new transactions" opens the fetch screen for that account.
+- **Settings → Reminder to get new transactions** sets the limit: 30, 60 (the default), 90 or 180 days, or "Never remind me", which hides the warning. The choice belongs to this computer, not to the book.
+- No warning for an account that was never fetched or is closed. KassenSturz never contacts the bank by itself to check.
+- **In German:** *Erinnerung an neue Buchungen*.
+
 ## What the Flatpak may do (M4.8)
 
 - Bank connections are built into the Flatpak: nothing extra to install. The Flatpak brings its own copy of AqBanking, the library that talks to banks.

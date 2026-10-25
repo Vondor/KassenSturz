@@ -21,6 +21,8 @@ mod categories_model;
 mod errors;
 mod export;
 mod export_model;
+mod fetch_gap;
+mod fetch_gap_model;
 mod first_start;
 mod first_start_model;
 mod format;

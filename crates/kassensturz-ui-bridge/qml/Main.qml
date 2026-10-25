@@ -164,6 +164,11 @@ Kirigami.ApplicationWindow {
         bank: bankConnection
     }
 
+    // When the overview reminds the user to get new transactions (D-180).
+    FetchGapSettings {
+        id: fetchGapSettings
+    }
+
     // The language (D-127), which applies at the next start.
     LanguageSettings {
         id: languageSettings
@@ -635,6 +640,7 @@ Kirigami.ApplicationWindow {
             overview: bookOverview
             onAddAccountClicked: root.addAccount(false)
             onAddTransactionClicked: root.addTransaction(false, "")
+            onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })
         }
     }
 
@@ -768,6 +774,7 @@ Kirigami.ApplicationWindow {
             language: languageSettings
             history: changeHistory
             bank: bankConnection
+            fetchGap: fetchGapSettings
             onConnectBankClicked: root.pushPage(bankSetupPage)
             onChangeBankClicked: login => root.pushPage(bankSetupPage, { replacesLogin: login.id, startIban: login.iban })
             onOpenAnotherClicked: root.chooseBookToOpen()

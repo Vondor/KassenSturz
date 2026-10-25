@@ -24,9 +24,12 @@ FormCard.FormCardPage {
     required property LanguageSettings language
     required property ChangeHistory history
     required property BankConnection bank
+    required property FetchGapSettings fetchGap
 
     // Whether a number format choice couldn't be saved for the next start.
     property bool formatNotSaved: false
+    // Whether the choice of when to remind about fetching couldn't be saved.
+    property bool fetchGapNotSaved: false
     // Whether the language choice couldn't be saved.
     property bool languageNotSaved: false
 
@@ -410,6 +413,43 @@ FormCard.FormCardPage {
         Layout.maximumWidth: Kirigami.Units.gridUnit * 30
         Layout.alignment: Qt.AlignHCenter
         result: page.pinStorageResult.code !== undefined ? page.pinStorageResult : page.pinStorageResult.removal ?? ({})
+    }
+
+    // When the overview reminds the user to fetch (M5.U, D-180): kept for
+    // this computer, not in the book.
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "Reminder to get new transactions")
+    }
+
+    FormCard.FormCard {
+        FormCard.FormComboBoxDelegate {
+            id: fetchGapChoice
+
+            // Shows the saved choice, also after a choice couldn't be saved.
+            function showChoice() {
+                currentIndex = indexOfValue(page.fetchGap.choice);
+            }
+
+            text: page.i18nContext.i18nc("@label:listbox", "Remind me after")
+            textRole: "text"
+            valueRole: "value"
+            model: [
+                { value: "30", text: page.i18nContext.i18nc("@item:inlistbox remind about fetching", "30 days") },
+                { value: "60", text: page.i18nContext.i18nc("@item:inlistbox remind about fetching", "60 days") },
+                { value: "90", text: page.i18nContext.i18nc("@item:inlistbox remind about fetching", "90 days") },
+                { value: "180", text: page.i18nContext.i18nc("@item:inlistbox remind about fetching", "180 days") },
+                { value: "off", text: page.i18nContext.i18nc("@item:inlistbox remind about fetching", "Never remind me") },
+            ]
+            Component.onCompleted: showChoice()
+            onActivated: page.fetchGapNotSaved = !page.fetchGap.choose(currentValue)
+        }
+    }
+
+    FormCard.FormSectionText {
+        textFormat: Text.PlainText
+        text: page.fetchGapNotSaved
+            ? page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice, so it applies only until you close KassenSturz. Check that your settings folder can be written to, then choose again.")
+            : page.i18nContext.i18nc("@info", "The overview reminds you when an account linked to your bank was last updated from it longer ago than this. Banks only list their recent transactions, so a long wait can leave some out.")
     }
 
     Kirigami.PromptDialog {

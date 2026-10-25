@@ -29,6 +29,8 @@ ai = [
     "kassensturz-ai/ai",
     "dep:kassensturz-ai-chat",
     "kassensturz-ai-chat/ai",
+    "dep:kassensturz-ai-tools",
+    "kassensturz-ai-tools/ai",
 ]
 
 [dependencies]
@@ -38,6 +40,7 @@ cxx-qt-lib.workspace = true
 cxx-qt-lib-extras.workspace = true
 kassensturz-ai = { workspace = true, optional = true }
 kassensturz-ai-chat = { workspace = true, optional = true }
+kassensturz-ai-tools = { workspace = true, optional = true }
 kassensturz-bank.workspace = true
 kassensturz-core.workspace = true
 kassensturz-export.workspace = true

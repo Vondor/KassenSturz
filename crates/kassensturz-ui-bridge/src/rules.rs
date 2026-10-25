@@ -386,7 +386,7 @@ pub fn form_of(book: &Book, id: &str, locale: &impl Locale) -> Result<RuleForm, 
     })
 }
 
-fn condition_form(
+pub(crate) fn condition_form(
     book: &Book,
     condition: &Condition,
     locale: &impl Locale,

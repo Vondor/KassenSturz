@@ -23,7 +23,12 @@ fn main() {
                 "qml/AccountDetailsPage.qml",
                 "qml/AccountTypes.qml",
                 "qml/AccountsPage.qml",
+                "qml/AiChangeReviewPage.qml",
+                "qml/AiChatLogLine.qml",
+                "qml/AiChatMessage.qml",
+                "qml/AiChatPanel.qml",
                 "qml/AiErrorMessage.qml",
+                "qml/AiRequestReview.qml",
                 "qml/AiSettingsEntry.qml",
                 "qml/AiSettingsPage.qml",
                 "qml/AmountLabel.qml",
@@ -72,6 +77,7 @@ fn main() {
     .qt_module("Network")
     .files([
         "src/accounts_model.rs",
+        "src/ai_chat_model.rs",
         "src/ai_settings_model.rs",
         "src/ai_switch_model.rs",
         "src/bank_connection_model.rs",

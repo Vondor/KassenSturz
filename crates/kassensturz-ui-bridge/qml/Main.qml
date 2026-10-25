@@ -150,8 +150,12 @@ Kirigami.ApplicationWindow {
         onChanged: root.bookChanged()
     }
 
+    // While the switch is on, the history names a confirmed set after the
+    // AI that prepared it (D-198).
     ChangeNames {
         id: changeNames
+
+        appliedName: aiSwitch.enabled ? chatPanel.appliedName : ""
     }
 
     // The bank connection (M4.6): one per app, with the dialogs for what a
@@ -174,6 +178,27 @@ Kirigami.ApplicationWindow {
     // behind the switch.
     AiSettings {
         id: aiSettings
+    }
+
+    // The conversation and the changes it prepares (M5.8). A confirmed set
+    // changed the book, so all the screens read it again.
+    AiChat {
+        id: aiChat
+
+        onChanged: root.bookChanged()
+    }
+
+    // Closing the sidebar and forgetting the conversation when the switch
+    // goes off: nothing of it stays or runs (D-013).
+    Connections {
+        target: aiSwitch
+
+        function onEnabledChanged() {
+            if (!aiSwitch.enabled) {
+                chatDrawer.close();
+                chatPanel.startOver();
+            }
+        }
     }
 
     // When the overview reminds the user to get new transactions (D-180).
@@ -204,6 +229,8 @@ Kirigami.ApplicationWindow {
     // Shows the book that was just opened: its first-run steps if it has no
     // account yet, otherwise the overview.
     function showBook() {
+        // A conversation is about one book.
+        chatPanel.startOver();
         bookChanged();
         if (!firstStartState.hasAccount) {
             pageStack.clear();
@@ -478,6 +505,14 @@ Kirigami.ApplicationWindow {
                 onTriggered: root.showScreen("settings")
             },
             Kirigami.Action {
+                icon.name: "dialog-messages"
+                visible: aiSwitch.enabled && root.started
+                enabled: aiSwitch.enabled && root.started
+                text: chatPanel.toggleText
+                shortcut: "Ctrl+Shift+A"
+                onTriggered: chatDrawer.drawerOpen = !chatDrawer.drawerOpen
+            },
+            Kirigami.Action {
                 separator: true
             },
             Kirigami.Action {
@@ -499,6 +534,53 @@ Kirigami.ApplicationWindow {
                 onTriggered: root.redoLast()
             }
         ]
+    }
+
+    // The chat sidebar on the right (M5.8, D-047, D-210): opened and closed
+    // with its handle or the menu entry. While the switch is off neither is
+    // shown (D-013). Side by side with the page in a wide window, over it in
+    // a narrow one.
+    contextDrawer: Kirigami.OverlayDrawer {
+        id: chatDrawer
+
+        edge: Qt.RightEdge
+        enabled: aiSwitch.enabled && root.started
+        modal: !root.wideScreen
+        handleVisible: aiSwitch.enabled && root.started
+        handleClosedIcon.source: "dialog-messages"
+        handleOpenIcon.source: "go-next"
+        width: Kirigami.Units.gridUnit * 22
+        drawerOpen: false
+        topPadding: 0
+        bottomPadding: 0
+        leftPadding: 0
+        rightPadding: 0
+        onDrawerOpenChanged: {
+            if (drawerOpen) {
+                chatPanel.refresh();
+            }
+        }
+
+        contentItem: AiChatPanel {
+            id: chatPanel
+
+            ai: aiSwitch
+            chat: aiChat
+            settings: aiSettings
+            onSettingsClicked: {
+                if (chatDrawer.modal) {
+                    chatDrawer.close();
+                }
+                root.pushPage(aiSettingsPage);
+            }
+            onReviewChangesClicked: setId => {
+                if (chatDrawer.modal) {
+                    chatDrawer.close();
+                }
+                root.pushPage(aiChangeReviewPage, { setId: setId });
+            }
+            onCloseClicked: chatDrawer.close()
+        }
     }
 
     Dialogs.FileDialog {
@@ -805,6 +887,23 @@ Kirigami.ApplicationWindow {
         AiSettingsPage {
             ai: aiSwitch
             settings: aiSettings
+        }
+    }
+
+    // Reading the changes the AI prepared, and confirming them (M5.8).
+    Component {
+        id: aiChangeReviewPage
+
+        AiChangeReviewPage {
+            ai: aiSwitch
+            chat: aiChat
+            onApplied: setId => chatPanel.markHandled(setId, true)
+            onDiscarded: setId => {
+                chatPanel.markHandled(setId, false);
+                pageStack.pop();
+            }
+            onUndoClicked: root.undoLast()
+            onDoneClicked: pageStack.pop()
         }
     }
 

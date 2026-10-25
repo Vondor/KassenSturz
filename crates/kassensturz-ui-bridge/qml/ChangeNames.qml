@@ -13,6 +13,10 @@ import org.kde.ki18n
 QtObject {
     id: names
 
+    // How a set of changes the AI prepared is called while AI is on; empty
+    // while it is off, when the history never says that (D-013, D-198).
+    property string appliedName: ""
+
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
     }
@@ -78,8 +82,9 @@ QtObject {
             return i18nContext.i18nc("@info a change you made", "Fetched new transactions from your bank");
         case "apply-ai-changes":
             // Without the word for AI, which shows only while AI is on
-            // (D-013, D-198); the chat panel (M5.8) names the AI there.
-            return i18nContext.i18nc("@info a change you made", "Applied suggested changes");
+            // (D-013, D-198): `appliedName` is the chat panel's wording,
+            // given only while the switch is on (M5.8).
+            return appliedName !== "" ? appliedName : i18nContext.i18nc("@info a change you made", "Applied suggested changes");
         default:
             // A newer version of KassenSturz knows more changes than this
             // one; the book still opens, and its history says so.

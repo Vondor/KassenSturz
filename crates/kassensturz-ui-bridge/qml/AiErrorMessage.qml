@@ -4,8 +4,9 @@
 // Shows why something with the AI provider didn't work (M5.7). The Rust side
 // only returns a code (D-034); every message is written here, says what
 // happened and what to do next (AGENTS.md §6), and is hidden with the rest
-// of AI while the switch is off (D-013). One message for each `ai.` code of
-// `docs/ERROR_CODES.md`, which a test checks.
+// of AI while the switch is off (D-013). One message for each `ai.`,
+// `ai-chat.` and `ai-changes.` code of `docs/ERROR_CODES.md`, which a test
+// checks.
 
 import QtQuick
 import QtQuick.Layouts
@@ -62,11 +63,23 @@ ColumnLayout {
         case "ai.rate-limited":
             return i18nContext.i18nc("@info", "The provider asks you to wait before the next request. Try again in a little while.");
         case "ai.provider-failed":
-            return i18nContext.i18nc("@info %1 is a number", "The provider answered with an error (HTTP %1). Try again later; if it keeps happening, check the provider's settings.", result.status);
+            return i18nContext.i18nc("@info %1 is a number", "The provider answered with an error (HTTP %1). Try again later. If it keeps happening, check the provider's settings and the key: some providers report a wrong key this way.", result.status);
         case "ai.reply-too-large":
             return i18nContext.i18nc("@info", "The provider's answer was too large, so KassenSturz didn't read it. Ask about less at a time.");
         case "ai.bad-reply":
             return i18nContext.i18nc("@info", "The provider's answer isn't what KassenSturz expects from an OpenAI-compatible provider. Check that the address points to such an interface, often ending in /v1.");
+        case "ai-chat.cancelled":
+            return i18nContext.i18nc("@info", "You stopped the question. Ask again when you like.");
+        case "ai-chat.stopped":
+            return i18nContext.i18nc("@info", "Nothing was sent: you didn't let the request go. Ask again, and leave out what you don't want to send.");
+        case "ai-chat.too-many-rounds":
+            return i18nContext.i18nc("@info", "The AI kept asking for more data without answering, so KassenSturz stopped it. Ask a narrower question, or try another model.");
+        case "ai-chat.book-unreadable":
+            return i18nContext.i18nc("@info", "Your book couldn't be read to answer the question. Make sure the book is still where it was, then ask again.");
+        case "ai-changes.out-of-date":
+            return i18nContext.i18nc("@info", "These changes are out of date: a transaction in them was changed or removed, or they were thrown away. Nothing was changed. Ask the AI to prepare them again.");
+        case "ai-changes.not-applied":
+            return i18nContext.i18nc("@info", "Your book refused one of the changes, for example because a category of that name was added in the meantime. Nothing was changed. Ask the AI to prepare them again.");
         default:
             return i18nContext.i18nc("@info", "Something went wrong with the provider. Check its address and settings, then try again.");
         }

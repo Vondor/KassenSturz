@@ -22,7 +22,7 @@ cd "$(dirname "$0")/.."
 AI_CRATES='kassensturz-ai kassensturz-ai-tools rmcp ureq rustls tokio'
 # The AI crates that are workspace members. Cargo builds every member, so
 # each one is there without AI too, but empty: it may have no dependency.
-AI_MEMBERS='kassensturz-ai-tools kassensturz-mcp'
+AI_MEMBERS='kassensturz-ai kassensturz-ai-tools kassensturz-mcp'
 
 without='--workspace --no-default-features --features bundled-sqlite --locked'
 with='--workspace --locked'

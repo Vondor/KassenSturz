@@ -33,6 +33,13 @@ allow = [
 include-dev = true
 # The list is a policy, not an inventory of what's in use today.
 unused-allowed-license = "allow"
+# One crate outside the allowlist, approved by the maintainer with Q-122 A
+# (docs/THIRD_PARTY.md): Mozilla's certificate list as data, which
+# rustls-platform-verifier uses only on platforms KassenSturz doesn't build
+# for. cargo-deny checks every platform, so it shows up here.
+exceptions = [
+    { allow = ["CDLA-Permissive-2.0"], crate = "webpki-root-certs" },
+]
 
 [licenses.private]
 # KassenSturz's own crates (GPL-3.0-or-later, D-001) are never published.

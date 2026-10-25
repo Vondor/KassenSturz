@@ -1,16 +1,19 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Only the bank backend reaches the network (threat T-13, D-142). The
-//! Flatpak has network access for bank connections, and a sandbox can't
-//! limit it to banks, so this rests on the code: AqBanking connects to the
-//! bank, in C, when the user fetches, and nothing else in KassenSturz opens
-//! a connection (AGENTS.md §3.1 rule 4).
+//! Only the bank backend and the AI adapter reach the network (threat
+//! T-13, D-142, D-175). The Flatpak has network access for bank
+//! connections, and a sandbox can't limit it to banks, so this rests on the
+//! code: AqBanking connects to the bank, in C, when the user fetches;
+//! `kassensturz-ai` connects to the AI provider the user set up, through
+//! its HTTP client, only while AI is on (M5.2); and nothing else in
+//! KassenSturz opens a connection (AGENTS.md §3.1 rule 4).
 //!
 //! The test reads KassenSturz's own sources for the ways Rust, Qt and QML
-//! connect to other computers, and `Cargo.lock` for crates that do. A hit
-//! means a new way to the network: that needs the maintainer's approval
-//! first, and then its own line in the lists below.
+//! connect to other computers, and `Cargo.lock` for crates that do, which
+//! only `kassensturz-ai` may bring in. A hit means a new way to the
+//! network: that needs the maintainer's approval first, and then its own
+//! line in the lists below.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -35,13 +38,25 @@ const NETWORK_WORDS: [&str; 14] = [
 ];
 
 /// Files allowed to name them, relative to the repository, and why.
-const ALLOWED_FILES: [&str; 2] = [
+const ALLOWED_FILES: [&str; 5] = [
     // The QML engine's network access manager, which refuses every address
     // that isn't on this computer (D-143).
     "crates/kassensturz-ui-bridge/cpp/local_only.cpp",
     // Its test listens on this computer to prove that nothing connects.
     "crates/kassensturz-ui-bridge/src/network_guard.rs",
+    // The AI adapter reads an address to tell whether it is this computer
+    // (D-175); it parses, it doesn't connect.
+    "crates/kassensturz-ai/src/address.rs",
+    // The fake AI provider of the adapter's tests listens on this computer.
+    "crates/kassensturz-ai/tests/fake/mod.rs",
+    // The fake TLS server of the adapter's certificate test, likewise.
+    "crates/kassensturz-ai/src/tls_tests.rs",
 ];
+
+/// The one crate of KassenSturz allowed to bring in crates that open
+/// connections: the AI adapter, with its HTTP client and TLS library
+/// (D-175, Q-122).
+const AI_ADAPTER: &str = "kassensturz-ai";
 
 /// Crates that open network connections: HTTP clients and servers, TLS,
 /// WebSockets, DNS and socket libraries. `zbus`, which the keychain uses
@@ -103,7 +118,7 @@ fn source_files(root: &Path, folder: &Path, found: &mut Vec<String>) {
 }
 
 #[test]
-fn only_the_bank_backend_reaches_the_network() {
+fn only_the_bank_backend_and_the_ai_adapter_reach_the_network() {
     let root = repository();
     let this_file = "crates/kassensturz-bank/tests/network.rs";
     let mut files = Vec::new();
@@ -128,7 +143,7 @@ fn only_the_bank_backend_reaches_the_network() {
     }
     assert!(
         hits.is_empty(),
-        "these files reach for the network outside the bank backend: {hits:#?}"
+        "these files reach for the network outside the bank backend and the AI adapter: {hits:#?}"
     );
     for file in ALLOWED_FILES {
         assert!(
@@ -138,24 +153,81 @@ fn only_the_bank_backend_reaches_the_network() {
     }
 }
 
+/// Every package of `Cargo.lock` with the names of its dependencies.
+fn lock_packages(lock: &str) -> Vec<(String, Vec<String>)> {
+    let mut packages: Vec<(String, Vec<String>)> = Vec::new();
+    let mut in_dependencies = false;
+    for line in lock.lines() {
+        if line == "[[package]]" {
+            packages.push((String::new(), Vec::new()));
+            in_dependencies = false;
+        } else if let Some(package) = packages.last_mut() {
+            if let Some(name) = line
+                .strip_prefix("name = \"")
+                .and_then(|rest| rest.strip_suffix('"'))
+            {
+                package.0 = name.to_owned();
+            } else if line == "dependencies = [" {
+                in_dependencies = true;
+            } else if in_dependencies && line == "]" {
+                in_dependencies = false;
+            } else if in_dependencies {
+                // ` "name",` or ` "name 1.2.3",` when two versions exist.
+                let entry = line.trim().trim_end_matches(',').trim_matches('"');
+                let name = entry.split(' ').next().unwrap_or_default();
+                package.1.push(name.to_owned());
+            }
+        }
+    }
+    packages
+}
+
 #[test]
-fn no_crate_that_opens_network_connections_is_built() {
+fn only_the_ai_adapter_brings_in_crates_that_open_network_connections() {
     let lock = fs::read_to_string(repository().join("Cargo.lock")).expect("Cargo.lock is there");
-    let names: Vec<&str> = lock
-        .lines()
-        .filter_map(|line| line.strip_prefix("name = \""))
-        .filter_map(|rest| rest.strip_suffix('"'))
+    let packages = lock_packages(&lock);
+    let dependencies = |name: &str| -> Vec<String> {
+        packages
+            .iter()
+            .filter(|(found, _)| found == name)
+            .flat_map(|(_, dependencies)| dependencies.clone())
+            .collect()
+    };
+    let ours: Vec<&str> = packages
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .filter(|name| name.starts_with("kassensturz-"))
         .collect();
     assert!(
-        names.contains(&"kassensturz-bank"),
+        ours.contains(&"kassensturz-bank") && ours.contains(&AI_ADAPTER),
         "Cargo.lock was not read as expected"
     );
-    let found: Vec<&&str> = names
+    assert!(
+        dependencies(AI_ADAPTER).iter().any(|name| name == "ureq"),
+        "the AI adapter's HTTP client was not found: the walk below would prove nothing"
+    );
+
+    // Everything KassenSturz's other crates bring in, without walking into
+    // the AI adapter.
+    let mut reached: Vec<String> = Vec::new();
+    let mut queue: Vec<String> = ours
         .iter()
-        .filter(|name| NETWORK_CRATES.contains(name))
+        .filter(|name| **name != AI_ADAPTER)
+        .map(|name| (*name).to_owned())
+        .collect();
+    while let Some(name) = queue.pop() {
+        if name == AI_ADAPTER || reached.contains(&name) {
+            continue;
+        }
+        queue.extend(dependencies(&name));
+        reached.push(name);
+    }
+    let found: Vec<&String> = reached
+        .iter()
+        .filter(|name| NETWORK_CRATES.contains(&name.as_str()))
         .collect();
     assert!(
         found.is_empty(),
-        "crates that open network connections are in Cargo.lock: {found:?}"
+        "crates that open network connections come in outside the AI adapter: {found:?}"
     );
 }

@@ -28,21 +28,28 @@ const FILE: &str = "kassensturzrc";
 
 /// Whether the settings file's `text` switches AI on.
 pub fn enabled_in(text: &str) -> bool {
+    value_in(text, GROUP, ENABLED_KEY) == Some(ON)
+}
+
+/// The value of `key` in `group` of the settings file's `text`, with the
+/// spaces around it removed, as KConfig wrote it: the last entry of a key
+/// wins, as in KConfig. KConfig's escapes (`\s`, `\\` and so on) are left
+/// as they are, for the caller to refuse or read.
+pub fn value_in<'t>(text: &'t str, group: &str, key: &str) -> Option<&'t str> {
     let mut in_group = false;
-    let mut on = false;
+    let mut found = None;
     for line in text.lines() {
         let line = line.trim();
-        if let Some(group) = line.strip_prefix('[').and_then(|l| l.strip_suffix(']')) {
-            in_group = group == GROUP;
+        if let Some(name) = line.strip_prefix('[').and_then(|l| l.strip_suffix(']')) {
+            in_group = name == group;
         } else if in_group
-            && let Some((key, value)) = line.split_once('=')
-            && key.trim_end() == ENABLED_KEY
+            && let Some((name, value)) = line.split_once('=')
+            && name.trim_end() == key
         {
-            // The last entry of a key wins, as in KConfig.
-            on = value.trim() == ON;
+            found = Some(value.trim());
         }
     }
-    on
+    found
 }
 
 /// Whether the settings file at `path` switches AI on. A file that can't be
@@ -91,6 +98,16 @@ mod tests {
         // The last entry wins.
         assert!(!enabled_in("[AI]\nEnabled=true\nEnabled=false\n"));
         assert!(enabled_in("[AI]\nEnabled=false\nEnabled=true\n"));
+    }
+
+    #[test]
+    fn values_are_read_from_their_group() {
+        let text = "[AI]\nModel = a\n[Other]\nModel=b\n[AI]\nModel=c\nEmpty=\n";
+        assert_eq!(value_in(text, "AI", "Model"), Some("c"));
+        assert_eq!(value_in(text, "Other", "Model"), Some("b"));
+        assert_eq!(value_in(text, "AI", "Empty"), Some(""));
+        assert_eq!(value_in(text, "AI", "Missing"), None);
+        assert_eq!(value_in(text, "None", "Model"), None);
     }
 
     #[test]

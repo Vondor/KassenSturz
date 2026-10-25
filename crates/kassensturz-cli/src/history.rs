@@ -188,5 +188,6 @@ fn action_text(action: Action) -> &'static str {
         Action::LinkBankAccount => "linked an account to its bank account",
         Action::UnlinkBankAccount => "removed an account's bank link",
         Action::FetchStatement => "fetched a statement from the bank",
+        Action::ApplyAiChanges => "applied changes the AI prepared",
     }
 }

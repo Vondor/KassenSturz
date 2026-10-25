@@ -75,6 +75,7 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **Show history** (Settings) lists the newest 100 changes, newest first, with the day and time; the ones taken back say "taken back; Redo can make it again". A new change ends what Redo could make again.
 - **Keep the history for** (Settings): only while the book is open, 1 week, 30 days (to begin with), 3 months, 1 year, or as long as the book exists. Choosing less asks first, e.g. "12 changes are older than this and will be deleted for good. You won't be able to undo them or make them again." Your accounts and transactions are not affected.
 - **Clean up history** (Settings) asks first: "This deletes the whole history for good, so nothing you did so far can be undone or made again. … Copies of the book that KassenSturz saved before an update (backups) keep their history; cleaning up does not touch them."
+- **Changes the AI prepared** (M5.5a, once AI is turned on and you confirm what it suggests): everything you confirmed at once is one change in the history, named "Applied suggested changes", so you can tell it apart from your own changes, and one Undo takes all of it back.
 - **Undoing a long way back:** after undoing everything, the book is empty again and KassenSturz shows the first steps; they work as on the first day.
 - **Messages:** "The book doesn't match its history anymore, probably because another program changed it. Nothing was changed. To go on with Undo, open Settings and use "Clean up history"."
 

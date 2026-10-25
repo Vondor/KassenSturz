@@ -1,0 +1,37 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "id": "",
+            "type": "function",
+            "function": {
+              "name": "list_accounts",
+              "arguments": "{}"
+            }
+          },
+          {
+            "id": "",
+            "type": "function",
+            "function": {
+              "name": "list_categories",
+              "arguments": "{}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "created": 1761400000,
+  "model": "gemini-test",
+  "object": "chat.completion",
+  "usage": {
+    "completion_tokens": 12,
+    "prompt_tokens": 120,
+    "total_tokens": 132
+  }
+}

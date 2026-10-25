@@ -1,0 +1,8 @@
+{
+  "error": {
+    "message": "invalid x-api-key (sk-test-0000-made-up-key)",
+    "type": "authentication_error",
+    "param": null,
+    "code": null
+  }
+}

@@ -9,6 +9,13 @@
 //! [`MAX_DEPTH`] levels, a reply holds at most [`MAX_CALLS`] function
 //! calls, and a text field that isn't text makes the whole reply
 //! unusable.
+//!
+//! Providers that speak this API differ in small ways (M5.11, D-207): a
+//! call may come without an ID or with the same ID as another, its
+//! arguments may be empty for a function that takes none, the answer may
+//! be a refusal in a field of its own, and a call may come with the finish
+//! reason `stop`. The reading below takes all of that; the tests in
+//! `tests/dialects.rs` pin it for each provider.
 
 use serde_json::{Map, Value, json};
 
@@ -55,7 +62,16 @@ pub fn chat_body(model: &str, messages: &[Message], functions: &[FunctionSpec]) 
 fn message_json(message: &Message) -> Value {
     let mut out = Map::new();
     out.insert("role".into(), json!(message.role.as_str()));
-    out.insert("content".into(), json!(message.content));
+    // A message that only calls functions has no content, which is how the
+    // API describes it; an empty text could be refused as an empty block
+    // (D-207).
+    let calls_only =
+        message.role == Role::Assistant && !message.calls.is_empty() && message.content.is_empty();
+    if calls_only {
+        out.insert("content".into(), Value::Null);
+    } else {
+        out.insert("content".into(), json!(message.content));
+    }
     if message.role == Role::Assistant && !message.calls.is_empty() {
         let calls: Vec<Value> = message
             .calls
@@ -88,7 +104,13 @@ pub fn parse_chat_reply(bytes: &[u8], offered: &[String]) -> Result<Reply, AiErr
         .and_then(Value::as_object)
         .ok_or(AiError::BadReply)?;
     let text = match message.get("content") {
-        None | Some(Value::Null) => String::new(),
+        // A refusal has no content but a text of its own, which the user
+        // should see (D-207).
+        None | Some(Value::Null) => match message.get("refusal") {
+            Some(Value::String(refusal)) => refusal.clone(),
+            None | Some(Value::Null) => String::new(),
+            Some(_) => return Err(AiError::BadReply),
+        },
         Some(Value::String(text)) => text.clone(),
         Some(_) => return Err(AiError::BadReply),
     };
@@ -108,11 +130,16 @@ pub fn parse_chat_reply(bytes: &[u8], offered: &[String]) -> Result<Reply, AiErr
     };
     let mut calls = Vec::new();
     let mut ignored_calls = Vec::new();
+    let mut ids: Vec<String> = Vec::with_capacity(raw_calls.len());
     for call in raw_calls {
-        let id = text_at(call, &["id"])?;
+        let id = call_id(call, &ids)?;
+        ids.push(id.clone());
         let name = text_at(call, &["function", "name"])?;
         let arguments = match call.get("function").and_then(|f| f.get("arguments")) {
             None | Some(Value::Null) => "{}".to_owned(),
+            // A function without parameters is sometimes called with no
+            // text at all.
+            Some(Value::String(arguments)) if arguments.trim().is_empty() => "{}".to_owned(),
             Some(Value::String(arguments)) => arguments.clone(),
             Some(_) => return Err(AiError::BadReply),
         };
@@ -147,6 +174,26 @@ pub fn parse_models(bytes: &[u8]) -> Result<Vec<String>, AiError> {
         .take(MAX_MODELS)
         .map(|model| text_at(model, &["id"]))
         .collect()
+}
+
+/// The ID of a call. A provider that sends none, an empty one or one it
+/// already used in this reply gets one of KassenSturz's own, so that every
+/// call has its own answer (D-207). Anything but text is a broken reply.
+fn call_id(call: &Value, used: &[String]) -> Result<String, AiError> {
+    match call.get("id") {
+        Some(Value::String(id)) if !id.is_empty() && !used.contains(id) => Ok(id.clone()),
+        None | Some(Value::Null | Value::String(_)) => {
+            let mut number = used.len() + 1;
+            loop {
+                let id = format!("ks-call-{number}");
+                if !used.contains(&id) {
+                    return Ok(id);
+                }
+                number += 1;
+            }
+        }
+        Some(_) => Err(AiError::BadReply),
+    }
 }
 
 fn text_at(value: &Value, path: &[&str]) -> Result<String, AiError> {
@@ -232,7 +279,7 @@ mod tests {
                 "messages": [
                     {"role": "system", "content": "rules"},
                     {"role": "user", "content": "How much is on Giro?"},
-                    {"role": "assistant", "content": "", "tool_calls": [
+                    {"role": "assistant", "content": null, "tool_calls": [
                         {"id": "call_1", "type": "function",
                          "function": {"name": "account_balances", "arguments": "{}"}}
                     ]},
@@ -276,6 +323,36 @@ mod tests {
     }
 
     #[test]
+    fn calls_without_a_usable_id_get_their_own() {
+        let bytes = br#"{"choices":[{"finish_reason":"stop","message":{"tool_calls":[
+              {"function":{"name":"account_balances","arguments":""}},
+              {"id":"","function":{"name":"account_balances","arguments":"  "}},
+              {"id":"a","function":{"name":"account_balances"}},
+              {"id":"a","function":{"name":"send_money"}},
+              {"id":null,"function":{"name":"account_balances","arguments":"{\"x\":1}"}}
+            ]}}]}"#;
+        let reply = parse_chat_reply(bytes, &offered()).unwrap();
+        let ids: Vec<&str> = reply.calls.iter().map(|c| c.id.as_str()).collect();
+        assert_eq!(ids, ["ks-call-1", "ks-call-2", "a", "ks-call-5"]);
+        assert_eq!(reply.ignored_calls, ["ks-call-4"]);
+        let arguments: Vec<&str> = reply.calls.iter().map(|c| c.arguments.as_str()).collect();
+        assert_eq!(arguments, ["{}", "{}", "{}", "{\"x\":1}"]);
+        // The finish reason isn't needed to know there are calls.
+        assert_eq!(reply.finish, Finish::Done);
+    }
+
+    #[test]
+    fn a_refusal_is_its_text() {
+        let bytes = br#"{"choices":[{"finish_reason":"stop","message":{
+            "content":null,"refusal":"I can't help with that."}}]}"#;
+        let reply = parse_chat_reply(bytes, &offered()).unwrap();
+        assert_eq!(reply.text, "I can't help with that.");
+        let bytes = br#"{"choices":[{"finish_reason":"stop","message":{
+            "content":"Hello","refusal":"ignored"}}]}"#;
+        assert_eq!(parse_chat_reply(bytes, &offered()).unwrap().text, "Hello");
+    }
+
+    #[test]
     fn broken_replies_are_refused() {
         let deep = format!("{}{}", "[".repeat(MAX_DEPTH + 1), "]".repeat(MAX_DEPTH + 1));
         let too_many_calls = format!(
@@ -288,7 +365,8 @@ mod tests {
             b"{}",
             br#"{"choices":[]}"#,
             br#"{"choices":[{"message":{"content":5}}]}"#,
-            br#"{"choices":[{"message":{"tool_calls":[{"function":{"name":"x"}}]}}]}"#,
+            br#"{"choices":[{"message":{"tool_calls":[{"id":7,"function":{"name":"x"}}]}}]}"#,
+            br#"{"choices":[{"message":{"content":null,"refusal":5}}]}"#,
             br#"{"choices":[{"message":{"tool_calls":[{"id":"a","function":{"name":"account_balances","arguments":{}}}]}}]}"#,
             deep.as_bytes(),
             too_many_calls.as_bytes(),

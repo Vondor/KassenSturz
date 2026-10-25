@@ -1,0 +1,8 @@
+{
+  "error": {
+    "message": "Number of request tokens has exceeded your per-minute rate limit, key sk-test-0000-made-up-key",
+    "type": "rate_limit_error",
+    "param": null,
+    "code": null
+  }
+}

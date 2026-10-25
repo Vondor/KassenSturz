@@ -22,6 +22,24 @@ SPDX-License-Identifier: CC0-1.0
       erfassen, sehen, wohin das Geld geht, und sich auf die Zahlen verlassen,
       ganz ohne Buchhaltungswissen. Die Daten bleiben auf dem eigenen Computer.
     </p>
+    <p>What you can do:</p>
+    <ul>
+      <li>Keep your accounts and see how much is in each of them</li>
+      <li>Record what comes in and goes out, sorted into categories</li>
+      <li>See where your money goes</li>
+      <li>Fetch your transactions from your bank. KassenSturz only reads; it never sends money</li>
+      <li>Start from a KMyMoney book, or save a copy of your data as a backup or for a spreadsheet</li>
+      <li>Ask an AI about your book. This is off until you turn it on, and nothing changes in your book until you confirm it</li>
+    </ul>
+    <p xml:lang="de">Das können Sie tun:</p>
+    <ul xml:lang="de">
+      <li>Ihre Konten führen und sehen, wie viel auf jedem liegt</li>
+      <li>Einnahmen und Ausgaben erfassen und in Kategorien ordnen</li>
+      <li>Sehen, wohin das Geld geht</li>
+      <li>Umsätze von der Bank abrufen. KassenSturz liest nur und überweist nie Geld</li>
+      <li>Mit einem KMyMoney-Buch beginnen oder eine Kopie der Daten als Sicherung oder für eine Tabellenkalkulation speichern</li>
+      <li>Eine KI zum Haushaltsbuch befragen. Das ist aus, bis Sie es einschalten, und nichts im Buch ändert sich ohne Ihre Bestätigung</li>
+    </ul>
     <p>
       This is an early test version. Try it with made-up numbers: what you enter
       is saved in your book.
@@ -34,14 +52,44 @@ SPDX-License-Identifier: CC0-1.0
   <developer id="io.github.vondor">
     <name>KassenSturz contributors</name>
   </developer>
+  <icon type="stock">io.github.vondor.KassenSturz</icon>
+  <categories>
+    <category>Office</category>
+    <category>Finance</category>
+  </categories>
+  <keywords>
+    <keyword>money</keyword>
+    <keyword>finance</keyword>
+    <keyword>budget</keyword>
+    <keyword>bank</keyword>
+    <keyword>household</keyword>
+    <keyword xml:lang="de">Geld</keyword>
+    <keyword xml:lang="de">Finanzen</keyword>
+    <keyword xml:lang="de">Haushaltsbuch</keyword>
+    <keyword xml:lang="de">Bank</keyword>
+  </keywords>
   <launchable type="desktop-id">io.github.vondor.KassenSturz.desktop</launchable>
   <url type="homepage">https://github.com/Vondor/KassenSturz</url>
   <url type="bugtracker">https://github.com/Vondor/KassenSturz/issues</url>
   <url type="vcs-browser">https://github.com/Vondor/KassenSturz</url>
+  <url type="contact">https://github.com/Vondor/KassenSturz/issues</url>
+  <url type="donation">https://buymeacoffee.com/fdrywa</url>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="0.261023.0" date="2026-10-23"/>
+    <release version="0.261023.0" date="2026-10-23">
+      <description>
+        <p>Early test build.</p>
+        <p xml:lang="de">Frühe Testversion.</p>
+      </description>
+    </release>
   </releases>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">600</display_length>
+  </requires>
   <provides>
     <binary>kassensturz</binary>
   </provides>

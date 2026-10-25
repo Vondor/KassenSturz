@@ -562,7 +562,8 @@ jobs:
           test "$(ls "$plugins/providers" | tr '\n' ' ')" = "aqhbci.xml aqnone.xml "
           test -f "$plugins/imexporters/swift.xml"
           test ! -e "$plugins/imexporters/eri2.xml"
-          test "$(ls "$files/bin")" = kassensturz
+          # Only the app and its MCP server (D-194): no AqBanking tool.
+          test "$(ls "$files/bin" | tr '\n' ' ')" = "kassensturz kassensturz-mcp "
           # Gwenhywfar checks a bank's certificate against this file only.
           runtime="$("$flatpak" info --show-location org.kde.Platform//6.11)/files"
           test -s "$runtime/etc/ssl/certs/ca-certificates.crt"

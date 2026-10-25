@@ -1,6 +1,6 @@
 # Error codes
 
-KassenSturz's Rust crates never produce user-facing text (D-034). Every error in `kassensturz-core`, `kassensturz-store`, `kassensturz-import` and `kassensturz-export` turns into an error report (`kassensturz_core::ErrorReport`, through the `Report` trait):
+KassenSturz's Rust crates never produce user-facing text (D-034). Every error in `kassensturz-core`, `kassensturz-store`, `kassensturz-import`, `kassensturz-export`, `kassensturz-bank`, `kassensturz-platform` and `kassensturz-ai-tools` turns into an error report (`kassensturz_core::ErrorReport`, through the `Report` trait):
 
 - a **code**, such as `store.account-closed`;
 - named, typed **parameters**, such as the account that is closed;
@@ -10,12 +10,12 @@ The UI keeps one translated message per code and fills in the parameters (D-084)
 
 The app's own checks of what the user typed, e.g. an amount in the wrong regional format, aren't errors of core or store: their codes start with `input.`, they live in `kassensturz-ui-bridge` and aren't listed here (D-089). The same goes for the app's own problems opening a book, whose codes start with `book.` (D-113).
 
-This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, one in `kassensturz-export` (`src/error/tests.rs`) against the `export.` codes, and one in `kassensturz-bank` (`src/error/tests.rs`) against the `bank.` codes, and one in `kassensturz-platform` (`src/error/tests.rs`) against the `platform.` codes, and one in `kassensturz-ai` (`src/error/tests.rs`) against the `ai.` codes, all with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
+This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, one in `kassensturz-export` (`src/error/tests.rs`) against the `export.` codes, and one in `kassensturz-bank` (`src/error/tests.rs`) against the `bank.` codes, and one in `kassensturz-platform` (`src/error/tests.rs`) against the `platform.` codes, and one in `kassensturz-ai` (`src/error/tests.rs`) against the `ai.` codes, and one in `kassensturz-ai-tools` (`src/error.rs`) against the `ai-tools.` codes, all with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
 
 ## Rules
 
 - **Codes are stable.** A code keeps its meaning. One that is no longer needed is retired, never given to another error. Before 0.1, codes can still change, like the book's layout (D-045).
-- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import`, `export`, `bank`, `platform` or `ai`. Damage found in a book starts with `store.corrupt`.
+- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import`, `export`, `bank`, `platform`, `ai` or `ai-tools`. Damage found in a book starts with `store.corrupt`.
 - **Parameters** are listed in the order the report gives them. A name ending in `?` is optional: the report leaves it out when it isn't known.
 - **Parameter types** (`ErrorParam`):
   - Amounts (`Money`), currencies, dates and timestamps stay typed. The UI formats them for the user's locale (D-002, D-065) and shows timestamps in the user's time zone.
@@ -304,3 +304,16 @@ A request to the AI provider the user set up couldn't be sent, or its answer cou
 | `ai.provider-failed` | `status` | | The AI provider answered with an error (HTTP {status}). Try again later; if it keeps happening, check the provider's settings. |
 | `ai.reply-too-large` | | | The AI provider's answer was too large, so KassenSturz didn't read it. Ask about less at a time. |
 | `ai.bad-reply` | | | The AI provider's answer isn't what KassenSturz expects from an OpenAI-compatible provider. Check that the address points to such an interface, often ending in `/v1`. |
+
+## The AI's read functions (`kassensturz-ai-tools`)
+
+A model asked for something from the book that the read functions can't give (D-170, D-186). These codes go back to the model as the function's answer and show in the tool-call log (M5.4); the user sees them only there. No report repeats what the model sent, since a call is untrusted text (threat T-21): a bad argument is named by its fixed name only.
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `ai-tools.unknown-function` | | | The AI asked for a function KassenSturz doesn't have, so it got nothing. Nothing to do; ask the question again in other words if the answer is missing. |
+| `ai-tools.bad-argument` | `argument` | `arguments`, `include_closed`, `account_id`, `date`, `from`, `to`, `text`, `category_id`, `limit` | The AI asked with a value KassenSturz can't use for {argument}, such as a day that doesn't exist or too many rows, so it got nothing. Nothing to do; the AI can ask again. |
+| `ai-tools.unknown-account` | | | The AI asked about an account that isn't one of yours in this book. Nothing to do; the AI can ask for the list of accounts first. |
+| `ai-tools.unknown-category` | | | The AI asked about a category that isn't in this book. Nothing to do; the AI can ask for the list of categories first. |
+| `ai-tools.bad-period` | | | The AI asked about a period that ends before it starts. Nothing to do; the AI can ask again. |
+| `ai-tools.book-unreadable` | | | The book couldn't be read to answer the AI. The detail says why; see that message. |

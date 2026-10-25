@@ -7,10 +7,9 @@
 #   tools/sdk.sh tools/check-no-ai.sh
 #
 # It reads Cargo's dependency tree of the whole workspace with the `ai`
-# feature off and fails when the tree names a crate that exists only for AI,
-# when `kassensturz-mcp` or an AI crate of the workspace has any dependency
-# or is used by another crate, or when a crate still has the `ai` feature
-# switched on. As a control it checks that the same questions
+# feature off and fails when a crate depends on a crate that exists only for
+# AI, when one of the AI crates that are workspace members has any dependency
+# of its own, or when a crate still has the `ai` feature switched on. As a control it checks that the same questions
 # find the feature in the build with AI, so a changed command that finds
 # nothing can't pass by accident. Add every AI-only crate to `AI_CRATES`
 # in the pull request that introduces it.
@@ -21,28 +20,25 @@ cd "$(dirname "$0")/.."
 
 # Crates that exist only for AI features (docs/THIRD_PARTY.md, M5).
 AI_CRATES='kassensturz-ai kassensturz-ai-tools rmcp ureq rustls tokio'
-
-# The AI crates that are members of the workspace. `--workspace` builds them
-# in the build without AI too, as empty crates: they must have no
-# dependency there and no other crate may use them (D-176, D-185).
-AI_MEMBERS='kassensturz-ai'
+# The AI crates that are workspace members. Cargo builds every member, so
+# each one is there without AI too, but empty: it may have no dependency.
+AI_MEMBERS='kassensturz-ai kassensturz-ai-tools kassensturz-mcp'
 
 without='--workspace --no-default-features --features bundled-sqlite --locked'
 with='--workspace --locked'
 
 # `{p}` names the crate; `{f}` lists the features switched on in the build.
+# Each line starts with its depth: 0 for a workspace member, more for a
+# crate that something depends on.
 format='{p} [{f}]'
 # shellcheck disable=SC2086
-tree=$(cargo tree $without -e normal,build,dev --prefix none --format "$format")
+tree=$(cargo tree $without -e normal,build,dev --prefix depth --format "$format")
 # shellcheck disable=SC2086
-tree_with=$(cargo tree $with -e normal --prefix none --format "$format")
+tree_with=$(cargo tree $with -e normal --prefix depth --format "$format")
 
 status=0
 for crate in $AI_CRATES; do
-    case " $AI_MEMBERS " in
-    *" $crate "*) continue ;;
-    esac
-    if printf '%s\n' "$tree" | grep -q "^$crate "; then
+    if printf '%s\n' "$tree" | grep -q "^[1-9][0-9]*$crate "; then
         echo "error: the build without AI contains $crate" >&2
         status=1
     fi
@@ -59,20 +55,11 @@ if ! printf '%s\n' "$tree_with" | grep -q "$has_ai"; then
     status=1
 fi
 
-for crate in kassensturz-mcp $AI_MEMBERS; do
-    deps=$(cargo tree -p "$crate" --no-default-features --locked -e normal,build --prefix none)
+for member in $AI_MEMBERS; do
+    deps=$(cargo tree -p "$member" --no-default-features --locked -e normal,build --prefix none)
     if [ "$(printf '%s\n' "$deps" | grep -c .)" -ne 1 ]; then
-        echo "error: $crate without AI has dependencies:" >&2
+        echo "error: $member without AI has dependencies:" >&2
         printf '%s\n' "$deps" >&2
-        status=1
-    fi
-done
-for crate in $AI_MEMBERS; do
-    # shellcheck disable=SC2086
-    users=$(cargo tree $without -e normal,build,dev --prefix none --invert "$crate")
-    if [ "$(printf '%s\n' "$users" | grep -c .)" -ne 1 ]; then
-        echo "error: the build without AI uses $crate:" >&2
-        printf '%s\n' "$users" >&2
         status=1
     fi
 done

@@ -1299,6 +1299,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "kassensturz-ai-tools"
+version = "0.261023.0"
+dependencies = [
+ "kassensturz-core",
+ "kassensturz-import",
+ "kassensturz-pipeline",
+ "kassensturz-store",
+ "proptest",
+ "regex",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
 name = "kassensturz-aqbanking-stub"
 version = "0.261023.0"
 dependencies = [

@@ -32,7 +32,7 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 2] = [LAYOUT_16, LAYOUT_17];
+pub(crate) const MIGRATIONS: [&str; 3] = [LAYOUT_16, LAYOUT_17, LAYOUT_18];
 
 /// The layout version the first migration creates. Layouts 1 to 15 were the
 /// development layouts from before 0.1, merged into layout 16 (D-045,
@@ -579,6 +579,37 @@ DROP TABLE changes;
 ALTER TABLE new_changes RENAME TO changes;
 ";
 
+/// Layout 18 (M5.5a): changes an AI prepared are labelled in the history
+/// (D-198). A change set the user confirmed is applied as one user action of
+/// its own, so `changes` is rebuilt with `apply_ai_changes` in its list of
+/// actions, as layout 17 did; its rows stay as they were, and the
+/// `changed_` tables refer to it by name and keep their rows too.
+const LAYOUT_18: &str = "
+CREATE TABLE new_changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction', 'join_transfer',
+        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
+        'import_statement', 'correct_starting_balance',
+        'add_institution', 'add_payee', 'add_tag',
+        'link_bank_account', 'unlink_bank_account', 'fetch_statement',
+        'apply_ai_changes'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
+    file_name TEXT
+) STRICT;
+INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
+    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
+DROP TABLE changes;
+ALTER TABLE new_changes RENAME TO changes;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -914,6 +945,23 @@ mod tests {
         assert_eq!(book.bank_link(checking).expect("read"), Some(link));
         book.undo().expect("undone");
         assert_eq!(book.bank_link(checking).expect("read"), None);
+        // And an action a later layout added (layout 18): AI changes the
+        // user confirmed are recorded and undone as one change.
+        book.as_one_action(crate::Action::ApplyAiChanges, |book| {
+            book.rename_account(checking, "Household account")
+        })
+        .expect("applied");
+        assert_eq!(
+            book.change_to_undo()
+                .expect("history")
+                .map(|change| change.action),
+            Some(crate::Action::ApplyAiChanges)
+        );
+        book.undo().expect("undone");
+        assert_eq!(
+            book.account(checking).expect("account").name,
+            "Main account"
+        );
     }
 
     #[test]

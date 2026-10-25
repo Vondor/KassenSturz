@@ -76,6 +76,10 @@ QtObject {
             return i18nContext.i18nc("@info a change you made", "Removed an account's link to your bank");
         case "fetch-statement":
             return i18nContext.i18nc("@info a change you made", "Fetched new transactions from your bank");
+        case "apply-ai-changes":
+            // Without the word for AI, which shows only while AI is on
+            // (D-013, D-198); the chat panel (M5.8) names the AI there.
+            return i18nContext.i18nc("@info a change you made", "Applied suggested changes");
         default:
             // A newer version of KassenSturz knows more changes than this
             // one; the book still opens, and its history says so.

@@ -1,0 +1,9 @@
+[
+  {
+    "error": {
+      "code": 429,
+      "message": "Resource has been exhausted (e.g. check quota), key sk-test-0000-made-up-key.",
+      "status": "RESOURCE_EXHAUSTED"
+    }
+  }
+]

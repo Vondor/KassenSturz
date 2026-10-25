@@ -103,6 +103,12 @@ impl FakeProvider {
         format!("http://127.0.0.1:{}/v1", self.port)
     }
 
+    /// The fake's address with the path `path` after the port, as a user
+    /// enters a provider whose base address isn't `/v1` (`/v1beta/openai/`).
+    pub fn address_at(&self, path: &str) -> String {
+        format!("http://127.0.0.1:{}{path}", self.port)
+    }
+
     /// The same server with `https://`, which it doesn't speak.
     pub fn https_address(&self) -> String {
         format!("https://127.0.0.1:{}/v1", self.port)

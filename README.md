@@ -132,6 +132,15 @@ Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and work
 
 Sign off every commit (`git commit -s`) to confirm the [Developer Certificate of Origin](https://developercertificate.org/): you wrote the change, or have the right to submit it under the license of the files it changes. That includes code made with AI tools. See D-040 in [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
+## Publisher
+
+KassenSturz is published by [SerpentSoftware](https://serpentsoftware.de).
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/branding/serpentsoftware-mark-dark.svg">
+  <img src="docs/branding/serpentsoftware-mark.svg" alt="SerpentSoftware logo" width="64">
+</picture>
+
 ## License
 
-Code: GPL-3.0-or-later, see [`LICENSE`](LICENSE). Documentation: CC-BY-SA-4.0. CMake files: BSD-2-Clause. Small configuration files and templates: CC0-1.0. [`REUSE.toml`](REUSE.toml) and the [`LICENSES/`](LICENSES/) folder say which license covers which file (D-064 in [`docs/DECISIONS.md`](docs/DECISIONS.md)).
+Code: GPL-3.0-or-later, see [`LICENSE`](LICENSE). The SerpentSoftware logo is the publisher's brand mark and is not covered by these licenses (`LicenseRef-SerpentSoftware-Logo`): copy it unmodified with the project, but remove it if you publish a fork under your own name. Documentation: CC-BY-SA-4.0. CMake files: BSD-2-Clause. Small configuration files and templates: CC0-1.0. [`REUSE.toml`](REUSE.toml) and the [`LICENSES/`](LICENSES/) folder say which license covers which file (D-064 in [`docs/DECISIONS.md`](docs/DECISIONS.md)).

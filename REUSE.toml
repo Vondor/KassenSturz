@@ -32,6 +32,15 @@ path = ["data/icons/hicolor/**/*.png"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC-BY-SA-4.0"
 
+# The publisher's logo (SerpentSoftware, the maintainer's publisher name). It
+# is a brand mark, not an app icon, and outside the project's licenses: it may
+# be copied unmodified with the project and shown to name the publisher. The
+# license text is in LICENSES/ and leaves the code licenses untouched.
+[[annotations]]
+path = ["docs/branding/serpentsoftware-mark.svg", "docs/branding/serpentsoftware-mark-dark.svg"]
+SPDX-FileCopyrightText = "2026 SerpentSoftware"
+SPDX-License-Identifier = "LicenseRef-SerpentSoftware-Logo"
+
 # Generated from the dependency list, so there's nothing creative in them:
 # Cargo's lock file, and the crate list for offline Flatpak builds that
 # flatpak-cargo-generator makes from it.

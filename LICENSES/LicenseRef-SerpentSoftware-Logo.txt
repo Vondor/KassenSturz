@@ -1,0 +1,20 @@
+SerpentSoftware logo license
+
+Copyright 2026 SerpentSoftware. All rights reserved.
+
+The SerpentSoftware logo is a brand mark of its publisher, not part of the
+software it appears in. It is not covered by the license of the code or
+documentation of any project that carries it (for example the GPL), and those
+licenses do not grant any right to the logo.
+
+Permission is granted to everyone to copy and redistribute the logo
+unmodified, as part of a copy of a project that carries it (a clone, a fork, a
+package, an archive), and to show it unmodified to say that SerpentSoftware
+published or contributed to that project.
+
+Anything else needs written permission from SerpentSoftware: changing the
+logo, using it for a different project or product (including a fork that is
+published under another name), or suggesting that SerpentSoftware endorses
+something it does not publish. A project that carries the logo may be
+relicensed, forked or repackaged under its own license without the logo; to do
+so, remove the logo and its REUSE annotation.

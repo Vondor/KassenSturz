@@ -18,6 +18,7 @@ mod fill;
 mod history;
 mod layout;
 mod lock;
+mod reader;
 mod rules;
 mod transactions;
 mod transfers;
@@ -917,6 +918,9 @@ fn connect(path: &Path) -> Result<Connection, StoreError> {
     // flags say. Without SQLITE_OPEN_CREATE, SQLite never creates a file.
     let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
     let conn = Connection::open_with_flags(path, flags)?;
+    // A write waits for a reader such as `kassensturz-mcp` to finish its
+    // short read instead of failing (Q-036, D-195).
+    conn.busy_timeout(reader::BUSY_WAIT)?;
     // The classic rollback journal, not WAL, so no lasting side files sit
     // next to the book, e.g. in a sync folder (D-033).
     let mode: String =

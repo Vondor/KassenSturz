@@ -31,7 +31,7 @@ kassensturz/
 │   ├── kassensturz-charts/         # ChartProvider interface + implementations
 │   ├── kassensturz-ai/             # LLM provider abstraction (OpenAI-compatible adapter in v1), consent, redaction
 │   ├── kassensturz-ai-tools/       # the fixed list of read functions the AI may call, the overview, the number check, change sets (D-170); shared by chat and MCP
-│   ├── kassensturz-mcp/            # local MCP server exposing the core (read-only by default); until M5.6 a stub that only checks the AI switch (D-179)
+│   ├── kassensturz-mcp/            # local MCP server for the user's own AI tools: the read functions of kassensturz-ai-tools over stdio, read-only (D-194 to D-197)
 │   ├── kassensturz-receipts/       # post-1.0: OCR + transaction-matching for photographed/scanned receipts
 │   ├── kassensturz-mobile-bridge/  # post-1.0: Rust↔Kotlin FFI exposing core+receipts to the native Android app — see D-019, Q-018
 │   ├── kassensturz-sync/           # post-1.0: shared-host ↔ thin-client access for multi-user (Member-scoped) — see D-022, Q-021/Q-022
@@ -235,6 +235,7 @@ kassensturz/
 - A consent layer decides what data may leave the machine, per provider, with preview and redaction. A model on another computer, even one at home, counts as leaving the machine (D-035).
 - Changes proposed by AI are represented as reviewable change sets and applied only after user confirmation. Writes requested through `kassensturz-mcp` are confirmed in the KassenSturz window (D-035).
 - `kassensturz-mcp` serves the core to the user's own AI tools outside KassenSturz (e.g. Claude Desktop, LM Studio), over stdio only: the outside tool starts it, and no network port is opened (D-050). Read-only by default; write tools can be switched on separately, and every write is confirmed in the KassenSturz window (D-035). The chat panel doesn't use it.
+- `kassensturz-mcp` (M5.6) offers the same read functions as the chat (`kassensturz-ai-tools`), served by `rmcp` on a one-thread Tokio runtime without an I/O driver (D-194). It reads the book the app opened last, or the one given with `--book` (D-196), beside the running app: `Book::open_to_read` opens it read-only without a lock, each answer is one short read transaction (`Book::reading`), and the app's writes wait for it (D-195). It tells the AI tool which pre-release build it is (D-197).
 - AI settings (on or off, provider address and model, consent record) are kept in the app's config file on this computer, never in the book (D-168); the provider's key is only in the keychain (D-169). Threats and the rules for AI code are in `docs/THREAT_MODEL.md` (T-21 to T-35).
 - A global AI-off switch is a kill switch: `kassensturz-mcp` refuses to start while AI is off, and `kassensturz-ai` runs no provider code. The UI layer hides (not disables) every AI-related element in that state, except one "AI features" toggle in Settings. See AGENTS.md §8, D-013.
 

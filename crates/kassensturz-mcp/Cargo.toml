@@ -3,7 +3,7 @@
 
 [package]
 name = "kassensturz-mcp"
-description = "KassenSturz's local MCP server for the user's own AI tools, over stdio (D-050). A stub until M5.6: it only checks the AI switch."
+description = "KassenSturz's local MCP server for the user's own AI tools: reads the book over stdio only and opens no port or socket (D-050, D-175)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,12 +12,38 @@ repository.workspace = true
 publish.workspace = true
 
 [features]
-default = ["ai"]
-# Without it the program holds no AI code and only says so (D-039).
-ai = ["dep:kassensturz-core", "kassensturz-core/ai"]
+default = ["ai", "bundled-sqlite"]
+# Without it the program holds no AI code and only says so (D-039): no rmcp,
+# no tokio and no book access.
+ai = [
+    "dep:jiff",
+    "dep:kassensturz-ai-tools",
+    "dep:kassensturz-core",
+    "dep:kassensturz-store",
+    "dep:rmcp",
+    "dep:serde_json",
+    "dep:tokio",
+    "kassensturz-ai-tools/ai",
+    "kassensturz-core/ai",
+]
+# See kassensturz-store (D-061). Weak, so it brings in nothing without `ai`.
+bundled-sqlite = ["kassensturz-store?/bundled-sqlite"]
 
 [dependencies]
+# The local time zone, for "today" when the AI asks for a balance without a
+# day (D-196); reads the system's time zone files, no network.
+jiff = { workspace = true, optional = true, features = ["tz-system", "tzdb-zoneinfo"] }
+kassensturz-ai-tools = { workspace = true, optional = true }
 kassensturz-core = { workspace = true, optional = true }
+kassensturz-store = { workspace = true, optional = true }
+rmcp = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+
+[dev-dependencies]
+kassensturz-core.workspace = true
+kassensturz-store = { workspace = true, features = ["bundled-sqlite"] }
+serde_json.workspace = true
 
 [lints]
 workspace = true

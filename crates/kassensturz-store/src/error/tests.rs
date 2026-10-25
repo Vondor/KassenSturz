@@ -141,6 +141,7 @@ fn examples() -> Vec<ErrorReport> {
         StoreError::NotEmpty,
         StoreError::NotABook,
         StoreError::UnsupportedLayout { found: 99 },
+        StoreError::OlderLayout { found: 16 },
         StoreError::DevelopmentLayout { found: 15 },
         locked(),
         StoreError::BackupFailed(Box::new(StoreError::Io(ErrorKind::StorageFull))),
@@ -383,6 +384,7 @@ fn text_from_a_file_is_passed_on_as_data() {
 fn an_unsupported_layout_says_which_one_this_version_reads() {
     for (error, found) in [
         (StoreError::UnsupportedLayout { found: 99 }, 99),
+        (StoreError::OlderLayout { found: 16 }, 16),
         (StoreError::DevelopmentLayout { found: 15 }, 15),
     ] {
         let report = error.report();

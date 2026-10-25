@@ -11,9 +11,10 @@
 //!
 //! The test reads KassenSturz's own sources for the ways Rust, Qt and QML
 //! connect to other computers, and `Cargo.lock` for crates that do, which
-//! only `kassensturz-ai` may bring in. A hit means a new way to the
-//! network: that needs the maintainer's approval first, and then its own
-//! line in the lists below.
+//! only `kassensturz-ai` may bring in; `kassensturz-mcp` may bring in the
+//! two that `tokio` holds, which its own tests prove it never uses (D-175,
+//! T-32). A hit means a new way to the network: that needs the
+//! maintainer's approval first, and then its own line in the lists below.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -38,7 +39,7 @@ const NETWORK_WORDS: [&str; 14] = [
 ];
 
 /// Files allowed to name them, relative to the repository, and why.
-const ALLOWED_FILES: [&str; 5] = [
+const ALLOWED_FILES: [&str; 6] = [
     // The QML engine's network access manager, which refuses every address
     // that isn't on this computer (D-143).
     "crates/kassensturz-ui-bridge/cpp/local_only.cpp",
@@ -51,12 +52,23 @@ const ALLOWED_FILES: [&str; 5] = [
     "crates/kassensturz-ai/tests/fake/mod.rs",
     // The fake TLS server of the adapter's certificate test, likewise.
     "crates/kassensturz-ai/src/tls_tests.rs",
+    // The MCP server's own guard names them only to look for them, like
+    // this test (D-175, T-32).
+    "crates/kassensturz-mcp/tests/stdio_only.rs",
 ];
 
 /// The one crate of KassenSturz allowed to bring in crates that open
 /// connections: the AI adapter, with its HTTP client and TLS library
 /// (D-175, Q-122).
 const AI_ADAPTER: &str = "kassensturz-ai";
+
+/// The MCP server, whose protocol crate `rmcp` brings `tokio` with its
+/// networking compiled in (Q-123, D-175). It may bring in only these
+/// crates of the list below, which `tokio` holds, and never uses them:
+/// `kassensturz-mcp/tests/stdio_only.rs` checks that it names no way to
+/// listen or connect and holds no socket when it runs.
+const MCP_SERVER: &str = "kassensturz-mcp";
+const MCP_SERVER_MAY_BRING: [&str; 2] = ["mio", "socket2"];
 
 /// Crates that open network connections: HTTP clients and servers, TLS,
 /// WebSockets, DNS and socket libraries. `zbus`, which the keychain uses
@@ -207,27 +219,48 @@ fn only_the_ai_adapter_brings_in_crates_that_open_network_connections() {
         "the AI adapter's HTTP client was not found: the walk below would prove nothing"
     );
 
-    // Everything KassenSturz's other crates bring in, without walking into
-    // the AI adapter.
-    let mut reached: Vec<String> = Vec::new();
-    let mut queue: Vec<String> = ours
-        .iter()
-        .filter(|name| **name != AI_ADAPTER)
-        .map(|name| (*name).to_owned())
-        .collect();
-    while let Some(name) = queue.pop() {
-        if name == AI_ADAPTER || reached.contains(&name) {
-            continue;
+    // The connection crates that the crates `from` bring in, without
+    // walking into the AI adapter or the MCP server.
+    let network_crates_from = |from: &[&str]| -> Vec<String> {
+        let mut reached: Vec<String> = Vec::new();
+        let mut queue: Vec<String> = from.iter().map(|name| (*name).to_owned()).collect();
+        while let Some(name) = queue.pop() {
+            if reached.contains(&name) {
+                continue;
+            }
+            queue.extend(
+                dependencies(&name)
+                    .into_iter()
+                    .filter(|name| name != AI_ADAPTER && name != MCP_SERVER),
+            );
+            reached.push(name);
         }
-        queue.extend(dependencies(&name));
-        reached.push(name);
-    }
-    let found: Vec<&String> = reached
+        reached
+            .into_iter()
+            .filter(|name| NETWORK_CRATES.contains(&name.as_str()))
+            .collect()
+    };
+
+    let others: Vec<&str> = ours
         .iter()
-        .filter(|name| NETWORK_CRATES.contains(&name.as_str()))
+        .copied()
+        .filter(|name| *name != AI_ADAPTER && *name != MCP_SERVER)
         .collect();
+    let found = network_crates_from(&others);
     assert!(
         found.is_empty(),
         "crates that open network connections come in outside the AI adapter: {found:?}"
+    );
+
+    assert!(
+        ours.contains(&MCP_SERVER),
+        "Cargo.lock was not read as expected"
+    );
+    let mut found = network_crates_from(&[MCP_SERVER]);
+    found.sort();
+    assert_eq!(
+        found, MCP_SERVER_MAY_BRING,
+        "the MCP server brings in other crates that open network connections, or no longer \
+         these (then remove them from the list)"
     );
 }

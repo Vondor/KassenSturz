@@ -59,7 +59,7 @@ Kirigami.ScrollablePage {
         case "book-data":
             return i18nContext.i18nc("@info what is sent", "Information from your open book that the AI asks for to answer you: the names of accounts and categories, balances and totals, transactions with the names of whoever was paid or paid you and the notes you wrote, and your Rules. Only as much as your question needs, never the whole book.");
         case "instructions":
-            return i18nContext.i18nc("@info what is sent", "KassenSturz's own instructions to the AI, and the descriptions of the functions it may use to look things up.");
+            return i18nContext.i18nc("@info what is sent", "KassenSturz's own instructions to the AI, and the descriptions of the functions it may use to look things up or to prepare changes for you to confirm.");
         case "key":
             return i18nContext.i18nc("@info what is sent", "Your key for this provider, if it needs one, so that it accepts the request.");
         default:

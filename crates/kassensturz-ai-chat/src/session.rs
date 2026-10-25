@@ -367,7 +367,6 @@ impl ChatSession {
     }
 }
 
-<<<<<<< HEAD
 /// The first request of a question, as the provider would get it for
 /// `question` asked without any earlier conversation, but with nothing
 /// sent: the screens show it as an example of what a request holds
@@ -388,11 +387,8 @@ pub fn sample_request(
     )
 }
 
-/// The read functions, as the provider gets them.
-=======
 /// The read functions and the one that prepares changes, as the provider
 /// gets them.
->>>>>>> origin/main
 fn function_specs() -> Vec<FunctionSpec> {
     FUNCTIONS
         .iter()

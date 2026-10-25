@@ -1,0 +1,277 @@
+// SPDX-FileCopyrightText: 2026 KassenSturz contributors
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+//! The fake model, for trying the chat without any AI (D-193).
+//!
+//! It is KassenSturz's own code playing a model: no server, no network, no
+//! key, and nothing leaves the app ([`ScriptedProvider`]). It picks a read
+//! function by a few words of the question, then answers with the figures
+//! the function gave, so the whole chat can be tried with the real book,
+//! functions, number check and tool-call log. A question with "invent" in
+//! it gets a made-up number added, to show the number check. The app
+//! offers it only when started with [`DEMO_ENV`] set, as the fake bank is
+//! (D-159).
+
+use kassensturz_ai::{AiError, ConfigFile, Message, Role, ScriptedProvider};
+use serde_json::{Value, json};
+
+use crate::prompt::{DATA_END, DATA_START};
+use crate::session::NOT_OFFERED;
+
+/// The environment variable that offers the fake model: `1` for a model
+/// that calls functions, `overview` for one that can't.
+pub const DEMO_ENV: &str = "KASSENSTURZ_FAKE_AI";
+
+/// What every answer of the fake model starts with, so it is never taken
+/// for a real AI.
+pub const DEMO_LABEL: &str = "Fake model for testing, not a real AI.";
+
+/// The number the fake model makes up when asked to "invent" one.
+pub const INVENTED: &str = "4711.08";
+
+/// Which fake model.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum DemoModel {
+    /// One that calls the read functions.
+    Functions,
+    /// One that can't call functions, as some local models: its provider
+    /// refuses requests that offer them (HTTP 400), so the chat falls back
+    /// to the overview.
+    NoFunctions,
+}
+
+impl DemoModel {
+    /// The model [`DEMO_ENV`]'s `value` asks for, if any.
+    pub fn from_env_value(value: &str) -> Option<Self> {
+        match value.trim() {
+            "1" => Some(Self::Functions),
+            "overview" => Some(Self::NoFunctions),
+            _ => None,
+        }
+    }
+}
+
+/// The fake model as a provider, while `config` switches AI on.
+pub fn demo_provider(config: ConfigFile, model: DemoModel) -> ScriptedProvider {
+    ScriptedProvider::new(config, move |messages, offered| {
+        respond(model, messages, offered)
+    })
+}
+
+fn respond(model: DemoModel, messages: &[Message], offered: &[String]) -> Result<String, AiError> {
+    if model == DemoModel::NoFunctions && !offered.is_empty() {
+        return Err(AiError::ProviderFailed { status: 400 });
+    }
+    let question = messages
+        .iter()
+        .rev()
+        .find(|message| message.role == Role::User && message.content != NOT_OFFERED)
+        .map(|message| message.content.to_lowercase())
+        .unwrap_or_default();
+    let last = messages.last().map(|message| message.role);
+    let text = if last == Some(Role::Tool) {
+        let results: Vec<&str> = messages
+            .iter()
+            .rev()
+            .take_while(|message| message.role == Role::Tool)
+            .map(|message| message.content.as_str())
+            .collect();
+        describe_all(results.into_iter().rev())
+    } else if offered.is_empty() {
+        let overview = messages
+            .first()
+            .and_then(|system| system.content.split_once(DATA_START))
+            .and_then(|(_, rest)| rest.split_once(DATA_END))
+            .and_then(|(block, _)| block.lines().last());
+        match overview {
+            Some(json) => format!("From the overview: {}", describe_all([json])),
+            None => "I got no data from KassenSturz.".to_owned(),
+        }
+    } else {
+        let today = messages
+            .first()
+            .and_then(|system| system.content.split_once("Today is "))
+            .and_then(|(_, rest)| rest.get(..10))
+            .unwrap_or("2026-01-01");
+        let (name, arguments) = choose(&question, today);
+        if offered.iter().any(|offer| offer == name) {
+            return Ok(calls_reply(name, &arguments));
+        }
+        "The function I wanted is not offered.".to_owned()
+    };
+    let mut text = format!("{DEMO_LABEL} {text}");
+    if question.contains("invent") || question.contains("erfind") {
+        text.push_str(&format!(
+            " I also made up {INVENTED} to show the number check."
+        ));
+    }
+    Ok(text_reply(&text))
+}
+
+/// The function for `question` (lowercase) and its arguments.
+fn choose(question: &str, today: &str) -> (&'static str, Value) {
+    let has = |words: &[&str]| words.iter().any(|word| question.contains(word));
+    if has(&["spen", "categor", "month", "ausgab", "kategor", "monat"]) {
+        let first = format!("{}01", today.get(..8).unwrap_or("2026-01-"));
+        ("category_totals", json!({"from": first, "to": today}))
+    } else if has(&[
+        "find",
+        "search",
+        "last",
+        "recent",
+        "transaction",
+        "such",
+        "letzte",
+        "buchung",
+    ]) {
+        ("search_transactions", json!({"limit": 5}))
+    } else if has(&["rule", "regel"]) {
+        ("list_rules", json!({}))
+    } else {
+        ("list_accounts", json!({}))
+    }
+}
+
+fn describe_all<'a>(results: impl IntoIterator<Item = &'a str>) -> String {
+    results
+        .into_iter()
+        .map(|result| match serde_json::from_str::<Value>(result) {
+            Ok(value) => describe(&value),
+            Err(_) => "I couldn't read a result.".to_owned(),
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// A few of the figures and names in one result, written exactly as the
+/// function gave them.
+fn describe(result: &Value) -> String {
+    let text = |value: &Value, key: &str| value[key].as_str().unwrap_or("?").to_owned();
+    let list = |key: &str| result[key].as_array().cloned().unwrap_or_default();
+    let mut parts = Vec::new();
+    if let Some(code) = result["error"].as_str() {
+        parts.push(format!("The function answered with the error {code}."));
+    }
+    let accounts: Vec<String> = list("accounts")
+        .iter()
+        .take(8)
+        .map(|a| {
+            format!(
+                "{}: {} {}",
+                text(a, "name"),
+                text(a, "balance"),
+                text(a, "currency")
+            )
+        })
+        .collect();
+    if !accounts.is_empty() {
+        parts.push(format!("Accounts: {}.", accounts.join("; ")));
+    }
+    for totals in list("currencies") {
+        let currency = text(&totals, "currency");
+        parts.push(format!(
+            "Money in {} {currency}, money out {} {currency}, left {} {currency}.",
+            text(&totals, "money_in"),
+            text(&totals, "money_out"),
+            text(&totals, "left"),
+        ));
+    }
+    let rows: Vec<String> = list("rows")
+        .iter()
+        .take(5)
+        .map(|row| {
+            format!(
+                "{} {} {} {}",
+                text(row, "date"),
+                text(row, "payee"),
+                text(row, "amount"),
+                text(row, "currency")
+            )
+        })
+        .collect();
+    if !rows.is_empty() {
+        parts.push(format!("Newest: {}.", rows.join("; ")));
+    }
+    let rules: Vec<String> = list("rules")
+        .iter()
+        .take(8)
+        .map(|rule| text(rule, "name"))
+        .collect();
+    if !rules.is_empty() {
+        parts.push(format!("Rules: {}.", rules.join("; ")));
+    }
+    if parts.is_empty() {
+        "The result holds nothing I can describe.".to_owned()
+    } else {
+        parts.join(" ")
+    }
+}
+
+fn text_reply(text: &str) -> String {
+    json!({
+        "choices": [{
+            "index": 0,
+            "finish_reason": "stop",
+            "message": {"role": "assistant", "content": text},
+        }],
+    })
+    .to_string()
+}
+
+fn calls_reply(name: &str, arguments: &Value) -> String {
+    json!({
+        "choices": [{
+            "index": 0,
+            "finish_reason": "tool_calls",
+            "message": {
+                "role": "assistant",
+                "content": null,
+                "tool_calls": [{
+                    "id": "fake-call-1",
+                    "type": "function",
+                    "function": {"name": name, "arguments": arguments.to_string()},
+                }],
+            },
+        }],
+    })
+    .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_environment_value_picks_the_model() {
+        assert_eq!(DemoModel::from_env_value("1"), Some(DemoModel::Functions));
+        assert_eq!(
+            DemoModel::from_env_value(" overview\n"),
+            Some(DemoModel::NoFunctions)
+        );
+        assert_eq!(DemoModel::from_env_value(""), None);
+        assert_eq!(DemoModel::from_env_value("yes"), None);
+    }
+
+    #[test]
+    fn words_pick_the_function() {
+        assert_eq!(
+            choose("how much did i spend?", "2026-10-25"),
+            (
+                "category_totals",
+                json!({"from": "2026-10-01", "to": "2026-10-25"})
+            )
+        );
+        assert_eq!(
+            choose("zeig die letzten buchungen", "2026-10-25").0,
+            "search_transactions"
+        );
+        assert_eq!(
+            choose("which rules do i have", "2026-10-25").0,
+            "list_rules"
+        );
+        assert_eq!(
+            choose("what is on my accounts?", "2026-10-25").0,
+            "list_accounts"
+        );
+    }
+}

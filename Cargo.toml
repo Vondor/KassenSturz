@@ -18,6 +18,8 @@ publish = false
 
 [workspace.dependencies]
 kassensturz-ai = { path = "crates/kassensturz-ai", default-features = false }
+kassensturz-ai-chat = { path = "crates/kassensturz-ai-chat", default-features = false }
+kassensturz-ai-tools = { path = "crates/kassensturz-ai-tools", default-features = false }
 kassensturz-aqbanking-sys = { path = "crates/kassensturz-aqbanking-sys" }
 kassensturz-core = { path = "crates/kassensturz-core" }
 kassensturz-export = { path = "crates/kassensturz-export" }

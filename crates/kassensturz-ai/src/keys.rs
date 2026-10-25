@@ -47,6 +47,14 @@ impl ProviderKeys {
         }
     }
 
+    /// Changes the place saved keys go to, e.g. after the Password storage
+    /// setting changed (D-163). The keys remembered in memory stay; keys
+    /// saved in the old place stay there, as for a PIN they are neither
+    /// copied nor read from it any more.
+    pub fn use_store(&mut self, store: Option<Box<dyn Keychain>>) {
+        self.store = store;
+    }
+
     fn key(address: &ProviderAddress) -> Result<SecretKey, AiError> {
         SecretKey::new(KIND, &address.origin()).map_err(keychain_error)
     }
@@ -217,6 +225,34 @@ mod tests {
             keys.get(&cloud, KeyUse::Saved).unwrap(),
             Some(secret("test-key-4"))
         );
+    }
+
+    #[test]
+    fn a_new_place_keeps_what_is_remembered_and_reads_only_there() {
+        let first = Arc::new(MemoryKeychain::new());
+        let second = Arc::new(MemoryKeychain::new());
+        let mut keys = ProviderKeys::new(Some(Box::new(Shared(first.clone()))));
+        let cloud = address("https://api.example.com/v1");
+        let local = address("http://localhost:1234/v1");
+        keys.keep(&cloud, KeyUse::Saved, secret("test-key-5"))
+            .unwrap();
+        keys.keep(&local, KeyUse::UntilClose, secret("test-key-6"))
+            .unwrap();
+
+        keys.use_store(Some(Box::new(Shared(second.clone()))));
+        assert_eq!(first.len(), 1, "the old place is left as it was");
+        assert_eq!(
+            keys.get(&cloud, KeyUse::Saved).unwrap(),
+            None,
+            "a key saved in the old place isn't read from it"
+        );
+        assert_eq!(
+            keys.get(&local, KeyUse::UntilClose).unwrap(),
+            Some(secret("test-key-6"))
+        );
+        keys.keep(&cloud, KeyUse::Saved, secret("test-key-7"))
+            .unwrap();
+        assert_eq!(second.len(), 1);
     }
 
     #[test]

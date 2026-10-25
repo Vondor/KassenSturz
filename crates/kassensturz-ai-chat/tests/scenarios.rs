@@ -17,7 +17,7 @@ use common::{
 use kassensturz_ai::{AiError, KeyUse, PreparedRequest, Role};
 use kassensturz_ai_chat::{
     BuildInfo, Cancel, ChatError, ChatSession, DATA_START, Hooks, LogEntry, MAX_ROUNDS, Mode,
-    NOT_OFFERED, NoHooks,
+    NOT_OFFERED, NoHooks, sample_request,
 };
 use kassensturz_ai_tools::{DATA_NOTE, FUNCTIONS, PROPOSE_CHANGES};
 use serde_json::Value;
@@ -460,4 +460,21 @@ fn a_refusal_after_functions_worked_is_an_error() {
         Err(ChatError::Ai(AiError::ProviderFailed { status: 400 }))
     ));
     assert_eq!(chat.mode(), Mode::Functions);
+}
+
+#[test]
+fn the_sample_request_is_the_first_request_of_a_real_question() {
+    // M5.7 shows the sample in the consent screen as what a request holds,
+    // so it has to be what the chat really builds.
+    let book = space_colony();
+    let build = BuildInfo::new("0.261025.0", "1775d22");
+    let question = "What did I spend on food last month?";
+    let (provider, _script) = Script::provider(on(), vec![says("Nothing.")]);
+    let mut session = ChatSession::new(build.clone());
+    session
+        .ask(&book, &provider, None, question, TODAY, &mut NoHooks)
+        .expect("answered");
+    let sample = sample_request(&provider, &build, TODAY, question).expect("a sample");
+    assert_eq!(sent_bodies(&session)[0], sample.preview());
+    assert!(!sample.preview().contains("Space Colony"), "no book data");
 }

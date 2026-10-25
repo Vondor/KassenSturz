@@ -9,6 +9,9 @@
 mod accounts;
 mod accounts_model;
 mod ai_audit;
+#[cfg(feature = "ai")]
+mod ai_settings;
+mod ai_settings_model;
 mod ai_switch_model;
 mod app_icon_audit;
 mod bank_connection;

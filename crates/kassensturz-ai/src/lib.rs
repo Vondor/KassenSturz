@@ -27,6 +27,11 @@
 //! Everything the provider answers is untrusted ([`Reply`], threats T-21,
 //! T-31). Errors are codes ([`AiError`], D-034).
 //!
+//! [`ScriptedProvider`] is a provider played by a function inside the app,
+//! for tests and for trying the chat without any AI (D-193). The chat
+//! itself, which joins a provider with the book's read functions, is
+//! `kassensturz-ai-chat` (D-190).
+//!
 //! Without the `ai` feature this crate is empty and has no dependencies
 //! (D-039, D-176).
 
@@ -42,6 +47,7 @@ mod http;
 mod keys;
 mod openai;
 mod request;
+mod scripted;
 #[cfg(test)]
 mod tls_tests;
 
@@ -57,6 +63,7 @@ pub use http::Limits;
 pub use keys::ProviderKeys;
 pub use openai::{MAX_CALLS, MAX_DEPTH};
 pub use request::{MAX_REQUEST_BYTES, PreparedRequest, REDACTED};
+pub use scripted::{Respond, SCRIPTED_ADDRESS, SCRIPTED_MODEL, ScriptedProvider};
 
 use kassensturz_platform::Secret;
 

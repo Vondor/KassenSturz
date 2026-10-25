@@ -1399,6 +1399,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "kassensturz-ai-chat"
+version = "0.261023.0"
+dependencies = [
+ "kassensturz-ai",
+ "kassensturz-ai-tools",
+ "kassensturz-core",
+ "kassensturz-import",
+ "kassensturz-pipeline",
+ "kassensturz-platform",
+ "kassensturz-store",
+ "serde_json",
+]
+
+[[package]]
 name = "kassensturz-ai-tools"
 version = "0.261023.0"
 dependencies = [

@@ -10,7 +10,7 @@ The UI keeps one translated message per code and fills in the parameters (D-084)
 
 The app's own checks of what the user typed, e.g. an amount in the wrong regional format, aren't errors of core or store: their codes start with `input.`, they live in `kassensturz-ui-bridge` and aren't listed here (D-089). The same goes for the app's own problems opening a book, whose codes start with `book.` (D-113).
 
-This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, one in `kassensturz-export` (`src/error/tests.rs`) against the `export.` codes, and one in `kassensturz-bank` (`src/error/tests.rs`) against the `bank.` codes, and one in `kassensturz-platform` (`src/error/tests.rs`) against the `platform.` codes, and one in `kassensturz-ai` (`src/error/tests.rs`) against the `ai.` codes, and one in `kassensturz-ai-tools` (`src/error.rs`) against the `ai-tools.` codes, all with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
+This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, one in `kassensturz-export` (`src/error/tests.rs`) against the `export.` codes, and one in `kassensturz-bank` (`src/error/tests.rs`) against the `bank.` codes, and one in `kassensturz-platform` (`src/error/tests.rs`) against the `platform.` codes, and one in `kassensturz-ai` (`src/error/tests.rs`) against the `ai.` codes, and one in `kassensturz-ai-tools` (`src/error.rs`) against the `ai-tools.` codes, and one in `kassensturz-ai-chat` (`src/error.rs`) against the `ai-chat.` codes, all with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
 
 ## Rules
 
@@ -318,3 +318,14 @@ A model asked for something from the book that the read functions can't give (D-
 | `ai-tools.unknown-category` | | | The AI asked about a category that isn't in this book. Nothing to do; the AI can ask for the list of categories first. |
 | `ai-tools.bad-period` | | | The AI asked about a period that ends before it starts. Nothing to do; the AI can ask again. |
 | `ai-tools.book-unreadable` | | | The book couldn't be read to answer the AI. The detail says why; see that message. |
+
+## The AI chat (`kassensturz-ai-chat`)
+
+A question in the chat ended without an answer (D-190, D-193). Errors of the provider keep their own `ai.` codes. The conversation is as it was before the question, and the tool-call log shows how far it got.
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `ai-chat.cancelled` | | | You stopped the question, so the AI's answer, if one still comes, is not shown. A request already on its way can't be called back. Ask again when you like. |
+| `ai-chat.stopped` | | | You didn't let the request go after seeing what would be sent, so nothing was sent. Ask again, and remove what you don't want to send. |
+| `ai-chat.too-many-rounds` | | | The AI kept asking KassenSturz for data without answering, so KassenSturz stopped it. Ask a narrower question, or try another model. |
+| `ai-chat.book-unreadable` | | | The book couldn't be read for the overview a model without functions gets. The detail says why; see that message. |

@@ -5,8 +5,10 @@
 // AI runs (address and model), how its key is kept, a test of the
 // connection, and the plain statement of what KassenSturz sends to a
 // provider on another computer, which the user agrees to or takes back.
-// Everything here is kept for this computer, never in a book (D-168). The
-// page is hidden with the rest of AI while the switch is off (D-013).
+// Last, whether the user's own AI tools may prepare changes, which the user
+// confirms in the chat sidebar (M5.10, D-219). Everything here is kept for
+// this computer, never in a book (D-168). The page is hidden with the rest
+// of AI while the switch is off (D-013).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -389,6 +391,31 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@action:button", "Remove the key from this computer")
             icon.name: "edit-delete"
             onClicked: page.removeKey()
+        }
+
+        // The user's own AI tools (D-035, D-219): they can read the book
+        // once AI is on; preparing changes is a second, separate yes.
+        Kirigami.Heading {
+            level: 2
+            text: page.i18nContext.i18nc("@title:group", "Your own AI tools")
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: page.i18nContext.i18nc("@info", "AI programs on this computer that you set up to use KassenSturz can read your book. If you allow it, they can also prepare changes: new categories, Rules and categories for transactions. Their changes are shown in the chat sidebar, and nothing changes until you have read them and confirmed. KassenSturz must be open for that.")
+        }
+
+        Controls.Switch {
+            id: writeToolsSwitch
+
+            text: page.i18nContext.i18nc("@option:check", "Let my AI tools prepare changes")
+            checked: page.settings.writeTools()
+            onToggled: {
+                page.notWritten = !page.settings.setWriteTools(checked);
+                checked = page.settings.writeTools();
+            }
         }
     }
 

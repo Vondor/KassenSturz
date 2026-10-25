@@ -60,6 +60,20 @@ impl Folder {
         .expect("settings written");
     }
 
+    /// Switches AI on and the MCP write tools on or off (D-219).
+    pub fn switch_write_tools(&self, on: bool) {
+        std::fs::write(
+            self.0.join("kassensturzrc"),
+            format!("[AI]\nEnabled=true\nMcpWriteTools={on}\n"),
+        )
+        .expect("settings written");
+    }
+
+    /// The user's data folder of this test, where the request folder is.
+    pub fn data(&self) -> PathBuf {
+        self.0.join("data")
+    }
+
     /// A synthetic book: a checking account, a grocery category and two
     /// transactions, one with a hostile payee. IDs are fixed, so answers
     /// can be compared with golden files.
@@ -135,12 +149,14 @@ pub fn transaction(n: u8, date: Date, payee: &str, parts: &[(AccountId, i64)]) -
     .expect("balanced")
 }
 
-/// The program with `folder` as the user's settings and home folder.
+/// The program with `folder` as the user's settings and home folder, and
+/// `folder/data` as their data folder.
 pub fn program(folder: &Path, arguments: &[&str]) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_kassensturz-mcp"));
     command
         .args(arguments)
         .env("XDG_CONFIG_HOME", folder)
+        .env("XDG_DATA_HOME", folder.join("data"))
         .env("HOME", folder);
     command
 }

@@ -580,6 +580,7 @@ Kirigami.ApplicationWindow {
                 root.pushPage(aiChangeReviewPage, { setId: setId });
             }
             onCloseClicked: chatDrawer.close()
+            onChangesArrived: chatDrawer.open()
         }
     }
 

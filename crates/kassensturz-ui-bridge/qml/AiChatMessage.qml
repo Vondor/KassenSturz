@@ -132,7 +132,10 @@ ColumnLayout {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
-                text: item.message.kind === "changes" ? item.i18nContext.i18ncp("@info %1 is a number", "The AI prepared %1 change for you. Nothing is changed until you have read it and confirmed.", "The AI prepared %1 changes for you. Nothing is changed until you have read them and confirmed.", parseInt(item.message.count)) : ""
+                text: item.message.kind !== "changes" ? ""
+                    : item.message.fromTool === true
+                        ? item.i18nContext.i18ncp("@info %1 is a number", "One of your own AI tools prepared %1 change for you. Nothing is changed until you have read it and confirmed.", "One of your own AI tools prepared %1 changes for you. Nothing is changed until you have read them and confirmed.", parseInt(item.message.count))
+                        : item.i18nContext.i18ncp("@info %1 is a number", "The AI prepared %1 change for you. Nothing is changed until you have read it and confirmed.", "The AI prepared %1 changes for you. Nothing is changed until you have read them and confirmed.", parseInt(item.message.count))
             }
 
             RowLayout {

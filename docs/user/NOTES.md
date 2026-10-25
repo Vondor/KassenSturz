@@ -198,7 +198,7 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 
 ## Asking your own AI tool about your book (M5.6)
 
-- **What it is:** an AI tool you already use (for example a desktop chat app or a code editor that speaks the Model Context Protocol, MCP) can read your book through a small program that comes with KassenSturz, `kassensturz-mcp`. It can list your accounts and categories, give a balance on a day, add up money in and out per category, search transactions and list your Rules. It **can't change anything** in your book, and it never sees PINs, bank logins, account numbers or IBANs.
+- **What it is:** an AI tool you already use (for example a desktop chat app or a code editor that speaks the Model Context Protocol, MCP) can read your book through a small program that comes with KassenSturz, `kassensturz-mcp`. It can list your accounts and categories, give a balance on a day, add up money in and out per category, search transactions and list your Rules. On its own it **can't change anything** in your book (see the next section for letting it prepare changes), and it never sees PINs, bank logins, account numbers or IBANs.
 - **It only runs while AI is on:** switch on "AI features" in KassenSturz's Settings first. While they are off, the program refuses to start, and if you switch them off while your AI tool uses it, it stops at the tool's next question.
 - **Setting it up:** add a "stdio" server to your AI tool's MCP settings with the command below; the tool starts it by itself whenever it needs it. With the Flatpak:
   - command `flatpak`, arguments `run --command=kassensturz-mcp io.github.vondor.KassenSturz`
@@ -209,6 +209,15 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **It opens no network port:** the AI tool and `kassensturz-mcp` talk only through a direct pipe between the two programs, so no other program and no website can reach it.
 - **If it doesn't start,** the AI tool's log shows why: AI is switched off, KassenSturz hasn't opened a book yet, or the book has to be opened in KassenSturz once after an update before it can be read.
 - **Pre-release builds** tell the AI tool that the build may have bugs, so the AI can say when a result looks wrong.
+
+## Letting your own AI tool prepare changes (M5.10)
+
+- **Where:** Settings → **AI provider and privacy…** → "Your own AI tools" → **Let my AI tools prepare changes**. It is off until you turn it on, and it only counts while "AI features" is on.
+- **What it can prepare:** the same as the chat: new categories, new Rules, and a category for transactions it found. Nothing that removes anything, changes an amount or moves money.
+- **Nothing changes without you:** the changes appear in KassenSturz's chat sidebar as "One of your own AI tools prepared N changes", the sidebar opens, and you read them on the same page as the chat's changes. Only **Confirm and make these changes** applies them, as one change that Undo takes back; **Throw away** refuses them. Your AI tool then hears whether you applied or refused them.
+- **KassenSturz must be open** with the same book. If it isn't, your AI tool hears so after about 10 seconds and nothing waits. If you take longer than about 45 seconds to decide, it hears that the changes still wait and can ask again later.
+- **How they get there:** through a folder only your user can open, `mcp-requests` in KassenSturz's data folder (with the Flatpak: `~/.var/app/io.github.vondor.KassenSturz/data/io.github.vondor.KassenSturz/mcp-requests`). No network port and no socket is involved. `kassensturz-mcp --request-folder` (with the Flatpak: `flatpak run --command=kassensturz-mcp io.github.vondor.KassenSturz --request-folder`) names the folder. Old files there are removed after an hour.
+- **In German:** *Meine KI-Programme dürfen Änderungen vorbereiten*.
 
 ## Choosing the AI and what it may see (M5.7)
 

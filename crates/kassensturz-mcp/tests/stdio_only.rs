@@ -189,12 +189,19 @@ mod running {
     #[test]
     fn the_running_server_holds_no_socket() {
         let folder = Folder::new("no-socket");
-        folder.switch_ai(true);
+        // With the write tools on, whose requests go through a folder of
+        // files, never a socket (D-175, D-216).
+        folder.switch_write_tools(true);
         let book = folder.book();
         let mut session = Session::start(folder.path(), &book);
         session.initialize("2025-06-18");
         session.call("list_accounts", json!({}));
         session.call("search_transactions", json!({"text": "corner"}));
+        let (answer, _) = session.call(
+            "check_proposed_changes",
+            json!({"request": "0123456789abcdef0123456789abcdef"}),
+        );
+        assert_eq!(answer, json!({"error": "mcp-writes.unknown-request"}));
 
         // Still running, after it answered, with the book read.
         let files = open_files(session.id());

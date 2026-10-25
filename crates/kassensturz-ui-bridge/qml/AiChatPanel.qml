@@ -9,8 +9,9 @@
 // AI prepares are never applied here: the message offers the review screen
 // (`AiChangeReviewPage`), whose confirm button is the only way to apply them
 // (D-200). When the provider is on another computer, each request is shown
-// first (`AiRequestReview`). Hidden with the rest of AI while the switch is
-// off (D-013).
+// first (`AiRequestReview`). Changes the user's own AI tools prepare arrive
+// here too, looked for once a second, and are reviewed the same way (M5.10,
+// D-218). Hidden with the rest of AI while the switch is off (D-013).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -32,6 +33,8 @@ ColumnLayout {
     signal reviewChangesClicked(string setId)
     // The user wants the sidebar closed.
     signal closeClicked()
+    // The user's own AI tools prepared changes: the sidebar should show.
+    signal changesArrived()
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -97,6 +100,15 @@ ColumnLayout {
     visible: ai.enabled
     spacing: Kirigami.Units.smallSpacing
 
+    // Changes from the user's own AI tools come in as request files; the
+    // object looks only while the write tools are on too (D-218).
+    Timer {
+        interval: 1000
+        repeat: true
+        running: panel.ai.enabled && panel.chat.available
+        onTriggered: panel.chat.checkRequests()
+    }
+
     Connections {
         target: panel.chat
 
@@ -126,6 +138,13 @@ ColumnLayout {
             for (let i = 0; i < result.sets.length; i++) {
                 panel.add({ kind: "changes", setId: result.sets[i].id, count: result.sets[i].count });
             }
+        }
+
+        function onRequested(sets: var) {
+            for (let i = 0; i < sets.length; i++) {
+                panel.add({ kind: "changes", setId: sets[i].id, count: sets[i].count, fromTool: true });
+            }
+            panel.changesArrived();
         }
     }
 

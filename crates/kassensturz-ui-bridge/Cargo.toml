@@ -54,6 +54,8 @@ cxx-qt-build.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+# The calls of the MCP write tools' tests (M5.10), as AI tools send them.
+serde_json.workspace = true
 
 [lints]
 workspace = true

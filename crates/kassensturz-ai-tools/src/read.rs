@@ -418,6 +418,11 @@ fn search_row(
 ) -> Result<Value, ToolError> {
     let mut row = Map::new();
     row.insert("date".into(), Value::String(date.to_string()));
+    // For `propose_changes`, which gives a transaction a category.
+    row.insert(
+        "transaction_id".into(),
+        Value::String(transaction.id().to_string()),
+    );
     row.insert("account".into(), w.text(&account.name));
     row.insert("amount".into(), w.amount(part.account_amount())?);
     row.insert("currency".into(), Value::from(account.currency.as_str()));

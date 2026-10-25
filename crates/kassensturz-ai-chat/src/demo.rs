@@ -8,11 +8,14 @@
 //! function by a few words of the question, then answers with the figures
 //! the function gave, so the whole chat can be tried with the real book,
 //! functions, number check and tool-call log. A question with "invent" in
-//! it gets a made-up number added, to show the number check. The app
+//! it gets a made-up number added, to show the number check. A question
+//! with "sort" in it makes it prepare a change set: a new category for the
+//! newest few transactions it can move, for the review and undo (D-199). The app
 //! offers it only when started with [`DEMO_ENV`] set, as the fake bank is
 //! (D-159).
 
 use kassensturz_ai::{AiError, ConfigFile, Message, Role, ScriptedProvider};
+use kassensturz_ai_tools::PROPOSE_CHANGES;
 use serde_json::{Value, json};
 
 use crate::prompt::{DATA_END, DATA_START};
@@ -28,6 +31,12 @@ pub const DEMO_LABEL: &str = "Fake model for testing, not a real AI.";
 
 /// The number the fake model makes up when asked to "invent" one.
 pub const INVENTED: &str = "4711.08";
+
+/// The category the fake model prepares when asked to sort.
+pub const DEMO_CATEGORY: &str = "Sorted by the fake model";
+
+/// The most transactions it puts into that category at once.
+const DEMO_MOVES: usize = 3;
 
 /// Which fake model.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -69,6 +78,17 @@ fn respond(model: DemoModel, messages: &[Message], offered: &[String]) -> Result
         .map(|message| message.content.to_lowercase())
         .unwrap_or_default();
     let last = messages.last().map(|message| message.role);
+    let sorting = wants_sorting(&question);
+    if sorting
+        && last == Some(Role::Tool)
+        && offered.iter().any(|offer| offer == PROPOSE_CHANGES.name)
+        && let Some(arguments) = messages
+            .last()
+            .and_then(|result| serde_json::from_str::<Value>(&result.content).ok())
+            .and_then(|result| sorting_proposal(&result))
+    {
+        return Ok(calls_reply(PROPOSE_CHANGES.name, &arguments));
+    }
     let text = if last == Some(Role::Tool) {
         let results: Vec<&str> = messages
             .iter()
@@ -108,10 +128,41 @@ fn respond(model: DemoModel, messages: &[Message], offered: &[String]) -> Result
     Ok(text_reply(&text))
 }
 
+/// Whether `question` (lowercase) asks to sort transactions.
+fn wants_sorting(question: &str) -> bool {
+    ["sort", "einsortier"]
+        .iter()
+        .any(|word| question.contains(word))
+}
+
+/// A change set for the search result `found`: a new category for the
+/// newest few entries that have one category or none, in the currency of
+/// the first. `None` when there is none, or when `found` isn't a search.
+fn sorting_proposal(found: &Value) -> Option<Value> {
+    let rows = found["rows"].as_array()?;
+    let movable: Vec<&Value> = rows
+        .iter()
+        .filter(|row| row.get("category").is_some() || row.get("unsorted").is_some())
+        .take(DEMO_MOVES)
+        .collect();
+    let currency = movable.first()?["currency"].clone();
+    let categorize: Vec<Value> = movable
+        .iter()
+        .filter(|row| row["currency"] == currency)
+        .map(|row| json!({"transaction_id": row["transaction_id"], "new_category": "sorted"}))
+        .collect();
+    Some(json!({
+        "new_categories": [{"key": "sorted", "name": DEMO_CATEGORY, "currency": currency}],
+        "categorize": categorize,
+    }))
+}
+
 /// The function for `question` (lowercase) and its arguments.
 fn choose(question: &str, today: &str) -> (&'static str, Value) {
     let has = |words: &[&str]| words.iter().any(|word| question.contains(word));
-    if has(&["spen", "categor", "month", "ausgab", "kategor", "monat"]) {
+    if wants_sorting(question) {
+        ("search_transactions", json!({"limit": 10}))
+    } else if has(&["spen", "categor", "month", "ausgab", "kategor", "monat"]) {
         let first = format!("{}01", today.get(..8).unwrap_or("2026-01-"));
         ("category_totals", json!({"from": first, "to": today}))
     } else if has(&[
@@ -151,6 +202,12 @@ fn describe(result: &Value) -> String {
     let mut parts = Vec::new();
     if let Some(code) = result["error"].as_str() {
         parts.push(format!("The function answered with the error {code}."));
+    }
+    if let Some(prepared) = result["prepared"].as_u64() {
+        parts.push(format!(
+            "I prepared {prepared} changes. They wait for your review; nothing is changed \
+             until you confirm them."
+        ));
     }
     let accounts: Vec<String> = list("accounts")
         .iter()
@@ -273,5 +330,29 @@ mod tests {
             choose("what is on my accounts?", "2026-10-25").0,
             "list_accounts"
         );
+        assert_eq!(
+            choose("sort my newest purchases", "2026-10-25").0,
+            "search_transactions"
+        );
+    }
+
+    #[test]
+    fn sorting_moves_only_entries_with_one_category_or_none() {
+        let found = json!({"rows": [
+            {"transaction_id": "a", "currency": "EUR", "category": "Food"},
+            {"transaction_id": "b", "currency": "EUR", "transfer": "Savings"},
+            {"transaction_id": "c", "currency": "EUR", "categories": ["Food", "Fun"]},
+            {"transaction_id": "d", "currency": "EUR", "unsorted": true},
+        ]});
+        let proposal = sorting_proposal(&found).expect("a proposal");
+        let moved: Vec<&str> = proposal["categorize"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|item| item["transaction_id"].as_str().unwrap())
+            .collect();
+        assert_eq!(moved, ["a", "d"]);
+        assert_eq!(proposal["new_categories"][0]["name"], DEMO_CATEGORY);
+        assert_eq!(sorting_proposal(&json!({"accounts": []})), None);
     }
 }

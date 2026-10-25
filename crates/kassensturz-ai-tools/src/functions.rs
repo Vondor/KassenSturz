@@ -114,7 +114,7 @@ pub struct Output {
 }
 
 impl Output {
-    fn new(result: Value, figures: Figures) -> Self {
+    pub(crate) fn new(result: Value, figures: Figures) -> Self {
         let mut value = Map::new();
         value.insert("note".into(), Value::from(DATA_NOTE));
         if let Value::Object(result) = result {

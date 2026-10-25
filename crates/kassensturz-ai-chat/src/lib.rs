@@ -42,7 +42,7 @@ mod log;
 mod prompt;
 mod session;
 
-pub use demo::{DEMO_ENV, DEMO_LABEL, DemoModel, INVENTED, demo_provider};
+pub use demo::{DEMO_CATEGORY, DEMO_ENV, DEMO_LABEL, DemoModel, INVENTED, demo_provider};
 pub use error::ChatError;
 pub use log::{LogEntry, MAX_ARGUMENT_CHARS};
 pub use prompt::{BuildInfo, DATA_END, DATA_START};

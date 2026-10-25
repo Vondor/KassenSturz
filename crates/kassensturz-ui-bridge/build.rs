@@ -11,6 +11,10 @@ use cxx_qt_build::{CxxQtBuilder, QmlFile, QmlModule};
 
 fn main() {
     println!(
+        "cargo:rustc-env=KASSENSTURZ_BUILD_VERSION={}",
+        build_version()
+    );
+    println!(
         "cargo:rustc-env=KASSENSTURZ_BUILD_COMMIT={}",
         build_commit()
     );
@@ -214,4 +218,42 @@ fn qmake_query(variable: &str) -> PathBuf {
         }
     }
     panic!("couldn't run qmake to find {variable}: set QMAKE to Qt 6's qmake");
+}
+
+/// The version of this build in D-152's form (D-226): the
+/// `KASSENSTURZ_VERSION` variable, the file `build-version` in the
+/// repository's top folder (CI writes it before the Flatpak build, as it does
+/// `build-commit`), `tools/build-version.sh`, and at last the version in
+/// `Cargo.toml`. A value that is not three numbers joined by points is left out.
+fn build_version() -> String {
+    println!("cargo:rerun-if-env-changed=KASSENSTURZ_VERSION");
+    println!("cargo:rerun-if-changed=../../build-version");
+    println!("cargo:rerun-if-changed=../../.git/HEAD");
+    let from_script = || {
+        let output = Command::new("sh")
+            .arg("../../tools/build-version.sh")
+            .output()
+            .ok()?;
+        output
+            .status
+            .success()
+            .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
+    };
+    let is_version = |text: &str| {
+        let parts: Vec<&str> = text.split('.').collect();
+        parts.len() == 3
+            && parts
+                .iter()
+                .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
+    };
+    [
+        std::env::var("KASSENSTURZ_VERSION").ok(),
+        std::fs::read_to_string("../../build-version").ok(),
+        from_script(),
+    ]
+    .into_iter()
+    .flatten()
+    .map(|text| text.trim().to_owned())
+    .find(|text| is_version(text))
+    .unwrap_or_else(|| std::env::var("CARGO_PKG_VERSION").unwrap_or_default())
 }

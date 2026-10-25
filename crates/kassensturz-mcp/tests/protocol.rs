@@ -22,7 +22,7 @@ use kassensturz_core::{AccountKind, Date};
 use kassensturz_store::Book;
 use serde_json::{Value, json};
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+const VERSION: &str = env!("KASSENSTURZ_BUILD_VERSION");
 const COMMIT: &str = env!("KASSENSTURZ_BUILD_COMMIT");
 
 fn golden(name: &str) -> PathBuf {

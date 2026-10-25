@@ -6,7 +6,7 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.261023.0"
+version = "0.261025.0"
 edition = "2024"
 # The Rust in the KDE Flatpak SDK's Rust extension, KassenSturz's one build
 # environment (D-063). Raised only deliberately, never as a side effect of a

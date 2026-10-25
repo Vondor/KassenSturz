@@ -559,11 +559,17 @@ jobs:
       image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11@sha256:b0a8a2acb9e420dd0e3e083ff552bea5a817e17e41532f1d2287ff49ef9aae0e
       options: --privileged
     steps:
+      # The whole history, since the build's number counts merges (D-226).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       # The Flatpak's copy of the sources has no .git, so the commit goes in a
       # file that build.rs reads; Settings then shows it next to the version.
       - name: Note the commit for the build
-        run: echo "${GITHUB_SHA}" | cut -c1-7 > build-commit
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          echo "${GITHUB_SHA}" | cut -c1-7 > build-commit
+          sh tools/build-version.sh > build-version
       # The builder's own folder is kept between runs with the same cache
       # action as Cargo's (D-110), not with the Flatpak action's built-in
       # cache: on main the built-in one did not bring back the last build

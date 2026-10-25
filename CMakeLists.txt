@@ -6,7 +6,7 @@
 
 cmake_minimum_required(VERSION 3.27)
 
-project(kassensturz VERSION 0.261023.0 LANGUAGES CXX)
+project(kassensturz VERSION 0.261025.0 LANGUAGES CXX)
 
 # The oldest versions that are tested: Qt 6.11 from the KDE Flatpak runtime
 # 6.11 (D-025, D-063), and KDE Frameworks 6.29, the version in Kubuntu 26.10,

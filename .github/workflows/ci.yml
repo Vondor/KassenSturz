@@ -8,6 +8,14 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request ends the run of the older commit, which nobody
+# reads any more (D-214). Pushes to main are never cancelled: each has its own
+# group (the run's ID), because a group with a waiting run would drop the older
+# one, and main's runs seed the caches and build the Flatpak people install.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # Order of work (D-110): the quick checks (REUSE, DCO, licenses, formatting) run
 # first and take about a minute, so the common mistakes show up before any slow
 # job has started; the slow jobs wait for them and then run side by side. A pull
@@ -150,14 +158,6 @@ jobs:
         run: tools/sdk.sh cargo test --workspace --locked
       - name: Tests with the system's SQLite instead of the bundled one (D-061)
         run: tools/sdk.sh cargo test --package kassensturz-store --no-default-features --locked
-      # The build without AI (D-039): lints and tests of every crate with the
-      # AI feature off, and a check that no AI crate is in what it builds.
-      - name: Lints, build without AI (D-039)
-        run: tools/sdk.sh cargo clippy --workspace --all-targets --no-default-features --features bundled-sqlite --locked -- -D warnings
-      - name: Tests, build without AI (D-039)
-        run: tools/sdk.sh cargo test --workspace --no-default-features --features bundled-sqlite --locked
-      - name: The build without AI holds no AI crate (D-039)
-        run: tools/sdk.sh tools/check-no-ai.sh
       - name: Translations are valid, complete and current (D-126)
         run: tools/sdk.sh tools/check-translations.sh
       # Saved even when a check failed, so the next push doesn't start cold.
@@ -170,6 +170,59 @@ jobs:
             .sdk-cache/cargo/git
             target
           key: cargo-kde-sdk-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+
+  # The build without AI (D-039): lints and tests of every crate with the AI
+  # feature off, and a check that no AI crate is in what it builds. It is a job
+  # of its own so that it runs beside the KDE job and not after it (D-214); the
+  # KDE job keeps its name, the new check is "Build without AI (D-039)". Its
+  # Cargo cache has a name of its own, because the two builds don't share
+  # compiled crates.
+  no-ai:
+    name: Build without AI (D-039)
+    runs-on: ubuntu-latest
+    needs: [changes, reuse, dco, licenses, fmt]
+    if: needs.changes.outputs.code == 'true'
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11@sha256:b0a8a2acb9e420dd0e3e083ff552bea5a817e17e41532f1d2287ff49ef9aae0e
+      options: --privileged
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the Rust SDK extension
+        run: flatpak install -y --noninteractive flathub org.freedesktop.Sdk.Extension.rust-stable//25.08
+      - name: Set up Cargo's cache
+        id: rustc
+        run: |
+          mkdir -p .sdk-cache/cargo
+          printf '[build]\nincremental = false\n' > .sdk-cache/cargo/config.toml
+          echo "version=$(tools/sdk.sh rustc --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+      - name: Restore Cargo's cache
+        id: cargo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .sdk-cache/cargo/registry
+            .sdk-cache/cargo/git
+            target
+          key: cargo-kde-sdk-no-ai-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-kde-sdk-no-ai-${{ steps.rustc.outputs.version }}-
+      - name: Give the checkout to the container's user
+        run: chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+      - name: Lints, build without AI (D-039)
+        run: tools/sdk.sh cargo clippy --workspace --all-targets --no-default-features --features bundled-sqlite --locked -- -D warnings
+      - name: Tests, build without AI (D-039)
+        run: tools/sdk.sh cargo test --workspace --no-default-features --features bundled-sqlite --locked
+      - name: The build without AI holds no AI crate (D-039)
+        run: tools/sdk.sh tools/check-no-ai.sh
+      # Saved even when a check failed, so the next push doesn't start cold.
+      - name: Save Cargo's cache
+        if: ${{ !cancelled() && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .sdk-cache/cargo/registry
+            .sdk-cache/cargo/git
+            target
+          key: cargo-kde-sdk-no-ai-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
 
   # Windows is the next platform after KDE Plasma and GNOME (D-006). Qt and
   # KDE Frameworks aren't set up on this runner yet, so it covers everything
@@ -430,7 +483,11 @@ jobs:
           HOME="$PWD/build/mcp-home" XDG_CONFIG_HOME="$PWD/build/mcp-home/.config" \
             build/stage/usr/bin/kassensturz-mcp < /dev/null || status=$?
           test "$status" -eq 2
+      # The same Rust tests run on Kubuntu on every pull request; here they run
+      # on main only, since this job adds Fedora's libraries, which the build,
+      # the install and the start above already try (D-214).
       - name: Tests, with the system's SQLite
+        if: github.event_name == 'push'
         run: cargo test --workspace --no-default-features --features ai --locked
         env:
           QMAKE: /usr/bin/qmake6
@@ -486,8 +543,13 @@ jobs:
           manifest-path: packaging/flatpak/io.github.vondor.KassenSturz.yml
           bundle: KassenSturz.flatpak
           # Stable across commits, so Cargo's source downloads are reused; it
-          # changes with the manifest and cargo-sources.json (D-110).
-          cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/**') }}
+          # changes with the manifest and cargo-sources.json (D-110). When
+          # its own key has no cache, the action restores the newest cache
+          # whose name starts with `flatpak-builder-x86_64`, and it appends the
+          # architecture to the key it is given, so the key starts with that
+          # name: a changed cargo-sources.json then starts from the last build
+          # and rebuilds only what changed, not everything (D-214).
+          cache-key: flatpak-builder-x86_64-${{ hashFiles('packaging/flatpak/**') }}
       # Installed from the bundle that people get, since a catalog in the build
       # but not in the bundle left the Flatpak in English on a German system
       # (D-128).

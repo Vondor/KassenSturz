@@ -19,6 +19,11 @@
 //! also carries the [`Figures`] it holds, so that [`check_numbers`] can flag
 //! every number in a model's answer that no function produced (threat T-26).
 //!
+//! A model can also prepare changes, never make them: [`propose`] turns its
+//! call of [`PROPOSE_CHANGES`] into a [`ChangeSet`] the user reviews, and
+//! only [`ChangeSet::apply`] with the user's [`Confirmed`] changes the book,
+//! as one change one undo takes back (D-171, D-198 to D-201).
+//!
 //! The chat (`kassensturz-ai`, D-047) and the MCP server (`kassensturz-mcp`,
 //! D-050) both use this crate, so the two ways in can never differ. Neither
 //! this crate nor its callers run while AI is off: the callers check the
@@ -27,6 +32,8 @@
 
 #![forbid(unsafe_code)]
 
+#[cfg(feature = "ai")]
+mod changes;
 #[cfg(feature = "ai")]
 mod error;
 #[cfg(feature = "ai")]
@@ -40,6 +47,11 @@ mod text;
 #[cfg(feature = "ai")]
 mod writer;
 
+#[cfg(feature = "ai")]
+pub use changes::{
+    Categorize, ChangeError, ChangeSet, Confirmed, MAX_CHANGES, NewCategory, NewRule,
+    PROPOSE_CHANGES, Proposal, ProposedChange, propose,
+};
 #[cfg(feature = "ai")]
 pub use error::ToolError;
 #[cfg(feature = "ai")]

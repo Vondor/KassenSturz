@@ -8,7 +8,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use kassensturz_ai::{AiError, Finish, FunctionSpec, Message, PreparedRequest, Provider, ToolCall};
-use kassensturz_ai_tools::{FUNCTIONS, Figures, ToolError, Unverified, check_numbers};
+use kassensturz_ai_tools::{
+    ChangeSet, FUNCTIONS, Figures, PROPOSE_CHANGES, ToolError, Unverified, check_numbers, propose,
+};
 use kassensturz_core::{Date, ErrorParam, ErrorReport, Report};
 use kassensturz_platform::Secret;
 use kassensturz_store::Book;
@@ -54,6 +56,10 @@ pub struct Answer {
     pub finish: Finish,
     /// How the model got its figures.
     pub mode: Mode,
+    /// The changes the model prepared for this question, in the order it
+    /// called `propose_changes`, for the user to review (D-171, D-199).
+    /// Nothing in them is applied: only the review screen's confirm does.
+    pub changes: Vec<ChangeSet>,
 }
 
 /// What the front end does while a question runs. Every method has a
@@ -126,6 +132,8 @@ pub struct ChatSession {
     /// Every figure the functions, the user and the build produced so far.
     figures: Figures,
     log: Vec<LogEntry>,
+    /// The change sets the model prepared for the question under way.
+    proposed: Vec<ChangeSet>,
 }
 
 impl ChatSession {
@@ -141,6 +149,7 @@ impl ChatSession {
             history: Vec::new(),
             figures,
             log: Vec::new(),
+            proposed: Vec::new(),
         }
     }
 
@@ -207,6 +216,7 @@ impl ChatSession {
         );
         self.figures.add_text(question);
         self.history.push(Message::user(question));
+        self.proposed.clear();
         let mut overview = None;
         if self.mode == Mode::Overview {
             overview = Some(self.overview(book, today)?);
@@ -275,6 +285,7 @@ impl ChatSession {
                     unverified,
                     finish: reply.finish,
                     mode: self.mode,
+                    changes: std::mem::take(&mut self.proposed),
                 });
             }
             self.history
@@ -309,7 +320,17 @@ impl ChatSession {
             .map_err(|_| ToolError::BadArgument {
                 argument: "arguments",
             })
-            .and_then(|arguments| kassensturz_ai_tools::call(book, &call.name, &arguments, today));
+            .and_then(|arguments| {
+                if call.name == PROPOSE_CHANGES.name {
+                    // Prepared for the user, never applied here (T-27).
+                    propose(book, &arguments).map(|proposal| {
+                        self.proposed.push(proposal.changes);
+                        proposal.output
+                    })
+                } else {
+                    kassensturz_ai_tools::call(book, &call.name, &arguments, today)
+                }
+            });
         let (result, error) = match outcome {
             Ok(output) => {
                 self.figures.extend(&output.figures);
@@ -346,6 +367,7 @@ impl ChatSession {
     }
 }
 
+<<<<<<< HEAD
 /// The first request of a question, as the provider would get it for
 /// `question` asked without any earlier conversation, but with nothing
 /// sent: the screens show it as an example of what a request holds
@@ -367,9 +389,14 @@ pub fn sample_request(
 }
 
 /// The read functions, as the provider gets them.
+=======
+/// The read functions and the one that prepares changes, as the provider
+/// gets them.
+>>>>>>> origin/main
 fn function_specs() -> Vec<FunctionSpec> {
     FUNCTIONS
         .iter()
+        .chain([&PROPOSE_CHANGES])
         .map(|function| FunctionSpec {
             name: function.name.to_owned(),
             description: function.description.to_owned(),
@@ -405,8 +432,9 @@ mod tests {
     #[test]
     fn every_function_is_offered_with_its_parameters() {
         let specs = function_specs();
-        assert_eq!(specs.len(), FUNCTIONS.len());
-        for (spec, function) in specs.iter().zip(FUNCTIONS) {
+        assert_eq!(specs.len(), FUNCTIONS.len() + 1);
+        assert_eq!(specs[FUNCTIONS.len()].name, PROPOSE_CHANGES.name);
+        for (spec, function) in specs.iter().zip(FUNCTIONS.iter().chain([&PROPOSE_CHANGES])) {
             assert_eq!(spec.name, function.name);
             assert_eq!(
                 spec.parameters,

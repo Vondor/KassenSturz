@@ -170,6 +170,12 @@ Kirigami.ApplicationWindow {
         id: aiSwitch
     }
 
+    // The provider and the consent (M5.7); the screens that use it hide
+    // behind the switch.
+    AiSettings {
+        id: aiSettings
+    }
+
     // When the overview reminds the user to get new transactions (D-180).
     FetchGapSettings {
         id: fetchGapSettings
@@ -789,6 +795,16 @@ Kirigami.ApplicationWindow {
             onSaveCopyClicked: root.pushPage(exportPage)
             onBookFromFileClicked: root.chooseFileForNewBook()
             onShowHistoryClicked: root.pushPage(historyPage)
+            onAiSettingsClicked: root.pushPage(aiSettingsPage)
+        }
+    }
+
+    Component {
+        id: aiSettingsPage
+
+        AiSettingsPage {
+            ai: aiSwitch
+            settings: aiSettings
         }
     }
 

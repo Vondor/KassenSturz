@@ -41,6 +41,9 @@ FormCard.FormCardPage {
     signal saveCopyClicked()
     signal bookFromFileClicked()
     signal showHistoryClicked()
+    // The user wants the page of the provider and of what is sent; only
+    // offered while the switch is on.
+    signal aiSettingsClicked()
     signal connectBankClicked()
     // The user wants to change this login (an object from bank.logins()).
     signal changeBankClicked(var login)
@@ -539,6 +542,11 @@ FormCard.FormCardPage {
         text: page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice. Check that your settings folder can be written to, then try again.")
     }
     // ai-toggle-end
+
+    AiSettingsEntry {
+        ai: page.ai
+        onOpenClicked: page.aiSettingsClicked()
+    }
 
     FormCard.FormHeader {
         title: page.i18nContext.i18nc("@title:group", "How amounts look")

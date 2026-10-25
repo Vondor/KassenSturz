@@ -1,0 +1,11 @@
+SerpentSoftware logo license
+
+Copyright 2026 SerpentSoftware. All rights reserved.
+
+The SerpentSoftware logo (the marks under docs/branding/) is not free
+software and is not covered by this project's other licenses. You may show it
+unmodified, together with KassenSturz and to say that SerpentSoftware
+publishes KassenSturz: in this repository, in packages and listings of
+KassenSturz, and in discussion of it. You may not use it for another project
+or product, change it, or suggest that SerpentSoftware endorses something it
+does not publish, without written permission from SerpentSoftware.

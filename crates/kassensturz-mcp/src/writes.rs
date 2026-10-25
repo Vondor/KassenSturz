@@ -378,6 +378,26 @@ mod tests {
     }
 
     #[test]
+    fn every_code_of_the_write_tools_is_documented() {
+        let list = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/ERROR_CODES.md"),
+        )
+        .expect("the list of error codes");
+        // This module's, the request folder's (`bad-request`) and the
+        // window's (`dropped`).
+        for code in [
+            "mcp-writes.off",
+            "mcp-writes.folder",
+            "mcp-writes.app-not-running",
+            "mcp-writes.unknown-request",
+            "mcp-writes.bad-request",
+            "mcp-writes.dropped",
+        ] {
+            assert!(list.contains(&format!("| `{code}` |")), "{code}");
+        }
+    }
+
+    #[test]
     fn only_known_codes_reach_the_ai_tool() {
         assert_eq!(
             known_code("ai-changes.out-of-date"),

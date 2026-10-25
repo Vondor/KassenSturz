@@ -1,0 +1,9 @@
+[
+  {
+    "error": {
+      "code": 400,
+      "message": "API key not valid. Please pass a valid API key. (sk-test-0000-made-up-key)",
+      "status": "INVALID_ARGUMENT"
+    }
+  }
+]

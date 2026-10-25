@@ -1,0 +1,20 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Everyday Checking has 5531.90 EUR."
+      }
+    }
+  ],
+  "created": 1761400000,
+  "model": "gemini-test",
+  "object": "chat.completion",
+  "usage": {
+    "completion_tokens": 12,
+    "prompt_tokens": 120,
+    "total_tokens": 132
+  }
+}

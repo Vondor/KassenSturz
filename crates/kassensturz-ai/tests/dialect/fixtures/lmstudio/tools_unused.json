@@ -1,0 +1,24 @@
+{
+  "id": "chatcmpl-test9x8y7z6w5v4u",
+  "object": "chat.completion",
+  "created": 1761400000,
+  "model": "qwen-test-7b",
+  "choices": [
+    {
+      "index": 0,
+      "logprobs": null,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "I don't have access to your accounts."
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 120,
+    "completion_tokens": 12,
+    "total_tokens": 132
+  },
+  "stats": {},
+  "system_fingerprint": "qwen-test-7b"
+}

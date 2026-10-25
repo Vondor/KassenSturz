@@ -69,3 +69,13 @@ SPDX-License-Identifier = "CC0-1.0"
 path = ["crates/kassensturz-mcp/tests/golden/**"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"
+
+# What the AI providers answer in the dialect tests, written by hand from
+# their public documentation with made-up data (M5.11, D-206).
+[[annotations]]
+path = [
+  "crates/kassensturz-ai/tests/dialect/fixtures/**/*.json",
+  "crates/kassensturz-ai/tests/dialect/fixtures/*.txt",
+]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC0-1.0"

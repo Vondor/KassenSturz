@@ -8809,6 +8809,12 @@ msgctxt "@label the version of KassenSturz that is running"
 msgid "Version"
 msgstr "Version"
 
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:807
+#, kde-format
+msgctxt "@action:button opens the project's web page in the browser"
+msgid "Project page on GitHub"
+msgstr "Projektseite auf GitHub"
+
 #: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:75
 #, kde-format
 msgctxt "@title"

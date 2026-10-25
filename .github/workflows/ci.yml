@@ -240,10 +240,36 @@ jobs:
         run: |
           rustup toolchain install 1.98.1 --profile minimal --component clippy
           rustup default 1.98.1
+      # Cargo's downloads and build output are kept between runs, per Rust
+      # release and Cargo.lock, as in the Linux jobs (D-110). The build
+      # output is large here: the AI crates bring AWS-LC (M5.W).
+      - name: Restore Cargo's cache
+        id: cargo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-windows-1.98.1-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-windows-1.98.1-
       - name: Lints
         run: cargo clippy --workspace --exclude kassensturz-ui-bridge --all-targets --locked -- -D warnings
+        env:
+          CARGO_INCREMENTAL: "0"
       - name: Tests
         run: cargo test --workspace --exclude kassensturz-ui-bridge --locked
+        env:
+          CARGO_INCREMENTAL: "0"
+      - name: Save Cargo's cache
+        if: ${{ !cancelled() && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-windows-1.98.1-${{ hashFiles('Cargo.lock') }}
 
   # macOS is the last platform in D-006's order and has no official packages
   # until its signing is funded (D-048), but a macOS-only problem is cheaper to

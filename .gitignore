@@ -11,6 +11,7 @@ Cargo.lock.bak
 
 # The commit id CI writes before the Flatpak build (crates/kassensturz-ui-bridge/build.rs)
 /build-commit
+/build-version
 
 # flatpak-builder's state
 /.flatpak-builder/

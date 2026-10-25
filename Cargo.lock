@@ -1387,7 +1387,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-ai"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "jiff",
  "kassensturz-core",
@@ -1400,7 +1400,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-ai-chat"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "kassensturz-ai",
  "kassensturz-ai-tools",
@@ -1414,7 +1414,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-ai-tools"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "kassensturz-core",
  "kassensturz-import",
@@ -1428,14 +1428,14 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-aqbanking-stub"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "kassensturz-aqbanking-sys",
 ]
 
 [[package]]
 name = "kassensturz-aqbanking-sys"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "kassensturz-aqbanking-sys",
  "libloading",
@@ -1444,7 +1444,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-bank"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "kassensturz-aqbanking-sys",
  "kassensturz-core",
@@ -1457,7 +1457,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-cli"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "kassensturz-core",
  "kassensturz-export",
@@ -1469,7 +1469,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-core"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "jiff",
  "proptest",
@@ -1480,7 +1480,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-export"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "kassensturz-core",
  "proptest",
@@ -1490,7 +1490,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-import"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "flate2",
  "kassensturz-core",
@@ -1501,7 +1501,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-mcp"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "jiff",
  "kassensturz-ai-tools",
@@ -1514,7 +1514,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-pipeline"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "kassensturz-core",
  "kassensturz-export",
@@ -1524,7 +1524,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-platform"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "base64",
  "crypto_box",
@@ -1536,7 +1536,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-store"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "kassensturz-core",
  "rusqlite",
@@ -1545,7 +1545,7 @@ dependencies = [
 
 [[package]]
 name = "kassensturz-ui-bridge"
-version = "0.261023.0"
+version = "0.261025.0"
 dependencies = [
  "cxx",
  "cxx-qt",

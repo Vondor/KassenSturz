@@ -28,7 +28,7 @@ pub(crate) const SWITCHED_OFF: &str = "error: AI features are switched off. Swit
     KassenSturz's settings first; this program does not run while they are off.";
 
 /// The version this build was made as (D-152).
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+const VERSION: &str = env!("KASSENSTURZ_BUILD_VERSION");
 
 /// The commit this build was made from, empty when the build didn't know.
 const COMMIT: &str = env!("KASSENSTURZ_BUILD_COMMIT");

@@ -76,7 +76,7 @@ SPDX-License-Identifier: CC0-1.0
   <url type="donation">https://buymeacoffee.com/fdrywa</url>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="0.261023.0" date="2026-10-23">
+    <release version="0.261025.0" date="2026-10-25">
       <description>
         <p>Early test build.</p>
         <p xml:lang="de">Frühe Testversion.</p>

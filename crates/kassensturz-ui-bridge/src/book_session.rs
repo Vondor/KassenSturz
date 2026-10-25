@@ -309,10 +309,11 @@ pub(crate) fn local_path(url: &QUrl) -> Option<PathBuf> {
     (!path.is_empty()).then(|| PathBuf::from(path))
 }
 
-/// The version the app was built as (D-152): the one in `Cargo.toml`, which
-/// the build files carry too, so Settings never shows a number typed by hand.
+/// The version the app was built as (D-152, D-226): the build date and the
+/// number of the merge, worked out by the build from git, so Settings never
+/// shows a number typed by hand. `Cargo.toml` has the last prepared build.
 pub(crate) fn app_version() -> &'static str {
-    env!("CARGO_PKG_VERSION")
+    env!("KASSENSTURZ_BUILD_VERSION")
 }
 
 /// What Settings shows: the version, and the commit the build is made from

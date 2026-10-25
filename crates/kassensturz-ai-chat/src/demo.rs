@@ -160,8 +160,16 @@ fn sorting_proposal(found: &Value) -> Option<Value> {
 /// The function for `question` (lowercase) and its arguments.
 fn choose(question: &str, today: &str) -> (&'static str, Value) {
     let has = |words: &[&str]| words.iter().any(|word| question.contains(word));
-    if wants_sorting(question) {
-        ("search_transactions", json!({"limit": 10}))
+    if question.contains("list_rules") {
+        // The Rules button's question.
+        ("list_rules", json!({}))
+    } else if wants_sorting(question) {
+        // The button's question asks for entries without a category.
+        let open = question.contains("unsorted_only");
+        (
+            "search_transactions",
+            json!({"limit": 10, "unsorted_only": open}),
+        )
     } else if has(&["spen", "categor", "month", "ausgab", "kategor", "monat"]) {
         let first = format!("{}01", today.get(..8).unwrap_or("2026-01-"));
         ("category_totals", json!({"from": first, "to": today}))

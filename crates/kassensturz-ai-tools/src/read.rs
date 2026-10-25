@@ -323,6 +323,9 @@ pub(crate) struct Search {
     pub(crate) from: Option<Date>,
     pub(crate) to: Option<Date>,
     pub(crate) limit: usize,
+    /// Only transactions with a part that has no account yet, i.e. no
+    /// category (the row's `unsorted`).
+    pub(crate) unsorted_only: bool,
 }
 
 /// Whether `transaction` or its part `part` holds `text`, ignoring case.
@@ -363,6 +366,14 @@ pub(crate) fn search_transactions(
     // (date, transaction, part): every entry of an account that matches.
     let mut found: Vec<(Date, &Transaction, &Split, &Account)> = Vec::new();
     for transaction in &transactions {
+        if search.unsorted_only
+            && !transaction
+                .splits()
+                .iter()
+                .any(|split| split.account.is_none())
+        {
+            continue;
+        }
         if let Some(categories) = &categories
             && !transaction
                 .splits()

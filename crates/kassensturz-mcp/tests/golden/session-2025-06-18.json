@@ -117,7 +117,7 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
-            "description": "Finds entries in the user's accounts, newest first, one row per account an entry is in, with the amount as seen from that account (money in positive, money out negative), the payee, memo and bank text, and the category, the other account of a transfer, or \"unsorted\": true. Returns how many matched in all and at most \"limit\" rows. All filters are optional and combine.",
+            "description": "Finds entries in the user's accounts, newest first, one row per account an entry is in, with the amount as seen from that account (money in positive, money out negative), the payee, memo and bank text, and the category, the other account of a transfer, or \"unsorted\": true. Returns how many matched in all and at most \"limit\" rows. All filters are optional and combine. With \"unsorted_only\" only entries not sorted into a category yet are found.",
             "inputSchema": {
               "additionalProperties": false,
               "properties": {
@@ -149,6 +149,10 @@
                   "description": "Last booking day, YYYY-MM-DD.",
                   "format": "date",
                   "type": "string"
+                },
+                "unsorted_only": {
+                  "description": "Only entries that have no category yet. Default false.",
+                  "type": "boolean"
                 }
               },
               "type": "object"

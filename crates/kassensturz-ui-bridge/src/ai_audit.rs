@@ -190,13 +190,14 @@ mod tests {
         assert!(uses >= 4, "the key field's uses weren't found");
     }
 
-    /// The key typed for one question goes to `ask` and nowhere else
-    /// (D-211, threat T-25).
+    /// The key typed for one question goes to `ask` or `askFeature` (the
+    /// same question, worded by a button, D-222) and nowhere else (D-211,
+    /// threat T-25).
     #[test]
     fn the_chats_key_field_is_a_secret_field_and_its_text_goes_only_to_ask() {
         let panel = qml("AiChatPanel.qml");
         assert!(panel.contains("SecretField {\n        id: keyField"));
-        let allowed = ["chat.ask(", "keyField.text = \"\""];
+        let allowed = ["chat.ask(", "chat.askFeature(", "keyField.text = \"\""];
         let mut uses = 0;
         for (number, line) in panel.lines().enumerate() {
             if line.trim_start().starts_with("//") || !line.contains("keyField.text") {
@@ -209,7 +210,8 @@ mod tests {
                 number + 1
             );
         }
-        assert_eq!(uses, 2, "the key field's uses weren't found");
+        // `ask` and `askFeature`, each with the field cleared after it.
+        assert_eq!(uses, 4, "the key field's uses weren't found");
     }
 
     /// The sidebar and its toggles show only while AI is on (D-013, D-210),

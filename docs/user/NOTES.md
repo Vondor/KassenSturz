@@ -238,6 +238,15 @@ What the user sees and does, step by step, and the messages they can meet. Each 
   - **Your card reader**, for banks where you log in with your bank card in a card reader.
 - It still can't see your files: the book lives in KassenSturz's own folder.
 
+## One-press questions in the chat (M5.9)
+
+- Once you have chosen an AI, the chat sidebar has three buttons above the question box: **Suggest categories**, **Explain this month** and **Prepare Rules**. Each asks a fixed question, so you don't have to word it. They are hidden together with everything else about the AI while the AI is off.
+- **Suggest categories** looks at the transactions that have no category yet and prepares a category for each one where the payee or text makes it clear. On an account's list of transactions, the same button is in the action bar and looks only at that account. It prepares suggested changes; nothing is applied before you have read them and pressed **Confirm and make these changes**, and Undo takes them back.
+- **Explain this month** tells in plain words what came in and what went out this month so far, where most of it went, and how that compares with last month. Every amount comes from your book; an amount the AI wrote that KassenSturz did not produce is named under the answer. It gives no advice.
+- **Prepare Rules** looks at the payees that come back again and again and prepares Rules for them, without repeating Rules you already have. They are suggested changes too.
+- Each button asks the same way you would: what is sent, and what the AI looked at, is in the tab "What the AI looked at", and a provider on another computer shows you each request first.
+- **In German:** *Kategorien vorschlagen*, *Diesen Monat erklären*, *Regeln vorbereiten*.
+
 ## Plain language and German for bank connections (M4.9)
 
 - **Bank problems say what happened and what to do.** Every problem with the bank has its own message on the screen, e.g. "Your bank's server couldn't be reached. Check your internet connection and the bank's address, and try again later." or "Your bank says the PIN is wrong. KassenSturz has forgotten it, so it won't be sent again. Check it and type it again; after a few wrong PINs a bank blocks the login." One that was missing now exists: if your bank no longer lists the bank account an account is linked to, the account says "Your bank doesn't list the bank account this account is linked to for this login anymore. Link the account to another bank account, or connect the bank again in Settings." A test checks that no bank problem is left without a message.

@@ -369,6 +369,11 @@ fn a_call_outside_the_list_or_its_arguments_is_refused() {
             json!({ "text": "corner", "limit": 50 }),
             "ok",
         ),
+        (
+            "search_transactions",
+            json!({ "unsorted_only": "yes" }),
+            "ai-tools.bad-argument unsorted_only",
+        ),
         ("list_rules", Value::Null, "ok"),
     ] {
         assert_eq!(code(name, arguments), expected, "{name}");
@@ -379,4 +384,36 @@ fn a_call_outside_the_list_or_its_arguments_is_refused() {
             argument: "arguments"
         })
     ));
+}
+
+/// M5.9: "category suggestions" look only at entries without a category,
+/// found by the same notion the search rows show as `unsorted`.
+#[test]
+fn a_search_can_look_only_at_entries_without_a_category() {
+    let (mut book, ids) = guarded_book();
+    let open = Transaction::new(
+        TransactionId::generate(),
+        Date::constant(2026, 10, 5),
+        Some("Open Payee".to_owned()),
+        vec![
+            Split::new(ids.checking, eur(-1_250)),
+            Split::uncategorized(eur(1_250)),
+        ],
+    )
+    .expect("a transaction");
+    book.add_transaction(&open).expect("added");
+
+    let all = call(&book, "search_transactions", &json!({}), TODAY).expect("all");
+    let open_only = call(
+        &book,
+        "search_transactions",
+        &json!({ "unsorted_only": true }),
+        TODAY,
+    )
+    .expect("only the open ones");
+    assert_eq!(all.value["matches"], json!(2), "{}", all.value);
+    let rows = open_only.value["rows"].as_array().expect("rows");
+    assert_eq!(rows.len(), 1, "{}", open_only.value);
+    assert_eq!(rows[0]["unsorted"], json!(true));
+    assert_eq!(rows[0]["transaction_id"], json!(open.id().to_string()));
 }

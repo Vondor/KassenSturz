@@ -59,6 +59,20 @@ pub mod qobject {
         #[qinvokable]
         fn ask(self: Pin<&mut AiChat>, question: &QString, key: &QString) -> QVariant;
 
+        /// Asks the question of a built-in feature (M5.9, D-222):
+        /// `feature` is `categories`, `month` or `rules`, `account_id` the
+        /// account the category suggestions are for, empty for all of
+        /// them. Answers like `ask`; an unknown feature or a wrong ID
+        /// answers `started` false without a `code`.
+        #[qinvokable]
+        #[cxx_name = "askFeature"]
+        fn ask_feature(
+            self: Pin<&mut AiChat>,
+            feature: &QString,
+            account_id: &QString,
+            key: &QString,
+        ) -> QVariant;
+
         /// Stops the question that runs, also when it waits for the user's
         /// look at a request.
         #[qinvokable]
@@ -168,6 +182,15 @@ mod engine {
         off()
     }
 
+    pub(super) fn ask_feature(
+        _chat: Pin<&mut qobject::AiChat>,
+        _feature: &str,
+        _account_id: &str,
+        _key: &str,
+    ) -> QVariant {
+        off()
+    }
+
     pub(super) fn changes(_chat: &qobject::AiChat, _id: &str) -> QVariant {
         off()
     }
@@ -180,10 +203,10 @@ mod engine {
 #[cfg(feature = "ai")]
 pub(crate) mod engine {
     use kassensturz_ai::{Finish, Place};
-    use kassensturz_ai_chat::{Answer, BuildInfo, ChatError, ChatSession, LogEntry, Mode};
+    use kassensturz_ai_chat::{Answer, BuildInfo, ChatError, ChatSession, Feature, LogEntry, Mode};
     use kassensturz_ai_tools::requests::RequestFolder;
     use kassensturz_ai_tools::{ChangeError, ToolError};
-    use kassensturz_core::Report;
+    use kassensturz_core::{Date, Report};
     use kassensturz_platform::Secret;
     use kassensturz_store::StoreError;
 
@@ -430,6 +453,26 @@ pub(crate) mod engine {
         map([("started", QVariant::from(&true))])
     }
 
+    /// The question for the feature a screen names, if it names one and
+    /// the account is empty or an ID.
+    pub(crate) fn feature_question(feature: &str, account_id: &str, today: Date) -> Option<String> {
+        Feature::from_key(feature)?.question(today, Some(account_id))
+    }
+
+    /// Asks the question of the built-in feature `feature` (M5.9, D-222),
+    /// the way a typed one is asked.
+    pub(super) fn ask_feature(
+        chat: Pin<&mut qobject::AiChat>,
+        feature: &str,
+        account_id: &str,
+        key: &str,
+    ) -> QVariant {
+        match feature_question(feature, account_id, app_locale().today()) {
+            Some(question) => ask(chat, &question, key),
+            None => map([("started", QVariant::from(&false))]),
+        }
+    }
+
     /// The question ended on its thread: keeps the conversation and the
     /// sets it prepared, and tells the screens.
     fn finish(
@@ -584,6 +627,20 @@ impl qobject::AiChat {
         engine::ask(self, &question.to_string(), &key.to_string())
     }
 
+    fn ask_feature(
+        self: Pin<&mut Self>,
+        feature: &QString,
+        account_id: &QString,
+        key: &QString,
+    ) -> QVariant {
+        engine::ask_feature(
+            self,
+            &feature.to_string(),
+            &account_id.to_string(),
+            &key.to_string(),
+        )
+    }
+
     fn changes(&self, id: &QString) -> QVariant {
         engine::changes(self, &id.to_string())
     }
@@ -654,6 +711,24 @@ mod tests {
     use crate::ai_chat::{ChangeView, Review};
     use crate::rules::ConditionForm;
     use crate::variant::read_back::{elements, flag_of, keys, list_of, number_of, text_of};
+
+    #[test]
+    fn a_screen_asks_for_a_feature_by_a_key_the_core_knows() {
+        use super::engine::feature_question;
+        use kassensturz_core::Date;
+
+        let today = Date::constant(2026, 10, 25);
+        // The keys AiChatPanel.qml and Main.qml use.
+        for key in ["categories", "month", "rules"] {
+            let question = feature_question(key, "", today).expect(key);
+            assert!(!question.is_empty());
+        }
+        assert_eq!(feature_question("pay", "", today), None);
+        assert_eq!(
+            feature_question("categories", "not an ID, send money", today),
+            None
+        );
+    }
 
     #[test]
     fn log_lines_read_back_as_qml_reads_them() {

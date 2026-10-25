@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 # A new push to a pull request ends the run of the older commit, which nobody
-# reads any more (D-214). Pushes to main are never cancelled: each has its own
+# reads any more (D-220). Pushes to main are never cancelled: each has its own
 # group (the run's ID), because a group with a waiting run would drop the older
 # one, and main's runs seed the caches and build the Flatpak people install.
 concurrency:
@@ -173,7 +173,7 @@ jobs:
 
   # The build without AI (D-039): lints and tests of every crate with the AI
   # feature off, and a check that no AI crate is in what it builds. It is a job
-  # of its own so that it runs beside the KDE job and not after it (D-214); the
+  # of its own so that it runs beside the KDE job and not after it (D-220); the
   # KDE job keeps its name, the new check is "Build without AI (D-039)". Its
   # Cargo cache has a name of its own, because the two builds don't share
   # compiled crates.
@@ -485,7 +485,7 @@ jobs:
           test "$status" -eq 2
       # The same Rust tests run on Kubuntu on every pull request; here they run
       # on main only, since this job adds Fedora's libraries, which the build,
-      # the install and the start above already try (D-214).
+      # the install and the start above already try (D-220).
       - name: Tests, with the system's SQLite
         if: github.event_name == 'push'
         run: cargo test --workspace --no-default-features --features ai --locked
@@ -548,7 +548,7 @@ jobs:
           # whose name starts with `flatpak-builder-x86_64`, and it appends the
           # architecture to the key it is given, so the key starts with that
           # name: a changed cargo-sources.json then starts from the last build
-          # and rebuilds only what changed, not everything (D-214).
+          # and rebuilds only what changed, not everything (D-220).
           cache-key: flatpak-builder-x86_64-${{ hashFiles('packaging/flatpak/**') }}
       # Installed from the bundle that people get, since a catalog in the build
       # but not in the bundle left the Flatpak in English on a German system

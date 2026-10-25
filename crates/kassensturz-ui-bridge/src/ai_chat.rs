@@ -23,6 +23,7 @@ use kassensturz_ai::PreparedRequest;
 use kassensturz_ai_chat::{
     Answer, Cancel, ChatError, ChatSession, DemoModel, Hooks, LogEntry, demo_provider,
 };
+use kassensturz_ai_tools::requests::RequestId;
 use kassensturz_ai_tools::{ChangeError, ChangeSet, Confirmed, ProposedChange, ToolError};
 use kassensturz_core::{Date, ErrorParam, ErrorReport, MatchMode, Rule};
 use kassensturz_platform::Secret;
@@ -219,34 +220,58 @@ pub fn code_text(report: &ErrorReport) -> ErrorText {
 }
 
 /// The change sets a model prepared that the user has not yet confirmed or
-/// discarded, by the ID the screens use for them.
+/// discarded, by the ID the screens use for them: the chat's, and those the
+/// user's own AI tools sent (M5.10, D-218).
 #[derive(Debug, Default)]
 pub struct Sets {
-    sets: HashMap<u64, ChangeSet>,
+    sets: HashMap<u64, Waiting>,
     next: u64,
 }
 
+/// A set that waits for the user, and the request it came with, if one of
+/// the user's own AI tools sent it.
+#[derive(Debug)]
+pub struct Waiting {
+    /// The set.
+    pub set: ChangeSet,
+    /// The request to answer once the user has decided.
+    pub from: Option<RequestId>,
+}
+
 impl Sets {
-    /// Keeps `set` for review; returns its ID.
+    /// Keeps `set` from the chat for review; returns its ID.
     pub fn add(&mut self, set: ChangeSet) -> u64 {
+        self.keep(set, None)
+    }
+
+    /// Keeps `set` from the request `from` for review; returns its ID.
+    pub fn add_requested(&mut self, set: ChangeSet, from: RequestId) -> u64 {
+        self.keep(set, Some(from))
+    }
+
+    fn keep(&mut self, set: ChangeSet, from: Option<RequestId>) -> u64 {
         self.next += 1;
-        self.sets.insert(self.next, set);
+        self.sets.insert(self.next, Waiting { set, from });
         self.next
     }
 
     /// The set with this ID, if it is still waiting.
     pub fn get(&self, id: u64) -> Option<&ChangeSet> {
-        self.sets.get(&id)
+        self.sets.get(&id).map(|waiting| &waiting.set)
     }
 
     /// Takes the set out, to apply it or throw it away.
-    pub fn take(&mut self, id: u64) -> Option<ChangeSet> {
+    pub fn take(&mut self, id: u64) -> Option<Waiting> {
         self.sets.remove(&id)
     }
 
-    /// Throws every waiting set away.
-    pub fn clear(&mut self) {
-        self.sets.clear();
+    /// Throws every waiting set away; returns the requests they came with,
+    /// which still need an answer.
+    pub fn clear(&mut self) -> Vec<RequestId> {
+        self.sets
+            .drain()
+            .filter_map(|(_, waiting)| waiting.from)
+            .collect()
     }
 
     /// How many sets wait.
@@ -606,7 +631,7 @@ mod tests {
         }
         let before = book.history().unwrap().len();
 
-        let set = sets.take(id).unwrap();
+        let set = sets.take(id).unwrap().set;
         assert!(sets.is_empty());
         confirm_in(&mut book, set).unwrap();
 

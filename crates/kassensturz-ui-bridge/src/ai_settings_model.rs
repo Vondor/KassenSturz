@@ -110,6 +110,19 @@ pub mod qobject {
         #[cxx_name = "testConnection"]
         fn test_connection(self: Pin<&mut AiSettings>, key: &QString);
 
+        /// Whether the user's own AI tools may prepare changes through
+        /// `kassensturz-mcp`, which the user then confirms in the window
+        /// (D-035, D-219). Off until the user turns it on.
+        #[qinvokable]
+        #[cxx_name = "writeTools"]
+        fn write_tools(self: &AiSettings) -> bool;
+
+        /// Turns the write tools on or off. Returns whether that was
+        /// saved.
+        #[qinvokable]
+        #[cxx_name = "setWriteTools"]
+        fn set_write_tools(self: &AiSettings, on: bool) -> bool;
+
         /// The test ended: an object with `models` (a list of names) and
         /// `modelOffered` (whether the saved model is one of them), or an
         /// error object.
@@ -459,6 +472,82 @@ impl qobject::AiSettings {
             return;
         }
         engine::test(self, &key.to_string());
+    }
+
+    fn write_tools(&self) -> bool {
+        write_tools_in(&crate::settings::Settings::user())
+    }
+
+    fn set_write_tools(&self, on: bool) -> bool {
+        keep_write_tools(&crate::settings::Settings::user(), on)
+    }
+}
+
+/// Whether `settings` turn the MCP write tools on; always false in a build
+/// without AI. AI itself is the other switch (D-013): the MCP server and
+/// the window read both.
+#[cfg(feature = "ai")]
+fn write_tools_in(settings: &crate::settings::Settings) -> bool {
+    use kassensturz_core::ai_switch::{GROUP, ON, WRITE_TOOLS_KEY};
+    settings.text(GROUP, WRITE_TOOLS_KEY) == ON
+}
+
+#[cfg(not(feature = "ai"))]
+fn write_tools_in(_settings: &crate::settings::Settings) -> bool {
+    false
+}
+
+/// Keeps the write tools' toggle in `settings`. Returns whether that was
+/// saved.
+#[cfg(feature = "ai")]
+fn keep_write_tools(settings: &crate::settings::Settings, on: bool) -> bool {
+    use kassensturz_core::ai_switch::{GROUP, ON, WRITE_TOOLS_KEY};
+    settings.set_text(GROUP, WRITE_TOOLS_KEY, if on { ON } else { "false" })
+}
+
+#[cfg(not(feature = "ai"))]
+fn keep_write_tools(_settings: &crate::settings::Settings, _on: bool) -> bool {
+    false
+}
+
+#[cfg(test)]
+mod write_tools_tests {
+    use super::*;
+    use crate::settings::Settings;
+    use crate::test_folder::TestFolder;
+
+    #[cfg(feature = "ai")]
+    #[test]
+    fn the_write_tools_are_off_until_turned_on_and_the_mcp_server_reads_them() {
+        use kassensturz_core::ai_switch::write_tools_in as server_reads;
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        assert!(!write_tools_in(&settings));
+        assert!(settings.set_text("AI", "Enabled", "true"));
+
+        assert!(keep_write_tools(&settings, true));
+        assert!(write_tools_in(&Settings::at(&file)));
+        // `kassensturz-mcp` and the window's check read the file KConfig
+        // wrote, with no Qt.
+        let written = std::fs::read_to_string(&file).expect("settings file written");
+        assert!(server_reads(&written), "{written}");
+
+        assert!(keep_write_tools(&settings, false));
+        assert!(!write_tools_in(&settings));
+        let written = std::fs::read_to_string(&file).expect("settings file written");
+        assert!(!server_reads(&written), "{written}");
+    }
+
+    #[cfg(not(feature = "ai"))]
+    #[test]
+    fn a_build_without_ai_never_turns_the_write_tools_on() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        assert!(!keep_write_tools(&settings, true));
+        assert!(!write_tools_in(&settings));
+        assert!(!file.exists());
     }
 }
 

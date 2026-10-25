@@ -38,7 +38,7 @@ pub(crate) fn from_arguments(
 
 fn usage() -> String {
     "usage: kassensturz-mcp [--book <file>]. Without --book it reads the book KassenSturz \
-     opened last."
+     opened last. kassensturz-mcp --request-folder names the folder its write tools use."
         .to_owned()
 }
 

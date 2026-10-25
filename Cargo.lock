@@ -1563,6 +1563,7 @@ dependencies = [
  "kassensturz-platform",
  "kassensturz-store",
  "proptest",
+ "serde_json",
 ]
 
 [[package]]

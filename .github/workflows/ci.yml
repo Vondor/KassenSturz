@@ -583,6 +583,33 @@ jobs:
           set -eu
           flatpak=$(command -v flatpak || echo /app/bin/flatpak)
           test -x "$("$flatpak" info --show-location io.github.vondor.KassenSturz)/files/bin/kassensturz-mcp"
+      # The MCP write tools reach the running app through a request folder in
+      # the app's data folder, with no socket and no new permission (Q-124 A,
+      # D-216, D-219). The AI tool starts the server as another instance of
+      # the app, each in a sandbox of its own, so this proves the instances
+      # share the folder: the server makes it and names it, another instance
+      # writes into it, a third finds that at the place the server named.
+      - name: Instances of the Flatpak share the MCP request folder (D-219)
+        run: |
+          set -eu
+          flatpak=$(command -v flatpak || echo /app/bin/flatpak)
+          app=io.github.vondor.KassenSturz
+          XDG_RUNTIME_DIR=$(mktemp -d)
+          export XDG_RUNTIME_DIR
+          mkdir -p "$HOME/.var/app/$app/config"
+          printf '[AI]\nEnabled=true\nMcpWriteTools=true\n' > "$HOME/.var/app/$app/config/kassensturzrc"
+          "$flatpak" run --command=kassensturz-mcp "$app" --request-folder > named.txt 2>&1 || { cat named.txt; exit 1; }
+          cat named.txt
+          named=$(sed -n 's/^request folder: //p' named.txt)
+          host="$HOME/.var/app/$app/data/$app/mcp-requests"
+          test "$named" = "$host"
+          test "$(stat -c %a "$host")" = 700
+          "$flatpak" run --command=sh "$app" -c \
+            'echo probe > "$XDG_DATA_HOME/io.github.vondor.KassenSturz/mcp-requests/probe"'
+          test "$(cat "$host/probe")" = probe
+          "$flatpak" run --command=sh "$app" -c "test -f '$named/probe'"
+          rm -r "$HOME/.var/app/$app"
+          echo "MCP request folder shared: $named"
       # Network, the Secret Service, KeePassXC's browser socket (D-164) and
       # the card reader are the only permissions beyond a window (D-142); a
       # new one must change this list.

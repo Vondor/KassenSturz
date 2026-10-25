@@ -23,12 +23,23 @@ pub const ENABLED_KEY: &str = "Enabled";
 /// The value that switches AI on; every other value is off.
 pub const ON: &str = "true";
 
+/// The key of the second toggle in [`GROUP`]: whether the user's own AI
+/// tools may prepare changes through `kassensturz-mcp` (D-035, D-219). It
+/// counts only while AI itself is on.
+pub const WRITE_TOOLS_KEY: &str = "McpWriteTools";
+
 /// The settings file's name in the user's settings folder.
 const FILE: &str = "kassensturzrc";
 
 /// Whether the settings file's `text` switches AI on.
 pub fn enabled_in(text: &str) -> bool {
     value_in(text, GROUP, ENABLED_KEY) == Some(ON)
+}
+
+/// Whether the settings file's `text` switches AI and the MCP write tools
+/// on. The write tools are off whenever AI is (D-013).
+pub fn write_tools_in(text: &str) -> bool {
+    enabled_in(text) && value_in(text, GROUP, WRITE_TOOLS_KEY) == Some(ON)
 }
 
 /// The value of `key` in `group` of the settings file's `text`, with the
@@ -79,6 +90,14 @@ pub fn enabled() -> bool {
     settings_file().is_some_and(|path| enabled_at(&path))
 }
 
+/// Whether AI and the MCP write tools are both switched on in this user's
+/// settings. A file that can't be read is off.
+pub fn write_tools_enabled() -> bool {
+    settings_file()
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .is_some_and(|text| write_tools_in(&text))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -108,6 +127,19 @@ mod tests {
         assert_eq!(value_in(text, "AI", "Empty"), Some(""));
         assert_eq!(value_in(text, "AI", "Missing"), None);
         assert_eq!(value_in(text, "None", "Model"), None);
+    }
+
+    #[test]
+    fn the_write_tools_are_on_only_with_ai_on() {
+        assert!(!write_tools_in(""));
+        assert!(!write_tools_in("[AI]\nMcpWriteTools=true\n"));
+        assert!(!write_tools_in("[AI]\nEnabled=true\n"));
+        assert!(!write_tools_in("[AI]\nEnabled=false\nMcpWriteTools=true\n"));
+        assert!(!write_tools_in("[AI]\nEnabled=true\nMcpWriteTools=1\n"));
+        assert!(write_tools_in("[AI]\nEnabled=true\nMcpWriteTools=true\n"));
+        assert!(!write_tools_in(
+            "[AI]\nEnabled=true\n[Other]\nMcpWriteTools=true\n"
+        ));
     }
 
     #[test]

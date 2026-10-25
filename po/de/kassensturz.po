@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-25 16:42+0000\n"
+"POT-Creation-Date: 2026-10-25 17:12+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -265,13 +265,16 @@ msgstr "Geschlossene Konten"
 #, kde-format
 msgctxt "@info"
 msgid "AI features are switched off. Turn them on in Settings."
-msgstr "Die KI-Funktionen sind ausgeschaltet. Schalten Sie sie in den Einstellungen ein."
+msgstr ""
+"Die KI-Funktionen sind ausgeschaltet. Schalten Sie sie in den Einstellungen "
+"ein."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:33
 #, kde-format
 msgctxt "@info"
 msgid "Type the provider's address and the model's name first."
-msgstr "Geben Sie zuerst die Adresse des Anbieters und den Namen des Modells ein."
+msgstr ""
+"Geben Sie zuerst die Adresse des Anbieters und den Namen des Modells ein."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:35
 #, kde-format
@@ -279,7 +282,10 @@ msgctxt "@info %1 is an example web address"
 msgid ""
 "This address can't be used. It starts with http:// or https://, has the "
 "server's name, and has no login name, password, ? or # part, for example %1."
-msgstr "Diese Adresse kann nicht verwendet werden. Sie beginnt mit http:// oder https://, enthält den Namen des Servers und keinen Anmeldenamen, kein Passwort und keinen Teil mit ? oder #, zum Beispiel %1."
+msgstr ""
+"Diese Adresse kann nicht verwendet werden. Sie beginnt mit http:// oder "
+"https://, enthält den Namen des Servers und keinen Anmeldenamen, kein "
+"Passwort und keinen Teil mit ? oder #, zum Beispiel %1."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:37
 #, kde-format
@@ -288,7 +294,11 @@ msgid ""
 "This address is on another computer and starts with http://, which isn't "
 "encrypted, so KassenSturz won't send anything to it. Use the provider's "
 "https:// address. Only a provider on this computer may use http://."
-msgstr "Diese Adresse liegt auf einem anderen Computer und beginnt mit http://, was nicht verschlüsselt ist. KassenSturz sendet deshalb nichts dorthin. Verwenden Sie die https://-Adresse des Anbieters. Nur ein Anbieter auf diesem Computer darf http:// verwenden."
+msgstr ""
+"Diese Adresse liegt auf einem anderen Computer und beginnt mit http://, was "
+"nicht verschlüsselt ist. KassenSturz sendet deshalb nichts dorthin. "
+"Verwenden Sie die https://-Adresse des Anbieters. Nur ein Anbieter auf "
+"diesem Computer darf http:// verwenden."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:39
 #, kde-format
@@ -297,7 +307,11 @@ msgid ""
 "This provider is on another computer, and you haven't agreed yet to what "
 "KassenSturz sends to it. Nothing was sent. Read what is sent and agree "
 "below, or use a provider on this computer."
-msgstr "Dieser Anbieter liegt auf einem anderen Computer, und Sie haben dem, was KassenSturz ihm sendet, noch nicht zugestimmt. Es wurde nichts gesendet. Lesen Sie unten, was gesendet wird, und stimmen Sie zu, oder nutzen Sie einen Anbieter auf diesem Computer."
+msgstr ""
+"Dieser Anbieter liegt auf einem anderen Computer, und Sie haben dem, was "
+"KassenSturz ihm sendet, noch nicht zugestimmt. Es wurde nichts gesendet. "
+"Lesen Sie unten, was gesendet wird, und stimmen Sie zu, oder nutzen Sie "
+"einen Anbieter auf diesem Computer."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:41
 #, kde-format
@@ -305,13 +319,18 @@ msgctxt "@info"
 msgid ""
 "The provider's settings changed after this request was prepared, so it "
 "wasn't sent. Look at the request again and send it."
-msgstr "Die Einstellungen des Anbieters haben sich geändert, nachdem diese Anfrage vorbereitet wurde, deshalb wurde sie nicht gesendet. Sehen Sie sich die Anfrage noch einmal an und senden Sie sie."
+msgstr ""
+"Die Einstellungen des Anbieters haben sich geändert, nachdem diese Anfrage "
+"vorbereitet wurde, deshalb wurde sie nicht gesendet. Sehen Sie sich die "
+"Anfrage noch einmal an und senden Sie sie."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:43
 #, kde-format
 msgctxt "@info"
 msgid "This request is too large to send at once. Ask about less at a time."
-msgstr "Diese Anfrage ist zu groß, um sie auf einmal zu senden. Fragen Sie nach weniger auf einmal."
+msgstr ""
+"Diese Anfrage ist zu groß, um sie auf einmal zu senden. Fragen Sie nach "
+"weniger auf einmal."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:45
 #, kde-format
@@ -319,7 +338,9 @@ msgctxt "@info"
 msgid ""
 "The provider needs a key. Type it in the Key field and save, or choose that "
 "it needs none."
-msgstr "Der Anbieter braucht einen Schlüssel. Geben Sie ihn im Feld „Schlüssel“ ein und speichern Sie, oder wählen Sie, dass er keinen braucht."
+msgstr ""
+"Der Anbieter braucht einen Schlüssel. Geben Sie ihn im Feld „Schlüssel“ ein "
+"und speichern Sie, oder wählen Sie, dass er keinen braucht."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:47
 #, kde-format
@@ -327,7 +348,9 @@ msgctxt "@info"
 msgid ""
 "The provider refused the key. Check the key, and at the provider whether it "
 "is still valid, then type it again."
-msgstr "Der Anbieter hat den Schlüssel abgelehnt. Prüfen Sie den Schlüssel und beim Anbieter, ob er noch gültig ist, und geben Sie ihn dann erneut ein."
+msgstr ""
+"Der Anbieter hat den Schlüssel abgelehnt. Prüfen Sie den Schlüssel und beim "
+"Anbieter, ob er noch gültig ist, und geben Sie ihn dann erneut ein."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:49
 #, kde-format
@@ -336,7 +359,11 @@ msgid ""
 "The system keychain couldn't be reached, so the key couldn't be saved, read "
 "or removed. Make sure the keychain (for example KWallet) is unlocked, or "
 "choose to type the key each time."
-msgstr "Der Schlüsselbund des Systems war nicht erreichbar, deshalb konnte der Schlüssel nicht gespeichert, gelesen oder entfernt werden. Stellen Sie sicher, dass der Schlüsselbund (zum Beispiel KWallet) entsperrt ist, oder wählen Sie, den Schlüssel jedes Mal einzugeben."
+msgstr ""
+"Der Schlüsselbund des Systems war nicht erreichbar, deshalb konnte der "
+"Schlüssel nicht gespeichert, gelesen oder entfernt werden. Stellen Sie "
+"sicher, dass der Schlüsselbund (zum Beispiel KWallet) entsperrt ist, oder "
+"wählen Sie, den Schlüssel jedes Mal einzugeben."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:51
 #, kde-format
@@ -346,7 +373,12 @@ msgid ""
 "read or removed. Start KeePassXC, open and unlock your database, make sure "
 "Browser Integration is on, and try again; or choose to type the key each "
 "time."
-msgstr "KeePassXC war nicht erreichbar oder hat abgelehnt, deshalb konnte der Schlüssel nicht gespeichert, gelesen oder entfernt werden. Starten Sie KeePassXC, öffnen und entsperren Sie Ihre Datenbank, achten Sie darauf, dass die Browser-Integration eingeschaltet ist, und versuchen Sie es erneut. Oder wählen Sie, den Schlüssel jedes Mal einzugeben."
+msgstr ""
+"KeePassXC war nicht erreichbar oder hat abgelehnt, deshalb konnte der "
+"Schlüssel nicht gespeichert, gelesen oder entfernt werden. Starten Sie "
+"KeePassXC, öffnen und entsperren Sie Ihre Datenbank, achten Sie darauf, dass "
+"die Browser-Integration eingeschaltet ist, und versuchen Sie es erneut. Oder "
+"wählen Sie, den Schlüssel jedes Mal einzugeben."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:53
 #, kde-format
@@ -355,7 +387,10 @@ msgid ""
 "The provider couldn't be reached. Check the address, that the provider is "
 "running (for a local server such as Ollama or LM Studio) and your internet "
 "connection."
-msgstr "Der Anbieter war nicht erreichbar. Prüfen Sie die Adresse, ob der Anbieter läuft (bei einem lokalen Server wie Ollama oder LM Studio) und Ihre Internetverbindung."
+msgstr ""
+"Der Anbieter war nicht erreichbar. Prüfen Sie die Adresse, ob der Anbieter "
+"läuft (bei einem lokalen Server wie Ollama oder LM Studio) und Ihre "
+"Internetverbindung."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:55
 #, kde-format
@@ -364,7 +399,11 @@ msgid ""
 "The server's security certificate didn't pass the checks of this computer, "
 "so KassenSturz sent nothing to it. Check the address; a server at home needs "
 "a certificate this computer trusts."
-msgstr "Das Sicherheitszertifikat des Servers hat die Prüfungen dieses Computers nicht bestanden, deshalb hat KassenSturz nichts an ihn gesendet. Prüfen Sie die Adresse; ein Server zu Hause braucht ein Zertifikat, dem dieser Computer vertraut."
+msgstr ""
+"Das Sicherheitszertifikat des Servers hat die Prüfungen dieses Computers "
+"nicht bestanden, deshalb hat KassenSturz nichts an ihn gesendet. Prüfen Sie "
+"die Adresse; ein Server zu Hause braucht ein Zertifikat, dem dieser Computer "
+"vertraut."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:57
 #, kde-format
@@ -372,7 +411,10 @@ msgctxt "@info"
 msgid ""
 "The provider took too long to answer. Try again; a local model may need a "
 "faster computer or a smaller model."
-msgstr "Der Anbieter hat zu lange für die Antwort gebraucht. Versuchen Sie es erneut; ein lokales Modell braucht vielleicht einen schnelleren Computer oder ein kleineres Modell."
+msgstr ""
+"Der Anbieter hat zu lange für die Antwort gebraucht. Versuchen Sie es "
+"erneut; ein lokales Modell braucht vielleicht einen schnelleren Computer "
+"oder ein kleineres Modell."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:59
 #, kde-format
@@ -380,13 +422,16 @@ msgctxt "@info"
 msgid ""
 "The provider sent KassenSturz to another address, which KassenSturz doesn't "
 "follow. Enter the provider's final address."
-msgstr "Der Anbieter hat KassenSturz an eine andere Adresse verwiesen, der KassenSturz nicht folgt. Geben Sie die endgültige Adresse des Anbieters ein."
+msgstr ""
+"Der Anbieter hat KassenSturz an eine andere Adresse verwiesen, der "
+"KassenSturz nicht folgt. Geben Sie die endgültige Adresse des Anbieters ein."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:61
 #, kde-format
 msgctxt "@info"
 msgid "The provider doesn't know this address or this model. Check both."
-msgstr "Der Anbieter kennt diese Adresse oder dieses Modell nicht. Prüfen Sie beides."
+msgstr ""
+"Der Anbieter kennt diese Adresse oder dieses Modell nicht. Prüfen Sie beides."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:63
 #, kde-format
@@ -394,7 +439,9 @@ msgctxt "@info"
 msgid ""
 "The provider asks you to wait before the next request. Try again in a little "
 "while."
-msgstr "Der Anbieter bittet Sie, vor der nächsten Anfrage zu warten. Versuchen Sie es in einer Weile erneut."
+msgstr ""
+"Der Anbieter bittet Sie, vor der nächsten Anfrage zu warten. Versuchen Sie "
+"es in einer Weile erneut."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:65
 #, kde-format
@@ -402,7 +449,10 @@ msgctxt "@info %1 is a number"
 msgid ""
 "The provider answered with an error (HTTP %1). Try again later; if it keeps "
 "happening, check the provider's settings."
-msgstr "Der Anbieter hat mit einem Fehler geantwortet (HTTP %1). Versuchen Sie es später erneut; wenn das so bleibt, prüfen Sie die Einstellungen des Anbieters."
+msgstr ""
+"Der Anbieter hat mit einem Fehler geantwortet (HTTP %1). Versuchen Sie es "
+"später erneut; wenn das so bleibt, prüfen Sie die Einstellungen des "
+"Anbieters."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:67
 #, kde-format
@@ -410,7 +460,9 @@ msgctxt "@info"
 msgid ""
 "The provider's answer was too large, so KassenSturz didn't read it. Ask "
 "about less at a time."
-msgstr "Die Antwort des Anbieters war zu groß, deshalb hat KassenSturz sie nicht gelesen. Fragen Sie nach weniger auf einmal."
+msgstr ""
+"Die Antwort des Anbieters war zu groß, deshalb hat KassenSturz sie nicht "
+"gelesen. Fragen Sie nach weniger auf einmal."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:69
 #, kde-format
@@ -419,7 +471,10 @@ msgid ""
 "The provider's answer isn't what KassenSturz expects from an OpenAI-"
 "compatible provider. Check that the address points to such an interface, "
 "often ending in /v1."
-msgstr "Die Antwort des Anbieters entspricht nicht dem, was KassenSturz von einem OpenAI-kompatiblen Anbieter erwartet. Prüfen Sie, ob die Adresse auf eine solche Schnittstelle zeigt, oft endet sie auf /v1."
+msgstr ""
+"Die Antwort des Anbieters entspricht nicht dem, was KassenSturz von einem "
+"OpenAI-kompatiblen Anbieter erwartet. Prüfen Sie, ob die Adresse auf eine "
+"solche Schnittstelle zeigt, oft endet sie auf /v1."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:71
 #, kde-format
@@ -427,7 +482,9 @@ msgctxt "@info"
 msgid ""
 "Something went wrong with the provider. Check its address and settings, then "
 "try again."
-msgstr "Mit dem Anbieter ist etwas schiefgegangen. Prüfen Sie seine Adresse und Einstellungen und versuchen Sie es erneut."
+msgstr ""
+"Mit dem Anbieter ist etwas schiefgegangen. Prüfen Sie seine Adresse und "
+"Einstellungen und versuchen Sie es erneut."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsEntry.qml:29
 #, kde-format
@@ -441,7 +498,9 @@ msgctxt "@info"
 msgid ""
 "Choose which AI to use and where it runs, and read what KassenSturz may send "
 "to it."
-msgstr "Wählen Sie, welche KI genutzt wird und wo sie läuft, und lesen Sie, was KassenSturz an sie senden darf."
+msgstr ""
+"Wählen Sie, welche KI genutzt wird und wo sie läuft, und lesen Sie, was "
+"KassenSturz an sie senden darf."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:58
 #, kde-format
@@ -457,7 +516,12 @@ msgid ""
 "names of accounts and categories, balances and totals, transactions with the "
 "names of whoever was paid or paid you and the notes you wrote, and your "
 "Rules. Only as much as your question needs, never the whole book."
-msgstr "Informationen aus Ihrem geöffneten Buch, nach denen die KI fragt, um Ihnen zu antworten: die Namen von Konten und Kategorien, Kontostände und Summen, Buchungen mit den Namen derer, die Geld erhalten oder gezahlt haben, und Ihren Notizen sowie Ihre Regeln. Nur so viel, wie Ihre Frage braucht, nie das ganze Buch."
+msgstr ""
+"Informationen aus Ihrem geöffneten Buch, nach denen die KI fragt, um Ihnen "
+"zu antworten: die Namen von Konten und Kategorien, Kontostände und Summen, "
+"Buchungen mit den Namen derer, die Geld erhalten oder gezahlt haben, und "
+"Ihren Notizen sowie Ihre Regeln. Nur so viel, wie Ihre Frage braucht, nie "
+"das ganze Buch."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:62
 #, kde-format
@@ -465,14 +529,18 @@ msgctxt "@info what is sent"
 msgid ""
 "KassenSturz's own instructions to the AI, and the descriptions of the "
 "functions it may use to look things up."
-msgstr "Die eigenen Anweisungen von KassenSturz an die KI und die Beschreibungen der Funktionen, mit denen sie etwas nachschlagen darf."
+msgstr ""
+"Die eigenen Anweisungen von KassenSturz an die KI und die Beschreibungen der "
+"Funktionen, mit denen sie etwas nachschlagen darf."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:64
 #, kde-format
 msgctxt "@info what is sent"
 msgid ""
 "Your key for this provider, if it needs one, so that it accepts the request."
-msgstr "Ihr Schlüssel für diesen Anbieter, falls er einen braucht, damit er die Anfrage annimmt."
+msgstr ""
+"Ihr Schlüssel für diesen Anbieter, falls er einen braucht, damit er die "
+"Anfrage annimmt."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:113
 #, kde-format
@@ -486,7 +554,10 @@ msgctxt "@info"
 msgid ""
 "Test mode: this copy of KassenSturz answers as a made-up model built into "
 "it. Nothing you do on this page, or ask later, is sent anywhere."
-msgstr "Testmodus: Diese KassenSturz-Version antwortet wie ein ausgedachtes Modell, das in ihr eingebaut ist. Nichts, was Sie auf dieser Seite tun oder später fragen, wird irgendwohin gesendet."
+msgstr ""
+"Testmodus: Diese KassenSturz-Version antwortet wie ein ausgedachtes Modell, "
+"das in ihr eingebaut ist. Nichts, was Sie auf dieser Seite tun oder später "
+"fragen, wird irgendwohin gesendet."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:139
 #, kde-format
@@ -496,7 +567,11 @@ msgid ""
 "example with Ollama or LM Studio, or at a company that offers the OpenAI-"
 "compatible interface. These settings are kept on this computer only, never "
 "in your book."
-msgstr "Wählen Sie die KI, die Ihre Fragen beantwortet. Sie kann auf diesem Computer laufen, zum Beispiel mit Ollama oder LM Studio, oder bei einem Unternehmen, das die OpenAI-kompatible Schnittstelle anbietet. Diese Einstellungen werden nur auf diesem Computer gespeichert, nie in Ihrem Buch."
+msgstr ""
+"Wählen Sie die KI, die Ihre Fragen beantwortet. Sie kann auf diesem Computer "
+"laufen, zum Beispiel mit Ollama oder LM Studio, oder bei einem Unternehmen, "
+"das die OpenAI-kompatible Schnittstelle anbietet. Diese Einstellungen werden "
+"nur auf diesem Computer gespeichert, nie in Ihrem Buch."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:147
 #, kde-format
@@ -508,7 +583,8 @@ msgstr "Adresse:"
 #, kde-format
 msgctxt "@info"
 msgid "This address is on this computer. What you ask never leaves it."
-msgstr "Diese Adresse liegt auf diesem Computer. Was Sie fragen, verlässt ihn nie."
+msgstr ""
+"Diese Adresse liegt auf diesem Computer. Was Sie fragen, verlässt ihn nie."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:164
 #, kde-format
@@ -516,7 +592,10 @@ msgctxt "@info"
 msgid ""
 "This address is on another computer, even if it is at home. Before anything "
 "is sent, you read what is sent and agree."
-msgstr "Diese Adresse liegt auf einem anderen Computer, auch wenn er bei Ihnen zu Hause steht. Bevor etwas gesendet wird, lesen Sie, was gesendet wird, und stimmen zu."
+msgstr ""
+"Diese Adresse liegt auf einem anderen Computer, auch wenn er bei Ihnen zu "
+"Hause steht. Bevor etwas gesendet wird, lesen Sie, was gesendet wird, und "
+"stimmen zu."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:169
 #, kde-format
@@ -584,7 +663,10 @@ msgctxt "@info"
 msgid ""
 "KassenSturz asks for the key whenever the AI needs it and forgets it at "
 "once. The key you type here is used for the test only."
-msgstr "KassenSturz fragt nach dem Schlüssel, wenn die KI ihn braucht, und vergisst ihn sofort wieder. Der Schlüssel, den Sie hier eingeben, wird nur für den Test verwendet."
+msgstr ""
+"KassenSturz fragt nach dem Schlüssel, wenn die KI ihn braucht, und vergisst "
+"ihn sofort wieder. Der Schlüssel, den Sie hier eingeben, wird nur für den "
+"Test verwendet."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:212
 #, kde-format
@@ -592,7 +674,10 @@ msgctxt "@info"
 msgid ""
 "KassenSturz keeps the key in memory only, never in a file, and forgets it "
 "when you close it. The key is never shown again, here or anywhere."
-msgstr "KassenSturz behält den Schlüssel nur im Arbeitsspeicher, nie in einer Datei, und vergisst ihn, wenn Sie es schließen. Der Schlüssel wird nie wieder angezeigt, weder hier noch anderswo."
+msgstr ""
+"KassenSturz behält den Schlüssel nur im Arbeitsspeicher, nie in einer Datei, "
+"und vergisst ihn, wenn Sie es schließen. Der Schlüssel wird nie wieder "
+"angezeigt, weder hier noch anderswo."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:214
 #, kde-format
@@ -601,7 +686,12 @@ msgid ""
 "KassenSturz saves the key where it saves bank PINs (see Password storage in "
 "Settings), never in your book or in a file of its own. The key is never "
 "shown again, here or anywhere. Leave the field empty to keep the saved key."
-msgstr "KassenSturz speichert den Schlüssel dort, wo es Bank-PINs speichert (siehe Passwortspeicher in den Einstellungen), nie in Ihrem Buch oder in einer eigenen Datei. Der Schlüssel wird nie wieder angezeigt, weder hier noch anderswo. Lassen Sie das Feld leer, um den gespeicherten Schlüssel zu behalten."
+msgstr ""
+"KassenSturz speichert den Schlüssel dort, wo es Bank-PINs speichert (siehe "
+"Passwortspeicher in den Einstellungen), nie in Ihrem Buch oder in einer "
+"eigenen Datei. Der Schlüssel wird nie wieder angezeigt, weder hier noch "
+"anderswo. Lassen Sie das Feld leer, um den gespeicherten Schlüssel zu "
+"behalten."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:223
 #: crates/kassensturz-ui-bridge/qml/CategoryPage.qml:130
@@ -643,7 +733,10 @@ msgctxt "@info"
 msgid ""
 "KassenSturz couldn't save these settings. Check that your settings folder "
 "can be written to, then save again."
-msgstr "KassenSturz konnte diese Einstellungen nicht speichern. Prüfen Sie, ob in Ihren Einstellungsordner geschrieben werden kann, und speichern Sie dann erneut."
+msgstr ""
+"KassenSturz konnte diese Einstellungen nicht speichern. Prüfen Sie, ob in "
+"Ihren Einstellungsordner geschrieben werden kann, und speichern Sie dann "
+"erneut."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:289
 #, kde-format
@@ -665,7 +758,9 @@ msgctxt "@info %1 is the name of a model"
 msgid ""
 "The provider doesn't list the model “%1”. Choose one of its models below, or "
 "check the name."
-msgstr "Der Anbieter führt das Modell „%1“ nicht auf. Wählen Sie unten eines seiner Modelle oder prüfen Sie den Namen."
+msgstr ""
+"Der Anbieter führt das Modell „%1“ nicht auf. Wählen Sie unten eines seiner "
+"Modelle oder prüfen Sie den Namen."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:331
 #, kde-format
@@ -686,7 +781,10 @@ msgid ""
 "You agreed on %1 to what KassenSturz sends to this provider. You can read it "
 "again, or take your agreement back; nothing is sent to this provider while "
 "it is withdrawn."
-msgstr "Sie haben am %1 dem zugestimmt, was KassenSturz an diesen Anbieter sendet. Sie können es noch einmal lesen oder Ihre Zustimmung zurücknehmen; solange sie zurückgenommen ist, wird nichts an diesen Anbieter gesendet."
+msgstr ""
+"Sie haben am %1 dem zugestimmt, was KassenSturz an diesen Anbieter sendet. "
+"Sie können es noch einmal lesen oder Ihre Zustimmung zurücknehmen; solange "
+"sie zurückgenommen ist, wird nichts an diesen Anbieter gesendet."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:355
 #, kde-format
@@ -694,7 +792,10 @@ msgctxt "@info"
 msgid ""
 "This provider is on another computer. Nothing is sent to it until you have "
 "read what KassenSturz sends and agreed."
-msgstr "Dieser Anbieter liegt auf einem anderen Computer. Es wird nichts an ihn gesendet, bis Sie gelesen haben, was KassenSturz sendet, und zugestimmt haben."
+msgstr ""
+"Dieser Anbieter liegt auf einem anderen Computer. Es wird nichts an ihn "
+"gesendet, bis Sie gelesen haben, was KassenSturz sendet, und zugestimmt "
+"haben."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:357
 #, kde-format
@@ -702,7 +803,9 @@ msgctxt "@info"
 msgid ""
 "This provider is on this computer, so what you ask never leaves it and there "
 "is nothing to agree to."
-msgstr "Dieser Anbieter liegt auf diesem Computer, deshalb verlässt Ihre Frage ihn nie und es gibt nichts, dem Sie zustimmen müssten."
+msgstr ""
+"Dieser Anbieter liegt auf diesem Computer, deshalb verlässt Ihre Frage ihn "
+"nie und es gibt nichts, dem Sie zustimmen müssten."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:368
 #, kde-format
@@ -753,7 +856,10 @@ msgid ""
 "The provider at %1 is on another computer, even if that computer is in your "
 "home. When you ask the AI something, this leaves your computer and goes to "
 "it:"
-msgstr "Der Anbieter unter %1 liegt auf einem anderen Computer, auch wenn dieser bei Ihnen zu Hause steht. Wenn Sie der KI etwas fragen, verlässt dies Ihren Computer und geht an ihn:"
+msgstr ""
+"Der Anbieter unter %1 liegt auf einem anderen Computer, auch wenn dieser bei "
+"Ihnen zu Hause steht. Wenn Sie der KI etwas fragen, verlässt dies Ihren "
+"Computer und geht an ihn:"
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:471
 #, kde-format
@@ -761,7 +867,9 @@ msgctxt "@info"
 msgid ""
 "Never sent: your bank logins, PINs and TANs, links to your bank, and the "
 "keys of other providers."
-msgstr "Nie gesendet werden: Ihre Bank-Zugangsdaten, PINs und TANs, Verknüpfungen zu Ihrer Bank und die Schlüssel anderer Anbieter."
+msgstr ""
+"Nie gesendet werden: Ihre Bank-Zugangsdaten, PINs und TANs, Verknüpfungen zu "
+"Ihrer Bank und die Schlüssel anderer Anbieter."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:478
 #, kde-format
@@ -771,7 +879,11 @@ msgid ""
 "privacy policy if you are unsure. Before each request goes, you can see "
 "exactly what it holds and leave words out. You can take your agreement back "
 "here at any time."
-msgstr "Was der Anbieter mit dem macht, was er erhält, liegt beim Anbieter; lesen Sie seine Datenschutzerklärung, wenn Sie unsicher sind. Bevor jede Anfrage abgeht, können Sie genau sehen, was sie enthält, und Wörter weglassen. Sie können Ihre Zustimmung hier jederzeit zurücknehmen."
+msgstr ""
+"Was der Anbieter mit dem macht, was er erhält, liegt beim Anbieter; lesen "
+"Sie seine Datenschutzerklärung, wenn Sie unsicher sind. Bevor jede Anfrage "
+"abgeht, können Sie genau sehen, was sie enthält, und Wörter weglassen. Sie "
+"können Ihre Zustimmung hier jederzeit zurücknehmen."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:483
 #, kde-format
@@ -786,7 +898,11 @@ msgid ""
 "This is the first request for a made-up question, exactly as KassenSturz "
 "would build it. Nothing is sent now. When the AI asks for information from "
 "your book, that is added to the next request."
-msgstr "Das ist die erste Anfrage zu einer ausgedachten Frage, genau so, wie KassenSturz sie bauen würde. Es wird jetzt nichts gesendet. Wenn die KI nach Informationen aus Ihrem Buch fragt, werden sie der nächsten Anfrage hinzugefügt."
+msgstr ""
+"Das ist die erste Anfrage zu einer ausgedachten Frage, genau so, wie "
+"KassenSturz sie bauen würde. Es wird jetzt nichts gesendet. Wenn die KI nach "
+"Informationen aus Ihrem Buch fragt, werden sie der nächsten Anfrage "
+"hinzugefügt."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:521
 #, kde-format
@@ -2967,19 +3083,19 @@ msgctxt "@info a change you made"
 msgid "Applied suggested changes"
 msgstr "Vorgeschlagene Änderungen übernommen"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:82
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:86
 #, kde-format
 msgctxt "@info a change you made that this version doesn't know"
 msgid "Made a change"
 msgstr "Eine Änderung vorgenommen"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:91
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:95
 #, kde-format
 msgctxt "@info %1 is what was done, %2 the name of a file"
 msgid "%1 (%2)"
 msgstr "%1 (%2)"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:101
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:105
 #, kde-format
 msgctxt "@info"
 msgid "%1 transaction added"
@@ -2987,7 +3103,7 @@ msgid_plural "%1 transactions added"
 msgstr[0] "%1 Buchung hinzugefügt"
 msgstr[1] "%1 Buchungen hinzugefügt"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:104
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:108
 #, kde-format
 msgctxt "@info"
 msgid "%1 transaction removed"
@@ -2995,7 +3111,7 @@ msgid_plural "%1 transactions removed"
 msgstr[0] "%1 Buchung entfernt"
 msgstr[1] "%1 Buchungen entfernt"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:107
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:111
 #, kde-format
 msgctxt "@info"
 msgid "%1 transaction changed"
@@ -3003,7 +3119,7 @@ msgid_plural "%1 transactions changed"
 msgstr[0] "%1 Buchung geändert"
 msgstr[1] "%1 Buchungen geändert"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:118
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:122
 #, kde-format
 msgctxt "@info %1 and %2 are dates"
 msgid "%1 to %2"

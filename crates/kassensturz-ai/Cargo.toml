@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+
+[package]
+name = "kassensturz-ai"
+description = "KassenSturz's connection to an AI provider (AGENTS.md §8): the OpenAI-compatible adapter, consent, and the preview and redaction of what is sent (D-035, D-168, D-169, D-175)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = ["ai"]
+# Without it the crate is empty and has no dependencies (D-039, D-176).
+ai = [
+    "dep:jiff",
+    "dep:kassensturz-core",
+    "kassensturz-core/ai",
+    "dep:kassensturz-platform",
+    "dep:rustls",
+    "dep:serde_json",
+    "dep:ureq",
+    "dep:zeroize",
+]
+
+[dependencies]
+jiff = { workspace = true, optional = true }
+kassensturz-core = { workspace = true, optional = true }
+kassensturz-platform = { workspace = true, optional = true }
+rustls = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+ureq = { workspace = true, optional = true }
+zeroize = { workspace = true, optional = true }
+
+[dev-dependencies]
+jiff.workspace = true
+kassensturz-platform.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

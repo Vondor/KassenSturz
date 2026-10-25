@@ -17,6 +17,7 @@ repository = "https://github.com/Vondor/KassenSturz"
 publish = false
 
 [workspace.dependencies]
+kassensturz-ai = { path = "crates/kassensturz-ai", default-features = false }
 kassensturz-aqbanking-sys = { path = "crates/kassensturz-aqbanking-sys" }
 kassensturz-core = { path = "crates/kassensturz-core" }
 kassensturz-export = { path = "crates/kassensturz-export" }
@@ -73,6 +74,15 @@ serde_json = "=1.0.154"
 # Without serde: KassenSturz stores rates as two INTEGER columns (D-051).
 rust_decimal = { version = "=1.43.0", default-features = false, features = ["std"] }
 uuid = { version = "=1.28.0", features = ["v7"] }
+# The HTTP client of the AI adapter in kassensturz-ai (D-035, D-175; Q-122 A),
+# the only HTTP client in KassenSturz (threat T-13). Blocking, so the core
+# needs no async runtime. Without its default features, so no certificate
+# list is built in: rustls checks against the system's store through
+# rustls-platform-verifier, and the crypto provider is passed in.
+ureq = { version = "=3.5.0", default-features = false, features = ["rustls-no-provider", "platform-verifier"] }
+# The TLS library for ureq (Q-122 A), with AWS-LC as its crypto provider.
+# KassenSturz writes no cryptography of its own (AGENTS.md §3.1 rule 7).
+rustls = { version = "=0.23.46", default-features = false, features = ["std", "tls12", "aws_lc_rs"] }
 # Wipes a banking PIN from memory when it is no longer needed (D-057, threat
 # T-02). Without its default features: `alloc` is enough for a wiped String.
 zeroize = { version = "=1.9.1", default-features = false, features = ["alloc"] }

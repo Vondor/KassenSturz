@@ -108,7 +108,7 @@ kassensturz/
 ## Dependency rules
 
 - `kassensturz-core` depends on **no other workspace crate**.
-- `kassensturz-store`, `kassensturz-import`, `kassensturz-export`, `kassensturz-bank`, `kassensturz-platform`, `kassensturz-charts`, `kassensturz-ai`, `kassensturz-plugin-host` depend on `kassensturz-core`.
+- `kassensturz-store`, `kassensturz-import`, `kassensturz-export`, `kassensturz-bank`, `kassensturz-platform`, `kassensturz-charts`, `kassensturz-ai`, `kassensturz-plugin-host` depend on `kassensturz-core`. `kassensturz-ai` also depends on `kassensturz-platform` for the provider's key (D-184), and on no other KassenSturz crate.
 - `kassensturz-bank` also depends on `kassensturz-import`, for the `Statement` it converts fetched data into and the checks every statement gets (D-145); it knows no book. Its tests alone depend on `kassensturz-pipeline` and `kassensturz-store`, to feed the fake bank's statements through the real import (AGENTS.md §9.4).
 - `kassensturz-store`, `kassensturz-import` and `kassensturz-export` don't depend on each other: a file format knows no database, and the book knows no file format (D-091, D-099). `kassensturz-pipeline` depends on core, import, export and store and joins them (D-092, D-099).
 - Only `kassensturz-store` touches the book's database; every other crate calls its functions (D-072). Reading another program's files, such as KMyMoney's SQLite format in `kassensturz-import`, isn't affected.
@@ -230,7 +230,7 @@ kassensturz/
 
 ## AI model
 
-- `kassensturz-ai` defines a provider trait. v1 adapter: OpenAI-compatible HTTP only (Ollama, llama.cpp server, LM Studio, vLLM, and cloud services offering the same API); dedicated cloud adapters may follow later (D-035).
+- `kassensturz-ai` defines a provider trait. v1 adapter: OpenAI-compatible HTTP only (Ollama, llama.cpp server, LM Studio, vLLM, and cloud services offering the same API); dedicated cloud adapters may follow later (D-035). Since M5.2: `AiClient` reads the AI settings from the settings file at every call and checks the switch, the provider's address (plain `http://` only on loopback), that the request was prepared for that provider, the consent for another computer and the key, in that order, before it builds the HTTP client (`ureq` with `rustls`, the system's certificate store, no proxy, no redirects, size and time limits; D-182, D-183). A request is prepared first; its preview is the exact body sent, and the user can redact phrases from it. `ProviderKeys` keeps the key as for a PIN, filed in the keychain under the provider's server (D-184). Errors are `ai.` codes. Tests use a fake provider on `127.0.0.1` in `tests/fake/`, never a real one.
 - Built-in AI features, all on demand and used through a chat panel in the app (D-047): category suggestions, answers to questions and summaries the user asks for (every figure computed by code: the AI calls KassenSturz's functions, or gets a small precomputed overview if the model can't call functions, D-052), and changes the AI prepares, such as new categories, Rules or charts. Proposals that turn recurring patterns into Rules or saved reports come with AI memory, after 1.0 (D-071).
 - A consent layer decides what data may leave the machine, per provider, with preview and redaction. A model on another computer, even one at home, counts as leaving the machine (D-035).
 - Changes proposed by AI are represented as reviewable change sets and applied only after user confirmation. Writes requested through `kassensturz-mcp` are confirmed in the KassenSturz window (D-035).

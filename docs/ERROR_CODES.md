@@ -10,12 +10,12 @@ The UI keeps one translated message per code and fills in the parameters (D-084)
 
 The app's own checks of what the user typed, e.g. an amount in the wrong regional format, aren't errors of core or store: their codes start with `input.`, they live in `kassensturz-ui-bridge` and aren't listed here (D-089). The same goes for the app's own problems opening a book, whose codes start with `book.` (D-113).
 
-This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, one in `kassensturz-export` (`src/error/tests.rs`) against the `export.` codes, and one in `kassensturz-bank` (`src/error/tests.rs`) against the `bank.` codes, and one in `kassensturz-platform` (`src/error/tests.rs`) against the `platform.` codes, all with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
+This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, one in `kassensturz-export` (`src/error/tests.rs`) against the `export.` codes, and one in `kassensturz-bank` (`src/error/tests.rs`) against the `bank.` codes, and one in `kassensturz-platform` (`src/error/tests.rs`) against the `platform.` codes, and one in `kassensturz-ai` (`src/error/tests.rs`) against the `ai.` codes, all with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
 
 ## Rules
 
 - **Codes are stable.** A code keeps its meaning. One that is no longer needed is retired, never given to another error. Before 0.1, codes can still change, like the book's layout (D-045).
-- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import`, `export`, `bank` or `platform`. Damage found in a book starts with `store.corrupt`.
+- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import`, `export`, `bank`, `platform` or `ai`. Damage found in a book starts with `store.corrupt`.
 - **Parameters** are listed in the order the report gives them. A name ending in `?` is optional: the report leaves it out when it isn't known.
 - **Parameter types** (`ErrorParam`):
   - Amounts (`Money`), currencies, dates and timestamps stay typed. The UI formats them for the user's locale (D-002, D-065) and shows timestamps in the user's time zone.
@@ -277,3 +277,30 @@ The system keychain couldn't save, read or remove a secret, such as a banking PI
 | `platform.keepassxc-unavailable` | | | KeePassXC couldn't be used to save, read or remove the PIN: it isn't running, its browser integration is off, the database stayed locked, or KassenSturz wasn't allowed in KeePassXC. Start KeePassXC, open and unlock your database, turn on Tools → Settings → Browser Integration, and try again; or type the PIN this time (D-164). |
 | `platform.keychain-not-text` | | | What the keychain holds for this login isn't a PIN that KassenSturz saved. Remove the entry in the keychain's manager and save the PIN again, or type it each time. |
 | `platform.invalid-secret-key` | | | KassenSturz asked the keychain with a name it can't use. This is a bug in KassenSturz: please report it. |
+
+## AI providers (`kassensturz-ai`)
+
+A request to the AI provider the user set up couldn't be sent, or its answer couldn't be used (D-035, D-175, D-182, D-183). Nothing in the book changed. No report carries the provider's key, a question, an answer or the provider's own text (threats T-25, T-31); the only parameter is an HTTP status.
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `ai.off` | | | AI features are switched off, so nothing was sent. Turn them on in Settings → AI features. |
+| `ai.no-provider` | | | No AI provider is set up yet: its address or the model is missing. Enter both in Settings → AI features. |
+| `ai.bad-address` | | | This address can't be used for an AI provider. It starts with `http://` or `https://`, has the server's name, and has no login name, password, `?` or `#` part, e.g. `http://localhost:11434/v1`. |
+| `ai.plain-http` | | | This address is on another computer and starts with `http://`, which isn't encrypted, so KassenSturz won't send anything to it. Use the provider's `https://` address; a server at home needs `https://` too. Only a provider on this computer may use `http://`. |
+| `ai.no-consent` | | | The AI provider is on another computer, and you haven't agreed yet to what KassenSturz sends to it, or the provider or the list of what is sent changed since. Nothing was sent. Read what is sent and agree, or use a provider on this computer. |
+| `ai.settings-changed` | | | The AI provider's settings changed after this request was prepared, so it wasn't sent. Look at the request again and send it. |
+| `ai.request-too-large` | | | This request is too large to send at once. Ask about less at a time. |
+| `ai.key-needed` | | | The AI provider needs a key. Type it, or save it in Settings → AI features. |
+| `ai.key-rejected` | | | The AI provider refused the key. Check the key in Settings → AI features, and whether it is still valid at the provider. |
+| `ai.keychain` | | | The system keychain couldn't be reached, so the provider's key couldn't be saved, read or removed. Make sure the keychain (for example KWallet) is unlocked, or type the key each time. |
+| `ai.keepassxc` | | | KeePassXC couldn't be reached, or it said no, so the provider's key couldn't be saved, read or removed. Start KeePassXC, open and unlock your database, make sure Browser Integration is on, and try again; or type the key each time. |
+| `ai.unreachable` | | | The AI provider couldn't be reached. Check the address in Settings → AI features, that the provider is running (for a local server such as Ollama or LM Studio), and your internet connection. |
+| `ai.untrusted-server` | | | The server's security certificate didn't pass the checks of this computer, so KassenSturz sent nothing to it. Check the address; a server at home needs a certificate this computer trusts. |
+| `ai.timeout` | | | The AI provider took too long to answer. Try again; a local model may need a faster computer or a smaller model. |
+| `ai.redirect` | | | The AI provider sent KassenSturz to another address, which KassenSturz doesn't follow. Enter the provider's final address in Settings → AI features. |
+| `ai.not-found` | | | The AI provider doesn't know this address or this model. Check both in Settings → AI features. |
+| `ai.rate-limited` | | | The AI provider asks you to wait before the next request. Try again in a little while. |
+| `ai.provider-failed` | `status` | | The AI provider answered with an error (HTTP {status}). Try again later; if it keeps happening, check the provider's settings. |
+| `ai.reply-too-large` | | | The AI provider's answer was too large, so KassenSturz didn't read it. Ask about less at a time. |
+| `ai.bad-reply` | | | The AI provider's answer isn't what KassenSturz expects from an OpenAI-compatible provider. Check that the address points to such an interface, often ending in `/v1`. |

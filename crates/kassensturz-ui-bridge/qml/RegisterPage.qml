@@ -35,6 +35,12 @@ Kirigami.ScrollablePage {
     signal getTransactionsClicked(string accountId)
     // Whether bank connections can be used here, so the action is offered.
     property bool bankReady: false
+    // Whether the action that sorts this account's transactions with help
+    // is offered; Main.qml binds it to the switch that turns that help off
+    // (M5.9, D-222).
+    property bool suggestionsShown: false
+    // The user wants categories suggested for this account's transactions.
+    signal suggestCategoriesClicked(string accountId)
     // The account's name, closing and check against the bank.
     signal detailsClicked(string accountId)
     // Open a transaction to change or remove it.
@@ -133,6 +139,12 @@ Kirigami.ScrollablePage {
             icon.name: "document-import"
             text: page.i18nContext.i18nc("@action:button", "Import from my bank")
             onTriggered: page.importClicked(page.accountId)
+        },
+        Kirigami.Action {
+            icon.name: "tag-new"
+            visible: page.suggestionsShown
+            text: page.i18nContext.i18nc("@action:button asks for a category for each transaction of this account that has none; the answer is shown for you to check", "Suggest categories")
+            onTriggered: page.suggestCategoriesClicked(page.accountId)
         },
         Kirigami.Action {
             icon.name: "configure"

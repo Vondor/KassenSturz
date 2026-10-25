@@ -95,6 +95,38 @@ ColumnLayout {
         keyField.text = "";
     }
 
+    // What the button of a built-in feature (M5.9, D-222) shows in the
+    // conversation as the user's question; the model gets the fixed
+    // question of the feature.
+    function featureLabel(feature: string): string {
+        switch (feature) {
+        case "categories":
+            return i18nContext.i18nc("@action:button asks the AI to suggest categories for the transactions that have none", "Suggest categories");
+        case "month":
+            return i18nContext.i18nc("@action:button asks the AI to explain this month's money in and out", "Explain this month");
+        default:
+            return i18nContext.i18nc("@action:button asks the AI to prepare Rules for payees that come back", "Prepare Rules");
+        }
+    }
+
+    // Asks the question of a built-in feature. `accountId` limits the
+    // category suggestions to one account, empty for all of them. Called
+    // by the buttons below and by the register's button.
+    function askFeature(feature: string, accountId: string) {
+        if (chat.busy || !hasProvider) {
+            return;
+        }
+        const started = chat.askFeature(feature, accountId, keyField.text);
+        if (started.started !== true) {
+            if (started.code !== undefined) {
+                add({ kind: "error", result: started });
+            }
+            return;
+        }
+        add({ kind: "question", text: featureLabel(feature) });
+        keyField.text = "";
+    }
+
     Component.onCompleted: refresh()
 
     visible: ai.enabled
@@ -328,6 +360,29 @@ ColumnLayout {
         enabled: !panel.chat.busy
         placeholderText: panel.i18nContext.i18nc("@info:placeholder", "The provider's key for this question")
         Accessible.name: panel.i18nContext.i18nc("@label:textbox", "The provider's key for this question")
+    }
+
+    // The built-in features: one press asks a fixed question. What they
+    // prepare is reviewed like anything else the AI prepares (D-222).
+    Flow {
+        Layout.fillWidth: true
+        Layout.leftMargin: Kirigami.Units.smallSpacing
+        Layout.rightMargin: Kirigami.Units.smallSpacing
+        spacing: Kirigami.Units.smallSpacing
+        visible: panel.hasProvider
+
+        Repeater {
+            model: ["categories", "month", "rules"]
+
+            Controls.Button {
+                required property string modelData
+
+                flat: true
+                enabled: !panel.chat.busy
+                text: panel.featureLabel(modelData)
+                onClicked: panel.askFeature(modelData, "")
+            }
+        }
     }
 
     RowLayout {

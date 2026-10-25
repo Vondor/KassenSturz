@@ -65,8 +65,9 @@ pub const FUNCTIONS: &[Function] = &[
             an entry is in, with the amount as seen from that account (money in positive, \
             money out negative), the payee, memo and bank text, and the category, the other \
             account of a transfer, or \"unsorted\": true. Returns how many matched in all and \
-            at most \"limit\" rows. All filters are optional and combine.",
-        parameters: r#"{"type":"object","properties":{"text":{"type":"string","maxLength":100,"description":"Text to find in the payee, memo or bank text, ignoring case."},"account_id":{"type":"string","description":"Only entries of this account, ID from list_accounts."},"category_id":{"type":"string","description":"Only transactions booked to this category or one below it, ID from list_categories."},"from":{"type":"string","format":"date","description":"First booking day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last booking day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most rows to return. Default 20."}},"additionalProperties":false}"#,
+            at most \"limit\" rows. All filters are optional and combine. With \
+            \"unsorted_only\" only entries not sorted into a category yet are found.",
+        parameters: r#"{"type":"object","properties":{"text":{"type":"string","maxLength":100,"description":"Text to find in the payee, memo or bank text, ignoring case."},"account_id":{"type":"string","description":"Only entries of this account, ID from list_accounts."},"category_id":{"type":"string","description":"Only transactions booked to this category or one below it, ID from list_categories."},"from":{"type":"string","format":"date","description":"First booking day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last booking day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most rows to return. Default 20."},"unsorted_only":{"type":"boolean","description":"Only entries that have no category yet. Default false."}},"additionalProperties":false}"#,
     },
     Function {
         name: "list_categories",
@@ -97,6 +98,7 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "text",
     "category_id",
     "limit",
+    "unsorted_only",
 ];
 
 /// The most characters of the text a search looks for.
@@ -173,6 +175,7 @@ pub fn call(book: &Book, name: &str, arguments: &Value, today: Date) -> Result<O
                 from: args.date("from")?,
                 to: args.date("to")?,
                 limit: args.limit()?,
+                unsorted_only: args.boolean("unsorted_only")?.unwrap_or(false),
             };
             if let (Some(from), Some(to)) = (search.from, search.to)
                 && to < from

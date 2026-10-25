@@ -745,6 +745,11 @@ Kirigami.ApplicationWindow {
         RegisterPage {
             register: accountRegister
             rules: ruleBook
+            suggestionsShown: aiSwitch.enabled && aiChat.available
+            onSuggestCategoriesClicked: accountId => {
+                chatDrawer.open();
+                chatPanel.askFeature("categories", accountId);
+            }
             onAddTransactionClicked: accountId => root.addTransaction(false, accountId)
             onDetailsClicked: accountId => root.pushPage(accountDetailsPage, { accountId: accountId })
             onCreateRuleFromSuggestion: (payee, category) => root.pushPage(rulePage, { initialForm: ruleBook.formFromSuggestion(payee, category) })

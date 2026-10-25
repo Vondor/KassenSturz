@@ -164,6 +164,12 @@ Kirigami.ApplicationWindow {
         bank: bankConnection
     }
 
+    // The one AI switch (D-013): every AI element in the screens hides
+    // behind its `enabled`.
+    AiSwitch {
+        id: aiSwitch
+    }
+
     // When the overview reminds the user to get new transactions (D-180).
     FetchGapSettings {
         id: fetchGapSettings
@@ -772,6 +778,7 @@ Kirigami.ApplicationWindow {
             session: bookSession
             numberFormat: numberFormatSettings
             language: languageSettings
+            ai: aiSwitch
             history: changeHistory
             bank: bankConnection
             fetchGap: fetchGapSettings

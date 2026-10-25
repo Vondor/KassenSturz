@@ -8,6 +8,8 @@
 
 mod accounts;
 mod accounts_model;
+mod ai_audit;
+mod ai_switch_model;
 mod app_icon_audit;
 mod bank_connection;
 mod bank_connection_model;

@@ -69,6 +69,7 @@ fn main() {
     .qt_module("Network")
     .files([
         "src/accounts_model.rs",
+        "src/ai_switch_model.rs",
         "src/bank_connection_model.rs",
         "src/book_from_file_model.rs",
         "src/book_session.rs",

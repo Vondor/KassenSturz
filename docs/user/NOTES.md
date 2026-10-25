@@ -195,6 +195,20 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - No warning for an account that was never fetched or is closed. KassenSturz never contacts the bank by itself to check.
 - **In German:** *Erinnerung an neue Buchungen*.
 
+## Asking your own AI tool about your book (M5.6)
+
+- **What it is:** an AI tool you already use (for example a desktop chat app or a code editor that speaks the Model Context Protocol, MCP) can read your book through a small program that comes with KassenSturz, `kassensturz-mcp`. It can list your accounts and categories, give a balance on a day, add up money in and out per category, search transactions and list your Rules. It **can't change anything** in your book, and it never sees PINs, bank logins, account numbers or IBANs.
+- **It only runs while AI is on:** switch on "AI features" in KassenSturz's Settings first. While they are off, the program refuses to start, and if you switch them off while your AI tool uses it, it stops at the tool's next question.
+- **Setting it up:** add a "stdio" server to your AI tool's MCP settings with the command below; the tool starts it by itself whenever it needs it. With the Flatpak:
+  - command `flatpak`, arguments `run --command=kassensturz-mcp io.github.vondor.KassenSturz`
+  - with KassenSturz installed from your distribution: command `kassensturz-mcp`, no arguments.
+  - Many tools take this as a JSON entry such as `"kassensturz": {"command": "flatpak", "args": ["run", "--command=kassensturz-mcp", "io.github.vondor.KassenSturz"]}` under `"mcpServers"`.
+- **Which book:** the one KassenSturz opened last. To read another, add `--book` and the book's full path as two more arguments. KassenSturz can stay open meanwhile; your AI tool always sees the book as it is now.
+- **Where your data goes:** the answers go to your AI tool, and from there to whatever AI model that tool uses. If that model runs on another computer or a cloud service, your book's figures leave this computer. That is up to the tool you chose; KassenSturz can't see or limit it. A model running on this computer keeps them here.
+- **It opens no network port:** the AI tool and `kassensturz-mcp` talk only through a direct pipe between the two programs, so no other program and no website can reach it.
+- **If it doesn't start,** the AI tool's log shows why: AI is switched off, KassenSturz hasn't opened a book yet, or the book has to be opened in KassenSturz once after an update before it can be read.
+- **Pre-release builds** tell the AI tool that the build may have bugs, so the AI can say when a result looks wrong.
+
 ## What the Flatpak may do (M4.8)
 
 - Bank connections are built into the Flatpak: nothing extra to install. The Flatpak brings its own copy of AqBanking, the library that talks to banks.

@@ -39,6 +39,14 @@ pub enum StoreError {
         /// The layout version stored in the file.
         found: i32,
     },
+    /// The book has the layout of an older KassenSturz, which only the app
+    /// updates, after a backup (D-033). A reader beside the app
+    /// ([`crate::Book::open_to_read`]) changes nothing, so it can't read the
+    /// book until the app has opened it once.
+    OlderLayout {
+        /// The layout version stored in the file.
+        found: i32,
+    },
     /// The book was made by a development build from before 0.1, whose
     /// layouts 0.1 merged into its starting layout (D-045, D-135). It wasn't
     /// changed; the way over is the complete export made with that build,
@@ -368,6 +376,9 @@ impl Report for StoreError {
             Self::NotEmpty => new("store.book-not-empty"),
             Self::NotABook => new("store.not-a-book"),
             Self::UnsupportedLayout { found } => new("store.unsupported-layout")
+                .with("found", P::Number((*found).into()))
+                .with("current", P::Number(layout::VERSION.into())),
+            Self::OlderLayout { found } => new("store.older-layout")
                 .with("found", P::Number((*found).into()))
                 .with("current", P::Number(layout::VERSION.into())),
             Self::DevelopmentLayout { found } => new("store.development-layout")

@@ -62,3 +62,10 @@ SPDX-License-Identifier = "CC0-1.0"
 path = ["crates/kassensturz-export/tests/golden/**"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"
+
+# What the MCP server must answer in a session over made-up data, as JSON
+# (D-194).
+[[annotations]]
+path = ["crates/kassensturz-mcp/tests/golden/**"]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC0-1.0"

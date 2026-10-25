@@ -85,6 +85,15 @@ ureq = { version = "=3.5.0", default-features = false, features = ["rustls-no-pr
 # The TLS library for ureq (Q-122 A), with AWS-LC as its crypto provider.
 # KassenSturz writes no cryptography of its own (AGENTS.md §3.1 rule 7).
 rustls = { version = "=0.23.46", default-features = false, features = ["std", "tls12", "aws_lc_rs"] }
+# The MCP server's protocol (D-050, D-175; Q-123 B), only in
+# kassensturz-mcp: the official SDK, without its default features, with only
+# the server and the stdio transport. Every other transport stays out, and
+# tests in kassensturz-mcp fail if one comes in (threats T-13, T-32).
+rmcp = { version = "=3.7.0", default-features = false, features = ["server", "transport-io"] }
+# The async runtime rmcp runs on, only in kassensturz-mcp (D-194): the
+# version rmcp brings anyway, a single-threaded runtime with its timer and
+# without its I/O driver, so it never polls a socket.
+tokio = { version = "=1.54.1", default-features = false, features = ["rt", "time"] }
 # Wipes a banking PIN from memory when it is no longer needed (D-057, threat
 # T-02). Without its default features: `alloc` is enough for a wiped String.
 zeroize = { version = "=1.9.1", default-features = false, features = ["alloc"] }

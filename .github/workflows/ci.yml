@@ -300,6 +300,16 @@ jobs:
           done
           grep -qx 'Icon=io.github.vondor.KassenSturz' \
             build/stage/usr/share/applications/io.github.vondor.KassenSturz.desktop
+      # The MCP server comes with the build with AI, and like the app's AI it
+      # doesn't run while AI is off, which a fresh settings folder means
+      # (D-013, D-050, D-194).
+      - name: The MCP server is installed and refuses to start while AI is off (D-194)
+        run: |
+          set -eu
+          status=0
+          HOME="$PWD/build/mcp-home" XDG_CONFIG_HOME="$PWD/build/mcp-home/.config" \
+            build/stage/usr/bin/kassensturz-mcp < /dev/null || status=$?
+          test "$status" -eq 2
       - name: Tests, with the system's SQLite
         run: cargo test --workspace --no-default-features --features ai --locked
         env:
@@ -410,6 +420,16 @@ jobs:
           done
           grep -qx 'Icon=io.github.vondor.KassenSturz' \
             build/stage/usr/share/applications/io.github.vondor.KassenSturz.desktop
+      # The MCP server comes with the build with AI, and like the app's AI it
+      # doesn't run while AI is off, which a fresh settings folder means
+      # (D-013, D-050, D-194).
+      - name: The MCP server is installed and refuses to start while AI is off (D-194)
+        run: |
+          set -eu
+          status=0
+          HOME="$PWD/build/mcp-home" XDG_CONFIG_HOME="$PWD/build/mcp-home/.config" \
+            build/stage/usr/bin/kassensturz-mcp < /dev/null || status=$?
+          test "$status" -eq 2
       - name: Tests, with the system's SQLite
         run: cargo test --workspace --no-default-features --features ai --locked
         env:
@@ -493,6 +513,14 @@ jobs:
           test ! -e "$icons/scalable"
           grep -qx 'Icon=io.github.vondor.KassenSturz' \
             "$files/share/applications/io.github.vondor.KassenSturz.desktop"
+      # The user's AI tool starts the MCP server with
+      # `flatpak run --command=kassensturz-mcp io.github.vondor.KassenSturz`
+      # (D-194, docs/user/NOTES.md).
+      - name: The MCP server is in the Flatpak (D-194)
+        run: |
+          set -eu
+          flatpak=$(command -v flatpak || echo /app/bin/flatpak)
+          test -x "$("$flatpak" info --show-location io.github.vondor.KassenSturz)/files/bin/kassensturz-mcp"
       # Network, the Secret Service, KeePassXC's browser socket (D-164) and
       # the card reader are the only permissions beyond a window (D-142); a
       # new one must change this list.
@@ -534,7 +562,8 @@ jobs:
           test "$(ls "$plugins/providers" | tr '\n' ' ')" = "aqhbci.xml aqnone.xml "
           test -f "$plugins/imexporters/swift.xml"
           test ! -e "$plugins/imexporters/eri2.xml"
-          test "$(ls "$files/bin")" = kassensturz
+          # Only the app and its MCP server (D-194): no AqBanking tool.
+          test "$(ls "$files/bin" | tr '\n' ' ')" = "kassensturz kassensturz-mcp "
           # Gwenhywfar checks a bank's certificate against this file only.
           runtime="$("$flatpak" info --show-location org.kde.Platform//6.11)/files"
           test -s "$runtime/etc/ssl/certs/ca-certificates.crt"

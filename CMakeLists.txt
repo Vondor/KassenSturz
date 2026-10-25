@@ -61,6 +61,9 @@ if(KASSENSTURZ_BUNDLED_SQLITE)
 endif()
 if(KASSENSTURZ_AI)
     list(APPEND cargo_features ai)
+    # The MCP server for the user's own AI tools (D-050, D-194) exists only
+    # in a build with AI.
+    list(APPEND cargo_args --package kassensturz-mcp --bin kassensturz-mcp)
 endif()
 list(APPEND cargo_args --no-default-features)
 if(cargo_features)
@@ -89,6 +92,9 @@ add_custom_target(kassensturz ALL
 )
 
 install(PROGRAMS "${cargo_target_dir}/${cargo_profile_dir}/kassensturz" DESTINATION ${KDE_INSTALL_BINDIR})
+if(KASSENSTURZ_AI)
+    install(PROGRAMS "${cargo_target_dir}/${cargo_profile_dir}/kassensturz-mcp" DESTINATION ${KDE_INSTALL_BINDIR})
+endif()
 
 # Gwenhywfar's Qt 6 dialogs, wrapped in a small C++ library that the app
 # loads at runtime like AqBanking itself (Q-035, D-140). Its test runs

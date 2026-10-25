@@ -234,6 +234,33 @@ fn another_computer_needs_consent_and_https() {
 }
 
 #[test]
+fn a_consent_to_an_older_statement_asks_again() {
+    // T-22, M5.12: the user agreed to what was sent once; the statement of
+    // what is sent has changed since, so the agreement no longer counts.
+    let home = "https://192.0.2.10:11434/v1";
+    let settings = Settings::new();
+    settings.write(true, home, KeyUse::None);
+    let consent = ConsentRecord::give(
+        &ProviderAddress::parse(home).unwrap(),
+        jiff::civil::date(2026, 10, 25),
+    );
+    let mut text = std::fs::read_to_string(&settings.path).unwrap();
+    for (key, value) in consent.entries() {
+        let value = if key == kassensturz_ai::CONSENT_STATEMENT_KEY {
+            // The version before the current one.
+            (kassensturz_ai::STATEMENT_VERSION - 1).to_string()
+        } else {
+            value
+        };
+        text.push_str(&format!("{key}={value}\n"));
+    }
+    std::fs::write(&settings.path, text).unwrap();
+    let client = settings.client();
+    let request = client.prepare(question(), Vec::new()).unwrap();
+    assert_eq!(client.send(&request, None), Err(AiError::NoConsent));
+}
+
+#[test]
 fn https_to_a_server_without_tls_sends_nothing_readable() {
     let fake = FakeProvider::start(vec![Answer::Raw(b"HTTP/1.1 200 OK\r\n\r\n{}".to_vec())]);
     let settings = Settings::new();

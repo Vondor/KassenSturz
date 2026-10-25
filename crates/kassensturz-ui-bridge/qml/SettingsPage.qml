@@ -800,5 +800,14 @@ FormCard.FormCardPage {
             text: page.i18nContext.i18nc("@label the version of KassenSturz that is running", "Version")
             description: page.session.version
         }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            text: page.i18nContext.i18nc("@action:button opens the project's web page in the browser", "Project page on GitHub")
+            description: "https://github.com/Vondor/KassenSturz"
+            descriptionItem.textFormat: Text.PlainText
+            onClicked: Qt.openUrlExternally("https://github.com/Vondor/KassenSturz")
+        }
     }
 }

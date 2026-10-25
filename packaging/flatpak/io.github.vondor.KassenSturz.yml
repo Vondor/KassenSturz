@@ -5,6 +5,8 @@
 # KDE SDK and Rust extension as development and CI (D-063). Cargo works
 # offline here: every crate comes from cargo-sources.json, which is generated
 # from Cargo.lock (see README.md, "Building").
+# CI names the builder's cache after a hash of this folder, so a changed
+# manifest or cargo-sources.json starts from the last build (D-220).
 
 id: io.github.vondor.KassenSturz
 runtime: org.kde.Platform

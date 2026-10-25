@@ -2418,6 +2418,12 @@ msgstr "Neue Buchungen von Ihrer Bank abgerufen"
 
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:82
 #, kde-format
+msgctxt "@info a change you made"
+msgid "Applied suggested changes"
+msgstr "Vorgeschlagene Änderungen übernommen"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:82
+#, kde-format
 msgctxt "@info a change you made that this version doesn't know"
 msgid "Made a change"
 msgstr "Eine Änderung vorgenommen"

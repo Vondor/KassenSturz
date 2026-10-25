@@ -93,11 +93,16 @@ pub enum Action {
     /// Fetched an account's statement from its bank, imported it, and noted
     /// the day on the bank link (D-148).
     FetchStatement,
+    /// Applied changes an AI prepared, after the user confirmed them: a
+    /// change set (D-171, D-198). Whatever it changed is one change, so the
+    /// history says the AI's changes came together, and one undo takes them
+    /// back.
+    ApplyAiChanges,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 28] = [
+    pub const ALL: [Self; 29] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -126,6 +131,7 @@ impl Action {
         Self::LinkBankAccount,
         Self::UnlinkBankAccount,
         Self::FetchStatement,
+        Self::ApplyAiChanges,
     ];
 }
 
@@ -1320,6 +1326,7 @@ fn action_to_text(action: Action) -> &'static str {
         Action::LinkBankAccount => "link_bank_account",
         Action::UnlinkBankAccount => "unlink_bank_account",
         Action::FetchStatement => "fetch_statement",
+        Action::ApplyAiChanges => "apply_ai_changes",
     }
 }
 

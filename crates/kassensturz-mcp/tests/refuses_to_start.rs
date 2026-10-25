@@ -71,7 +71,9 @@ fn refuses_to_start_while_ai_is_off_in_the_settings() {
     );
 }
 
-#[cfg(feature = "ai")]
+// Only Linux knows where the settings file is yet (D-177); elsewhere the
+// switch reads as off.
+#[cfg(all(feature = "ai", target_os = "linux"))]
 #[test]
 fn passes_the_switch_when_ai_is_on_and_says_it_is_not_built_yet() {
     let folder = Folder::new("on");

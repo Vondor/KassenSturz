@@ -16,8 +16,10 @@
 //! (D-013), and stops at the next request once it is switched off. It only
 //! reads: the tools are the read functions of `kassensturz-ai-tools`, the
 //! same the in-app chat uses, and the book is opened read-only beside the
-//! running app, one short read per answer (D-195, Q-036). A build without AI
-//! (D-039) holds nothing else than a message saying so.
+//! running app, one short read per answer (D-195, Q-036). While the user has
+//! turned the write tools on, it also hands prepared changes to the running
+//! app as request files, and the user confirms them there (D-216, D-217).
+//! A build without AI (D-039) holds nothing else than a message saying so.
 
 #![forbid(unsafe_code)]
 // Standard output carries the protocol; anything else written there would
@@ -31,6 +33,8 @@ use std::process::ExitCode;
 mod book_path;
 #[cfg(feature = "ai")]
 mod server;
+#[cfg(feature = "ai")]
+mod writes;
 
 /// The exit status of a refusal to start.
 const REFUSED: u8 = 2;
@@ -42,6 +46,12 @@ fn main() -> ExitCode {
     if !kassensturz_core::ai_switch::enabled() {
         eprintln!("{}", server::SWITCHED_OFF);
         return ExitCode::from(REFUSED);
+    }
+    if std::env::args_os()
+        .nth(1)
+        .is_some_and(|flag| flag == "--request-folder")
+    {
+        return show_request_folder();
     }
     let book = match book_path::from_arguments(std::env::args_os().skip(1)) {
         Ok(book) => book,
@@ -78,6 +88,37 @@ fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("error: {error}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// `--request-folder`: makes the folder through which the write tools reach
+/// the running app, if needed, and names it on standard error (D-216). It
+/// shows where a request goes, for example that `flatpak run
+/// --command=kassensturz-mcp` and the app meet in the same folder (D-219).
+#[cfg(feature = "ai")]
+fn show_request_folder() -> ExitCode {
+    use kassensturz_ai_tools::requests::RequestFolder;
+
+    if !kassensturz_core::ai_switch::write_tools_enabled() {
+        eprintln!(
+            "error: the write tools are switched off. Turn on \"Let my AI tools prepare \
+             changes\" in KassenSturz's AI settings first."
+        );
+        return ExitCode::from(REFUSED);
+    }
+    let Some(place) = RequestFolder::default_place() else {
+        eprintln!("error: this system has no request folder yet.");
+        return ExitCode::from(REFUSED);
+    };
+    match RequestFolder::open(place) {
+        Ok(folder) => {
+            eprintln!("request folder: {}", folder.path().display());
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("error: the request folder can't be used: {error}");
             ExitCode::FAILURE
         }
     }

@@ -9101,3 +9101,48 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:137
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid ""
+"One of your own AI tools prepared %1 change for you. Nothing is changed "
+"until you have read it and confirmed."
+msgid_plural ""
+"One of your own AI tools prepared %1 changes for you. Nothing is changed "
+"until you have read them and confirmed."
+msgstr[0] ""
+"Eines Ihrer eigenen KI-Programme hat %1 Änderung für Sie vorbereitet. Es "
+"wird nichts geändert, bevor Sie sie gelesen und bestätigt haben."
+msgstr[1] ""
+"Eines Ihrer eigenen KI-Programme hat %1 Änderungen für Sie vorbereitet. Es "
+"wird nichts geändert, bevor Sie sie gelesen und bestätigt haben."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:400
+#, kde-format
+msgctxt "@title:group"
+msgid "Your own AI tools"
+msgstr "Ihre eigenen KI-Programme"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:407
+#, kde-format
+msgctxt "@info"
+msgid ""
+"AI programs on this computer that you set up to use KassenSturz can read "
+"your book. If you allow it, they can also prepare changes: new categories, "
+"Rules and categories for transactions. Their changes are shown in the chat "
+"sidebar, and nothing changes until you have read them and confirmed. "
+"KassenSturz must be open for that."
+msgstr ""
+"KI-Programme auf diesem Computer, die Sie für KassenSturz eingerichtet "
+"haben, können Ihr Buch lesen. Wenn Sie es erlauben, können sie auch "
+"Änderungen vorbereiten: neue Kategorien, Regeln und Kategorien für "
+"Buchungen. Ihre Änderungen erscheinen in der Chat-Seitenleiste, und nichts "
+"wird geändert, bevor Sie sie gelesen und bestätigt haben. Dafür muss "
+"KassenSturz geöffnet sein."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:413
+#, kde-format
+msgctxt "@option:check"
+msgid "Let my AI tools prepare changes"
+msgstr "Meine KI-Programme dürfen Änderungen vorbereiten"

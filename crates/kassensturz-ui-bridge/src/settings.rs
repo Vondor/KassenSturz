@@ -54,6 +54,9 @@ const BANK: &str = "Bank";
 /// Where saved PINs go (D-163).
 const PIN_STORAGE: &str = "PinStorage";
 
+/// How long after the last fetch the overview warns (D-180).
+const FETCH_GAP: &str = "FetchGapDays";
+
 /// The app's settings in one settings file.
 pub struct Settings {
     file: QString,
@@ -107,6 +110,18 @@ impl Settings {
     /// Keeps where saved PINs go. Returns whether that was saved.
     pub fn set_pin_storage(&self, storage: SecretStorage) -> bool {
         self.set_text(BANK, PIN_STORAGE, storage.key())
+    }
+
+    /// The word kept for the fetch gap warning's limit (D-180): a number of
+    /// days or "off"; empty when nothing is kept, which `fetch_gap::limit_of`
+    /// reads as the default.
+    pub fn fetch_gap_choice(&self) -> String {
+        self.text(BANK, FETCH_GAP)
+    }
+
+    /// Keeps the fetch gap warning's limit. Returns whether it was saved.
+    pub fn set_fetch_gap_choice(&self, choice: &str) -> bool {
+        self.set_text(BANK, FETCH_GAP, choice)
     }
 
     /// The text kept under `key` in `group`; empty if there is none.
@@ -164,6 +179,18 @@ mod tests {
         // A word another build wrote gives the default.
         assert!(settings.set_text("Bank", "PinStorage", "elsewhere"));
         assert_eq!(settings.pin_storage(), SecretStorage::System);
+    }
+
+    #[test]
+    fn keeps_the_fetch_gap_limit() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        assert_eq!(settings.fetch_gap_choice(), "");
+        assert!(settings.set_fetch_gap_choice("off"));
+        assert_eq!(Settings::at(&file).fetch_gap_choice(), "off");
+        let written = std::fs::read_to_string(&file).expect("settings file written");
+        assert!(written.contains("[Bank]\nFetchGapDays=off"), "{written}");
     }
 
     #[test]

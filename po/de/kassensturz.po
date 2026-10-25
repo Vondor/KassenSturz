@@ -7733,3 +7733,70 @@ msgstr "KeePassXC verwaltet die Datenbankdatei: Dort legen Sie fest, wo sie gesp
 msgctxt "@action:button"
 msgid "Connect to KeePassXC again"
 msgstr "Erneut mit KeePassXC verbinden"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:87
+#, kde-format
+msgctxt "@info %1 is how many days, %2 an account's name, %3 a date"
+msgid ""
+"It has been %1 days since you last got new transactions for %2 from your "
+"bank (%3). Your bank only lists its recent transactions, so some may be "
+"missing if you wait longer."
+msgstr ""
+"Seit Sie zuletzt neue Buchungen für %2 von Ihrer Bank abgerufen haben "
+"(%3), sind %1 Tage vergangen. Ihre Bank führt nur ihre neueren Buchungen "
+"auf, daher können Buchungen fehlen, wenn Sie länger warten."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:421
+#, kde-format
+msgctxt "@title:group"
+msgid "Reminder to get new transactions"
+msgstr "Erinnerung an neue Buchungen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:433
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Remind me after"
+msgstr "Erinnern nach"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:437
+#, kde-format
+msgctxt "@item:inlistbox remind about fetching"
+msgid "30 days"
+msgstr "30 Tagen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:438
+#, kde-format
+msgctxt "@item:inlistbox remind about fetching"
+msgid "60 days"
+msgstr "60 Tagen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:439
+#, kde-format
+msgctxt "@item:inlistbox remind about fetching"
+msgid "90 days"
+msgstr "90 Tagen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:440
+#, kde-format
+msgctxt "@item:inlistbox remind about fetching"
+msgid "180 days"
+msgstr "180 Tagen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:441
+#, kde-format
+msgctxt "@item:inlistbox remind about fetching"
+msgid "Never remind me"
+msgstr "Nie erinnern"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:452
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The overview reminds you when an account linked to your bank was last "
+"updated from it longer ago than this. Banks only list their recent "
+"transactions, so a long wait can leave some out."
+msgstr ""
+"Die Übersicht erinnert Sie, wenn für ein mit Ihrer Bank verknüpftes Konto "
+"länger keine neuen Buchungen abgerufen wurden, als hier eingestellt. Banken "
+"führen nur ihre neueren Buchungen auf, daher kann eine lange Wartezeit dazu "
+"führen, dass Buchungen fehlen."

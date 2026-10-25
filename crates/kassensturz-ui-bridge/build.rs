@@ -75,6 +75,7 @@ fn main() {
         "src/book_session.rs",
         "src/categories_model.rs",
         "src/export_model.rs",
+        "src/fetch_gap_model.rs",
         "src/first_start_model.rs",
         "src/history_model.rs",
         "src/language_model.rs",

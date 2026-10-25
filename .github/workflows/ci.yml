@@ -564,18 +564,35 @@ jobs:
       # file that build.rs reads; Settings then shows it next to the version.
       - name: Note the commit for the build
         run: echo "${GITHUB_SHA}" | cut -c1-7 > build-commit
+      # The builder's own folder is kept between runs with the same cache
+      # action as Cargo's (D-110), not with the Flatpak action's built-in
+      # cache: on main the built-in one did not bring back the last build
+      # when the key had changed, and its restore line is not visible. The key
+      # changes with the manifest and cargo-sources.json, so a new crate list
+      # is saved, and `restore-keys` starts it from the newest earlier cache
+      # (D-220). The next step's name shows what was restored.
+      - name: Restore the builder's cache
+        id: builder-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .flatpak-builder
+          key: flatpak-builder-state-x86_64-${{ hashFiles('packaging/flatpak/**') }}
+          restore-keys: flatpak-builder-state-x86_64-
+      - name: "Builder cache restored from: ${{ steps.builder-cache.outputs.cache-matched-key || 'nothing' }}"
+        run: ls .flatpak-builder 2>/dev/null | head || true
       - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
         with:
           manifest-path: packaging/flatpak/io.github.vondor.KassenSturz.yml
           bundle: KassenSturz.flatpak
-          # Stable across commits, so Cargo's source downloads are reused; it
-          # changes with the manifest and cargo-sources.json (D-110). When
-          # its own key has no cache, the action restores the newest cache
-          # whose name starts with `flatpak-builder-x86_64`, and it appends the
-          # architecture to the key it is given, so the key starts with that
-          # name: a changed cargo-sources.json then starts from the last build
-          # and rebuilds only what changed, not everything (D-220).
-          cache-key: flatpak-builder-x86_64-${{ hashFiles('packaging/flatpak/**') }}
+          restore-cache: false
+          save-cache: false
+      # Saved even when a later check fails, so the next push doesn't start cold.
+      - name: Save the builder's cache
+        if: ${{ !cancelled() && steps.builder-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .flatpak-builder
+          key: flatpak-builder-state-x86_64-${{ hashFiles('packaging/flatpak/**') }}
       # Installed from the bundle that people get, since a catalog in the build
       # but not in the bundle left the Flatpak in English on a German system
       # (D-128).

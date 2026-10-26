@@ -84,7 +84,7 @@ pub trait Provider {
     fn send(&self, request: &PreparedRequest, key: Option<&Secret>) -> Result<Reply, AiError>;
 
     /// The provider's last reply as it came, before it was read, so the
-    /// developer mode can show why a reply wasn't understood (D-232). Kept
+    /// developer mode can show why a reply wasn't understood (D-235). Kept
     /// in memory only; a provider without a wire gives none.
     fn last_reply_text(&self) -> Option<String> {
         None
@@ -114,7 +114,7 @@ impl Provider for AiClient {
 pub struct AiClient {
     config: ConfigFile,
     limits: Limits,
-    /// The last reply's bytes as text, shared by the clones (D-232).
+    /// The last reply's bytes as text, shared by the clones (D-235).
     last_reply: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
 

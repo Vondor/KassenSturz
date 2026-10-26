@@ -38,6 +38,48 @@ pub const NOT_OFFERED: &str = "KassenSturz: a function you asked for is not offe
                                was not run (error ai-tools.unknown-function). Call only the \
                                functions offered.";
 
+/// What the user did with the changes the model prepared, which the model
+/// hears at its next question (D-229).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Outcome {
+    /// The user confirmed them and they were made.
+    Confirmed,
+    /// The user threw them away; nothing was changed.
+    Declined,
+    /// The user confirmed them but they could not be made; nothing was
+    /// changed.
+    Failed,
+    /// The user took the confirmed changes back with Undo.
+    Undone,
+}
+
+impl Outcome {
+    /// What the model is told. Fixed text from KassenSturz, nothing from
+    /// the book.
+    pub fn text(self) -> &'static str {
+        match self {
+            Self::Confirmed => {
+                "KassenSturz: the user reviewed the changes you prepared in KassenSturz's chat \
+                 sidebar and confirmed them. They were made in the user's book. Nothing \
+                 waits for approval now."
+            }
+            Self::Declined => {
+                "KassenSturz: the user reviewed the changes you prepared and refused them. \
+                 Nothing was changed in the user's book, and nothing waits for approval now."
+            }
+            Self::Failed => {
+                "KassenSturz: the user confirmed the changes you prepared, but they could not \
+                 be made, so nothing was changed in the user's book. Nothing waits for \
+                 approval now."
+            }
+            Self::Undone => {
+                "KassenSturz: the user took the changes you prepared back with Undo. They are \
+                 no longer in the user's book."
+            }
+        }
+    }
+}
+
 /// How the model gets the book's figures (D-052).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Mode {
@@ -141,6 +183,9 @@ pub struct ChatSession {
     /// Every figure the functions, the user and the build produced so far.
     figures: Figures,
     log: Vec<LogEntry>,
+    /// What the user did with prepared changes since the last question, to
+    /// tell the model with the next one.
+    outcomes: Vec<Outcome>,
     /// The change sets the model prepared for the question under way.
     proposed: Vec<ChangeSet>,
     /// The issue draft the model prepared for the question under way.
@@ -166,6 +211,7 @@ impl ChatSession {
             history: Vec::new(),
             figures,
             log: Vec::new(),
+            outcomes: Vec::new(),
             proposed: Vec::new(),
             issue: None,
             #[cfg(feature = "debug-log")]
@@ -204,6 +250,13 @@ impl ChatSession {
         &self.history
     }
 
+    /// Remembers what the user did with changes the model prepared, so the
+    /// model hears it as a message from KassenSturz before the next
+    /// question and doesn't go on saying they wait (D-229).
+    pub fn note_outcome(&mut self, outcome: Outcome) {
+        self.outcomes.push(outcome);
+    }
+
     /// Asks `question` about `book` through `provider`, with `key` when the
     /// provider needs one; `today` is the day of this computer's clock. The
     /// model calls the read functions until it answers, at most
@@ -218,6 +271,10 @@ impl ChatSession {
         today: Date,
         hooks: &mut dyn Hooks,
     ) -> Result<Answer, ChatError> {
+        // Kept even when the question fails: it happened.
+        for outcome in std::mem::take(&mut self.outcomes) {
+            self.history.push(Message::user(outcome.text()));
+        }
         let start = self.history.len();
         #[cfg(feature = "debug-log")]
         self.debug_log.start_turn();
@@ -486,7 +543,7 @@ impl ChatSession {
     }
 
     /// The provider's reply as it came, and why it couldn't be read when it
-    /// couldn't, for the developer mode's transcript (D-232).
+    /// couldn't, for the developer mode's transcript (D-235).
     fn transcribe_reply(&self, provider: &dyn Provider, error: Option<&AiError>) {
         #[cfg(feature = "debug-log")]
         {

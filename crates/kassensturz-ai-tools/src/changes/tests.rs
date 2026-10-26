@@ -443,6 +443,10 @@ fn calls_that_are_not_what_the_function_takes_are_refused() {
             "bad-argument income",
         ),
         (
+            json!({"new_categories": [{"key": "a", "name": "Games", "parent_id": salary}]}),
+            "bad-argument income",
+        ),
+        (
             json!({"new_categories": [{"key": "a", "name": "A", "currency": "DEM"}]}),
             "bad-argument currency",
         ),

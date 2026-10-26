@@ -20,7 +20,7 @@
 //! a line that doesn't fit, so a file changed by another program can't put
 //! text in front of the AI either.
 //!
-//! **The transcript (D-232)** is the one exception, and a file of its own
+//! **The transcript (D-235)** is the one exception, and a file of its own
 //! (`chat.jsonl`): while the mode runs, [`DebugLog::transcript`] also notes
 //! the chat in full, the user's questions, each request body, each
 //! function call with arguments and result, each reply, so a problem with
@@ -62,7 +62,7 @@ const OLDER: &str = "older.jsonl";
 /// log never holds more than twice this.
 pub const MAX_FILE_BYTES: u64 = 256 * 1024;
 
-/// The transcript of the chat, kept apart from the event log (D-232): what
+/// The transcript of the chat, kept apart from the event log (D-235): what
 /// was asked, every request and reply, every function call with its result.
 const TRANSCRIPT: &str = "chat.jsonl";
 
@@ -344,7 +344,7 @@ impl DebugLog {
         )
     }
 
-    /// Starts a new turn of the transcript (D-232): called when a question
+    /// Starts a new turn of the transcript (D-235): called when a question
     /// is asked, so every line up to the next question carries the same
     /// `turn`, e.g. `20261026T180402Z-3`, and its own time to the
     /// millisecond. Nothing when the log is off.
@@ -358,7 +358,7 @@ impl DebugLog {
         }
     }
 
-    /// Notes one step of the chat in the transcript (D-232): `kind` names
+    /// Notes one step of the chat in the transcript (D-235): `kind` names
     /// the step, `fields` hold its texts (the question, a request body, a
     /// function's arguments and result, a reply). Only while the developer
     /// mode is on. The transcript holds the book's data that was sent to

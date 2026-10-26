@@ -206,8 +206,10 @@ pub(crate) fn instructions(write_tools: bool, log_readable: bool) -> String {
     };
     let reach = if write_tools {
         "These tools read the user's book on this computer. They can't change it: \
-         propose_changes only prepares changes, which the user reviews and confirms or \
-         refuses in KassenSturz's window, and KassenSturz must be running for that."
+         propose_changes only prepares changes, which the user reviews in the change panel \
+         of KassenSturz's chat sidebar, where Confirm applies them and the user can refuse them \
+         or take them back with Undo, and KassenSturz must be running for that. Don't name \
+         any other menu or button of KassenSturz to the user; there are none for this."
     } else {
         "These tools read the user's book on this computer and can't change anything in it."
     };
@@ -383,8 +385,9 @@ mod tests {
         let text = instructions(true, false);
         assert!(!text.contains("can't change anything"), "{text}");
         assert!(
-            text.contains("confirms or refuses in KassenSturz's window"),
+            text.contains("change panel of KassenSturz's chat sidebar"),
             "{text}"
         );
+        assert!(text.contains("Don't name any other menu"), "{text}");
     }
 }

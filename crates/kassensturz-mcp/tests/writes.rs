@@ -182,7 +182,7 @@ fn the_app_shows_the_set_and_the_ai_tool_hears_the_users_decision() {
     let answer = session.initialize("2025-06-18");
     let instructions = answer["result"]["instructions"].as_str().expect("text");
     assert!(
-        instructions.contains("confirms or refuses"),
+        instructions.contains("Confirm applies them"),
         "{instructions}"
     );
     let (answer, is_error) = session.call("propose_changes", bakery());

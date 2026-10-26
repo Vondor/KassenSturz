@@ -8,10 +8,10 @@
 //! The chat panel shows it (M5.8), so the user can see everything that left
 //! KassenSturz for the model. It lives only in memory, with the
 //! conversation, and is never written to a file, except to the developer
-//! mode's transcript (D-232): it holds the book's data that was sent. It never holds the provider's key, which is not part of
+//! mode's transcript (D-235): it holds the book's data that was sent. It never holds the provider's key, which is not part of
 //! what is sent in the body (D-184). What reaches the opt-in debug log is
 //! only [`LogEntry::debug_event`]: event names, function names and error
-//! codes (D-173); the transcript of D-232 gets the lines in full.
+//! codes (D-173); the transcript of D-235 gets the lines in full.
 
 #[cfg(feature = "debug-log")]
 use kassensturz_core::debug_log::{Event, known_detail};
@@ -101,7 +101,7 @@ impl LogEntry {
 
 #[cfg(feature = "debug-log")]
 impl LogEntry {
-    /// Writes this line in full to the developer mode's transcript (D-232),
+    /// Writes this line in full to the developer mode's transcript (D-235),
     /// which, unlike the event log, holds the question, the request, the
     /// arguments and the result. Answers and failures are noted by the
     /// session, which has their text.

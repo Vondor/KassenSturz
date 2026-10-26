@@ -483,6 +483,9 @@ Kirigami.ApplicationWindow {
     pageStack.columnView.columnResizeMode: Kirigami.ColumnView.SingleColumn
 
     header: ColumnLayout {
+        // The header is not stretched by the window, so without this a long
+        // banner is wider than the window and wraps nowhere.
+        width: root.width
         spacing: 0
 
         // The developer mode shows this on every screen for as long as it
@@ -954,7 +957,13 @@ Kirigami.ApplicationWindow {
                 chatPanel.markHandled(setId, false);
                 pageStack.pop();
             }
-            onUndoClicked: root.undoLast()
+            onUndoClicked: {
+                const result = changeHistory.undo();
+                root.afterStep(result, false);
+                if (result.code === undefined) {
+                    aiChat.changesUndone();
+                }
+            }
             onDoneClicked: pageStack.pop()
         }
     }

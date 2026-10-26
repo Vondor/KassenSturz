@@ -67,13 +67,19 @@ fn agent(limits: &Limits) -> Agent {
         .new_agent()
 }
 
+/// How much of an error answer's body is kept for the developer mode.
+const ERROR_BODY_BYTES: u64 = 4096;
+
 /// Sends `body` as JSON to `url` with `key` as the bearer token, and
-/// answers the reply's body.
+/// answers the reply's body. When the provider answers with an error
+/// status, the start of its body is put in `error_body` (D-235), so the
+/// developer mode can show why.
 pub(crate) fn post_json(
     url: &str,
     body: &str,
     key: Option<&Secret>,
     limits: &Limits,
+    error_body: &mut Vec<u8>,
 ) -> Result<Vec<u8>, AiError> {
     let mut request = agent(limits)
         .post(url)
@@ -82,7 +88,7 @@ pub(crate) fn post_json(
     if let Some(bearer) = &bearer {
         request = request.header("Authorization", bearer.as_str());
     }
-    read(request.send(body.as_bytes()), limits)
+    read(request.send(body.as_bytes()), limits, Some(error_body))
 }
 
 /// Asks `url` with `key` as the bearer token, and answers the reply's
@@ -93,7 +99,7 @@ pub(crate) fn get(url: &str, key: Option<&Secret>, limits: &Limits) -> Result<Ve
     if let Some(bearer) = &bearer {
         request = request.header("Authorization", bearer.as_str());
     }
-    read(request.call(), limits)
+    read(request.call(), limits, None)
 }
 
 /// The header value, wiped when dropped. `ureq` keeps its own copy for the
@@ -105,6 +111,7 @@ fn bearer(key: &Secret) -> Zeroizing<String> {
 fn read(
     response: Result<ureq::http::Response<ureq::Body>, ureq::Error>,
     limits: &Limits,
+    error_body: Option<&mut Vec<u8>>,
 ) -> Result<Vec<u8>, AiError> {
     let mut response = response.map_err(error)?;
     let status = response.status().as_u16();
@@ -114,7 +121,20 @@ fn read(
         401 | 403 => return Err(AiError::KeyRejected),
         404 => return Err(AiError::NotFound),
         429 => return Err(AiError::RateLimited),
-        _ => return Err(AiError::ProviderFailed { status }),
+        _ => {
+            if let Some(error_body) = error_body {
+                // Best effort: the status is the error, the text only helps.
+                if let Ok(bytes) = response
+                    .body_mut()
+                    .with_config()
+                    .limit(ERROR_BODY_BYTES)
+                    .read_to_vec()
+                {
+                    *error_body = bytes;
+                }
+            }
+            return Err(AiError::ProviderFailed { status });
+        }
     }
     response
         .body_mut()

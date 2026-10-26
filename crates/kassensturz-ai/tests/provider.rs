@@ -297,6 +297,32 @@ fn error_for(answer: Answer) -> (AiError, usize) {
     (error, fake.received().len())
 }
 
+/// The developer mode shows each call's own reply: the last good reply is
+/// not kept after a failed call, and a failed call keeps the start of the
+/// provider's error text (D-235).
+#[test]
+fn last_reply_is_the_calls_own() {
+    use kassensturz_ai::Provider;
+
+    let fake = FakeProvider::start(vec![
+        Answer::text("first"),
+        Answer::Json(400, r#"{"error":"template failed"}"#.into()),
+    ]);
+    let settings = Settings::new();
+    settings.write(true, &fake.address(), KeyUse::None);
+    let client = settings.client();
+    let request = client.prepare(question(), vec![balances()]).unwrap();
+    client.send(&request, None).unwrap();
+    assert!(client.last_reply_text().unwrap().contains("first"));
+    assert_eq!(
+        client.send(&request, None),
+        Err(AiError::ProviderFailed { status: 400 })
+    );
+    let shown = client.last_reply_text().unwrap();
+    assert!(shown.contains("template failed"), "{shown}");
+    assert!(!shown.contains("first"), "{shown}");
+}
+
 #[test]
 fn broken_answers_are_codes() {
     let cases = [

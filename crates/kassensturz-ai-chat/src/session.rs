@@ -282,8 +282,13 @@ impl ChatSession {
         if let Err(error) = &result {
             self.history.truncate(start);
             #[cfg(feature = "debug-log")]
-            self.debug_log
-                .transcript("failed", &[("code", error.report().code)]);
+            self.debug_log.transcript(
+                "failed",
+                &[
+                    ("code", error.report().code),
+                    ("detail", &error.to_string()),
+                ],
+            );
             self.note(
                 LogEntry::Failed {
                     code: error.report().code,
@@ -549,8 +554,11 @@ impl ChatSession {
         {
             let raw = provider.last_reply_text().unwrap_or_default();
             let code = error.map_or("", |error| error.report().code);
-            self.debug_log
-                .transcript("reply", &[("raw", &raw), ("error", code)]);
+            let detail = error.map(ToString::to_string).unwrap_or_default();
+            self.debug_log.transcript(
+                "reply",
+                &[("raw", &raw), ("error", code), ("detail", &detail)],
+            );
         }
         #[cfg(not(feature = "debug-log"))]
         let _ = (provider, error);

@@ -125,9 +125,10 @@ pub(crate) fn list_accounts(
         let mut row = Map::new();
         row.insert("id".into(), Value::String(account.id.to_string()));
         row.insert("name".into(), w.text(&account.name));
-        if let Some(kind) = account.account_type {
-            row.insert("type".into(), Value::from(account_type(kind)));
-        }
+        // Accounts without a type (e.g. from an import) say "other", so an
+        // AI is never left guessing what a missing field means.
+        let kind = account.account_type.map_or("other", account_type);
+        row.insert("type".into(), Value::from(kind));
         if account.kind == AccountKind::Liability {
             row.insert("debt".into(), Value::Bool(true));
         }

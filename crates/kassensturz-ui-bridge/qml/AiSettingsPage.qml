@@ -438,7 +438,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
-            text: page.i18nContext.i18nc("@info", "AI programs on this computer that you set up to use KassenSturz can read your book. If you allow it, they can also prepare changes: new categories, Rules and categories for transactions. Their changes are shown in the chat sidebar, and nothing changes until you have read them and confirmed. KassenSturz must be open for that.")
+            text: page.i18nContext.i18nc("@info", "AI programs on this computer that you set up to use KassenSturz can read your book. If you allow it, they can also prepare changes: new categories, Rules and categories for transactions. Their changes are shown in the chat sidebar, and nothing changes until you have read them and confirmed. KassenSturz must be open for that. After you switch this on or off, quit your AI program and start it again so it notices. How to set one up is explained in \"Connect an AI\" in the user guide.")
         }
 
         Controls.Switch {

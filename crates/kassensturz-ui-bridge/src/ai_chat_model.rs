@@ -694,18 +694,16 @@ pub(crate) mod engine {
         crate::note!(ChangesDeclined);
         let mut rust = chat.as_mut().rust_mut();
         let state = &mut rust.state;
-        if let Some(waiting) = id_of(id).and_then(|id| state.sets.get(id)) {
-            let fields = [("set", waiting.set.summary())];
-            let fields = [(fields[0].0, fields[0].1.as_str())];
-            if waiting.from.is_some() {
-                crate::developer_mode::transcribe_in("mcp", "changes-declined", &fields);
-            } else {
-                crate::developer_mode::transcribe("changes-declined", &fields);
-            }
-        }
-        let Some(Waiting { from, .. }) = id_of(id).and_then(|id| state.sets.take(id)) else {
+        let Some(Waiting { set, from }) = id_of(id).and_then(|id| state.sets.take(id)) else {
             return;
         };
+        let summary = set.summary();
+        let fields = [("set", summary.as_str())];
+        if from.is_some() {
+            crate::developer_mode::transcribe_in("mcp", "changes-declined", &fields);
+        } else {
+            crate::developer_mode::transcribe("changes-declined", &fields);
+        }
         match from {
             Some(from) => {
                 if let Some(inbox) = state.inbox.as_mut() {

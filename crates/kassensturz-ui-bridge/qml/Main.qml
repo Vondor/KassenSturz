@@ -954,7 +954,13 @@ Kirigami.ApplicationWindow {
                 chatPanel.markHandled(setId, false);
                 pageStack.pop();
             }
-            onUndoClicked: root.undoLast()
+            onUndoClicked: {
+                const result = changeHistory.undo();
+                root.afterStep(result, false);
+                if (result.code === undefined) {
+                    aiChat.changesUndone();
+                }
+            }
             onDoneClicked: pageStack.pop()
         }
     }

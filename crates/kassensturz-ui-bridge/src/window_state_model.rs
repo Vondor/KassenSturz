@@ -108,7 +108,7 @@ impl Geometry {
 impl cxx_qt::Initialize for qobject::WindowState {
     fn initialize(mut self: Pin<&mut Self>) {
         if let Some(kept) = Geometry::parse(&Settings::user().window_geometry()) {
-            let state = self.as_mut().rust_mut();
+            let mut state = self.as_mut().rust_mut();
             state.known = true;
             state.width = kept.width;
             state.height = kept.height;

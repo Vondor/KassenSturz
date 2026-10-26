@@ -18,7 +18,7 @@ use common::{
 use kassensturz_ai::{AiError, KeyUse, PreparedRequest, Role};
 use kassensturz_ai_chat::{
     BuildInfo, Cancel, ChatError, ChatSession, DATA_START, Hooks, LogEntry, MAX_ROUNDS, Mode,
-    NOT_OFFERED, NoHooks, SHORTENED_RESULT, sample_request,
+    NOT_OFFERED, NoHooks, sample_request,
 };
 use kassensturz_ai_tools::{DATA_NOTE, DRAFT_ISSUE, FUNCTIONS, PROPOSE_CHANGES};
 use serde_json::Value;
@@ -287,22 +287,16 @@ fn the_conversation_goes_on_across_questions() {
         .unwrap();
     let last = &script.seen()[2].messages;
     let roles: Vec<Role> = last.iter().map(|m| m.role).collect();
+    // The first question's calls and results are left out (D-237).
     assert_eq!(
         roles,
-        [
-            Role::System,
-            Role::User,
-            Role::Assistant,
-            Role::Tool,
-            Role::Assistant,
-            Role::User
-        ]
+        [Role::System, Role::User, Role::Assistant, Role::User]
     );
-    assert_eq!(chat.history().len(), 6);
+    assert_eq!(chat.history().len(), 4);
 }
 
 #[test]
-fn results_of_earlier_questions_are_shortened_but_not_those_of_this_one() {
+fn calls_and_results_of_earlier_questions_are_left_out_but_not_those_of_this_one() {
     let book = hostile_book();
     let (provider, script) = Script::provider(
         on(),
@@ -318,30 +312,34 @@ fn results_of_earlier_questions_are_shortened_but_not_those_of_this_one() {
         .unwrap();
     chat.ask(&book, &provider, None, "And now?", TODAY, &mut NoHooks)
         .unwrap();
-    let tool_results = |request: usize| -> Vec<String> {
+    let kinds = |request: usize| -> Vec<Role> {
         script.seen()[request]
             .messages
             .iter()
-            .filter(|m| m.role == Role::Tool)
-            .map(|m| m.content.clone())
+            .map(|m| m.role)
             .collect()
     };
-    // The first question's own second round sees its result whole.
-    let own = tool_results(1);
-    assert_eq!(own.len(), 1);
-    assert_ne!(own[0], SHORTENED_RESULT);
-    // The second question sees the first's result shortened and its own
-    // whole.
-    let later = tool_results(3);
-    assert_eq!(later.len(), 2);
-    assert_eq!(later[0], SHORTENED_RESULT);
-    assert_ne!(later[1], SHORTENED_RESULT);
-    // The model's earlier answer stays.
-    assert!(
-        chat.history()
-            .iter()
-            .any(|m| m.content == "You have one account.")
+    // The first question's own second round sees its call and result.
+    assert_eq!(
+        kinds(1),
+        [Role::System, Role::User, Role::Assistant, Role::Tool]
     );
+    // The second question sees the first one's question and answer, and its
+    // own call and result.
+    assert_eq!(
+        kinds(3),
+        [
+            Role::System,
+            Role::User,
+            Role::Assistant,
+            Role::User,
+            Role::Assistant,
+            Role::Tool
+        ]
+    );
+    let earlier = &script.seen()[3].messages[2];
+    assert_eq!(earlier.content, "You have one account.");
+    assert!(earlier.calls.is_empty());
 }
 
 /// Hooks that press cancel or refuse a request at a given round, and

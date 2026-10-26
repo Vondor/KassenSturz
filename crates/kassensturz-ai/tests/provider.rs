@@ -383,6 +383,82 @@ fn models_are_listed_with_the_key() {
     );
 }
 
+/// What LM Studio answers at an address without `/v1`: an error text with
+/// HTTP 200.
+fn unexpected_endpoint() -> Answer {
+    Answer::Json(
+        200,
+        json!({"error": "Unexpected endpoint or method. (GET /models)"}).to_string(),
+    )
+}
+
+fn models_answer() -> Answer {
+    Answer::Json(
+        200,
+        json!({"object": "list", "data": [{"id": "test-model"}]}).to_string(),
+    )
+}
+
+#[test]
+fn a_missing_v1_is_found_when_the_list_of_models_is_there_with_it() {
+    for first in [unexpected_endpoint(), Answer::Json(404, "{}".to_owned())] {
+        let fake = FakeProvider::start(vec![first, models_answer()]);
+        let settings = Settings::new();
+        let bare = fake.address_at("");
+        settings.write(true, &bare, KeyUse::None);
+        assert_eq!(settings.client().list_models(None), Err(AiError::MissingV1));
+        let lines: Vec<String> = fake.received().into_iter().map(|r| r.line).collect();
+        assert_eq!(lines, ["GET /models HTTP/1.1", "GET /v1/models HTTP/1.1"]);
+    }
+}
+
+#[test]
+fn a_bad_answer_without_v1_to_add_stays_a_bad_answer() {
+    // The address with /v1 gives no list either: the address isn't to blame.
+    let fake = FakeProvider::start(vec![unexpected_endpoint(), unexpected_endpoint()]);
+    let settings = Settings::new();
+    settings.write(true, &fake.address_at(""), KeyUse::None);
+    assert_eq!(settings.client().list_models(None), Err(AiError::BadReply));
+    // An address that has a path is never second-guessed.
+    let fake = FakeProvider::start(vec![unexpected_endpoint()]);
+    settings.write(true, &fake.address(), KeyUse::None);
+    assert_eq!(settings.client().list_models(None), Err(AiError::BadReply));
+    assert_eq!(fake.received().len(), 1);
+}
+
+#[test]
+fn a_question_to_an_address_without_v1_says_so_too() {
+    let fake = FakeProvider::start(vec![unexpected_endpoint(), models_answer()]);
+    let settings = Settings::new();
+    settings.write(true, &fake.address_at(""), KeyUse::Saved);
+    let client = settings.client();
+    let request = client.prepare(question(), vec![]).unwrap();
+    assert_eq!(client.send(&request, Some(&key())), Err(AiError::MissingV1));
+    // The key went only to the server the user chose.
+    let sent = fake.received();
+    assert_eq!(sent[0].line, "POST /chat/completions HTTP/1.1");
+    assert_eq!(sent[1].line, "GET /v1/models HTTP/1.1");
+}
+
+#[test]
+fn the_models_can_be_listed_before_a_model_is_chosen() {
+    let fake = FakeProvider::start(vec![models_answer()]);
+    let settings = Settings::new();
+    let address = fake.address();
+    std::fs::write(
+        &settings.path,
+        format!("[AI]\nEnabled=true\nProviderAddress={address}\nProviderModel=\nKeyUse=none\n"),
+    )
+    .unwrap();
+    let client = settings.client();
+    assert_eq!(client.list_models(None).unwrap(), ["test-model"]);
+    // Asking a question still needs the model.
+    assert_eq!(
+        client.prepare(question(), vec![]).err(),
+        Some(AiError::NoProvider)
+    );
+}
+
 #[test]
 fn no_error_carries_the_key_or_the_question() {
     // Every error of the cases above shows only its code (threat T-25).

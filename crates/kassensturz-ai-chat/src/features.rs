@@ -13,6 +13,26 @@
 
 use kassensturz_core::Date;
 
+/// The language of KassenSturz's own screens, which a button's answer is
+/// asked to be in: the question itself is English (D-189), so without it a
+/// model would answer in English to a German user (D-232).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AnswerLanguage {
+    /// English.
+    English,
+    /// German.
+    German,
+}
+
+impl AnswerLanguage {
+    fn name(self) -> &'static str {
+        match self {
+            Self::English => "English",
+            Self::German => "German",
+        }
+    }
+}
+
 /// What a button in the chat or the register asks for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Feature {
@@ -40,15 +60,33 @@ impl Feature {
     /// and must be an account's ID as the read functions write it.
     /// `None` when `account` is not a UUID.
     pub fn question(self, today: Date, account: Option<&str>) -> Option<String> {
+        self.question_in(today, account, None)
+    }
+
+    /// Like [`Self::question`], asking for the answer in `language` when
+    /// there is one.
+    pub fn question_in(
+        self,
+        today: Date,
+        account: Option<&str>,
+        language: Option<AnswerLanguage>,
+    ) -> Option<String> {
         let account = match account.filter(|id| !id.is_empty()) {
             Some(id) => Some(parse_id(id)?),
             None => None,
         };
-        Some(match self {
+        let mut question = match self {
             Self::SuggestCategories => suggest_categories(account),
             Self::ExplainMonth => explain_month(today),
             Self::PrepareRules => prepare_rules(),
-        })
+        };
+        if let Some(language) = language {
+            question.push_str(&format!(
+                " Write your answer in {}, the language of my KassenSturz.",
+                language.name()
+            ));
+        }
+        Some(question)
     }
 }
 
@@ -82,20 +120,26 @@ fn explain_month(today: Date) -> String {
     // The day before the first of a month exists for every date a book can hold.
     let last_end = first.yesterday().unwrap_or(first);
     let last_start = last_end.first_of_month();
+    let days = today.day();
+    let month_days = today.days_in_month();
     format!(
         "Explain my month so far in plain words: how much came in, how much went out, and \
          where most of it went. Get the figures with category_totals for {first} to {today} \
-         and for {last_start} to {last_end}, and say how this month so far compares with \
-         last month. Write every amount exactly as the function gave it. Don't give advice."
+         and for {last_start} to {last_end}. This month is not over: it has had {days} of its \
+         {month_days} days, while last month is complete. Say so, and compare the two only in \
+         that light: don't call this month much lower or higher than last month because it \
+         is shorter, and don't say a figure is low for a month that isn't finished. Write \
+         every amount exactly as the function gave it. Don't give advice."
     )
 }
 
 fn prepare_rules() -> String {
-    "Prepare Rules for payees that come back again and again. Look at my Rules with \
-     list_rules, find entries that have no category yet with search_transactions and \
-     \"unsorted_only\": true, and prepare new Rules and any new categories they need with \
-     propose_changes. Don't repeat a Rule I already have. Say which payees you based each \
-     one on."
+    "Prepare Rules for payees that come back again and again. First look at my Rules with \
+     list_rules, then find entries that have no category yet with search_transactions and \
+     \"unsorted_only\": true. Base each new Rule only on a payee, memo or bank text you saw \
+     in those entries, and check that it matches the entries you mean: never make up \
+     keywords. Prepare the new Rules and any new categories they need with propose_changes. \
+     Don't repeat a Rule I already have. Say which payees you based each one on."
         .to_owned()
 }
 
@@ -122,9 +166,36 @@ mod tests {
         let question = Feature::ExplainMonth.question(TODAY, None).unwrap();
         assert!(question.contains("2026-03-01 to 2026-03-09"), "{question}");
         assert!(question.contains("2026-02-01 to 2026-02-28"), "{question}");
+        assert!(question.contains("9 of its 31 days"), "{question}");
+        assert!(question.contains("much lower or higher"), "{question}");
         let january = Date::constant(2026, 1, 5);
         let question = Feature::ExplainMonth.question(january, None).unwrap();
         assert!(question.contains("2025-12-01 to 2025-12-31"), "{question}");
+    }
+
+    #[test]
+    fn the_answer_is_asked_for_in_the_language_of_the_app() {
+        let plain = Feature::ExplainMonth.question(TODAY, None).unwrap();
+        assert!(!plain.contains("Write your answer in"), "{plain}");
+        for feature in [
+            Feature::SuggestCategories,
+            Feature::ExplainMonth,
+            Feature::PrepareRules,
+        ] {
+            let question = feature
+                .question_in(TODAY, None, Some(AnswerLanguage::German))
+                .unwrap();
+            assert!(
+                question.ends_with("Write your answer in German, the language of my KassenSturz."),
+                "{question}"
+            );
+        }
+    }
+
+    #[test]
+    fn rules_are_prepared_from_what_the_entries_show() {
+        let question = Feature::PrepareRules.question(TODAY, None).unwrap();
+        assert!(question.contains("never make up keywords"), "{question}");
     }
 
     #[test]

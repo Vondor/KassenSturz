@@ -95,8 +95,23 @@ impl ProviderSettings {
     /// Checks the settings as the user typed them: a usable address and a
     /// model name of printable characters.
     pub fn new(address: &str, model: &str, key_use: KeyUse) -> Result<Self, AiError> {
+        if model.trim().is_empty() {
+            return Err(AiError::NoProvider);
+        }
+        Self::with_optional_model(address, model, key_use)
+    }
+
+    /// Like [`ProviderSettings::new`], but the model may still be empty:
+    /// a user who doesn't know the model's name saves the address first and
+    /// picks the model from what the provider offers (D-234). Such settings
+    /// can list models but are not yet a provider to ask.
+    pub fn with_optional_model(
+        address: &str,
+        model: &str,
+        key_use: KeyUse,
+    ) -> Result<Self, AiError> {
         let model = model.trim();
-        if address.trim().is_empty() || model.is_empty() {
+        if address.trim().is_empty() {
             return Err(AiError::NoProvider);
         }
         if model.len() > MAX_MODEL_LEN || model.chars().any(char::is_control) {
@@ -123,7 +138,8 @@ impl ProviderSettings {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AiConfig {
     enabled: bool,
-    provider: Result<ProviderSettings, AiError>,
+    /// The provider as saved, the model possibly still empty.
+    saved: Result<ProviderSettings, AiError>,
     consent: Option<ConsentRecord>,
 }
 
@@ -136,7 +152,7 @@ impl AiConfig {
                 .and_then(unescape)
                 .unwrap_or_default()
         };
-        let provider = ProviderSettings::new(
+        let saved = ProviderSettings::with_optional_model(
             &value(ADDRESS_KEY),
             &value(MODEL_KEY),
             KeyUse::from_word(&value(KEY_USE_KEY)),
@@ -152,7 +168,7 @@ impl AiConfig {
             });
         Self {
             enabled: ai_switch::enabled_in(text),
-            provider,
+            saved,
             consent,
         }
     }
@@ -164,7 +180,17 @@ impl AiConfig {
 
     /// The provider, or why there is none to use.
     pub fn provider(&self) -> Result<&ProviderSettings, AiError> {
-        self.provider.as_ref().map_err(Clone::clone)
+        match &self.saved {
+            Ok(settings) if settings.model.is_empty() => Err(AiError::NoProvider),
+            Ok(settings) => Ok(settings),
+            Err(error) => Err(error.clone()),
+        }
+    }
+
+    /// The server and the key's use as saved, even before a model is
+    /// chosen: enough to ask the provider which models it offers.
+    pub fn connection(&self) -> Result<&ProviderSettings, AiError> {
+        self.saved.as_ref().map_err(Clone::clone)
     }
 
     /// The consent the user gave, if a complete one is recorded.

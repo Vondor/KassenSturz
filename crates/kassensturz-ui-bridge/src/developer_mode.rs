@@ -135,6 +135,7 @@ pub fn log() -> &'static kassensturz_core::debug_log::DebugLog {
 /// Notes a step in the developer mode's transcript of the chat (D-235); a
 /// call that does nothing outside the developer mode and in a build
 /// without the debug log. `fields` are the step's texts.
+#[cfg(feature = "ai")]
 pub fn transcribe(kind: &'static str, fields: &[(&'static str, &str)]) {
     #[cfg(feature = "debug-log")]
     log().transcript(kind, fields);

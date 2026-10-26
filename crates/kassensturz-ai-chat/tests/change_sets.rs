@@ -13,7 +13,8 @@ mod common;
 use common::{Script, Step, TODAY, calls, fails, says, settings, space_colony};
 use kassensturz_ai::{AiError, KeyUse, Message, Role};
 use kassensturz_ai_chat::{
-    BuildInfo, ChatSession, DEMO_CATEGORY, DEMO_LABEL, DemoModel, LogEntry, NoHooks, demo_provider,
+    BuildInfo, ChatSession, DEMO_CATEGORY, DEMO_LABEL, DemoModel, LogEntry, NoHooks, Outcome,
+    demo_provider,
 };
 use kassensturz_ai_tools::{Confirmed, PROPOSE_CHANGES, ProposedChange};
 use kassensturz_store::Action;
@@ -219,4 +220,76 @@ fn the_fake_model_prepares_a_change_set_to_try_in_phase_2() {
     assert_ne!(book.transactions().unwrap(), before);
     book.undo().unwrap();
     assert_eq!(book.transactions().unwrap(), before);
+}
+
+#[test]
+fn what_the_user_did_with_prepared_changes_reaches_the_model_with_the_next_question() {
+    let book = space_colony();
+    let (provider, script) = Script::provider(on(), vec![says("Done."), says("Ok.")]);
+    let mut chat = session();
+    chat.ask(&book, &provider, None, "Hello", TODAY, &mut NoHooks)
+        .unwrap();
+    chat.note_outcome(Outcome::Confirmed);
+    chat.note_outcome(Outcome::Undone);
+    chat.ask(&book, &provider, None, "Thanks", TODAY, &mut NoHooks)
+        .unwrap();
+    let seen = script.seen();
+    let texts: Vec<(&Role, &str)> = seen[1]
+        .messages
+        .iter()
+        .map(|message| (&message.role, message.content.as_str()))
+        .collect();
+    let told: Vec<&str> = texts
+        .iter()
+        .filter(|(role, _)| **role == Role::User)
+        .map(|(_, text)| *text)
+        .collect();
+    assert_eq!(
+        told,
+        [
+            "Hello",
+            Outcome::Confirmed.text(),
+            Outcome::Undone.text(),
+            "Thanks"
+        ]
+    );
+    // Told once: the question after that doesn't hear it again.
+    chat.ask(&book, &provider, None, "Again", TODAY, &mut NoHooks)
+        .unwrap();
+    let seen = script.seen();
+    let count = seen[2]
+        .messages
+        .iter()
+        .filter(|message| message.content == Outcome::Confirmed.text())
+        .count();
+    assert_eq!(count, 1);
+}
+
+#[test]
+fn the_outcomes_say_plainly_what_happened_and_invent_no_screen() {
+    for outcome in [
+        Outcome::Confirmed,
+        Outcome::Declined,
+        Outcome::Failed,
+        Outcome::Undone,
+    ] {
+        assert!(outcome.text().starts_with("KassenSturz: "));
+    }
+    assert!(Outcome::Confirmed.text().contains("were made"));
+    assert!(Outcome::Declined.text().contains("refused"));
+    assert!(Outcome::Failed.text().contains("nothing was changed"));
+}
+
+#[test]
+fn the_instructions_say_where_the_user_reviews_changes() {
+    let book = space_colony();
+    let (provider, script) = Script::provider(on(), vec![says("Hi.")]);
+    session()
+        .ask(&book, &provider, None, "Hello", TODAY, &mut NoHooks)
+        .unwrap();
+    let seen = script.seen();
+    let instructions = &seen[0].messages[0].content;
+    assert!(instructions.contains("chat sidebar"), "{instructions}");
+    assert!(instructions.contains("Confirm and Undo"), "{instructions}");
+    assert!(instructions.contains("don't invent one"), "{instructions}");
 }

@@ -49,5 +49,6 @@ pub use features::Feature;
 pub use log::{LogEntry, MAX_ARGUMENT_CHARS};
 pub use prompt::{BuildInfo, DATA_END, DATA_START};
 pub use session::{
-    Answer, Cancel, ChatSession, Hooks, MAX_ROUNDS, Mode, NOT_OFFERED, NoHooks, sample_request,
+    Answer, Cancel, ChatSession, Hooks, MAX_ROUNDS, Mode, NOT_OFFERED, NoHooks, Outcome,
+    sample_request,
 };

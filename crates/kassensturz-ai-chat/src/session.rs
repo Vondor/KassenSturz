@@ -41,6 +41,26 @@ pub const MAX_ROUNDS: usize = 8;
 /// D-237). The model's own answer to each question stays.
 pub const SHORTENED_RESULT: &str = r#"{"note":"KassenSturz shortened this result of an earlier question to save space. Call the function again when you need it."}"#;
 
+/// The smallest request, in bytes, whose token count is compared with what
+/// the provider reports.
+const CUT_MIN_BYTES: usize = 12_000;
+
+/// More bytes than this per token the provider counted means it did not read
+/// the whole request. The request's JSON, with IDs and amounts, comes to
+/// about 5 bytes per token; the cut requests of the local-model test (M5-B23)
+/// came to 15 to 18.
+const CUT_BYTES_PER_TOKEN: u64 = 9;
+
+/// Whether a request of `bytes` that the provider counted as `tokens` was
+/// probably cut to the model's context length, so the model did not see all
+/// of it.
+pub fn looks_cut(bytes: usize, tokens: Option<u64>) -> bool {
+    let Some(tokens) = tokens else {
+        return false;
+    };
+    bytes >= CUT_MIN_BYTES && bytes as u64 > tokens.saturating_mul(CUT_BYTES_PER_TOKEN)
+}
+
 /// What the model is told when it asked for a function that isn't offered.
 /// It goes as a message of its own because a function's answer must name a
 /// call the provider knows, and such a call was never handed on (threat
@@ -114,6 +134,10 @@ pub struct Answer {
     pub finish: Finish,
     /// How the model got its figures.
     pub mode: Mode,
+    /// The provider counted far fewer tokens than were sent, so it probably
+    /// cut the request to the model's context length and the model did not
+    /// see all of it (M5-B23, D-238).
+    pub context_cut: bool,
     /// The changes the model prepared for this question, in the order it
     /// called `propose_changes`, for the user to review (D-171, D-199).
     /// Nothing in them is applied: only the review screen's confirm does.
@@ -357,6 +381,7 @@ impl ChatSession {
         self.proposed.clear();
         self.issue = None;
         let mut overview = None;
+        let mut context_cut = false;
         if self.mode == Mode::Overview {
             overview = Some(self.overview(book, today)?);
         }
@@ -418,6 +443,7 @@ impl ChatSession {
             if offered {
                 self.functions_taken = true;
             }
+            context_cut |= looks_cut(request.preview().len(), reply.prompt_tokens);
             if reply.calls.is_empty() && reply.ignored_calls.is_empty() {
                 let unverified = check_numbers(&reply.text, &self.figures);
                 #[cfg(feature = "debug-log")]
@@ -441,6 +467,7 @@ impl ChatSession {
                     unverified,
                     finish: reply.finish,
                     mode: self.mode,
+                    context_cut,
                     changes: std::mem::take(&mut self.proposed),
                     issue: self.issue.take(),
                 });
@@ -684,6 +711,21 @@ fn error_json(report: &ErrorReport) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_request_is_cut_when_the_provider_counts_far_fewer_tokens() {
+        // Numbers of the local-model test (M5-B23): cut requests ...
+        assert!(looks_cut(63_359, Some(3_865)));
+        assert!(looks_cut(97_500, Some(5_356)));
+        assert!(looks_cut(58_709, Some(3_872)));
+        // ... and uncut ones, with their real token counts.
+        assert!(!looks_cut(17_992, Some(3_458)));
+        assert!(!looks_cut(20_193, Some(3_458)));
+        // A short request or an unknown count is never called cut.
+        assert!(!looks_cut(5_000, Some(10)));
+        assert!(!looks_cut(63_359, None));
+        assert!(!looks_cut(usize::MAX, Some(u64::MAX)));
+    }
 
     #[test]
     fn every_function_is_offered_with_its_parameters() {

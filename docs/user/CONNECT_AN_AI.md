@@ -35,7 +35,7 @@ Open **Settings → AI provider and privacy…**. Type the provider's **address*
 - No key needed.
 - Nothing leaves your computer.
 
-A small local model may answer less well than an online one. Whatever the model says, the numbers in your book come from KassenSturz, not from the AI.
+**Set the context length of a local model to 16000 or more.** LM Studio starts models with only 4096, which is too little for the instructions, the functions and a conversation: the model then silently loses the start or the end of it and answers an old question. In LM Studio it is the model's setting **Context Length** when you load it; in Ollama it is `num_ctx`. KassenSturz shows a warning under an answer when the provider counted far fewer tokens than it sent. A small local model may answer less well than an online one. Whatever the model says, the numbers in your book come from KassenSturz, not from the AI.
 
 ### If the chat shows an error
 

@@ -12,6 +12,7 @@
 - [ ] No `TODO` without an issue reference
 - [ ] SPDX header on every new source file, checked by `reuse lint`
 - [ ] Every commit is signed off under the DCO (`git commit -s`, see D-040)
+- [ ] Labels set: a milestone, the areas, a kind, and `human-gate` if one is ticked below (AGENTS.md §9.3)
 
 ## Human gates (AGENTS.md §3.2)
 

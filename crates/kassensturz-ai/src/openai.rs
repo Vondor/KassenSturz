@@ -158,6 +158,10 @@ pub fn parse_chat_reply(bytes: &[u8], offered: &[String]) -> Result<Reply, AiErr
         calls,
         ignored_calls,
         finish,
+        prompt_tokens: reply
+            .get("usage")
+            .and_then(|usage| usage.get("prompt_tokens"))
+            .and_then(Value::as_u64),
     })
 }
 
@@ -249,6 +253,20 @@ mod tests {
 
     fn offered() -> Vec<String> {
         vec!["account_balances".to_owned()]
+    }
+
+    #[test]
+    fn the_prompt_tokens_the_provider_counted_are_read() {
+        let counted = br#"{"choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"Hi"}}],"usage":{"prompt_tokens":3858,"completion_tokens":5}}"#;
+        assert_eq!(
+            parse_chat_reply(counted, &offered()).unwrap().prompt_tokens,
+            Some(3858)
+        );
+        let silent = br#"{"choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"Hi"}}]}"#;
+        assert_eq!(
+            parse_chat_reply(silent, &offered()).unwrap().prompt_tokens,
+            None
+        );
     }
 
     #[test]

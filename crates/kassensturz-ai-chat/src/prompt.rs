@@ -300,6 +300,28 @@ mod tests {
         assert!(BuildInfo::new("0.1.0", "").pre_release());
     }
 
+    /// A merge that left its markers in a prompt text once reached the
+    /// model; no text the model is given may hold them.
+    #[test]
+    fn no_prompt_holds_the_markers_of_an_unresolved_merge() {
+        let markers = ["<".repeat(7), ">".repeat(7), format!("\n{}", "=".repeat(7))];
+        let build = BuildInfo::new("0.261025.1", "abc");
+        let mut texts = vec![
+            with_overview(&build, TODAY, &json!({})),
+            with_functions(&build, TODAY, true, Permissions::NONE),
+            with_functions(&build, TODAY, true, Permissions::all()),
+        ];
+        for permission in Permission::ALL {
+            let allowed = Permissions::NONE.with(permission, true);
+            texts.push(with_functions(&build, TODAY, false, allowed));
+        }
+        for text in texts {
+            for marker in &markers {
+                assert!(!text.contains(marker.as_str()), "{marker:?} in {text}");
+            }
+        }
+    }
+
     #[test]
     fn the_model_is_pointed_to_issue_drafts() {
         let text = with_functions(

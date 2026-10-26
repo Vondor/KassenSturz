@@ -82,6 +82,8 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "The provider didn't understand this address, but it answers when “/v1” is added to the end of it. Many providers, such as LM Studio and Ollama, serve their interface there.");
         case "ai.rate-limited":
             return i18nContext.i18nc("@info", "The provider asks you to wait before the next request. Try again in a little while.");
+        case "ai.context-too-small":
+            return i18nContext.i18nc("@info", "The model's context, its working memory, is too small for this question. In the program that runs the model, load it again with a larger context length (8192 or more; 16384 is better), or ask about less at a time.");
         case "ai.provider-failed":
             return i18nContext.i18nc("@info %1 is a number", "The provider answered with an error (HTTP %1). Try again later. If it keeps happening, check the provider's settings and the key: some providers report a wrong key this way.", result.status);
         case "ai.reply-too-large":

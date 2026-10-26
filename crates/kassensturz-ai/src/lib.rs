@@ -199,7 +199,15 @@ impl AiClient {
             }
             openai::parse_chat_reply(&reply, &request.function_names())
         });
-        reply.map_err(|error| self.missing_v1(&provider.address, key, error))
+        reply.map_err(|error| {
+            let error = match error {
+                AiError::ProviderFailed { status: 400 | 413 } if context_exceeded(&error_body) => {
+                    AiError::ContextTooSmall
+                }
+                other => other,
+            };
+            self.missing_v1(&provider.address, key, error)
+        })
     }
 
     /// The models the provider offers, for choosing one and to test the
@@ -247,6 +255,17 @@ impl AiClient {
             _ => error,
         }
     }
+}
+
+/// Whether the body of a provider's error says the request is longer than
+/// the model's context. Providers word it differently ("exceeds the
+/// available context size", "maximum context length", "n_ctx"), so a few
+/// phrases are looked for; the text is only read, never shown.
+fn context_exceeded(body: &[u8]) -> bool {
+    let text = String::from_utf8_lossy(body).to_lowercase();
+    ["context size", "context length", "context_length", "n_ctx"]
+        .iter()
+        .any(|phrase| text.contains(phrase))
 }
 
 /// The key to send: none to a provider that needs none, even if one is

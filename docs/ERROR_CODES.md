@@ -303,6 +303,7 @@ A request to the AI provider the user set up couldn't be sent, or its answer cou
 | `ai.not-found` | | | The AI provider doesn't know this address or this model. Check both in Settings → AI features. |
 | `ai.missing-v1` | | | The address needs `/v1` at its end: the provider's answer to the address as typed is an error, and with `/v1` it lists its models. KassenSturz offers the address with `/v1`. |
 | `ai.rate-limited` | | | The AI provider asks you to wait before the next request. Try again in a little while. |
+| `ai.context-too-small` | | | The AI model's context (its working memory) is too small for this question. In the program that runs the model, load it again with a larger context length (8192 tokens or more; 16384 is better), or ask about less at a time. |
 | `ai.provider-failed` | `status` | | The AI provider answered with an error (HTTP {status}). Try again later; if it keeps happening, check the provider's settings. |
 | `ai.reply-too-large` | | | The AI provider's answer was too large, so KassenSturz didn't read it. Ask about less at a time. |
 | `ai.bad-reply` | | | The AI provider's answer isn't what KassenSturz expects from an OpenAI-compatible provider. Check that the address points to such an interface, often ending in `/v1`. |

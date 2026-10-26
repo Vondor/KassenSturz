@@ -574,6 +574,7 @@ fn rule_rows(
         *budget -= 1;
         let rule = &node.rule;
         let mut row = Map::new();
+        row.insert("id".into(), Value::String(rule.id.to_string()));
         row.insert("name".into(), w.text(&rule.name));
         let mode = match rule.match_mode {
             MatchMode::All => "all",

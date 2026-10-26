@@ -127,8 +127,9 @@ fn nothing_a_model_can_call_sends_money() {
             assert!(!text.contains(word), "{} mentions {word}", function.name);
         }
     }
-    // A change set holds three kinds of change, none of them a payment; a
-    // new kind fails here and needs a row in the threat model first.
+    // A change set holds seven kinds of change, none of them a payment and
+    // none touching a transaction's amount, date or accounts; a new kind
+    // fails here and needs a row in the threat model first (D-236).
     let source = read(&repository().join("crates/kassensturz-ai-tools/src/changes.rs"));
     let start = source.find("pub enum ProposedChange").expect("the enum");
     let end = start + source[start..].find("\n}\n").expect("its end");
@@ -137,7 +138,18 @@ fn nothing_a_model_can_call_sends_money() {
         .filter(|line| line.trim_start().starts_with(char::is_uppercase))
         .map(|line| line.trim().split('(').next().unwrap().to_owned())
         .collect();
-    assert_eq!(variants, ["NewCategory", "NewRule", "Categorize"]);
+    assert_eq!(
+        variants,
+        [
+            "NewCategory",
+            "EditCategory",
+            "NewRule",
+            "EditRule",
+            "MoveRule",
+            "DeleteRule",
+            "Categorize"
+        ]
+    );
 }
 
 #[test]

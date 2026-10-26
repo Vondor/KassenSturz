@@ -311,6 +311,48 @@ pub enum ChangeView {
         /// Its conditions, as the Rule editor holds them.
         conditions: Vec<ConditionForm>,
     },
+    /// A category renamed, moved or both.
+    EditCategory {
+        /// Its path before, e.g. "Food › Bakery".
+        before: String,
+        /// Its path after.
+        after: String,
+    },
+    /// An existing Rule changed.
+    EditRule {
+        /// Its name before.
+        before_name: String,
+        /// Its name after, the same when it isn't renamed.
+        name: String,
+        /// The category it booked to before, as a path, empty for none.
+        before_book_to: String,
+        /// The category it books to after, as a path, empty for none.
+        book_to: String,
+        /// Whether all conditions must hold after the change.
+        match_all: bool,
+        /// Its conditions after the change.
+        conditions: Vec<ConditionForm>,
+    },
+    /// A top-level Rule moved.
+    MoveRule {
+        /// Its name.
+        name: String,
+        /// Its place before, counted from 1, as text.
+        from: String,
+        /// Its place after, as text.
+        to: String,
+    },
+    /// A Rule deleted.
+    DeleteRule {
+        /// Its name.
+        name: String,
+        /// The category it books to, as a path, empty for none.
+        book_to: String,
+        /// Whether all conditions must hold.
+        match_all: bool,
+        /// Its conditions.
+        conditions: Vec<ConditionForm>,
+    },
     /// A transaction that gets a category.
     Categorize {
         /// Its day, in the user's format.
@@ -347,6 +389,41 @@ pub fn view_of(
                 ProposedChange::NewRule(new) => {
                     new_rule_view(book, &new.rule, &new.category, locale)?
                 }
+                ProposedChange::EditCategory(edit) => ChangeView::EditCategory {
+                    before: edit.before.join(" › "),
+                    after: edit.after.join(" › "),
+                },
+                ProposedChange::EditRule(edit) => ChangeView::EditRule {
+                    before_name: edit.before.name.clone(),
+                    name: edit.rule.name.clone(),
+                    before_book_to: edit
+                        .before_category
+                        .as_ref()
+                        .map(|path| path.join(" › "))
+                        .unwrap_or_default(),
+                    book_to: edit
+                        .category
+                        .as_ref()
+                        .map(|path| path.join(" › "))
+                        .unwrap_or_default(),
+                    match_all: edit.rule.match_mode == MatchMode::All,
+                    conditions: condition_forms(book, &edit.rule, locale)?,
+                },
+                ProposedChange::MoveRule(moved) => ChangeView::MoveRule {
+                    name: moved.name.clone(),
+                    from: moved.from.to_string(),
+                    to: moved.to.to_string(),
+                },
+                ProposedChange::DeleteRule(delete) => ChangeView::DeleteRule {
+                    name: delete.rule.name.clone(),
+                    book_to: delete
+                        .category
+                        .as_ref()
+                        .map(|path| path.join(" › "))
+                        .unwrap_or_default(),
+                    match_all: delete.rule.match_mode == MatchMode::All,
+                    conditions: condition_forms(book, &delete.rule, locale)?,
+                },
                 ProposedChange::Categorize(change) => ChangeView::Categorize {
                     date: locale.short_date(change.date),
                     payee: change.payee.clone().unwrap_or_default(),
@@ -372,17 +449,24 @@ fn new_rule_view(
     category: &[String],
     locale: &impl Locale,
 ) -> Result<ChangeView, StoreError> {
-    let conditions = rule
-        .conditions
-        .iter()
-        .map(|condition| condition_form(book, condition, locale))
-        .collect::<Result<_, _>>()?;
     Ok(ChangeView::NewRule {
         name: rule.name.clone(),
         book_to: category.join(" › "),
         match_all: rule.match_mode == MatchMode::All,
-        conditions,
+        conditions: condition_forms(book, rule, locale)?,
     })
+}
+
+/// The conditions of `rule` as the Rule editor holds them.
+fn condition_forms(
+    book: &Book,
+    rule: &Rule,
+    locale: &impl Locale,
+) -> Result<Vec<ConditionForm>, StoreError> {
+    rule.conditions
+        .iter()
+        .map(|condition| condition_form(book, condition, locale))
+        .collect()
 }
 
 /// Applies `set` to `book` as the user's own action: the one place in the

@@ -94,6 +94,7 @@ fn main() {
         "src/first_start_model.rs",
         "src/history_model.rs",
         "src/language_model.rs",
+        "src/window_state_model.rs",
         "src/locale.rs",
         "src/network_guard.rs",
         "src/number_format_model.rs",

@@ -484,7 +484,10 @@ mod tests {
     fn the_link_fills_the_repositorys_bug_report_form() {
         let folder =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.github/ISSUE_TEMPLATE");
-        let form = std::fs::read_to_string(folder.join(FORM)).expect("the bug report form");
+        // Windows checks out with CRLF line ends.
+        let form = std::fs::read_to_string(folder.join(FORM))
+            .expect("the bug report form")
+            .replace("\r\n", "\n");
         for (id, label) in FORM_FIELDS {
             assert!(form.contains(&format!("id: {id}\n")), "{id}");
             assert!(form.contains(&format!("label: {label}\n")), "{label}");

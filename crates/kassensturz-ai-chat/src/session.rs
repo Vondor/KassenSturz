@@ -9,11 +9,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use kassensturz_ai::{AiError, Finish, FunctionSpec, Message, PreparedRequest, Provider, ToolCall};
 use kassensturz_ai_tools::{
-    ChangeSet, DRAFT_ISSUE, FUNCTIONS, Figures, IssueContext, IssueDraft, PROPOSE_CHANGES,
-    ToolError, Unverified, check_numbers, draft_issue, propose, unique_codes,
+    ChangeSet, DRAFT_ISSUE, FUNCTIONS, Figures, Function, IssueContext, IssueDraft,
+    PROPOSE_CHANGES, ToolError, Unverified, check_numbers, draft_issue, propose, propose_spec,
+    unique_codes,
 };
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
+use kassensturz_core::ai_switch::{self, Permissions};
 #[cfg(feature = "debug-log")]
 use kassensturz_core::debug_log::DebugLog;
 use kassensturz_core::{Date, ErrorParam, ErrorReport, Report};
@@ -196,6 +198,9 @@ pub struct ChatSession {
     debug_log: DebugLog,
     /// The screen the user asked from, for an issue draft.
     screen: Option<&'static str>,
+    /// Which changes the model may prepare, fixed for tests; `None` reads
+    /// the user's settings for each request (D-238).
+    permissions: Option<Permissions>,
 }
 
 impl ChatSession {
@@ -217,7 +222,23 @@ impl ChatSession {
             #[cfg(feature = "debug-log")]
             debug_log: DebugLog::none(),
             screen: None,
+            permissions: None,
         }
+    }
+
+    /// The conversation with the permissions fixed to `permissions`,
+    /// instead of read from the user's settings for each request.
+    #[must_use]
+    pub fn with_permissions(mut self, permissions: Permissions) -> Self {
+        self.permissions = Some(permissions);
+        self
+    }
+
+    /// Which changes the model may prepare now (D-238). Asked again for
+    /// each request and each call: the user may change it while a
+    /// question runs.
+    fn permissions(&self) -> Permissions {
+        self.permissions.unwrap_or_else(ai_switch::permissions)
     }
 
     /// The conversation, writing to `log` while the developer mode is on
@@ -329,14 +350,15 @@ impl ChatSession {
             // Asked again for each request: the user may turn the log on
             // or off while a question runs.
             let log_readable = self.log_readable();
+            let permissions = self.permissions();
             let (system, functions) = match &overview {
                 Some(overview) => (
                     prompt::with_overview(&self.build, today, overview),
                     Vec::new(),
                 ),
                 None => (
-                    prompt::with_functions(&self.build, today, log_readable),
-                    function_specs(log_readable),
+                    prompt::with_functions(&self.build, today, log_readable, permissions),
+                    function_specs(log_readable, permissions),
                 ),
             };
             let offered = !functions.is_empty();
@@ -439,7 +461,7 @@ impl ChatSession {
             .and_then(|arguments| {
                 if call.name == PROPOSE_CHANGES.name {
                     // Prepared for the user, never applied here (T-27).
-                    propose(book, &arguments).map(|proposal| {
+                    propose(book, &arguments, self.permissions()).map(|proposal| {
                         self.proposed.push(proposal.changes);
                         proposal.output
                     })
@@ -579,32 +601,43 @@ pub fn sample_request(
     today: Date,
     question: &str,
 ) -> Result<PreparedRequest, AiError> {
+    // As a real question would get it, with the user's permissions now.
+    let permissions = ai_switch::permissions();
     provider.prepare(
         vec![
-            Message::system(prompt::with_functions(build, today, false)),
+            Message::system(prompt::with_functions(build, today, false, permissions)),
             Message::user(question),
         ],
-        function_specs(false),
+        function_specs(false, permissions),
     )
 }
 
-/// The read functions, the one that prepares changes and the one that
-/// drafts an issue, as the provider gets them, and the one that reads the
-/// debug log while the model may read it.
-fn function_specs(log_readable: bool) -> Vec<FunctionSpec> {
-    let offered = FUNCTIONS.iter().chain([&PROPOSE_CHANGES, &DRAFT_ISSUE]);
+/// The read functions, the one that prepares changes (only the lists the
+/// user allows, and not at all when they allow none, D-238) and the one
+/// that drafts an issue, as the provider gets them, and the one that reads
+/// the debug log while the model may read it.
+fn function_specs(log_readable: bool, permissions: Permissions) -> Vec<FunctionSpec> {
+    let spec = |function: &Function| FunctionSpec {
+        name: function.name.to_owned(),
+        description: function.description.to_owned(),
+        parameters: serde_json::from_str(function.parameters)
+            .unwrap_or_else(|_| json!({"type": "object"})),
+    };
+    let mut specs: Vec<FunctionSpec> = FUNCTIONS.iter().map(spec).collect();
+    specs.extend(propose_spec(permissions).map(|propose| FunctionSpec {
+        name: propose.name.to_owned(),
+        description: propose.description,
+        parameters:
+            serde_json::from_str(&propose.parameters).unwrap_or_else(|_| json!({"type": "object"})),
+    }));
+    specs.push(spec(&DRAFT_ISSUE));
     #[cfg(feature = "debug-log")]
-    let offered = offered.chain(log_readable.then_some(&READ_DEBUG_LOG));
+    if log_readable {
+        specs.push(spec(&READ_DEBUG_LOG));
+    }
     #[cfg(not(feature = "debug-log"))]
     let _ = log_readable;
-    offered
-        .map(|function| FunctionSpec {
-            name: function.name.to_owned(),
-            description: function.description.to_owned(),
-            parameters: serde_json::from_str(function.parameters)
-                .unwrap_or_else(|_| json!({"type": "object"})),
-        })
-        .collect()
+    specs
 }
 
 /// A function's error for the model: its code and the fixed names it
@@ -632,7 +665,7 @@ mod tests {
 
     #[test]
     fn every_function_is_offered_with_its_parameters() {
-        let specs = function_specs(false);
+        let specs = function_specs(false, Permissions::all());
         assert_eq!(specs.len(), FUNCTIONS.len() + 2);
         assert_eq!(specs[FUNCTIONS.len()].name, PROPOSE_CHANGES.name);
         assert_eq!(specs[FUNCTIONS.len() + 1].name, DRAFT_ISSUE.name);
@@ -650,7 +683,7 @@ mod tests {
         }
         // The debug log is offered only while the model may read it, and
         // never in a build without it.
-        let with_log = function_specs(true);
+        let with_log = function_specs(true, Permissions::all());
         #[cfg(feature = "debug-log")]
         {
             assert_eq!(with_log.len(), specs.len() + 1);

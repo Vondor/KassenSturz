@@ -799,7 +799,7 @@ Kirigami.ApplicationWindow {
         RegisterPage {
             register: accountRegister
             rules: ruleBook
-            suggestionsShown: aiSwitch.enabled && aiChat.available
+            suggestionsShown: aiSwitch.enabled && aiChat.available && aiSettings.allows("AllowSortTransactions")
             onSuggestCategoriesClicked: accountId => {
                 chatDrawer.open();
                 chatPanel.askFeature("categories", accountId);

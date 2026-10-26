@@ -650,8 +650,10 @@ pub(crate) mod engine {
         crate::developer_mode::transcribe("changes-confirmed", &[("set", &format!("{set:?}"))]);
         // The only call that applies a set: the confirm button's (D-200).
         // No book open any more means the set is out of date.
-        let result = session::with_book_mut(|book| confirm_in(book, set))
-            .unwrap_or(Err(ChangeError::OutOfDate));
+        let result = session::with_book_mut(|book| {
+            confirm_in(book, set, kassensturz_core::ai_switch::permissions())
+        })
+        .unwrap_or(Err(ChangeError::OutOfDate));
         if let Some(from) = &from
             && let Some(inbox) = chat.as_mut().rust_mut().state.inbox.as_mut()
         {
@@ -727,7 +729,16 @@ pub(crate) mod engine {
             let Some(inbox) = inbox.as_mut() else {
                 return;
             };
-            session::with_book(|book| take_requests(inbox, &path, book, sets)).unwrap_or_default()
+            session::with_book(|book| {
+                take_requests(
+                    inbox,
+                    &path,
+                    book,
+                    sets,
+                    kassensturz_core::ai_switch::permissions(),
+                )
+            })
+            .unwrap_or_default()
         };
         if !arrived.is_empty() {
             let sets: Vec<(u64, usize)> = arrived.iter().map(|set| (set.id, set.count)).collect();

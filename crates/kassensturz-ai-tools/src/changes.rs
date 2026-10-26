@@ -23,6 +23,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use kassensturz_core::ai_switch::{Permission, Permissions};
 use kassensturz_core::{
     Account, AccountId, AccountKind, Actions, AmountTest, BookTo, Condition, CurrencyCode, Date,
     ErrorReport, MatchMode, Money, Report, Rule, RuleId, RuleNode, Split, SplitId, TextField,
@@ -59,6 +60,118 @@ pub const PROPOSE_CHANGES: Function = Function {
 
 /// The most changes one set may hold, so the user can still review it.
 pub const MAX_CHANGES: usize = 100;
+
+/// The lists of [`PROPOSE_CHANGES`] and the permission each needs (D-238).
+pub(crate) const SECTIONS: [(&str, Permission); 7] = [
+    ("new_categories", Permission::NewCategories),
+    ("edit_categories", Permission::EditCategories),
+    ("new_rules", Permission::NewRules),
+    ("edit_rules", Permission::EditRules),
+    ("move_rules", Permission::EditRules),
+    ("delete_rules", Permission::DeleteRules),
+    ("categorize", Permission::SortTransactions),
+];
+
+/// [`PROPOSE_CHANGES`] as a model is offered it when the user allows only
+/// some kinds of change (D-238): the lists of the others are left out, so
+/// the model is never told about what it may not do.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProposeSpec {
+    /// Its name, that of [`PROPOSE_CHANGES`].
+    pub name: &'static str,
+    /// What it does, for the model.
+    pub description: String,
+    /// Its arguments as a JSON Schema object.
+    pub parameters: String,
+}
+
+/// What a model is offered for preparing changes under `allowed`, or
+/// `None` when nothing may be prepared: then the function isn't offered
+/// at all, and is refused if it is called (D-238).
+pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
+    if allowed.is_none() {
+        return None;
+    }
+    let mut parameters: Value =
+        serde_json::from_str(PROPOSE_CHANGES.parameters).expect("the parameters are JSON");
+    let properties = parameters
+        .get_mut("properties")
+        .and_then(Value::as_object_mut)
+        .expect("the parameters have properties");
+    for (name, permission) in SECTIONS {
+        if !allowed.allows(permission) {
+            properties.remove(name);
+        }
+    }
+    if !allowed.allows(Permission::NewCategories) {
+        // Nothing to point at: the keys of new categories.
+        for list in properties.values_mut() {
+            if let Some(item) = list
+                .get_mut("items")
+                .and_then(|items| items.get_mut("properties"))
+                .and_then(Value::as_object_mut)
+            {
+                item.remove("new_category");
+                item.remove("new_parent");
+            }
+        }
+    }
+    let kinds: Vec<&str> = [
+        (Permission::NewCategories, "new categories"),
+        (Permission::EditCategories, "renaming or moving categories"),
+        (
+            Permission::NewRules,
+            "new Rules that sort future transactions into a category",
+        ),
+        (Permission::EditRules, "changing or moving existing Rules"),
+        (Permission::DeleteRules, "deleting Rules"),
+        (
+            Permission::SortTransactions,
+            "a category for transactions you found with search_transactions",
+        ),
+    ]
+    .into_iter()
+    .filter(|(permission, _)| allowed.allows(*permission))
+    .map(|(_, text)| text)
+    .collect();
+    let mut description = format!(
+        "Prepares changes to the user's book for the user to review: {}, and nothing else; \
+         the user has not allowed other kinds of change, so don't try them. Nothing changes \
+         until the user confirms them in KassenSturz's window, and the user may refuse them.",
+        kinds.join(", ")
+    );
+    if allowed.allows(Permission::NewCategories) {
+        description.push_str(
+            " A new category has a key of your choice, which the other lists use as \
+             new_category (or new_parent).",
+        );
+    }
+    if allowed.allows(Permission::SortTransactions) {
+        description.push_str(
+            " Only a transaction with one category, or none yet, can get another one; a \
+             transfer between the user's own accounts can't.",
+        );
+    }
+    if allowed.allows(Permission::NewRules) {
+        description.push_str(
+            " Rules are checked in order and the first that matches wins, so a new Rule goes last",
+        );
+        description.push_str(if allowed.allows(Permission::EditRules) {
+            " until you move it with move_rules."
+        } else {
+            "."
+        });
+    }
+    description.push_str(
+        " Categories and Rules are named by the IDs that list_categories and list_rules give. \
+         Prepare everything that belongs together in one call.",
+    );
+    Some(ProposeSpec {
+        name: PROPOSE_CHANGES.name,
+        description,
+        parameters: parameters.to_string(),
+    })
+}
 
 /// The most characters of a name or a condition's text.
 const MAX_NAME_CHARS: usize = 100;
@@ -272,6 +385,9 @@ pub enum ChangeError {
     /// The book refused a change, e.g. because the user added a category
     /// of the same name since.
     NotApplied(StoreError),
+    /// The set holds a kind of change the user doesn't allow now: they
+    /// turned it off after it was prepared (D-238).
+    NotAllowed,
 }
 
 impl From<StoreError> for ChangeError {
@@ -292,6 +408,7 @@ impl Report for ChangeError {
     fn report(&self) -> ErrorReport {
         match self {
             Self::OutOfDate => ErrorReport::new("ai-changes.out-of-date"),
+            Self::NotAllowed => ErrorReport::new("ai-changes.not-allowed"),
             Self::NotApplied(error) => {
                 ErrorReport::new("ai-changes.not-applied").caused_by(error.report())
             }
@@ -305,6 +422,28 @@ impl ChangeSet {
     /// transactions.
     pub fn changes(&self) -> &[ProposedChange] {
         &self.changes
+    }
+
+    /// Whether every change in the set is of a kind the user allows under
+    /// `allowed`. The chat and the request files check this again when the
+    /// user confirms, so turning a permission off also stops what was
+    /// prepared earlier (D-238).
+    pub fn check_allowed(&self, allowed: Permissions) -> Result<(), ChangeError> {
+        let permitted = self.changes.iter().all(|change| {
+            allowed.allows(match change {
+                ProposedChange::NewCategory(_) => Permission::NewCategories,
+                ProposedChange::EditCategory(_) => Permission::EditCategories,
+                ProposedChange::NewRule(_) => Permission::NewRules,
+                ProposedChange::EditRule(_) | ProposedChange::MoveRule(_) => Permission::EditRules,
+                ProposedChange::DeleteRule(_) => Permission::DeleteRules,
+                ProposedChange::Categorize(_) => Permission::SortTransactions,
+            })
+        });
+        if permitted {
+            Ok(())
+        } else {
+            Err(ChangeError::NotAllowed)
+        }
     }
 
     /// Applies the set to `book` as one user action, which one undo takes
@@ -436,8 +575,14 @@ fn recategorized(change: &Categorize) -> Result<Transaction, ChangeError> {
 }
 
 /// Checks a model's call of [`PROPOSE_CHANGES`] against `book` and turns it
-/// into a change set for the user to review. The book doesn't change.
-pub fn propose(book: &Book, arguments: &Value) -> Result<Proposal, ToolError> {
+/// into a change set for the user to review. The book doesn't change. A
+/// list of a kind the user doesn't allow under `allowed` is refused, not
+/// left out (D-238).
+pub fn propose(
+    book: &Book,
+    arguments: &Value,
+    allowed: Permissions,
+) -> Result<Proposal, ToolError> {
     let call = Object::read(
         arguments,
         &[
@@ -458,6 +603,11 @@ pub fn propose(book: &Book, arguments: &Value) -> Result<Proposal, ToolError> {
     let moved_rules = call.array("move_rules")?;
     let deleted_rules = call.array("delete_rules")?;
     let transactions = call.array("categorize")?;
+    for (name, permission) in SECTIONS {
+        if !allowed.allows(permission) && !call.array(name)?.is_empty() {
+            return Err(ToolError::NotAllowed { argument: name });
+        }
+    }
     let count = categories.len()
         + edited_categories.len()
         + rules.len()

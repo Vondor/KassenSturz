@@ -59,6 +59,22 @@ ColumnLayout {
 
     function refresh() {
         form = settings.load();
+        features = ["categories", "month", "rules"].filter(feature => featureAllowed(feature));
+    }
+
+    // The built-in features that are shown: one whose changes the user
+    // doesn't let the AI prepare is hidden, not grayed out (D-238).
+    property var features: []
+
+    function featureAllowed(feature: string): bool {
+        switch (feature) {
+        case "categories":
+            return settings.allows("AllowSortTransactions");
+        case "rules":
+            return settings.allows("AllowNewRules");
+        default:
+            return true;
+        }
     }
 
     function add(message: var) {
@@ -113,7 +129,7 @@ ColumnLayout {
     // category suggestions to one account, empty for all of them. Called
     // by the buttons below and by the register's button.
     function askFeature(feature: string, accountId: string) {
-        if (chat.busy || !hasProvider) {
+        if (chat.busy || !hasProvider || !featureAllowed(feature)) {
             return;
         }
         const started = chat.askFeature(feature, accountId, keyField.text);
@@ -410,7 +426,7 @@ ColumnLayout {
         visible: panel.hasProvider
 
         Repeater {
-            model: ["categories", "month", "rules"]
+            model: panel.features
 
             Controls.Button {
                 required property string modelData

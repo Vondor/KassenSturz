@@ -69,6 +69,19 @@ impl Folder {
         .expect("settings written");
     }
 
+    /// Switches AI and the MCP write tools on, with `lines` more settings
+    /// in the AI group, such as `AllowEditRules=true` (D-238).
+    pub fn allow(&self, lines: &[&str]) {
+        std::fs::write(
+            self.0.join("kassensturzrc"),
+            format!(
+                "[AI]\nEnabled=true\nMcpWriteTools=true\n{}\n",
+                lines.join("\n")
+            ),
+        )
+        .expect("settings written");
+    }
+
     /// The user's data folder of this test, where the request folder is.
     pub fn data(&self) -> PathBuf {
         self.0.join("data")

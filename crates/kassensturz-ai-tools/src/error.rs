@@ -46,6 +46,12 @@ pub enum ToolError {
     /// can't be deleted, only a top-level Rule moves, a Rule that books a
     /// Transfer or has conditions a model can't write keeps them.
     NotChangeable,
+    /// The call has a list of a kind of change the user doesn't allow
+    /// (`argument` names the list, D-238).
+    NotAllowed {
+        /// The list's name, from [`PROPOSE_CHANGES`](crate::PROPOSE_CHANGES)'s fixed list.
+        argument: &'static str,
+    },
     /// The debug log can't be read: AI or the log is off (D-173).
     #[cfg(feature = "debug-log")]
     DebugLogOff,
@@ -94,6 +100,8 @@ impl Report for ToolError {
             Self::OtherCurrency => ErrorReport::new("ai-tools.other-currency"),
             Self::UnknownRule => ErrorReport::new("ai-tools.unknown-rule"),
             Self::NotChangeable => ErrorReport::new("ai-tools.not-changeable"),
+            Self::NotAllowed { argument } => ErrorReport::new("ai-tools.not-allowed")
+                .with("argument", ErrorParam::Keyword(argument)),
             #[cfg(feature = "debug-log")]
             Self::DebugLogOff => ErrorReport::new("ai-tools.debug-log-off"),
             Self::IssueBookData { field } => ErrorReport::new("ai-tools.issue-book-data")
@@ -141,6 +149,11 @@ mod tests {
             ToolError::DebugLogOff,
             ToolError::Store(StoreError::AmountOverflow),
         ];
+        examples.extend(
+            crate::changes::SECTIONS
+                .iter()
+                .map(|&(argument, _)| ToolError::NotAllowed { argument }),
+        );
         examples.extend(crate::issue::FIELDS.iter().flat_map(|&field| {
             [
                 ToolError::IssueBookData { field },
@@ -184,6 +197,7 @@ mod tests {
         for error in [
             ChangeError::OutOfDate,
             ChangeError::NotApplied(StoreError::AmountOverflow),
+            ChangeError::NotAllowed,
         ] {
             let report = error.report();
             assert!(report.code.starts_with("ai-changes."), "{}", report.code);

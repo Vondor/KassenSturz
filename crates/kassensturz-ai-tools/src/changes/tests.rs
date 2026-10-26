@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use kassensturz_core::{AccountType, Date};
+use kassensturz_core::{AccountType, Date, ErrorParam};
 use serde_json::json;
 
 use super::*;
@@ -132,6 +132,12 @@ fn sample() -> Sample {
         transfer,
         split,
     }
+}
+
+/// Prepares changes with every kind of change allowed; the permissions
+/// have their own tests below.
+fn propose(book: &Book, arguments: &Value) -> Result<Proposal, ToolError> {
+    super::propose(book, arguments, Permissions::all())
 }
 
 fn code(result: Result<Proposal, ToolError>) -> String {
@@ -936,4 +942,167 @@ fn rule_changes_are_out_of_date_when_the_user_changed_the_rules_since() {
         book.update_rule(&changed).expect("edited back");
     }
     assert_eq!(names(&book), ["Grocer", "Pets", "Market"]);
+}
+
+#[test]
+fn a_list_the_user_does_not_allow_is_refused_and_one_they_allow_is_prepared() {
+    let s = sample();
+    let call = json!({
+        "new_categories": [{"key": "pets", "name": "Pets"}],
+        "delete_rules": [{"rule_id": "x"}],
+    });
+    let only_additions = Permissions::defaults();
+    assert_eq!(
+        super::propose(&s.book, &call, only_additions)
+            .err()
+            .map(|e| e.report().code),
+        Some("ai-tools.not-allowed")
+    );
+    let not_new_categories = Permissions::all().with(Permission::NewCategories, false);
+    let error = super::propose(
+        &s.book,
+        &json!({"new_categories": [{"key": "a", "name": "A"}]}),
+        not_new_categories,
+    )
+    .expect_err("refused");
+    let report = error.report();
+    assert_eq!(report.code, "ai-tools.not-allowed");
+    assert!(matches!(
+        report.params.as_slice(),
+        [("argument", ErrorParam::Keyword("new_categories"))]
+    ));
+    // Read only allows nothing; an empty list of a forbidden kind is fine.
+    assert!(
+        super::propose(
+            &s.book,
+            &json!({"new_categories": [{"key": "a", "name": "A"}]}),
+            Permissions::NONE
+        )
+        .is_err()
+    );
+    assert!(
+        super::propose(
+            &s.book,
+            &json!({"new_categories": [{"key": "a", "name": "A"}], "edit_rules": []}),
+            only_additions
+        )
+        .is_ok()
+    );
+}
+
+#[test]
+fn each_list_needs_its_own_permission() {
+    let s = sample();
+    let calls = [
+        (
+            json!({"new_categories": [{"key": "a", "name": "A"}]}),
+            Permission::NewCategories,
+        ),
+        (
+            json!({"edit_categories": [{"category_id": s.groceries.to_string(), "name": "Food shop"}]}),
+            Permission::EditCategories,
+        ),
+        (
+            json!({"new_rules": [{"name": "R", "conditions": [{"money_out": true}], "category_id": s.groceries.to_string()}]}),
+            Permission::NewRules,
+        ),
+        (
+            json!({"categorize": [{"transaction_id": s.unsorted.to_string(), "category_id": s.groceries.to_string()}]}),
+            Permission::SortTransactions,
+        ),
+        (
+            json!({"move_rules": [{"rule_id": "x", "position": 1}]}),
+            Permission::EditRules,
+        ),
+        (
+            json!({"edit_rules": [{"rule_id": "x", "name": "n"}]}),
+            Permission::EditRules,
+        ),
+        (
+            json!({"delete_rules": [{"rule_id": "x"}]}),
+            Permission::DeleteRules,
+        ),
+    ];
+    for (call, needed) in calls {
+        let without = Permissions::all().with(needed, false);
+        assert_eq!(
+            code(super::propose(&s.book, &call, without)),
+            "ai-tools.not-allowed",
+            "{call}"
+        );
+        // With only that permission the refusal is gone (the call may still
+        // fail on its made-up IDs, but not for this reason).
+        let only = Permissions::NONE.with(needed, true);
+        assert_ne!(
+            code(super::propose(&s.book, &call, only)),
+            "ai-tools.not-allowed",
+            "{call}"
+        );
+    }
+}
+
+#[test]
+fn a_set_is_checked_again_against_the_permissions_of_the_moment_it_is_confirmed() {
+    let s = sample();
+    let proposal = propose(
+        &s.book,
+        &json!({
+            "new_categories": [{"key": "a", "name": "A"}],
+            "categorize": [{"transaction_id": s.unsorted.to_string(), "new_category": "a"}],
+        }),
+    )
+    .expect("prepared");
+    let set = proposal.changes;
+    assert!(set.check_allowed(Permissions::defaults()).is_ok());
+    let later = Permissions::defaults().with(Permission::SortTransactions, false);
+    let error = set.check_allowed(later).expect_err("turned off meanwhile");
+    assert_eq!(error.report().code, "ai-changes.not-allowed");
+    assert!(set.check_allowed(Permissions::NONE).is_err());
+}
+
+#[test]
+fn a_model_is_offered_only_the_lists_the_user_allows() {
+    assert_eq!(propose_spec(Permissions::NONE), None);
+    let all = propose_spec(Permissions::all()).expect("offered");
+    assert_eq!(all.name, PROPOSE_CHANGES.name);
+    let full: Value = serde_json::from_str(PROPOSE_CHANGES.parameters).expect("json");
+    assert_eq!(
+        serde_json::from_str::<Value>(&all.parameters).expect("json"),
+        full
+    );
+    assert!(all.description.contains("move_rules"));
+
+    let additions = propose_spec(Permissions::defaults()).expect("offered");
+    let parameters: Value = serde_json::from_str(&additions.parameters).expect("json");
+    let lists: Vec<&str> = parameters["properties"]
+        .as_object()
+        .expect("properties")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(lists.len(), 3, "{lists:?}");
+    for list in ["new_categories", "new_rules", "categorize"] {
+        assert!(lists.contains(&list), "{list}");
+    }
+    assert!(!additions.description.contains("move_rules"));
+    assert!(!additions.description.contains("deleting"));
+
+    // Without new categories nothing points at their keys.
+    let none_new =
+        propose_spec(Permissions::all().with(Permission::NewCategories, false)).expect("offered");
+    assert!(!none_new.parameters.contains("new_category"));
+    assert!(!none_new.parameters.contains("new_parent"));
+    assert!(!none_new.parameters.contains("new_categories"));
+
+    // One kind alone is still a complete, valid tool.
+    for permission in Permission::ALL {
+        let spec = propose_spec(Permissions::NONE.with(permission, true)).expect("offered");
+        let value: Value = serde_json::from_str(&spec.parameters).expect("json");
+        assert!(
+            !value["properties"]
+                .as_object()
+                .expect("properties")
+                .is_empty()
+        );
+    }
 }

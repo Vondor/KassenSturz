@@ -20,6 +20,7 @@ use std::path::Path;
 use kassensturz_ai_tools::requests::{Inbox, Reply, RequestId};
 use kassensturz_ai_tools::{ChangeError, propose};
 use kassensturz_core::Report;
+use kassensturz_core::ai_switch::Permissions;
 use kassensturz_store::Book;
 
 use crate::ai_chat::Sets;
@@ -42,10 +43,11 @@ pub fn take_requests(
     path: &Path,
     book: &Book,
     sets: &mut Sets,
+    allowed: Permissions,
 ) -> Vec<Arrived> {
     let mut arrived = Vec::new();
     for request in inbox.take_new(path) {
-        let reply = match propose(book, &request.arguments) {
+        let reply = match propose(book, &request.arguments, allowed) {
             Ok(proposal) => {
                 let count = proposal.changes.changes().len();
                 let id = sets.add_requested(proposal.changes, request.id.clone());
@@ -156,6 +158,7 @@ mod tests {
                         "new_categories": [{"key": "t", "name": "Sorted by my AI tool"}],
                         "categorize": [{"transaction_id": id, "new_category": "t"}]
                     }),
+                    Permissions::all(),
                 )
                 .is_ok()
             })
@@ -195,7 +198,7 @@ mod tests {
         let id = ends.server.send(&path, &call).expect("sent");
         let mut sets = Sets::default();
 
-        let arrived = take_requests(&mut ends.app, &path, &book, &mut sets);
+        let arrived = take_requests(&mut ends.app, &path, &book, &mut sets, Permissions::all());
 
         assert_eq!(arrived.len(), 1);
         let count = arrived[0].count;
@@ -219,7 +222,7 @@ mod tests {
         // The window's confirm button.
         let waiting = sets.take(arrived[0].id).unwrap();
         assert_eq!(waiting.from.as_ref(), Some(&id));
-        let result = confirm_in(&mut book, waiting.set);
+        let result = confirm_in(&mut book, waiting.set, Permissions::all());
         tell_confirmed(&mut ends.app, &id, &result);
 
         assert!(result.is_ok());
@@ -250,7 +253,7 @@ mod tests {
         let declined = ends.server.send(&path, &call).expect("sent");
         let forgotten = ends.server.send(&path, &call).expect("sent");
         let mut sets = Sets::default();
-        let arrived = take_requests(&mut ends.app, &path, &book, &mut sets);
+        let arrived = take_requests(&mut ends.app, &path, &book, &mut sets, Permissions::all());
         assert_eq!(arrived.len(), 2);
 
         let first = sets.take(arrived[0].id).unwrap();
@@ -287,7 +290,9 @@ mod tests {
             )
             .expect("sent");
         let mut sets = Sets::default();
-        assert!(take_requests(&mut ends.app, &path, &book, &mut sets).is_empty());
+        assert!(
+            take_requests(&mut ends.app, &path, &book, &mut sets, Permissions::all()).is_empty()
+        );
         assert!(sets.clear().is_empty());
         assert_eq!(
             ends.server.standing(&id),
@@ -307,7 +312,9 @@ mod tests {
         std::fs::write(&other, b"another book").unwrap();
         let id = ends.server.send(&other, &call).expect("sent");
         let mut sets = Sets::default();
-        assert!(take_requests(&mut ends.app, &path, &book, &mut sets).is_empty());
+        assert!(
+            take_requests(&mut ends.app, &path, &book, &mut sets, Permissions::all()).is_empty()
+        );
         assert_eq!(ends.server.standing(&id), Standing::NotTaken);
     }
 

@@ -12,12 +12,20 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-use kassensturz_ai_tools::{Confirmed, ProposedChange, call, propose};
+use kassensturz_ai_tools::{Confirmed, ProposedChange, call, propose as propose_with};
 use kassensturz_core::Date;
+use kassensturz_core::ai_switch::Permissions;
 use kassensturz_import::{Imported, KmySqlite, Limits, import};
 use kassensturz_pipeline::fill_book_from;
 use kassensturz_store::{Action, Book};
 use serde_json::{Value, json};
+
+fn propose(
+    book: &Book,
+    arguments: &Value,
+) -> Result<kassensturz_ai_tools::Proposal, kassensturz_ai_tools::ToolError> {
+    propose_with(book, arguments, Permissions::all())
+}
 
 const TODAY: Date = Date::constant(2026, 10, 25);
 

@@ -18,8 +18,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use kassensturz_ai_tools::requests::{Reply, RequestFolder, RequestId, Standing};
-use kassensturz_ai_tools::{PROPOSE_CHANGES, ToolError};
-use kassensturz_core::ai_switch;
+use kassensturz_ai_tools::{PROPOSE_CHANGES, ToolError, propose_spec};
+use kassensturz_core::ai_switch::{self, Permissions};
 use kassensturz_store::Book;
 use rmcp::model::{JsonObject, Tool, ToolAnnotations};
 use serde_json::{Value, json};
@@ -69,16 +69,21 @@ pub(crate) enum Failure {
     Tool(ToolError),
 }
 
-/// The write tools, offered while they are turned on.
-pub(crate) fn tools() -> Vec<Tool> {
+/// The write tools, offered while they are turned on: `propose_changes`
+/// with only the lists the user allows (D-238), and nothing at all when
+/// they allow none.
+pub(crate) fn tools(permissions: Permissions) -> Vec<Tool> {
+    let Some(propose) = propose_spec(permissions) else {
+        return Vec::new();
+    };
     let schema = |text: &str| -> Arc<JsonObject> {
         Arc::new(serde_json::from_str(text).expect("the parameters are a JSON object"))
     };
     vec![
         Tool::new(
-            PROPOSE_CHANGES.name,
-            format!("{}{PROPOSE_NOTE}", PROPOSE_CHANGES.description),
-            schema(PROPOSE_CHANGES.parameters),
+            propose.name,
+            format!("{}{PROPOSE_NOTE}", propose.description),
+            schema(&propose.parameters),
         )
         .with_annotations(
             ToolAnnotations::new()
@@ -116,14 +121,15 @@ pub(crate) async fn call(
     folder: Option<&Path>,
     waits: Waits,
 ) -> Result<Value, Failure> {
-    if !ai_switch::write_tools_enabled() {
+    let permissions = ai_switch::permissions();
+    if !ai_switch::write_tools_enabled() || permissions.is_none() {
         return Err(Failure::Code("mcp-writes.off".into()));
     }
     let folder = folder
         .and_then(|path| RequestFolder::open(path.to_path_buf()).ok())
         .ok_or_else(|| Failure::Code("mcp-writes.folder".into()))?;
     let result = if name == PROPOSE_CHANGES.name {
-        propose(book, arguments, &folder, waits).await
+        propose(book, arguments, permissions, &folder, waits).await
     } else {
         let id = request_of(arguments)?;
         wait_for(&folder, &id, waits, ai_switch::write_tools_enabled).await
@@ -138,6 +144,7 @@ pub(crate) async fn call(
 async fn propose(
     book: &Path,
     arguments: &Value,
+    permissions: Permissions,
     folder: &RequestFolder,
     waits: Waits,
 ) -> Result<Value, Failure> {
@@ -145,7 +152,9 @@ async fn propose(
     // a bad call at once, and nothing reaches the app that can't work.
     Book::open_to_read(book)
         .map_err(ToolError::from)
-        .and_then(|book| book.reading(|book| kassensturz_ai_tools::propose(book, arguments)))
+        .and_then(|book| {
+            book.reading(|book| kassensturz_ai_tools::propose(book, arguments, permissions))
+        })
         .map_err(Failure::Tool)?;
     let id = folder
         .send(book, arguments)
@@ -259,7 +268,7 @@ mod tests {
 
     #[test]
     fn the_write_tools_are_marked_as_such() {
-        let tools = tools();
+        let tools = tools(Permissions::all());
         let names: Vec<&str> = tools.iter().map(|tool| tool.name.as_ref()).collect();
         assert_eq!(names, ["propose_changes", "check_proposed_changes"]);
         let propose = tools[0].annotations.as_ref().expect("annotated");

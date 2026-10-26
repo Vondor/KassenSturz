@@ -12,9 +12,10 @@ use kassensturz_ai_tools::requests::RequestFolder;
 use kassensturz_ai_tools::{FUNCTIONS, ToolError};
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{READ_DEBUG_LOG, read_debug_log};
+use kassensturz_core::ai_switch::{self, Permissions};
 #[cfg(feature = "debug-log")]
 use kassensturz_core::debug_log::{DebugLog, Event};
-use kassensturz_core::{Date, ErrorParam, ErrorReport, Report, ai_switch};
+use kassensturz_core::{Date, ErrorParam, ErrorReport, Report};
 use kassensturz_store::Book;
 use rmcp::model::{
     CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, Implementation,
@@ -86,7 +87,7 @@ impl ServerHandler for Server {
                 Implementation::new("kassensturz-mcp", VERSION).with_title("KassenSturz"),
             )
             .with_instructions(instructions(
-                ai_switch::write_tools_enabled(),
+                write_permissions().is_some(),
                 self.log_readable(),
             ))
     }
@@ -98,7 +99,7 @@ impl ServerHandler for Server {
     ) -> Result<ListToolsResult, ErrorData> {
         stop_if_switched_off();
         Ok(ListToolsResult::with_all_items(tools(
-            ai_switch::write_tools_enabled(),
+            write_permissions(),
             self.log_readable(),
         )))
     }
@@ -233,7 +234,7 @@ pub(crate) fn instructions(write_tools: bool, log_readable: bool) -> String {
 /// The read functions as MCP tools, in their order, then the one that
 /// reads the debug log while the AI tool may, and after them the write tools
 /// while they are on.
-fn tools(write_tools: bool, log_readable: bool) -> Vec<Tool> {
+fn tools(write_permissions: Option<Permissions>, log_readable: bool) -> Vec<Tool> {
     let read = FUNCTIONS.iter();
     #[cfg(feature = "debug-log")]
     let read = read.chain(log_readable.then_some(&READ_DEBUG_LOG));
@@ -252,10 +253,19 @@ fn tools(write_tools: bool, log_readable: bool) -> Vec<Tool> {
             )
         })
         .collect();
-    if write_tools {
-        tools.extend(writes::tools());
+    if let Some(permissions) = write_permissions {
+        tools.extend(writes::tools(permissions));
     }
     tools
+}
+
+/// What the AI tool may prepare through the write tools now: `None` while
+/// they are off or while the user allows no kind of change, in which case
+/// they are not offered at all (D-238).
+fn write_permissions() -> Option<Permissions> {
+    ai_switch::write_tools_enabled()
+        .then(ai_switch::permissions)
+        .filter(|permissions| !permissions.is_none())
 }
 
 /// The answer to a call of the function `name` with `arguments`: its JSON
@@ -322,16 +332,16 @@ mod tests {
 
     #[test]
     fn every_read_function_is_a_read_only_tool() {
-        let tools = tools(false, false);
+        let tools = tools(None, false);
         let names: Vec<&str> = tools.iter().map(|tool| tool.name.as_ref()).collect();
         let functions: Vec<&str> = FUNCTIONS.iter().map(|function| function.name).collect();
         assert_eq!(names, functions);
-        let with_writes = super::tools(true, false);
+        let with_writes = super::tools(Some(Permissions::all()), false);
         assert_eq!(with_writes.len(), FUNCTIONS.len() + 2);
         assert_eq!(with_writes[..tools.len()], tools[..]);
         // In the developer mode, the debug log's tool comes after the read
         // functions (D-227).
-        let with_log = super::tools(true, true);
+        let with_log = super::tools(Some(Permissions::all()), true);
         #[cfg(feature = "debug-log")]
         {
             assert_eq!(with_log.len(), FUNCTIONS.len() + 3);
@@ -347,7 +357,7 @@ mod tests {
                 tool.name
             );
         }
-        let tools = super::tools(false, true);
+        let tools = super::tools(None, true);
         for tool in &tools {
             let annotations = tool.annotations.as_ref().expect("annotated");
             assert_eq!(annotations.read_only_hint, Some(true), "{}", tool.name);

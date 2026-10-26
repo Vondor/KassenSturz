@@ -93,6 +93,74 @@ fn the_write_tools_are_off_until_the_user_turns_them_on() {
 }
 
 #[test]
+fn the_user_chooses_which_lists_the_ai_tool_may_use_and_it_is_seen_at_once() {
+    let folder = Folder::new("writes-which-lists");
+    folder.allow(&[]);
+    let book = folder.book();
+    let mut session = Session::start(folder.path(), &book);
+    session.initialize("2025-06-18");
+    let schema_of = |session: &mut Session| {
+        let answer = session.request("tools/list", json!({}));
+        let tool = answer["result"]["tools"]
+            .as_array()
+            .expect("tools")
+            .iter()
+            .find(|tool| tool["name"] == "propose_changes")
+            .cloned();
+        tool.map(|tool| {
+            let mut lists: Vec<String> = tool["inputSchema"]["properties"]
+                .as_object()
+                .expect("properties")
+                .keys()
+                .cloned()
+                .collect();
+            lists.sort();
+            lists
+        })
+    };
+    // Nothing chosen yet: only adding is allowed.
+    assert_eq!(
+        schema_of(&mut session),
+        Some(vec![
+            "categorize".into(),
+            "new_categories".into(),
+            "new_rules".into()
+        ])
+    );
+    // A list that is not offered is refused when called anyway.
+    let (answer, is_error) = session.call(
+        "propose_changes",
+        json!({"delete_rules": [{"rule_id": "00000000-0000-0000-0000-000000000001"}]}),
+    );
+    assert!(is_error);
+    assert_eq!(answer["error"], "ai-tools.not-allowed", "{answer}");
+    assert_eq!(answer["argument"], "delete_rules", "{answer}");
+    assert!(files_in(&request_folder(&folder)).is_empty());
+
+    // The user ticks one more box: seen at the next look, no restart.
+    folder.allow(&["AllowDeleteRules=true", "AllowNewRules=false"]);
+    let lists = schema_of(&mut session).expect("still offered");
+    assert!(lists.contains(&"delete_rules".to_owned()), "{lists:?}");
+    assert!(!lists.contains(&"new_rules".to_owned()), "{lists:?}");
+
+    // Nothing allowed: the write tools are not offered at all.
+    folder.allow(&[
+        "AllowNewCategories=false",
+        "AllowNewRules=false",
+        "AllowSortTransactions=false",
+    ]);
+    let names = tool_names(&mut session);
+    assert!(
+        !names.iter().any(|name| name.contains("propose")),
+        "{names:?}"
+    );
+    let (answer, is_error) = session.call("propose_changes", bakery());
+    assert!(is_error);
+    assert_eq!(answer, json!({"error": "mcp-writes.off"}));
+    assert!(session.finish().status.success());
+}
+
+#[test]
 fn a_bad_call_is_refused_at_once_and_reaches_no_app() {
     let folder = Folder::new("writes-bad-call");
     folder.switch_write_tools(true);
@@ -149,8 +217,12 @@ fn app(
         while !done.load(Ordering::SeqCst) {
             for request in inbox.take_new(&book) {
                 let read = Book::open_to_read(&book).expect("read");
-                let proposal =
-                    kassensturz_ai_tools::propose(&read, &request.arguments).expect("proposed");
+                let proposal = kassensturz_ai_tools::propose(
+                    &read,
+                    &request.arguments,
+                    kassensturz_core::ai_switch::Permissions::all(),
+                )
+                .expect("proposed");
                 inbox
                     .reply(
                         &request.id,

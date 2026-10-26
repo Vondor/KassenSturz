@@ -19,7 +19,7 @@ use kassensturz_ai_chat::{
     BuildInfo, Cancel, ChatError, ChatSession, DATA_START, Hooks, LogEntry, MAX_ROUNDS, Mode,
     NOT_OFFERED, NoHooks, sample_request,
 };
-use kassensturz_ai_tools::{DATA_NOTE, FUNCTIONS, PROPOSE_CHANGES};
+use kassensturz_ai_tools::{DATA_NOTE, DRAFT_ISSUE, FUNCTIONS, PROPOSE_CHANGES};
 use serde_json::Value;
 
 fn session() -> ChatSession {
@@ -111,8 +111,10 @@ fn a_model_that_follows_a_hostile_memo_gets_nothing_more() {
         seen.iter().all(|s| s
             .offered
             .iter()
-            .all(|o| FUNCTIONS.iter().any(|f| f.name == o) || o == PROPOSE_CHANGES.name)),
-        "only the read functions and propose_changes are ever offered"
+            .all(|o| FUNCTIONS.iter().any(|f| f.name == o)
+                || o == PROPOSE_CHANGES.name
+                || o == DRAFT_ISSUE.name)),
+        "only the read functions, propose_changes and draft_issue are ever offered"
     );
     assert_eq!(seen[2].messages.last().unwrap().content, NOT_OFFERED);
 

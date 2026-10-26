@@ -88,6 +88,7 @@ fn main() {
         "src/book_from_file_model.rs",
         "src/book_session.rs",
         "src/categories_model.rs",
+        "src/developer_mode.rs",
         "src/export_model.rs",
         "src/fetch_gap_model.rs",
         "src/first_start_model.rs",

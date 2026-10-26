@@ -15,6 +15,9 @@ publish.workspace = true
 # The AI switch, read without Qt (D-013, D-168); left out of a build without
 # AI (D-039).
 ai = []
+# The developer mode's debug log (D-173, D-227), started only from a
+# terminal; a build without it holds none of its code.
+debug-log = []
 
 [dependencies]
 jiff.workspace = true

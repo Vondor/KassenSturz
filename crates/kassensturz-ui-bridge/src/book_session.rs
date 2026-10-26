@@ -354,19 +354,20 @@ mod tests {
         );
     }
 
-    /// The version Settings shows is the one the build files carry
-    /// (D-152), and has the form 0.YYMMDD.N.
+    /// The build files carry one version (D-152), and the version Settings
+    /// shows, which comes from git (D-226), has the form 0.YYMMDD.N.
     #[test]
     fn shows_the_version_of_the_build() {
-        let version = app_version();
+        let files = env!("CARGO_PKG_VERSION");
         let cmake = std::fs::read_to_string(
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../CMakeLists.txt"),
         )
         .expect("CMakeLists.txt is in the repository");
         assert!(
-            cmake.contains(&format!("project(kassensturz VERSION {version} ")),
-            "CMakeLists.txt has another version than Cargo.toml's {version}"
+            cmake.contains(&format!("project(kassensturz VERSION {files} ")),
+            "CMakeLists.txt has another version than Cargo.toml's {files}"
         );
+        let version = app_version();
         let parts: Vec<&str> = version.split('.').collect();
         assert_eq!(parts.len(), 3, "{version}");
         assert!(

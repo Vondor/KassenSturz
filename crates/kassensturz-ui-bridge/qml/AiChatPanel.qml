@@ -170,6 +170,15 @@ ColumnLayout {
             for (let i = 0; i < result.sets.length; i++) {
                 panel.add({ kind: "changes", setId: result.sets[i].id, count: result.sets[i].count });
             }
+            if (result.issue !== undefined) {
+                panel.add({
+                    kind: "issue",
+                    title: result.issue.title,
+                    body: result.issue.body,
+                    link: result.issue.link,
+                    wholeInLink: result.issue.wholeInLink
+                });
+            }
         }
 
         function onRequested(sets: var) {
@@ -301,6 +310,7 @@ ColumnLayout {
                     panel.markHandled(setId, false);
                 }
                 onSettingsClicked: panel.settingsClicked()
+                onIssueUsed: how => panel.chat.issueUsed(how)
             }
         }
 

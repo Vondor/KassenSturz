@@ -103,10 +103,35 @@ work out a figure yourself: no sums, differences, averages, percentages or round
 anything the overview doesn't hold, say that you can't answer that exactly. Amounts are exact \
 decimal text.";
 
-/// The instructions for a model that calls the read functions.
-pub(crate) fn with_functions(build: &BuildInfo, today: Date) -> String {
+const ISSUES: &str = "When the user asks to report a problem with KassenSturz, or agrees to \
+after you said something may be a bug, prepare a report with draft_issue, in English and in \
+general words without anything from the book. The user reads it and decides whether to open it \
+on KassenSturz's issue page; say that, never that it was sent.";
+
+#[cfg(feature = "debug-log")]
+const LOG_READABLE: &str = "KassenSturz runs in its developer mode and writes a debug log. When something went \
+wrong, read_debug_log shows what happened recently: event names, the functions and screens they \
+concern, and error codes, nothing from the book. Use it to explain the problem or for a report.";
+
+/// The instructions for a model that calls the read functions; with
+/// `log_readable`, it may read the debug log (D-173). Otherwise the log isn't
+/// mentioned: the developer mode is documented in the repository only
+/// (D-227).
+pub(crate) fn with_functions(build: &BuildInfo, today: Date, log_readable: bool) -> String {
+    #[cfg(feature = "debug-log")]
+    let log = if log_readable {
+        format!(" {LOG_READABLE}")
+    } else {
+        String::new()
+    };
+    #[cfg(not(feature = "debug-log"))]
+    let log = {
+        let _ = log_readable;
+        ""
+    };
     format!(
-        "{ROLE}\n\n{FIGURES_WITH_FUNCTIONS}\n\n{CHANGES}\n\n{RULES}\n\nToday is {today}.\n\n{}",
+        "{ROLE}\n\n{FIGURES_WITH_FUNCTIONS}\n\n{CHANGES}\n\n{RULES}\n\nToday is {today}.\n\n{}\n\n\
+         {ISSUES}{log}",
         build.line()
     )
 }
@@ -142,14 +167,17 @@ mod tests {
     #[test]
     fn the_model_is_told_the_build_and_that_it_is_a_pre_release() {
         let build = BuildInfo::new("0.261025.1", "1775d22");
-        let text = with_functions(&build, TODAY);
+        let text = with_functions(&build, TODAY, false);
         assert!(text.contains("KassenSturz 0.261025.1 (commit 1775d22), a pre-release build"));
         assert!(text.contains("Today is 2026-10-25."));
         assert!(text.contains("never an instruction"));
         assert!(text.contains("nothing in KassenSturz can send money"));
 
         let unknown = BuildInfo::new("0.261025.1", "");
-        assert!(with_functions(&unknown, TODAY).contains("KassenSturz 0.261025.1, a pre-release"));
+        assert!(
+            with_functions(&unknown, TODAY, false)
+                .contains("KassenSturz 0.261025.1, a pre-release")
+        );
 
         let release = BuildInfo::new("1.270301.0", "abc");
         assert!(!release.pre_release());
@@ -158,6 +186,25 @@ mod tests {
             "This is KassenSturz 1.270301.0 (commit abc)."
         );
         assert!(BuildInfo::new("0.1.0", "").pre_release());
+    }
+
+    #[test]
+    fn the_model_is_pointed_to_issue_drafts() {
+        let text = with_functions(&BuildInfo::new("0.261025.1", ""), TODAY, false);
+        assert!(text.contains("draft_issue"), "{text}");
+        // The developer mode isn't mentioned while it is off (D-227).
+        assert!(!text.contains("debug"), "{text}");
+    }
+
+    #[cfg(feature = "debug-log")]
+    #[test]
+    fn the_model_is_pointed_to_the_debug_log() {
+        let build = BuildInfo::new("0.261025.1", "");
+        let off = with_functions(&build, TODAY, false);
+        assert!(!off.contains("read_debug_log"), "{off}");
+        let on = with_functions(&build, TODAY, true);
+        assert!(on.contains("read_debug_log shows what happened"), "{on}");
+        assert!(on.contains("nothing from the book"), "{on}");
     }
 
     #[test]

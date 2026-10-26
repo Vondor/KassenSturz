@@ -28,6 +28,7 @@ mod book_session;
 mod books;
 mod categories;
 mod categories_model;
+mod developer_mode;
 mod errors;
 mod export;
 mod export_model;
@@ -81,6 +82,7 @@ fn main() {
     // right name and icon, also on Wayland.
     QGuiApplication::set_desktop_file_name(&QString::from(platform::APP_ID));
     platform::set_window_icon();
+    crate::note!(AppStarted);
     // Plasma's style, unless the user chose another one.
     if std::env::var_os("QT_QUICK_CONTROLS_STYLE").is_none() {
         QQuickStyle::set_style(&QString::from("org.kde.desktop"));

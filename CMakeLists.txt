@@ -46,6 +46,8 @@ option(KASSENSTURZ_BUNDLED_SQLITE
     "Build the SQLite that rusqlite bundles; OFF uses the system's SQLite (D-061)" ON)
 option(KASSENSTURZ_AI
     "Build the AI features; OFF leaves all AI code out (D-039). Official packages build with AI, switched off by default in the app (D-013)" ON)
+option(KASSENSTURZ_DEBUG_LOG
+    "Build the developer mode's debug log, started only from a terminal with KASSENSTURZ_DEBUG_LOG=1; OFF leaves all of its code out (D-227)" ON)
 option(KASSENSTURZ_BANK_DIALOGS
     "Build the library for Gwenhywfar's Qt 6 bank dialogs where gwengui-qt6 is installed (D-054, Q-035)" ON)
 option(KASSENSTURZ_INSTALL_SVG_ICON
@@ -64,6 +66,9 @@ if(KASSENSTURZ_AI)
     # The MCP server for the user's own AI tools (D-050, D-194) exists only
     # in a build with AI.
     list(APPEND cargo_args --package kassensturz-mcp --bin kassensturz-mcp)
+endif()
+if(KASSENSTURZ_DEBUG_LOG)
+    list(APPEND cargo_features debug-log)
 endif()
 list(APPEND cargo_args --no-default-features)
 if(cargo_features)

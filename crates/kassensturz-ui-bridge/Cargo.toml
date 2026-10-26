@@ -16,7 +16,7 @@ name = "kassensturz"
 path = "src/main.rs"
 
 [features]
-default = ["bundled-sqlite", "ai"]
+default = ["bundled-sqlite", "ai", "debug-log"]
 # See kassensturz-store (D-061).
 bundled-sqlite = ["kassensturz-store/bundled-sqlite", "kassensturz-import/bundled-sqlite"]
 
@@ -31,6 +31,13 @@ ai = [
     "kassensturz-ai-chat/ai",
     "dep:kassensturz-ai-tools",
     "kassensturz-ai-tools/ai",
+]
+# The developer mode's debug log (D-173, D-227), started only from a terminal
+# with KASSENSTURZ_DEBUG_LOG=1. Without it the app holds no log code.
+debug-log = [
+    "kassensturz-core/debug-log",
+    "kassensturz-ai-chat?/debug-log",
+    "kassensturz-ai-tools?/debug-log",
 ]
 
 [dependencies]

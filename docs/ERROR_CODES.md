@@ -313,7 +313,7 @@ A model asked for something from the book that the read functions can't give (D-
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
 | `ai-tools.unknown-function` | | | The AI asked for a function KassenSturz doesn't have, so it got nothing. Nothing to do; ask the question again in other words if the answer is missing. |
-| `ai-tools.bad-argument` | `argument` | `arguments`, `include_closed`, `account_id`, `date`, `from`, `to`, `text`, `category_id`, `limit`, `unsorted_only`, `new_categories`, `key`, `name`, `parent_id`, `income`, `currency`, `new_rules`, `match`, `conditions`, `field`, `test`, `case_sensitive`, `money_in`, `money_out`, `new_category`, `categorize`, `transaction_id` | The AI asked with a value KassenSturz can't use for {argument}, such as a day that doesn't exist or too many rows, so it got nothing. Nothing to do; the AI can ask again. |
+| `ai-tools.bad-argument` | `argument` | `arguments`, `include_closed`, `account_id`, `date`, `from`, `to`, `text`, `category_id`, `limit`, `unsorted_only`, `new_categories`, `key`, `name`, `parent_id`, `income`, `currency`, `new_rules`, `match`, `conditions`, `field`, `test`, `case_sensitive`, `money_in`, `money_out`, `new_category`, `categorize`, `transaction_id`, `title`, `what_happened`, `expected`, `steps` | The AI asked with a value KassenSturz can't use for {argument}, such as a day that doesn't exist or too many rows, so it got nothing. Nothing to do; the AI can ask again. |
 | `ai-tools.unknown-account` | | | The AI asked about an account that isn't one of yours in this book. Nothing to do; the AI can ask for the list of accounts first. |
 | `ai-tools.unknown-category` | | | The AI asked about a category that isn't in this book. Nothing to do; the AI can ask for the list of categories first. |
 | `ai-tools.bad-period` | | | The AI asked about a period that ends before it starts. Nothing to do; the AI can ask again. |
@@ -322,6 +322,9 @@ A model asked for something from the book that the read functions can't give (D-
 | `ai-tools.name-taken` | | | The AI prepared a new category or Rule with a name that is already used there. Nothing was prepared; the AI can pick another name or use the one you have. |
 | `ai-tools.not-categorizable` | | | The AI wanted to give a transaction a category, but it is a transfer between your accounts, a starting balance, or split over several categories, which only you can change. Nothing was prepared. |
 | `ai-tools.other-currency` | | | The AI wanted to book a transaction to a category in another currency. Nothing was prepared; the AI can pick a category in the transaction's currency. |
+| `ai-tools.debug-log-off` | | | The AI wanted to read the debug log, but it is off. Nothing to do; turn on the debug log in Settings if you want the AI to look at it. |
+| `ai-tools.issue-book-data` | `field` | `title`, `what_happened`, `expected`, `steps` | The AI's draft of a problem report held something from your book, such as a name, an amount or a day, so KassenSturz didn't show it. Nothing to do; the AI can write it again in general words. |
+| `ai-tools.issue-secret` | `field` | `title`, `what_happened`, `expected`, `steps` | The AI's draft of a problem report held something that looks like a password or a key, so KassenSturz didn't show it. Nothing to do; the AI can write it again without it. |
 | `ai-tools.book-unreadable` | | | The book couldn't be read to answer the AI. The detail says why; see that message. |
 
 ## Applying changes the AI prepared (`kassensturz-ai-tools`)

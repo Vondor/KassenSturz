@@ -20,6 +20,7 @@
 
 import QtQuick
 import QtQuick.Dialogs as Dialogs
+import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
 import io.github.vondor.kassensturz
@@ -49,8 +50,11 @@ Kirigami.ApplicationWindow {
     // Whether the first-run steps are done, so the side menu is offered.
     readonly property bool started: bookSession.open && firstStartState.hasAccount
 
-    // The app's name; it isn't translated.
-    title: "KassenSturz"
+    // The app's name, which isn't translated, and in the developer mode a
+    // marker that stays as long as it runs (D-227).
+    title: developerMode.on
+        ? "KassenSturz – " + i18nContext.i18nc("@title:window marker that KassenSturz was started in its developer mode", "developer mode")
+        : "KassenSturz"
     width: Kirigami.Units.gridUnit * 40
     height: Kirigami.Units.gridUnit * 38
     minimumWidth: Kirigami.Units.gridUnit * 20
@@ -166,6 +170,21 @@ Kirigami.ApplicationWindow {
 
     BankDialogs {
         bank: bankConnection
+    }
+
+    // The developer mode (D-227): on only when KassenSturz was started from
+    // a terminal for it. It is told every screen that comes up, which the
+    // chat's problem reports name too (D-228).
+    DeveloperMode {
+        id: developerMode
+    }
+
+    Connections {
+        target: root.pageStack
+
+        function onCurrentItemChanged() {
+            developerMode.screenShown(String(root.pageStack.currentItem));
+        }
     }
 
     // The one AI switch (D-013): every AI element in the screens hides
@@ -463,13 +482,40 @@ Kirigami.ApplicationWindow {
     // One page at a time, also in a wide window.
     pageStack.columnView.columnResizeMode: Kirigami.ColumnView.SingleColumn
 
-    // A book on a network drive opens, with this warning on every screen
-    // (D-038).
-    header: Kirigami.InlineMessage {
-        position: Kirigami.InlineMessage.Position.Header
-        type: Kirigami.MessageType.Warning
-        visible: bookSession.open && bookSession.networkDrive
-        text: root.i18nContext.i18nc("@info", "This book is on a network drive. Network drives can damage a book, because they don't save changes as reliably as this computer's own drive. Keep the book on this computer; a sync folder, such as Nextcloud's, is fine.")
+    header: ColumnLayout {
+        spacing: 0
+
+        // The developer mode shows this on every screen for as long as it
+        // runs, and it can't be closed (D-227).
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            position: Kirigami.InlineMessage.Position.Header
+            type: Kirigami.MessageType.Error
+            visible: developerMode.on
+            text: root.i18nContext.i18nc("@info", "Developer mode: KassenSturz is writing a log of what it does on this computer, such as which screens open and which errors happen. It leaves out amounts, names and passwords, but your privacy can't be guaranteed while this mode runs. To end it, close KassenSturz and start it the usual way.")
+            actions: [
+                Kirigami.Action {
+                    icon.name: "folder-open"
+                    text: root.i18nContext.i18nc("@action:button opens the folder of the developer mode's log", "Show the log")
+                    onTriggered: Qt.openUrlExternally(developerMode.folderUrl())
+                },
+                Kirigami.Action {
+                    icon.name: "edit-delete"
+                    text: root.i18nContext.i18nc("@action:button deletes the developer mode's log", "Delete the log")
+                    onTriggered: developerMode.clearLog()
+                }
+            ]
+        }
+
+        // A book on a network drive opens, with this warning on every
+        // screen (D-038).
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            position: Kirigami.InlineMessage.Position.Header
+            type: Kirigami.MessageType.Warning
+            visible: bookSession.open && bookSession.networkDrive
+            text: root.i18nContext.i18nc("@info", "This book is on a network drive. Network drives can damage a book, because they don't save changes as reliably as this computer's own drive. Keep the book on this computer; a sync folder, such as Nextcloud's, is fine.")
+        }
     }
 
     globalDrawer: Kirigami.GlobalDrawer {

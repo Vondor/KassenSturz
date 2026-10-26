@@ -247,9 +247,37 @@ impl Report for RuleError {
     }
 }
 
+/// Whether `code` has the shape of an error code (`docs/ERROR_CODES.md`):
+/// lowercase words joined by hyphens, in at least two parts separated by
+/// dots, at most 64 characters long.
+pub fn is_error_code(code: &str) -> bool {
+    code.len() <= 64
+        && code.split('.').count() >= 2
+        && code.split('.').all(|part| {
+            part.starts_with(|c: char| c.is_ascii_lowercase())
+                && !part.ends_with('-')
+                && part
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn codes_have_the_listed_shape() {
+        assert!(is_error_code("ai.timeout"));
+        assert!(is_error_code("ai-tools.bad-argument"));
+        assert!(is_error_code("store.corrupt.missing-table"));
+        assert!(!is_error_code("ai"));
+        assert!(!is_error_code("AI.timeout"));
+        assert!(!is_error_code("ai.time out"));
+        assert!(!is_error_code("ai.-x"));
+        assert!(!is_error_code("ai.x-"));
+        assert!(!is_error_code(&format!("ai.{}", "x".repeat(70))));
+    }
 
     const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
         Ok(code) => code,

@@ -150,14 +150,15 @@ pub fn transaction(n: u8, date: Date, payee: &str, parts: &[(AccountId, i64)]) -
 }
 
 /// The program with `folder` as the user's settings and home folder, and
-/// `folder/data` as their data folder.
+/// `folder/data` as their data folder, not in the developer mode (D-227).
 pub fn program(folder: &Path, arguments: &[&str]) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_kassensturz-mcp"));
     command
         .args(arguments)
         .env("XDG_CONFIG_HOME", folder)
         .env("XDG_DATA_HOME", folder.join("data"))
-        .env("HOME", folder);
+        .env("HOME", folder)
+        .env_remove("KASSENSTURZ_DEBUG_LOG");
     command
 }
 
@@ -184,7 +185,14 @@ pub struct Session {
 
 impl Session {
     pub fn start(folder: &Path, book: &Path) -> Self {
+        Self::start_with(folder, book, &[])
+    }
+
+    /// As [`Session::start`], with the environment variables `variables`
+    /// set too.
+    pub fn start_with(folder: &Path, book: &Path, variables: &[(&str, &str)]) -> Self {
         let mut child = program(folder, &["--book", book.to_str().expect("a UTF-8 path")])
+            .envs(variables.iter().copied())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

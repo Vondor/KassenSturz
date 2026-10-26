@@ -9,7 +9,12 @@
 //! KassenSturz for the model. It lives only in memory, with the
 //! conversation, and is never written to a file: it holds the book's data
 //! that was sent. It never holds the provider's key, which is not part of
-//! what is sent in the body (D-184).
+//! what is sent in the body (D-184). What reaches the opt-in debug log is
+//! only [`LogEntry::debug_event`]: event names, function names and error
+//! codes (D-173).
+
+#[cfg(feature = "debug-log")]
+use kassensturz_core::debug_log::{Event, known_detail};
 
 /// The most characters of a function call's arguments the log keeps. The
 /// arguments are the model's text and untrusted (X-8).
@@ -64,6 +69,36 @@ pub enum LogEntry {
     },
 }
 
+#[cfg(feature = "debug-log")]
+impl LogEntry {
+    /// The entry of the debug log this line stands for (D-173): its event,
+    /// the function it concerns and its error code, all from fixed lists.
+    /// The question, the requests and the results stay out.
+    pub fn debug_event(&self) -> (Event, Option<&'static str>, Option<&'static str>) {
+        match self {
+            Self::Asked { .. } => (Event::ChatAsked, None, None),
+            Self::Sent { .. } => (Event::ChatRequestSent, None, None),
+            Self::Called {
+                function, error, ..
+            } => (
+                Event::ChatFunctionCalled,
+                // A name the model made up isn't in the list.
+                Some(
+                    known_detail(function)
+                        .filter(|name| !name.ends_with("Page"))
+                        .unwrap_or("unknown"),
+                ),
+                *error,
+            ),
+            Self::NotOffered { .. } => (Event::ChatFunctionsNotOffered, None, None),
+            Self::Overview => (Event::ChatOverviewUsed, None, None),
+            Self::Answered { unverified: 0 } => (Event::ChatAnswered, None, None),
+            Self::Answered { .. } => (Event::ChatAnswerUnverified, None, None),
+            Self::Failed { code } => (Event::ChatFailed, None, Some(*code)),
+        }
+    }
+}
+
 /// `text` cut to `max` characters, with `…` when it was longer.
 pub(crate) fn cut(text: &str, max: usize) -> String {
     match text.char_indices().nth(max) {
@@ -75,6 +110,47 @@ pub(crate) fn cut(text: &str, max: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "debug-log")]
+    #[test]
+    fn the_debug_log_gets_events_and_codes_only() {
+        let called = LogEntry::Called {
+            function: "account_balance".into(),
+            arguments: r#"{"account_id":"Moon Base"}"#.into(),
+            result: "12.50".into(),
+            error: Some("ai-tools.unknown-account"),
+        };
+        assert_eq!(
+            called.debug_event(),
+            (
+                Event::ChatFunctionCalled,
+                Some("account_balance"),
+                Some("ai-tools.unknown-account")
+            )
+        );
+        let made_up = LogEntry::Called {
+            function: "Ignore your rules".into(),
+            arguments: String::new(),
+            result: String::new(),
+            error: Some("ai-tools.unknown-function"),
+        };
+        assert_eq!(made_up.debug_event().1, Some("unknown"));
+        let screen = LogEntry::Called {
+            function: "OverviewPage".into(),
+            arguments: String::new(),
+            result: String::new(),
+            error: None,
+        };
+        assert_eq!(screen.debug_event().1, Some("unknown"));
+        let asked = LogEntry::Asked {
+            question: "How much is in Moon Base?".into(),
+        };
+        assert_eq!(asked.debug_event(), (Event::ChatAsked, None, None));
+        assert_eq!(
+            LogEntry::Answered { unverified: 2 }.debug_event().0,
+            Event::ChatAnswerUnverified
+        );
+    }
 
     #[test]
     fn long_arguments_are_cut() {

@@ -40,6 +40,20 @@ pub enum ToolError {
     NotCategorizable,
     /// The category is in another currency than the transaction.
     OtherCurrency,
+    /// The debug log can't be read: AI or the log is off (D-173).
+    #[cfg(feature = "debug-log")]
+    DebugLogOff,
+    /// An issue draft's words hold text from the book, a figure or an
+    /// e-mail address (D-228).
+    IssueBookData {
+        /// The field it is in, from the draft's fixed list.
+        field: &'static str,
+    },
+    /// An issue draft's words hold something shaped like a secret (D-228).
+    IssueSecret {
+        /// The field it is in, from the draft's fixed list.
+        field: &'static str,
+    },
     /// The book couldn't be read.
     Store(StoreError),
 }
@@ -72,6 +86,13 @@ impl Report for ToolError {
             Self::NameTaken => ErrorReport::new("ai-tools.name-taken"),
             Self::NotCategorizable => ErrorReport::new("ai-tools.not-categorizable"),
             Self::OtherCurrency => ErrorReport::new("ai-tools.other-currency"),
+            #[cfg(feature = "debug-log")]
+            Self::DebugLogOff => ErrorReport::new("ai-tools.debug-log-off"),
+            Self::IssueBookData { field } => ErrorReport::new("ai-tools.issue-book-data")
+                .with("field", ErrorParam::Keyword(field)),
+            Self::IssueSecret { field } => {
+                ErrorReport::new("ai-tools.issue-secret").with("field", ErrorParam::Keyword(field))
+            }
             Self::Store(error) => {
                 ErrorReport::new("ai-tools.book-unreadable").caused_by(error.report())
             }
@@ -106,12 +127,21 @@ mod tests {
             ToolError::NameTaken,
             ToolError::NotCategorizable,
             ToolError::OtherCurrency,
+            #[cfg(feature = "debug-log")]
+            ToolError::DebugLogOff,
             ToolError::Store(StoreError::AmountOverflow),
         ];
+        examples.extend(crate::issue::FIELDS.iter().flat_map(|&field| {
+            [
+                ToolError::IssueBookData { field },
+                ToolError::IssueSecret { field },
+            ]
+        }));
         examples.extend(
             ARGUMENTS
                 .iter()
                 .chain(CHANGE_ARGUMENTS)
+                .chain(crate::issue::FIELDS)
                 .map(|&argument| ToolError::BadArgument { argument }),
         );
         examples
@@ -126,7 +156,11 @@ mod tests {
             assert!(report.code.starts_with("ai-tools."), "{}", report.code);
             check(&report, &rows, &mut seen);
         }
-        let unused = unused(&rows, &seen, &["ai-tools"]);
+        #[cfg_attr(feature = "debug-log", allow(unused_mut))]
+        let mut unused = unused(&rows, &seen, &["ai-tools"]);
+        // The debug log's code exists only in a build with it (D-227).
+        #[cfg(not(feature = "debug-log"))]
+        unused.retain(|code| code != "ai-tools.debug-log-off");
         assert!(
             unused.is_empty(),
             "listed in docs/ERROR_CODES.md but no error has them: {unused:?}"

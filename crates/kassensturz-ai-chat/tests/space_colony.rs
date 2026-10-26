@@ -64,10 +64,12 @@ fn a_question_goes_through_the_real_client_and_functions() {
     assert_eq!(received.len(), 2);
     let first: Value = serde_json::from_slice(&received[0].body).unwrap();
     assert_eq!(first["stream"], false);
-    // The six read functions and propose_changes (M5.5).
+    // The six read functions, propose_changes (M5.5) and draft_issue
+    // (M5.13); the debug log isn't offered, since it is off.
     let tools = first["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 7);
+    assert_eq!(tools.len(), 8);
     assert_eq!(tools[6]["function"]["name"], "propose_changes");
+    assert_eq!(tools[7]["function"]["name"], "draft_issue");
     let system = first["messages"][0]["content"].as_str().unwrap();
     assert!(system.contains("KassenSturz 0.261025.0 (commit 1775d22), a pre-release build"));
     assert!(system.contains("Today is 2026-10-25."));

@@ -12,9 +12,12 @@ repository.workspace = true
 publish.workspace = true
 
 [features]
-default = ["ai"]
+default = ["ai", "debug-log"]
 # Without it the crate is empty and has no dependencies (D-039).
-ai = ["dep:kassensturz-core", "dep:kassensturz-store", "dep:regex", "dep:serde_json", "dep:uuid"]
+ai = ["dep:kassensturz-core", "kassensturz-core/ai", "dep:kassensturz-store", "dep:regex", "dep:serde_json", "dep:uuid"]
+# The function that reads the developer mode's debug log (D-173, D-227).
+# Weak, so it brings in nothing without `ai`.
+debug-log = ["kassensturz-core?/debug-log"]
 
 [dependencies]
 kassensturz-core = { workspace = true, optional = true }

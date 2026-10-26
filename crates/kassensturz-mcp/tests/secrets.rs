@@ -113,6 +113,20 @@ fn no_tool_answer_holds_a_secret() {
             assert!(!text.contains(never), "{name} holds {never}: {text}");
         }
     }
+    // Outside the developer mode its tool doesn't exist (D-227), and
+    // nothing is written.
+    let (answer, is_error) = session.call("read_debug_log", json!({}));
+    assert!(is_error, "{answer}");
+    assert!(
+        answer.to_string().contains("ai-tools.unknown-function"),
+        "{answer}"
+    );
+    assert!(
+        !folder
+            .data()
+            .join("io.github.vondor.KassenSturz/debug-log")
+            .exists()
+    );
     // A tool outside the list is refused, whatever it asks for.
     for name in ["run_sql", "read_file", "list_bank_links", "send_money"] {
         let answer = session.request(

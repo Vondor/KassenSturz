@@ -374,6 +374,7 @@ pub(crate) mod engine {
             ),
             ("finish", text(finish)),
             ("overview", QVariant::from(&(answer.mode == Mode::Overview))),
+            ("contextCut", QVariant::from(&answer.context_cut)),
             ("sets", sets_object(sets)),
         ];
         if let Some(issue) = &answer.issue {
@@ -972,14 +973,23 @@ mod tests {
             unverified: check_numbers(text, &figures),
             finish: Finish::Length,
             mode: Mode::Overview,
+            context_cut: true,
             changes: Vec::new(),
             issue: None,
         };
         let object = finished_object(&answer, &[(3, 2), (4, 1)]);
         assert_eq!(
             keys(&object),
-            ["finish", "overview", "sets", "text", "unverified"]
+            [
+                "contextCut",
+                "finish",
+                "overview",
+                "sets",
+                "text",
+                "unverified"
+            ]
         );
+        assert!(flag_of(&object, "contextCut"));
         assert_eq!(text_of(&object, "text"), text);
         assert_eq!(text_of(&object, "finish"), "length");
         assert!(flag_of(&object, "overview"));
@@ -1011,13 +1021,22 @@ mod tests {
             unverified: Vec::new(),
             finish: Finish::Done,
             mode: Mode::Functions,
+            context_cut: false,
             changes: Vec::new(),
             issue: Some(issue.clone()),
         };
         let object = finished_object(&answer, &[]);
         assert_eq!(
             keys(&object),
-            ["finish", "issue", "overview", "sets", "text", "unverified"]
+            [
+                "contextCut",
+                "finish",
+                "issue",
+                "overview",
+                "sets",
+                "text",
+                "unverified"
+            ]
         );
         let read = super::engine::issue_object(&issue);
         assert_eq!(keys(&read), ["body", "link", "title", "wholeInLink"]);

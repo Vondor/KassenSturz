@@ -179,6 +179,16 @@ pub fn says(text: &str) -> Step {
     Box::new(move |_, _| Ok(body.clone()))
 }
 
+/// A final answer whose provider says it counted `prompt_tokens` in the
+/// request.
+pub fn says_counting(text: &str, prompt_tokens: u64) -> Step {
+    let body = json!({"choices": [{"finish_reason": "stop",
+        "message": {"role": "assistant", "content": text}}],
+        "usage": {"prompt_tokens": prompt_tokens}})
+    .to_string();
+    Box::new(move |_, _| Ok(body.clone()))
+}
+
 /// A reply that calls `calls`: (ID, function, arguments as JSON text).
 pub fn calls(calls: &[(&str, &str, &str)]) -> Step {
     let calls: Vec<_> = calls

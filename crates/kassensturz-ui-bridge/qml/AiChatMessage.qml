@@ -103,6 +103,13 @@ ColumnLayout {
 
             Kirigami.InlineMessage {
                 Layout.fillWidth: true
+                type: Kirigami.MessageType.Warning
+                visible: item.message.kind === "answer" && item.message.contextCut === true
+                text: item.i18nContext.i18nc("@info", "The AI may not have seen all of this conversation: the provider counted far fewer tokens than KassenSturz sent. This happens with a local model whose context length is small. Raise the context length in the program that runs the model (16000 or more), or start a new chat.")
+            }
+
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
                 type: Kirigami.MessageType.Information
                 visible: item.message.kind === "answer" && item.message.cut === true
                 text: item.i18nContext.i18nc("@info", "The answer was cut off because it got too long. Ask about less at a time.")

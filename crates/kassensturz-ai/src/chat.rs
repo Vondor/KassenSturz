@@ -137,4 +137,7 @@ pub struct Reply {
     pub ignored_calls: Vec<String>,
     /// Why it stopped.
     pub finish: Finish,
+    /// How many tokens the provider counted in the request it answered,
+    /// when it says (`usage.prompt_tokens`).
+    pub prompt_tokens: Option<u64>,
 }

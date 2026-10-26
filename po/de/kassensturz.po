@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-26 20:41+0000\n"
+"POT-Creation-Date: 2026-10-26 21:17+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -369,7 +369,7 @@ msgid "Changes the AI prepared"
 msgstr "Von der KI vorbereitete Änderungen"
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:133
-#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:160
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:167
 #, kde-format
 msgctxt "@action:button throw the prepared changes away"
 msgid "Throw away"
@@ -515,7 +515,9 @@ msgstr "Regeln in neuer Reihenfolge"
 msgctxt "@info %1 and %2 are places in the list of Rules, counted from 1"
 msgid ""
 "Moves from place %1 to place %2. The first Rule that fits a transaction wins."
-msgstr "Wechselt von Platz %1 auf Platz %2. Die erste Regel, die zu einer Buchung passt, gewinnt."
+msgstr ""
+"Wechselt von Platz %1 auf Platz %2. Die erste Regel, die zu einer Buchung "
+"passt, gewinnt."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:408
 #, kde-format
@@ -668,12 +670,27 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid ""
+"The AI may not have seen all of this conversation: the provider counted far "
+"fewer tokens than KassenSturz sent. This happens with a local model whose "
+"context length is small. Raise the context length in the program that runs "
+"the model (16000 or more), or start a new chat."
+msgstr ""
+"Die KI hat dieses Gespräch vielleicht nicht ganz gesehen: Der Anbieter hat "
+"viel weniger Token gezählt, als KassenSturz gesendet hat. Das passiert bei "
+"einem lokalen Modell mit kleiner Kontextlänge. Erhöhen Sie die Kontextlänge "
+"in dem Programm, das das Modell ausführt (16000 oder mehr), oder beginnen "
+"Sie einen neuen Chat."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:115
+#, kde-format
+msgctxt "@info"
+msgid ""
 "The answer was cut off because it got too long. Ask about less at a time."
 msgstr ""
 "Die Antwort wurde abgeschnitten, weil sie zu lang wurde. Fragen Sie nach "
 "weniger auf einmal."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:115
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:122
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -684,7 +701,7 @@ msgstr ""
 "eigenen Grund, zum Beispiel wegen seiner Sicherheitsregeln. Sie können mit "
 "anderen Worten noch einmal fragen."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:145
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:152
 #, kde-format
 msgctxt "@info %1 is a number"
 msgid ""
@@ -700,7 +717,7 @@ msgstr[1] ""
 "Eines Ihrer eigenen KI-Programme hat %1 Änderungen für Sie vorbereitet. Es "
 "wird nichts geändert, bevor Sie sie gelesen und bestätigt haben."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:146
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:153
 #, kde-format
 msgctxt "@info %1 is a number"
 msgid ""
@@ -716,13 +733,13 @@ msgstr[1] ""
 "Die KI hat %1 Änderungen für Sie vorbereitet. Es wird nichts geändert, bevor "
 "Sie sie gelesen und bestätigt haben."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:154
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:161
 #, kde-format
 msgctxt "@action:button"
 msgid "Read and confirm…"
 msgstr "Lesen und bestätigen …"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:175
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:182
 #, kde-format
 msgctxt "@info"
 msgid "The prepared changes were made. You can take them back with Undo."
@@ -730,20 +747,20 @@ msgstr ""
 "Die vorbereiteten Änderungen wurden vorgenommen. Sie können sie mit "
 "„Rückgängig“ zurücknehmen."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:176
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:183
 #, kde-format
 msgctxt "@info"
 msgid "The prepared changes were thrown away. Nothing was changed."
 msgstr ""
 "Die vorbereiteten Änderungen wurden verworfen. Es wurde nichts geändert."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:195
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:202
 #, kde-format
 msgctxt "@label a report of a problem in KassenSturz, written by an AI"
 msgid "Problem report drafted by the AI"
 msgstr "Problembericht, von der KI entworfen"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:202
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:209
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -757,7 +774,7 @@ msgstr ""
 "ausgefüllt. Dort können Sie ihn noch ändern und entscheiden, ob Sie ihn "
 "senden. Berichte auf GitHub kann jeder lesen."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:229
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:236
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -767,13 +784,13 @@ msgstr ""
 "Der Text ist zu lang, um ihn für Sie auszufüllen. Kopieren Sie ihn, öffnen "
 "Sie die Seite und fügen Sie ihn dort ein."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:237
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:244
 #, kde-format
 msgctxt "@action:button opens the problem report page in the browser"
 msgid "Open the report page"
 msgstr "Berichtsseite öffnen"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:246
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:253
 #, kde-format
 msgctxt "@action:button copies the report's text"
 msgid "Copy the text"
@@ -811,25 +828,25 @@ msgctxt "@action:button asks the AI to prepare Rules for payees that come back"
 msgid "Prepare Rules"
 msgstr "Regeln vorbereiten"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:207
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:208
 #, kde-format
 msgctxt "@title the chat sidebar"
 msgid "Chat with the AI"
 msgstr "Mit der KI chatten"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:214
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:215
 #, kde-format
 msgctxt "@action:button forget the conversation and start a new one"
 msgid "New conversation"
 msgstr "Neues Gespräch"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:224
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:225
 #, kde-format
 msgctxt "@action:button close the chat sidebar"
 msgid "Close the chat"
 msgstr "Chat schließen"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:237
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:238
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -839,7 +856,7 @@ msgstr ""
 "Testmodus: Die Antworten kommen von einem ausgedachten Modell, das in "
 "KassenSturz eingebaut ist. Es wird nichts irgendwohin gesendet."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:244
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:245
 #, kde-format
 msgctxt "@info"
 msgid "Choose which AI to use before you ask a question."
@@ -847,14 +864,14 @@ msgstr ""
 "Wählen Sie zuerst, welche KI genutzt werden soll, bevor Sie eine Frage "
 "stellen."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:247
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:248
 #: crates/kassensturz-ui-bridge/qml/AiSettingsEntry.qml:29
 #, kde-format
 msgctxt "@action:button"
 msgid "AI provider and privacy…"
 msgstr "KI-Anbieter und Datenschutz…"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:262
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:263
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -865,19 +882,19 @@ msgstr ""
 "mit Ihrem Buch abgeglichen. KassenSturz gibt keine Finanz-, Steuer- oder "
 "Rechtsberatung."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:271
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:272
 #, kde-format
 msgctxt "@title:tab the conversation"
 msgid "Conversation"
 msgstr "Gespräch"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:275
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:276
 #, kde-format
 msgctxt "@title:tab what was asked and sent, see the glossary"
 msgid "What the AI looked at"
 msgstr "Was die KI angesehen hat"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:315
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:323
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -888,7 +905,7 @@ msgstr ""
 "Monat für Essen ausgegeben haben, oder bitten Sie um Hilfe beim Einsortieren "
 "Ihrer Umsätze."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:349
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:357
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -900,13 +917,13 @@ msgstr ""
 "Reihe nach. Es bleibt nur im Arbeitsspeicher und wird vergessen, wenn Sie "
 "ein neues Gespräch beginnen oder KassenSturz schließen."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:356
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:364
 #, kde-format
 msgctxt "@info"
 msgid "Nothing was asked yet."
 msgstr "Es wurde noch nichts gefragt."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:376
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:388
 #, kde-format
 msgctxt "@info"
 msgid "Stopping… a request that is already on its way can't be called back."
@@ -914,43 +931,43 @@ msgstr ""
 "Wird angehalten … eine Anfrage, die schon unterwegs ist, lässt sich nicht "
 "zurückholen."
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:377
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:389
 #, kde-format
 msgctxt "@info"
 msgid "Waiting for the AI…"
 msgstr "Warten auf die KI …"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:388
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:400
 #, kde-format
 msgctxt "@info:placeholder"
 msgid "The provider's key for this question"
 msgstr "Der Schlüssel des Anbieters für diese Frage"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:389
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:401
 #, kde-format
 msgctxt "@label:textbox"
 msgid "The provider's key for this question"
 msgstr "Der Schlüssel des Anbieters für diese Frage"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:424
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:436
 #, kde-format
 msgctxt "@info:placeholder"
 msgid "Ask about your book…"
 msgstr "Fragen Sie zu Ihrem Buch …"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:426
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:438
 #, kde-format
 msgctxt "@label:textbox"
 msgid "Your question for the AI"
 msgstr "Ihre Frage an die KI"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:434
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:446
 #, kde-format
 msgctxt "@action:button send the question"
 msgid "Ask"
 msgstr "Fragen"
 
-#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:442
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:454
 #, kde-format
 msgctxt "@action:button stop the question"
 msgid "Stop"

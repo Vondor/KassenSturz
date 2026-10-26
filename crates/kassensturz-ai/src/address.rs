@@ -100,7 +100,7 @@ impl ProviderAddress {
 
     /// Whether the address stops at the server, without a path such as
     /// `/v1`: the common slip with providers that serve their interface
-    /// under `/v1` (D-231).
+    /// under `/v1` (D-233).
     pub fn has_no_path(&self) -> bool {
         self.text
             .parse::<Uri>()

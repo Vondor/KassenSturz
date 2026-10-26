@@ -119,6 +119,8 @@ KASSENSTURZ_DEBUG_LOG=1 tools/sdk.sh cargo run --bin kassensturz
 flatpak run --env=KASSENSTURZ_DEBUG_LOG=1 io.github.vondor.KassenSturz
 ```
 
+To read the log with your own AI tool as well (see [Connect an AI](docs/user/CONNECT_AN_AI.md)), start the MCP server with the same variable: `flatpak run --env=KASSENSTURZ_DEBUG_LOG=1 --command=kassensturz-mcp io.github.vondor.KassenSturz`. In the AI tool's MCP settings that is command `flatpak` with the arguments `run`, `--env=KASSENSTURZ_DEBUG_LOG=1`, `--command=kassensturz-mcp`, `io.github.vondor.KassenSturz` (Flatpak takes its options, in any order, before the app's name). The app has to be started with the variable too, as above: it writes the log, and the MCP server lets your AI tool read it.
+
 While it runs, the window title ends in "developer mode" and a banner above every page says so, with buttons to show and to delete the log. The log is `~/.var/app/io.github.vondor.KassenSturz/data/io.github.vondor.KassenSturz/debug-log/current.jsonl` in the Flatpak (`$XDG_DATA_HOME/io.github.vondor.KassenSturz/debug-log/` otherwise), at most about 512 KiB. Each line holds a time, an event name from a fixed list, a function, tool or screen name from a fixed list and an error code, never an amount, a name, a text from the book or a secret. While AI is also switched on, the chat and the MCP server (started with the same variable) let the AI read the log with `read_debug_log`. Your privacy can't be guaranteed while this mode runs: use it with synthetic books only. To end it, close KassenSturz and start it the usual way.
 
 Distributions can leave the log code out with the CMake option `-DKASSENSTURZ_DEBUG_LOG=OFF` (Cargo feature `debug-log`).

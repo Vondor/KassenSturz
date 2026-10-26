@@ -144,7 +144,12 @@ fn the_rules_button_asks_for_the_rules_the_book_already_has() {
     let answer = chat
         .ask(&book, &provider, None, &question, TODAY, &mut NoHooks)
         .unwrap();
-    assert!(answer.unverified.is_empty(), "{:?}", answer.unverified);
+    assert!(
+        answer.unverified.is_empty(),
+        "{:?} {}",
+        answer.unverified,
+        answer.text
+    );
     assert!(
         chat.log().iter().any(
             |entry| matches!(entry, LogEntry::Called { function, .. } if function == "list_rules")

@@ -17,7 +17,7 @@ use common::{
 use kassensturz_ai::{AiError, KeyUse, PreparedRequest, Role};
 use kassensturz_ai_chat::{
     BuildInfo, Cancel, ChatError, ChatSession, DATA_START, Hooks, LogEntry, MAX_ROUNDS, Mode,
-    NOT_OFFERED, NoHooks, sample_request,
+    NOT_OFFERED, NoHooks, SHORTENED_RESULT, sample_request,
 };
 use kassensturz_ai_tools::{DATA_NOTE, DRAFT_ISSUE, FUNCTIONS, PROPOSE_CHANGES};
 use serde_json::Value;
@@ -274,6 +274,49 @@ fn the_conversation_goes_on_across_questions() {
         ]
     );
     assert_eq!(chat.history().len(), 6);
+}
+
+#[test]
+fn results_of_earlier_questions_are_shortened_but_not_those_of_this_one() {
+    let book = hostile_book();
+    let (provider, script) = Script::provider(
+        on(),
+        vec![
+            calls(&[("c1", "list_accounts", "{}")]),
+            says("You have one account."),
+            calls(&[("c2", "list_accounts", "{}")]),
+            says("Still one."),
+        ],
+    );
+    let mut chat = session();
+    chat.ask(&book, &provider, None, "Accounts?", TODAY, &mut NoHooks)
+        .unwrap();
+    chat.ask(&book, &provider, None, "And now?", TODAY, &mut NoHooks)
+        .unwrap();
+    let tool_results = |request: usize| -> Vec<String> {
+        script.seen()[request]
+            .messages
+            .iter()
+            .filter(|m| m.role == Role::Tool)
+            .map(|m| m.content.clone())
+            .collect()
+    };
+    // The first question's own second round sees its result whole.
+    let own = tool_results(1);
+    assert_eq!(own.len(), 1);
+    assert_ne!(own[0], SHORTENED_RESULT);
+    // The second question sees the first's result shortened and its own
+    // whole.
+    let later = tool_results(3);
+    assert_eq!(later.len(), 2);
+    assert_eq!(later[0], SHORTENED_RESULT);
+    assert_ne!(later[1], SHORTENED_RESULT);
+    // The model's earlier answer stays.
+    assert!(
+        chat.history()
+            .iter()
+            .any(|m| m.content == "You have one account.")
+    );
 }
 
 /// Hooks that press cancel or refuse a request at a given round, and

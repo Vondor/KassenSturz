@@ -330,7 +330,9 @@ ColumnLayout {
                 }
             }
 
-            Controls.ScrollBar.vertical: Controls.ScrollBar {}
+            Controls.ScrollBar.vertical: Controls.ScrollBar {
+                id: messageBar
+            }
 
             Kirigami.PlaceholderMessage {
                 anchors.centerIn: parent
@@ -342,7 +344,8 @@ ColumnLayout {
             delegate: AiChatMessage {
                 required property var modelData
 
-                width: ListView.view.width
+                // Beside the scroll bar, not under it.
+                width: ListView.view.width - messageBar.width - Kirigami.Units.smallSpacing
                 ai: panel.ai
                 message: modelData
                 onReviewClicked: setId => panel.reviewChangesClicked(setId)
@@ -363,10 +366,12 @@ ColumnLayout {
             spacing: Kirigami.Units.smallSpacing
             model: panel.logLines
 
-            Controls.ScrollBar.vertical: Controls.ScrollBar {}
+            Controls.ScrollBar.vertical: Controls.ScrollBar {
+                id: logBar
+            }
 
             header: Controls.Label {
-                width: logList.width
+                width: logList.width - logBar.width - Kirigami.Units.smallSpacing
                 padding: Kirigami.Units.smallSpacing
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
@@ -383,7 +388,7 @@ ColumnLayout {
             delegate: AiChatLogLine {
                 required property var modelData
 
-                width: ListView.view.width
+                width: ListView.view.width - logBar.width - Kirigami.Units.smallSpacing
                 ai: panel.ai
                 entry: modelData
             }

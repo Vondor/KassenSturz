@@ -427,7 +427,7 @@ Kirigami.ScrollablePage {
             onClicked: page.removeKey()
         }
 
-        // What the AI may prepare (D-238): one box per kind of change, for
+        // What the AI may prepare (D-239): one box per kind of change, for
         // the chat and for the user's own AI tools alike. Reading the book
         // needs none; every change still waits for the user's confirm.
         Kirigami.Heading {

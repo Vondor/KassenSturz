@@ -174,12 +174,25 @@ impl AiClient {
             return Err(AiError::NoConsent);
         }
         let key = key_to_send(provider, key)?;
+        // An earlier reply must not be shown as this call's (D-235).
+        if let Ok(mut last) = self.last_reply.lock() {
+            *last = None;
+        }
+        let mut error_body = Vec::new();
         let reply = http::post_json(
             &provider.address.endpoint("chat/completions"),
             request.preview(),
             key,
             &self.limits,
+            &mut error_body,
         )
+        .inspect_err(|_| {
+            if !error_body.is_empty()
+                && let Ok(mut last) = self.last_reply.lock()
+            {
+                *last = Some(String::from_utf8_lossy(&error_body).into_owned());
+            }
+        })
         .and_then(|reply| {
             if let Ok(mut last) = self.last_reply.lock() {
                 *last = Some(String::from_utf8_lossy(&reply).into_owned());

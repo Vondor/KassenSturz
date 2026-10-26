@@ -367,18 +367,26 @@ impl DebugLog {
     /// shaped like a key or a token is blanked first, and a very long text
     /// is cut.
     pub fn transcript(&self, kind: &'static str, fields: &[(&'static str, &str)]) {
-        if !self.is_on() {
-            return;
-        }
-        let Some(folder) = &self.folder else {
-            return;
-        };
         let turn = self
             .turn
             .0
             .lock()
             .map(|turn| turn.clone())
             .unwrap_or_default();
+        self.transcript_in(&turn, kind, fields);
+    }
+
+    /// Notes a step as [`DebugLog::transcript`] does, but under `turn` instead
+    /// of the current one: for a step that follows from no question, such as
+    /// the decision on changes one of the user's own AI tools prepared. The
+    /// turn is a short fixed word, e.g. `mcp`, or the current turn's name.
+    pub fn transcript_in(&self, turn: &str, kind: &'static str, fields: &[(&'static str, &str)]) {
+        if !self.is_on() {
+            return;
+        }
+        let Some(folder) = &self.folder else {
+            return;
+        };
         let mut line = format!(
             "{{\"at\":\"{}\",\"turn\":\"{turn}\",\"kind\":\"{kind}\"",
             Timestamp::now().strftime("%Y-%m-%dT%H:%M:%S%.3fZ")
@@ -585,6 +593,35 @@ mod tests {
         assert!(!fs::read_to_string(scratch.0.join("debug-log").join(CURRENT)).is_ok());
         log.clear().unwrap();
         assert!(!file.exists());
+    }
+
+    #[test]
+    fn a_step_without_a_question_gets_its_own_turn() {
+        let scratch = Scratch::new("transcript-turn");
+        let log = scratch.log(true, "[AI]\nEnabled=true\n");
+        log.start_turn();
+        log.transcript("asked", &[("question", "Hello")]);
+        log.transcript_in("mcp", "changes-confirmed", &[("set", "x")]);
+        let file = scratch.0.join("debug-log").join(TRANSCRIPT);
+        let text = fs::read_to_string(file).unwrap();
+        let lines: Vec<&str> = text.lines().collect();
+        assert!(!lines[0].contains(r#""turn":"mcp""#), "{text}");
+        assert!(lines[1].contains(r#""turn":"mcp""#), "{text}");
+        // The question's turn goes on afterwards.
+        log.transcript("answer", &[("text", "Hi")]);
+        let text = fs::read_to_string(scratch.0.join("debug-log").join(TRANSCRIPT)).unwrap();
+        let first = text.lines().next().unwrap();
+        let last = text.lines().last().unwrap();
+        let turn = |line: &str| {
+            line.split("\"turn\":\"")
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap()
+                .to_owned()
+        };
+        assert_eq!(turn(first), turn(last));
     }
 
     #[test]

@@ -143,6 +143,17 @@ pub fn transcribe(kind: &'static str, fields: &[(&'static str, &str)]) {
     let _ = (kind, fields);
 }
 
+/// Notes a step as [`transcribe`] does, under `turn` instead of the current
+/// question's: for the decision on changes one of the user's own AI tools
+/// prepared, which follows from no question of the chat.
+#[cfg(feature = "ai")]
+pub fn transcribe_in(turn: &'static str, kind: &'static str, fields: &[(&'static str, &str)]) {
+    #[cfg(feature = "debug-log")]
+    log().transcript_in(turn, kind, fields);
+    #[cfg(not(feature = "debug-log"))]
+    let _ = (turn, kind, fields);
+}
+
 /// Notes the event `Event::$event` of `kassensturz_core::debug_log` in the
 /// developer mode's log, with a detail and an error code (both
 /// `Option<&'static str>`); nothing outside the developer mode, and no code

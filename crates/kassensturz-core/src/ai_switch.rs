@@ -28,7 +28,7 @@ pub const ON: &str = "true";
 /// counts only while AI itself is on.
 pub const WRITE_TOOLS_KEY: &str = "McpWriteTools";
 
-/// One kind of change the AI may prepare for the user to confirm (D-238).
+/// One kind of change the AI may prepare for the user to confirm (D-239).
 /// Reading the book is not one of them: it needs only the AI switch and is
 /// always allowed while AI is on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -73,7 +73,7 @@ impl Permission {
     /// Whether it is on when the user never chose. The kinds of change
     /// the chat could already prepare before the user could choose (D-199)
     /// stay on, and everything that changes or removes what is there is
-    /// off until the user turns it on (D-238).
+    /// off until the user turns it on (D-239).
     pub const fn on_by_default(self) -> bool {
         matches!(
             self,
@@ -86,7 +86,7 @@ impl Permission {
     }
 }
 
-/// Which kinds of change the AI may prepare (D-238). It decides what a
+/// Which kinds of change the AI may prepare (D-239). It decides what a
 /// model is offered and what a prepared change set may hold; a change set
 /// is in every case applied only after the user confirms it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -150,7 +150,7 @@ pub fn write_tools_in(text: &str) -> bool {
     enabled_in(text) && value_in(text, GROUP, WRITE_TOOLS_KEY) == Some(ON)
 }
 
-/// The permissions of the settings file's `text` (D-238). None while AI is
+/// The permissions of the settings file's `text` (D-239). None while AI is
 /// off. A permission the user never chose has its default; one with any
 /// value but an explicit `true` or `false` is off, so a damaged file never
 /// gives more than the user chose.

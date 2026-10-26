@@ -47,7 +47,7 @@ pub enum ToolError {
     /// Transfer or has conditions a model can't write keeps them.
     NotChangeable,
     /// The call has a list of a kind of change the user doesn't allow
-    /// (`argument` names the list, D-238).
+    /// (`argument` names the list, D-239).
     NotAllowed {
         /// The list's name, from [`PROPOSE_CHANGES`](crate::PROPOSE_CHANGES)'s fixed list.
         argument: &'static str,

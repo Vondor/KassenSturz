@@ -63,7 +63,7 @@ ColumnLayout {
     }
 
     // The built-in features that are shown: one whose changes the user
-    // doesn't let the AI prepare is hidden, not grayed out (D-238).
+    // doesn't let the AI prepare is hidden, not grayed out (D-239).
     property var features: []
 
     function featureAllowed(feature: string): bool {

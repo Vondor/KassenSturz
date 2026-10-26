@@ -124,7 +124,7 @@ pub mod qobject {
         fn set_write_tools(self: &AiSettings, on: bool) -> bool;
 
         /// Whether the AI may prepare the kind of change whose settings key
-        /// is `key` (`AllowNewRules` and so on, D-238): what the user chose,
+        /// is `key` (`AllowNewRules` and so on, D-239): what the user chose,
         /// or the default if they never did. False for an unknown key, and
         /// always false in a build without AI.
         #[qinvokable]
@@ -524,7 +524,7 @@ impl qobject::AiSettings {
 }
 
 /// Whether `settings` give the permission with the settings key `key`: what
-/// the user chose, else its default (D-238). An unknown key and a build
+/// the user chose, else its default (D-239). An unknown key and a build
 /// without AI give false. Whether AI itself is on is the other switch: the
 /// chat and the MCP server read both.
 #[cfg(feature = "ai")]

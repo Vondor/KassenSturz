@@ -261,7 +261,7 @@ fn tools(write_permissions: Option<Permissions>, log_readable: bool) -> Vec<Tool
 
 /// What the AI tool may prepare through the write tools now: `None` while
 /// they are off or while the user allows no kind of change, in which case
-/// they are not offered at all (D-238).
+/// they are not offered at all (D-239).
 fn write_permissions() -> Option<Permissions> {
     ai_switch::write_tools_enabled()
         .then(ai_switch::permissions)

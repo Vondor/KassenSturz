@@ -479,7 +479,7 @@ pub fn confirm_in(
     allowed: Permissions,
 ) -> Result<(), ChangeError> {
     // The user may have turned a kind of change off since the set was
-    // prepared (D-238).
+    // prepared (D-239).
     set.check_allowed(allowed)?;
     set.apply(book, Confirmed::by_the_user())
 }

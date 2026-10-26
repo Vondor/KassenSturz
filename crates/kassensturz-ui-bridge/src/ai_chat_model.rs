@@ -647,7 +647,16 @@ pub(crate) mod engine {
         let Some(Waiting { set, from }) = waiting else {
             return error(&ErrorText::plain("ai-changes.out-of-date"));
         };
-        crate::developer_mode::transcribe("changes-confirmed", &[("set", &format!("{set:?}"))]);
+        // A set one of the user's own AI tools prepared belongs to no
+        // question of the chat (M5-B20).
+        let say = |kind: &'static str, fields: &[(&'static str, &str)]| {
+            if from.is_some() {
+                crate::developer_mode::transcribe_in("mcp", kind, fields);
+            } else {
+                crate::developer_mode::transcribe(kind, fields);
+            }
+        };
+        say("changes-confirmed", &[("set", &set.summary())]);
         // The only call that applies a set: the confirm button's (D-200).
         // No book open any more means the set is out of date.
         let result = session::with_book_mut(|book| {
@@ -669,14 +678,14 @@ pub(crate) mod engine {
         }
         match result {
             Ok(()) => {
-                crate::developer_mode::transcribe("changes-applied", &[]);
+                say("changes-applied", &[]);
                 crate::note!(ChangesApplied);
                 chat.as_mut().changed();
                 map([("ok", QVariant::from(&true))])
             }
             Err(failure) => {
                 let report = failure.report();
-                crate::developer_mode::transcribe("changes-failed", &[("code", report.code)]);
+                say("changes-failed", &[("code", report.code)]);
                 crate::note!(ChangesFailed, None, Some(report.code));
                 error(&code_text(&report))
             }
@@ -687,15 +696,16 @@ pub(crate) mod engine {
         crate::note!(ChangesDeclined);
         let mut rust = chat.as_mut().rust_mut();
         let state = &mut rust.state;
-        if let Some(waiting) = id_of(id).and_then(|id| state.sets.get(id)) {
-            crate::developer_mode::transcribe(
-                "changes-declined",
-                &[("set", &format!("{waiting:?}"))],
-            );
-        }
-        let Some(Waiting { from, .. }) = id_of(id).and_then(|id| state.sets.take(id)) else {
+        let Some(Waiting { set, from }) = id_of(id).and_then(|id| state.sets.take(id)) else {
             return;
         };
+        let summary = set.summary();
+        let fields = [("set", summary.as_str())];
+        if from.is_some() {
+            crate::developer_mode::transcribe_in("mcp", "changes-declined", &fields);
+        } else {
+            crate::developer_mode::transcribe("changes-declined", &fields);
+        }
         match from {
             Some(from) => {
                 if let Some(inbox) = state.inbox.as_mut() {

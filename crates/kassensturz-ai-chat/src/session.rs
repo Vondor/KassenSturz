@@ -7,7 +7,9 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use kassensturz_ai::{AiError, Finish, FunctionSpec, Message, PreparedRequest, Provider, ToolCall};
+use kassensturz_ai::{
+    AiError, Finish, FunctionSpec, Message, PreparedRequest, Provider, Role, ToolCall,
+};
 use kassensturz_ai_tools::{
     ChangeSet, DRAFT_ISSUE, FUNCTIONS, Figures, Function, IssueContext, IssueDraft,
     PROPOSE_CHANGES, ToolError, Unverified, check_numbers, draft_issue, propose, propose_spec,
@@ -31,6 +33,13 @@ use crate::prompt::{self, BuildInfo};
 /// functions after them gets `ai-chat.too-many-rounds`; a question about
 /// the book needs two or three.
 pub const MAX_ROUNDS: usize = 8;
+
+/// What a function's result becomes once its question is over. A small
+/// model's context (LM Studio starts with 4096 tokens) holds the
+/// instructions and the functions and little more, and the whole results of
+/// earlier questions made the provider cut off the newest message (M5-B23,
+/// D-237). The model's own answer to each question stays.
+pub const SHORTENED_RESULT: &str = r#"{"note":"KassenSturz shortened this result of an earlier question to save space. Call the function again when you need it."}"#;
 
 /// What the model is told when it asked for a function that isn't offered.
 /// It goes as a message of its own because a function's answer must name a
@@ -199,7 +208,7 @@ pub struct ChatSession {
     /// The screen the user asked from, for an issue draft.
     screen: Option<&'static str>,
     /// Which changes the model may prepare, fixed for tests; `None` reads
-    /// the user's settings for each request (D-238).
+    /// the user's settings for each request (D-239).
     permissions: Option<Permissions>,
 }
 
@@ -234,7 +243,7 @@ impl ChatSession {
         self
     }
 
-    /// Which changes the model may prepare now (D-238). Asked again for
+    /// Which changes the model may prepare now (D-239). Asked again for
     /// each request and each call: the user may change it while a
     /// question runs.
     fn permissions(&self) -> Permissions {
@@ -296,6 +305,11 @@ impl ChatSession {
         for outcome in std::mem::take(&mut self.outcomes) {
             self.history.push(Message::user(outcome.text()));
         }
+        for message in &mut self.history {
+            if message.role == Role::Tool {
+                message.content = SHORTENED_RESULT.to_owned();
+            }
+        }
         let start = self.history.len();
         #[cfg(feature = "debug-log")]
         self.debug_log.start_turn();
@@ -303,8 +317,13 @@ impl ChatSession {
         if let Err(error) = &result {
             self.history.truncate(start);
             #[cfg(feature = "debug-log")]
-            self.debug_log
-                .transcript("failed", &[("code", error.report().code)]);
+            self.debug_log.transcript(
+                "failed",
+                &[
+                    ("code", error.report().code),
+                    ("detail", &error.to_string()),
+                ],
+            );
             self.note(
                 LogEntry::Failed {
                     code: error.report().code,
@@ -571,8 +590,11 @@ impl ChatSession {
         {
             let raw = provider.last_reply_text().unwrap_or_default();
             let code = error.map_or("", |error| error.report().code);
-            self.debug_log
-                .transcript("reply", &[("raw", &raw), ("error", code)]);
+            let detail = error.map(ToString::to_string).unwrap_or_default();
+            self.debug_log.transcript(
+                "reply",
+                &[("raw", &raw), ("error", code), ("detail", &detail)],
+            );
         }
         #[cfg(not(feature = "debug-log"))]
         let _ = (provider, error);
@@ -613,7 +635,7 @@ pub fn sample_request(
 }
 
 /// The read functions, the one that prepares changes (only the lists the
-/// user allows, and not at all when they allow none, D-238) and the one
+/// user allows, and not at all when they allow none, D-239) and the one
 /// that drafts an issue, as the provider gets them, and the one that reads
 /// the debug log while the model may read it.
 fn function_specs(log_readable: bool, permissions: Permissions) -> Vec<FunctionSpec> {

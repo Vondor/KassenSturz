@@ -61,7 +61,7 @@ pub const PROPOSE_CHANGES: Function = Function {
 /// The most changes one set may hold, so the user can still review it.
 pub const MAX_CHANGES: usize = 100;
 
-/// The lists of [`PROPOSE_CHANGES`] and the permission each needs (D-238).
+/// The lists of [`PROPOSE_CHANGES`] and the permission each needs (D-239).
 pub(crate) const SECTIONS: [(&str, Permission); 7] = [
     ("new_categories", Permission::NewCategories),
     ("edit_categories", Permission::EditCategories),
@@ -73,7 +73,7 @@ pub(crate) const SECTIONS: [(&str, Permission); 7] = [
 ];
 
 /// [`PROPOSE_CHANGES`] as a model is offered it when the user allows only
-/// some kinds of change (D-238): the lists of the others are left out, so
+/// some kinds of change (D-239): the lists of the others are left out, so
 /// the model is never told about what it may not do.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProposeSpec {
@@ -87,7 +87,7 @@ pub struct ProposeSpec {
 
 /// What a model is offered for preparing changes under `allowed`, or
 /// `None` when nothing may be prepared: then the function isn't offered
-/// at all, and is refused if it is called (D-238).
+/// at all, and is refused if it is called (D-239).
 pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
     if allowed.is_none() {
         return None;
@@ -386,7 +386,7 @@ pub enum ChangeError {
     /// of the same name since.
     NotApplied(StoreError),
     /// The set holds a kind of change the user doesn't allow now: they
-    /// turned it off after it was prepared (D-238).
+    /// turned it off after it was prepared (D-239).
     NotAllowed,
 }
 
@@ -427,7 +427,7 @@ impl ChangeSet {
     /// Whether every change in the set is of a kind the user allows under
     /// `allowed`. The chat and the request files check this again when the
     /// user confirms, so turning a permission off also stops what was
-    /// prepared earlier (D-238).
+    /// prepared earlier (D-239).
     pub fn check_allowed(&self, allowed: Permissions) -> Result<(), ChangeError> {
         let permitted = self.changes.iter().all(|change| {
             allowed.allows(match change {
@@ -444,6 +444,57 @@ impl ChangeSet {
         } else {
             Err(ChangeError::NotAllowed)
         }
+    }
+
+    /// The set in a line of plain words for the developer mode's log: what
+    /// each change does, with the names and paths the user reads on the
+    /// review page.
+    pub fn summary(&self) -> String {
+        let path = |path: &[String]| path.join(" › ");
+        let book_to = |category: &Option<Vec<String>>| {
+            category
+                .as_deref()
+                .map_or_else(String::new, |category| format!(" to {}", path(category)))
+        };
+        let parts: Vec<String> = self
+            .changes
+            .iter()
+            .map(|change| match change {
+                ProposedChange::NewCategory(new) => {
+                    let kind = if new.income { "income" } else { "spending" };
+                    format!("new {kind} category \"{}\"", path(&new.path))
+                }
+                ProposedChange::EditCategory(edit) => format!(
+                    "category \"{}\" becomes \"{}\"",
+                    path(&edit.before),
+                    path(&edit.after)
+                ),
+                ProposedChange::NewRule(new) => format!(
+                    "new Rule \"{}\" booking to {}",
+                    new.rule.name,
+                    path(&new.category)
+                ),
+                ProposedChange::EditRule(edit) => format!(
+                    "Rule \"{}\" becomes \"{}\"{}",
+                    edit.before.name,
+                    edit.rule.name,
+                    book_to(&edit.category)
+                ),
+                ProposedChange::MoveRule(moved) => format!(
+                    "Rule \"{}\" moves from place {} to {}",
+                    moved.name, moved.from, moved.to
+                ),
+                ProposedChange::DeleteRule(delete) => {
+                    format!("delete Rule \"{}\"", delete.rule.name)
+                }
+                ProposedChange::Categorize(change) => format!(
+                    "transaction {} gets category \"{}\"",
+                    change.transaction,
+                    path(&change.after)
+                ),
+            })
+            .collect();
+        parts.join("; ")
     }
 
     /// Applies the set to `book` as one user action, which one undo takes
@@ -577,7 +628,7 @@ fn recategorized(change: &Categorize) -> Result<Transaction, ChangeError> {
 /// Checks a model's call of [`PROPOSE_CHANGES`] against `book` and turns it
 /// into a change set for the user to review. The book doesn't change. A
 /// list of a kind the user doesn't allow under `allowed` is refused, not
-/// left out (D-238).
+/// left out (D-239).
 pub fn propose(
     book: &Book,
     arguments: &Value,

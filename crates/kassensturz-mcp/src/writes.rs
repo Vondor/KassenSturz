@@ -70,7 +70,7 @@ pub(crate) enum Failure {
 }
 
 /// The write tools, offered while they are turned on: `propose_changes`
-/// with only the lists the user allows (D-238), and nothing at all when
+/// with only the lists the user allows (D-239), and nothing at all when
 /// they allow none.
 pub(crate) fn tools(permissions: Permissions) -> Vec<Tool> {
     let Some(propose) = propose_spec(permissions) else {

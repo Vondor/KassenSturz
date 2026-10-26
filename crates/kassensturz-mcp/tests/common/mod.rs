@@ -70,7 +70,7 @@ impl Folder {
     }
 
     /// Switches AI and the MCP write tools on, with `lines` more settings
-    /// in the AI group, such as `AllowEditRules=true` (D-238).
+    /// in the AI group, such as `AllowEditRules=true` (D-239).
     pub fn allow(&self, lines: &[&str]) {
         std::fs::write(
             self.0.join("kassensturzrc"),

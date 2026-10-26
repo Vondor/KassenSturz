@@ -25,6 +25,7 @@ use kassensturz_ai_chat::{
 };
 use kassensturz_ai_tools::requests::RequestId;
 use kassensturz_ai_tools::{ChangeError, ChangeSet, Confirmed, ProposedChange, ToolError};
+use kassensturz_core::ai_switch::Permissions;
 use kassensturz_core::{Date, ErrorParam, ErrorReport, MatchMode, Rule};
 use kassensturz_platform::Secret;
 use kassensturz_store::{Book, StoreError};
@@ -472,7 +473,14 @@ fn condition_forms(
 /// Applies `set` to `book` as the user's own action: the one place in the
 /// app that makes a [`Confirmed`]. Only the confirm button of the review
 /// screen reaches it (D-171, D-200; M5.12 checks that no other code does).
-pub fn confirm_in(book: &mut Book, set: ChangeSet) -> Result<(), ChangeError> {
+pub fn confirm_in(
+    book: &mut Book,
+    set: ChangeSet,
+    allowed: Permissions,
+) -> Result<(), ChangeError> {
+    // The user may have turned a kind of change off since the set was
+    // prepared (D-239).
+    set.check_allowed(allowed)?;
     set.apply(book, Confirmed::by_the_user())
 }
 
@@ -563,6 +571,7 @@ mod tests {
 
     fn session() -> ChatSession {
         ChatSession::new(BuildInfo::new("0.261025.0", "abc1234"))
+            .with_permissions(Permissions::all())
     }
 
     #[test]
@@ -717,7 +726,7 @@ mod tests {
 
         let set = sets.take(id).unwrap().set;
         assert!(sets.is_empty());
-        confirm_in(&mut book, set).unwrap();
+        confirm_in(&mut book, set, Permissions::all()).unwrap();
 
         // One user action in the history, which one undo takes back.
         assert_eq!(book.history().unwrap().len(), before + 1);
@@ -765,7 +774,7 @@ mod tests {
         book.remove_transaction(change.transaction).unwrap();
         let history = book.history().unwrap().len();
 
-        let error = confirm_in(&mut book, set).unwrap_err();
+        let error = confirm_in(&mut book, set, Permissions::all()).unwrap_err();
 
         assert!(matches!(error, ChangeError::OutOfDate), "{error:?}");
         assert_eq!(

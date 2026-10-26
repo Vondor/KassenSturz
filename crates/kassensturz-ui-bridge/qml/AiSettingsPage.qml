@@ -427,6 +427,61 @@ Kirigami.ScrollablePage {
             onClicked: page.removeKey()
         }
 
+        // What the AI may prepare (D-239): one box per kind of change, for
+        // the chat and for the user's own AI tools alike. Reading the book
+        // needs none; every change still waits for the user's confirm.
+        Kirigami.Heading {
+            level: 2
+            text: page.i18nContext.i18nc("@title:group", "What the AI may prepare")
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: page.i18nContext.i18nc("@info", "The AI can always read your book to answer questions. Choose here which changes it may also prepare for you. Whatever it prepares is shown to you first, and nothing changes until you have read it and confirmed it. With no box ticked, the AI can only read.")
+        }
+
+        Repeater {
+            model: [
+                {
+                    key: "AllowNewCategories",
+                    label: page.i18nContext.i18nc("@option:check", "Add new categories")
+                },
+                {
+                    key: "AllowNewRules",
+                    label: page.i18nContext.i18nc("@option:check", "Add new Rules")
+                },
+                {
+                    key: "AllowSortTransactions",
+                    label: page.i18nContext.i18nc("@option:check", "Put transactions into categories")
+                },
+                {
+                    key: "AllowEditCategories",
+                    label: page.i18nContext.i18nc("@option:check", "Rename categories and move them")
+                },
+                {
+                    key: "AllowEditRules",
+                    label: page.i18nContext.i18nc("@option:check", "Change Rules and put them in another order")
+                },
+                {
+                    key: "AllowDeleteRules",
+                    label: page.i18nContext.i18nc("@option:check", "Delete Rules")
+                }
+            ]
+
+            delegate: Controls.CheckBox {
+                required property var modelData
+
+                text: modelData.label
+                checked: page.settings.allows(modelData.key)
+                onToggled: {
+                    page.notWritten = !page.settings.setAllows(modelData.key, checked);
+                    checked = page.settings.allows(modelData.key);
+                }
+            }
+        }
+
         // The user's own AI tools (D-035, D-219): they can read the book
         // once AI is on; preparing changes is a second, separate yes.
         Kirigami.Heading {
@@ -438,7 +493,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
-            text: page.i18nContext.i18nc("@info", "AI programs on this computer that you set up to use KassenSturz can read your book. If you allow it, they can also prepare changes: new categories, Rules and categories for transactions. Their changes are shown in the chat sidebar, and nothing changes until you have read them and confirmed. KassenSturz must be open for that. After you switch this on or off, quit your AI program and start it again so it notices. How to set one up is explained in \"Connect an AI\" in the user guide.")
+            text: page.i18nContext.i18nc("@info", "AI programs on this computer that you set up to use KassenSturz can read your book. If you allow it, they can also prepare the changes you ticked above. Their changes are shown in the chat sidebar, and nothing changes until you have read them and confirmed. KassenSturz must be open for that. After you switch this on or off, quit your AI program and start it again so it notices. How to set one up is explained in \"Connect an AI\" in the user guide.")
         }
 
         Controls.Switch {

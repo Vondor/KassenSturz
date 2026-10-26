@@ -28,6 +28,114 @@ pub const ON: &str = "true";
 /// counts only while AI itself is on.
 pub const WRITE_TOOLS_KEY: &str = "McpWriteTools";
 
+/// One kind of change the AI may prepare for the user to confirm (D-239).
+/// Reading the book is not one of them: it needs only the AI switch and is
+/// always allowed while AI is on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Permission {
+    /// Add categories.
+    NewCategories,
+    /// Add Rules.
+    NewRules,
+    /// Put transactions into categories.
+    SortTransactions,
+    /// Rename categories and move them.
+    EditCategories,
+    /// Change Rules and put them in another order.
+    EditRules,
+    /// Delete Rules.
+    DeleteRules,
+}
+
+impl Permission {
+    /// Every permission, in the order the settings page shows them.
+    pub const ALL: [Self; 6] = [
+        Self::NewCategories,
+        Self::NewRules,
+        Self::SortTransactions,
+        Self::EditCategories,
+        Self::EditRules,
+        Self::DeleteRules,
+    ];
+
+    /// The key of this permission in [`GROUP`].
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::NewCategories => "AllowNewCategories",
+            Self::NewRules => "AllowNewRules",
+            Self::SortTransactions => "AllowSortTransactions",
+            Self::EditCategories => "AllowEditCategories",
+            Self::EditRules => "AllowEditRules",
+            Self::DeleteRules => "AllowDeleteRules",
+        }
+    }
+
+    /// Whether it is on when the user never chose. The kinds of change
+    /// the chat could already prepare before the user could choose (D-199)
+    /// stay on, and everything that changes or removes what is there is
+    /// off until the user turns it on (D-239).
+    pub const fn on_by_default(self) -> bool {
+        matches!(
+            self,
+            Self::NewCategories | Self::NewRules | Self::SortTransactions
+        )
+    }
+
+    const fn bit(self) -> u8 {
+        1 << self as u8
+    }
+}
+
+/// Which kinds of change the AI may prepare (D-239). It decides what a
+/// model is offered and what a prepared change set may hold; a change set
+/// is in every case applied only after the user confirms it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Permissions(u8);
+
+impl Permissions {
+    /// Nothing may be prepared: read only.
+    pub const NONE: Self = Self(0);
+
+    /// What a user who never chose gets.
+    pub fn defaults() -> Self {
+        Self::of(|permission| permission.on_by_default())
+    }
+
+    /// Everything, for tests and tools that check a set on its own terms.
+    pub fn all() -> Self {
+        Self::of(|_| true)
+    }
+
+    fn of(on: impl Fn(Permission) -> bool) -> Self {
+        Self(
+            Permission::ALL
+                .iter()
+                .filter(|permission| on(**permission))
+                .fold(0, |bits, permission| bits | permission.bit()),
+        )
+    }
+
+    /// Whether `permission` is given.
+    pub fn allows(self, permission: Permission) -> bool {
+        self.0 & permission.bit() != 0
+    }
+
+    /// These permissions with `permission` given or taken away.
+    #[must_use]
+    pub fn with(self, permission: Permission, on: bool) -> Self {
+        if on {
+            Self(self.0 | permission.bit())
+        } else {
+            Self(self.0 & !permission.bit())
+        }
+    }
+
+    /// Whether nothing may be prepared.
+    pub fn is_none(self) -> bool {
+        self.0 == 0
+    }
+}
+
 /// The settings file's name in the user's settings folder.
 const FILE: &str = "kassensturzrc";
 
@@ -40,6 +148,20 @@ pub fn enabled_in(text: &str) -> bool {
 /// on. The write tools are off whenever AI is (D-013).
 pub fn write_tools_in(text: &str) -> bool {
     enabled_in(text) && value_in(text, GROUP, WRITE_TOOLS_KEY) == Some(ON)
+}
+
+/// The permissions of the settings file's `text` (D-239). None while AI is
+/// off. A permission the user never chose has its default; one with any
+/// value but an explicit `true` or `false` is off, so a damaged file never
+/// gives more than the user chose.
+pub fn permissions_in(text: &str) -> Permissions {
+    if !enabled_in(text) {
+        return Permissions::NONE;
+    }
+    Permissions::of(|permission| match value_in(text, GROUP, permission.key()) {
+        None => permission.on_by_default(),
+        Some(value) => value == ON,
+    })
 }
 
 /// The value of `key` in `group` of the settings file's `text`, with the
@@ -98,6 +220,14 @@ pub fn write_tools_enabled() -> bool {
         .is_some_and(|text| write_tools_in(&text))
 }
 
+/// The permissions in this user's settings. None where the settings file
+/// can't be read, as with the AI switch.
+pub fn permissions() -> Permissions {
+    settings_file()
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .map_or(Permissions::NONE, |text| permissions_in(&text))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -140,6 +270,40 @@ mod tests {
         assert!(!write_tools_in(
             "[AI]\nEnabled=true\n[Other]\nMcpWriteTools=true\n"
         ));
+    }
+
+    #[test]
+    fn permissions_are_none_with_ai_off_and_default_to_the_additions() {
+        assert!(permissions_in("").is_none());
+        assert!(permissions_in("[AI]\nAllowEditRules=true\n").is_none());
+        let defaults = permissions_in("[AI]\nEnabled=true\n");
+        assert_eq!(defaults, Permissions::defaults());
+        assert!(defaults.allows(Permission::NewRules));
+        assert!(!defaults.allows(Permission::DeleteRules));
+        assert!(!defaults.allows(Permission::EditCategories));
+    }
+
+    #[test]
+    fn a_chosen_permission_wins_and_an_odd_value_is_off() {
+        let text = "[AI]\nEnabled=true\nAllowNewRules=false\nAllowDeleteRules=true\n\
+                    AllowEditRules=yes\nAllowSortTransactions=1\n";
+        let got = permissions_in(text);
+        assert!(!got.allows(Permission::NewRules));
+        assert!(got.allows(Permission::DeleteRules));
+        assert!(!got.allows(Permission::EditRules));
+        assert!(!got.allows(Permission::SortTransactions));
+        assert!(got.allows(Permission::NewCategories));
+    }
+
+    #[test]
+    fn with_gives_and_takes_one_permission() {
+        let all = Permissions::all();
+        let less = all.with(Permission::EditRules, false);
+        assert!(!less.allows(Permission::EditRules));
+        assert!(less.allows(Permission::DeleteRules));
+        assert_eq!(less.with(Permission::EditRules, true), all);
+        let keys: std::collections::HashSet<_> = Permission::ALL.iter().map(|p| p.key()).collect();
+        assert_eq!(keys.len(), Permission::ALL.len());
     }
 
     #[test]

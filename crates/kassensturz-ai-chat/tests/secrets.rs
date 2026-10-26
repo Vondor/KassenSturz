@@ -67,7 +67,8 @@ fn every_function_called_by_a_model_and_the_key_leave_nothing_behind() {
         vec![calls(&refs), says("Looked at everything.")],
     );
     let key = Secret::new(TEST_KEY.to_owned());
-    let mut chat = ChatSession::new(BuildInfo::new("0.261025.0", "1775d22"));
+    let mut chat = ChatSession::new(BuildInfo::new("0.261025.0", "1775d22"))
+        .with_permissions(kassensturz_core::ai_switch::Permissions::all());
     chat.ask(
         &book,
         &provider,

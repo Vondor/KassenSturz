@@ -123,6 +123,19 @@ pub mod qobject {
         #[cxx_name = "setWriteTools"]
         fn set_write_tools(self: &AiSettings, on: bool) -> bool;
 
+        /// Whether the AI may prepare the kind of change whose settings key
+        /// is `key` (`AllowNewRules` and so on, D-239): what the user chose,
+        /// or the default if they never did. False for an unknown key, and
+        /// always false in a build without AI.
+        #[qinvokable]
+        fn allows(self: &AiSettings, key: &QString) -> bool;
+
+        /// Gives or takes away the permission `key`. Returns whether that
+        /// was saved.
+        #[qinvokable]
+        #[cxx_name = "setAllows"]
+        fn set_allows(self: &AiSettings, key: &QString, on: bool) -> bool;
+
         /// The test ended: an object with `models` (a list of names) and
         /// `modelOffered` (whether the saved model is one of them), or an
         /// error object.
@@ -500,6 +513,49 @@ impl qobject::AiSettings {
     fn set_write_tools(&self, on: bool) -> bool {
         keep_write_tools(&crate::settings::Settings::user(), on)
     }
+
+    fn allows(&self, key: &QString) -> bool {
+        allows_in(&crate::settings::Settings::user(), &key.to_string())
+    }
+
+    fn set_allows(&self, key: &QString, on: bool) -> bool {
+        keep_allows(&crate::settings::Settings::user(), &key.to_string(), on)
+    }
+}
+
+/// Whether `settings` give the permission with the settings key `key`: what
+/// the user chose, else its default (D-239). An unknown key and a build
+/// without AI give false. Whether AI itself is on is the other switch: the
+/// chat and the MCP server read both.
+#[cfg(feature = "ai")]
+fn allows_in(settings: &crate::settings::Settings, key: &str) -> bool {
+    use kassensturz_core::ai_switch::{GROUP, ON, Permission};
+    let Some(permission) = Permission::ALL.into_iter().find(|p| p.key() == key) else {
+        return false;
+    };
+    match settings.text(GROUP, key).as_str() {
+        "" => permission.on_by_default(),
+        value => value == ON,
+    }
+}
+
+#[cfg(not(feature = "ai"))]
+fn allows_in(_settings: &crate::settings::Settings, _key: &str) -> bool {
+    false
+}
+
+/// Keeps the permission `key` in `settings`. Returns whether that was
+/// saved; an unknown key is not.
+#[cfg(feature = "ai")]
+fn keep_allows(settings: &crate::settings::Settings, key: &str, on: bool) -> bool {
+    use kassensturz_core::ai_switch::{GROUP, ON, Permission};
+    Permission::ALL.into_iter().any(|p| p.key() == key)
+        && settings.set_text(GROUP, key, if on { ON } else { "false" })
+}
+
+#[cfg(not(feature = "ai"))]
+fn keep_allows(_settings: &crate::settings::Settings, _key: &str, _on: bool) -> bool {
+    false
 }
 
 /// Whether `settings` turn the MCP write tools on; always false in a build
@@ -556,6 +612,41 @@ mod write_tools_tests {
         assert!(!write_tools_in(&settings));
         let written = std::fs::read_to_string(&file).expect("settings file written");
         assert!(!server_reads(&written), "{written}");
+    }
+
+    #[cfg(feature = "ai")]
+    #[test]
+    fn the_permissions_read_back_as_the_chat_and_the_mcp_server_read_them() {
+        use kassensturz_core::ai_switch::{Permission, permissions_in};
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        assert!(settings.set_text("AI", "Enabled", "true"));
+        // Never chosen: the defaults.
+        for permission in Permission::ALL {
+            assert_eq!(
+                allows_in(&settings, permission.key()),
+                permission.on_by_default(),
+                "{permission:?}"
+            );
+        }
+        // Each choice is read back by the page and by the file readers.
+        for permission in Permission::ALL {
+            for on in [true, false] {
+                assert!(keep_allows(&settings, permission.key(), on));
+                assert_eq!(allows_in(&Settings::at(&file), permission.key()), on);
+                let written = std::fs::read_to_string(&file).expect("settings file written");
+                assert_eq!(
+                    permissions_in(&written).allows(permission),
+                    on,
+                    "{permission:?} {written}"
+                );
+            }
+        }
+        // A key that is no permission is neither read nor written.
+        assert!(!keep_allows(&settings, "Enabled", false));
+        assert!(!allows_in(&settings, "Enabled"));
+        assert!(!keep_allows(&settings, "AllowEverything", true));
     }
 
     #[cfg(not(feature = "ai"))]

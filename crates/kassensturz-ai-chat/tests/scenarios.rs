@@ -25,6 +25,7 @@ use serde_json::Value;
 
 fn session() -> ChatSession {
     ChatSession::new(BuildInfo::new("0.261025.0", "1775d22"))
+        .with_permissions(kassensturz_core::ai_switch::Permissions::all())
 }
 
 fn on() -> kassensturz_ai::ConfigFile {

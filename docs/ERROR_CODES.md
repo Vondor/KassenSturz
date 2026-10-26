@@ -320,6 +320,7 @@ A model asked for something from the book that the read functions can't give (D-
 | `ai-tools.bad-period` | | | The AI asked about a period that ends before it starts. Nothing to do; the AI can ask again. |
 | `ai-tools.unknown-transaction` | | | The AI prepared a change for a transaction that isn't in this book. Nothing was prepared; the AI can search for the transaction first. |
 | `ai-tools.too-many-changes` | | | The AI prepared more changes at once than you could review (at most 100). Nothing was prepared; ask for fewer at a time. |
+| `ai-tools.not-allowed` | `argument` | `new_categories`, `edit_categories`, `new_rules`, `edit_rules`, `move_rules`, `delete_rules`, `categorize` | The AI tried to prepare a kind of change you haven't allowed it ({argument}). Nothing was prepared. You choose what the AI may prepare in the AI settings, under "What the AI may prepare". |
 | `ai-tools.name-taken` | | | The AI prepared a new category or Rule with a name that is already used there. Nothing was prepared; the AI can pick another name or use the one you have. |
 | `ai-tools.not-categorizable` | | | The AI wanted to give a transaction a category, but it is a transfer between your accounts, a starting balance, or split over several categories, which only you can change. Nothing was prepared. |
 | `ai-tools.other-currency` | | | The AI wanted to book a transaction to a category in another currency. Nothing was prepared; the AI can pick a category in the transaction's currency. |
@@ -337,6 +338,7 @@ The user confirmed a change set (D-199), and it couldn't be applied. Nothing of 
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
 | `ai-changes.out-of-date` | | | A transaction in the changes was changed or removed after the AI prepared them, so nothing was changed. Ask the AI to prepare them again. |
+| `ai-changes.not-allowed` | | | The changes hold a kind of change that you have turned off in the AI settings since the AI prepared them, so nothing was changed. Turn it on again in the AI settings, or ask the AI to prepare the changes again. |
 | `ai-changes.not-applied` | | | The book refused one of the changes, e.g. because a category of that name was added in the meantime, so nothing was changed. The detail says why; ask the AI to prepare them again. |
 
 ## Your own AI tools' changes (`kassensturz-mcp`, `kassensturz-ai-tools`)

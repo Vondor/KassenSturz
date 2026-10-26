@@ -55,8 +55,10 @@ Kirigami.ApplicationWindow {
     title: developerMode.on
         ? "KassenSturz – " + i18nContext.i18nc("@title:window marker that KassenSturz was started in its developer mode", "developer mode")
         : "KassenSturz"
-    width: Kirigami.Units.gridUnit * 40
-    height: Kirigami.Units.gridUnit * 38
+    // The size, place and maximized state of the last close come back (the
+    // fallbacks are for the first start, or a settings file that can't be read).
+    width: windowState.known ? windowState.width : Kirigami.Units.gridUnit * 40
+    height: windowState.known ? windowState.height : Kirigami.Units.gridUnit * 38
     minimumWidth: Kirigami.Units.gridUnit * 20
     minimumHeight: Kirigami.Units.gridUnit * 20
 
@@ -243,7 +245,52 @@ Kirigami.ApplicationWindow {
 
     // The app's own book is called this in the user's language, e.g.
     // Haushalt.ksz in German.
-    Component.onCompleted: bookSession.openLast(i18nContext.i18nc("@item the file name of the app's own book, without its extension", "Household"))
+    WindowState {
+        id: windowState
+    }
+
+    // The window's size and place while it isn't maximized, which is what the
+    // next start gets back before it maximizes again. Recorded a moment after
+    // the last change, so the size of a maximize in progress never counts.
+    property rect normalGeometry: Qt.rect(x, y, width, height)
+
+    Timer {
+        id: geometryTimer
+        interval: 300
+        onTriggered: {
+            if (root.visibility === Window.Windowed) {
+                root.normalGeometry = Qt.rect(root.x, root.y, root.width, root.height);
+            }
+        }
+    }
+    onWidthChanged: geometryTimer.restart()
+    onHeightChanged: geometryTimer.restart()
+    onXChanged: geometryTimer.restart()
+    onYChanged: geometryTimer.restart()
+
+    onClosing: {
+        const maximized = root.visibility === Window.Maximized;
+        const g = maximized ? root.normalGeometry : Qt.rect(root.x, root.y, root.width, root.height);
+        windowState.save(g.width, g.height, g.x, g.y, maximized);
+    }
+
+    Component.onCompleted: {
+        if (windowState.known) {
+            // Only where the window is still on the screen; on Wayland the
+            // desktop decides the place and ignores this.
+            const fits = windowState.x >= 0 && windowState.y >= 0
+                && windowState.x + 100 <= Screen.desktopAvailableWidth
+                && windowState.y + 100 <= Screen.desktopAvailableHeight;
+            if (fits) {
+                root.x = windowState.x;
+                root.y = windowState.y;
+            }
+            if (windowState.maximized) {
+                root.showMaximized();
+            }
+        }
+        bookSession.openLast(i18nContext.i18nc("@item the file name of the app's own book, without its extension", "Household"))
+    }
 
     // Shows the book that was just opened: its first-run steps if it has no
     // account yet, otherwise the overview.

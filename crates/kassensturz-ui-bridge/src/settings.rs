@@ -57,6 +57,10 @@ const PIN_STORAGE: &str = "PinStorage";
 /// How long after the last fetch the overview warns (D-180).
 const FETCH_GAP: &str = "FetchGapDays";
 
+/// The group and key of the main window's size and place.
+const WINDOW: &str = "Window";
+const WINDOW_GEOMETRY: &str = "Geometry";
+
 /// The app's settings in one settings file.
 pub struct Settings {
     file: QString,
@@ -122,6 +126,17 @@ impl Settings {
     /// Keeps the fetch gap warning's limit. Returns whether it was saved.
     pub fn set_fetch_gap_choice(&self, choice: &str) -> bool {
         self.set_text(BANK, FETCH_GAP, choice)
+    }
+
+    /// The window's size and place as `window_state` keeps them; empty when
+    /// nothing is kept.
+    pub fn window_geometry(&self) -> String {
+        self.text(WINDOW, WINDOW_GEOMETRY)
+    }
+
+    /// Keeps the window's size and place. Returns whether it was saved.
+    pub fn set_window_geometry(&self, geometry: &str) -> bool {
+        self.set_text(WINDOW, WINDOW_GEOMETRY, geometry)
     }
 
     /// The text kept under `key` in `group`; empty if there is none.

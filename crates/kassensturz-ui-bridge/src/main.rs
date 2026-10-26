@@ -66,6 +66,7 @@ mod test_folder;
 mod transaction_entry;
 mod transfer_prompt;
 mod variant;
+mod window_state_model;
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQuickStyle, QString, QUrl};
 use cxx_qt_lib_extras::QApplication;

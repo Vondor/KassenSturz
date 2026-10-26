@@ -59,7 +59,7 @@ pub enum AiError {
     NotFound,
     /// The address has no path, the provider's answer to it is an error
     /// (some providers, e.g. LM Studio, send one with HTTP 200), and the
-    /// same address with `/v1` is the provider's interface (D-230).
+    /// same address with `/v1` is the provider's interface (D-231).
     MissingV1,
     /// The provider asks to wait before the next request (HTTP 429).
     RateLimited,

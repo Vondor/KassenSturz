@@ -452,17 +452,16 @@ impl Known {
             ),
             None => None,
         };
-        let asked_income = item.boolean("income")?;
-        let income = match &parent {
-            Some(parent) => {
-                let income = parent.kind == AccountKind::Income;
-                if asked_income.is_some_and(|asked| asked != income) {
-                    return Err(ToolError::BadArgument { argument: "income" });
-                }
-                income
-            }
-            None => asked_income.unwrap_or(false),
-        };
+        // The kind is never taken from the parent silently: a model that
+        // leaves `income` out asked for a spending category (the default),
+        // and one inside an income category is refused, so that a new
+        // spending category cannot end up under an income group.
+        let income = item.boolean("income")?.unwrap_or(false);
+        if let Some(parent) = &parent
+            && (parent.kind == AccountKind::Income) != income
+        {
+            return Err(ToolError::BadArgument { argument: "income" });
+        }
         let asked_currency = item
             .string("currency")?
             .map(|code| {

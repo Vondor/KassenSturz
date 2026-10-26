@@ -103,7 +103,7 @@ impl ProviderSettings {
 
     /// Like [`ProviderSettings::new`], but the model may still be empty:
     /// a user who doesn't know the model's name saves the address first and
-    /// picks the model from what the provider offers (D-231). Such settings
+    /// picks the model from what the provider offers (D-232). Such settings
     /// can list models but are not yet a provider to ask.
     pub fn with_optional_model(
         address: &str,

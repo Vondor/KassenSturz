@@ -199,7 +199,7 @@ impl AiClient {
     /// `/v1`, and some providers (e.g. LM Studio) say so with HTTP 200 and
     /// an error text. When the list of models is there with `/v1`, the error
     /// becomes [`AiError::MissingV1`], so the app can offer the right
-    /// address (D-230). Only the key goes to the extra address, the same
+    /// address (D-231). Only the key goes to the extra address, the same
     /// server the user chose.
     fn missing_v1(
         &self,

@@ -270,11 +270,19 @@ mod engine {
     }
 
     pub(super) fn give_consent() -> bool {
-        Store::user().give_consent(app_locale().today())
+        let given = Store::user().give_consent(app_locale().today());
+        if given {
+            crate::note!(ConsentGiven);
+        }
+        given
     }
 
     pub(super) fn withdraw_consent() -> bool {
-        Store::user().withdraw_consent()
+        let withdrawn = Store::user().withdraw_consent();
+        if withdrawn {
+            crate::note!(ConsentTakenBack);
+        }
+        withdrawn
     }
 
     pub(super) fn statement() -> QVariant {
@@ -325,23 +333,30 @@ mod engine {
     ) -> QVariant {
         let key = (!key.is_empty()).then(|| Secret::new(key.to_owned()));
         match store.save(keys, address, model, KeyUse::from_word(key_use), key) {
-            Saved::Refused(error) => map([("saved", QVariant::from(&false))]
-                .into_iter()
-                .chain(error_fields(&ai_error(&error)))),
+            Saved::Refused(error) => {
+                let error = ai_error(&error);
+                crate::note!(ProviderRefused, None, Some(error.code));
+                map([("saved", QVariant::from(&false))]
+                    .into_iter()
+                    .chain(error_fields(&error)))
+            }
             Saved::NotWritten => map([("saved", QVariant::from(&false))]),
             Saved::Written {
                 place,
                 consent_needed,
                 key_error,
-            } => map([
-                ("saved", QVariant::from(&true)),
-                ("place", text(place_word(place))),
-                ("consentNeeded", QVariant::from(&consent_needed)),
-                (
-                    "keyError",
-                    text(key_error.as_ref().map_or("", |e| e.report().code)),
-                ),
-            ]),
+            } => {
+                crate::note!(ProviderSaved);
+                map([
+                    ("saved", QVariant::from(&true)),
+                    ("place", text(place_word(place))),
+                    ("consentNeeded", QVariant::from(&consent_needed)),
+                    (
+                        "keyError",
+                        text(key_error.as_ref().map_or("", |e| e.report().code)),
+                    ),
+                ])
+            }
         }
     }
 
@@ -412,6 +427,10 @@ mod engine {
                 .provider()
                 .map(|provider| provider.model.clone())
                 .unwrap_or_default();
+            match &result {
+                Ok(_) => crate::note!(ModelsListed),
+                Err(error) => crate::note!(ModelsFailed, None, Some(ai_error(error).code)),
+            }
             let answer = test_object(result, &model);
             // A window that is closing has no one left to tell.
             let _ = thread.queue(move |mut qobject| {

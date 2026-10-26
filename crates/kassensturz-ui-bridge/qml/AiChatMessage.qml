@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // One message of the chat (M5.8): the user's question, the AI's answer, an
-// error, or the changes the AI prepared. The AI's answer is untrusted text:
+// error, the changes the AI prepared, or a problem report it drafted, which
+// the user reads before opening KassenSturz's report page in the browser
+// (D-228). The AI's answer is untrusted text:
 // it is shown as plain text and labelled as the AI's, and the numbers in it
 // that no function of KassenSturz produced are named, so nobody takes them
 // for figures from the book (D-188, threats T-26 and T-34). Hidden with the
@@ -20,7 +22,8 @@ ColumnLayout {
 
     required property AiSwitch ai
     // What the panel keeps for this message: its `kind` (`question`,
-    // `answer`, `error`, `changes` or `changesDone`) and the fields of it.
+    // `answer`, `error`, `changes`, `changesDone` or `issue`) and the fields
+    // of it.
     required property var message
 
     // The user wants to read the changes of the set with this ID.
@@ -28,6 +31,9 @@ ColumnLayout {
     // The user throws the set with this ID away.
     signal discardClicked(string setId)
     signal settingsClicked()
+    // The user opened the report page (`opened`) or copied the report's text
+    // (`copied`).
+    signal issueUsed(string how)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -167,5 +173,83 @@ ColumnLayout {
                 ? item.i18nContext.i18nc("@info", "The prepared changes were made. You can take them back with Undo.")
                 : item.i18nContext.i18nc("@info", "The prepared changes were thrown away. Nothing was changed."))
             : ""
+    }
+
+    // A problem report the AI drafted: shown exactly as the page would get
+    // it. KassenSturz sends nothing; the page opens in the user's browser,
+    // where they decide (D-173, D-228).
+    Kirigami.AbstractCard {
+        Layout.fillWidth: true
+        visible: item.message.kind === "issue"
+
+        contentItem: ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            Controls.Label {
+                Layout.fillWidth: true
+                font.bold: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: item.i18nContext.i18nc("@label a report of a problem in KassenSturz, written by an AI", "Problem report drafted by the AI")
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: item.i18nContext.i18nc("@info", "Read it first. KassenSturz sends nothing: the button opens KassenSturz's report page on GitHub in your browser with this text filled in, and there you can still change it and decide whether to send it. Reports on GitHub can be read by anyone.")
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                font.bold: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: item.message.kind === "issue" ? item.message.title : ""
+            }
+
+            Controls.TextArea {
+                id: issueBody
+
+                Layout.fillWidth: true
+                readOnly: true
+                selectByMouse: true
+                wrapMode: TextEdit.Wrap
+                textFormat: TextEdit.PlainText
+                text: item.message.kind === "issue" ? item.message.body : ""
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                visible: item.message.kind === "issue" && item.message.wholeInLink !== true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: item.i18nContext.i18nc("@info", "The text is too long to fill in for you. Copy it, open the page and paste it there.")
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                Controls.Button {
+                    icon.name: "internet-services"
+                    text: item.i18nContext.i18nc("@action:button opens the problem report page in the browser", "Open the report page")
+                    onClicked: {
+                        Qt.openUrlExternally(item.message.link);
+                        item.issueUsed("opened");
+                    }
+                }
+
+                Controls.Button {
+                    icon.name: "edit-copy"
+                    text: item.i18nContext.i18nc("@action:button copies the report's text", "Copy the text")
+                    onClicked: {
+                        issueBody.selectAll();
+                        issueBody.copy();
+                        issueBody.deselect();
+                        item.issueUsed("copied");
+                    }
+                }
+            }
+        }
     }
 }

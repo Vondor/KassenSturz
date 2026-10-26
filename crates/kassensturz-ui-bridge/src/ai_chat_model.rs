@@ -121,6 +121,14 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "checkRequests"]
         fn check_requests(self: Pin<&mut AiChat>);
+
+        /// The user did something with an issue draft (D-228): `opened`
+        /// the prefilled page or `copied` its text. Noted in the developer
+        /// mode's log (D-227); nothing else happens here, since the page
+        /// opens in the user's own browser.
+        #[qinvokable]
+        #[cxx_name = "issueUsed"]
+        fn issue_used(self: &AiChat, how: &QString);
     }
 
     extern "RustQt" {
@@ -136,8 +144,10 @@ pub mod qobject {
         fn reviewing(self: Pin<&mut AiChat>, request: QVariant);
 
         /// The question ended: an object with `text`, `unverified` (the
-        /// numbers no function produced), `finish`, `overview` and `sets`
-        /// (objects with an `id` and a `count`), or an error object.
+        /// numbers no function produced), `finish`, `overview`, `sets`
+        /// (objects with an `id` and a `count`) and, when the AI prepared
+        /// one, `issue` (`title`, `body`, `link`, `wholeInLink`), or an
+        /// error object.
         #[qsignal]
         fn finished(self: Pin<&mut AiChat>, result: QVariant);
 
@@ -205,7 +215,7 @@ pub(crate) mod engine {
     use kassensturz_ai::{Finish, Place};
     use kassensturz_ai_chat::{Answer, BuildInfo, ChatError, ChatSession, Feature, LogEntry, Mode};
     use kassensturz_ai_tools::requests::RequestFolder;
-    use kassensturz_ai_tools::{ChangeError, ToolError};
+    use kassensturz_ai_tools::{ChangeError, IssueDraft, ToolError};
     use kassensturz_core::{Date, Report};
     use kassensturz_platform::Secret;
     use kassensturz_store::StoreError;
@@ -326,14 +336,15 @@ pub(crate) mod engine {
 
     /// The model's answer as QML reads it: its text (untrusted, shown as
     /// plain text and labelled as AI, T-34), the numbers no function
-    /// produced (D-188, T-26) and the sets that wait for the user.
+    /// produced (D-188, T-26), the sets that wait for the user and the
+    /// issue draft the user reads before opening its page (D-228).
     pub(crate) fn finished_object(answer: &Answer, sets: &[(u64, usize)]) -> QVariant {
         let finish = match answer.finish {
             Finish::Length => "length",
             Finish::Other => "other",
             _ => "done",
         };
-        map([
+        let mut fields = vec![
             ("text", text(&answer.text)),
             (
                 "unverified",
@@ -342,6 +353,21 @@ pub(crate) mod engine {
             ("finish", text(finish)),
             ("overview", QVariant::from(&(answer.mode == Mode::Overview))),
             ("sets", sets_object(sets)),
+        ];
+        if let Some(issue) = &answer.issue {
+            fields.push(("issue", issue_object(issue)));
+        }
+        map(fields)
+    }
+
+    /// An issue draft as QML reads it. The link is KassenSturz's own issue
+    /// page with the draft in it; the text is shown as plain text.
+    pub(crate) fn issue_object(issue: &IssueDraft) -> QVariant {
+        map([
+            ("title", text(&issue.title)),
+            ("body", text(&issue.body)),
+            ("link", text(&issue.link)),
+            ("wholeInLink", QVariant::from(&issue.whole_in_link)),
         ])
     }
 
@@ -429,9 +455,8 @@ pub(crate) mod engine {
             rust.busy = true;
             (rust.state.session.take(), rust.state.generation)
         };
-        let mut conversation = earlier.unwrap_or_else(|| {
-            ChatSession::new(BuildInfo::new(app_version(), ai_settings::build_commit()))
-        });
+        let mut conversation = earlier.unwrap_or_else(new_conversation);
+        conversation.set_screen(crate::developer_mode::current_screen());
         chat.as_mut().busy_changed();
         let thread = chat.qt_thread();
         std::thread::spawn(move || {
@@ -451,6 +476,16 @@ pub(crate) mod engine {
             let _ = thread.queue(move |chat| finish(chat, generation, conversation, result));
         });
         map([("started", QVariant::from(&true))])
+    }
+
+    /// A new conversation in this build, writing to the developer mode's
+    /// log while it runs (D-227).
+    fn new_conversation() -> ChatSession {
+        let conversation =
+            ChatSession::new(BuildInfo::new(app_version(), ai_settings::build_commit()));
+        #[cfg(feature = "debug-log")]
+        let conversation = conversation.with_debug_log(crate::developer_mode::log().clone());
+        conversation
     }
 
     /// The question for the feature a screen names, if it names one and
@@ -555,14 +590,20 @@ pub(crate) mod engine {
         }
         match result {
             Ok(()) => {
+                crate::note!(ChangesApplied);
                 chat.as_mut().changed();
                 map([("ok", QVariant::from(&true))])
             }
-            Err(failure) => error(&code_text(&failure.report())),
+            Err(failure) => {
+                let report = failure.report();
+                crate::note!(ChangesFailed, None, Some(report.code));
+                error(&code_text(&report))
+            }
         }
     }
 
     pub(super) fn discard(mut chat: Pin<&mut qobject::AiChat>, id: &str) {
+        crate::note!(ChangesDeclined);
         let mut rust = chat.as_mut().rust_mut();
         let state = &mut rust.state;
         if let Some(Waiting {
@@ -679,6 +720,14 @@ impl qobject::AiChat {
     fn check_requests(self: Pin<&mut Self>) {
         engine::check_requests(self);
     }
+
+    fn issue_used(&self, how: &QString) {
+        match how.to_string().as_str() {
+            "opened" => crate::note!(IssuePageOpened),
+            "copied" => crate::note!(IssueTextCopied),
+            _ => {}
+        }
+    }
 }
 
 /// The calls that have nothing to do in a build without AI.
@@ -697,6 +746,8 @@ impl qobject::AiChat {
     fn reset(self: Pin<&mut Self>) {}
 
     fn check_requests(self: Pin<&mut Self>) {}
+
+    fn issue_used(&self, _how: &QString) {}
 }
 
 #[cfg(all(test, feature = "ai"))]
@@ -813,6 +864,7 @@ mod tests {
             finish: Finish::Length,
             mode: Mode::Overview,
             changes: Vec::new(),
+            issue: None,
         };
         let object = finished_object(&answer, &[(3, 2), (4, 1)]);
         assert_eq!(
@@ -834,6 +886,36 @@ mod tests {
         assert_eq!(keys(&sets[0]), ["count", "id"]);
         assert_eq!(text_of(&sets[0], "id"), "3");
         assert_eq!(number_of(&sets[0], "count"), 2);
+    }
+
+    #[test]
+    fn an_issue_draft_reads_back_as_qml_reads_it() {
+        use kassensturz_ai_tools::{ISSUE_PAGE, IssueDraft};
+        let issue = IssueDraft {
+            title: "A balance looks wrong".into(),
+            body: "### What happened\n\nIt failed.".into(),
+            link: format!("{ISSUE_PAGE}?title=A"),
+            whole_in_link: false,
+        };
+        let answer = Answer {
+            text: "I prepared a report.".into(),
+            unverified: Vec::new(),
+            finish: Finish::Done,
+            mode: Mode::Functions,
+            changes: Vec::new(),
+            issue: Some(issue.clone()),
+        };
+        let object = finished_object(&answer, &[]);
+        assert_eq!(
+            keys(&object),
+            ["finish", "issue", "overview", "sets", "text", "unverified"]
+        );
+        let read = super::engine::issue_object(&issue);
+        assert_eq!(keys(&read), ["body", "link", "title", "wholeInLink"]);
+        assert_eq!(text_of(&read, "title"), issue.title);
+        assert_eq!(text_of(&read, "body"), issue.body);
+        assert_eq!(text_of(&read, "link"), issue.link);
+        assert!(!flag_of(&read, "wholeInLink"));
     }
 
     #[test]

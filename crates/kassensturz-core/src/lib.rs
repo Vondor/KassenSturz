@@ -17,6 +17,8 @@ pub mod ai_switch;
 mod bank_link;
 mod changeover;
 mod currency;
+#[cfg(feature = "debug-log")]
+pub mod debug_log;
 mod decimal;
 mod details;
 mod error;
@@ -27,6 +29,7 @@ mod rounding;
 mod rules;
 mod transaction;
 mod transfer;
+pub mod vocabulary;
 mod withdrawn;
 
 pub use account::{Account, AccountId, AccountKind, AccountType};
@@ -35,7 +38,7 @@ pub use changeover::{Changeover, ConvertedPart};
 pub use currency::{Currency, CurrencyCode, CurrencyCodeError};
 pub use decimal::{DecimalError, ExchangeRate, MAX_DECIMAL_PLACES, MAX_DIGITS, Price, Quantity};
 pub use details::{Institution, InstitutionId, Payee, PayeeId, PayeeRecognition, Tag, TagId};
-pub use error::{ErrorParam, ErrorReport, Report};
+pub use error::{ErrorParam, ErrorReport, Report, is_error_code};
 pub use money::{Money, MoneyError};
 pub use rates::{DatedRate, DatedRateId, RateSource};
 pub use rounding::RoundingMode;

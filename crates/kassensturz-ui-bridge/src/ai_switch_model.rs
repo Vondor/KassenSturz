@@ -61,6 +61,11 @@ impl qobject::AiSwitch {
             return false;
         }
         if self.enabled != on {
+            if on {
+                crate::note!(AiSwitchedOn);
+            } else {
+                crate::note!(AiSwitchedOff);
+            }
             self.as_mut().rust_mut().enabled = on;
             self.as_mut().enabled_changed();
         }

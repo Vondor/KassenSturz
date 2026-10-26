@@ -9,8 +9,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use kassensturz_ai::{AiError, Finish, FunctionSpec, Message, PreparedRequest, Provider, ToolCall};
 use kassensturz_ai_tools::{
-    ChangeSet, FUNCTIONS, Figures, PROPOSE_CHANGES, ToolError, Unverified, check_numbers, propose,
+    ChangeSet, DRAFT_ISSUE, FUNCTIONS, Figures, IssueContext, IssueDraft, PROPOSE_CHANGES,
+    ToolError, Unverified, check_numbers, draft_issue, propose, unique_codes,
 };
+#[cfg(feature = "debug-log")]
+use kassensturz_ai_tools::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
+#[cfg(feature = "debug-log")]
+use kassensturz_core::debug_log::DebugLog;
 use kassensturz_core::{Date, ErrorParam, ErrorReport, Report};
 use kassensturz_platform::Secret;
 use kassensturz_store::Book;
@@ -60,6 +65,10 @@ pub struct Answer {
     /// called `propose_changes`, for the user to review (D-171, D-199).
     /// Nothing in them is applied: only the review screen's confirm does.
     pub changes: Vec<ChangeSet>,
+    /// The issue draft the model prepared for this question, the last one
+    /// if it made several, for the user to read (D-173, D-228). Nothing is
+    /// sent: only the user opens the prefilled page.
+    pub issue: Option<IssueDraft>,
 }
 
 /// What the front end does while a question runs. Every method has a
@@ -134,6 +143,14 @@ pub struct ChatSession {
     log: Vec<LogEntry>,
     /// The change sets the model prepared for the question under way.
     proposed: Vec<ChangeSet>,
+    /// The issue draft the model prepared for the question under way.
+    issue: Option<IssueDraft>,
+    /// The debug log the conversation writes to and the model may read
+    /// while AI and the log are on (D-173).
+    #[cfg(feature = "debug-log")]
+    debug_log: DebugLog,
+    /// The screen the user asked from, for an issue draft.
+    screen: Option<&'static str>,
 }
 
 impl ChatSession {
@@ -150,7 +167,26 @@ impl ChatSession {
             figures,
             log: Vec::new(),
             proposed: Vec::new(),
+            issue: None,
+            #[cfg(feature = "debug-log")]
+            debug_log: DebugLog::none(),
+            screen: None,
         }
+    }
+
+    /// The conversation, writing to `log` while the developer mode is on
+    /// and letting the model read it while AI is on too (D-173, D-227).
+    /// Without one, nothing is written and the model isn't offered the log.
+    #[cfg(feature = "debug-log")]
+    pub fn with_debug_log(mut self, log: DebugLog) -> Self {
+        self.debug_log = log;
+        self
+    }
+
+    /// The screen the user asks from, a name from the debug log's fixed
+    /// list, for an issue draft.
+    pub fn set_screen(&mut self, screen: Option<&'static str>) {
+        self.screen = screen;
     }
 
     /// How the model gets its figures now.
@@ -217,6 +253,7 @@ impl ChatSession {
         self.figures.add_text(question);
         self.history.push(Message::user(question));
         self.proposed.clear();
+        self.issue = None;
         let mut overview = None;
         if self.mode == Mode::Overview {
             overview = Some(self.overview(book, today)?);
@@ -227,12 +264,18 @@ impl ChatSession {
             if hooks.cancelled() {
                 return Err(ChatError::Cancelled);
             }
+            // Asked again for each request: the user may turn the log on
+            // or off while a question runs.
+            let log_readable = self.log_readable();
             let (system, functions) = match &overview {
                 Some(overview) => (
                     prompt::with_overview(&self.build, today, overview),
                     Vec::new(),
                 ),
-                None => (prompt::with_functions(&self.build, today), function_specs()),
+                None => (
+                    prompt::with_functions(&self.build, today, log_readable),
+                    function_specs(log_readable),
+                ),
             };
             let offered = !functions.is_empty();
             let mut messages = Vec::with_capacity(self.history.len() + 1);
@@ -286,6 +329,7 @@ impl ChatSession {
                     finish: reply.finish,
                     mode: self.mode,
                     changes: std::mem::take(&mut self.proposed),
+                    issue: self.issue.take(),
                 });
             }
             self.history
@@ -327,8 +371,14 @@ impl ChatSession {
                         self.proposed.push(proposal.changes);
                         proposal.output
                     })
+                } else if call.name == DRAFT_ISSUE.name {
+                    // Shown to the user, never sent from here (T-33).
+                    draft_issue(book, &arguments, &self.issue_context()).map(|(draft, output)| {
+                        self.issue = Some(draft);
+                        output
+                    })
                 } else {
-                    kassensturz_ai_tools::call(book, &call.name, &arguments, today)
+                    self.read(book, &call.name, &arguments, today)
                 }
             });
         let (result, error) = match outcome {
@@ -361,7 +411,71 @@ impl ChatSession {
         Ok(output.value)
     }
 
+    /// Whether the model may read the debug log now: only while AI and the
+    /// log are both on (D-173), never in a build without the log.
+    fn log_readable(&self) -> bool {
+        #[cfg(feature = "debug-log")]
+        return self.debug_log.readable_by_ai();
+        #[cfg(not(feature = "debug-log"))]
+        false
+    }
+
+    /// Runs the read function `name`: one of the book's, or the one that
+    /// reads the debug log.
+    fn read(
+        &self,
+        book: &Book,
+        name: &str,
+        arguments: &Value,
+        today: Date,
+    ) -> Result<kassensturz_ai_tools::Output, ToolError> {
+        #[cfg(feature = "debug-log")]
+        if name == READ_DEBUG_LOG.name {
+            return read_debug_log(&self.debug_log, arguments);
+        }
+        kassensturz_ai_tools::call(book, name, arguments, today)
+    }
+
+    /// What KassenSturz adds to an issue draft: the build, the screen, and
+    /// the error codes of this conversation and, while AI may read it, of
+    /// the debug log.
+    fn issue_context(&self) -> IssueContext {
+        #[cfg(feature = "debug-log")]
+        let (log_read, logged) = {
+            let readable = self.debug_log.readable_by_ai();
+            let codes: Vec<String> = if readable {
+                self.debug_log
+                    .read(MAX_LOG_ENTRIES)
+                    .into_iter()
+                    .filter_map(|entry| entry.code)
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            (readable, codes)
+        };
+        #[cfg(not(feature = "debug-log"))]
+        let (log_read, logged) = (false, Vec::<String>::new());
+        let conversation = self.log.iter().filter_map(|entry| match entry {
+            LogEntry::Called { error, .. } => *error,
+            LogEntry::Failed { code } => Some(*code),
+            _ => None,
+        });
+        IssueContext {
+            version: self.build.version.clone(),
+            commit: self.build.commit.clone(),
+            screen: self.screen,
+            codes: unique_codes(logged.iter().map(String::as_str).chain(conversation)),
+            log_read,
+        }
+    }
+
     fn note(&mut self, entry: LogEntry, hooks: &mut dyn Hooks) {
+        #[cfg(feature = "debug-log")]
+        {
+            let (event, detail, code) = entry.debug_event();
+            self.debug_log.record(event, detail, code);
+        }
         hooks.logged(&entry);
         self.log.push(entry);
     }
@@ -380,19 +494,23 @@ pub fn sample_request(
 ) -> Result<PreparedRequest, AiError> {
     provider.prepare(
         vec![
-            Message::system(prompt::with_functions(build, today)),
+            Message::system(prompt::with_functions(build, today, false)),
             Message::user(question),
         ],
-        function_specs(),
+        function_specs(false),
     )
 }
 
-/// The read functions and the one that prepares changes, as the provider
-/// gets them.
-fn function_specs() -> Vec<FunctionSpec> {
-    FUNCTIONS
-        .iter()
-        .chain([&PROPOSE_CHANGES])
+/// The read functions, the one that prepares changes and the one that
+/// drafts an issue, as the provider gets them, and the one that reads the
+/// debug log while the model may read it.
+fn function_specs(log_readable: bool) -> Vec<FunctionSpec> {
+    let offered = FUNCTIONS.iter().chain([&PROPOSE_CHANGES, &DRAFT_ISSUE]);
+    #[cfg(feature = "debug-log")]
+    let offered = offered.chain(log_readable.then_some(&READ_DEBUG_LOG));
+    #[cfg(not(feature = "debug-log"))]
+    let _ = log_readable;
+    offered
         .map(|function| FunctionSpec {
             name: function.name.to_owned(),
             description: function.description.to_owned(),
@@ -427,10 +545,14 @@ mod tests {
 
     #[test]
     fn every_function_is_offered_with_its_parameters() {
-        let specs = function_specs();
-        assert_eq!(specs.len(), FUNCTIONS.len() + 1);
+        let specs = function_specs(false);
+        assert_eq!(specs.len(), FUNCTIONS.len() + 2);
         assert_eq!(specs[FUNCTIONS.len()].name, PROPOSE_CHANGES.name);
-        for (spec, function) in specs.iter().zip(FUNCTIONS.iter().chain([&PROPOSE_CHANGES])) {
+        assert_eq!(specs[FUNCTIONS.len() + 1].name, DRAFT_ISSUE.name);
+        for (spec, function) in specs
+            .iter()
+            .zip(FUNCTIONS.iter().chain([&PROPOSE_CHANGES, &DRAFT_ISSUE]))
+        {
             assert_eq!(spec.name, function.name);
             assert_eq!(
                 spec.parameters,
@@ -439,8 +561,22 @@ mod tests {
                 function.name
             );
         }
+        // The debug log is offered only while the model may read it, and
+        // never in a build without it.
+        let with_log = function_specs(true);
+        #[cfg(feature = "debug-log")]
+        {
+            assert_eq!(with_log.len(), specs.len() + 1);
+            assert_eq!(with_log[specs.len()].name, READ_DEBUG_LOG.name);
+            assert_eq!(
+                with_log[specs.len()].parameters,
+                serde_json::from_str::<Value>(READ_DEBUG_LOG.parameters).unwrap()
+            );
+        }
+        #[cfg(not(feature = "debug-log"))]
+        assert_eq!(with_log.len(), specs.len());
+        assert_eq!(with_log[..specs.len()], specs[..]);
     }
-
     #[test]
     fn an_error_carries_only_its_code_and_fixed_names() {
         let report = ToolError::BadArgument { argument: "from" }.report();

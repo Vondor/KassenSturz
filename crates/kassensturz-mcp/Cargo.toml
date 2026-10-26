@@ -12,7 +12,7 @@ repository.workspace = true
 publish.workspace = true
 
 [features]
-default = ["ai", "bundled-sqlite"]
+default = ["ai", "bundled-sqlite", "debug-log"]
 # Without it the program holds no AI code and only says so (D-039): no rmcp,
 # no tokio and no book access.
 ai = [
@@ -26,6 +26,9 @@ ai = [
     "kassensturz-ai-tools/ai",
     "kassensturz-core/ai",
 ]
+# The developer mode's debug log (D-173, D-227). Weak, so it brings in
+# nothing without `ai`.
+debug-log = ["kassensturz-ai-tools?/debug-log", "kassensturz-core?/debug-log"]
 # See kassensturz-store (D-061). Weak, so it brings in nothing without `ai`.
 bundled-sqlite = ["kassensturz-store?/bundled-sqlite"]
 

@@ -110,6 +110,19 @@ When Debian's [iso-codes](https://salsa.debian.org/iso-codes-team/iso-codes) has
 
 Building without Flatpak works too, with CMake, Extra CMake Modules, Qt 6.11, KDE Frameworks 6.29 and Rust 1.98 or newer: `cmake -B build/cmake && cmake --build build/cmake`. CI also builds it on Kubuntu 26.10 (D-094) and Fedora 44 (D-097) from the distributions' packages. Bank connections need AqBanking 6.9.2 and Gwenhywfar 5.14.1 or newer at runtime, found by their ABI names (D-138); the dialogs for bank setup, PIN and TAN are built when Gwenhywfar's Qt 6 GUI development package (`libgwengui-qt6-dev` on Kubuntu) is installed, and the app works without any of them.
 
+## Developer mode
+
+For testing, especially with different AI services, KassenSturz can write a debug log (D-227). It is not offered or mentioned anywhere in the app; it starts only when the app is started from a terminal with an environment variable:
+
+```sh
+KASSENSTURZ_DEBUG_LOG=1 tools/sdk.sh cargo run --bin kassensturz
+flatpak run --env=KASSENSTURZ_DEBUG_LOG=1 io.github.vondor.KassenSturz
+```
+
+While it runs, the window title ends in "developer mode" and a banner above every page says so, with buttons to show and to delete the log. The log is `~/.var/app/io.github.vondor.KassenSturz/data/io.github.vondor.KassenSturz/debug-log/current.jsonl` in the Flatpak (`$XDG_DATA_HOME/io.github.vondor.KassenSturz/debug-log/` otherwise), at most about 512 KiB. Each line holds a time, an event name from a fixed list, a function, tool or screen name from a fixed list and an error code, never an amount, a name, a text from the book or a secret. While AI is also switched on, the chat and the MCP server (started with the same variable) let the AI read the log with `read_debug_log`. Your privacy can't be guaranteed while this mode runs: use it with synthetic books only. To end it, close KassenSturz and start it the usual way.
+
+Distributions can leave the log code out with the CMake option `-DKASSENSTURZ_DEBUG_LOG=OFF` (Cargo feature `debug-log`).
+
 ## For AI agents
 
 Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and working rules.

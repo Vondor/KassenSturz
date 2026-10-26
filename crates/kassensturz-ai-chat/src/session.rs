@@ -34,13 +34,6 @@ use crate::prompt::{self, BuildInfo};
 /// the book needs two or three.
 pub const MAX_ROUNDS: usize = 8;
 
-/// What a function's result becomes once its question is over. A small
-/// model's context (LM Studio starts with 4096 tokens) holds the
-/// instructions and the functions and little more, and the whole results of
-/// earlier questions made the provider cut off the newest message (M5-B23,
-/// D-237). The model's own answer to each question stays.
-pub const SHORTENED_RESULT: &str = r#"{"note":"KassenSturz shortened this result of an earlier question to save space. Call the function again when you need it."}"#;
-
 /// The smallest request, in bytes, whose token count is compared with what
 /// the provider reports.
 const CUT_MIN_BYTES: usize = 12_000;
@@ -329,11 +322,12 @@ impl ChatSession {
         for outcome in std::mem::take(&mut self.outcomes) {
             self.history.push(Message::user(outcome.text()));
         }
-        for message in &mut self.history {
-            if message.role == Role::Tool {
-                message.content = SHORTENED_RESULT.to_owned();
-            }
-        }
+        // Of earlier questions only what was asked and answered stays: a small
+        // model copies the calls it sees in the history (the same two calls
+        // over and over, M5-B24), and the results fill its context. A call
+        // that is needed again is one call away (D-237).
+        self.history
+            .retain(|message| message.role != Role::Tool && message.calls.is_empty());
         let start = self.history.len();
         #[cfg(feature = "debug-log")]
         self.debug_log.start_turn();
@@ -689,14 +683,23 @@ fn function_specs(log_readable: bool, permissions: Permissions) -> Vec<FunctionS
     specs
 }
 
+/// What the model is told when an ID it sent is not one of the book's: the
+/// model once told the user to call the function themselves instead.
+const ID_HINT: &str = "An ID must be copied from a function's result. Call list_categories \
+(categories), list_accounts (accounts), search_transactions (transactions) or list_rules \
+(Rules) yourself now, then call this function again with the ID. Don't ask the user to do it.";
+
 /// A function's error for the model: its code and the fixed names it
-/// carries, never anything the model sent (D-034, X-8).
+/// carries, never anything the model sent (D-034, X-8), and a fixed hint
+/// when an ID was wrong.
 fn error_json(report: &ErrorReport) -> Value {
     let mut out = Map::new();
     out.insert("error".into(), json!(report.code));
+    let mut wrong_id = report.code.starts_with("ai-tools.unknown-");
     for (name, value) in &report.params {
         match value {
             ErrorParam::Keyword(keyword) => {
+                wrong_id |= *name == "argument" && keyword.ends_with("id");
                 out.insert((*name).into(), json!(keyword));
             }
             ErrorParam::Number(number) => {
@@ -704,6 +707,9 @@ fn error_json(report: &ErrorReport) -> Value {
             }
             _ => {}
         }
+    }
+    if wrong_id {
+        out.insert("hint".into(), json!(ID_HINT));
     }
     Value::Object(out)
 }
@@ -768,6 +774,17 @@ mod tests {
             error_json(&report),
             json!({"error": "ai-tools.bad-argument", "argument": "from"})
         );
+    }
+
+    #[test]
+    fn a_wrong_id_comes_with_a_hint_to_look_it_up() {
+        let wrong = ToolError::BadArgument {
+            argument: "parent_id",
+        }
+        .report();
+        assert_eq!(error_json(&wrong)["hint"], json!(ID_HINT));
+        let other = ToolError::BadArgument { argument: "from" }.report();
+        assert!(error_json(&other).get("hint").is_none());
     }
 
     #[test]

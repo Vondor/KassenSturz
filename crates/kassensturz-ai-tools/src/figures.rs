@@ -167,6 +167,8 @@ static NOT_FIGURES: LazyLock<Regex> = LazyLock::new(|| {
         r"\b\d{1,2}\.\d{1,2}\.(?:\s|$)".to_owned(),
         // 14:30, 14:30:05
         r"\b\d{1,2}:\d{2}(?::\d{2})?\b".to_owned(),
+        // The 1. or 2) that numbers a line of a list
+        r"(?m:^)[ \t]*\d{1,2}[.)][ \t]".to_owned(),
         // 25 October, 25. Oktober, 3rd of May
         format!(r"(?i)\b\d{{1,2}}(?:st|nd|rd|th)?\.?\s+(?:of\s+)?(?:{MONTHS})\b"),
         // October 25, Oct 25th
@@ -372,6 +374,21 @@ mod tests {
             .into_iter()
             .map(|number| number.text)
             .collect()
+    }
+
+    #[test]
+    fn the_numbers_of_a_list_are_not_figures_but_a_figure_after_them_is() {
+        let known = known(&[-14850]);
+        let answer =
+            "The last entries:\n\n1. Insurance -148.50 EUR\n   2) Rent 30.00 EUR\n10. Food";
+        // Only the 30.00 was not given by a function.
+        assert_eq!(flagged(answer, &known), ["30.00"]);
+        // A figure at the start of a line, not followed by a marker's dot
+        // and space, is still checked; so is a sentence that starts with one.
+        assert_eq!(
+            flagged("100 EUR left.\n5.5 EUR more.", &known),
+            ["100", "5.5"]
+        );
     }
 
     #[test]

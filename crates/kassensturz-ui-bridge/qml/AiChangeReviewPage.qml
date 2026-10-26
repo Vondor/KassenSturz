@@ -111,20 +111,33 @@ Kirigami.ScrollablePage {
     visible: ai.enabled
     Component.onCompleted: changes = chat.changes(setId)
 
-    actions: [
-        Kirigami.Action {
-            visible: page.shows
-            icon.name: "dialog-ok-apply"
-            text: page.i18nContext.i18nc("@action:button make all the changes shown", "Confirm and make these changes")
-            onTriggered: page.confirm()
-        },
-        Kirigami.Action {
-            visible: page.shows
-            icon.name: "edit-delete"
-            text: page.i18nContext.i18nc("@action:button throw the prepared changes away", "Throw away")
-            onTriggered: page.throwAway()
+    // Real buttons below the changes, not page actions: Kirigami moves
+    // actions into a menu when the page is narrow, as it is beside the chat,
+    // and the one button that applies the set has to be in plain sight.
+    footer: Controls.ToolBar {
+        visible: page.shows
+
+        contentItem: RowLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Controls.Button {
+                icon.name: "edit-delete"
+                text: page.i18nContext.i18nc("@action:button throw the prepared changes away", "Throw away")
+                onClicked: page.throwAway()
+            }
+
+            Controls.Button {
+                highlighted: true
+                icon.name: "dialog-ok-apply"
+                text: page.i18nContext.i18nc("@action:button make all the changes shown", "Confirm and make these changes")
+                onClicked: page.confirm()
+            }
         }
-    ]
+    }
 
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing

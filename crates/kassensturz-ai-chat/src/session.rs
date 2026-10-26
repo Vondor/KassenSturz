@@ -219,9 +219,14 @@ impl ChatSession {
         hooks: &mut dyn Hooks,
     ) -> Result<Answer, ChatError> {
         let start = self.history.len();
+        #[cfg(feature = "debug-log")]
+        self.debug_log.start_turn();
         let result = self.run(book, provider, key, question, today, hooks);
         if let Err(error) = &result {
             self.history.truncate(start);
+            #[cfg(feature = "debug-log")]
+            self.debug_log
+                .transcript("failed", &[("code", error.report().code)]);
             self.note(
                 LogEntry::Failed {
                     code: error.report().code,
@@ -292,7 +297,9 @@ impl ChatSession {
                 },
                 hooks,
             );
-            let reply = match provider.send(&request, key) {
+            let sent = provider.send(&request, key);
+            self.transcribe_reply(provider, sent.as_ref().err());
+            let reply = match sent {
                 Ok(reply) => reply,
                 // A model that can't call functions: the provider refuses
                 // the request that offers them (D-190).
@@ -315,6 +322,14 @@ impl ChatSession {
             }
             if reply.calls.is_empty() && reply.ignored_calls.is_empty() {
                 let unverified = check_numbers(&reply.text, &self.figures);
+                #[cfg(feature = "debug-log")]
+                self.debug_log.transcript(
+                    "answer",
+                    &[
+                        ("text", &reply.text),
+                        ("unverified", &unverified.len().to_string()),
+                    ],
+                );
                 self.note(
                     LogEntry::Answered {
                         unverified: unverified.len(),
@@ -470,11 +485,26 @@ impl ChatSession {
         }
     }
 
+    /// The provider's reply as it came, and why it couldn't be read when it
+    /// couldn't, for the developer mode's transcript (D-232).
+    fn transcribe_reply(&self, provider: &dyn Provider, error: Option<&AiError>) {
+        #[cfg(feature = "debug-log")]
+        {
+            let raw = provider.last_reply_text().unwrap_or_default();
+            let code = error.map_or("", |error| error.report().code);
+            self.debug_log
+                .transcript("reply", &[("raw", &raw), ("error", code)]);
+        }
+        #[cfg(not(feature = "debug-log"))]
+        let _ = (provider, error);
+    }
+
     fn note(&mut self, entry: LogEntry, hooks: &mut dyn Hooks) {
         #[cfg(feature = "debug-log")]
         {
             let (event, detail, code) = entry.debug_event();
             self.debug_log.record(event, detail, code);
+            entry.transcribe(&self.debug_log);
         }
         hooks.logged(&entry);
         self.log.push(entry);

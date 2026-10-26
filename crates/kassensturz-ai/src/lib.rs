@@ -82,6 +82,13 @@ pub trait Provider {
     /// Sends `request`, exactly as its preview shows, with `key` when the
     /// provider needs one, and reads the reply.
     fn send(&self, request: &PreparedRequest, key: Option<&Secret>) -> Result<Reply, AiError>;
+
+    /// The provider's last reply as it came, before it was read, so the
+    /// developer mode can show why a reply wasn't understood (D-232). Kept
+    /// in memory only; a provider without a wire gives none.
+    fn last_reply_text(&self) -> Option<String> {
+        None
+    }
 }
 
 impl Provider for AiClient {
@@ -96,6 +103,10 @@ impl Provider for AiClient {
     fn send(&self, request: &PreparedRequest, key: Option<&Secret>) -> Result<Reply, AiError> {
         AiClient::send(self, request, key)
     }
+
+    fn last_reply_text(&self) -> Option<String> {
+        self.last_reply.lock().ok().and_then(|reply| reply.clone())
+    }
 }
 
 /// The way to the provider set up on this computer.
@@ -103,6 +114,8 @@ impl Provider for AiClient {
 pub struct AiClient {
     config: ConfigFile,
     limits: Limits,
+    /// The last reply's bytes as text, shared by the clones (D-232).
+    last_reply: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
 
 impl AiClient {
@@ -112,6 +125,7 @@ impl AiClient {
         Self {
             config,
             limits: Limits::default(),
+            last_reply: Default::default(),
         }
     }
 
@@ -166,6 +180,9 @@ impl AiClient {
             key,
             &self.limits,
         )?;
+        if let Ok(mut last) = self.last_reply.lock() {
+            *last = Some(String::from_utf8_lossy(&reply).into_owned());
+        }
         openai::parse_chat_reply(&reply, &request.function_names())
     }
 

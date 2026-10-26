@@ -21,6 +21,24 @@ ColumnLayout {
 
     // What a call returned: empty, or the error's code and its parameters.
     property var result: ({})
+    // Whether the message offers a button to the AI settings, for places
+    // outside the settings page (the chat); only for errors that settings
+    // can fix.
+    property bool offerSettings: false
+    // Whether the message offers to add `/v1` to the address, for the
+    // settings page.
+    property bool offerV1: false
+
+    // The user wants the AI settings.
+    signal settingsClicked()
+    // The user wants `/v1` added to the provider's address.
+    signal useV1Clicked()
+
+    // Errors that a change in the settings can fix. Not the switch itself,
+    // a request that was too large, or a provider that asks to wait.
+    readonly property bool settingsHelp: result.code !== undefined
+        && String(result.code).startsWith("ai.")
+        && ["ai.off", "ai.settings-changed", "ai.request-too-large", "ai.rate-limited"].indexOf(result.code) < 0
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -60,6 +78,8 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "The provider sent KassenSturz to another address, which KassenSturz doesn't follow. Enter the provider's final address.");
         case "ai.not-found":
             return i18nContext.i18nc("@info", "The provider doesn't know this address or this model. Check both.");
+        case "ai.missing-v1":
+            return i18nContext.i18nc("@info", "The provider didn't understand this address, but it answers when “/v1” is added to the end of it. Many providers, such as LM Studio and Ollama, serve their interface there.");
         case "ai.rate-limited":
             return i18nContext.i18nc("@info", "The provider asks you to wait before the next request. Try again in a little while.");
         case "ai.provider-failed":
@@ -91,6 +111,20 @@ ColumnLayout {
         Layout.fillWidth: true
         type: Kirigami.MessageType.Error
         visible: message.result.code !== undefined
+        actions: [
+            Kirigami.Action {
+                text: message.i18nContext.i18nc("@action:button", "Add /v1 to the address")
+                icon.name: "list-add"
+                visible: message.offerV1 && message.result.code === "ai.missing-v1"
+                onTriggered: message.useV1Clicked()
+            },
+            Kirigami.Action {
+                text: message.i18nContext.i18nc("@action:button", "Open the AI settings")
+                icon.name: "configure"
+                visible: message.offerSettings && message.settingsHelp
+                onTriggered: message.settingsClicked()
+            }
+        ]
         // An InlineMessage shows markup as markup: nothing from a provider
         // may look like it (D-143).
         text: visible ? Plain.plain(message.messageFor(message.result)) : ""

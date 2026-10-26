@@ -98,6 +98,24 @@ impl ProviderAddress {
         format!("{}/{path}", self.text)
     }
 
+    /// Whether the address stops at the server, without a path such as
+    /// `/v1`: the common slip with providers that serve their interface
+    /// under `/v1` (D-233).
+    pub fn has_no_path(&self) -> bool {
+        self.text
+            .parse::<Uri>()
+            .is_ok_and(|uri| matches!(uri.path(), "" | "/"))
+    }
+
+    /// The same address with `/v1` added, if it has no path.
+    pub fn with_v1(&self) -> Option<Self> {
+        if self.has_no_path() {
+            Self::parse(&format!("{}/v1", self.text)).ok()
+        } else {
+            None
+        }
+    }
+
     /// The server this address reaches, as one ASCII word: scheme, host and
     /// port, e.g. `https:api.example.com:443`. A saved key is filed under
     /// it, so a key goes only to the server it was saved for (D-184).
@@ -193,6 +211,30 @@ mod tests {
         }
         let long = format!("https://example.com/{}", "a".repeat(MAX_LEN));
         assert_eq!(place(&long), Err(AiError::BadAddress));
+    }
+
+    #[test]
+    fn an_address_without_a_path_can_get_v1() {
+        for text in [
+            "http://localhost:1234",
+            "http://localhost:1234/",
+            "https://api.example.com",
+        ] {
+            let address = ProviderAddress::parse(text).unwrap();
+            assert!(address.has_no_path(), "{text}");
+            let with = address.with_v1().unwrap();
+            assert_eq!(with.as_str(), format!("{}/v1", text.trim_end_matches('/')));
+            assert!(!with.has_no_path());
+            assert_eq!(with.origin(), address.origin());
+        }
+        for text in [
+            "http://localhost:1234/v1",
+            "https://example.com/v1beta/openai/",
+        ] {
+            let address = ProviderAddress::parse(text).unwrap();
+            assert!(!address.has_no_path(), "{text}");
+            assert!(address.with_v1().is_none(), "{text}");
+        }
     }
 
     #[test]

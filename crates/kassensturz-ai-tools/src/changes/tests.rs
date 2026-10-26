@@ -731,6 +731,29 @@ fn categories_are_renamed_and_moved_with_what_is_inside_them() {
 }
 
 #[test]
+fn the_summary_names_each_change_in_plain_words() {
+    let (Sample { book, food, .. }, rules) = with_rules();
+    let proposal = propose(
+        &book,
+        &json!({
+            "new_categories": [{"key": "p", "name": "Pets", "parent_id": food.to_string()}],
+            "edit_rules": [{"rule_id": rules[0].id.to_string(), "name": "Supermarket"}],
+            "delete_rules": [{"rule_id": rules[1].id.to_string()}],
+            "move_rules": [{"rule_id": rules[2].id.to_string(), "position": 1}],
+        }),
+    )
+    .expect("prepared");
+    assert_eq!(
+        proposal.changes.summary(),
+        "new spending category \"Food › Pets\"; \
+         Rule \"Grocer\" becomes \"Supermarket\" to Food › Groceries; \
+         delete Rule \"Pets\"; \
+         Rule \"Market\" moves from place 2 to 1"
+    );
+    assert!(!proposal.changes.summary().contains("ChangeSet"));
+}
+
+#[test]
 fn rules_are_edited_moved_and_deleted_in_the_order_they_are_listed() {
     let (
         Sample {

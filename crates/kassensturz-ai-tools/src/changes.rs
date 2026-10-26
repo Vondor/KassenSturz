@@ -307,6 +307,57 @@ impl ChangeSet {
         &self.changes
     }
 
+    /// The set in a line of plain words for the developer mode's log: what
+    /// each change does, with the names and paths the user reads on the
+    /// review page.
+    pub fn summary(&self) -> String {
+        let path = |path: &[String]| path.join(" › ");
+        let book_to = |category: &Option<Vec<String>>| {
+            category
+                .as_deref()
+                .map_or_else(String::new, |category| format!(" to {}", path(category)))
+        };
+        let parts: Vec<String> = self
+            .changes
+            .iter()
+            .map(|change| match change {
+                ProposedChange::NewCategory(new) => {
+                    let kind = if new.income { "income" } else { "spending" };
+                    format!("new {kind} category \"{}\"", path(&new.path))
+                }
+                ProposedChange::EditCategory(edit) => format!(
+                    "category \"{}\" becomes \"{}\"",
+                    path(&edit.before),
+                    path(&edit.after)
+                ),
+                ProposedChange::NewRule(new) => format!(
+                    "new Rule \"{}\" booking to {}",
+                    new.rule.name,
+                    path(&new.category)
+                ),
+                ProposedChange::EditRule(edit) => format!(
+                    "Rule \"{}\" becomes \"{}\"{}",
+                    edit.before.name,
+                    edit.rule.name,
+                    book_to(&edit.category)
+                ),
+                ProposedChange::MoveRule(moved) => format!(
+                    "Rule \"{}\" moves from place {} to {}",
+                    moved.name, moved.from, moved.to
+                ),
+                ProposedChange::DeleteRule(delete) => {
+                    format!("delete Rule \"{}\"", delete.rule.name)
+                }
+                ProposedChange::Categorize(change) => format!(
+                    "transaction {} gets category \"{}\"",
+                    change.transaction,
+                    path(&change.after)
+                ),
+            })
+            .collect();
+        parts.join("; ")
+    }
+
     /// Applies the set to `book` as one user action, which one undo takes
     /// back (D-198). Everything is applied or nothing: if the book changed
     /// since the set was prepared, or the book refuses one of the changes,

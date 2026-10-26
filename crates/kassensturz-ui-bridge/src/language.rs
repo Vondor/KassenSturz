@@ -61,6 +61,33 @@ impl Language {
         }
     }
 
+    /// The language the screens are in, for the questions of the chat's
+    /// buttons: the choice, or for the system's the language of its
+    /// environment. `None` for any other language, so the model then
+    /// answers in the language of the question (D-232).
+    #[cfg(feature = "ai")]
+    pub fn answer_language(self) -> Option<kassensturz_ai_chat::AnswerLanguage> {
+        use kassensturz_ai_chat::AnswerLanguage;
+        match self {
+            Self::English => Some(AnswerLanguage::English),
+            Self::German => Some(AnswerLanguage::German),
+            Self::System => ["LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"]
+                .iter()
+                .filter_map(|name| std::env::var(name).ok())
+                .find(|value| !value.is_empty() && value != "C" && value != "POSIX")
+                .and_then(|value| {
+                    let code = value.to_ascii_lowercase();
+                    if code.starts_with("de") {
+                        Some(AnswerLanguage::German)
+                    } else if code.starts_with("en") {
+                        Some(AnswerLanguage::English)
+                    } else {
+                        None
+                    }
+                }),
+        }
+    }
+
     /// A locale in the language, for `LC_MESSAGES`; none for the system's.
     fn messages_locale(self) -> Option<&'static str> {
         match self {
@@ -102,6 +129,20 @@ mod tests {
 
     use super::*;
     use crate::test_folder::TestFolder;
+
+    #[cfg(feature = "ai")]
+    #[test]
+    fn a_chosen_language_is_the_one_the_chat_buttons_ask_the_answer_in() {
+        use kassensturz_ai_chat::AnswerLanguage;
+        assert_eq!(
+            Language::German.answer_language(),
+            Some(AnswerLanguage::German)
+        );
+        assert_eq!(
+            Language::English.answer_language(),
+            Some(AnswerLanguage::English)
+        );
+    }
 
     #[test]
     fn keeps_the_choice_in_the_settings_file() {

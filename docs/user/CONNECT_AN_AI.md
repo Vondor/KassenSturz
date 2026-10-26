@@ -64,6 +64,8 @@ It reads the book KassenSturz opened last. KassenSturz may stay open.
 
 By default your AI tool can only read. To let it propose changes (new categories, new Rules, a category for transactions), turn on **Settings → AI provider and privacy… → Your own AI tools → Let my AI tools prepare changes**.
 
+**Then quit your AI tool completely and start it again.** The tool asks KassenSturz for its list of functions only when it starts, so the functions for preparing changes appear after the restart. The same goes for switching the setting off.
+
 Nothing changes without you: the proposal appears in KassenSturz's chat sidebar, you read it, and only **Confirm and make these changes** applies it (Undo takes it back). **KassenSturz must be open** with the same book; if it isn't, your AI tool hears so after about 10 seconds.
 
 ### Where your data goes

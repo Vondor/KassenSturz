@@ -65,6 +65,8 @@ fn the_balances_are_the_stores() {
     for (row, account) in accounts.iter().zip(book.accounts(true).expect("accounts")) {
         assert_eq!(row["name"], account.name.as_str());
         assert_eq!(row["id"], account.id.to_string().as_str());
+        // Every row says what kind of account it is; none leaves it out.
+        assert!(row["type"].is_string(), "{}", account.name);
         let balance = book.balance(account.id).expect("a balance");
         assert_eq!(eur(&row["balance"]), balance, "{}", account.name);
         together = together.checked_add(balance).expect("no overflow");

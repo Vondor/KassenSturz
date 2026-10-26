@@ -51,6 +51,12 @@ Kirigami.ScrollablePage {
     // Whether a provider is saved that can be used.
     readonly property bool hasProvider: (form.address ?? "") !== "" && (form.model ?? "") !== ""
         && (form.addressError ?? "") === ""
+    // Whether a server is saved, even if no model is chosen yet: enough to
+    // ask which models it offers.
+    readonly property bool hasServer: (form.address ?? "") !== "" && (form.addressError ?? "") === ""
+    // Whether the connection is tested right after the next save, so that
+    // the user sees the models to choose from (or what is wrong).
+    property bool testAfterSave: false
 
     // The sentence of the consent statement for one thing that is sent
     // (`settings.statement()`); a test holds this list to the statement.
@@ -84,7 +90,8 @@ Kirigami.ScrollablePage {
         keyRemoved = false;
         keyResult = ({});
         testResult = ({});
-        const result = settings.save(addressField.text, modelField.text, keyUseBox.currentValue, keyField.text);
+        const typedKey = keyField.text;
+        const result = settings.save(addressField.text, modelField.text, keyUseBox.currentValue, typedKey);
         if (result.saved === true) {
             keyField.text = "";
             keyField.hide();
@@ -95,12 +102,26 @@ Kirigami.ScrollablePage {
             if (result.consentNeeded === true) {
                 consentDialog.show();
             }
+            if (testAfterSave || modelField.text.trim() === "") {
+                justSaved = false;
+                settings.testConnection(typedKey);
+            }
+            testAfterSave = false;
         } else if (result.code !== undefined) {
             saveResult = result;
         } else {
             saveResult = ({});
             notWritten = true;
         }
+    }
+
+    // The provider answers when `/v1` ends the address: save that address
+    // and test it.
+    function useV1() {
+        addressField.text = addressField.text.trim().replace(/\/+$/, "") + "/v1";
+        addressCheck = settings.check(addressField.text);
+        testAfterSave = true;
+        save();
     }
 
     function removeKey() {
@@ -224,7 +245,7 @@ Kirigami.ScrollablePage {
                 Controls.Button {
                     text: page.i18nContext.i18nc("@action:button", "Save")
                     icon.name: "document-save"
-                    enabled: addressField.text.trim() !== "" && modelField.text.trim() !== ""
+                    enabled: addressField.text.trim() !== ""
                         && (page.providerChanged || keyField.text !== "")
                     onClicked: page.save()
                 }
@@ -232,7 +253,7 @@ Kirigami.ScrollablePage {
                 Controls.Button {
                     text: page.i18nContext.i18nc("@action:button", "Test connection")
                     icon.name: "network-connect"
-                    enabled: page.hasProvider && !page.providerChanged && !page.settings.testing
+                    enabled: page.hasServer && !page.providerChanged && !page.settings.testing
                     onClicked: {
                         page.testResult = ({});
                         page.justSaved = false;
@@ -263,8 +284,8 @@ Kirigami.ScrollablePage {
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
-                visible: page.providerChanged && page.hasProvider
-                text: page.i18nContext.i18nc("@info", "Save first; then you can test the connection.")
+                visible: page.providerChanged && addressField.text.trim() !== ""
+                text: page.i18nContext.i18nc("@info", "Save first; then you can test the connection. If you don't know the model's name, leave it empty: after saving, KassenSturz asks the provider which models it offers and you choose one.")
             }
 
             Controls.Label {
@@ -308,6 +329,8 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             ai: page.ai
             result: page.testResult
+            offerV1: true
+            onUseV1Clicked: page.useV1()
         }
 
         // What a test found.
@@ -323,6 +346,13 @@ Kirigami.ScrollablePage {
             type: Kirigami.MessageType.Warning
             visible: page.testResult.models !== undefined && page.testResult.modelOffered === false
             text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is the name of a model", "The provider doesn't list the model “%1”. Choose one of its models below, or check the name.", page.form.model ?? "")) : ""
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Information
+            visible: page.testResult.models !== undefined && page.testResult.models.length > 0 && modelField.text.trim() === ""
+            text: page.i18nContext.i18nc("@info", "Choose the model to use from the list below, then press Save.")
         }
 
         Controls.ComboBox {

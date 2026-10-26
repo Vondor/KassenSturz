@@ -301,6 +301,7 @@ A request to the AI provider the user set up couldn't be sent, or its answer cou
 | `ai.timeout` | | | The AI provider took too long to answer. Try again; a local model may need a faster computer or a smaller model. |
 | `ai.redirect` | | | The AI provider sent KassenSturz to another address, which KassenSturz doesn't follow. Enter the provider's final address in Settings → AI features. |
 | `ai.not-found` | | | The AI provider doesn't know this address or this model. Check both in Settings → AI features. |
+| `ai.missing-v1` | | | The address needs `/v1` at its end: the provider's answer to the address as typed is an error, and with `/v1` it lists its models. KassenSturz offers the address with `/v1`. |
 | `ai.rate-limited` | | | The AI provider asks you to wait before the next request. Try again in a little while. |
 | `ai.provider-failed` | `status` | | The AI provider answered with an error (HTTP {status}). Try again later; if it keeps happening, check the provider's settings. |
 | `ai.reply-too-large` | | | The AI provider's answer was too large, so KassenSturz didn't read it. Ask about less at a time. |

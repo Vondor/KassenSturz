@@ -57,6 +57,10 @@ pub enum AiError {
     Redirect,
     /// The provider says the address or the model doesn't exist (HTTP 404).
     NotFound,
+    /// The address has no path, the provider's answer to it is an error
+    /// (some providers, e.g. LM Studio, send one with HTTP 200), and the
+    /// same address with `/v1` is the provider's interface (D-230).
+    MissingV1,
     /// The provider asks to wait before the next request (HTTP 429).
     RateLimited,
     /// The provider answered with another error.
@@ -101,6 +105,7 @@ impl Report for AiError {
             Self::Timeout => ErrorReport::new("ai.timeout"),
             Self::Redirect => ErrorReport::new("ai.redirect"),
             Self::NotFound => ErrorReport::new("ai.not-found"),
+            Self::MissingV1 => ErrorReport::new("ai.missing-v1"),
             Self::RateLimited => ErrorReport::new("ai.rate-limited"),
             Self::ProviderFailed { status } => ErrorReport::new("ai.provider-failed")
                 .with("status", ErrorParam::Number(i64::from(*status))),

@@ -165,19 +165,55 @@ impl AiClient {
             request.preview(),
             key,
             &self.limits,
-        )?;
-        openai::parse_chat_reply(&reply, &request.function_names())
+        )
+        .and_then(|reply| openai::parse_chat_reply(&reply, &request.function_names()));
+        reply.map_err(|error| self.missing_v1(&provider.address, key, error))
     }
 
     /// The models the provider offers, for choosing one and to test the
     /// connection. Sends nothing from the book, only the key, so it needs
     /// no consent.
     pub fn list_models(&self, key: Option<&Secret>) -> Result<Vec<String>, AiError> {
-        let config = self.settings()?;
-        let provider = config.provider()?;
+        let config = self.config.read();
+        if !config.enabled() {
+            return Err(AiError::Off);
+        }
+        // The model needn't be chosen yet: this is how the user finds it.
+        let provider = config.connection()?;
         let key = key_to_send(provider, key)?;
-        let reply = http::get(&provider.address.endpoint("models"), key, &self.limits)?;
+        self.models_at(&provider.address, key)
+            .map_err(|error| self.missing_v1(&provider.address, key, error))
+    }
+
+    fn models_at(
+        &self,
+        address: &ProviderAddress,
+        key: Option<&Secret>,
+    ) -> Result<Vec<String>, AiError> {
+        let reply = http::get(&address.endpoint("models"), key, &self.limits)?;
         openai::parse_models(&reply)
+    }
+
+    /// An address without a path whose answer is an error, or isn't an
+    /// answer of the interface, is often the provider's address missing
+    /// `/v1`, and some providers (e.g. LM Studio) say so with HTTP 200 and
+    /// an error text. When the list of models is there with `/v1`, the error
+    /// becomes [`AiError::MissingV1`], so the app can offer the right
+    /// address (D-230). Only the key goes to the extra address, the same
+    /// server the user chose.
+    fn missing_v1(
+        &self,
+        address: &ProviderAddress,
+        key: Option<&Secret>,
+        error: AiError,
+    ) -> AiError {
+        if !matches!(error, AiError::BadReply | AiError::NotFound) {
+            return error;
+        }
+        match address.with_v1() {
+            Some(better) if self.models_at(&better, key).is_ok() => AiError::MissingV1,
+            _ => error,
+        }
     }
 }
 

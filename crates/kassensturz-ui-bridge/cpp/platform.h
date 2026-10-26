@@ -22,4 +22,11 @@ void setWindowIcon(const QString &name);
 // The name of the file system `path` is on, e.g. "ext4" or "cifs"; empty if
 // Qt can't tell.
 QString fileSystemType(const QString &path);
+
+// Loads KI18n's QML library on the calling thread. Qt otherwise loads it on
+// its QML loader thread, and a static object inside it then lives there while
+// it filters the application's events, which Qt warns about at every start.
+// Call it on the main thread before the first QML file loads. If the library
+// can't be found, nothing happens: Qt loads it later, as before.
+void loadKI18nQml();
 }

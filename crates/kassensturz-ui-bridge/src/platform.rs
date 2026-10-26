@@ -33,6 +33,9 @@ mod ffi {
 
         #[cxx_name = "fileSystemType"]
         fn file_system_type(path: &QString) -> QString;
+
+        #[cxx_name = "loadKI18nQml"]
+        fn load_ki18n_qml();
     }
 }
 
@@ -45,6 +48,14 @@ pub const APP_ID: &str = "io.github.vondor.KassenSturz";
 /// Wayland compositor that doesn't read it) (D-165).
 pub fn set_window_icon() {
     ffi::set_window_icon(&QString::from(APP_ID));
+}
+
+/// Loads KI18n's QML library here, on the main thread, before the first QML
+/// file loads. Qt would load it on its QML loader thread, and KI18n's event
+/// filter object, a static inside it, would then belong to that thread, so
+/// that Qt warns "Cannot filter events for objects in a different thread".
+pub fn load_ki18n_qml() {
+    ffi::load_ki18n_qml();
 }
 
 /// KassenSturz's own data folder, e.g. `~/.local/share/io.github.vondor.KassenSturz`

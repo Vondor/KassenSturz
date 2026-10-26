@@ -12,7 +12,8 @@
 mod common;
 
 use common::{
-    HOSTILE, OWN_IBAN, Script, TODAY, calls, fails, hostile_book, says, settings, space_colony,
+    HOSTILE, OWN_IBAN, Script, TODAY, calls, fails, hostile_book, says, says_counting, settings,
+    space_colony,
 };
 use kassensturz_ai::{AiError, KeyUse, PreparedRequest, Role};
 use kassensturz_ai_chat::{
@@ -242,6 +243,29 @@ fn arguments_that_are_not_json_are_answered_with_an_error() {
         serde_json::from_str::<Value>(result).unwrap(),
         serde_json::json!({"error": "ai-tools.bad-argument", "argument": "arguments"})
     );
+}
+
+#[test]
+fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
+    let book = hostile_book();
+    let (provider, _) = Script::provider(
+        on(),
+        vec![says_counting("A", 4_000), says_counting("B", 4_000)],
+    );
+    let mut chat = session();
+    // About 20 KB for 4,000 tokens is what an uncut request comes to.
+    let long = "word ".repeat(1_600);
+    let answer = chat
+        .ask(&book, &provider, None, &long, TODAY, &mut NoHooks)
+        .unwrap();
+    assert!(!answer.context_cut);
+    // The history grows by the first question and answer: 75 KB for 4,000
+    // tokens is a request the provider cut.
+    let longer = "word ".repeat(12_000);
+    let answer = chat
+        .ask(&book, &provider, None, &longer, TODAY, &mut NoHooks)
+        .unwrap();
+    assert!(answer.context_cut);
 }
 
 #[test]

@@ -165,7 +165,8 @@ ColumnLayout {
                 unverified: result.unverified,
                 cut: result.finish === "length",
                 filtered: result.finish === "other",
-                overview: result.overview
+                overview: result.overview,
+                contextCut: result.contextCut === true
             });
             for (let i = 0; i < result.sets.length; i++) {
                 panel.add({ kind: "changes", setId: result.sets[i].id, count: result.sets[i].count });

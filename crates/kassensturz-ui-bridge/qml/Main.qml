@@ -525,7 +525,12 @@ Kirigami.ApplicationWindow {
         enabled: root.started
         modal: !root.wideScreen || !root.started
         drawerOpen: !modal
-        handleVisible: modal && root.started
+        // Also visible in a wide window: if the drawer was closed there (see
+        // onModalChanged), the handle is the way back to the menu (M5-B19).
+        handleVisible: root.started
+        // Opening a narrow window closes the drawer by hand, which ends the
+        // binding above; without this the menu stayed hidden after maximizing.
+        onModalChanged: drawerOpen = !modal
 
         actions: [
             Kirigami.Action {

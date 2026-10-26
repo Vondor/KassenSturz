@@ -292,4 +292,12 @@ fn the_instructions_say_where_the_user_reviews_changes() {
     assert!(instructions.contains("chat sidebar"), "{instructions}");
     assert!(instructions.contains("Confirm and Undo"), "{instructions}");
     assert!(instructions.contains("don't invent one"), "{instructions}");
+    // IDs come from the functions, Rules from what the entries show, and a
+    // period that isn't over is not called much lower (D-232).
+    assert!(
+        instructions.contains("never invent or guess an ID"),
+        "{instructions}"
+    );
+    assert!(instructions.contains("never invent them"), "{instructions}");
+    assert!(instructions.contains("isn't over"), "{instructions}");
 }

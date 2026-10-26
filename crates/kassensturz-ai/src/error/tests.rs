@@ -27,6 +27,7 @@ fn examples() -> Vec<AiError> {
         AiError::Timeout,
         AiError::Redirect,
         AiError::NotFound,
+        AiError::MissingV1,
         AiError::RateLimited,
         AiError::ProviderFailed { status: 500 },
         AiError::ReplyTooLarge,

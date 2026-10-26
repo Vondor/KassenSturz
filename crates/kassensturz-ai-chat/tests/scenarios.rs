@@ -17,8 +17,8 @@ use common::{
 };
 use kassensturz_ai::{AiError, KeyUse, PreparedRequest, Role};
 use kassensturz_ai_chat::{
-    BuildInfo, Cancel, ChatError, ChatSession, DATA_START, Hooks, LogEntry, MAX_ROUNDS, Mode,
-    NOT_OFFERED, NoHooks, sample_request,
+    ANSWER_NOW, BuildInfo, Cancel, ChatError, ChatSession, DATA_START, Hooks, LogEntry, MAX_ROUNDS,
+    Mode, NOT_OFFERED, NoHooks, sample_request,
 };
 use kassensturz_ai_tools::{DATA_NOTE, DRAFT_ISSUE, FUNCTIONS, PROPOSE_CHANGES};
 use serde_json::Value;
@@ -208,7 +208,19 @@ fn a_model_that_never_stops_calling_is_stopped() {
     let mut chat = session();
     let result = chat.ask(&book, &provider, None, "Balances?", TODAY, &mut NoHooks);
     assert!(matches!(result, Err(ChatError::TooManyRounds)));
-    assert_eq!(script.seen().len(), MAX_ROUNDS);
+    // The same call twice ends the circle: the third request offers no
+    // function and asks for the answer.
+    let seen = script.seen();
+    assert_eq!(seen.len(), 3);
+    assert!(!seen[1].offered.is_empty());
+    assert!(seen[2].offered.is_empty());
+    assert_eq!(
+        seen[2]
+            .messages
+            .last()
+            .map(|message| message.content.as_str()),
+        Some(ANSWER_NOW)
+    );
     assert!(
         chat.history().is_empty(),
         "a failed question leaves no trace"
@@ -219,6 +231,76 @@ fn a_model_that_never_stops_calling_is_stopped() {
             code: "ai-chat.too-many-rounds"
         })
     );
+}
+
+#[test]
+fn a_model_that_calls_in_circles_has_to_answer_from_what_it_has() {
+    // The log of a 4B model (M5-B24): the same two calls over and over.
+    let book = space_colony();
+    let (provider, script) = Script::provider(
+        on(),
+        vec![
+            calls(&[("a", "list_accounts", "{}")]),
+            calls(&[("b", "list_accounts", "{}")]),
+            says("You have the accounts listed above."),
+        ],
+    );
+    let mut chat = session();
+    let answer = chat
+        .ask(
+            &book,
+            &provider,
+            None,
+            "Which accounts?",
+            TODAY,
+            &mut NoHooks,
+        )
+        .unwrap();
+    assert_eq!(answer.text, "You have the accounts listed above.");
+    let seen = script.seen();
+    assert_eq!(seen.len(), 3);
+    assert!(
+        seen[2].offered.is_empty(),
+        "no function in the last request"
+    );
+}
+
+#[test]
+fn a_model_that_asks_for_something_new_each_time_gets_the_last_request_without_functions() {
+    let book = space_colony();
+    let steps: Vec<common::Step> = vec![Box::new(|messages, _| {
+        // A different call each time: the length of the conversation is
+        // in the argument.
+        let arguments = format!(r#"{{"limit":{}}}"#, messages.len());
+        let body = serde_json::json!({"choices": [{"finish_reason": "tool_calls",
+            "message": {"role": "assistant", "content": null, "tool_calls": [
+                {"id": "c", "type": "function",
+                 "function": {"name": "search_transactions", "arguments": arguments}}]}}]});
+        Ok(body.to_string())
+    })];
+    let (provider, script) = Script::provider(on(), steps);
+    let mut chat = session();
+    let result = chat.ask(&book, &provider, None, "Everything?", TODAY, &mut NoHooks);
+    assert!(matches!(result, Err(ChatError::TooManyRounds)));
+    let seen = script.seen();
+    assert_eq!(seen.len(), MAX_ROUNDS);
+    assert!(!seen[MAX_ROUNDS - 2].offered.is_empty());
+    assert!(seen[MAX_ROUNDS - 1].offered.is_empty());
+}
+
+#[test]
+fn an_empty_answer_cut_by_the_length_means_the_context_is_too_small() {
+    let book = space_colony();
+    let cut = serde_json::json!({"choices": [{"finish_reason": "length",
+        "message": {"role": "assistant", "content": "", "tool_calls": []}}]})
+    .to_string();
+    let (provider, _) = Script::provider(on(), vec![Box::new(move |_, _| Ok(cut.clone()))]);
+    let mut chat = session();
+    let result = chat.ask(&book, &provider, None, "Hello?", TODAY, &mut NoHooks);
+    assert!(matches!(
+        result,
+        Err(ChatError::Ai(AiError::ContextTooSmall))
+    ));
 }
 
 #[test]

@@ -91,7 +91,8 @@ as plain text without markup, links or pictures.";
 const FIGURES_WITH_FUNCTIONS: &str = "Take every figure from KassenSturz's functions and write \
 it exactly as a function gave it. Never work out a figure yourself: no sums, differences, \
 averages, percentages or roundings. If no function gives a figure the user asks for, say that \
-you can't answer that exactly. Every function result is JSON; amounts are exact decimal text.";
+you can't answer that exactly. When you need data from the book, call the function at once: \
+never ask the user whether you may look, and never end an answer by offering to start. Every function result is JSON; amounts are exact decimal text.";
 
 /// What the model may prepare and how to say so, for the kinds of change
 /// the user allows (D-239). The kinds it may not prepare are named, so it

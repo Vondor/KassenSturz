@@ -63,6 +63,11 @@ pub enum AiError {
     MissingV1,
     /// The provider asks to wait before the next request (HTTP 429).
     RateLimited,
+    /// The provider refused the request because it is longer than the
+    /// context the model was loaded with (LM Studio, llama.cpp and OpenAI
+    /// all say so in the body of a 400). A smaller model is often loaded
+    /// with 4096 tokens, which the instructions alone nearly fill.
+    ContextTooSmall,
     /// The provider answered with another error.
     ProviderFailed {
         /// The HTTP status of the answer.
@@ -107,6 +112,7 @@ impl Report for AiError {
             Self::NotFound => ErrorReport::new("ai.not-found"),
             Self::MissingV1 => ErrorReport::new("ai.missing-v1"),
             Self::RateLimited => ErrorReport::new("ai.rate-limited"),
+            Self::ContextTooSmall => ErrorReport::new("ai.context-too-small"),
             Self::ProviderFailed { status } => ErrorReport::new("ai.provider-failed")
                 .with("status", ErrorParam::Number(i64::from(*status))),
             Self::ReplyTooLarge => ErrorReport::new("ai.reply-too-large"),

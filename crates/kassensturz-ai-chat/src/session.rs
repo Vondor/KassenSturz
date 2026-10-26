@@ -4,6 +4,7 @@
 //! One conversation with the model: the loop of the read functions, the
 //! fallback to the overview, the number check and the tool-call log (D-190).
 
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -53,6 +54,14 @@ pub fn looks_cut(bytes: usize, tokens: Option<u64>) -> bool {
     };
     bytes >= CUT_MIN_BYTES && bytes as u64 > tokens.saturating_mul(CUT_BYTES_PER_TOKEN)
 }
+
+/// Said to the model for the last request of a question: when it asks for
+/// the same call again, or the requests run out. A small model that can't
+/// stop calling is made to answer from what it has, with no function offered
+/// (M5-B24, D-240).
+pub const ANSWER_NOW: &str = "KassenSturz: you already have the results you need above. \
+    Answer the user's question now, in plain words, from those results. No function \
+    can be called any more.";
 
 /// What the model is told when it asked for a function that isn't offered.
 /// It goes as a message of its own because a function's answer must name a
@@ -380,8 +389,16 @@ impl ChatSession {
             overview = Some(self.overview(book, today)?);
         }
         let mut round = 0;
+        // The calls made for this question, and whether the next request
+        // is the one that has to answer.
+        let mut made: HashSet<(String, String)> = HashSet::new();
+        let mut closing = false;
         while round < MAX_ROUNDS {
             round += 1;
+            if round == MAX_ROUNDS && !closing {
+                closing = true;
+                self.history.push(Message::user(ANSWER_NOW));
+            }
             if hooks.cancelled() {
                 return Err(ChatError::Cancelled);
             }
@@ -396,7 +413,11 @@ impl ChatSession {
                 ),
                 None => (
                     prompt::with_functions(&self.build, today, log_readable, permissions),
-                    function_specs(log_readable, permissions),
+                    if closing {
+                        Vec::new()
+                    } else {
+                        function_specs(log_readable, permissions)
+                    },
                 ),
             };
             let offered = !functions.is_empty();
@@ -439,6 +460,11 @@ impl ChatSession {
             }
             context_cut |= looks_cut(request.preview().len(), reply.prompt_tokens);
             if reply.calls.is_empty() && reply.ignored_calls.is_empty() {
+                // Nothing came back because the context was full: the
+                // request and the answer didn't fit (M5-B33).
+                if reply.text.trim().is_empty() && reply.finish == Finish::Length {
+                    return Err(AiError::ContextTooSmall.into());
+                }
                 let unverified = check_numbers(&reply.text, &self.figures);
                 #[cfg(feature = "debug-log")]
                 self.debug_log.transcript(
@@ -466,9 +492,15 @@ impl ChatSession {
                     issue: self.issue.take(),
                 });
             }
+            if closing {
+                // Asked to answer and still calling: nothing more to try.
+                return Err(ChatError::TooManyRounds);
+            }
             self.history
                 .push(Message::assistant(reply.text, reply.calls.clone()));
+            let mut repeated = false;
             for call in &reply.calls {
+                repeated |= !made.insert((call.name.clone(), call.arguments.clone()));
                 let message = self.run_call(book, call, today, hooks);
                 self.history.push(message);
             }
@@ -480,6 +512,12 @@ impl ChatSession {
                     hooks,
                 );
                 self.history.push(Message::user(NOT_OFFERED));
+            }
+            // The same call again gets the same result: the model is going
+            // round in a circle, so its next request has to be the answer.
+            if repeated && !closing {
+                closing = true;
+                self.history.push(Message::user(ANSWER_NOW));
             }
         }
         Err(ChatError::TooManyRounds)

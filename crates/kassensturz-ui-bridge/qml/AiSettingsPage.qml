@@ -90,9 +90,14 @@ Kirigami.ScrollablePage {
         keyRemoved = false;
         keyResult = ({});
         testResult = ({});
-        const typedKey = keyField.text;
-        const result = settings.save(addressField.text, modelField.text, keyUseBox.currentValue, typedKey);
+        const result = settings.save(addressField.text, modelField.text, keyUseBox.currentValue, keyField.text);
         if (result.saved === true) {
+            // Without a model there is nothing to ask yet, so the test that
+            // lists the models follows at once, with the key still typed.
+            const test = testAfterSave || modelField.text.trim() === "";
+            if (test) {
+                settings.testConnection(keyField.text);
+            }
             keyField.text = "";
             keyField.hide();
             saveResult = ({});
@@ -102,9 +107,8 @@ Kirigami.ScrollablePage {
             if (result.consentNeeded === true) {
                 consentDialog.show();
             }
-            if (testAfterSave || modelField.text.trim() === "") {
+            if (test) {
                 justSaved = false;
-                settings.testConnection(typedKey);
             }
             testAfterSave = false;
         } else if (result.code !== undefined) {

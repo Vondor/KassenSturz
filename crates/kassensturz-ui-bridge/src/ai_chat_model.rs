@@ -110,6 +110,11 @@ pub mod qobject {
         #[qinvokable]
         fn discard(self: Pin<&mut AiChat>, id: &QString);
 
+        /// The user took the changes they confirmed back with Undo: the
+        /// model hears it with the next question.
+        #[qinvokable]
+        fn changes_undone(self: Pin<&mut AiChat>);
+
         /// Starts a new conversation: forgets this one and every set that
         /// waits, and stops a question that runs.
         #[qinvokable]
@@ -213,7 +218,9 @@ mod engine {
 #[cfg(feature = "ai")]
 pub(crate) mod engine {
     use kassensturz_ai::{Finish, Place};
-    use kassensturz_ai_chat::{Answer, BuildInfo, ChatError, ChatSession, Feature, LogEntry, Mode};
+    use kassensturz_ai_chat::{
+        Answer, BuildInfo, ChatError, ChatSession, Feature, LogEntry, Mode, Outcome,
+    };
     use kassensturz_ai_tools::requests::RequestFolder;
     use kassensturz_ai_tools::{ChangeError, IssueDraft, ToolError};
     use kassensturz_core::{Date, Report};
@@ -245,6 +252,8 @@ pub(crate) mod engine {
         sets: Sets,
         generation: u64,
         inbox: Option<RequestFolder>,
+        /// What the user did with prepared changes while a question ran.
+        news: Vec<Outcome>,
     }
 
     impl State {
@@ -256,6 +265,18 @@ pub(crate) mod engine {
                 for from in &dropped {
                     tell_dropped(inbox, from);
                 }
+            }
+        }
+    }
+
+    impl State {
+        /// Tells the conversation what the user did with a set it prepared
+        /// (D-229). While a question runs the conversation is on its
+        /// thread, so the news waits and goes in when it comes back.
+        fn tell_chat(&mut self, outcome: Outcome) {
+            match self.session.as_mut() {
+                Some(session) => session.note_outcome(outcome),
+                None => self.news.push(outcome),
             }
         }
     }
@@ -525,6 +546,9 @@ pub(crate) mod engine {
             let mut rust = chat.as_mut().rust_mut();
             let state = &mut rust.state;
             state.session = Some(conversation);
+            for outcome in std::mem::take(&mut state.news) {
+                state.tell_chat(outcome);
+            }
             state.controls = None;
             let outcome = match result {
                 Ok(mut answer) => {
@@ -583,10 +607,18 @@ pub(crate) mod engine {
         // No book open any more means the set is out of date.
         let result = session::with_book_mut(|book| confirm_in(book, set))
             .unwrap_or(Err(ChangeError::OutOfDate));
-        if let Some(from) = from
+        if let Some(from) = &from
             && let Some(inbox) = chat.as_mut().rust_mut().state.inbox.as_mut()
         {
-            tell_confirmed(inbox, &from, &result);
+            tell_confirmed(inbox, from, &result);
+        }
+        if from.is_none() {
+            let outcome = if result.is_ok() {
+                Outcome::Confirmed
+            } else {
+                Outcome::Failed
+            };
+            chat.as_mut().rust_mut().state.tell_chat(outcome);
         }
         match result {
             Ok(()) => {
@@ -606,13 +638,21 @@ pub(crate) mod engine {
         crate::note!(ChangesDeclined);
         let mut rust = chat.as_mut().rust_mut();
         let state = &mut rust.state;
-        if let Some(Waiting {
-            from: Some(from), ..
-        }) = id_of(id).and_then(|id| state.sets.take(id))
-            && let Some(inbox) = state.inbox.as_mut()
-        {
-            tell_declined(inbox, &from);
+        let Some(Waiting { from, .. }) = id_of(id).and_then(|id| state.sets.take(id)) else {
+            return;
+        };
+        match from {
+            Some(from) => {
+                if let Some(inbox) = state.inbox.as_mut() {
+                    tell_declined(inbox, &from);
+                }
+            }
+            None => state.tell_chat(Outcome::Declined),
         }
+    }
+
+    pub(super) fn changes_undone(mut chat: Pin<&mut qobject::AiChat>) {
+        chat.as_mut().rust_mut().state.tell_chat(Outcome::Undone);
     }
 
     pub(super) fn check_requests(mut chat: Pin<&mut qobject::AiChat>) {
@@ -713,6 +753,10 @@ impl qobject::AiChat {
         engine::discard(self, &id.to_string());
     }
 
+    fn changes_undone(self: Pin<&mut Self>) {
+        engine::changes_undone(self);
+    }
+
     fn reset(self: Pin<&mut Self>) {
         engine::reset(self);
     }
@@ -742,6 +786,8 @@ impl qobject::AiChat {
     fn review_leave_out(&self, _phrase: &QString) {}
 
     fn discard(self: Pin<&mut Self>, _id: &QString) {}
+
+    fn changes_undone(self: Pin<&mut Self>) {}
 
     fn reset(self: Pin<&mut Self>) {}
 

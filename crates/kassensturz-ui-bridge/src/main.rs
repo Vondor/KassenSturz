@@ -82,6 +82,7 @@ fn main() {
     // right name and icon, also on Wayland.
     QGuiApplication::set_desktop_file_name(&QString::from(platform::APP_ID));
     platform::set_window_icon();
+    platform::load_ki18n_qml();
     crate::note!(AppStarted);
     // Plasma's style, unless the user chose another one.
     if std::env::var_os("QT_QUICK_CONTROLS_STYLE").is_none() {

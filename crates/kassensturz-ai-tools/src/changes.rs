@@ -5,8 +5,9 @@
 //! to review, and applied only when the user confirms (D-171, D-199 to
 //! D-201, AGENTS.md §3.1 rule 9, §8).
 //!
-//! A model prepares one with [`PROPOSE_CHANGES`]: new categories, new Rules
-//! and a category for transactions, nothing else. [`propose`] checks the
+//! A model prepares one with [`PROPOSE_CHANGES`]: new categories, renaming
+//! or moving categories, new Rules, editing, moving and deleting Rules, and
+//! a category for transactions, nothing else (D-236). [`propose`] checks the
 //! call against the book and turns it into a [`ChangeSet`] whose
 //! [`ProposedChange`]s are what the user sees, before and after, with exact
 //! amounts. Nothing in the book changes then. Only [`ChangeSet::apply`]
@@ -24,8 +25,8 @@ use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, Actions, AmountTest, BookTo, Condition, CurrencyCode, Date,
-    ErrorReport, MatchMode, Money, Report, Rule, RuleId, Split, SplitId, TextField, TextOperator,
-    Transaction, TransactionId,
+    ErrorReport, MatchMode, Money, Report, Rule, RuleId, RuleNode, Split, SplitId, TextField,
+    TextOperator, Transaction, TransactionId,
 };
 use kassensturz_store::{Action, Book, StoreError};
 use serde_json::{Map, Value, json};
@@ -42,13 +43,18 @@ use crate::text::hides_text;
 pub const PROPOSE_CHANGES: Function = Function {
     name: "propose_changes",
     description: "Prepares changes to the user's book for the user to review: new \
-        categories, new Rules that sort future transactions into a category, and a category \
-        for transactions you found with search_transactions. Nothing changes until the user \
+        categories, renaming or moving categories, new Rules that sort future transactions \
+        into a category, changing, moving or deleting existing Rules, and a category for \
+        transactions you found with search_transactions. Nothing changes until the user \
         confirms them in KassenSturz's window, and the user may refuse them. A new category \
-        has a key of your choice, which new_rules and categorize use as new_category. Only a \
-        transaction with one category, or none yet, can get another one; a transfer between \
-        the user's own accounts can't. Prepare everything that belongs together in one call.",
-    parameters: r#"{"type":"object","properties":{"new_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"key":{"type":"string","maxLength":40,"description":"Your short name for it, used as new_category below."},"name":{"type":"string","maxLength":100},"parent_id":{"type":"string","description":"Put it inside this category, ID from list_categories. Default: at the top."},"income":{"type":"boolean","description":"An income category, not a spending one. Default false. Inside a category it must be the same kind."},"currency":{"type":"string","description":"ISO 4217 code. Default: the parent's, or the one all the user's accounts use."}},"required":["key","name"],"additionalProperties":false}},"new_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"],"description":"Whether every condition must hold or one is enough. Default all."},"conditions":{"type":"array","minItems":1,"maxItems":10,"items":{"type":"object","description":"Either field, test and text, or money_in: true, or money_out: true.","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with"]},"text":{"type":"string","maxLength":100},"case_sensitive":{"type":"boolean"},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"Where it books what it finds, ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["name","conditions"],"additionalProperties":false}},"categorize":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"category_id":{"type":"string","description":"ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["transaction_id"],"additionalProperties":false}}},"additionalProperties":false}"#,
+        has a key of your choice, which edit_categories (as new_parent), new_rules, \
+        edit_rules and categorize use as new_category. Only a transaction with one category, \
+        or none yet, can get another one; a transfer between the user's own accounts can't. \
+        Rules are checked in order and the first that matches wins, so a new Rule goes last \
+        until you move it with move_rules. Categories and Rules are named by the IDs that \
+        list_categories and list_rules give. Prepare everything that belongs together in one \
+        call.",
+    parameters: r#"{"type":"object","properties":{"new_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"key":{"type":"string","maxLength":40,"description":"Your short name for it, used as new_category below."},"name":{"type":"string","maxLength":100},"parent_id":{"type":"string","description":"Put it inside this category, ID from list_categories. Default: at the top."},"income":{"type":"boolean","description":"An income category, not a spending one. Default false. Inside a category it must be the same kind."},"currency":{"type":"string","description":"ISO 4217 code. Default: the parent's, or the one all the user's accounts use."}},"required":["key","name"],"additionalProperties":false}},"new_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"],"description":"Whether every condition must hold or one is enough. Default all."},"conditions":{"type":"array","minItems":1,"maxItems":10,"items":{"type":"object","description":"Either field, test and text, or money_in: true, or money_out: true.","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with"]},"text":{"type":"string","maxLength":100},"case_sensitive":{"type":"boolean"},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"Where it books what it finds, ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["name","conditions"],"additionalProperties":false}},"edit_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"The category to rename or move, ID from list_categories."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"parent_id":{"type":"string","description":"Move it, with everything inside it, into this category, ID from list_categories. It must be the same kind and currency."},"new_parent":{"type":"string","description":"Or into the new category with this key."},"to_top":{"type":"boolean","description":"Move it to the top level."}},"required":["category_id"],"additionalProperties":false}},"edit_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to change, ID from list_rules."},"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"]},"conditions":{"type":"array","minItems":1,"maxItems":10,"description":"All of its conditions as they should be, same shape as in new_rules. Only for a Rule whose conditions list_rules shows in full.","items":{"type":"object","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with"]},"text":{"type":"string","maxLength":100},"case_sensitive":{"type":"boolean"},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"The category it books to, ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["rule_id"],"additionalProperties":false}},"move_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"A top-level Rule, ID from list_rules."},"position":{"type":"integer","minimum":1,"description":"Its new place in the list of top-level Rules, 1 is the first. New Rules in this call are at the end."}},"required":["rule_id","position"],"additionalProperties":false}},"delete_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to delete, ID from list_rules. It must have no sub-Rules. What it booked stays as it is."}},"required":["rule_id"],"additionalProperties":false}},"categorize":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"category_id":{"type":"string","description":"ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["transaction_id"],"additionalProperties":false}}},"additionalProperties":false}"#,
 };
 
 /// The most changes one set may hold, so the user can still review it.
@@ -67,6 +73,14 @@ const MAX_CONDITIONS: usize = 10;
 /// the keywords of `ai-tools.bad-argument` for it.
 #[cfg(test)]
 pub(crate) const ARGUMENTS: &[&str] = &[
+    "edit_categories",
+    "new_parent",
+    "to_top",
+    "edit_rules",
+    "rule_id",
+    "move_rules",
+    "position",
+    "delete_rules",
     "new_categories",
     "key",
     "name",
@@ -94,8 +108,16 @@ pub(crate) const ARGUMENTS: &[&str] = &[
 pub enum ProposedChange {
     /// A new category.
     NewCategory(NewCategory),
+    /// A category renamed, moved or both.
+    EditCategory(EditCategory),
     /// A new Rule, at the end of the list.
     NewRule(NewRule),
+    /// An existing Rule changed.
+    EditRule(EditRule),
+    /// A top-level Rule moved to another place in the list.
+    MoveRule(MoveRule),
+    /// A Rule deleted.
+    DeleteRule(DeleteRule),
     /// A transaction booked to another category, or to one for the first
     /// time.
     Categorize(Categorize),
@@ -114,6 +136,61 @@ pub struct NewCategory {
     pub income: bool,
     /// Its currency.
     pub currency: CurrencyCode,
+}
+
+/// A category renamed, moved or both. Its subcategories and transactions go
+/// with it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EditCategory {
+    /// The category.
+    pub id: AccountId,
+    /// Its path before: the names above it first, its own last.
+    pub before: Vec<String>,
+    /// Its path after.
+    pub after: Vec<String>,
+    /// Its new name, if it is renamed.
+    name: Option<String>,
+    /// Its new place, if it moves: the category it goes inside, `None` for
+    /// the top level.
+    parent: Option<Option<AccountId>>,
+    /// The category as the user reviewed it: applying fails if it changed
+    /// since.
+    reviewed: Account,
+}
+
+/// An existing Rule changed. What it booked earlier stays as it is (Q-044).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EditRule {
+    /// The Rule as it was.
+    pub before: Rule,
+    /// The category it booked to before, as a path, if it booked to one.
+    pub before_category: Option<Vec<String>>,
+    /// The Rule as it will be.
+    pub rule: Rule,
+    /// The category it books to, as a path, if it books to one.
+    pub category: Option<Vec<String>>,
+}
+
+/// A top-level Rule moved.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MoveRule {
+    /// The Rule.
+    pub id: RuleId,
+    /// Its name.
+    pub name: String,
+    /// Its place before, counted from 1 among the top-level Rules.
+    pub from: usize,
+    /// Its place after.
+    pub to: usize,
+}
+
+/// A Rule deleted. What it booked stays as it is.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DeleteRule {
+    /// The Rule as it is, so the user sees what goes.
+    pub rule: Rule,
+    /// The category it books to, as a path, if it books to one.
+    pub category: Option<Vec<String>>,
 }
 
 /// A new Rule.
@@ -157,6 +234,9 @@ pub struct Categorize {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChangeSet {
     changes: Vec<ProposedChange>,
+    /// The top-level Rules in the order the set was checked against: moving
+    /// and deleting Rules applies only to a list in this order.
+    rule_order: Vec<RuleId>,
 }
 
 /// The user's yes to one change set. Only the confirm button of the
@@ -220,8 +300,9 @@ impl Report for ChangeError {
 }
 
 impl ChangeSet {
-    /// The changes, in the order they are applied: new categories, new
-    /// Rules, then the transactions.
+    /// The changes, in the order they are applied: new categories, edited
+    /// categories, new Rules, edited, deleted and moved Rules, then the
+    /// transactions.
     pub fn changes(&self) -> &[ProposedChange] {
         &self.changes
     }
@@ -232,6 +313,13 @@ impl ChangeSet {
     /// the book stays as it was.
     pub fn apply(self, book: &mut Book, confirmed: Confirmed) -> Result<(), ChangeError> {
         let Confirmed(()) = confirmed;
+        let moves = self
+            .changes
+            .iter()
+            .any(|change| matches!(change, ProposedChange::MoveRule(_)));
+        if moves && top_level_rules(book)? != self.rule_order {
+            return Err(ChangeError::OutOfDate);
+        }
         book.as_one_action(Action::ApplyAiChanges, |book| {
             for change in &self.changes {
                 match change {
@@ -254,7 +342,37 @@ impl ChangeSet {
                             institution: None,
                         })?;
                     }
+                    ProposedChange::EditCategory(edit) => {
+                        if book.account(edit.id)? != edit.reviewed {
+                            return Err(ChangeError::OutOfDate);
+                        }
+                        if let Some(parent) = edit.parent {
+                            book.move_category(edit.id, parent)?;
+                        }
+                        if let Some(name) = &edit.name {
+                            book.rename_account(edit.id, name)?;
+                        }
+                    }
                     ProposedChange::NewRule(new) => book.add_rule(&new.rule, None)?,
+                    ProposedChange::EditRule(edit) => {
+                        if rule_in_book(book, edit.before.id)? != Some(edit.before.clone()) {
+                            return Err(ChangeError::OutOfDate);
+                        }
+                        book.update_rule(&edit.rule)?;
+                    }
+                    ProposedChange::DeleteRule(delete) => {
+                        if rule_in_book(book, delete.rule.id)? != Some(delete.rule.clone()) {
+                            return Err(ChangeError::OutOfDate);
+                        }
+                        book.remove_rule(delete.rule.id)?;
+                    }
+                    ProposedChange::MoveRule(moved) => {
+                        let order = top_level_rules(book)?;
+                        if order.get(moved.from - 1) != Some(&moved.id) {
+                            return Err(ChangeError::OutOfDate);
+                        }
+                        book.move_rule(moved.id, None, moved.to - 1)?;
+                    }
                     ProposedChange::Categorize(change) => {
                         let stored = match book.transaction(change.transaction) {
                             Err(StoreError::UnknownTransaction(_)) => {
@@ -271,6 +389,19 @@ impl ChangeSet {
             }
             Ok(())
         })
+    }
+}
+
+/// The IDs of the top-level Rules, in the user's order.
+fn top_level_rules(book: &Book) -> Result<Vec<RuleId>, StoreError> {
+    Ok(book.rules()?.into_iter().map(|node| node.rule.id).collect())
+}
+
+/// The Rule with this ID, if the book has it.
+fn rule_in_book(book: &Book, id: RuleId) -> Result<Option<Rule>, StoreError> {
+    match book.rule(id) {
+        Err(StoreError::UnknownRule(_)) => Ok(None),
+        other => other.map(Some),
     }
 }
 
@@ -309,13 +440,31 @@ fn recategorized(change: &Categorize) -> Result<Transaction, ChangeError> {
 pub fn propose(book: &Book, arguments: &Value) -> Result<Proposal, ToolError> {
     let call = Object::read(
         arguments,
-        &["new_categories", "new_rules", "categorize"],
+        &[
+            "new_categories",
+            "edit_categories",
+            "new_rules",
+            "edit_rules",
+            "move_rules",
+            "delete_rules",
+            "categorize",
+        ],
         "arguments",
     )?;
     let categories = call.array("new_categories")?;
+    let edited_categories = call.array("edit_categories")?;
     let rules = call.array("new_rules")?;
+    let edited_rules = call.array("edit_rules")?;
+    let moved_rules = call.array("move_rules")?;
+    let deleted_rules = call.array("delete_rules")?;
     let transactions = call.array("categorize")?;
-    let count = categories.len() + rules.len() + transactions.len();
+    let count = categories.len()
+        + edited_categories.len()
+        + rules.len()
+        + edited_rules.len()
+        + moved_rules.len()
+        + deleted_rules.len()
+        + transactions.len();
     if count == 0 {
         return Err(ToolError::BadArgument {
             argument: "arguments",
@@ -326,17 +475,44 @@ pub fn propose(book: &Book, arguments: &Value) -> Result<Proposal, ToolError> {
     }
 
     let mut known = Known::read(book)?;
+    let rule_order = known.rule_order.clone();
     let mut changes = Vec::with_capacity(count);
     for category in categories {
         changes.push(ProposedChange::NewCategory(known.new_category(category)?));
     }
+    let mut edited = HashSet::new();
+    for item in edited_categories {
+        let change = known.edit_category(item)?;
+        if !edited.insert(change.id) {
+            return Err(ToolError::BadArgument {
+                argument: "category_id",
+            });
+        }
+        changes.push(ProposedChange::EditCategory(change));
+    }
     let mut rule_names = HashSet::new();
     for rule in rules {
-        changes.push(ProposedChange::NewRule(known.new_rule(
-            book,
-            rule,
+        let new = known.new_rule(book, rule, &mut rule_names)?;
+        known.rule_order.push(new.rule.id);
+        changes.push(ProposedChange::NewRule(new));
+    }
+    let mut touched = HashSet::new();
+    for item in edited_rules {
+        changes.push(ProposedChange::EditRule(known.edit_rule(
+            item,
+            &mut touched,
             &mut rule_names,
         )?));
+    }
+    for item in deleted_rules {
+        changes.push(ProposedChange::DeleteRule(
+            known.delete_rule(item, &mut touched)?,
+        ));
+    }
+    for item in moved_rules {
+        changes.push(ProposedChange::MoveRule(
+            known.move_rule(item, &mut touched)?,
+        ));
     }
     let mut seen = HashSet::new();
     for item in transactions {
@@ -359,8 +535,24 @@ pub fn propose(book: &Book, arguments: &Value) -> Result<Proposal, ToolError> {
         }),
         figures,
     );
+    // The paths the user reads are those after all the moves and renames.
+    known.refresh_paths();
+    for change in &mut changes {
+        match change {
+            ProposedChange::NewCategory(new) => new.path = known.path(new.id),
+            ProposedChange::EditCategory(edit) => edit.after = known.path(edit.id),
+            ProposedChange::NewRule(new) => {
+                new.category = known.rule_category(&new.rule).unwrap_or_default();
+            }
+            ProposedChange::EditRule(edit) => edit.category = known.rule_category(&edit.rule),
+            _ => {}
+        }
+    }
     Ok(Proposal {
-        changes: ChangeSet { changes },
+        changes: ChangeSet {
+            changes,
+            rule_order,
+        },
         output,
     })
 }
@@ -370,10 +562,37 @@ pub fn propose(book: &Book, arguments: &Value) -> Result<Proposal, ToolError> {
 struct Known {
     accounts: HashMap<AccountId, Account>,
     paths: HashMap<AccountId, Vec<String>>,
+    /// The paths as the book has them, before any change of the set.
+    original_paths: HashMap<AccountId, Vec<String>>,
     /// The new categories by their keys.
     keys: HashMap<String, AccountId>,
     /// The currency of the user's open accounts, if they all use one.
     usual_currency: Option<CurrencyCode>,
+    /// Every Rule of the book.
+    rules: HashMap<RuleId, RuleInfo>,
+    /// The top-level Rules in order, as the set so far leaves them.
+    rule_order: Vec<RuleId>,
+}
+
+/// A Rule of the book and where it sits.
+struct RuleInfo {
+    rule: Rule,
+    parent: Option<RuleId>,
+    sub_rules: usize,
+}
+
+fn collect_rules(nodes: &[RuleNode], parent: Option<RuleId>, into: &mut HashMap<RuleId, RuleInfo>) {
+    for node in nodes {
+        into.insert(
+            node.rule.id,
+            RuleInfo {
+                rule: node.rule.clone(),
+                parent,
+                sub_rules: node.sub_rules.len(),
+            },
+        );
+        collect_rules(&node.sub_rules, Some(node.rule.id), into);
+    }
 }
 
 impl Known {
@@ -383,7 +602,7 @@ impl Known {
             .into_iter()
             .map(|account| (account.id, account))
             .collect();
-        let paths = book
+        let paths: HashMap<AccountId, Vec<String>> = book
             .categories()?
             .into_iter()
             .map(|entry| (entry.category.id, entry.path))
@@ -395,12 +614,52 @@ impl Known {
         let usual_currency = currencies
             .next()
             .filter(|first| currencies.all(|other| other == *first));
+        let tree = book.rules()?;
+        let mut rules = HashMap::new();
+        collect_rules(&tree, None, &mut rules);
         Ok(Self {
             accounts,
+            original_paths: paths.clone(),
             paths,
             keys: HashMap::new(),
             usual_currency,
+            rules,
+            rule_order: tree.iter().map(|node| node.rule.id).collect(),
         })
+    }
+
+    /// Works out the path of every category again, after a rename or a move.
+    fn refresh_paths(&mut self) {
+        let mut paths = HashMap::new();
+        for category in self.accounts.values().filter(|a| a.kind.is_category()) {
+            let mut names = vec![category.name.clone()];
+            let mut above = category.parent;
+            // A loop can't be in a book that was read, and a move into itself
+            // is refused, but a step limit keeps this safe regardless.
+            let mut steps = 0;
+            while let Some(id) = above {
+                let Some(parent) = self.accounts.get(&id) else {
+                    break;
+                };
+                names.push(parent.name.clone());
+                above = parent.parent;
+                steps += 1;
+                if steps > self.accounts.len() {
+                    break;
+                }
+            }
+            names.reverse();
+            paths.insert(category.id, names);
+        }
+        self.paths = paths;
+    }
+
+    /// The path of the category a Rule books to, if it books to one.
+    fn rule_category(&self, rule: &Rule) -> Option<Vec<String>> {
+        match rule.actions.book_to {
+            Some(BookTo::Category(id)) => Some(self.path(id)),
+            _ => None,
+        }
     }
 
     /// An open category the set may book to: one of the book's, by
@@ -534,6 +793,270 @@ impl Known {
         })
     }
 
+    /// Renames or moves a category of the book, or both.
+    fn edit_category(&mut self, value: &Value) -> Result<EditCategory, ToolError> {
+        let item = Object::read(
+            value,
+            &["category_id", "name", "parent_id", "new_parent", "to_top"],
+            "edit_categories",
+        )?;
+        let id = item.id("category_id")?.ok_or(ToolError::BadArgument {
+            argument: "category_id",
+        })?;
+        let reviewed = self
+            .accounts
+            .get(&id)
+            .filter(|category| category.kind.is_category() && !category.closed)
+            .ok_or(ToolError::UnknownCategory)?
+            .clone();
+        // A category made by this set isn't in the book to edit.
+        if self.keys.values().any(|&new| new == id) {
+            return Err(ToolError::UnknownCategory);
+        }
+        let name = item
+            .string("name")?
+            .map(|name| plain_text(name, "name"))
+            .transpose()?
+            .filter(|name| *name != reviewed.name);
+        let to_top = item.boolean("to_top")?.unwrap_or(false);
+        let parent = match (item.id("parent_id")?, item.string("new_parent")?, to_top) {
+            (None, None, false) => None,
+            (None, None, true) => Some(None),
+            (Some(parent), None, false) => Some(Some(parent)),
+            (None, Some(key), false) => Some(Some(self.keys.get(key).copied().ok_or(
+                ToolError::BadArgument {
+                    argument: "new_parent",
+                },
+            )?)),
+            _ => {
+                return Err(ToolError::BadArgument {
+                    argument: "parent_id",
+                });
+            }
+        };
+        if let Some(Some(parent_id)) = parent {
+            let parent = self
+                .accounts
+                .get(&parent_id)
+                .filter(|parent| parent.kind.is_category() && !parent.closed)
+                .ok_or(ToolError::UnknownCategory)?;
+            // Same kind and currency as the category, and not inside itself
+            // or one of its own subcategories.
+            if parent.kind != reviewed.kind || parent.currency != reviewed.currency {
+                return Err(ToolError::BadArgument {
+                    argument: "parent_id",
+                });
+            }
+            let mut above = Some(parent_id);
+            let mut steps = 0;
+            while let Some(next) = above {
+                if next == id || steps > self.accounts.len() {
+                    return Err(ToolError::BadArgument {
+                        argument: "parent_id",
+                    });
+                }
+                steps += 1;
+                above = self.accounts.get(&next).and_then(|a| a.parent);
+            }
+        }
+        let parent = parent.filter(|parent| *parent != reviewed.parent);
+        if name.is_none() && parent.is_none() {
+            return Err(ToolError::BadArgument {
+                argument: "category_id",
+            });
+        }
+        let new_name = name.clone().unwrap_or_else(|| reviewed.name.clone());
+        let new_parent = parent.unwrap_or(reviewed.parent);
+        let wanted = new_name.to_lowercase();
+        if self.accounts.values().any(|other| {
+            other.id != id
+                && other.kind == reviewed.kind
+                && other.parent == new_parent
+                && other.name.trim().to_lowercase() == wanted
+        }) {
+            return Err(ToolError::NameTaken);
+        }
+        let before = self.original_paths.get(&id).cloned().unwrap_or_default();
+        if let Some(category) = self.accounts.get_mut(&id) {
+            category.name = new_name;
+            category.parent = new_parent;
+        }
+        self.refresh_paths();
+        Ok(EditCategory {
+            id,
+            before,
+            after: self.path(id),
+            name,
+            parent,
+            reviewed,
+        })
+    }
+
+    /// A Rule of the book that the set doesn't touch yet.
+    fn rule_to_change(
+        &self,
+        item: &Object<'_>,
+        touched: &mut HashSet<RuleId>,
+    ) -> Result<&RuleInfo, ToolError> {
+        let id = item
+            .uuid("rule_id")?
+            .map(RuleId::from_bytes)
+            .ok_or(ToolError::BadArgument {
+                argument: "rule_id",
+            })?;
+        let info = self.rules.get(&id).ok_or(ToolError::UnknownRule)?;
+        if !touched.insert(id) {
+            return Err(ToolError::BadArgument {
+                argument: "rule_id",
+            });
+        }
+        Ok(info)
+    }
+
+    /// Changes an existing Rule: the name, whether all or any condition
+    /// counts, the conditions and the category it books to. What isn't named
+    /// stays.
+    fn edit_rule(
+        &self,
+        value: &Value,
+        touched: &mut HashSet<RuleId>,
+        names: &mut HashSet<String>,
+    ) -> Result<EditRule, ToolError> {
+        let item = Object::read(
+            value,
+            &[
+                "rule_id",
+                "name",
+                "match",
+                "conditions",
+                "category_id",
+                "new_category",
+            ],
+            "edit_rules",
+        )?;
+        let info = self.rule_to_change(&item, touched)?;
+        let before = info.rule.clone();
+        let mut rule = before.clone();
+        if let Some(name) = item.string("name")? {
+            let name = plain_text(name, "name")?;
+            let wanted = name.to_lowercase();
+            let taken = self.rules.values().any(|other| {
+                other.parent == info.parent
+                    && other.rule.id != before.id
+                    && other.rule.name.trim().to_lowercase() == wanted
+            });
+            if taken || (info.parent.is_none() && !names.insert(wanted)) {
+                return Err(ToolError::NameTaken);
+            }
+            rule.name = name;
+        }
+        match item.string("match")? {
+            None => {}
+            Some("all") => rule.match_mode = MatchMode::All,
+            Some("any") => rule.match_mode = MatchMode::Any,
+            Some(_) => return Err(ToolError::BadArgument { argument: "match" }),
+        }
+        if item.get("conditions").is_some() {
+            // A Rule with an IBAN, a pattern, a date, an amount or an account
+            // in it has conditions a model can't write back, so it couldn't
+            // change them without dropping those.
+            if !before.conditions.iter().all(writable) {
+                return Err(ToolError::NotChangeable);
+            }
+            let listed = item.array("conditions")?;
+            if listed.is_empty() || listed.len() > MAX_CONDITIONS {
+                return Err(ToolError::BadArgument {
+                    argument: "conditions",
+                });
+            }
+            rule.conditions = listed
+                .iter()
+                .map(condition)
+                .collect::<Result<Vec<_>, _>>()?;
+        }
+        if item.get("category_id").is_some() || item.get("new_category").is_some() {
+            if matches!(before.actions.book_to, Some(BookTo::Transfer(_))) {
+                return Err(ToolError::NotChangeable);
+            }
+            rule.actions.book_to = Some(BookTo::Category(self.target(&item)?));
+        }
+        if rule == before {
+            return Err(ToolError::BadArgument {
+                argument: "rule_id",
+            });
+        }
+        rule.check().map_err(|_| ToolError::BadArgument {
+            argument: "conditions",
+        })?;
+        Ok(EditRule {
+            before_category: self.rule_category(&before),
+            category: self.rule_category(&rule),
+            before,
+            rule,
+        })
+    }
+
+    /// Deletes a Rule that has no sub-Rules.
+    fn delete_rule(
+        &mut self,
+        value: &Value,
+        touched: &mut HashSet<RuleId>,
+    ) -> Result<DeleteRule, ToolError> {
+        let item = Object::read(value, &["rule_id"], "delete_rules")?;
+        let info = self.rule_to_change(&item, touched)?;
+        if info.sub_rules > 0 {
+            return Err(ToolError::NotChangeable);
+        }
+        let rule = info.rule.clone();
+        self.rule_order.retain(|id| *id != rule.id);
+        Ok(DeleteRule {
+            category: self.rule_category(&rule),
+            rule,
+        })
+    }
+
+    /// Moves a top-level Rule to a place in the list as it stands after the
+    /// changes before it in the set.
+    fn move_rule(
+        &mut self,
+        value: &Value,
+        touched: &mut HashSet<RuleId>,
+    ) -> Result<MoveRule, ToolError> {
+        let item = Object::read(value, &["rule_id", "position"], "move_rules")?;
+        let info = self.rule_to_change(&item, touched)?;
+        if info.parent.is_some() {
+            return Err(ToolError::NotChangeable);
+        }
+        let rule = info.rule.clone();
+        let to = item
+            .get("position")
+            .and_then(Value::as_u64)
+            .and_then(|position| usize::try_from(position).ok())
+            .filter(|position| (1..=self.rule_order.len()).contains(position))
+            .ok_or(ToolError::BadArgument {
+                argument: "position",
+            })?;
+        let from = self
+            .rule_order
+            .iter()
+            .position(|id| *id == rule.id)
+            .ok_or(ToolError::UnknownRule)?
+            + 1;
+        if from == to {
+            return Err(ToolError::BadArgument {
+                argument: "position",
+            });
+        }
+        self.rule_order.remove(from - 1);
+        self.rule_order.insert(to - 1, rule.id);
+        Ok(MoveRule {
+            id: rule.id,
+            name: rule.name,
+            from,
+            to,
+        })
+    }
+
     fn new_rule(
         &self,
         book: &Book,
@@ -647,6 +1170,18 @@ impl Known {
             part: part.id,
             reviewed: transaction,
         })
+    }
+}
+
+/// Whether a model can write the condition back in a call: a text test on
+/// the payee, the other party's name or the bank's text, or money in or out.
+fn writable(condition: &Condition) -> bool {
+    match condition {
+        Condition::Text {
+            field, operator, ..
+        } => *field != TextField::OtherPartyIban && *operator != TextOperator::Matches,
+        Condition::Amount(test) => matches!(test, AmountTest::MoneyIn | AmountTest::MoneyOut),
+        _ => false,
     }
 }
 

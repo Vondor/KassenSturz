@@ -589,3 +589,351 @@ fn the_function_is_offered_apart_from_the_read_functions() {
         .expect("T-23");
     assert!(row.contains("`propose_changes`"));
 }
+
+/// A book with three top-level Rules in a known order, a Rule with a
+/// sub-Rule and one that books a Transfer.
+fn with_rules() -> (Sample, Vec<Rule>) {
+    let mut sample = sample();
+    let mut rules = Vec::new();
+    for (name, text) in [("Grocer", "grocer"), ("Pets", "pet"), ("Market", "market")] {
+        let rule = Rule {
+            id: RuleId::generate(),
+            name: name.into(),
+            match_mode: MatchMode::All,
+            conditions: vec![Condition::Text {
+                field: TextField::Payee,
+                operator: TextOperator::Contains,
+                value: text.into(),
+                case_sensitive: false,
+            }],
+            actions: Actions {
+                book_to: Some(BookTo::Category(sample.groceries)),
+                payee: None,
+            },
+        };
+        sample.book.add_rule(&rule, None).expect("Rule");
+        rules.push(rule);
+    }
+    (sample, rules)
+}
+
+fn names(book: &Book) -> Vec<String> {
+    book.rules()
+        .expect("rules")
+        .into_iter()
+        .map(|node| node.rule.name)
+        .collect()
+}
+
+#[test]
+fn categories_are_renamed_and_moved_with_what_is_inside_them() {
+    let Sample {
+        mut book,
+        food,
+        groceries,
+        salary,
+        travel,
+        ..
+    } = sample();
+    let before = state(&book);
+    let proposal = propose(
+        &book,
+        &json!({
+            "new_categories": [{"key": "survival", "name": "Survival"}],
+            "edit_categories": [
+                {"category_id": food.to_string(), "name": "Essentials", "new_parent": "survival"},
+                {"category_id": groceries.to_string(), "name": "Supermarket"},
+            ],
+        }),
+    )
+    .expect("prepared");
+    assert_eq!(state(&book), before, "proposing changes nothing");
+    let changes = proposal.changes.changes();
+    let ProposedChange::NewCategory(survival) = &changes[0] else {
+        panic!("the new category first");
+    };
+    assert_eq!(survival.path, ["Survival"]);
+    let survival_id = survival.id;
+    let ProposedChange::EditCategory(edit) = &changes[1] else {
+        panic!("then the move");
+    };
+    assert_eq!(edit.before, ["Food"]);
+    assert_eq!(edit.after, ["Survival", "Essentials"]);
+    let ProposedChange::EditCategory(edit) = &changes[2] else {
+        panic!("then the rename");
+    };
+    assert_eq!(edit.before, ["Food", "Groceries"]);
+    assert_eq!(
+        edit.after,
+        ["Survival", "Essentials", "Supermarket"],
+        "the path after holds the earlier move"
+    );
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    assert_eq!(book.account(food).expect("there").name, "Essentials");
+    assert_eq!(book.account(food).expect("there").parent, Some(survival_id));
+    assert_eq!(book.account(groceries).expect("there").name, "Supermarket");
+    assert_eq!(
+        book.history().expect("history")[0].action,
+        Action::ApplyAiChanges
+    );
+    book.undo().expect("one undo takes all back");
+    assert_eq!(state(&book).0, before.0);
+
+    // Refused: into itself or below itself, another kind or currency,
+    // a name that is taken, nothing to change, twice, a category made by
+    // the same call, and an unknown one.
+    for (call, expected) in [
+        (
+            json!({"edit_categories": [{"category_id": food.to_string(), "parent_id": groceries.to_string()}]}),
+            "bad-argument parent_id",
+        ),
+        (
+            json!({"edit_categories": [{"category_id": groceries.to_string(), "parent_id": salary.to_string()}]}),
+            "bad-argument parent_id",
+        ),
+        (
+            json!({"edit_categories": [{"category_id": groceries.to_string(), "parent_id": travel.to_string()}]}),
+            "bad-argument parent_id",
+        ),
+        (
+            json!({"edit_categories": [{"category_id": groceries.to_string(), "name": " food ", "to_top": true}]}),
+            "ai-tools.name-taken",
+        ),
+        (
+            json!({"edit_categories": [{"category_id": food.to_string()}]}),
+            "bad-argument category_id",
+        ),
+        (
+            json!({"edit_categories": [{"category_id": food.to_string(), "name": "Food"}]}),
+            "bad-argument category_id",
+        ),
+        (
+            json!({"edit_categories": [
+                {"category_id": food.to_string(), "name": "A"},
+                {"category_id": food.to_string(), "name": "B"},
+            ]}),
+            "bad-argument category_id",
+        ),
+        (
+            json!({"edit_categories": [{"category_id": food.to_string(), "to_top": true, "parent_id": salary.to_string()}]}),
+            "bad-argument parent_id",
+        ),
+        (
+            json!({"edit_categories": [{"category_id": AccountId::generate().to_string(), "name": "X"}]}),
+            "ai-tools.unknown-category",
+        ),
+    ] {
+        assert_eq!(code(propose(&book, &call)), expected, "{call}");
+    }
+}
+
+#[test]
+fn rules_are_edited_moved_and_deleted_in_the_order_they_are_listed() {
+    let (
+        Sample {
+            mut book,
+            food,
+            groceries,
+            ..
+        },
+        rules,
+    ) = with_rules();
+    let [grocer, pets, market] = [rules[0].id, rules[1].id, rules[2].id];
+    let before = state(&book);
+    let proposal = propose(
+        &book,
+        &json!({
+            "new_rules": [{
+                "name": "Survival essentials",
+                "conditions": [{"field": "bank_text", "test": "contains", "text": "water"}],
+                "category_id": food.to_string(),
+            }],
+            "edit_rules": [{
+                "rule_id": grocer.to_string(),
+                "name": "Supermarket",
+                "match": "any",
+                "conditions": [{"field": "payee", "test": "contains", "text": "market"}],
+                "category_id": food.to_string(),
+            }],
+            "delete_rules": [{"rule_id": pets.to_string()}],
+            "move_rules": [{"rule_id": market.to_string(), "position": 1}],
+        }),
+    )
+    .expect("prepared");
+    assert_eq!(state(&book), before, "proposing changes nothing");
+    let changes = proposal.changes.changes();
+    let ProposedChange::EditRule(edit) = &changes[1] else {
+        panic!("the edit after the new Rule: {changes:?}");
+    };
+    assert_eq!(edit.before.name, "Grocer");
+    assert_eq!(
+        edit.before_category.as_deref(),
+        Some(&["Food".to_owned(), "Groceries".to_owned()][..])
+    );
+    assert_eq!(edit.category.as_deref(), Some(&["Food".to_owned()][..]));
+    assert_eq!(edit.rule.match_mode, MatchMode::Any);
+    let ProposedChange::MoveRule(moved) = &changes[3] else {
+        panic!("the move last");
+    };
+    // After the delete, "Market" is the second of three: Grocer, Market,
+    // Survival essentials.
+    assert_eq!((moved.from, moved.to), (2, 1));
+
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    assert_eq!(
+        names(&book),
+        ["Market", "Supermarket", "Survival essentials"]
+    );
+    let edited = book.rule(grocer).expect("kept its ID");
+    assert_eq!(edited.actions.book_to, Some(BookTo::Category(food)));
+    assert_eq!(edited.actions.payee, None);
+    assert_eq!(
+        book.history().expect("history")[0].action,
+        Action::ApplyAiChanges
+    );
+    book.undo().expect("one undo takes all back");
+    assert_eq!(names(&book), ["Grocer", "Pets", "Market"]);
+    assert_eq!(
+        book.rule(grocer).expect("back").actions.book_to,
+        Some(BookTo::Category(groceries))
+    );
+}
+
+#[test]
+fn a_rule_change_is_refused_when_it_cannot_be_reviewed_or_made_right() {
+    let (
+        Sample {
+            mut book,
+            checking,
+            food,
+            ..
+        },
+        rules,
+    ) = with_rules();
+    let grocer = rules[0].id;
+    // Rules a model can't write back in full, and one that books a Transfer.
+    let iban = Rule {
+        id: RuleId::generate(),
+        name: "By IBAN".into(),
+        match_mode: MatchMode::All,
+        conditions: vec![Condition::Text {
+            field: TextField::OtherPartyIban,
+            operator: TextOperator::Equals,
+            value: "DE89370400440532013000".into(),
+            case_sensitive: false,
+        }],
+        actions: Actions {
+            book_to: Some(BookTo::Transfer(checking)),
+            payee: None,
+        },
+    };
+    book.add_rule(&iban, None).expect("Rule");
+    let parent = Rule {
+        id: RuleId::generate(),
+        name: "Parent".into(),
+        ..rules[0].clone()
+    };
+    book.add_rule(&parent, None).expect("Rule");
+    let child = Rule {
+        id: RuleId::generate(),
+        name: "Child".into(),
+        ..rules[0].clone()
+    };
+    book.add_rule(&child, Some(parent.id)).expect("sub-Rule");
+    for (call, expected) in [
+        (
+            json!({"edit_rules": [{"rule_id": iban.id.to_string(), "conditions": [{"money_in": true}]}]}),
+            "ai-tools.not-changeable",
+        ),
+        (
+            json!({"edit_rules": [{"rule_id": iban.id.to_string(), "category_id": food.to_string()}]}),
+            "ai-tools.not-changeable",
+        ),
+        (
+            json!({"delete_rules": [{"rule_id": parent.id.to_string()}]}),
+            "ai-tools.not-changeable",
+        ),
+        (
+            json!({"move_rules": [{"rule_id": child.id.to_string(), "position": 1}]}),
+            "ai-tools.not-changeable",
+        ),
+        (
+            json!({"edit_rules": [{"rule_id": RuleId::generate().to_string(), "name": "X"}]}),
+            "ai-tools.unknown-rule",
+        ),
+        (
+            json!({"edit_rules": [{"rule_id": grocer.to_string(), "name": "pets"}]}),
+            "ai-tools.name-taken",
+        ),
+        (
+            json!({"edit_rules": [{"rule_id": grocer.to_string()}]}),
+            "bad-argument rule_id",
+        ),
+        (
+            json!({"edit_rules": [{"rule_id": grocer.to_string(), "name": "A"}], "delete_rules": [{"rule_id": grocer.to_string()}]}),
+            "bad-argument rule_id",
+        ),
+        (
+            json!({"move_rules": [{"rule_id": grocer.to_string(), "position": 1}]}),
+            "bad-argument position",
+        ),
+        (
+            json!({"move_rules": [{"rule_id": grocer.to_string(), "position": 0}]}),
+            "bad-argument position",
+        ),
+        (
+            json!({"move_rules": [{"rule_id": grocer.to_string(), "position": 99}]}),
+            "bad-argument position",
+        ),
+    ] {
+        assert_eq!(code(propose(&book, &call)), expected, "{call}");
+    }
+    // A name change alone keeps the conditions a model can't see.
+    let proposal = propose(
+        &book,
+        &json!({"edit_rules": [{"rule_id": iban.id.to_string(), "name": "By bank"}]}),
+    )
+    .expect("prepared");
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    assert_eq!(
+        book.rule(iban.id).expect("there").conditions,
+        iban.conditions
+    );
+}
+
+#[test]
+fn rule_changes_are_out_of_date_when_the_user_changed_the_rules_since() {
+    let (Sample { mut book, .. }, rules) = with_rules();
+    let [grocer, pets, market] = [rules[0].id, rules[1].id, rules[2].id];
+    for call in [
+        json!({"edit_rules": [{"rule_id": grocer.to_string(), "name": "Supermarket"}]}),
+        json!({"delete_rules": [{"rule_id": grocer.to_string()}]}),
+        json!({"move_rules": [{"rule_id": market.to_string(), "position": 1}]}),
+    ] {
+        let proposal = propose(&book, &call).expect("prepared");
+        // The user moves a Rule and renames another while the set waits.
+        book.move_rule(pets, None, 0).expect("moved");
+        let mut changed = book.rule(grocer).expect("there");
+        changed.name = "Grocer, edited".into();
+        book.update_rule(&changed).expect("edited");
+        let result = proposal.changes.apply(&mut book, Confirmed::by_the_user());
+        assert!(
+            matches!(result, Err(ChangeError::OutOfDate)),
+            "{call}: {result:?}"
+        );
+        // Back to how it was for the next call.
+        book.move_rule(pets, None, 1).expect("moved back");
+        changed.name = "Grocer".into();
+        book.update_rule(&changed).expect("edited back");
+    }
+    assert_eq!(names(&book), ["Grocer", "Pets", "Market"]);
+}

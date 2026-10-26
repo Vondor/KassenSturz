@@ -40,6 +40,12 @@ pub enum ToolError {
     NotCategorizable,
     /// The category is in another currency than the transaction.
     OtherCurrency,
+    /// No Rule has that ID.
+    UnknownRule,
+    /// A Rule or category can't be changed that way: a Rule with sub-Rules
+    /// can't be deleted, only a top-level Rule moves, a Rule that books a
+    /// Transfer or has conditions a model can't write keeps them.
+    NotChangeable,
     /// The debug log can't be read: AI or the log is off (D-173).
     #[cfg(feature = "debug-log")]
     DebugLogOff,
@@ -86,6 +92,8 @@ impl Report for ToolError {
             Self::NameTaken => ErrorReport::new("ai-tools.name-taken"),
             Self::NotCategorizable => ErrorReport::new("ai-tools.not-categorizable"),
             Self::OtherCurrency => ErrorReport::new("ai-tools.other-currency"),
+            Self::UnknownRule => ErrorReport::new("ai-tools.unknown-rule"),
+            Self::NotChangeable => ErrorReport::new("ai-tools.not-changeable"),
             #[cfg(feature = "debug-log")]
             Self::DebugLogOff => ErrorReport::new("ai-tools.debug-log-off"),
             Self::IssueBookData { field } => ErrorReport::new("ai-tools.issue-book-data")
@@ -127,6 +135,8 @@ mod tests {
             ToolError::NameTaken,
             ToolError::NotCategorizable,
             ToolError::OtherCurrency,
+            ToolError::UnknownRule,
+            ToolError::NotChangeable,
             #[cfg(feature = "debug-log")]
             ToolError::DebugLogOff,
             ToolError::Store(StoreError::AmountOverflow),

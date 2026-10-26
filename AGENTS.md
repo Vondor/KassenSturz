@@ -164,6 +164,7 @@ KassenSturz has a **native way to connect AI**, including **locally running mode
    - **Open the pull request as soon as the code passes locally** (as a draft if docs are still missing), so finished work is never stranded in a session that stops.
    - **Which bank, password manager or other service a person uses is personal data** (§3.1 rule 2). Pull requests, commits, issues and docs may name a bank or a program, never who uses it, and never quote a person's own setup.
    - **Keep the pull request template's sections whole.** In particular, keep the full "Human gates" list and tick what applies, or tick "No human gate applies"; never shorten the list to the one ticked line.
+   - **Set labels on the pull request** so past pull requests can be searched: one milestone (`m0` to `m7`), the areas it touches (`ai`, `bank`, `keychain`, `layout`, `ui`, `docs`, `ci`, `packaging`), one kind (`step`, `fix`, `ui-round`, `retro`), and `human-gate` whenever a human gate is ticked. Use only these labels. If you cannot set labels (no triage rights), say which ones apply in the description and the maintainer sets them.
 4. **Tests are required:**
    - unit tests for all core logic
    - property-based tests for `Money` and rounding

@@ -36,7 +36,7 @@ pub const MAX_ROUNDS: usize = 8;
 /// model's context (LM Studio starts with 4096 tokens) holds the
 /// instructions and the functions and little more, and the whole results of
 /// earlier questions made the provider cut off the newest message (M5-B23,
-/// D-236). The model's own answer to each question stays.
+/// D-237). The model's own answer to each question stays.
 pub const SHORTENED_RESULT: &str = r#"{"note":"KassenSturz shortened this result of an earlier question to save space. Call the function again when you need it."}"#;
 
 /// What the model is told when it asked for a function that isn't offered.

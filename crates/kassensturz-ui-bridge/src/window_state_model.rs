@@ -17,12 +17,12 @@ pub mod qobject {
         /// What the window looked like when it was closed last.
         #[qobject]
         #[qml_element]
-        #[qproperty(bool, known, READ)]
-        #[qproperty(i32, width, READ)]
-        #[qproperty(i32, height, READ)]
-        #[qproperty(i32, x, READ)]
-        #[qproperty(i32, y, READ)]
-        #[qproperty(bool, maximized, READ)]
+        #[qproperty(bool, known, READ, CONSTANT)]
+        #[qproperty(i32, width, READ, CONSTANT)]
+        #[qproperty(i32, height, READ, CONSTANT)]
+        #[qproperty(i32, x, READ, CONSTANT)]
+        #[qproperty(i32, y, READ, CONSTANT)]
+        #[qproperty(bool, maximized, READ, CONSTANT)]
         type WindowState = super::WindowStateRust;
     }
 

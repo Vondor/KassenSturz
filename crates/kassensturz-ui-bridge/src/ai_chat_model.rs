@@ -512,7 +512,11 @@ pub(crate) mod engine {
     /// The question for the feature a screen names, if it names one and
     /// the account is empty or an ID.
     pub(crate) fn feature_question(feature: &str, account_id: &str, today: Date) -> Option<String> {
-        Feature::from_key(feature)?.question(today, Some(account_id))
+        Feature::from_key(feature)?.question_in(
+            today,
+            Some(account_id),
+            crate::language::at_start().answer_language(),
+        )
     }
 
     /// Asks the question of the built-in feature `feature` (M5.9, D-222),

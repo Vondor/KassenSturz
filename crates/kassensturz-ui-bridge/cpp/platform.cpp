@@ -3,6 +3,7 @@
 
 #include "kassensturz-ui-bridge/cpp/platform.h"
 
+#include <QtCore/QLibrary>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QStorageInfo>
 #include <QtCore/QSysInfo>
@@ -27,6 +28,13 @@ void setWindowIcon(const QString &name)
     if (!icon.isNull()) {
         QGuiApplication::setWindowIcon(icon);
     }
+}
+
+void loadKI18nQml()
+{
+    // Never freed: the library has to stay loaded for the QML plugin.
+    auto *library = new QLibrary(QStringLiteral("KF6I18nQml"), 6);
+    library->load();
 }
 
 QString fileSystemType(const QString &path)

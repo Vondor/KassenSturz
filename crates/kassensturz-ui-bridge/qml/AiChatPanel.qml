@@ -63,7 +63,7 @@ ColumnLayout {
 
     function add(message: var) {
         messages = messages.concat([message]);
-        Qt.callLater(() => messageList.positionViewAtEnd());
+        messageList.followEnd = true;
     }
 
     // The review screen or the user's choice ended with a set.
@@ -285,9 +285,26 @@ ColumnLayout {
         ListView {
             id: messageList
 
+            // Whether the newest message stays in view. The delegates get
+            // their height after they are created, so the end is looked for
+            // again whenever the content grows; the user scrolling up on
+            // purpose ends it until the next message.
+            property bool followEnd: true
+
             clip: true
             spacing: Kirigami.Units.largeSpacing
             model: panel.messages
+
+            onContentHeightChanged: {
+                if (followEnd) {
+                    Qt.callLater(() => positionViewAtEnd());
+                }
+            }
+            onAtYEndChanged: {
+                if (moving) {
+                    followEnd = atYEnd;
+                }
+            }
 
             Controls.ScrollBar.vertical: Controls.ScrollBar {}
 

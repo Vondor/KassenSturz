@@ -483,6 +483,9 @@ Kirigami.ApplicationWindow {
     pageStack.columnView.columnResizeMode: Kirigami.ColumnView.SingleColumn
 
     header: ColumnLayout {
+        // The header is not stretched by the window, so without this a long
+        // banner is wider than the window and wraps nowhere.
+        width: root.width
         spacing: 0
 
         // The developer mode shows this on every screen for as long as it

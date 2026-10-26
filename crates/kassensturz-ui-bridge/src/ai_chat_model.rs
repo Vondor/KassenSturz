@@ -95,7 +95,8 @@ pub mod qobject {
         fn review_leave_out(self: &AiChat, phrase: &QString);
 
         /// The changes of the set `id` for the review screen: an array of
-        /// objects with a `kind` (`newCategory`, `newRule` or `categorize`)
+        /// objects with a `kind` (`newCategory`, `editCategory`, `newRule`,
+        /// `editRule`, `moveRule`, `deleteRule` or `categorize`)
         /// and its fields, or an error object.
         #[qinvokable]
         fn changes(self: &AiChat, id: &QString) -> QVariant;
@@ -417,6 +418,45 @@ pub(crate) mod engine {
                 conditions,
             } => map([
                 ("kind", text("newRule")),
+                ("name", text(name)),
+                ("bookTo", text(book_to)),
+                ("matchAll", QVariant::from(match_all)),
+                ("conditions", list(conditions.iter().map(condition_object))),
+            ]),
+            ChangeView::EditCategory { before, after } => map([
+                ("kind", text("editCategory")),
+                ("before", text(before)),
+                ("after", text(after)),
+            ]),
+            ChangeView::EditRule {
+                before_name,
+                name,
+                before_book_to,
+                book_to,
+                match_all,
+                conditions,
+            } => map([
+                ("kind", text("editRule")),
+                ("beforeName", text(before_name)),
+                ("name", text(name)),
+                ("beforeBookTo", text(before_book_to)),
+                ("bookTo", text(book_to)),
+                ("matchAll", QVariant::from(match_all)),
+                ("conditions", list(conditions.iter().map(condition_object))),
+            ]),
+            ChangeView::MoveRule { name, from, to } => map([
+                ("kind", text("moveRule")),
+                ("name", text(name)),
+                ("from", text(from)),
+                ("to", text(to)),
+            ]),
+            ChangeView::DeleteRule {
+                name,
+                book_to,
+                match_all,
+                conditions,
+            } => map([
+                ("kind", text("deleteRule")),
                 ("name", text(name)),
                 ("bookTo", text(book_to)),
                 ("matchAll", QVariant::from(match_all)),
@@ -1007,6 +1047,29 @@ mod tests {
                     ..ConditionForm::default()
                 }],
             },
+            ChangeView::EditCategory {
+                before: "Food".into(),
+                after: "Survival › Food".into(),
+            },
+            ChangeView::EditRule {
+                before_name: "Grocer".into(),
+                name: "Supermarket".into(),
+                before_book_to: "Food › Groceries".into(),
+                book_to: "Food".into(),
+                match_all: false,
+                conditions: Vec::new(),
+            },
+            ChangeView::MoveRule {
+                name: "Market".into(),
+                from: "3".into(),
+                to: "1".into(),
+            },
+            ChangeView::DeleteRule {
+                name: "Pets".into(),
+                book_to: String::new(),
+                match_all: true,
+                conditions: Vec::new(),
+            },
             ChangeView::Categorize {
                 date: "2026-10-03".into(),
                 payee: "Corner Grocery".into(),
@@ -1018,7 +1081,7 @@ mod tests {
         ];
         let object = changes_object(&views);
         let items = elements(&object).expect("an array");
-        assert_eq!(items.len(), 3);
+        assert_eq!(items.len(), 7);
         assert_eq!(keys(&items[0]), ["income", "kind", "name", "path"]);
         assert_eq!(text_of(&items[0], "kind"), "newCategory");
         assert!(!flag_of(&items[0], "income"));
@@ -1030,13 +1093,37 @@ mod tests {
         let conditions = list_of(&items[1], "conditions");
         assert_eq!(text_of(&conditions[0], "operator"), "contains");
         assert_eq!(text_of(&conditions[0], "value"), "<img src=x>");
+        assert_eq!(keys(&items[2]), ["after", "before", "kind"]);
+        assert_eq!(text_of(&items[2], "kind"), "editCategory");
+        assert_eq!(text_of(&items[2], "after"), "Survival › Food");
         assert_eq!(
-            keys(&items[2]),
+            keys(&items[3]),
+            [
+                "beforeBookTo",
+                "beforeName",
+                "bookTo",
+                "conditions",
+                "kind",
+                "matchAll",
+                "name"
+            ]
+        );
+        assert_eq!(text_of(&items[3], "beforeName"), "Grocer");
+        assert!(!flag_of(&items[3], "matchAll"));
+        assert_eq!(keys(&items[4]), ["from", "kind", "name", "to"]);
+        assert_eq!(text_of(&items[4], "to"), "1");
+        assert_eq!(
+            keys(&items[5]),
+            ["bookTo", "conditions", "kind", "matchAll", "name"]
+        );
+        assert_eq!(text_of(&items[5], "kind"), "deleteRule");
+        assert_eq!(
+            keys(&items[6]),
             [
                 "account", "after", "amount", "before", "date", "kind", "payee"
             ]
         );
-        assert_eq!(text_of(&items[2], "amount"), "-53,20 €");
-        assert_eq!(text_of(&items[2], "before"), "");
+        assert_eq!(text_of(&items[6], "amount"), "-53,20 €");
+        assert_eq!(text_of(&items[6], "before"), "");
     }
 }

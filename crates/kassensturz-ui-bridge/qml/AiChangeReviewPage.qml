@@ -43,6 +43,10 @@ Kirigami.ScrollablePage {
     property bool done: false
 
     readonly property var newCategories: changes.filter ? changes.filter(change => change.kind === "newCategory") : []
+    readonly property var editedCategories: changes.filter ? changes.filter(change => change.kind === "editCategory") : []
+    readonly property var editedRules: changes.filter ? changes.filter(change => change.kind === "editRule") : []
+    readonly property var movedRules: changes.filter ? changes.filter(change => change.kind === "moveRule") : []
+    readonly property var deletedRules: changes.filter ? changes.filter(change => change.kind === "deleteRule") : []
     readonly property var newRules: changes.filter ? changes.filter(change => change.kind === "newRule") : []
     readonly property var transactions: changes.filter ? changes.filter(change => change.kind === "categorize") : []
     readonly property bool shows: changes.code === undefined && !done
@@ -208,6 +212,41 @@ Kirigami.ScrollablePage {
 
         Kirigami.Heading {
             level: 3
+            visible: page.shows && page.editedCategories.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Changed categories")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.editedCategories : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        font.bold: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 and %2 are paths of categories", "%1 → %2", modelData.before, modelData.after)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info", "Its subcategories and its transactions stay with it.")
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
             visible: page.shows && page.newRules.length > 0
             text: page.i18nContext.i18nc("@title:group", "New Rules")
             textFormat: Text.PlainText
@@ -256,6 +295,172 @@ Kirigami.ScrollablePage {
                             textFormat: Text.PlainText
                             text: "• " + page.conditionText(modelData)
                         }
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.editedRules.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Changed Rules")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.editedRules : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        font.bold: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.beforeName !== modelData.name
+                            ? page.i18nContext.i18nc("@info %1 is the old name of a Rule, %2 the new one", "%1 → %2", modelData.beforeName, modelData.name)
+                            : modelData.name
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: modelData.bookTo !== ""
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.beforeBookTo !== modelData.bookTo
+                            ? page.i18nContext.i18nc("@info %1 and %2 are paths of categories", "Books matching transactions to %2 (before: %1).", modelData.beforeBookTo, modelData.bookTo)
+                            : page.i18nContext.i18nc("@info %1 is the path of a category", "Books matching transactions to %1.", modelData.bookTo)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.matchAll ? page.i18nContext.i18nc("@info", "When all of these hold:") : page.i18nContext.i18nc("@info", "When one of these holds:")
+                    }
+
+                    Repeater {
+                        model: modelData.conditions
+
+                        Controls.Label {
+                            required property var modelData
+
+                            Layout.fillWidth: true
+                            Layout.leftMargin: Kirigami.Units.largeSpacing
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            text: "• " + page.conditionText(modelData)
+                        }
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info", "Transactions it sorted earlier stay as they are.")
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.movedRules.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Rules in a new order")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.movedRules : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        font.bold: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.name
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 and %2 are places in the list of Rules, counted from 1", "Moves from place %1 to place %2. The first Rule that fits a transaction wins.", modelData.from, modelData.to)
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.deletedRules.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Rules that are deleted")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.deletedRules : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        font.bold: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.name
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: modelData.bookTo !== ""
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is the path of a category", "Booked matching transactions to %1.", modelData.bookTo)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.matchAll ? page.i18nContext.i18nc("@info", "When all of these hold:") : page.i18nContext.i18nc("@info", "When one of these holds:")
+                    }
+
+                    Repeater {
+                        model: modelData.conditions
+
+                        Controls.Label {
+                            required property var modelData
+
+                            Layout.fillWidth: true
+                            Layout.leftMargin: Kirigami.Units.largeSpacing
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            text: "• " + page.conditionText(modelData)
+                        }
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info", "Transactions it sorted earlier stay as they are.")
                     }
                 }
             }

@@ -14,7 +14,7 @@ A free, open-source personal finance app for the desktop, **simpler than KMyMone
 
 ## Status
 
-Pre-alpha. The core and the book file (milestones M1 and M2 in [`docs/ROADMAP.md`](docs/ROADMAP.md)) and the first usable app (M3) are in place; no release is tagged yet. Builds are numbered `0.YYMMDD.N` (build date and a counter) until the first shippable release, 1.0. Bank connections (M4) and AI features (M5) come later.
+Pre-alpha. The core and the book file (milestones M1 and M2 in [`docs/ROADMAP.md`](docs/ROADMAP.md)) and the first usable app (M3), bank connections (M4) and the AI features (M5) are in place and being tested; no release is tagged yet. Builds are numbered `0.YYMMDD.N` (build date and a counter) until the first shippable release, 1.0. To connect an AI, see [Connect an AI](docs/user/CONNECT_AN_AI.md), which also has the command that lets Claude Desktop or Claude Code read your book.
 
 What the app does today, with all numbers worked out by the core and shown in your regional format:
 

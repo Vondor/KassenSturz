@@ -287,19 +287,26 @@ ColumnLayout {
 
             // Whether the newest message stays in view. The delegates get
             // their height after they are created, so the end is looked for
-            // again whenever the content grows; the user scrolling up on
-            // purpose ends it until the next message.
+            // again whenever the content or the list changes size; the user
+            // scrolling up on purpose ends it until the next message.
             property bool followEnd: true
 
-            clip: true
-            spacing: Kirigami.Units.largeSpacing
-            model: panel.messages
-
-            onContentHeightChanged: {
+            function stickToEnd() {
                 if (followEnd) {
                     Qt.callLater(() => positionViewAtEnd());
                 }
             }
+
+            clip: true
+            spacing: Kirigami.Units.largeSpacing
+            model: panel.messages
+            // A conversation is short: keeping every message built makes the
+            // content height exact, so the scroll bar doesn't jump while the
+            // list estimates the height of messages it hasn't built.
+            cacheBuffer: 100000
+
+            onContentHeightChanged: stickToEnd()
+            onHeightChanged: stickToEnd()
             onAtYEndChanged: {
                 if (moving) {
                     followEnd = atYEnd;
@@ -369,7 +376,11 @@ ColumnLayout {
     Controls.Label {
         Layout.fillWidth: true
         Layout.leftMargin: Kirigami.Units.smallSpacing
-        visible: panel.chat.busy
+        // Always laid out, so the list above doesn't change size, and its
+        // scroll bar doesn't jump, each time the AI starts and stops thinking.
+        Layout.minimumHeight: Kirigami.Units.gridUnit * 1.5
+        opacity: panel.chat.busy ? 1 : 0
+        Accessible.ignored: !panel.chat.busy
         wrapMode: Text.Wrap
         textFormat: Text.PlainText
         text: panel.stopping

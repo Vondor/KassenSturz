@@ -5,7 +5,8 @@
 //! user is on.
 //!
 //! The developer mode writes a debug log of fixed event names, screens and
-//! error codes (`kassensturz_core::debug_log`). It starts only when the app
+//! error codes (`kassensturz_core::debug_log`), and a transcript of the
+//! chat in a file of its own (D-235). It starts only when the app
 //! is started from a terminal with `KASSENSTURZ_DEBUG_LOG=1`: Settings has
 //! no switch for it, and nothing in the app mentions it except the banner
 //! and the window title that show while it runs, since the user's privacy
@@ -129,6 +130,17 @@ pub fn log() -> &'static kassensturz_core::debug_log::DebugLog {
     static LOG: std::sync::OnceLock<kassensturz_core::debug_log::DebugLog> =
         std::sync::OnceLock::new();
     LOG.get_or_init(kassensturz_core::debug_log::DebugLog::user)
+}
+
+/// Notes a step in the developer mode's transcript of the chat (D-235); a
+/// call that does nothing outside the developer mode and in a build
+/// without the debug log. `fields` are the step's texts.
+#[cfg(feature = "ai")]
+pub fn transcribe(kind: &'static str, fields: &[(&'static str, &str)]) {
+    #[cfg(feature = "debug-log")]
+    log().transcript(kind, fields);
+    #[cfg(not(feature = "debug-log"))]
+    let _ = (kind, fields);
 }
 
 /// Notes the event `Event::$event` of `kassensturz_core::debug_log` in the

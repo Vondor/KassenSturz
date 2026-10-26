@@ -495,7 +495,7 @@ Kirigami.ApplicationWindow {
             position: Kirigami.InlineMessage.Position.Header
             type: Kirigami.MessageType.Error
             visible: developerMode.on
-            text: root.i18nContext.i18nc("@info", "Developer mode: KassenSturz is writing a log of what it does on this computer, such as which screens open and which errors happen. It leaves out amounts, names and passwords, but your privacy can't be guaranteed while this mode runs. To end it, close KassenSturz and start it the usual way.")
+            text: root.i18nContext.i18nc("@info", "Developer mode: KassenSturz is writing a log of what it does on this computer, such as which screens open and which errors happen, and a full record of the chat: your questions, everything sent to the model and its replies, including data from your book. Your privacy can't be guaranteed while this mode runs. To end it, close KassenSturz and start it the usual way.")
             actions: [
                 Kirigami.Action {
                     icon.name: "folder-open"

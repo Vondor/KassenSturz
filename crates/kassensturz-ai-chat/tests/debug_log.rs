@@ -253,3 +253,80 @@ fn without_the_developer_mode_nothing_is_written_or_mentioned() {
             .ends_with("### KassenSturz version\n\n0.261025.4")
     );
 }
+
+#[test]
+fn the_developer_mode_transcript_holds_the_whole_conversation() {
+    let book = space_colony();
+    let scratch = Scratch::new("transcript", "[AI]\nEnabled=true\n");
+    let (provider, _script) = Script::provider(
+        settings(true, Some("http://127.0.0.1:9/v1"), KeyUse::AskEachTime),
+        vec![
+            calls(&[("1", "list_categories", "{}")]),
+            says("Here are your categories."),
+            fails(AiError::BadReply),
+        ],
+    );
+    let mut chat =
+        ChatSession::new(BuildInfo::new("0.261025.4", "abc1234")).with_debug_log(scratch.log(true));
+    let key = Secret::new(TEST_KEY.to_owned());
+    let question = format!("{QUESTION} My key is sk-abcdefghijklmnop");
+    chat.ask(&book, &provider, Some(&key), &question, TODAY, &mut NoHooks)
+        .unwrap();
+    assert!(
+        chat.ask(&book, &provider, Some(&key), "Again?", TODAY, &mut NoHooks)
+            .is_err()
+    );
+
+    let text = fs::read_to_string(scratch.0.join("debug-log/chat.jsonl")).unwrap();
+    let lines: Vec<serde_json::Value> = text
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("a JSON line"))
+        .collect();
+    let kinds: Vec<&str> = lines.iter().map(|l| l["kind"].as_str().unwrap()).collect();
+    assert_eq!(
+        kinds,
+        [
+            "asked", "request", "reply", "called", "request", "reply", "answer", "asked",
+            "request", "reply", "failed",
+        ],
+        "{text}"
+    );
+    // Every line has a time and the turn of its question.
+    assert!(lines.iter().all(|l| l["at"].as_str().unwrap().len() == 24));
+    assert_eq!(lines[0]["turn"], lines[6]["turn"]);
+    assert_ne!(lines[0]["turn"], lines[7]["turn"]);
+    assert_eq!(lines[7]["turn"], lines[10]["turn"]);
+    assert_eq!(
+        lines[0]["question"],
+        format!("{QUESTION} My key is [removed]")
+    );
+    assert!(
+        lines[1]["body"]
+            .as_str()
+            .unwrap()
+            .contains("list_categories")
+    );
+    assert_eq!(lines[3]["function"], "list_categories");
+    assert!(lines[3]["result"].as_str().unwrap().contains("categories"));
+    assert_eq!(lines[6]["text"], "Here are your categories.");
+    assert_eq!(lines[10]["code"], "ai.bad-reply");
+    assert!(!text.contains(TEST_KEY) && !text.contains("sk-abcdefghijklmnop"));
+    // The event log is as before, and nothing reads the transcript back.
+    assert!(!scratch.log_text().contains(QUESTION));
+    assert_eq!(
+        scratch.log(true).read(usize::MAX).len(),
+        scratch.log_text().lines().count()
+    );
+
+    // Off: no transcript.
+    let off = Scratch::new("transcript-off", "[AI]\nEnabled=true\n");
+    let mut chat =
+        ChatSession::new(BuildInfo::new("0.261025.4", "abc1234")).with_debug_log(off.log(false));
+    let (provider, _) = Script::provider(
+        settings(true, Some("http://127.0.0.1:9/v1"), KeyUse::AskEachTime),
+        vec![says("Fine.")],
+    );
+    chat.ask(&book, &provider, Some(&key), QUESTION, TODAY, &mut NoHooks)
+        .unwrap();
+    assert!(!off.0.join("debug-log").exists());
+}

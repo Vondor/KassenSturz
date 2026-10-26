@@ -607,6 +607,7 @@ pub(crate) mod engine {
         let Some(Waiting { set, from }) = waiting else {
             return error(&ErrorText::plain("ai-changes.out-of-date"));
         };
+        crate::developer_mode::transcribe("changes-confirmed", &[("set", &format!("{set:?}"))]);
         // The only call that applies a set: the confirm button's (D-200).
         // No book open any more means the set is out of date.
         let result = session::with_book_mut(|book| confirm_in(book, set))
@@ -626,12 +627,14 @@ pub(crate) mod engine {
         }
         match result {
             Ok(()) => {
+                crate::developer_mode::transcribe("changes-applied", &[]);
                 crate::note!(ChangesApplied);
                 chat.as_mut().changed();
                 map([("ok", QVariant::from(&true))])
             }
             Err(failure) => {
                 let report = failure.report();
+                crate::developer_mode::transcribe("changes-failed", &[("code", report.code)]);
                 crate::note!(ChangesFailed, None, Some(report.code));
                 error(&code_text(&report))
             }
@@ -642,6 +645,12 @@ pub(crate) mod engine {
         crate::note!(ChangesDeclined);
         let mut rust = chat.as_mut().rust_mut();
         let state = &mut rust.state;
+        if let Some(waiting) = id_of(id).and_then(|id| state.sets.get(id)) {
+            crate::developer_mode::transcribe(
+                "changes-declined",
+                &[("set", &format!("{waiting:?}"))],
+            );
+        }
         let Some(Waiting { from, .. }) = id_of(id).and_then(|id| state.sets.take(id)) else {
             return;
         };

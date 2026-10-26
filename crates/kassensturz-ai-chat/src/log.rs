@@ -7,11 +7,11 @@
 //!
 //! The chat panel shows it (M5.8), so the user can see everything that left
 //! KassenSturz for the model. It lives only in memory, with the
-//! conversation, and is never written to a file: it holds the book's data
-//! that was sent. It never holds the provider's key, which is not part of
+//! conversation, and is never written to a file, except to the developer
+//! mode's transcript (D-235): it holds the book's data that was sent. It never holds the provider's key, which is not part of
 //! what is sent in the body (D-184). What reaches the opt-in debug log is
 //! only [`LogEntry::debug_event`]: event names, function names and error
-//! codes (D-173).
+//! codes (D-173); the transcript of D-235 gets the lines in full.
 
 #[cfg(feature = "debug-log")]
 use kassensturz_core::debug_log::{Event, known_detail};
@@ -95,6 +95,41 @@ impl LogEntry {
             Self::Answered { unverified: 0 } => (Event::ChatAnswered, None, None),
             Self::Answered { .. } => (Event::ChatAnswerUnverified, None, None),
             Self::Failed { code } => (Event::ChatFailed, None, Some(*code)),
+        }
+    }
+}
+
+#[cfg(feature = "debug-log")]
+impl LogEntry {
+    /// Writes this line in full to the developer mode's transcript (D-235),
+    /// which, unlike the event log, holds the question, the request, the
+    /// arguments and the result. Answers and failures are noted by the
+    /// session, which has their text.
+    pub fn transcribe(&self, log: &kassensturz_core::debug_log::DebugLog) {
+        match self {
+            Self::Asked { question } => log.transcript("asked", &[("question", question)]),
+            Self::Sent { round, body } => {
+                log.transcript("request", &[("round", &round.to_string()), ("body", body)])
+            }
+            Self::Called {
+                function,
+                arguments,
+                result,
+                error,
+            } => log.transcript(
+                "called",
+                &[
+                    ("function", function),
+                    ("arguments", arguments),
+                    ("result", result),
+                    ("error", error.unwrap_or("")),
+                ],
+            ),
+            Self::NotOffered { calls } => {
+                log.transcript("not-offered", &[("calls", &calls.to_string())]);
+            }
+            Self::Overview => log.transcript("overview", &[]),
+            Self::Answered { .. } | Self::Failed { .. } => {}
         }
     }
 }

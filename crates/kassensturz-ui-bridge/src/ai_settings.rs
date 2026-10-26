@@ -208,7 +208,7 @@ impl Store {
         key_use: KeyUse,
         key: Option<Secret>,
     ) -> Saved {
-        let provider = match ProviderSettings::new(address, model, key_use) {
+        let provider = match ProviderSettings::with_optional_model(address, model, key_use) {
             Ok(provider) => provider,
             Err(error) => return Saved::Refused(error),
         };
@@ -298,7 +298,7 @@ impl Store {
         if !config.enabled() {
             return Err(AiError::Off);
         }
-        let provider = config.provider()?;
+        let provider = config.connection()?;
         if fake {
             if provider.key_use != KeyUse::None && key.is_none() {
                 return Err(AiError::KeyNeeded);
@@ -430,7 +430,6 @@ mod tests {
         for (address, model, error) in [
             ("http://192.168.1.2:11434/v1", "m", AiError::PlainHttp),
             ("ftp://example.com", "m", AiError::BadAddress),
-            ("https://api.example.com/v1", "  ", AiError::NoProvider),
             ("", "m", AiError::NoProvider),
         ] {
             assert_eq!(
@@ -441,6 +440,21 @@ mod tests {
         }
         let text = std::fs::read_to_string(&file).expect("settings file");
         assert!(!text.contains("ProviderAddress"), "{text}");
+    }
+
+    #[test]
+    fn an_address_without_a_model_is_saved_and_can_list_models_but_not_chat() {
+        let (_folder, _file, store) = on();
+        let (_, mut keys) = keys();
+        let saved = store.save(&mut keys, "http://127.0.0.1:1/v1", "  ", KeyUse::None, None);
+        assert!(matches!(saved, Saved::Written { .. }), "{saved:?}");
+        // The test reaches the server (nothing listens on port 1) ...
+        assert_eq!(
+            store.test_connection(None, false),
+            Err(AiError::Unreachable)
+        );
+        // ... but there is no provider to ask a question yet.
+        assert_eq!(store.sample("", TODAY), Err(AiError::NoProvider));
     }
 
     #[test]

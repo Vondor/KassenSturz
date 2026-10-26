@@ -23,7 +23,7 @@ pub mod qobject {
         /// Whether AI features are switched on.
         #[qobject]
         #[qml_element]
-        #[qproperty(bool, available, READ)]
+        #[qproperty(bool, available, READ, CONSTANT)]
         #[qproperty(bool, enabled, READ, NOTIFY)]
         type AiSwitch = super::AiSwitchRust;
     }

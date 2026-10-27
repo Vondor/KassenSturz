@@ -63,6 +63,15 @@ pub const ANSWER_NOW: &str = "KassenSturz: you already have the results you need
     Answer the user's question now, in plain words, from those results. No function \
     can be called any more.";
 
+/// What a function's result becomes once its question is over. A small
+/// model's context (LM Studio starts with 4096 tokens) holds the
+/// instructions and the functions and little more, and the whole results of
+/// earlier questions made the provider cut off the newest message (M5-B23,
+/// D-237). The call stays, so the model still sees that its answer came from a
+/// function (#186, D-242). The note says to call for each new question and
+/// does not invite it to repeat the same call (M5-B24).
+pub const SHORTENED_RESULT: &str = r#"{"note":"KassenSturz left out this result of an earlier question to save space. Its figures are in the answer that follows. For the question you are answering now, call the functions you need before you answer."}"#;
+
 /// What the model is told when it asked for a function that isn't offered.
 /// It goes as a message of its own because a function's answer must name a
 /// call the provider knows, and such a call was never handed on (threat
@@ -331,12 +340,16 @@ impl ChatSession {
         for outcome in std::mem::take(&mut self.outcomes) {
             self.history.push(Message::user(outcome.text()));
         }
-        // Of earlier questions only what was asked and answered stays: a small
-        // model copies the calls it sees in the history (the same two calls
-        // over and over, M5-B24), and the results fill its context. A call
-        // that is needed again is one call away (D-237).
-        self.history
-            .retain(|message| message.role != Role::Tool && message.calls.is_empty());
+        // The calls of earlier questions stay, so the model keeps seeing that
+        // figures come from functions (#186: without them small models
+        // stopped calling and invented figures from about the fourth
+        // question). Their results are shortened because they fill a small
+        // model's context (D-237).
+        for message in &mut self.history {
+            if message.role == Role::Tool {
+                message.content = SHORTENED_RESULT.to_owned();
+            }
+        }
         let start = self.history.len();
         #[cfg(feature = "debug-log")]
         self.debug_log.start_turn();

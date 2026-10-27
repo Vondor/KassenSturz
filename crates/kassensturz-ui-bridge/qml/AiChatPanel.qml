@@ -46,8 +46,23 @@ ColumnLayout {
     readonly property string appliedName: i18nContext.i18nc("@info a change you made", "Applied changes the AI prepared")
 
     // The messages of the conversation, oldest first, and the tool-call log.
-    property var messages: []
-    property var logLines: []
+    // Lists with a model of their own, not arrays that are made again for
+    // each new line: a list shown from a new array deletes every delegate and
+    // builds them all again, and Kirigami's InlineMessage, which builds the
+    // buttons of its actions a moment after it appears, was deleted before it
+    // was done, which Kirigami reports as "Could not create delegate for
+    // ToolBarLayout" (M5-B26).
+    ListModel {
+        id: messages
+
+        dynamicRoles: true
+    }
+
+    ListModel {
+        id: logLines
+
+        dynamicRoles: true
+    }
     // What settings.load() found: whether a provider is saved, and how its
     // key is kept.
     property var form: ({})
@@ -78,19 +93,23 @@ ColumnLayout {
     }
 
     function add(message: var) {
-        messages = messages.concat([message]);
+        messages.append({ message: message });
         messageList.followEnd = true;
     }
 
     // The review screen or the user's choice ended with a set.
     function markHandled(setId: string, applied: bool) {
-        messages = messages.map(message => message.setId === setId ? ({ kind: "changesDone", applied: applied }) : message);
+        for (let i = 0; i < messages.count; i++) {
+            if (messages.get(i).message.setId === setId) {
+                messages.set(i, { message: { kind: "changesDone", applied: applied } });
+            }
+        }
     }
 
     function startOver() {
         chat.reset();
-        messages = [];
-        logLines = [];
+        messages.clear();
+        logLines.clear();
         stopping = false;
     }
 
@@ -161,7 +180,7 @@ ColumnLayout {
         target: panel.chat
 
         function onLogged(entry: var) {
-            panel.logLines = panel.logLines.concat([entry]);
+            logLines.append({ entry: entry });
         }
 
         function onReviewing(request: var) {
@@ -227,7 +246,7 @@ ColumnLayout {
 
         Controls.ToolButton {
             icon.name: "edit-clear-all"
-            enabled: panel.messages.length > 0 || panel.logLines.length > 0
+            enabled: messages.count > 0 || logLines.count > 0
             text: panel.i18nContext.i18nc("@action:button forget the conversation and start a new one", "New conversation")
             display: Controls.AbstractButton.IconOnly
             Controls.ToolTip.visible: hovered
@@ -316,7 +335,7 @@ ColumnLayout {
 
             clip: true
             spacing: Kirigami.Units.largeSpacing
-            model: panel.messages
+            model: messages
             // A conversation is short: keeping every message built makes the
             // content height exact, so the scroll bar doesn't jump while the
             // list estimates the height of messages it hasn't built.
@@ -337,17 +356,14 @@ ColumnLayout {
             Kirigami.PlaceholderMessage {
                 anchors.centerIn: parent
                 width: parent.width - Kirigami.Units.gridUnit * 2
-                visible: panel.messages.length === 0
+                visible: messages.count === 0
                 text: panel.i18nContext.i18nc("@info", "Ask a question about your book, for example how much you spent on food last month, or ask for help sorting your transactions.")
             }
 
             delegate: AiChatMessage {
-                required property var modelData
-
                 // Beside the scroll bar, not under it.
                 width: ListView.view.width - messageBar.width - Kirigami.Units.smallSpacing
                 ai: panel.ai
-                message: modelData
                 onReviewClicked: setId => panel.reviewChangesClicked(setId)
                 onDiscardClicked: setId => {
                     panel.chat.discard(setId);
@@ -364,7 +380,7 @@ ColumnLayout {
 
             clip: true
             spacing: Kirigami.Units.smallSpacing
-            model: panel.logLines
+            model: logLines
 
             Controls.ScrollBar.vertical: Controls.ScrollBar {
                 id: logBar
@@ -381,16 +397,13 @@ ColumnLayout {
             Kirigami.PlaceholderMessage {
                 anchors.centerIn: parent
                 width: parent.width - Kirigami.Units.gridUnit * 2
-                visible: panel.logLines.length === 0
+                visible: logLines.count === 0
                 text: panel.i18nContext.i18nc("@info", "Nothing was asked yet.")
             }
 
             delegate: AiChatLogLine {
-                required property var modelData
-
                 width: ListView.view.width - logBar.width - Kirigami.Units.smallSpacing
                 ai: panel.ai
-                entry: modelData
             }
         }
     }

@@ -190,8 +190,9 @@ fn changes(allowed: Permissions) -> String {
          Every transaction, account, category and Rule ID in a change must be copied from a \
          function's result for the question you are answering (search_transactions, \
          list_categories, list_rules and the others): never invent or guess an ID, and call the \
-         function first when you have none. The calls and results of earlier questions are left out \
-         to save space: call the function again when you need an ID or a figure from them. A \
+         function first when you have none. The results of earlier questions are left out \
+         to save space: for every question, call the functions you need first, also when an \
+         earlier answer looks the same, and take every ID and figure from those results. A \
          function that reports a wrong argument is a mistake of yours: correct it and call \
          again. The user can't call functions and doesn't know their names, so never tell them \
          to call one or name one.",

@@ -50,5 +50,5 @@ pub use log::{LogEntry, MAX_ARGUMENT_CHARS};
 pub use prompt::{BuildInfo, DATA_END, DATA_START};
 pub use session::{
     ANSWER_NOW, Answer, Cancel, ChatSession, Hooks, MAX_ROUNDS, Mode, NOT_OFFERED, NoHooks,
-    Outcome, looks_cut, sample_request,
+    Outcome, SHORTENED_RESULT, looks_cut, sample_request,
 };

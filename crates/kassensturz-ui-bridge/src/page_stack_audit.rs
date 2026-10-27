@@ -3,8 +3,8 @@
 
 //! Tests that read the QML for the page stack's habits, the way
 //! `plain_text_audit` does for labels (D-161). QML isn't run by the unit
-//! tests, so these keep three faults of M4 Phase 2 from coming back; each
-//! was seen in the running app first, with the click-through described in
+//! tests, so these keep faults seen in the running app from coming back; the
+//! first three were found in M4 Phase 2 with the click-through described in
 //! D-161.
 
 #[cfg(test)]
@@ -100,6 +100,36 @@ mod tests {
         let names = qml("BankAccountNames.qml");
         for kind in ["current", "savings", "credit-card"] {
             assert!(names.contains(&format!("case \"{kind}\":")), "{kind}");
+        }
+    }
+
+    /// The chat's lists must not be shown from an array that is made again
+    /// for each new line. The list then deleted every message and built them
+    /// all again, and the error boxes' action buttons, which Kirigami builds
+    /// a moment after the box appears, were deleted before they were done:
+    /// thousands of `kf.kirigami.layouts: Could not create delegate for
+    /// ToolBarLayout` lines in the terminal (M5-B26). A `ListModel` keeps
+    /// the messages that are already there.
+    #[test]
+    fn the_chat_lists_keep_their_messages_when_one_is_added() {
+        let panel = qml("AiChatPanel.qml");
+        for list in ["messages", "logLines"] {
+            assert!(
+                panel.contains(&format!("ListModel {{\n        id: {list}\n")),
+                "{list} must be a ListModel"
+            );
+            assert!(
+                !panel.contains(&format!("property var {list}")),
+                "{list} must not be an array property"
+            );
+            assert!(
+                !panel.contains(&format!("{list} = ")),
+                "{list} must not be set to a new array"
+            );
+            assert!(
+                panel.contains(&format!("model: {list}\n")),
+                "the list of {list} must be shown from the ListModel"
+            );
         }
     }
 }

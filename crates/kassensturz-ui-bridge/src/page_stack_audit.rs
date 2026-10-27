@@ -132,4 +132,20 @@ mod tests {
             );
         }
     }
+
+    /// The chat sidebar's `modal` once followed `wideScreen`, which counts
+    /// the width of the menu too. When that flipped (the menu's texts
+    /// change), both sidebars closed on their own while the user read the
+    /// AI's changes (M5-B36). The chat decides from the window's width only.
+    #[test]
+    fn the_chat_sidebar_does_not_follow_the_menus_width() {
+        let main = qml("Main.qml");
+        let (_, chat) = main.split_once("id: chatDrawer").expect("the chat drawer");
+        let (chat, _) = chat.split_once("contentItem:").expect("its content");
+        assert!(
+            !chat.contains("wideScreen"),
+            "the chat's modal must not use wideScreen"
+        );
+        assert!(chat.contains("chatBesideMinWidth"));
+    }
 }

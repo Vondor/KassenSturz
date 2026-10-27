@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-use kassensturz_ai_tools::{FUNCTIONS, Figures, call, check_numbers, overview};
+use kassensturz_ai_tools::{FUNCTIONS, Figures, ToolError, call, check_numbers, overview};
 use kassensturz_core::{AccountKind, Date, Money};
 use kassensturz_import::{Imported, KmySqlite, Limits, import};
 use kassensturz_pipeline::fill_book_from;
@@ -338,4 +338,158 @@ fn the_overview_is_small_and_names_this_and_last_month() {
     let size = serde_json::to_string(value).expect("JSON").len();
     assert!(size < 8_000, "the overview has {size} bytes");
     assert!(!output.figures.is_empty());
+}
+
+/// Every amount of a search's rows as minor units of euros.
+fn amounts(value: &Value) -> Vec<i64> {
+    value["rows"]
+        .as_array()
+        .expect("rows")
+        .iter()
+        .map(|row| eur(&row["amount"]).minor_units())
+        .collect()
+}
+
+/// All amounts of the book's entries, found day by day so that no day hits
+/// the row limit: an oracle that doesn't use the sort.
+fn all_amounts(book: &Book) -> Vec<i64> {
+    let mut all = Vec::new();
+    let mut day = Date::constant(2024, 7, 1);
+    let last = Date::constant(2027, 6, 30);
+    while day <= last {
+        let (value, _) = run(
+            book,
+            "search_transactions",
+            json!({ "from": day.to_string(), "to": day.to_string(), "limit": 50 }),
+        );
+        assert!(
+            value["matches"].as_u64().expect("a count") <= 50,
+            "{day}: the oracle needs every entry of the day"
+        );
+        all.extend(amounts(&value));
+        day = day.tomorrow().expect("a next day");
+    }
+    all
+}
+
+#[test]
+fn the_biggest_expenses_come_from_the_sort_and_say_what_was_left_out() {
+    let book = space_colony();
+    let mut oracle = all_amounts(&book);
+    oracle.sort_unstable();
+    let (value, _) = run(
+        &book,
+        "search_transactions",
+        json!({ "sort": "largest_out", "limit": 10 }),
+    );
+    assert_eq!(value["order"], "largest_out");
+    assert_eq!(amounts(&value), oracle[..10]);
+    let matches = value["matches"].as_u64().expect("a count");
+    assert_eq!(matches, oracle.len() as u64);
+    assert_eq!(value["rows_left_out"].as_u64(), Some(matches - 10));
+
+    let (value, _) = run(
+        &book,
+        "search_transactions",
+        json!({ "sort": "largest_in", "limit": 10 }),
+    );
+    let mut biggest_in = oracle.clone();
+    biggest_in.reverse();
+    assert_eq!(amounts(&value), biggest_in[..10]);
+}
+
+#[test]
+fn a_search_that_shows_everything_does_not_say_rows_were_left_out() {
+    let book = space_colony();
+    let (value, _) = run(
+        &book,
+        "search_transactions",
+        json!({ "from": "2027-02-24", "to": "2027-02-24", "limit": 50 }),
+    );
+    assert!(value["matches"].as_u64().expect("a count") > 0);
+    assert!(value["matches"].as_u64().expect("a count") <= 50);
+    assert!(value.get("rows_left_out").is_none());
+    assert_eq!(value["order"], "newest");
+}
+
+#[test]
+fn the_amount_filters_keep_entries_by_size_and_include_the_bounds() {
+    let book = space_colony();
+    let oracle = all_amounts(&book);
+    let sizes: Vec<i64> = oracle.iter().map(|amount| amount.abs()).collect();
+    let (value, _) = run(
+        &book,
+        "search_transactions",
+        json!({ "min_amount": "100", "max_amount": "200.50", "limit": 50 }),
+    );
+    let wanted = sizes
+        .iter()
+        .filter(|&&size| (10_000..=20_050).contains(&size))
+        .count();
+    assert_eq!(value["matches"].as_u64(), Some(wanted as u64));
+    assert!(wanted > 0, "the book has entries of that size");
+    for amount in amounts(&value) {
+        assert!((10_000..=20_050).contains(&amount.abs()), "{amount}");
+    }
+    // The bounds belong to the range: one entry's own size finds it.
+    let exact = sizes[0];
+    let text = format!("{}.{:02}", exact / 100, exact % 100);
+    let (value, _) = run(
+        &book,
+        "search_transactions",
+        json!({ "min_amount": text, "max_amount": text, "limit": 50 }),
+    );
+    let found = amounts(&value);
+    assert!(!found.is_empty());
+    assert!(found.iter().all(|amount| amount.abs() == exact));
+}
+
+#[test]
+fn a_sort_and_a_size_that_are_not_plain_are_refused() {
+    let book = space_colony();
+    for arguments in [
+        json!({ "sort": "biggest" }),
+        json!({ "min_amount": "-5" }),
+        json!({ "min_amount": "1e3" }),
+        json!({ "min_amount": "5." }),
+        json!({ "max_amount": ".5" }),
+        json!({ "max_amount": "1,000" }),
+        json!({ "max_amount": 5 }),
+        json!({ "max_amount": "1234567890123" }),
+        json!({ "min_amount": "0.1234567" }),
+    ] {
+        let error = call(&book, "search_transactions", &arguments, TODAY)
+            .expect_err(&arguments.to_string());
+        assert!(
+            matches!(error, ToolError::BadArgument { .. }),
+            "{arguments}: {error:?}"
+        );
+    }
+}
+
+#[test]
+fn moves_between_own_accounts_and_starting_balances_can_be_left_out() {
+    let book = space_colony();
+    let (all, _) = run(
+        &book,
+        "search_transactions",
+        json!({ "sort": "largest_out", "limit": 50 }),
+    );
+    let rows_of = |value: &Value| value["rows"].as_array().expect("rows").clone();
+    let is_move =
+        |row: &Value| row.get("transfer").is_some() || row.get("starting_balance").is_some();
+    // The biggest amount in the book is a starting balance: without the
+    // filter it would be called the biggest expense.
+    assert!(rows_of(&all).iter().any(is_move));
+    let (spending, _) = run(
+        &book,
+        "search_transactions",
+        json!({ "sort": "largest_out", "limit": 50, "skip_transfers": true }),
+    );
+    let rows = rows_of(&spending);
+    assert!(!rows.is_empty());
+    assert!(rows.iter().all(|row| !is_move(row)));
+    assert!(
+        spending["matches"].as_u64().expect("a count") < all["matches"].as_u64().expect("a count")
+    );
 }

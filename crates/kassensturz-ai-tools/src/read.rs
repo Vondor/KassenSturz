@@ -324,9 +324,108 @@ pub(crate) struct Search {
     pub(crate) from: Option<Date>,
     pub(crate) to: Option<Date>,
     pub(crate) limit: usize,
+    /// The order of the rows (#187).
+    pub(crate) sort: Sort,
+    /// Only entries of at least / at most this size (#187).
+    pub(crate) min_amount: Option<Size>,
+    pub(crate) max_amount: Option<Size>,
+    /// Leave out moves between the user's own accounts and starting
+    /// balances, so "biggest expenses" are spending (#187).
+    pub(crate) skip_transfers: bool,
     /// Only transactions with a part that has no account yet, i.e. no
     /// category (the row's `unsorted`).
     pub(crate) unsorted_only: bool,
+}
+
+/// How `search_transactions` orders its rows.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum Sort {
+    /// By day, newest first.
+    #[default]
+    Newest,
+    /// Most money out first, then less, then money in.
+    LargestOut,
+    /// Most money in first, then less, then money out.
+    LargestIn,
+}
+
+impl Sort {
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Newest => "newest",
+            Self::LargestOut => "largest_out",
+            Self::LargestIn => "largest_in",
+        }
+    }
+
+    pub(crate) fn from_name(name: &str) -> Option<Self> {
+        [Self::Newest, Self::LargestOut, Self::LargestIn]
+            .into_iter()
+            .find(|sort| sort.name() == name)
+    }
+}
+
+/// An amount's size as the model wrote it, e.g. `49.99`, compared exactly
+/// with the minor units of an entry (no floating point, D-065).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Size {
+    /// The digits without the point.
+    digits: i128,
+    /// How many of them are after the point.
+    places: u32,
+}
+
+/// The most digits before and after the point of a [`Size`].
+const SIZE_WHOLE_DIGITS: usize = 12;
+const SIZE_PLACES: usize = 6;
+
+impl Size {
+    /// Reads `[0-9]+` or `[0-9]+.[0-9]+`: no sign (money in and out both
+    /// count by size), no grouping, no exponent.
+    pub(crate) fn parse(text: &str) -> Option<Self> {
+        let (whole, fraction) = text.split_once('.').unwrap_or((text, ""));
+        let plain = |part: &str| part.bytes().all(|byte| byte.is_ascii_digit());
+        if whole.is_empty()
+            || whole.len() > SIZE_WHOLE_DIGITS
+            || fraction.len() > SIZE_PLACES
+            || (text.contains('.') && fraction.is_empty())
+            || !plain(whole)
+            || !plain(fraction)
+        {
+            return None;
+        }
+        Some(Self {
+            digits: format!("{whole}{fraction}").parse().ok()?,
+            places: u32::try_from(fraction.len()).ok()?,
+        })
+    }
+
+    /// How the size of `minor_units` (of a currency with `decimals` places)
+    /// compares with this size.
+    fn compare(self, minor_units: i64, decimals: u8) -> core::cmp::Ordering {
+        // |minor| / 10^decimals against digits / 10^places, cross-multiplied.
+        let entry = i128::from(minor_units).abs() * 10_i128.pow(self.places);
+        let wanted = self.digits * 10_i128.pow(u32::from(decimals));
+        entry.cmp(&wanted)
+    }
+}
+
+/// Whether `part` of `transaction` is money moved to or from another account
+/// of the user, or a starting balance, rather than spending or income: some
+/// other part is neither a category nor unsorted. The row says the same with
+/// `transfer` or `starting_balance`.
+fn is_move(names: &Names, transaction: &Transaction, part: &Split) -> Result<bool, ToolError> {
+    for split in transaction.splits() {
+        if core::ptr::eq(split, part) {
+            continue;
+        }
+        if let Some(id) = split.account
+            && !names.account(id)?.kind.is_category()
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// Whether `transaction` or its part `part` holds `text`, ignoring case.
@@ -345,8 +444,9 @@ fn holds(transaction: &Transaction, part: &Split, text: &str) -> bool {
 }
 
 /// `search_transactions`: the entries of the user's accounts that match,
-/// newest first, one row per account an entry is in, at most
-/// `search.limit` of them, with how many matched in all.
+/// in the order `search.sort` names (newest first by default), one row per
+/// account an entry is in, at most `search.limit` of them, with how many
+/// matched in all and how many rows were left out.
 pub(crate) fn search_transactions(
     book: &Book,
     w: &mut Writer<'_>,
@@ -402,6 +502,22 @@ pub(crate) fn search_transactions(
             {
                 continue;
             }
+            if search.skip_transfers && is_move(names, transaction, part)? {
+                continue;
+            }
+            if search.min_amount.is_some() || search.max_amount.is_some() {
+                let minor = part.account_amount().minor_units();
+                let decimals = w.digits(account.currency)?;
+                if search
+                    .min_amount
+                    .is_some_and(|min| min.compare(minor, decimals).is_lt())
+                    || search
+                        .max_amount
+                        .is_some_and(|max| max.compare(minor, decimals).is_gt())
+                {
+                    continue;
+                }
+            }
             found.push((date, transaction, part, account));
         }
     }
@@ -409,15 +525,39 @@ pub(crate) fn search_transactions(
     // ties, reversed.
     found.reverse();
     found.sort_by_key(|&(date, ..)| core::cmp::Reverse(date));
+    // Amounts of different currencies can't be compared, so they stay in
+    // groups by currency. The sort is stable: equal amounts stay newest
+    // first.
+    fn amount<'a>(entry: &(Date, &Transaction, &Split, &'a Account)) -> (&'a str, i64) {
+        let (_, _, part, account) = *entry;
+        (
+            account.currency.as_str(),
+            part.account_amount().minor_units(),
+        )
+    }
+    match search.sort {
+        Sort::Newest => {}
+        Sort::LargestOut => found.sort_by(|a, b| amount(a).cmp(&amount(b))),
+        Sort::LargestIn => found.sort_by(|a, b| {
+            let (a, b) = (amount(a), amount(b));
+            a.0.cmp(b.0).then(b.1.cmp(&a.1))
+        }),
+    }
 
     let mut rows = Vec::new();
     for &(date, transaction, part, account) in found.iter().take(search.limit) {
         rows.push(search_row(w, names, (date, transaction, part, account))?);
     }
-    Ok(json!({
+    let mut result = json!({
         "matches": w.count(found.len()),
+        "order": search.sort.name(),
         "rows": rows,
-    }))
+    });
+    // So a model never takes the rows shown for all of the matches (#187).
+    if found.len() > search.limit {
+        result["rows_left_out"] = w.count(found.len() - search.limit);
+    }
+    Ok(result)
 }
 
 /// One entry of a search: the day, the account, the amount as seen from it
@@ -664,4 +804,62 @@ fn condition_row(
         Condition::Currency(currency) => json!({ "currency": currency.as_str() }),
         Condition::Account(id) => json!({ "account": w.text(&names.name(*id)?) }),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use core::cmp::Ordering;
+
+    use super::*;
+
+    #[test]
+    fn a_size_is_compared_exactly_with_the_minor_units_of_its_currency() {
+        let size = |text: &str| Size::parse(text).expect(text);
+        assert_eq!(size("49.99").compare(4999, 2), Ordering::Equal);
+        assert_eq!(size("49.99").compare(-4999, 2), Ordering::Equal);
+        assert_eq!(size("49.99").compare(-5000, 2), Ordering::Greater);
+        assert_eq!(size("49.99").compare(4998, 2), Ordering::Less);
+        assert_eq!(size("50").compare(5000, 2), Ordering::Equal);
+        // More places than the currency has: 0.005 is below one cent.
+        assert_eq!(size("0.005").compare(1, 2), Ordering::Greater);
+        assert_eq!(size("0.010").compare(1, 2), Ordering::Equal);
+        // A currency without decimals (yen).
+        assert_eq!(size("500").compare(-500, 0), Ordering::Equal);
+        assert_eq!(size("500.5").compare(501, 0), Ordering::Greater);
+        assert_eq!(size("0").compare(i64::MIN, 2), Ordering::Greater);
+    }
+
+    #[test]
+    fn only_plain_decimal_text_is_a_size() {
+        for good in ["0", "7", "100", "49.99", "0.000001", "123456789012"] {
+            assert!(Size::parse(good).is_some(), "{good}");
+        }
+        for bad in [
+            "",
+            "-1",
+            "+1",
+            "1e3",
+            "5.",
+            ".5",
+            "1,5",
+            " 1",
+            "1 ",
+            "1.2.3",
+            "1234567890123",
+            "0.1234567",
+            "０",
+            "1_0",
+        ] {
+            assert!(Size::parse(bad).is_none(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn the_sort_names_round_trip() {
+        for sort in [Sort::Newest, Sort::LargestOut, Sort::LargestIn] {
+            assert_eq!(Sort::from_name(sort.name()), Some(sort));
+        }
+        assert_eq!(Sort::from_name("biggest"), None);
+        assert_eq!(Sort::default(), Sort::Newest);
+    }
 }

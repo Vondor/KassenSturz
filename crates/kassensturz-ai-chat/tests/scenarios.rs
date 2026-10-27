@@ -18,7 +18,7 @@ use common::{
 use kassensturz_ai::{AiError, KeyUse, PreparedRequest, Role};
 use kassensturz_ai_chat::{
     ANSWER_NOW, BuildInfo, Cancel, ChatError, ChatSession, DATA_START, Hooks, LogEntry, MAX_ROUNDS,
-    Mode, NOT_OFFERED, NoHooks, sample_request,
+    Mode, NOT_OFFERED, NoHooks, SHORTENED_RESULT, sample_request,
 };
 use kassensturz_ai_tools::{DATA_NOTE, DRAFT_ISSUE, FUNCTIONS, PROPOSE_CHANGES};
 use serde_json::Value;
@@ -369,16 +369,24 @@ fn the_conversation_goes_on_across_questions() {
         .unwrap();
     let last = &script.seen()[2].messages;
     let roles: Vec<Role> = last.iter().map(|m| m.role).collect();
-    // The first question's calls and results are left out (D-237).
+    // The first question's call stays and its result is shortened (D-237,
+    // D-242).
     assert_eq!(
         roles,
-        [Role::System, Role::User, Role::Assistant, Role::User]
+        [
+            Role::System,
+            Role::User,
+            Role::Assistant,
+            Role::Tool,
+            Role::Assistant,
+            Role::User
+        ]
     );
-    assert_eq!(chat.history().len(), 4);
+    assert_eq!(chat.history().len(), 6);
 }
 
 #[test]
-fn calls_and_results_of_earlier_questions_are_left_out_but_not_those_of_this_one() {
+fn calls_of_earlier_questions_stay_with_a_shortened_result() {
     let book = hostile_book();
     let (provider, script) = Script::provider(
         on(),
@@ -401,27 +409,38 @@ fn calls_and_results_of_earlier_questions_are_left_out_but_not_those_of_this_one
             .map(|m| m.role)
             .collect()
     };
-    // The first question's own second round sees its call and result.
+    // The first question's own second round sees its call and whole result.
     assert_eq!(
         kinds(1),
         [Role::System, Role::User, Role::Assistant, Role::Tool]
     );
-    // The second question sees the first one's question and answer, and its
-    // own call and result.
+    let whole = &script.seen()[1].messages[3];
+    assert_ne!(whole.content, SHORTENED_RESULT);
+    // The second question sees the first one's question, call, shortened
+    // result and answer, and its own call and result.
     assert_eq!(
         kinds(3),
         [
             Role::System,
             Role::User,
             Role::Assistant,
+            Role::Tool,
+            Role::Assistant,
             Role::User,
             Role::Assistant,
             Role::Tool
         ]
     );
-    let earlier = &script.seen()[3].messages[2];
-    assert_eq!(earlier.content, "You have one account.");
-    assert!(earlier.calls.is_empty());
+    let messages = &script.seen()[3].messages;
+    assert_eq!(messages[2].calls.len(), 1);
+    assert_eq!(messages[2].calls[0].name, "list_accounts");
+    assert_eq!(messages[3].content, SHORTENED_RESULT);
+    assert_eq!(
+        messages[3].call_id.as_deref(),
+        Some(messages[2].calls[0].id.as_str())
+    );
+    assert_eq!(messages[4].content, "You have one account.");
+    assert_ne!(messages[7].content, SHORTENED_RESULT);
 }
 
 /// Hooks that press cancel or refuse a request at a given round, and

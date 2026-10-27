@@ -1121,14 +1121,11 @@ mod tests {
         assert_eq!(id(&csv, "umsaetze.CSV"), "csv");
         assert_eq!(id(b"some notes", "notes.txt"), "csv");
         assert_eq!(id(b"%PDF-1.7 ...", "statement.pdf"), "input.unknown-format");
-        let kmy = std::fs::read_dir(
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../kassensturz-import/tests/golden/kmy"),
-        )
-        .expect("kmy samples")
-        .filter_map(Result::ok)
-        .find(|entry| entry.path().extension().is_some_and(|ext| ext == "kmy"))
-        .expect("a .kmy sample");
-        let book = std::fs::read(kmy.path()).expect("read");
+        // One named sample: the first file `read_dir` returns changes with the
+        // folder, and the folder also holds broken files made to be refused.
+        let kmy = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../kassensturz-import/tests/golden/kmy/features.kmy");
+        let book = std::fs::read(&kmy).expect("read");
         assert_eq!(id(&book, "household.kmy"), "input.whole-book");
         // The content wins over the name when it is recognized for sure.
         assert_eq!(id(&book, "household.csv"), "input.whole-book");

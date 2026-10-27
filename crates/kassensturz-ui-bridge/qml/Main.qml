@@ -47,6 +47,9 @@ Kirigami.ApplicationWindow {
         "rules": rulesPage,
         "settings": settingsPage,
     })
+    // The window width, in grid units, from which the chat sidebar sits
+    // beside the page: the sidebar's own 22 and 28 for the page.
+    readonly property int chatBesideMinWidth: 50
     // Whether the first-run steps are done, so the side menu is offered.
     readonly property bool started: bookSession.open && firstStartState.hasAccount
 
@@ -639,14 +642,18 @@ Kirigami.ApplicationWindow {
 
     // The chat sidebar on the right (M5.8, D-047, D-210): opened and closed
     // with its handle or the menu entry. While the switch is off neither is
-    // shown (D-013). Side by side with the page in a wide window, over it in
-    // a narrow one.
+    // shown (D-013). Side by side with the page in a window wide enough for
+    // both (`chatBesideMinWidth`), over it in a narrower one. It doesn't use
+    // `wideScreen`, which also counts the width of the menu: that width
+    // changes with the menu's texts, and when `wideScreen` flipped, both
+    // sidebars closed by themselves while the user reviewed AI changes
+    // (M5-B36).
     contextDrawer: Kirigami.OverlayDrawer {
         id: chatDrawer
 
         edge: Qt.RightEdge
         enabled: aiSwitch.enabled && root.started
-        modal: !root.wideScreen
+        modal: root.width < Kirigami.Units.gridUnit * root.chatBesideMinWidth
         handleVisible: aiSwitch.enabled && root.started
         handleClosedIcon.source: "dialog-messages"
         handleOpenIcon.source: "go-next"

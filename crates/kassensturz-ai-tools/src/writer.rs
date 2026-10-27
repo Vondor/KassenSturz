@@ -29,19 +29,23 @@ impl<'a> Writer<'a> {
         }
     }
 
+    /// The decimal places of `currency` in this book.
+    pub(crate) fn digits(&mut self, currency: CurrencyCode) -> Result<u8, StoreError> {
+        match self.digits.get(&currency) {
+            Some(&digits) => Ok(digits),
+            None => {
+                let digits = self.book.currency_minor_digits(currency)?;
+                self.digits.insert(currency, digits);
+                Ok(digits)
+            }
+        }
+    }
+
     /// `amount` as exact decimal text with `.` as the decimal mark and the
     /// currency's decimal places, e.g. `-1234.50` (D-065): never a JSON
     /// number, which a reader may take as floating point.
     pub(crate) fn amount(&mut self, amount: Money) -> Result<Value, StoreError> {
-        let currency = amount.currency();
-        let digits = match self.digits.get(&currency) {
-            Some(&digits) => digits,
-            None => {
-                let digits = self.book.currency_minor_digits(currency)?;
-                self.digits.insert(currency, digits);
-                digits
-            }
-        };
+        let digits = self.digits(amount.currency())?;
         self.figures.add_money(amount, digits);
         Ok(Value::String(decimal_text(amount.minor_units(), digits)))
     }

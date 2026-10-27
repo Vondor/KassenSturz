@@ -61,13 +61,19 @@ pub const FUNCTIONS: &[Function] = &[
     },
     Function {
         name: "search_transactions",
-        description: "Finds entries in the user's accounts, newest first, one row per account \
-            an entry is in, with the amount as seen from that account (money in positive, \
+        description: "Finds entries in the user's accounts, newest first unless \
+            \"sort\" says otherwise, one row per account an entry is in, with the amount as seen from that account (money in positive, \
             money out negative), the payee, memo and bank text, and the category, the other \
-            account of a transfer, or \"unsorted\": true. Returns how many matched in all and \
-            at most \"limit\" rows. All filters are optional and combine. With \
-            \"unsorted_only\" only entries not sorted into a category yet are found.",
-        parameters: r#"{"type":"object","properties":{"text":{"type":"string","maxLength":100,"description":"Text to find in the payee, memo or bank text, ignoring case."},"account_id":{"type":"string","description":"Only entries of this account, ID from list_accounts."},"category_id":{"type":"string","description":"Only transactions booked to this category or one below it, ID from list_categories."},"from":{"type":"string","format":"date","description":"First booking day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last booking day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most rows to return. Default 20."},"unsorted_only":{"type":"boolean","description":"Only entries that have no category yet. Default false."}},"additionalProperties":false}"#,
+            account of a transfer, or \"unsorted\": true. Returns how many matched in all, \
+            at most \"limit\" rows and, when rows were cut off, \"rows_left_out\". All filters \
+            are optional and combine. With \"unsorted_only\" only entries not sorted into a \
+            category yet are found. \"min_amount\" and \"max_amount\" keep entries by their size, \
+            money in and out alike. \"sort\" \"largest_out\" lists the most money out first \
+            (the biggest expenses), \"largest_in\" the most money in first; rows of different \
+            currencies are grouped by currency. For the biggest expenses use \
+            \"sort\" \"largest_out\" with \"skip_transfers\". Sorting and filtering are done here, \
+            so use them instead of sorting rows yourself.",
+        parameters: r#"{"type":"object","properties":{"text":{"type":"string","maxLength":100,"description":"Text to find in the payee, memo or bank text, ignoring case."},"account_id":{"type":"string","description":"Only entries of this account, ID from list_accounts."},"category_id":{"type":"string","description":"Only transactions booked to this category or one below it, ID from list_categories."},"from":{"type":"string","format":"date","description":"First booking day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last booking day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most rows to return. Default 20."},"unsorted_only":{"type":"boolean","description":"Only entries that have no category yet. Default false."},"sort":{"type":"string","enum":["newest","largest_out","largest_in"],"description":"Order of the rows. Default newest."},"min_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at least this size, as plain decimal text without sign, e.g. 100 or 49.99."},"max_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at most this size, as plain decimal text without sign."},"skip_transfers":{"type":"boolean","description":"Leave out moves between the user's own accounts and starting balances, i.e. keep only spending and income. Use it for the biggest expenses. Default false."}},"additionalProperties":false}"#,
     },
     Function {
         name: "list_categories",
@@ -99,6 +105,10 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "category_id",
     "limit",
     "unsorted_only",
+    "sort",
+    "min_amount",
+    "max_amount",
+    "skip_transfers",
 ];
 
 /// The most characters of the text a search looks for.
@@ -175,6 +185,10 @@ pub fn call(book: &Book, name: &str, arguments: &Value, today: Date) -> Result<O
                 from: args.date("from")?,
                 to: args.date("to")?,
                 limit: args.limit()?,
+                sort: args.sort()?,
+                min_amount: args.size("min_amount")?,
+                max_amount: args.size("max_amount")?,
+                skip_transfers: args.boolean("skip_transfers")?.unwrap_or(false),
                 unsorted_only: args.boolean("unsorted_only")?.unwrap_or(false),
             };
             if let (Some(from), Some(to)) = (search.from, search.to)
@@ -322,6 +336,22 @@ impl<'a> Arguments<'a> {
             return Err(ToolError::BadArgument { argument: "text" });
         }
         Ok(Some(text.to_lowercase()))
+    }
+
+    fn sort(&self) -> Result<read::Sort, ToolError> {
+        self.string("sort")?
+            .map(|name| {
+                read::Sort::from_name(name).ok_or(ToolError::BadArgument { argument: "sort" })
+            })
+            .transpose()
+            .map(Option::unwrap_or_default)
+    }
+
+    /// An amount's size as plain decimal text.
+    fn size(&self, name: &'static str) -> Result<Option<read::Size>, ToolError> {
+        self.string(name)?
+            .map(|text| read::Size::parse(text).ok_or(ToolError::BadArgument { argument: name }))
+            .transpose()
     }
 
     fn limit(&self) -> Result<usize, ToolError> {

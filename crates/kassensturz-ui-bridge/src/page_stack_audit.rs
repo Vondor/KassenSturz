@@ -148,4 +148,25 @@ mod tests {
         );
         assert!(chat.contains("chatBesideMinWidth"));
     }
+
+    /// The menu's `modal` followed `wideScreen` too, and turned into an
+    /// overlay after a review of AI changes (#197). The review page is also
+    /// only opened through `showChangeReview`, which never stacks a second
+    /// review of the same changes (#199).
+    #[test]
+    fn the_menu_and_the_review_page_do_not_stack_surprises() {
+        let main = qml("Main.qml");
+        let (_, menu) = main.split_once("globalDrawer:").expect("the menu");
+        let (menu, _) = menu.split_once("actions:").expect("its actions");
+        assert!(
+            !menu.contains("wideScreen"),
+            "the menu's modal must not use wideScreen"
+        );
+        assert!(menu.contains("menuBesideMinWidth"));
+        assert_eq!(
+            main.matches("pushPage(aiChangeReviewPage").count(),
+            1,
+            "only showChangeReview may push the review page"
+        );
+    }
 }

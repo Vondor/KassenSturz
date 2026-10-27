@@ -50,6 +50,10 @@ Kirigami.ApplicationWindow {
     // The window width, in grid units, from which the chat sidebar sits
     // beside the page: the sidebar's own 22 and 28 for the page.
     readonly property int chatBesideMinWidth: 50
+    // The menu stays beside the page from this width (in grid units). Not
+    // `wideScreen`, which flipped after a review of AI changes and turned
+    // the menu into an overlay (#197).
+    readonly property int menuBesideMinWidth: 50
     // Whether the first-run steps are done, so the side menu is offered.
     readonly property bool started: bookSession.open && firstStartState.hasAccount
 
@@ -404,6 +408,38 @@ Kirigami.ApplicationWindow {
         return pageStack.replace(makePage(component, properties));
     }
 
+    // The review page of the AI's changes `setId`, if it is in the stack.
+    function changeReviewPageOf(setId: string): Item {
+        for (let i = pageStack.depth - 1; i >= 0; --i) {
+            const page = pageStack.get(i);
+            if (page && page.shows !== undefined && page.setId === setId) {
+                return page;
+            }
+        }
+        return null;
+    }
+
+    // Opens the review of the AI's changes `setId`. A review that is open
+    // already is shown again instead of a second one being stacked on it, so
+    // that closing it leads back to where the user came from (#199).
+    function showChangeReview(setId: string) {
+        const open = changeReviewPageOf(setId);
+        if (open) {
+            pageStack.pop(open);
+        } else {
+            pushPage(aiChangeReviewPage, { setId: setId });
+        }
+    }
+
+    // Closes the review of `setId`, and any other review of the same changes
+    // under it, which would ask for a confirmation that was given (#199).
+    function closeChangeReview(setId: string) {
+        pageStack.pop();
+        while (pageStack.depth > 1 && changeReviewPageOf(setId) === pageStack.currentItem) {
+            pageStack.pop();
+        }
+    }
+
     // Makes a page for the page stack (#77). Given the component, Kirigami
     // makes the page under an object that isn't drawn, and Qt warns that the
     // page "was not placed in the graphics scene" until the stack takes it.
@@ -532,48 +568,60 @@ Kirigami.ApplicationWindow {
     // One page at a time, also in a wide window.
     pageStack.columnView.columnResizeMode: Kirigami.ColumnView.SingleColumn
 
-    header: ColumnLayout {
+    header: Item {
+        id: headerBox
+
         // The header is not stretched by the window, so without this a long
         // banner is wider than the window and wraps nowhere.
         width: root.width
-        spacing: 0
+        implicitHeight: headerColumn.implicitHeight
 
-        // The developer mode shows this on every screen for as long as it
-        // runs, and it can't be closed (D-227).
-        Kirigami.InlineMessage {
-            Layout.fillWidth: true
-            position: Kirigami.InlineMessage.Position.Header
-            type: Kirigami.MessageType.Error
-            visible: developerMode.on
-            text: root.i18nContext.i18nc("@info", "Developer mode: KassenSturz is writing a log of what it does on this computer, such as which screens open and which errors happen, and a full record of the chat: your questions, everything sent to the model and its replies, including data from your book. Your privacy can't be guaranteed while this mode runs. To end it, close KassenSturz and start it the usual way.")
-            actions: [
-                Kirigami.Action {
-                    icon.name: "folder-open"
-                    text: root.i18nContext.i18nc("@action:button opens the folder of the developer mode's log", "Show the log")
-                    onTriggered: Qt.openUrlExternally(developerMode.folderUrl())
-                },
-                Kirigami.Action {
-                    icon.name: "edit-delete"
-                    text: root.i18nContext.i18nc("@action:button deletes the developer mode's log", "Delete the log")
-                    onTriggered: developerMode.clearLog()
-                }
-            ]
-        }
+        ColumnLayout {
+            id: headerColumn
 
-        // A book on a network drive opens, with this warning on every
-        // screen (D-038).
-        Kirigami.InlineMessage {
-            Layout.fillWidth: true
-            position: Kirigami.InlineMessage.Position.Header
-            type: Kirigami.MessageType.Warning
-            visible: bookSession.open && bookSession.networkDrive
-            text: root.i18nContext.i18nc("@info", "This book is on a network drive. Network drives can damage a book, because they don't save changes as reliably as this computer's own drive. Keep the book on this computer; a sync folder, such as Nextcloud's, is fine.")
+            // Kirigami moves the header left by the width of the open menu, and
+            // the banners with it. This puts them back at the window's edge (#198).
+            x: -headerBox.x
+            width: root.width
+            spacing: 0
+
+            // The developer mode shows this on every screen for as long as it
+            // runs, and it can't be closed (D-227).
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                position: Kirigami.InlineMessage.Position.Header
+                type: Kirigami.MessageType.Error
+                visible: developerMode.on
+                text: root.i18nContext.i18nc("@info", "Developer mode: KassenSturz is writing a log of what it does on this computer, such as which screens open and which errors happen, and a full record of the chat: your questions, everything sent to the model and its replies, including data from your book. Your privacy can't be guaranteed while this mode runs. To end it, close KassenSturz and start it the usual way.")
+                actions: [
+                    Kirigami.Action {
+                        icon.name: "folder-open"
+                        text: root.i18nContext.i18nc("@action:button opens the folder of the developer mode's log", "Show the log")
+                        onTriggered: Qt.openUrlExternally(developerMode.folderUrl())
+                    },
+                    Kirigami.Action {
+                        icon.name: "edit-delete"
+                        text: root.i18nContext.i18nc("@action:button deletes the developer mode's log", "Delete the log")
+                        onTriggered: developerMode.clearLog()
+                    }
+                ]
+            }
+
+            // A book on a network drive opens, with this warning on every
+            // screen (D-038).
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                position: Kirigami.InlineMessage.Position.Header
+                type: Kirigami.MessageType.Warning
+                visible: bookSession.open && bookSession.networkDrive
+                text: root.i18nContext.i18nc("@info", "This book is on a network drive. Network drives can damage a book, because they don't save changes as reliably as this computer's own drive. Keep the book on this computer; a sync folder, such as Nextcloud's, is fine.")
+            }
         }
     }
 
     globalDrawer: Kirigami.GlobalDrawer {
         enabled: root.started
-        modal: !root.wideScreen || !root.started
+        modal: root.width < Kirigami.Units.gridUnit * root.menuBesideMinWidth || !root.started
         drawerOpen: !modal
         // Also visible in a wide window: if the drawer was closed there (see
         // onModalChanged), the handle is the way back to the menu (M5-B19).
@@ -685,7 +733,7 @@ Kirigami.ApplicationWindow {
                 if (chatDrawer.modal) {
                     chatDrawer.close();
                 }
-                root.pushPage(aiChangeReviewPage, { setId: setId });
+                root.showChangeReview(setId);
             }
             onCloseClicked: chatDrawer.close()
             onChangesArrived: chatDrawer.open()
@@ -1023,7 +1071,7 @@ Kirigami.ApplicationWindow {
                     aiChat.changesUndone();
                 }
             }
-            onDoneClicked: pageStack.pop()
+            onDoneClicked: root.closeChangeReview(setId)
         }
     }
 

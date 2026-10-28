@@ -887,7 +887,7 @@ book
     part "A000004": -46.90 EUR, in the account -, bank id "ID-249", other party - -, text "Seed order 47"
     part "A000021": 46.90 EUR, in the account -, note "Seed order 47"
   transaction 250 on 2026-03-19, payee "Northern Ice Works", note "Subspace fee 23", entered 2026-03-19
-    part "A000004": -13.90 EUR, in the account -, bank id "ID-250", other party - -, text "Subspace fee 23"
+    part "A000004": -13.90 EUR, in the account -, bank id "ID-252", other party - -, text "Subspace fee 23"
     part "A000021": 13.90 EUR, in the account -, note "Subspace fee 23"
   transaction 251 on 2026-03-26, payee "Northern Ice Works", note "Reactor spare parts 9", entered 2026-03-26
     part "A000004": -18.20 EUR, in the account -, bank id "ID-251", other party - -, text "Reactor spare parts 9"

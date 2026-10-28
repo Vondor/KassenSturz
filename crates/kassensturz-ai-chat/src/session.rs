@@ -12,8 +12,8 @@ use kassensturz_ai::{
     AiError, Finish, FunctionSpec, Message, PreparedRequest, Provider, Role, ToolCall,
 };
 use kassensturz_ai_tools::{
-    ChangeSet, DRAFT_ISSUE, FUNCTIONS, Figures, Function, IssueContext, IssueDraft,
-    PROPOSE_CHANGES, ToolError, Unverified, check_numbers, draft_issue, propose, propose_spec,
+    ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, PROPOSE_CHANGES,
+    ToolError, Unverified, check_numbers, draft_issue, propose, propose_spec, readable_functions,
     unique_codes,
 };
 #[cfg(feature = "debug-log")]
@@ -637,7 +637,8 @@ impl ChatSession {
     /// The overview for a model that can't call functions, with its figures
     /// added to those the answer may name.
     fn overview(&mut self, book: &Book, today: Date) -> Result<Value, ChatError> {
-        let output = kassensturz_ai_tools::overview(book, today).map_err(ChatError::Book)?;
+        let output = kassensturz_ai_tools::overview_allowed(book, today, self.permissions())
+            .map_err(ChatError::Book)?;
         self.figures.extend(&output.figures);
         Ok(output.value)
     }
@@ -664,7 +665,7 @@ impl ChatSession {
         if name == READ_DEBUG_LOG.name {
             return read_debug_log(&self.debug_log, arguments);
         }
-        kassensturz_ai_tools::call(book, name, arguments, today)
+        kassensturz_ai_tools::call_allowed(book, name, arguments, today, self.permissions())
     }
 
     /// What KassenSturz adds to an issue draft: the build, the screen, and
@@ -763,7 +764,7 @@ fn function_specs(log_readable: bool, permissions: Permissions) -> Vec<FunctionS
         parameters: serde_json::from_str(function.parameters)
             .unwrap_or_else(|_| json!({"type": "object"})),
     };
-    let mut specs: Vec<FunctionSpec> = FUNCTIONS.iter().map(spec).collect();
+    let mut specs: Vec<FunctionSpec> = readable_functions(permissions).map(spec).collect();
     specs.extend(propose_spec(permissions).map(|propose| FunctionSpec {
         name: propose.name.to_owned(),
         description: propose.description,
@@ -836,6 +837,7 @@ fn error_json(report: &ErrorReport, prepares: bool) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kassensturz_ai_tools::FUNCTIONS;
 
     #[test]
     fn a_request_is_cut_when_the_provider_counts_far_fewer_tokens() {

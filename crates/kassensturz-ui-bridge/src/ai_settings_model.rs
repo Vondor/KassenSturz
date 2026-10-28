@@ -149,6 +149,18 @@ pub mod qobject {
         #[cxx_name = "setAllows"]
         fn set_allows(self: &AiSettings, key: &QString, on: bool) -> bool;
 
+        /// Whether the field of a transaction whose lock has the settings
+        /// key `key` (`LockAmount` and so on, D-252) is locked against the
+        /// AI: what the user chose, or the default if they never did. False
+        /// for an unknown key, and always false in a build without AI.
+        #[qinvokable]
+        fn locked(self: &AiSettings, key: &QString) -> bool;
+
+        /// Locks or unlocks the field `key`. Returns whether that was saved.
+        #[qinvokable]
+        #[cxx_name = "setLocked"]
+        fn set_locked(self: &AiSettings, key: &QString, locked: bool) -> bool;
+
         /// The test ended: an object with `models` (a list of names) and
         /// `modelOffered` (whether the saved model is one of them), or an
         /// error object.
@@ -542,10 +554,54 @@ impl qobject::AiSettings {
     fn set_allows(&self, key: &QString, on: bool) -> bool {
         keep_allows(&crate::settings::Settings::user(), &key.to_string(), on)
     }
+
+    fn locked(&self, key: &QString) -> bool {
+        locked_in(&crate::settings::Settings::user(), &key.to_string())
+    }
+
+    fn set_locked(&self, key: &QString, locked: bool) -> bool {
+        keep_locked(&crate::settings::Settings::user(), &key.to_string(), locked)
+    }
+}
+
+/// Whether `settings` lock the field with the settings key `key`: what the
+/// user chose, else its default (D-252). A value that is not exactly `false`
+/// counts as locked, as the readers of the file count it. An unknown key and
+/// a build without AI give false.
+#[cfg(feature = "ai")]
+fn locked_in(settings: &crate::settings::Settings, key: &str) -> bool {
+    use kassensturz_core::ai_switch::{Field, GROUP};
+    let Some(field) = Field::ALL.into_iter().find(|f| f.key() == key) else {
+        return false;
+    };
+    match settings.text(GROUP, key).as_str() {
+        "" => field.locked_by_default(),
+        value => value != "false",
+    }
+}
+
+#[cfg(not(feature = "ai"))]
+fn locked_in(_settings: &crate::settings::Settings, _key: &str) -> bool {
+    false
+}
+
+/// Keeps the lock `key` in `settings`. Returns whether that was saved; an
+/// unknown key is not.
+#[cfg(feature = "ai")]
+fn keep_locked(settings: &crate::settings::Settings, key: &str, locked: bool) -> bool {
+    use kassensturz_core::ai_switch::{Field, GROUP};
+    Field::ALL.into_iter().any(|f| f.key() == key)
+        && settings.set_text(GROUP, key, if locked { "true" } else { "false" })
+}
+
+#[cfg(not(feature = "ai"))]
+fn keep_locked(_settings: &crate::settings::Settings, _key: &str, _locked: bool) -> bool {
+    false
 }
 
 /// Whether `settings` give the permission with the settings key `key`: what
-/// the user chose, else its default (D-239). An unknown key and a build
+/// the user chose, else its default, and for a Read cell also what a change
+/// or a deletion in its row gives (D-239, D-252). An unknown key and a build
 /// without AI give false. Whether AI itself is on is the other switch: the
 /// chat and the MCP server read both.
 #[cfg(feature = "ai")]
@@ -554,10 +610,16 @@ fn allows_in(settings: &crate::settings::Settings, key: &str) -> bool {
     let Some(permission) = Permission::ALL.into_iter().find(|p| p.key() == key) else {
         return false;
     };
-    match settings.text(GROUP, key).as_str() {
+    let chosen = |permission: Permission| match settings.text(GROUP, permission.key()).as_str() {
         "" => permission.on_by_default(),
         value => value == ON,
-    }
+    };
+    // A change or a deletion also gives the reading of its row (D-252).
+    chosen(permission)
+        || (permission.is_read()
+            && Permission::ALL.into_iter().any(|other| {
+                other.needs_read() && other.row() == permission.row() && chosen(other)
+            }))
 }
 
 #[cfg(not(feature = "ai"))]
@@ -695,7 +757,7 @@ mod write_tools_tests {
     #[cfg(feature = "ai")]
     #[test]
     fn the_permissions_read_back_as_the_chat_and_the_mcp_server_read_them() {
-        use kassensturz_core::ai_switch::{Permission, permissions_in};
+        use kassensturz_core::ai_switch::{Field, Permission, permissions_in};
         let folder = TestFolder::new();
         let file = folder.join("kassensturzrc");
         let settings = Settings::at(&file);
@@ -721,6 +783,23 @@ mod write_tools_tests {
                 );
             }
         }
+        // The locks read back the same way, and start as the defaults.
+        for field in Field::ALL {
+            let fresh = Settings::at(&folder.join("locks"));
+            assert_eq!(locked_in(&fresh, field.key()), field.locked_by_default());
+            for locked in [true, false] {
+                assert!(keep_locked(&settings, field.key(), locked));
+                assert_eq!(locked_in(&Settings::at(&file), field.key()), locked);
+                let written = std::fs::read_to_string(&file).expect("settings file written");
+                assert_eq!(
+                    permissions_in(&written).locked(field),
+                    locked,
+                    "{field:?} {written}"
+                );
+            }
+        }
+        assert!(!keep_locked(&settings, "Enabled", true));
+        assert!(!locked_in(&settings, "AllowNewRules"));
         // A key that is no permission is neither read nor written.
         assert!(!keep_allows(&settings, "Enabled", false));
         assert!(!allows_in(&settings, "Enabled"));

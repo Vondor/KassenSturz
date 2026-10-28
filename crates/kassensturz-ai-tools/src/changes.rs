@@ -85,11 +85,21 @@ pub struct ProposeSpec {
     pub parameters: String,
 }
 
+/// Whether the list of the kind `permission` may be prepared under
+/// `allowed`: its cell is on, and for sorting transactions the Category
+/// field isn't locked (D-252).
+fn section_allowed(allowed: Permissions, permission: Permission) -> bool {
+    match permission {
+        Permission::SortTransactions => allowed.sorts(),
+        other => allowed.allows(other),
+    }
+}
+
 /// What a model is offered for preparing changes under `allowed`, or
 /// `None` when nothing may be prepared: then the function isn't offered
 /// at all, and is refused if it is called (D-239).
 pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
-    if allowed.is_none() {
+    if !allowed.can_change() {
         return None;
     }
     let mut parameters: Value =
@@ -99,7 +109,7 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
         .and_then(Value::as_object_mut)
         .expect("the parameters have properties");
     for (name, permission) in SECTIONS {
-        if !allowed.allows(permission) {
+        if !section_allowed(allowed, permission) {
             properties.remove(name);
         }
     }
@@ -131,7 +141,7 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
         ),
     ]
     .into_iter()
-    .filter(|(permission, _)| allowed.allows(*permission))
+    .filter(|(permission, _)| section_allowed(allowed, *permission))
     .map(|(_, text)| text)
     .collect();
     let mut description = format!(
@@ -146,7 +156,7 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
              new_category (or new_parent).",
         );
     }
-    if allowed.allows(Permission::SortTransactions) {
+    if allowed.sorts() {
         description.push_str(
             " Only a transaction with one category, or none yet, can get another one; a \
              transfer between the user's own accounts can't.",
@@ -430,14 +440,19 @@ impl ChangeSet {
     /// prepared earlier (D-239).
     pub fn check_allowed(&self, allowed: Permissions) -> Result<(), ChangeError> {
         let permitted = self.changes.iter().all(|change| {
-            allowed.allows(match change {
-                ProposedChange::NewCategory(_) => Permission::NewCategories,
-                ProposedChange::EditCategory(_) => Permission::EditCategories,
-                ProposedChange::NewRule(_) => Permission::NewRules,
-                ProposedChange::EditRule(_) | ProposedChange::MoveRule(_) => Permission::EditRules,
-                ProposedChange::DeleteRule(_) => Permission::DeleteRules,
-                ProposedChange::Categorize(_) => Permission::SortTransactions,
-            })
+            section_allowed(
+                allowed,
+                match change {
+                    ProposedChange::NewCategory(_) => Permission::NewCategories,
+                    ProposedChange::EditCategory(_) => Permission::EditCategories,
+                    ProposedChange::NewRule(_) => Permission::NewRules,
+                    ProposedChange::EditRule(_) | ProposedChange::MoveRule(_) => {
+                        Permission::EditRules
+                    }
+                    ProposedChange::DeleteRule(_) => Permission::DeleteRules,
+                    ProposedChange::Categorize(_) => Permission::SortTransactions,
+                },
+            )
         });
         if permitted {
             Ok(())
@@ -655,7 +670,7 @@ pub fn propose(
     let deleted_rules = call.array("delete_rules")?;
     let transactions = call.array("categorize")?;
     for (name, permission) in SECTIONS {
-        if !allowed.allows(permission) && !call.array(name)?.is_empty() {
+        if !section_allowed(allowed, permission) && !call.array(name)?.is_empty() {
             return Err(ToolError::NotAllowed { argument: name });
         }
     }

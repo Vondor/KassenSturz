@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use kassensturz_core::ai_switch::Field;
 use kassensturz_core::{AccountType, Date, ErrorParam};
 use serde_json::json;
 
@@ -974,7 +975,7 @@ fn a_list_the_user_does_not_allow_is_refused_and_one_they_allow_is_prepared() {
         "new_categories": [{"key": "pets", "name": "Pets"}],
         "delete_rules": [{"rule_id": "x"}],
     });
-    let only_additions = Permissions::defaults();
+    let only_additions = additions();
     assert_eq!(
         super::propose(&s.book, &call, only_additions)
             .err()
@@ -1076,8 +1077,8 @@ fn a_set_is_checked_again_against_the_permissions_of_the_moment_it_is_confirmed(
     )
     .expect("prepared");
     let set = proposal.changes;
-    assert!(set.check_allowed(Permissions::defaults()).is_ok());
-    let later = Permissions::defaults().with(Permission::SortTransactions, false);
+    assert!(set.check_allowed(additions()).is_ok());
+    let later = additions().with(Permission::SortTransactions, false);
     let error = set.check_allowed(later).expect_err("turned off meanwhile");
     assert_eq!(error.report().code, "ai-changes.not-allowed");
     assert!(set.check_allowed(Permissions::NONE).is_err());
@@ -1086,6 +1087,11 @@ fn a_set_is_checked_again_against_the_permissions_of_the_moment_it_is_confirmed(
 #[test]
 fn a_model_is_offered_only_the_lists_the_user_allows() {
     assert_eq!(propose_spec(Permissions::NONE), None);
+    // Reading alone prepares nothing.
+    assert_eq!(
+        propose_spec(Permissions::NONE.with(Permission::RulesRead, true)),
+        None
+    );
     let all = propose_spec(Permissions::all()).expect("offered");
     assert_eq!(all.name, PROPOSE_CHANGES.name);
     let full: Value = serde_json::from_str(PROPOSE_CHANGES.parameters).expect("json");
@@ -1095,7 +1101,7 @@ fn a_model_is_offered_only_the_lists_the_user_allows() {
     );
     assert!(all.description.contains("move_rules"));
 
-    let additions = propose_spec(Permissions::defaults()).expect("offered");
+    let additions = propose_spec(additions()).expect("offered");
     let parameters: Value = serde_json::from_str(&additions.parameters).expect("json");
     let lists: Vec<&str> = parameters["properties"]
         .as_object()
@@ -1118,7 +1124,7 @@ fn a_model_is_offered_only_the_lists_the_user_allows() {
     assert!(!none_new.parameters.contains("new_categories"));
 
     // One kind alone is still a complete, valid tool.
-    for permission in Permission::ALL {
+    for permission in Permission::ALL.into_iter().filter(|p| !p.is_read()) {
         let spec = propose_spec(Permissions::NONE.with(permission, true)).expect("offered");
         let value: Value = serde_json::from_str(&spec.parameters).expect("json");
         assert!(
@@ -1128,4 +1134,34 @@ fn a_model_is_offered_only_the_lists_the_user_allows() {
                 .is_empty()
         );
     }
+}
+
+/// What the chat could prepare before the grid: the additions and sorting.
+fn additions() -> Permissions {
+    Permissions::NONE
+        .with(Permission::NewCategories, true)
+        .with(Permission::NewRules, true)
+        .with(Permission::SortTransactions, true)
+}
+
+#[test]
+fn sorting_transactions_needs_the_category_field_not_locked() {
+    let s = sample();
+    let call = json!({"categorize": [{"transaction_id": s.unsorted.to_string(), "category_id": s.groceries.to_string()}]});
+    let locked = additions().with_lock(Field::Category, true);
+    assert_eq!(
+        code(super::propose(&s.book, &call, locked)),
+        "ai-tools.not-allowed"
+    );
+    let unlocked = additions().with_lock(Field::Category, false);
+    assert!(super::propose(&s.book, &call, unlocked).is_ok());
+    // A locked Category field leaves the list out of what a model is offered.
+    let offered = propose_spec(locked).expect("the additions are still offered");
+    assert!(!offered.parameters.contains("categorize"));
+    // And a set prepared earlier is refused when the user locks it meanwhile.
+    let set = super::propose(&s.book, &call, unlocked)
+        .expect("prepared")
+        .changes;
+    assert!(set.check_allowed(unlocked).is_ok());
+    assert!(set.check_allowed(locked).is_err());
 }

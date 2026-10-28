@@ -70,7 +70,9 @@ pub use error::ToolError;
 #[cfg(feature = "ai")]
 pub use figures::{Figures, Unverified, check_numbers};
 #[cfg(feature = "ai")]
-pub use functions::{FUNCTIONS, Function, Output, call, overview};
+pub use functions::{
+    FUNCTIONS, Function, Output, call, call_allowed, overview, overview_allowed, readable_functions,
+};
 #[cfg(feature = "ai")]
 pub use issue::{
     DRAFT_ISSUE, ISSUE_PAGE, IssueContext, IssueDraft, MAX_LINK_BYTES, draft_issue, unique_codes,

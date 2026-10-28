@@ -75,7 +75,7 @@ It reads the book KassenSturz opened last. KassenSturz may stay open.
 
 ### Letting it prepare changes
 
-By default your AI tool can only read. To let it propose changes, turn on **Settings → AI provider and privacy… → Your own AI tools → Let my AI tools prepare changes**. Under **What the AI may prepare** on the same page you tick which kinds of change it may propose: new categories, new Rules, putting transactions into categories, renaming and moving categories, changing and reordering Rules, and deleting Rules. With nothing ticked it can only read. A change of these boxes counts the next time your AI tool asks for its list of functions, so quit it and start it again to see it.
+By default your AI tool can do nothing: under **What the AI may do** on the same page you switch on what it may read and change, row by row. To let it propose changes, turn on **Settings → AI provider and privacy… → Your own AI tools → Let my AI tools prepare changes**. In the same grid you switch on which kinds of change it may propose: new categories, new Rules, putting transactions into categories, renaming and moving categories, changing and reordering Rules, and deleting Rules. A change of these boxes counts the next time your AI tool asks for its list of functions, so quit it and start it again to see it.
 
 **Then quit your AI tool completely and start it again.** The tool asks KassenSturz for its list of functions only when it starts, so the functions for preparing changes appear after the restart. The same goes for switching the setting off.
 

@@ -213,19 +213,22 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 ## Letting your own AI tool prepare changes (M5.10)
 
 - **Where:** Settings → **AI provider and privacy…** → "Your own AI tools" → **Let my AI tools prepare changes**. It is off until you turn it on, and it only counts while "AI features" is on.
-- **What it can prepare:** what you tick under **What the AI may prepare** (D-239), the same boxes as for the chat: new categories, new Rules, putting transactions into categories, renaming and moving categories, changing and reordering Rules, deleting Rules. The first three are ticked at first, the other three are not. With none ticked it can only read, and its tool for preparing changes is not offered at all. It can't delete a category, change an amount or a date, or move money. Each change is shown as before and after, and nothing happens until you confirm; one Undo takes the whole set back. Changing a Rule doesn't re-sort what it sorted earlier.
+- **What it can prepare:** what you allow under **What the AI may do** (D-239, D-252), the same grid as for the chat: adding categories and Rules, putting transactions into categories, renaming and moving categories, changing and reordering Rules, deleting Rules. All are off at first. With no change allowed, its tool for preparing changes is not offered at all, and it reads only the rows you allowed. It can't delete a category, change an amount or a date, or move money. Each change is shown as before and after, and nothing happens until you confirm; one Undo takes the whole set back. Changing a Rule doesn't re-sort what it sorted earlier.
 - **Nothing changes without you:** the changes appear in KassenSturz's chat sidebar as "One of your own AI tools prepared N changes", the sidebar opens, and you read them on the same page as the chat's changes. Only **Confirm and make these changes** applies them, as one change that Undo takes back; **Throw away** refuses them. Your AI tool then hears whether you applied or refused them.
 - **KassenSturz must be open** with the same book. If it isn't, your AI tool hears so after about 10 seconds and nothing waits. If you take longer than about 45 seconds to decide, it hears that the changes still wait and can ask again later.
 - **How they get there:** through a folder only your user can open, `mcp-requests` in KassenSturz's data folder (with the Flatpak: `~/.var/app/io.github.vondor.KassenSturz/data/io.github.vondor.KassenSturz/mcp-requests`). No network port and no socket is involved. `kassensturz-mcp --request-folder` (with the Flatpak: `flatpak run --command=kassensturz-mcp io.github.vondor.KassenSturz --request-folder`) names the folder. Old files there are removed after an hour.
 - **In German:** *Meine KI-Programme dürfen Änderungen vorbereiten*.
 
-## What the AI may prepare (D-239)
+## What the AI may do (D-239, D-252)
 
-- **Where:** Settings → **AI provider and privacy…** → **What the AI may prepare**, six boxes: *Add new categories*, *Add new Rules*, *Put transactions into categories*, *Rename categories and move them*, *Change Rules and put them in another order*, *Delete Rules*. In German: *Neue Kategorien anlegen*, *Neue Regeln anlegen*, *Buchungen Kategorien zuordnen*, *Kategorien umbenennen und verschieben*, *Regeln ändern und neu ordnen*, *Regeln löschen*.
-- **What they do:** the AI can always read your book to answer questions. Each box lets it also prepare one kind of change. With no box ticked it can only read. They count for the chat and for your own AI tools alike.
+- **Where:** Settings → **AI provider and privacy…** → **What the AI may do**, a grid. Rows: *Categories*, *Rules*, *Accounts*, *Transactions*. Columns: *Read*, *Add*, *Change*, *Delete*. In German: *Lesen*, *Hinzufügen*, *Ändern*, *Löschen*.
+- **What the cells do:** a switch lets the AI do that with that part of your book. Everything is off at first, so the AI can do nothing until you switch something on. The grid counts for the chat and for your own AI tools alike.
+- **Change and Delete also give Read:** switching one on shows Read of that row on and keeps it on, because the AI can't change what it can't see. Add does not need Read.
+- **Greyed cells:** "not yet" means the AI can't do that yet (for example adding a transaction); "not offered" (deleting an account) is never offered.
+- **Locked fields:** under the grid, while Transactions/Change is on, you can lock fields of a transaction against the AI: amount, date, who paid or was paid, account, category, note. Amount, date and payee are locked at first. A lock protects a transaction you already have; a new one is checked in the list as always. A locked field can still be read. Today the AI can only put transactions into categories, so only the Category lock has an effect; the others start to work when the AI can change those fields.
 - **Nothing is applied without you:** whatever is allowed is still shown first, and only your confirm applies it. A kind that is off is not offered to the AI at all, and a button that needs it (Suggest categories, Prepare Rules) is hidden.
-- **At first:** adding categories and Rules and sorting transactions are ticked, the rest is not.
-- **Taking a box away:** works at once. Changes the AI prepared earlier that need it can no longer be confirmed ("These changes hold a kind of change that you have turned off").
+- **Taking a switch away:** works at once. Changes the AI prepared earlier that need it can no longer be confirmed ("These changes hold a kind of change that you have turned off").
+- **After the update that brought the grid:** every switch starts off; earlier choices were not carried over.
 
 ## Choosing the AI and what it may see (M5.7)
 

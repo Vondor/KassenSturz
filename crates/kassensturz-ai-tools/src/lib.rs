@@ -24,6 +24,10 @@
 //! only [`ChangeSet::apply`] with the user's [`Confirmed`] changes the book,
 //! as one change one undo takes back (D-171, D-198 to D-201).
 //!
+//! A model can also ask for a page of the app to be opened for the user, with
+//! [`open_page`]: a fixed list of pages, an account or a Rule by its ID, and
+//! nothing changed (D-265).
+//!
 //! While the user has turned on the debug log, [`read_debug_log`] lets a
 //! model read its fixed values, and [`draft_issue`] turns a model's words
 //! into an issue draft the user reads before opening it in the browser
@@ -49,6 +53,8 @@ mod figures;
 mod functions;
 #[cfg(feature = "ai")]
 mod issue;
+#[cfg(feature = "ai")]
+mod open_page;
 #[cfg(feature = "ai")]
 mod read;
 #[cfg(feature = "ai")]
@@ -77,5 +83,7 @@ pub use functions::{
 pub use issue::{
     DRAFT_ISSUE, ISSUE_PAGE, IssueContext, IssueDraft, MAX_LINK_BYTES, draft_issue, unique_codes,
 };
+#[cfg(feature = "ai")]
+pub use open_page::{OPEN_PAGE, PageTarget, open_page, open_page_allowed};
 #[cfg(feature = "ai")]
 pub use text::{DATA_NOTE, MAX_TEXT_CHARS};

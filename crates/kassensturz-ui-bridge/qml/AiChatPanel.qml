@@ -37,6 +37,10 @@ ColumnLayout {
     signal detachClicked()
     // The user's own AI tools prepared changes: the sidebar should show.
     signal changesArrived()
+    // The AI asked to open the page `name` (`overview`, `accounts`,
+    // `categories`, `rules` or `account`), about the account or Rule `id`
+    // when it has one (D-265). It only shows a page; nothing is changed.
+    signal openPageRequested(string name, string id)
 
     // The panel sits in a window of its own, not in the sidebar (D-250).
     property bool detached: false
@@ -214,6 +218,10 @@ ColumnLayout {
             });
             for (let i = 0; i < result.sets.length; i++) {
                 panel.add({ kind: "changes", setId: result.sets[i].id, count: result.sets[i].count });
+            }
+            if (result.page !== undefined) {
+                panel.add({ kind: "page", page: result.page.name, hasId: result.page.id !== "" });
+                panel.openPageRequested(result.page.name, result.page.id);
             }
             if (result.issue !== undefined) {
                 panel.add({

@@ -155,6 +155,7 @@ mod tests {
                 .iter()
                 .map(|&(argument, _)| ToolError::NotAllowed { argument }),
         );
+        examples.push(ToolError::NotAllowed { argument: "page" });
         examples.extend(
             crate::FUNCTIONS
                 .iter()
@@ -173,6 +174,7 @@ mod tests {
                 .iter()
                 .chain(CHANGE_ARGUMENTS)
                 .chain(crate::issue::FIELDS)
+                .chain(crate::open_page::FIELDS)
                 .map(|&argument| ToolError::BadArgument { argument }),
         );
         examples

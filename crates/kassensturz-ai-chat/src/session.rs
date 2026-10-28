@@ -12,9 +12,9 @@ use kassensturz_ai::{
     AiError, Finish, FunctionSpec, Message, PreparedRequest, Provider, Role, ToolCall,
 };
 use kassensturz_ai_tools::{
-    ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, PROPOSE_CHANGES,
-    ToolError, Unverified, check_numbers, draft_issue, propose, propose_spec, readable_functions,
-    unique_codes,
+    ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, OPEN_PAGE,
+    PROPOSE_CHANGES, PageTarget, ToolError, Unverified, check_numbers, draft_issue,
+    open_page_allowed, propose, propose_spec, readable_functions, unique_codes,
 };
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
@@ -178,6 +178,10 @@ pub struct Answer {
     /// if it made several, for the user to read (D-173, D-228). Nothing is
     /// sent: only the user opens the prefilled page.
     pub issue: Option<IssueDraft>,
+    /// The page the model asked to open for this question, the last one if
+    /// it asked for several (D-265). Opening it changes nothing in the
+    /// book; the front end opens it when the answer is shown and says so.
+    pub page: Option<PageTarget>,
 }
 
 /// What the front end does while a question runs. Every method has a
@@ -257,6 +261,8 @@ pub struct ChatSession {
     proposed: Vec<ChangeSet>,
     /// The issue draft the model prepared for the question under way.
     issue: Option<IssueDraft>,
+    /// The page the model asked to open for the question under way.
+    page: Option<PageTarget>,
     /// The debug log the conversation writes to and the model may read
     /// while AI and the log are on (D-173).
     #[cfg(feature = "debug-log")]
@@ -284,6 +290,7 @@ impl ChatSession {
             outcomes: Vec::new(),
             proposed: Vec::new(),
             issue: None,
+            page: None,
             #[cfg(feature = "debug-log")]
             debug_log: DebugLog::none(),
             screen: None,
@@ -417,6 +424,7 @@ impl ChatSession {
         self.history.push(Message::user(question));
         self.proposed.clear();
         self.issue = None;
+        self.page = None;
         let mut overview = None;
         let mut context_cut = false;
         if self.mode == Mode::Overview {
@@ -545,6 +553,7 @@ impl ChatSession {
                     context_cut,
                     changes: std::mem::take(&mut self.proposed),
                     issue: self.issue.take(),
+                    page: self.page.take(),
                 });
             }
             if closing {
@@ -602,6 +611,13 @@ impl ChatSession {
                     // Shown to the user, never sent from here (T-33).
                     draft_issue(book, &arguments, &self.issue_context()).map(|(draft, output)| {
                         self.issue = Some(draft);
+                        output
+                    })
+                } else if call.name == OPEN_PAGE.name {
+                    // Shown to the user when the answer is ready; changes
+                    // nothing (T-36).
+                    open_page_allowed(book, &arguments, self.permissions()).map(|(page, output)| {
+                        self.page = Some(page);
                         output
                     })
                 } else {
@@ -772,6 +788,7 @@ fn function_specs(log_readable: bool, permissions: Permissions) -> Vec<FunctionS
             serde_json::from_str(&propose.parameters).unwrap_or_else(|_| json!({"type": "object"})),
     }));
     specs.push(spec(&DRAFT_ISSUE));
+    specs.push(spec(&OPEN_PAGE));
     #[cfg(feature = "debug-log")]
     if log_readable {
         specs.push(spec(&READ_DEBUG_LOG));
@@ -788,11 +805,17 @@ const ID_HINT: &str = "An ID must be copied from a function's result. Call list_
 (Rules) yourself now, then call this function again with the ID. Don't ask the user to do it.";
 
 /// What the model is told when it wrote the wrong one of two arguments for
-/// a category (#195): `new_category` and `new_parent` are only keys of
-/// categories made in the same call.
-const KEY_HINT: &str = "new_category and new_parent are only the key of a category made in \
-new_categories of this same call. For a category that exists, use category_id or parent_id \
-with an ID copied from list_categories.";
+/// a category (#195, #212): `new_category` and `new_parent` are only keys of
+/// categories made in the same call, and a category that exists is named by
+/// `category_id` or `parent_id`, with an ID and never a name.
+const NEW_CATEGORY_HINT: &str = "new_category is only the key of a category made in \
+new_categories of this same call. For a category that exists, use category_id with an ID \
+copied from list_categories.";
+const NEW_PARENT_HINT: &str = "new_parent is only the key of a category made in \
+new_categories of this same call. For a category that exists, use parent_id with an ID \
+copied from list_categories.";
+const CATEGORY_ID_HINT: &str = "category_id and parent_id take the ID copied from \
+list_categories, not the name of the category.";
 
 /// What the model is told when a call to `propose_changes` failed.
 const NOT_PREPARED_HINT: &str = "Nothing was prepared. Do not tell the user that a change is \
@@ -811,8 +834,13 @@ fn error_json(report: &ErrorReport, prepares: bool) -> Value {
         match value {
             ErrorParam::Keyword(keyword) => {
                 wrong_id |= *name == "argument" && keyword.ends_with("id");
-                if *name == "argument" && matches!(*keyword, "new_category" | "new_parent") {
-                    hints.push(KEY_HINT);
+                if *name == "argument" {
+                    match *keyword {
+                        "new_category" => hints.push(NEW_CATEGORY_HINT),
+                        "new_parent" => hints.push(NEW_PARENT_HINT),
+                        "category_id" | "parent_id" => hints.push(CATEGORY_ID_HINT),
+                        _ => {}
+                    }
                 }
                 out.insert((*name).into(), json!(keyword));
             }
@@ -857,12 +885,16 @@ mod tests {
     #[test]
     fn every_function_is_offered_with_its_parameters() {
         let specs = function_specs(false, Permissions::all());
-        assert_eq!(specs.len(), FUNCTIONS.len() + 2);
+        assert_eq!(specs.len(), FUNCTIONS.len() + 3);
         assert_eq!(specs[FUNCTIONS.len()].name, PROPOSE_CHANGES.name);
         assert_eq!(specs[FUNCTIONS.len() + 1].name, DRAFT_ISSUE.name);
-        for (spec, function) in specs
-            .iter()
-            .zip(FUNCTIONS.iter().chain([&PROPOSE_CHANGES, &DRAFT_ISSUE]))
+        assert_eq!(specs[FUNCTIONS.len() + 2].name, OPEN_PAGE.name);
+        for (spec, function) in
+            specs.iter().zip(
+                FUNCTIONS
+                    .iter()
+                    .chain([&PROPOSE_CHANGES, &DRAFT_ISSUE, &OPEN_PAGE]),
+            )
         {
             assert_eq!(spec.name, function.name);
             assert_eq!(
@@ -903,7 +935,11 @@ mod tests {
             argument: "parent_id",
         }
         .report();
-        assert_eq!(error_json(&wrong, false)["hint"], json!(ID_HINT));
+        let hint = error_json(&wrong, false)["hint"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert_eq!(hint, format!("{CATEGORY_ID_HINT} {ID_HINT}"));
         let other = ToolError::BadArgument { argument: "from" }.report();
         assert!(error_json(&other, false).get("hint").is_none());
     }
@@ -914,14 +950,14 @@ mod tests {
             argument: "new_category",
         }
         .report();
-        assert_eq!(error_json(&key, false)["hint"], json!(KEY_HINT));
+        assert_eq!(error_json(&key, false)["hint"], json!(NEW_CATEGORY_HINT));
         let parent = ToolError::BadArgument {
             argument: "new_parent",
         }
         .report();
-        assert_eq!(error_json(&parent, false)["hint"], json!(KEY_HINT));
+        assert_eq!(error_json(&parent, false)["hint"], json!(NEW_PARENT_HINT));
         let both = error_json(&key, true)["hint"].as_str().unwrap().to_owned();
-        assert!(both.contains(KEY_HINT) && both.contains(NOT_PREPARED_HINT));
+        assert!(both.contains(NEW_CATEGORY_HINT) && both.contains(NOT_PREPARED_HINT));
         let other = ToolError::BadArgument { argument: "from" }.report();
         assert_eq!(error_json(&other, true)["hint"], json!(NOT_PREPARED_HINT));
     }

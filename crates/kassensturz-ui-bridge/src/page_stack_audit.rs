@@ -149,6 +149,17 @@ mod tests {
         assert!(chat.contains("chatBesideMinWidth"));
     }
 
+    /// The book's folder on the Settings page opens in the file manager
+    /// (M5-F2).
+    #[test]
+    fn the_settings_folder_row_opens_the_folder() {
+        let settings = qml("SettingsPage.qml");
+        assert!(
+            settings.contains("Qt.openUrlExternally(page.session.folderUrl)"),
+            "the folder row must open the folder"
+        );
+    }
+
     /// The chat sidebar's width has limits and is kept, like the menu's
     /// (#218).
     #[test]

@@ -423,6 +423,45 @@ ColumnLayout {
             : panel.i18nContext.i18nc("@info", "Waiting for the AI…")
     }
 
+    // The user chose "keep waiting" for a slow AI in the settings (D-246):
+    // after `slowAfterSeconds` of waiting, a warning with a way out shows
+    // above the input. With the other choice KassenSturz gives up by itself.
+    readonly property int slowAfterSeconds: 60
+    property bool keepsWaiting: false
+    property int waitedSeconds: 0
+
+    Timer {
+        interval: 1000
+        repeat: true
+        running: panel.chat.busy
+        onRunningChanged: {
+            panel.waitedSeconds = 0;
+            panel.keepsWaiting = running && panel.settings.slowAnswer() === "warn";
+        }
+        onTriggered: panel.waitedSeconds += 1
+    }
+
+    Kirigami.InlineMessage {
+        id: slowWarning
+
+        Layout.fillWidth: true
+        Layout.leftMargin: Kirigami.Units.smallSpacing
+        Layout.rightMargin: Kirigami.Units.smallSpacing
+        type: Kirigami.MessageType.Warning
+        visible: panel.chat.busy && panel.keepsWaiting && !panel.stopping && panel.waitedSeconds >= panel.slowAfterSeconds
+        text: panel.i18nContext.i18nc("@info", "The AI is taking long to answer. A model on a slow computer can need minutes. You can keep waiting or cancel the question.")
+        actions: [
+            Kirigami.Action {
+                icon.name: "dialog-cancel"
+                text: panel.i18nContext.i18nc("@action:button cancel the question that takes long", "Cancel")
+                onTriggered: {
+                    panel.stopping = true;
+                    panel.chat.stop();
+                }
+            }
+        ]
+    }
+
     SecretField {
         id: keyField
 

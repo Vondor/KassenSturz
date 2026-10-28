@@ -110,6 +110,19 @@ pub mod qobject {
         #[cxx_name = "testConnection"]
         fn test_connection(self: Pin<&mut AiSettings>, key: &QString);
 
+        /// What to do when the AI takes long: `timeout` (give up after a
+        /// fixed time) or `warn` (keep waiting, with a Cancel button in the
+        /// chat; D-246).
+        #[qinvokable]
+        #[cxx_name = "slowAnswer"]
+        fn slow_answer(self: &AiSettings) -> QString;
+
+        /// Keeps the choice for slow answers. Returns whether that was
+        /// saved; a word that is not one of the two is not.
+        #[qinvokable]
+        #[cxx_name = "setSlowAnswer"]
+        fn set_slow_answer(self: &AiSettings, word: &QString) -> bool;
+
         /// Whether the user's own AI tools may prepare changes through
         /// `kassensturz-mcp`, which the user then confirms in the window
         /// (D-035, D-219). Off until the user turns it on.
@@ -514,6 +527,14 @@ impl qobject::AiSettings {
         keep_write_tools(&crate::settings::Settings::user(), on)
     }
 
+    fn slow_answer(&self) -> QString {
+        QString::from(slow_answer_in(&crate::settings::Settings::user()))
+    }
+
+    fn set_slow_answer(&self, word: &QString) -> bool {
+        keep_slow_answer(&crate::settings::Settings::user(), &word.to_string())
+    }
+
     fn allows(&self, key: &QString) -> bool {
         allows_in(&crate::settings::Settings::user(), &key.to_string())
     }
@@ -558,6 +579,38 @@ fn keep_allows(_settings: &crate::settings::Settings, _key: &str, _on: bool) -> 
     false
 }
 
+/// What the user chose for slow answers, as the word the settings file and
+/// the screens use (D-246); `timeout` in a build without AI.
+#[cfg(feature = "ai")]
+fn slow_answer_in(settings: &crate::settings::Settings) -> &'static str {
+    use kassensturz_ai::{SLOW_ANSWER_KEY, SlowAnswer};
+    SlowAnswer::from_word(&settings.text(kassensturz_core::ai_switch::GROUP, SLOW_ANSWER_KEY))
+        .as_word()
+}
+
+#[cfg(not(feature = "ai"))]
+fn slow_answer_in(_settings: &crate::settings::Settings) -> &'static str {
+    "timeout"
+}
+
+/// Keeps the choice for slow answers. Returns whether that was saved.
+#[cfg(feature = "ai")]
+fn keep_slow_answer(settings: &crate::settings::Settings, word: &str) -> bool {
+    use kassensturz_ai::{SLOW_ANSWER_KEY, SlowAnswer};
+    let choice = SlowAnswer::from_word(word);
+    choice.as_word() == word
+        && settings.set_text(
+            kassensturz_core::ai_switch::GROUP,
+            SLOW_ANSWER_KEY,
+            choice.as_word(),
+        )
+}
+
+#[cfg(not(feature = "ai"))]
+fn keep_slow_answer(_settings: &crate::settings::Settings, _word: &str) -> bool {
+    false
+}
+
 /// Whether `settings` turn the MCP write tools on; always false in a build
 /// without AI. AI itself is the other switch (D-013): the MCP server and
 /// the window read both.
@@ -583,6 +636,31 @@ fn keep_write_tools(settings: &crate::settings::Settings, on: bool) -> bool {
 #[cfg(not(feature = "ai"))]
 fn keep_write_tools(_settings: &crate::settings::Settings, _on: bool) -> bool {
     false
+}
+
+#[cfg(all(test, feature = "ai"))]
+mod slow_answer_tests {
+    use super::*;
+    use crate::settings::Settings;
+    use crate::test_folder::TestFolder;
+
+    #[test]
+    fn the_choice_for_slow_answers_is_kept_and_the_adapter_reads_it() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        assert_eq!(slow_answer_in(&settings), "timeout");
+        assert!(keep_slow_answer(&settings, "warn"));
+        assert_eq!(slow_answer_in(&settings), "warn");
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(
+            kassensturz_ai::AiConfig::from_text(&text).slow_answer(),
+            kassensturz_ai::SlowAnswer::Warn
+        );
+        assert!(!keep_slow_answer(&settings, "never"));
+        assert!(keep_slow_answer(&settings, "timeout"));
+        assert_eq!(slow_answer_in(&settings), "timeout");
+    }
 }
 
 #[cfg(test)]

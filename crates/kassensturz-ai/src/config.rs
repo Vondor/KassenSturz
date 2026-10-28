@@ -36,6 +36,10 @@ pub const CONSENT_STATEMENT_KEY: &str = "ConsentStatement";
 /// The key of the day the user agreed, as `YYYY-MM-DD`.
 pub const CONSENT_DAY_KEY: &str = "ConsentDay";
 
+/// The key of what happens when an answer takes long
+/// ([`SlowAnswer::as_word`]).
+pub const SLOW_ANSWER_KEY: &str = "SlowAnswer";
+
 /// The longest model name KassenSturz accepts.
 const MAX_MODEL_LEN: usize = 256;
 
@@ -75,6 +79,36 @@ impl KeyUse {
             "remember" => Self::UntilClose,
             "save" => Self::Saved,
             _ => Self::AskEachTime,
+        }
+    }
+}
+
+/// What KassenSturz does when the model takes long to answer (D-246).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum SlowAnswer {
+    /// Stops waiting after a fixed time and says so (`ai.timeout`). The
+    /// default.
+    #[default]
+    Timeout,
+    /// Keeps waiting, up to [`crate::Limits::KEEP_WAITING`]; the chat shows
+    /// a warning with a Cancel button once the answer is taking long.
+    Warn,
+}
+
+impl SlowAnswer {
+    /// The word it is kept under in the settings file.
+    pub fn as_word(self) -> &'static str {
+        match self {
+            Self::Timeout => "timeout",
+            Self::Warn => "warn",
+        }
+    }
+
+    /// The choice kept under `word`; anything else is the default.
+    pub fn from_word(word: &str) -> Self {
+        match word {
+            "warn" => Self::Warn,
+            _ => Self::Timeout,
         }
     }
 }
@@ -141,6 +175,7 @@ pub struct AiConfig {
     /// The provider as saved, the model possibly still empty.
     saved: Result<ProviderSettings, AiError>,
     consent: Option<ConsentRecord>,
+    slow_answer: SlowAnswer,
 }
 
 impl AiConfig {
@@ -170,6 +205,7 @@ impl AiConfig {
             enabled: ai_switch::enabled_in(text),
             saved,
             consent,
+            slow_answer: SlowAnswer::from_word(&value(SLOW_ANSWER_KEY)),
         }
     }
 
@@ -191,6 +227,11 @@ impl AiConfig {
     /// chosen: enough to ask the provider which models it offers.
     pub fn connection(&self) -> Result<&ProviderSettings, AiError> {
         self.saved.as_ref().map_err(Clone::clone)
+    }
+
+    /// What to do when an answer takes long.
+    pub fn slow_answer(&self) -> SlowAnswer {
+        self.slow_answer
     }
 
     /// The consent the user gave, if a complete one is recorded.
@@ -321,6 +362,19 @@ mod tests {
         }
         assert_eq!(KeyUse::from_word(""), KeyUse::None);
         assert_eq!(KeyUse::from_word("keychain"), KeyUse::AskEachTime);
+    }
+
+    #[test]
+    fn a_slow_answer_stops_waiting_unless_the_user_chose_to_keep_waiting() {
+        assert_eq!(AiConfig::from_text("").slow_answer(), SlowAnswer::Timeout);
+        assert_eq!(
+            AiConfig::from_text("[AI]\nSlowAnswer=odd\n").slow_answer(),
+            SlowAnswer::Timeout
+        );
+        for choice in [SlowAnswer::Timeout, SlowAnswer::Warn] {
+            let text = format!("[AI]\n{SLOW_ANSWER_KEY}={}\n", choice.as_word());
+            assert_eq!(AiConfig::from_text(&text).slow_answer(), choice);
+        }
     }
 
     #[test]

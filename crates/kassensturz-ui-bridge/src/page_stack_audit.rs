@@ -149,6 +149,20 @@ mod tests {
         assert!(chat.contains("chatBesideMinWidth"));
     }
 
+    /// The chat sidebar's width has limits and is kept, like the menu's
+    /// (#218).
+    #[test]
+    fn the_chat_sidebar_has_a_width_of_its_own() {
+        let main = qml("Main.qml");
+        let (_, chat) = main.split_once("id: chatDrawer").expect("the chat drawer");
+        let (chat, _) = chat.split_once("contentItem:").expect("its content");
+        assert!(
+            chat.contains("width: Math.max(root.chatMinWidth"),
+            "the chat must have a width limit"
+        );
+        assert!(main.contains("windowState.saveChatWidth(root.chatWidth)"));
+    }
+
     /// The menu's `modal` followed `wideScreen` too, and turned into an
     /// overlay after a review of AI changes (#197). The review page is also
     /// only opened through `showChangeReview`, which never stacks a second

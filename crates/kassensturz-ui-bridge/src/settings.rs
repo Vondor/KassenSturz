@@ -64,6 +64,7 @@ const WINDOW: &str = "Window";
 const MENU_WIDTH_RANGE: core::ops::RangeInclusive<i32> = 100..=2000;
 const WINDOW_GEOMETRY: &str = "Geometry";
 const WINDOW_MENU_WIDTH: &str = "MenuWidth";
+const WINDOW_CHAT_WIDTH: &str = "ChatWidth";
 
 /// The app's settings in one settings file.
 pub struct Settings {
@@ -157,6 +158,22 @@ impl Settings {
     pub fn set_menu_width(&self, width: i32) -> bool {
         MENU_WIDTH_RANGE.contains(&width)
             && self.set_text(WINDOW, WINDOW_MENU_WIDTH, &width.to_string())
+    }
+
+    /// The width in pixels the user gave the chat sidebar, if one is kept.
+    pub fn chat_width(&self) -> Option<i32> {
+        self.text(WINDOW, WINDOW_CHAT_WIDTH)
+            .trim()
+            .parse()
+            .ok()
+            .filter(|width| (MENU_WIDTH_RANGE).contains(width))
+    }
+
+    /// Keeps the chat sidebar's width. Returns whether it was saved; a width
+    /// the next start would ignore is not kept.
+    pub fn set_chat_width(&self, width: i32) -> bool {
+        MENU_WIDTH_RANGE.contains(&width)
+            && self.set_text(WINDOW, WINDOW_CHAT_WIDTH, &width.to_string())
     }
 
     /// The text kept under `key` in `group`; empty if there is none.

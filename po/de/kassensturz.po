@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-28 20:12+0000\n"
+"POT-Creation-Date: 2026-10-28 20:39+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -402,7 +402,7 @@ msgstr ""
 "zurücknehmen."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:170
-#: crates/kassensturz-ui-bridge/qml/Main.qml:344
+#: crates/kassensturz-ui-bridge/qml/Main.qml:350
 #, kde-format
 msgctxt "@action:button take the last change back"
 msgid "Undo"
@@ -1349,7 +1349,11 @@ msgid ""
 "These changes hold a kind of change that you have turned off in the AI "
 "settings since the AI prepared them. Nothing was changed. Turn it on again "
 "under “What the AI may do”, or ask the AI to prepare the changes again."
-msgstr "Diese Änderungen enthalten eine Art von Änderung, die Sie in den KI-Einstellungen ausgeschaltet haben, seit die KI sie vorbereitet hat. Es wurde nichts geändert. Schalten Sie sie unter „Was die KI darf“ wieder ein oder bitten Sie die KI, die Änderungen noch einmal vorzubereiten."
+msgstr ""
+"Diese Änderungen enthalten eine Art von Änderung, die Sie in den KI-"
+"Einstellungen ausgeschaltet haben, seit die KI sie vorbereitet hat. Es wurde "
+"nichts geändert. Schalten Sie sie unter „Was die KI darf“ wieder ein oder "
+"bitten Sie die KI, die Änderungen noch einmal vorzubereiten."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:108
 #, kde-format
@@ -1476,7 +1480,10 @@ msgid ""
 "Choose what the AI may do with your book. Everything is off until you switch "
 "it on. Whatever the AI prepares is shown to you first, and nothing changes "
 "until you have read it and confirmed it."
-msgstr "Legen Sie fest, was die KI mit Ihrem Buch tun darf. Alles ist ausgeschaltet, bis Sie es einschalten. Was die KI vorbereitet, wird Ihnen zuerst gezeigt, und es ändert sich nichts, bevor Sie es gelesen und bestätigt haben."
+msgstr ""
+"Legen Sie fest, was die KI mit Ihrem Buch tun darf. Alles ist ausgeschaltet, "
+"bis Sie es einschalten. Was die KI vorbereitet, wird Ihnen zuerst gezeigt, "
+"und es ändert sich nichts, bevor Sie es gelesen und bestätigt haben."
 
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:199
 #, kde-format
@@ -1503,7 +1510,10 @@ msgid ""
 "Changing or deleting also lets the AI read that row, because it can't change "
 "what it can't see. Deleting an account is never offered; you can do that "
 "yourself."
-msgstr "Ändern oder Löschen erlaubt der KI auch, diese Zeile zu lesen, denn sie kann nichts ändern, was sie nicht sieht. Ein Konto zu löschen wird nie angeboten; das können Sie selbst tun."
+msgstr ""
+"Ändern oder Löschen erlaubt der KI auch, diese Zeile zu lesen, denn sie kann "
+"nichts ändern, was sie nicht sieht. Ein Konto zu löschen wird nie angeboten; "
+"das können Sie selbst tun."
 
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:238
 #, kde-format
@@ -1519,7 +1529,12 @@ msgid ""
 "It is still shown to the AI when reading is on. Today the AI can only put "
 "transactions into categories, so only the Category lock has an effect now; "
 "the others start to work when the AI can change those fields."
-msgstr "Ein gesperrtes Feld ändert die KI bei einer Buchung, die Sie schon haben, nie. Sie sieht es aber weiterhin, wenn das Lesen eingeschaltet ist. Heute kann die KI Buchungen nur Kategorien zuordnen, daher wirkt jetzt nur die Sperre der Kategorie; die anderen wirken, sobald die KI diese Felder ändern kann."
+msgstr ""
+"Ein gesperrtes Feld ändert die KI bei einer Buchung, die Sie schon haben, "
+"nie. Sie sieht es aber weiterhin, wenn das Lesen eingeschaltet ist. Heute "
+"kann die KI Buchungen nur Kategorien zuordnen, daher wirkt jetzt nur die "
+"Sperre der Kategorie; die anderen wirken, sobald die KI diese Felder ändern "
+"kann."
 
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:260
 #, kde-format
@@ -2021,7 +2036,15 @@ msgid ""
 "be open for that. After you switch this on or off, quit your AI program and "
 "start it again so it notices. How to set one up is explained in \"Connect an "
 "AI\" in the user guide."
-msgstr "KI-Programme auf diesem Computer, die Sie für KassenSturz eingerichtet haben, können die oben erlaubten Teile Ihres Buches lesen. Wenn Sie es erlauben, können sie auch die oben erlaubten Änderungen vorbereiten. Ihre Änderungen werden in der Chat-Seitenleiste gezeigt, und es ändert sich nichts, bevor Sie sie gelesen und bestätigt haben. KassenSturz muss dafür geöffnet sein. Nachdem Sie dies ein- oder ausgeschaltet haben, beenden Sie Ihr KI-Programm und starten es neu, damit es dies bemerkt. Wie man eines einrichtet, steht unter „Eine KI verbinden“ im Benutzerhandbuch."
+msgstr ""
+"KI-Programme auf diesem Computer, die Sie für KassenSturz eingerichtet "
+"haben, können die oben erlaubten Teile Ihres Buches lesen. Wenn Sie es "
+"erlauben, können sie auch die oben erlaubten Änderungen vorbereiten. Ihre "
+"Änderungen werden in der Chat-Seitenleiste gezeigt, und es ändert sich "
+"nichts, bevor Sie sie gelesen und bestätigt haben. KassenSturz muss dafür "
+"geöffnet sein. Nachdem Sie dies ein- oder ausgeschaltet haben, beenden Sie "
+"Ihr KI-Programm und starten es neu, damit es dies bemerkt. Wie man eines "
+"einrichtet, steht unter „Eine KI verbinden“ im Benutzerhandbuch."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:495
 #, kde-format
@@ -3483,8 +3506,8 @@ msgid "Where to keep the new book"
 msgstr "Wo das neue Haushaltsbuch gespeichert wird"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:74
-#: crates/kassensturz-ui-bridge/qml/Main.qml:886
-#: crates/kassensturz-ui-bridge/qml/Main.qml:897
+#: crates/kassensturz-ui-bridge/qml/Main.qml:928
+#: crates/kassensturz-ui-bridge/qml/Main.qml:939
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "KassenSturz books (*.ksz)"
@@ -7046,50 +7069,50 @@ msgctxt "@item a statement whose file names no account"
 msgid "Statement %1, without an account number"
 msgstr "Kontoauszug %1, ohne Kontonummer"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:72
+#: crates/kassensturz-ui-bridge/qml/Main.qml:78
 #, kde-format
 msgctxt ""
 "@title:window marker that KassenSturz was started in its developer mode"
 msgid "developer mode"
 msgstr "Entwicklermodus"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:311
+#: crates/kassensturz-ui-bridge/qml/Main.qml:317
 #, kde-format
 msgctxt "@item the file name of the app's own book, without its extension"
 msgid "Household"
 msgstr "Haushalt"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:373
+#: crates/kassensturz-ui-bridge/qml/Main.qml:379
 #, kde-format
 msgctxt "@info %1 is what was done, e.g. Added a transaction"
 msgid "Made again: %1"
 msgstr "Wiederholt: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:373
+#: crates/kassensturz-ui-bridge/qml/Main.qml:379
 #, kde-format
 msgctxt "@action:button"
 msgid "Undo"
 msgstr "Rückgängig"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:375
+#: crates/kassensturz-ui-bridge/qml/Main.qml:381
 #, kde-format
 msgctxt "@info %1 is what was done, e.g. Added a transaction"
 msgid "Undone: %1"
 msgstr "Rückgängig gemacht: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:375
+#: crates/kassensturz-ui-bridge/qml/Main.qml:381
 #, kde-format
 msgctxt "@action:button"
 msgid "Redo"
 msgstr "Wiederholen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:545
+#: crates/kassensturz-ui-bridge/qml/Main.qml:551
 #, kde-format
 msgctxt "@action:button"
 msgid "Start a book from it"
 msgstr "Haushaltsbuch daraus anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:623
+#: crates/kassensturz-ui-bridge/qml/Main.qml:629
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -7108,19 +7131,19 @@ msgstr ""
 "Modus läuft. Um ihn zu beenden, schließen Sie KassenSturz und starten es wie "
 "gewohnt."
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:627
+#: crates/kassensturz-ui-bridge/qml/Main.qml:633
 #, kde-format
 msgctxt "@action:button opens the folder of the developer mode's log"
 msgid "Show the log"
 msgstr "Protokoll zeigen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:632
+#: crates/kassensturz-ui-bridge/qml/Main.qml:638
 #, kde-format
 msgctxt "@action:button deletes the developer mode's log"
 msgid "Delete the log"
 msgstr "Protokoll löschen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:645
+#: crates/kassensturz-ui-bridge/qml/Main.qml:651
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -7134,98 +7157,98 @@ msgstr ""
 "Haushaltsbuch auf diesem Computer auf; ein Sync-Ordner, etwa von Nextcloud, "
 "ist in Ordnung."
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:665
+#: crates/kassensturz-ui-bridge/qml/Main.qml:671
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Overview"
 msgstr "Übersicht"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:670
+#: crates/kassensturz-ui-bridge/qml/Main.qml:676
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Accounts"
 msgstr "Konten"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:675
+#: crates/kassensturz-ui-bridge/qml/Main.qml:681
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Categories"
 msgstr "Kategorien"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:680
+#: crates/kassensturz-ui-bridge/qml/Main.qml:686
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Rules"
 msgstr "Regeln"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:685
+#: crates/kassensturz-ui-bridge/qml/Main.qml:691
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:695
+#: crates/kassensturz-ui-bridge/qml/Main.qml:701
 #, kde-format
 msgctxt "@action:inmenu %1 is what was done, e.g. Added a transaction"
 msgid "Undo: %1"
 msgstr "Rückgängig: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:696
+#: crates/kassensturz-ui-bridge/qml/Main.qml:702
 #, kde-format
 msgctxt "@action:inmenu there is nothing to undo"
 msgid "Undo"
 msgstr "Rückgängig"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:706
+#: crates/kassensturz-ui-bridge/qml/Main.qml:712
 #, kde-format
 msgctxt "@action:inmenu %1 is what was done, e.g. Added a transaction"
 msgid "Redo: %1"
 msgstr "Wiederholen: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:707
+#: crates/kassensturz-ui-bridge/qml/Main.qml:713
 #, kde-format
 msgctxt "@action:inmenu there is nothing to redo"
 msgid "Redo"
 msgstr "Wiederholen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:883
+#: crates/kassensturz-ui-bridge/qml/Main.qml:925
 #, kde-format
 msgctxt "@title:window"
 msgid "Open another book"
 msgstr "Anderes Haushaltsbuch öffnen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:893
+#: crates/kassensturz-ui-bridge/qml/Main.qml:935
 #, kde-format
 msgctxt "@title:window"
 msgid "Start a new book"
 msgstr "Neues Haushaltsbuch anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:904
+#: crates/kassensturz-ui-bridge/qml/Main.qml:946
 #, kde-format
 msgctxt "@title:window"
 msgid "Start a book from a file"
 msgstr "Haushaltsbuch aus einer Datei anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:910
-#: crates/kassensturz-ui-bridge/qml/Main.qml:926
+#: crates/kassensturz-ui-bridge/qml/Main.qml:952
+#: crates/kassensturz-ui-bridge/qml/Main.qml:968
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "All files (*)"
 msgstr "Alle Dateien (*)"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:911
+#: crates/kassensturz-ui-bridge/qml/Main.qml:953
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "Books (*.kmy *.sqlite *.db *.json)"
 msgstr "Haushaltsbücher (*.kmy *.sqlite *.db *.json)"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:922
+#: crates/kassensturz-ui-bridge/qml/Main.qml:964
 #, kde-format
 msgctxt "@title:window"
 msgid "Import a file from your bank"
 msgstr "Eine Datei von Ihrer Bank importieren"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:925
+#: crates/kassensturz-ui-bridge/qml/Main.qml:967
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "Bank files (*.xml *.sta *.ofx *.csv *.txt)"

@@ -8,6 +8,9 @@
 // exactly one answer, also when the dialog is closed, since the bank
 // connection waits for it. The PIN and the TAN are typed into a
 // `SecretField`, which shows dots until the user asks to see them (D-162).
+// A build without a FinTS registration, started with
+// `KASSENSTURZ_FINTS_ASK=1`, also asks for the product registration number
+// once per run, in a `SecretField` too, and never shows it back (D-260).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -69,6 +72,15 @@ Item {
             pinMode.currentIndex = 0;
             pinDialog.open();
             pinField.forceActiveFocus();
+        }
+
+        function onRegistrationRequested(request: var) {
+            registrationDialog.request = request;
+            registrationDialog.answered = false;
+            registrationField.text = "";
+            registrationField.hide();
+            registrationDialog.open();
+            registrationField.forceActiveFocus();
         }
 
         function onQuestionAsked(question: var) {
@@ -253,6 +265,84 @@ Item {
                 wrapMode: Text.Wrap
                 font: Kirigami.Theme.smallFont
                 text: dialogs.i18nContext.i18nc("@info", "KassenSturz sends the PIN to your bank and keeps it only as long as you choose. It only reads from your bank; it never sends money.")
+            }
+        }
+    }
+
+    Kirigami.Dialog {
+        id: registrationDialog
+
+        property var request: ({})
+        property bool answered: false
+
+        // Rust checks the number and asks again when it isn't 25 letters
+        // and digits (`malformed`).
+        function send() {
+            if (registrationField.text.trim().length === 0) {
+                return;
+            }
+            answered = true;
+            dialogs.bank.answerRegistration(registrationField.text);
+            registrationField.text = "";
+            close();
+        }
+
+        title: dialogs.i18nContext.i18nc("@title:window", "FinTS product registration number")
+        padding: Kirigami.Units.largeSpacing
+        preferredWidth: Kirigami.Units.gridUnit * 24
+        closePolicy: Controls.Popup.CloseOnEscape
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: dialogs.i18nContext.i18nc("@action:button use the registration number typed", "Use this number")
+                icon.name: "dialog-ok"
+                enabled: registrationField.text.trim().length > 0
+                onTriggered: registrationDialog.send()
+            },
+            Kirigami.Action {
+                text: dialogs.i18nContext.i18nc("@action:button", "Cancel")
+                icon.name: "dialog-cancel"
+                onTriggered: registrationDialog.close()
+            }
+        ]
+        onClosed: {
+            registrationField.text = "";
+            if (!answered) {
+                answered = true;
+                dialogs.bank.cancelRegistration();
+            }
+        }
+
+        ColumnLayout {
+            spacing: Kirigami.Units.largeSpacing
+
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                type: Kirigami.MessageType.Warning
+                visible: registrationDialog.request.malformed ?? false
+                text: dialogs.i18nContext.i18nc("@info", "That wasn't 25 letters and digits. Check the number against the registration letter and type it again.")
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: dialogs.i18nContext.i18nc("@info", "This KassenSturz has no FinTS registration built in, and it was started to ask for one. Type the 25-character product registration number to connect to the bank.")
+            }
+
+            SecretField {
+                id: registrationField
+
+                Layout.fillWidth: true
+                placeholderText: dialogs.i18nContext.i18nc("@info:placeholder", "Registration number")
+                Accessible.name: dialogs.i18nContext.i18nc("@label:textbox", "FinTS product registration number")
+                onAccepted: registrationDialog.send()
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                font: Kirigami.Theme.smallFont
+                text: dialogs.i18nContext.i18nc("@info", "KassenSturz keeps the number in memory until it closes. It is never saved, shown or logged, and is sent only to the bank, as the program's registration.")
             }
         }
     }

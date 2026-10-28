@@ -25,9 +25,12 @@ pub const GWENGUI_QT6_LIBRARY: &str = "libgwengui-qt6.so.79";
 
 /// KassenSturz's own FinTS product registration number (D-058, Q-087).
 ///
-/// `None` until the registration office has issued it: live bank access is
-/// refused with `bank.not-registered` in the meantime. A fork under another
-/// name registers its own number; never use another program's.
+/// `None`: the registration's terms don't allow the number to be passed
+/// on, so no build carries it (D-260). Live bank access is refused with
+/// `bank.not-registered`, unless the person testing types the number
+/// while the app runs ([`crate::RegistrationKey`], [`crate::Bank::register`]).
+/// A fork under another name registers its own number; never use another
+/// program's.
 pub const FINTS_REGISTRATION_KEY: Option<&str> = None;
 
 /// A library's version, as `major.minor.patch`.

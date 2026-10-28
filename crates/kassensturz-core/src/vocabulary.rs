@@ -21,6 +21,7 @@ pub const DETAILS: &[&str] = &[
     "check_proposed_changes",
     "read_debug_log",
     "draft_issue",
+    "open_page",
     // A call of a function that isn't offered.
     "unknown",
     // The screens, by the names of their QML files.

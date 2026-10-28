@@ -12,9 +12,9 @@ use kassensturz_ai::{
     AiError, Finish, FunctionSpec, Message, PreparedRequest, Provider, Role, ToolCall,
 };
 use kassensturz_ai_tools::{
-    ChangeSet, DRAFT_ISSUE, FUNCTIONS, Figures, Function, IssueContext, IssueDraft,
-    PROPOSE_CHANGES, ToolError, Unverified, check_numbers, draft_issue, propose, propose_spec,
-    unique_codes,
+    ChangeSet, DRAFT_ISSUE, FUNCTIONS, Figures, Function, IssueContext, IssueDraft, OPEN_PAGE,
+    PROPOSE_CHANGES, PageTarget, ToolError, Unverified, check_numbers, draft_issue, open_page,
+    propose, propose_spec, unique_codes,
 };
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
@@ -178,6 +178,10 @@ pub struct Answer {
     /// if it made several, for the user to read (D-173, D-228). Nothing is
     /// sent: only the user opens the prefilled page.
     pub issue: Option<IssueDraft>,
+    /// The page the model asked to open for this question, the last one if
+    /// it asked for several (D-265). Opening it changes nothing in the
+    /// book; the front end opens it when the answer is shown and says so.
+    pub page: Option<PageTarget>,
 }
 
 /// What the front end does while a question runs. Every method has a
@@ -257,6 +261,8 @@ pub struct ChatSession {
     proposed: Vec<ChangeSet>,
     /// The issue draft the model prepared for the question under way.
     issue: Option<IssueDraft>,
+    /// The page the model asked to open for the question under way.
+    page: Option<PageTarget>,
     /// The debug log the conversation writes to and the model may read
     /// while AI and the log are on (D-173).
     #[cfg(feature = "debug-log")]
@@ -284,6 +290,7 @@ impl ChatSession {
             outcomes: Vec::new(),
             proposed: Vec::new(),
             issue: None,
+            page: None,
             #[cfg(feature = "debug-log")]
             debug_log: DebugLog::none(),
             screen: None,
@@ -417,6 +424,7 @@ impl ChatSession {
         self.history.push(Message::user(question));
         self.proposed.clear();
         self.issue = None;
+        self.page = None;
         let mut overview = None;
         let mut context_cut = false;
         if self.mode == Mode::Overview {
@@ -545,6 +553,7 @@ impl ChatSession {
                     context_cut,
                     changes: std::mem::take(&mut self.proposed),
                     issue: self.issue.take(),
+                    page: self.page.take(),
                 });
             }
             if closing {
@@ -602,6 +611,13 @@ impl ChatSession {
                     // Shown to the user, never sent from here (T-33).
                     draft_issue(book, &arguments, &self.issue_context()).map(|(draft, output)| {
                         self.issue = Some(draft);
+                        output
+                    })
+                } else if call.name == OPEN_PAGE.name {
+                    // Shown to the user when the answer is ready; changes
+                    // nothing (T-36).
+                    open_page(book, &arguments).map(|(page, output)| {
+                        self.page = Some(page);
                         output
                     })
                 } else {
@@ -771,6 +787,7 @@ fn function_specs(log_readable: bool, permissions: Permissions) -> Vec<FunctionS
             serde_json::from_str(&propose.parameters).unwrap_or_else(|_| json!({"type": "object"})),
     }));
     specs.push(spec(&DRAFT_ISSUE));
+    specs.push(spec(&OPEN_PAGE));
     #[cfg(feature = "debug-log")]
     if log_readable {
         specs.push(spec(&READ_DEBUG_LOG));
@@ -855,12 +872,16 @@ mod tests {
     #[test]
     fn every_function_is_offered_with_its_parameters() {
         let specs = function_specs(false, Permissions::all());
-        assert_eq!(specs.len(), FUNCTIONS.len() + 2);
+        assert_eq!(specs.len(), FUNCTIONS.len() + 3);
         assert_eq!(specs[FUNCTIONS.len()].name, PROPOSE_CHANGES.name);
         assert_eq!(specs[FUNCTIONS.len() + 1].name, DRAFT_ISSUE.name);
-        for (spec, function) in specs
-            .iter()
-            .zip(FUNCTIONS.iter().chain([&PROPOSE_CHANGES, &DRAFT_ISSUE]))
+        assert_eq!(specs[FUNCTIONS.len() + 2].name, OPEN_PAGE.name);
+        for (spec, function) in
+            specs.iter().zip(
+                FUNCTIONS
+                    .iter()
+                    .chain([&PROPOSE_CHANGES, &DRAFT_ISSUE, &OPEN_PAGE]),
+            )
         {
             assert_eq!(spec.name, function.name);
             assert_eq!(

@@ -22,7 +22,7 @@ ColumnLayout {
 
     required property AiSwitch ai
     // What the panel keeps for this message: its `kind` (`question`,
-    // `answer`, `error`, `changes`, `changesDone` or `issue`) and the fields
+    // `answer`, `error`, `changes`, `changesDone`, `page` or `issue`) and the fields
     // of it.
     required property var message
 
@@ -182,6 +182,35 @@ ColumnLayout {
                 ? item.i18nContext.i18nc("@info", "The prepared changes were made. You can take them back with Undo.")
                 : item.i18nContext.i18nc("@info", "The prepared changes were thrown away. Nothing was changed."))
             : ""
+    }
+
+    // A page the AI opened for the user (D-265): only a note, the page was
+    // shown by the window. Opening a page changes nothing.
+    Controls.Label {
+        Layout.fillWidth: true
+        visible: item.message.kind === "page"
+        wrapMode: Text.Wrap
+        font: Kirigami.Theme.smallFont
+        textFormat: Text.PlainText
+        text: item.message.kind === "page" ? item.pageNote(item.message.page, item.message.hasId === true) : ""
+    }
+
+    // What to tell the user the AI opened.
+    function pageNote(page: string, hasId: bool): string {
+        switch (page) {
+        case "overview":
+            return item.i18nContext.i18nc("@info the AI opened a page", "The AI opened the overview.");
+        case "accounts":
+            return item.i18nContext.i18nc("@info the AI opened a page", "The AI opened your accounts.");
+        case "categories":
+            return item.i18nContext.i18nc("@info the AI opened a page", "The AI opened your categories.");
+        case "account":
+            return item.i18nContext.i18nc("@info the AI opened a page", "The AI opened the transactions of an account.");
+        default:
+            return hasId
+                ? item.i18nContext.i18nc("@info the AI opened a page", "The AI opened your Rules and selected one.")
+                : item.i18nContext.i18nc("@info the AI opened a page", "The AI opened your Rules.");
+        }
     }
 
     // A problem report the AI drafted: shown exactly as the page would get

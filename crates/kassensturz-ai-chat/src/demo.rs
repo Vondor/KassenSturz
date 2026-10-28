@@ -10,12 +10,14 @@
 //! functions, number check and tool-call log. A question with "invent" in
 //! it gets a made-up number added, to show the number check. A question
 //! with "sort" in it makes it prepare a change set: a new category for the
-//! newest few transactions it can move, for the review and undo (D-199). The app
+//! newest few transactions it can move, for the review and undo (D-199). A
+//! question with "open" in it about a Rule or an account lists them and then
+//! opens the first one's page (D-265). The app
 //! offers it only when started with [`DEMO_ENV`] set, as the fake bank is
 //! (D-159).
 
 use kassensturz_ai::{AiError, ConfigFile, Message, Role, ScriptedProvider};
-use kassensturz_ai_tools::PROPOSE_CHANGES;
+use kassensturz_ai_tools::{OPEN_PAGE, PROPOSE_CHANGES};
 use serde_json::{Value, json};
 
 use crate::prompt::{DATA_END, DATA_START};
@@ -93,6 +95,16 @@ fn respond(model: DemoModel, messages: &[Message], offered: &[String]) -> Result
     {
         return Ok(calls_reply(PROPOSE_CHANGES.name, &arguments));
     }
+    if wants_opening(&question)
+        && last == Some(Role::Tool)
+        && offered.iter().any(|offer| offer == OPEN_PAGE.name)
+        && let Some(arguments) = messages
+            .last()
+            .and_then(|result| serde_json::from_str::<Value>(&result.content).ok())
+            .and_then(|result| opening_call(&result))
+    {
+        return Ok(calls_reply(OPEN_PAGE.name, &arguments));
+    }
     let text = if last == Some(Role::Tool) {
         let results: Vec<&str> = messages
             .iter()
@@ -137,6 +149,20 @@ fn wants_sorting(question: &str) -> bool {
     ["sort", "einsortier"]
         .iter()
         .any(|word| question.contains(word))
+}
+
+/// Whether `question` (lowercase) asks to open a page.
+fn wants_opening(question: &str) -> bool {
+    ["open", "öffne"].iter().any(|word| question.contains(word))
+}
+
+/// The call of `open_page` for the first Rule, or else the first account,
+/// of the list `found`. `None` when it holds neither.
+fn opening_call(found: &Value) -> Option<Value> {
+    ["rules", "accounts"].iter().find_map(|list| {
+        let id = found[list][0]["id"].as_str()?;
+        Some(json!({"page": if *list == "rules" { "rule" } else { "account" }, "id": id}))
+    })
 }
 
 /// A change set for the search result `found`: a new category for the
@@ -214,6 +240,9 @@ fn describe(result: &Value) -> String {
     let mut parts = Vec::new();
     if let Some(code) = result["error"].as_str() {
         parts.push(format!("The function answered with the error {code}."));
+    }
+    if let Some(page) = result["opened"].as_str() {
+        parts.push(format!("I opened the {page} page for you."));
     }
     if let Some(prepared) = result["prepared"].as_u64() {
         parts.push(format!(
@@ -346,6 +375,24 @@ mod tests {
             choose("sort my newest purchases", "2026-10-25").0,
             "search_transactions"
         );
+    }
+
+    #[test]
+    fn opening_takes_the_first_rule_or_account_of_a_list() {
+        let rules = json!({"rules": [{"id": "r1"}, {"id": "r2"}]});
+        assert_eq!(
+            opening_call(&rules),
+            Some(json!({"page": "rule", "id": "r1"}))
+        );
+        let accounts = json!({"accounts": [{"id": "a1"}]});
+        assert_eq!(
+            opening_call(&accounts),
+            Some(json!({"page": "account", "id": "a1"}))
+        );
+        assert_eq!(opening_call(&json!({"rules": []})), None);
+        assert_eq!(opening_call(&json!({"opened": "rules"})), None);
+        assert!(wants_opening("please open my rules"));
+        assert!(!wants_opening("which rules do i have"));
     }
 
     #[test]

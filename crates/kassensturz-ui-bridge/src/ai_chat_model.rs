@@ -152,8 +152,9 @@ pub mod qobject {
         /// The question ended: an object with `text`, `unverified` (the
         /// numbers no function produced), `finish`, `overview`, `sets`
         /// (objects with an `id` and a `count`) and, when the AI prepared
-        /// one, `issue` (`title`, `body`, `link`, `wholeInLink`), or an
-        /// error object.
+        /// one, `issue` (`title`, `body`, `link`, `wholeInLink`), `page`
+        /// (`name` and `id`) when the AI asked to open a page of the app, or
+        /// an error object.
         #[qsignal]
         fn finished(self: Pin<&mut AiChat>, result: QVariant);
 
@@ -223,7 +224,7 @@ pub(crate) mod engine {
         Answer, BuildInfo, ChatError, ChatSession, Feature, LogEntry, Mode, Outcome,
     };
     use kassensturz_ai_tools::requests::RequestFolder;
-    use kassensturz_ai_tools::{ChangeError, IssueDraft, ToolError};
+    use kassensturz_ai_tools::{ChangeError, IssueDraft, PageTarget, ToolError};
     use kassensturz_core::{Date, Report};
     use kassensturz_platform::Secret;
     use kassensturz_store::StoreError;
@@ -380,6 +381,9 @@ pub(crate) mod engine {
         if let Some(issue) = &answer.issue {
             fields.push(("issue", issue_object(issue)));
         }
+        if let Some(page) = &answer.page {
+            fields.push(("page", page_object(page)));
+        }
         map(fields)
     }
 
@@ -391,6 +395,16 @@ pub(crate) mod engine {
             ("body", text(&issue.body)),
             ("link", text(&issue.link)),
             ("wholeInLink", QVariant::from(&issue.whole_in_link)),
+        ])
+    }
+
+    /// A page the AI asked to open as QML reads it: its fixed `name` and the
+    /// `id` of the account or Rule it is about, empty when there is none
+    /// (D-265).
+    pub(crate) fn page_object(page: &PageTarget) -> QVariant {
+        map([
+            ("name", text(page.name())),
+            ("id", text(page.id().unwrap_or_default())),
         ])
     }
 
@@ -987,6 +1001,7 @@ mod tests {
             context_cut: true,
             changes: Vec::new(),
             issue: None,
+            page: None,
         };
         let object = finished_object(&answer, &[(3, 2), (4, 1)]);
         assert_eq!(
@@ -1035,6 +1050,7 @@ mod tests {
             context_cut: false,
             changes: Vec::new(),
             issue: Some(issue.clone()),
+            page: None,
         };
         let object = finished_object(&answer, &[]);
         assert_eq!(
@@ -1055,6 +1071,45 @@ mod tests {
         assert_eq!(text_of(&read, "body"), issue.body);
         assert_eq!(text_of(&read, "link"), issue.link);
         assert!(!flag_of(&read, "wholeInLink"));
+    }
+
+    #[test]
+    fn a_page_the_ai_opens_reads_back_as_qml_reads_it() {
+        use kassensturz_ai_tools::PageTarget;
+        let page = PageTarget::Rules {
+            select: Some("1b6f0c1e-0000-4000-8000-000000000001".into()),
+        };
+        let answer = Answer {
+            text: "I opened your Rule.".into(),
+            unverified: Vec::new(),
+            finish: Finish::Done,
+            mode: Mode::Functions,
+            context_cut: false,
+            changes: Vec::new(),
+            issue: None,
+            page: Some(page.clone()),
+        };
+        let object = finished_object(&answer, &[]);
+        assert_eq!(
+            keys(&object),
+            [
+                "contextCut",
+                "finish",
+                "overview",
+                "page",
+                "sets",
+                "text",
+                "unverified"
+            ]
+        );
+        let read = super::engine::page_object(&page);
+        assert_eq!(keys(&read), ["id", "name"]);
+        assert_eq!(text_of(&read, "name"), "rules");
+        assert_eq!(text_of(&read, "id"), "1b6f0c1e-0000-4000-8000-000000000001");
+        // A page with no account or Rule has an empty ID, not a missing one.
+        let read = super::engine::page_object(&PageTarget::Categories);
+        assert_eq!(text_of(&read, "name"), "categories");
+        assert_eq!(text_of(&read, "id"), "");
     }
 
     #[test]

@@ -119,7 +119,7 @@ fn refusal(book: &Book, transaction: &Value, category: &str) -> String {
 #[test]
 fn the_file_imports_whole_and_balanced() {
     let (book, report) = five_years();
-    assert_eq!(report.transactions, 3460);
+    assert_eq!(report.transactions, 3791);
     assert_eq!(
         report.completed, 0,
         "every entry balances as the file has it"
@@ -185,12 +185,12 @@ fn the_balances_are_the_generators() {
         .filter(|(_, balance, _)| balance != "0.00")
         .collect();
     let expected = [
-        ("Dome Petty Cash", "597.66", "EUR"),
+        ("Dome Petty Cash", "1814.40", "EUR"),
         ("Earth Trip Wallet", "915.90", "USD"),
-        ("Everyday Checking", "7432.04", "EUR"),
-        ("Mars Rainy-Day Savings", "19493.62", "EUR"),
+        ("Everyday Checking", "9703.92", "EUR"),
+        ("Mars Rainy-Day Savings", "23375.01", "EUR"),
         ("Shipyard Loan", "-4200.00", "EUR"),
-        ("Shuttle Travel Fund", "1210.49", "EUR"),
+        ("Shuttle Travel Fund", "3300.49", "EUR"),
     ];
     let expected: Vec<_> = expected
         .iter()
@@ -201,7 +201,7 @@ fn the_balances_are_the_generators() {
     assert_eq!(
         found["together"],
         json!([
-            {"currency": "EUR", "together": "24533.81"},
+            {"currency": "EUR", "together": "33993.82"},
             {"currency": "USD", "together": "915.90"},
         ])
     );
@@ -226,15 +226,15 @@ fn the_questionnaire_answers_of_this_book() {
     assert_eq!(year["currencies"], to_today["currencies"]);
     let euro = &year["currencies"][0];
     assert_eq!(euro["currency"], "EUR");
-    assert_eq!(euro["money_out"], "44878.94");
-    assert_eq!(euro["money_in"], "49795.98");
+    assert_eq!(euro["money_out"], "45627.06");
+    assert_eq!(euro["money_in"], "51691.11");
     assert_eq!(
         amounts(&euro["spending"], "category")[..5],
         [
             ("Taxes and Fees › Colony Income Tax", "10230.00"),
             ("Habitat › Rent", "7350.00"),
             ("Travel › Earth-Mars Flights", "2779.43"),
-            ("Food › Hydroponic Greens", "2667.07"),
+            ("Food › Hydroponic Greens", "2735.80"),
             ("Taxes and Fees › Colony Pension Fund", "2325.00"),
         ]
         .map(|(category, amount)| (category.to_owned(), amount.to_owned()))
@@ -255,9 +255,9 @@ fn the_questionnaire_answers_of_this_book() {
     assert_eq!(
         food,
         [
-            ("Food › Hydroponic Greens", "2667.07"),
-            ("Food", "1734.03"),
-            ("Food › Algae Bars and Nutrient Paste", "672.99"),
+            ("Food › Hydroponic Greens", "2735.80"),
+            ("Food", "1786.37"),
+            ("Food › Algae Bars and Nutrient Paste", "705.43"),
         ]
         .map(|(category, amount)| (category.to_owned(), amount.to_owned()))
     );
@@ -270,7 +270,7 @@ fn the_questionnaire_answers_of_this_book() {
     );
     assert_eq!(
         (ice["matches"].as_u64(), ice["rows_left_out"].as_u64()),
-        (Some(60), Some(40))
+        (Some(81), Some(61))
     );
 
     // Q6: the ten biggest expenses of 2026, as the tool sorts them, every
@@ -299,7 +299,7 @@ fn the_questionnaire_answers_of_this_book() {
         rows[10]["amount"], "-821.04",
         "the eleventh is lower, not equal"
     );
-    assert_eq!(biggest["matches"], 528);
+    assert_eq!(biggest["matches"], 844);
 }
 
 #[test]
@@ -345,6 +345,71 @@ fn the_categories_and_names_the_questionnaire_uses_are_there() {
     assert!(kepler["matches"].as_u64().unwrap() > 50);
     category_id(&book, "Leisure › Zero-G Sports");
     category_id(&book, "Leisure");
+}
+
+#[test]
+fn the_older_entries_are_kept_with_payees_that_fit() {
+    let (book, _) = five_years();
+    // The older book's texts are there ("Reactor spare parts" is only in it).
+    let kept = run(
+        &book,
+        "search_transactions",
+        json!({"text": "Reactor spare parts"}),
+    );
+    assert!(kept["matches"].as_u64().unwrap() >= 20);
+    // Nothing is dated after today, where the older book ran on to April 2027.
+    let later = run(
+        &book,
+        "search_transactions",
+        json!({"from": "2026-10-29", "to": "2027-12-31"}),
+    );
+    assert_eq!(later["matches"], 0);
+    // A payee never sits on a category that contradicts it: its own
+    // category, or one of the catch-alls the older book used for everything.
+    let fits = [
+        (
+            "Titan Fuel Station",
+            ["Rover and Vehicles", "Rover and Vehicles › Rover Parking"],
+        ),
+        ("Luna Pharmacy", ["Health", "Health"]),
+        (
+            "Subspace Telecom",
+            ["Subspace Communications", "Subspace Communications"],
+        ),
+        (
+            "Ceres Greengrocer",
+            ["Food › Hydroponic Greens", "Food › Hydroponic Greens"],
+        ),
+    ];
+    let catch_all = [
+        "Miscellaneous › Everyday Spending",
+        "Miscellaneous › Small Expenses",
+        "Miscellaneous",
+    ];
+    for (payee, own) in fits {
+        for year in 2024..=2026 {
+            let found = run(
+                &book,
+                "search_transactions",
+                json!({
+                    "text": payee, "limit": 50,
+                    "from": format!("{year}-01-01"), "to": format!("{year}-12-31"),
+                }),
+            );
+            for row in found["rows"].as_array().unwrap() {
+                if row["payee"] != payee {
+                    continue;
+                }
+                let category = row["category"].as_str().unwrap_or("(none)");
+                assert!(
+                    own.contains(&category)
+                        || catch_all.contains(&category)
+                        || row["unsorted"] == true,
+                    "{payee} on {category}"
+                );
+            }
+        }
+    }
 }
 
 #[test]

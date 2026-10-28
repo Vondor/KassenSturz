@@ -6,8 +6,10 @@
 
 The book is a KMyMoney SQLite file (layout 15) that KassenSturz imports like
 any other. It keeps the accounts, categories, institutions and securities of
-the older `space-colony-v15.sqlite` and fills them with made-up, believable
-life from 2021-11-01 to 2026-10-28: pay slips split into several parts,
+the older `space-colony-v15.sqlite`, keeps that book's entries up to
+2026-10-28 as realistic examples (with a payee that fits each entry's
+category; the ones dated later are left out), and fills the five years around
+them with made-up, believable life from 2021-11-01 to 2026-10-28: pay slips split into several parts,
 rent and utility bills, seasonal food and energy costs, insurance and tax
 installments, saving, a loan being paid off, summer and winter trips paid in
 US dollars from a dollar account, and the last weeks as lines the bank
@@ -17,9 +19,8 @@ Everything is exact whole minor units (cents); nothing here uses a floating
 point number for money, prices or rates (AGENTS.md §3.1 rule 1). Every
 random choice comes from the small generator below, one stream per kind of
 event, so the same call always writes the same book, and a change to one
-kind of event does not shift the others. No real data goes in or comes out:
-the older book is read for its names only, and nothing is taken from it that
-is not already in the repository.
+kind of event does not shift the others. Nothing is taken from the older
+book that is not already in the repository.
 
     tools/space-colony/generate.py            # writes the committed book
     tools/space-colony/generate.py --check    # fails if the committed book differs
@@ -579,20 +580,89 @@ def one_offs(year, month):
         pay(date(2026, 2, 6), CHECKING, "Minor Repairs", 124000, None, "Airlock seal repair")
 
 
+OPENING_FLOOR = 50000  # every account that can't go below zero stays above 500.00
+OPENING_BASE = {CHECKING: 400000, SAVINGS: 950000, PETTY: 8000, TRAVEL: 120000}
+LOAN_AT_START = 1500000
+SAVINGS_BALANCE[0] = OPENING_BASE[SAVINGS]
+
+# What the older book's entries are about, by the text they carry, and who
+# a payee of that kind is: used only where the entry's own category is a
+# catch-all, so the payee never contradicts the category.
+CATCH_ALL = {"Everyday Spending", "Miscellaneous", "Small Expenses", "Other Spending"}
+MEMO_PAYEE = {
+    "Algae bars": "Crater Bakery", "Reactor spare parts": "Galaxy Electronics",
+    "Habitat supplies": "Olympus Mons Market", "Rover check-up": "Rover Garage Gamma",
+    "Water allotment": "Northern Ice Works", "Seed order": "Redwood Seed Bank",
+    "Library fine": "Venus Library", "Fuel top-up": "Titan Fuel Station",
+    "Hull patch kit": "Galaxy Electronics", "Zero-G class": "Kepler Sports Club",
+    "Subspace fee": "Subspace Telecom", "Suit repair": "Suit Tailors Guild",
+    "Canteen lunch": "Phobos Canteen", "Greens, week": "Ceres Greengrocer",
+    "Dome rent share": "Dome Management Co.", "Oxygen refill": "Europa Water Board",
+    "Data crystals": "Venus Library", "Cinema night": "Aurora Dome Cinema",
+    "Radiation badge": "Moonbase Medical Center", "Shuttle pass": "Andromeda Travel Agency",
+}
+OWN_ACCOUNTS = (CHECKING, SAVINGS, PETTY, TRAVEL, LOAN, EQUITY, WALLET,
+                "Ceres Savings Cooperative", "Lunar Credit Union", "Asteroid Claim Shares")
+
+
+def fitting_payee(category, memo, rng):
+    """A payee that suits the category an older entry is booked to."""
+    if category in CATCH_ALL:
+        theme = "".join(ch for ch in memo if not ch.isdigit()).strip()
+        return MEMO_PAYEE.get(theme)
+    suited = [name for name, default in {**PAYEE_DEFAULTS, **NEW_PAYEES}.items()
+              if default == category]
+    return rng.pick(suited) if suited else None
+
+
+def older_entries():
+    """The older book's entries up to END, as the same made-up life: dates,
+    amounts, accounts, categories and texts as they were, with a payee that
+    fits the category. Entries after END are left out."""
+    rng = stream("older-payee")
+    db = sqlite3.connect(SEED)
+    names = dict(db.execute("SELECT id, accountName FROM kmmAccounts"))
+    kept = 0
+    for ident, when, memo in db.execute(
+            "SELECT id, postDate, memo FROM kmmTransactions ORDER BY postDate, id"):
+        when = date.fromisoformat(when)
+        if when > END:
+            continue
+        parts = []
+        for account, value, shares, note in db.execute(
+                "SELECT accountId, value, shares, memo FROM kmmSplits "
+                "WHERE transactionId = ? ORDER BY splitId", (ident,)):
+            # Cents, from KMyMoney's fractions of a hundred.
+            assert value.endswith("/100") and shares.endswith("/100"), value
+            parts.append((names[account], int(value[:-4]), int(shares[:-4]), note))
+        others = [part[0] for part in parts if part[0] not in OWN_ACCOUNTS]
+        payee = fitting_payee(others[0], memo, rng) if len(others) == 1 else None
+        add(when, parts, memo, payee)
+        kept += 1
+    db.close()
+    return kept
+
+
 def opening():
-    # What the household owned and owed on the first day.
-    assets = [(CHECKING, 400000), (SAVINGS, 950000), (PETTY, 8000), (TRAVEL, 120000)]
-    loan = 1500000
-    balance = sum(cents for _, cents in assets) - loan
+    """What the household owned and owed on the first day, with enough in
+    each account that none of them runs dry at any time."""
+    running = {name: 0 for name in OPENING_BASE}
+    low = dict(running)
+    for tx in TX:
+        for name, _, shares, _ in tx["parts"]:
+            if name in running:
+                running[name] += shares
+                low[name] = min(low[name], running[name])
+    assets = [(name, max(base, OPENING_FLOOR - low[name])) for name, base in OPENING_BASE.items()]
+    balance = sum(cents for _, cents in assets) - LOAN_AT_START
     parts = [(name, cents) for name, cents in assets]
-    parts.append((LOAN, -loan))
+    parts.append((LOAN, -LOAN_AT_START))
     parts.append((EQUITY, -balance))
     add(START, parts, "Opening balances", None)
-    SAVINGS_BALANCE[0] = 950000
+    TX[-1]["seq"] = 0
 
 
 def build():
-    opening()
     for year, month in months():
         salary(year, month)
         housing(year, month)
@@ -605,6 +675,8 @@ def build():
         occasional(year, month)
     for start, nights, kind in TRIPS:
         trip(start, nights, kind)
+    older_entries()
+    opening()
     TX.sort(key=lambda tx: (tx["date"], tx["seq"]))
     rng = stream("unsorted")
     for tx in TX:

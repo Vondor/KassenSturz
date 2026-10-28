@@ -24,6 +24,9 @@ pub enum ChatError {
     /// The model kept calling functions without answering
     /// ([`crate::MAX_ROUNDS`] requests for one question).
     TooManyRounds,
+    /// The model wrote a function call as text, which the provider didn't
+    /// turn into a call, so nothing ran (#196, D-248).
+    ToolCallAsText,
     /// The overview for a model that can't call functions couldn't be read
     /// from the book.
     Book(ToolError),
@@ -53,6 +56,7 @@ impl Report for ChatError {
             Self::Cancelled => ErrorReport::new("ai-chat.cancelled"),
             Self::Stopped => ErrorReport::new("ai-chat.stopped"),
             Self::TooManyRounds => ErrorReport::new("ai-chat.too-many-rounds"),
+            Self::ToolCallAsText => ErrorReport::new("ai-chat.tool-call-as-text"),
             Self::Book(error) => {
                 ErrorReport::new("ai-chat.book-unreadable").caused_by(error.report())
             }
@@ -80,6 +84,7 @@ mod tests {
             ChatError::Cancelled,
             ChatError::Stopped,
             ChatError::TooManyRounds,
+            ChatError::ToolCallAsText,
             ChatError::Book(ToolError::BadPeriod),
         ]
     }

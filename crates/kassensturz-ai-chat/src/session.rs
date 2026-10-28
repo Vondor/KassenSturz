@@ -63,6 +63,27 @@ pub const ANSWER_NOW: &str = "KassenSturz: you already have the results you need
     Answer the user's question now, in plain words, from those results. No function \
     can be called any more.";
 
+/// Said to the model once when it answered with nothing at all (no text,
+/// no call), so the user doesn't have to ask again (#196, D-248).
+pub const EMPTY_ANSWER: &str = "KassenSturz: your last reply was empty. Answer the user's \
+    question now: call a function if you need data, otherwise answer in plain words.";
+
+/// Whether a reply's text is a function call the provider's template did
+/// not turn into a call, as some local models write it, e.g.
+/// `<|tool_call>call:list_categories{}<tool_call|>` (#196, D-248).
+fn is_raw_tool_call(text: &str) -> bool {
+    let text = text.to_lowercase();
+    [
+        "<|tool_call",
+        "<tool_call",
+        "[tool_calls]",
+        "<function=",
+        "<|python_tag|>",
+    ]
+    .iter()
+    .any(|marker| text.contains(marker))
+}
+
 /// What a function's result becomes once its question is over. A small
 /// model's context (LM Studio starts with 4096 tokens) holds the
 /// instructions and the functions and little more, and the whole results of
@@ -406,6 +427,7 @@ impl ChatSession {
         // is the one that has to answer.
         let mut made: HashSet<(String, String)> = HashSet::new();
         let mut closing = false;
+        let mut asked_again = false;
         while round < MAX_ROUNDS {
             round += 1;
             if round == MAX_ROUNDS && !closing {
@@ -482,6 +504,21 @@ impl ChatSession {
                 // request and the answer didn't fit (M5-B33).
                 if reply.text.trim().is_empty() && reply.finish == Finish::Length {
                     return Err(AiError::ContextTooSmall.into());
+                }
+                // An empty reply that ended normally (not a refusal, a filter or a
+                // cut) is asked for once more before the user has
+                // to repeat the question.
+                if reply.text.trim().is_empty()
+                    && reply.finish == Finish::Done
+                    && !asked_again
+                    && !closing
+                {
+                    asked_again = true;
+                    self.history.push(Message::user(EMPTY_ANSWER));
+                    continue;
+                }
+                if is_raw_tool_call(&reply.text) {
+                    return Err(ChatError::ToolCallAsText);
                 }
                 let unverified = check_numbers(&reply.text, &self.figures);
                 #[cfg(feature = "debug-log")]

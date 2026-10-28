@@ -364,4 +364,5 @@ A question in the chat ended without an answer (D-190, D-193). Errors of the pro
 | `ai-chat.cancelled` | | | You stopped the question, so the AI's answer, if one still comes, is not shown. A request already on its way can't be called back. Ask again when you like. |
 | `ai-chat.stopped` | | | You didn't let the request go after seeing what would be sent, so nothing was sent. Ask again, and remove what you don't want to send. |
 | `ai-chat.too-many-rounds` | | | The AI kept asking KassenSturz for data without answering, so KassenSturz stopped it. Ask a narrower question, or try another model. |
+| `ai-chat.tool-call-as-text` | | | The AI model wrote a function call as plain text instead of making the call, so nothing was done. Ask again, or try another model; this one doesn't work well with KassenSturz's functions. |
 | `ai-chat.book-unreadable` | | | The book couldn't be read for the overview a model without functions gets. The detail says why; see that message. |

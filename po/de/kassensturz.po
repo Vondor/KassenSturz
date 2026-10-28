@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-28 13:07+0000\n"
+"POT-Creation-Date: 2026-10-28 13:55+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -1263,13 +1263,26 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid ""
+"The model wrote a function call as plain text instead of making the call, so "
+"nothing was done. Ask again, or try another model: this one doesn't work "
+"well with KassenSturz's functions."
+msgstr ""
+"Das Modell hat einen Funktionsaufruf als normalen Text geschrieben, statt "
+"ihn auszuführen. Es wurde also nichts getan. Fragen Sie noch einmal oder "
+"versuchen Sie ein anderes Modell: Dieses arbeitet nicht gut mit den "
+"Funktionen von KassenSturz zusammen."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:102
+#, kde-format
+msgctxt "@info"
+msgid ""
 "Your book couldn't be read to answer the question. Make sure the book is "
 "still where it was, then ask again."
 msgstr ""
 "Ihr Buch konnte nicht gelesen werden, um die Frage zu beantworten. Prüfen "
 "Sie, ob das Buch noch am selben Ort liegt, und fragen Sie dann noch einmal."
 
-#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:102
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:104
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1281,7 +1294,7 @@ msgstr ""
 "entfernt, oder sie wurden verworfen. Es wurde nichts geändert. Bitten Sie "
 "die KI, sie noch einmal vorzubereiten."
 
-#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:104
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:106
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1294,7 +1307,7 @@ msgstr ""
 "geändert. Schalten Sie sie unter „Was die KI vorbereiten darf“ wieder ein, "
 "oder bitten Sie die KI, die Änderungen neu vorzubereiten."
 
-#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:106
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:108
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1306,7 +1319,7 @@ msgstr ""
 "eine Kategorie mit diesem Namen angelegt wurde. Es wurde nichts geändert. "
 "Bitten Sie die KI, sie noch einmal vorzubereiten."
 
-#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:108
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:110
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -1316,13 +1329,13 @@ msgstr ""
 "Mit dem Anbieter ist etwas schiefgegangen. Prüfen Sie seine Adresse und "
 "Einstellungen und versuchen Sie es erneut."
 
-#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:120
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:122
 #, kde-format
 msgctxt "@action:button"
 msgid "Add /v1 to the address"
 msgstr "„/v1“ an die Adresse anhängen"
 
-#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:126
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:128
 #, kde-format
 msgctxt "@action:button"
 msgid "Open the AI settings"

@@ -511,6 +511,22 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // Shows the page the AI asked to open (D-265): on top of the page that is
+    // open, so Back leads to where the user was and nothing they have typed
+    // is thrown away. `name` is one of the fixed names of the `open_page`
+    // function, `id` the account or Rule it is about. A Rule that is gone,
+    // or a name that isn't one of these, shows nothing.
+    function showPageForAi(name: string, id: string) {
+        if (name === "account") {
+            showRegister(id);
+        } else if (screens[name] !== undefined && name !== "settings") {
+            const page = pushPage(screens[name]);
+            if (name === "rules" && id !== "") {
+                page.selectedId = id;
+            }
+        }
+    }
+
     function showRegister(accountId: string) {
         pushPage(registerPage, { accountId: accountId });
     }
@@ -827,6 +843,13 @@ Kirigami.ApplicationWindow {
                 onCloseClicked: chatDrawer.close()
                 onDetachClicked: root.chatDetached ? root.attachChat() : root.detachChat()
                 onChangesArrived: chatDrawer.open()
+                onOpenPageRequested: (name, id) => {
+                    if (chatDrawer.modal) {
+                        chatDrawer.close();
+                    }
+                    root.showPageForAi(name, id);
+                    root.raiseMainWindow();
+                }
             }
         }
     }

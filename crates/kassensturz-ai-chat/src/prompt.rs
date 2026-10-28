@@ -219,6 +219,10 @@ after you said something may be a bug, prepare a report with draft_issue, in Eng
 general words without anything from the book. The user reads it and decides whether to open it \
 on KassenSturz's issue page; say that, never that it was sent.";
 
+const PAGES: &str = "When the user asks you to show them something in KassenSturz, such as a \
+Rule or an account, open that page with open_page and say which page you opened. Opening a \
+page changes nothing.";
+
 #[cfg(feature = "debug-log")]
 const LOG_READABLE: &str = "KassenSturz runs in its developer mode and writes a debug log. When something went \
 wrong, read_debug_log shows what happened recently: event names, the functions and screens they \
@@ -247,7 +251,7 @@ pub(crate) fn with_functions(
     };
     format!(
         "{ROLE}\n\n{FIGURES_WITH_FUNCTIONS}\n\n{}\n\n{RULES}\n\nToday is {today}.\n\n{}\n\n\
-         {ISSUES}{log}",
+         {PAGES} {ISSUES}{log}",
         changes(allowed),
         build.line()
     )
@@ -325,6 +329,17 @@ mod tests {
                 assert!(!text.contains(marker.as_str()), "{marker:?} in {text}");
             }
         }
+    }
+
+    #[test]
+    fn the_model_is_pointed_to_open_page() {
+        let text = with_functions(
+            &BuildInfo::new("0.261025.1", ""),
+            TODAY,
+            false,
+            Permissions::all(),
+        );
+        assert!(text.contains("open_page"), "{text}");
     }
 
     #[test]

@@ -107,7 +107,7 @@ fn a_question_with_a_function_call_works_in_every_dialect() {
         let sent = bodies(&fake);
         assert_eq!(sent.len(), 2, "{}", dialect.name());
         // The function offered are the real ones.
-        assert_eq!(sent[0]["tools"].as_array().unwrap().len(), 8);
+        assert_eq!(sent[0]["tools"].as_array().unwrap().len(), 9);
         // The second request answers the call, by the provider's ID, with
         // the real result.
         let messages = sent[1]["messages"].as_array().unwrap();

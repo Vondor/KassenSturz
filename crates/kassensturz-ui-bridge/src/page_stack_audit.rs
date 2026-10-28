@@ -163,6 +163,11 @@ mod tests {
             "the menu's modal must not use wideScreen"
         );
         assert!(menu.contains("menuBesideMinWidth"));
+        // The menu's width is its own and never its longest text's (#205).
+        assert!(
+            menu.contains("width: Math.max(root.menuMinWidth"),
+            "the menu must have a width limit"
+        );
         assert_eq!(
             main.matches("pushPage(aiChangeReviewPage").count(),
             1,

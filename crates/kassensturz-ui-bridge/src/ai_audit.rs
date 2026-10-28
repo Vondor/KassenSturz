@@ -227,15 +227,12 @@ mod tests {
         ] {
             assert!(drawer.contains(needle), "the sidebar lacks `{needle}`");
         }
-        let toggle = &main[main
-            .find("text: chatPanel.toggleText")
-            .expect("the menu entry")..];
-        let toggle_start = main[..main.len() - toggle.len()]
-            .rfind("Kirigami.Action {")
-            .expect("its action");
-        let action = &main[toggle_start..main.len() - toggle.len() + toggle.find("},").unwrap()];
-        assert!(action.contains("visible: aiSwitch.enabled"), "{action}");
-        assert!(action.contains("enabled: aiSwitch.enabled"), "{action}");
+        // The keyboard shortcut is dead while AI is off, and the menu has no
+        // entry that names the chat (#207).
+        let shortcut = &main[main.find("id: chatShortcut").expect("the shortcut")..];
+        let shortcut = &shortcut[..shortcut.find("}\n").unwrap()];
+        assert!(shortcut.contains("enabled: aiSwitch.enabled"), "{shortcut}");
+        assert!(!main.contains("chatPanel.toggleText"));
         for (name, text) in qml_files() {
             let confirms = text
                 .lines()

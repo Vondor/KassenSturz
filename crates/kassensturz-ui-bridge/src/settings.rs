@@ -59,7 +59,11 @@ const FETCH_GAP: &str = "FetchGapDays";
 
 /// The group and key of the main window's size and place.
 const WINDOW: &str = "Window";
+/// The widths of the left menu worth keeping, in pixels; the window clamps
+/// to its own limits in grid units.
+const MENU_WIDTH_RANGE: core::ops::RangeInclusive<i32> = 100..=2000;
 const WINDOW_GEOMETRY: &str = "Geometry";
+const WINDOW_MENU_WIDTH: &str = "MenuWidth";
 
 /// The app's settings in one settings file.
 pub struct Settings {
@@ -137,6 +141,22 @@ impl Settings {
     /// Keeps the window's size and place. Returns whether it was saved.
     pub fn set_window_geometry(&self, geometry: &str) -> bool {
         self.set_text(WINDOW, WINDOW_GEOMETRY, geometry)
+    }
+
+    /// The width in pixels the user gave the left menu, if one is kept.
+    pub fn menu_width(&self) -> Option<i32> {
+        self.text(WINDOW, WINDOW_MENU_WIDTH)
+            .trim()
+            .parse()
+            .ok()
+            .filter(|width| (MENU_WIDTH_RANGE).contains(width))
+    }
+
+    /// Keeps the left menu's width. Returns whether it was saved; a width
+    /// the next start would ignore is not kept.
+    pub fn set_menu_width(&self, width: i32) -> bool {
+        MENU_WIDTH_RANGE.contains(&width)
+            && self.set_text(WINDOW, WINDOW_MENU_WIDTH, &width.to_string())
     }
 
     /// The text kept under `key` in `group`; empty if there is none.

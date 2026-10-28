@@ -23,8 +23,6 @@
 
 use std::collections::{HashMap, HashSet};
 
-mod transactions;
-
 use kassensturz_core::ai_switch::{Field, Permission, Permissions};
 use kassensturz_core::{
     Account, AccountId, AccountKind, Actions, AmountTest, BookTo, Condition, CurrencyCode, Date,

@@ -255,6 +255,14 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - Each button asks the same way you would: what is sent, and what the AI looked at, is in the tab "What the AI looked at", and a provider on another computer shows you each request first.
 - **In German:** *Kategorien vorschlagen*, *Diesen Monat erklären*, *Regeln vorbereiten*.
 
+## Asking the AI to show you something (D-265)
+
+- **What it does:** ask the chat things like "Show me my Nebula Streaming Rule" or "Open my savings account". The AI looks the Rule or account up and KassenSturz opens its page: the Rules page with that Rule selected, or the account's transactions. The chat adds a line saying which page the AI opened.
+- **Which pages:** the overview, your accounts, your categories, your Rules, one account's transactions and one Rule. Settings, the bank pages and every page that changes something are not on the list, and opening a page changes nothing in your book.
+- **Where it opens:** on top of the page you were on, so **Back** takes you to where you were and nothing you had typed is lost. If the AI asked for several pages, only the last one opens.
+- **Your own AI tools:** this works in KassenSturz's chat only. The small program for your own AI tools (`kassensturz-mcp`) can't move KassenSturz's window.
+- **In German:** the line in the chat reads, for example, *Die KI hat Ihre Regeln geöffnet und eine ausgewählt.*
+
 ## Plain language and German for bank connections (M4.9)
 
 - **Bank problems say what happened and what to do.** Every problem with the bank has its own message on the screen, e.g. "Your bank's server couldn't be reached. Check your internet connection and the bank's address, and try again later." or "Your bank says the PIN is wrong. KassenSturz has forgotten it, so it won't be sent again. Check it and type it again; after a few wrong PINs a bank blocks the login." One that was missing now exists: if your bank no longer lists the bank account an account is linked to, the account says "Your bank doesn't list the bank account this account is linked to for this login anymore. Link the account to another bank account, or connect the bank again in Settings." A test checks that no bank problem is left without a message.

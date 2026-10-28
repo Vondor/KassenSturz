@@ -884,7 +884,10 @@ mod tests {
 
     #[test]
     fn every_function_is_offered_with_its_parameters() {
-        let specs = function_specs(false, Permissions::all());
+        let everything = ai_switch::Field::ALL
+            .iter()
+            .fold(Permissions::all(), |p, field| p.with_lock(*field, false));
+        let specs = function_specs(false, everything);
         assert_eq!(specs.len(), FUNCTIONS.len() + 3);
         assert_eq!(specs[FUNCTIONS.len()].name, PROPOSE_CHANGES.name);
         assert_eq!(specs[FUNCTIONS.len() + 1].name, DRAFT_ISSUE.name);
@@ -906,7 +909,7 @@ mod tests {
         }
         // The debug log is offered only while the model may read it, and
         // never in a build without it.
-        let with_log = function_specs(true, Permissions::all());
+        let with_log = function_specs(true, everything);
         #[cfg(feature = "debug-log")]
         {
             assert_eq!(with_log.len(), specs.len() + 1);

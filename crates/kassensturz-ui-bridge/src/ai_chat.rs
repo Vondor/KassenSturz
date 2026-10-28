@@ -24,7 +24,9 @@ use kassensturz_ai_chat::{
     Answer, Cancel, ChatError, ChatSession, DemoModel, Hooks, LogEntry, demo_provider,
 };
 use kassensturz_ai_tools::requests::RequestId;
-use kassensturz_ai_tools::{ChangeError, ChangeSet, Confirmed, ProposedChange, ToolError};
+use kassensturz_ai_tools::{
+    ChangeError, ChangeSet, Confirmed, FieldValue, ProposedChange, ToolError,
+};
 use kassensturz_core::ai_switch::Permissions;
 use kassensturz_core::{Date, ErrorParam, ErrorReport, MatchMode, Rule};
 use kassensturz_platform::Secret;
@@ -394,6 +396,30 @@ pub enum ChangeView {
         /// Whether it is closed after.
         closed: bool,
     },
+    /// A transaction with some fields changed (D-257).
+    EditTransaction {
+        /// Its day now, in the user's format.
+        date: String,
+        /// Who was paid or paid now, empty for none.
+        payee: String,
+        /// The account the money moves in or out of now.
+        account: String,
+        /// What it does to the account now, exact, in the user's format.
+        amount: String,
+        /// The fields that change, in the order of the review.
+        lines: Vec<EditLine>,
+    },
+}
+
+/// One field of a transaction that changes, written for the user.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EditLine {
+    /// Which field: `amount`, `date`, `payee`, `account` or `note`.
+    pub field: &'static str,
+    /// What it is now, empty for none.
+    pub before: String,
+    /// What it becomes, empty for none.
+    pub after: String,
 }
 
 /// The changes of `set` as the review screen shows them, with amounts and
@@ -478,9 +504,42 @@ pub fn view_of(
                     was_closed: edit.was_closed,
                     closed: edit.closed,
                 },
+                ProposedChange::EditTransaction(edit) => ChangeView::EditTransaction {
+                    date: locale.short_date(edit.date),
+                    payee: edit.payee.clone().unwrap_or_default(),
+                    account: edit.account.clone(),
+                    amount: AmountWriter::new(book, edit.amount.currency(), locale)?
+                        .text(edit.amount)
+                        .exact,
+                    lines: edit
+                        .edits
+                        .iter()
+                        .map(|line| {
+                            Ok(EditLine {
+                                field: line.field.name(),
+                                before: field_text(book, &line.before, locale)?,
+                                after: field_text(book, &line.after, locale)?,
+                            })
+                        })
+                        .collect::<Result<_, StoreError>>()?,
+                },
             })
         })
         .collect()
+}
+
+/// A field's value as the review writes it (D-065).
+fn field_text(book: &Book, value: &FieldValue, locale: &impl Locale) -> Result<String, StoreError> {
+    Ok(match value {
+        FieldValue::Text(text) => text.clone().unwrap_or_default(),
+        FieldValue::Date(date) => locale.short_date(*date),
+        FieldValue::Money(money) => {
+            AmountWriter::new(book, money.currency(), locale)?
+                .text(*money)
+                .exact
+        }
+        FieldValue::Account(name) => name.clone(),
+    })
 }
 
 fn new_rule_view(
@@ -823,6 +882,48 @@ mod tests {
         assert!(book.account(first.id).unwrap().closed);
         assert!(book.undo().unwrap().is_some());
         assert!(!book.account(first.id).unwrap().closed);
+    }
+
+    #[test]
+    fn an_edit_is_shown_with_dates_and_amounts_in_the_users_format() {
+        let book = space_colony();
+        let found = kassensturz_ai_tools::call(
+            &book,
+            "search_transactions",
+            &serde_json::json!({"limit": 5}),
+            TODAY,
+        )
+        .unwrap()
+        .value;
+        let row = &found["rows"][0];
+        let open = kassensturz_core::ai_switch::Field::ALL
+            .iter()
+            .fold(Permissions::all(), |p, field| p.with_lock(*field, false));
+        let proposal = kassensturz_ai_tools::propose(
+            &book,
+            &serde_json::json!({"edit_transactions": [{
+                "transaction_id": row["transaction_id"],
+                "date": "2027-04-07",
+                "payee": "Colony Cafe",
+                "note": "weekly",
+            }]}),
+            open,
+        )
+        .unwrap();
+
+        let views = view_of(&book, &proposal.changes, &TestLocale).unwrap();
+
+        let [ChangeView::EditTransaction { amount, lines, .. }] = views.as_slice() else {
+            panic!("one edit: {views:?}");
+        };
+        assert!(amount.ends_with(" €") && amount.contains(','), "{amount}");
+        let fields: Vec<_> = lines.iter().map(|line| line.field).collect();
+        assert_eq!(fields, ["date", "payee", "note"]);
+        assert_eq!(lines[0].before.len(), 10, "{:?}", lines[0]);
+        assert_eq!(lines[0].after.len(), 10, "{:?}", lines[0]);
+        assert_eq!(lines[1].after, "Colony Cafe");
+        assert_eq!(lines[2].before, row["memo"].as_str().unwrap());
+        assert_eq!(lines[2].after, "weekly");
     }
 
     #[test]

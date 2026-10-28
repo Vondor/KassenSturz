@@ -296,6 +296,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is a program's name, %2 and %3 version numbers", "The installed %1 is version %2; KassenSturz needs %3 or newer. Update it, or import a file from your bank instead.", result.library === "gwenhywfar" ? "Gwenhywfar" : "AqBanking", result.found, result.minimum);
         case "bank.not-registered":
             return i18nContext.i18nc("@info", "This version of KassenSturz isn't registered with the German banks' FinTS system yet, so it can't connect to a bank. Import a file from your bank instead.");
+        case "bank.malformed-registration":
+            return i18nContext.i18nc("@info", "A FinTS product registration number has exactly 25 letters and digits. Check it against the registration letter and type it again.");
         case "bank.malformed-iban":
             return i18nContext.i18nc("@info", "This isn't an IBAN. It has two letters, two digits and then up to 30 letters or digits, for example DE89 3704 0044 0532 0130 00; spaces don't matter. Check it against what your bank shows.");
         case "bank.unknown-login":

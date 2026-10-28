@@ -38,6 +38,14 @@ pub enum ToolError {
     /// The transaction can't simply get a category: it is a transfer, a
     /// starting balance, or split over several categories.
     NotCategorizable,
+    /// The transaction can't be edited that way: its amount or account only
+    /// when it has two parts in one currency and is no transfer (D-257).
+    NotEditable,
+    /// The field is locked against the AI in the AI settings (D-252, D-257).
+    FieldLocked {
+        /// The field's fixed name, such as `amount`.
+        field: &'static str,
+    },
     /// The category is in another currency than the transaction.
     OtherCurrency,
     /// No Rule has that ID.
@@ -106,6 +114,10 @@ impl Report for ToolError {
             Self::TooManyChanges => ErrorReport::new("ai-tools.too-many-changes"),
             Self::NameTaken => ErrorReport::new("ai-tools.name-taken"),
             Self::NotCategorizable => ErrorReport::new("ai-tools.not-categorizable"),
+            Self::NotEditable => ErrorReport::new("ai-tools.not-editable"),
+            Self::FieldLocked { field } => {
+                ErrorReport::new("ai-tools.field-locked").with("field", ErrorParam::Keyword(field))
+            }
             Self::OtherCurrency => ErrorReport::new("ai-tools.other-currency"),
             Self::UnknownRule => ErrorReport::new("ai-tools.unknown-rule"),
             Self::NotChangeable => ErrorReport::new("ai-tools.not-changeable"),
@@ -154,6 +166,7 @@ mod tests {
             ToolError::TooManyChanges,
             ToolError::NameTaken,
             ToolError::NotCategorizable,
+            ToolError::NotEditable,
             ToolError::OtherCurrency,
             ToolError::UnknownRule,
             ToolError::NotChangeable,
@@ -175,6 +188,11 @@ mod tests {
                 .map(|&(argument, _)| ToolError::NotAllowed { argument }),
         );
         examples.push(ToolError::NotAllowed { argument: "page" });
+        examples.extend(kassensturz_core::ai_switch::Field::ALL.iter().map(|field| {
+            ToolError::FieldLocked {
+                field: field.name(),
+            }
+        }));
         examples.extend(
             crate::FUNCTIONS
                 .iter()

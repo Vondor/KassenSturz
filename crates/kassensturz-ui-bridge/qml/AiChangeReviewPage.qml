@@ -3,7 +3,7 @@
 
 // The review of the changes the AI prepared (M5.8, D-047, D-200, threat
 // T-27): every change in words, the new categories, the new Rules and the
-// transactions that get a category, with the amount and day as the register
+// transactions that get a category or have other fields changed (D-257), with the amount and day as the register
 // shows them. Nothing has changed yet. The confirm button below is the only
 // way to apply the set (`AiChat.confirm`): all of it is made or none, as one
 // change that Undo takes back, which this page offers once it is done. The
@@ -49,10 +49,28 @@ Kirigami.ScrollablePage {
     readonly property var deletedRules: changes.filter ? changes.filter(change => change.kind === "deleteRule") : []
     readonly property var newRules: changes.filter ? changes.filter(change => change.kind === "newRule") : []
     readonly property var transactions: changes.filter ? changes.filter(change => change.kind === "categorize") : []
+    readonly property var editedTransactions: changes.filter ? changes.filter(change => change.kind === "editTransaction") : []
     readonly property var deletedCategories: changes.filter ? changes.filter(change => change.kind === "deleteCategory") : []
     readonly property var newAccounts: changes.filter ? changes.filter(change => change.kind === "newAccount") : []
     readonly property var editedAccounts: changes.filter ? changes.filter(change => change.kind === "editAccount") : []
     readonly property bool shows: changes.code === undefined && !done
+
+    // The name of a field of a transaction the AI changes.
+    function transactionFieldName(field: string): string {
+        if (field === "amount") {
+            return i18nContext.i18nc("@label a field of a transaction", "Amount");
+        }
+        if (field === "date") {
+            return i18nContext.i18nc("@label a field of a transaction", "Date");
+        }
+        if (field === "payee") {
+            return i18nContext.i18nc("@label a field of a transaction", "Who paid or was paid");
+        }
+        if (field === "account") {
+            return i18nContext.i18nc("@label a field of a transaction", "Account");
+        }
+        return i18nContext.i18nc("@label a field of a transaction", "Note");
+    }
 
     AccountTypes {
         id: accountTypes
@@ -577,6 +595,65 @@ Kirigami.ScrollablePage {
                         opacity: 0.8
                         textFormat: Text.PlainText
                         text: page.i18nContext.i18nc("@info", "Transactions it sorted earlier stay as they are.")
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.editedTransactions.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Transactions that change")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.editedTransactions : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            font.bold: true
+                            textFormat: Text.PlainText
+                            text: modelData.payee !== "" ? modelData.payee : page.i18nContext.i18nc("@info a transaction without a name", "(no name)")
+                        }
+
+                        Controls.Label {
+                            textFormat: Text.PlainText
+                            text: modelData.amount
+                        }
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is a date, %2 the name of an account", "%1 · %2", modelData.date, modelData.account)
+                    }
+
+                    Repeater {
+                        model: modelData.lines
+
+                        Controls.Label {
+                            required property var modelData
+
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            text: modelData.before !== ""
+                                ? page.i18nContext.i18nc("@info %1 is the name of a field, %2 its value now, %3 the value it becomes", "%1: %2 → %3", page.transactionFieldName(modelData.field), modelData.before, modelData.after !== "" ? modelData.after : page.i18nContext.i18nc("@info the value is removed", "(none)"))
+                                : page.i18nContext.i18nc("@info %1 is the name of a field, %2 the value it becomes", "%1: %2 (none before)", page.transactionFieldName(modelData.field), modelData.after)
+                        }
                     }
                 }
             }

@@ -32,6 +32,12 @@
 //! before KassenSturz may talk to a real bank (D-159). With `1`, a PIN goes
 //! to a KeePassXC database when the user chose one in Settings, so that
 //! choice can be tried with the fake bank too (D-167).
+//!
+//! A build without a FinTS registration of its own refuses to contact a
+//! bank (D-058). Started with `KASSENSTURZ_FINTS_ASK=1`, it asks the person
+//! testing it for the product registration number instead, the first time a
+//! bank is to be contacted ([`Event::Registration`]), and keeps the number
+//! in memory until the app closes (D-260).
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -43,8 +49,8 @@ use kassensturz_bank::{
     AqBankingBank, Availability, Bank, BankAccount, BankAccountKind, BankCode, BankDialogs,
     BankError, BankQuestion, CustomerId, FINTS_REGISTRATION_KEY, FakeBank, Iban, KeychainPinStore,
     Login, LoginId, LoginKind, LoginSetup, MemoryPinStore, NoPinStore, Pin, PinAsker, PinMode,
-    PinSession, PinStore, QuestionLevel, SecondFactor, Setup, Tan, TanRequest, fetch_linked,
-    names_account, remove_login, setup_for,
+    PinSession, PinStore, QuestionLevel, RegistrationKey, SecondFactor, Setup, Tan, TanRequest,
+    fetch_linked, names_account, remove_login, setup_for,
 };
 use kassensturz_core::{AccountId, BankLink, Date, ErrorParam, Report};
 use kassensturz_import::{EntryStatus, Limits};
@@ -69,6 +75,14 @@ pub const FAKE_BANK_WITH_KEYCHAIN: &str = "keychain";
 /// never mistaken for a real one and the user sees in the keychain's
 /// manager that it belongs to the fake bank (D-159).
 pub const FAKE_BANK_SERVICE: &str = "io.github.vondor.KassenSturz.FakeBank";
+
+/// The environment variable that lets the person testing a build without
+/// a FinTS registration of its own type the product registration number
+/// (D-260): with `1`, the first call that would contact a bank asks for
+/// it, and it is kept in memory until the app closes. The registration
+/// office's terms keep the number from being passed on, so it is never
+/// part of the source, the build, a setting or a file.
+pub const ASK_REGISTRATION_VARIABLE: &str = "KASSENSTURZ_FINTS_ASK";
 
 /// How many of the fake bank's login IDs are looked up in the keychain
 /// when the app starts: more than anyone sets up while trying it out.
@@ -123,8 +137,12 @@ pub struct Connection {
     /// Makes the store when the user chooses another place for the PINs.
     pin_stores: PinStores,
     /// Whether the backend may talk to a bank: this build has a FinTS
-    /// registration (D-058), or the backend is the fake bank.
+    /// registration (D-058), the backend is the fake bank, or the user
+    /// typed the number in this run of the app (D-260).
     pub registered: bool,
+    /// Whether the user is asked for the registration number when there
+    /// is none ([`ASK_REGISTRATION_VARIABLE`], D-260).
+    pub ask_registration: bool,
     /// Whether the backend is the fake bank, which the screens say.
     pub fake: bool,
     /// How to ask the screens something while a call runs; set by the
@@ -143,6 +161,7 @@ impl Connection {
             pins: PinSession::new(pin_stores(storage)),
             pin_stores,
             registered: FINTS_REGISTRATION_KEY.is_some(),
+            ask_registration: false,
             fake: false,
             screens: None,
         }
@@ -155,6 +174,7 @@ impl Connection {
             pins,
             pin_stores: memory_stores(),
             registered: true,
+            ask_registration: false,
             fake: true,
             screens: None,
         }
@@ -211,7 +231,11 @@ impl Connection {
                 keychain_stores(|storage| storage.keychain(FAKE_BANK_SERVICE)),
                 storage,
             ),
-            Some(folder) => Self::real(&folder.join("aqbanking"), storage),
+            Some(folder) => Self {
+                ask_registration: std::env::var_os(ASK_REGISTRATION_VARIABLE)
+                    .is_some_and(|value| value == "1"),
+                ..Self::real(&folder.join("aqbanking"), storage)
+            },
             // Without a data folder AqBanking has nowhere to keep its
             // settings: the screens say so.
             None => Self {
@@ -219,6 +243,7 @@ impl Connection {
                 pins: PinSession::new(memory_stores()(storage)),
                 pin_stores: memory_stores(),
                 registered: FINTS_REGISTRATION_KEY.is_some(),
+                ask_registration: false,
                 fake: false,
                 screens: None,
             },
@@ -235,7 +260,8 @@ impl Connection {
 
     /// Whether bank connections can be used, as the screens say it.
     pub fn status(&mut self) -> Status {
-        let registered = self.registered;
+        // Asking for the number comes when a bank is contacted.
+        let registered = self.registered || self.ask_registration;
         let fake = self.fake;
         match self.bank() {
             Err(error) => Status::Unusable(error),
@@ -273,6 +299,10 @@ pub enum Event {
     /// The bank needs the PIN of a login, and none is remembered or saved
     /// (or the bank called the last one wrong).
     Pin(PinRequest),
+    /// A bank is to be contacted, and the user is asked for the FinTS
+    /// product registration number, which this build doesn't have
+    /// (D-260).
+    Registration(RegistrationRequest),
     /// A call that ran in the background ended.
     SetupDone(Result<SetupDone, ErrorText>),
     /// The fetch has reached the account with this ID (M4.7).
@@ -298,8 +328,15 @@ pub struct PinRequest {
     pub rejected: bool,
 }
 
+/// What the registration dialog says: whether the number typed before
+/// wasn't 25 letters and digits, so it is asked again (D-260).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RegistrationRequest {
+    /// The number typed before wasn't 25 letters and digits.
+    pub malformed: bool,
+}
+
 /// The user's answer to an [`Event`].
-#[derive(Debug)]
 pub enum Answer {
     /// The TAN typed, or `None` for "Cancel".
     Tan(Option<Tan>),
@@ -307,6 +344,23 @@ pub enum Answer {
     Button(Option<usize>),
     /// The PIN typed and how long to keep it, or `None` for "Cancel".
     Pin(Option<(Pin, PinMode)>),
+    /// The registration number typed, or `None` for "Cancel" (D-260).
+    /// Read only by [`RegistrationKey::parse`], which wipes it.
+    Registration(Option<String>),
+}
+
+impl std::fmt::Debug for Answer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Tan(tan) => f.debug_tuple("Tan").field(tan).finish(),
+            Self::Button(button) => f.debug_tuple("Button").field(button).finish(),
+            Self::Pin(pin) => f.debug_tuple("Pin").field(pin).finish(),
+            Self::Registration(typed) => f
+                .debug_tuple("Registration")
+                .field(&typed.as_ref().map(|_| "…"))
+                .finish(),
+        }
+    }
 }
 
 /// The screens' ear: how the worker tells them something, from its thread.
@@ -742,6 +796,43 @@ pub struct SetupDone {
     pub old_login_left: bool,
 }
 
+/// Makes sure the backend may contact a bank (D-058): this build, or the
+/// fake bank, needs nothing more, or the number was typed earlier in this
+/// run of the app. Otherwise, with [`ASK_REGISTRATION_VARIABLE`], the user
+/// is asked for it ([`Event::Registration`]), again as long as what they
+/// type isn't 25 letters and digits, and the backend gets it for this run
+/// only (D-260). "Cancel" is `bank.aborted`; without the variable it is
+/// `bank.not-registered`. Called before any bank contact, on the worker.
+fn ensure_registered(connection: &mut Connection) -> Result<(), BankError> {
+    if connection.registered {
+        return Ok(());
+    }
+    if !connection.ask_registration {
+        return Err(BankError::NotRegistered);
+    }
+    let screens = connection.screens.clone().ok_or(BankError::Aborted)?;
+    let mut malformed = false;
+    let key = loop {
+        let typed = screens
+            .ask(
+                Event::Registration(RegistrationRequest { malformed }),
+                |answer| match answer {
+                    Answer::Registration(typed) => Ok(typed),
+                    other => Err(other),
+                },
+            )
+            .flatten()
+            .ok_or(BankError::Aborted)?;
+        match RegistrationKey::parse(typed) {
+            Ok(key) => break key,
+            Err(_) => malformed = true,
+        }
+    };
+    connection.bank()?.register(&key)?;
+    connection.registered = true;
+    Ok(())
+}
+
 /// Sets up a login from `form` and lists its accounts (D-145, D-149). The
 /// PIN is kept as the user chose; the bank may ask for a TAN or an
 /// approval through the dialogs on the way (D-151). An IBAN from a country
@@ -751,9 +842,7 @@ pub fn set_up(connection: &mut Connection, form: SetupForm) -> Result<SetupDone,
     let code: BankCode = iban
         .bank_code()
         .ok_or_else(|| ErrorText::plain("input.no-fints"))?;
-    if !connection.registered {
-        return Err(error_text(&BankError::NotRegistered));
-    }
+    ensure_registered(connection).map_err(|error| error_text(&error))?;
     let replaces = form.replaces.clone();
     let mut done = add_login(connection, form, code).map_err(|error| error_text(&error))?;
     if !replaces.is_empty() && replaces != done.login {
@@ -1197,6 +1286,7 @@ pub fn fetch(
     if let Status::Unusable(error) = connection.status() {
         return Err(error_text(&error));
     }
+    ensure_registered(connection).map_err(|error| error_text(&error))?;
     let rows = logins(connection).map_err(|error| error_text(&error))?;
     let Connection {
         bank,
@@ -1813,6 +1903,126 @@ mod tests {
             asked(&["not-an-account".to_owned()]).map(|_| ()),
             Err("input.no-such-entry")
         );
+    }
+
+    /// A connection without a registration, started with the switch that
+    /// asks for one (D-260).
+    fn asking_for_the_registration(mut connection: Connection) -> Connection {
+        connection.registered = false;
+        connection.ask_registration = true;
+        connection
+    }
+
+    /// A made-up number of the right shape; no real one is ever written
+    /// down (D-260).
+    const MADE_UP_REGISTRATION: &str = "0123456789ABCDEFGHIJKLMNO";
+
+    #[test]
+    fn with_the_switch_the_registration_is_asked_for_once_per_run() {
+        // The screens can be used; the number is asked for when a bank is
+        // contacted.
+        assert_eq!(
+            asking_for_the_registration(fake(None)).status(),
+            Status::Ready { fake: true }
+        );
+        let (worker, events) = worker(|| asking_for_the_registration(fake(None)));
+        let set_up_once = || {
+            worker
+                .spawn(|connection, notify| {
+                    notify(Event::SetupDone(set_up(connection, form(FakeBank::PIN))));
+                })
+                .expect("started");
+        };
+        set_up_once();
+        assert_eq!(
+            next(&events),
+            Event::Registration(RegistrationRequest { malformed: false })
+        );
+        // A number of the wrong shape is asked for again, and the dialog
+        // says why.
+        worker.answer(Answer::Registration(Some("made-up".to_owned())));
+        assert_eq!(
+            next(&events),
+            Event::Registration(RegistrationRequest { malformed: true })
+        );
+        worker.answer(Answer::Registration(Some(format!(
+            " {MADE_UP_REGISTRATION} "
+        ))));
+        let Event::SetupDone(done) = next(&events) else {
+            panic!("the setup ends");
+        };
+        assert!(done.is_ok(), "{done:?}");
+        // The number is kept for this run: the next call doesn't ask.
+        set_up_once();
+        let Event::SetupDone(again) = next(&events) else {
+            panic!("the second setup ends without asking");
+        };
+        assert!(again.is_ok(), "{again:?}");
+        assert_eq!(worker.run(|connection| Ok(connection.registered)), Ok(true));
+    }
+
+    #[test]
+    fn cancelling_the_registration_contacts_no_bank_and_asks_again_next_time() {
+        let (worker, events) = worker(|| asking_for_the_registration(fake(None)));
+        for _ in 0..2 {
+            worker
+                .spawn(|connection, notify| {
+                    notify(Event::SetupDone(set_up(connection, form(FakeBank::PIN))));
+                })
+                .expect("started");
+            assert_eq!(
+                next(&events),
+                Event::Registration(RegistrationRequest { malformed: false })
+            );
+            worker.answer(Answer::Registration(None));
+            let Event::SetupDone(done) = next(&events) else {
+                panic!("the setup ends");
+            };
+            assert_eq!(
+                done.map(|_| ()).map_err(|error| error.code),
+                Err("bank.aborted")
+            );
+        }
+        assert_eq!(worker.run(logins).map(|l| l.len()), Ok(0));
+        assert_eq!(
+            worker.run(|connection| Ok(connection.registered)),
+            Ok(false)
+        );
+    }
+
+    #[test]
+    fn a_fetch_asks_for_the_registration_before_the_bank() {
+        let mut book = Book::create_in_memory().expect("book");
+        let current = account(&mut book, "Current account", None);
+        link_to(&mut book, current, Some("DE89370400440532013000"), None);
+        let requests = requests(&book, &[current]);
+        let (worker, events) = worker(|| asking_for_the_registration(fetch_connection(|_| {})));
+        worker
+            .spawn(move |connection, notify| {
+                notify(Event::FetchDone(fetch(connection, requests, today())));
+            })
+            .expect("started");
+        // Asked before any account is fetched.
+        assert_eq!(
+            next(&events),
+            Event::Registration(RegistrationRequest { malformed: false })
+        );
+        worker.answer(Answer::Registration(None));
+        let Event::FetchDone(done) = next(&events) else {
+            panic!("the fetch ends");
+        };
+        assert_eq!(
+            done.map(|_| ()).map_err(|error| error.code),
+            Err("bank.aborted")
+        );
+        assert!(bank_fetch::take(current).is_none());
+    }
+
+    #[test]
+    fn a_typed_registration_never_shows_itself() {
+        let answer = Answer::Registration(Some(MADE_UP_REGISTRATION.to_owned()));
+        let shown = format!("{answer:?}");
+        assert!(!shown.contains(MADE_UP_REGISTRATION), "{shown}");
     }
 
     #[test]

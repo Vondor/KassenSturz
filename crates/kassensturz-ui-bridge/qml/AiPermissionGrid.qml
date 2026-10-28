@@ -242,7 +242,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
-                text: grid.i18nContext.i18nc("@info", "A locked field is never changed by the AI on a transaction you already have. It is still shown to the AI when reading is on. Today the AI can only put transactions into categories, so only the Category lock has an effect now; the others start to work when the AI can change those fields.")
+                text: grid.i18nContext.i18nc("@info", "A locked field is never changed by the AI on a transaction you already have. It is still shown to the AI when reading is on.")
             }
 
             Repeater {

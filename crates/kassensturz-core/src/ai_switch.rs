@@ -209,6 +209,19 @@ impl Field {
         }
     }
 
+    /// The field's fixed name, as the AI's functions and the error codes
+    /// write it.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Amount => "amount",
+            Self::Date => "date",
+            Self::Payee => "payee",
+            Self::Account => "account",
+            Self::Category => "category",
+            Self::Note => "note",
+        }
+    }
+
     /// Whether it is locked when the user never chose: the fields a wrong
     /// guess would hurt most (D-252).
     pub const fn locked_by_default(self) -> bool {

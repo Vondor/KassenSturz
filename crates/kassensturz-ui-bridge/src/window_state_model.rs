@@ -24,6 +24,7 @@ pub mod qobject {
         #[qproperty(i32, y, READ, CONSTANT)]
         #[qproperty(bool, maximized, READ, CONSTANT)]
         #[qproperty(i32, menu_width, cxx_name = "menuWidth", READ, CONSTANT)]
+        #[qproperty(i32, chat_width, cxx_name = "chatWidth", READ, CONSTANT)]
         type WindowState = super::WindowStateRust;
     }
 
@@ -46,6 +47,12 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "saveMenuWidth"]
         fn save_menu_width(self: &WindowState, width: i32) -> bool;
+
+        /// Keeps the width the user gave the chat sidebar, in pixels.
+        /// Returns whether it was saved.
+        #[qinvokable]
+        #[cxx_name = "saveChatWidth"]
+        fn save_chat_width(self: &WindowState, width: i32) -> bool;
     }
 
     impl cxx_qt::Initialize for WindowState {}
@@ -62,6 +69,8 @@ pub struct WindowStateRust {
     maximized: bool,
     /// The left menu's width in pixels, 0 when the user never set one.
     menu_width: i32,
+    /// The chat sidebar's width in pixels, 0 when the user never set one.
+    chat_width: i32,
 }
 
 /// The smallest and largest size and the furthest place kept: anything else
@@ -117,6 +126,7 @@ impl Geometry {
 impl cxx_qt::Initialize for qobject::WindowState {
     fn initialize(mut self: Pin<&mut Self>) {
         self.as_mut().rust_mut().menu_width = Settings::user().menu_width().unwrap_or(0);
+        self.as_mut().rust_mut().chat_width = Settings::user().chat_width().unwrap_or(0);
         if let Some(kept) = Geometry::parse(&Settings::user().window_geometry()) {
             let mut state = self.as_mut().rust_mut();
             state.known = true;
@@ -132,6 +142,10 @@ impl cxx_qt::Initialize for qobject::WindowState {
 impl qobject::WindowState {
     fn save_menu_width(&self, width: i32) -> bool {
         Settings::user().set_menu_width(width)
+    }
+
+    fn save_chat_width(&self, width: i32) -> bool {
+        Settings::user().set_chat_width(width)
     }
 
     fn save(
@@ -189,6 +203,24 @@ mod tests {
                 maximized: false,
             })
         );
+    }
+
+    #[test]
+    fn keeps_the_chat_width_apart_from_the_menu_width() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        assert_eq!(settings.chat_width(), None);
+        assert!(settings.set_chat_width(480));
+        assert!(settings.set_menu_width(260));
+        assert_eq!(Settings::at(&file).chat_width(), Some(480));
+        assert_eq!(Settings::at(&file).menu_width(), Some(260));
+        for odd in [0, 99, 5000, -1] {
+            assert!(!settings.set_chat_width(odd), "{odd}");
+        }
+        assert_eq!(settings.chat_width(), Some(480));
+        assert!(settings.set_text("Window", "ChatWidth", "wide"));
+        assert_eq!(settings.chat_width(), None);
     }
 
     #[test]

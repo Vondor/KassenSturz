@@ -1092,7 +1092,13 @@ fn a_model_is_offered_only_the_lists_the_user_allows() {
         propose_spec(Permissions::NONE.with(Permission::RulesRead, true)),
         None
     );
-    let all = propose_spec(Permissions::all()).expect("offered");
+    // With every field unlocked, the model is offered the whole function.
+    let unlocked = Field::ALL
+        .into_iter()
+        .fold(Permissions::all(), |permissions, field| {
+            permissions.with_lock(field, false)
+        });
+    let all = propose_spec(unlocked).expect("offered");
     assert_eq!(all.name, PROPOSE_CHANGES.name);
     let full: Value = serde_json::from_str(PROPOSE_CHANGES.parameters).expect("json");
     assert_eq!(
@@ -1109,8 +1115,13 @@ fn a_model_is_offered_only_the_lists_the_user_allows() {
         .keys()
         .map(String::as_str)
         .collect();
-    assert_eq!(lists.len(), 3, "{lists:?}");
-    for list in ["new_categories", "new_rules", "categorize"] {
+    assert_eq!(lists.len(), 4, "{lists:?}");
+    for list in [
+        "new_categories",
+        "new_rules",
+        "categorize",
+        "edit_transactions",
+    ] {
         assert!(lists.contains(&list), "{list}");
     }
     assert!(!additions.description.contains("move_rules"));
@@ -1527,4 +1538,327 @@ fn the_new_lists_follow_their_cells() {
         let other = propose_spec(off).expect("offered");
         assert!(!other.parameters.contains(&format!("\"{argument}\"")));
     }
+}
+
+/// The properties of one item of `edit_transactions` a model is offered.
+fn edit_properties(allowed: Permissions) -> Option<Vec<String>> {
+    let spec = propose_spec(allowed)?;
+    let parameters: Value = serde_json::from_str(&spec.parameters).expect("json");
+    let item = parameters["properties"].get("edit_transactions")?;
+    let mut names: Vec<String> = item["items"]["properties"]
+        .as_object()
+        .expect("properties")
+        .keys()
+        .cloned()
+        .collect();
+    names.sort();
+    Some(names)
+}
+
+#[test]
+fn a_locked_field_is_not_offered_and_a_list_with_every_field_locked_is_left_out() {
+    // The amount, the date and the payee are locked until the user chooses.
+    let by_default = additions();
+    assert_eq!(
+        edit_properties(by_default),
+        Some(vec![
+            "account_id".into(),
+            "note".into(),
+            "transaction_id".into()
+        ])
+    );
+    let amount_free = by_default.with_lock(Field::Amount, false);
+    assert!(
+        edit_properties(amount_free)
+            .unwrap()
+            .contains(&"amount".to_owned())
+    );
+    let all_locked = Field::ALL
+        .into_iter()
+        .fold(by_default, |permissions, field| {
+            permissions.with_lock(field, true)
+        });
+    assert_eq!(edit_properties(all_locked), None);
+    // Locking the category stops sorting, not editing the other fields.
+    let spec = propose_spec(all_locked.with_lock(Field::Note, false)).expect("offered");
+    assert!(!spec.parameters.contains("categorize"));
+    assert!(spec.parameters.contains("edit_transactions"));
+}
+
+/// Everything allowed and no field locked.
+fn open() -> Permissions {
+    Field::ALL
+        .iter()
+        .fold(Permissions::all(), |p, field| p.with_lock(*field, false))
+}
+
+fn edit(book: &Book, arguments: &Value) -> Result<Proposal, ToolError> {
+    super::propose(book, &json!({"edit_transactions": [arguments]}), open())
+}
+
+#[test]
+fn a_transaction_gets_new_fields_and_still_balances() {
+    let Sample {
+        mut book,
+        bought,
+        checking,
+        ..
+    } = sample();
+    let before = state(&book);
+    let proposal = edit(
+        &book,
+        &json!({
+            "transaction_id": bought.to_string(),
+            "amount": "-60.00",
+            "date": "2026-10-06",
+            "payee": " Market Hall ",
+            "note": "weekly",
+        }),
+    )
+    .expect("prepared");
+    assert_eq!(state(&book), before, "proposing changes nothing");
+    let ProposedChange::EditTransaction(change) = &proposal.changes.changes()[0] else {
+        panic!("an edit");
+    };
+    let fields: Vec<_> = change.edits.iter().map(|line| line.field).collect();
+    assert_eq!(
+        fields,
+        [Field::Amount, Field::Date, Field::Payee, Field::Note]
+    );
+    assert_eq!(
+        change.amount,
+        eur(-5320),
+        "the preview starts from the book"
+    );
+    assert_eq!(change.account, "Checking account");
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    let now = book.transaction(bought).expect("there");
+    assert_eq!(now.booking_date(), Date::constant(2026, 10, 6));
+    assert_eq!(now.payee(), Some("Market Hall"));
+    assert_eq!(now.note(), Some("weekly"));
+    let parts = now.splits();
+    assert_eq!(parts[0].account, Some(checking));
+    assert_eq!(parts[0].account_amount(), eur(-6000));
+    assert_eq!(parts[1].account_amount(), eur(6000), "both parts move");
+    assert_eq!(book.history().unwrap()[0].action, Action::ApplyAiChanges);
+
+    book.undo().expect("undone").expect("a change");
+    let undone = state(&book);
+    assert_eq!((&undone.0, &undone.1), (&before.0, &before.1));
+}
+
+#[test]
+fn only_what_the_model_names_changes() {
+    let Sample {
+        mut book, bought, ..
+    } = sample();
+    let stored = book.transaction(bought).expect("there");
+    edit(
+        &book,
+        &json!({"transaction_id": bought.to_string(), "note": "x"}),
+    )
+    .expect("prepared")
+    .changes
+    .apply(&mut book, Confirmed::by_the_user())
+    .expect("applied");
+    let now = book.transaction(bought).expect("there");
+    assert_eq!(now.booking_date(), stored.booking_date());
+    assert_eq!(now.payee(), stored.payee());
+    assert_eq!(now.splits(), stored.splits());
+    assert_eq!(now.note(), Some("x"));
+}
+
+#[test]
+fn the_account_changes_to_another_open_one_in_the_same_currency() {
+    let Sample {
+        mut book, bought, ..
+    } = sample();
+    let savings = book
+        .all_accounts()
+        .unwrap()
+        .into_iter()
+        .find(|account| account.name == "Savings")
+        .unwrap();
+    edit(
+        &book,
+        &json!({"transaction_id": bought.to_string(), "account_id": savings.id.to_string()}),
+    )
+    .expect("prepared")
+    .changes
+    .apply(&mut book, Confirmed::by_the_user())
+    .expect("applied");
+    let parts = book.transaction(bought).unwrap().splits().to_vec();
+    assert_eq!(parts[0].account, Some(savings.id));
+    assert_eq!(parts[0].account_amount(), eur(-5320));
+}
+
+#[test]
+fn what_is_not_plain_or_not_allowed_is_refused() {
+    let Sample {
+        book,
+        bought,
+        transfer,
+        split,
+        travel,
+        salary,
+        ..
+    } = sample();
+    let id = |id: TransactionId| id.to_string();
+    // A transfer and a split keep their amount and account; their date,
+    // payee and note can change.
+    for (transaction, key, value) in [
+        (transfer, "amount", "-5.00"),
+        (split, "amount", "-5.00"),
+        (transfer, "account_id", &salary.to_string()[..]),
+    ] {
+        assert_eq!(
+            code(edit(
+                &book,
+                &json!({"transaction_id": id(transaction), key: value})
+            )),
+            "ai-tools.not-editable",
+            "{key}"
+        );
+    }
+    for transaction in [transfer, split] {
+        assert_eq!(
+            code(edit(
+                &book,
+                &json!({"transaction_id": id(transaction), "note": "ok"})
+            )),
+            "prepared"
+        );
+    }
+    // Another currency, a category or an unknown account as the new account.
+    assert_eq!(
+        code(edit(
+            &book,
+            &json!({"transaction_id": id(bought), "account_id": travel.to_string()})
+        )),
+        "ai-tools.unknown-account"
+    );
+    assert_eq!(
+        code(edit(
+            &book,
+            &json!({"transaction_id": id(bought), "account_id": AccountId::generate().to_string()})
+        )),
+        "ai-tools.unknown-account"
+    );
+    // Amounts: unchanged, zero, too many decimals, a float's notation.
+    for amount in ["-53.20", "0", "-1.005", "1e2", "-5,5"] {
+        assert_eq!(
+            code(edit(
+                &book,
+                &json!({"transaction_id": id(bought), "amount": amount})
+            )),
+            "bad-argument amount",
+            "{amount}"
+        );
+    }
+    // Nothing to change, an unknown key and a day that isn't one.
+    assert_eq!(
+        code(edit(&book, &json!({"transaction_id": id(bought)}))),
+        "bad-argument edit_transactions"
+    );
+    assert_eq!(
+        code(edit(
+            &book,
+            &json!({"transaction_id": id(bought), "category_id": "x"})
+        )),
+        "bad-argument edit_transactions"
+    );
+    assert_eq!(
+        code(edit(
+            &book,
+            &json!({"transaction_id": id(bought), "date": "06.10.2026"})
+        )),
+        "bad-argument date"
+    );
+}
+
+#[test]
+fn a_locked_field_is_refused_and_an_unlocked_one_is_not() {
+    let Sample { book, bought, .. } = sample();
+    let call = |allowed: Permissions, key: &str, value: &str| {
+        code(super::propose(
+            &book,
+            &json!({"edit_transactions": [{"transaction_id": bought.to_string(), key: value}]}),
+            allowed,
+        ))
+    };
+    // The defaults lock the amount, the date and the payee.
+    for (key, value) in [("amount", "-1.00"), ("date", "2026-10-06"), ("payee", "X")] {
+        assert_eq!(
+            call(Permissions::all(), key, value),
+            "ai-tools.field-locked"
+        );
+        assert_eq!(call(open(), key, value), "prepared");
+    }
+    assert_eq!(call(Permissions::all(), "note", "ok"), "prepared");
+    let note_locked = Permissions::all().with_lock(Field::Note, true);
+    assert_eq!(call(note_locked, "note", "ok"), "ai-tools.field-locked");
+    // The Change cell of Transactions is the switch for all of it.
+    assert_eq!(
+        call(Permissions::defaults(), "note", "ok"),
+        "ai-tools.not-allowed"
+    );
+}
+
+#[test]
+fn a_lock_switched_on_after_the_review_stops_the_set() {
+    let Sample { book, bought, .. } = sample();
+    let proposal = edit(
+        &book,
+        &json!({"transaction_id": bought.to_string(), "amount": "-1.00"}),
+    )
+    .expect("prepared");
+    assert!(proposal.changes.check_allowed(open()).is_ok());
+    assert!(proposal.changes.check_allowed(Permissions::all()).is_err());
+}
+
+#[test]
+fn the_entry_changed_after_the_review_so_the_edit_is_not_applied() {
+    let Sample {
+        mut book, bought, ..
+    } = sample();
+    let first = edit(
+        &book,
+        &json!({"transaction_id": bought.to_string(), "note": "one"}),
+    )
+    .expect("prepared");
+    let second = edit(
+        &book,
+        &json!({"transaction_id": bought.to_string(), "note": "two"}),
+    )
+    .expect("prepared");
+    first
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    let before = state(&book);
+    assert!(matches!(
+        second.changes.apply(&mut book, Confirmed::by_the_user()),
+        Err(ChangeError::OutOfDate)
+    ));
+    assert_eq!(state(&book), before);
+}
+
+#[test]
+fn the_same_transaction_cannot_be_named_twice_in_one_set() {
+    let Sample { book, bought, .. } = sample();
+    let id = bought.to_string();
+    assert_eq!(
+        code(super::propose(
+            &book,
+            &json!({
+                "categorize": [{"transaction_id": id, "category_id": book_food(&book)}],
+                "edit_transactions": [{"transaction_id": id, "note": "x"}],
+            }),
+            open(),
+        )),
+        "bad-argument transaction_id"
+    );
 }

@@ -509,3 +509,54 @@ fn no_error_carries_the_key_or_the_question() {
         assert!(!shown.contains("Space Colony"));
     }
 }
+
+/// A call the user stops ends at once, whatever the provider is doing
+/// (D-246).
+#[test]
+fn a_stopped_call_ends_without_waiting_for_the_provider() {
+    use std::time::Instant;
+
+    let fake = FakeProvider::start(vec![Answer::Endless]);
+    let settings = Settings::new();
+    settings.write(true, &fake.address(), KeyUse::None);
+    let client = settings.client();
+    let request = client.prepare(question(), vec![balances()]).unwrap();
+    let start = Instant::now();
+    let result = client.send_until(&request, None, &|| {
+        start.elapsed() > Duration::from_millis(400)
+    });
+    assert_eq!(result, Err(AiError::Timeout));
+    assert!(start.elapsed() < Duration::from_secs(4));
+}
+
+/// With "keep waiting" the time limit of the call is raised: a call that
+/// the default limit would end after a second is still waited for, until
+/// the user stops it (D-246).
+#[test]
+fn keep_waiting_raises_the_time_limit_of_the_call() {
+    use std::time::Instant;
+
+    let run = |extra: &str| {
+        let fake = FakeProvider::start(vec![Answer::Endless]);
+        let settings = Settings::new();
+        settings.write(true, &fake.address(), KeyUse::None);
+        let mut text = std::fs::read_to_string(&settings.path).unwrap();
+        text.push_str(extra);
+        std::fs::write(&settings.path, text).unwrap();
+        let client = settings.client().with_limits(Limits {
+            connect: Duration::from_secs(5),
+            total: Duration::from_secs(1),
+            reply_bytes: 4096,
+        });
+        let request = client.prepare(question(), vec![balances()]).unwrap();
+        let start = Instant::now();
+        let result = client.send_until(&request, None, &|| {
+            start.elapsed() > Duration::from_millis(2500)
+        });
+        (result, start.elapsed())
+    };
+    let (_, stops) = run("");
+    assert!(stops < Duration::from_millis(2400), "{stops:?}");
+    let (_, waits) = run("SlowAnswer=warn\n");
+    assert!(waits >= Duration::from_millis(2500), "{waits:?}");
+}

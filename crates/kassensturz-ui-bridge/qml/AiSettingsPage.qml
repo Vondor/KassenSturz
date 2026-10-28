@@ -482,6 +482,39 @@ Kirigami.ScrollablePage {
             }
         }
 
+        // What to do when the AI takes long (D-246). Kept as soon as it is
+        // chosen, like the choices above.
+        Kirigami.Heading {
+            level: 2
+            text: page.i18nContext.i18nc("@title:group", "When the AI takes long")
+        }
+
+        Controls.ComboBox {
+            id: slowAnswerBox
+
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 28
+            Accessible.name: page.i18nContext.i18nc("@label:listbox", "When the AI takes long to answer")
+            textRole: "text"
+            valueRole: "value"
+            model: [
+                { value: "timeout", text: page.i18nContext.i18nc("@item:inlistbox what to do when the AI takes long", "Stop waiting by itself after 5 minutes") },
+                { value: "warn", text: page.i18nContext.i18nc("@item:inlistbox what to do when the AI takes long", "Keep waiting and warn me, so I can cancel") },
+            ]
+            Component.onCompleted: currentIndex = Math.max(0, indexOfValue(page.settings.slowAnswer()))
+            onActivated: {
+                page.notWritten = !page.settings.setSlowAnswer(currentValue);
+                currentIndex = Math.max(0, indexOfValue(page.settings.slowAnswer()));
+            }
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            font: Kirigami.Theme.smallFont
+            text: page.i18nContext.i18nc("@info", "A model that runs on a slow computer can need minutes for one answer. With the second choice, KassenSturz shows a warning with a Cancel button above the question field after a minute and keeps waiting for up to an hour.")
+        }
+
         // The user's own AI tools (D-035, D-219): they can read the book
         // once AI is on; preparing changes is a second, separate yes.
         Kirigami.Heading {

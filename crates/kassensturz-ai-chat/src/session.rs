@@ -448,7 +448,12 @@ impl ChatSession {
                 },
                 hooks,
             );
-            let sent = provider.send(&request, key);
+            let sent = provider.send_until(&request, key, &|| hooks.cancelled());
+            // Whatever came back while the user stopped is thrown away,
+            // an error too: Stop and Cancel end the wait (D-246).
+            if hooks.cancelled() {
+                return Err(ChatError::Cancelled);
+            }
             self.transcribe_reply(provider, sent.as_ref().err());
             let reply = match sent {
                 Ok(reply) => reply,

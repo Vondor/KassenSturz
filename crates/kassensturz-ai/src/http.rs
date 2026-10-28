@@ -39,6 +39,21 @@ pub struct Limits {
     pub reply_bytes: u64,
 }
 
+impl Limits {
+    /// The longest a call may take when the user chose to keep waiting for
+    /// slow answers (D-246): a ceiling so a call never hangs for ever.
+    pub const KEEP_WAITING: Duration = Duration::from_secs(60 * 60);
+
+    /// These limits with the time for the whole call raised to
+    /// [`Limits::KEEP_WAITING`], if it was less.
+    pub fn keep_waiting(self) -> Self {
+        Self {
+            total: self.total.max(Self::KEEP_WAITING),
+            ..self
+        }
+    }
+}
+
 impl Default for Limits {
     fn default() -> Self {
         Self {

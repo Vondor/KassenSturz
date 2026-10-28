@@ -55,7 +55,7 @@ pub use address::{Place, ProviderAddress};
 pub use chat::{Finish, FunctionSpec, Message, Reply, Role, ToolCall};
 pub use config::{
     ADDRESS_KEY, AiConfig, CONSENT_ADDRESS_KEY, CONSENT_DAY_KEY, CONSENT_STATEMENT_KEY, ConfigFile,
-    KEY_USE_KEY, KeyUse, MODEL_KEY, ProviderSettings,
+    KEY_USE_KEY, KeyUse, MODEL_KEY, ProviderSettings, SLOW_ANSWER_KEY, SlowAnswer,
 };
 pub use consent::{ConsentRecord, STATEMENT, STATEMENT_VERSION, SentData, consent_missing};
 pub use error::AiError;
@@ -83,6 +83,19 @@ pub trait Provider {
     /// provider needs one, and reads the reply.
     fn send(&self, request: &PreparedRequest, key: Option<&Secret>) -> Result<Reply, AiError>;
 
+    /// Like [`Provider::send`], but gives up as soon as `stopped` answers
+    /// true, with an error the caller throws away: the user pressed Stop
+    /// or Cancel (D-246). The default waits for the reply.
+    fn send_until(
+        &self,
+        request: &PreparedRequest,
+        key: Option<&Secret>,
+        stopped: &dyn Fn() -> bool,
+    ) -> Result<Reply, AiError> {
+        let _ = stopped;
+        self.send(request, key)
+    }
+
     /// The provider's last reply as it came, before it was read, so the
     /// developer mode can show why a reply wasn't understood (D-235). Kept
     /// in memory only; a provider without a wire gives none.
@@ -104,10 +117,22 @@ impl Provider for AiClient {
         AiClient::send(self, request, key)
     }
 
+    fn send_until(
+        &self,
+        request: &PreparedRequest,
+        key: Option<&Secret>,
+        stopped: &dyn Fn() -> bool,
+    ) -> Result<Reply, AiError> {
+        AiClient::send_until(self, request, key, stopped)
+    }
+
     fn last_reply_text(&self) -> Option<String> {
         self.last_reply.lock().ok().and_then(|reply| reply.clone())
     }
 }
+
+/// How often a call that can be stopped looks at the stop button.
+const STOP_POLL: std::time::Duration = std::time::Duration::from_millis(200);
 
 /// The way to the provider set up on this computer.
 #[derive(Clone, Debug)]
@@ -174,6 +199,10 @@ impl AiClient {
             return Err(AiError::NoConsent);
         }
         let key = key_to_send(provider, key)?;
+        let limits = match config.slow_answer() {
+            SlowAnswer::Timeout => self.limits,
+            SlowAnswer::Warn => self.limits.keep_waiting(),
+        };
         // An earlier reply must not be shown as this call's (D-235).
         if let Ok(mut last) = self.last_reply.lock() {
             *last = None;
@@ -183,7 +212,7 @@ impl AiClient {
             &provider.address.endpoint("chat/completions"),
             request.preview(),
             key,
-            &self.limits,
+            &limits,
             &mut error_body,
         )
         .inspect_err(|_| {
@@ -208,6 +237,38 @@ impl AiClient {
             };
             self.missing_v1(&provider.address, key, error)
         })
+    }
+
+    /// Like [`AiClient::send`] on a thread of its own, so the caller can
+    /// stop waiting: when `stopped` answers true, this returns at once with
+    /// [`AiError::Timeout`], which the caller throws away. The call itself
+    /// can't be called back; it ends by its own time limit and its reply is
+    /// dropped (D-246).
+    pub fn send_until(
+        &self,
+        request: &PreparedRequest,
+        key: Option<&Secret>,
+        stopped: &dyn Fn() -> bool,
+    ) -> Result<Reply, AiError> {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let client = self.clone();
+        let request = request.clone();
+        let key = key.cloned();
+        std::thread::spawn(move || {
+            let _ = sender.send(client.send(&request, key.as_ref()));
+        });
+        loop {
+            match receiver.recv_timeout(STOP_POLL) {
+                Ok(reply) => return reply,
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) if stopped() => {
+                    return Err(AiError::Timeout);
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    return Err(AiError::Timeout);
+                }
+            }
+        }
     }
 
     /// The models the provider offers, for choosing one and to test the

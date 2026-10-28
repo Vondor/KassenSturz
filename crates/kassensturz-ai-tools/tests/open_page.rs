@@ -159,3 +159,59 @@ fn opening_a_page_changes_nothing_in_the_book() {
     open_page(&book, &json!({"page": "categories"})).expect("opens");
     assert_eq!(read(&book), before);
 }
+
+#[test]
+fn a_page_opens_only_when_the_user_allows_reading_its_list() {
+    use kassensturz_ai_tools::open_page_allowed;
+    use kassensturz_core::ai_switch::{Permission, Permissions};
+    let book = space_colony();
+    let rule = first_id(&run(&book, "list_rules"), "rules");
+    let account = first_id(&run(&book, "list_accounts"), "accounts");
+    let calls = [
+        (json!({"page": "rules"}), Permission::RulesRead),
+        (json!({"page": "rule", "id": rule}), Permission::RulesRead),
+        (json!({"page": "accounts"}), Permission::AccountsRead),
+        (
+            json!({"page": "account", "id": account}),
+            Permission::AccountsRead,
+        ),
+        (json!({"page": "categories"}), Permission::CategoriesRead),
+    ];
+    for (call, needed) in calls {
+        assert_eq!(
+            code(open_page_allowed(&book, &call, Permissions::NONE)),
+            "ai-tools.not-allowed",
+            "{call}"
+        );
+        // The reading of another row does not open it.
+        let other = if needed == Permission::TransactionsRead {
+            Permission::RulesRead
+        } else {
+            Permission::TransactionsRead
+        };
+        assert_eq!(
+            code(open_page_allowed(
+                &book,
+                &call,
+                Permissions::NONE.with(other, true)
+            )),
+            "ai-tools.not-allowed",
+            "{call}"
+        );
+        assert!(
+            open_page_allowed(&book, &call, Permissions::NONE.with(needed, true)).is_ok(),
+            "{call}"
+        );
+    }
+    // The first screen shows no list, and a made-up ID is not looked up
+    // without the permission.
+    assert!(open_page_allowed(&book, &json!({"page": "overview"}), Permissions::NONE).is_ok());
+    assert_eq!(
+        code(open_page_allowed(
+            &book,
+            &json!({"page": "rule", "id": "00000000-0000-0000-0000-000000000000"}),
+            Permissions::NONE
+        )),
+        "ai-tools.not-allowed"
+    );
+}

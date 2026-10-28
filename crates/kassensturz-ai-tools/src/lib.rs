@@ -76,12 +76,14 @@ pub use error::ToolError;
 #[cfg(feature = "ai")]
 pub use figures::{Figures, Unverified, check_numbers};
 #[cfg(feature = "ai")]
-pub use functions::{FUNCTIONS, Function, Output, call, overview};
+pub use functions::{
+    FUNCTIONS, Function, Output, call, call_allowed, overview, overview_allowed, readable_functions,
+};
 #[cfg(feature = "ai")]
 pub use issue::{
     DRAFT_ISSUE, ISSUE_PAGE, IssueContext, IssueDraft, MAX_LINK_BYTES, draft_issue, unique_codes,
 };
 #[cfg(feature = "ai")]
-pub use open_page::{OPEN_PAGE, PageTarget, open_page};
+pub use open_page::{OPEN_PAGE, PageTarget, open_page, open_page_allowed};
 #[cfg(feature = "ai")]
 pub use text::{DATA_NOTE, MAX_TEXT_CHARS};

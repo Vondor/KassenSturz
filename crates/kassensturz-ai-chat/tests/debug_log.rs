@@ -17,6 +17,7 @@ use std::path::PathBuf;
 use common::{Script, TODAY, calls, fails, says, settings, space_colony};
 use kassensturz_ai::{AiError, KeyUse};
 use kassensturz_ai_chat::{BuildInfo, ChatSession, LogEntry, NoHooks};
+use kassensturz_core::ai_switch::Permissions;
 use kassensturz_core::debug_log::{DebugLog, Event};
 use kassensturz_platform::Secret;
 use serde_json::json;
@@ -92,8 +93,9 @@ fn a_whole_conversation_leaves_only_events_and_codes_in_the_log() {
             fails(AiError::Timeout),
         ],
     );
-    let mut chat =
-        ChatSession::new(BuildInfo::new("0.261025.4", "abc1234")).with_debug_log(scratch.log(true));
+    let mut chat = ChatSession::new(BuildInfo::new("0.261025.4", "abc1234"))
+        .with_debug_log(scratch.log(true))
+        .with_permissions(Permissions::all());
     chat.set_screen(Some("OverviewPage"));
     let key = Secret::new(TEST_KEY.to_owned());
     let answer = chat
@@ -266,8 +268,9 @@ fn the_developer_mode_transcript_holds_the_whole_conversation() {
             fails(AiError::BadReply),
         ],
     );
-    let mut chat =
-        ChatSession::new(BuildInfo::new("0.261025.4", "abc1234")).with_debug_log(scratch.log(true));
+    let mut chat = ChatSession::new(BuildInfo::new("0.261025.4", "abc1234"))
+        .with_debug_log(scratch.log(true))
+        .with_permissions(Permissions::all());
     let key = Secret::new(TEST_KEY.to_owned());
     let question = format!("{QUESTION} My key is sk-abcdefghijklmnop");
     chat.ask(&book, &provider, Some(&key), &question, TODAY, &mut NoHooks)

@@ -10,6 +10,7 @@
 //! the list, an argument the function doesn't take or a value of the wrong
 //! kind is refused with an error code, never guessed at.
 
+use kassensturz_core::ai_switch::{Permissions, Row};
 use kassensturz_core::{AccountId, Date};
 use kassensturz_store::Book;
 use serde_json::{Map, Value};
@@ -31,6 +32,35 @@ pub struct Function {
     /// Its arguments as a JSON Schema object, the form both function
     /// calling (D-035) and MCP (D-050) use.
     pub parameters: &'static str,
+}
+
+impl Function {
+    /// The rows of the permission grid this function reads (D-252). The
+    /// user must allow the reading of every one of them.
+    pub fn rows(&self) -> &'static [Row] {
+        match self.name {
+            "list_accounts" | "account_balance" => &[Row::Accounts],
+            "category_totals" => &[Row::Categories, Row::Transactions],
+            "search_transactions" => &[Row::Transactions],
+            "list_categories" => &[Row::Categories],
+            "list_rules" => &[Row::Rules],
+            // A function that reads no row of the book.
+            _ => &[],
+        }
+    }
+
+    /// Whether the user's permissions let a model read with this function.
+    pub fn readable(&self, permissions: Permissions) -> bool {
+        self.rows().iter().all(|row| permissions.reads(*row))
+    }
+}
+
+/// The functions a model may call under `permissions`, in the order they
+/// are offered: only those whose rows the user allows reading (D-252).
+pub fn readable_functions(permissions: Permissions) -> impl Iterator<Item = &'static Function> {
+    FUNCTIONS
+        .iter()
+        .filter(move |function| function.readable(permissions))
 }
 
 /// Every function a model may call, in the order they are offered.
@@ -205,19 +235,56 @@ pub fn call(book: &Book, name: &str, arguments: &Value, today: Date) -> Result<O
     Ok(Output::new(result, w.figures))
 }
 
+/// [`call`], refused with `ai-tools.not-allowed` when the user does not
+/// allow reading what the function reads (D-252). The chat, the MCP server
+/// and the request files all call this one, so the two ways in can never
+/// differ.
+pub fn call_allowed(
+    book: &Book,
+    name: &str,
+    arguments: &Value,
+    today: Date,
+    permissions: Permissions,
+) -> Result<Output, ToolError> {
+    if let Some(function) = FUNCTIONS.iter().find(|function| function.name == name)
+        && !function.readable(permissions)
+    {
+        return Err(ToolError::NotAllowed {
+            argument: function.name,
+        });
+    }
+    call(book, name, arguments, today)
+}
+
 /// The small overview for a model that can't call functions (D-052): the
 /// open accounts with their balances and what they add up to, and this
 /// month's and last month's money in and out by category, the largest few
 /// per side. A question beyond it is one the model must say it can't
 /// answer exactly; M5.4's instructions tell it so.
 pub fn overview(book: &Book, today: Date) -> Result<Output, ToolError> {
+    overview_allowed(book, today, Permissions::all())
+}
+
+/// [`overview`] with only what the user allows reading: the accounts need
+/// the reading of Accounts, the months need Categories and Transactions
+/// (D-252). With neither, it holds only the date.
+pub fn overview_allowed(
+    book: &Book,
+    today: Date,
+    permissions: Permissions,
+) -> Result<Output, ToolError> {
     let names = Names::read(book)?;
     let mut w = Writer::new(book);
     let first = today.first_of_month();
     let mut result = Map::new();
     result.insert("today".into(), Value::String(today.to_string()));
-    if let Value::Object(accounts) = read::list_accounts(book, &mut w, false)? {
+    if permissions.reads(Row::Accounts)
+        && let Value::Object(accounts) = read::list_accounts(book, &mut w, false)?
+    {
         result.extend(accounts);
+    }
+    if !(permissions.reads(Row::Categories) && permissions.reads(Row::Transactions)) {
+        return Ok(Output::new(Value::Object(result), w.figures));
     }
     let this_month = read::category_totals(
         book,

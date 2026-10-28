@@ -95,7 +95,9 @@ ColumnLayout {
     function featureAllowed(feature: string): bool {
         switch (feature) {
         case "categories":
-            return settings.allows("AllowSortTransactions");
+            return settings.allows("AllowSortTransactions") && !settings.locked("LockCategory");
+        case "month":
+            return settings.allows("AllowReadCategories") && settings.allows("AllowReadTransactions");
         case "rules":
             return settings.allows("AllowNewRules");
         default:

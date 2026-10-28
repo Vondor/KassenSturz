@@ -19,6 +19,14 @@ use kassensturz_core::{
 use kassensturz_store::{Book, Computer};
 use serde_json::{Value, json};
 
+/// The reading of every row of the book, on (D-252): everything is off
+/// until the user chooses.
+const READS: &str = "AllowReadAccounts=true\nAllowReadCategories=true\nAllowReadRules=true\n\
+                     AllowReadTransactions=true\n";
+
+/// The kinds of change the tests of the write tools start from.
+const ADDITIONS: &str = "AllowNewCategories=true\nAllowNewRules=true\nAllowSortTransactions=true\n";
+
 /// The exit status of a refusal to start.
 pub const REFUSED: i32 = 2;
 
@@ -55,7 +63,7 @@ impl Folder {
     pub fn switch_ai(&self, on: bool) {
         std::fs::write(
             self.0.join("kassensturzrc"),
-            format!("[AI]\nEnabled={on}\n"),
+            format!("[AI]\nEnabled={on}\n{READS}"),
         )
         .expect("settings written");
     }
@@ -64,18 +72,18 @@ impl Folder {
     pub fn switch_write_tools(&self, on: bool) {
         std::fs::write(
             self.0.join("kassensturzrc"),
-            format!("[AI]\nEnabled=true\nMcpWriteTools={on}\n"),
+            format!("[AI]\nEnabled=true\nMcpWriteTools={on}\n{READS}{ADDITIONS}"),
         )
         .expect("settings written");
     }
 
-    /// Switches AI and the MCP write tools on, with `lines` more settings
+    /// Switches AI and the MCP write tools on, with the reads and the additions on and `lines` more settings
     /// in the AI group, such as `AllowEditRules=true` (D-239).
     pub fn allow(&self, lines: &[&str]) {
         std::fs::write(
             self.0.join("kassensturzrc"),
             format!(
-                "[AI]\nEnabled=true\nMcpWriteTools=true\n{}\n",
+                "[AI]\nEnabled=true\nMcpWriteTools=true\n{READS}{ADDITIONS}{}\n",
                 lines.join("\n")
             ),
         )

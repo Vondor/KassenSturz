@@ -77,6 +77,9 @@ struct State {
     next_user_id: u32,
     next_account_id: u32,
     accounts: Vec<Account>,
+    /// The registration key, which AqBanking writes into each message
+    /// log's header as `appname` and into HKVVB (D-261).
+    registration_key: Option<String>,
 }
 
 // SAFETY: the pointer is only used on the thread that set it.
@@ -89,6 +92,7 @@ static STATE: Mutex<State> = Mutex::new(State {
     next_user_id: 1,
     next_account_id: 1,
     accounts: Vec::new(),
+    registration_key: None,
 });
 
 fn state() -> MutexGuard<'static, State> {
@@ -610,6 +614,7 @@ pub unsafe extern "C" fn AB_Banking_new(
     state.accounts.clear();
     state.next_user_id = 1;
     state.next_account_id = 1;
+    state.registration_key = None;
     drop(state);
     leak(Banking {
         registration_key: None,
@@ -651,6 +656,7 @@ pub unsafe extern "C" fn AB_Banking_RuntimeConfig_SetCharValue(
     unsafe {
         if text(name) == Some("fintsRegistrationKey") {
             (*ab.cast::<Banking>()).registration_key = text(value).map(str::to_owned);
+            state().registration_key = text(value).map(str::to_owned);
             journal(&format!(
                 "registration key: {} characters",
                 text(value).map_or(0, str::len)
@@ -663,10 +669,17 @@ fn settings_dir() -> Option<PathBuf> {
     state().data_dir.as_ref().map(|dir| dir.join("settings6"))
 }
 
-/// Writes a fake FinTS message log the way AqBanking does (D-139), so the
-/// backend's clean-up has something to remove.
+/// Writes a fake FinTS message log the way AqBanking 6.9.2 does (D-139):
+/// a header with the registration key as `appname`, then the message, in
+/// `banks/de/<code>/logs/`, whose folders it makes first and gives up on
+/// when a part of that path isn't a folder (D-261). So the backend's
+/// blocking and clean-up have something to stop and remove.
 fn write_message_log() {
-    if let Some(dir) = state().data_dir.clone() {
+    let (data_dir, key) = {
+        let state = state();
+        (state.data_dir.clone(), state.registration_key.clone())
+    };
+    if let Some(dir) = data_dir {
         let logs = dir
             .join("backends")
             .join("aqhbci")
@@ -675,10 +688,17 @@ fn write_message_log() {
             .join("de")
             .join(BANK_CODE)
             .join("logs");
-        let _ = std::fs::create_dir_all(&logs);
+        if std::fs::create_dir_all(&logs).is_err() {
+            journal("message log: not written");
+            return;
+        }
+        journal("message log: written");
+        let appname = key.as_deref().unwrap_or("AQHBCI");
         let _ = std::fs::write(
             logs.join("20261023.log"),
-            "HNHBK:1:3+000000000123+300+0+1'\nHKSAL for user made-up-login (PIN blanked)\n",
+            format!(
+                "appname: \"{appname}\"\n\nHNHBK:1:3+000000000123+300+0+1'\nHKVVB:4:3+0+0+0+{appname}+6.9.2'\nHKSAL for user made-up-login (PIN blanked)\n"
+            ),
         );
     }
 }

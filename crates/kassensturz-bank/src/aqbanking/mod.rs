@@ -197,6 +197,16 @@ impl AqBankingBank {
         Ok(())
     }
 
+    /// What comes before every bank contact with `bank`: the registration
+    /// is required, and AqBanking's message log for the bank is blocked,
+    /// since it would keep the messages in plain text, the statements and
+    /// the registration number among them (D-261, threat T-06). A log
+    /// that can't be blocked stops the call before anything is sent.
+    fn before_contact(&self, session: &Session<Handler>, bank: &BankCode) -> Result<(), BankError> {
+        self.require_registration(session)?;
+        settings::block_message_logs(&self.folder, bank).map_err(|_| BankError::Folder)
+    }
+
     /// Removes the message logs AqBanking may have written (D-139). A
     /// folder that can't be cleaned isn't an error of the call that ran:
     /// the next call tries again.
@@ -389,7 +399,7 @@ impl Bank for AqBankingBank {
         if setup.kind == LoginKind::ChipCard {
             return Err(BankError::NeedsSetupDialog);
         }
-        self.require_registration(session)?;
+        self.before_contact(session, &setup.bank)?;
         let pending = LoginId::pending();
         let pin = match pins.answer(&pending)? {
             PinAnswer::Known(pin) => Some(pin),
@@ -467,7 +477,13 @@ impl Bank for AqBankingBank {
             .into_iter()
             .find(|candidate| &candidate.id == account)
             .ok_or_else(unknown)?;
-        self.require_registration(session)?;
+        let bank = self
+            .logins()?
+            .into_iter()
+            .find(|candidate| candidate.id == login)
+            .map(|candidate| candidate.bank)
+            .ok_or_else(|| BankError::UnknownLogin(login.clone()))?;
+        self.before_contact(session, &bank)?;
         let pin = match pins.answer(&login)? {
             PinAnswer::Known(pin) => Some(pin),
             PinAnswer::Ask => None,

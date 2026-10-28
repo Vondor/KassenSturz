@@ -42,7 +42,6 @@ ColumnLayout {
 
     // The words other files borrow, so that none of them names the AI
     // itself while the switch is off (D-013).
-    readonly property string toggleText: i18nContext.i18nc("@action:inmenu opens the chat sidebar", "Chat with the AI")
     readonly property string appliedName: i18nContext.i18nc("@info a change you made", "Applied changes the AI prepared")
 
     // The messages of the conversation, oldest first, and the tool-call log.

@@ -23,6 +23,7 @@ pub mod qobject {
         #[qproperty(i32, x, READ, CONSTANT)]
         #[qproperty(i32, y, READ, CONSTANT)]
         #[qproperty(bool, maximized, READ, CONSTANT)]
+        #[qproperty(i32, menu_width, cxx_name = "menuWidth", READ, CONSTANT)]
         type WindowState = super::WindowStateRust;
     }
 
@@ -39,6 +40,12 @@ pub mod qobject {
             y: i32,
             maximized: bool,
         ) -> bool;
+
+        /// Keeps the width the user gave the left menu, in pixels. Returns
+        /// whether it was saved.
+        #[qinvokable]
+        #[cxx_name = "saveMenuWidth"]
+        fn save_menu_width(self: &WindowState, width: i32) -> bool;
     }
 
     impl cxx_qt::Initialize for WindowState {}
@@ -53,6 +60,8 @@ pub struct WindowStateRust {
     x: i32,
     y: i32,
     maximized: bool,
+    /// The left menu's width in pixels, 0 when the user never set one.
+    menu_width: i32,
 }
 
 /// The smallest and largest size and the furthest place kept: anything else
@@ -107,6 +116,7 @@ impl Geometry {
 
 impl cxx_qt::Initialize for qobject::WindowState {
     fn initialize(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().menu_width = Settings::user().menu_width().unwrap_or(0);
         if let Some(kept) = Geometry::parse(&Settings::user().window_geometry()) {
             let mut state = self.as_mut().rust_mut();
             state.known = true;
@@ -120,6 +130,10 @@ impl cxx_qt::Initialize for qobject::WindowState {
 }
 
 impl qobject::WindowState {
+    fn save_menu_width(&self, width: i32) -> bool {
+        Settings::user().set_menu_width(width)
+    }
+
     fn save(
         self: Pin<&mut Self>,
         width: i32,
@@ -175,6 +189,22 @@ mod tests {
                 maximized: false,
             })
         );
+    }
+
+    #[test]
+    fn keeps_the_menu_width_and_ignores_odd_ones() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        assert_eq!(settings.menu_width(), None);
+        assert!(settings.set_menu_width(260));
+        assert_eq!(Settings::at(&file).menu_width(), Some(260));
+        for odd in [0, 99, 5000, -1] {
+            assert!(!settings.set_menu_width(odd), "{odd}");
+        }
+        assert_eq!(settings.menu_width(), Some(260));
+        assert!(settings.set_text("Window", "MenuWidth", "wide"));
+        assert_eq!(settings.menu_width(), None);
     }
 
     #[test]

@@ -20,6 +20,7 @@
 
 import QtQuick
 import QtQuick.Dialogs as Dialogs
+import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
@@ -54,6 +55,14 @@ Kirigami.ApplicationWindow {
     // `wideScreen`, which flipped after a review of AI changes and turned
     // the menu into an overlay (#197).
     readonly property int menuBesideMinWidth: 50
+    // The left menu's width (#205): it doesn't grow with its longest text, which
+    // is cut with "…", so a long "Undo: …" can't squeeze the page. It starts at
+    // `menuStandardWidth`, the user can drag its edge between `menuMinWidth` and
+    // `menuMaxWidth`, and the width is kept between sessions.
+    readonly property int menuStandardWidth: Kirigami.Units.gridUnit * 12
+    readonly property int menuMinWidth: Kirigami.Units.gridUnit * 9
+    readonly property int menuMaxWidth: Math.min(Kirigami.Units.gridUnit * 28, Math.round(root.width / 2))
+    property int menuWidth: windowState.menuWidth > 0 ? windowState.menuWidth : menuStandardWidth
     // Whether the first-run steps are done, so the side menu is offered.
     readonly property bool started: bookSession.open && firstStartState.hasAccount
 
@@ -622,6 +631,7 @@ Kirigami.ApplicationWindow {
     globalDrawer: Kirigami.GlobalDrawer {
         enabled: root.started
         modal: root.width < Kirigami.Units.gridUnit * root.menuBesideMinWidth || !root.started
+        width: Math.max(root.menuMinWidth, Math.min(root.menuWidth, root.menuMaxWidth))
         drawerOpen: !modal
         // Also visible in a wide window: if the drawer was closed there (see
         // onModalChanged), the handle is the way back to the menu (M5-B19).
@@ -657,14 +667,6 @@ Kirigami.ApplicationWindow {
                 onTriggered: root.showScreen("settings")
             },
             Kirigami.Action {
-                icon.name: "dialog-messages"
-                visible: aiSwitch.enabled && root.started
-                enabled: aiSwitch.enabled && root.started
-                text: chatPanel.toggleText
-                shortcut: "Ctrl+Shift+A"
-                onTriggered: chatDrawer.drawerOpen = !chatDrawer.drawerOpen
-            },
-            Kirigami.Action {
                 separator: true
             },
             Kirigami.Action {
@@ -673,6 +675,8 @@ Kirigami.ApplicationWindow {
                 text: enabled
                     ? root.i18nContext.i18nc("@action:inmenu %1 is what was done, e.g. Added a transaction", "Undo: %1", changeNames.describe(changeHistory.undoChange))
                     : root.i18nContext.i18nc("@action:inmenu there is nothing to undo", "Undo")
+                // The menu cuts a long text, so the tooltip has all of it (#205).
+                tooltip: text
                 shortcut: StandardKey.Undo
                 onTriggered: root.undoLast()
             },
@@ -682,10 +686,51 @@ Kirigami.ApplicationWindow {
                 text: enabled
                     ? root.i18nContext.i18nc("@action:inmenu %1 is what was done, e.g. Added a transaction", "Redo: %1", changeNames.describe(changeHistory.redoChange))
                     : root.i18nContext.i18nc("@action:inmenu there is nothing to redo", "Redo")
+                tooltip: text
                 shortcut: StandardKey.Redo
                 onTriggered: root.redoLast()
             }
         ]
+    }
+
+    // Opens and closes the chat sidebar from the keyboard. The menu has no entry
+    // for it any more: the sidebar's handle is the way to it (#207). Dead while
+    // the switch is off (D-013).
+    Shortcut {
+        id: chatShortcut
+
+        sequence: "Ctrl+Shift+A"
+        enabled: aiSwitch.enabled && root.started
+        onActivated: chatDrawer.drawerOpen = !chatDrawer.drawerOpen
+    }
+
+    // The edge of the open menu, which the user drags to change its width
+    // (#205). Over the page below the banners; the width is kept when the
+    // button is let go.
+    Item {
+        id: menuGrip
+
+        parent: Controls.Overlay.overlay
+        visible: !root.globalDrawer.modal && root.globalDrawer.drawerOpen
+        x: root.globalDrawer.width * root.globalDrawer.position - width / 2
+        y: root.header ? root.header.height : 0
+        width: Kirigami.Units.smallSpacing * 2
+        height: parent ? parent.height - y : 0
+        z: 1000
+
+        Accessible.ignored: true
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.SizeHorCursor
+            preventStealing: true
+            onPositionChanged: mouse => {
+                if (pressed) {
+                    root.menuWidth = Math.max(root.menuMinWidth, Math.min(mapToItem(null, mouse.x, 0).x, root.menuMaxWidth));
+                }
+            }
+            onReleased: windowState.saveMenuWidth(root.menuWidth)
+        }
     }
 
     // The chat sidebar on the right (M5.8, D-047, D-210): opened and closed

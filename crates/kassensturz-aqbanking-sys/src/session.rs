@@ -78,7 +78,7 @@ pub const FINTS_BACKEND: &str = "aqhbci";
 const MAX_PASSWORD_BYTES: usize = 256;
 
 /// How the session is opened.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct SessionOptions {
     /// The application's name, which AqBanking records in its settings and
     /// sends to banks with the registration key.
@@ -87,8 +87,23 @@ pub struct SessionOptions {
     pub data_dir: PathBuf,
     /// KassenSturz's FinTS product registration (D-058). Without one the
     /// session can still read bank information and the accounts already
-    /// known, but the caller must not let it talk to a bank.
+    /// known, but the caller must not let it talk to a bank. A key typed
+    /// at run time is set later with [`Session::set_registration_key`]
+    /// (D-260). Its `Debug` never shows it.
     pub registration_key: Option<String>,
+}
+
+impl fmt::Debug for SessionOptions {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SessionOptions")
+            .field("app_name", &self.app_name)
+            .field("data_dir", &self.data_dir)
+            .field(
+                "registration_key",
+                &self.registration_key.as_ref().map(|_| "…"),
+            )
+            .finish()
+    }
 }
 
 /// What a password request is for.
@@ -511,6 +526,9 @@ pub struct Session<H: SessionHandler> {
     handler: Box<RefCell<H>>,
     current: Box<Current>,
     options: SessionOptions,
+    /// Whether AqBanking has a registration key: from the options, or
+    /// set later (D-260).
+    registered: Cell<bool>,
 }
 
 impl<H: SessionHandler> fmt::Debug for Session<H> {
@@ -623,6 +641,7 @@ impl<H: SessionHandler> Session<H> {
                 gui,
                 handler,
                 current,
+                registered: Cell::new(key.is_some()),
                 options,
             })
         }
@@ -631,6 +650,41 @@ impl<H: SessionHandler> Session<H> {
     /// The options the session was opened with.
     pub fn options(&self) -> &SessionOptions {
         &self.options
+    }
+
+    /// Whether AqBanking has a registration key (D-058): one the session
+    /// was opened with, or one set since.
+    pub fn is_registered(&self) -> bool {
+        self.registered.get()
+    }
+
+    /// Gives the open session the registration key `key`, typed by the
+    /// user after it was opened (D-260). AqBanking copies it and reads it
+    /// each time it writes a message to a bank (`AH_HBCI_GetProductName`
+    /// in AqBanking 6.9.2), so it counts from the next call on. The caller
+    /// checks the key first; the copy made here is wiped when it is
+    /// dropped.
+    pub fn set_registration_key(&self, key: &str) -> Result<(), SessionError> {
+        if key.contains('\0') {
+            return Err(SessionError::Argument);
+        }
+        let mut terminated = Zeroizing::new(Vec::with_capacity(key.len() + 1));
+        terminated.extend_from_slice(key.as_bytes());
+        terminated.push(0);
+        // SAFETY: `ab` is this session's banking object, alive until the
+        // session drops; both strings are terminated and only read during
+        // the call, which copies the value.
+        unsafe {
+            self.libraries
+                .aqbanking()
+                .AB_Banking_RuntimeConfig_SetCharValue(
+                    self.ab,
+                    c"fintsRegistrationKey".as_ptr(),
+                    terminated.as_ptr().cast::<c_char>(),
+                );
+        }
+        self.registered.set(true);
+        Ok(())
     }
 
     /// The handler, for the app to set what the next call may answer and

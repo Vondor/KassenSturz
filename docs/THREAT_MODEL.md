@@ -24,7 +24,7 @@ Facts about AqBanking and Gwenhywfar below were read in their 6.9.2 and 5.14.1 s
 | A-12 | **Change sets and the history** | AI-prepared changes to the book; the user's confirmation is the only thing between a model's idea and the user's numbers (D-047) |
 | A-13 | **The debug log and issue drafts** | Describe what the app did, and leave the computer in the user's browser if the user files an issue (D-173) |
 
-The FinTS product registration number (D-058) is **not** a secret: open-source programs carry theirs in the source code. It is protected by D-058's rule that nobody else's number is used, not by hiding it.
+The FinTS product registration number (D-058) is not a credential: it lets no one into an account. But the registration's terms don't allow it to be passed on, so it is not in the source, a build, a setting or a log (D-260). Whoever tests a build without one types it at run time (`KASSENSTURZ_FINTS_ASK=1`); it is held in memory only, never shown or written down, and goes only into the product field of the bank messages. D-058's rule that nobody else's number is used still holds.
 
 ## Who and what we defend against
 

@@ -125,6 +125,17 @@ While it runs, the window title ends in "developer mode" and a banner above ever
 
 Distributions can leave the log code out with the CMake option `-DKASSENSTURZ_DEBUG_LOG=OFF` (Cargo feature `debug-log`).
 
+### Typing the FinTS registration number
+
+Real banks only talk to programs registered with the German banks' FinTS system (D-058). KassenSturz builds carry no registration number: its terms don't allow the number to be passed on, so it is in no source file, build or setting (D-260). Whoever holds the number and tests against a real bank starts the app with a switch:
+
+```sh
+KASSENSTURZ_FINTS_ASK=1 tools/sdk.sh cargo run --bin kassensturz
+flatpak run --env=KASSENSTURZ_FINTS_ASK=1 io.github.vondor.KassenSturz
+```
+
+The first time KassenSturz is about to contact a bank (setting up a bank login, or fetching), it asks for the 25-character product registration number, in a field that shows dots. It keeps the number in memory until it closes and never saves, shows or logs it; it goes only to the bank, as the program's registration. "Cancel" contacts no bank and asks again next time. A number that isn't 25 letters and digits is asked for again; a number of the right shape that the bank refuses needs KassenSturz to be closed and started again to type it anew. Without the switch the bank screens say that this build isn't registered.
+
 ## For AI agents
 
 Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and working rules.

@@ -32,7 +32,9 @@
 //!   call that could have written one (threat T-06).
 //! - **The registration** (D-058): without a FinTS registration number of
 //!   its own, KassenSturz never contacts a bank: every call that would
-//!   fails with `bank.not-registered` first.
+//!   fails with `bank.not-registered` first. A number the user types while
+//!   the app runs is given to the open session ([`Bank::register`],
+//!   D-260).
 //! - **AqBanking's bank information** as a [`BankDirectory`] (item 93 of
 //!   the Proposals list), behind the hand-checked list's corrections
 //!   ([`Corrected`]).
@@ -68,6 +70,7 @@ use crate::error::BankError;
 use crate::fetched::{Fetched, FetchedAmount, FetchedBalance, FetchedTransaction};
 use crate::iban::BankCode;
 use crate::pin::{Pin, PinAnswer, PinSession};
+use crate::registration::RegistrationKey;
 
 use self::handler::{Handler, Refusal};
 use crate::dialogs::BankDialogs;
@@ -186,9 +189,9 @@ impl AqBankingBank {
     }
 
     /// Fails before any bank contact when this build has no registration
-    /// (D-058).
+    /// and none was typed (D-058, D-260).
     fn require_registration(&self, session: &Session<Handler>) -> Result<(), BankError> {
-        if session.options().registration_key.is_none() {
+        if !session.is_registered() {
             return Err(BankError::NotRegistered);
         }
         Ok(())
@@ -346,6 +349,12 @@ impl Bank for AqBankingBank {
         if let Some(session) = &self.session {
             session.handler().dialogs = Some(dialogs);
         }
+    }
+
+    fn register(&mut self, key: &RegistrationKey) -> Result<(), BankError> {
+        self.session()?
+            .set_registration_key(key.as_str())
+            .map_err(|_| BankError::MalformedRegistration)
     }
 
     fn logins(&self) -> Result<Vec<Login>, BankError> {

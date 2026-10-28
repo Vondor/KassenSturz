@@ -9705,3 +9705,72 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:290
+#, kde-format
+msgctxt "@title:window"
+msgid "FinTS product registration number"
+msgstr "FinTS-Produktregistrierungsnummer"
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:297
+#, kde-format
+msgctxt "@action:button use the registration number typed"
+msgid "Use this number"
+msgstr "Diese Nummer verwenden"
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:323
+#, kde-format
+msgctxt "@info"
+msgid ""
+"That wasn't 25 letters and digits. Check the number against the registration"
+" letter and type it again."
+msgstr ""
+"Das waren nicht 25 Buchstaben und Ziffern. Vergleichen Sie die Nummer mit "
+"dem Registrierungsschreiben und geben Sie sie noch einmal ein."
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:329
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This KassenSturz has no FinTS registration built in, and it was started to "
+"ask for one. Type the 25-character product registration number to connect to"
+" the bank."
+msgstr ""
+"In diesem KassenSturz ist keine FinTS-Registrierung eingebaut, und er wurde "
+"so gestartet, dass er danach fragt. Geben Sie die 25-stellige "
+"Produktregistrierungsnummer ein, um sich mit der Bank zu verbinden."
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:336
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Registration number"
+msgstr "Registrierungsnummer"
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:337
+#, kde-format
+msgctxt "@label:textbox"
+msgid "FinTS product registration number"
+msgstr "FinTS-Produktregistrierungsnummer"
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:345
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz keeps the number in memory until it closes. It is never saved, "
+"shown or logged, and is sent only to the bank, as the program's "
+"registration."
+msgstr ""
+"KassenSturz behält die Nummer im Arbeitsspeicher, bis es geschlossen wird. "
+"Sie wird nie gespeichert, angezeigt oder protokolliert und nur als "
+"Registrierung des Programms an die Bank gesendet."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:291
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A FinTS product registration number has exactly 25 letters and digits. Check"
+" it against the registration letter and type it again."
+msgstr ""
+"Eine FinTS-Produktregistrierungsnummer hat genau 25 Buchstaben und Ziffern. "
+"Vergleichen Sie sie mit dem Registrierungsschreiben und geben Sie sie noch "
+"einmal ein."

@@ -51,6 +51,7 @@ mod iban;
 mod keychain;
 mod linked;
 mod pin;
+mod registration;
 mod statement;
 
 pub use aqbanking::AqBankingBank;
@@ -75,4 +76,5 @@ pub use linked::{
     FETCH_OVERLAP_DAYS, PinAsker, fetch_linked, fetch_start, find_bank_account, names_account,
 };
 pub use pin::{MemoryPinStore, NoPinStore, Pin, PinAnswer, PinMode, PinSession, PinStore};
+pub use registration::{REGISTRATION_KEY_LENGTH, RegistrationKey};
 pub use statement::statement;

@@ -70,9 +70,9 @@ ColumnLayout {
             name: i18nContext.i18nc("@label a part of the book", "Transactions"),
             cells: [
                 { key: "AllowReadTransactions", read: true },
-                { key: "", absent: "later" },
+                { key: "AllowNewTransactions" },
                 { key: "AllowSortTransactions", needsRead: true },
-                { key: "", absent: "later" }
+                { key: "AllowDeleteTransactions", needsRead: true }
             ]
         }
     ]
@@ -93,6 +93,13 @@ ColumnLayout {
         { key: "LockCategory", label: i18nContext.i18nc("@label a field of a transaction", "Category") },
         { key: "LockNote", label: i18nContext.i18nc("@label a field of a transaction", "Note") }
     ]
+
+    // Whether the AI may write to the transaction history: add, change or
+    // delete. That is the one part that can hurt for good, so it is marked
+    // with a warning while any of it is on.
+    function historyAtRisk(again: int): bool {
+        return ["AllowNewTransactions", "AllowSortTransactions", "AllowDeleteTransactions"].some(key => settings.allows(key));
+    }
 
     // Whether the cell is on, as the settings say it.
     // `again` is the revision the caller read, so that its binding is
@@ -217,32 +224,42 @@ ColumnLayout {
         }
     }
 
+    // The warning (D-259). It can't know whether the user has a backup: a
+    // copy can be saved anywhere, so it is shown whenever the history can be
+    // written to, and says how to make one.
+    Kirigami.InlineMessage {
+        Layout.fillWidth: true
+        visible: grid.historyAtRisk(grid.revision)
+        type: Kirigami.MessageType.Error
+        text: grid.i18nContext.i18nc("@info", "Danger: the AI can now change your transaction history. A model can misunderstand or make things up, and a wrong entry that you confirm without noticing may stay unnoticed for a long time. You can undo your last steps, but undo does not replace a backup. Save a copy of your book first (Save a copy of my data → The whole book).")
+    }
+
     Controls.Label {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
         textFormat: Text.PlainText
-        text: grid.i18nContext.i18nc("@info", "Changing or deleting also lets the AI read that row, because it can't change what it can't see. The AI can only delete a category that nothing uses. For an account, Change means renaming, closing and opening it again; deleting an account is never offered, you can do that yourself.")
+        text: grid.i18nContext.i18nc("@info", "Changing or deleting also lets the AI read that row, because it can't change what it can't see. The AI can only delete a category that nothing uses. For an account, Change means renaming, closing and opening it again; deleting an account is never offered, you can do that yourself. For transactions, the AI can add and delete only payments in a cash account, and delete only what was entered by hand.")
     }
 
     // Locked fields, for the transactions the AI may change (D-252). Shown
     // only while that is on.
     Kirigami.AbstractCard {
         Layout.fillWidth: true
-        visible: grid.isOn("AllowSortTransactions", grid.revision)
+        visible: grid.historyAtRisk(grid.revision)
 
         contentItem: ColumnLayout {
             spacing: Kirigami.Units.smallSpacing
 
             Kirigami.Heading {
                 level: 3
-                text: grid.i18nContext.i18nc("@title:group", "Fields of a transaction the AI may not change")
+                text: grid.i18nContext.i18nc("@title:group", "Fields of a transaction the AI may not write")
             }
 
             Controls.Label {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
-                text: grid.i18nContext.i18nc("@info", "A locked field is never changed by the AI on a transaction you already have. It is still shown to the AI when reading is on.")
+                text: grid.i18nContext.i18nc("@info", "A locked field is never written by the AI: not changed on a transaction you already have, and not filled in on one it adds. To add a payment, the account, day and amount must be unlocked. A locked field is still shown to the AI when reading is on.")
             }
 
             Repeater {

@@ -49,6 +49,8 @@ Kirigami.ScrollablePage {
     readonly property var deletedRules: changes.filter ? changes.filter(change => change.kind === "deleteRule") : []
     readonly property var newRules: changes.filter ? changes.filter(change => change.kind === "newRule") : []
     readonly property var transactions: changes.filter ? changes.filter(change => change.kind === "categorize") : []
+    readonly property var newTransactions: changes.filter ? changes.filter(change => change.kind === "newTransaction") : []
+    readonly property var removedTransactions: changes.filter ? changes.filter(change => change.kind === "deleteTransaction") : []
     readonly property var editedTransactions: changes.filter ? changes.filter(change => change.kind === "editTransaction") : []
     readonly property var deletedCategories: changes.filter ? changes.filter(change => change.kind === "deleteCategory") : []
     readonly property var newAccounts: changes.filter ? changes.filter(change => change.kind === "newAccount") : []
@@ -654,6 +656,134 @@ Kirigami.ScrollablePage {
                                 ? page.i18nContext.i18nc("@info %1 is the name of a field, %2 its value now, %3 the value it becomes", "%1: %2 → %3", page.transactionFieldName(modelData.field), modelData.before, modelData.after !== "" ? modelData.after : page.i18nContext.i18nc("@info the value is removed", "(none)"))
                                 : page.i18nContext.i18nc("@info %1 is the name of a field, %2 the value it becomes", "%1: %2 (none before)", page.transactionFieldName(modelData.field), modelData.after)
                         }
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.newTransactions.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Payments in cash that are added")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.newTransactions : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            font.bold: true
+                            textFormat: Text.PlainText
+                            text: modelData.payee !== "" ? modelData.payee : page.i18nContext.i18nc("@info a transaction without a name", "(no name)")
+                        }
+
+                        Controls.Label {
+                            textFormat: Text.PlainText
+                            text: modelData.amount
+                        }
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is a date, %2 the name of an account", "%1 · %2", modelData.date, modelData.account)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: modelData.category !== ""
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is the path of a category", "Category: %1", modelData.category)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: modelData.note !== ""
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is a note the user can read", "Note: %1", modelData.note)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info", "Added to your cash account. Undo removes it again.")
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.removedTransactions.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Payments in cash that are removed")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.removedTransactions : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            font.bold: true
+                            textFormat: Text.PlainText
+                            text: modelData.payee !== "" ? modelData.payee : page.i18nContext.i18nc("@info a transaction without a name", "(no name)")
+                        }
+
+                        Controls.Label {
+                            textFormat: Text.PlainText
+                            text: modelData.amount
+                        }
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is a date, %2 the name of an account", "%1 · %2", modelData.date, modelData.account)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: modelData.category !== ""
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is the path of a category", "Category: %1", modelData.category)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info", "The balance of the cash account changes. Undo brings it back.")
                     }
                 }
             }

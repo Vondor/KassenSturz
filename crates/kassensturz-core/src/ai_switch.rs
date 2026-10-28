@@ -60,6 +60,10 @@ pub enum Permission {
     EditRules,
     /// Delete Rules.
     DeleteRules,
+    /// Add transactions (Transactions, Add): payments in cash (D-258).
+    NewTransactions,
+    /// Remove transactions (Transactions, Delete): by hand, in cash accounts.
+    DeleteTransactions,
     /// Read the categories.
     CategoriesRead,
     /// Read the Rules.
@@ -78,7 +82,7 @@ pub enum Permission {
 
 impl Permission {
     /// Every permission, in the order the settings page shows them.
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 15] = [
         Self::CategoriesRead,
         Self::NewCategories,
         Self::EditCategories,
@@ -92,6 +96,8 @@ impl Permission {
         Self::EditAccounts,
         Self::TransactionsRead,
         Self::SortTransactions,
+        Self::NewTransactions,
+        Self::DeleteTransactions,
     ];
 
     /// The key of this permission in [`GROUP`].
@@ -100,6 +106,8 @@ impl Permission {
             Self::NewCategories => "AllowNewCategories",
             Self::NewRules => "AllowNewRules",
             Self::SortTransactions => "AllowSortTransactions",
+            Self::NewTransactions => "AllowNewTransactions",
+            Self::DeleteTransactions => "AllowDeleteTransactions",
             Self::EditCategories => "AllowEditCategories",
             Self::EditRules => "AllowEditRules",
             Self::DeleteRules => "AllowDeleteRules",
@@ -122,7 +130,10 @@ impl Permission {
             | Self::CategoriesRead => Row::Categories,
             Self::NewRules | Self::EditRules | Self::DeleteRules | Self::RulesRead => Row::Rules,
             Self::AccountsRead | Self::NewAccounts | Self::EditAccounts => Row::Accounts,
-            Self::SortTransactions | Self::TransactionsRead => Row::Transactions,
+            Self::SortTransactions
+            | Self::NewTransactions
+            | Self::DeleteTransactions
+            | Self::TransactionsRead => Row::Transactions,
         }
     }
 
@@ -143,6 +154,7 @@ impl Permission {
                 | Self::EditRules
                 | Self::DeleteRules
                 | Self::SortTransactions
+                | Self::DeleteTransactions
                 | Self::DeleteCategories
                 | Self::EditAccounts
         )

@@ -409,6 +409,34 @@ pub enum ChangeView {
         /// The fields that change, in the order of the review.
         lines: Vec<EditLine>,
     },
+    /// A payment in cash written down (D-258).
+    NewTransaction {
+        /// Its day, in the user's format.
+        date: String,
+        /// Who was paid or paid, empty for none.
+        payee: String,
+        /// The cash account.
+        account: String,
+        /// What it does to the account, exact, in the user's format.
+        amount: String,
+        /// Its category as a path, empty for none.
+        category: String,
+        /// Its note, empty for none.
+        note: String,
+    },
+    /// A payment in cash removed (D-258).
+    DeleteTransaction {
+        /// Its day, in the user's format.
+        date: String,
+        /// Who was paid or paid, empty for none.
+        payee: String,
+        /// The cash account.
+        account: String,
+        /// What it did to the account, exact, in the user's format.
+        amount: String,
+        /// Its category as a path, empty for none.
+        category: String,
+    },
 }
 
 /// One field of a transaction that changes, written for the user.
@@ -522,6 +550,33 @@ pub fn view_of(
                             })
                         })
                         .collect::<Result<_, StoreError>>()?,
+                },
+                ProposedChange::NewTransaction(new) => ChangeView::NewTransaction {
+                    date: locale.short_date(new.date),
+                    payee: new.payee.clone().unwrap_or_default(),
+                    account: new.account_name.clone(),
+                    amount: AmountWriter::new(book, new.amount.currency(), locale)?
+                        .text(new.amount)
+                        .exact,
+                    category: new
+                        .category
+                        .as_ref()
+                        .map(|path| path.join(" › "))
+                        .unwrap_or_default(),
+                    note: new.note.clone().unwrap_or_default(),
+                },
+                ProposedChange::DeleteTransaction(delete) => ChangeView::DeleteTransaction {
+                    date: locale.short_date(delete.date),
+                    payee: delete.payee.clone().unwrap_or_default(),
+                    account: delete.account.clone(),
+                    amount: AmountWriter::new(book, delete.amount.currency(), locale)?
+                        .text(delete.amount)
+                        .exact,
+                    category: delete
+                        .category
+                        .as_ref()
+                        .map(|path| path.join(" › "))
+                        .unwrap_or_default(),
                 },
             })
         })

@@ -37,6 +37,19 @@ Open **Settings → AI provider and privacy…**. Type the provider's **address*
 
 **Set the context length of a local model to 16000 or more.** LM Studio starts models with only 4096, which is too little for the instructions, the functions and a conversation: the model then silently loses the start or the end of it and answers an old question. In LM Studio it is the model's setting **Context Length** when you load it; in Ollama it is `num_ctx`. KassenSturz shows a warning under an answer when the provider counted far fewer tokens than it sent. A small local model may answer less well than an online one. Whatever the model says, the numbers in your book come from KassenSturz, not from the AI.
 
+### Choosing a local model
+
+A local model has to be able to **call functions** ("tool use"). That is how it asks KassenSturz for your balances and totals instead of guessing them. In LM Studio the model list shows a **Tool use** badge; if the badge is missing, the model can't read your book and answers only from a short overview, so pick another file of the same model (for example the Q4_K_M one) or another model.
+
+What we found when we tested local models on a made-up household book, asking ten fixed questions (totals, search, a balance, categories, adding a category, the biggest expenses, a Rule, renaming a category, a German question, and one KassenSturz can't do):
+
+- **Context length 16000 or more**, and a model of **at least about 4 billion parameters**.
+- **Gemma 4 E4B and Qwen3.5 9B** (both the Q4_K_M files in LM Studio) answered all ten questions correctly in the last round. The much larger **Qwen3.6 35B A3B** was almost as good and needs a lot of memory.
+- Smaller models, or models that run out of memory and answer slowly, tend to skip the functions and answer from memory. Those answers can look right and be wrong.
+- The same model can do better or worse from one run to the next, so don't treat this as a promise.
+
+Whatever the model says, check numbers that matter against KassenSturz's own screens. Changes the AI proposes never happen without your **Confirm**.
+
 ### If the chat shows an error
 
 The message says what happened and what to do. When the settings can fix it, it has a button **Open the AI settings**.

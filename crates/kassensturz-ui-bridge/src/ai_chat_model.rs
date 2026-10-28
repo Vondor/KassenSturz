@@ -493,6 +493,29 @@ pub(crate) mod engine {
                 ("before", text(before)),
                 ("after", text(after)),
             ]),
+            ChangeView::EditTransaction {
+                date,
+                payee,
+                account,
+                amount,
+                lines,
+            } => map([
+                ("kind", text("editTransaction")),
+                ("date", text(date)),
+                ("payee", text(payee)),
+                ("account", text(account)),
+                ("amount", text(amount)),
+                (
+                    "lines",
+                    list(lines.iter().map(|line| {
+                        map([
+                            ("field", text(line.field)),
+                            ("before", text(&line.before)),
+                            ("after", text(&line.after)),
+                        ])
+                    })),
+                ),
+            ]),
         }))
     }
 
@@ -894,7 +917,7 @@ mod tests {
     use super::engine::{
         changes_object, entry_object, finished_object, review_object, sets_object,
     };
-    use crate::ai_chat::{ChangeView, Review};
+    use crate::ai_chat::{ChangeView, EditLine, Review};
     use crate::rules::ConditionForm;
     use crate::variant::read_back::{elements, flag_of, keys, list_of, number_of, text_of};
 
@@ -1173,10 +1196,28 @@ mod tests {
                 before: String::new(),
                 after: "Food › Bakery".into(),
             },
+            ChangeView::EditTransaction {
+                date: "2026-10-03".into(),
+                payee: "Corner Grocery".into(),
+                account: "Everyday Checking".into(),
+                amount: "-53,20 €".into(),
+                lines: vec![
+                    EditLine {
+                        field: "amount",
+                        before: "-53,20 €".into(),
+                        after: "-60,00 €".into(),
+                    },
+                    EditLine {
+                        field: "note",
+                        before: String::new(),
+                        after: "<b>weekly</b>".into(),
+                    },
+                ],
+            },
         ];
         let object = changes_object(&views);
         let items = elements(&object).expect("an array");
-        assert_eq!(items.len(), 7);
+        assert_eq!(items.len(), 8);
         assert_eq!(keys(&items[0]), ["income", "kind", "name", "path"]);
         assert_eq!(text_of(&items[0], "kind"), "newCategory");
         assert!(!flag_of(&items[0], "income"));
@@ -1220,5 +1261,16 @@ mod tests {
         );
         assert_eq!(text_of(&items[6], "amount"), "-53,20 €");
         assert_eq!(text_of(&items[6], "before"), "");
+        assert_eq!(
+            keys(&items[7]),
+            ["account", "amount", "date", "kind", "lines", "payee"]
+        );
+        assert_eq!(text_of(&items[7], "kind"), "editTransaction");
+        let lines = list_of(&items[7], "lines");
+        assert_eq!(lines.len(), 2);
+        assert_eq!(keys(&lines[0]), ["after", "before", "field"]);
+        assert_eq!(text_of(&lines[0], "field"), "amount");
+        assert_eq!(text_of(&lines[0], "after"), "-60,00 €");
+        assert_eq!(text_of(&lines[1], "after"), "<b>weekly</b>");
     }
 }

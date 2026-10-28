@@ -10,7 +10,7 @@
 //! with `<` and `>` written as JSON escapes, so no text from the book can
 //! close the block it stands in or look like markup (threats T-21, T-34).
 
-use kassensturz_ai_tools::DATA_NOTE;
+use kassensturz_ai_tools::{DATA_NOTE, edits_allowed};
 use kassensturz_core::Date;
 use kassensturz_core::ai_switch::{Permission, Permissions};
 use serde_json::Value;
@@ -107,32 +107,41 @@ fn changes(allowed: Permissions) -> String {
     }
     let kinds = [
         (
-            Permission::SortTransactions,
+            allowed.sorts(),
             "sort transactions",
             "a category for transactions you found",
         ),
         (
-            Permission::NewCategories,
+            edits_allowed(allowed),
+            "change the date, payee, note, amount or account of transactions",
+            "changed fields of transactions (edit_transactions)",
+        ),
+        (
+            allowed.allows(Permission::NewCategories),
             "add categories",
             "new categories",
         ),
         (
-            Permission::EditCategories,
+            allowed.allows(Permission::EditCategories),
             "rename or move categories",
             "renamed or moved categories",
         ),
-        (Permission::NewRules, "add Rules", "new Rules"),
         (
-            Permission::EditRules,
+            allowed.allows(Permission::NewRules),
+            "add Rules",
+            "new Rules",
+        ),
+        (
+            allowed.allows(Permission::EditRules),
             "change or reorder Rules",
             "changed or moved Rules",
         ),
-        (Permission::DeleteRules, "delete Rules", "deleted Rules"),
+        (
+            allowed.allows(Permission::DeleteRules),
+            "delete Rules",
+            "deleted Rules",
+        ),
     ];
-    let may = |permission| match permission {
-        Permission::SortTransactions => allowed.sorts(),
-        other => allowed.allows(other),
-    };
     let join = |texts: Vec<&str>| match texts.as_slice() {
         [] => String::new(),
         [only] => (*only).to_owned(),
@@ -141,13 +150,13 @@ fn changes(allowed: Permissions) -> String {
     let asks = join(
         kinds
             .iter()
-            .filter(|kind| may(kind.0))
+            .filter(|kind| kind.0)
             .map(|kind| kind.1)
             .collect(),
     );
     let prepared = kinds
         .iter()
-        .filter(|kind| may(kind.0))
+        .filter(|kind| kind.0)
         .map(|kind| kind.2)
         .collect::<Vec<_>>()
         .join(", ");
@@ -161,7 +170,7 @@ fn changes(allowed: Permissions) -> String {
     let denied = join(
         kinds
             .iter()
-            .filter(|kind| !may(kind.0))
+            .filter(|kind| !kind.0)
             .map(|kind| kind.1)
             .collect(),
     );
@@ -288,6 +297,25 @@ mod tests {
     use serde_json::json;
 
     const TODAY: Date = Date::constant(2026, 10, 25);
+
+    #[test]
+    fn editing_transactions_is_named_only_while_a_field_may_change() {
+        use kassensturz_core::ai_switch::Field;
+        let build = BuildInfo::new("0.261025.1", "1775d22");
+        let say = |allowed| with_functions(&build, TODAY, false, allowed);
+        // Everything on, the fields as locked at first: the note and the
+        // account may change.
+        assert!(say(Permissions::all()).contains("edit_transactions"));
+        // Every field locked: it is named among what the user hasn't allowed.
+        let locked = Field::ALL
+            .iter()
+            .fold(Permissions::all(), |p, field| p.with_lock(*field, true));
+        let text = say(locked);
+        assert!(!text.contains("(edit_transactions)"));
+        assert!(text.contains(
+            "change the date, payee, note, amount or account of transactions; when asked"
+        ));
+    }
 
     #[test]
     fn the_model_is_told_the_build_and_that_it_is_a_pre_release() {

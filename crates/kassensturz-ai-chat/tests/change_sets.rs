@@ -302,3 +302,79 @@ fn the_instructions_say_where_the_user_reviews_changes() {
     assert!(instructions.contains("never invent them"), "{instructions}");
     assert!(instructions.contains("isn't over"), "{instructions}");
 }
+
+/// A model that reads the search result it got and calls
+/// `propose_changes` with `edit_transactions` for the first entry, `item`
+/// completing the entry with its ID.
+fn edit_first_found(item: Value) -> Step {
+    Box::new(move |messages: &[Message], _offered: &[String]| {
+        let result = messages
+            .iter()
+            .rev()
+            .find(|message| message.role == Role::Tool)
+            .expect("the search result");
+        let found: Value = serde_json::from_str(&result.content).expect("JSON");
+        let row = &found["rows"][0];
+        let mut entry = item.clone();
+        entry["transaction_id"] = row["transaction_id"].clone();
+        let arguments = json!({"edit_transactions": [entry]});
+        let body = json!({"choices": [{"finish_reason": "tool_calls",
+        "message": {"role": "assistant", "content": null, "tool_calls": [{
+            "id": "c2", "type": "function",
+            "function": {"name": PROPOSE_CHANGES.name, "arguments": arguments.to_string()},
+        }]}}]});
+        Ok(body.to_string())
+    })
+}
+
+#[test]
+fn a_note_is_prepared_for_review_and_a_locked_amount_is_refused() {
+    let mut book = space_colony();
+    let before = book.transactions().unwrap();
+    for (item, refused) in [
+        (json!({"note": "Water bill"}), None),
+        (json!({"amount": "-1.00"}), Some("ai-tools.field-locked")),
+    ] {
+        let (provider, script) = Script::provider(
+            on(),
+            vec![
+                calls(&[("c1", "search_transactions", r#"{"limit":5}"#)]),
+                edit_first_found(item),
+                says("Done."),
+            ],
+        );
+        let mut chat = session();
+        let answer = chat
+            .ask(
+                &book,
+                &provider,
+                None,
+                "Note the water bill",
+                TODAY,
+                &mut NoHooks,
+            )
+            .unwrap();
+        let told = &script.seen()[2].messages;
+        let result: Value = serde_json::from_str(&told.last().unwrap().content).unwrap();
+        match refused {
+            None => {
+                assert_eq!(answer.changes.len(), 1);
+                assert_eq!(result["prepared"], 1);
+                let changes = answer.changes.into_iter().next().unwrap();
+                assert!(matches!(
+                    changes.changes()[0],
+                    ProposedChange::EditTransaction(_)
+                ));
+                changes.apply(&mut book, Confirmed::by_the_user()).unwrap();
+                assert_ne!(book.transactions().unwrap(), before);
+                book.undo().unwrap();
+                assert_eq!(book.transactions().unwrap(), before);
+            }
+            Some(code) => {
+                assert!(answer.changes.is_empty());
+                assert_eq!(result["error"], code, "{result}");
+                assert_eq!(book.transactions().unwrap(), before);
+            }
+        }
+    }
+}

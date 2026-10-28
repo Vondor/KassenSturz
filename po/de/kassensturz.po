@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-28 20:12+0000\n"
+"POT-Creation-Date: 2026-10-28 20:55+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -261,43 +261,78 @@ msgctxt "@title"
 msgid "Closed accounts"
 msgstr "Geschlossene Konten"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:57
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:58
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:89
+#, kde-format
+msgctxt "@label a field of a transaction"
+msgid "Amount"
+msgstr "Betrag"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:61
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:90
+#, kde-format
+msgctxt "@label a field of a transaction"
+msgid "Date"
+msgstr "Datum"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:64
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:91
+#, kde-format
+msgctxt "@label a field of a transaction"
+msgid "Who paid or was paid"
+msgstr "Wer gezahlt hat oder bezahlt wurde"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:67
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:92
+#, kde-format
+msgctxt "@label a field of a transaction"
+msgid "Account"
+msgstr "Konto"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:69
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:94
+#, kde-format
+msgctxt "@label a field of a transaction"
+msgid "Note"
+msgstr "Notiz"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:75
 #, kde-format
 msgctxt "@info %1 is what a Rule looks at, %2 how it compares, %3 the text"
 msgid "%1 %2 “%3”"
 msgstr "%1 %2 „%3“"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:60
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:78
 #, kde-format
 msgctxt "@info"
 msgid "Money received"
 msgstr "Erhaltenes Geld"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:60
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:78
 #, kde-format
 msgctxt "@info"
 msgid "Money paid"
 msgstr "Bezahltes Geld"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:62
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:80
 #, kde-format
 msgctxt "@info %1 is money paid or received, %2 an amount, %3 a currency"
 msgid "%1: exactly %2 %3"
 msgstr "%1: genau %2 %3"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:65
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:83
 #, kde-format
 msgctxt "@info %1 is money paid or received, %2 and %3 amounts, %4 a currency"
 msgid "%1: between %2 and %3 %4"
 msgstr "%1: zwischen %2 und %3 %4"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:69
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:87
 #, kde-format
 msgctxt "@info %1 is the kind of a condition"
 msgid "Another condition (%1)"
 msgstr "Eine andere Bedingung (%1)"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:75
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:93
 #: crates/kassensturz-ui-bridge/qml/RuleCondition.qml:38
 #, kde-format
 msgctxt ""
@@ -306,7 +341,7 @@ msgctxt ""
 msgid "Other party"
 msgstr "Zahlungspartner"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:77
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:95
 #: crates/kassensturz-ui-bridge/qml/RuleCondition.qml:39
 #, kde-format
 msgctxt ""
@@ -314,74 +349,74 @@ msgctxt ""
 msgid "Other party's IBAN"
 msgstr "IBAN des Zahlungspartners"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:79
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:97
 #: crates/kassensturz-ui-bridge/qml/RuleCondition.qml:40
 #, kde-format
 msgctxt "@item:inlistbox what a Rule looks at: the text a payment came with"
 msgid "Purpose"
 msgstr "Verwendungszweck"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:81
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:99
 #: crates/kassensturz-ui-bridge/qml/RuleCondition.qml:41
 #, kde-format
 msgctxt "@item:inlistbox what a Rule looks at: the name shown as From or To"
 msgid "Name shown"
 msgstr "Angezeigter Name"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:88
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:106
 #: crates/kassensturz-ui-bridge/qml/RuleCondition.qml:49
 #, kde-format
 msgctxt "@item:inlistbox a text has to"
 msgid "is exactly"
 msgstr "ist genau"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:90
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:108
 #: crates/kassensturz-ui-bridge/qml/RuleCondition.qml:50
 #, kde-format
 msgctxt "@item:inlistbox a text has to"
 msgid "starts with"
 msgstr "beginnt mit"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:92
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:110
 #: crates/kassensturz-ui-bridge/qml/RuleCondition.qml:51
 #, kde-format
 msgctxt "@item:inlistbox a text has to"
 msgid "ends with"
 msgstr "endet mit"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:94
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:112
 #, kde-format
 msgctxt "@item:inlistbox a text has to"
 msgid "matches the pattern"
 msgstr "passt zum Muster"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:96
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:114
 #: crates/kassensturz-ui-bridge/qml/RuleCondition.qml:48
 #, kde-format
 msgctxt "@item:inlistbox a text has to"
 msgid "contains"
 msgstr "enthält"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:114
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:132
 #, kde-format
 msgctxt "@title"
 msgid "Changes the AI prepared"
 msgstr "Von der KI vorbereitete Änderungen"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:133
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:151
 #: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:167
 #, kde-format
 msgctxt "@action:button throw the prepared changes away"
 msgid "Throw away"
 msgstr "Verwerfen"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:140
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:158
 #, kde-format
 msgctxt "@action:button make all the changes shown"
 msgid "Confirm and make these changes"
 msgstr "Bestätigen und diese Änderungen vornehmen"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:153
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:171
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -393,7 +428,7 @@ msgstr ""
 "geändert. Lesen Sie sie durch: Sie werden gemeinsam vorgenommen, sobald Sie "
 "bestätigen, und Sie können sie mit „Rückgängig“ zurücknehmen."
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:166
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:184
 #, kde-format
 msgctxt "@info"
 msgid "The changes were made. You can take them back with Undo."
@@ -401,116 +436,116 @@ msgstr ""
 "Die Änderungen wurden vorgenommen. Sie können sie mit „Rückgängig“ "
 "zurücknehmen."
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:170
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:188
 #: crates/kassensturz-ui-bridge/qml/Main.qml:344
 #, kde-format
 msgctxt "@action:button take the last change back"
 msgid "Undo"
 msgstr "Rückgängig"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:175
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:193
 #, kde-format
 msgctxt "@action:button leave this page"
 msgid "Close"
 msgstr "Schließen"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:184
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:202
 #, kde-format
 msgctxt "@title:group"
 msgid "New categories"
 msgstr "Neue Kategorien"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:206
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:224
 #, kde-format
 msgctxt "@info"
 msgid "For money you receive"
 msgstr "Für Geld, das Sie erhalten"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:206
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:224
 #, kde-format
 msgctxt "@info"
 msgid "For money you spend"
 msgstr "Für Geld, das Sie ausgeben"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:216
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:234
 #, kde-format
 msgctxt "@title:group"
 msgid "Changed categories"
 msgstr "Geänderte Kategorien"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:234
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:252
 #, kde-format
 msgctxt "@info %1 and %2 are paths of categories"
 msgid "%1 → %2"
 msgstr "%1 → %2"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:242
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:260
 #, kde-format
 msgctxt "@info"
 msgid "Its subcategories and its transactions stay with it."
 msgstr "Ihre Unterkategorien und ihre Buchungen bleiben bei ihr."
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:251
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:269
 #, kde-format
 msgctxt "@title:group"
 msgid "New Rules"
 msgstr "Neue Regeln"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:276
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:336
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:294
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:354
 #, kde-format
 msgctxt "@info %1 is the path of a category"
 msgid "Books matching transactions to %1."
 msgstr "Bucht passende Umsätze auf %1."
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:283
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:343
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:441
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:301
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:361
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:459
 #, kde-format
 msgctxt "@info"
 msgid "When all of these hold:"
 msgstr "Wenn alles davon zutrifft:"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:283
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:343
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:441
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:301
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:361
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:459
 #, kde-format
 msgctxt "@info"
 msgid "When one of these holds:"
 msgstr "Wenn eines davon zutrifft:"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:306
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:324
 #, kde-format
 msgctxt "@title:group"
 msgid "Changed Rules"
 msgstr "Geänderte Regeln"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:325
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:343
 #, kde-format
 msgctxt "@info %1 is the old name of a Rule, %2 the new one"
 msgid "%1 → %2"
 msgstr "%1 → %2"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:335
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:353
 #, kde-format
 msgctxt "@info %1 and %2 are paths of categories"
 msgid "Books matching transactions to %2 (before: %1)."
 msgstr "Bucht passende Buchungen auf %2 (vorher: %1)."
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:365
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:463
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:383
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:481
 #, kde-format
 msgctxt "@info"
 msgid "Transactions it sorted earlier stay as they are."
 msgstr "Buchungen, die sie früher einsortiert hat, bleiben, wie sie sind."
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:374
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:392
 #, kde-format
 msgctxt "@title:group"
 msgid "Rules in a new order"
 msgstr "Regeln in neuer Reihenfolge"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:399
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:417
 #, kde-format
 msgctxt "@info %1 and %2 are places in the list of Rules, counted from 1"
 msgid ""
@@ -519,43 +554,70 @@ msgstr ""
 "Wechselt von Platz %1 auf Platz %2. Die erste Regel, die zu einer Buchung "
 "passt, gewinnt."
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:408
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:426
 #, kde-format
 msgctxt "@title:group"
 msgid "Rules that are deleted"
 msgstr "Regeln, die gelöscht werden"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:434
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:452
 #, kde-format
 msgctxt "@info %1 is the path of a category"
 msgid "Booked matching transactions to %1."
 msgstr "Hat passende Buchungen auf %1 gebucht."
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:472
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:490
 #, kde-format
 msgctxt "@title:group"
-msgid "Transactions that get a category"
-msgstr "Umsätze, die eine Kategorie bekommen"
+msgid "Transactions that change"
+msgstr "Umsätze, die sich ändern"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:493
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:511
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:570
 #, kde-format
 msgctxt "@info a transaction without a name"
 msgid "(no name)"
 msgstr "(ohne Namen)"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:507
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:525
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:584
 #, kde-format
 msgctxt "@info %1 is a date, %2 the name of an account"
 msgid "%1 · %2"
 msgstr "%1 · %2"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:515
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:538
+#, kde-format
+msgctxt "@info the value is removed"
+msgid "(none)"
+msgstr "(keiner)"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:538
+#, kde-format
+msgctxt ""
+"@info %1 is the name of a field, %2 its value now, %3 the value it becomes"
+msgid "%1: %2 → %3"
+msgstr "%1: %2 → %3"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:539
+#, kde-format
+msgctxt "@info %1 is the name of a field, %2 the value it becomes"
+msgid "%1: %2 (none before)"
+msgstr "%1: %2 (vorher keiner)"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:549
+#, kde-format
+msgctxt "@title:group"
+msgid "Transactions that get a category"
+msgstr "Umsätze, die eine Kategorie bekommen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:592
 #, kde-format
 msgctxt "@info %1 and %2 are paths of categories"
 msgid "Category: %1 → %2"
 msgstr "Kategorie: %1 → %2"
 
-#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:516
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:593
 #, kde-format
 msgctxt "@info %1 is the path of a category"
 msgid "Category: %1 (none before)"
@@ -1349,7 +1411,11 @@ msgid ""
 "These changes hold a kind of change that you have turned off in the AI "
 "settings since the AI prepared them. Nothing was changed. Turn it on again "
 "under “What the AI may do”, or ask the AI to prepare the changes again."
-msgstr "Diese Änderungen enthalten eine Art von Änderung, die Sie in den KI-Einstellungen ausgeschaltet haben, seit die KI sie vorbereitet hat. Es wurde nichts geändert. Schalten Sie sie unter „Was die KI darf“ wieder ein oder bitten Sie die KI, die Änderungen noch einmal vorzubereiten."
+msgstr ""
+"Diese Änderungen enthalten eine Art von Änderung, die Sie in den KI-"
+"Einstellungen ausgeschaltet haben, seit die KI sie vorbereitet hat. Es wurde "
+"nichts geändert. Schalten Sie sie unter „Was die KI darf“ wieder ein oder "
+"bitten Sie die KI, die Änderungen noch einmal vorzubereiten."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:108
 #, kde-format
@@ -1433,41 +1499,11 @@ msgctxt "@title:column what the AI may do"
 msgid "Delete"
 msgstr "Löschen"
 
-#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:89
-#, kde-format
-msgctxt "@label a field of a transaction"
-msgid "Amount"
-msgstr "Betrag"
-
-#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:90
-#, kde-format
-msgctxt "@label a field of a transaction"
-msgid "Date"
-msgstr "Datum"
-
-#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:91
-#, kde-format
-msgctxt "@label a field of a transaction"
-msgid "Who paid or was paid"
-msgstr "Wer gezahlt hat oder bezahlt wurde"
-
-#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:92
-#, kde-format
-msgctxt "@label a field of a transaction"
-msgid "Account"
-msgstr "Konto"
-
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:93
 #, kde-format
 msgctxt "@label a field of a transaction"
 msgid "Category"
 msgstr "Kategorie"
-
-#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:94
-#, kde-format
-msgctxt "@label a field of a transaction"
-msgid "Note"
-msgstr "Notiz"
 
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:127
 #, kde-format
@@ -1476,7 +1512,10 @@ msgid ""
 "Choose what the AI may do with your book. Everything is off until you switch "
 "it on. Whatever the AI prepares is shown to you first, and nothing changes "
 "until you have read it and confirmed it."
-msgstr "Legen Sie fest, was die KI mit Ihrem Buch tun darf. Alles ist ausgeschaltet, bis Sie es einschalten. Was die KI vorbereitet, wird Ihnen zuerst gezeigt, und es ändert sich nichts, bevor Sie es gelesen und bestätigt haben."
+msgstr ""
+"Legen Sie fest, was die KI mit Ihrem Buch tun darf. Alles ist ausgeschaltet, "
+"bis Sie es einschalten. Was die KI vorbereitet, wird Ihnen zuerst gezeigt, "
+"und es ändert sich nichts, bevor Sie es gelesen und bestätigt haben."
 
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:199
 #, kde-format
@@ -1503,7 +1542,10 @@ msgid ""
 "Changing or deleting also lets the AI read that row, because it can't change "
 "what it can't see. Deleting an account is never offered; you can do that "
 "yourself."
-msgstr "Ändern oder Löschen erlaubt der KI auch, diese Zeile zu lesen, denn sie kann nichts ändern, was sie nicht sieht. Ein Konto zu löschen wird nie angeboten; das können Sie selbst tun."
+msgstr ""
+"Ändern oder Löschen erlaubt der KI auch, diese Zeile zu lesen, denn sie kann "
+"nichts ändern, was sie nicht sieht. Ein Konto zu löschen wird nie angeboten; "
+"das können Sie selbst tun."
 
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:238
 #, kde-format
@@ -1516,10 +1558,8 @@ msgstr "Felder einer Buchung, die die KI nicht ändern darf"
 msgctxt "@info"
 msgid ""
 "A locked field is never changed by the AI on a transaction you already have. "
-"It is still shown to the AI when reading is on. Today the AI can only put "
-"transactions into categories, so only the Category lock has an effect now; "
-"the others start to work when the AI can change those fields."
-msgstr "Ein gesperrtes Feld ändert die KI bei einer Buchung, die Sie schon haben, nie. Sie sieht es aber weiterhin, wenn das Lesen eingeschaltet ist. Heute kann die KI Buchungen nur Kategorien zuordnen, daher wirkt jetzt nur die Sperre der Kategorie; die anderen wirken, sobald die KI diese Felder ändern kann."
+"It is still shown to the AI when reading is on."
+msgstr "Ein gesperrtes Feld ändert die KI nie bei einem Umsatz, den Sie schon haben. Sie sieht es aber weiterhin, wenn Lesen eingeschaltet ist."
 
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:260
 #, kde-format
@@ -2021,7 +2061,15 @@ msgid ""
 "be open for that. After you switch this on or off, quit your AI program and "
 "start it again so it notices. How to set one up is explained in \"Connect an "
 "AI\" in the user guide."
-msgstr "KI-Programme auf diesem Computer, die Sie für KassenSturz eingerichtet haben, können die oben erlaubten Teile Ihres Buches lesen. Wenn Sie es erlauben, können sie auch die oben erlaubten Änderungen vorbereiten. Ihre Änderungen werden in der Chat-Seitenleiste gezeigt, und es ändert sich nichts, bevor Sie sie gelesen und bestätigt haben. KassenSturz muss dafür geöffnet sein. Nachdem Sie dies ein- oder ausgeschaltet haben, beenden Sie Ihr KI-Programm und starten es neu, damit es dies bemerkt. Wie man eines einrichtet, steht unter „Eine KI verbinden“ im Benutzerhandbuch."
+msgstr ""
+"KI-Programme auf diesem Computer, die Sie für KassenSturz eingerichtet "
+"haben, können die oben erlaubten Teile Ihres Buches lesen. Wenn Sie es "
+"erlauben, können sie auch die oben erlaubten Änderungen vorbereiten. Ihre "
+"Änderungen werden in der Chat-Seitenleiste gezeigt, und es ändert sich "
+"nichts, bevor Sie sie gelesen und bestätigt haben. KassenSturz muss dafür "
+"geöffnet sein. Nachdem Sie dies ein- oder ausgeschaltet haben, beenden Sie "
+"Ihr KI-Programm und starten es neu, damit es dies bemerkt. Wie man eines "
+"einrichtet, steht unter „Eine KI verbinden“ im Benutzerhandbuch."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:495
 #, kde-format

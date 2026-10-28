@@ -118,15 +118,26 @@ fn the_user_chooses_which_lists_the_ai_tool_may_use_and_it_is_seen_at_once() {
             lists
         })
     };
-    // Nothing chosen yet: only adding is allowed.
+    // Nothing chosen yet: only adding is allowed, and of a transaction only
+    // what isn't locked at first (the note and the account) may change.
     assert_eq!(
         schema_of(&mut session),
         Some(vec![
             "categorize".into(),
+            "edit_transactions".into(),
             "new_categories".into(),
             "new_rules".into()
         ])
     );
+    // With those two locked as well, the list of edits is not offered (D-257).
+    folder.allow(&["LockNote=true", "LockAccount=true"]);
+    let lists = schema_of(&mut session).expect("still offered");
+    assert!(
+        !lists.contains(&"edit_transactions".to_owned()),
+        "{lists:?}"
+    );
+    assert!(lists.contains(&"categorize".to_owned()), "{lists:?}");
+    folder.allow(&[]);
     // A list that is not offered is refused when called anyway.
     let (answer, is_error) = session.call(
         "propose_changes",

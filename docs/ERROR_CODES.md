@@ -241,6 +241,7 @@ A bank connection couldn't be used, or what the bank delivered couldn't be turne
 | `bank.not-installed` | | | Bank connections need AqBanking, a free program KassenSturz uses to talk to banks, and it isn't installed on this computer. Install it from your distribution (the Flatpak brings it along), or import a file from your bank instead. |
 | `bank.too-old` | `library`, `found`, `minimum` | `aqbanking`, `gwenhywfar` | The installed {library} is version {found}; KassenSturz needs {minimum} or newer. Update it, or import a file from your bank instead. |
 | `bank.not-registered` | | | This build of KassenSturz has no registration with the banks' FinTS system yet, so it can't connect to a bank. Import a file from your bank instead. |
+| `bank.malformed-registration` | | | The FinTS product registration number typed isn't 25 letters and digits. Check it against the registration letter and type it again (D-260). |
 | `bank.malformed-iban` | | | This isn't an IBAN. It has two letters, two digits and then up to 30 letters or digits, e.g. DE89 3704 0044 0532 0130 00; spaces don't matter. Check it against what your bank shows. |
 | `bank.unknown-login` | `login` | | This bank login no longer exists in KassenSturz. Set it up again. |
 | `bank.unknown-account` | `account` | | Your bank doesn't list the bank account this account is linked to for this login anymore. Link the account to another bank account, or connect the bank again in Settings. |

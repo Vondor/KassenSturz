@@ -156,7 +156,9 @@ fn nothing_a_model_can_call_sends_money() {
 fn the_bank_link_can_only_read() {
     let root = repository();
 
-    // The trait: set up and remove a login, list accounts, fetch.
+    // The trait: set up and remove a login, list accounts, fetch, and take
+    // the registration number typed for this run (D-260), which sends
+    // nothing by itself.
     let source = read(&root.join("crates/kassensturz-bank/src/backend.rs"));
     let start = source.find("pub trait Bank {").expect("the trait");
     let end = start + source[start..].find("\n}\n").expect("its end");
@@ -175,6 +177,7 @@ fn the_bank_link_can_only_read() {
             "directory",
             "fetch",
             "logins",
+            "register",
             "remove_login",
             "set_dialogs"
         ]

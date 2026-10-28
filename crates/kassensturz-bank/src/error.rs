@@ -37,6 +37,9 @@ pub enum BankError {
     /// This build has no FinTS registration number, so it can't talk to a
     /// bank (D-058, Q-087).
     NotRegistered,
+    /// The FinTS product registration number typed isn't 25 letters and
+    /// digits (D-260).
+    MalformedRegistration,
     /// The text isn't an IBAN: wrong characters, wrong length or wrong check
     /// digits (ISO 13616).
     MalformedIban,
@@ -148,6 +151,7 @@ impl Report for BankError {
                 .with("found", text(&found.to_string()))
                 .with("minimum", text(&minimum.to_string())),
             Self::NotRegistered => ErrorReport::new("bank.not-registered"),
+            Self::MalformedRegistration => ErrorReport::new("bank.malformed-registration"),
             Self::MalformedIban => ErrorReport::new("bank.malformed-iban"),
             Self::UnknownLogin(login) => {
                 ErrorReport::new("bank.unknown-login").with("login", text(login.as_str()))

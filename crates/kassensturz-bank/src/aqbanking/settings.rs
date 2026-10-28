@@ -15,13 +15,18 @@
 //!
 //! AqBanking also writes every FinTS message to `logs` folders below
 //! `backends/aqhbci/data/banks/`, with the PIN blanked but the statements
-//! readable, and has no switch to stop it; [`delete_message_logs`] removes
-//! them (D-139, threat T-06).
+//! and the FinTS registration number readable, and has no switch to stop
+//! it. [`block_message_logs`] stops it anyway, before every bank contact:
+//! a plain file named `logs` where AqBanking wants the folder makes it
+//! skip the log (D-261). [`delete_message_logs`] still removes any `logs`
+//! folder, e.g. from an older KassenSturz (D-139, threat T-06).
 
 use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+
+use crate::iban::BankCode;
 
 /// AqBanking's settings folder below its data folder.
 const SETTINGS: &str = "settings6";
@@ -179,6 +184,37 @@ pub(crate) fn delete_message_logs(data_dir: &Path) -> io::Result<usize> {
     Ok(removed)
 }
 
+/// Makes AqBanking write no message log for `bank` (D-261, threat T-06):
+/// a plain, empty file `logs` takes the place of the folder AqBanking
+/// writes its logs into, `banks/<country>/<code>/logs/` below its data,
+/// and a `logs` folder already there is removed. AqBanking 6.9.2 makes
+/// that folder with `GWEN_Directory_GetPath` before each log
+/// (`AH_Msg_LogMessage`), which fails when a part of the path is a file
+/// (Gwenhywfar 5.14.1), and then logs nothing. A bank code that isn't
+/// letters and digits is no folder name and is refused.
+pub(crate) fn block_message_logs(data_dir: &Path, bank: &BankCode) -> io::Result<()> {
+    let plain = |text: &str| !text.is_empty() && text.bytes().all(|b| b.is_ascii_alphanumeric());
+    if !plain(bank.country()) || !plain(bank.code()) {
+        return Err(io::ErrorKind::InvalidInput.into());
+    }
+    let folder = data_dir
+        .join("backends")
+        .join("aqhbci")
+        .join("data")
+        .join("banks")
+        .join(bank.country().to_ascii_lowercase())
+        .join(bank.code());
+    fs::create_dir_all(&folder)?;
+    let logs = folder.join("logs");
+    if logs.is_dir() {
+        fs::remove_dir_all(&logs)?;
+    }
+    if !logs.is_file() {
+        fs::write(&logs, "")?;
+    }
+    Ok(())
+}
+
 fn remove_logs_below(folder: &Path, removed: &mut usize) -> io::Result<()> {
     for entry in fs::read_dir(folder)? {
         let path = entry?.path();
@@ -311,5 +347,46 @@ data {
         assert!(!bank.join("logs").exists());
         assert!(bank.join("keep.txt").exists());
         let _ = fs::remove_dir_all(&data_dir);
+    }
+
+    #[test]
+    fn a_file_named_logs_takes_the_place_of_the_log_folder_and_stays() {
+        let data_dir = folder("blocked");
+        let bank = data_dir
+            .join("backends")
+            .join("aqhbci")
+            .join("data")
+            .join("banks")
+            .join("de")
+            .join("37040044");
+        // A log folder AqBanking wrote before is removed with its logs.
+        fs::create_dir_all(bank.join("logs")).expect("created");
+        fs::write(bank.join("logs").join("20261028.log"), "HNHBK").expect("written");
+        let code = BankCode::new("DE", "37040044");
+        block_message_logs(&data_dir, &code).expect("blocked");
+        assert!(bank.join("logs").is_file());
+        assert_eq!(fs::read(bank.join("logs")).expect("read"), b"");
+        // Again, and after the cleaning: it stays a file.
+        block_message_logs(&data_dir, &code).expect("blocked again");
+        assert_eq!(delete_message_logs(&data_dir).expect("cleaned"), 0);
+        assert!(bank.join("logs").is_file());
+        // A bank never contacted before gets its folders made.
+        block_message_logs(&data_dir, &BankCode::new("DE", "50010517")).expect("new bank");
+        assert!(bank.with_file_name("50010517").join("logs").is_file());
+        let _ = fs::remove_dir_all(&data_dir);
+    }
+
+    #[test]
+    fn a_bank_code_that_isnt_a_folder_name_is_refused() {
+        let data_dir = folder("refused");
+        for code in [
+            BankCode::new("DE", ""),
+            BankCode::new("DE", "../x"),
+            BankCode::new("D/", "37040044"),
+            BankCode::new("DE", "3704 0044"),
+        ] {
+            assert!(block_message_logs(&data_dir, &code).is_err(), "{code:?}");
+        }
+        assert!(!data_dir.exists());
     }
 }

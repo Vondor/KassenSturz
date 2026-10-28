@@ -88,6 +88,14 @@ fn journal_of(bank: &AqBankingBank) -> String {
     fs::read_to_string(bank.folder().join(stub::JOURNAL_FILE)).unwrap_or_default()
 }
 
+/// AqBanking wrote no message log: each time it tried, the file named
+/// `logs` stopped it (D-261, threat T-06).
+fn assert_no_message_log(bank: &AqBankingBank) {
+    let journal = journal_of(bank);
+    assert!(journal.contains("message log: not written"), "{journal}");
+    assert!(!journal.contains("message log: written"), "{journal}");
+}
+
 /// Every file below `folder`, with its text.
 fn files_below(folder: &Path) -> Vec<(PathBuf, String)> {
     let mut files = Vec::new();
@@ -203,12 +211,16 @@ fn a_login_is_set_up_with_the_backends_commands_and_removed_again() {
     for (path, text) in &files {
         assert!(!text.contains(PIN), "{} holds the PIN", path.display());
     }
+    // AqBanking couldn't write one at all: `logs` is the empty file that
+    // blocks it (D-261).
     assert!(
-        files
-            .iter()
-            .all(|(path, _)| !path.components().any(|part| part.as_os_str() == "logs")),
+        files.iter().all(|(path, text)| {
+            !path.components().any(|part| part.as_os_str() == "logs")
+                || (path.file_name().is_some_and(|name| name == "logs") && text.is_empty())
+        }),
         "{files:?}"
     );
+    assert_no_message_log(&bank);
     // The login name stays in AqBanking's file and nowhere in what the app
     // sees (T-19).
     assert!(
@@ -394,6 +406,9 @@ fn a_registration_typed_while_the_app_runs_lets_the_backend_contact_the_bank() {
         .expect("the bank is contacted now");
     assert!(journal_of(&bank).contains("control:"));
     assert!(bank.accounts(&login).is_ok());
+    // AqBanking would have written the number into its message log, in
+    // the header and in HKVVB; the log was blocked (D-261).
+    assert_no_message_log(&bank);
     // The number itself is in no file the backend or the stub wrote, and
     // the backend's own description doesn't show it.
     for (path, text) in files_below(bank.folder()) {
@@ -684,7 +699,8 @@ fn fetch_errors_are_error_codes_and_a_wrong_pin_is_forgotten() {
         bank.fetch(&account, None, &mut pins),
         Err(BankError::PinNeeded)
     );
-    // No message log is left after a failed call either (D-139).
+    // No message log is left after a failed call either (D-139), and
+    // none was written (D-261).
     assert!(
         !bank
             .folder()
@@ -695,8 +711,9 @@ fn fetch_errors_are_error_codes_and_a_wrong_pin_is_forgotten() {
             .join("de")
             .join("37040044")
             .join("logs")
-            .exists()
+            .is_dir()
     );
+    assert!(!journal_of(&bank).contains("message log: written"));
 }
 
 #[test]

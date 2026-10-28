@@ -224,7 +224,8 @@ mod tests {
             .find("function onEnabledChanged()")
             .expect("switch handler")..];
         let off = &off[..off.find("chatPanel.startOver()").unwrap()];
-        assert!(off.contains("root.attachChat()"), "{off}");
+        assert!(off.contains("root.attachChat(false)"), "{off}");
+        assert!(main.contains("root.attachChat(true)"));
         let closing = &main[main.find("onClosing: {").expect("closing")..];
         let closing = &closing[..closing.find("const maximized").unwrap()];
         assert!(closing.contains("chatWindow.hide()"), "{closing}");

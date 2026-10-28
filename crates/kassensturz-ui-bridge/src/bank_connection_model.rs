@@ -22,7 +22,8 @@ use kassensturz_platform::SecretStorage;
 
 use crate::bank_connection::{
     self, Answer, Connection, Event, FetchOutcome, FetchRow, FoundAccount, ListedBankAccount,
-    LoginRow, Lookup, PinRequest, PinStorageChange, SetupDone, SetupForm, Status, Worker,
+    LoginRow, Lookup, PinRequest, PinStorageChange, RegistrationRequest, SetupDone, SetupForm,
+    Status, Worker,
 };
 use crate::errors::ErrorText;
 use crate::format::Locale;
@@ -210,6 +211,18 @@ pub mod qobject {
         #[cxx_name = "cancelPin"]
         fn cancel_pin(self: &BankConnection);
 
+        /// Sends the FinTS product registration number the user typed
+        /// (D-260). Rust checks it; when it isn't 25 letters and digits,
+        /// `registrationRequested` asks again.
+        #[qinvokable]
+        #[cxx_name = "answerRegistration"]
+        fn answer_registration(self: &BankConnection, number: &QString);
+
+        /// The user cancelled the registration dialog.
+        #[qinvokable]
+        #[cxx_name = "cancelRegistration"]
+        fn cancel_registration(self: &BankConnection);
+
         /// The bank asks for a TAN: an object with `title`, `challenge`,
         /// `minLength` and `maxLength`.
         #[qsignal]
@@ -228,6 +241,14 @@ pub mod qobject {
         #[qsignal]
         #[cxx_name = "pinRequested"]
         fn pin_requested(self: Pin<&mut BankConnection>, request: QVariant);
+
+        /// A bank is to be contacted and this build has no FinTS
+        /// registration, so the user is asked for the number (D-260): an
+        /// object with `malformed`, true when the number typed before
+        /// wasn't 25 letters and digits.
+        #[qsignal]
+        #[cxx_name = "registrationRequested"]
+        fn registration_requested(self: Pin<&mut BankConnection>, request: QVariant);
 
         /// The fetch has reached the account with this ID.
         #[qsignal]
@@ -508,6 +529,18 @@ impl qobject::BankConnection {
         }
     }
 
+    fn answer_registration(&self, number: &QString) {
+        if let Some(worker) = &self.worker {
+            worker.answer(Answer::Registration(Some(number.to_string())));
+        }
+    }
+
+    fn cancel_registration(&self) {
+        if let Some(worker) = &self.worker {
+            worker.answer(Answer::Registration(None));
+        }
+    }
+
     fn remove_login(mut self: Pin<&mut Self>, id: &QString) -> QVariant {
         let id = id.to_string();
         done_object(
@@ -602,6 +635,9 @@ fn deliver(mut qobject: Pin<&mut qobject::BankConnection>, event: Event) {
         Event::Tan(request) => qobject.tan_requested(tan_object(&request)),
         Event::Question(question) => qobject.question_asked(question_object(&question)),
         Event::Pin(request) => qobject.pin_requested(pin_object(&request)),
+        Event::Registration(request) => {
+            qobject.registration_requested(registration_object(&request));
+        }
         Event::FetchStarted(account) => qobject.fetch_started(QString::from(account.as_str())),
         Event::FetchDone(result) => {
             qobject.as_mut().set_busy(false);
@@ -797,6 +833,10 @@ fn pin_object(request: &PinRequest) -> QVariant {
         ("bank", text(&request.bank)),
         ("rejected", QVariant::from(&request.rejected)),
     ])
+}
+
+fn registration_object(request: &RegistrationRequest) -> QVariant {
+    map([("malformed", QVariant::from(&request.malformed))])
 }
 
 fn fetch_row_object(row: &FetchRow) -> QVariant {
@@ -1144,6 +1184,17 @@ mod tests {
         let found = list_of(&choices, "found");
         assert_eq!(text_of(&found[0], "suggested"), "a1");
         assert_eq!(text_of(&found[0], "iban"), "DE89 3704 0044 0532 0130 00");
+    }
+
+    #[test]
+    fn the_registration_dialog_reads_back_as_qml_reads_it() {
+        // The dialog gets whether the number typed before was malformed,
+        // and nothing else: never the number (D-260).
+        for malformed in [false, true] {
+            let request = registration_object(&RegistrationRequest { malformed });
+            assert_eq!(flag_of(&request, "malformed"), malformed);
+            assert_eq!(object(&request).len(), 1);
+        }
     }
 
     #[test]

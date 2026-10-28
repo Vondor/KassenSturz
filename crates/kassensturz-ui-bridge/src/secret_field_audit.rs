@@ -157,8 +157,8 @@ mod tests {
         assert!(field.contains("onTriggered: field.showPassword = !field.showPassword"));
     }
 
-    /// The PIN and the TAN dialogs and the bank setup use it, and the dialogs
-    /// hide the text again each time they open.
+    /// The PIN, the TAN and the registration dialogs and the bank setup
+    /// use it, and the dialogs hide the text again each time they open.
     #[test]
     fn the_bank_screens_use_secret_field_and_hide_it_again() {
         let dialogs = qml_files()
@@ -166,7 +166,7 @@ mod tests {
             .find(|(name, _)| name == "BankDialogs.qml")
             .expect("BankDialogs.qml")
             .1;
-        for field in ["tanField", "pinField"] {
+        for field in ["tanField", "pinField", "registrationField"] {
             assert!(
                 dialogs.contains(&format!("SecretField {{\n                id: {field}")),
                 "{field} must be a SecretField"

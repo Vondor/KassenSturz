@@ -20,6 +20,7 @@ use crate::error::BankError;
 use crate::fetched::Fetched;
 use crate::iban::BankCode;
 use crate::pin::PinSession;
+use crate::registration::RegistrationKey;
 
 macro_rules! text_id {
     ($(#[$doc:meta])* $name:ident) => {
@@ -171,6 +172,14 @@ pub trait Bank {
     /// app (D-151). Without them a TAN request ends the call with
     /// [`BankError::TanNeeded`].
     fn set_dialogs(&mut self, dialogs: Box<dyn BankDialogs>);
+
+    /// Gives the backend the FinTS product registration number the user
+    /// typed, for this run of the app only (D-260). A backend that needs
+    /// none, like the fake bank, ignores it.
+    fn register(&mut self, key: &RegistrationKey) -> Result<(), BankError> {
+        let _ = key;
+        Ok(())
+    }
 
     /// The logins set up in this backend.
     fn logins(&self) -> Result<Vec<Login>, BankError>;

@@ -34,6 +34,7 @@ fn examples() -> Vec<BankError> {
             minimum: AQBANKING_MINIMUM,
         },
         BankError::NotRegistered,
+        BankError::MalformedRegistration,
         BankError::MalformedIban,
         BankError::UnknownLogin(LoginId::new("login-1")),
         BankError::UnknownAccount(BankAccountId::new("account-1")),

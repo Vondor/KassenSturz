@@ -681,9 +681,11 @@ mod tests {
         assert_eq!(replaced, 0);
         assert!(preview.contains(SAMPLE_QUESTION), "{preview}");
         assert!(preview.contains("\"big\""), "{preview}");
+        // The example holds what a real question would hold now: with
+        // nothing allowed yet (D-252), no function is offered.
         assert!(
-            preview.contains("search_transactions"),
-            "the functions are offered"
+            !preview.contains("search_transactions"),
+            "nothing is read until the user allows it"
         );
         assert!(
             !preview.contains("test-key-ui-6"),

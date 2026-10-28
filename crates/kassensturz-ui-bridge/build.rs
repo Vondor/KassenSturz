@@ -32,6 +32,7 @@ fn main() {
                 "qml/AiChatMessage.qml",
                 "qml/AiChatPanel.qml",
                 "qml/AiErrorMessage.qml",
+                "qml/AiPermissionGrid.qml",
                 "qml/AiRequestReview.qml",
                 "qml/AiSettingsEntry.qml",
                 "qml/AiSettingsPage.qml",

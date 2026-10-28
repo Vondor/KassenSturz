@@ -122,7 +122,7 @@ pub(crate) async fn call(
     waits: Waits,
 ) -> Result<Value, Failure> {
     let permissions = ai_switch::permissions();
-    if !ai_switch::write_tools_enabled() || permissions.is_none() {
+    if !ai_switch::write_tools_enabled() || !permissions.can_change() {
         return Err(Failure::Code("mcp-writes.off".into()));
     }
     let folder = folder

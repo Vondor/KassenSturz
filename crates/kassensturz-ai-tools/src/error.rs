@@ -165,6 +165,7 @@ mod tests {
                 .iter()
                 .chain(CHANGE_ARGUMENTS)
                 .chain(crate::issue::FIELDS)
+                .chain(crate::open_page::FIELDS)
                 .map(|&argument| ToolError::BadArgument { argument }),
         );
         examples

@@ -60,6 +60,14 @@ pub enum ToolError {
     /// can't be deleted, only a top-level Rule moves, a Rule that books a
     /// Transfer or has conditions a model can't write keeps them.
     NotChangeable,
+    /// A category can't be deleted because something uses it
+    /// (`used_by`: `subcategories`, `transactions` or `rules`, D-253).
+    CategoryInUse {
+        /// What uses it.
+        used_by: &'static str,
+    },
+    /// An account can't be closed while it holds money (D-255).
+    AccountNotEmpty,
     /// The call has a list of a kind of change the user doesn't allow, or
     /// calls a function that reads what the user doesn't allow reading
     /// (`argument` names the list or the function, D-239, D-252).
@@ -121,6 +129,9 @@ impl Report for ToolError {
             Self::OtherCurrency => ErrorReport::new("ai-tools.other-currency"),
             Self::UnknownRule => ErrorReport::new("ai-tools.unknown-rule"),
             Self::NotChangeable => ErrorReport::new("ai-tools.not-changeable"),
+            Self::CategoryInUse { used_by } => ErrorReport::new("ai-tools.category-in-use")
+                .with("used_by", ErrorParam::Keyword(used_by)),
+            Self::AccountNotEmpty => ErrorReport::new("ai-tools.account-not-empty"),
             Self::NotAllowed { argument } => ErrorReport::new("ai-tools.not-allowed")
                 .with("argument", ErrorParam::Keyword(argument)),
             #[cfg(feature = "debug-log")]
@@ -169,6 +180,14 @@ mod tests {
             ToolError::OtherCurrency,
             ToolError::UnknownRule,
             ToolError::NotChangeable,
+            ToolError::AccountNotEmpty,
+            ToolError::CategoryInUse {
+                used_by: "subcategories",
+            },
+            ToolError::CategoryInUse {
+                used_by: "transactions",
+            },
+            ToolError::CategoryInUse { used_by: "rules" },
             #[cfg(feature = "debug-log")]
             ToolError::DebugLogOff,
             ToolError::Store(StoreError::AmountOverflow),

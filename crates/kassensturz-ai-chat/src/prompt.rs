@@ -151,6 +151,21 @@ fn changes(allowed: Permissions) -> String {
             "delete Rules",
             "deleted Rules",
         ),
+        (
+            allowed.allows(Permission::DeleteCategories),
+            "delete empty categories",
+            "deleted empty categories",
+        ),
+        (
+            allowed.allows(Permission::NewAccounts),
+            "add accounts",
+            "new accounts",
+        ),
+        (
+            allowed.allows(Permission::EditAccounts),
+            "rename, close or reopen accounts",
+            "renamed, closed or reopened accounts",
+        ),
     ];
     let join = |texts: Vec<&str>| match texts.as_slice() {
         [] => String::new(),
@@ -172,7 +187,7 @@ fn changes(allowed: Permissions) -> String {
         .join(", ");
     let mut text = format!(
         "When the user asks you to {asks}, prepare the changes with propose_changes: {prepared}. \
-         You can't do these: delete a category, merge two categories, move a Rule into or out \
+         You can't do these: delete an account, delete a category that is used, merge two categories, move a Rule into or out \
          of another Rule (a sub-Rule), delete a Rule that has sub-Rules, change the category of \
          a Rule that makes a Transfer, or rewrite the conditions of a Rule whose conditions \
          list_rules doesn't show in full (an IBAN, a pattern, an amount, a date or an account). "

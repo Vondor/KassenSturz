@@ -170,6 +170,10 @@ fn examples() -> Vec<ErrorReport> {
             account,
             balance: money,
         },
+        StoreError::CategoryInUse {
+            category: account,
+            used_by: "transactions",
+        },
         StoreError::NotACategory(account),
         StoreError::ParentNotACategory(account),
         StoreError::ParentNotAnAccount(account),

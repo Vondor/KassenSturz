@@ -224,6 +224,15 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "Categories for money you receive go inside categories for money you receive, and the same for spending. Choose another category.");
         case "store.parent-currency-mismatch":
             return i18nContext.i18nc("@info %1 is the name of a category, %2 and %3 are currency codes", "%1 counts in %2, this category in %3. Choose a category in the same currency.", result.parent, result.parent_currency, result.currency);
+        case "store.category-in-use":
+            switch (result.used_by) {
+            case "subcategories":
+                return i18nContext.i18nc("@info %1 is the name of a category", "%1 has categories inside it, so it can't be deleted. Move or delete those first.", result.category);
+            case "rules":
+                return i18nContext.i18nc("@info %1 is the name of a category", "A Rule books to %1 or looks at it, so it can't be deleted. Change or delete the Rule first.", result.category);
+            default:
+                return i18nContext.i18nc("@info %1 is the name of a category", "%1 has transactions, so it can't be deleted. Put them into another category first.", result.category);
+            }
         case "store.category-inside-itself":
             return i18nContext.i18nc("@info %1 is the name of a category", "%1 can't go inside itself or one of the categories inside it. Choose another place.", result.account);
         case "store.unknown-transaction":

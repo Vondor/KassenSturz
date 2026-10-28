@@ -72,19 +72,28 @@ pub enum Permission {
     AccountsRead,
     /// Read the transactions.
     TransactionsRead,
+    /// Delete categories that nothing uses (D-253).
+    DeleteCategories,
+    /// Add accounts (D-253).
+    NewAccounts,
+    /// Rename accounts, close them and open them again (D-253).
+    EditAccounts,
 }
 
 impl Permission {
     /// Every permission, in the order the settings page shows them.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 15] = [
         Self::CategoriesRead,
         Self::NewCategories,
         Self::EditCategories,
+        Self::DeleteCategories,
         Self::RulesRead,
         Self::NewRules,
         Self::EditRules,
         Self::DeleteRules,
         Self::AccountsRead,
+        Self::NewAccounts,
+        Self::EditAccounts,
         Self::TransactionsRead,
         Self::SortTransactions,
         Self::NewTransactions,
@@ -106,15 +115,21 @@ impl Permission {
             Self::RulesRead => "AllowReadRules",
             Self::AccountsRead => "AllowReadAccounts",
             Self::TransactionsRead => "AllowReadTransactions",
+            Self::DeleteCategories => "AllowDeleteCategories",
+            Self::NewAccounts => "AllowNewAccounts",
+            Self::EditAccounts => "AllowEditAccounts",
         }
     }
 
     /// The row this permission belongs to.
     pub const fn row(self) -> Row {
         match self {
-            Self::NewCategories | Self::EditCategories | Self::CategoriesRead => Row::Categories,
+            Self::NewCategories
+            | Self::EditCategories
+            | Self::DeleteCategories
+            | Self::CategoriesRead => Row::Categories,
             Self::NewRules | Self::EditRules | Self::DeleteRules | Self::RulesRead => Row::Rules,
-            Self::AccountsRead => Row::Accounts,
+            Self::AccountsRead | Self::NewAccounts | Self::EditAccounts => Row::Accounts,
             Self::SortTransactions
             | Self::NewTransactions
             | Self::DeleteTransactions
@@ -140,6 +155,8 @@ impl Permission {
                 | Self::DeleteRules
                 | Self::SortTransactions
                 | Self::DeleteTransactions
+                | Self::DeleteCategories
+                | Self::EditAccounts
         )
     }
 

@@ -98,11 +98,13 @@ pub enum Action {
     /// history says the AI's changes came together, and one undo takes them
     /// back.
     ApplyAiChanges,
+    /// Removed a category that nothing used (D-253).
+    RemoveCategory,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 29] = [
+    pub const ALL: [Self; 30] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -132,6 +134,7 @@ impl Action {
         Self::UnlinkBankAccount,
         Self::FetchStatement,
         Self::ApplyAiChanges,
+        Self::RemoveCategory,
     ];
 }
 
@@ -1327,6 +1330,7 @@ fn action_to_text(action: Action) -> &'static str {
         Action::UnlinkBankAccount => "unlink_bank_account",
         Action::FetchStatement => "fetch_statement",
         Action::ApplyAiChanges => "apply_ai_changes",
+        Action::RemoveCategory => "remove_category",
     }
 }
 

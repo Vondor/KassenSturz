@@ -45,7 +45,7 @@ ColumnLayout {
                 { key: "AllowReadCategories", read: true },
                 { key: "AllowNewCategories" },
                 { key: "AllowEditCategories", needsRead: true },
-                { key: "", absent: "later" }
+                { key: "AllowDeleteCategories", needsRead: true }
             ]
         },
         {
@@ -61,8 +61,8 @@ ColumnLayout {
             name: i18nContext.i18nc("@label a part of the book", "Accounts"),
             cells: [
                 { key: "AllowReadAccounts", read: true },
-                { key: "", absent: "later" },
-                { key: "", absent: "later" },
+                { key: "AllowNewAccounts" },
+                { key: "AllowEditAccounts", needsRead: true },
                 { key: "", absent: "never" }
             ]
         },
@@ -238,7 +238,7 @@ ColumnLayout {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
         textFormat: Text.PlainText
-        text: grid.i18nContext.i18nc("@info", "Changing or deleting also lets the AI read that row, because it can't change what it can't see. Deleting an account is never offered; you can do that yourself. For transactions, the AI can add and delete only payments in a cash account, and delete only what was entered by hand.")
+        text: grid.i18nContext.i18nc("@info", "Changing or deleting also lets the AI read that row, because it can't change what it can't see. The AI can only delete a category that nothing uses. For an account, Change means renaming, closing and opening it again; deleting an account is never offered, you can do that yourself. For transactions, the AI can add and delete only payments in a cash account, and delete only what was entered by hand.")
     }
 
     // Locked fields, for the transactions the AI may change (D-252). Shown

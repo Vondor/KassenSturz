@@ -663,6 +663,50 @@ impl Book {
         })
     }
 
+    /// What keeps a category from being removed: `"subcategories"`,
+    /// `"transactions"` or `"rules"`, or `None` when nothing uses it
+    /// (D-253).
+    pub fn category_use(&self, id: AccountId) -> Result<Option<&'static str>, StoreError> {
+        if !self.account(id)?.kind.is_category() {
+            return Err(StoreError::NotACategory(id));
+        }
+        let used = |sql: &str| -> Result<bool, StoreError> {
+            Ok(self
+                .conn
+                .query_row(sql, [id.to_bytes()], |row| row.get::<_, bool>(0))?)
+        };
+        if used("SELECT EXISTS (SELECT 1 FROM accounts WHERE parent_id = ?1)")? {
+            Ok(Some("subcategories"))
+        } else if used("SELECT EXISTS (SELECT 1 FROM splits WHERE account_id = ?1)")? {
+            Ok(Some("transactions"))
+        } else if used(
+            "SELECT EXISTS (SELECT 1 FROM rules WHERE category_id = ?1 OR transfer_account_id = ?1)
+                OR EXISTS (SELECT 1 FROM rule_conditions WHERE account_id = ?1)",
+        )? {
+            Ok(Some("rules"))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Removes a category that nothing uses: no subcategory, no transaction
+    /// part and no Rule books to it or tests it (D-253). A category that is
+    /// used is refused with [`StoreError::CategoryInUse`], so no transaction
+    /// ever loses its category. Undo brings it back.
+    pub fn remove_category(&mut self, id: AccountId) -> Result<(), StoreError> {
+        if let Some(used_by) = self.category_use(id)? {
+            return Err(StoreError::CategoryInUse {
+                category: id,
+                used_by,
+            });
+        }
+        self.as_one_action(Action::RemoveCategory, |book| {
+            book.conn
+                .execute("DELETE FROM accounts WHERE id = ?1", [id.to_bytes()])?;
+            Ok(())
+        })
+    }
+
     /// Every income and spending category as a tree, flattened: income
     /// before spending, each category followed by its subcategories, siblings
     /// sorted by name.

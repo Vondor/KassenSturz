@@ -1137,6 +1137,16 @@ fn category(
     Ok(id)
 }
 
+/// A category that is added at once, for tests that need one.
+pub(crate) fn category_in(
+    book: &mut Book,
+    name: &str,
+    kind: AccountKind,
+    parent: Option<AccountId>,
+) -> AccountId {
+    category(book, name, kind, parent).expect("category added")
+}
+
 fn tree(book: &Book) -> Vec<String> {
     book.categories()
         .expect("categories")

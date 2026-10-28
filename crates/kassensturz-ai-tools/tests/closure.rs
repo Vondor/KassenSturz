@@ -127,7 +127,7 @@ fn nothing_a_model_can_call_sends_money() {
             assert!(!text.contains(word), "{} mentions {word}", function.name);
         }
     }
-    // A change set holds ten kinds of change, none of them a payment (an
+    // A change set holds thirteen kinds of change, none of them a payment (an
     // edit of a transaction's amount moves no money between accounts, D-257; a
     // cash entry only writes down what the user paid, D-258); a new kind
     // fails here and needs a row in the threat model first (D-236).
@@ -149,6 +149,9 @@ fn nothing_a_model_can_call_sends_money() {
             "MoveRule",
             "DeleteRule",
             "Categorize",
+            "DeleteCategory",
+            "NewAccount",
+            "EditAccount",
             "EditTransaction",
             "NewTransaction",
             "DeleteTransaction"

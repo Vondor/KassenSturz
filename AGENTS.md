@@ -20,6 +20,21 @@ Success looks like this: someone who has never heard the words "double-entry boo
 
 KMyMoney is the functional reference. We like it. We keep what makes it good and drop what makes it heavy.
 
+### What is our mission? (orientation for anyone writing code here)
+
+This is for agents and developers from outside. It is not about what the app does, but about how we build it and what we value.
+
+**Conservative with the data, liberal with the user.**
+
+- A user's records, often years of history, are the most valuable thing in the app. We protect them first: nothing is lost, overwritten or made unreadable without the user's say-so, and every change that touches stored data keeps a way back (backup, undo, change history) or does not run.
+- The user owns their data and may do what they want with it, including risky things. We do not forbid and we do not lecture. Before a step that is hard to undo or touches a lot of data, we say in plain words what will change, how much it touches and whether it can be undone, and we make that step a deliberate one. Defaults never lower protection.
+- We do not guess about money: exact numbers, original amounts kept, nothing sent anywhere without consent.
+- Simple for people without finance knowledge, open formats, and the user's own computer is the home of their data.
+
+If a change makes the app more powerful but the user's data less safe by default, change the default, not the warning. Example: the AI permission grid starts with everything switched off, and switching on a broad or deleting kind of change shows a plain danger warning first.
+
+This section is orientation. The hard rules in §3 stay as they are, and the priorities in §2 decide conflicts.
+
 ## 2. Principles (priority order)
 
 When two principles conflict, the lower number wins.

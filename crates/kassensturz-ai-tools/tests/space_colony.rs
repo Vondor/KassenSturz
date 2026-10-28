@@ -493,3 +493,18 @@ fn moves_between_own_accounts_and_starting_balances_can_be_left_out() {
         spending["matches"].as_u64().expect("a count") < all["matches"].as_u64().expect("a count")
     );
 }
+
+/// Models send `"text": ""` when they mean no text filter (#195).
+#[test]
+fn an_empty_text_means_no_text_filter() {
+    let book = space_colony();
+    let (all, _) = run(&book, "search_transactions", json!({ "limit": 20 }));
+    for empty in ["", "   "] {
+        let (value, _) = run(
+            &book,
+            "search_transactions",
+            json!({ "text": empty, "limit": 20 }),
+        );
+        assert_eq!(value, all);
+    }
+}

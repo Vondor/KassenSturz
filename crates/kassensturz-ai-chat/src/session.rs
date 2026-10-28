@@ -578,7 +578,11 @@ impl ChatSession {
             }
             Err(error) => {
                 let report = error.report();
-                (prompt::data_json(&error_json(&report)), Some(report.code))
+                let prepares = call.name == PROPOSE_CHANGES.name;
+                (
+                    prompt::data_json(&error_json(&report, prepares)),
+                    Some(report.code),
+                )
             }
         };
         self.note(
@@ -745,17 +749,33 @@ const ID_HINT: &str = "An ID must be copied from a function's result. Call list_
 (categories), list_accounts (accounts), search_transactions (transactions) or list_rules \
 (Rules) yourself now, then call this function again with the ID. Don't ask the user to do it.";
 
+/// What the model is told when it wrote the wrong one of two arguments for
+/// a category (#195): `new_category` and `new_parent` are only keys of
+/// categories made in the same call.
+const KEY_HINT: &str = "new_category and new_parent are only the key of a category made in \
+new_categories of this same call. For a category that exists, use category_id or parent_id \
+with an ID copied from list_categories.";
+
+/// What the model is told when a call to `propose_changes` failed.
+const NOT_PREPARED_HINT: &str = "Nothing was prepared. Do not tell the user that a change is \
+prepared. Fix the call and call propose_changes again, or say plainly that it did not work.";
+
 /// A function's error for the model: its code and the fixed names it
-/// carries, never anything the model sent (D-034, X-8), and a fixed hint
-/// when an ID was wrong.
-fn error_json(report: &ErrorReport) -> Value {
+/// carries, never anything the model sent (D-034, X-8), and fixed hints
+/// when an ID was wrong, a key was used for an ID, or the call that failed
+/// was to prepare changes (`prepares`).
+fn error_json(report: &ErrorReport, prepares: bool) -> Value {
     let mut out = Map::new();
     out.insert("error".into(), json!(report.code));
     let mut wrong_id = report.code.starts_with("ai-tools.unknown-");
+    let mut hints = Vec::new();
     for (name, value) in &report.params {
         match value {
             ErrorParam::Keyword(keyword) => {
                 wrong_id |= *name == "argument" && keyword.ends_with("id");
+                if *name == "argument" && matches!(*keyword, "new_category" | "new_parent") {
+                    hints.push(KEY_HINT);
+                }
                 out.insert((*name).into(), json!(keyword));
             }
             ErrorParam::Number(number) => {
@@ -765,7 +785,13 @@ fn error_json(report: &ErrorReport) -> Value {
         }
     }
     if wrong_id {
-        out.insert("hint".into(), json!(ID_HINT));
+        hints.push(ID_HINT);
+    }
+    if prepares {
+        hints.push(NOT_PREPARED_HINT);
+    }
+    if !hints.is_empty() {
+        out.insert("hint".into(), json!(hints.join(" ")));
     }
     Value::Object(out)
 }
@@ -827,7 +853,7 @@ mod tests {
     fn an_error_carries_only_its_code_and_fixed_names() {
         let report = ToolError::BadArgument { argument: "from" }.report();
         assert_eq!(
-            error_json(&report),
+            error_json(&report, false),
             json!({"error": "ai-tools.bad-argument", "argument": "from"})
         );
     }
@@ -838,9 +864,27 @@ mod tests {
             argument: "parent_id",
         }
         .report();
-        assert_eq!(error_json(&wrong)["hint"], json!(ID_HINT));
+        assert_eq!(error_json(&wrong, false)["hint"], json!(ID_HINT));
         let other = ToolError::BadArgument { argument: "from" }.report();
-        assert!(error_json(&other).get("hint").is_none());
+        assert!(error_json(&other, false).get("hint").is_none());
+    }
+
+    #[test]
+    fn a_key_used_for_an_id_and_a_failed_proposal_get_their_hints() {
+        let key = ToolError::BadArgument {
+            argument: "new_category",
+        }
+        .report();
+        assert_eq!(error_json(&key, false)["hint"], json!(KEY_HINT));
+        let parent = ToolError::BadArgument {
+            argument: "new_parent",
+        }
+        .report();
+        assert_eq!(error_json(&parent, false)["hint"], json!(KEY_HINT));
+        let both = error_json(&key, true)["hint"].as_str().unwrap().to_owned();
+        assert!(both.contains(KEY_HINT) && both.contains(NOT_PREPARED_HINT));
+        let other = ToolError::BadArgument { argument: "from" }.report();
+        assert_eq!(error_json(&other, true)["hint"], json!(NOT_PREPARED_HINT));
     }
 
     #[test]

@@ -73,7 +73,7 @@ pub const FUNCTIONS: &[Function] = &[
             currencies are grouped by currency. For the biggest expenses use \
             \"sort\" \"largest_out\" with \"skip_transfers\". Sorting and filtering are done here, \
             so use them instead of sorting rows yourself.",
-        parameters: r#"{"type":"object","properties":{"text":{"type":"string","maxLength":100,"description":"Text to find in the payee, memo or bank text, ignoring case."},"account_id":{"type":"string","description":"Only entries of this account, ID from list_accounts."},"category_id":{"type":"string","description":"Only transactions booked to this category or one below it, ID from list_categories."},"from":{"type":"string","format":"date","description":"First booking day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last booking day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most rows to return. Default 20."},"unsorted_only":{"type":"boolean","description":"Only entries that have no category yet. Default false."},"sort":{"type":"string","enum":["newest","largest_out","largest_in"],"description":"Order of the rows. Default newest."},"min_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at least this size, as plain decimal text without sign, e.g. 100 or 49.99."},"max_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at most this size, as plain decimal text without sign."},"skip_transfers":{"type":"boolean","description":"Leave out moves between the user's own accounts and starting balances, i.e. keep only spending and income. Use it for the biggest expenses. Default false."}},"additionalProperties":false}"#,
+        parameters: r#"{"type":"object","properties":{"text":{"type":"string","maxLength":100,"description":"Text to find in the payee, memo or bank text, ignoring case. Leave it out to not filter by text."},"account_id":{"type":"string","description":"Only entries of this account, ID from list_accounts."},"category_id":{"type":"string","description":"Only transactions booked to this category or one below it, ID from list_categories."},"from":{"type":"string","format":"date","description":"First booking day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last booking day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most rows to return. Default 20."},"unsorted_only":{"type":"boolean","description":"Only entries that have no category yet. Default false."},"sort":{"type":"string","enum":["newest","largest_out","largest_in"],"description":"Order of the rows. Default newest."},"min_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at least this size, as plain decimal text without sign, e.g. 100 or 49.99."},"max_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at most this size, as plain decimal text without sign."},"skip_transfers":{"type":"boolean","description":"Leave out moves between the user's own accounts and starting balances, i.e. keep only spending and income. Use it for the biggest expenses. Default false."}},"additionalProperties":false}"#,
     },
     Function {
         name: "list_categories",
@@ -332,7 +332,11 @@ impl<'a> Arguments<'a> {
             return Ok(None);
         };
         let text = text.trim();
-        if text.is_empty() || text.chars().count() > MAX_SEARCH_TEXT {
+        // Models send an empty text for "no text filter" (#195).
+        if text.is_empty() {
+            return Ok(None);
+        }
+        if text.chars().count() > MAX_SEARCH_TEXT {
             return Err(ToolError::BadArgument { argument: "text" });
         }
         Ok(Some(text.to_lowercase()))

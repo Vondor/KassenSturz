@@ -1165,3 +1165,366 @@ fn sorting_transactions_needs_the_category_field_not_locked() {
     assert!(set.check_allowed(unlocked).is_ok());
     assert!(set.check_allowed(locked).is_err());
 }
+
+#[test]
+fn only_an_empty_category_is_deleted_and_undo_brings_it_back() {
+    let Sample {
+        mut book,
+        food,
+        groceries,
+        salary,
+        ..
+    } = sample();
+    for id in [food, groceries] {
+        let refused = propose(
+            &book,
+            &json!({"delete_categories": [{"category_id": id.to_string()}]}),
+        );
+        assert_eq!(code(refused), "ai-tools.category-in-use");
+    }
+    let report = ToolError::CategoryInUse {
+        used_by: "subcategories",
+    }
+    .report();
+    assert_eq!(report.params[0].1, ErrorParam::Keyword("subcategories"));
+    // A category a Rule books to is in use too.
+    let rule = Rule {
+        id: RuleId::generate(),
+        name: "Pay day".into(),
+        match_mode: MatchMode::All,
+        conditions: vec![Condition::Text {
+            field: TextField::Payee,
+            operator: TextOperator::Contains,
+            value: "employer".into(),
+            case_sensitive: false,
+        }],
+        actions: Actions {
+            book_to: Some(BookTo::Category(salary)),
+            payee: None,
+        },
+    };
+    book.add_rule(&rule, None).expect("added");
+    assert_eq!(
+        code(propose(
+            &book,
+            &json!({"delete_categories": [{"category_id": salary.to_string()}]}),
+        )),
+        "ai-tools.category-in-use"
+    );
+    book.remove_rule(rule.id).expect("removed");
+
+    let proposal = propose(
+        &book,
+        &json!({"delete_categories": [{"category_id": salary.to_string()}]}),
+    )
+    .expect("an empty category");
+    let ProposedChange::DeleteCategory(delete) = &proposal.changes.changes()[0] else {
+        panic!("a deletion");
+    };
+    assert_eq!(delete.path, ["Salary"]);
+    assert!(
+        proposal
+            .changes
+            .summary()
+            .contains("delete category \"Salary\"")
+    );
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    assert!(book.account(salary).is_err());
+    assert_eq!(
+        book.history().expect("history")[0].action,
+        Action::ApplyAiChanges
+    );
+    book.undo().expect("undone");
+    assert_eq!(book.account(salary).expect("back").name, "Salary");
+}
+
+#[test]
+fn a_category_used_since_the_review_is_not_deleted() {
+    let Sample {
+        mut book,
+        checking,
+        salary,
+        ..
+    } = sample();
+    let proposal = propose(
+        &book,
+        &json!({"delete_categories": [{"category_id": salary.to_string()}]}),
+    )
+    .expect("prepared");
+    bought(
+        &mut book,
+        "Employer",
+        vec![
+            Split::new(checking, eur(100_000)),
+            Split::new(salary, eur(-100_000)),
+        ],
+    );
+    let before = state(&book);
+    let error = proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect_err("used since");
+    assert_eq!(error.report().code, "ai-changes.not-applied");
+    assert_eq!(state(&book), before);
+}
+
+#[test]
+fn a_deletion_names_a_category_of_the_book_once() {
+    let Sample {
+        book,
+        checking,
+        salary,
+        ..
+    } = sample();
+    let id = salary.to_string();
+    for (call, expected) in [
+        (
+            json!({"delete_categories": [{"category_id": checking.to_string()}]}),
+            "ai-tools.unknown-category",
+        ),
+        (
+            json!({"delete_categories": [{"category_id": id}, {"category_id": id}]}),
+            "ai-tools.unknown-category",
+        ),
+        (
+            json!({"delete_categories": [{}]}),
+            "bad-argument category_id",
+        ),
+    ] {
+        assert_eq!(code(propose(&book, &call)), expected, "{call}");
+    }
+}
+
+#[test]
+fn a_new_account_has_a_name_a_type_and_a_currency_and_never_a_number() {
+    let Sample { mut book, .. } = sample();
+    let proposal = propose(
+        &book,
+        &json!({"new_accounts": [{"name": " Holiday money ", "type": "cash"}]}),
+    )
+    .expect("prepared");
+    let ProposedChange::NewAccount(new) = &proposal.changes.changes()[0] else {
+        panic!("a new account");
+    };
+    assert_eq!(
+        (new.name.as_str(), new.account_type, new.currency),
+        ("Holiday money", AccountType::Cash, EUR)
+    );
+    let id = new.id;
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    let stored = book.account(id).expect("added");
+    assert_eq!(stored.kind, AccountKind::Asset);
+    assert_eq!((stored.number, stored.institution), (None, None));
+    book.undo().expect("undone");
+    assert!(book.account(id).is_err());
+
+    for (call, expected) in [
+        (
+            json!({"new_accounts": [{"name": "Wallet", "type": "cash", "number": "DE00"}]}),
+            "bad-argument new_accounts",
+        ),
+        (
+            json!({"new_accounts": [{"name": "Wallet", "type": "bank"}]}),
+            "bad-argument type",
+        ),
+        (
+            json!({"new_accounts": [{"name": "savings", "type": "cash"}]}),
+            "ai-tools.name-taken",
+        ),
+        (
+            json!({"new_accounts": [{"name": "A", "type": "cash"}, {"name": "a", "type": "savings"}]}),
+            "ai-tools.name-taken",
+        ),
+        (
+            json!({"new_accounts": [{"name": "Card", "type": "credit_card", "currency": "XXX"}]}),
+            "bad-argument currency",
+        ),
+    ] {
+        assert_eq!(code(propose(&book, &call)), expected, "{call}");
+    }
+    let card = propose(
+        &book,
+        &json!({"new_accounts": [{"name": "Card", "type": "credit_card", "currency": "USD"}]}),
+    )
+    .expect("prepared");
+    let ProposedChange::NewAccount(card) = &card.changes.changes()[0] else {
+        panic!("a new account");
+    };
+    assert_eq!(card.currency, USD);
+    assert_eq!(card.account_type.kind(), AccountKind::Liability);
+}
+
+#[test]
+fn an_account_is_renamed_closed_and_opened_again_but_never_deleted() {
+    let Sample {
+        mut book,
+        checking,
+        food,
+        ..
+    } = sample();
+    let wallet = add(&mut book, account("Wallet", AccountKind::Asset, EUR));
+    let before = state(&book);
+
+    let proposal = propose(
+        &book,
+        &json!({"edit_accounts": [{"account_id": wallet.to_string(), "name": "Old wallet", "closed": true}]}),
+    )
+    .expect("prepared");
+    let ProposedChange::EditAccount(edit) = &proposal.changes.changes()[0] else {
+        panic!("an edit");
+    };
+    assert_eq!(
+        (edit.before.as_str(), edit.after.as_str()),
+        ("Wallet", "Old wallet")
+    );
+    assert_eq!((edit.was_closed, edit.closed), (false, true));
+    assert!(
+        proposal
+            .changes
+            .summary()
+            .contains("becomes \"Old wallet\" and is closed")
+    );
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    let stored = book.account(wallet).expect("kept");
+    assert_eq!((stored.name.as_str(), stored.closed), ("Old wallet", true));
+    assert_eq!(
+        book.history().expect("history")[0].action,
+        Action::ApplyAiChanges
+    );
+    book.undo().expect("one undo takes both back");
+    assert_eq!(state(&book).0, before.0);
+
+    // Open again.
+    book.close_account(wallet).expect("closed");
+    let reopen = propose(
+        &book,
+        &json!({"edit_accounts": [{"account_id": wallet.to_string(), "closed": false}]}),
+    )
+    .expect("prepared");
+    reopen
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    assert!(!book.account(wallet).expect("there").closed);
+
+    for (call, expected) in [
+        // Money in it: closing would hide it.
+        (
+            json!({"edit_accounts": [{"account_id": checking.to_string(), "closed": true}]}),
+            "ai-tools.account-not-empty",
+        ),
+        (
+            json!({"edit_accounts": [{"account_id": wallet.to_string(), "name": "Wallet"}]}),
+            "bad-argument account_id",
+        ),
+        (
+            json!({"edit_accounts": [{"account_id": wallet.to_string(), "name": "Savings"}]}),
+            "ai-tools.name-taken",
+        ),
+        (
+            json!({"edit_accounts": [{"account_id": wallet.to_string()}]}),
+            "bad-argument account_id",
+        ),
+        (
+            json!({"edit_accounts": [{"account_id": food.to_string(), "name": "Eating"}]}),
+            "ai-tools.unknown-account",
+        ),
+        (
+            json!({"edit_accounts": [{"account_id": wallet.to_string(), "delete": true}]}),
+            "bad-argument edit_accounts",
+        ),
+    ] {
+        assert_eq!(code(propose(&book, &call)), expected, "{call}");
+    }
+}
+
+#[test]
+fn an_account_changed_since_the_review_is_out_of_date() {
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    let wallet = add(&mut book, account("Wallet", AccountKind::Asset, EUR));
+    let proposal = propose(
+        &book,
+        &json!({"edit_accounts": [{"account_id": wallet.to_string(), "name": "Purse"}]}),
+    )
+    .expect("prepared");
+    book.rename_account(wallet, "Pocket").expect("renamed");
+    assert!(matches!(
+        proposal.changes.apply(&mut book, Confirmed::by_the_user()),
+        Err(ChangeError::OutOfDate)
+    ));
+
+    // Money arrived before the confirm: closing is refused by the book.
+    let close = propose(
+        &book,
+        &json!({"edit_accounts": [{"account_id": wallet.to_string(), "closed": true}]}),
+    )
+    .expect("prepared");
+    bought(
+        &mut book,
+        "Gift",
+        vec![
+            Split::new(wallet, eur(500)),
+            Split::new(checking, eur(-500)),
+        ],
+    );
+    let before = state(&book);
+    let error = close
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect_err("not empty");
+    assert_eq!(error.report().code, "ai-changes.not-applied");
+    assert_eq!(state(&book), before);
+}
+
+#[test]
+fn the_new_lists_follow_their_cells() {
+    let Sample { book, salary, .. } = sample();
+    let wallet_call = json!({"new_accounts": [{"name": "Wallet", "type": "cash"}]});
+    let delete_call = json!({"delete_categories": [{"category_id": salary.to_string()}]});
+    let savings = book
+        .all_accounts()
+        .expect("accounts")
+        .into_iter()
+        .find(|account| account.name == "Savings")
+        .expect("there")
+        .id;
+    let edit_call =
+        json!({"edit_accounts": [{"account_id": savings.to_string(), "name": "Rainy day"}]});
+    for (call, cell, argument) in [
+        (&wallet_call, Permission::NewAccounts, "new_accounts"),
+        (
+            &delete_call,
+            Permission::DeleteCategories,
+            "delete_categories",
+        ),
+        (&edit_call, Permission::EditAccounts, "edit_accounts"),
+    ] {
+        let off = Permissions::defaults().with(Permission::NewCategories, true);
+        assert!(matches!(
+            super::propose(&book, call, off),
+            Err(ToolError::NotAllowed { argument: a }) if a == argument
+        ));
+        let on = off.with(cell, true);
+        let proposal = super::propose(&book, call, on).expect("allowed");
+        assert!(proposal.changes.check_allowed(on).is_ok());
+        assert!(matches!(
+            proposal.changes.check_allowed(off),
+            Err(ChangeError::NotAllowed)
+        ));
+        let spec = propose_spec(on).expect("offered");
+        assert!(spec.parameters.contains(&format!("\"{argument}\"")));
+        let other = propose_spec(off).expect("offered");
+        assert!(!other.parameters.contains(&format!("\"{argument}\"")));
+    }
+}

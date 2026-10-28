@@ -118,6 +118,7 @@ pub fn action_key(action: Action) -> &'static str {
         Action::EditRule => "edit-rule",
         Action::MoveRule => "move-rule",
         Action::RemoveRule => "remove-rule",
+        Action::RemoveCategory => "remove-category",
         Action::RunRules => "run-rules",
         Action::ImportStatement => "import-statement",
         Action::CorrectStartingBalance => "correct-starting-balance",

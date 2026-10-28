@@ -32,7 +32,7 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 3] = [LAYOUT_16, LAYOUT_17, LAYOUT_18];
+pub(crate) const MIGRATIONS: [&str; 4] = [LAYOUT_16, LAYOUT_17, LAYOUT_18, LAYOUT_19];
 
 /// The layout version the first migration creates. Layouts 1 to 15 were the
 /// development layouts from before 0.1, merged into layout 16 (D-045,
@@ -610,6 +610,36 @@ DROP TABLE changes;
 ALTER TABLE new_changes RENAME TO changes;
 ";
 
+/// Layout 19 (grid step 4, D-253): an AI may delete a category that nothing
+/// uses once the user confirms it, so `changes` is rebuilt with
+/// `remove_category` in its list of actions, as layouts 17 and 18 did; its
+/// rows stay as they were, and the `changed_` tables keep theirs too.
+const LAYOUT_19: &str = "
+CREATE TABLE new_changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction', 'join_transfer',
+        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
+        'import_statement', 'correct_starting_balance',
+        'add_institution', 'add_payee', 'add_tag',
+        'link_bank_account', 'unlink_bank_account', 'fetch_statement',
+        'apply_ai_changes', 'remove_category'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
+    file_name TEXT
+) STRICT;
+INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
+    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
+DROP TABLE changes;
+ALTER TABLE new_changes RENAME TO changes;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -962,6 +992,26 @@ mod tests {
             book.account(checking).expect("account").name,
             "Main account"
         );
+        // And one layout 19 added: a category nothing uses can be removed,
+        // and the removal undone.
+        let unused = AccountId::generate();
+        book.add_account(&kassensturz_core::Account {
+            id: unused,
+            name: "Unused".into(),
+            kind: kassensturz_core::AccountKind::Expense,
+            currency: crate::tests::EUR,
+            account_type: None,
+            closed: false,
+            parent: None,
+            number: None,
+            notes: None,
+            institution: None,
+        })
+        .expect("category added");
+        book.remove_category(unused).expect("removed");
+        assert!(book.account(unused).is_err());
+        book.undo().expect("undone");
+        assert!(book.account(unused).is_ok());
     }
 
     #[test]

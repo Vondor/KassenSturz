@@ -1496,15 +1496,6 @@ msgctxt "@info the AI can't do this yet"
 msgid "not yet"
 msgstr "noch nicht"
 
-#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:224
-#, kde-format
-msgctxt "@info"
-msgid ""
-"Changing or deleting also lets the AI read that row, because it can't change "
-"what it can't see. Deleting an account is never offered; you can do that "
-"yourself."
-msgstr "Ändern oder Löschen erlaubt der KI auch, diese Zeile zu lesen, denn sie kann nichts ändern, was sie nicht sieht. Ein Konto zu löschen wird nie angeboten; das können Sie selbst tun."
-
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:238
 #, kde-format
 msgctxt "@title:group"
@@ -9682,3 +9673,93 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:258
+#, kde-format
+msgctxt "@title:group"
+msgid "Categories to delete"
+msgstr "Kategorien zum Löschen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:284
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Nothing uses it: no transactions, no subcategories and no Rule. Undo brings "
+"it back."
+msgstr "Nichts verwendet sie: keine Buchungen, keine Unterkategorien und keine Regel. Mit „Rückgängig“ ist sie wieder da."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:293
+#, kde-format
+msgctxt "@title:group"
+msgid "New accounts"
+msgstr "Neue Konten"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:318
+#, kde-format
+msgctxt "@info %1 is a kind of account such as Cash, %2 a currency code"
+msgid "%1 in %2, with no balance yet."
+msgstr "%1 in %2, noch ohne Kontostand."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:327
+#, kde-format
+msgctxt "@title:group"
+msgid "Changed accounts"
+msgstr "Geänderte Konten"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:346
+#, kde-format
+msgctxt "@info %1 is the old name of an account, %2 the new one"
+msgid "%1 → %2"
+msgstr "%1 → %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:357
+#, kde-format
+msgctxt "@info"
+msgid "It is closed. Its history stays, and you can open it again."
+msgstr "Es wird geschlossen. Sein Verlauf bleibt, und Sie können es wieder öffnen."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:358
+#, kde-format
+msgctxt "@info"
+msgid "It is opened again."
+msgstr "Es wird wieder geöffnet."
+
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:224
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Changing or deleting also lets the AI read that row, because it can't change "
+"what it can't see. The AI can only delete a category that nothing uses. For "
+"an account, Change means renaming, closing and opening it again; deleting an "
+"account is never offered, you can do that yourself."
+msgstr "Ändern oder Löschen erlaubt der KI auch, diese Zeile zu lesen, denn sie kann nichts ändern, was sie nicht sieht. Die KI kann nur eine Kategorie löschen, die nichts verwendet. Bei einem Konto bedeutet Ändern: umbenennen, schließen und wieder öffnen; ein Konto zu löschen wird nie angeboten, das können Sie selbst tun."
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:64
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Removed a category"
+msgstr "Eine Kategorie entfernt"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:230
+#, kde-format
+msgctxt "@info %1 is the name of a category"
+msgid ""
+"%1 has categories inside it, so it can't be deleted. Move or delete those "
+"first."
+msgstr "In %1 liegen Kategorien, deshalb kann sie nicht gelöscht werden. Verschieben oder löschen Sie diese zuerst."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:232
+#, kde-format
+msgctxt "@info %1 is the name of a category"
+msgid ""
+"A Rule books to %1 or looks at it, so it can't be deleted. Change or delete "
+"the Rule first."
+msgstr "Eine Regel bucht nach %1 oder prüft sie, deshalb kann sie nicht gelöscht werden. Ändern oder löschen Sie zuerst die Regel."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:234
+#, kde-format
+msgctxt "@info %1 is the name of a category"
+msgid ""
+"%1 has transactions, so it can't be deleted. Put them into another category "
+"first."
+msgstr "%1 hat Buchungen, deshalb kann sie nicht gelöscht werden. Ordnen Sie diese zuerst einer anderen Kategorie zu."

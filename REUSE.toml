@@ -65,6 +65,14 @@ path = ["crates/kassensturz-import/tests/golden/**"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"
 
+# The five-year Space Colony book, made up entirely by
+# tools/space-colony/generate.py (D-270); a database file can't carry a
+# header of its own.
+[[annotations]]
+path = ["crates/kassensturz-import/tests/books/**"]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC0-1.0"
+
 # What the exporters must write for made-up data, compared byte for byte
 # (AGENTS.md §9, D-099).
 [[annotations]]

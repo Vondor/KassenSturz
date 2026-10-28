@@ -3,3 +3,6 @@
 # for the exporters' golden files (D-099).
 crates/kassensturz-import/tests/golden/** -text
 crates/kassensturz-export/tests/golden/** -text
+
+# The five-year Space Colony book is a database file (D-270).
+crates/kassensturz-import/tests/books/** -text

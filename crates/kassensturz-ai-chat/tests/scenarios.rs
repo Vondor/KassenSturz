@@ -17,8 +17,8 @@ use common::{
 };
 use kassensturz_ai::{AiError, KeyUse, PreparedRequest, Role};
 use kassensturz_ai_chat::{
-    ANSWER_NOW, BuildInfo, Cancel, ChatError, ChatSession, DATA_START, Hooks, LogEntry, MAX_ROUNDS,
-    Mode, NOT_OFFERED, NoHooks, SHORTENED_RESULT, sample_request,
+    ANSWER_NOW, BuildInfo, Cancel, ChatError, ChatSession, DATA_START, EMPTY_ANSWER, Hooks,
+    LogEntry, MAX_ROUNDS, Mode, NOT_OFFERED, NoHooks, SHORTENED_RESULT, sample_request,
 };
 use kassensturz_ai_tools::{DATA_NOTE, DRAFT_ISSUE, FUNCTIONS, PROPOSE_CHANGES};
 use serde_json::Value;
@@ -646,4 +646,58 @@ fn the_sample_request_is_the_first_request_of_a_real_question() {
     let sample = sample_request(&provider, &build, TODAY, question).expect("a sample");
     assert_eq!(sent_bodies(&session)[0], sample.preview());
     assert!(!sample.preview().contains("Space Colony"), "no book data");
+}
+
+/// An empty reply is asked for once more, so the user need not repeat the
+/// question (#196, D-248).
+#[test]
+fn an_empty_reply_is_asked_for_again_once() {
+    let book = hostile_book();
+    let (provider, script) = Script::provider(on(), vec![says(""), says("You have two accounts.")]);
+    let mut chat = session();
+    let answer = chat
+        .ask(&book, &provider, None, "Accounts?", TODAY, &mut NoHooks)
+        .unwrap();
+    assert_eq!(answer.text, "You have two accounts.");
+    let seen = script.seen();
+    assert_eq!(seen.len(), 2);
+    assert_eq!(seen[1].messages.last().unwrap().content, EMPTY_ANSWER);
+    assert_eq!(seen[1].messages.last().unwrap().role, Role::User);
+}
+
+#[test]
+fn a_model_that_stays_empty_is_not_asked_a_third_time() {
+    let book = hostile_book();
+    let (provider, script) = Script::provider(on(), vec![says("")]);
+    let mut chat = session();
+    let answer = chat
+        .ask(&book, &provider, None, "Accounts?", TODAY, &mut NoHooks)
+        .unwrap();
+    assert_eq!(answer.text, "");
+    assert_eq!(script.seen().len(), 2);
+}
+
+/// A call written as text, which the provider's template didn't turn into
+/// a call, is told plainly instead of being shown as the answer (#196,
+/// D-248).
+#[test]
+fn a_function_call_written_as_text_is_an_error_of_its_own() {
+    let book = hostile_book();
+    for text in [
+        "<|tool_call>call:list_categories{}<tool_call|>",
+        "[TOOL_CALLS][{\"name\": \"list_accounts\"}]",
+        "<function=list_accounts>{}</function>",
+    ] {
+        let (provider, _) = Script::provider(on(), vec![says(text)]);
+        let mut chat = session();
+        let result = chat.ask(&book, &provider, None, "Accounts?", TODAY, &mut NoHooks);
+        assert!(matches!(result, Err(ChatError::ToolCallAsText)), "{text}");
+    }
+    // Plain words about a tool call are an answer.
+    let (provider, _) = Script::provider(on(), vec![says("I can call a function for that.")]);
+    let mut chat = session();
+    assert!(
+        chat.ask(&book, &provider, None, "Accounts?", TODAY, &mut NoHooks)
+            .is_ok()
+    );
 }

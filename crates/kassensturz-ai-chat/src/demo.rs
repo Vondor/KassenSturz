@@ -19,7 +19,7 @@ use kassensturz_ai_tools::PROPOSE_CHANGES;
 use serde_json::{Value, json};
 
 use crate::prompt::{DATA_END, DATA_START};
-use crate::session::NOT_OFFERED;
+use crate::session::{EMPTY_ANSWER, NOT_OFFERED};
 
 /// The environment variable that offers the fake model: `1` for a model
 /// that calls functions, `overview` for one that can't.
@@ -74,7 +74,11 @@ fn respond(model: DemoModel, messages: &[Message], offered: &[String]) -> Result
     let question = messages
         .iter()
         .rev()
-        .find(|message| message.role == Role::User && message.content != NOT_OFFERED)
+        .find(|message| {
+            message.role == Role::User
+                && message.content != NOT_OFFERED
+                && message.content != EMPTY_ANSWER
+        })
         .map(|message| message.content.to_lowercase())
         .unwrap_or_default();
     let last = messages.last().map(|message| message.role);

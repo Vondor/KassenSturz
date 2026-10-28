@@ -10,7 +10,7 @@
 //! with `<` and `>` written as JSON escapes, so no text from the book can
 //! close the block it stands in or look like markup (threats T-21, T-34).
 
-use kassensturz_ai_tools::{DATA_NOTE, edits_allowed};
+use kassensturz_ai_tools::{DATA_NOTE, adds_allowed, edits_allowed};
 use kassensturz_core::Date;
 use kassensturz_core::ai_switch::{Permission, Permissions};
 use serde_json::Value;
@@ -115,6 +115,16 @@ fn changes(allowed: Permissions) -> String {
             edits_allowed(allowed),
             "change the date, payee, note, amount or account of transactions",
             "changed fields of transactions (edit_transactions)",
+        ),
+        (
+            adds_allowed(allowed),
+            "write down a purchase in cash that the user paid",
+            "new entries in a cash account (new_transactions)",
+        ),
+        (
+            allowed.allows(Permission::DeleteTransactions),
+            "remove entries the user made by hand in a cash account",
+            "removed entries of a cash account (delete_transactions)",
         ),
         (
             allowed.allows(Permission::NewCategories),
@@ -312,9 +322,26 @@ mod tests {
             .fold(Permissions::all(), |p, field| p.with_lock(*field, true));
         let text = say(locked);
         assert!(!text.contains("(edit_transactions)"));
-        assert!(text.contains(
-            "change the date, payee, note, amount or account of transactions; when asked"
-        ));
+        assert!(text.contains("change the date, payee, note, amount or account of transactions"));
+        // Adding needs the account, day and amount free too (D-258).
+        assert!(!text.contains("(new_transactions)"));
+        assert!(text.contains("write down a purchase in cash that the user paid"));
+        // Removing a cash entry needs no field.
+        assert!(text.contains("(delete_transactions)"));
+    }
+
+    #[test]
+    fn cash_entries_are_named_only_while_their_cell_is_on() {
+        use kassensturz_core::ai_switch::Field;
+        let say = |allowed| with_functions(&BuildInfo::new("0.1.0", "abc"), TODAY, false, allowed);
+        let open = Field::ALL
+            .iter()
+            .fold(Permissions::all(), |p, field| p.with_lock(*field, false));
+        assert!(say(open).contains("(new_transactions)"));
+        assert!(say(open).contains("(delete_transactions)"));
+        let none = Permissions::defaults().with(Permission::TransactionsRead, true);
+        let text = say(none);
+        assert!(!text.contains("(new_transactions)") && !text.contains("(delete_transactions)"));
     }
 
     #[test]

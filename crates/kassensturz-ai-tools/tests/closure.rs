@@ -127,8 +127,9 @@ fn nothing_a_model_can_call_sends_money() {
             assert!(!text.contains(word), "{} mentions {word}", function.name);
         }
     }
-    // A change set holds eight kinds of change, none of them a payment (an
-    // edit of a transaction's amount moves no money between accounts, D-257); a new kind
+    // A change set holds ten kinds of change, none of them a payment (an
+    // edit of a transaction's amount moves no money between accounts, D-257; a
+    // cash entry only writes down what the user paid, D-258); a new kind
     // fails here and needs a row in the threat model first (D-236).
     let source = read(&repository().join("crates/kassensturz-ai-tools/src/changes.rs"));
     let start = source.find("pub enum ProposedChange").expect("the enum");
@@ -148,7 +149,9 @@ fn nothing_a_model_can_call_sends_money() {
             "MoveRule",
             "DeleteRule",
             "Categorize",
-            "EditTransaction"
+            "EditTransaction",
+            "NewTransaction",
+            "DeleteTransaction"
         ]
     );
 }

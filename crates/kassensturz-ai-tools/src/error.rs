@@ -41,6 +41,12 @@ pub enum ToolError {
     /// The transaction can't be edited that way: its amount or account only
     /// when it has two parts in one currency and is no transfer (D-257).
     NotEditable,
+    /// The account isn't a cash account: the AI adds transactions only to
+    /// those (D-258).
+    NotCashAccount,
+    /// The transaction isn't one the AI may delete: only one the user
+    /// entered by hand in a cash account, with one category or none (D-258).
+    NotDeletable,
     /// The field is locked against the AI in the AI settings (D-252, D-257).
     FieldLocked {
         /// The field's fixed name, such as `amount`.
@@ -107,6 +113,8 @@ impl Report for ToolError {
             Self::NameTaken => ErrorReport::new("ai-tools.name-taken"),
             Self::NotCategorizable => ErrorReport::new("ai-tools.not-categorizable"),
             Self::NotEditable => ErrorReport::new("ai-tools.not-editable"),
+            Self::NotCashAccount => ErrorReport::new("ai-tools.not-cash-account"),
+            Self::NotDeletable => ErrorReport::new("ai-tools.not-deletable"),
             Self::FieldLocked { field } => {
                 ErrorReport::new("ai-tools.field-locked").with("field", ErrorParam::Keyword(field))
             }
@@ -156,6 +164,8 @@ mod tests {
             ToolError::NameTaken,
             ToolError::NotCategorizable,
             ToolError::NotEditable,
+            ToolError::NotCashAccount,
+            ToolError::NotDeletable,
             ToolError::OtherCurrency,
             ToolError::UnknownRule,
             ToolError::NotChangeable,

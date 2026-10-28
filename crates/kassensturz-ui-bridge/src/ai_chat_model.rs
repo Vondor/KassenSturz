@@ -516,6 +516,36 @@ pub(crate) mod engine {
                     })),
                 ),
             ]),
+            ChangeView::NewTransaction {
+                date,
+                payee,
+                account,
+                amount,
+                category,
+                note,
+            } => map([
+                ("kind", text("newTransaction")),
+                ("date", text(date)),
+                ("payee", text(payee)),
+                ("account", text(account)),
+                ("amount", text(amount)),
+                ("category", text(category)),
+                ("note", text(note)),
+            ]),
+            ChangeView::DeleteTransaction {
+                date,
+                payee,
+                account,
+                amount,
+                category,
+            } => map([
+                ("kind", text("deleteTransaction")),
+                ("date", text(date)),
+                ("payee", text(payee)),
+                ("account", text(account)),
+                ("amount", text(amount)),
+                ("category", text(category)),
+            ]),
         }))
     }
 
@@ -1214,10 +1244,25 @@ mod tests {
                     },
                 ],
             },
+            ChangeView::NewTransaction {
+                date: "2026-10-27".into(),
+                payee: "Dome Kiosk".into(),
+                account: "Pocket Cash".into(),
+                amount: "-12,34 €".into(),
+                category: "Food › Snacks".into(),
+                note: "<i>receipt kept</i>".into(),
+            },
+            ChangeView::DeleteTransaction {
+                date: "2026-10-27".into(),
+                payee: "Dome Kiosk".into(),
+                account: "Pocket Cash".into(),
+                amount: "-12,34 €".into(),
+                category: String::new(),
+            },
         ];
         let object = changes_object(&views);
         let items = elements(&object).expect("an array");
-        assert_eq!(items.len(), 8);
+        assert_eq!(items.len(), 10);
         assert_eq!(keys(&items[0]), ["income", "kind", "name", "path"]);
         assert_eq!(text_of(&items[0], "kind"), "newCategory");
         assert!(!flag_of(&items[0], "income"));
@@ -1272,5 +1317,19 @@ mod tests {
         assert_eq!(text_of(&lines[0], "field"), "amount");
         assert_eq!(text_of(&lines[0], "after"), "-60,00 €");
         assert_eq!(text_of(&lines[1], "after"), "<b>weekly</b>");
+        assert_eq!(
+            keys(&items[8]),
+            [
+                "account", "amount", "category", "date", "kind", "note", "payee"
+            ]
+        );
+        assert_eq!(text_of(&items[8], "kind"), "newTransaction");
+        assert_eq!(text_of(&items[8], "note"), "<i>receipt kept</i>");
+        assert_eq!(
+            keys(&items[9]),
+            ["account", "amount", "category", "date", "kind", "payee"]
+        );
+        assert_eq!(text_of(&items[9], "kind"), "deleteTransaction");
+        assert_eq!(text_of(&items[9], "category"), "");
     }
 }

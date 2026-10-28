@@ -1136,7 +1136,10 @@ fn a_model_is_offered_only_the_lists_the_user_allows() {
 
     // One kind alone is still a complete, valid tool.
     for permission in Permission::ALL.into_iter().filter(|p| !p.is_read()) {
-        let spec = propose_spec(Permissions::NONE.with(permission, true)).expect("offered");
+        let none = Field::ALL
+            .iter()
+            .fold(Permissions::NONE, |p, field| p.with_lock(*field, false));
+        let spec = propose_spec(none.with(permission, true)).expect("offered");
         let value: Value = serde_json::from_str(&spec.parameters).expect("json");
         assert!(
             !value["properties"]
@@ -1492,6 +1495,462 @@ fn the_same_transaction_cannot_be_named_twice_in_one_set() {
             &book,
             &json!({
                 "categorize": [{"transaction_id": id, "category_id": book_food(&book)}],
+                "edit_transactions": [{"transaction_id": id, "note": "x"}],
+            }),
+            open(),
+        )),
+        "bad-argument transaction_id"
+    );
+}
+
+/// The sample with a cash account, "Wallet", that has a payment of 4.50 at
+/// the kiosk entered by hand (in the Groceries category) and a payment of
+/// 2.00 booked to no category.
+struct WithCash {
+    sample: Sample,
+    wallet: AccountId,
+    kiosk: TransactionId,
+    unsorted: TransactionId,
+}
+
+fn with_cash() -> WithCash {
+    let mut sample = sample();
+    let wallet = add(
+        &mut sample.book,
+        Account {
+            account_type: Some(AccountType::Cash),
+            ..account("Wallet", AccountKind::Asset, EUR)
+        },
+    );
+    let groceries = sample.groceries;
+    let kiosk = bought(
+        &mut sample.book,
+        "Kiosk",
+        vec![
+            Split::new(wallet, eur(-450)),
+            Split::new(groceries, eur(450)),
+        ],
+    );
+    let unsorted = bought(
+        &mut sample.book,
+        "Bus",
+        vec![
+            Split::new(wallet, eur(-200)),
+            Split::uncategorized(eur(200)),
+        ],
+    );
+    WithCash {
+        sample,
+        wallet,
+        kiosk,
+        unsorted,
+    }
+}
+
+fn add_call(book: &Book, item: Value, allowed: Permissions) -> Result<Proposal, ToolError> {
+    super::propose(book, &json!({"new_transactions": [item]}), allowed)
+}
+
+fn delete_call(
+    book: &Book,
+    id: TransactionId,
+    allowed: Permissions,
+) -> Result<Proposal, ToolError> {
+    super::propose(
+        book,
+        &json!({"delete_transactions": [{"transaction_id": id.to_string()}]}),
+        allowed,
+    )
+}
+
+#[test]
+fn a_payment_in_cash_is_written_down_and_undo_takes_it_back() {
+    let WithCash {
+        sample: Sample {
+            mut book,
+            groceries,
+            ..
+        },
+        wallet,
+        ..
+    } = with_cash();
+    let before = state(&book);
+    let proposal = add_call(
+        &book,
+        json!({
+            "account_id": wallet.to_string(),
+            "date": "2026-10-20",
+            "amount": "-7.80",
+            "payee": " Market stall ",
+            "note": "tomatoes",
+            "category_id": groceries.to_string(),
+        }),
+        open(),
+    )
+    .expect("prepared");
+    assert_eq!(state(&book), before, "proposing changes nothing");
+    let ProposedChange::NewTransaction(new) = &proposal.changes.changes()[0] else {
+        panic!("a new transaction");
+    };
+    assert_eq!(new.account_name, "Wallet");
+    assert_eq!(new.amount, eur(-780));
+    assert_eq!(
+        new.category.as_deref(),
+        Some(&["Food".to_owned(), "Groceries".to_owned()][..])
+    );
+    let id = new.transaction;
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    let made = book.transaction(id).expect("there");
+    assert_eq!(made.booking_date(), Date::constant(2026, 10, 20));
+    assert_eq!(made.payee(), Some("Market stall"));
+    assert_eq!(made.note(), Some("tomatoes"));
+    let parts = made.splits();
+    assert_eq!(parts[0].account, Some(wallet));
+    assert_eq!(parts[0].account_amount(), eur(-780));
+    assert_eq!(parts[1].account, Some(groceries));
+    assert_eq!(parts[1].account_amount(), eur(780), "it balances");
+    assert_eq!(book.history().unwrap()[0].action, Action::ApplyAiChanges);
+
+    book.undo().expect("undone").expect("a change");
+    assert!(matches!(
+        book.transaction(id),
+        Err(StoreError::UnknownTransaction(_))
+    ));
+    let undone = state(&book);
+    assert_eq!((&undone.0, &undone.1), (&before.0, &before.1));
+}
+
+#[test]
+fn only_a_cash_account_gets_a_transaction_and_what_is_wrong_is_refused() {
+    let WithCash {
+        sample:
+            Sample {
+                book,
+                checking,
+                travel,
+                ..
+            },
+        wallet,
+        ..
+    } = with_cash();
+    let call = |item: Value| code(add_call(&book, item, open()));
+    let good = |extra: Value| {
+        let mut item =
+            json!({"account_id": wallet.to_string(), "date": "2026-10-20", "amount": "-1.00"});
+        for (key, value) in extra.as_object().unwrap() {
+            item[key] = value.clone();
+        }
+        item
+    };
+    assert_eq!(call(good(json!({}))), "prepared");
+    // A bank account, an unknown account and a category as the account.
+    assert_eq!(
+        call(good(json!({"account_id": checking.to_string()}))),
+        "ai-tools.not-cash-account"
+    );
+    assert_eq!(
+        call(good(
+            json!({"account_id": AccountId::generate().to_string()})
+        )),
+        "ai-tools.unknown-account"
+    );
+    assert_eq!(
+        call(good(json!({"account_id": travel.to_string()}))),
+        "ai-tools.unknown-account"
+    );
+    // A category in another currency or one that doesn't exist.
+    assert_eq!(
+        call(good(json!({"category_id": travel.to_string()}))),
+        "ai-tools.other-currency"
+    );
+    assert_eq!(
+        call(good(
+            json!({"category_id": AccountId::generate().to_string()})
+        )),
+        "ai-tools.unknown-category"
+    );
+    // Amounts and days that aren't exact.
+    for amount in ["0", "-1.005", "1e2", "-5,5", ""] {
+        assert_eq!(
+            call(good(json!({"amount": amount}))),
+            "bad-argument amount",
+            "{amount:?}"
+        );
+    }
+    assert_eq!(
+        call(good(json!({"date": "20.10.2026"}))),
+        "bad-argument date"
+    );
+    // The account, the day and the amount are needed.
+    for key in ["account_id", "date", "amount"] {
+        let mut item = good(json!({}));
+        item.as_object_mut().unwrap().remove(key);
+        assert_eq!(call(item), format!("bad-argument {key}"));
+    }
+    // Too many at once.
+    let many: Vec<Value> = (0..21).map(|_| good(json!({}))).collect();
+    assert_eq!(
+        code(super::propose(
+            &book,
+            &json!({"new_transactions": many}),
+            open()
+        )),
+        "ai-tools.too-many-changes"
+    );
+}
+
+#[test]
+fn a_closed_cash_account_gets_nothing() {
+    let WithCash {
+        sample: Sample { mut book, .. },
+        wallet,
+        kiosk,
+        unsorted,
+    } = with_cash();
+    book.remove_transaction(kiosk).unwrap();
+    book.remove_transaction(unsorted).unwrap();
+    book.close_account(wallet).expect("closed");
+    assert_eq!(
+        code(add_call(
+            &book,
+            json!({"account_id": wallet.to_string(), "date": "2026-10-20", "amount": "-1.00"}),
+            open(),
+        )),
+        "ai-tools.unknown-account"
+    );
+}
+
+#[test]
+fn the_locks_apply_to_what_the_ai_writes() {
+    let WithCash {
+        sample: Sample { book, .. },
+        wallet,
+        ..
+    } = with_cash();
+    let item = |extra: Value| {
+        let mut item =
+            json!({"account_id": wallet.to_string(), "date": "2026-10-20", "amount": "-1.00"});
+        for (key, value) in extra.as_object().unwrap() {
+            item[key] = value.clone();
+        }
+        item
+    };
+    // The defaults lock the amount and the day, so the list isn't offered.
+    assert_eq!(
+        code(add_call(&book, item(json!({})), Permissions::all())),
+        "ai-tools.not-allowed"
+    );
+    assert!(!adds_allowed(Permissions::all()));
+    assert!(adds_allowed(open()));
+    // With those two open, a locked payee, note or category can't be written.
+    let unlocked = Permissions::all()
+        .with_lock(Field::Amount, false)
+        .with_lock(Field::Date, false);
+    assert_eq!(
+        code(add_call(&book, item(json!({"payee": "Kiosk"})), unlocked)),
+        "ai-tools.field-locked"
+    );
+    assert_eq!(
+        code(add_call(
+            &book,
+            item(json!({"note": "x"})),
+            unlocked.with_lock(Field::Note, true)
+        )),
+        "ai-tools.field-locked"
+    );
+    assert_eq!(
+        code(add_call(&book, item(json!({"note": "x"})), unlocked)),
+        "prepared"
+    );
+    // A lock switched on after the review stops the set.
+    let proposal = add_call(&book, item(json!({})), open()).expect("prepared");
+    assert!(proposal.changes.check_allowed(open()).is_ok());
+    assert!(proposal.changes.check_allowed(Permissions::all()).is_err());
+    assert!(
+        proposal
+            .changes
+            .check_allowed(open().with(Permission::NewTransactions, false))
+            .is_err()
+    );
+}
+
+#[test]
+fn the_lists_are_offered_only_with_their_cells_and_their_unlocked_fields() {
+    let spec = |allowed| propose_spec(allowed).map(|spec| spec.parameters);
+    let only = |permission| {
+        Field::ALL
+            .iter()
+            .fold(Permissions::NONE, |p, field| p.with_lock(*field, false))
+            .with(permission, true)
+    };
+    let adds = spec(only(Permission::NewTransactions)).expect("offered");
+    assert!(adds.contains("new_transactions") && !adds.contains("delete_transactions"));
+    let removes = spec(only(Permission::DeleteTransactions)).expect("offered");
+    assert!(removes.contains("delete_transactions") && !removes.contains("new_transactions"));
+    // Locked payee and note are left out of what a model sees; a locked
+    // amount leaves the whole list out.
+    let locked_payee = only(Permission::NewTransactions).with_lock(Field::Payee, true);
+    let text = spec(locked_payee).unwrap();
+    assert!(text.contains("new_transactions"));
+    let value: Value = serde_json::from_str(&text).unwrap();
+    let properties = &value["properties"]["new_transactions"]["items"]["properties"];
+    assert!(properties.get("payee").is_none());
+    assert!(properties.get("note").is_some());
+    let locked_amount = only(Permission::NewTransactions).with_lock(Field::Amount, true);
+    assert!(spec(locked_amount).is_none_or(|text| !text.contains("new_transactions")));
+}
+
+#[test]
+fn a_transaction_the_user_entered_in_a_cash_account_is_removed_and_undo_brings_it_back() {
+    let WithCash {
+        sample: Sample { mut book, .. },
+        kiosk,
+        unsorted,
+        ..
+    } = with_cash();
+    let before = state(&book);
+    for id in [kiosk, unsorted] {
+        let proposal = delete_call(&book, id, open()).expect("prepared");
+        let ProposedChange::DeleteTransaction(gone) = &proposal.changes.changes()[0] else {
+            panic!("a removal");
+        };
+        assert_eq!(gone.account, "Wallet");
+        assert_eq!(gone.transaction, id);
+        proposal
+            .changes
+            .apply(&mut book, Confirmed::by_the_user())
+            .expect("applied");
+        assert!(matches!(
+            book.transaction(id),
+            Err(StoreError::UnknownTransaction(_))
+        ));
+    }
+    assert_eq!(book.history().unwrap()[0].action, Action::ApplyAiChanges);
+    book.undo().expect("undone").expect("a change");
+    book.undo().expect("undone").expect("a change");
+    let undone = state(&book);
+    assert_eq!((&undone.0, &undone.1), (&before.0, &before.1));
+}
+
+#[test]
+fn nothing_but_a_plain_hand_entered_cash_transaction_is_removed() {
+    let WithCash {
+        sample:
+            Sample {
+                mut book,
+                bought: bank_purchase,
+                transfer,
+                split,
+                groceries,
+                ..
+            },
+        wallet,
+        ..
+    } = with_cash();
+    // A purchase in the bank account, a transfer and a split purchase.
+    for id in [bank_purchase, transfer, split] {
+        assert_eq!(
+            code(delete_call(&book, id, open())),
+            "ai-tools.not-deletable"
+        );
+    }
+    // A move from the wallet to the savings account is a transfer too.
+    let savings = book
+        .all_accounts()
+        .unwrap()
+        .into_iter()
+        .find(|account| account.name == "Savings")
+        .unwrap()
+        .id;
+    let moved = bought(
+        &mut book,
+        "To savings",
+        vec![Split::new(wallet, eur(-500)), Split::new(savings, eur(500))],
+    );
+    assert_eq!(
+        code(delete_call(&book, moved, open())),
+        "ai-tools.not-deletable"
+    );
+    // A cash payment split over two categories.
+    let food = book
+        .all_accounts()
+        .unwrap()
+        .into_iter()
+        .find(|account| account.name == "Food")
+        .unwrap()
+        .id;
+    let several = bought(
+        &mut book,
+        "Two things",
+        vec![
+            Split::new(wallet, eur(-300)),
+            Split::new(groceries, eur(100)),
+            Split::new(food, eur(200)),
+        ],
+    );
+    assert_eq!(
+        code(delete_call(&book, several, open())),
+        "ai-tools.not-deletable"
+    );
+    // An ID the book doesn't have.
+    assert_eq!(
+        code(delete_call(&book, TransactionId::generate(), open())),
+        "ai-tools.unknown-transaction"
+    );
+    // Without the cell it's refused, however the set came.
+    assert_eq!(
+        code(delete_call(&book, bank_purchase, Permissions::defaults())),
+        "ai-tools.not-allowed"
+    );
+}
+
+#[test]
+fn a_removal_is_out_of_date_when_the_entry_changed_in_between() {
+    let WithCash {
+        sample: Sample { mut book, .. },
+        kiosk,
+        ..
+    } = with_cash();
+    let removal = delete_call(&book, kiosk, open()).expect("prepared");
+    let edit = edit(
+        &book,
+        &json!({"transaction_id": kiosk.to_string(), "note": "changed"}),
+    )
+    .expect("prepared");
+    edit.changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    let before = state(&book);
+    assert!(matches!(
+        removal.changes.apply(&mut book, Confirmed::by_the_user()),
+        Err(ChangeError::OutOfDate)
+    ));
+    assert_eq!(state(&book), before);
+    // Removed by the user meanwhile.
+    let second = delete_call(&book, kiosk, open()).expect("prepared");
+    book.remove_transaction(kiosk).unwrap();
+    assert!(matches!(
+        second.changes.apply(&mut book, Confirmed::by_the_user()),
+        Err(ChangeError::OutOfDate)
+    ));
+}
+
+#[test]
+fn the_same_transaction_cannot_be_removed_and_changed_in_one_set() {
+    let WithCash {
+        sample: Sample { book, .. },
+        kiosk,
+        ..
+    } = with_cash();
+    let id = kiosk.to_string();
+    assert_eq!(
+        code(super::propose(
+            &book,
+            &json!({
+                "delete_transactions": [{"transaction_id": id}],
                 "edit_transactions": [{"transaction_id": id, "note": "x"}],
             }),
             open(),

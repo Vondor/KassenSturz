@@ -340,7 +340,7 @@ fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
     );
     let mut chat = session();
     // About 20 KB for 4,000 tokens is what an uncut request comes to.
-    let long = "word ".repeat(1_600);
+    let long = "word ".repeat(1_100);
     let answer = chat
         .ask(&book, &provider, None, &long, TODAY, &mut NoHooks)
         .unwrap();

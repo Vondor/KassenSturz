@@ -98,10 +98,10 @@ never ask the user whether you may look, and never end an answer by offering to 
 /// the user allows (D-239). The kinds it may not prepare are named, so it
 /// tells the user instead of trying another way.
 fn changes(allowed: Permissions) -> String {
-    if allowed.is_none() {
+    if !allowed.can_change() {
         return "You can't change the book, and the user has not allowed you to prepare changes \
             for them to review. When the user asks for a change, say so plainly, and that they can \
-            allow kinds of change in KassenSturz's AI settings, under \"What the AI may prepare\", \
+            allow kinds of change in KassenSturz's AI settings, under \"What the AI may do\", \
             or make the change themselves. Never try another way round it."
             .to_owned();
     }
@@ -129,6 +129,10 @@ fn changes(allowed: Permissions) -> String {
         ),
         (Permission::DeleteRules, "delete Rules", "deleted Rules"),
     ];
+    let may = |permission| match permission {
+        Permission::SortTransactions => allowed.sorts(),
+        other => allowed.allows(other),
+    };
     let join = |texts: Vec<&str>| match texts.as_slice() {
         [] => String::new(),
         [only] => (*only).to_owned(),
@@ -137,13 +141,13 @@ fn changes(allowed: Permissions) -> String {
     let asks = join(
         kinds
             .iter()
-            .filter(|kind| allowed.allows(kind.0))
+            .filter(|kind| may(kind.0))
             .map(|kind| kind.1)
             .collect(),
     );
     let prepared = kinds
         .iter()
-        .filter(|kind| allowed.allows(kind.0))
+        .filter(|kind| may(kind.0))
         .map(|kind| kind.2)
         .collect::<Vec<_>>()
         .join(", ");
@@ -157,14 +161,14 @@ fn changes(allowed: Permissions) -> String {
     let denied = join(
         kinds
             .iter()
-            .filter(|kind| !allowed.allows(kind.0))
+            .filter(|kind| !may(kind.0))
             .map(|kind| kind.1)
             .collect(),
     );
     if !denied.is_empty() {
         text.push_str(&format!(
             "The user has not allowed you to {denied}; when asked, say so, and that they can allow \
-             it in KassenSturz's AI settings, under \"What the AI may prepare\". "
+             it in KassenSturz's AI settings, under \"What the AI may do\". "
         ));
     }
     text.push_str(

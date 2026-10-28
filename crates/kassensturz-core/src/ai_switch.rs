@@ -28,16 +28,31 @@ pub const ON: &str = "true";
 /// counts only while AI itself is on.
 pub const WRITE_TOOLS_KEY: &str = "McpWriteTools";
 
-/// One kind of change the AI may prepare for the user to confirm (D-239).
-/// Reading the book is not one of them: it needs only the AI switch and is
-/// always allowed while AI is on.
+/// One row of the permission grid in the AI settings (D-252).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Row {
+    /// The categories.
+    Categories,
+    /// The Rules.
+    Rules,
+    /// The accounts.
+    Accounts,
+    /// The transactions.
+    Transactions,
+}
+
+/// One cell of the permission grid: what the AI may do with one row (D-252).
+/// Reading is a cell like the others; every change the AI prepares is shown
+/// to the user and applied only after the user confirms it, whatever the
+/// cells say.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Permission {
     /// Add categories.
     NewCategories,
     /// Add Rules.
     NewRules,
-    /// Put transactions into categories.
+    /// Put transactions into categories (Transactions, Change; the field
+    /// lock decides which fields).
     SortTransactions,
     /// Rename categories and move them.
     EditCategories,
@@ -45,17 +60,29 @@ pub enum Permission {
     EditRules,
     /// Delete Rules.
     DeleteRules,
+    /// Read the categories.
+    CategoriesRead,
+    /// Read the Rules.
+    RulesRead,
+    /// Read the accounts and their balances.
+    AccountsRead,
+    /// Read the transactions.
+    TransactionsRead,
 }
 
 impl Permission {
     /// Every permission, in the order the settings page shows them.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 10] = [
+        Self::CategoriesRead,
         Self::NewCategories,
-        Self::NewRules,
-        Self::SortTransactions,
         Self::EditCategories,
+        Self::RulesRead,
+        Self::NewRules,
         Self::EditRules,
         Self::DeleteRules,
+        Self::AccountsRead,
+        Self::TransactionsRead,
+        Self::SortTransactions,
     ];
 
     /// The key of this permission in [`GROUP`].
@@ -67,18 +94,105 @@ impl Permission {
             Self::EditCategories => "AllowEditCategories",
             Self::EditRules => "AllowEditRules",
             Self::DeleteRules => "AllowDeleteRules",
+            Self::CategoriesRead => "AllowReadCategories",
+            Self::RulesRead => "AllowReadRules",
+            Self::AccountsRead => "AllowReadAccounts",
+            Self::TransactionsRead => "AllowReadTransactions",
         }
     }
 
-    /// Whether it is on when the user never chose. The kinds of change
-    /// the chat could already prepare before the user could choose (D-199)
-    /// stay on, and everything that changes or removes what is there is
-    /// off until the user turns it on (D-239).
-    pub const fn on_by_default(self) -> bool {
+    /// The row this permission belongs to.
+    pub const fn row(self) -> Row {
+        match self {
+            Self::NewCategories | Self::EditCategories | Self::CategoriesRead => Row::Categories,
+            Self::NewRules | Self::EditRules | Self::DeleteRules | Self::RulesRead => Row::Rules,
+            Self::AccountsRead => Row::Accounts,
+            Self::SortTransactions | Self::TransactionsRead => Row::Transactions,
+        }
+    }
+
+    /// Whether it is a "Read" cell.
+    pub const fn is_read(self) -> bool {
         matches!(
             self,
-            Self::NewCategories | Self::NewRules | Self::SortTransactions
+            Self::CategoriesRead | Self::RulesRead | Self::AccountsRead | Self::TransactionsRead
         )
+    }
+
+    /// Whether it is a cell that changes or removes what is there (Change
+    /// or Delete). These switch Read of their row on (D-252).
+    pub const fn needs_read(self) -> bool {
+        matches!(
+            self,
+            Self::EditCategories | Self::EditRules | Self::DeleteRules | Self::SortTransactions
+        )
+    }
+
+    /// The Read cell of `row`.
+    pub const fn read_of(row: Row) -> Self {
+        match row {
+            Row::Categories => Self::CategoriesRead,
+            Row::Rules => Self::RulesRead,
+            Row::Accounts => Self::AccountsRead,
+            Row::Transactions => Self::TransactionsRead,
+        }
+    }
+
+    /// Whether it is on when the user never chose: no cell is. The user
+    /// switches on what they want the AI to do (D-252).
+    pub const fn on_by_default(self) -> bool {
+        false
+    }
+
+    const fn bit(self) -> u16 {
+        1 << self as u16
+    }
+}
+
+/// A field of a transaction the user can lock against the AI (D-252).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Field {
+    /// The amount.
+    Amount,
+    /// The date.
+    Date,
+    /// The payee.
+    Payee,
+    /// The account.
+    Account,
+    /// The category.
+    Category,
+    /// The note.
+    Note,
+}
+
+impl Field {
+    /// Every field, in the order the settings page shows them.
+    pub const ALL: [Self; 6] = [
+        Self::Amount,
+        Self::Date,
+        Self::Payee,
+        Self::Account,
+        Self::Category,
+        Self::Note,
+    ];
+
+    /// The key of this field's lock in [`GROUP`].
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::Amount => "LockAmount",
+            Self::Date => "LockDate",
+            Self::Payee => "LockPayee",
+            Self::Account => "LockAccount",
+            Self::Category => "LockCategory",
+            Self::Note => "LockNote",
+        }
+    }
+
+    /// Whether it is locked when the user never chose: the fields a wrong
+    /// guess would hurt most (D-252).
+    pub const fn locked_by_default(self) -> bool {
+        matches!(self, Self::Amount | Self::Date | Self::Payee)
     }
 
     const fn bit(self) -> u8 {
@@ -86,53 +200,121 @@ impl Permission {
     }
 }
 
-/// Which kinds of change the AI may prepare (D-239). It decides what a
-/// model is offered and what a prepared change set may hold; a change set
-/// is in every case applied only after the user confirms it.
+/// What the AI may do (D-239, D-252): the cells of the grid and the locked
+/// fields of transactions. It decides what a model is offered to read and
+/// to prepare and what a prepared change set may hold; a change set is in
+/// every case applied only after the user confirms it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Permissions(u8);
+pub struct Permissions {
+    cells: u16,
+    locks: u8,
+}
 
 impl Permissions {
-    /// Nothing may be prepared: read only.
-    pub const NONE: Self = Self(0);
+    /// Nothing may be read or prepared. Fields keep their default locks.
+    pub const NONE: Self = Self {
+        cells: 0,
+        locks: Self::default_locks(),
+    };
 
-    /// What a user who never chose gets.
+    const fn default_locks() -> u8 {
+        let mut bits = 0;
+        let mut index = 0;
+        while index < Field::ALL.len() {
+            if Field::ALL[index].locked_by_default() {
+                bits |= Field::ALL[index].bit();
+            }
+            index += 1;
+        }
+        bits
+    }
+
+    /// What a user who never chose gets: nothing (D-252).
     pub fn defaults() -> Self {
-        Self::of(|permission| permission.on_by_default())
-    }
-
-    /// Everything, for tests and tools that check a set on its own terms.
-    pub fn all() -> Self {
-        Self::of(|_| true)
-    }
-
-    fn of(on: impl Fn(Permission) -> bool) -> Self {
-        Self(
-            Permission::ALL
-                .iter()
-                .filter(|permission| on(**permission))
-                .fold(0, |bits, permission| bits | permission.bit()),
+        Self::of(
+            |permission| permission.on_by_default(),
+            |field| field.locked_by_default(),
         )
     }
 
-    /// Whether `permission` is given.
+    /// Every cell, with the default locks, for tests and tools that check a
+    /// set on its own terms.
+    pub fn all() -> Self {
+        Self::of(|_| true, |field| field.locked_by_default())
+    }
+
+    fn of(on: impl Fn(Permission) -> bool, locked: impl Fn(Field) -> bool) -> Self {
+        let cells = Permission::ALL
+            .iter()
+            .filter(|permission| on(**permission))
+            .fold(0, |bits, permission| bits | permission.bit());
+        let locks = Field::ALL
+            .iter()
+            .filter(|field| locked(**field))
+            .fold(0, |bits, field| bits | field.bit());
+        Self { cells, locks }
+    }
+
+    /// Whether `permission` is given. A change or a deletion also gives the
+    /// reading of its row: the AI can't change what it can't see (D-252).
     pub fn allows(self, permission: Permission) -> bool {
-        self.0 & permission.bit() != 0
+        self.cells & permission.bit() != 0
+            || (permission.is_read()
+                && Permission::ALL.iter().any(|other| {
+                    other.needs_read()
+                        && other.row() == permission.row()
+                        && self.cells & other.bit() != 0
+                }))
+    }
+
+    /// Whether the AI may read `row`.
+    pub fn reads(self, row: Row) -> bool {
+        self.allows(Permission::read_of(row))
     }
 
     /// These permissions with `permission` given or taken away.
     #[must_use]
     pub fn with(self, permission: Permission, on: bool) -> Self {
-        if on {
-            Self(self.0 | permission.bit())
+        let cells = if on {
+            self.cells | permission.bit()
         } else {
-            Self(self.0 & !permission.bit())
-        }
+            self.cells & !permission.bit()
+        };
+        Self { cells, ..self }
     }
 
-    /// Whether nothing may be prepared.
+    /// Whether `field` of a transaction is locked against the AI.
+    pub fn locked(self, field: Field) -> bool {
+        self.locks & field.bit() != 0
+    }
+
+    /// These permissions with `field` locked or unlocked.
+    #[must_use]
+    pub fn with_lock(self, field: Field, locked: bool) -> Self {
+        let locks = if locked {
+            self.locks | field.bit()
+        } else {
+            self.locks & !field.bit()
+        };
+        Self { locks, ..self }
+    }
+
+    /// Whether the AI may put transactions into categories: Transactions,
+    /// Change, and the Category field not locked (D-252).
+    pub fn sorts(self) -> bool {
+        self.allows(Permission::SortTransactions) && !self.locked(Field::Category)
+    }
+
+    /// Whether nothing may be read or prepared.
     pub fn is_none(self) -> bool {
-        self.0 == 0
+        self.cells == 0
+    }
+
+    /// Whether any kind of change may be prepared.
+    pub fn can_change(self) -> bool {
+        Permission::ALL
+            .iter()
+            .any(|permission| !permission.is_read() && self.allows(*permission))
     }
 }
 
@@ -150,18 +332,25 @@ pub fn write_tools_in(text: &str) -> bool {
     enabled_in(text) && value_in(text, GROUP, WRITE_TOOLS_KEY) == Some(ON)
 }
 
-/// The permissions of the settings file's `text` (D-239). None while AI is
-/// off. A permission the user never chose has its default; one with any
-/// value but an explicit `true` or `false` is off, so a damaged file never
-/// gives more than the user chose.
+/// The permissions of the settings file's `text` (D-239, D-252). None while
+/// AI is off. A permission the user never chose has its default (off); one
+/// with any value but an explicit `true` or `false` is off. A lock the user
+/// never chose has its default; one with any value but an explicit `false`
+/// is locked. So a damaged file never gives more than the user chose.
 pub fn permissions_in(text: &str) -> Permissions {
     if !enabled_in(text) {
         return Permissions::NONE;
     }
-    Permissions::of(|permission| match value_in(text, GROUP, permission.key()) {
-        None => permission.on_by_default(),
-        Some(value) => value == ON,
-    })
+    Permissions::of(
+        |permission| match value_in(text, GROUP, permission.key()) {
+            None => permission.on_by_default(),
+            Some(value) => value == ON,
+        },
+        |field| match value_in(text, GROUP, field.key()) {
+            None => field.locked_by_default(),
+            Some(value) => value != "false",
+        },
+    )
 }
 
 /// The value of `key` in `group` of the settings file's `text`, with the
@@ -273,26 +462,58 @@ mod tests {
     }
 
     #[test]
-    fn permissions_are_none_with_ai_off_and_default_to_the_additions() {
+    fn permissions_are_none_with_ai_off_and_everything_is_off_by_default() {
         assert!(permissions_in("").is_none());
         assert!(permissions_in("[AI]\nAllowEditRules=true\n").is_none());
         let defaults = permissions_in("[AI]\nEnabled=true\n");
         assert_eq!(defaults, Permissions::defaults());
-        assert!(defaults.allows(Permission::NewRules));
-        assert!(!defaults.allows(Permission::DeleteRules));
-        assert!(!defaults.allows(Permission::EditCategories));
+        for permission in Permission::ALL {
+            assert!(!defaults.allows(permission), "{permission:?}");
+        }
+        assert!(defaults.is_none() && !defaults.can_change());
     }
 
     #[test]
     fn a_chosen_permission_wins_and_an_odd_value_is_off() {
-        let text = "[AI]\nEnabled=true\nAllowNewRules=false\nAllowDeleteRules=true\n\
-                    AllowEditRules=yes\nAllowSortTransactions=1\n";
+        let text = "[AI]\nEnabled=true\nAllowNewRules=true\nAllowDeleteRules=true\n\
+                    AllowEditRules=yes\nAllowSortTransactions=1\nAllowNewCategories=false\n";
         let got = permissions_in(text);
-        assert!(!got.allows(Permission::NewRules));
+        assert!(got.allows(Permission::NewRules));
         assert!(got.allows(Permission::DeleteRules));
         assert!(!got.allows(Permission::EditRules));
         assert!(!got.allows(Permission::SortTransactions));
-        assert!(got.allows(Permission::NewCategories));
+        assert!(!got.allows(Permission::NewCategories));
+    }
+
+    #[test]
+    fn a_change_or_a_deletion_gives_the_reading_of_its_row() {
+        let got = permissions_in("[AI]\nEnabled=true\nAllowDeleteRules=true\n");
+        assert!(got.reads(Row::Rules));
+        assert!(!got.reads(Row::Categories) && !got.reads(Row::Accounts));
+        // Adding alone does not.
+        let added = permissions_in("[AI]\nEnabled=true\nAllowNewRules=true\n");
+        assert!(!added.reads(Row::Rules));
+        assert!(added.can_change());
+        let sorted = permissions_in("[AI]\nEnabled=true\nAllowSortTransactions=true\n");
+        assert!(sorted.reads(Row::Transactions) && !sorted.reads(Row::Categories));
+    }
+
+    #[test]
+    fn the_amount_the_date_and_the_payee_are_locked_until_the_user_chooses() {
+        let text = "[AI]\nEnabled=true\n";
+        let got = permissions_in(text);
+        for field in Field::ALL {
+            assert_eq!(got.locked(field), field.locked_by_default(), "{field:?}");
+        }
+        assert!(got.locked(Field::Amount) && !got.locked(Field::Note));
+        let chosen =
+            permissions_in("[AI]\nEnabled=true\nLockAmount=false\nLockNote=true\nLockDate=maybe\n");
+        assert!(!chosen.locked(Field::Amount));
+        assert!(chosen.locked(Field::Note));
+        assert!(chosen.locked(Field::Date), "an odd value stays locked");
+        assert!(chosen.with_lock(Field::Amount, true).locked(Field::Amount));
+        let keys: std::collections::HashSet<_> = Field::ALL.iter().map(|f| f.key()).collect();
+        assert_eq!(keys.len(), Field::ALL.len());
     }
 
     #[test]

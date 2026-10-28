@@ -46,8 +46,9 @@ pub enum ToolError {
     /// can't be deleted, only a top-level Rule moves, a Rule that books a
     /// Transfer or has conditions a model can't write keeps them.
     NotChangeable,
-    /// The call has a list of a kind of change the user doesn't allow
-    /// (`argument` names the list, D-239).
+    /// The call has a list of a kind of change the user doesn't allow, or
+    /// calls a function that reads what the user doesn't allow reading
+    /// (`argument` names the list or the function, D-239, D-252).
     NotAllowed {
         /// The list's name, from [`PROPOSE_CHANGES`](crate::PROPOSE_CHANGES)'s fixed list.
         argument: &'static str,
@@ -153,6 +154,14 @@ mod tests {
             crate::changes::SECTIONS
                 .iter()
                 .map(|&(argument, _)| ToolError::NotAllowed { argument }),
+        );
+        examples.push(ToolError::NotAllowed { argument: "page" });
+        examples.extend(
+            crate::FUNCTIONS
+                .iter()
+                .map(|function| ToolError::NotAllowed {
+                    argument: function.name,
+                }),
         );
         examples.extend(crate::issue::FIELDS.iter().flat_map(|&field| {
             [

@@ -9,9 +9,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use kassensturz_ai_tools::requests::RequestFolder;
-use kassensturz_ai_tools::{FUNCTIONS, ToolError};
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{READ_DEBUG_LOG, read_debug_log};
+use kassensturz_ai_tools::{ToolError, readable_functions};
 use kassensturz_core::ai_switch::{self, Permissions};
 #[cfg(feature = "debug-log")]
 use kassensturz_core::debug_log::{DebugLog, Event};
@@ -99,6 +99,7 @@ impl ServerHandler for Server {
     ) -> Result<ListToolsResult, ErrorData> {
         stop_if_switched_off();
         Ok(ListToolsResult::with_all_items(tools(
+            ai_switch::permissions(),
             write_permissions(),
             self.log_readable(),
         )))
@@ -164,7 +165,13 @@ impl Server {
         if name == READ_DEBUG_LOG.name && self.debug_log.is_on() {
             return outcome(read_debug_log(&self.debug_log, arguments));
         }
-        answer(&self.book, name, arguments, today())
+        answer(
+            &self.book,
+            name,
+            arguments,
+            today(),
+            ai_switch::permissions(),
+        )
     }
 
     /// Notes the call of the tool `name` in the debug log, with its error
@@ -231,11 +238,15 @@ pub(crate) fn instructions(write_tools: bool, log_readable: bool) -> String {
     )
 }
 
-/// The read functions as MCP tools, in their order, then the one that
+/// The read functions the user allows reading (D-252) as MCP tools, in their order, then the one that
 /// reads the debug log while the AI tool may, and after them the write tools
 /// while they are on.
-fn tools(write_permissions: Option<Permissions>, log_readable: bool) -> Vec<Tool> {
-    let read = FUNCTIONS.iter();
+fn tools(
+    permissions: Permissions,
+    write_permissions: Option<Permissions>,
+    log_readable: bool,
+) -> Vec<Tool> {
+    let read = readable_functions(permissions);
     #[cfg(feature = "debug-log")]
     let read = read.chain(log_readable.then_some(&READ_DEBUG_LOG));
     #[cfg(not(feature = "debug-log"))]
@@ -265,7 +276,7 @@ fn tools(write_permissions: Option<Permissions>, log_readable: bool) -> Vec<Tool
 fn write_permissions() -> Option<Permissions> {
     ai_switch::write_tools_enabled()
         .then(ai_switch::permissions)
-        .filter(|permissions| !permissions.is_none())
+        .filter(|permissions| permissions.can_change())
 }
 
 /// The answer to a call of the function `name` with `arguments`: its JSON
@@ -277,12 +288,15 @@ fn answer(
     name: &str,
     arguments: &Value,
     today: Date,
+    permissions: Permissions,
 ) -> (CallToolResult, Option<&'static str>) {
     outcome(
         Book::open_to_read(book)
             .map_err(ToolError::from)
             .and_then(|book| {
-                book.reading(|book| kassensturz_ai_tools::call(book, name, arguments, today))
+                book.reading(|book| {
+                    kassensturz_ai_tools::call_allowed(book, name, arguments, today, permissions)
+                })
             }),
     )
 }
@@ -329,19 +343,20 @@ fn today() -> Date {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kassensturz_ai_tools::FUNCTIONS;
 
     #[test]
     fn every_read_function_is_a_read_only_tool() {
-        let tools = tools(None, false);
+        let tools = tools(Permissions::all(), None, false);
         let names: Vec<&str> = tools.iter().map(|tool| tool.name.as_ref()).collect();
         let functions: Vec<&str> = FUNCTIONS.iter().map(|function| function.name).collect();
         assert_eq!(names, functions);
-        let with_writes = super::tools(Some(Permissions::all()), false);
+        let with_writes = super::tools(Permissions::all(), Some(Permissions::all()), false);
         assert_eq!(with_writes.len(), FUNCTIONS.len() + 2);
         assert_eq!(with_writes[..tools.len()], tools[..]);
         // In the developer mode, the debug log's tool comes after the read
         // functions (D-227).
-        let with_log = super::tools(Some(Permissions::all()), true);
+        let with_log = super::tools(Permissions::all(), Some(Permissions::all()), true);
         #[cfg(feature = "debug-log")]
         {
             assert_eq!(with_log.len(), FUNCTIONS.len() + 3);
@@ -357,7 +372,7 @@ mod tests {
                 tool.name
             );
         }
-        let tools = super::tools(None, true);
+        let tools = super::tools(Permissions::all(), None, true);
         for tool in &tools {
             let annotations = tool.annotations.as_ref().expect("annotated");
             assert_eq!(annotations.read_only_hint, Some(true), "{}", tool.name);

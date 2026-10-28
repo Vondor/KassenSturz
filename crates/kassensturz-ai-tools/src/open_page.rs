@@ -12,6 +12,7 @@
 //! the chat. Settings, the bank pages and the pages that change something are
 //! not on the list.
 
+use kassensturz_core::ai_switch::{Permissions, Row};
 use kassensturz_core::{AccountId, RuleId};
 use kassensturz_store::{Book, StoreError};
 use serde_json::{Value, json};
@@ -141,6 +142,29 @@ pub fn open_page(book: &Book, arguments: &Value) -> Result<(PageTarget, Output),
         Figures::new(),
     );
     Ok((target, output))
+}
+
+/// [`open_page`] for a page whose list the user allows the AI to read
+/// (D-267, D-252): `rules` and `rule` need the reading of Rules, `accounts`
+/// and `account` of Accounts, `categories` of Categories; `overview` shows no
+/// list. A page that isn't allowed is refused (`ai-tools.not-allowed`, argument
+/// `page`) before its ID is looked up, so the answer doesn't tell whether the
+/// ID exists.
+pub fn open_page_allowed(
+    book: &Book,
+    arguments: &Value,
+    permissions: Permissions,
+) -> Result<(PageTarget, Output), ToolError> {
+    let row = match arguments.get("page").and_then(Value::as_str) {
+        Some("rules" | "rule") => Some(Row::Rules),
+        Some("accounts" | "account") => Some(Row::Accounts),
+        Some("categories") => Some(Row::Categories),
+        _ => None,
+    };
+    if row.is_some_and(|row| !permissions.reads(row)) {
+        return Err(ToolError::NotAllowed { argument: "page" });
+    }
+    open_page(book, arguments)
 }
 
 /// The bytes of an ID written in the usual hyphenated form.

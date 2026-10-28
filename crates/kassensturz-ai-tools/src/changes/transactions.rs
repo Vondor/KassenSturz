@@ -320,7 +320,7 @@ impl Known {
 }
 
 /// A day written as `YYYY-MM-DD`, as the read functions write it.
-fn parse_date(text: &str) -> Result<Date, ToolError> {
+pub(super) fn parse_date(text: &str) -> Result<Date, ToolError> {
     let wellformed = text.len() == 10
         && text.char_indices().all(|(at, c)| match at {
             4 | 7 => c == '-',
@@ -335,7 +335,7 @@ fn parse_date(text: &str) -> Result<Date, ToolError> {
 /// A payee or note a model wrote, as the book will keep it: trimmed, not
 /// too long, without control characters or characters that hide text
 /// (threat T-08). Empty means none.
-fn free_text(text: &str, argument: &'static str) -> Result<Option<String>, ToolError> {
+pub(super) fn free_text(text: &str, argument: &'static str) -> Result<Option<String>, ToolError> {
     let text = text.trim();
     let bad = text.chars().count() > MAX_TEXT_CHARS
         || text
@@ -350,7 +350,11 @@ fn free_text(text: &str, argument: &'static str) -> Result<Option<String>, ToolE
 /// Reads an amount written as `[+-]digits[.digits]` in a currency with
 /// `digits` decimal places: more places than that are refused, never
 /// rounded, and so is zero (D-065).
-fn parse_amount(text: &str, currency: CurrencyCode, digits: u8) -> Result<Money, ToolError> {
+pub(super) fn parse_amount(
+    text: &str,
+    currency: CurrencyCode,
+    digits: u8,
+) -> Result<Money, ToolError> {
     let bad = || ToolError::BadArgument { argument: "amount" };
     let (negative, unsigned) = match text.as_bytes().first() {
         Some(b'-') => (true, &text[1..]),

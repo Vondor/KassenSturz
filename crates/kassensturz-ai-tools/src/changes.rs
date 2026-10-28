@@ -23,6 +23,10 @@
 
 use std::collections::{HashMap, HashSet};
 
+mod accounts;
+mod cash;
+mod transactions;
+
 use kassensturz_core::ai_switch::{Field, Permission, Permissions};
 use kassensturz_core::{
     Account, AccountId, AccountKind, Actions, AmountTest, BookTo, Condition, CurrencyCode, Date,
@@ -37,10 +41,8 @@ use crate::figures::Figures;
 use crate::functions::{Function, Output};
 use crate::text::hides_text;
 
-mod accounts;
-mod transactions;
-
 pub use accounts::{DeleteCategory, EditAccount, NewAccount};
+pub use cash::{DeleteTransaction, NewTransaction};
 pub use transactions::{EditTransaction, FieldEdit, FieldValue};
 
 /// The function a model calls to prepare changes. It is not in
@@ -62,14 +64,17 @@ pub const PROPOSE_CHANGES: Function = Function {
         until you move it with move_rules. Categories and Rules are named by the IDs that \
         list_categories and list_rules give. Prepare everything that belongs together in one \
         call.",
-    parameters: r#"{"type":"object","properties":{"new_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"key":{"type":"string","maxLength":40,"description":"Your short name for it, used as new_category below."},"name":{"type":"string","maxLength":100},"parent_id":{"type":"string","description":"Put it inside this category, ID from list_categories. Default: at the top."},"income":{"type":"boolean","description":"An income category, not a spending one. Default false. Inside a category it must be the same kind."},"currency":{"type":"string","description":"ISO 4217 code. Default: the parent's, or the one all the user's accounts use."}},"required":["key","name"],"additionalProperties":false}},"new_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"],"description":"Whether every condition must hold or one is enough. Default all."},"conditions":{"type":"array","minItems":1,"maxItems":10,"items":{"type":"object","description":"Either field, test and text, or money_in: true, or money_out: true.","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with"]},"text":{"type":"string","maxLength":100},"case_sensitive":{"type":"boolean"},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"Where it books what it finds, ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["name","conditions"],"additionalProperties":false}},"edit_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"The category to rename or move, ID from list_categories."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"parent_id":{"type":"string","description":"Move it, with everything inside it, into this category, ID from list_categories. It must be the same kind and currency."},"new_parent":{"type":"string","description":"Or into the new category with this key."},"to_top":{"type":"boolean","description":"Move it to the top level."}},"required":["category_id"],"additionalProperties":false}},"edit_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to change, ID from list_rules."},"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"]},"conditions":{"type":"array","minItems":1,"maxItems":10,"description":"All of its conditions as they should be, same shape as in new_rules. Only for a Rule whose conditions list_rules shows in full.","items":{"type":"object","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with"]},"text":{"type":"string","maxLength":100},"case_sensitive":{"type":"boolean"},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"The category it books to, ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["rule_id"],"additionalProperties":false}},"move_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"A top-level Rule, ID from list_rules."},"position":{"type":"integer","minimum":1,"description":"Its new place in the list of top-level Rules, 1 is the first. New Rules in this call are at the end."}},"required":["rule_id","position"],"additionalProperties":false}},"delete_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to delete, ID from list_rules. It must have no sub-Rules. What it booked stays as it is."}},"required":["rule_id"],"additionalProperties":false}},"edit_transactions":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"date":{"type":"string","description":"The new day, YYYY-MM-DD."},"payee":{"type":"string","maxLength":200,"description":"The new payee: who was paid or who paid. An empty text removes it."},"note":{"type":"string","maxLength":200,"description":"The new note. An empty text removes it."},"amount":{"type":"string","description":"The new amount of the transaction in the account, exact decimal text with a dot, in the transaction's currency: negative is money out, positive money in, e.g. -12.50. Only for a plain transaction with one account and one category."},"account_id":{"type":"string","description":"Move the transaction to this other account, ID from list_accounts, in the same currency. Only for a plain transaction."}},"required":["transaction_id"],"additionalProperties":false}},"categorize":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"category_id":{"type":"string","description":"ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["transaction_id"],"additionalProperties":false}},"delete_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"An empty category to delete, ID from list_categories. It must have no transactions, no sub-categories and no Rule that books to it."}},"required":["category_id"],"additionalProperties":false}},"new_accounts":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100},"type":{"type":"string","enum":["checking","savings","cash","credit_card"]},"currency":{"type":"string","description":"ISO 4217 code. Default: the one all the user's accounts use."}},"required":["name","type"],"additionalProperties":false}},"edit_accounts":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"account_id":{"type":"string","description":"The account to change, ID from list_accounts."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"closed":{"type":"boolean","description":"true closes it (its balance must be zero), false opens a closed one again."}},"required":["account_id"],"additionalProperties":false}}},"additionalProperties":false}"#,
+    parameters: r#"{"type":"object","properties":{"new_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"key":{"type":"string","maxLength":40,"description":"Your short name for it, used as new_category below."},"name":{"type":"string","maxLength":100},"parent_id":{"type":"string","description":"Put it inside this category, ID from list_categories. Default: at the top."},"income":{"type":"boolean","description":"An income category, not a spending one. Default false. Inside a category it must be the same kind."},"currency":{"type":"string","description":"ISO 4217 code. Default: the parent's, or the one all the user's accounts use."}},"required":["key","name"],"additionalProperties":false}},"new_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"],"description":"Whether every condition must hold or one is enough. Default all."},"conditions":{"type":"array","minItems":1,"maxItems":10,"items":{"type":"object","description":"Either field, test and text, or money_in: true, or money_out: true.","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with"]},"text":{"type":"string","maxLength":100},"case_sensitive":{"type":"boolean"},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"Where it books what it finds, ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["name","conditions"],"additionalProperties":false}},"edit_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"The category to rename or move, ID from list_categories."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"parent_id":{"type":"string","description":"Move it, with everything inside it, into this category, ID from list_categories. It must be the same kind and currency."},"new_parent":{"type":"string","description":"Or into the new category with this key."},"to_top":{"type":"boolean","description":"Move it to the top level."}},"required":["category_id"],"additionalProperties":false}},"edit_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to change, ID from list_rules."},"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"]},"conditions":{"type":"array","minItems":1,"maxItems":10,"description":"All of its conditions as they should be, same shape as in new_rules. Only for a Rule whose conditions list_rules shows in full.","items":{"type":"object","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with"]},"text":{"type":"string","maxLength":100},"case_sensitive":{"type":"boolean"},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"The category it books to, ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["rule_id"],"additionalProperties":false}},"move_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"A top-level Rule, ID from list_rules."},"position":{"type":"integer","minimum":1,"description":"Its new place in the list of top-level Rules, 1 is the first. New Rules in this call are at the end."}},"required":["rule_id","position"],"additionalProperties":false}},"delete_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to delete, ID from list_rules. It must have no sub-Rules. What it booked stays as it is."}},"required":["rule_id"],"additionalProperties":false}},"new_transactions":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"account_id":{"type":"string","description":"A cash account of the user, ID from list_accounts."},"date":{"type":"string","description":"The day of the purchase, YYYY-MM-DD."},"amount":{"type":"string","description":"Exact decimal text with a dot, in the account's currency: negative is money out, positive money in, e.g. -12.50."},"payee":{"type":"string","maxLength":200,"description":"Who was paid or who paid, e.g. the shop."},"note":{"type":"string","maxLength":200,"description":"A note, e.g. what the money was for."},"category_id":{"type":"string","description":"The category it belongs to, ID from list_categories, in the account's currency. Leave it out for none yet."}},"required":["account_id","date","amount"],"additionalProperties":false}},"delete_transactions":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"A transaction of a cash account that the user entered by hand, ID from search_transactions."}},"required":["transaction_id"],"additionalProperties":false}},"edit_transactions":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"date":{"type":"string","description":"The new day, YYYY-MM-DD."},"payee":{"type":"string","maxLength":200,"description":"The new payee: who was paid or who paid. An empty text removes it."},"note":{"type":"string","maxLength":200,"description":"The new note. An empty text removes it."},"amount":{"type":"string","description":"The new amount of the transaction in the account, exact decimal text with a dot, in the transaction's currency: negative is money out, positive money in, e.g. -12.50. Only for a plain transaction with one account and one category."},"account_id":{"type":"string","description":"Move the transaction to this other account, ID from list_accounts, in the same currency. Only for a plain transaction."}},"required":["transaction_id"],"additionalProperties":false}},"categorize":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"category_id":{"type":"string","description":"ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["transaction_id"],"additionalProperties":false}},"delete_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"An empty category to delete, ID from list_categories. It must have no transactions, no sub-categories and no Rule that books to it."}},"required":["category_id"],"additionalProperties":false}},"new_accounts":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100},"type":{"type":"string","enum":["checking","savings","cash","credit_card"]},"currency":{"type":"string","description":"ISO 4217 code. Default: the one all the user's accounts use."}},"required":["name","type"],"additionalProperties":false}},"edit_accounts":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"account_id":{"type":"string","description":"The account to change, ID from list_accounts."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"closed":{"type":"boolean","description":"true closes it (its balance must be zero), false opens a closed one again."}},"required":["account_id"],"additionalProperties":false}}},"additionalProperties":false}"#,
 };
 
 /// The most changes one set may hold, so the user can still review it.
 pub const MAX_CHANGES: usize = 100;
 
+/// The most transactions one set may add, and the most it may remove (D-258).
+const MAX_CASH_CHANGES: usize = 20;
+
 /// The lists of [`PROPOSE_CHANGES`] and the permission each needs (D-239).
-pub(crate) const SECTIONS: [(&str, Permission); 11] = [
+pub(crate) const SECTIONS: [(&str, Permission); 13] = [
     ("new_categories", Permission::NewCategories),
     ("edit_categories", Permission::EditCategories),
     ("new_rules", Permission::NewRules),
@@ -81,6 +86,8 @@ pub(crate) const SECTIONS: [(&str, Permission); 11] = [
     ("new_accounts", Permission::NewAccounts),
     ("edit_accounts", Permission::EditAccounts),
     ("edit_transactions", Permission::SortTransactions),
+    ("new_transactions", Permission::NewTransactions),
+    ("delete_transactions", Permission::DeleteTransactions),
 ];
 
 /// [`PROPOSE_CHANGES`] as a model is offered it when the user allows only
@@ -116,6 +123,27 @@ pub fn edits_allowed(allowed: Permissions) -> bool {
             .any(|(field, _)| !allowed.locked(*field))
 }
 
+/// The properties of a new transaction the AI may write, with the field
+/// each one is (D-258). Without the account, the day and the amount nothing
+/// can be added, so a lock on one of them leaves the list out.
+const NEW_TRANSACTION_FIELDS: [(Field, &str); 6] = [
+    (Field::Account, "account_id"),
+    (Field::Date, "date"),
+    (Field::Amount, "amount"),
+    (Field::Payee, "payee"),
+    (Field::Note, "note"),
+    (Field::Category, "category_id"),
+];
+
+/// Whether the AI may add transactions under `allowed`: Transactions, Add
+/// is on and the account, the day and the amount aren't locked (D-258).
+pub fn adds_allowed(allowed: Permissions) -> bool {
+    allowed.allows(Permission::NewTransactions)
+        && ![Field::Account, Field::Date, Field::Amount]
+            .into_iter()
+            .any(|field| allowed.locked(field))
+}
+
 /// Whether the list `name`, which needs `permission`, may be prepared under
 /// `allowed`: its cell is on, and for sorting transactions the Category
 /// field isn't locked, for editing them some field isn't (D-252, D-257).
@@ -123,6 +151,7 @@ fn section_allowed(allowed: Permissions, name: &str, permission: Permission) -> 
     match name {
         "categorize" => allowed.sorts(),
         "edit_transactions" => edits_allowed(allowed),
+        "new_transactions" => adds_allowed(allowed),
         _ => allowed.allows(permission),
     }
 }
@@ -153,6 +182,18 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
         .and_then(Value::as_object_mut)
     {
         for (field, key) in EDITABLE_FIELDS {
+            if allowed.locked(field) {
+                fields.remove(key);
+            }
+        }
+    }
+    if let Some(fields) = properties
+        .get_mut("new_transactions")
+        .and_then(|list| list.get_mut("items"))
+        .and_then(|items| items.get_mut("properties"))
+        .and_then(Value::as_object_mut)
+    {
+        for (field, key) in NEW_TRANSACTION_FIELDS {
             if allowed.locked(field) {
                 fields.remove(key);
             }
@@ -203,6 +244,11 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
             edits_allowed(allowed),
             "changing fields of transactions you found with search_transactions",
         ),
+        (adds_allowed(allowed), "writing down purchases in cash"),
+        (
+            allowed.allows(Permission::DeleteTransactions),
+            "removing transactions of a cash account that the user entered by hand",
+        ),
     ]
     .into_iter()
     .filter(|(on, _)| *on)
@@ -231,6 +277,19 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
             " With edit_transactions only the fields it offers can be changed, and the amount \
              and the account only of a plain transaction with one account and one category, \
              never of a transfer.",
+        );
+    }
+    if adds_allowed(allowed) {
+        description.push_str(
+            " With new_transactions the user's own purchases in cash are written down, only in \
+             a cash account (list_accounts gives each account's type); the amount is \
+             negative for money paid out.",
+        );
+    }
+    if allowed.allows(Permission::DeleteTransactions) {
+        description.push_str(
+            " With delete_transactions only a transaction of a cash account that the user \
+             entered by hand can be removed, never one a bank delivered.",
         );
     }
     if allowed.allows(Permission::NewRules) {
@@ -311,6 +370,8 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "account_id",
     "closed",
     "edit_transactions",
+    "new_transactions",
+    "delete_transactions",
     "date",
     "payee",
     "note",
@@ -345,6 +406,10 @@ pub enum ProposedChange {
     EditAccount(EditAccount),
     /// A transaction with some fields changed (D-257).
     EditTransaction(EditTransaction),
+    /// A payment in cash written down (D-258).
+    NewTransaction(NewTransaction),
+    /// A transaction of a cash account removed (D-258).
+    DeleteTransaction(DeleteTransaction),
 }
 
 /// A new category.
@@ -556,6 +621,8 @@ impl ChangeSet {
             ProposedChange::DeleteCategory(_) => allowed.allows(Permission::DeleteCategories),
             ProposedChange::NewAccount(_) => allowed.allows(Permission::NewAccounts),
             ProposedChange::EditAccount(_) => allowed.allows(Permission::EditAccounts),
+            ProposedChange::NewTransaction(_) => adds_allowed(allowed),
+            ProposedChange::DeleteTransaction(_) => allowed.allows(Permission::DeleteTransactions),
         });
         if permitted {
             Ok(())
@@ -639,6 +706,13 @@ impl ChangeSet {
                         .collect::<Vec<_>>()
                         .join(", ")
                 ),
+                ProposedChange::NewTransaction(new) => format!(
+                    "new transaction {} in cash account \"{}\"",
+                    new.transaction, new.account_name
+                ),
+                ProposedChange::DeleteTransaction(delete) => {
+                    format!("transaction {} is removed", delete.transaction)
+                }
             })
             .collect();
         parts.join("; ")
@@ -739,6 +813,19 @@ impl ChangeSet {
                         }
                         book.update_transaction(&edit.edited)?;
                     }
+                    ProposedChange::NewTransaction(new) => book.add_transaction(&new.built)?,
+                    ProposedChange::DeleteTransaction(delete) => {
+                        let stored = match book.transaction(delete.transaction) {
+                            Err(StoreError::UnknownTransaction(_)) => {
+                                return Err(ChangeError::OutOfDate);
+                            }
+                            other => other?,
+                        };
+                        if stored != delete.reviewed {
+                            return Err(ChangeError::OutOfDate);
+                        }
+                        book.remove_transaction(delete.transaction)?;
+                    }
                 }
             }
             Ok(())
@@ -812,6 +899,8 @@ pub fn propose(
             "new_accounts",
             "edit_accounts",
             "edit_transactions",
+            "new_transactions",
+            "delete_transactions",
         ],
         "arguments",
     )?;
@@ -826,6 +915,8 @@ pub fn propose(
     let new_accounts = call.array("new_accounts")?;
     let edited_accounts = call.array("edit_accounts")?;
     let edited_transactions = call.array("edit_transactions")?;
+    let new_transactions = call.array("new_transactions")?;
+    let deleted_transactions = call.array("delete_transactions")?;
     for (name, permission) in SECTIONS {
         if !section_allowed(allowed, name, permission) && !call.array(name)?.is_empty() {
             return Err(ToolError::NotAllowed { argument: name });
@@ -841,7 +932,9 @@ pub fn propose(
         + deleted_categories.len()
         + new_accounts.len()
         + edited_accounts.len()
-        + edited_transactions.len();
+        + edited_transactions.len()
+        + new_transactions.len()
+        + deleted_transactions.len();
     if count == 0 {
         return Err(ToolError::BadArgument {
             argument: "arguments",
@@ -928,6 +1021,23 @@ pub fn propose(
             });
         }
         changes.push(ProposedChange::EditTransaction(change));
+    }
+    if new_transactions.len() > MAX_CASH_CHANGES || deleted_transactions.len() > MAX_CASH_CHANGES {
+        return Err(ToolError::TooManyChanges);
+    }
+    for item in new_transactions {
+        changes.push(ProposedChange::NewTransaction(
+            known.new_transaction(book, item, allowed)?,
+        ));
+    }
+    for item in deleted_transactions {
+        let change = known.delete_transaction(book, item)?;
+        if !seen.insert(change.transaction) {
+            return Err(ToolError::BadArgument {
+                argument: "transaction_id",
+            });
+        }
+        changes.push(ProposedChange::DeleteTransaction(change));
     }
 
     let mut figures = Figures::new();

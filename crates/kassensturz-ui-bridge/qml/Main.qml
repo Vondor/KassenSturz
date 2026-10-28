@@ -63,6 +63,12 @@ Kirigami.ApplicationWindow {
     readonly property int menuMinWidth: Kirigami.Units.gridUnit * 9
     readonly property int menuMaxWidth: Math.min(Kirigami.Units.gridUnit * 28, Math.round(root.width / 2))
     property int menuWidth: windowState.menuWidth > 0 ? windowState.menuWidth : menuStandardWidth
+    // The chat sidebar's width the same way (#218): 22 grid units to begin
+    // with, the user drags its left edge, and the width is kept.
+    readonly property int chatStandardWidth: Kirigami.Units.gridUnit * 22
+    readonly property int chatMinWidth: Kirigami.Units.gridUnit * 16
+    readonly property int chatMaxWidth: Math.max(root.chatMinWidth, Math.min(Kirigami.Units.gridUnit * 50, Math.round(root.width * 2 / 3)))
+    property int chatWidth: windowState.chatWidth > 0 ? windowState.chatWidth : chatStandardWidth
     // Whether the first-run steps are done, so the side menu is offered.
     readonly property bool started: bookSession.open && firstStartState.hasAccount
 
@@ -232,7 +238,7 @@ Kirigami.ApplicationWindow {
 
         function onEnabledChanged() {
             if (!aiSwitch.enabled) {
-                root.attachChat();
+                root.attachChat(false);
                 chatDrawer.close();
                 chatPanel.startOver();
             }
@@ -736,6 +742,34 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // The strip on the chat sidebar's left edge that the user drags to change
+    // its width (#218), like the menu's.
+    Item {
+        id: chatGrip
+
+        parent: Controls.Overlay.overlay
+        visible: root.started && !root.chatDetached && chatDrawer.drawerOpen && aiSwitch.enabled
+        x: root.width - chatDrawer.width * chatDrawer.position - width / 2
+        y: root.header ? root.header.height : 0
+        width: Kirigami.Units.smallSpacing * 2
+        height: parent ? parent.height - y : 0
+        z: 1000
+
+        Accessible.ignored: true
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.SizeHorCursor
+            preventStealing: true
+            onPositionChanged: mouse => {
+                if (pressed) {
+                    root.chatWidth = Math.max(root.chatMinWidth, Math.min(root.width - mapToItem(null, mouse.x, 0).x, root.chatMaxWidth));
+                }
+            }
+            onReleased: windowState.saveChatWidth(root.chatWidth)
+        }
+    }
+
     // True while the chat is in its own window (#209).
     property bool chatDetached: false
 
@@ -743,14 +777,22 @@ Kirigami.ApplicationWindow {
         chatPanel.parent = chatWindowHolder;
         chatDetached = true;
         chatDrawer.close();
-        chatWindow.show();
-        chatWindow.requestActivate();
+        showChatWindow();
     }
 
-    function attachChat() {
+    // Puts the chat back into the sidebar. With `reopen` the sidebar opens
+    // and the main window comes to the front, which is what the button
+    // "Move back to the sidebar" is for; closing the chat window, or the AI
+    // switch going off, leaves the sidebar closed.
+    function attachChat(reopen) {
         chatPanel.parent = chatHolder;
         chatDetached = false;
         chatWindow.hide();
+        if (reopen) {
+            chatDrawer.open();
+            root.raise();
+            root.requestActivate();
+        }
     }
 
     function showChatWindow() {
@@ -783,7 +825,7 @@ Kirigami.ApplicationWindow {
         handleVisible: aiSwitch.enabled && root.started
         handleClosedIcon.source: "dialog-messages"
         handleOpenIcon.source: "go-next"
-        width: Kirigami.Units.gridUnit * 22
+        width: Math.max(root.chatMinWidth, Math.min(root.chatWidth, root.chatMaxWidth))
         drawerOpen: false
         topPadding: 0
         bottomPadding: 0
@@ -825,7 +867,7 @@ Kirigami.ApplicationWindow {
                     root.raiseMainWindow();
                 }
                 onCloseClicked: chatDrawer.close()
-                onDetachClicked: root.chatDetached ? root.attachChat() : root.detachChat()
+                onDetachClicked: root.chatDetached ? root.attachChat(true) : root.detachChat()
                 onChangesArrived: chatDrawer.open()
             }
         }
@@ -845,7 +887,7 @@ Kirigami.ApplicationWindow {
         minimumHeight: Kirigami.Units.gridUnit * 20
         visible: false
         title: chatPanel.windowTitle
-        onClosing: root.attachChat()
+        onClosing: root.attachChat(false)
 
         Item {
             id: chatWindowHolder

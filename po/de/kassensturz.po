@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-28 19:08+0000\n"
+"POT-Creation-Date: 2026-10-28 20:06+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -402,7 +402,7 @@ msgstr ""
 "zurücknehmen."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:170
-#: crates/kassensturz-ui-bridge/qml/Main.qml:344
+#: crates/kassensturz-ui-bridge/qml/Main.qml:350
 #, kde-format
 msgctxt "@action:button take the last change back"
 msgid "Undo"
@@ -3356,8 +3356,8 @@ msgid "Where to keep the new book"
 msgstr "Wo das neue Haushaltsbuch gespeichert wird"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:74
-#: crates/kassensturz-ui-bridge/qml/Main.qml:863
-#: crates/kassensturz-ui-bridge/qml/Main.qml:874
+#: crates/kassensturz-ui-bridge/qml/Main.qml:896
+#: crates/kassensturz-ui-bridge/qml/Main.qml:907
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "KassenSturz books (*.ksz)"
@@ -6919,50 +6919,50 @@ msgctxt "@item a statement whose file names no account"
 msgid "Statement %1, without an account number"
 msgstr "Kontoauszug %1, ohne Kontonummer"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:72
+#: crates/kassensturz-ui-bridge/qml/Main.qml:78
 #, kde-format
 msgctxt ""
 "@title:window marker that KassenSturz was started in its developer mode"
 msgid "developer mode"
 msgstr "Entwicklermodus"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:311
+#: crates/kassensturz-ui-bridge/qml/Main.qml:317
 #, kde-format
 msgctxt "@item the file name of the app's own book, without its extension"
 msgid "Household"
 msgstr "Haushalt"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:373
+#: crates/kassensturz-ui-bridge/qml/Main.qml:379
 #, kde-format
 msgctxt "@info %1 is what was done, e.g. Added a transaction"
 msgid "Made again: %1"
 msgstr "Wiederholt: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:373
+#: crates/kassensturz-ui-bridge/qml/Main.qml:379
 #, kde-format
 msgctxt "@action:button"
 msgid "Undo"
 msgstr "Rückgängig"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:375
+#: crates/kassensturz-ui-bridge/qml/Main.qml:381
 #, kde-format
 msgctxt "@info %1 is what was done, e.g. Added a transaction"
 msgid "Undone: %1"
 msgstr "Rückgängig gemacht: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:375
+#: crates/kassensturz-ui-bridge/qml/Main.qml:381
 #, kde-format
 msgctxt "@action:button"
 msgid "Redo"
 msgstr "Wiederholen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:529
+#: crates/kassensturz-ui-bridge/qml/Main.qml:535
 #, kde-format
 msgctxt "@action:button"
 msgid "Start a book from it"
 msgstr "Haushaltsbuch daraus anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:607
+#: crates/kassensturz-ui-bridge/qml/Main.qml:613
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -6981,19 +6981,19 @@ msgstr ""
 "Modus läuft. Um ihn zu beenden, schließen Sie KassenSturz und starten es wie "
 "gewohnt."
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:611
+#: crates/kassensturz-ui-bridge/qml/Main.qml:617
 #, kde-format
 msgctxt "@action:button opens the folder of the developer mode's log"
 msgid "Show the log"
 msgstr "Protokoll zeigen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:616
+#: crates/kassensturz-ui-bridge/qml/Main.qml:622
 #, kde-format
 msgctxt "@action:button deletes the developer mode's log"
 msgid "Delete the log"
 msgstr "Protokoll löschen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:629
+#: crates/kassensturz-ui-bridge/qml/Main.qml:635
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -7007,98 +7007,98 @@ msgstr ""
 "Haushaltsbuch auf diesem Computer auf; ein Sync-Ordner, etwa von Nextcloud, "
 "ist in Ordnung."
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:649
+#: crates/kassensturz-ui-bridge/qml/Main.qml:655
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Overview"
 msgstr "Übersicht"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:654
+#: crates/kassensturz-ui-bridge/qml/Main.qml:660
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Accounts"
 msgstr "Konten"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:659
+#: crates/kassensturz-ui-bridge/qml/Main.qml:665
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Categories"
 msgstr "Kategorien"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:664
+#: crates/kassensturz-ui-bridge/qml/Main.qml:670
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Rules"
 msgstr "Regeln"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:669
+#: crates/kassensturz-ui-bridge/qml/Main.qml:675
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:679
+#: crates/kassensturz-ui-bridge/qml/Main.qml:685
 #, kde-format
 msgctxt "@action:inmenu %1 is what was done, e.g. Added a transaction"
 msgid "Undo: %1"
 msgstr "Rückgängig: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:680
+#: crates/kassensturz-ui-bridge/qml/Main.qml:686
 #, kde-format
 msgctxt "@action:inmenu there is nothing to undo"
 msgid "Undo"
 msgstr "Rückgängig"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:690
+#: crates/kassensturz-ui-bridge/qml/Main.qml:696
 #, kde-format
 msgctxt "@action:inmenu %1 is what was done, e.g. Added a transaction"
 msgid "Redo: %1"
 msgstr "Wiederholen: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:691
+#: crates/kassensturz-ui-bridge/qml/Main.qml:697
 #, kde-format
 msgctxt "@action:inmenu there is nothing to redo"
 msgid "Redo"
 msgstr "Wiederholen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:860
+#: crates/kassensturz-ui-bridge/qml/Main.qml:893
 #, kde-format
 msgctxt "@title:window"
 msgid "Open another book"
 msgstr "Anderes Haushaltsbuch öffnen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:870
+#: crates/kassensturz-ui-bridge/qml/Main.qml:903
 #, kde-format
 msgctxt "@title:window"
 msgid "Start a new book"
 msgstr "Neues Haushaltsbuch anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:881
+#: crates/kassensturz-ui-bridge/qml/Main.qml:914
 #, kde-format
 msgctxt "@title:window"
 msgid "Start a book from a file"
 msgstr "Haushaltsbuch aus einer Datei anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:887
-#: crates/kassensturz-ui-bridge/qml/Main.qml:903
+#: crates/kassensturz-ui-bridge/qml/Main.qml:920
+#: crates/kassensturz-ui-bridge/qml/Main.qml:936
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "All files (*)"
 msgstr "Alle Dateien (*)"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:888
+#: crates/kassensturz-ui-bridge/qml/Main.qml:921
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "Books (*.kmy *.sqlite *.db *.json)"
 msgstr "Haushaltsbücher (*.kmy *.sqlite *.db *.json)"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:899
+#: crates/kassensturz-ui-bridge/qml/Main.qml:932
 #, kde-format
 msgctxt "@title:window"
 msgid "Import a file from your bank"
 msgstr "Eine Datei von Ihrer Bank importieren"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:902
+#: crates/kassensturz-ui-bridge/qml/Main.qml:935
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "Bank files (*.xml *.sta *.ofx *.csv *.txt)"

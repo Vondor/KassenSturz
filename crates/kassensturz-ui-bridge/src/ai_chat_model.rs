@@ -96,7 +96,8 @@ pub mod qobject {
 
         /// The changes of the set `id` for the review screen: an array of
         /// objects with a `kind` (`newCategory`, `editCategory`, `newRule`,
-        /// `editRule`, `moveRule`, `deleteRule` or `categorize`)
+        /// `editRule`, `moveRule`, `deleteRule`, `categorize`, `deleteCategory`,
+        /// `newAccount` or `editAccount`)
         /// and its fields, or an error object.
         #[qinvokable]
         fn changes(self: &AiChat, id: &QString) -> QVariant;
@@ -492,6 +493,31 @@ pub(crate) mod engine {
                 ("amount", text(amount)),
                 ("before", text(before)),
                 ("after", text(after)),
+            ]),
+            ChangeView::DeleteCategory { path } => {
+                map([("kind", text("deleteCategory")), ("path", text(path))])
+            }
+            ChangeView::NewAccount {
+                name,
+                account_type,
+                currency,
+            } => map([
+                ("kind", text("newAccount")),
+                ("name", text(name)),
+                ("accountType", text(account_type)),
+                ("currency", text(currency)),
+            ]),
+            ChangeView::EditAccount {
+                before,
+                after,
+                was_closed,
+                closed,
+            } => map([
+                ("kind", text("editAccount")),
+                ("before", text(before)),
+                ("after", text(after)),
+                ("wasClosed", QVariant::from(was_closed)),
+                ("closed", QVariant::from(closed)),
             ]),
             ChangeView::EditTransaction {
                 date,
@@ -1196,6 +1222,20 @@ mod tests {
                 before: String::new(),
                 after: "Food › Bakery".into(),
             },
+            ChangeView::DeleteCategory {
+                path: "Food › Bakery".into(),
+            },
+            ChangeView::NewAccount {
+                name: "Holiday money".into(),
+                account_type: "cash".into(),
+                currency: "EUR".into(),
+            },
+            ChangeView::EditAccount {
+                before: "Wallet".into(),
+                after: "Old wallet".into(),
+                was_closed: false,
+                closed: true,
+            },
             ChangeView::EditTransaction {
                 date: "2026-10-03".into(),
                 payee: "Corner Grocery".into(),
@@ -1217,7 +1257,7 @@ mod tests {
         ];
         let object = changes_object(&views);
         let items = elements(&object).expect("an array");
-        assert_eq!(items.len(), 8);
+        assert_eq!(items.len(), 11);
         assert_eq!(keys(&items[0]), ["income", "kind", "name", "path"]);
         assert_eq!(text_of(&items[0], "kind"), "newCategory");
         assert!(!flag_of(&items[0], "income"));
@@ -1261,12 +1301,22 @@ mod tests {
         );
         assert_eq!(text_of(&items[6], "amount"), "-53,20 €");
         assert_eq!(text_of(&items[6], "before"), "");
+        assert_eq!(keys(&items[7]), ["kind", "path"]);
+        assert_eq!(text_of(&items[7], "path"), "Food › Bakery");
+        assert_eq!(keys(&items[8]), ["accountType", "currency", "kind", "name"]);
+        assert_eq!(text_of(&items[8], "accountType"), "cash");
         assert_eq!(
-            keys(&items[7]),
+            keys(&items[9]),
+            ["after", "before", "closed", "kind", "wasClosed"]
+        );
+        assert!(flag_of(&items[9], "closed"));
+        assert!(!flag_of(&items[9], "wasClosed"));
+        assert_eq!(
+            keys(&items[10]),
             ["account", "amount", "date", "kind", "lines", "payee"]
         );
-        assert_eq!(text_of(&items[7], "kind"), "editTransaction");
-        let lines = list_of(&items[7], "lines");
+        assert_eq!(text_of(&items[10], "kind"), "editTransaction");
+        let lines = list_of(&items[10], "lines");
         assert_eq!(lines.len(), 2);
         assert_eq!(keys(&lines[0]), ["after", "before", "field"]);
         assert_eq!(text_of(&lines[0], "field"), "amount");

@@ -371,6 +371,31 @@ pub enum ChangeView {
         /// Its category after the change.
         after: String,
     },
+    /// An empty category deleted.
+    DeleteCategory {
+        /// Its path, e.g. "Food › Bakery".
+        path: String,
+    },
+    /// A new account.
+    NewAccount {
+        /// Its name.
+        name: String,
+        /// Its type, as `AccountTypes.qml` names it.
+        account_type: String,
+        /// Its currency code.
+        currency: String,
+    },
+    /// An account renamed, closed or opened again.
+    EditAccount {
+        /// Its name before.
+        before: String,
+        /// Its name after, the same when it isn't renamed.
+        after: String,
+        /// Whether it was closed before.
+        was_closed: bool,
+        /// Whether it is closed after.
+        closed: bool,
+    },
     /// A transaction with some fields changed (D-257).
     EditTransaction {
         /// Its day now, in the user's format.
@@ -464,6 +489,20 @@ pub fn view_of(
                         .map(|path| path.join(" › "))
                         .unwrap_or_default(),
                     after: change.after.join(" › "),
+                },
+                ProposedChange::DeleteCategory(delete) => ChangeView::DeleteCategory {
+                    path: delete.path.join(" › "),
+                },
+                ProposedChange::NewAccount(new) => ChangeView::NewAccount {
+                    name: new.name.clone(),
+                    account_type: crate::accounts::type_key(new.account_type).to_owned(),
+                    currency: new.currency.as_str().to_owned(),
+                },
+                ProposedChange::EditAccount(edit) => ChangeView::EditAccount {
+                    before: edit.before.clone(),
+                    after: edit.after.clone(),
+                    was_closed: edit.was_closed,
+                    closed: edit.closed,
                 },
                 ProposedChange::EditTransaction(edit) => ChangeView::EditTransaction {
                     date: locale.short_date(edit.date),
@@ -804,6 +843,45 @@ mod tests {
                 .iter()
                 .any(|entry| entry.path.last().is_some_and(|name| name == DEMO_CATEGORY))
         );
+    }
+
+    #[test]
+    fn account_changes_are_shown_with_their_words_and_applied_by_confirm() {
+        let mut book = space_colony();
+        let currency = book.accounts(false).unwrap()[0].currency;
+        let first = kassensturz_core::Account {
+            id: kassensturz_core::AccountId::generate(),
+            name: "Wallet".into(),
+            kind: kassensturz_core::AccountKind::Asset,
+            currency,
+            account_type: Some(kassensturz_core::AccountType::Cash),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        book.add_account(&first).unwrap();
+        let call = serde_json::json!({
+            "new_accounts": [{"name": "Holiday money", "type": "cash"}],
+            "edit_accounts": [{"account_id": first.id.to_string(), "name": "Renamed by the AI", "closed": true}],
+        });
+        let proposal = kassensturz_ai_tools::propose(&book, &call, Permissions::all()).unwrap();
+        let views = view_of(&book, &proposal.changes, &TestLocale).unwrap();
+        assert!(views.iter().any(|view| matches!(
+            view,
+            ChangeView::NewAccount { name, account_type, currency }
+                if name == "Holiday money" && account_type == "cash" && currency.len() == 3
+        )));
+        assert!(views.iter().any(|view| matches!(
+            view,
+            ChangeView::EditAccount { after, closed: true, was_closed: false, .. }
+                if after == "Renamed by the AI"
+        )));
+        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        assert!(book.account(first.id).unwrap().closed);
+        assert!(book.undo().unwrap().is_some());
+        assert!(!book.account(first.id).unwrap().closed);
     }
 
     #[test]

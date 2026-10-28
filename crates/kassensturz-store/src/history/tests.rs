@@ -177,6 +177,10 @@ fn every_change_can_be_undone_and_redone() {
     steps.did(&book, Action::AddCategory);
     book.move_category(groceries, Some(food)).expect("moved");
     steps.did(&book, Action::MoveCategory);
+    let unused = category(&mut book, "Unused", None);
+    steps.did(&book, Action::AddCategory);
+    book.remove_category(unused).expect("removed");
+    steps.did(&book, Action::RemoveCategory);
     book.rename_account(groceries, "Groceries and drinks")
         .expect("renamed");
     steps.did(&book, Action::RenameCategory);

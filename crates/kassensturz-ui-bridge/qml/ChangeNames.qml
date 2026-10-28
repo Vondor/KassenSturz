@@ -60,6 +60,8 @@ QtObject {
             return i18nContext.i18nc("@info a change you made", "Changed a rule");
         case "move-rule":
             return i18nContext.i18nc("@info a change you made", "Moved a rule");
+        case "remove-category":
+            return i18nContext.i18nc("@info a change you made", "Removed a category");
         case "remove-rule":
             return i18nContext.i18nc("@info a change you made", "Removed a rule");
         case "run-rules":

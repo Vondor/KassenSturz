@@ -128,6 +128,14 @@ pub enum StoreError {
         /// What is left in it.
         balance: Money,
     },
+    /// A category that something uses can't be removed: it has
+    /// subcategories, transactions or Rules that book to it (D-253).
+    CategoryInUse {
+        /// The category.
+        category: AccountId,
+        /// What uses it: `subcategories`, `transactions` or `rules`.
+        used_by: &'static str,
+    },
     /// Only a category can sit inside another one; an account can't.
     NotACategory(AccountId),
     /// The category to put something inside isn't a category (it is an
@@ -443,6 +451,9 @@ impl Report for StoreError {
             Self::AccountNotEmpty { account, balance } => new("store.account-not-empty")
                 .with("account", P::Account(*account))
                 .with("balance", P::Money(*balance)),
+            Self::CategoryInUse { category, used_by } => new("store.category-in-use")
+                .with("category", P::Account(*category))
+                .with("used_by", P::Keyword(used_by)),
             Self::NotACategory(account) => {
                 new("store.not-a-category").with("account", P::Account(*account))
             }

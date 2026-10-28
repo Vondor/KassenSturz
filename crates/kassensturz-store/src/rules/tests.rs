@@ -1313,3 +1313,70 @@ fn a_rule_that_is_not_in_the_book_yet_can_be_previewed_on_its_own() {
     );
     assert!(book.rule_preview(&broken).is_err());
 }
+
+#[test]
+fn a_category_is_removed_only_when_nothing_uses_it_and_undo_brings_it_back() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let empty = crate::tests::category_in(&mut book, "Empty", AccountKind::Expense, None);
+    let inside = crate::tests::category_in(&mut book, "Inside", AccountKind::Expense, Some(empty));
+    let used_by = |result: Result<(), StoreError>, id: AccountId| match result {
+        Err(StoreError::CategoryInUse { category, used_by }) if category == id => used_by,
+        other => panic!("expected CategoryInUse, got {other:?}"),
+    };
+    // A subcategory, a transaction part and a Rule each keep a category.
+    assert_eq!(used_by(book.remove_category(empty), empty), "subcategories");
+    book.add_transaction(&transaction(
+        date(2026, 10, 5),
+        "Corner Grocery",
+        &[(checking, eur(-100)), (groceries, eur(100))],
+    ))
+    .expect("added");
+    assert_eq!(
+        used_by(book.remove_category(groceries), groceries),
+        "transactions"
+    );
+    let ruled = crate::tests::category_in(&mut book, "Ruled", AccountKind::Expense, None);
+    book.add_rule(
+        &rule(
+            "Ruled",
+            vec![name_contains("x")],
+            Some(BookTo::Category(ruled)),
+        ),
+        None,
+    )
+    .expect("rule added");
+    assert_eq!(used_by(book.remove_category(ruled), ruled), "rules");
+    // An account is not a category.
+    assert!(matches!(
+        book.remove_category(checking),
+        Err(StoreError::NotACategory(id)) if id == checking
+    ));
+    // Nothing was changed by the refusals.
+    let before = book.history().expect("history").len();
+    // An unused category goes, as one change one undo takes back.
+    book.remove_category(inside).expect("removed");
+    assert!(matches!(
+        book.account(inside),
+        Err(StoreError::UnknownAccount(_))
+    ));
+    assert_eq!(book.history().expect("history").len(), before + 1);
+    assert_eq!(
+        book.change_to_undo()
+            .expect("history")
+            .map(|change| change.action),
+        Some(crate::Action::RemoveCategory)
+    );
+    book.undo().expect("undone");
+    let back = book.account(inside).expect("the category is back");
+    assert_eq!(back.name, "Inside");
+    assert_eq!(back.parent, Some(empty));
+    book.redo().expect("redone");
+    assert!(book.account(inside).is_err());
+    // With its subcategory gone, the parent can go too.
+    book.remove_category(empty).expect("removed");
+}

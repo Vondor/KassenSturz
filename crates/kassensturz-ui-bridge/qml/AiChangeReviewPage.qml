@@ -50,6 +50,9 @@ Kirigami.ScrollablePage {
     readonly property var newRules: changes.filter ? changes.filter(change => change.kind === "newRule") : []
     readonly property var transactions: changes.filter ? changes.filter(change => change.kind === "categorize") : []
     readonly property var editedTransactions: changes.filter ? changes.filter(change => change.kind === "editTransaction") : []
+    readonly property var deletedCategories: changes.filter ? changes.filter(change => change.kind === "deleteCategory") : []
+    readonly property var newAccounts: changes.filter ? changes.filter(change => change.kind === "newAccount") : []
+    readonly property var editedAccounts: changes.filter ? changes.filter(change => change.kind === "editAccount") : []
     readonly property bool shows: changes.code === undefined && !done
 
     // The name of a field of a transaction the AI changes.
@@ -67,6 +70,10 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@label a field of a transaction", "Account");
         }
         return i18nContext.i18nc("@label a field of a transaction", "Note");
+    }
+
+    AccountTypes {
+        id: accountTypes
     }
 
     // A Rule's condition in words.
@@ -258,6 +265,115 @@ Kirigami.ScrollablePage {
                         opacity: 0.8
                         textFormat: Text.PlainText
                         text: page.i18nContext.i18nc("@info", "Its subcategories and its transactions stay with it.")
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.deletedCategories.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Categories to delete")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.deletedCategories : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        font.bold: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.path
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info", "Nothing uses it: no transactions, no subcategories and no Rule. Undo brings it back.")
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.newAccounts.length > 0
+            text: page.i18nContext.i18nc("@title:group", "New accounts")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.newAccounts : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        font.bold: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.name
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is a kind of account such as Cash, %2 a currency code", "%1 in %2, with no balance yet.", accountTypes.nameOf(modelData.accountType), modelData.currency)
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.editedAccounts.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Changed accounts")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.editedAccounts : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        font.bold: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.before !== modelData.after
+                            ? page.i18nContext.i18nc("@info %1 is the old name of an account, %2 the new one", "%1 → %2", modelData.before, modelData.after)
+                            : modelData.before
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        visible: modelData.closed !== modelData.wasClosed
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: modelData.closed
+                            ? page.i18nContext.i18nc("@info", "It is closed. Its history stays, and you can open it again.")
+                            : page.i18nContext.i18nc("@info", "It is opened again.")
                     }
                 }
             }

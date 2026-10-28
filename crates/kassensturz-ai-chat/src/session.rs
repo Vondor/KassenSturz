@@ -804,11 +804,17 @@ const ID_HINT: &str = "An ID must be copied from a function's result. Call list_
 (Rules) yourself now, then call this function again with the ID. Don't ask the user to do it.";
 
 /// What the model is told when it wrote the wrong one of two arguments for
-/// a category (#195): `new_category` and `new_parent` are only keys of
-/// categories made in the same call.
-const KEY_HINT: &str = "new_category and new_parent are only the key of a category made in \
-new_categories of this same call. For a category that exists, use category_id or parent_id \
-with an ID copied from list_categories.";
+/// a category (#195, #212): `new_category` and `new_parent` are only keys of
+/// categories made in the same call, and a category that exists is named by
+/// `category_id` or `parent_id`, with an ID and never a name.
+const NEW_CATEGORY_HINT: &str = "new_category is only the key of a category made in \
+new_categories of this same call. For a category that exists, use category_id with an ID \
+copied from list_categories.";
+const NEW_PARENT_HINT: &str = "new_parent is only the key of a category made in \
+new_categories of this same call. For a category that exists, use parent_id with an ID \
+copied from list_categories.";
+const CATEGORY_ID_HINT: &str = "category_id and parent_id take the ID copied from \
+list_categories, not the name of the category.";
 
 /// What the model is told when a call to `propose_changes` failed.
 const NOT_PREPARED_HINT: &str = "Nothing was prepared. Do not tell the user that a change is \
@@ -827,8 +833,13 @@ fn error_json(report: &ErrorReport, prepares: bool) -> Value {
         match value {
             ErrorParam::Keyword(keyword) => {
                 wrong_id |= *name == "argument" && keyword.ends_with("id");
-                if *name == "argument" && matches!(*keyword, "new_category" | "new_parent") {
-                    hints.push(KEY_HINT);
+                if *name == "argument" {
+                    match *keyword {
+                        "new_category" => hints.push(NEW_CATEGORY_HINT),
+                        "new_parent" => hints.push(NEW_PARENT_HINT),
+                        "category_id" | "parent_id" => hints.push(CATEGORY_ID_HINT),
+                        _ => {}
+                    }
                 }
                 out.insert((*name).into(), json!(keyword));
             }
@@ -922,7 +933,11 @@ mod tests {
             argument: "parent_id",
         }
         .report();
-        assert_eq!(error_json(&wrong, false)["hint"], json!(ID_HINT));
+        let hint = error_json(&wrong, false)["hint"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert_eq!(hint, format!("{CATEGORY_ID_HINT} {ID_HINT}"));
         let other = ToolError::BadArgument { argument: "from" }.report();
         assert!(error_json(&other, false).get("hint").is_none());
     }
@@ -933,14 +948,14 @@ mod tests {
             argument: "new_category",
         }
         .report();
-        assert_eq!(error_json(&key, false)["hint"], json!(KEY_HINT));
+        assert_eq!(error_json(&key, false)["hint"], json!(NEW_CATEGORY_HINT));
         let parent = ToolError::BadArgument {
             argument: "new_parent",
         }
         .report();
-        assert_eq!(error_json(&parent, false)["hint"], json!(KEY_HINT));
+        assert_eq!(error_json(&parent, false)["hint"], json!(NEW_PARENT_HINT));
         let both = error_json(&key, true)["hint"].as_str().unwrap().to_owned();
-        assert!(both.contains(KEY_HINT) && both.contains(NOT_PREPARED_HINT));
+        assert!(both.contains(NEW_CATEGORY_HINT) && both.contains(NOT_PREPARED_HINT));
         let other = ToolError::BadArgument { argument: "from" }.report();
         assert_eq!(error_json(&other, true)["hint"], json!(NOT_PREPARED_HINT));
     }

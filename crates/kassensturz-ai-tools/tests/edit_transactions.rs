@@ -6,6 +6,8 @@
 //! the search said, the balance moves by exactly the change, undo takes
 //! all of it back, and what is locked or isn't plain is refused.
 
+#![cfg(feature = "ai")]
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;

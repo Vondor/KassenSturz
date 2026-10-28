@@ -33,8 +33,13 @@ ColumnLayout {
     signal reviewChangesClicked(string setId)
     // The user wants the sidebar closed.
     signal closeClicked()
+    // The user wants the chat in its own window, or back in the sidebar.
+    signal detachClicked()
     // The user's own AI tools prepared changes: the sidebar should show.
     signal changesArrived()
+
+    // The panel sits in a window of its own, not in the sidebar (D-250).
+    property bool detached: false
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -42,6 +47,9 @@ ColumnLayout {
 
     // The words other files borrow, so that none of them names the AI
     // itself while the switch is off (D-013).
+    // The title of the window the chat can be detached into (D-250).
+    readonly property string windowTitle: i18nContext.i18nc("@title:window", "Chat with the AI")
+
     readonly property string appliedName: i18nContext.i18nc("@info a change you made", "Applied changes the AI prepared")
 
     // The messages of the conversation, oldest first, and the tool-call log.
@@ -255,6 +263,19 @@ ColumnLayout {
         }
 
         Controls.ToolButton {
+            icon.name: panel.detached ? "window-pin" : "window-new"
+            text: panel.detached
+                ? panel.i18nContext.i18nc("@action:button put the chat back into the sidebar", "Move back to the sidebar")
+                : panel.i18nContext.i18nc("@action:button show the chat in a window of its own", "Open in its own window")
+            display: Controls.AbstractButton.IconOnly
+            Controls.ToolTip.visible: hovered
+            Controls.ToolTip.text: text
+            Accessible.name: text
+            onClicked: panel.detachClicked()
+        }
+
+        Controls.ToolButton {
+            visible: !panel.detached
             icon.name: "window-close"
             text: panel.i18nContext.i18nc("@action:button close the chat sidebar", "Close the chat")
             display: Controls.AbstractButton.IconOnly

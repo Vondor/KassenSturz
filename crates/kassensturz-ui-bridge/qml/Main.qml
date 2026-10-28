@@ -232,6 +232,7 @@ Kirigami.ApplicationWindow {
 
         function onEnabledChanged() {
             if (!aiSwitch.enabled) {
+                root.attachChat();
                 chatDrawer.close();
                 chatPanel.startOver();
             }
@@ -285,6 +286,8 @@ Kirigami.ApplicationWindow {
     onYChanged: geometryTimer.restart()
 
     onClosing: {
+        // The chat window must not keep the app running.
+        chatWindow.hide();
         const maximized = root.visibility === Window.Maximized;
         const g = maximized ? root.normalGeometry : Qt.rect(root.x, root.y, root.width, root.height);
         windowState.save(g.width, g.height, g.x, g.y, maximized);
@@ -733,6 +736,36 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // True while the chat is in its own window (#209).
+    property bool chatDetached: false
+
+    function detachChat() {
+        chatPanel.parent = chatWindowHolder;
+        chatDetached = true;
+        chatDrawer.close();
+        chatWindow.show();
+        chatWindow.requestActivate();
+    }
+
+    function attachChat() {
+        chatPanel.parent = chatHolder;
+        chatDetached = false;
+        chatWindow.hide();
+    }
+
+    function showChatWindow() {
+        chatWindow.show();
+        chatWindow.raise();
+        chatWindow.requestActivate();
+    }
+
+    function raiseMainWindow() {
+        if (chatDetached) {
+            root.raise();
+            root.requestActivate();
+        }
+    }
+
     // The chat sidebar on the right (M5.8, D-047, D-210): opened and closed
     // with its handle or the menu entry. While the switch is off neither is
     // shown (D-013). Side by side with the page in a window wide enough for
@@ -757,31 +790,67 @@ Kirigami.ApplicationWindow {
         leftPadding: 0
         rightPadding: 0
         onDrawerOpenChanged: {
-            if (drawerOpen) {
+            if (drawerOpen && root.chatDetached) {
+                // The chat lives in its window: bring that to the front.
+                close();
+                root.showChatWindow();
+            } else if (drawerOpen) {
                 chatPanel.refresh();
             }
         }
 
-        contentItem: AiChatPanel {
-            id: chatPanel
+        contentItem: Item {
+            id: chatHolder
 
-            ai: aiSwitch
-            chat: aiChat
-            settings: aiSettings
-            onSettingsClicked: {
-                if (chatDrawer.modal) {
-                    chatDrawer.close();
+            AiChatPanel {
+                id: chatPanel
+
+                anchors.fill: parent
+                ai: aiSwitch
+                chat: aiChat
+                settings: aiSettings
+                detached: root.chatDetached
+                onSettingsClicked: {
+                    if (chatDrawer.modal) {
+                        chatDrawer.close();
+                    }
+                    root.pushPage(aiSettingsPage);
+                    root.raiseMainWindow();
                 }
-                root.pushPage(aiSettingsPage);
-            }
-            onReviewChangesClicked: setId => {
-                if (chatDrawer.modal) {
-                    chatDrawer.close();
+                onReviewChangesClicked: setId => {
+                    if (chatDrawer.modal) {
+                        chatDrawer.close();
+                    }
+                    root.showChangeReview(setId);
+                    root.raiseMainWindow();
                 }
-                root.showChangeReview(setId);
+                onCloseClicked: chatDrawer.close()
+                onDetachClicked: root.chatDetached ? root.attachChat() : root.detachChat()
+                onChangesArrived: chatDrawer.open()
             }
-            onCloseClicked: chatDrawer.close()
-            onChangesArrived: chatDrawer.open()
+        }
+    }
+
+    // The chat in a window of its own (#209, D-250). The same panel moves
+    // between the sidebar and this window, so the conversation, the
+    // unsent text and the open tab stay as they are. Closing the window puts
+    // the panel back into the sidebar, which stays closed. The window opens
+    // where it was left (not remembered between sessions).
+    Controls.ApplicationWindow {
+        id: chatWindow
+
+        width: Kirigami.Units.gridUnit * 26
+        height: Kirigami.Units.gridUnit * 36
+        minimumWidth: Kirigami.Units.gridUnit * 18
+        minimumHeight: Kirigami.Units.gridUnit * 20
+        visible: false
+        title: chatPanel.windowTitle
+        onClosing: root.attachChat()
+
+        Item {
+            id: chatWindowHolder
+
+            anchors.fill: parent
         }
     }
 

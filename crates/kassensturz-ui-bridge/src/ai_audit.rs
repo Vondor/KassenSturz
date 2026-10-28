@@ -214,6 +214,24 @@ mod tests {
         assert_eq!(uses, 4, "the key field's uses weren't found");
     }
 
+    /// The chat can leave the sidebar for a window of its own (#209, D-250).
+    /// That window goes with the switch and with the main window, and the
+    /// panel is the same item in both places.
+    #[test]
+    fn the_detached_chat_window_goes_with_the_switch_and_the_main_window() {
+        let main = qml("Main.qml");
+        let off = &main[main
+            .find("function onEnabledChanged()")
+            .expect("switch handler")..];
+        let off = &off[..off.find("chatPanel.startOver()").unwrap()];
+        assert!(off.contains("root.attachChat()"), "{off}");
+        let closing = &main[main.find("onClosing: {").expect("closing")..];
+        let closing = &closing[..closing.find("const maximized").unwrap()];
+        assert!(closing.contains("chatWindow.hide()"), "{closing}");
+        assert!(main.contains("chatPanel.parent = chatWindowHolder"));
+        assert!(main.contains("chatPanel.parent = chatHolder"));
+    }
+
     /// The sidebar and its toggles show only while AI is on (D-013, D-210),
     /// and the only QML that confirms a set is the review page's button.
     #[test]

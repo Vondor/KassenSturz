@@ -164,7 +164,7 @@
                   "type": "string"
                 },
                 "text": {
-                  "description": "Text to find in the payee, memo or bank text, ignoring case.",
+                  "description": "Text to find in the payee, memo or bank text, ignoring case. Leave it out to not filter by text.",
                   "maxLength": 100,
                   "type": "string"
                 },

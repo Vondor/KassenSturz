@@ -45,8 +45,8 @@ pub mod qobject {
         /// Shows `dataset` (`spending_by_category` or
         /// `income_expense_by_month`) as a chart of `kind` (`line`, `bar`,
         /// `stacked-bar`, `area`, `pie` or `donut`) for `period`
-        /// (`this-month`, `last-month`, `last-12-months`, `this-year` or
-        /// `last-year`). `grouping` is `top-level` or `each` and matters for
+        /// (`this-month`, `last-month`, `last-12-months`, `this-year`,
+        /// `last-year` or a month as `YYYY-MM`). `grouping` is `top-level` or `each` and matters for
         /// spending only.
         #[qinvokable]
         fn show(

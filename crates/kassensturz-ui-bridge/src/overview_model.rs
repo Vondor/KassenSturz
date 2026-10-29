@@ -188,6 +188,7 @@ fn view_object(view: &OverviewView, gaps: &[FetchGap]) -> QVariant {
     let transfers = i32::try_from(view.transfers).unwrap_or(i32::MAX);
     map([
         ("month", text(&view.month)),
+        ("monthKey", text(&view.month_key)),
         ("hasEarlier", QVariant::from(&view.has_earlier)),
         ("hasLater", QVariant::from(&view.has_later)),
         ("thisMonth", QVariant::from(&view.this_month)),
@@ -244,6 +245,9 @@ mod tests {
         let view = overview::view(&book, month, &TestLocale).expect("overview");
         let gaps = fetch_gap::gaps(&book, today, Some(60), &TestLocale).expect("gaps");
         let object = view_object(&view, &gaps);
+
+        // The charts and cards take the month shown by this key.
+        assert_eq!(text_of(&object, "monthKey"), "2026-10");
 
         let shown = list_of(&object, "fetchGaps");
         assert_eq!(shown.len(), 1);

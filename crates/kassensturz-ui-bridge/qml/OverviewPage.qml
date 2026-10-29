@@ -6,7 +6,8 @@
 // it came from and where it went. The accounts and their transactions are on
 // their own screens (round 1). Money moved between the user's own accounts
 // counts as neither (D-021). Every amount, total and order comes from Rust,
-// per currency (D-065); this page only shows text.
+// per currency (D-065); this page only shows text. The month's figures and
+// the chart of where the money went are report components (M6a.8).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -39,15 +40,16 @@ Kirigami.ScrollablePage {
             : i18nContext.i18nc("@label %1 is an amount of money", "All your accounts together: %1", amount);
     }
 
-    // What was left of the month's money in, or spent on top of it.
-    function leftText(amount: string, overspent: bool): string {
-        return overspent
-            ? i18nContext.i18nc("@label %1 is an amount of money", "Spent more than came in: %1", amount)
-            : i18nContext.i18nc("@label %1 is an amount of money", "Left over: %1", amount);
-    }
-
     function categoryName(total: var): string {
         return total.unsorted ? i18nContext.i18nc("@label money with no category yet", "Not sorted yet") : total.name;
+    }
+
+    BookCards {
+        id: monthCards
+    }
+
+    BookCharts {
+        id: monthCharts
     }
 
     // Going to another screen and back starts from the current month again.
@@ -184,6 +186,16 @@ Kirigami.ScrollablePage {
             wrapMode: Text.Wrap
         }
 
+        // The month's key figures and where its money went, from the
+        // report components (M6a.8).
+        OverviewMonth {
+            Layout.fillWidth: true
+            visible: !(page.view.empty ?? false)
+            view: page.view
+            cards: monthCards
+            charts: monthCharts
+        }
+
         Repeater {
             model: page.totals
 
@@ -195,52 +207,6 @@ Kirigami.ScrollablePage {
                 Layout.fillWidth: true
                 spacing: Kirigami.Units.largeSpacing
                 visible: !(page.view.empty ?? false)
-
-                Kirigami.Heading {
-                    textFormat: Text.PlainText
-                    Layout.topMargin: Kirigami.Units.largeSpacing
-                    text: page.totals.length > 1
-                        ? page.i18nContext.i18nc("@title %1 is a currency code, e.g. EUR", "Money in and out in %1", monthTotals.modelData.currency)
-                        : page.i18nContext.i18nc("@title", "Money in and out")
-                    level: 3
-                }
-
-                Repeater {
-                    model: [
-                        { name: page.i18nContext.i18nc("@label", "Money in"), amount: monthTotals.modelData.moneyIn, exactAmount: monthTotals.modelData.exactMoneyIn },
-                        { name: page.i18nContext.i18nc("@label", "Money out"), amount: monthTotals.modelData.moneyOut, exactAmount: monthTotals.modelData.exactMoneyOut },
-                    ]
-
-                    delegate: AmountLine {
-                        Layout.fillWidth: true
-                    }
-                }
-
-                AmountLabel {
-                    textFormat: Text.PlainText
-                    Layout.fillWidth: true
-                    text: page.leftText(monthTotals.modelData.left, monthTotals.modelData.overspent)
-                    exactText: page.leftText(monthTotals.modelData.exactLeft, monthTotals.modelData.overspent)
-                    font.bold: true
-                    color: monthTotals.modelData.overspent ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor
-                    wrapMode: Text.Wrap
-                }
-
-                Kirigami.Heading {
-                    Layout.topMargin: Kirigami.Units.largeSpacing
-                    visible: monthTotals.modelData.spending.length > 0
-                    text: page.i18nContext.i18nc("@title", "Where your money went")
-                    level: 3
-                }
-
-                Repeater {
-                    model: monthTotals.modelData.spending
-
-                    delegate: AmountLine {
-                        Layout.fillWidth: true
-                        name: page.categoryName(modelData)
-                    }
-                }
 
                 Kirigami.Heading {
                     Layout.topMargin: Kirigami.Units.largeSpacing

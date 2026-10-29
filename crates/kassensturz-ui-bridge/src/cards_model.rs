@@ -40,8 +40,9 @@ pub mod qobject {
 
     extern "RustQt" {
         /// Shows the figures of `period` (`this-month`, `last-month`,
-        /// `last-12-months`, `this-year` or `last-year`) against `compare`
-        /// (`previous_period` or `same_last_year`).
+        /// `last-12-months`, `this-year`, `last-year` or a month as
+        /// `YYYY-MM`) against `compare` (`previous_period` or
+        /// `same_last_year`).
         #[qinvokable]
         fn show(self: Pin<&mut BookCards>, period: &QString, compare: &QString);
 
@@ -256,6 +257,29 @@ mod tests {
         assert_eq!(text_of(&cards[3], "value"), "");
         assert_eq!(text_of(&cards[3], "direction"), "none");
         assert!(!keys(&cards[3]).contains(&"permille".to_owned()));
+    }
+
+    #[test]
+    fn a_month_key_shows_that_month() {
+        // `TestLocale`'s today is in October, so September is last month.
+        let by_key = view_of(&book(true), &request("2026-09"));
+        let by_name = view_of(&book(true), &request("last-month"));
+        assert_eq!(
+            text_of(&list_of(&by_key, "sets")[0], "currency"),
+            text_of(&list_of(&by_name, "sets")[0], "currency")
+        );
+        let cards = |view: &QVariant| list_of(&list_of(view, "sets")[0], "cards");
+        for (a, b) in cards(&by_key).iter().zip(cards(&by_name).iter()) {
+            assert_eq!(text_of(a, "value"), text_of(b, "value"));
+        }
+        // A key that isn't a month is a bad request.
+        for bad in ["2026-13", "26-09", "2026-9", "september"] {
+            assert_eq!(
+                keys(&view_of(&book(true), &request(bad))),
+                ["error"],
+                "{bad}"
+            );
+        }
     }
 
     #[test]

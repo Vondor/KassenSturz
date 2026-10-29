@@ -9,6 +9,7 @@ import org.kde.ki18n
 
 QtObject {
     readonly property KI18nContext i18nContext: KI18nContext {
+        translationDomain: "kassensturz"
     }
 
     function measure(key: string): string {

@@ -16,9 +16,10 @@ use std::collections::{HashMap, HashSet};
 use std::io::Write;
 
 use kassensturz_core::{
-    Account, AccountKind, AccountType, AmountTest, BankLink, Condition, Currency, CurrencyCode,
-    DatedRate, Institution, MatchMode, Money, PartStatus, Payee, PayeeRecognition, RateSource,
-    RoundingMode, RuleId, RuleNode, SplitId, Tag, TextField, TextOperator, Transaction, ViewId,
+    Account, AccountId, AccountKind, AccountType, AmountTest, BankLink, CategoryGroup, Condition,
+    Currency, CurrencyCode, DatedRate, GroupKind, GroupMember, Institution, MatchMode, Money,
+    PartStatus, Payee, PayeeRecognition, RateSource, RoundingMode, RuleId, RuleNode, SplitId, Tag,
+    TextField, TextOperator, Transaction, ViewId,
 };
 
 use crate::data::ExportData;
@@ -43,8 +44,9 @@ pub const FORMAT: &str = "kassensturz-book";
 /// version 4 institutions, payees and tags, and the notes, numbers and
 /// status that came over from another program's book with them (D-132),
 /// version 5 the bank links (M4.4a, D-148), version 6 the saved views and
-/// dashboards (M6a.L, D-278).
-pub const VERSION: u64 = 6;
+/// dashboards (M6a.L, D-278), version 7 the category groups and the hidden
+/// categories (M6b.L, D-290).
+pub const VERSION: u64 = 7;
 
 /// How deep Rules can sit inside each other in the file: a top-level Rule is
 /// at depth 1. Deeper trees are refused when writing and reading, so a file
@@ -87,6 +89,12 @@ pub struct BookData {
     /// The saved views and dashboards, dashboards first, each kind in the
     /// order of its list (D-278).
     pub views: Vec<ViewData>,
+    /// The category groups in the order of their list, each with its
+    /// members in their order (D-290). A group's `position` is its place in
+    /// this list; the file doesn't repeat it.
+    pub groups: Vec<CategoryGroup>,
+    /// The categories hidden from charts (D-291).
+    pub hidden_categories: Vec<AccountId>,
 }
 
 /// A saved view or dashboard in a complete export: its ID and its document
@@ -176,6 +184,19 @@ impl Exporter for BookExport {
                 Json::List(book.bank_links.iter().map(bank_link).collect()),
             ),
             ("views", Json::List(book.views.iter().map(view).collect())),
+            (
+                "groups",
+                Json::List(book.groups.iter().map(category_group).collect()),
+            ),
+            (
+                "hidden_categories",
+                Json::List(
+                    book.hidden_categories
+                        .iter()
+                        .map(|&category| Json::id(category))
+                        .collect(),
+                ),
+            ),
             (
                 "payees",
                 Json::List(book.payees.iter().map(payee).collect()),
@@ -544,6 +565,23 @@ fn view(view: &ViewData) -> Json {
     ])
 }
 
+fn category_group(group: &CategoryGroup) -> Json {
+    let members = group
+        .members
+        .iter()
+        .map(|member| match *member {
+            GroupMember::Category(category) => Json::Object(vec![("category", Json::id(category))]),
+            GroupMember::Group(inner) => Json::Object(vec![("group", Json::id(inner))]),
+        })
+        .collect();
+    Json::Object(vec![
+        ("id", Json::id(group.id)),
+        ("name", Json::text(&group.name)),
+        ("kind", Json::text(name_of(&GROUP_KINDS, group.kind))),
+        ("members", Json::List(members)),
+    ])
+}
+
 fn institution(institution: &Institution) -> Json {
     Json::Object(vec![
         ("id", Json::id(institution.id)),
@@ -634,6 +672,11 @@ const KINDS: [(AccountKind, &str); 5] = [
     (AccountKind::Income, "income"),
     (AccountKind::Expense, "expense"),
     (AccountKind::Equity, "equity"),
+];
+
+const GROUP_KINDS: [(GroupKind, &str); 2] = [
+    (GroupKind::Expense, "expense"),
+    (GroupKind::Income, "income"),
 ];
 
 const TYPES: [(AccountType, &str); 4] = [

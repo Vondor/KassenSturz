@@ -9,8 +9,8 @@ use std::io::ErrorKind;
 
 use kassensturz_core::{
     AccountId, AccountKind, AccountType, CurrencyCode, Date, DatedRateId, ErrorParam, ErrorReport,
-    InstitutionId, Money, PayeeId, Report, RuleError, RuleId, SplitId, TagId, TransactionError,
-    TransactionId, TransferError, ViewId,
+    GroupId, InstitutionId, Money, PayeeId, Report, RuleError, RuleId, SplitId, TagId,
+    TransactionError, TransactionId, TransferError, ViewId,
 };
 
 use crate::Lock;
@@ -111,6 +111,48 @@ pub enum StoreError {
     ViewDocumentTooBig {
         /// The most the book keeps, in bytes.
         max_bytes: usize,
+    },
+    /// There is no category group with this ID (D-290).
+    UnknownGroup(GroupId),
+    /// Another group already has this name, ignoring capitals, or a
+    /// category has it, which would make a formula's name unclear (D-290,
+    /// D-292).
+    GroupNameTaken {
+        /// The name as it was given, without spaces around it.
+        name: String,
+    },
+    /// A group's name is longer than the book keeps.
+    GroupNameTooLong {
+        /// The most characters a name may have.
+        max_chars: usize,
+    },
+    /// A member is not of the group's kind: a spending group takes only
+    /// spending categories and spending groups, an income group only income
+    /// ones (D-290).
+    GroupWrongKind {
+        /// The member's name.
+        name: String,
+    },
+    /// The group would end up inside itself, directly or through other
+    /// groups.
+    GroupLoop {
+        /// The group's name.
+        name: String,
+    },
+    /// Groups inside groups would go deeper than the book allows.
+    GroupTooDeep {
+        /// The most levels: a group, a group inside it, and so on.
+        max_levels: usize,
+    },
+    /// The book has as many category groups as it keeps.
+    TooManyGroups {
+        /// The most groups a book keeps.
+        max: usize,
+    },
+    /// The group would have more members than the book keeps.
+    TooManyGroupMembers {
+        /// The most members a group keeps.
+        max: usize,
     },
     /// Another account already has this name, ignoring capitals. The user
     /// can pick another name.
@@ -459,6 +501,26 @@ impl Report for StoreError {
             }
             Self::ViewDocumentTooBig { max_bytes } => {
                 new("store.view-document-too-big").with("max_bytes", P::count(*max_bytes))
+            }
+            Self::UnknownGroup(group) => {
+                new("store.unknown-group").with("group", P::Text(group.to_string()))
+            }
+            Self::GroupNameTaken { name } => {
+                new("store.group-name-taken").with("name", P::Text(name.clone()))
+            }
+            Self::GroupNameTooLong { max_chars } => {
+                new("store.group-name-too-long").with("max_chars", P::count(*max_chars))
+            }
+            Self::GroupWrongKind { name } => {
+                new("store.group-wrong-kind").with("name", P::Text(name.clone()))
+            }
+            Self::GroupLoop { name } => new("store.group-loop").with("name", P::Text(name.clone())),
+            Self::GroupTooDeep { max_levels } => {
+                new("store.group-too-deep").with("max_levels", P::count(*max_levels))
+            }
+            Self::TooManyGroups { max } => new("store.too-many-groups").with("max", P::count(*max)),
+            Self::TooManyGroupMembers { max } => {
+                new("store.too-many-group-members").with("max", P::count(*max))
             }
             Self::DuplicateAccountName { existing } => {
                 new("store.duplicate-account-name").with("existing", P::Account(*existing))

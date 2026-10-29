@@ -10,8 +10,9 @@ use std::path::Path;
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, Actions, BookTo, Condition, CurrencyCode, DatedRate,
-    DatedRateId, ForeignAmount, ImportedDetails, MatchMode, Money, RateSource, RoundingMode, Rule,
-    RuleId, Split, TextField, TextOperator, Transaction, TransactionId,
+    DatedRateId, ForeignAmount, GroupKind, GroupMember, ImportedDetails, MatchMode, Money,
+    RateSource, RoundingMode, Rule, RuleId, Split, TextField, TextOperator, Transaction,
+    TransactionId,
 };
 
 use super::*;
@@ -179,6 +180,38 @@ fn every_change_can_be_undone_and_redone() {
     steps.did(&book, Action::MoveCategory);
     let unused = category(&mut book, "Unused", None);
     steps.did(&book, Action::AddCategory);
+    // The category removed below is in a group and hidden, so its removal
+    // takes those rows with it (D-290).
+    let fixed = book
+        .add_category_group(
+            "Fixed costs",
+            GroupKind::Expense,
+            &[GroupMember::Category(unused)],
+        )
+        .expect("added");
+    steps.did(&book, Action::AddGroup);
+    let household = book
+        .add_category_group(
+            "Household",
+            GroupKind::Expense,
+            &[GroupMember::Group(fixed)],
+        )
+        .expect("added");
+    steps.did(&book, Action::AddGroup);
+    book.edit_category_group(
+        fixed,
+        "Fixed monthly costs",
+        &[
+            GroupMember::Category(groceries),
+            GroupMember::Category(unused),
+        ],
+    )
+    .expect("edited");
+    steps.did(&book, Action::EditGroup);
+    book.move_category_group(household, 0).expect("moved");
+    steps.did(&book, Action::MoveGroup);
+    book.set_hidden_categories(&[unused, food]).expect("hidden");
+    steps.did(&book, Action::SetHiddenCategories);
     book.remove_category(unused).expect("removed");
     steps.did(&book, Action::RemoveCategory);
     let spending = book
@@ -201,6 +234,8 @@ fn every_change_can_be_undone_and_redone() {
     steps.did(&book, Action::MoveView);
     book.remove_view(spending).expect("removed");
     steps.did(&book, Action::RemoveView);
+    book.remove_category_group(fixed).expect("removed");
+    steps.did(&book, Action::RemoveGroup);
     book.rename_account(groceries, "Groceries and drinks")
         .expect("renamed");
     steps.did(&book, Action::RenameCategory);

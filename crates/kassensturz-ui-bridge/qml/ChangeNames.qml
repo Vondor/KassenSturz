@@ -70,6 +70,16 @@ QtObject {
             return i18nContext.i18nc("@info a change you made", "Moved a view or dashboard");
         case "remove-view":
             return i18nContext.i18nc("@info a change you made", "Deleted a view or dashboard");
+        case "add-group":
+            return i18nContext.i18nc("@info a change you made", "Made a category group");
+        case "edit-group":
+            return i18nContext.i18nc("@info a change you made", "Changed a category group");
+        case "move-group":
+            return i18nContext.i18nc("@info a change you made", "Moved a category group");
+        case "remove-group":
+            return i18nContext.i18nc("@info a change you made", "Removed a category group");
+        case "set-hidden-categories":
+            return i18nContext.i18nc("@info a change you made", "Changed which categories charts hide");
         case "remove-category":
             return i18nContext.i18nc("@info a change you made", "Removed a category");
         case "remove-rule":

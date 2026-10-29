@@ -11,6 +11,7 @@ use kassensturz_core::{
     MatchMode, Money, RateSource, RoundingMode, Rule, RuleId, Split, TextField, TextOperator,
     Transaction, TransactionId, ViewKind,
 };
+use kassensturz_core::{GroupKind, GroupMember};
 use kassensturz_export::{BookData, BookExport, ExportData, export, read_book};
 use kassensturz_pipeline::{export_book, fill_book};
 use kassensturz_store::{Book, HistoryRetention, StoreError};
@@ -229,6 +230,43 @@ fn household() -> Book {
         Some(groceries),
     );
     let travel = add(&mut book, "Travel", AccountKind::Expense, None, USD, None);
+    // Category groups (D-290): "Household" holds "Trips", which comes after
+    // it once it is moved to the front, and a category made later shares
+    // its name; Bakery is hidden from charts.
+    let trips = book
+        .add_category_group(
+            "Trips",
+            GroupKind::Expense,
+            &[GroupMember::Category(travel)],
+        )
+        .expect("group added");
+    let household = book
+        .add_category_group(
+            "Household",
+            GroupKind::Expense,
+            &[
+                GroupMember::Category(groceries),
+                GroupMember::Group(trips),
+                GroupMember::Category(bakery),
+            ],
+        )
+        .expect("group added");
+    book.move_category_group(household, 0).expect("moved");
+    book.add_category_group(
+        "Earned",
+        GroupKind::Income,
+        &[GroupMember::Category(salary)],
+    )
+    .expect("group added");
+    add(
+        &mut book,
+        "Household",
+        AccountKind::Expense,
+        None,
+        EUR,
+        None,
+    );
+    book.set_hidden_categories(&[bakery]).expect("hidden");
 
     let rate = DatedRate {
         id: DatedRateId::generate(),
@@ -447,7 +485,7 @@ fn a_book_comes_back_from_its_export_as_it_was() {
     let data = complete(&book);
     // Everything is there: the marks of both Rules, one removed since.
     assert_eq!(data.currencies.len(), 3);
-    assert_eq!(data.accounts.len(), 10);
+    assert_eq!(data.accounts.len(), 11);
     assert_eq!(data.rates.len(), 2);
     assert_eq!(data.transactions.len(), 11);
     let card_part = data
@@ -526,6 +564,18 @@ fn a_book_comes_back_from_its_export_as_it_was() {
         copy.views(None).expect("read"),
         book.views(None).expect("read")
     );
+    // The groups with their IDs, places and members, and the hidden
+    // categories (D-290).
+    assert_eq!(
+        copy.category_groups().expect("read"),
+        book.category_groups().expect("read")
+    );
+    assert_eq!(copy.category_groups().expect("read").len(), 3);
+    assert_eq!(
+        copy.hidden_categories().expect("read"),
+        book.hidden_categories().expect("read")
+    );
+    assert_eq!(copy.hidden_categories().expect("read").len(), 1);
     assert_eq!(copy.rounding_mode().expect("read"), RoundingMode::HalfEven);
     assert_eq!(
         copy.history_retention().expect("read"),

@@ -110,11 +110,21 @@ pub enum Action {
     MoveView,
     /// Deleted a view or dashboard.
     RemoveView,
+    /// Made a new category group (D-290).
+    AddGroup,
+    /// Changed a category group's name or members.
+    EditGroup,
+    /// Moved a category group to another place in the list.
+    MoveGroup,
+    /// Removed a category group.
+    RemoveGroup,
+    /// Changed which categories are hidden from charts (D-290, D-291).
+    SetHiddenCategories,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 35] = [
+    pub const ALL: [Self; 40] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -150,6 +160,11 @@ impl Action {
         Self::RenameView,
         Self::MoveView,
         Self::RemoveView,
+        Self::AddGroup,
+        Self::EditGroup,
+        Self::MoveGroup,
+        Self::RemoveGroup,
+        Self::SetHiddenCategories,
     ];
 }
 
@@ -249,7 +264,7 @@ pub(crate) struct Recorded {
 
 /// Every table that holds the book's data. Only the history's own tables
 /// aren't recorded: `changes`, the `changed_` tables and `history_settings`.
-pub(crate) const RECORDED: [Recorded; 18] = [
+pub(crate) const RECORDED: [Recorded; 21] = [
     Recorded {
         name: "settings",
         key: "id",
@@ -463,6 +478,32 @@ pub(crate) const RECORDED: [Recorded; 18] = [
             ("format_version", "INTEGER"),
             ("document", "TEXT"),
         ],
+    },
+    Recorded {
+        name: "report_groups",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("name", "TEXT"),
+            ("kind", "TEXT"),
+            ("position", "INTEGER"),
+        ],
+    },
+    Recorded {
+        name: "report_group_members",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("group_id", "BLOB"),
+            ("category_id", "BLOB"),
+            ("member_group_id", "BLOB"),
+            ("position", "INTEGER"),
+        ],
+    },
+    Recorded {
+        name: "report_hidden",
+        key: "category_id",
+        columns: &[("category_id", "BLOB")],
     },
 ];
 
@@ -1363,6 +1404,11 @@ fn action_to_text(action: Action) -> &'static str {
         Action::RenameView => "rename_view",
         Action::MoveView => "move_view",
         Action::RemoveView => "remove_view",
+        Action::AddGroup => "add_group",
+        Action::EditGroup => "edit_group",
+        Action::MoveGroup => "move_group",
+        Action::RemoveGroup => "remove_group",
+        Action::SetHiddenCategories => "set_hidden_categories",
     }
 }
 

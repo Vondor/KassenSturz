@@ -16,6 +16,7 @@ use kassensturz_core::{
     Split, SplitId, Tag, TagId, TextField, TextOperator, Transaction, TransactionError,
     TransactionId, ViewId,
 };
+use kassensturz_core::{CategoryGroup, GroupId, GroupKind, GroupMember};
 use kassensturz_export::{
     BookData, BookExport, BookedByRule, CsvExport, Expected, ExportData, ExportError, ExportKind,
     Exporter, ExporterInfo, MAX_RULE_DEPTH, ViewData, export, export_file, read_book,
@@ -447,6 +448,28 @@ fn sample() -> BookData {
                 document: r#"{"format":"kassensturz-dashboard","version":1,"kind":"view","name":"Spending \"by month\"","components":[{"id":"c1"}]}"#.into(),
             },
         ],
+        // Two groups, the first holding the second, which comes later in
+        // the list; one hidden category (D-290).
+        groups: vec![
+            CategoryGroup {
+                id: GroupId::from_bytes(id(0x71)),
+                name: "Daily \"needs\"".into(),
+                kind: GroupKind::Expense,
+                position: 0,
+                members: vec![
+                    GroupMember::Category(AccountId::from_bytes(id(food))),
+                    GroupMember::Group(GroupId::from_bytes(id(0x72))),
+                ],
+            },
+            CategoryGroup {
+                id: GroupId::from_bytes(id(0x72)),
+                name: "Reisen".into(),
+                kind: GroupKind::Expense,
+                position: 1,
+                members: vec![GroupMember::Category(AccountId::from_bytes(id(travel)))],
+            },
+        ],
+        hidden_categories: vec![AccountId::from_bytes(id(bakery))],
     }
 }
 
@@ -576,6 +599,8 @@ fn values_that_may_be_empty_can_be_left_out() {
             tags: Vec::new(),
             bank_links: Vec::new(),
             views: Vec::new(),
+            groups: Vec::new(),
+            hidden_categories: Vec::new(),
         }
     );
 }
@@ -606,13 +631,13 @@ fn what_is_not_a_complete_export_is_refused() {
     assert_eq!(read_book(b"[1, 2]"), Err(ExportError::NotABook));
     assert_eq!(read_book(b"{\"name\": \"x\"}"), Err(ExportError::NotABook));
     assert_eq!(
-        read_book(&changed("\"version\": 6", "\"version\": 7")),
-        Err(ExportError::NewerVersion { version: 7 })
+        read_book(&changed("\"version\": 7", "\"version\": 8")),
+        Err(ExportError::NewerVersion { version: 8 })
     );
     for version in ["\"2\"", "0", "-1", "2.5"] {
         assert_eq!(
             read_book(&changed(
-                "\"version\": 6",
+                "\"version\": 7",
                 &format!("\"version\": {version}")
             )),
             bad("version", Expected::Number),
@@ -1226,5 +1251,103 @@ fn views_come_with_version_6() {
     assert_eq!(
         read_book(object.as_bytes()),
         bad("views[0].document", Expected::Text)
+    );
+}
+
+#[test]
+fn groups_and_hidden_categories_come_with_version_7() {
+    // A version 6 file has neither; a version 7 file must list both, even
+    // when they are empty (D-290).
+    let lists = r#""institutions": [], "payees": [], "tags": [], "rates": [], "bank_links": [], "views": []"#;
+    let version_6 = SHORT
+        .replacen("\"version\": 1", "\"version\": 6", 1)
+        .replacen(r#""rates": []"#, lists, 1);
+    let with_groups = version_6.replacen(r#""views": []"#, r#""views": [], "groups": []"#, 1);
+    assert_eq!(
+        read_book(with_groups.as_bytes()),
+        Err(ExportError::UnknownValue {
+            path: "groups".into()
+        })
+    );
+    let version_7 = version_6.replacen("\"version\": 6", "\"version\": 7", 1);
+    assert_eq!(
+        read_book(version_7.as_bytes()),
+        Err(ExportError::MissingValue {
+            path: "groups".into()
+        })
+    );
+    let with = |groups: &str, hidden: &str| {
+        version_7.replacen(
+            r#""views": []"#,
+            &format!(r#""views": [], "groups": {groups}, "hidden_categories": {hidden}"#),
+            1,
+        )
+    };
+    let food = "019a0000-0000-7000-8000-000000000002";
+    let group = |members: &str| {
+        format!(
+            r#"[{{"id": "019a0000-0000-7000-8000-000000000071", "name": "Daily", "kind": "expense", "members": {members}}}]"#
+        )
+    };
+    let book = read_book(
+        with(
+            &group(&format!(r#"[{{"category": "{food}"}}]"#)),
+            &format!(r#"["{food}"]"#),
+        )
+        .as_bytes(),
+    )
+    .expect("read");
+    assert_eq!(
+        book.groups,
+        vec![CategoryGroup {
+            id: GroupId::from_bytes(id(0x71)),
+            name: "Daily".into(),
+            kind: GroupKind::Expense,
+            position: 0,
+            members: vec![GroupMember::Category(AccountId::from_bytes(id(2)))],
+        }]
+    );
+    assert_eq!(book.hidden_categories, [AccountId::from_bytes(id(2))]);
+    // A member is a category or a group, never both or neither, and each
+    // is in a group once; a hidden category is listed once.
+    let both = format!(r#"[{{"category": "{food}", "group": "{food}"}}]"#);
+    assert_eq!(
+        read_book(with(&group(&both), "[]").as_bytes()),
+        Err(ExportError::UnknownValue {
+            path: "groups[0].members[0].group".into()
+        })
+    );
+    assert_eq!(
+        read_book(with(&group("[{}]"), "[]").as_bytes()),
+        Err(ExportError::MissingValue {
+            path: "groups[0].members[0].category".into()
+        })
+    );
+    let twice = format!(r#"[{{"category": "{food}"}}, {{"category": "{food}"}}]"#);
+    assert_eq!(
+        read_book(with(&group(&twice), "[]").as_bytes()),
+        Err(ExportError::Duplicate {
+            path: "groups[0].members[1]".into()
+        })
+    );
+    assert_eq!(
+        read_book(with("[]", &format!(r#"["{food}", "{food}"]"#)).as_bytes()),
+        Err(ExportError::Duplicate {
+            path: "hidden_categories[1]".into()
+        })
+    );
+    // An ID twice, or a kind the format doesn't know, is refused with its
+    // path.
+    let one = group("[]");
+    let two = format!("[{}, {}]", &one[1..one.len() - 1], &one[1..one.len() - 1]);
+    assert_eq!(
+        read_book(with(&two, "[]").as_bytes()),
+        Err(ExportError::Duplicate {
+            path: "groups[1].id".into()
+        })
+    );
+    assert_eq!(
+        read_book(with(&one.replace("expense", "asset"), "[]").as_bytes()),
+        bad("groups[0].kind", Expected::Keyword)
     );
 }

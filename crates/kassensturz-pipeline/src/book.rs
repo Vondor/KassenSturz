@@ -62,6 +62,8 @@ pub fn export_book(book: &Book) -> Result<ExportData, StoreError> {
                 document: view.document,
             })
             .collect(),
+        groups: book.category_groups()?,
+        hidden_categories: book.hidden_categories()?,
         payees: book.payees()?,
         tags: book.tags()?,
     }))
@@ -103,6 +105,8 @@ pub fn fill_book(book: &mut Book, data: &BookData) -> Result<(), StoreError> {
         for view in &data.views {
             book.restore_view(view.id, &view.document)?;
         }
+        book.restore_category_groups(&data.groups)?;
+        book.set_hidden_categories(&data.hidden_categories)?;
         for rate in &data.rates {
             book.add_rate(rate)?;
         }

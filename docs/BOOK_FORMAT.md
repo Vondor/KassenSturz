@@ -2,13 +2,13 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029), whose format is described in `docs/EXPORT_FORMAT.md` (D-100). Every change to the layout updates this document.
 
-**Status: layout 20** (M6a.L, D-278): layout 16, the starting layout of 0.1 (D-045, D-135), plus the bank links (layout 17, M4.4a, D-148) the history's action for changes an AI prepared (layout 18), the history's action for removing a category (layout 19), and the saved views and dashboards (layout 20, M6a.L, D-278). The 15 development layouts of M0 to M3 were merged into layout 16: every table a 0.1 book has is built in one go, and a book one of the development builds wrote (layouts 1 to 15) isn't opened by 0.1 but turned away with `store.development-layout`; its data moves over through the complete export made with that build. From 0.1 on, every change to the layout is a migration of its own, run after a backup (see [Migrations](#migrations)), and this document is updated with each.
+**Status: layout 21** (M6b.L, D-290): layout 16, the starting layout of 0.1 (D-045, D-135), plus the bank links (layout 17, M4.4a, D-148) the history's action for changes an AI prepared (layout 18), the history's action for removing a category (layout 19), the saved views and dashboards (layout 20, M6a.L, D-278), and the category groups and hidden categories (layout 21, M6b.L, D-290). The 15 development layouts of M0 to M3 were merged into layout 16: every table a 0.1 book has is built in one go, and a book one of the development builds wrote (layouts 1 to 15) isn't opened by 0.1 but turned away with `store.development-layout`; its data moves over through the complete export made with that build. From 0.1 on, every change to the layout is a migration of its own, run after a backup (see [Migrations](#migrations)), and this document is updated with each.
 
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).
 - `PRAGMA application_id` is `0x4B535A42` (1263753794), the letters `KSZB` for KassenSturz book (D-037, D-080). KassenSturz reads it, and SQLite's header, from the file's first bytes before SQLite opens the file. Only a file with both is opened, so another program's SQLite file is never changed, not even its journal mode.
-- `PRAGMA user_version` holds the layout version: currently `20`. Versions 1 to 15 belong to books from development builds before 0.1, which KassenSturz turns away (D-045).
+- `PRAGMA user_version` holds the layout version: currently `21`. Versions 1 to 15 belong to books from development builds before 0.1, which KassenSturz turns away (D-045).
 - The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033). While the book is open, its [lock file](#the-lock-file) sits next to it.
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
 - Deleted content is overwritten (`PRAGMA secure_delete = ON` on every connection), so what KassenSturz deletes, such as a change history the user cleans up, is gone from the file too, though not from copies of it such as backups (D-066, D-086).
@@ -112,6 +112,41 @@ The saved views and dashboards (D-278, D-279; layout 20): JSON documents the use
 | `document` | TEXT | The JSON document: valid JSON (`json_valid`), at most 1 MiB. It is an object with `format` (`kassensturz-dashboard`), `version` (a whole number), `kind` and `name`; KassenSturz checks those four when it writes, the database checks only that it is valid JSON and not too big |
 
 `kind`, `name` and `format_version` are copies of what the document says. KassenSturz writes them together, so they agree; a program that reads the table should trust the document. A document with a `version` newer than the program knows is kept as it is, and refused only when it is shown (`report.unsupported-document-version`).
+
+### `report_groups`
+
+The user's category groups, "My groups" (D-290; layout 21): categories put together under a name of the user's own, e.g. "Fixed costs", so a chart can show them as one slice, bar or line. A group is a way of looking at the figures and nothing else: it is kept apart from the transactions and the category tree (Q-221), refers to categories only by ID, and is never written onto a transaction or a category. How a group counts is the reports' business (D-291): a category with everything inside it, each category once.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | BLOB (16 bytes), primary key | UUIDv7 |
+| `name` | TEXT | 1 to 200 characters, no spaces around it. Unique among the groups ignoring capitals (the unique index `report_groups_by_name`, which folds ASCII capitals only; KassenSturz checks all letters when it writes). KassenSturz also refuses a category's name when the group gets its name, so a formula's name stays clear (D-292); a category made later may share it |
+| `kind` | TEXT | `expense` or `income`: every member is a category or group of this kind, so the group's figure is money spent or money received. KassenSturz checks this when it writes |
+| `position` | INTEGER, from 0 | The place in the list. KassenSturz keeps the groups numbered 0, 1, 2, … without gaps; the database does not check this |
+
+KassenSturz also checks when it writes that no group ends up inside itself, directly or through other groups, that groups go at most four levels deep (a group, a group inside it, and so on), and that a book has at most 200 groups with at most 500 members each. The database checks none of this.
+
+### `report_group_members`
+
+The members of each group, in their order (D-290; layout 21).
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | BLOB (16 bytes), primary key | UUIDv7, so the change history can name the row |
+| `group_id` | BLOB → `report_groups.id` | The group. Removing the group removes its rows (ON DELETE CASCADE) |
+| `category_id` | BLOB → `accounts.id`, may be NULL | A category in the group. Removing the category removes the row in the same change, so its undo brings the row back (ON DELETE CASCADE) |
+| `member_group_id` | BLOB → `report_groups.id`, may be NULL | A group inside the group, never the group itself. Removing that group removes the row (ON DELETE CASCADE) |
+| `position` | INTEGER, from 0 | The order in the group. KassenSturz numbers the members 0, 1, 2, … when the group is edited; a category or group removed since may leave a gap, so a reader goes by the order, not the numbers |
+
+Exactly one of `category_id` and `member_group_id` is set (a CHECK). A category or a group is in a group once: the unique indexes `report_group_members_by_category` (`category_id`, `group_id`) and `report_group_members_by_group` (`member_group_id`, `group_id`); `report_group_members_in_group` (`group_id`, `position`) reads a group's members in order.
+
+### `report_hidden`
+
+The categories the user hid from charts (D-290, D-291; layout 21), e.g. Rent in a spending pie. A hidden category leaves only the places where it would be shown on its own; it stays in its groups and formulas still count it (Q-225), and the key figures never change.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `category_id` | BLOB → `accounts.id`, primary key | A hidden category. Removing the category removes the row in the same change (ON DELETE CASCADE). KassenSturz checks when it writes that it is a category, not an account |
 
 ### `transactions`
 
@@ -319,14 +354,14 @@ The change history (D-032, D-066): one row per user action, e.g. adding an accou
 |---|---|---|
 | `id` | BLOB (16 bytes), primary key | UUIDv7 |
 | `sequence` | INTEGER, from 1, unique | The order the changes were made in. Undo and redo follow it, not `made_at`, since a computer's clock can be wrong |
-| `action` | TEXT | What the user did: `set_rounding_mode`, `use_currency`, `add_account`, `rename_account`, `close_account`, `reopen_account`, `add_category`, `rename_category`, `move_category`, `add_rate`, `remove_rate`, `add_transaction`, `edit_transaction`, `remove_transaction`, `join_transfer` (joining the two sides of a Transfer into one transaction, D-087), `add_rule`, `edit_rule`, `move_rule`, `remove_rule`, `run_rules` (running the Rules on the book's transactions, D-088), `import_statement` (importing bank statements into one account, with the Rules run on what it added, D-092), `correct_starting_balance` (correcting an account's starting balance so it holds what the bank said on a day, and noting that balance on the account, D-117), `add_institution`, `add_payee` or `add_tag` (adding a bank, a payee or a tag, D-132), or `link_bank_account`, `unlink_bank_account` (linking an account to the bank account it is filled from, or removing that link) or `fetch_statement` (fetching an account's statement from its bank, importing it, and noting the day on the link, D-148), `apply_ai_changes` (applying changes an AI prepared, after the user confirmed them, as one change, D-198), `remove_category` (removing a category that nothing uses, D-253), or `add_view`, `edit_view`, `rename_view`, `move_view` and `remove_view` (saving, changing, renaming, moving and deleting a saved view or dashboard, D-278) |
+| `action` | TEXT | What the user did: `set_rounding_mode`, `use_currency`, `add_account`, `rename_account`, `close_account`, `reopen_account`, `add_category`, `rename_category`, `move_category`, `add_rate`, `remove_rate`, `add_transaction`, `edit_transaction`, `remove_transaction`, `join_transfer` (joining the two sides of a Transfer into one transaction, D-087), `add_rule`, `edit_rule`, `move_rule`, `remove_rule`, `run_rules` (running the Rules on the book's transactions, D-088), `import_statement` (importing bank statements into one account, with the Rules run on what it added, D-092), `correct_starting_balance` (correcting an account's starting balance so it holds what the bank said on a day, and noting that balance on the account, D-117), `add_institution`, `add_payee` or `add_tag` (adding a bank, a payee or a tag, D-132), or `link_bank_account`, `unlink_bank_account` (linking an account to the bank account it is filled from, or removing that link) or `fetch_statement` (fetching an account's statement from its bank, importing it, and noting the day on the link, D-148), `apply_ai_changes` (applying changes an AI prepared, after the user confirmed them, as one change, D-198), `remove_category` (removing a category that nothing uses, D-253), `add_view`, `edit_view`, `rename_view`, `move_view` and `remove_view` (saving, changing, renaming, moving and deleting a saved view or dashboard, D-278), or `add_group`, `edit_group`, `move_group` and `remove_group` (making a category group, changing its name or members, moving it in the list and removing it, D-290) and `set_hidden_categories` (changing which categories charts hide, D-291) |
 | `made_at` | TEXT | When, ISO 8601 in UTC, in whole seconds, e.g. `2026-10-19T11:04:02Z`, by the clock of the computer it was made on |
 | `undone` | INTEGER, 0 or 1 | `1` if it is undone, so redo can make it again |
 | `file_name` | TEXT, may be NULL | The name of the file the change read, without its folder, e.g. `october.xml` for an import of that statement file, so undo can say which import it takes back (D-109). NULL for changes that read no file |
 
 ### `changed_settings`, `changed_currencies` and the other `changed_` tables
 
-For each table that holds the book's data (`settings`, `currencies`, `institutions`, `accounts`, `payees`, `tags`, `transactions`, `splits`, `split_tags`, `attachments`, `split_rates`, `split_imports`, `prices`, `rules`, `rule_conditions` and `split_rules`, `bank_links` and `views`), a table named `changed_` plus its name, e.g. `changed_accounts`, holds copies of the rows each change touched.
+For each table that holds the book's data (`settings`, `currencies`, `institutions`, `accounts`, `payees`, `tags`, `transactions`, `splits`, `split_tags`, `attachments`, `split_rates`, `split_imports`, `prices`, `rules`, `rule_conditions` and `split_rules`, `bank_links`, `views`, `report_groups`, `report_group_members` and `report_hidden`), a table named `changed_` plus its name, e.g. `changed_accounts`, holds copies of the rows each change touched.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -353,7 +388,7 @@ Every change KassenSturz makes to a book's data is a user action, recorded as on
 
 ## Migrations
 
-Every book is built by the same migrations, oldest first: a new book runs all of them on an empty database, and a book with an older layout runs the ones it lacks (D-045). The first migration builds layout 16, the starting layout of 0.1, in which the 15 development layouts from before 0.1 were merged (D-135); KassenSturz's own tests prove that it builds, table for table, what those 15 built together. The second builds layout 17: the `bank_links` table with its `changed_` table, and `changes` rebuilt with the three actions around bank links in its list (M4.4a, D-148). The third builds layout 18: `changes` rebuilt again with `apply_ai_changes` in its list (M5.5a, D-198). The fourth builds layout 19: `changes` rebuilt once more with `remove_category` in its list (grid step 4, D-253). The fifth builds layout 20: the `views` table with its `changed_` table, and `changes` rebuilt with the five view actions in its list (M6a.L, D-278). They run in one transaction, which also sets the application ID and `user_version`, so an update either finishes or leaves the book exactly as it was. Foreign keys are off while they run, so a migration can rebuild a table without deleting the rows that refer to it; every reference is checked before the transaction is committed. A book is updated only after a [backup](#backups) of it was made (AGENTS.md §3.1 rule 8). A book with a newer layout is turned away (`store.unsupported-layout`), and so is a book a development build wrote, with layout 1 to 15 (`store.development-layout`): KassenSturz doesn't update it, since the development migrations are gone; the way over is the complete export made with that build, read into a new book. A migration isn't a change in the [change history](#the-change-history): the backup made before it is the way back.
+Every book is built by the same migrations, oldest first: a new book runs all of them on an empty database, and a book with an older layout runs the ones it lacks (D-045). The first migration builds layout 16, the starting layout of 0.1, in which the 15 development layouts from before 0.1 were merged (D-135); KassenSturz's own tests prove that it builds, table for table, what those 15 built together. The second builds layout 17: the `bank_links` table with its `changed_` table, and `changes` rebuilt with the three actions around bank links in its list (M4.4a, D-148). The third builds layout 18: `changes` rebuilt again with `apply_ai_changes` in its list (M5.5a, D-198). The fourth builds layout 19: `changes` rebuilt once more with `remove_category` in its list (grid step 4, D-253). The fifth builds layout 20: the `views` table with its `changed_` table, and `changes` rebuilt with the five view actions in its list (M6a.L, D-278). The sixth builds layout 21: the `report_groups`, `report_group_members` and `report_hidden` tables with their `changed_` tables, and `changes` rebuilt with the four group actions and `set_hidden_categories` in its list (M6b.L, D-290). They run in one transaction, which also sets the application ID and `user_version`, so an update either finishes or leaves the book exactly as it was. Foreign keys are off while they run, so a migration can rebuild a table without deleting the rows that refer to it; every reference is checked before the transaction is committed. A book is updated only after a [backup](#backups) of it was made (AGENTS.md §3.1 rule 8). A book with a newer layout is turned away (`store.unsupported-layout`), and so is a book a development build wrote, with layout 1 to 15 (`store.development-layout`): KassenSturz doesn't update it, since the development migrations are gone; the way over is the complete export made with that build, read into a new book. A migration isn't a change in the [change history](#the-change-history): the backup made before it is the way back.
 
 ## Backups
 

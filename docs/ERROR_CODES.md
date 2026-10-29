@@ -388,7 +388,9 @@ Why a dataset for a chart or a card couldn't be made (M6a.1, D-277). No report r
 | `report.bad-period` | | | The period ends before it starts. Choose a last day that is not before the first day. |
 | `report.period-too-long` | | | The period is longer than 100 years. Choose a shorter one. |
 | `report.period-not-read` | | | A chart asked for days the book was not read for, so KassenSturz did not draw it rather than show figures with transactions missing. Open the page again; if it keeps happening, tell the maintainers (this is a bug). |
-| `report.document-invalid` | `reason`, `path` | `unknown-type`, `unknown-dataset`, `dataset-not-suited`, `unknown-property`, `wrong-type`, `bad-choice`, `too-long`, `bad-text` | A component of this view or dashboard doesn't fit what KassenSturz can show, so it was not used. The path says which setting (as text from the file); correct it or create the component again in the app. |
+| `report.document-invalid` | `reason`, `path` | `unknown-type`, `unknown-dataset`, `dataset-not-suited`, `unknown-property`, `wrong-type`, `bad-choice`, `too-long`, `bad-text`, `not-json`, `not-an-object`, `wrong-format`, `bad-version`, `bad-kind`, `bad-name`, `bad-id`, `duplicate-id`, `duplicate-key`, `too-deep`, `too-many-components`, `bad-frame`, `view-needs-one-component`, `view-has-frame` | A component of this view or dashboard doesn't fit what KassenSturz can show, so it was not used. The path says which setting (as text from the file); correct it or create the component again in the app. |
+| `report.document-too-big` | `max_bytes` | | This view or dashboard is bigger than {max_bytes} bytes, more than KassenSturz opens. Leave out some components. |
+| `report.unsupported-document-version` | `version` | | This view or dashboard was made by a newer KassenSturz (version {version}), so this one doesn't open it. Update KassenSturz, or use a file made by this version. |
 | `report.book-unreadable` | | | The book couldn't be read for this chart, or a total is too large for KassenSturz to work with. The detail says why; see that message. |
 
 ## Charts (`kassensturz-charts`)

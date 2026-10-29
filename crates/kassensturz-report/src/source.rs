@@ -1,13 +1,16 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! What the datasets are made from: the transactions of a period and the
-//! accounts and categories they refer to, read from the book in one read
-//! transaction so every figure comes from the same state (Q-036).
+//! What the datasets are made from: the transactions of a period, the
+//! accounts and categories they refer to, and My groups and the hide list
+//! (D-291), read from the book in one read transaction so every figure comes
+//! from the same state (Q-036).
 
 use std::collections::{HashMap, HashSet};
 
-use kassensturz_core::{Account, AccountId, AccountKind, CurrencyCode, Date, Money, Transaction};
+use kassensturz_core::{
+    Account, AccountId, AccountKind, CategoryGroup, CurrencyCode, Date, GroupId, Money, Transaction,
+};
 use kassensturz_store::{Book, CategoryEntry, StoreError};
 
 use crate::{Filter, Period, ReportError};
@@ -33,7 +36,8 @@ pub(crate) struct Part {
     pub(crate) amount: Money,
 }
 
-/// The book's transactions of a period with the accounts they use.
+/// The book's transactions of a period with the accounts they use, and the
+/// user's groups and hidden categories.
 pub struct Source {
     /// The days the transactions were read for.
     covers: Period,
@@ -41,11 +45,15 @@ pub struct Source {
     /// The categories in the order of the category tree, with their paths.
     tree: Vec<CategoryEntry>,
     transactions: Vec<Transaction>,
+    /// My groups, in the book's order.
+    groups: Vec<CategoryGroup>,
+    /// The hidden categories, as the book lists them.
+    hidden: Vec<AccountId>,
 }
 
 impl Source {
-    /// Reads the transactions booked in `period` and the accounts and
-    /// categories of the book.
+    /// Reads the transactions booked in `period`, the accounts and
+    /// categories of the book, and its groups and hidden categories.
     pub fn read(book: &Book, period: Period) -> Result<Self, ReportError> {
         book.reading(|book| {
             Ok(Self::from_parts(
@@ -53,7 +61,8 @@ impl Source {
                 book.all_accounts()?,
                 book.categories()?,
                 book.transactions_between(period.first(), period.last())?,
-            ))
+            )
+            .with_groups(book.category_groups()?, book.hidden_categories()?))
         })
     }
 
@@ -71,7 +80,51 @@ impl Source {
                 .collect(),
             tree,
             transactions,
+            groups: Vec::new(),
+            hidden: Vec::new(),
         }
+    }
+
+    /// The same `Source` with these groups and hidden categories.
+    pub(crate) fn with_groups(self, groups: Vec<CategoryGroup>, hidden: Vec<AccountId>) -> Self {
+        Self {
+            groups,
+            hidden,
+            ..self
+        }
+    }
+
+    /// The group with this ID.
+    pub(crate) fn group(&self, id: GroupId) -> Option<&CategoryGroup> {
+        self.groups.iter().find(|group| group.id == id)
+    }
+
+    /// The hidden categories, as the book lists them.
+    pub(crate) fn hidden(&self) -> &[AccountId] {
+        &self.hidden
+    }
+
+    /// Every category that is one of `roots` or inside one, with the topmost
+    /// of `roots` it is in.
+    pub(crate) fn inside(&self, roots: &HashSet<AccountId>) -> HashMap<AccountId, AccountId> {
+        let mut inside = HashMap::new();
+        for entry in &self.tree {
+            let mut current = Some(entry.category.id);
+            let mut topmost = None;
+            // A book's tree has no loop (`Book::categories` checks), but a
+            // bound keeps a wrong `Source` from hanging.
+            for _ in 0..=self.accounts.len() {
+                let Some(id) = current else { break };
+                if roots.contains(&id) {
+                    topmost = Some(id);
+                }
+                current = self.accounts.get(&id).and_then(|account| account.parent);
+            }
+            if let Some(root) = topmost {
+                inside.insert(entry.category.id, root);
+            }
+        }
+        inside
     }
 
     /// The category and its path at `position` in the tree order.
@@ -106,29 +159,11 @@ impl Source {
         if period.first() < self.covers.first() || period.last() > self.covers.last() {
             return Err(ReportError::PeriodNotRead);
         }
-        let chosen = filter.categories.as_ref().map(|chosen| {
-            let chosen: HashSet<AccountId> = chosen.iter().copied().collect();
-            // The chosen categories and everything below them.
-            self.tree
-                .iter()
-                .map(|entry| &entry.category)
-                .filter(|category| {
-                    let mut current = Some(category.id);
-                    let mut steps = 0;
-                    while let Some(id) = current {
-                        if chosen.contains(&id) {
-                            return true;
-                        }
-                        steps += 1;
-                        if steps > self.accounts.len() {
-                            return false;
-                        }
-                        current = self.accounts.get(&id).and_then(|account| account.parent);
-                    }
-                    false
-                })
-                .map(|category| category.id)
-                .collect::<HashSet<AccountId>>()
+        // The chosen categories and everything below them.
+        let chosen: Option<HashSet<AccountId>> = filter.categories.as_ref().map(|chosen| {
+            self.inside(&chosen.iter().copied().collect())
+                .into_keys()
+                .collect()
         });
         let accounts: Option<HashSet<AccountId>> = filter
             .accounts

@@ -131,6 +131,8 @@ Plus `changed_report_groups`, `changed_report_group_members` and `changed_report
 
 **The AI sees no groups and no hide list in M6b**: no read function and no change set includes them. Whether the M6c chart builder may read them is decided there, under the grid's category-read cell (D-252).
 
+**Built in M6b.4** (D-304): `Source::read` reads the groups and the hide list; `spending_by_category_shown` with `Shown` (groups, `show_hidden`, `Overlap`) gives the group rows, the hidden categories and their total for the note; `category_over_time` gives any categories and groups per month and for the period; `Source::counted` and `Source::unknown` say what a name counts and which chosen IDs the book no longer knows. The catalog, the document keys and the charts move over in M6b.5.
+
 ## 5. The formula language (D-292)
 
 **Purpose.** A key figure card or a progress bar shows a figure the user writes, spreadsheet style: `=SUM(Pets; Travel)`, `=Pets - Travel`, `=PERCENT_OF(Groceries; 'Money out')`. Clean-room: the syntax follows the public descriptions of spreadsheet formulas (the OpenDocument formula standard and LibreOffice's help pages), names and argument order only; no code of any spreadsheet is read or used (AGENTS.md §3.1 rule 5). Our own small parser in `kassensturz-report`; no new dependency.

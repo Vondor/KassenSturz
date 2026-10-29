@@ -10102,3 +10102,63 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+#: crates/kassensturz-ui-bridge/qml/KpiNames.qml:17
+#, kde-format
+msgctxt "@title:card a key figure"
+msgid "Money in"
+msgstr "Einnahmen"
+
+#: crates/kassensturz-ui-bridge/qml/KpiNames.qml:19
+#, kde-format
+msgctxt "@title:card a key figure"
+msgid "Money out"
+msgstr "Ausgaben"
+
+#: crates/kassensturz-ui-bridge/qml/KpiNames.qml:21
+#, kde-format
+msgctxt "@title:card a key figure"
+msgid "What is left"
+msgstr "Was übrig ist"
+
+#: crates/kassensturz-ui-bridge/qml/KpiNames.qml:23
+#, kde-format
+msgctxt "@title:card a key figure"
+msgid "Share you kept"
+msgstr "Anteil, den Sie behalten haben"
+
+#: crates/kassensturz-ui-bridge/qml/KpiNames.qml:33
+#, kde-format
+msgctxt "@info a figure against the earlier period"
+msgid "More than before"
+msgstr "Mehr als zuvor"
+
+#: crates/kassensturz-ui-bridge/qml/KpiNames.qml:35
+#, kde-format
+msgctxt "@info a figure against the earlier period"
+msgid "Less than before"
+msgstr "Weniger als zuvor"
+
+#: crates/kassensturz-ui-bridge/qml/KpiNames.qml:37
+#, kde-format
+msgctxt "@info a figure against the earlier period"
+msgid "The same as before"
+msgstr "Genauso viel wie zuvor"
+
+#: crates/kassensturz-ui-bridge/qml/KpiNames.qml:39
+#, kde-format
+msgctxt "@info a figure against the earlier period"
+msgid "Nothing to compare with"
+msgstr "Nichts zum Vergleichen"
+
+#: crates/kassensturz-ui-bridge/qml/KpiNames.qml:47
+#, kde-format
+msgctxt "@info the figure of the earlier period, %1 is an amount"
+msgid "Before: %1"
+msgstr "Zuvor: %1"
+
+#: crates/kassensturz-ui-bridge/qml/KpiNames.qml:51
+#, kde-format
+msgctxt "@info a figure that can't be worked out"
+msgid "No value yet"
+msgstr "Noch kein Wert"

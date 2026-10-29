@@ -242,6 +242,12 @@ impl ChangeSet {
         matches!(self.call.edits.get(&slot), Some(Some(_)))
     }
 
+    /// Whether the user changed or left out any change of the set, which
+    /// the chat hears as a fixed line once it is confirmed (D-298).
+    pub fn corrected(&self) -> bool {
+        !self.call.edits.is_empty()
+    }
+
     /// The changes the user left out, as the model prepared them.
     pub fn left_out(&self) -> impl Iterator<Item = (Slot, &ProposedChange)> {
         self.call

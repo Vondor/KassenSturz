@@ -21,7 +21,7 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 
 use kassensturz_ai::PreparedRequest;
 use kassensturz_ai_chat::{
-    Answer, Cancel, ChatError, ChatSession, DemoModel, Hooks, LogEntry, demo_provider,
+    Answer, Cancel, ChatError, ChatSession, DemoModel, Hooks, LogEntry, Outcome, demo_provider,
 };
 use kassensturz_ai_tools::requests::RequestId;
 use kassensturz_ai_tools::{
@@ -798,6 +798,17 @@ fn condition_forms(
         .collect()
 }
 
+/// What the chat hears after the user confirmed a set it prepared (D-229):
+/// that it was made, made as the user corrected it (D-298, never how), or
+/// not made.
+pub fn outcome_of(result: &Result<(), ChangeError>, corrected: bool) -> Outcome {
+    match (result, corrected) {
+        (Ok(()), true) => Outcome::ConfirmedChanged,
+        (Ok(()), false) => Outcome::Confirmed,
+        (Err(_), _) => Outcome::Failed,
+    }
+}
+
 /// Applies `set` to `book` as the user's own action: the one place in the
 /// app that makes a [`Confirmed`]. Only the confirm button of the review
 /// screen reaches it (D-171, D-200; M5.12 checks that no other code does).
@@ -1161,7 +1172,16 @@ mod tests {
 
         let before = book.history().unwrap().len();
         let set = sets.take(id).unwrap().set;
-        confirm_in(&mut book, set, all).unwrap();
+        let corrected = set.corrected();
+        let result = confirm_in(&mut book, set, all);
+        // The chat hears a fixed line that the user corrected the set (D-298).
+        assert_eq!(outcome_of(&result, corrected), Outcome::ConfirmedChanged);
+        assert_eq!(outcome_of(&result, false), Outcome::Confirmed);
+        assert_eq!(
+            outcome_of(&Err(ChangeError::OutOfDate), true),
+            Outcome::Failed
+        );
+        result.unwrap();
         assert_eq!(book.history().unwrap().len(), before + 1);
         assert_eq!(
             book.change_to_undo().unwrap().unwrap().action,

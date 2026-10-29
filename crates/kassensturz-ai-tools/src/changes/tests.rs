@@ -2897,6 +2897,7 @@ fn a_change_can_be_left_out_and_brought_back_as_the_ai_prepared_it() {
         .expect("back");
     assert_eq!(back.summary(), set.summary());
     assert_eq!(back.left_out().count(), 0);
+    assert!(!set.corrected() && without.corrected() && !back.corrected());
 
     // An edit back to what the AI wrote is no edit.
     let renamed = set

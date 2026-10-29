@@ -32,7 +32,9 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 5] = [LAYOUT_16, LAYOUT_17, LAYOUT_18, LAYOUT_19, LAYOUT_20];
+pub(crate) const MIGRATIONS: [&str; 6] = [
+    LAYOUT_16, LAYOUT_17, LAYOUT_18, LAYOUT_19, LAYOUT_20, LAYOUT_21,
+];
 
 /// The layout version the first migration creates. Layouts 1 to 15 were the
 /// development layouts from before 0.1, merged into layout 16 (D-045,
@@ -684,6 +686,95 @@ CREATE TABLE new_changes (
         'link_bank_account', 'unlink_bank_account', 'fetch_statement',
         'apply_ai_changes', 'remove_category',
         'add_view', 'edit_view', 'rename_view', 'move_view', 'remove_view'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
+    file_name TEXT
+) STRICT;
+INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
+    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
+DROP TABLE changes;
+ALTER TABLE new_changes RENAME TO changes;
+";
+
+/// Layout 21 (M6b.L, D-290): category groups and hidden categories, kept
+/// apart from the transactions and the category tree (Q-221). Nothing in
+/// these tables is ever written onto a transaction or a category; they only
+/// refer to categories by ID. `report_groups` holds each group with its name,
+/// kind and place in the list; `report_group_members` its members, each a
+/// category or another group; `report_hidden` the categories the user hid
+/// from charts. Removing a category or a group removes the rows that name it
+/// in the same change (ON DELETE CASCADE), so its Undo brings them back. The
+/// five new user actions rebuild `changes` as layouts 17 to 20 did; its rows
+/// stay as they were.
+const LAYOUT_21: &str = "
+CREATE TABLE report_groups (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    name TEXT NOT NULL CHECK (name <> '' AND name = trim(name) AND length(name) <= 200),
+    kind TEXT NOT NULL CHECK (kind IN ('expense', 'income')),
+    position INTEGER NOT NULL CHECK (position >= 0)
+) STRICT;
+CREATE UNIQUE INDEX report_groups_by_name ON report_groups (lower(name));
+CREATE TABLE report_group_members (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    group_id BLOB NOT NULL REFERENCES report_groups (id) ON DELETE CASCADE,
+    category_id BLOB REFERENCES accounts (id) ON DELETE CASCADE,
+    member_group_id BLOB REFERENCES report_groups (id) ON DELETE CASCADE
+        CHECK (member_group_id IS NULL OR member_group_id <> group_id),
+    position INTEGER NOT NULL CHECK (position >= 0),
+    CHECK ((category_id IS NULL) <> (member_group_id IS NULL))
+) STRICT;
+CREATE INDEX report_group_members_in_group ON report_group_members (group_id, position);
+CREATE UNIQUE INDEX report_group_members_by_category
+    ON report_group_members (category_id, group_id);
+CREATE UNIQUE INDEX report_group_members_by_group
+    ON report_group_members (member_group_id, group_id);
+CREATE TABLE report_hidden (
+    category_id BLOB PRIMARY KEY NOT NULL CHECK (length(category_id) = 16)
+        REFERENCES accounts (id) ON DELETE CASCADE
+) STRICT;
+CREATE TABLE changed_report_groups (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    name TEXT,
+    kind TEXT,
+    position INTEGER,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+CREATE TABLE changed_report_group_members (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    group_id BLOB,
+    category_id BLOB,
+    member_group_id BLOB,
+    position INTEGER,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+CREATE TABLE changed_report_hidden (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    category_id BLOB NOT NULL,
+    PRIMARY KEY (change_id, category_id, side)
+) STRICT;
+CREATE TABLE new_changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction', 'join_transfer',
+        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
+        'import_statement', 'correct_starting_balance',
+        'add_institution', 'add_payee', 'add_tag',
+        'link_bank_account', 'unlink_bank_account', 'fetch_statement',
+        'apply_ai_changes', 'remove_category',
+        'add_view', 'edit_view', 'rename_view', 'move_view', 'remove_view',
+        'add_group', 'edit_group', 'move_group', 'remove_group',
+        'set_hidden_categories'
     )),
     made_at TEXT NOT NULL
         CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),

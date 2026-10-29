@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 6,
+  "version": 7,
   "settings": {"rounding_mode": "half_even", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2},
@@ -28,6 +28,26 @@
     {"id": "019a0000-0000-7000-8000-000000000061", "document": "{\"format\":\"kassensturz-dashboard\",\"version\":1,\"kind\":\"dashboard\",\"name\":\"Übersicht\",\"components\":[]}"},
     {"id": "019a0000-0000-7000-8000-000000000062", "document": "{\"format\":\"kassensturz-dashboard\",\"version\":1,\"kind\":\"view\",\"name\":\"Spending \\\"by month\\\"\",\"components\":[{\"id\":\"c1\"}]}"}
   ],
+  "groups": [
+    {
+      "id": "019a0000-0000-7000-8000-000000000071",
+      "name": "Daily \"needs\"",
+      "kind": "expense",
+      "members": [
+        {"category": "019a0000-0000-7000-8000-000000000004"},
+        {"group": "019a0000-0000-7000-8000-000000000072"}
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000072",
+      "name": "Reisen",
+      "kind": "expense",
+      "members": [
+        {"category": "019a0000-0000-7000-8000-000000000006"}
+      ]
+    }
+  ],
+  "hidden_categories": ["019a0000-0000-7000-8000-000000000005"],
   "payees": [
     {
       "id": "019a0000-0000-7000-8000-000000000051",

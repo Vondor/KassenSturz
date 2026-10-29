@@ -18,16 +18,16 @@ use std::io::Read;
 use std::path::Path;
 
 use kassensturz_core::{
-    Account, AccountId, Actions, AmountTest, Attachment, BankLink, BookTo, Condition, Currency,
-    CurrencyCode, Date, DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails,
-    Institution, InstitutionId, Money, OriginalAmount, Payee, PayeeId, PayeeRecognition,
-    RateSource, Rule, RuleId, RuleNode, Split, SplitId, Tag, TagId, Transaction, TransactionId,
-    ViewId,
+    Account, AccountId, Actions, AmountTest, Attachment, BankLink, BookTo, CategoryGroup,
+    Condition, Currency, CurrencyCode, Date, DatedRate, DatedRateId, ExchangeRate, ForeignAmount,
+    GroupId, GroupMember, ImportedDetails, Institution, InstitutionId, Money, OriginalAmount,
+    Payee, PayeeId, PayeeRecognition, RateSource, Rule, RuleId, RuleNode, Split, SplitId, Tag,
+    TagId, Transaction, TransactionId, ViewId,
 };
 use serde_json::{Map, Value};
 
 use super::{
-    BookData, BookedByRule, FORMAT, KINDS, MATCH_MODES, MAX_RULE_DEPTH, RECOGNITIONS,
+    BookData, BookedByRule, FORMAT, GROUP_KINDS, KINDS, MATCH_MODES, MAX_RULE_DEPTH, RECOGNITIONS,
     ROUNDING_MODES, SOURCES, STATUSES, TEXT_FIELDS, TEXT_OPERATORS, TYPES, VERSION, ViewData,
 };
 use crate::error::{Expected, ExportError};
@@ -100,6 +100,9 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
     }
     if version >= 6 {
         keys.push("views");
+    }
+    if version >= 7 {
+        keys.extend(["groups", "hidden_categories"]);
     }
     let top = Object::new(&file, "", &keys)?;
     let mut reader = Reader {
@@ -238,6 +241,64 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         }
     }
 
+    let mut groups = Vec::new();
+    let mut hidden_categories = Vec::new();
+    if version >= 7 {
+        let mut ids = HashSet::new();
+        for ((value, path), position) in top.list("groups")?.into_iter().zip(0_u32..) {
+            let group = Object::new(value, &path, &["id", "name", "kind", "members"])?;
+            let id = GroupId::from_bytes(group.id("id")?);
+            if !ids.insert(id) {
+                return Err(ExportError::Duplicate {
+                    path: format!("{path}.id"),
+                });
+            }
+            let mut members = Vec::new();
+            let mut seen = HashSet::new();
+            for (value, path) in group.list("members")? {
+                let member = Object::new(value, &path, &["category", "group"])?;
+                let member = match (
+                    member.optional_id("category")?,
+                    member.optional_id("group")?,
+                ) {
+                    (Some(category), None) => {
+                        GroupMember::Category(AccountId::from_bytes(category))
+                    }
+                    (None, Some(inner)) => GroupMember::Group(GroupId::from_bytes(inner)),
+                    (Some(_), Some(_)) => {
+                        return Err(ExportError::UnknownValue {
+                            path: format!("{path}.group"),
+                        });
+                    }
+                    (None, None) => {
+                        return Err(ExportError::MissingValue {
+                            path: format!("{path}.category"),
+                        });
+                    }
+                };
+                if !seen.insert(member) {
+                    return Err(ExportError::Duplicate { path });
+                }
+                members.push(member);
+            }
+            groups.push(CategoryGroup {
+                id,
+                name: group.text("name")?,
+                kind: group.keyword("kind", &GROUP_KINDS)?,
+                position,
+                members,
+            });
+        }
+        let mut hidden = HashSet::new();
+        for (value, path) in top.list("hidden_categories")? {
+            let category = AccountId::from_bytes(parse_id(value, &path)?);
+            if !hidden.insert(category) {
+                return Err(ExportError::Duplicate { path });
+            }
+            hidden_categories.push(category);
+        }
+    }
+
     let mut payees = Vec::new();
     let mut tags = Vec::new();
     if version >= 4 {
@@ -367,6 +428,8 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         tags,
         bank_links,
         views,
+        groups,
+        hidden_categories,
     })
 }
 

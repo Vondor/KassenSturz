@@ -160,6 +160,20 @@ fn examples() -> Vec<ErrorReport> {
         },
         StoreError::InvalidViewDocument { reason: "bad-name" },
         StoreError::ViewDocumentTooBig { max_bytes: 1 << 20 },
+        StoreError::UnknownGroup(kassensturz_core::GroupId::generate()),
+        StoreError::GroupNameTaken {
+            name: text("Fixed costs"),
+        },
+        StoreError::GroupNameTooLong { max_chars: 200 },
+        StoreError::GroupWrongKind {
+            name: text("Salary"),
+        },
+        StoreError::GroupLoop {
+            name: text("Household"),
+        },
+        StoreError::GroupTooDeep { max_levels: 4 },
+        StoreError::TooManyGroups { max: 200 },
+        StoreError::TooManyGroupMembers { max: 500 },
         StoreError::DuplicateAccountName { existing: account },
         StoreError::AccountTypeMismatch {
             account_type: AccountType::CreditCard,

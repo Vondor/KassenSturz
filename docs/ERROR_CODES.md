@@ -111,6 +111,14 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.view-name-taken` | `name` | | There is already a view or dashboard called {name}. Choose another name. |
 | `store.view-document-invalid` | `reason` | `not-json`, `not-an-object`, `wrong-format`, `bad-version`, `bad-kind`, `bad-name` | This isn't a view or dashboard KassenSturz can keep. Nothing was changed. Create it again in the app or use a file made by KassenSturz. |
 | `store.view-document-too-big` | `max_bytes` | | This view or dashboard is bigger than {max_bytes} bytes, more than KassenSturz keeps in a book. Leave out some components. |
+| `store.unknown-group` | `group` | | This group doesn't exist (any more). Choose one from My groups. |
+| `store.group-name-taken` | `name` | | There is already a group or a category called {name}. Choose another name, so a chart or a formula can tell them apart. |
+| `store.group-name-too-long` | `max_chars` | | A group's name can have at most {max_chars} characters. Choose a shorter name. |
+| `store.group-wrong-kind` | `name` | | {name} doesn't fit this group: a spending group takes only spending categories and groups, an income group only income ones. Take it out, or put it in a group of its kind. |
+| `store.group-loop` | `name` | | {name} would end up inside itself. Take out the group that contains it. |
+| `store.group-too-deep` | `max_levels` | | Groups can go at most {max_levels} levels deep: a group, a group inside it, and so on. Put the categories into this group directly instead. |
+| `store.too-many-groups` | `max` | | A book keeps at most {max} groups. Remove a group you no longer need first. |
+| `store.too-many-group-members` | `max` | | A group can have at most {max} members. Put some of them into a group of their own and add that group instead. |
 | `store.duplicate-account-name` | `existing` | | {existing} already has this name. Choose another one, so you can tell them apart. |
 | `store.account-type-mismatch` | `account_type`, `kind` | | {account_type} doesn't fit this kind of account. Choose another type. |
 | `store.not-an-account` | `account` | | {account} is a category, not an account. Choose an account. |
@@ -404,7 +412,6 @@ Not rows yet: each code gets its row in the table above (or in the store's secti
 - `report.formula-unknown-name`, `report.formula-ambiguous-name` with `name` (and the paths to choose from), `report.formula-unknown-function` with `name`, `report.formula-arguments` with `function` and a reason keyword (M6b.6).
 - `report.formula-kinds` with a reason keyword (`amount-times-amount`, `number-over-amount`, `yes-no-in-arithmetic`, `yes-no-result`, `if-kinds-differ`), `report.formula-mixed-currencies` with `first` and `second` (M6b.6).
 - `report.formula-no-value`, `report.formula-too-large`, `report.formula-too-big` with `limit` (M6b.6).
-- `store.group-name-taken`, `store.unknown-group`, `store.group-loop`, `store.group-too-deep`, `store.group-wrong-kind`, `store.too-many-groups`, `store.not-a-category` (M6b.L, M6b.4).
 - `ai-tools.` codes for an edited change reuse the existing ones of `propose` (M6b.8); the capability check reuses the `ai.` codes of "Test connection" (M6b.9).
 
 ## Charts (`kassensturz-charts`)

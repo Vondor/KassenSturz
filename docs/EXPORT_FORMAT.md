@@ -8,7 +8,7 @@ In the command-line tool, `export FILE --format book` writes it and `create --fr
 
 ## What is in it
 
-Everything the book holds, with its IDs: the settings, the currencies with their decimal places, the banks, the accounts and categories, the payees, the tags, the saved views and dashboards, the price table, the Rules, the transactions with all their parts, what a bank or file delivered for a part, the amount a part had in a withdrawn currency before it was converted, the date and payee a part's account shows if they aren't its transaction's, the notes, numbers, status and tags of parts, the links to a transaction's documents, and which parts a Rule booked.
+Everything the book holds, with its IDs: the settings, the currencies with their decimal places, the banks, the accounts and categories, the payees, the tags, the saved views and dashboards, the category groups and the hidden categories, the price table, the Rules, the transactions with all their parts, what a bank or file delivered for a part, the amount a part had in a withdrawn currency before it was converted, the date and payee a part's account shows if they aren't its transaction's, the notes, numbers, status and tags of parts, the links to a transaction's documents, and which parts a Rule booked.
 
 Left out is the **change history** (D-032, D-066). It belongs to the book file, not to its data, so a book made from the file starts with an empty history, as a new book does. How long it keeps its history is a setting and does come along.
 
@@ -41,8 +41,9 @@ Left out is the **change history** (D-032, D-066). It belongs to the book file, 
 | 4 | The file lists the `institutions` (banks), `payees` and `tags`. An account has a `number`, `notes` and an `institution`, and may sit inside another account (`parent`); a transaction has a `note`, the date it was `entered` and `attachments` (links); a part has a `note`, a `number`, a `status` and `tags`. What the KMyMoney import used to drop (D-132). |
 | 5 | The file lists the `bank_links`: which bank account an account is filled from and the day it was last fetched, without any login data (M4.4a, D-148). |
 | 6 | The file lists the `views`: the saved views and dashboards, each with its ID and its document as JSON text (M6a.L, D-278). |
+| 7 | The file lists the `groups` (the user's category groups, with their members) and the `hidden_categories` (M6b.L, D-290). |
 
-An older file is read as version 6 without what came later: a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, so is a version 1 to 3 file with any key of version 4, and so is a version 1 to 4 file with `bank_links`, and so is a version 1 to 5 file with `views` (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three lists of version 4, a version 5 file the `bank_links` list too, and a version 6 file the `views` list too, even when they are empty (`export.missing-value`).
+An older file is read as version 7 without what came later: a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, so is a version 1 to 3 file with any key of version 4, and so is a version 1 to 4 file with `bank_links`, and so is a version 1 to 5 file with `views`, and so is a version 1 to 6 file with `groups` or `hidden_categories` (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three lists of version 4, a version 5 file the `bank_links` list too, a version 6 file the `views` list too, and a version 7 file the `groups` and `hidden_categories` lists too, even when they are empty (`export.missing-value`).
 
 ## The top level
 
@@ -56,6 +57,8 @@ An older file is read as version 6 without what came later: a version 1 file wit
   "accounts": [...],
   "bank_links": [...],
   "views": [...],
+  "groups": [...],
+  "hidden_categories": [...],
   "payees": [...],
   "tags": [...],
   "rates": [...],
@@ -67,13 +70,15 @@ An older file is read as version 6 without what came later: a version 1 file wit
 | Key | Value |
 |---|---|
 | `format` | Always `"kassensturz-book"`. A JSON file without it isn't a complete export (`export.not-a-book`). |
-| `version` | The [version](#versions) of the format: `5`. |
+| `version` | The [version](#versions) of the format: `7`. |
 | `settings` | The book's [settings](#settings). |
 | `currencies` | The [currencies](#currencies) the book uses. |
 | `institutions` | The [banks](#banks) the accounts are held at. Version 4 and later. |
 | `accounts` | The [accounts and categories](#accounts-and-categories). |
 | `bank_links` | The [bank links](#bank-links): which bank account an account is filled from. Version 5 and later. |
 | `views` | The [saved views and dashboards](#views-and-dashboards). Version 6 and later. |
+| `groups` | The [category groups](#category-groups-and-hidden-categories). Version 7 and later. |
+| `hidden_categories` | The IDs of the [categories hidden from charts](#category-groups-and-hidden-categories). Version 7 and later. |
 | `payees` | The [payees](#payees) with their details. Version 4 and later. |
 | `tags` | The [tags](#tags) parts can carry. Version 4 and later. |
 | `rates` | The [price table](#rates). |
@@ -148,6 +153,21 @@ One object per saved view or dashboard (D-278), dashboards first, each kind in t
 |---|---|
 | `id` | The document's ID. Unique. |
 | `document` | The document as **JSON text** (a string, not a nested object), exactly as the book keeps it, so a round trip changes nothing. It says its own `kind` (`view` or `dashboard`), `name` and `version`; the book relies on those three keys, on `format` being `kassensturz-dashboard` and on a size of at most 1 MiB when it is filled (`store.view-document-invalid`, `store.view-document-too-big`, `store.view-name-taken`). Everything else in it is checked when it is used, by the reporting layer (D-281). |
+
+### Category groups and hidden categories
+
+`groups` has one object per category group ("My groups", D-290), in the order of their list in the book. Version 7 and later. Groups and hidden categories never change a category, a transaction or a total; they are ways of looking at the figures, which the reports read (D-291).
+
+| Key | Value |
+|---|---|
+| `id` | The group's ID. Unique. |
+| `name` | Its name: 1 to 200 characters, no spaces around it, unique among the groups ignoring capitals (`store.group-name-taken`). In a file it may be a category's name too, as it may become in a book once a category gets that name. |
+| `kind` | `expense` or `income`: every member is a category or group of this kind (`store.group-wrong-kind`). |
+| `members` | Its members in their order, each an object with exactly one key: `category` with a category's ID, or `group` with another group's ID, which may come later in the list. A member is in a group once (`export.duplicate`). |
+
+The book checks when it is filled that every member is in the file and of the group's kind (`store.unknown-account`, `store.not-a-category`, `store.unknown-group`), that no group ends up inside itself (`store.group-loop`), that groups go at most four levels deep (`store.group-too-deep`), and that there are at most 200 groups with at most 500 members each (`store.too-many-groups`, `store.too-many-group-members`).
+
+`hidden_categories` lists the IDs of the categories the user hid from charts, each once (`export.duplicate`); each must be a category in the file (`store.unknown-account`, `store.not-a-category`). A hidden category stays in its groups (Q-225).
 
 ### Payees
 
@@ -262,12 +282,12 @@ If a JSON object has the same key twice, the last one counts, as most JSON libra
 
 ## Example
 
-A book with one account, one category and one transaction:
+A book with one account, one category in one group, and one transaction:
 
 ```json
 {
   "format": "kassensturz-book",
-  "version": 6,
+  "version": 7,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2}
@@ -281,6 +301,17 @@ A book with one account, one category and one transaction:
     {"account": "019a0000-0000-7000-8000-000000000001", "iban": "DE89370400440532013000", "bank_code": null, "number": null, "last_fetched": "2026-10-05"}
   ],
   "views": [],
+  "groups": [
+    {
+      "id": "019a0000-0000-7000-8000-000000000006",
+      "name": "Daily needs",
+      "kind": "expense",
+      "members": [
+        {"category": "019a0000-0000-7000-8000-000000000002"}
+      ]
+    }
+  ],
+  "hidden_categories": [],
   "payees": [],
   "tags": [],
   "rates": [],

@@ -12,6 +12,7 @@
 mod backup;
 mod bank_links;
 mod cached;
+mod category_groups;
 mod details;
 mod error;
 mod fill;

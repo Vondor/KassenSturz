@@ -1,6 +1,6 @@
 # Error codes
 
-KassenSturz's Rust crates never produce user-facing text (D-034). Every error in `kassensturz-core`, `kassensturz-store`, `kassensturz-import`, `kassensturz-export`, `kassensturz-bank`, `kassensturz-platform` and `kassensturz-ai-tools` turns into an error report (`kassensturz_core::ErrorReport`, through the `Report` trait):
+KassenSturz's Rust crates never produce user-facing text (D-034). Every error in `kassensturz-core`, `kassensturz-store`, `kassensturz-import`, `kassensturz-export`, `kassensturz-bank`, `kassensturz-platform`, `kassensturz-report` and `kassensturz-ai-tools` turns into an error report (`kassensturz_core::ErrorReport`, through the `Report` trait):
 
 - a **code**, such as `store.account-closed`;
 - named, typed **parameters**, such as the account that is closed;
@@ -10,12 +10,12 @@ The UI keeps one translated message per code and fills in the parameters (D-084)
 
 The app's own checks of what the user typed, e.g. an amount in the wrong regional format, aren't errors of core or store: their codes start with `input.`, they live in `kassensturz-ui-bridge` and aren't listed here (D-089). The same goes for the app's own problems opening a book, whose codes start with `book.` (D-113).
 
-This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, one in `kassensturz-export` (`src/error/tests.rs`) against the `export.` codes, and one in `kassensturz-bank` (`src/error/tests.rs`) against the `bank.` codes, and one in `kassensturz-platform` (`src/error/tests.rs`) against the `platform.` codes, and one in `kassensturz-ai` (`src/error/tests.rs`) against the `ai.` codes, and one in `kassensturz-ai-tools` (`src/error.rs`) against the `ai-tools.` codes, and one in `kassensturz-ai-chat` (`src/error.rs`) against the `ai-chat.` codes, all with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
+This list is the reference for that. A test in `kassensturz-store` (`src/error/tests.rs`) checks it against the code of core and store, and one in `kassensturz-import` (`src/error/tests.rs`) against the `import.` codes, one in `kassensturz-export` (`src/error/tests.rs`) against the `export.` codes, and one in `kassensturz-bank` (`src/error/tests.rs`) against the `bank.` codes, and one in `kassensturz-platform` (`src/error/tests.rs`) against the `platform.` codes, and one in `kassensturz-ai` (`src/error/tests.rs`) against the `ai.` codes, and one in `kassensturz-ai-tools` (`src/error.rs`) against the `ai-tools.` codes, and one in `kassensturz-ai-chat` (`src/error.rs`) against the `ai-chat.` codes, and one in `kassensturz-report` (`src/error.rs`) against the `report.` codes, all with the same reader of this list (`kassensturz-store/src/error/list.rs`), so every code, parameter and keyword below exists, and every error is listed. An error added in a later step gets its row here in the same pull request.
 
 ## Rules
 
 - **Codes are stable.** A code keeps its meaning. One that is no longer needed is retired, never given to another error. Before 0.1, codes can still change, like the book's layout (D-045).
-- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import`, `export`, `bank`, `platform`, `ai` or `ai-tools`. Damage found in a book starts with `store.corrupt`.
+- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import`, `export`, `bank`, `platform`, `report`, `ai` or `ai-tools`. Damage found in a book starts with `store.corrupt`.
 - **Parameters** are listed in the order the report gives them. A name ending in `?` is optional: the report leaves it out when it isn't known.
 - **Parameter types** (`ErrorParam`):
   - Amounts (`Money`), currencies, dates and timestamps stay typed. The UI formats them for the user's locale (D-002, D-065) and shows timestamps in the user's time zone.
@@ -374,3 +374,13 @@ A question in the chat ended without an answer (D-190, D-193). Errors of the pro
 | `ai-chat.too-many-rounds` | | | The AI kept asking KassenSturz for data without answering, so KassenSturz stopped it. Ask a narrower question, or try another model. |
 | `ai-chat.tool-call-as-text` | | | The AI model wrote a function call as plain text instead of making the call, so nothing was done. Ask again, or try another model; this one doesn't work well with KassenSturz's functions. |
 | `ai-chat.book-unreadable` | | | The book couldn't be read for the overview a model without functions gets. The detail says why; see that message. |
+
+## The reporting layer (`kassensturz-report`)
+
+Why a dataset for a chart or a card couldn't be made (M6a.1, D-277). No report repeats text from the book.
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `report.bad-period` | | | The period ends before it starts. Choose a last day that is not before the first day. |
+| `report.period-too-long` | | | The period is longer than 100 years. Choose a shorter one. |
+| `report.book-unreadable` | | | The book couldn't be read for this chart, or a total is too large for KassenSturz to work with. The detail says why; see that message. |

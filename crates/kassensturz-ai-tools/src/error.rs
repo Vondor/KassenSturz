@@ -160,7 +160,7 @@ mod tests {
 
     use super::list::{check, documented, unused};
     use super::*;
-    use crate::changes::{ARGUMENTS as CHANGE_ARGUMENTS, ChangeError};
+    use crate::changes::{ARGUMENTS as CHANGE_ARGUMENTS, ChangeError, EditError};
     use crate::functions::ARGUMENTS;
 
     /// One error of each kind. A new error needs an example here.
@@ -255,6 +255,19 @@ mod tests {
             ChangeError::OutOfDate,
             ChangeError::NotApplied(StoreError::AmountOverflow),
             ChangeError::NotAllowed,
+        ] {
+            let report = error.report();
+            assert!(report.code.starts_with("ai-changes."), "{}", report.code);
+            check(&report, &rows, &mut seen);
+        }
+        // The user's corrections of a set before confirming it (D-297).
+        for error in [
+            EditError::NotEditable,
+            EditError::Text,
+            EditError::NameTaken,
+            EditError::InUse,
+            EditError::NotAllowed,
+            EditError::Refused(ToolError::UnknownCategory),
         ] {
             let report = error.report();
             assert!(report.code.starts_with("ai-changes."), "{}", report.code);

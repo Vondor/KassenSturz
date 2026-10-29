@@ -10577,3 +10577,317 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:51
+#, kde-format
+msgctxt "@item:inlistbox what a Rule looks at"
+msgid "Money received"
+msgstr "Erhaltenes Geld"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:52
+#, kde-format
+msgctxt "@item:inlistbox what a Rule looks at"
+msgid "Money paid"
+msgstr "Bezahltes Geld"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:141
+#, kde-format
+msgctxt "@info the user edited a change the AI prepared"
+msgid "Changed by you"
+msgstr "Von Ihnen geändert"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:152
+#, kde-format
+msgctxt "@action:button undo the user's edit of a prepared change"
+msgid "Back to the AI's version"
+msgstr "Zurück zur Fassung der KI"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:159
+#, kde-format
+msgctxt "@action:button edit a prepared change"
+msgid "Change"
+msgstr "Ändern"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:165
+#, kde-format
+msgctxt "@action:button leave a prepared change out of the set"
+msgid "Leave out"
+msgstr "Weglassen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:178
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Title:"
+msgstr "Titel:"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:182
+#, kde-format
+msgctxt "@label:textbox"
+msgid "The chart's title"
+msgstr "Der Titel des Diagramms"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:183
+#, kde-format
+msgctxt "@label:textbox"
+msgid "The name"
+msgstr "Der Name"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:190
+#, kde-format
+msgctxt "@label:listbox the category a new one goes inside"
+msgid "Inside:"
+msgstr "Innerhalb von:"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:192
+#, kde-format
+msgctxt "@item:inlistbox a category at the top, inside no other"
+msgid "At the top"
+msgstr "Ganz oben"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:201
+#, kde-format
+msgctxt "@label:listbox the category a Rule books to"
+msgid "Books to:"
+msgstr "Bucht auf:"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:210
+#, kde-format
+msgctxt "@label:listbox"
+msgid "When:"
+msgstr "Wann:"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:212
+#, kde-format
+msgctxt "@item:inlistbox when a Rule matches"
+msgid "All of these hold"
+msgstr "Alle diese gelten"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:212
+#, kde-format
+msgctxt "@item:inlistbox when a Rule matches"
+msgid "One of these holds"
+msgstr "Eine davon gilt"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:213
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Whether all conditions or one must hold"
+msgstr "Ob alle Bedingungen oder eine gelten müssen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:219
+#, kde-format
+msgctxt "@label:listbox the way a chart shows its figures"
+msgid "Shown as:"
+msgstr "Dargestellt als:"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:222
+#, kde-format
+msgctxt "@label:listbox"
+msgid "The kind of chart"
+msgstr "Die Art des Diagramms"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:228
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Period:"
+msgstr "Zeitraum:"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:231
+#, kde-format
+msgctxt "@label:listbox"
+msgid "The period the chart shows"
+msgstr "Der Zeitraum, den das Diagramm zeigt"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:273
+#, kde-format
+msgctxt "@label:textbox"
+msgid "The text to look for"
+msgstr "Der gesuchte Text"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:318
+#, kde-format
+msgctxt "@action:button keep the user's edit of a prepared change"
+msgid "Use my change"
+msgstr "Meine Änderung übernehmen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:200
+#, kde-format
+msgctxt "@info %1 is a date, %2 who was paid or paid, %3 an amount"
+msgid "%1 · %2 · %3"
+msgstr "%1 · %2 · %3"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:206
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "New category"
+msgstr "Neue Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:208
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Changed category"
+msgstr "Geänderte Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:210
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Category to delete"
+msgstr "Kategorie zum Löschen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:212
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "New Rule"
+msgstr "Neue Regel"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:214
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Changed Rule"
+msgstr "Geänderte Regel"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:216
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Rule in a new place"
+msgstr "Regel an neuer Stelle"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:218
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Rule to delete"
+msgstr "Regel zum Löschen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:220
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Transaction that gets a category"
+msgstr "Umsatz, der eine Kategorie bekommt"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:222
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Transaction that changes"
+msgstr "Umsatz, der sich ändert"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:224
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Payment in cash that is added"
+msgstr "Barzahlung, die hinzugefügt wird"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:226
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Payment in cash that is removed"
+msgstr "Barzahlung, die entfernt wird"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:228
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "New account"
+msgstr "Neues Konto"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:230
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Changed account"
+msgstr "Geändertes Konto"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:232
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "New chart"
+msgstr "Neues Diagramm"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:323
+#, kde-format
+msgctxt "@info"
+msgid ""
+"You can change a new category, a new Rule, the category a transaction gets "
+"and a new chart before you confirm, or leave any change out. What you change "
+"stays between you and KassenSturz: it isn't sent to the AI."
+msgstr ""
+"Vor dem Bestätigen können Sie eine neue Kategorie, eine neue Regel, die "
+"Kategorie eines Umsatzes und ein neues Diagramm ändern oder jede Änderung "
+"weglassen. Was Sie ändern, bleibt zwischen Ihnen und KassenSturz: Es wird "
+"nicht an die KI gesendet."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:330
+#, kde-format
+msgctxt "@info"
+msgid ""
+"You left every change out, so there is nothing to confirm. Put a change back "
+"below, or throw the changes away."
+msgstr ""
+"Sie haben alle Änderungen weggelassen, es gibt also nichts zu bestätigen. "
+"Nehmen Sie unten eine Änderung wieder auf oder verwerfen Sie die Änderungen."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1169
+#, kde-format
+msgctxt "@title:group prepared changes the user left out"
+msgid "Left out"
+msgstr "Weggelassen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1202
+#, kde-format
+msgctxt ""
+"@action:button bring a prepared change the user left out back into the set"
+msgid "Put it back"
+msgstr "Wieder aufnehmen"
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:110
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This change can't be changed that way, so your change wasn't kept. Leave the "
+"change out, or take the AI's version."
+msgstr ""
+"Diese Änderung lässt sich so nicht ändern, Ihre Änderung wurde also nicht "
+"übernommen. Lassen Sie die Änderung weg oder nehmen Sie die Fassung der KI."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:112
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A name, title or text to look for can't be empty, can be at most 100 "
+"characters long (a chart's title 200) and can't hold line breaks or hidden "
+"characters. Your change wasn't kept; type it again."
+msgstr ""
+"Ein Name, Titel oder gesuchter Text darf nicht leer sein, höchstens 100 "
+"Zeichen lang sein (der Titel eines Diagramms 200) und keine Zeilenumbrüche "
+"oder versteckten Zeichen enthalten. Ihre Änderung wurde nicht übernommen; "
+"geben Sie ihn noch einmal ein."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:114
+#, kde-format
+msgctxt "@info"
+msgid ""
+"That name is already used there. Your change wasn't kept; pick another name."
+msgstr ""
+"Dieser Name wird dort schon verwendet. Ihre Änderung wurde nicht übernommen;"
+" wählen Sie einen anderen Namen."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:116
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Another change uses this new category, for example a Rule that books to it, "
+"so it can't be left out alone. Change or leave out that change first."
+msgstr ""
+"Eine andere Änderung verwendet diese neue Kategorie, zum Beispiel eine "
+"Regel, die auf sie bucht. Deshalb kann sie nicht allein weggelassen werden. "
+"Ändern Sie diese Änderung zuerst oder lassen Sie sie weg."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:118
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz can't make the change this way, for example because the category "
+"is of another kind or currency, or the chart doesn't suit its figures. Your "
+"change wasn't kept; choose something else, or take the AI's version."
+msgstr ""
+"KassenSturz kann die Änderung so nicht vornehmen, zum Beispiel weil die "
+"Kategorie von einer anderen Art oder Währung ist oder das Diagramm nicht zu "
+"seinen Zahlen passt. Ihre Änderung wurde nicht übernommen; wählen Sie etwas "
+"anderes oder nehmen Sie die Fassung der KI."

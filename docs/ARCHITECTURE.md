@@ -28,7 +28,8 @@ kassensturz/
 │   ├── kassensturz-plugin-api/     # stable, versioned plugin interface (after 1.0, D-071)
 │   ├── kassensturz-plugin-host/    # loads and sandboxes WASM plugins (D-007; after 1.0, D-071)
 │   ├── kassensturz-platform/       # keychain, config paths, notifications behind traits
-│   ├── kassensturz-charts/         # ChartProvider interface + implementations
+│   ├── kassensturz-charts/         # the chart model types of the ChartProvider boundary (text labels, drawing values, text table; no Qt) — D-276; KQuickCharts itself is a QML module (D-275)
+│   ├── kassensturz-report/         # the report designer's reporting layer: read-only datasets, periods, filters, exact totals, calculated metrics, the dashboard document and its limits (M6, D-277, D-278)
 │   ├── kassensturz-ai/             # LLM provider abstraction (OpenAI-compatible adapter in v1), consent, redaction
 │   ├── kassensturz-ai-chat/        # the chat: the loop of the read functions with a provider, the number check, the tool-call log, the fake model (D-190)
 │   ├── kassensturz-ai-tools/       # the fixed list of read functions the AI may call, the overview, the number check, change sets (D-170); shared by chat and MCP

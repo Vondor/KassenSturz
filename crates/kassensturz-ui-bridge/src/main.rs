@@ -56,6 +56,8 @@ mod parse;
 mod parts_entry;
 mod plain_text_audit;
 mod platform;
+mod properties;
+mod properties_model;
 mod register;
 mod register_model;
 mod rules;

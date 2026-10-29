@@ -16,16 +16,19 @@
 //! with the user's locale (D-065). The crate has no UI, AI or network code.
 
 mod catalog;
+mod component;
 mod error;
 mod filter;
 mod metrics;
 mod monthly;
 mod period;
+mod schema;
 mod source;
 mod spending;
 mod text;
 
 pub use catalog::{CATALOG, DatasetInfo, dataset};
+pub use component::Component;
 pub use error::ReportError;
 pub use filter::Filter;
 pub use metrics::{
@@ -36,11 +39,14 @@ pub use monthly::{
     INCOME_EXPENSE_BY_MONTH, IncomeExpenseByMonth, MonthRow, income_expense_by_month,
 };
 pub use period::{MAX_MONTHS, Period};
+pub use schema::{ComponentType, Kind, MAX_TEXT_CHARS, Place, Property, Setting, dataset_for};
 pub use source::Source;
 pub use spending::{
     CategoryRow, Level, SPENDING_BY_CATEGORY, SpendingByCategory, spending_by_category,
 };
 pub use text::{TextFormat, TextTable};
 
+#[cfg(test)]
+mod component_tests;
 #[cfg(test)]
 mod tests;

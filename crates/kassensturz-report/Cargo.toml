@@ -15,6 +15,7 @@ publish.workspace = true
 kassensturz-core.workspace = true
 kassensturz-store.workspace = true
 jiff.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 kassensturz-store = { workspace = true, features = ["bundled-sqlite"] }

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-28 23:42+0000\n"
+"POT-Creation-Date: 2026-10-29 04:09+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -4429,118 +4429,118 @@ msgstr "Eine Regel verschoben"
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:64
 #, kde-format
 msgctxt "@info a change you made"
-msgid "Removed a category"
-msgstr "Eine Kategorie entfernt"
-
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:64
-#, kde-format
-msgctxt "@info a change you made"
 msgid "Saved a view or dashboard"
 msgstr "Eine Ansicht oder ein Dashboard gespeichert"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:64
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:66
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Changed a view or dashboard"
 msgstr "Eine Ansicht oder ein Dashboard geändert"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:64
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:68
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Renamed a view or dashboard"
 msgstr "Eine Ansicht oder ein Dashboard umbenannt"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:64
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:70
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Moved a view or dashboard"
 msgstr "Eine Ansicht oder ein Dashboard verschoben"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:64
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:72
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Deleted a view or dashboard"
 msgstr "Eine Ansicht oder ein Dashboard gelöscht"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:66
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:74
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Removed a category"
+msgstr "Eine Kategorie entfernt"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:76
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Removed a rule"
 msgstr "Eine Regel entfernt"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:68
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:78
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Sorted transactions with your rules"
 msgstr "Buchungen mit Ihren Regeln zugeordnet"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:70
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:80
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Imported a bank statement"
 msgstr "Einen Kontoauszug importiert"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:72
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:82
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Corrected a starting balance"
 msgstr "Einen Anfangsbestand korrigiert"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:74
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:84
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Added a bank"
 msgstr "Eine Bank hinzugefügt"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:76
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:86
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Added someone you pay or get money from"
 msgstr "Einen Zahlungspartner hinzugefügt"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:78
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:88
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Added a tag"
 msgstr "Ein Schlagwort hinzugefügt"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:80
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:90
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Linked an account to your bank"
 msgstr "Ein Konto mit Ihrer Bank verknüpft"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:82
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:92
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Removed an account's link to your bank"
 msgstr "Die Verknüpfung eines Kontos mit Ihrer Bank entfernt"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:84
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:94
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Fetched new transactions from your bank"
 msgstr "Neue Buchungen von Ihrer Bank abgerufen"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:89
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:99
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Applied suggested changes"
 msgstr "Vorgeschlagene Änderungen übernommen"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:93
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:103
 #, kde-format
 msgctxt "@info a change you made that this version doesn't know"
 msgid "Made a change"
 msgstr "Eine Änderung vorgenommen"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:102
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:112
 #, kde-format
 msgctxt "@info %1 is what was done, %2 the name of a file"
 msgid "%1 (%2)"
 msgstr "%1 (%2)"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:112
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:122
 #, kde-format
 msgctxt "@info"
 msgid "%1 transaction added"
@@ -4548,7 +4548,7 @@ msgid_plural "%1 transactions added"
 msgstr[0] "%1 Buchung hinzugefügt"
 msgstr[1] "%1 Buchungen hinzugefügt"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:115
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:125
 #, kde-format
 msgctxt "@info"
 msgid "%1 transaction removed"
@@ -4556,7 +4556,7 @@ msgid_plural "%1 transactions removed"
 msgstr[0] "%1 Buchung entfernt"
 msgstr[1] "%1 Buchungen entfernt"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:118
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:128
 #, kde-format
 msgctxt "@info"
 msgid "%1 transaction changed"
@@ -4564,11 +4564,123 @@ msgid_plural "%1 transactions changed"
 msgstr[0] "%1 Buchung geändert"
 msgstr[1] "%1 Buchungen geändert"
 
-#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:129
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:139
 #, kde-format
 msgctxt "@info %1 and %2 are dates"
 msgid "%1 to %2"
 msgstr "%1 bis %2"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:29
+#, kde-format
+msgctxt "@title:column a table of a chart"
+msgid "Category"
+msgstr "Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:31
+#, kde-format
+msgctxt "@title:column a table of a chart"
+msgid "Total"
+msgstr "Summe"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:33
+#, kde-format
+msgctxt "@title:column a table of a chart"
+msgid "Month"
+msgstr "Monat"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:35
+#, kde-format
+msgctxt "@title:column a table of a chart"
+msgid "Money in"
+msgstr "Geld rein"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:37
+#, kde-format
+msgctxt "@title:column a table of a chart"
+msgid "Money out"
+msgstr "Geld raus"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:39
+#, kde-format
+msgctxt "@title:column a table of a chart"
+msgid "Left over"
+msgstr "Übrig"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:49
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:59
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:50
+#, kde-format
+msgctxt "@label money with no category yet"
+msgid "Not sorted yet"
+msgstr "Noch nicht zugeordnet"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:58
+#, kde-format
+msgctxt "@label"
+msgid "Values of the chart as a table"
+msgstr "Werte des Diagramms als Tabelle"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:48
+#, kde-format
+msgctxt "@label a series of a chart"
+msgid "Spending"
+msgstr "Ausgaben"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:50
+#, kde-format
+msgctxt "@label a series of a chart"
+msgid "Money in"
+msgstr "Geld rein"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:52
+#, kde-format
+msgctxt "@label a series of a chart"
+msgid "Money out"
+msgstr "Geld raus"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:71
+#, kde-format
+msgctxt "@label %1 is a series like Money in, %2 an amount"
+msgid "%1: %2"
+msgstr "%1: %2"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:74
+#, kde-format
+msgctxt "@label %1 is a category or month, %2 the values there"
+msgid "%1: %2"
+msgstr "%1: %2"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:78
+#, kde-format
+msgctxt ""
+"@label %1 is the title, %2 the number of points, %3 the currency, %4 an "
+"amount"
+msgid "%1. %2 values in %3, total %4."
+msgstr "%1. %2 Werte in %3, insgesamt %4."
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:342
+#, kde-format
+msgctxt "@label %1 is an amount of money"
+msgid "Total spent: %1"
+msgstr "Insgesamt ausgegeben: %1"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:343
+#, kde-format
+msgctxt "@label %1 is an amount of money"
+msgid "Left over in total: %1"
+msgstr "Insgesamt übrig: %1"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:356
+#, kde-format
+msgctxt "@action:button"
+msgid "Show as chart"
+msgstr "Als Diagramm anzeigen"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:357
+#, kde-format
+msgctxt "@action:button"
+msgid "Show as table"
+msgstr "Als Tabelle anzeigen"
 
 #: crates/kassensturz-ui-bridge/qml/CsvColumnBox.qml:31
 #, kde-format
@@ -7638,12 +7750,6 @@ msgstr "Mehr ausgegeben als reingekommen: %1"
 msgctxt "@label %1 is an amount of money"
 msgid "Left over: %1"
 msgstr "Übrig: %1"
-
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:50
-#, kde-format
-msgctxt "@label money with no category yet"
-msgid "Not sorted yet"
-msgstr "Noch nicht zugeordnet"
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:56
 #, kde-format

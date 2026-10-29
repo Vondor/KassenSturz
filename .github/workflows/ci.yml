@@ -326,7 +326,10 @@ jobs:
             qml6-module-org-kde-desktop qml6-module-org-kde-ki18n qml6-module-org-kde-kirigami \
             qml6-module-org-kde-kirigamiaddons-formcard qml6-module-qtquick-dialogs \
             qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools rustup zstd \
-            libaqbanking-dev libgwenhywfar-core-dev libgwengui-qt6-dev
+            libaqbanking-dev libgwenhywfar-core-dev libgwengui-qt6-dev \
+            python3-minimal qml-qt6 qml6-module-org-kde-quickcharts qml6-module-qtquick-controls \
+            qml6-module-qtquick-layouts qml6-module-qtquick-templates qml6-module-qtquick-window \
+            qml6-module-qtqml-workerscript xvfb libgl1-mesa-dri
       # The versions the bindings were made for (D-138); the Rust test below
       # loads the libraries by their ABI names.
       - name: AqBanking and Gwenhywfar are the pinned versions
@@ -395,6 +398,11 @@ jobs:
           HOME="$PWD/build/mcp-home" XDG_CONFIG_HOME="$PWD/build/mcp-home/.config" \
             build/stage/usr/bin/kassensturz-mcp < /dev/null || status=$?
           test "$status" -eq 2
+      # KQuickCharts draws the charts (D-275). It is a QML module the app
+      # imports at run time, so nothing else in this job would notice it
+      # missing; this draws every chart kind and looks at the pictures (M6a.4).
+      - name: KQuickCharts is installed and draws every chart kind (D-275)
+        run: tools/check-charts.sh
       - name: Tests, with the system's SQLite
         run: cargo test --workspace --no-default-features --features ai --locked
         env:

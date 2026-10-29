@@ -174,10 +174,17 @@ FormCard.FormCardPage {
 
         FormCard.FormDelegateSeparator {}
 
-        FormCard.FormTextDelegate {
+        // Opens the book's folder in the file manager (M5-F2). In the
+        // Flatpak this goes through the desktop portal, so it works from the
+        // sandbox.
+        FormCard.FormButtonDelegate {
+            icon.name: "folder-open"
             text: page.i18nContext.i18nc("@label the folder a file is in", "Folder")
             description: page.session.folder
             descriptionItem.textFormat: Text.PlainText
+            Controls.ToolTip.visible: hovered
+            Controls.ToolTip.text: page.i18nContext.i18nc("@info:tooltip", "Open this folder in the file manager")
+            onClicked: Qt.openUrlExternally(page.session.folderUrl)
         }
 
         FormCard.FormDelegateSeparator {}

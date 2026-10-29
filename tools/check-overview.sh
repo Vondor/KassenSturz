@@ -21,12 +21,12 @@ cd "$(dirname "$0")/.."
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 qml=crates/kassensturz-ui-bridge/qml
-for name in OverviewMonth KpiCard KpiNames ProgressMeter AmountLabel ChartView ChartTable ChartPalette; do
+for name in OverviewMonth KpiCard KpiNames ProgressMeter AmountLabel ChartView ChartTable ChartPalette DataTable; do
     cp "$qml/$name.qml" "$work"
 done
 cp crates/kassensturz-ui-bridge/qml-tests/OverviewSmoke.qml "$work"
 printf 'singleton ChartPalette 1.0 ChartPalette.qml\n' > "$work/qmldir"
-for name in OverviewMonth KpiCard KpiNames ProgressMeter AmountLabel ChartView ChartTable; do
+for name in OverviewMonth KpiCard KpiNames ProgressMeter AmountLabel ChartView ChartTable DataTable; do
     printf '%s 1.0 %s.qml\n' "$name" "$name" >> "$work/qmldir"
 done
 

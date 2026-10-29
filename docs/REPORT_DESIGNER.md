@@ -10,7 +10,7 @@ Nothing here changes how money is stored or computed. Charts show numbers that R
 
 | | KQuickCharts (KDE Frameworks) | Qt Charts | Qt Graphs (2D) | Own QML Canvas layer |
 |---|---|---|---|---|
-| License | `LGPL-3.0-or-later` with the KDE e.V. option (the copyright file says `LGPL-3+KDEeV`); `src/shaders/sdf.glsl` MIT; tests BSD-2-Clause | `GPL-3.0-or-later` (Qt GPL module) | `GPL-3.0-only` (Qt GPL module) | ours, `GPL-3.0-or-later` |
+| License | `LGPL-3.0-or-later` with the KDE e.V. option (the copyright file says `LGPL-3+KDEeV`); `src/shaders/sdf.glsl` MIT; tests BSD-2-Clause | `GPL-3.0-only` or commercial (Qt's licensing text says "GNU General Public License, version 3"; Debian's copyright file writes `GPL-3+`, which we do not rely on) | `GPL-3.0-only` (Qt GPL module) | ours, `GPL-3.0-or-later` |
 | With GPL-3.0-or-later | Yes, as a dynamically loaded QML plugin; keeps "or later" | Yes, but the whole build is then GPL-3.0 only (D-001) | Same | Yes |
 | Chart types | `LineChart` (also filled: area; `stacked`), `BarChart` (`stacked`), `PieChart` (`thickness` gives a donut) | line, bar, pie, area, and more | line, bar, pie, and more (QML `GraphsView`) | whatever we draw |
 | Axes, grid, labels | **None built in**: a chart item draws the data only; `Legend`, `LegendDelegate`, `LineChartControl` and `PieChartControl` in `org.kde.quickcharts.controls`. We draw axis labels and grid lines ourselves | built in | built in (rendered in the scene: axes, grid, labels) | ours |
@@ -166,6 +166,6 @@ The final table is in `docs/ROADMAP.md` (row "M6 steps"). The Sprints: M6a = M6.
 
 ## 10. Questions for the maintainer (through the coordinator)
 
-- **Q-214** Approve KQuickCharts as a dependency (D-275)? Recommended: yes (R).
+- **Q-214** Approve KQuickCharts as a dependency (D-275)? **Answered A (R), yes, by the maintainer on 2026-10-29.**
 - **Q-215** What does the default Overview contain? Proposal: balance and net worth KPI cards, income and expenses of the last 12 months (line), spending by category this month (donut), the five largest categories (table).
 - **Q-216** Budget model for M6c? Proposal: a monthly limit per category (D-029), shown as a progress bar (R).

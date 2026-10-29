@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 5,
+  "version": 6,
   "settings": {"rounding_mode": "half_even", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2},
@@ -23,6 +23,10 @@
   "bank_links": [
     {"account": "019a0000-0000-7000-8000-000000000001", "iban": "DE89370400440532013000", "bank_code": "37040044", "number": null, "last_fetched": "2026-10-08"},
     {"account": "019a0000-0000-7000-8000-000000000007", "iban": null, "bank_code": "37040044", "number": "0532013001", "last_fetched": null}
+  ],
+  "views": [
+    {"id": "019a0000-0000-7000-8000-000000000061", "document": "{\"format\":\"kassensturz-dashboard\",\"version\":1,\"kind\":\"dashboard\",\"name\":\"Übersicht\",\"components\":[]}"},
+    {"id": "019a0000-0000-7000-8000-000000000062", "document": "{\"format\":\"kassensturz-dashboard\",\"version\":1,\"kind\":\"view\",\"name\":\"Spending \\\"by month\\\"\",\"components\":[{\"id\":\"c1\"}]}"}
   ],
   "payees": [
     {

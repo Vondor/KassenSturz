@@ -29,6 +29,7 @@ mod rounding;
 mod rules;
 mod transaction;
 mod transfer;
+mod view;
 pub mod vocabulary;
 mod withdrawn;
 
@@ -54,6 +55,7 @@ pub use transfer::{
     MAX_BUSINESS_DAYS, TransferError, TransferMatch, TransferSide, business_days_apart,
     find_transfers, join_transfer,
 };
+pub use view::{StoredView, ViewId, ViewKind};
 pub use withdrawn::Withdrawn;
 
 /// A calendar date without time or time zone, used for booking dates

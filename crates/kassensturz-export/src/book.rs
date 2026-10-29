@@ -18,7 +18,7 @@ use std::io::Write;
 use kassensturz_core::{
     Account, AccountKind, AccountType, AmountTest, BankLink, Condition, Currency, CurrencyCode,
     DatedRate, Institution, MatchMode, Money, PartStatus, Payee, PayeeRecognition, RateSource,
-    RoundingMode, RuleId, RuleNode, SplitId, Tag, TextField, TextOperator, Transaction,
+    RoundingMode, RuleId, RuleNode, SplitId, Tag, TextField, TextOperator, Transaction, ViewId,
 };
 
 use crate::data::ExportData;
@@ -42,8 +42,9 @@ pub const FORMAT: &str = "kassensturz-book";
 /// payee, which its account shows instead of the transaction's (D-108),
 /// version 4 institutions, payees and tags, and the notes, numbers and
 /// status that came over from another program's book with them (D-132),
-/// version 5 the bank links (M4.4a, D-148).
-pub const VERSION: u64 = 5;
+/// version 5 the bank links (M4.4a, D-148), version 6 the saved views and
+/// dashboards (M6a.L, D-278).
+pub const VERSION: u64 = 6;
 
 /// How deep Rules can sit inside each other in the file: a top-level Rule is
 /// at depth 1. Deeper trees are refused when writing and reading, so a file
@@ -83,6 +84,22 @@ pub struct BookData {
     /// Which bank account an account is filled from, and the day it was
     /// last fetched; no login data (D-148).
     pub bank_links: Vec<BankLink>,
+    /// The saved views and dashboards, dashboards first, each kind in the
+    /// order of its list (D-278).
+    pub views: Vec<ViewData>,
+}
+
+/// A saved view or dashboard in a complete export: its ID and its document
+/// as the JSON text the book keeps, so a round trip changes nothing. The
+/// document says its own kind and name (D-278); reading it, checking it
+/// against the property schema and the limits of D-281 is the reporting
+/// layer's job, and the book checks what it relies on when it is filled.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ViewData {
+    /// The document's ID.
+    pub id: ViewId,
+    /// The JSON document.
+    pub document: String,
 }
 
 /// A part a Rule booked, which the Rules may book again when the user
@@ -158,6 +175,7 @@ impl Exporter for BookExport {
                 "bank_links",
                 Json::List(book.bank_links.iter().map(bank_link).collect()),
             ),
+            ("views", Json::List(book.views.iter().map(view).collect())),
             (
                 "payees",
                 Json::List(book.payees.iter().map(payee).collect()),
@@ -516,6 +534,13 @@ fn bank_link(link: &BankLink) -> Json {
             "last_fetched",
             link.last_fetched_on.map_or(Json::Null, Json::date),
         ),
+    ])
+}
+
+fn view(view: &ViewData) -> Json {
+    Json::Object(vec![
+        ("id", Json::id(view.id)),
+        ("document", Json::text(&view.document)),
     ])
 }
 

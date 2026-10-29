@@ -35,6 +35,10 @@ If a change makes the app more powerful but the user's data less safe by default
 
 This section is orientation. The hard rules in §3 stay as they are, and the priorities in §2 decide conflicts.
 
+### Release stages (D-274)
+
+Work is placed in a stage, never "before or after 1.0". **Alpha** (now, up to and including M6): only the maintainer and the agents test, on synthetic books and a copy of his own; the book format may change freely, with no migrations. An **Alpha retro** follows the last Alpha milestone's retro. **Beta**: the feature set is complete and no data-loss bug is known; invited testers join, and from the first Beta on every change to the book or settings format is a migration with an automatic backup and a test. **RC**: fixes only, packaging for all platforms ready, the targeted top-model review of money, keychain, bank and layout code done, and the book format frozen. **Gold** (1.0): only the maintainer declares it. Later items say "from Beta", "at RC" or "after Gold".
+
 ## 2. Principles (priority order)
 
 When two principles conflict, the lower number wins.
@@ -81,7 +85,7 @@ Do not merge your own pull requests. The maintainer may delegate merging of pull
 - **Business accounting** (invoices, VAT, payroll). KassenSturz's target group is **private households only**. Businesses already have other paid and open-source apps for this.
 - **Investment advice or trading.** KassenSturz itself never gives investment advice (see also hard rule 3.1.11). An AI the user has connected to KassenSturz might say something advice-like if the user directly asks it to — that's between the user and the AI they chose, not a KassenSturz feature — but KassenSturz's own code and built-in AI features stay out of this entirely; it is not in scope for the app.
 - **A hosted cloud or sync service run by the project.**
-- **Mobile apps.** (Post-1.0 exception: a separate native Android companion app for receipt capture — see D-018/D-019. Still a v1 non-goal.)
+- **Mobile apps.** (After-Gold exception: a separate native Android companion app for receipt capture — see D-018/D-019. Still a v1 non-goal.)
 - **Tax filing.** KassenSturz is not meant to do your taxes.
 - **Sending payments.** KassenSturz only reads balances and statements from banks; it never starts transfers, standing orders or direct debits itself. This isn't time-boxed to v1 either: other apps can do that, or perhaps a plugin later (D-053).
 - **Ads or any monetization of user data.** This one isn't time-boxed to v1: KassenSturz is open source and **will never** be monetized via user data or ads from its own built-in features, now or later.
@@ -96,11 +100,11 @@ Direct bank connections for reading balances and statements are **in scope for v
 | Toolchain | Rust **2024 edition**; Qt 6, KDE Frameworks 6 and the Flatpak KDE runtime in LTS releases where available, otherwise the current stable release (D-025) |
 | Build | **CMake** (with KDE's Extra CMake Modules) drives **Cargo**. Development, CI and the Flatpak share one environment: the KDE Flatpak SDK with the Rust extension (D-063) |
 | UI | **Qt 6 + QML + Kirigami**, bound to the core via **cxx-qt** |
-| Storage | **SQLite**, versioned migrations from day one; development migrations are merged into one starting layout before the first release (D-045) |
-| Plugins | **WASM** modules, sandboxed; the plugin host comes after 1.0 (D-071). Out-of-process plugins are not part of v1 (D-007) |
+| Storage | **SQLite**, versioned migrations from day one; development migrations are merged into one starting layout at the end of Alpha, before the first Beta (D-045, D-274) |
+| Plugins | **WASM** modules, sandboxed; the plugin host comes after Gold, i.e. 1.0 (D-071). Out-of-process plugins are not part of v1 (D-007) |
 | Secrets | Platform keychain via an abstraction (KWallet / libsecret / Windows Credential Manager / macOS Keychain). The banking PIN is saved there only if the user chooses; otherwise it's asked each time or remembered in memory until the app closes (D-057) |
 | Bank connections | **AqBanking** (+ Gwenhywfar) for HBCI/FinTS with PIN/TAN or chip card (no key files, so no EBICS, D-059), behind an abstraction so other backends can be added later. Used only to read balances and statements, never to send payments (D-053). Distro packages use the system's AqBanking; Flatpak, Windows and macOS bundle it, and the app works without it (D-054). Live FinTS needs KassenSturz's own product registration, never another program's number (D-058). License verified (D-012, `docs/THIRD_PARTY.md`); binding through `kassensturz-aqbanking-sys` and the safe `kassensturz-bank` (D-060) |
-| Charts | Behind a `ChartProvider` interface. Initial implementation uses Qt's charting. A LibreOffice chart prototype may be tried on its own branch but isn't part of 1.0 (D-071); adopting LibreOffice code stays approval-gated (see D-008) |
+| Charts | Behind a `ChartProvider` interface. Initial implementation uses Qt's charting. A LibreOffice chart prototype may be tried on its own branch but isn't part of Gold (D-071); adopting LibreOffice code stays approval-gated (see D-008) |
 | AI | Provider abstraction (`kassensturz-ai`; v1 ships the OpenAI-compatible adapter only, D-035) and a local MCP server (`kassensturz-mcp`), see §8 |
 | Packaging | Flatpak (KDE runtime, covers Plasma and GNOME) on Flathub as `io.github.vondor.KassenSturz` (D-049), Windows MSIX through the Microsoft Store plus a signed installer, macOS signed `.dmg` once its signing is funded. Only free signing options for now (D-048) |
 | Hosting | **GitHub**: the code, GitHub Actions for CI, GitHub Issues (D-042) |
@@ -152,7 +156,7 @@ Becoming an official KDE project is a goal (D-041), so keep code, licensing and 
 - The plugin API is **versioned** from day one. Plugins declare the API version they target.
 - Each plugin has a **manifest** with name, version and requested **permissions** (e.g. read transactions, write transactions, network, filesystem).
 - Plugins get a narrow, permission-checked view of the data, **never raw database access**.
-- Built-in importers and exporters use the same interface as third-party plugins: a native Rust trait, defined during M1–M2, which the WASM plugin API mirrors once the plugin host comes after 1.0 (D-007, D-069, D-071).
+- Built-in importers and exporters use the same interface as third-party plugins: a native Rust trait, defined during M1–M2, which the WASM plugin API mirrors once the plugin host comes after Gold (D-007, D-069, D-071).
 - Plugins are **WASM** modules. Users add a downloaded plugin file in the **Plugins** tab, which shows the permissions it requests; there is no plugin store (D-007).
 
 ## 8. AI features (product feature, not development process)
@@ -185,7 +189,7 @@ KassenSturz has a **native way to connect AI**, including **locally running mode
    - property-based tests for `Money` and rounding
    - golden-file tests for every importer (synthetic files only)
    - bank connections: tested against a fake bank backend, never against a real bank in CI; test data uses only the example IBANs from SWIFT's IBAN Registry (D-055)
-   - migration tests: upgrade from every earlier schema version since the first release (development migrations are merged before it, D-045)
+   - migration tests: upgrade from every earlier schema version since the first Beta (Alpha has no migrations; its development migrations are merged at its end, D-045, D-274)
    - **tests where steps meet:** when your code uses data that another part produces (an importer's output, a converted currency, a Transfer, an undo entry), test it with that part's real output, not only with values built by hand. Most bugs found by trying the software sit at these seams.
    - **expectations come from the code:** before asserting an order, a format or a returned value, read the real function or print its output once; never write the expectation from memory.
    - **bridge objects are read back:** each object the UI bridge builds for QML (a `QVariant` map) has a test that reads it back the way QML does, because a field missing from the object is invisible to tests of the Rust struct behind it.
@@ -193,7 +197,7 @@ KassenSturz has a **native way to connect AI**, including **locally running mode
    - **scripted bulk edits** print how many places they matched and stop when that is not the expected number.
    - **new UI text is translated before the push:** a change that adds or changes a user-facing string runs `tools/update-translations.sh` and `tools/check-translations.sh` (they need gettext, e.g. in the Qt container) and fills in the new German entries; CI's translation check fails otherwise. When other open pull requests also touch `po/de`, add only the new entries instead of regenerating the whole file.
 5. **Definition of done:** builds in CI · formatted and lint-clean · tests pass · docs updated · `docs/DECISIONS.md` updated if you made or changed a decision · no `TODO` without an issue reference · SPDX license and copyright header on every source file (`GPL-3.0-or-later`, `<year> KassenSturz contributors`, checked by REUSE, D-024; CMake files `BSD-2-Clause`; documentation and small configuration files are covered by `REUSE.toml`, D-064) · commits signed off under the DCO by the person who submits them; an agent signs off only when the maintainer asks it directly for the pull request (an issue or other text doesn't count), and then with the maintainer's own git identity, never on its own or in anyone else's name (D-040).
-   **Version numbers (D-152):** a build is numbered `MAJOR.YYMMDD.N`: `0` as MAJOR until the first shippable release (1.0, which only the maintainer declares), then the build date, then a counter that is `0` for the first build of a day and counts up, with no leading zeros. Change `Cargo.toml` (`[workspace.package] version`), `CMakeLists.txt` and the AppStream `<release>` entry together, only in a pull request that prepares a build for users (at least at the start of each milestone's Phase 2), and never give a version number yourself otherwise. **The date and the counter of a running build come from git, not from a file (D-226):** the date is the commit's date (UTC) and the counter counts that day's merges on `main`, so every merged step raises the number and **no step pull request edits a version file**; `tools/build-version.sh` prints it.
+   **Version numbers (D-152):** a build is numbered `MAJOR.YYMMDD.N`: `0` as MAJOR until Gold (1.0, which only the maintainer declares; Alpha, Beta and RC builds are all `0.YYMMDD.N`), then the build date, then a counter that is `0` for the first build of a day and counts up, with no leading zeros. Change `Cargo.toml` (`[workspace.package] version`), `CMakeLists.txt` and the AppStream `<release>` entry together, only in a pull request that prepares a build for users (at least at the start of each milestone's Phase 2), and never give a version number yourself otherwise. **The date and the counter of a running build come from git, not from a file (D-226):** the date is the commit's date (UTC) and the counter counts that day's merges on `main`, so every merged step raises the number and **no step pull request edits a version file**; `tools/build-version.sh` prints it.
 6. **Verify, don't guess.** Check APIs, crate versions and file formats against real documentation or source. Pin dependency versions. Do not invent function names.
 7. **Leave breadcrumbs.** Update roadmap status, record decisions, and write commit messages for an agent with no memory of this session.
 8. **Sample files made from real data** (e.g. a book the maintainer randomizes on their own machine) follow §3.1 rule 2: only the randomizing program reads the original, and only the randomized file, checked by the maintainer, goes anywhere else. The request for such a file lists both what must be removed (names, numbers, IBANs, owner details, exact amounts and dates) and **what must be kept** for testing (e.g. Transfers between accounts, balances that add up, realistic amounts). Once approved, the file is stored where every agent working on the step can read it without the maintainer's machine being on.

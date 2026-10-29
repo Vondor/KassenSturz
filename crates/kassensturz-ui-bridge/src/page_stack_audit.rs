@@ -149,6 +149,18 @@ mod tests {
         assert!(chat.contains("chatBesideMinWidth"));
     }
 
+    /// Every group of account cards uses the one grid, so the groups line up
+    /// the same way (M5-F3).
+    #[test]
+    fn the_accounts_page_lines_up_its_groups_with_one_grid() {
+        let page = qml("AccountsPage.qml");
+        assert!(
+            !page.contains("CardsLayout"),
+            "groups must not use CardsLayout"
+        );
+        assert_eq!(page.matches("AccountGrid {").count(), 2);
+    }
+
     /// The book's folder on the Settings page opens in the file manager
     /// (M5-F2).
     #[test]

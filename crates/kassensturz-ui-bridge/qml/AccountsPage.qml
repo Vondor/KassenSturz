@@ -90,16 +90,9 @@ Kirigami.ScrollablePage {
                     level: 2
                 }
 
-                Kirigami.CardsLayout {
-                    Layout.fillWidth: true
-
-                    Repeater {
-                        model: section.modelData.accounts
-
-                        delegate: AccountCard {
-                            onClicked: page.accountClicked(modelData.id)
-                        }
-                    }
+                AccountGrid {
+                    accounts: section.modelData.accounts
+                    onAccountClicked: accountId => page.accountClicked(accountId)
                 }
 
                 Balance {
@@ -132,17 +125,10 @@ Kirigami.ScrollablePage {
             level: 2
         }
 
-        Kirigami.CardsLayout {
-            Layout.fillWidth: true
+        AccountGrid {
             visible: page.showClosed
-
-            Repeater {
-                model: page.closedAccounts
-
-                delegate: AccountCard {
-                    onClicked: page.accountClicked(modelData.id)
-                }
-            }
+            accounts: page.closedAccounts
+            onAccountClicked: accountId => page.accountClicked(accountId)
         }
     }
 }

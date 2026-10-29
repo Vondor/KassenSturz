@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-28 23:12+0000\n"
+"POT-Creation-Date: 2026-10-28 23:42+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -243,19 +243,19 @@ msgstr ""
 "Ein Konto ist ein Ort, an dem Ihr Geld ist: Ihr Bankkonto, Ihr Portemonnaie "
 "oder eine Kreditkarte."
 
-#: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:121
+#: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:114
 #, kde-format
 msgctxt "@label %1 is an amount of money"
 msgid "All together you owe %1"
 msgstr "Zusammen schulden Sie %1"
 
-#: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:122
+#: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:115
 #, kde-format
 msgctxt "@label %1 is an amount of money"
 msgid "All together: %1"
 msgstr "Zusammen: %1"
 
-#: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:131
+#: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:124
 #, kde-format
 msgctxt "@title"
 msgid "Closed accounts"

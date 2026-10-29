@@ -24,6 +24,7 @@ fn main() {
             .qml_files([
                 "qml/Main.qml",
                 "qml/AccountCard.qml",
+                "qml/AccountGrid.qml",
                 "qml/AccountDetailsPage.qml",
                 "qml/AccountTypes.qml",
                 "qml/AccountsPage.qml",

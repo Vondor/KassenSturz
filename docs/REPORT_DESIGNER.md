@@ -82,6 +82,8 @@ A new headless crate between the book and the components (ARCHITECTURE.md: depen
 
 Not built yet, for the steps that follow: reading a whole document (`format`, `version`, `kind`, `filters`, `frame`, `id`) and the **duplicate-key rejection of D-281** (`serde_json::Value` silently keeps the last of two equal keys, so the reader needs its own check before parsing) belong to M6a.7, which reads saved views; the schema's `grouping` words are the catalog's (`category`, `top_level_category`, `month`) and the chart request of `BookCharts` still uses its own (`each`, `top-level`), which the workbench maps when it places a component; `ChartTable.qml` and M6a.5's `DataTable.qml` show the same table of text and should become one component in M6a.7.
 
+**Built in M6a.7a (D-278, D-281):** `Document::read` and `Document::to_json` in `kassensturz-report` (`document.rs`). Reading checks, in this order, before anything of the document is used: size (`report.document-too-big`), valid JSON, **two equal keys in one object** (compared after decoding escapes, so `"name"` and `"\u006eame"` are the same key; `serde_json` alone would silently keep the last), nesting depth 8, then the header (`format`, `version`, where a newer one gives `report.unsupported-document-version`, `kind`, `name`), the period (one of the five fixed names the screens use, `"filters": {"period": "last-12-months"}`), at most 100 components with unique IDs (`report.document-invalid` with a fixed reason and the JSON path as text), frames of 1 to 1000 cells, and every known component against the property schema. A view has exactly one component and no frame. A component of an unknown type is kept as it was (`Item::Unknown`), so the dashboard opens, a screen shows the placeholder, and saving again loses nothing. Writing gives alphabetical keys, so the same document is always the same text. The book still checks only the header it copies into columns; a test shows it keeps a document with a repeated key that only the reader refuses.
+
 **What the AI sees (D-282):** dataset ids, their descriptions, the allowed groupings and chart types as enumerated choices, and category names only when the AI permission grid allows reading categories. Amounts only if the grid allows reading transactions, and then only what the existing read functions give (D-186). A model never receives a dashboard's computed numbers to "check": it proposes, the code computes.
 
 ## 4. The dashboard document and layout 20 (D-278, D-279)
@@ -94,7 +96,7 @@ Not built yet, for the steps that follow: reading a whole document (`format`, `v
   "version": 1,
   "kind": "dashboard",
   "name": "Overview",
-  "filters": { "period": { "kind": "last_months", "count": 12 } },
+  "filters": { "period": "last-12-months" },
   "components": [
     {
       "id": "c1",

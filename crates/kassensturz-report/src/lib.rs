@@ -17,6 +17,7 @@
 
 mod catalog;
 mod component;
+mod document;
 mod error;
 mod filter;
 mod metrics;
@@ -29,6 +30,10 @@ mod text;
 
 pub use catalog::{CATALOG, DatasetInfo, dataset};
 pub use component::Component;
+pub use document::{
+    Document, Entry, FORMAT, Frame, Item, MAX_BYTES, MAX_COMPONENTS, MAX_DEPTH, MAX_NAME_CHARS,
+    PERIODS, VERSION,
+};
 pub use error::ReportError;
 pub use filter::Filter;
 pub use metrics::{
@@ -48,5 +53,7 @@ pub use text::{TextFormat, TextTable};
 
 #[cfg(test)]
 mod component_tests;
+#[cfg(test)]
+mod document_tests;
 #[cfg(test)]
 mod tests;

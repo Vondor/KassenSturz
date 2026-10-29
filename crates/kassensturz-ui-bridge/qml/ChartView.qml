@@ -38,6 +38,29 @@ ColumnLayout {
     readonly property real low: ticks.length > 0 ? ticks[0].value : 0
     readonly property real high: ticks.length > 0 ? ticks[ticks.length - 1].value : 1
 
+    // One series of plain bars whose names would need more than two lines
+    // under their bars is drawn as rows instead: the whole name on the left,
+    // the bar to its right (M6-B3). The width is an estimate (the chart's own
+    // width less the value axis), so the choice never depends on the picture.
+    readonly property bool horizontal: chart.kind === "bar" && chart.series.length === 1 && count > 0
+        && longestName.advanceWidth > 2 * (view.width - Kirigami.Units.gridUnit * 4) / count
+
+    TextMetrics {
+        id: longestName
+
+        font: Kirigami.Theme.smallFont
+        text: {
+            let found = "";
+            for (let index = 0; index < view.count; ++index) {
+                const name = view.categoryName(index);
+                if (name.length > found.length) {
+                    found = name;
+                }
+            }
+            return found;
+        }
+    }
+
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
     }
@@ -105,7 +128,7 @@ ColumnLayout {
     // below.
     RowLayout {
         Layout.fillWidth: true
-        visible: !view.showTable
+        visible: !view.showTable && !view.horizontal
         spacing: Kirigami.Units.smallSpacing
 
         Item {
@@ -234,11 +257,12 @@ ColumnLayout {
             }
 
             // The categories under the picture; every category gets its slot,
-            // a long name is cut short and shown whole in the point's text.
+            // a long name wraps to at most two lines and is shown whole in the
+            // point's text.
             Item {
                 visible: !view.round
                 Layout.fillWidth: true
-                Layout.preferredHeight: categoryHeight.rowHeight
+                Layout.preferredHeight: categoryHeight.rowHeight * 2
 
                 TextMetrics {
                     id: categoryHeight
@@ -261,6 +285,8 @@ ColumnLayout {
                             ? (view.count > 1 ? index * slot : 0) - (first ? 0 : (last ? slot : slot / 2))
                             : index * slot
                         horizontalAlignment: first ? Text.AlignLeft : (last ? Text.AlignRight : Text.AlignHCenter)
+                        wrapMode: Text.Wrap
+                        maximumLineCount: 2
                         elide: Text.ElideRight
                         text: view.categoryName(index)
                         textFormat: Text.PlainText
@@ -268,6 +294,57 @@ ColumnLayout {
                         color: Kirigami.Theme.textColor
                         Accessible.ignored: true
                     }
+                }
+            }
+        }
+    }
+
+    // Long category names: one row per category, the name whole (M6-B3).
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: !view.showTable && view.horizontal
+        spacing: Kirigami.Units.smallSpacing
+
+        Repeater {
+            model: view.horizontal ? view.count : 0
+
+            delegate: RowLayout {
+                id: barRow
+
+                required property int index
+                readonly property var point: view.chart.series[0].points[index]
+
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+
+                Controls.Label {
+                    Layout.preferredWidth: barRow.width * 0.4
+                    Layout.maximumWidth: barRow.width * 0.4
+                    text: view.categoryName(barRow.index)
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    font: Kirigami.Theme.smallFont
+                    Accessible.ignored: true
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 1.5
+
+                    Rectangle {
+                        width: view.high > 0 ? Math.max(0, Math.min(1, barRow.point.value / view.high)) * parent.width : 0
+                        height: parent.height
+                        color: ChartPalette.color(barRow.point.color)
+                        border.width: view.current === barRow.index ? 2 : 0
+                        border.color: Kirigami.Theme.highlightColor
+                    }
+                }
+
+                Controls.Label {
+                    text: barRow.point.label
+                    textFormat: Text.PlainText
+                    font: Kirigami.Theme.smallFont
+                    Accessible.ignored: true
                 }
             }
         }

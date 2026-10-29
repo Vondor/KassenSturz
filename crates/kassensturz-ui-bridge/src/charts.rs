@@ -86,8 +86,9 @@ impl<L: Locale> TextFormat for AppText<'_, L> {
         match AmountWriter::new(self.book, money.currency(), self.locale) {
             Ok(writer) => writer.text(money).text,
             // The dataset only lists currencies the book uses, so this is
-            // for a book that changed under the read.
-            Err(_) => format!("{} {}", money.minor_units(), money.currency()),
+            // for a book that changed under the read. Raw minor units would
+            // read as a wrong figure, so only the currency is shown.
+            Err(_) => format!("? {}", money.currency()),
         }
     }
 

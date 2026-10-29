@@ -6,6 +6,8 @@
 
 use kassensturz_core::{Date, Money};
 
+use crate::Percent;
+
 /// Writes amounts and months for the user's locale. The app implements it
 /// with its formatter (D-002); this crate has no locale of its own.
 pub trait TextFormat {
@@ -13,6 +15,8 @@ pub trait TextFormat {
     fn amount(&self, money: Money) -> String;
     /// The month that starts on `first_day`, e.g. "October 2026".
     fn month(&self, first_day: Date) -> String;
+    /// `percent` as the user's number format writes it, e.g. "12,3 %".
+    fn percent(&self, percent: Percent) -> String;
     /// The name for money that isn't sorted into a category yet.
     fn unsorted(&self) -> String;
 }

@@ -14,6 +14,9 @@ pub enum ReportError {
     BadPeriod,
     /// The period spans more than [`MAX_MONTHS`](crate::MAX_MONTHS) months.
     PeriodTooLong,
+    /// A dataset was asked for days the `Source` was not read for, which
+    /// would give figures that silently leave out transactions.
+    PeriodNotRead,
     /// The book couldn't be read, or a total doesn't fit.
     Store(StoreError),
 }
@@ -37,6 +40,7 @@ impl Report for ReportError {
         match self {
             Self::BadPeriod => ErrorReport::new("report.bad-period"),
             Self::PeriodTooLong => ErrorReport::new("report.period-too-long"),
+            Self::PeriodNotRead => ErrorReport::new("report.period-not-read"),
             Self::Store(error) => {
                 ErrorReport::new("report.book-unreadable").caused_by(error.report())
             }
@@ -64,6 +68,7 @@ mod tests {
         for error in [
             ReportError::BadPeriod,
             ReportError::PeriodTooLong,
+            ReportError::PeriodNotRead,
             ReportError::Store(StoreError::AmountOverflow),
         ] {
             let report = error.report();

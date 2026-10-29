@@ -78,6 +78,14 @@ impl TextFormat for Words {
         format!("{}-{:02}", first_day.year(), first_day.month())
     }
 
+    fn percent(&self, percent: Percent) -> String {
+        format!(
+            "{}.{} %",
+            percent.tenths() / 10,
+            (percent.tenths() % 10).abs()
+        )
+    }
+
     fn unsorted(&self) -> String {
         "(unsorted)".into()
     }
@@ -567,7 +575,12 @@ proptest! {
         let chart = chart();
         let transactions = build(&chart, &entries);
         let whole = period(date(2026, 1, 1), date(2026, 12, 31));
-        let source = Source::from_parts(chart.accounts.clone(), chart.tree.clone(), transactions.clone());
+        let source = Source::from_parts(
+            whole,
+            chart.accounts.clone(),
+            chart.tree.clone(),
+            transactions.clone(),
+        );
         let each = spending_by_category(&source, whole, &Filter::default(), Level::Each).unwrap();
         let top = spending_by_category(&source, whole, &Filter::default(), Level::TopLevel).unwrap();
         let months = income_expense_by_month(&source, whole, &Filter::default()).unwrap();
@@ -603,7 +616,7 @@ proptest! {
         // The order of the transactions changes nothing.
         let mut reversed = transactions;
         reversed.reverse();
-        let source = Source::from_parts(chart.accounts.clone(), chart.tree.clone(), reversed);
+        let source = Source::from_parts(whole, chart.accounts.clone(), chart.tree.clone(), reversed);
         prop_assert_eq!(
             spending_by_category(&source, whole, &Filter::default(), Level::Each).unwrap(),
             each
@@ -612,5 +625,144 @@ proptest! {
             income_expense_by_month(&source, whole, &Filter::default()).unwrap(),
             months
         );
+    }
+}
+
+fn october() -> Period {
+    period(date(2026, 10, 1), date(2026, 10, 31))
+}
+
+#[test]
+fn october_against_september_on_the_sample_book() {
+    let sample = sample();
+    let span = comparison_span(october(), Compare::PreviousPeriod).expect("span");
+    assert_eq!(span.first(), date(2026, 9, 1));
+    let source = Source::read(&sample.book, span).expect("source");
+    let (earlier, changes) = compare_income_expense(
+        &source,
+        october(),
+        &Filter::default(),
+        Compare::PreviousPeriod,
+    )
+    .expect("comparison");
+    assert_eq!(earlier, period(date(2026, 9, 1), date(2026, 9, 30)));
+    let [euros, dollars] = changes.as_slice() else {
+        panic!("one result per currency, not {changes:?}");
+    };
+    // 250700 against 250000: 0,28 % rounds to 0,3 %.
+    assert_eq!(euros.income.previous, money(250_000));
+    assert_eq!(euros.income.current, money(250_700));
+    assert_eq!(euros.income.amount, money(700));
+    assert_eq!(euros.income.percent, Some(Percent::from_tenths(3)));
+    // 81250 against 83500: down 2250, which is 2,7 %.
+    assert_eq!(euros.expenses.amount, money(-2_250));
+    assert_eq!(euros.expenses.percent, Some(Percent::from_tenths(-27)));
+    assert_eq!(euros.net.amount, money(2_950));
+    assert_eq!(euros.net.percent, Some(Percent::from_tenths(18)));
+    // 166500 of 250000 is 66,6 %; 169450 of 250700 is 67,59 %.
+    assert_eq!(euros.previous_savings_rate, Some(Percent::from_tenths(666)));
+    assert_eq!(euros.savings_rate, Some(Percent::from_tenths(676)));
+    assert_eq!(
+        euros.savings_rate.map(|rate| rate.to_text(&Words)),
+        Some("67.6 %".into())
+    );
+    // The dollars were spent only now: no percentage of nothing.
+    assert_eq!(dollars.currency, USD);
+    assert_eq!(dollars.expenses.previous, Money::from_minor_units(0, USD));
+    assert_eq!(dollars.expenses.percent, None);
+    assert_eq!(dollars.savings_rate, None);
+    assert_eq!(dollars.previous_savings_rate, None);
+}
+
+#[test]
+fn the_same_month_a_year_earlier_is_empty_and_has_no_percentages() {
+    let sample = sample();
+    let span = comparison_span(october(), Compare::SameLastYear).expect("span");
+    let source = Source::read(&sample.book, span).expect("source");
+    let (earlier, changes) = compare_income_expense(
+        &source,
+        october(),
+        &Filter::default(),
+        Compare::SameLastYear,
+    )
+    .expect("comparison");
+    assert_eq!(earlier, period(date(2025, 10, 1), date(2025, 10, 31)));
+    assert_eq!(changes[0].income.previous, money(0));
+    assert_eq!(changes[0].income.percent, None);
+    assert_eq!(changes[0].previous_savings_rate, None);
+    assert_eq!(changes[0].net.amount, money(169_450));
+}
+
+#[test]
+fn a_source_read_for_too_few_days_is_refused_not_silently_short() {
+    let sample = sample();
+    let source = Source::read(&sample.book, october()).expect("source");
+    // September was never read, so October against September would show
+    // September as empty.
+    assert!(matches!(
+        compare_income_expense(
+            &source,
+            october(),
+            &Filter::default(),
+            Compare::PreviousPeriod
+        ),
+        Err(ReportError::PeriodNotRead)
+    ));
+    assert!(matches!(
+        spending_by_category(&source, autumn(), &Filter::default(), Level::Each),
+        Err(ReportError::PeriodNotRead)
+    ));
+    assert!(spending_by_category(&source, october(), &Filter::default(), Level::Each).is_ok());
+}
+
+#[test]
+fn the_savings_rate_rounds_half_away_from_zero_and_has_no_value_without_income() {
+    let rate = |income, net| savings_rate(money(income), money(net)).expect("a rate");
+    // 1 of 8 is 12,5 %; 1 of 16 is 6,25 %, which is 6,3 %: half away.
+    assert_eq!(rate(800, 100), Some(Percent::from_tenths(125)));
+    assert_eq!(rate(1_600, 100), Some(Percent::from_tenths(63)));
+    assert_eq!(rate(1_600, -100), Some(Percent::from_tenths(-63)));
+    // Spent more than earned: a negative rate, as it is.
+    assert_eq!(rate(1_000, -500), Some(Percent::from_tenths(-500)));
+    assert_eq!(rate(1_000, 1_000), Some(Percent::from_tenths(1_000)));
+    assert_eq!(rate(0, 500), None);
+    assert_eq!(rate(0, -500), None);
+    assert_eq!(rate(-100, -500), None);
+    // A change of a negative figure keeps the direction: from -100 to -50
+    // is a rise of half its size.
+    let change = Change::new(money(-100), money(-50)).expect("a change");
+    assert_eq!(change.amount, money(50));
+    assert_eq!(change.percent, Some(Percent::from_tenths(500)));
+    // The extremes still give the exact answer or an error, never a wrong one.
+    assert_eq!(
+        savings_rate(money(i64::MAX), money(i64::MIN)).expect("a rate"),
+        Some(Percent::from_tenths(-1_000))
+    );
+    assert!(matches!(
+        Change::new(money(i64::MIN), money(0)),
+        Err(ReportError::Store(_))
+    ));
+}
+
+#[test]
+fn the_comparison_names_round_trip_for_dashboards_and_the_ai() {
+    for compare in [Compare::PreviousPeriod, Compare::SameLastYear] {
+        assert_eq!(Compare::from_id(compare.id()), Some(compare));
+    }
+    assert_eq!(Compare::from_id("last_week"), None);
+}
+
+proptest! {
+    /// The rate is the exact ratio rounded once: it is never further from
+    /// the exact value than half a tenth of a percent, and it is the same
+    /// as an independent integer calculation.
+    #[test]
+    fn the_rate_is_the_exact_ratio_rounded_once(income in 1i64..1_000_000_000, net in -1_000_000_000i64..1_000_000_000) {
+        let tenths = savings_rate(money(income), money(net)).unwrap().unwrap().tenths();
+        // Twice the exact value in tenths, compared without division.
+        let exact_twice = i128::from(net) * 2000;
+        let rounded_twice = i128::from(tenths) * 2 * i128::from(income);
+        let off = (exact_twice - rounded_twice).abs();
+        prop_assert!(off <= i128::from(income), "off by more than half a tenth");
     }
 }

@@ -387,6 +387,7 @@ Why a dataset for a chart or a card couldn't be made (M6a.1, D-277). No report r
 |---|---|---|---|
 | `report.bad-period` | | | The period ends before it starts. Choose a last day that is not before the first day. |
 | `report.period-too-long` | | | The period is longer than 100 years. Choose a shorter one. |
+| `report.period-not-read` | | | A chart asked for days the book was not read for, so KassenSturz did not draw it rather than show figures with transactions missing. Open the page again; if it keeps happening, tell the maintainers (this is a bug). |
 | `report.book-unreadable` | | | The book couldn't be read for this chart, or a total is too large for KassenSturz to work with. The detail says why; see that message. |
 
 ## Charts (`kassensturz-charts`)

@@ -269,7 +269,8 @@ pub(crate) mod engine {
     use super::*;
     use crate::ai_chat::{
         CategoryChoice, ChangeRow, ChangeView, Command, Controls, Correction, Review, Screen, Sets,
-        Waiting, answer_from, category_choices, code_text, confirm_in, corrected, hooks, rows_of,
+        Waiting, answer_from, category_choices, code_text, confirm_in, corrected, hooks,
+        outcome_of, rows_of,
     };
     use crate::ai_requests::{Arrived, take_requests, tell_confirmed, tell_declined, tell_dropped};
     use crate::ai_settings::{self, Store};
@@ -836,6 +837,8 @@ pub(crate) mod engine {
             }
         };
         say("changes-confirmed", &[("set", &set.summary())]);
+        // The chat hears that the user corrected the set, never how (D-298).
+        let corrected = set.corrected();
         // The only call that applies a set: the confirm button's (D-200).
         // No book open any more means the set is out of date.
         let result = session::with_book_mut(|book| {
@@ -848,11 +851,7 @@ pub(crate) mod engine {
             tell_confirmed(inbox, from, &result);
         }
         if from.is_none() {
-            let outcome = if result.is_ok() {
-                Outcome::Confirmed
-            } else {
-                Outcome::Failed
-            };
+            let outcome = outcome_of(&result, corrected);
             chat.as_mut().rust_mut().state.tell_chat(outcome);
         }
         match result {

@@ -270,6 +270,7 @@ fn what_the_user_did_with_prepared_changes_reaches_the_model_with_the_next_quest
 fn the_outcomes_say_plainly_what_happened_and_invent_no_screen() {
     for outcome in [
         Outcome::Confirmed,
+        Outcome::ConfirmedChanged,
         Outcome::Declined,
         Outcome::Failed,
         Outcome::Undone,
@@ -277,6 +278,18 @@ fn the_outcomes_say_plainly_what_happened_and_invent_no_screen() {
         assert!(outcome.text().starts_with("KassenSturz: "));
     }
     assert!(Outcome::Confirmed.text().contains("were made"));
+    // A set the user corrected (D-298): the model hears that it differs,
+    // never how.
+    assert!(
+        Outcome::ConfirmedChanged
+            .text()
+            .contains("as the user changed them")
+    );
+    assert!(
+        Outcome::ConfirmedChanged
+            .text()
+            .contains("do not assume your version")
+    );
     assert!(Outcome::Declined.text().contains("refused"));
     assert!(Outcome::Failed.text().contains("nothing was changed"));
 }

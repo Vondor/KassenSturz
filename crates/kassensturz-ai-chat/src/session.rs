@@ -107,6 +107,10 @@ pub const NOT_OFFERED: &str = "KassenSturz: a function you asked for is not offe
 pub enum Outcome {
     /// The user confirmed them and they were made.
     Confirmed,
+    /// The user changed or left out some of them before confirming, and
+    /// the rest were made as the user left them (D-298). What the user
+    /// changed is not said.
+    ConfirmedChanged,
     /// The user threw them away; nothing was changed.
     Declined,
     /// The user confirmed them but they could not be made; nothing was
@@ -125,6 +129,13 @@ impl Outcome {
                 "KassenSturz: the user reviewed the changes you prepared in KassenSturz's chat \
                  sidebar and confirmed them. They were made in the user's book. Nothing \
                  waits for approval now."
+            }
+            Self::ConfirmedChanged => {
+                "KassenSturz: the user reviewed the changes you prepared in KassenSturz's chat \
+                 sidebar, changed or left out some of them, and confirmed the rest. They were \
+                 made in the user's book as the user changed them, which may differ from what \
+                 you prepared. Before you speak about them, read them with the functions; do \
+                 not assume your version. Nothing waits for approval now."
             }
             Self::Declined => {
                 "KassenSturz: the user reviewed the changes you prepared and refused them. \

@@ -100,6 +100,7 @@ fn main() {
         "src/locale.rs",
         "src/network_guard.rs",
         "src/number_format_model.rs",
+        "src/charts_model.rs",
         "src/overview_model.rs",
         "src/platform.rs",
         "src/register_model.rs",

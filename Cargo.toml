@@ -25,8 +25,10 @@ kassensturz-core = { path = "crates/kassensturz-core" }
 kassensturz-export = { path = "crates/kassensturz-export" }
 kassensturz-import = { path = "crates/kassensturz-import", default-features = false }
 kassensturz-bank = { path = "crates/kassensturz-bank" }
+kassensturz-charts = { path = "crates/kassensturz-charts" }
 kassensturz-pipeline = { path = "crates/kassensturz-pipeline", default-features = false }
 kassensturz-platform = { path = "crates/kassensturz-platform" }
+kassensturz-report = { path = "crates/kassensturz-report" }
 kassensturz-store = { path = "crates/kassensturz-store", default-features = false }
 
 # Direct dependencies. Each one is approved by the maintainer and listed in

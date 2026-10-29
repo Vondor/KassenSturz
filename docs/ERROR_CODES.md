@@ -389,3 +389,13 @@ Why a dataset for a chart or a card couldn't be made (M6a.1, D-277). No report r
 | `report.period-too-long` | | | The period is longer than 100 years. Choose a shorter one. |
 | `report.period-not-read` | | | A chart asked for days the book was not read for, so KassenSturz did not draw it rather than show figures with transactions missing. Open the page again; if it keeps happening, tell the maintainers (this is a bug). |
 | `report.book-unreadable` | | | The book couldn't be read for this chart, or a total is too large for KassenSturz to work with. The detail says why; see that message. |
+
+## Charts (`kassensturz-charts`)
+
+Why a chart model couldn't be made (M6a.3, D-276).
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `charts.kind-not-supported` | `kind` | `line`, `bar`, `stacked-bar`, `area`, `pie`, `donut` | This information can't be shown as a {kind} chart. Choose another kind of chart. |
+| `charts.value-too-large` | | | An amount is too large to be drawn exactly. The table below the chart still shows it. |
+| `charts.amount-overflow` | | | The marks of the chart's axis are too large for KassenSturz to work with. Choose a shorter period. |

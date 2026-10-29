@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+
+[package]
+name = "kassensturz-charts"
+description = "The chart model types of the ChartProvider boundary: text labels, drawing values and a text table, without Qt (D-276)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+kassensturz-core.workspace = true
+kassensturz-report.workspace = true
+
+[dev-dependencies]
+kassensturz-store = { workspace = true, features = ["bundled-sqlite"] }
+proptest.workspace = true
+
+[lints]
+workspace = true

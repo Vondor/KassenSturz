@@ -46,6 +46,10 @@ impl TextFormat for Words {
         format!("{}-{:02}", first_day.year(), first_day.month())
     }
 
+    fn percent(&self, percent: kassensturz_report::Percent) -> String {
+        format!("{} tenths", percent.tenths())
+    }
+
     fn unsorted(&self) -> String {
         "(unsorted)".into()
     }

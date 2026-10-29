@@ -15,8 +15,8 @@ use kassensturz_charts::{
 };
 use kassensturz_core::{Date, ErrorReport, Money, Report};
 use kassensturz_report::{
-    Filter, INCOME_EXPENSE_BY_MONTH, Level, Period, ReportError, SPENDING_BY_CATEGORY, Source,
-    TextFormat, income_expense_by_month as monthly_dataset,
+    Filter, INCOME_EXPENSE_BY_MONTH, Level, Percent, Period, ReportError, SPENDING_BY_CATEGORY,
+    Source, TextFormat, income_expense_by_month as monthly_dataset,
     spending_by_category as spending_dataset,
 };
 use kassensturz_store::Book;
@@ -93,6 +93,18 @@ impl<L: Locale> TextFormat for AppText<'_, L> {
 
     fn month(&self, first_day: Date) -> String {
         self.locale.month_and_year(first_day)
+    }
+
+    fn percent(&self, percent: Percent) -> String {
+        let tenths = percent.tenths();
+        let sign = if tenths < 0 { "-" } else { "" };
+        let magnitude = tenths.unsigned_abs();
+        format!(
+            "{sign}{}{}{} %",
+            magnitude / 10,
+            self.locale.decimal_point(),
+            magnitude % 10
+        )
     }
 
     /// Empty: the screen writes the translated name at the chart's

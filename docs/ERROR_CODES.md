@@ -388,16 +388,17 @@ Why a dataset for a chart or a card couldn't be made (M6a.1, D-277). No report r
 | `report.bad-period` | | | The period ends before it starts. Choose a last day that is not before the first day. |
 | `report.period-too-long` | | | The period is longer than 100 years. Choose a shorter one. |
 | `report.period-not-read` | | | A chart asked for days the book was not read for, so KassenSturz did not draw it rather than show figures with transactions missing. Open the page again; if it keeps happening, tell the maintainers (this is a bug). |
-| `report.document-invalid` | `reason`, `path` | `unknown-type`, `unknown-dataset`, `dataset-not-suited`, `unknown-property`, `wrong-type`, `bad-choice`, `too-long`, `bad-text`, `not-json`, `not-an-object`, `wrong-format`, `bad-version`, `bad-kind`, `bad-name`, `bad-id`, `duplicate-id`, `duplicate-key`, `too-deep`, `too-many-components`, `bad-frame`, `view-needs-one-component`, `view-has-frame` | A component of this view or dashboard doesn't fit what KassenSturz can show, so it was not used. The path says which setting (as text from the file); correct it or create the component again in the app. |
+| `report.document-invalid` | `reason`, `path` | `unknown-type`, `unknown-dataset`, `dataset-not-suited`, `unknown-property`, `wrong-type`, `bad-choice`, `too-long`, `bad-text`, `not-json`, `not-an-object`, `wrong-format`, `bad-version`, `bad-kind`, `bad-name`, `bad-id`, `duplicate-id`, `duplicate-key`, `too-deep`, `too-many-components`, `bad-frame`, `frame-outside-grid`, `frame-too-small`, `frames-overlap`, `view-needs-one-component`, `view-has-frame` | A component of this view or dashboard doesn't fit what KassenSturz can show, so it was not used. The path says which setting (as text from the file); correct it or create the component again in the app. |
 | `report.document-too-big` | `max_bytes` | | This view or dashboard is bigger than {max_bytes} bytes, more than KassenSturz opens. Leave out some components. |
 | `report.unsupported-document-version` | `version` | | This view or dashboard was made by a newer KassenSturz (version {version}), so this one doesn't open it. Update KassenSturz, or use a file made by this version. |
+| `report.grid-edit-refused` | `reason` | `unknown-component`, `not-editable`, `too-many-components`, `no-room`, `not-a-dashboard` | This change to the layout couldn't be made, so nothing was changed. A dashboard holds at most 100 components and reaches down at most 1,000 rows; a component of a type this KassenSturz doesn't know can be moved but not changed. Remove a component or move one up to make room, then try again. |
 | `report.book-unreadable` | | | The book couldn't be read for this chart, or a total is too large for KassenSturz to work with. The detail says why; see that message. |
 
 ### Planned for M6b (D-289 to D-295)
 
 Not rows yet: each code gets its row in the table above (or in the store's section) in the pull request that raises it, since the test compares the table with the code. Parameters are data, shown as plain text.
 
-- `report.document-invalid`, new reasons: `frame-outside-grid`, `frame-too-small`, `frames-overlap` (M6b.2).
+- `report.document-invalid`'s reasons `frame-outside-grid`, `frame-too-small`, `frames-overlap` are rows now: M6b.1 checks them in the grid editor (`grid::check`), and M6b.2 runs the same check in `Document::read`.
 - `report.groups-overlap` with `category`, `first`, `second`: a chart of parts of a whole would count a category twice (M6b.4).
 - `report.formula-syntax` with `position` and a reason keyword (`expected-value`, `missing-close`, `wrong-separator`, `bad-number`, `bad-period`, `two-comparisons`, …) (M6b.6).
 - `report.formula-unknown-name`, `report.formula-ambiguous-name` with `name` (and the paths to choose from), `report.formula-unknown-function` with `name`, `report.formula-arguments` with `function` and a reason keyword (M6b.6).

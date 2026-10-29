@@ -33,6 +33,8 @@ The Overview's components sit on a grid the user arranges. The page parts that a
 
 **Content that does not fit** in its frame scrolls inside the component, and the component says so to a screen reader; it is never cut off silently.
 
+**Built in M6b.1** as `kassensturz-report`'s `grid` module and `Editor` (the command stack of section 2). Its own choices are D-296: default sizes (chart and table 6 × 4, key figure card 3 × 2, progress bar 6 × 1), rows ending at 1,000 with a refused edit (`report.grid-edit-refused`) changing nothing, and how Move earlier and Move later pick a place.
+
 ## 2. The editor and its undo (D-288)
 
 - **View mode** is the normal page. **Edit mode** starts from the page's "Edit layout" action (one deliberate step, AGENTS.md §6) and shows the grid lines, a handle on each component, a resize corner, a component library to add from, and the properties panel of the selected component (the panel of M6a.6, unchanged in its rules).

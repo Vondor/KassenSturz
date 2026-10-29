@@ -5,12 +5,15 @@
 
 use kassensturz_core::{CurrencyCode, Money};
 use kassensturz_report::{
-    CATEGORY_OVER_TIME, CategoryOverTime, INCOME_EXPENSE_BY_MONTH, IncomeExpenseByMonth,
-    SPENDING_BY_CATEGORY, SpendingByCategory, TextFormat,
+    CATEGORY_OVER_TIME, CategoryOverTime, INCOME_EXPENSE_BY_MONTH, IncomeExpenseByMonth, Percent,
+    SPENDING_BY_CATEGORY, SpendingByCategory, TextFormat, TextTable,
 };
 
 use crate::ticks::ticks;
-use crate::{ChartError, ChartKind, ChartModel, HiddenNote, Point, Series};
+use crate::{
+    ChartError, ChartKind, ChartModel, HiddenNote, MAX_SLICES, NAMED_FROM_TENTHS, Point, Series,
+    Slices,
+};
 
 fn point(money: Money, format: &impl TextFormat) -> Point {
     Point {
@@ -75,14 +78,27 @@ pub fn spending_by_category(
     if !matches!(kind, ChartKind::Bar | ChartKind::Pie | ChartKind::Donut) {
         return Err(ChartError::KindNotSupported(kind));
     }
-    let table = data.to_text(format);
-    let categories = table.rows.iter().map(|row| row[0].clone()).collect();
-    let unsorted = data.rows.iter().position(|row| row.is_unsorted());
+    let shown = if kind.is_round() {
+        round_rows(data, format)?
+    } else {
+        Shown::plain(data, format)
+    };
+    let table = TextTable {
+        currency: data.currency.to_string(),
+        columns: vec!["category", "total"],
+        rows: shown
+            .rows
+            .iter()
+            .map(|row| vec![row.name.clone(), format.amount(row.total)])
+            .collect(),
+    };
+    let categories = shown.rows.iter().map(|row| row.name.clone()).collect();
+    let unsorted = shown.rows.iter().position(|row| row.unsorted);
     let series = vec![Series {
         key: "spending",
         name: None,
         color: 0,
-        points: data
+        points: shown
             .rows
             .iter()
             .map(|row| point(row.total, format))
@@ -104,8 +120,123 @@ pub fn spending_by_category(
         ticks,
         total: format.amount(data.total),
         table,
+        slices: shown.slices,
         hidden: hidden_note(data, format),
     })
+}
+
+/// A row of a spending chart as shown: its name (empty for money not sorted
+/// yet), its total and whether it is that money.
+struct ShownRow {
+    name: String,
+    total: Money,
+    unsorted: bool,
+}
+
+/// The rows of a spending chart and, for a round one, what it says about
+/// its slices.
+struct Shown {
+    rows: Vec<ShownRow>,
+    slices: Slices,
+}
+
+impl Shown {
+    /// Every row of the dataset as it is.
+    fn plain(data: &SpendingByCategory, format: &impl TextFormat) -> Self {
+        let rows = data
+            .rows
+            .iter()
+            .map(|row| ShownRow {
+                name: if row.is_unsorted() {
+                    format.unsorted()
+                } else {
+                    row.path.join(" › ")
+                },
+                total: row.total,
+                unsorted: row.is_unsorted(),
+            })
+            .collect();
+        Self {
+            rows,
+            slices: Slices::default(),
+        }
+    }
+}
+
+/// The rows of a pie, donut or ring (D-291): at most [`MAX_SLICES`] slices,
+/// the seven largest and "Other" when there would be more, each with its
+/// share; then the rows that cannot be drawn (a refund larger than the
+/// spending, or nothing), listed with a note and never as slices. The
+/// dataset orders its rows largest first, so the first seven are the
+/// largest.
+fn round_rows(data: &SpendingByCategory, format: &impl TextFormat) -> Result<Shown, ChartError> {
+    let overflow = |_| ChartError::Overflow;
+    let plain = Shown::plain(data, format);
+    let (drawn, undrawn): (Vec<ShownRow>, Vec<ShownRow>) = plain
+        .rows
+        .into_iter()
+        .partition(|row| row.total.minor_units() > 0);
+    let mut rows = Vec::new();
+    let mut holds = Vec::new();
+    let mut other = None;
+    if drawn.len() > MAX_SLICES {
+        let mut rest = drawn;
+        let kept: Vec<ShownRow> = rest.drain(..MAX_SLICES - 1).collect();
+        rows.extend(kept);
+        let sum = Money::checked_sum(data.currency, rest.iter().map(|row| row.total))
+            .map_err(overflow)?;
+        holds = rest
+            .iter()
+            .map(|row| (row.name.clone(), format.amount(row.total)))
+            .collect();
+        other = Some(rows.len());
+        rows.push(ShownRow {
+            name: String::new(),
+            total: sum,
+            unsorted: false,
+        });
+    } else {
+        rows.extend(drawn);
+    }
+    let whole =
+        Money::checked_sum(data.currency, rows.iter().map(|row| row.total)).map_err(overflow)?;
+    let drawn_count = rows.len();
+    rows.extend(undrawn);
+    let mut shares = Vec::with_capacity(rows.len());
+    let mut named = Vec::with_capacity(rows.len());
+    let mut flags = Vec::with_capacity(rows.len());
+    for (index, row) in rows.iter().enumerate() {
+        if index >= drawn_count {
+            shares.push(String::new());
+            named.push(false);
+            flags.push(true);
+            continue;
+        }
+        let tenths = share_tenths(row.total.minor_units(), whole.minor_units());
+        shares.push(format.percent(Percent::from_tenths(tenths)));
+        named.push(tenths >= NAMED_FROM_TENTHS);
+        flags.push(false);
+    }
+    Ok(Shown {
+        rows,
+        slices: Slices {
+            other,
+            holds,
+            shares,
+            named,
+            undrawn: flags,
+        },
+    })
+}
+
+/// `part` as tenths of a percent of `whole`, rounded half away from zero.
+/// Both are positive here; the wide type keeps the product from overflowing.
+fn share_tenths(part: i64, whole: i64) -> i64 {
+    if whole <= 0 {
+        return 0;
+    }
+    let (part, whole) = (i128::from(part), i128::from(whole));
+    i64::try_from((part * 1000 + whole / 2) / whole).unwrap_or(1000)
 }
 
 /// Income and expenses by month as a line, bar, stacked bar or area chart:
@@ -156,6 +287,7 @@ pub fn income_expense_by_month(
         ticks,
         total: format.amount(data.net),
         table,
+        slices: Slices::default(),
         hidden: None,
     })
 }
@@ -211,6 +343,7 @@ pub fn category_over_time(
         ticks,
         total: format.amount(total),
         table,
+        slices: Slices::default(),
         hidden: None,
     })
 }

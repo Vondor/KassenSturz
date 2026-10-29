@@ -37,7 +37,7 @@ Window {
         const top = kind === "stacked-bar" ? 5000 : 3000;
         return {
             kind: kind, dataset: "income_expense_by_month", currency: "EUR", round: false,
-            total: "1 100,00 €", paletteSize: 8, count: 4, unsortedIndex: -1, hidden: ({}),
+            total: "1 100,00 €", paletteSize: 8, count: 4, unsortedIndex: -1, hidden: ({}), slices: ({other: -1, holds: [], shares: [], named: [], undrawn: []}), 
             categories: months(),
             series: [
                 {key: "income", name: "", color: 0, marker: 0, points: income.map(v => point(v + ",00 €", v, 0))},
@@ -54,7 +54,7 @@ Window {
         const values = [800, 320, 60, 150];
         return {
             kind: kind, dataset: "spending_by_category", currency: "EUR", round: kind !== "bar",
-            total: "1 330,00 €", paletteSize: 8, count: 4, unsortedIndex: 2, hidden: ({}),
+            total: "1 330,00 €", paletteSize: 8, count: 4, unsortedIndex: 2, hidden: ({}), slices: ({other: -1, holds: [], shares: [], named: [], undrawn: []}), 
             categories: names,
             series: [{key: "spending", name: "", color: 0, marker: 0, points: values.map((v, i) => point(v + ",00 €", v, i))}],
             ticks: kind === "bar" ? [0, 400, 800].map(v => ({label: v + " €", minorUnits: String(v * 100), value: v * 100})) : [],
@@ -66,6 +66,26 @@ Window {
     function spendingWithHidden(kind) {
         const chart = spending(kind);
         chart.hidden = {first: "Rent", more: 1, total: "1.250,00 €"};
+        return chart;
+    }
+
+    // Eleven categories: seven slices, "Other" and a refund that can't be one.
+    function spendingWithOther(kind) {
+        const names = ["Rent", "Food", "Travel", "Phone", "Power", "Fun", "Pets", "", "Refund"];
+        const values = [800, 320, 150, 90, 80, 60, 50, 140, -20];
+        const chart = spending(kind);
+        chart.categories = names;
+        chart.count = names.length;
+        chart.unsortedIndex = -1;
+        chart.series = [{key: "spending", name: "", color: 0, marker: 0, points: values.map((v, i) => point(v + ",00 €", v, i))}];
+        chart.table = {currency: "EUR", columns: ["category", "total"], rows: names.map((n, i) => [n, values[i] + ",00 €"])};
+        chart.slices = {
+            other: 7,
+            holds: [{name: "Gifts", label: "90,00 €"}, {name: "", label: "50,00 €"}],
+            shares: ["37,2 %", "14,9 %", "7,0 %", "4,2 %", "3,7 %", "2,8 %", "2,3 %", "6,5 %", ""],
+            named: [true, true, true, false, false, false, false, true, false],
+            undrawn: [false, false, false, false, false, false, false, false, true]
+        };
         return chart;
     }
 
@@ -82,7 +102,7 @@ Window {
 
     readonly property var charts: [
         monthly("line"), monthly("area"), monthly("bar"), monthly("stacked-bar"),
-        spending("bar"), spending("pie"), spending("donut"), spendingWithHidden("pie"), overTime()
+        spending("bar"), spending("pie"), spending("donut"), spendingWithHidden("pie"), spendingWithOther("pie"), spendingWithOther("donut"), overTime()
     ]
     property int shown: 0
 

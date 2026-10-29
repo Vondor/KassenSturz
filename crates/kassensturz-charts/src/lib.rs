@@ -22,7 +22,10 @@ mod ticks;
 
 pub use datasets::{category_over_time, income_expense_by_month, spending_by_category};
 pub use error::ChartError;
-pub use model::{ChartKind, ChartModel, HiddenNote, PALETTE_SIZE, Point, Series, Tick};
+pub use model::{
+    ChartKind, ChartModel, HiddenNote, MAX_SLICES, NAMED_FROM_TENTHS, PALETTE_SIZE, Point, Series,
+    Slices, Tick,
+};
 pub use provider::{ChartProvider, Prepared, PreparedSeries, drawing_value};
 
 #[cfg(test)]

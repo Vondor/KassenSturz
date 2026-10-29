@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-29 22:27+0000\n"
+"POT-Creation-Date: 2026-10-29 23:02+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -5091,57 +5091,71 @@ msgid "%1 to %2"
 msgstr "%1 bis %2"
 
 #: crates/kassensturz-ui-bridge/qml/ChartTable.qml:30
-#: crates/kassensturz-ui-bridge/qml/ChartView.qml:101
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:104
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:121
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:44
 #, kde-format
 msgctxt "@label money with no category yet"
 msgid "Not sorted yet"
 msgstr "Noch nicht zugeordnet"
 
-#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:37
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:32
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:101
+#, kde-format
+msgctxt "@label the smaller slices of a pie put together"
+msgid "Other"
+msgstr "Sonstige"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:34
+#, kde-format
+msgctxt "@label %1 is a category, whose total is money that came back"
+msgid "%1 (money that came back, not drawn)"
+msgstr "%1 (zurückgeflossenes Geld, nicht eingezeichnet)"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:41
 #: crates/kassensturz-ui-bridge/qml/OverviewMonth.qml:113
 #, kde-format
 msgctxt "@title"
 msgid "Your biggest spending"
 msgstr "Wofür Sie am meisten ausgeben"
 
-#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:38
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:42
 #, kde-format
 msgctxt "@label"
 msgid "Values of the chart as a table"
 msgstr "Werte des Diagramms als Tabelle"
 
-#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:40
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:44
 #, kde-format
 msgctxt "@title:column a table of a chart"
 msgid "Category"
 msgstr "Kategorie"
 
-#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:41
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:45
 #, kde-format
 msgctxt "@title:column a table of a chart"
 msgid "Total"
 msgstr "Summe"
 
-#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:42
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:46
 #, kde-format
 msgctxt "@title:column a table of a chart"
 msgid "Month"
 msgstr "Monat"
 
-#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:43
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:47
 #, kde-format
 msgctxt "@title:column a table of a chart"
 msgid "Money in"
 msgstr "Geld rein"
 
-#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:44
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:48
 #, kde-format
 msgctxt "@title:column a table of a chart"
 msgid "Money out"
 msgstr "Geld raus"
 
-#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:45
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:49
 #, kde-format
 msgctxt "@title:column a table of a chart"
 msgid "Left over"
@@ -5179,19 +5193,43 @@ msgctxt "@info %1 is a category name, %2 an amount"
 msgid "Hidden: %1 (%2 not shown)"
 msgstr "Ausgeblendet: %1 (%2 nicht angezeigt)"
 
-#: crates/kassensturz-ui-bridge/qml/ChartView.qml:113
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:122
+#, kde-format
+msgctxt "@label %1 is a category, %2 an amount"
+msgid "%1 %2"
+msgstr "%1 %2"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:131
+#, kde-format
+msgctxt "@label %1 is a category, %2 an amount of money that came back"
+msgid "%1: %2 (money that came back, not drawn)"
+msgstr "%1: %2 (zurückgeflossenes Geld, nicht eingezeichnet)"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:132
+#, kde-format
+msgctxt "@label %1 is a category, %2 an amount, %3 its share of the total"
+msgid "%1: %2, %3"
+msgstr "%1: %2, %3"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:142
+#, kde-format
+msgctxt "@label %1 is the text of a legend row, %2 the categories in Other"
+msgid "%1. It holds: %2"
+msgstr "%1. Enthält: %2"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:148
 #, kde-format
 msgctxt "@label %1 is a series like Money in, %2 an amount"
 msgid "%1: %2"
 msgstr "%1: %2"
 
-#: crates/kassensturz-ui-bridge/qml/ChartView.qml:116
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:151
 #, kde-format
 msgctxt "@label %1 is a category or month, %2 the values there"
 msgid "%1: %2"
 msgstr "%1: %2"
 
-#: crates/kassensturz-ui-bridge/qml/ChartView.qml:120
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:198
 #, kde-format
 msgctxt ""
 "@label %1 is the title, %2 the number of points, %3 the currency, %4 an "
@@ -5199,25 +5237,31 @@ msgctxt ""
 msgid "%1. %2 values in %3, total %4."
 msgstr "%1. %2 Werte in %3, insgesamt %4."
 
-#: crates/kassensturz-ui-bridge/qml/ChartView.qml:438
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:573
 #, kde-format
 msgctxt "@label %1 is an amount of money"
 msgid "Total spent: %1"
 msgstr "Insgesamt ausgegeben: %1"
 
-#: crates/kassensturz-ui-bridge/qml/ChartView.qml:439
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:574
 #, kde-format
 msgctxt "@label %1 is an amount of money"
 msgid "Left over in total: %1"
 msgstr "Insgesamt übrig: %1"
 
-#: crates/kassensturz-ui-bridge/qml/ChartView.qml:462
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:583
+#, kde-format
+msgctxt "@info %1 is the categories in Other with their amounts"
+msgid "Other holds: %1"
+msgstr "Sonstige enthält: %1"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:606
 #, kde-format
 msgctxt "@action:button"
 msgid "Show as chart"
 msgstr "Als Diagramm anzeigen"
 
-#: crates/kassensturz-ui-bridge/qml/ChartView.qml:463
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:607
 #, kde-format
 msgctxt "@action:button"
 msgid "Show as table"

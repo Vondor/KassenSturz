@@ -97,15 +97,50 @@ ColumnLayout {
     }
 
     function categoryName(index: int): string {
+        if (round && chart.slices.other === index) {
+            return i18nContext.i18nc("@label the smaller slices of a pie put together", "Other");
+        }
         return chart.unsortedIndex === index
             ? i18nContext.i18nc("@label money with no category yet", "Not sorted yet")
             : chart.categories[index];
+    }
+
+    function isOther(index: int): bool {
+        return round && chart.slices.other === index;
+    }
+
+    // A row of a round chart that can't be a slice: money that came back.
+    function undrawn(index: int): bool {
+        return round && chart.slices.undrawn[index] === true;
+    }
+
+    // What "Other" holds, largest first.
+    function holdsText(): string {
+        const parts = [];
+        for (const held of chart.slices.holds) {
+            const name = held.name === "" ? i18nContext.i18nc("@label money with no category yet", "Not sorted yet") : held.name;
+            parts.push(i18nContext.i18nc("@label %1 is a category, %2 an amount", "%1 %2", name, held.label));
+        }
+        return parts.join(", ");
+    }
+
+    // One row of a round chart's legend: name, amount and share.
+    function legendText(index: int): string {
+        const label = chart.series[0].points[index].label;
+        return undrawn(index)
+            ? i18nContext.i18nc("@label %1 is a category, %2 an amount of money that came back", "%1: %2 (money that came back, not drawn)", categoryName(index), label)
+            : i18nContext.i18nc("@label %1 is a category, %2 an amount, %3 its share of the total", "%1: %2, %3", categoryName(index), label, chart.slices.shares[index] ?? "");
     }
 
     // What the point in focus says, for the screen reader and for the eyes.
     function pointText(index: int): string {
         if (index < 0 || index >= count) {
             return "";
+        }
+        if (round) {
+            return isOther(index)
+                ? i18nContext.i18nc("@label %1 is the text of a legend row, %2 the categories in Other", "%1. It holds: %2", legendText(index), holdsText())
+                : legendText(index);
         }
         const parts = [];
         for (const series of chart.series) {
@@ -114,6 +149,49 @@ ColumnLayout {
                 : series.points[index].label);
         }
         return i18nContext.i18nc("@label %1 is a category or month, %2 the values there", "%1: %2", categoryName(index), parts.join(", "));
+    }
+
+    // Where slice `index` of a round chart is, as the angle of its middle in
+    // radians from twelve o'clock, clockwise. The drawing values only place
+    // marks (AGENTS.md §5).
+    function sliceMiddle(index: int): real {
+        const points = chart.series[0].points;
+        let whole = 0;
+        for (const point of points) {
+            whole += point.value;
+        }
+        let before = 0;
+        for (let at = 0; at < index; ++at) {
+            before += points[at].value;
+        }
+        return whole > 0 ? (before + points[index].value / 2) / whole * 2 * Math.PI : 0;
+    }
+
+    // The slice under a point (`dx`, `dy` from the middle, `radius` of the
+    // picture), or -1 outside the circle or on the hole of a donut.
+    function sliceAt(dx: real, dy: real, radius: real): int {
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const hole = chart.kind === "donut" ? radius - Kirigami.Units.gridUnit * 2.5 : 0;
+        if (distance > radius || distance < hole) {
+            return -1;
+        }
+        let angle = Math.atan2(dx, -dy);
+        if (angle < 0) {
+            angle += 2 * Math.PI;
+        }
+        const points = chart.series[0].points;
+        let whole = 0;
+        for (const point of points) {
+            whole += point.value;
+        }
+        let upTo = 0;
+        for (let index = 0; index < points.length; ++index) {
+            upTo += points[index].value;
+            if (whole > 0 && angle <= upTo / whole * 2 * Math.PI && points[index].value > 0) {
+                return index;
+            }
+        }
+        return -1;
     }
 
     function summary(): string {
@@ -256,6 +334,47 @@ ColumnLayout {
                         color: "white"
                         Accessible.ignored: true
                     }
+                }
+
+                // The names of the slices that are big enough (5 %), on the
+                // slices themselves; the legend has every slice.
+                Repeater {
+                    model: view.round ? view.count : 0
+
+                    delegate: Rectangle {
+                        required property int index
+                        readonly property real angle: view.sliceMiddle(index)
+                        readonly property real pieRadius: Math.min(plot.width, plot.height) / 2
+                        readonly property real reach: view.chart.kind === "donut"
+                            ? pieRadius - Kirigami.Units.gridUnit * 1.25 : pieRadius * 0.62
+
+                        visible: view.chart.slices.named[index] === true
+                        x: plot.width / 2 + reach * Math.sin(angle) - width / 2
+                        y: plot.height / 2 - reach * Math.cos(angle) - height / 2
+                        width: Math.min(sliceName.implicitWidth, Kirigami.Units.gridUnit * 7) + Kirigami.Units.smallSpacing * 2
+                        height: sliceName.implicitHeight + Kirigami.Units.smallSpacing
+                        radius: 3
+                        color: Qt.rgba(Kirigami.Theme.backgroundColor.r, Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 0.8)
+
+                        Controls.Label {
+                            id: sliceName
+
+                            anchors.centerIn: parent
+                            width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 7)
+                            text: view.categoryName(parent.index)
+                            textFormat: Text.PlainText
+                            elide: Text.ElideRight
+                            font: Kirigami.Theme.smallFont
+                            Accessible.ignored: true
+                        }
+                    }
+                }
+
+                // Pointing at a slice says what the legend says about it.
+                HoverHandler {
+                    enabled: view.round
+                    onPointChanged: view.current = view.sliceAt(point.position.x - plot.width / 2, point.position.y - plot.height / 2, Math.min(plot.width, plot.height) / 2)
+                    onHoveredChanged: if (!hovered) view.current = -1
                 }
 
                 // The point in focus: a frame around its place.
@@ -405,7 +524,10 @@ ColumnLayout {
                     implicitHeight: Kirigami.Units.gridUnit
                     radius: entry.marker === 1 ? width / 2 : (entry.marker === 2 ? 0 : 2)
                     rotation: entry.marker === 3 ? 45 : 0
-                    color: ChartPalette.color(entry.color)
+                    // A row that can't be a slice has no color of its own.
+                    color: view.undrawn(entry.index) ? "transparent" : ChartPalette.color(entry.color)
+                    border.width: view.undrawn(entry.index) ? 1 : 0
+                    border.color: Kirigami.Theme.disabledTextColor
 
                     Controls.Label {
                         anchors.centerIn: parent
@@ -422,11 +544,24 @@ ColumnLayout {
                 }
 
                 Controls.Label {
-                    text: view.round ? view.categoryName(entry.index) : view.seriesName(entry.series.key)
+                    text: view.round ? view.legendText(entry.index) : view.seriesName(entry.series.key)
                     textFormat: Text.PlainText
-                    elide: Text.ElideRight
-                    Layout.maximumWidth: Kirigami.Units.gridUnit * 14
+                    wrapMode: view.round ? Text.Wrap : Text.NoWrap
+                    elide: view.round ? Text.ElideNone : Text.ElideRight
+                    Layout.maximumWidth: Kirigami.Units.gridUnit * (view.round ? 22 : 14)
+                    font.bold: view.current === entry.index
                 }
+
+                HoverHandler {
+                    id: legendHover
+
+                    enabled: view.round
+                    onHoveredChanged: view.current = hovered ? entry.index : -1
+                }
+
+                Controls.ToolTip.visible: view.round && legendHover.hovered
+                Controls.ToolTip.text: view.pointText(entry.index)
+                Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
             }
         }
     }
@@ -439,6 +574,15 @@ ColumnLayout {
             : i18nContext.i18nc("@label %1 is an amount of money", "Left over in total: %1", view.chart.total)
         textFormat: Text.PlainText
         font.bold: true
+    }
+
+    // What "Other" holds, under the chart and under its table.
+    Controls.Label {
+        Layout.fillWidth: true
+        visible: view.round && view.chart.slices.other >= 0
+        text: i18nContext.i18nc("@info %1 is the categories in Other with their amounts", "Other holds: %1", view.holdsText())
+        textFormat: Text.PlainText
+        wrapMode: Text.Wrap
     }
 
     // Hidden categories are never silently missing (D-291): the same line

@@ -13,7 +13,7 @@ use core::pin::Pin;
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
-use kassensturz_charts::{ChartModel, HiddenNote, PALETTE_SIZE, Prepared, Series};
+use kassensturz_charts::{ChartModel, HiddenNote, PALETTE_SIZE, Prepared, Series, Slices};
 use kassensturz_core::ErrorParam;
 
 use crate::charts::{self, ChartSet, ChartsError, Request};
@@ -181,6 +181,35 @@ fn hidden_object(note: Option<&HiddenNote>) -> QVariant {
     }
 }
 
+/// What a round chart says about its slices, as QML reads it: the place of
+/// "Other" (-1 for none), what it holds, and for every slice its share as
+/// text and whether it carries its name or can't be drawn. Empty lists for
+/// the other kinds of chart.
+fn slices_object(slices: &Slices) -> QVariant {
+    let other = slices
+        .other
+        .map_or(-1, |index| i32::try_from(index).unwrap_or(-1));
+    let flags = |flags: &[bool]| list(flags.iter().map(QVariant::from));
+    map([
+        ("other", QVariant::from(&other)),
+        (
+            "holds",
+            list(
+                slices
+                    .holds
+                    .iter()
+                    .map(|(name, label)| map([("name", text(name)), ("label", text(label))])),
+            ),
+        ),
+        (
+            "shares",
+            list(slices.shares.iter().map(|share| text(share))),
+        ),
+        ("named", flags(&slices.named)),
+        ("undrawn", flags(&slices.undrawn)),
+    ])
+}
+
 /// An amount's drawing value, which only places a mark.
 fn drawing(value: f64) -> QVariant {
     QVariant::from(&value)
@@ -259,6 +288,7 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
         ("round", QVariant::from(&round)),
         ("total", text(&model.total)),
         ("hidden", hidden_object(model.hidden.as_ref())),
+        ("slices", slices_object(&model.slices)),
         ("paletteSize", QVariant::from(&i32::from(PALETTE_SIZE))),
         ("count", count(model.categories.len())),
         ("unsortedIndex", QVariant::from(&unsorted)),
@@ -432,6 +462,7 @@ mod tests {
                 "paletteSize",
                 "round",
                 "series",
+                "slices",
                 "table",
                 "ticks",
                 "total",
@@ -461,6 +492,30 @@ mod tests {
             ["color", "key", "marker", "name", "points"]
         );
         assert_eq!(text_of(&series[0], "name"), "");
+        let slices = object_of(chart, "slices");
+        assert_eq!(
+            keys(&slices),
+            ["holds", "named", "other", "shares", "undrawn"]
+        );
+        assert_eq!(number_of(&slices, "other"), -1);
+        assert!(list_of(&slices, "holds").is_empty());
+        let shares: Vec<String> = list_of(&slices, "shares")
+            .iter()
+            .map(|share| share.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(shares.len(), 3);
+        assert!(shares[0].ends_with('%'), "{shares:?}");
+        let named: Vec<bool> = list_of(&slices, "named")
+            .iter()
+            .map(|flag| flag.value::<bool>().expect("flag"))
+            .collect();
+        // Rent is nearly all of it; the 12 euros not sorted yet are under 5 %.
+        assert_eq!(named, [true, false, false]);
+        assert!(
+            list_of(&slices, "undrawn")
+                .iter()
+                .all(|f| f.value::<bool>() == Some(false))
+        );
         // Nothing is hidden in this book: an empty object.
         assert!(keys(&object_of(chart, "hidden")).is_empty());
         assert_eq!(text_of(&series[0], "key"), "spending");
@@ -503,6 +558,10 @@ mod tests {
         let chart = &list_of(&view, "charts")[0];
         assert!(!flag_of(chart, "round"));
         assert_eq!(number_of(chart, "unsortedIndex"), -1);
+        // Only a round chart has anything to say about slices.
+        let slices = object_of(chart, "slices");
+        assert!(list_of(&slices, "shares").is_empty());
+        assert_eq!(number_of(&slices, "other"), -1);
         let series = list_of(chart, "series");
         let keys_of: Vec<String> = series.iter().map(|s| text_of(s, "key")).collect();
         assert_eq!(keys_of, ["income", "expenses"]);

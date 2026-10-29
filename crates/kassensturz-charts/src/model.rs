@@ -110,6 +110,36 @@ pub struct HiddenNote {
     pub total: String,
 }
 
+/// How many slices a pie, donut or ring has at most (D-291): the seven
+/// largest and "Other", so every slice has its own color of the palette.
+pub const MAX_SLICES: usize = 8;
+
+/// A slice of at least this share of what is shown has its name on the
+/// chart, in tenths of a percent (5 %).
+pub const NAMED_FROM_TENTHS: i64 = 50;
+
+/// What a round chart says about its slices (M6b.5b, D-307). The slices are
+/// the chart's categories: the largest ones, then "Other" if there were more
+/// than [`MAX_SLICES`], then the rows that cannot be drawn.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct Slices {
+    /// The place of the slice "Other" in [`ChartModel::categories`]; its
+    /// text there is empty and the screen writes the translated name.
+    pub other: Option<usize>,
+    /// What "Other" holds, largest first: each category's name (empty for
+    /// money not sorted yet) and its amount written for the user's locale.
+    pub holds: Vec<(String, String)>,
+    /// Each slice's share of what is drawn, written for the user's locale;
+    /// empty for a row that cannot be drawn.
+    pub shares: Vec<String>,
+    /// Whether the slice is big enough (5 %) to carry its name on the chart.
+    pub named: Vec<bool>,
+    /// Whether the row cannot be drawn: money that came back (a negative
+    /// total) or nothing. It is listed in the legend and the table with a
+    /// note, never as a slice.
+    pub undrawn: Vec<bool>,
+}
+
 /// A chart: what to draw and what to say about it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChartModel {
@@ -137,6 +167,8 @@ pub struct ChartModel {
     /// The same values as a table: the screen-reader path and the "Show as
     /// table" control (D-283).
     pub table: TextTable,
+    /// The slices of a round chart; empty for the other kinds.
+    pub slices: Slices,
     /// Hidden categories this chart leaves out, if any. The note belongs to
     /// the chart and to its table alike.
     pub hidden: Option<HiddenNote>,

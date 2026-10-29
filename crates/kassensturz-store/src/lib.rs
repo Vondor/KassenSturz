@@ -22,6 +22,7 @@ mod reader;
 mod rules;
 mod transactions;
 mod transfers;
+mod views;
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{File, OpenOptions};

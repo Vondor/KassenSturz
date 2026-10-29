@@ -60,6 +60,16 @@ QtObject {
             return i18nContext.i18nc("@info a change you made", "Changed a rule");
         case "move-rule":
             return i18nContext.i18nc("@info a change you made", "Moved a rule");
+        case "add-view":
+            return i18nContext.i18nc("@info a change you made", "Saved a view or dashboard");
+        case "edit-view":
+            return i18nContext.i18nc("@info a change you made", "Changed a view or dashboard");
+        case "rename-view":
+            return i18nContext.i18nc("@info a change you made", "Renamed a view or dashboard");
+        case "move-view":
+            return i18nContext.i18nc("@info a change you made", "Moved a view or dashboard");
+        case "remove-view":
+            return i18nContext.i18nc("@info a change you made", "Deleted a view or dashboard");
         case "remove-category":
             return i18nContext.i18nc("@info a change you made", "Removed a category");
         case "remove-rule":

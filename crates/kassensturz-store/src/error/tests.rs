@@ -154,6 +154,12 @@ fn examples() -> Vec<ErrorReport> {
         StoreError::IncompleteBankLink(account),
         StoreError::BankAccountAlreadyLinked { existing: account },
         StoreError::NotLinked(account),
+        StoreError::UnknownView(kassensturz_core::ViewId::generate()),
+        StoreError::ViewNameTaken {
+            name: text("Spending"),
+        },
+        StoreError::InvalidViewDocument { reason: "bad-name" },
+        StoreError::ViewDocumentTooBig { max_bytes: 1 << 20 },
         StoreError::DuplicateAccountName { existing: account },
         StoreError::AccountTypeMismatch {
             account_type: AccountType::CreditCard,

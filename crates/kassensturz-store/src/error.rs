@@ -10,7 +10,7 @@ use std::io::ErrorKind;
 use kassensturz_core::{
     AccountId, AccountKind, AccountType, CurrencyCode, Date, DatedRateId, ErrorParam, ErrorReport,
     InstitutionId, Money, PayeeId, Report, RuleError, RuleId, SplitId, TagId, TransactionError,
-    TransactionId, TransferError,
+    TransactionId, TransferError, ViewId,
 };
 
 use crate::Lock;
@@ -92,6 +92,26 @@ pub enum StoreError {
     },
     /// The account has no bank link, so there is nothing to note a fetch on.
     NotLinked(AccountId),
+    /// There is no saved view or dashboard with this ID (D-278).
+    UnknownView(ViewId),
+    /// Another view or dashboard of the same kind already has this name,
+    /// ignoring capitals.
+    ViewNameTaken {
+        /// The name as it was given.
+        name: String,
+    },
+    /// A view or dashboard document can't be kept: `reason` is `not-json`,
+    /// `not-an-object`, `wrong-format`, `bad-version`, `bad-kind` or
+    /// `bad-name`.
+    InvalidViewDocument {
+        /// What is wrong, as a keyword.
+        reason: &'static str,
+    },
+    /// A view or dashboard document is over the size limit (D-278, D-281).
+    ViewDocumentTooBig {
+        /// The most the book keeps, in bytes.
+        max_bytes: usize,
+    },
     /// Another account already has this name, ignoring capitals. The user
     /// can pick another name.
     DuplicateAccountName {
@@ -427,6 +447,18 @@ impl Report for StoreError {
             }
             Self::NotLinked(account) => {
                 new("store.not-linked").with("account", P::Account(*account))
+            }
+            Self::UnknownView(view) => {
+                new("store.unknown-view").with("view", P::Text(view.to_string()))
+            }
+            Self::ViewNameTaken { name } => {
+                new("store.view-name-taken").with("name", P::Text(name.clone()))
+            }
+            Self::InvalidViewDocument { reason } => {
+                new("store.view-document-invalid").with("reason", P::Keyword(reason))
+            }
+            Self::ViewDocumentTooBig { max_bytes } => {
+                new("store.view-document-too-big").with("max_bytes", P::count(*max_bytes))
             }
             Self::DuplicateAccountName { existing } => {
                 new("store.duplicate-account-name").with("existing", P::Account(*existing))

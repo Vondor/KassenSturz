@@ -9,7 +9,7 @@ use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, Actions, AmountTest, BankLink, BookTo, Condition,
     CurrencyCode, Date, DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails,
     MatchMode, Money, RateSource, RoundingMode, Rule, RuleId, Split, TextField, TextOperator,
-    Transaction, TransactionId,
+    Transaction, TransactionId, ViewKind,
 };
 use kassensturz_export::{BookData, BookExport, ExportData, export, read_book};
 use kassensturz_pipeline::{export_book, fill_book};
@@ -181,6 +181,19 @@ fn household() -> Book {
         last_fetched_on: None,
     })
     .expect("linked");
+    // A dashboard and two views, one of them moved to the front (D-278).
+    for (kind, name) in [
+        ("dashboard", "Übersicht"),
+        ("view", "Spending by month"),
+        ("view", "Savings rate"),
+    ] {
+        book.add_view(&format!(
+            r#"{{"format":"kassensturz-dashboard","version":1,"kind":"{kind}","name":"{name}","components":[]}}"#
+        ))
+        .expect("view saved");
+    }
+    let last = book.views(Some(ViewKind::View)).expect("read")[1].id;
+    book.move_view(last, 0).expect("moved");
     let cash = add(
         &mut book,
         "Dollars",
@@ -458,6 +471,22 @@ fn a_book_comes_back_from_its_export_as_it_was() {
     assert_eq!(data.bank_links, book.bank_links().expect("read"));
     assert_eq!(data.bank_links.len(), 2);
     assert_eq!(data.bank_links[0].last_fetched_on, Some(day(20)));
+    // Dashboards first, then the views in the order of their list.
+    let names: Vec<String> = book
+        .views(None)
+        .expect("read")
+        .into_iter()
+        .map(|view| view.name)
+        .collect();
+    assert_eq!(names, ["Übersicht", "Savings rate", "Spending by month"]);
+    assert_eq!(
+        data.views.iter().map(|view| view.id).collect::<Vec<_>>(),
+        book.views(None)
+            .expect("read")
+            .iter()
+            .map(|view| view.id)
+            .collect::<Vec<_>>()
+    );
 
     let file = export(&BookExport, &ExportData::Book(data.clone())).expect("written");
     let read = read_book(&file).expect("read back");
@@ -491,6 +520,11 @@ fn a_book_comes_back_from_its_export_as_it_was() {
     assert_eq!(
         copy.bank_links().expect("read"),
         book.bank_links().expect("read")
+    );
+    // The documents come back with their IDs, places and every byte.
+    assert_eq!(
+        copy.views(None).expect("read"),
+        book.views(None).expect("read")
     );
     assert_eq!(copy.rounding_mode().expect("read"), RoundingMode::HalfEven);
     assert_eq!(

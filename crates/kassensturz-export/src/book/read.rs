@@ -22,12 +22,13 @@ use kassensturz_core::{
     CurrencyCode, Date, DatedRate, DatedRateId, ExchangeRate, ForeignAmount, ImportedDetails,
     Institution, InstitutionId, Money, OriginalAmount, Payee, PayeeId, PayeeRecognition,
     RateSource, Rule, RuleId, RuleNode, Split, SplitId, Tag, TagId, Transaction, TransactionId,
+    ViewId,
 };
 use serde_json::{Map, Value};
 
 use super::{
     BookData, BookedByRule, FORMAT, KINDS, MATCH_MODES, MAX_RULE_DEPTH, RECOGNITIONS,
-    ROUNDING_MODES, SOURCES, STATUSES, TEXT_FIELDS, TEXT_OPERATORS, TYPES, VERSION,
+    ROUNDING_MODES, SOURCES, STATUSES, TEXT_FIELDS, TEXT_OPERATORS, TYPES, VERSION, ViewData,
 };
 use crate::error::{Expected, ExportError};
 
@@ -96,6 +97,9 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
     }
     if version >= 5 {
         keys.push("bank_links");
+    }
+    if version >= 6 {
+        keys.push("views");
     }
     let top = Object::new(&file, "", &keys)?;
     let mut reader = Reader {
@@ -212,6 +216,24 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
                 bank_code: link.optional_text("bank_code")?,
                 number: link.optional_text("number")?,
                 last_fetched_on: link.optional_date("last_fetched")?,
+            });
+        }
+    }
+
+    let mut views = Vec::new();
+    if version >= 6 {
+        let mut ids = HashSet::new();
+        for (value, path) in top.list("views")? {
+            let view = Object::new(value, &path, &["id", "document"])?;
+            let id = ViewId::from_bytes(view.id("id")?);
+            if !ids.insert(id) {
+                return Err(ExportError::Duplicate {
+                    path: format!("{path}.id"),
+                });
+            }
+            views.push(ViewData {
+                id,
+                document: view.text("document")?,
             });
         }
     }
@@ -344,6 +366,7 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         payees,
         tags,
         bank_links,
+        views,
     })
 }
 

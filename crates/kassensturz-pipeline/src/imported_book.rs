@@ -231,6 +231,7 @@ pub fn fill_book_from_with(
         payees,
         tags,
         bank_links: Vec::new(),
+        views: Vec::new(),
     };
     fill_book(book, &data)?;
     let count = |kind: fn(AccountKind) -> bool| {

@@ -12,7 +12,7 @@ use crate::{Action, Book, HistoryRetention};
 
 impl Book {
     /// Whether nothing is in the book yet: no currency, account, rate,
-    /// Rule, transaction, institution, payee or tag, and no change in its
+    /// Rule, transaction, institution, payee, tag, view or dashboard, and no change in its
     /// history. Only such a book
     /// can be filled ([`Book::fill_new`]); one after the app's first start
     /// has the household's currency and categories, so it is not empty.
@@ -28,6 +28,7 @@ impl Book {
                      OR EXISTS (SELECT 1 FROM main.institutions)
                      OR EXISTS (SELECT 1 FROM main.payees)
                      OR EXISTS (SELECT 1 FROM main.tags)
+                     OR EXISTS (SELECT 1 FROM main.views)
                      OR EXISTS (SELECT 1 FROM main.changes)
                      OR EXISTS (SELECT 1 FROM temp.changes))",
                 [],

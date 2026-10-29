@@ -4432,6 +4432,36 @@ msgctxt "@info a change you made"
 msgid "Removed a category"
 msgstr "Eine Kategorie entfernt"
 
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:64
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Saved a view or dashboard"
+msgstr "Eine Ansicht oder ein Dashboard gespeichert"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:64
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Changed a view or dashboard"
+msgstr "Eine Ansicht oder ein Dashboard geändert"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:64
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Renamed a view or dashboard"
+msgstr "Eine Ansicht oder ein Dashboard umbenannt"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:64
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Moved a view or dashboard"
+msgstr "Eine Ansicht oder ein Dashboard verschoben"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:64
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Deleted a view or dashboard"
+msgstr "Eine Ansicht oder ein Dashboard gelöscht"
+
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:66
 #, kde-format
 msgctxt "@info a change you made"

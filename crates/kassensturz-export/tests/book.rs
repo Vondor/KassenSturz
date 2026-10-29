@@ -14,11 +14,12 @@ use kassensturz_core::{
     ForeignAmount, ImportedDetails, Institution, InstitutionId, MatchMode, Money, OriginalAmount,
     PartStatus, Payee, PayeeId, PayeeRecognition, RateSource, RoundingMode, Rule, RuleId, RuleNode,
     Split, SplitId, Tag, TagId, TextField, TextOperator, Transaction, TransactionError,
-    TransactionId,
+    TransactionId, ViewId,
 };
 use kassensturz_export::{
     BookData, BookExport, BookedByRule, CsvExport, Expected, ExportData, ExportError, ExportKind,
-    Exporter, ExporterInfo, MAX_RULE_DEPTH, export, export_file, read_book, read_book_file,
+    Exporter, ExporterInfo, MAX_RULE_DEPTH, ViewData, export, export_file, read_book,
+    read_book_file,
 };
 
 const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
@@ -434,6 +435,18 @@ fn sample() -> BookData {
                 last_fetched_on: None,
             },
         ],
+        // A dashboard and a view, as the book keeps them: the document is
+        // text, with quotes and a non-ASCII letter that must survive (D-278).
+        views: vec![
+            ViewData {
+                id: ViewId::from_bytes(id(0x61)),
+                document: r#"{"format":"kassensturz-dashboard","version":1,"kind":"dashboard","name":"Übersicht","components":[]}"#.into(),
+            },
+            ViewData {
+                id: ViewId::from_bytes(id(0x62)),
+                document: r#"{"format":"kassensturz-dashboard","version":1,"kind":"view","name":"Spending \"by month\"","components":[{"id":"c1"}]}"#.into(),
+            },
+        ],
     }
 }
 
@@ -562,6 +575,7 @@ fn values_that_may_be_empty_can_be_left_out() {
             payees: Vec::new(),
             tags: Vec::new(),
             bank_links: Vec::new(),
+            views: Vec::new(),
         }
     );
 }
@@ -592,13 +606,13 @@ fn what_is_not_a_complete_export_is_refused() {
     assert_eq!(read_book(b"[1, 2]"), Err(ExportError::NotABook));
     assert_eq!(read_book(b"{\"name\": \"x\"}"), Err(ExportError::NotABook));
     assert_eq!(
-        read_book(&changed("\"version\": 5", "\"version\": 6")),
-        Err(ExportError::NewerVersion { version: 6 })
+        read_book(&changed("\"version\": 6", "\"version\": 7")),
+        Err(ExportError::NewerVersion { version: 7 })
     );
     for version in ["\"2\"", "0", "-1", "2.5"] {
         assert_eq!(
             read_book(&changed(
-                "\"version\": 5",
+                "\"version\": 6",
                 &format!("\"version\": {version}")
             )),
             bad("version", Expected::Number),
@@ -1160,5 +1174,57 @@ fn a_file_is_written_and_read_back() {
     assert_eq!(
         read_book_file(&folder.join("missing.json")),
         Err(ExportError::Io(std::io::ErrorKind::NotFound))
+    );
+}
+
+#[test]
+fn views_come_with_version_6() {
+    // A version 5 file has no views; a version 6 file must list them, even
+    // when there are none (D-278).
+    let lists = r#""institutions": [], "payees": [], "tags": [], "rates": [], "bank_links": []"#;
+    let version_5 = SHORT
+        .replacen("\"version\": 1", "\"version\": 5", 1)
+        .replacen(r#""rates": []"#, lists, 1);
+    let with_views = version_5.replacen(r#""rates": []"#, r#""rates": [], "views": []"#, 1);
+    assert_eq!(
+        read_book(with_views.as_bytes()),
+        Err(ExportError::UnknownValue {
+            path: "views".into()
+        })
+    );
+    let version_6 = version_5.replacen("\"version\": 5", "\"version\": 6", 1);
+    assert_eq!(
+        read_book(version_6.as_bytes()),
+        Err(ExportError::MissingValue {
+            path: "views".into()
+        })
+    );
+    let view = r#""views": [{"id": "019a0000-0000-7000-8000-000000000061", "document": "{\"kind\":\"view\"}"}]"#;
+    let viewed = version_6.replacen(r#""rates": []"#, &format!(r#""rates": [], {view}"#), 1);
+    let book = read_book(viewed.as_bytes()).expect("read");
+    assert_eq!(
+        book.views,
+        vec![ViewData {
+            id: ViewId::from_bytes(id(0x61)),
+            document: r#"{"kind":"view"}"#.into(),
+        }]
+    );
+    // An ID twice, or a document that isn't text, is refused with its path.
+    let two = r#""views": [{"id": "019a0000-0000-7000-8000-000000000061", "document": "{}"}, {"id": "019a0000-0000-7000-8000-000000000061", "document": "{}"}]"#;
+    let twice = version_6.replacen(r#""rates": []"#, &format!(r#""rates": [], {two}"#), 1);
+    assert_eq!(
+        read_book(twice.as_bytes()),
+        Err(ExportError::Duplicate {
+            path: "views[1].id".into()
+        })
+    );
+    let object = viewed.replacen(
+        r#""document": "{\"kind\":\"view\"}""#,
+        r#""document": {}"#,
+        1,
+    );
+    assert_eq!(
+        read_book(object.as_bytes()),
+        bad("views[0].document", Expected::Text)
     );
 }

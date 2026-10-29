@@ -1,6 +1,6 @@
 # Design delta: the grid editor and System Monitor's page editor (M6b)
 
-Written in Sprint M6b, Phase 1, as a follow-up to `docs/REPORT_DESIGNER_M6B.md` (D-286 to D-296). The maintainer asked that the dashboard grid be modelled on the customizable pages of KDE's System Monitor (`plasma-systemmonitor`), but for charts and financial reports. This note says what we study, what we adopt, what we leave, and what changes in the steps. Decisions D-311 and D-312 and questions Q-239 and Q-240 are **Proposed / open** until the maintainer answers; the safe defaults below hold meanwhile.
+Written in Sprint M6b, Phase 1, as a follow-up to `docs/REPORT_DESIGNER_M6B.md` (D-286 to D-296). The maintainer asked that the dashboard grid be modelled on the customizable pages of KDE's System Monitor (`plasma-systemmonitor`), but for charts and financial reports. This note says what we study, what we adopt, what we leave, and what changes in the steps. D-311 and D-312 are **Proposed** until the maintainer approves them. Q-239 and Q-240 were both answered **A** on 2026-10-29.
 
 ## 1. What was studied, and how
 
@@ -48,7 +48,7 @@ Read from the KDE mirror `github.com/KDE/plasma-systemmonitor` (master, 2026-10-
 | Step | Change | Effort |
 |---|---|---|
 | M6b.1 (merged, #246) | None. | 0 |
-| M6b.2 (document v1) | If D-312 is accepted: the component type `text.heading` (below) in `grid::ComponentType` (smallest 3 × 1, default 12 × 1), `Document::read` checks `props.text` (plain text, at most 200 characters), one hostile-document case in the T-37 tests. | about +10 % |
+| M6b.2 (document v1) | The component type `text.heading` (below) in `grid::ComponentType` (smallest 3 × 1, default 12 × 1), `Document::read` checks `props.text` (plain text, at most 200 characters), one hostile-document case in the T-37 tests. | about +10 % |
 | M6b.3 (QML grid editor) | Selected-item toolbar instead of handles everywhere; animated moves; top problem message; the Heading in the library, edited in place or in the properties panel, heading level for screen readers. `GridItemFrame` gets the toolbar. | about +15 % |
 | M6b.5b/5c, M6b.7 | They only need to set a per-component problem the page can count (a `problem` text role); no other change. | small |
 | M6d.1 | Reads System Monitor's page list again (section 2). | none now |
@@ -62,4 +62,4 @@ No new step, no new dependency, no new network access. These are my estimates in
 - **Q-239. Keep the 12-column frame grid, or switch to System Monitor's rows and columns?** A (R): keep the grid and adopt the three UI ideas of section 3. B: rows and columns, equal widths, heights from the window; costs about two strong steps and drops free sizing.
 - **Q-240. Add the Heading component in M6b?** A (R): yes, in M6b.2 and M6b.3. B: later (M6d), the M6b library has charts, tables and cards only.
 
-Safe default until answered: A in both.
+Both answered A (2026-10-29).

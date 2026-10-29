@@ -39,18 +39,34 @@ pub fn fields(component: &Component) -> Vec<Field> {
     component
         .settings()
         .filter_map(|(property, setting)| {
-            let words = property.words(component.dataset());
+            // Only a dataset that leaves hidden categories out has anything to
+            // show anyway.
+            if property.key == "show_hidden"
+                && component.dataset().id != kassensturz_report::SPENDING_BY_CATEGORY
+            {
+                return None;
+            }
+            // My groups are chosen on their own page (M6b.5), so the grouping
+            // that shows them is not offered here until a group can be picked.
+            let words: Vec<&'static str> = property
+                .words(component.dataset())
+                .iter()
+                .copied()
+                .filter(|&word| word != kassensturz_report::GROUPS_GROUPING)
+                .collect();
             let kind = match property.kind {
                 Kind::Text => "text",
                 Kind::Flag { .. } => "flag",
                 Kind::Choice(_) | Kind::Grouping if words.len() > 1 => "choice",
-                Kind::Choice(_) | Kind::Grouping => return None,
+                // The lists of IDs are chosen on the My groups page, not here.
+                Kind::Choice(_) | Kind::Grouping | Kind::Ids => return None,
             };
             let (mut text, mut flag, mut word) = (String::new(), false, String::new());
             match setting {
                 Setting::Text(value) => text.clone_from(value),
                 Setting::Flag(value) => flag = *value,
                 Setting::Word(value) => word.clone_from(value),
+                Setting::Ids(_) => {}
             }
             Some(Field {
                 key: property.key,
@@ -59,7 +75,7 @@ pub fn fields(component: &Component) -> Vec<Field> {
                 text,
                 flag,
                 word,
-                words: words.to_vec(),
+                words,
             })
         })
         .collect()
@@ -85,6 +101,11 @@ pub struct Preview {
     pub chart: &'static str,
     /// The `grouping` for `BookCharts.show`.
     pub grouping: &'static str,
+    /// The IDs for `BookCharts.showWith`, separated by commas: the groups
+    /// of a spending component, the series of a chart over time.
+    pub chosen: String,
+    /// Whether the hidden categories are shown anyway.
+    pub show_hidden: bool,
     /// The `compare` for `BookCards.show`.
     pub compare: String,
     /// The card to pick from the cards: `income`, `expenses`, `net` or
@@ -95,6 +116,13 @@ pub struct Preview {
 fn word(component: &Component, key: &str) -> String {
     match component.get(key) {
         Some(Setting::Word(word)) => word.clone(),
+        _ => String::new(),
+    }
+}
+
+fn ids(component: &Component, key: &str) -> String {
+    match component.get(key) {
+        Some(Setting::Ids(ids)) => ids.join(","),
         _ => String::new(),
     }
 }
@@ -124,11 +152,20 @@ pub fn preview(component: &Component) -> Preview {
         chart,
         // The schema's words for the dataset's groupings; `BookCharts` takes
         // `top-level` or `each`, and the monthly dataset has one grouping.
-        grouping: if word(component, "grouping") == "top_level_category" {
-            "top-level"
-        } else {
-            "each"
+        grouping: match word(component, "grouping").as_str() {
+            "top_level_category" => "top-level",
+            "groups" => "groups",
+            _ => "each",
         },
+        chosen: ids(
+            component,
+            if component.dataset().id == kassensturz_report::CATEGORY_OVER_TIME {
+                "series"
+            } else {
+                "groups"
+            },
+        ),
+        show_hidden: matches!(component.get("show_hidden"), Some(Setting::Flag(true))),
         compare: if compare.is_empty() {
             "previous_period".to_owned()
         } else {

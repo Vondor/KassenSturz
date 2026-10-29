@@ -2400,6 +2400,15 @@ fn a_chart_that_does_not_fit_its_dataset_or_names_a_taken_title_is_refused() {
         (json!({"chart": "chart.pie"}), "bad-argument chart"),
         (json!({"chart": "chart.nothing"}), "bad-argument chart"),
         (json!({"dataset": "everything"}), "bad-argument dataset"),
+        // The AI sees no groups and no hide list in M6b (D-291).
+        (
+            json!({"dataset": "category_over_time"}),
+            "bad-argument dataset",
+        ),
+        (
+            json!({"dataset": "spending_by_category", "chart": "chart.pie", "grouping": "groups"}),
+            "bad-argument grouping",
+        ),
         (json!({"grouping": "category"}), "bad-argument grouping"),
         (json!({"measure": "net"}), "bad-argument measure"),
         (json!({"period": "last-century"}), "bad-argument period"),
@@ -2494,7 +2503,12 @@ fn a_chart_needs_its_own_cell_of_the_grid_and_the_schema_lists_the_catalog() {
             .map(|word| word.as_str().expect("word").to_owned())
             .collect()
     };
-    let datasets: Vec<_> = kassensturz_report::CATALOG.iter().map(|d| d.id).collect();
+    // Without what uses My groups: the AI sees no groups in M6b (D-291).
+    let datasets: Vec<_> = kassensturz_report::CATALOG
+        .iter()
+        .filter(|d| d.for_ai)
+        .map(|d| d.id)
+        .collect();
     assert_eq!(words(&item["dataset"]), datasets);
     let mut charts = vec!["auto".to_owned()];
     charts.extend(ComponentType::ALL.iter().map(|kind| kind.id().to_owned()));
@@ -2502,7 +2516,9 @@ fn a_chart_needs_its_own_cell_of_the_grid_and_the_schema_lists_the_catalog() {
     assert_eq!(words(&item["period"]), PERIODS);
     let mut groupings: Vec<&str> = kassensturz_report::CATALOG
         .iter()
+        .filter(|d| d.for_ai)
         .flat_map(|d| d.groupings.iter().copied())
+        .filter(|&grouping| grouping != kassensturz_report::GROUPS_GROUPING)
         .collect();
     groupings.dedup();
     assert_eq!(words(&item["grouping"]), groupings);

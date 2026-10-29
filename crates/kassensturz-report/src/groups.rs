@@ -78,6 +78,24 @@ impl Source {
             .collect()
     }
 
+    /// The category or group whose ID is written as `text` in a document
+    /// (`params.groups`, `params.series`), `None` when the book doesn't know
+    /// it. A document is data: nothing is parsed, the text is only compared
+    /// with the IDs the book has, ignoring capitals.
+    pub fn member_by_id(&self, text: &str) -> Option<GroupMember> {
+        let same = |id: &dyn std::fmt::Display| id.to_string().eq_ignore_ascii_case(text);
+        self.groups()
+            .iter()
+            .find(|group| same(&group.id))
+            .map(|group| GroupMember::Group(group.id))
+            .or_else(|| {
+                self.tree()
+                    .iter()
+                    .find(|entry| same(&entry.category.id))
+                    .map(|entry| GroupMember::Category(entry.category.id))
+            })
+    }
+
     /// The chosen categories and groups the book doesn't know (any more), in
     /// the order given, so a chart can say "A group in this chart no longer
     /// exists" instead of silently showing less.

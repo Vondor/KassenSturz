@@ -5,12 +5,13 @@
 //! `kassensturz-report` on a book (tests where steps meet).
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, AccountType, CurrencyCode, Date, Money, Split, Transaction,
-    TransactionId,
+    Account, AccountId, AccountKind, AccountType, CurrencyCode, Date, GroupMember, Money, Split,
+    Transaction, TransactionId,
 };
 use kassensturz_report::{
-    Filter, Level, Period, Source, TextFormat, income_expense_by_month as monthly_dataset,
-    spending_by_category as spending_dataset,
+    Filter, Level, Overlap, Period, Shown, Source, TextFormat,
+    category_over_time as category_over_time_dataset, income_expense_by_month as monthly_dataset,
+    spending_by_category as spending_dataset, spending_by_category_shown as spending_shown,
 };
 use kassensturz_store::Book;
 use proptest::prelude::*;
@@ -364,5 +365,114 @@ proptest! {
         let step = marks[1].minor_units - marks[0].minor_units;
         prop_assert!(step >= 100);
         prop_assert!(marks.windows(2).all(|w| w[1].minor_units - w[0].minor_units == step));
+    }
+}
+
+fn id_of(book: &Book, name: &str) -> AccountId {
+    book.categories()
+        .expect("categories")
+        .into_iter()
+        .find(|entry| entry.category.name == name)
+        .expect("category")
+        .category
+        .id
+}
+
+/// The spending of the book with Rent hidden, read the way the app reads it.
+fn spending_without_rent(book: &mut Book) -> kassensturz_report::SpendingByCategory {
+    let rent = id_of(book, "Rent");
+    book.set_hidden_categories(&[rent]).expect("hidden");
+    let source = Source::read(book, autumn()).expect("source");
+    spending_shown(
+        &source,
+        autumn(),
+        &Filter::default(),
+        Level::Each,
+        &Shown::default(),
+    )
+    .expect("dataset")
+    .remove(0)
+}
+
+#[test]
+fn a_chart_that_leaves_hidden_categories_out_says_who_and_how_much() {
+    let mut book = book();
+    let data = spending_without_rent(&mut book);
+    for kind in [ChartKind::Bar, ChartKind::Pie, ChartKind::Donut] {
+        let model = spending_by_category(&data, kind, &Words).expect("model");
+        assert_eq!(
+            model.hidden,
+            Some(HiddenNote {
+                first: "Rent".into(),
+                more: 0,
+                total: "1600,00 EUR".into(),
+            })
+        );
+        // The chart and its table hold what is shown; the note says the rest.
+        assert!(model.categories.iter().all(|name| name != "Rent"));
+        assert_eq!(model.table.rows.len(), model.categories.len());
+        assert_eq!(model.total, "65,54 EUR");
+    }
+}
+
+#[test]
+fn a_chart_with_nothing_hidden_has_no_note() {
+    let book = book();
+    let model = spending_by_category(&spending(&book), ChartKind::Pie, &Words).expect("model");
+    assert_eq!(model.hidden, None);
+    let model = income_expense_by_month(&monthly(&book), ChartKind::Line, &Words).expect("model");
+    assert_eq!(model.hidden, None);
+}
+
+#[test]
+fn chosen_categories_and_groups_are_lines_named_by_the_book() {
+    let mut book = book();
+    let (food, rent) = (id_of(&book, "Food"), id_of(&book, "Rent"));
+    let household = book
+        .add_category_group(
+            "Household",
+            kassensturz_core::GroupKind::Expense,
+            &[GroupMember::Category(food)],
+        )
+        .expect("group");
+    // A hidden series still counts when it is chosen (Q-225).
+    book.set_hidden_categories(&[rent]).expect("hidden");
+    let source = Source::read(&book, autumn()).expect("source");
+    let data = category_over_time_dataset(
+        &source,
+        autumn(),
+        &Filter::default(),
+        &[GroupMember::Category(rent), GroupMember::Group(household)],
+        Overlap::Allowed,
+    )
+    .expect("dataset")
+    .remove(0);
+    let model = category_over_time(&data, ChartKind::Line, &Words).expect("model");
+    assert_eq!(model.dataset, "category_over_time");
+    assert_eq!(model.categories, ["2026-09", "2026-10"]);
+    let names: Vec<_> = model
+        .series
+        .iter()
+        .map(|series| series.name.clone())
+        .collect();
+    assert_eq!(names, [Some("Rent".into()), Some("Household".into())]);
+    let colors: Vec<_> = model.series.iter().map(|series| series.color).collect();
+    assert_eq!(colors, [0, 1]);
+    let labels: Vec<_> = model.series[0]
+        .points
+        .iter()
+        .map(|point| point.label.as_str())
+        .collect();
+    assert_eq!(labels, ["800,00 EUR", "800,00 EUR"]);
+    assert_eq!(model.series[1].points[1].label, "53,20 EUR");
+    assert_eq!(model.total, "1653,20 EUR");
+    // The table is the dataset's own, one row per month and series.
+    assert_eq!(model.table.rows.len(), 4);
+    assert_eq!(model.hidden, None);
+    for kind in [ChartKind::Bar, ChartKind::Pie, ChartKind::Donut] {
+        assert!(matches!(
+            category_over_time(&data, kind, &Words),
+            Err(ChartError::KindNotSupported(_))
+        ));
     }
 }

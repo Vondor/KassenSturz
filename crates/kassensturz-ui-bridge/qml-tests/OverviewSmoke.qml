@@ -57,9 +57,9 @@ Window {
             empty: false,
             charts: [{
                 kind: "donut", dataset: "spending_by_category", currency: "EUR", round: true,
-                total: "1.330,00 €", paletteSize: 8, count: 2, unsortedIndex: -1,
+                total: "1.330,00 €", paletteSize: 8, count: 2, unsortedIndex: -1, hidden: ({}),
                 categories: ["Rent", "Groceries", "Fuel", "Phone", "Gym", "Books", "Gifts"],
-                series: [{key: "spending", color: 0, marker: 0, points: [
+                series: [{key: "spending", name: "", color: 0, marker: 0, points: [
                     {label: "800,00 €", minorUnits: "80000", value: 80000, color: 0, marker: 0},
                     {label: "530,00 €", minorUnits: "53000", value: 53000, color: 1, marker: 1}
                 ]}],
@@ -82,13 +82,13 @@ Window {
             empty: false,
             charts: [{
                 kind: "line", dataset: "income_expense_by_month", currency: "EUR", round: false,
-                total: "100,00 €", paletteSize: 8, count: 2, unsortedIndex: -1,
+                total: "100,00 €", paletteSize: 8, count: 2, unsortedIndex: -1, hidden: ({}),
                 categories: ["Aug 2026", "Sep 2026"],
                 series: [
-                    {key: "income", color: 0, marker: 0, points: [
+                    {key: "income", name: "", color: 0, marker: 0, points: [
                         {label: "500,00 €", minorUnits: "50000", value: 50000, color: 0, marker: 0},
                         {label: "600,00 €", minorUnits: "60000", value: 60000, color: 0, marker: 0}]},
-                    {key: "expenses", color: 1, marker: 1, points: [
+                    {key: "expenses", name: "", color: 1, marker: 1, points: [
                         {label: "400,00 €", minorUnits: "40000", value: 40000, color: 1, marker: 1},
                         {label: "500,00 €", minorUnits: "50000", value: 50000, color: 1, marker: 1}]}
                 ],

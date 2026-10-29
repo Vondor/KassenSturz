@@ -37,11 +37,11 @@ Window {
         const top = kind === "stacked-bar" ? 5000 : 3000;
         return {
             kind: kind, dataset: "income_expense_by_month", currency: "EUR", round: false,
-            total: "1 100,00 €", paletteSize: 8, count: 4, unsortedIndex: -1,
+            total: "1 100,00 €", paletteSize: 8, count: 4, unsortedIndex: -1, hidden: ({}),
             categories: months(),
             series: [
-                {key: "income", color: 0, marker: 0, points: income.map(v => point(v + ",00 €", v, 0))},
-                {key: "expenses", color: 1, marker: 1, points: expenses.map(v => point(v + ",00 €", v, 1))}
+                {key: "income", name: "", color: 0, marker: 0, points: income.map(v => point(v + ",00 €", v, 0))},
+                {key: "expenses", name: "", color: 1, marker: 1, points: expenses.map(v => point(v + ",00 €", v, 1))}
             ],
             ticks: [0, 1000, 2000, 3000, 4000, 5000].filter(v => v <= top).map(v => ({label: v + " €", minorUnits: String(v * 100), value: v * 100})),
             table: {currency: "EUR", columns: ["month", "income", "expenses", "net"],
@@ -54,17 +54,35 @@ Window {
         const values = [800, 320, 60, 150];
         return {
             kind: kind, dataset: "spending_by_category", currency: "EUR", round: kind !== "bar",
-            total: "1 330,00 €", paletteSize: 8, count: 4, unsortedIndex: 2,
+            total: "1 330,00 €", paletteSize: 8, count: 4, unsortedIndex: 2, hidden: ({}),
             categories: names,
-            series: [{key: "spending", color: 0, marker: 0, points: values.map((v, i) => point(v + ",00 €", v, i))}],
+            series: [{key: "spending", name: "", color: 0, marker: 0, points: values.map((v, i) => point(v + ",00 €", v, i))}],
             ticks: kind === "bar" ? [0, 400, 800].map(v => ({label: v + " €", minorUnits: String(v * 100), value: v * 100})) : [],
             table: {currency: "EUR", columns: ["category", "total"], rows: names.map((n, i) => [n, values[i] + ",00 €"])}
         };
     }
 
+    // Rent and one more category are hidden: the note stays under the chart.
+    function spendingWithHidden(kind) {
+        const chart = spending(kind);
+        chart.hidden = {first: "Rent", more: 1, total: "1.250,00 €"};
+        return chart;
+    }
+
+    // Two series the user chose: named by the book, told apart by key.
+    function overTime() {
+        const chart = monthly("line");
+        chart.dataset = "category_over_time";
+        chart.series = [
+            {key: "series-0", name: "Fixed costs", color: 0, marker: 0, points: [800, 800, 800, 800].map(v => point(v + ",00 €", v, 0))},
+            {key: "series-1", name: "Food › Groceries", color: 1, marker: 1, points: [300, 320, 280, 310].map(v => point(v + ",00 €", v, 1))}
+        ];
+        return chart;
+    }
+
     readonly property var charts: [
         monthly("line"), monthly("area"), monthly("bar"), monthly("stacked-bar"),
-        spending("bar"), spending("pie"), spending("donut")
+        spending("bar"), spending("pie"), spending("donut"), spendingWithHidden("pie"), overTime()
     ]
     property int shown: 0
 

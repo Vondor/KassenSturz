@@ -10,14 +10,15 @@
 //! and are never read back.
 
 use kassensturz_charts::{
-    ChartError, ChartKind, ChartModel, ChartProvider, Prepared, income_expense_by_month,
-    spending_by_category,
+    ChartError, ChartKind, ChartModel, ChartProvider, Prepared, category_over_time,
+    income_expense_by_month, spending_by_category,
 };
-use kassensturz_core::{Date, ErrorReport, Money, Report};
+use kassensturz_core::{Date, ErrorReport, GroupMember, Money, Report};
 use kassensturz_report::{
-    Filter, INCOME_EXPENSE_BY_MONTH, Level, Percent, Period, ReportError, SPENDING_BY_CATEGORY,
-    Source, TextFormat, income_expense_by_month as monthly_dataset,
-    spending_by_category as spending_dataset,
+    CATEGORY_OVER_TIME, Filter, INCOME_EXPENSE_BY_MONTH, Level, Overlap, Percent, Period,
+    ReportError, SPENDING_BY_CATEGORY, Shown, Source, TextFormat,
+    category_over_time as over_time_dataset, income_expense_by_month as monthly_dataset,
+    spending_by_category_shown as spending_dataset,
 };
 use kassensturz_store::Book;
 
@@ -35,8 +36,28 @@ pub struct Request {
     /// `last-year`.
     pub period: String,
     /// For spending: `top-level` adds subcategories to the category they sit
-    /// in, `each` lists every category.
+    /// in, `each` lists every category, `groups` shows each of `groups` as
+    /// one row and every other category on its own.
     pub grouping: String,
+    /// For spending: the IDs of My groups to show as one row each
+    /// (`params.groups`), as the document writes them.
+    pub groups: Vec<String>,
+    /// For `category_over_time`: the IDs of the categories and groups to
+    /// draw, one series each (`params.series`).
+    pub series: Vec<String>,
+    /// Show the hidden categories anyway (`props.show_hidden`).
+    pub show_hidden: bool,
+}
+
+/// What a request gave: the charts, and how many of the IDs it named the
+/// book no longer knows (the screen says "A group in this chart no longer
+/// exists", D-291).
+#[derive(Debug)]
+pub struct ChartSet {
+    /// One chart per currency; empty when there was nothing to show.
+    pub charts: Vec<(ChartModel, Prepared)>,
+    /// IDs in `groups` or `series` that the book doesn't have.
+    pub missing: usize,
 }
 
 /// Why a request couldn't be answered.
@@ -175,32 +196,82 @@ pub fn charts(
     book: &Book,
     locale: &impl Locale,
     request: &Request,
-) -> Result<Vec<(ChartModel, Prepared)>, ChartsError> {
+) -> Result<ChartSet, ChartsError> {
     let kind = ChartKind::from_key(&request.kind).ok_or(ChartsError::UnknownName("kind"))?;
     let period = period(&request.period, locale.today())?;
     let level = match request.grouping.as_str() {
         "top-level" => Level::TopLevel,
-        "each" => Level::Each,
+        "each" | "groups" => Level::Each,
         _ => return Err(ChartsError::UnknownName("grouping")),
     };
     let source = Source::read(book, period)?;
     let text = AppText::new(book, locale);
-    let models = match request.dataset.as_str() {
-        SPENDING_BY_CATEGORY => spending_dataset(&source, period, &Filter::default(), level)?
+    // Parts of a whole count a category once; separate series may share it.
+    let overlap = if kind.is_round() || kind == ChartKind::StackedBar {
+        Overlap::Refused
+    } else {
+        Overlap::Allowed
+    };
+    // Groups matter only for the grouping that shows them as rows.
+    let chosen_groups = if request.grouping == "groups" {
+        request.groups.as_slice()
+    } else {
+        &[]
+    };
+    let groups: Vec<GroupMember> = chosen_groups
+        .iter()
+        .filter_map(|id| source.member_by_id(id))
+        .filter(|member| matches!(member, GroupMember::Group(_)))
+        .collect();
+    let series: Vec<GroupMember> = request
+        .series
+        .iter()
+        .filter_map(|id| source.member_by_id(id))
+        .collect();
+    let (named, known) = match request.dataset.as_str() {
+        SPENDING_BY_CATEGORY => (chosen_groups.len(), groups.len()),
+        CATEGORY_OVER_TIME => (request.series.len(), series.len()),
+        _ => (0, 0),
+    };
+    let shown = Shown {
+        groups: groups
             .iter()
-            .map(|data| spending_by_category(data, kind, &text))
-            .collect::<Result<Vec<_>, _>>()?,
+            .filter_map(|member| match member {
+                GroupMember::Group(id) => Some(*id),
+                GroupMember::Category(_) => None,
+            })
+            .collect(),
+        show_hidden: request.show_hidden,
+        overlap,
+    };
+    let models = match request.dataset.as_str() {
+        SPENDING_BY_CATEGORY => {
+            spending_dataset(&source, period, &Filter::default(), level, &shown)?
+                .iter()
+                .map(|data| spending_by_category(data, kind, &text))
+                .collect::<Result<Vec<_>, _>>()?
+        }
+        CATEGORY_OVER_TIME => {
+            over_time_dataset(&source, period, &Filter::default(), &series, overlap)?
+                .iter()
+                .map(|data| category_over_time(data, kind, &text))
+                .collect::<Result<Vec<_>, _>>()?
+        }
         INCOME_EXPENSE_BY_MONTH => monthly_dataset(&source, period, &Filter::default())?
             .iter()
             .map(|data| income_expense_by_month(data, kind, &text))
             .collect::<Result<Vec<_>, _>>()?,
         _ => return Err(ChartsError::UnknownName("dataset")),
     };
-    models
+    let charts = models
         .into_iter()
         .map(|model| {
             let prepared = QuickCharts.prepare(&model)?;
             Ok((model, prepared))
         })
-        .collect()
+        .collect::<Result<Vec<_>, ChartError>>()?;
+    Ok(ChartSet {
+        charts,
+        missing: named - known,
+    })
 }

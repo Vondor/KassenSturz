@@ -14,15 +14,20 @@ QtObject {
         return {label: label, minorUnits: String(value * 100), value: value * 100, color: color, marker: color < 4 ? color : -1};
     }
 
+    function showWith(dataset, kind, period, grouping, chosen, showHidden) {
+        show(dataset, kind, period, grouping);
+        asked.push("with " + chosen + " " + showHidden);
+    }
+
     function show(dataset, kind, period, grouping) {
         asked.push([dataset, kind, period, grouping].join(" "));
         const names = ["Rent", "Groceries", ""];
         const values = [800, 320, 60];
         view = {empty: false, charts: [{
             kind: kind, dataset: dataset, currency: "EUR", round: kind === "pie" || kind === "donut",
-            total: "1.180,00 €", paletteSize: 8, count: 3, unsortedIndex: 2,
+            total: "1.180,00 €", paletteSize: 8, count: 3, unsortedIndex: 2, hidden: ({}),
             categories: names,
-            series: [{key: "spending", color: 0, marker: 0, points: values.map((v, i) => point(v + ",00 €", v, i))}],
+            series: [{key: "spending", name: "", color: 0, marker: 0, points: values.map((v, i) => point(v + ",00 €", v, i))}],
             ticks: [], 
             table: {currency: "EUR", columns: ["category", "total"], rows: names.map((n, i) => [n, values[i] + ",00 €"])}
         }]};

@@ -13,10 +13,10 @@ use core::pin::Pin;
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
-use kassensturz_charts::{ChartModel, PALETTE_SIZE, Prepared};
+use kassensturz_charts::{ChartModel, HiddenNote, PALETTE_SIZE, Prepared, Series};
 use kassensturz_core::ErrorParam;
 
-use crate::charts::{self, ChartsError, Request};
+use crate::charts::{self, ChartSet, ChartsError, Request};
 use crate::number_format::app_locale;
 use crate::session;
 use crate::variant::{list, map, text};
@@ -57,6 +57,23 @@ pub mod qobject {
             grouping: &QString,
         );
 
+        /// As `show`, for a component of a dashboard (M6b.5): `chosen` is the
+        /// IDs of My groups (spending) or of the categories and groups of a
+        /// chart over time, separated by commas (`params.groups`,
+        /// `params.series`), and `show_hidden` shows the hidden categories
+        /// anyway (`props.show_hidden`).
+        #[qinvokable]
+        #[cxx_name = "showWith"]
+        fn show_with(
+            self: Pin<&mut BookCharts>,
+            dataset: &QString,
+            kind: &QString,
+            period: &QString,
+            grouping: &QString,
+            chosen: &QString,
+            show_hidden: bool,
+        );
+
         /// Reads the open book again for the last request, e.g. after a
         /// screen changed the book or the number format changed.
         #[qinvokable]
@@ -84,6 +101,35 @@ impl qobject::BookCharts {
             kind: kind.to_string(),
             period: period.to_string(),
             grouping: grouping.to_string(),
+            ..Request::default()
+        });
+        self.refresh();
+    }
+
+    fn show_with(
+        mut self: Pin<&mut Self>,
+        dataset: &QString,
+        kind: &QString,
+        period: &QString,
+        grouping: &QString,
+        chosen: &QString,
+        show_hidden: bool,
+    ) {
+        // Each dataset reads only the list it uses.
+        let ids: Vec<String> = chosen
+            .to_string()
+            .split(',')
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned)
+            .collect();
+        self.as_mut().rust_mut().request = Some(Request {
+            dataset: dataset.to_string(),
+            kind: kind.to_string(),
+            period: period.to_string(),
+            grouping: grouping.to_string(),
+            groups: ids.clone(),
+            series: ids,
+            show_hidden,
         });
         self.refresh();
     }
@@ -112,6 +158,29 @@ fn count(value: usize) -> QVariant {
     QVariant::from(&i32::try_from(value).unwrap_or(i32::MAX))
 }
 
+/// The key QML tells series apart by: the series' fixed name, or for a series
+/// the user chose its place, since those share the key `series`.
+fn series_key(series: &Series, index: usize) -> String {
+    match series.name {
+        Some(_) => format!("series-{index}"),
+        None => series.key.to_owned(),
+    }
+}
+
+/// The hidden categories a chart leaves out as QML reads them: `first`, the
+/// number of `more` and the `total`, or an empty object when nothing is
+/// hidden (the screen writes the sentence, D-034).
+fn hidden_object(note: Option<&HiddenNote>) -> QVariant {
+    match note {
+        Some(note) => map([
+            ("first", text(&note.first)),
+            ("more", count(note.more)),
+            ("total", text(&note.total)),
+        ]),
+        None => map([]),
+    }
+}
+
 /// An amount's drawing value, which only places a mark.
 fn drawing(value: f64) -> QVariant {
     QVariant::from(&value)
@@ -119,36 +188,39 @@ fn drawing(value: f64) -> QVariant {
 
 fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
     let round = model.kind.is_round();
-    let series = model
-        .series
-        .iter()
-        .zip(&prepared.series)
-        .map(|(series, drawn)| {
-            let points = series.points.iter().zip(&drawn.values).enumerate().map(
-                |(index, (point, &value))| {
-                    // A slice takes the palette color of its place, a bar or line
-                    // the color of its series.
-                    let color = if round {
-                        ChartModel::color_of(index)
-                    } else {
-                        series.color
-                    };
-                    map([
-                        ("label", text(&point.label)),
-                        ("minorUnits", text(&point.minor_units.to_string())),
-                        ("value", drawing(value)),
-                        ("color", QVariant::from(&i32::from(color))),
-                        ("marker", QVariant::from(&marker(color))),
-                    ])
-                },
-            );
-            map([
-                ("key", text(series.key)),
-                ("color", QVariant::from(&i32::from(series.color))),
-                ("marker", QVariant::from(&marker(series.color))),
-                ("points", list(points)),
-            ])
-        });
+    let series =
+        model
+            .series
+            .iter()
+            .zip(&prepared.series)
+            .enumerate()
+            .map(|(index, (series, drawn))| {
+                let points = series.points.iter().zip(&drawn.values).enumerate().map(
+                    |(index, (point, &value))| {
+                        // A slice takes the palette color of its place, a bar or line
+                        // the color of its series.
+                        let color = if round {
+                            ChartModel::color_of(index)
+                        } else {
+                            series.color
+                        };
+                        map([
+                            ("label", text(&point.label)),
+                            ("minorUnits", text(&point.minor_units.to_string())),
+                            ("value", drawing(value)),
+                            ("color", QVariant::from(&i32::from(color))),
+                            ("marker", QVariant::from(&marker(color))),
+                        ])
+                    },
+                );
+                map([
+                    ("key", text(&series_key(series, index))),
+                    ("name", text(series.name.as_deref().unwrap_or(""))),
+                    ("color", QVariant::from(&i32::from(series.color))),
+                    ("marker", QVariant::from(&marker(series.color))),
+                    ("points", list(points)),
+                ])
+            });
     let ticks = model
         .ticks
         .iter()
@@ -186,6 +258,7 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
         ("currency", text(&model.currency)),
         ("round", QVariant::from(&round)),
         ("total", text(&model.total)),
+        ("hidden", hidden_object(model.hidden.as_ref())),
         ("paletteSize", QVariant::from(&i32::from(PALETTE_SIZE))),
         ("count", count(model.categories.len())),
         ("unsortedIndex", QVariant::from(&unsorted)),
@@ -225,14 +298,15 @@ pub(crate) fn error_object(error: &ChartsError) -> QVariant {
     map([("error", map(entries))])
 }
 
-fn view_object(result: &Result<Vec<(ChartModel, Prepared)>, ChartsError>) -> QVariant {
+fn view_object(result: &Result<ChartSet, ChartsError>) -> QVariant {
     match result {
-        Ok(charts) => map([
-            ("empty", QVariant::from(&charts.is_empty())),
+        Ok(set) => map([
+            ("empty", QVariant::from(&set.charts.is_empty())),
+            ("missing", count(set.missing)),
             (
                 "charts",
                 list(
-                    charts
+                    set.charts
                         .iter()
                         .map(|(model, prepared)| chart_object(model, prepared)),
                 ),
@@ -328,6 +402,7 @@ mod tests {
             kind: kind.into(),
             period: "last-12-months".into(),
             grouping: "each".into(),
+            ..Request::default()
         }
     }
 
@@ -339,7 +414,8 @@ mod tests {
     #[test]
     fn a_spending_chart_reads_back_the_way_qml_reads_it() {
         let view = view_of(&request("spending_by_category", "pie"));
-        assert_eq!(keys(&view), ["charts", "empty"]);
+        assert_eq!(keys(&view), ["charts", "empty", "missing"]);
+        assert_eq!(number_of(&view, "missing"), 0);
         assert!(!flag_of(&view, "empty"));
         let shown = list_of(&view, "charts");
         assert_eq!(shown.len(), 1);
@@ -351,6 +427,7 @@ mod tests {
                 "count",
                 "currency",
                 "dataset",
+                "hidden",
                 "kind",
                 "paletteSize",
                 "round",
@@ -379,7 +456,13 @@ mod tests {
 
         let series = list_of(chart, "series");
         assert_eq!(series.len(), 1);
-        assert_eq!(keys(&series[0]), ["color", "key", "marker", "points"]);
+        assert_eq!(
+            keys(&series[0]),
+            ["color", "key", "marker", "name", "points"]
+        );
+        assert_eq!(text_of(&series[0], "name"), "");
+        // Nothing is hidden in this book: an empty object.
+        assert!(keys(&object_of(chart, "hidden")).is_empty());
         assert_eq!(text_of(&series[0], "key"), "spending");
         let points = list_of(&series[0], "points");
         assert_eq!(
@@ -490,5 +573,115 @@ mod tests {
         let points = list_of(&list_of(chart, "series")[0], "points");
         let exact: Vec<String> = points.iter().map(|p| text_of(p, "minorUnits")).collect();
         assert_eq!(exact, ["160000", "5320", "1234"]);
+    }
+
+    fn category_id(book: &Book, name: &str) -> kassensturz_core::AccountId {
+        book.categories()
+            .expect("categories")
+            .into_iter()
+            .find(|entry| entry.category.name == name)
+            .expect("category")
+            .category
+            .id
+    }
+
+    fn view_with(book: &Book, request: &Request) -> QVariant {
+        view_object(&charts::charts(book, &TestLocale, request))
+    }
+
+    #[test]
+    fn the_hidden_note_reads_back_and_show_hidden_takes_it_away() {
+        let mut book = book();
+        let rent = category_id(&book, "Rent");
+        book.set_hidden_categories(&[rent]).expect("hidden");
+        let mut asked = request("spending_by_category", "pie");
+        let view = view_with(&book, &asked);
+        let chart = &list_of(&view, "charts")[0];
+        let hidden = object_of(chart, "hidden");
+        assert_eq!(keys(&hidden), ["first", "more", "total"]);
+        assert_eq!(text_of(&hidden, "first"), "Rent");
+        assert_eq!(number_of(&hidden, "more"), 0);
+        assert_eq!(text_of(&hidden, "total"), "1600,00 €");
+        // The chart and its table hold what is shown.
+        assert_eq!(text_of(chart, "total"), "65,54 €");
+        assert_eq!(number_of(chart, "count"), 2);
+        asked.show_hidden = true;
+        let view = view_with(&book, &asked);
+        let chart = &list_of(&view, "charts")[0];
+        assert!(keys(&object_of(chart, "hidden")).is_empty());
+        assert_eq!(number_of(chart, "count"), 3);
+    }
+
+    #[test]
+    fn groups_and_series_of_a_document_reach_the_chart_and_unknown_ids_are_counted() {
+        let mut book = book();
+        let food = category_id(&book, "Groceries");
+        let rent = category_id(&book, "Rent");
+        let household = book
+            .add_category_group(
+                "Household",
+                kassensturz_core::GroupKind::Expense,
+                &[kassensturz_core::GroupMember::Category(food)],
+            )
+            .expect("group");
+        let mut asked = request("spending_by_category", "pie");
+        asked.grouping = "groups".into();
+        asked.groups = vec![
+            household.to_string(),
+            "no-such-group".into(),
+            rent.to_string(),
+        ];
+        let view = view_with(&book, &asked);
+        // A category's ID is not a group, and the other is unknown.
+        assert_eq!(number_of(&view, "missing"), 2);
+        let chart = &list_of(&view, "charts")[0];
+        let names: Vec<String> = list_of(chart, "categories")
+            .iter()
+            .map(|name| name.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(names, ["Rent", "Household", ""]);
+
+        // The same groups are ignored by a grouping that doesn't show them.
+        asked.grouping = "each".into();
+        let view = view_with(&book, &asked);
+        assert_eq!(number_of(&view, "missing"), 0);
+        assert_eq!(number_of(&list_of(&view, "charts")[0], "count"), 3);
+
+        // Series of a chart over time are named by the book.
+        let mut over_time = request("category_over_time", "line");
+        over_time.series = vec![rent.to_string(), household.to_string()];
+        let view = view_with(&book, &over_time);
+        let chart = &list_of(&view, "charts")[0];
+        let series = list_of(chart, "series");
+        let keys_of: Vec<String> = series.iter().map(|s| text_of(s, "key")).collect();
+        assert_eq!(keys_of, ["series-0", "series-1"]);
+        let named: Vec<String> = series.iter().map(|s| text_of(s, "name")).collect();
+        assert_eq!(named, ["Rent", "Household"]);
+        assert_eq!(number_of(chart, "count"), 12);
+    }
+
+    #[test]
+    fn two_groups_that_share_a_category_are_refused_for_a_pie_and_allowed_as_bars() {
+        let mut book = book();
+        let food = category_id(&book, "Groceries");
+        let kind = kassensturz_core::GroupKind::Expense;
+        let member = kassensturz_core::GroupMember::Category(food);
+        let first = book
+            .add_category_group("A", kind, &[member])
+            .expect("group");
+        let second = book
+            .add_category_group("B", kind, &[member])
+            .expect("group");
+        let mut asked = request("spending_by_category", "pie");
+        asked.grouping = "groups".into();
+        asked.groups = vec![first.to_string(), second.to_string()];
+        let view = view_with(&book, &asked);
+        assert_eq!(
+            text_of(&object_of(&view, "error"), "code"),
+            "report.groups-overlap"
+        );
+        asked.kind = "bar".into();
+        let view = view_with(&book, &asked);
+        assert!(keys(&view).contains(&"charts".to_owned()));
     }
 }

@@ -211,6 +211,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This view couldn't be saved or opened because it isn't one KassenSturz can use. Nothing was changed. Make it again in Statistics, and choose a short name.");
         case "report.unsupported-document-version":
             return i18nContext.i18nc("@info", "This view was made by a newer KassenSturz, so this one can't open it. Update KassenSturz to open it. You can still rename or delete it.");
+        case "report.groups-overlap":
+            return i18nContext.i18nc("@info %1 is the name of a category, %2 and %3 are the names of two groups", "%1 is in %2 and in %3; a chart that shows parts of a whole can't count it twice. Take it out of one of them, or show them as bars or lines.", result.category, result.first, result.second);
         case "store.empty-rule-name":
             return i18nContext.i18nc("@info", "Give the Rule a name.");
         case "store.duplicate-rule-name":

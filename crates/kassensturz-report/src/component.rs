@@ -177,6 +177,12 @@ impl Component {
                 let setting = match (property.kind, value) {
                     (Kind::Text, Value::String(text)) => Setting::Text(text.clone()),
                     (Kind::Flag { .. }, Value::Bool(flag)) => Setting::Flag(*flag),
+                    (Kind::Ids, Value::Array(list)) => Setting::Ids(
+                        list.iter()
+                            .map(|id| id.as_str().map(str::to_owned))
+                            .collect::<Option<Vec<_>>>()
+                            .ok_or_else(|| invalid("wrong-type", &path))?,
+                    ),
                     (Kind::Choice(_) | Kind::Grouping, Value::String(word)) => {
                         Setting::Word(word.clone())
                     }
@@ -198,6 +204,7 @@ impl Component {
             let value = match setting {
                 Setting::Text(text) | Setting::Word(text) => Value::String(text.clone()),
                 Setting::Flag(flag) => Value::Bool(*flag),
+                Setting::Ids(ids) => Value::Array(ids.iter().cloned().map(Value::String).collect()),
             };
             match property.place {
                 Place::Params => params.insert(property.key.to_owned(), value),

@@ -126,12 +126,19 @@ pub(super) fn new_view(
     )?;
     let title = title(item.required_string("title")?)?;
     let dataset = item.required_string("dataset")?;
-    if kassensturz_report::dataset(dataset).is_none() {
+    // The AI knows no groups and no hide list in M6b, so what uses them is
+    // refused even if the model names it.
+    if !kassensturz_report::dataset(dataset).is_some_and(|info| info.for_ai) {
         return Err(ToolError::BadArgument {
             argument: "dataset",
         });
     }
     let grouping = item.string("grouping")?;
+    if grouping == Some(kassensturz_report::GROUPS_GROUPING) {
+        return Err(ToolError::BadArgument {
+            argument: "grouping",
+        });
+    }
     let kind = match item.required_string("chart")? {
         "auto" => automatic(dataset, grouping),
         id => ComponentType::from_id(id),

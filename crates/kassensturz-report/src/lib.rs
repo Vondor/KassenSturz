@@ -37,7 +37,7 @@ mod source;
 mod spending;
 mod text;
 
-pub use catalog::{CATALOG, DatasetInfo, dataset};
+pub use catalog::{CATALOG, DatasetInfo, GROUPS_GROUPING, dataset};
 pub use component::Component;
 pub use document::{
     Document, Entry, FORMAT, Frame, Item, MAX_BYTES, MAX_COMPONENTS, MAX_DEPTH, MAX_NAME_CHARS,
@@ -58,7 +58,9 @@ pub use over_time::{
     CATEGORY_OVER_TIME, CategoryOverTime, ChosenSeries, MonthTotals, category_over_time,
 };
 pub use period::{MAX_MONTHS, Period};
-pub use schema::{ComponentType, Kind, MAX_TEXT_CHARS, Place, Property, Setting, dataset_for};
+pub use schema::{
+    ComponentType, Kind, MAX_IDS, MAX_TEXT_CHARS, Place, Property, Setting, dataset_for,
+};
 pub use source::Source;
 pub use spending::{
     CategoryRow, Level, SPENDING_BY_CATEGORY, SpendingByCategory, spending_by_category,

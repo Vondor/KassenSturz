@@ -94,6 +94,11 @@ impl Source {
         }
     }
 
+    /// My groups, in the book's order.
+    pub(crate) fn groups(&self) -> &[CategoryGroup] {
+        &self.groups
+    }
+
     /// The group with this ID.
     pub(crate) fn group(&self, id: GroupId) -> Option<&CategoryGroup> {
         self.groups.iter().find(|group| group.id == id)

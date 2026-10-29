@@ -138,6 +138,8 @@ fn view_object(component: Option<&Component>, error: Option<&ReportError>) -> QV
                 ("shows", text(preview.shows)),
                 ("chart", text(preview.chart)),
                 ("grouping", text(preview.grouping)),
+                ("chosen", text(&preview.chosen)),
+                ("showHidden", QVariant::from(&preview.show_hidden)),
                 ("compare", text(&preview.compare)),
                 ("measure", text(&preview.measure)),
             ]),
@@ -258,7 +260,7 @@ mod tests {
         assert_eq!(datasets, ["spending_by_category"]);
         let fields = list_of(&view, "fields");
         let order: Vec<String> = fields.iter().map(|f| text_of(f, "key")).collect();
-        assert_eq!(order, ["grouping", "title", "legend"]);
+        assert_eq!(order, ["grouping", "title", "legend", "show_hidden"]);
         for field in &fields {
             assert_eq!(
                 keys(field),
@@ -279,11 +281,53 @@ mod tests {
         let preview = object_of(&view, "preview");
         assert_eq!(
             keys(&preview),
-            ["chart", "compare", "grouping", "measure", "shows"]
+            [
+                "chart",
+                "chosen",
+                "compare",
+                "grouping",
+                "measure",
+                "showHidden",
+                "shows"
+            ]
         );
         assert_eq!(text_of(&preview, "shows"), "chart");
         assert_eq!(text_of(&preview, "chart"), "pie");
         assert_eq!(text_of(&preview, "grouping"), "each");
+    }
+
+    #[test]
+    fn the_preview_carries_groups_series_and_the_hidden_flag_and_the_panel_does_not_offer_them() {
+        let mut pie = component(ComponentType::ChartPie, "spending_by_category");
+        pie.set("grouping", Setting::Word("groups".into())).unwrap();
+        pie.set("groups", Setting::Ids(vec!["a".into(), "b".into()]))
+            .unwrap();
+        pie.set("show_hidden", Setting::Flag(true)).unwrap();
+        let preview = properties::preview(&pie);
+        assert_eq!(preview.grouping, "groups");
+        assert_eq!(preview.chosen, "a,b");
+        assert!(preview.show_hidden);
+        let view = view_object(Some(&pie), None);
+        let order: Vec<String> = list_of(&view, "fields")
+            .iter()
+            .map(|f| text_of(f, "key"))
+            .collect();
+        // Lists of IDs have no field; the grouping offers no word for groups
+        // until a group can be picked.
+        assert_eq!(order, ["grouping", "title", "legend", "show_hidden"]);
+        let grouping = &list_of(&view, "fields")[0];
+        assert_eq!(list_of(grouping, "words").len(), 2);
+        let preview = object_of(&view, "preview");
+        assert_eq!(text_of(&preview, "chosen"), "a,b");
+        assert!(flag_of(&preview, "showHidden"));
+        // Monthly figures leave nothing out, so no field for hidden ones.
+        let monthly = component(ComponentType::ChartLine, "income_expense_by_month");
+        let view = view_object(Some(&monthly), None);
+        assert!(
+            !list_of(&view, "fields")
+                .iter()
+                .any(|f| text_of(f, "key") == "show_hidden")
+        );
     }
 
     #[test]
@@ -350,6 +394,9 @@ mod tests {
                         kind: preview.chart.into(),
                         period: "this-year".into(),
                         grouping: preview.grouping.into(),
+                        groups: Vec::new(),
+                        series: Vec::new(),
+                        show_hidden: preview.show_hidden,
                     };
                     charts::charts(&book, &locale, &request)
                         .unwrap_or_else(|e| panic!("{} on {}: {e:?}", kind.id(), dataset.id));

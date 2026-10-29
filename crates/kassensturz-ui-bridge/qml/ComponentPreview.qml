@@ -66,7 +66,7 @@ ColumnLayout {
         if (want.shows === "card" || want.shows === "progress") {
             cardData.show(period, want.compare);
         } else {
-            chartData.show(subject.dataset, want.chart, period, want.grouping);
+            chartData.showWith(subject.dataset, want.chart, period, want.grouping, want.chosen, want.showHidden);
         }
     }
 

@@ -31,6 +31,8 @@ ColumnLayout {
         switch (id) {
         case "spending_by_category":
             return i18nContext.i18nc("@item:inlistbox what a chart shows", "What you spent, by category");
+        case "category_over_time":
+            return i18nContext.i18nc("@item:inlistbox what a chart shows", "Categories and groups you pick, month by month");
         case "income_expense_by_month":
             return i18nContext.i18nc("@item:inlistbox what a chart shows", "Money in and money out, by month");
         }
@@ -41,6 +43,8 @@ ColumnLayout {
         switch (id) {
         case "spending_by_category":
             return i18nContext.i18nc("@info", "Shows what went out in the period. A refund reduces its category. Money moved between your own accounts is not counted.");
+        case "category_over_time":
+            return i18nContext.i18nc("@info", "Shows what you spent or received in each month for the categories and groups you pick, one line each. A group counts all its categories, hidden ones too.");
         case "income_expense_by_month":
             return i18nContext.i18nc("@info", "Shows what came in and what went out in each month. Money moved between your own accounts is not counted.");
         }
@@ -55,6 +59,8 @@ ColumnLayout {
             return i18nContext.i18nc("@option:check", "Show the legend");
         case "grouping":
             return i18nContext.i18nc("@label:listbox how the figures are grouped", "Group by");
+        case "show_hidden":
+            return i18nContext.i18nc("@option:check", "Show hidden categories");
         case "compare":
             return i18nContext.i18nc("@label:listbox", "Compare with");
         case "measure":
@@ -69,8 +75,12 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox", "Each category");
         case "top_level_category":
             return i18nContext.i18nc("@item:inlistbox", "Main categories, with their subcategories");
+        case "groups":
+            return i18nContext.i18nc("@item:inlistbox", "My groups, with the other categories on their own");
         case "month":
             return i18nContext.i18nc("@item:inlistbox", "Month");
+        case "series":
+            return i18nContext.i18nc("@item:inlistbox", "The categories and groups you picked");
         case "previous_period":
             return i18nContext.i18nc("@item:inlistbox", "The period before");
         case "same_last_year":

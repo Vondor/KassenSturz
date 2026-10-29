@@ -10,6 +10,34 @@ Q-193), with a payee that fits each one's category. Nothing in it names a
 real person, and no entry is added that the repository did not already hold
 (AGENTS.md §3.1 rule 2).
 
+## The same book with groups and a hide list (layout 21)
+
+`crates/kassensturz-import/tests/books/space-colony-5y.json` is the complete
+export (version 7) of this book after it got five sample category groups and
+four hidden categories (D-303). This is the file to open in KassenSturz with
+*Settings › Start a book from a file…* when the category groups or the hide
+list are tried: a KMyMoney file cannot hold them.
+
+| Group | Counts | Members |
+|---|---|---|
+| Not needed spendings | spending | Meals on the Road, Olympus Mons Tours, Souvenirs, Holodeck |
+| Fixed costs | spending | Rent, Air Recycling, Fusion Power, Oxygen and Water, Subspace Communications |
+| Food and household | spending | Food (with its sub-categories), Everyday Spending |
+| Obligations | spending | the group Fixed costs, Insurance, Taxes and Fees |
+| Work income | income | Salary Hydroponics Engineer, Low-Gravity Allowance, Mine Shift Bonus |
+
+Hidden from charts: Small Expenses, Rover Parking, Refund Radiation
+Shielding, Souvenirs. Souvenirs is also in *Not needed spendings*: hiding
+leaves a group's figure alone (Q-225).
+
+Made again from the KMyMoney file, never edited by hand:
+
+```sh
+KASSENSTURZ_BLESS=1 cargo test -p kassensturz-pipeline --test space_colony_book
+```
+
+Without `KASSENSTURZ_BLESS` the same test fails if the committed file differs.
+
 ## Make it again
 
 ```sh

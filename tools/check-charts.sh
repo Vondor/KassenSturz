@@ -25,8 +25,9 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 qml=crates/kassensturz-ui-bridge/qml
 cp "$qml"/ChartView.qml "$qml"/ChartTable.qml "$qml"/ChartPalette.qml \
+    "$qml"/DataTable.qml "$qml"/AmountLabel.qml \
     crates/kassensturz-ui-bridge/qml-tests/ChartsSmoke.qml "$work"
-printf 'singleton ChartPalette 1.0 ChartPalette.qml\nChartView 1.0 ChartView.qml\nChartTable 1.0 ChartTable.qml\n' \
+printf 'singleton ChartPalette 1.0 ChartPalette.qml\nChartView 1.0 ChartView.qml\nChartTable 1.0 ChartTable.qml\nDataTable 1.0 DataTable.qml\nAmountLabel 1.0 AmountLabel.qml\n' \
     > "$work/qmldir"
 mkdir "$work/out"
 

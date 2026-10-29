@@ -74,3 +74,66 @@ pub fn dataset_ids(kind: ComponentType) -> Vec<&'static str> {
 pub fn json(component: &Component) -> String {
     component.to_value().to_string()
 }
+
+/// What the workbench asks `BookCharts` and `BookCards` for, by the fixed
+/// names those objects take, so the screen maps nothing itself.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Preview {
+    /// `chart`, `card`, `progress` or `table`.
+    pub shows: &'static str,
+    /// The `kind` for `BookCharts.show`; empty for a card or a progress bar.
+    pub chart: &'static str,
+    /// The `grouping` for `BookCharts.show`.
+    pub grouping: &'static str,
+    /// The `compare` for `BookCards.show`.
+    pub compare: String,
+    /// The card to pick from the cards: `income`, `expenses`, `net` or
+    /// `savings-rate`.
+    pub measure: String,
+}
+
+fn word(component: &Component, key: &str) -> String {
+    match component.get(key) {
+        Some(Setting::Word(word)) => word.clone(),
+        _ => String::new(),
+    }
+}
+
+/// What to ask for to show `component`.
+pub fn preview(component: &Component) -> Preview {
+    let (shows, chart) = match component.kind() {
+        ComponentType::ChartLine => ("chart", "line"),
+        ComponentType::ChartBar => ("chart", "bar"),
+        ComponentType::ChartStackedBar => ("chart", "stacked-bar"),
+        ComponentType::ChartArea => ("chart", "area"),
+        ComponentType::ChartPie => ("chart", "pie"),
+        ComponentType::ChartDonut => ("chart", "donut"),
+        ComponentType::KpiCard => ("card", ""),
+        ComponentType::ProgressBar => ("progress", ""),
+        // A table shows the values of a chart; a bar chart is the one both
+        // datasets can make.
+        ComponentType::TableRows => ("table", "bar"),
+    };
+    let compare = word(component, "compare");
+    let measure = match component.kind() {
+        ComponentType::ProgressBar => "savings-rate".to_owned(),
+        _ => word(component, "measure"),
+    };
+    Preview {
+        shows,
+        chart,
+        // The schema's words for the dataset's groupings; `BookCharts` takes
+        // `top-level` or `each`, and the monthly dataset has one grouping.
+        grouping: if word(component, "grouping") == "top_level_category" {
+            "top-level"
+        } else {
+            "each"
+        },
+        compare: if compare.is_empty() {
+            "previous_period".to_owned()
+        } else {
+            compare
+        },
+        measure,
+    }
+}

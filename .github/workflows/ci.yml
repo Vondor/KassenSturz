@@ -403,9 +403,9 @@ jobs:
       # missing; this draws every chart kind and looks at the pictures (M6a.4).
       - name: KQuickCharts is installed and draws every chart kind (D-275)
         run: tools/check-charts.sh
-      # The properties panel (M6a.6) loads and passes every change on to its
-      # model, on a stand-in for the Rust object.
-      - name: The properties panel loads and passes its changes on
+      # The properties panel (M6a.6) and the Statistics page (M6a.7) load and
+      # click through on stand-ins for the Rust objects.
+      - name: The properties panel and the Statistics page load and work
         run: tools/check-panel.sh
       - name: Tests, with the system's SQLite
         run: cargo test --workspace --no-default-features --features ai --locked

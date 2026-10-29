@@ -219,3 +219,37 @@ fn text_that_is_not_json_is_a_wrong_type_not_a_panic() {
         assert_eq!((why, path.as_str()), ("wrong-type", "component"), "{text}");
     }
 }
+
+#[test]
+fn changing_the_type_keeps_the_title_and_what_still_fits() {
+    let mut chart = Component::new(ComponentType::ChartBar, SPENDING_BY_CATEGORY).unwrap();
+    chart.set("title", Setting::Text("Mine".into())).unwrap();
+    chart.set("legend", Setting::Flag(false)).unwrap();
+    chart
+        .set("grouping", Setting::Word("top_level_category".into()))
+        .unwrap();
+    // A pie shows the same dataset: everything stays.
+    chart.change_kind(ComponentType::ChartPie).unwrap();
+    assert_eq!(chart.kind(), ComponentType::ChartPie);
+    assert_eq!(chart.dataset().id, SPENDING_BY_CATEGORY);
+    assert_eq!(chart.get("title"), Some(&Setting::Text("Mine".into())));
+    assert_eq!(chart.get("legend"), Some(&Setting::Flag(false)));
+    assert_eq!(
+        chart.get("grouping"),
+        Some(&Setting::Word("top_level_category".into()))
+    );
+    // A line can't show spending: it takes the monthly dataset, the title
+    // stays and the grouping, which that dataset doesn't have, resets.
+    chart.change_kind(ComponentType::ChartLine).unwrap();
+    assert_eq!(chart.dataset().id, INCOME_EXPENSE_BY_MONTH);
+    assert_eq!(chart.get("title"), Some(&Setting::Text("Mine".into())));
+    assert_eq!(chart.get("grouping"), Some(&Setting::Word("month".into())));
+    // A key figure has no legend, and a new component of its type is valid.
+    chart.change_kind(ComponentType::KpiCard).unwrap();
+    assert_eq!(chart.get("legend"), None);
+    assert_eq!(chart.get("measure"), Some(&Setting::Word("income".into())));
+    for (property, setting) in chart.settings() {
+        property.check(chart.dataset(), setting).unwrap();
+    }
+    assert_eq!(Component::from_value(&chart.to_value()).unwrap(), chart);
+}

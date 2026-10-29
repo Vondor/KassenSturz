@@ -1535,6 +1535,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kassensturz-report"
+version = "0.261025.0"
+dependencies = [
+ "jiff",
+ "kassensturz-core",
+ "kassensturz-store",
+ "proptest",
+]
+
+[[package]]
 name = "kassensturz-store"
 version = "0.261025.0"
 dependencies = [

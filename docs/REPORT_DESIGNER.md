@@ -66,6 +66,14 @@ A new headless crate between the book and the components (ARCHITECTURE.md: depen
 - Amounts, rates and ratios leave the crate as **text** (D-065). Sorting and totals happen here.
 - Every dataset has a **description in plain words** (glossary rules, AGENTS.md §6), what it counts and what it leaves out, shown in the properties panel and given to the AI as the only description of it.
 
+**Built in M6a.1 (details under D-277):**
+- `Source::read(book, period)` reads the period's transactions, the accounts and the category tree in one read transaction; the datasets are pure functions of a `Source`, a `Period` and a `Filter`, so a test needs no book and a result cannot mix two states of the book. Results keep exact `Money`; `TextFormat` (implemented by the app with the user's locale) turns them into a `TextTable` of strings with fixed, translatable column names, which is also the screen-reader alternative of D-283.
+- A part counts by its transaction's booking date (a Transfer by its booking date, D-108) and in the transaction's currency, as the overview counts it (D-122). Money on a spending or income category counts; money on no category yet counts as income if it came in and as spending if it went out; the user's own accounts and starting balances count as nothing, which is why a Transfer is neither. Zero amounts are left out.
+- `spending_by_category`: one result per currency, largest first, ties in category-tree order. A refund reduces its category and can make a total negative; the rows add up to the total. `Level::TopLevel` adds subcategories to their top-level category.
+- `income_expense_by_month`: every calendar month the period touches is a row, also an empty one; the first and last month count only the days inside the period; `net` is income less expenses.
+- Filters: `accounts` keeps a whole transaction if one of its parts is booked to a chosen account; `categories` keeps parts booked to a chosen category or below it and drops money with no category; `Some` of an empty list chooses nothing.
+- Periods: this month, last month, the last 12 months (this month and the eleven before it), this year, last year, or a range; a range of more than `MAX_MONTHS` (1200) months is refused (D-281).
+
 **What the AI sees (D-282):** dataset ids, their descriptions, the allowed groupings and chart types as enumerated choices, and category names only when the AI permission grid allows reading categories. Amounts only if the grid allows reading transactions, and then only what the existing read functions give (D-186). A model never receives a dashboard's computed numbers to "check": it proposes, the code computes.
 
 ## 4. The dashboard document and layout 20 (D-278, D-279)

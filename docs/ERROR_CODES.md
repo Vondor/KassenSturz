@@ -388,3 +388,13 @@ Why a dataset for a chart or a card couldn't be made (M6a.1, D-277). No report r
 | `report.bad-period` | | | The period ends before it starts. Choose a last day that is not before the first day. |
 | `report.period-too-long` | | | The period is longer than 100 years. Choose a shorter one. |
 | `report.book-unreadable` | | | The book couldn't be read for this chart, or a total is too large for KassenSturz to work with. The detail says why; see that message. |
+
+## Charts (`kassensturz-charts`)
+
+Why a chart model couldn't be made (M6a.3, D-276).
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `charts.kind-not-supported` | `kind` | `line`, `bar`, `stacked-bar`, `area`, `pie`, `donut` | This information can't be shown as a {kind} chart. Choose another kind of chart. |
+| `charts.value-too-large` | | | An amount is too large to be drawn exactly. The table below the chart still shows it. |
+| `charts.amount-overflow` | | | The marks of the chart's axis are too large for KassenSturz to work with. Choose a shorter period. |

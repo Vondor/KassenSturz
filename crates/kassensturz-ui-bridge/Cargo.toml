@@ -49,11 +49,13 @@ kassensturz-ai = { workspace = true, optional = true }
 kassensturz-ai-chat = { workspace = true, optional = true }
 kassensturz-ai-tools = { workspace = true, optional = true }
 kassensturz-bank.workspace = true
+kassensturz-charts.workspace = true
 kassensturz-core.workspace = true
 kassensturz-export.workspace = true
 kassensturz-import.workspace = true
 kassensturz-pipeline.workspace = true
 kassensturz-platform.workspace = true
+kassensturz-report.workspace = true
 kassensturz-store.workspace = true
 
 [build-dependencies]

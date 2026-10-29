@@ -28,6 +28,8 @@ mod book_session;
 mod books;
 mod categories;
 mod categories_model;
+mod charts;
+mod charts_model;
 mod developer_mode;
 mod errors;
 mod export;

@@ -1456,6 +1456,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kassensturz-charts"
+version = "0.261025.0"
+dependencies = [
+ "kassensturz-core",
+ "kassensturz-report",
+ "kassensturz-store",
+ "proptest",
+]
+
+[[package]]
 name = "kassensturz-cli"
 version = "0.261025.0"
 dependencies = [
@@ -1566,11 +1576,13 @@ dependencies = [
  "kassensturz-ai-chat",
  "kassensturz-ai-tools",
  "kassensturz-bank",
+ "kassensturz-charts",
  "kassensturz-core",
  "kassensturz-export",
  "kassensturz-import",
  "kassensturz-pipeline",
  "kassensturz-platform",
+ "kassensturz-report",
  "kassensturz-store",
  "proptest",
  "serde_json",

@@ -74,6 +74,8 @@ A new headless crate between the book and the components (ARCHITECTURE.md: depen
 - Filters: `accounts` keeps a whole transaction if one of its parts is booked to a chosen account; `categories` keeps parts booked to a chosen category or below it and drops money with no category; `Some` of an empty list chooses nothing.
 - Periods: this month, last month, the last 12 months (this month and the eleven before it), this year, last year, or a range; a range of more than `MAX_MONTHS` (1200) months is refused (D-281).
 
+**Built in M6a.2 (D-285):** `Percent` (tenths of a percent), `savings_rate`, `Change` (previous, current, amount, percent), `Compare` (`previous_period`, `same_last_year`; `Period::before` and `Period::year_before`), `compare_income_expense` (use `comparison_span` to read the `Source` for both periods) and the `CATALOG` of datasets with plain-word descriptions, groupings and the chart kinds they suit. `Source` remembers the days it was read for; asking a dataset for more fails with `report.period-not-read`.
+
 **What the AI sees (D-282):** dataset ids, their descriptions, the allowed groupings and chart types as enumerated choices, and category names only when the AI permission grid allows reading categories. Amounts only if the grid allows reading transactions, and then only what the existing read functions give (D-186). A model never receives a dashboard's computed numbers to "check": it proposes, the code computes.
 
 ## 4. The dashboard document and layout 20 (D-278, D-279)

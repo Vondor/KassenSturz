@@ -35,6 +35,8 @@ pub(crate) struct Part {
 
 /// The book's transactions of a period with the accounts they use.
 pub struct Source {
+    /// The days the transactions were read for.
+    covers: Period,
     accounts: HashMap<AccountId, Account>,
     /// The categories in the order of the category tree, with their paths.
     tree: Vec<CategoryEntry>,
@@ -47,6 +49,7 @@ impl Source {
     pub fn read(book: &Book, period: Period) -> Result<Self, ReportError> {
         book.reading(|book| {
             Ok(Self::from_parts(
+                period,
                 book.all_accounts()?,
                 book.categories()?,
                 book.transactions_between(period.first(), period.last())?,
@@ -55,11 +58,13 @@ impl Source {
     }
 
     pub(crate) fn from_parts(
+        covers: Period,
         accounts: Vec<Account>,
         tree: Vec<CategoryEntry>,
         transactions: Vec<Transaction>,
     ) -> Self {
         Self {
+            covers,
             accounts: accounts
                 .into_iter()
                 .map(|account| (account.id, account))
@@ -94,7 +99,13 @@ impl Source {
 
     /// Every part of the transactions in `period` that counts as income or
     /// spending and passes `filter`. Zero amounts are left out.
-    pub(crate) fn parts(&self, period: Period, filter: &Filter) -> Result<Vec<Part>, StoreError> {
+    ///
+    /// Fails with [`ReportError::PeriodNotRead`] if the `Source` was read
+    /// for fewer days than `period`.
+    pub(crate) fn parts(&self, period: Period, filter: &Filter) -> Result<Vec<Part>, ReportError> {
+        if period.first() < self.covers.first() || period.last() > self.covers.last() {
+            return Err(ReportError::PeriodNotRead);
+        }
         let chosen = filter.categories.as_ref().map(|chosen| {
             let chosen: HashSet<AccountId> = chosen.iter().copied().collect();
             // The chosen categories and everything below them.

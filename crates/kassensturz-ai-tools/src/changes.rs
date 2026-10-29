@@ -25,6 +25,7 @@ use std::collections::{HashMap, HashSet};
 
 mod accounts;
 mod cash;
+mod edits;
 mod transactions;
 mod views;
 
@@ -44,6 +45,7 @@ use crate::text::hides_text;
 
 pub use accounts::{DeleteCategory, EditAccount, NewAccount};
 pub use cash::{DeleteTransaction, NewTransaction};
+pub use edits::{EditError, Slot};
 pub use transactions::{EditTransaction, FieldEdit, FieldValue};
 pub use views::NewView;
 
@@ -558,6 +560,11 @@ pub struct ChangeSet {
     /// The top-level Rules in the order the set was checked against: moving
     /// and deleting Rules applies only to a list in this order.
     rule_order: Vec<RuleId>,
+    /// Where each change stands in the model's call, in the order of
+    /// `changes` (D-297).
+    slots: Vec<Slot>,
+    /// The model's call and what the user changed in it (D-293).
+    call: edits::Call,
 }
 
 /// The user's yes to one change set. Only the confirm button of the
@@ -764,6 +771,11 @@ impl ChangeSet {
     /// the book stays as it was.
     pub fn apply(self, book: &mut Book, confirmed: Confirmed) -> Result<(), ChangeError> {
         let Confirmed(()) = confirmed;
+        // The user left every change out (D-293): nothing to make, and no
+        // empty entry in the history.
+        if self.changes.is_empty() {
+            return Ok(());
+        }
         let moves = self
             .changes
             .iter()
@@ -928,6 +940,50 @@ pub fn propose(
     arguments: &Value,
     allowed: Permissions,
 ) -> Result<Proposal, ToolError> {
+    let Built {
+        changes,
+        rule_order,
+    } = build(book, arguments, allowed)?;
+    if changes.is_empty() {
+        return Err(ToolError::BadArgument {
+            argument: "arguments",
+        });
+    }
+    let mut figures = Figures::new();
+    let total = u64::try_from(changes.len()).unwrap_or(u64::MAX);
+    figures.add_count(total);
+    let output = Output::new(
+        json!({
+            "prepared": total,
+            "status": "waiting for the user's review; nothing is changed until the user confirms",
+        }),
+        figures,
+    );
+    let (slots, call) = edits::Call::first(arguments, &changes);
+    Ok(Proposal {
+        changes: ChangeSet {
+            changes,
+            rule_order,
+            slots,
+            call,
+        },
+        output,
+    })
+}
+
+/// The changes a checked call makes, and the order of the top-level Rules
+/// they were checked against.
+struct Built {
+    changes: Vec<ProposedChange>,
+    rule_order: Vec<RuleId>,
+}
+
+/// Checks a call of [`PROPOSE_CHANGES`] against `book` and turns it into
+/// changes, one for each item of its lists, in the order of
+/// [`ChangeSet::changes`]: the model's call, and the same call as the user
+/// edited it (D-293), go through these same checks. A call with no item is
+/// not refused here, since the user may leave every change out.
+fn build(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Built, ToolError> {
     let call = Object::read(
         arguments,
         &[
@@ -981,11 +1037,6 @@ pub fn propose(
         + new_transactions.len()
         + deleted_transactions.len()
         + new_views.len();
-    if count == 0 {
-        return Err(ToolError::BadArgument {
-            argument: "arguments",
-        });
-    }
     if count > MAX_CHANGES {
         return Err(ToolError::TooManyChanges);
     }
@@ -1097,16 +1148,6 @@ pub fn propose(
         )?));
     }
 
-    let mut figures = Figures::new();
-    let total = u64::try_from(count).unwrap_or(u64::MAX);
-    figures.add_count(total);
-    let output = Output::new(
-        json!({
-            "prepared": total,
-            "status": "waiting for the user's review; nothing is changed until the user confirms",
-        }),
-        figures,
-    );
     // The paths the user reads are those after all the moves and renames.
     known.refresh_paths();
     for change in &mut changes {
@@ -1120,12 +1161,9 @@ pub fn propose(
             _ => {}
         }
     }
-    Ok(Proposal {
-        changes: ChangeSet {
-            changes,
-            rule_order,
-        },
-        output,
+    Ok(Built {
+        changes,
+        rule_order,
     })
 }
 

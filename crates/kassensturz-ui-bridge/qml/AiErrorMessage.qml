@@ -106,6 +106,16 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "These changes hold a kind of change that you have turned off in the AI settings since the AI prepared them. Nothing was changed. Turn it on again under “What the AI may do”, or ask the AI to prepare the changes again.");
         case "ai-changes.not-applied":
             return i18nContext.i18nc("@info", "Your book refused one of the changes, for example because a category of that name was added in the meantime. Nothing was changed. Ask the AI to prepare them again.");
+        case "ai-changes.not-editable":
+            return i18nContext.i18nc("@info", "This change can't be changed that way, so your change wasn't kept. Leave the change out, or take the AI's version.");
+        case "ai-changes.edit-text":
+            return i18nContext.i18nc("@info", "A name, title or text to look for can't be empty, can be at most 100 characters long (a chart's title 200) and can't hold line breaks or hidden characters. Your change wasn't kept; type it again.");
+        case "ai-changes.edit-name-taken":
+            return i18nContext.i18nc("@info", "That name is already used there. Your change wasn't kept; pick another name.");
+        case "ai-changes.edit-in-use":
+            return i18nContext.i18nc("@info", "Another change uses this new category, for example a Rule that books to it, so it can't be left out alone. Change or leave out that change first.");
+        case "ai-changes.edit-refused":
+            return i18nContext.i18nc("@info", "KassenSturz can't make the change this way, for example because the category is of another kind or currency, or the chart doesn't suit its figures. Your change wasn't kept; choose something else, or take the AI's version.");
         default:
             return i18nContext.i18nc("@info", "Something went wrong with the provider. Check its address and settings, then try again.");
         }

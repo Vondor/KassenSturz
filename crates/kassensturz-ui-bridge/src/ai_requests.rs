@@ -101,7 +101,7 @@ mod tests {
     use serde_json::{Value, json};
 
     use super::*;
-    use crate::ai_chat::{ChangeView, confirm_in, view_of};
+    use crate::ai_chat::{ChangeView, confirm_in, views_of};
     use crate::platform::APP_ID;
     use crate::register::tests::TestLocale;
     use crate::test_folder::TestFolder;
@@ -206,7 +206,7 @@ mod tests {
             ends.server.standing(&id),
             Standing::Answered(Reply::Shown { changes: count })
         );
-        let views = view_of(&book, sets.get(arrived[0].id).unwrap(), &TestLocale).unwrap();
+        let views = views_of(&book, sets.get(arrived[0].id).unwrap(), &TestLocale);
         assert_eq!(views.len(), count);
         assert!(views.iter().any(|view| matches!(
             view,

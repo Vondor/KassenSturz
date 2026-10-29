@@ -98,9 +98,45 @@ pub mod qobject {
         /// objects with a `kind` (`newCategory`, `editCategory`, `newRule`,
         /// `editRule`, `moveRule`, `deleteRule`, `categorize`, `deleteCategory`,
         /// `newAccount` or `editAccount`)
-        /// and its fields, or an error object.
+        /// and its fields, each with the `slot` that names it, whether the
+        /// user `edited` it or left it out (`leftOut`), the `fields` they may
+        /// edit and the `form` (JSON text) an edit starts from (D-293), or an
+        /// error object.
         #[qinvokable]
         fn changes(self: &AiChat, id: &QString) -> QVariant;
+
+        /// The user corrects the change `slot` of the set `id` before
+        /// confirming it (D-293): `fields` is a JSON object of the fields
+        /// that change, in the words of `propose_changes`. The set's changes
+        /// as `changes` gives them, or an error object; the set stays as it
+        /// was then. Nothing of it goes to the AI.
+        #[qinvokable]
+        #[cxx_name = "editChange"]
+        fn edit_change(
+            self: Pin<&mut AiChat>,
+            id: &QString,
+            slot: &QString,
+            fields: &QString,
+        ) -> QVariant;
+
+        /// The user leaves the change `slot` out of the set `id`; answers
+        /// like `editChange`.
+        #[qinvokable]
+        #[cxx_name = "leaveOutChange"]
+        fn leave_out_change(self: Pin<&mut AiChat>, id: &QString, slot: &QString) -> QVariant;
+
+        /// The user takes the AI's version of the change `slot` of the set
+        /// `id` again; answers like `editChange`.
+        #[qinvokable]
+        #[cxx_name = "backToAi"]
+        fn back_to_ai(self: Pin<&mut AiChat>, id: &QString, slot: &QString) -> QVariant;
+
+        /// The categories a change of the set `id` may be given: objects
+        /// with `id` (one of the book's) or `key` (a new one of the set),
+        /// `path`, `income` and `currency`, or an error object.
+        #[qinvokable]
+        #[cxx_name = "changeChoices"]
+        fn change_choices(self: &AiChat, id: &QString) -> QVariant;
 
         /// The user confirms the set `id` on the review screen: it is
         /// applied as one change that undo takes back. An object with
@@ -192,7 +228,7 @@ impl cxx_qt::Initialize for qobject::AiChat {
 mod engine {
     use super::*;
 
-    fn off() -> QVariant {
+    pub(super) fn off() -> QVariant {
         error_object(&ErrorText::plain("ai.off"))
     }
 
@@ -225,15 +261,15 @@ pub(crate) mod engine {
         Answer, BuildInfo, ChatError, ChatSession, Feature, LogEntry, Mode, Outcome,
     };
     use kassensturz_ai_tools::requests::RequestFolder;
-    use kassensturz_ai_tools::{ChangeError, IssueDraft, PageTarget, ToolError};
+    use kassensturz_ai_tools::{ChangeError, EditError, IssueDraft, PageTarget, ToolError};
     use kassensturz_core::{Date, Report};
     use kassensturz_platform::Secret;
     use kassensturz_store::StoreError;
 
     use super::*;
     use crate::ai_chat::{
-        ChangeView, Command, Controls, Review, Screen, Sets, Waiting, answer_from, code_text,
-        confirm_in, hooks, view_of,
+        CategoryChoice, ChangeRow, ChangeView, Command, Controls, Correction, Review, Screen, Sets,
+        Waiting, answer_from, category_choices, code_text, confirm_in, corrected, hooks, rows_of,
     };
     use crate::ai_requests::{Arrived, take_requests, tell_confirmed, tell_declined, tell_dropped};
     use crate::ai_settings::{self, Store};
@@ -418,32 +454,67 @@ pub(crate) mod engine {
         )
     }
 
-    /// The changes of a set as QML reads them.
-    pub(crate) fn changes_object(views: &[ChangeView]) -> QVariant {
-        list(views.iter().map(|view| match view {
-            ChangeView::NewCategory { name, path, income } => map([
+    /// The changes of a set as QML reads them: each change's own fields,
+    /// and what the user did with it (D-293).
+    pub(crate) fn changes_object(rows: &[ChangeRow]) -> QVariant {
+        list(rows.iter().map(|row| {
+            let mut entries = view_entries(&row.view);
+            entries.extend([
+                ("slot", text(&row.slot)),
+                ("edited", QVariant::from(&row.edited)),
+                ("leftOut", QVariant::from(&row.left_out)),
+                ("fields", list(row.fields.iter().map(|field| text(field)))),
+                ("form", text(&row.form)),
+            ]);
+            map(entries)
+        }))
+    }
+
+    /// The categories a change may be given as QML reads them.
+    pub(crate) fn choices_object(choices: &[CategoryChoice]) -> QVariant {
+        list(choices.iter().map(|choice| {
+            map([
+                ("id", text(&choice.id)),
+                ("key", text(&choice.key)),
+                ("path", text(&choice.path)),
+                ("income", QVariant::from(&choice.income)),
+                ("currency", text(&choice.currency)),
+            ])
+        }))
+    }
+
+    /// One change's own fields.
+    fn view_entries(view: &ChangeView) -> Vec<(&'static str, QVariant)> {
+        match view {
+            ChangeView::NewCategory {
+                name,
+                path,
+                income,
+                currency,
+            } => vec![
                 ("kind", text("newCategory")),
                 ("name", text(name)),
                 ("path", text(path)),
                 ("income", QVariant::from(income)),
-            ]),
+                ("currency", text(currency)),
+            ],
             ChangeView::NewRule {
                 name,
                 book_to,
                 match_all,
                 conditions,
-            } => map([
+            } => vec![
                 ("kind", text("newRule")),
                 ("name", text(name)),
                 ("bookTo", text(book_to)),
                 ("matchAll", QVariant::from(match_all)),
                 ("conditions", list(conditions.iter().map(condition_object))),
-            ]),
-            ChangeView::EditCategory { before, after } => map([
+            ],
+            ChangeView::EditCategory { before, after } => vec![
                 ("kind", text("editCategory")),
                 ("before", text(before)),
                 ("after", text(after)),
-            ]),
+            ],
             ChangeView::EditRule {
                 before_name,
                 name,
@@ -451,7 +522,7 @@ pub(crate) mod engine {
                 book_to,
                 match_all,
                 conditions,
-            } => map([
+            } => vec![
                 ("kind", text("editRule")),
                 ("beforeName", text(before_name)),
                 ("name", text(name)),
@@ -459,25 +530,25 @@ pub(crate) mod engine {
                 ("bookTo", text(book_to)),
                 ("matchAll", QVariant::from(match_all)),
                 ("conditions", list(conditions.iter().map(condition_object))),
-            ]),
-            ChangeView::MoveRule { name, from, to } => map([
+            ],
+            ChangeView::MoveRule { name, from, to } => vec![
                 ("kind", text("moveRule")),
                 ("name", text(name)),
                 ("from", text(from)),
                 ("to", text(to)),
-            ]),
+            ],
             ChangeView::DeleteRule {
                 name,
                 book_to,
                 match_all,
                 conditions,
-            } => map([
+            } => vec![
                 ("kind", text("deleteRule")),
                 ("name", text(name)),
                 ("bookTo", text(book_to)),
                 ("matchAll", QVariant::from(match_all)),
                 ("conditions", list(conditions.iter().map(condition_object))),
-            ]),
+            ],
             ChangeView::Categorize {
                 date,
                 payee,
@@ -485,7 +556,8 @@ pub(crate) mod engine {
                 amount,
                 before,
                 after,
-            } => map([
+                currency,
+            } => vec![
                 ("kind", text("categorize")),
                 ("date", text(date)),
                 ("payee", text(payee)),
@@ -493,39 +565,40 @@ pub(crate) mod engine {
                 ("amount", text(amount)),
                 ("before", text(before)),
                 ("after", text(after)),
-            ]),
+                ("currency", text(currency)),
+            ],
             ChangeView::DeleteCategory { path } => {
-                map([("kind", text("deleteCategory")), ("path", text(path))])
+                vec![("kind", text("deleteCategory")), ("path", text(path))]
             }
             ChangeView::NewAccount {
                 name,
                 account_type,
                 currency,
-            } => map([
+            } => vec![
                 ("kind", text("newAccount")),
                 ("name", text(name)),
                 ("accountType", text(account_type)),
                 ("currency", text(currency)),
-            ]),
+            ],
             ChangeView::EditAccount {
                 before,
                 after,
                 was_closed,
                 closed,
-            } => map([
+            } => vec![
                 ("kind", text("editAccount")),
                 ("before", text(before)),
                 ("after", text(after)),
                 ("wasClosed", QVariant::from(was_closed)),
                 ("closed", QVariant::from(closed)),
-            ]),
+            ],
             ChangeView::EditTransaction {
                 date,
                 payee,
                 account,
                 amount,
                 lines,
-            } => map([
+            } => vec![
                 ("kind", text("editTransaction")),
                 ("date", text(date)),
                 ("payee", text(payee)),
@@ -541,7 +614,7 @@ pub(crate) mod engine {
                         ])
                     })),
                 ),
-            ]),
+            ],
             ChangeView::NewTransaction {
                 date,
                 payee,
@@ -549,7 +622,7 @@ pub(crate) mod engine {
                 amount,
                 category,
                 note,
-            } => map([
+            } => vec![
                 ("kind", text("newTransaction")),
                 ("date", text(date)),
                 ("payee", text(payee)),
@@ -557,32 +630,34 @@ pub(crate) mod engine {
                 ("amount", text(amount)),
                 ("category", text(category)),
                 ("note", text(note)),
-            ]),
+            ],
             ChangeView::DeleteTransaction {
                 date,
                 payee,
                 account,
                 amount,
                 category,
-            } => map([
+            } => vec![
                 ("kind", text("deleteTransaction")),
                 ("date", text(date)),
                 ("payee", text(payee)),
                 ("account", text(account)),
                 ("amount", text(amount)),
                 ("category", text(category)),
-            ]),
+            ],
             ChangeView::NewView {
                 title,
                 period,
                 component,
-            } => map([
+                charts,
+            } => vec![
                 ("kind", text("newView")),
                 ("title", text(title)),
                 ("period", text(period)),
                 ("component", text(component)),
-            ]),
-        }))
+                ("charts", list(charts.iter().map(|chart| text(chart)))),
+            ],
+        }
     }
 
     fn error(error: &ErrorText) -> QVariant {
@@ -739,8 +814,8 @@ pub(crate) mod engine {
         let Some(set) = id_of(id).and_then(|id| chat.state.sets.get(id)) else {
             return error(&ErrorText::plain("ai-changes.out-of-date"));
         };
-        match session::with_book(|book| view_of(book, set, &app_locale())) {
-            Some(Ok(views)) => changes_object(&views),
+        match session::with_book(|book| rows_of(book, set, &app_locale())) {
+            Some(Ok(rows)) => changes_object(&rows),
             Some(Err(cause)) => error(&book_unreadable(cause)),
             None => error(&ErrorText::plain("ai-changes.out-of-date")),
         }
@@ -793,6 +868,70 @@ pub(crate) mod engine {
                 crate::note!(ChangesFailed, None, Some(report.code));
                 error(&code_text(&report))
             }
+        }
+    }
+
+    /// Corrects one change of a waiting set (D-293): the user's version is
+    /// checked like the AI's and replaces the set only when it passes.
+    pub(super) fn correct(
+        mut chat: Pin<&mut qobject::AiChat>,
+        id: &str,
+        slot: &str,
+        correction: Correction,
+    ) -> QVariant {
+        let out_of_date = || error(&ErrorText::plain("ai-changes.out-of-date"));
+        let Some(id) = id_of(id) else {
+            return out_of_date();
+        };
+        let Some(set) = chat.state.sets.get(id) else {
+            return out_of_date();
+        };
+        let checked = session::with_book(|book| {
+            let set = corrected(
+                book,
+                set,
+                slot,
+                &correction,
+                kassensturz_core::ai_switch::permissions(),
+            )?;
+            let rows = rows_of(book, &set, &app_locale())
+                .map_err(|cause| EditError::Refused(ToolError::Store(cause)))?;
+            Ok::<_, EditError>((set, rows))
+        });
+        let how = match correction {
+            Correction::Edit(_) => "edited",
+            Correction::LeaveOut => "left out",
+            Correction::BackToAi => "back to the AI's version",
+        };
+        match checked {
+            None => out_of_date(),
+            Some(Err(failure)) => {
+                let report = failure.report();
+                crate::developer_mode::transcribe(
+                    "changes-edit-refused",
+                    &[("slot", slot), ("code", report.code)],
+                );
+                error(&code_text(&report))
+            }
+            Some(Ok((set, rows))) => {
+                crate::developer_mode::transcribe(
+                    "changes-edited",
+                    &[("slot", slot), ("how", how), ("set", &set.summary())],
+                );
+                chat.as_mut().rust_mut().state.sets.replace(id, set);
+                changes_object(&rows)
+            }
+        }
+    }
+
+    pub(super) fn change_choices(chat: &qobject::AiChat, id: &str) -> QVariant {
+        let Some(set) = id_of(id).and_then(|id| chat.state.sets.get(id)) else {
+            return error(&ErrorText::plain("ai-changes.out-of-date"));
+        };
+        match session::with_book(|book| category_choices(book, set)) {
+            Some(Ok(choices)) => choices_object(&choices),
+            Some(Err(cause)) => error(&book_unreadable(cause)),
+            None => error(&ErrorText::plain("ai-changes.out-of-date")),
         }
     }
 
@@ -931,6 +1070,42 @@ impl qobject::AiChat {
         engine::discard(self, &id.to_string());
     }
 
+    fn edit_change(
+        self: Pin<&mut Self>,
+        id: &QString,
+        slot: &QString,
+        fields: &QString,
+    ) -> QVariant {
+        engine::correct(
+            self,
+            &id.to_string(),
+            &slot.to_string(),
+            crate::ai_chat::Correction::Edit(fields.to_string()),
+        )
+    }
+
+    fn leave_out_change(self: Pin<&mut Self>, id: &QString, slot: &QString) -> QVariant {
+        engine::correct(
+            self,
+            &id.to_string(),
+            &slot.to_string(),
+            crate::ai_chat::Correction::LeaveOut,
+        )
+    }
+
+    fn back_to_ai(self: Pin<&mut Self>, id: &QString, slot: &QString) -> QVariant {
+        engine::correct(
+            self,
+            &id.to_string(),
+            &slot.to_string(),
+            crate::ai_chat::Correction::BackToAi,
+        )
+    }
+
+    fn change_choices(&self, id: &QString) -> QVariant {
+        engine::change_choices(self, &id.to_string())
+    }
+
     fn changes_undone(self: Pin<&mut Self>) {
         engine::changes_undone(self);
     }
@@ -965,6 +1140,27 @@ impl qobject::AiChat {
 
     fn discard(self: Pin<&mut Self>, _id: &QString) {}
 
+    fn edit_change(
+        self: Pin<&mut Self>,
+        _id: &QString,
+        _slot: &QString,
+        _fields: &QString,
+    ) -> QVariant {
+        engine::off()
+    }
+
+    fn leave_out_change(self: Pin<&mut Self>, _id: &QString, _slot: &QString) -> QVariant {
+        engine::off()
+    }
+
+    fn back_to_ai(self: Pin<&mut Self>, _id: &QString, _slot: &QString) -> QVariant {
+        engine::off()
+    }
+
+    fn change_choices(&self, _id: &QString) -> QVariant {
+        engine::off()
+    }
+
     fn changes_undone(self: Pin<&mut Self>) {}
 
     fn reset(self: Pin<&mut Self>) {}
@@ -976,14 +1172,14 @@ impl qobject::AiChat {
 
 #[cfg(all(test, feature = "ai"))]
 mod tests {
-    use cxx_qt_lib::QString;
+    use cxx_qt_lib::{QString, QVariant};
     use kassensturz_ai::Finish;
     use kassensturz_ai_chat::{Answer, LogEntry, Mode};
 
     use super::engine::{
-        changes_object, entry_object, finished_object, review_object, sets_object,
+        changes_object, choices_object, entry_object, finished_object, review_object, sets_object,
     };
-    use crate::ai_chat::{ChangeView, EditLine, Review};
+    use crate::ai_chat::{CategoryChoice, ChangeRow, ChangeView, EditLine, Review};
     use crate::rules::ConditionForm;
     use crate::variant::read_back::{elements, flag_of, keys, list_of, number_of, text_of};
 
@@ -1218,6 +1414,7 @@ mod tests {
                 name: "Bakery".into(),
                 path: "Food › Bakery".into(),
                 income: false,
+                currency: "EUR".into(),
             },
             ChangeView::NewRule {
                 name: "Bakery".into(),
@@ -1261,6 +1458,7 @@ mod tests {
                 amount: "-53,20 €".into(),
                 before: String::new(),
                 after: "Food › Bakery".into(),
+                currency: "EUR".into(),
             },
             ChangeView::DeleteCategory {
                 path: "Food › Bakery".into(),
@@ -1313,27 +1511,84 @@ mod tests {
                 title: "<b>Where it goes</b>".into(),
                 period: "this-year".into(),
                 component: r#"{"type":"chart.pie"}"#.into(),
+                charts: vec!["chart.pie", "chart.bar"],
             },
         ];
-        let object = changes_object(&views);
+        let rows: Vec<ChangeRow> = views
+            .into_iter()
+            .enumerate()
+            .map(|(n, view)| ChangeRow {
+                slot: format!("new_rules/{n}"),
+                edited: n == 1,
+                left_out: n == 2,
+                fields: if n == 1 {
+                    vec!["name", "match"]
+                } else {
+                    Vec::new()
+                },
+                form: if n == 1 {
+                    r#"{"name":"<b>Bakery</b>"}"#.into()
+                } else {
+                    String::new()
+                },
+                view,
+            })
+            .collect();
+        let object = changes_object(&rows);
         let items = elements(&object).expect("an array");
         assert_eq!(items.len(), 14);
-        assert_eq!(keys(&items[0]), ["income", "kind", "name", "path"]);
+        // What the user did with each change (D-293).
+        assert_eq!(
+            keys(&items[1]),
+            [
+                "bookTo",
+                "conditions",
+                "edited",
+                "fields",
+                "form",
+                "kind",
+                "leftOut",
+                "matchAll",
+                "name",
+                "slot"
+            ]
+        );
+        assert_eq!(text_of(&items[1], "slot"), "new_rules/1");
+        assert!(flag_of(&items[1], "edited") && !flag_of(&items[1], "leftOut"));
+        assert!(flag_of(&items[2], "leftOut") && !flag_of(&items[2], "edited"));
+        let fields: Vec<String> = list_of(&items[1], "fields")
+            .iter()
+            .map(|field| {
+                field
+                    .value::<QString>()
+                    .map(|text| text.to_string())
+                    .unwrap_or_default()
+            })
+            .collect();
+        assert_eq!(fields, ["name", "match"]);
+        assert_eq!(text_of(&items[1], "form"), r#"{"name":"<b>Bakery</b>"}"#);
+        assert_eq!(text_of(&items[0], "form"), "");
+        assert!(list_of(&items[0], "fields").is_empty());
+        assert_eq!(
+            own_keys(&items[0]),
+            ["currency", "income", "kind", "name", "path"]
+        );
+        assert_eq!(text_of(&items[0], "currency"), "EUR");
         assert_eq!(text_of(&items[0], "kind"), "newCategory");
         assert!(!flag_of(&items[0], "income"));
         assert_eq!(
-            keys(&items[1]),
+            own_keys(&items[1]),
             ["bookTo", "conditions", "kind", "matchAll", "name"]
         );
         assert!(flag_of(&items[1], "matchAll"));
         let conditions = list_of(&items[1], "conditions");
         assert_eq!(text_of(&conditions[0], "operator"), "contains");
         assert_eq!(text_of(&conditions[0], "value"), "<img src=x>");
-        assert_eq!(keys(&items[2]), ["after", "before", "kind"]);
+        assert_eq!(own_keys(&items[2]), ["after", "before", "kind"]);
         assert_eq!(text_of(&items[2], "kind"), "editCategory");
         assert_eq!(text_of(&items[2], "after"), "Survival › Food");
         assert_eq!(
-            keys(&items[3]),
+            own_keys(&items[3]),
             [
                 "beforeBookTo",
                 "beforeName",
@@ -1346,33 +1601,36 @@ mod tests {
         );
         assert_eq!(text_of(&items[3], "beforeName"), "Grocer");
         assert!(!flag_of(&items[3], "matchAll"));
-        assert_eq!(keys(&items[4]), ["from", "kind", "name", "to"]);
+        assert_eq!(own_keys(&items[4]), ["from", "kind", "name", "to"]);
         assert_eq!(text_of(&items[4], "to"), "1");
         assert_eq!(
-            keys(&items[5]),
+            own_keys(&items[5]),
             ["bookTo", "conditions", "kind", "matchAll", "name"]
         );
         assert_eq!(text_of(&items[5], "kind"), "deleteRule");
         assert_eq!(
-            keys(&items[6]),
+            own_keys(&items[6]),
             [
-                "account", "after", "amount", "before", "date", "kind", "payee"
+                "account", "after", "amount", "before", "currency", "date", "kind", "payee"
             ]
         );
         assert_eq!(text_of(&items[6], "amount"), "-53,20 €");
         assert_eq!(text_of(&items[6], "before"), "");
-        assert_eq!(keys(&items[7]), ["kind", "path"]);
+        assert_eq!(own_keys(&items[7]), ["kind", "path"]);
         assert_eq!(text_of(&items[7], "path"), "Food › Bakery");
-        assert_eq!(keys(&items[8]), ["accountType", "currency", "kind", "name"]);
+        assert_eq!(
+            own_keys(&items[8]),
+            ["accountType", "currency", "kind", "name"]
+        );
         assert_eq!(text_of(&items[8], "accountType"), "cash");
         assert_eq!(
-            keys(&items[9]),
+            own_keys(&items[9]),
             ["after", "before", "closed", "kind", "wasClosed"]
         );
         assert!(flag_of(&items[9], "closed"));
         assert!(!flag_of(&items[9], "wasClosed"));
         assert_eq!(
-            keys(&items[10]),
+            own_keys(&items[10]),
             ["account", "amount", "date", "kind", "lines", "payee"]
         );
         assert_eq!(text_of(&items[10], "kind"), "editTransaction");
@@ -1383,7 +1641,7 @@ mod tests {
         assert_eq!(text_of(&lines[0], "after"), "-60,00 €");
         assert_eq!(text_of(&lines[1], "after"), "<b>weekly</b>");
         assert_eq!(
-            keys(&items[11]),
+            own_keys(&items[11]),
             [
                 "account", "amount", "category", "date", "kind", "note", "payee"
             ]
@@ -1391,15 +1649,55 @@ mod tests {
         assert_eq!(text_of(&items[11], "kind"), "newTransaction");
         assert_eq!(text_of(&items[11], "note"), "<i>receipt kept</i>");
         assert_eq!(
-            keys(&items[12]),
+            own_keys(&items[12]),
             ["account", "amount", "category", "date", "kind", "payee"]
         );
         assert_eq!(text_of(&items[12], "kind"), "deleteTransaction");
         assert_eq!(text_of(&items[12], "category"), "");
-        assert_eq!(keys(&items[13]), ["component", "kind", "period", "title"]);
+        assert_eq!(
+            own_keys(&items[13]),
+            ["charts", "component", "kind", "period", "title"]
+        );
+        assert_eq!(list_of(&items[13], "charts").len(), 2);
         assert_eq!(text_of(&items[13], "kind"), "newView");
         assert_eq!(text_of(&items[13], "title"), "<b>Where it goes</b>");
         assert_eq!(text_of(&items[13], "period"), "this-year");
         assert_eq!(text_of(&items[13], "component"), r#"{"type":"chart.pie"}"#);
+    }
+
+    /// The keys of a change object without those every change has.
+    fn own_keys(item: &QVariant) -> Vec<String> {
+        keys(item)
+            .into_iter()
+            .filter(|key| !["edited", "fields", "form", "leftOut", "slot"].contains(&key.as_str()))
+            .collect()
+    }
+
+    #[test]
+    fn category_choices_read_back_as_qml_reads_them() {
+        let object = choices_object(&[
+            CategoryChoice {
+                id: "1b0c".into(),
+                key: String::new(),
+                path: "Food › <b>Bakery</b>".into(),
+                income: false,
+                currency: "EUR".into(),
+            },
+            CategoryChoice {
+                id: String::new(),
+                key: "pets".into(),
+                path: "Pets".into(),
+                income: true,
+                currency: "USD".into(),
+            },
+        ]);
+        let items = elements(&object).expect("an array");
+        assert_eq!(items.len(), 2);
+        assert_eq!(keys(&items[0]), ["currency", "id", "income", "key", "path"]);
+        assert_eq!(text_of(&items[0], "id"), "1b0c");
+        assert_eq!(text_of(&items[0], "path"), "Food › <b>Bakery</b>");
+        assert_eq!(text_of(&items[1], "key"), "pets");
+        assert!(flag_of(&items[1], "income"));
+        assert_eq!(text_of(&items[1], "currency"), "USD");
     }
 }

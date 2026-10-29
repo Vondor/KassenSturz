@@ -268,9 +268,9 @@ mod tests {
         };
         let rent = make("Rent", false);
         let food = make("Food", false);
-        category_groups::add_group(&mut book, "Fixed costs", false, &[rent.clone()])
+        category_groups::add_group(&mut book, "Fixed costs", false, std::slice::from_ref(&rent))
             .expect("group");
-        category_groups::set_hidden(&mut book, &[food.clone()]).expect("hidden");
+        category_groups::set_hidden(&mut book, std::slice::from_ref(&food)).expect("hidden");
         let view = view_object(&category_groups::view(&book).expect("view"));
         assert_eq!(keys(&view), ["categories", "groups"]);
         let groups = list_of(&view, "groups");

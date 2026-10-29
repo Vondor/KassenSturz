@@ -251,8 +251,10 @@ mod tests {
         let rent = add(&mut book, "Rent", false, "");
         let salary = add(&mut book, "Salary", true, "");
 
-        let household = add_group(&mut book, "Household", false, &[food.clone()]).expect("added");
-        let fixed = add_group(&mut book, "Fixed costs", false, &[rent.clone()]).expect("added");
+        let household =
+            add_group(&mut book, "Household", false, std::slice::from_ref(&food)).expect("added");
+        let fixed =
+            add_group(&mut book, "Fixed costs", false, std::slice::from_ref(&rent)).expect("added");
         let shown = view(&book).expect("view");
         assert_eq!(shown.groups.len(), 2);
         assert_eq!(shown.groups[0].name, "Household");
@@ -323,7 +325,7 @@ mod tests {
         let mut expected = vec![rent.clone(), food];
         expected.sort();
         assert_eq!(hidden, expected);
-        set_hidden(&mut book, &[rent.clone()]).expect("hidden");
+        set_hidden(&mut book, std::slice::from_ref(&rent)).expect("hidden");
         assert_eq!(view(&book).expect("view").hidden, [rent]);
         set_hidden(&mut book, &[]).expect("nothing hidden");
         assert!(view(&book).expect("view").hidden.is_empty());
@@ -334,7 +336,8 @@ mod tests {
         let mut book = book();
         let food = add(&mut book, "Food", false, "");
         let salary = add(&mut book, "Salary", true, "");
-        let error = add_group(&mut book, "Mixed", false, &[salary.clone()]).unwrap_err();
+        let error =
+            add_group(&mut book, "Mixed", false, std::slice::from_ref(&salary)).unwrap_err();
         assert_eq!(code(&book, &error), "store.group-wrong-kind");
         let error = add_group(&mut book, "Food", false, &[]).unwrap_err();
         assert_eq!(code(&book, &error), "store.group-name-taken");
@@ -348,7 +351,7 @@ mod tests {
         assert_eq!(code(&book, &error), "input.no-such-entry");
         // Nothing was written by the refused changes.
         assert!(view(&book).expect("view").groups.is_empty());
-        let one = add_group(&mut book, "One", false, &[food.clone()]).expect("added");
+        let one = add_group(&mut book, "One", false, std::slice::from_ref(&food)).expect("added");
         let error = edit_group(&mut book, &one.to_string(), "One", &[one.to_string()]).unwrap_err();
         assert_eq!(code(&book, &error), "store.group-loop");
     }
@@ -359,7 +362,7 @@ mod tests {
         let food = add(&mut book, "Food", false, "");
         let rent = add(&mut book, "Rent", false, "");
         add_group(&mut book, "Both", false, &[food, rent.clone()]).expect("added");
-        set_hidden(&mut book, &[rent.clone()]).expect("hidden");
+        set_hidden(&mut book, std::slice::from_ref(&rent)).expect("hidden");
         let target = book
             .categories()
             .expect("categories")

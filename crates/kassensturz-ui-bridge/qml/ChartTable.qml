@@ -14,6 +14,9 @@ DataTable {
 
     // The chart object from `BookCharts.view.charts`.
     required property var chart
+    // List only the first rows (0 for all of them), e.g. the largest
+    // categories of a spending chart, which the dataset orders largest first.
+    property int limit: 0
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -22,14 +25,17 @@ DataTable {
     // The first column of a spending table names the category; money without
     // one has an empty name.
     function shownRows(): var {
-        return chart.table.rows.map((row, index) => (chart.unsortedIndex === index)
+        const rows = limit > 0 ? chart.table.rows.slice(0, limit) : chart.table.rows;
+        return rows.map((row, index) => (chart.unsortedIndex === index)
             ? [i18nContext.i18nc("@label money with no category yet", "Not sorted yet"), ...row.slice(1)]
             : row);
     }
 
     columns: chart.table.columns
     rows: shownRows()
-    title: i18nContext.i18nc("@label", "Values of the chart as a table")
+    title: limit > 0
+        ? i18nContext.i18nc("@title", "Your biggest spending")
+        : i18nContext.i18nc("@label", "Values of the chart as a table")
     columnNames: ({
         "category": i18nContext.i18nc("@title:column a table of a chart", "Category"),
         "total": i18nContext.i18nc("@title:column a table of a chart", "Total"),

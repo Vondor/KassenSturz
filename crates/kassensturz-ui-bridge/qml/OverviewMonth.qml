@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // The month shown on the overview, built from the report components
-// (M6a.8): the key figure cards of the month against the month before, and
-// where the month's money went as a chart with its table. The month comes
+// (M6a.8): the key figure cards of the month against the month before, where
+// the month's money went as a chart with its table and its five largest
+// categories, and the last 12 months' money in and out as a line (Q-215). The month comes
 // from the overview's own view (`monthKey`), so going to an earlier or later
 // month moves the cards and the chart too. The figures are the ones of the
 // reporting layer (D-277, D-285), as text (D-065).
@@ -25,9 +26,15 @@ ColumnLayout {
     // the page gives it the real ones.
     required property var cards
     required property var charts
+    // A `BookCharts` of its own for the line of the last 12 months.
+    required property var trend
+
+    // How many categories the table of the largest ones lists.
+    readonly property int largest: 5
 
     readonly property var sets: cards.view?.sets ?? []
     readonly property var drawn: charts.view?.charts ?? []
+    readonly property var trends: trend.view?.charts ?? []
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -44,6 +51,7 @@ ColumnLayout {
         }
         cards.show(key, "previous_period");
         charts.show("spending_by_category", "donut", key, "top-level");
+        trend.show("income_expense_by_month", "line", "last-12-months", "each");
     }
 
     onViewChanged: reload()
@@ -69,16 +77,8 @@ ColumnLayout {
                 textFormat: Text.PlainText
             }
 
-            Kirigami.CardsLayout {
-                Layout.fillWidth: true
-                maximumColumns: 4
-
-                Repeater {
-                    model: currencySet.modelData.cards
-
-                    delegate: KpiCard {
-                    }
-                }
+            KpiGrid {
+                cards: currencySet.modelData.cards
             }
         }
     }
@@ -86,15 +86,54 @@ ColumnLayout {
     Repeater {
         model: month.drawn
 
+        delegate: ColumnLayout {
+            id: spent
+
+            required property var modelData
+
+            Layout.fillWidth: true
+            Layout.topMargin: Kirigami.Units.largeSpacing
+            spacing: Kirigami.Units.largeSpacing
+
+            ChartView {
+                Layout.fillWidth: true
+                chart: spent.modelData
+                title: month.drawn.length > 1
+                    ? month.i18nContext.i18nc("@title %1 is a currency code, e.g. EUR", "Where your money went in %1", spent.modelData.currency)
+                    : month.i18nContext.i18nc("@title", "Where your money went")
+            }
+
+            // The categories the most went to, from the same rows as the chart.
+            Kirigami.Heading {
+                Layout.fillWidth: true
+                level: 3
+                textFormat: Text.PlainText
+                text: month.drawn.length > 1
+                    ? month.i18nContext.i18nc("@title %1 is a currency code, e.g. EUR", "Your biggest spending in %1", spent.modelData.currency)
+                    : month.i18nContext.i18nc("@title", "Your biggest spending")
+            }
+
+            ChartTable {
+                Layout.fillWidth: true
+                chart: spent.modelData
+                limit: month.largest
+            }
+        }
+    }
+
+    // The last 12 months, whatever month the page shows.
+    Repeater {
+        model: month.trends
+
         delegate: ChartView {
             required property var modelData
 
             Layout.fillWidth: true
             Layout.topMargin: Kirigami.Units.largeSpacing
             chart: modelData
-            title: month.drawn.length > 1
-                ? month.i18nContext.i18nc("@title %1 is a currency code, e.g. EUR", "Where your money went in %1", modelData.currency)
-                : month.i18nContext.i18nc("@title", "Where your money went")
+            title: month.trends.length > 1
+                ? month.i18nContext.i18nc("@title %1 is a currency code, e.g. EUR", "Money in and out, last 12 months, in %1", modelData.currency)
+                : month.i18nContext.i18nc("@title", "Money in and out, last 12 months")
         }
     }
 }

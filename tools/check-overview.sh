@@ -12,7 +12,8 @@
 #
 # It fails if the month doesn't load, doesn't ask for the month the overview
 # shows (and again when that changes), or shows another number of cards or
-# charts than it was given.
+# charts than it was given, puts the cards in one column of a wide window
+# or lists other than the five largest categories.
 
 set -eu
 
@@ -21,12 +22,12 @@ cd "$(dirname "$0")/.."
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 qml=crates/kassensturz-ui-bridge/qml
-for name in OverviewMonth KpiCard KpiNames ProgressMeter AmountLabel ChartView ChartTable ChartPalette DataTable; do
+for name in OverviewMonth KpiGrid KpiCard KpiNames ProgressMeter AmountLabel ChartView ChartTable ChartPalette DataTable; do
     cp "$qml/$name.qml" "$work"
 done
 cp crates/kassensturz-ui-bridge/qml-tests/OverviewSmoke.qml "$work"
 printf 'singleton ChartPalette 1.0 ChartPalette.qml\n' > "$work/qmldir"
-for name in OverviewMonth KpiCard KpiNames ProgressMeter AmountLabel ChartView ChartTable DataTable; do
+for name in OverviewMonth KpiGrid KpiCard KpiNames ProgressMeter AmountLabel ChartView ChartTable DataTable; do
     printf '%s 1.0 %s.qml\n' "$name" "$name" >> "$work/qmldir"
 done
 

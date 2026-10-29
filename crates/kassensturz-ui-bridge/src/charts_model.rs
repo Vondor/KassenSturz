@@ -202,7 +202,7 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
 /// The error of a request as QML gets it: its code, and for an unsupported
 /// kind the kind. A request with a name that isn't one of the fixed ones is a
 /// mistake in the screen and logged, not shown.
-fn error_object(error: &ChartsError) -> QVariant {
+pub(crate) fn error_object(error: &ChartsError) -> QVariant {
     let Some(report) = error.report() else {
         if let ChartsError::UnknownName(what) = error {
             eprintln!("kassensturz: a chart was asked for with an unknown {what}");

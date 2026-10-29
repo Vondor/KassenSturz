@@ -26,6 +26,8 @@ mod book_from_file;
 mod book_from_file_model;
 mod book_session;
 mod books;
+mod cards;
+mod cards_model;
 mod categories;
 mod categories_model;
 mod charts;

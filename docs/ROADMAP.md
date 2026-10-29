@@ -139,7 +139,7 @@ M6 is done in five Sprints, each with its own Phases 0 to 3 (D-284): **M6a** is 
 | **M6a.L** | Layout 20: the `views` table and `changed_views`, the five history actions, `docs/BOOK_FORMAT.md`, the complete export gets `views` (own small pull request) | M6.0 | strong, high | in review |
 | **M6a.3** | `ChartProvider` and chart models in `ui-bridge` (read-back tests for every QML object, amounts only as text); Qt container gets Xvfb and Mesa; the import smoke test | M6a.1, maintainer's approval of the dependency | standard, high | in review |
 | **M6a.4** | Charts: line, bar, stacked bar, area, pie and donut, each with its text table | M6a.3 | standard, high | todo |
-| **M6a.5** | KPI card, progress bar, table | M6a.3 | standard, high | todo |
+| **M6a.5** | KPI card, progress bar, table | M6a.3 | standard, high | in review |
 | **M6a.6** | Component schema and the properties panel driven by it | M6a.4 | standard, high | todo |
 | **M6a.7** | Statistics workbench page and saved views (rename, delete, undo through the history) | M6a.L, M6a.6 | standard, high | todo |
 | **M6a.8** | The Overview rebuilt from components on a fixed default layout, no regressions in its tests | M6a.6, M6a.2 | standard, high | todo |

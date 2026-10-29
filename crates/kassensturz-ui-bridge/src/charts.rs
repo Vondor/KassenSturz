@@ -76,9 +76,15 @@ impl From<ChartError> for ChartsError {
 }
 
 /// Writes the amounts and months of a dataset in the user's regional format.
-struct AppText<'a, L> {
+pub(crate) struct AppText<'a, L> {
     book: &'a Book,
     locale: &'a L,
+}
+
+impl<'a, L> AppText<'a, L> {
+    pub(crate) const fn new(book: &'a Book, locale: &'a L) -> Self {
+        Self { book, locale }
+    }
 }
 
 impl<L: Locale> TextFormat for AppText<'_, L> {
@@ -129,7 +135,7 @@ impl ChartProvider for QuickCharts {
     }
 }
 
-fn period(key: &str, today: Date) -> Result<Period, ChartsError> {
+pub(crate) fn period(key: &str, today: Date) -> Result<Period, ChartsError> {
     Ok(match key {
         "this-month" => Period::this_month(today)?,
         "last-month" => Period::last_month(today)?,
@@ -155,7 +161,7 @@ pub fn charts(
         _ => return Err(ChartsError::UnknownName("grouping")),
     };
     let source = Source::read(book, period)?;
-    let text = AppText { book, locale };
+    let text = AppText::new(book, locale);
     let models = match request.dataset.as_str() {
         SPENDING_BY_CATEGORY => spending_dataset(&source, period, &Filter::default(), level)?
             .iter()

@@ -88,6 +88,8 @@ fn card_object(card: &Card) -> QVariant {
         ("measure", text(card.measure)),
         ("currency", text(&card.currency)),
         ("value", text(&card.value)),
+        ("exactValue", text(&card.exact_value)),
+        ("negative", QVariant::from(&card.negative)),
         ("previous", text(&card.previous)),
         ("change", text(&card.change)),
         ("changePercent", text(&card.change_percent)),
@@ -127,7 +129,7 @@ mod tests {
 
     use super::*;
     use crate::register::tests::TestLocale;
-    use crate::variant::read_back::{keys, list_of, number_of, text_of};
+    use crate::variant::read_back::{flag_of, keys, list_of, number_of, text_of};
 
     const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
         Ok(code) => code,
@@ -213,7 +215,9 @@ mod tests {
                 "changePercent",
                 "currency",
                 "direction",
+                "exactValue",
                 "measure",
+                "negative",
                 "previous",
                 "value"
             ]
@@ -224,6 +228,8 @@ mod tests {
         assert_eq!(text_of(&cards[1], "previous"), "800,00 €");
         assert_eq!(text_of(&cards[1], "change"), "53,20 €");
         assert_eq!(text_of(&cards[1], "direction"), "up");
+        assert_eq!(text_of(&cards[1], "exactValue"), "853,20 €");
+        assert!(!flag_of(&cards[2], "negative"));
         // Income is the same in both months: no change, 0 %.
         assert_eq!(text_of(&cards[0], "direction"), "same");
         assert_eq!(text_of(&cards[0], "changePercent"), "0,0 %");
@@ -235,7 +241,9 @@ mod tests {
                 "changePercent",
                 "currency",
                 "direction",
+                "exactValue",
                 "measure",
+                "negative",
                 "permille",
                 "previous",
                 "value"
@@ -256,6 +264,9 @@ mod tests {
         let cards = list_of(&sets[0], "cards");
         assert_eq!(text_of(&cards[3], "value"), "");
         assert_eq!(text_of(&cards[3], "direction"), "none");
+        // Only money out: what is left is below zero.
+        assert!(flag_of(&cards[2], "negative"));
+        assert_eq!(text_of(&cards[2], "value"), "-853,20 €");
         assert!(!keys(&cards[3]).contains(&"permille".to_owned()));
     }
 
@@ -273,7 +284,7 @@ mod tests {
             assert_eq!(text_of(a, "value"), text_of(b, "value"));
         }
         // A key that isn't a month is a bad request.
-        for bad in ["2026-13", "26-09", "2026-9", "september"] {
+        for bad in ["2026-13", "26-09", "2026-9", "+026-09", "september"] {
             assert_eq!(
                 keys(&view_of(&book(true), &request(bad))),
                 ["error"],

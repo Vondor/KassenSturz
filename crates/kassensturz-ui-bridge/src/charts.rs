@@ -87,6 +87,17 @@ impl<'a, L> AppText<'a, L> {
     }
 }
 
+impl<L: Locale> AppText<'_, L> {
+    /// `money` with all its decimal places, also when the user chose to see
+    /// fewer (D-002).
+    pub(crate) fn exact(&self, money: Money) -> String {
+        match AmountWriter::new(self.book, money.currency(), self.locale) {
+            Ok(writer) => writer.text(money).exact,
+            Err(_) => self.amount(money),
+        }
+    }
+}
+
 impl<L: Locale> TextFormat for AppText<'_, L> {
     fn amount(&self, money: Money) -> String {
         match AmountWriter::new(self.book, money.currency(), self.locale) {
@@ -139,7 +150,8 @@ impl ChartProvider for QuickCharts {
 /// month it shows (M6a.8).
 fn month_period(key: &str) -> Option<Period> {
     let (year, month) = key.split_once('-')?;
-    if year.len() != 4 || month.len() != 2 {
+    let digits = |text: &str| text.bytes().all(|byte| byte.is_ascii_digit());
+    if year.len() != 4 || month.len() != 2 || !digits(year) || !digits(month) {
         return None;
     }
     let first = Date::new(year.parse().ok()?, month.parse().ok()?, 1).ok()?;

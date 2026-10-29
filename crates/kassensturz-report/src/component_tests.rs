@@ -253,3 +253,63 @@ fn changing_the_type_keeps_the_title_and_what_still_fits() {
     }
     assert_eq!(Component::from_value(&chart.to_value()).unwrap(), chart);
 }
+
+#[test]
+fn groups_series_and_the_hidden_flag_round_trip_through_a_document() {
+    let mut chart = Component::new(ComponentType::ChartLine, "category_over_time").unwrap();
+    assert_eq!(chart.get("groups"), Some(&Setting::Ids(Vec::new())));
+    assert_eq!(chart.get("show_hidden"), Some(&Setting::Flag(false)));
+    let ids = vec!["0197-aaa".to_owned(), "0197-bbb".to_owned()];
+    chart.set("series", Setting::Ids(ids.clone())).unwrap();
+    chart.set("show_hidden", Setting::Flag(true)).unwrap();
+    let value = chart.to_value();
+    assert_eq!(value["params"]["series"], json!(["0197-aaa", "0197-bbb"]));
+    assert_eq!(value["props"]["show_hidden"], json!(true));
+    assert_eq!(Component::from_value(&value).unwrap(), chart);
+    // A table takes groups too, and spending has the `groups` grouping.
+    let mut table = Component::new(ComponentType::TableRows, "spending_by_category").unwrap();
+    table
+        .set("grouping", Setting::Word("groups".into()))
+        .unwrap();
+    table.set("groups", Setting::Ids(ids)).unwrap();
+}
+
+#[test]
+fn a_list_of_ids_is_checked_like_the_rest_of_a_document() {
+    let mut chart = Component::new(ComponentType::ChartLine, "category_over_time").unwrap();
+    let many = (0..=MAX_IDS).map(|n| n.to_string()).collect();
+    assert_eq!(
+        reason(chart.set("series", Setting::Ids(many)).unwrap_err()),
+        ("too-many", "params.series".into())
+    );
+    assert_eq!(
+        reason(
+            chart
+                .set("groups", Setting::Ids(vec!["a\nb".into()]))
+                .unwrap_err()
+        ),
+        ("bad-text", "params.groups".into())
+    );
+    assert_eq!(
+        reason(chart.set("series", Setting::Word("x".into())).unwrap_err()),
+        ("wrong-type", "params.series".into())
+    );
+    for bad in [json!("x"), json!([1]), json!([["a"]])] {
+        let value = json!({"type": "chart.line", "dataset": "category_over_time",
+            "params": {"series": bad}});
+        assert_eq!(
+            reason(Component::from_value(&value).unwrap_err()),
+            ("wrong-type", "params.series".into())
+        );
+    }
+}
+
+#[test]
+fn a_chart_over_time_is_offered_for_lines_and_stacked_bars_only() {
+    let offered = |kind: ComponentType| kind.datasets().any(|d| d.id == "category_over_time");
+    assert!(offered(ComponentType::ChartLine));
+    assert!(offered(ComponentType::ChartArea));
+    assert!(offered(ComponentType::ChartStackedBar));
+    assert!(!offered(ComponentType::ChartPie));
+    assert!(!offered(ComponentType::KpiCard));
+}

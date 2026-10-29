@@ -19,6 +19,13 @@ use crate::catalog::{CATALOG, DatasetInfo};
 /// The longest title, in characters (D-281).
 pub const MAX_TEXT_CHARS: usize = 200;
 
+/// The most IDs a list property holds (D-281): the series limit.
+pub const MAX_IDS: usize = 50;
+
+/// The longest ID in a list property, in characters. An ID is a UUID written
+/// as text; the bound only keeps a hostile document small.
+const MAX_ID_CHARS: usize = 64;
+
 /// A kind of component, by the fixed id documents use (D-278).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ComponentType {
@@ -147,6 +154,9 @@ pub enum Kind {
     Choice(&'static [&'static str]),
     /// One of the dataset's groupings (catalog); the first is the default.
     Grouping,
+    /// A list of up to [`MAX_IDS`] category or group IDs, written as text
+    /// (M6b.5). The book decides which of them it still knows.
+    Ids,
 }
 
 /// One property of a component.
@@ -169,6 +179,8 @@ pub enum Setting {
     Flag(bool),
     /// For [`Kind::Choice`] and [`Kind::Grouping`].
     Word(String),
+    /// For [`Kind::Ids`].
+    Ids(Vec<String>),
 }
 
 const TITLE: Property = Property {
@@ -180,6 +192,21 @@ const GROUPING: Property = Property {
     key: "grouping",
     place: Place::Params,
     kind: Kind::Grouping,
+};
+const GROUPS: Property = Property {
+    key: "groups",
+    place: Place::Params,
+    kind: Kind::Ids,
+};
+const SERIES: Property = Property {
+    key: "series",
+    place: Place::Params,
+    kind: Kind::Ids,
+};
+const SHOW_HIDDEN: Property = Property {
+    key: "show_hidden",
+    place: Place::Props,
+    kind: Kind::Flag { default: false },
 };
 const LEGEND: Property = Property {
     key: "legend",
@@ -197,10 +224,10 @@ const MEASURE: Property = Property {
     kind: Kind::Choice(&["income", "expenses", "net", "savings-rate"]),
 };
 
-const CHART: [Property; 3] = [GROUPING, TITLE, LEGEND];
+const CHART: [Property; 6] = [GROUPING, GROUPS, SERIES, TITLE, LEGEND, SHOW_HIDDEN];
 const KPI_CARD: [Property; 3] = [MEASURE, COMPARE, TITLE];
 const PROGRESS_BAR: [Property; 2] = [COMPARE, TITLE];
-const TABLE: [Property; 2] = [GROUPING, TITLE];
+const TABLE: [Property; 4] = [GROUPING, GROUPS, TITLE, SHOW_HIDDEN];
 
 fn invalid(reason: &'static str, path: String) -> ReportError {
     ReportError::DocumentInvalid { reason, path }
@@ -218,7 +245,7 @@ impl Property {
         match self.kind {
             Kind::Choice(words) => words,
             Kind::Grouping => dataset.groupings,
-            Kind::Text | Kind::Flag { .. } => &[],
+            Kind::Text | Kind::Flag { .. } | Kind::Ids => &[],
         }
     }
 
@@ -227,6 +254,7 @@ impl Property {
         match self.kind {
             Kind::Text => Setting::Text(String::new()),
             Kind::Flag { default } => Setting::Flag(default),
+            Kind::Ids => Setting::Ids(Vec::new()),
             Kind::Choice(_) | Kind::Grouping => Setting::Word(
                 self.words(dataset)
                     .first()
@@ -250,6 +278,19 @@ impl Property {
                 }
             }
             (Kind::Flag { .. }, Setting::Flag(_)) => Ok(()),
+            (Kind::Ids, Setting::Ids(ids)) => {
+                if ids.len() > MAX_IDS {
+                    Err(invalid("too-many", self.path()))
+                } else if ids.iter().any(|id| {
+                    id.is_empty()
+                        || id.chars().count() > MAX_ID_CHARS
+                        || id.chars().any(char::is_control)
+                }) {
+                    Err(invalid("bad-text", self.path()))
+                } else {
+                    Ok(())
+                }
+            }
             (Kind::Choice(_) | Kind::Grouping, Setting::Word(word)) => {
                 if self.words(dataset).contains(&word.as_str()) {
                     Ok(())

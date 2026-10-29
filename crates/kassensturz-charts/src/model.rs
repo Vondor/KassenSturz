@@ -76,6 +76,10 @@ pub struct Series {
     /// The series' fixed name, which the UI translates: `income`,
     /// `expenses` or `spending`.
     pub key: &'static str,
+    /// The name of a series the user chose (a category or a group of theirs),
+    /// from the book, so the UI shows it as plain text. `None` for the series
+    /// that have a fixed name, which the UI translates by `key`.
+    pub name: Option<String>,
     /// The palette index, 0 to [`PALETTE_SIZE`] - 1. The first four also get
     /// a second mark in the UI, so color is never the only difference.
     pub color: u8,
@@ -90,6 +94,20 @@ pub struct Tick {
     pub minor_units: i64,
     /// The amount written for the user's locale.
     pub label: String,
+}
+
+/// What a chart or its table leaves out because the categories are hidden
+/// (D-291). The words are the screen's, so the translated sentence is
+/// written there (D-034): "Hidden: Rent and 1 more (1,250.00 € not shown)".
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HiddenNote {
+    /// The name of the largest hidden category, written like the names in
+    /// [`ChartModel::categories`]. It comes from the book.
+    pub first: String,
+    /// How many other hidden categories there are.
+    pub more: usize,
+    /// What they add up to, written for the user's locale with the currency.
+    pub total: String,
 }
 
 /// A chart: what to draw and what to say about it.
@@ -119,6 +137,9 @@ pub struct ChartModel {
     /// The same values as a table: the screen-reader path and the "Show as
     /// table" control (D-283).
     pub table: TextTable,
+    /// Hidden categories this chart leaves out, if any. The note belongs to
+    /// the chart and to its table alike.
+    pub hidden: Option<HiddenNote>,
 }
 
 impl ChartModel {

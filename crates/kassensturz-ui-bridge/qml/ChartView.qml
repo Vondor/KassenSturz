@@ -66,6 +66,13 @@ ColumnLayout {
     }
 
     function seriesName(key: string): string {
+        // A series the user chose (a category or one of their groups) is
+        // named by the book.
+        for (const series of chart.series) {
+            if (series.key === key && series.name !== "") {
+                return series.name;
+            }
+        }
         switch (key) {
         case "spending":
             return i18nContext.i18nc("@label a series of a chart", "Spending");
@@ -75,6 +82,18 @@ ColumnLayout {
             return i18nContext.i18nc("@label a series of a chart", "Money out");
         }
         return "";
+    }
+
+    // "Hidden: Rent and 1 more (1,250.00 € not shown)"; empty when the chart
+    // leaves nothing out.
+    function hiddenNote(): string {
+        const hidden = chart.hidden;
+        if (hidden.first === undefined) {
+            return "";
+        }
+        return hidden.more > 0
+            ? i18nContext.i18nc("@info %1 is a category name, %2 an amount, %3 the number of other hidden categories", "Hidden: %1 and %3 more (%2 not shown)", hidden.first, hidden.total, hidden.more)
+            : i18nContext.i18nc("@info %1 is a category name, %2 an amount", "Hidden: %1 (%2 not shown)", hidden.first, hidden.total);
     }
 
     function categoryName(index: int): string {
@@ -420,6 +439,16 @@ ColumnLayout {
             : i18nContext.i18nc("@label %1 is an amount of money", "Left over in total: %1", view.chart.total)
         textFormat: Text.PlainText
         font.bold: true
+    }
+
+    // Hidden categories are never silently missing (D-291): the same line
+    // stays under the chart and under its table.
+    Controls.Label {
+        Layout.fillWidth: true
+        visible: view.chart.hidden.first !== undefined
+        text: view.hiddenNote()
+        textFormat: Text.PlainText
+        wrapMode: Text.Wrap
     }
 
     ChartTable {

@@ -9,7 +9,7 @@
 //! `id` (D-034). It says what is counted and what is left out, and states
 //! the rounding rule of every ratio (D-285).
 
-use crate::{INCOME_EXPENSE_BY_MONTH, SPENDING_BY_CATEGORY};
+use crate::{CATEGORY_OVER_TIME, INCOME_EXPENSE_BY_MONTH, SPENDING_BY_CATEGORY};
 
 /// One dataset a chart or card can show.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,6 +22,10 @@ pub struct DatasetInfo {
     pub groupings: &'static [&'static str],
     /// The kinds of chart or card it suits, by fixed name.
     pub suits: &'static [&'static str],
+    /// Whether the AI may choose it for a chart it prepares. Not in M6b for
+    /// anything that uses My groups or the hide list: the AI sees neither
+    /// (D-291).
+    pub for_ai: bool,
 }
 
 #[cfg(test)]
@@ -37,8 +41,9 @@ pub const CATALOG: &[DatasetInfo] = &[
              Money moved between your own accounts and starting balances are not counted, and \
              amounts in different currencies are never added together: there is one result per \
              currency.",
-        groupings: &["category", "top_level_category"],
+        groupings: &["category", "top_level_category", GROUPS_GROUPING],
         suits: &["pie", "bar", "table"],
+        for_ai: true,
     },
     DatasetInfo {
         id: INCOME_EXPENSE_BY_MONTH,
@@ -50,8 +55,24 @@ pub const CATALOG: &[DatasetInfo] = &[
              together: there is one result per currency.",
         groupings: &["month"],
         suits: &["line", "stacked_bar", "kpi", "table"],
+        for_ai: true,
+    },
+    DatasetInfo {
+        id: CATEGORY_OVER_TIME,
+        description: "What you spent (or received, for income categories) in each calendar month \
+             of a period, for the categories and groups the user picked, one line each. A refund \
+             reduces the category it came back to. A category counts with everything inside it \
+             and a group counts all its members, each category once, hidden ones too. Money moved \
+             between your own accounts and starting balances are not counted, and amounts in \
+             different currencies are never added together: there is one result per currency.",
+        groupings: &["series"],
+        suits: &["line", "stacked_bar"],
+        for_ai: false,
     },
 ];
+
+/// The grouping that shows My groups; the AI does not know it (D-291).
+pub const GROUPS_GROUPING: &str = "groups";
 
 /// The dataset with this ID.
 pub fn dataset(id: &str) -> Option<&'static DatasetInfo> {

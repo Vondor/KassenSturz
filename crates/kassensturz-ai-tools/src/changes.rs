@@ -310,7 +310,10 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
              before anything is saved, so never put numbers in a title as facts. The \
              datasets are:",
         );
-        for dataset in kassensturz_report::CATALOG {
+        for dataset in kassensturz_report::CATALOG
+            .iter()
+            .filter(|dataset| dataset.for_ai)
+        {
             description.push_str(&format!(" {}: {}", dataset.id, dataset.description));
         }
     }

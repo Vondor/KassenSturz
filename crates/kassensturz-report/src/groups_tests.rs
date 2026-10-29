@@ -526,3 +526,26 @@ proptest! {
         }
     }
 }
+
+#[test]
+fn a_document_finds_categories_and_groups_by_their_id_text() {
+    let mut sample = sample();
+    let fixed = group(
+        &mut sample.book,
+        "Fixed costs",
+        &[GroupMember::Category(sample.rent)],
+    );
+    let source = Source::read(&sample.book, autumn()).expect("read");
+    assert_eq!(
+        source.member_by_id(&fixed.to_string()),
+        Some(GroupMember::Group(fixed))
+    );
+    assert_eq!(
+        source.member_by_id(&sample.rent.to_string().to_uppercase()),
+        Some(GroupMember::Category(sample.rent))
+    );
+    // An account is not a category, and text that is no ID names nothing.
+    assert_eq!(source.member_by_id(&sample.checking.to_string()), None);
+    assert_eq!(source.member_by_id("Fixed costs"), None);
+    assert_eq!(source.member_by_id(""), None);
+}

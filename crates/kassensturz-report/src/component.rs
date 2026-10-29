@@ -97,6 +97,36 @@ impl Component {
         Ok(())
     }
 
+    /// Makes this another type of component. It keeps its dataset if the new
+    /// type can show it and otherwise takes the first dataset the new type
+    /// can show. A setting the new type has too, with a value it allows
+    /// there, stays (the title, for one); the rest take their defaults.
+    pub fn change_kind(&mut self, kind: ComponentType) -> Result<(), ReportError> {
+        let dataset = if kind.datasets().any(|d| d.id == self.dataset.id) {
+            self.dataset
+        } else {
+            kind.datasets()
+                .next()
+                .ok_or_else(|| invalid("dataset-not-suited", "dataset"))?
+        };
+        let settings = kind
+            .properties()
+            .iter()
+            .map(|property| {
+                self.settings()
+                    .find(|(old, _)| old.key == property.key && old.place == property.place)
+                    .map(|(_, setting)| setting)
+                    .filter(|setting| property.check(dataset, setting).is_ok())
+                    .cloned()
+                    .unwrap_or_else(|| property.default_setting(dataset))
+            })
+            .collect();
+        self.kind = kind;
+        self.dataset = dataset;
+        self.settings = settings;
+        Ok(())
+    }
+
     /// Reads a component from JSON text, as [`Component::from_value`]; text
     /// that isn't JSON is refused as a value of the wrong type.
     pub fn from_json(json: &str) -> Result<Self, ReportError> {

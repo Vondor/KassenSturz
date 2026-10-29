@@ -202,6 +202,15 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is the number of a condition, %2 the name of a Rule", "The pattern in condition %1 of %2 isn't one KassenSturz can use. Check its brackets and special characters, or look for plain text instead.", result.condition, result.rule);
         case "rule.date-range-reversed":
             return i18nContext.i18nc("@info %1 is the number of a condition, %2 the name of a Rule", "In condition %1 of %2, the last day is before the first. Swap them.", result.condition, result.rule);
+        case "store.view-name-taken":
+            return i18nContext.i18nc("@info %1 is the name of a saved view", "You already have a saved view called %1. Choose another name, so you can tell them apart.", result.name);
+        case "store.view-document-invalid":
+        case "store.view-document-too-big":
+        case "report.document-invalid":
+        case "report.document-too-big":
+            return i18nContext.i18nc("@info", "This view couldn't be saved or opened because it isn't one KassenSturz can use. Nothing was changed. Make it again in Statistics, and choose a short name.");
+        case "report.unsupported-document-version":
+            return i18nContext.i18nc("@info", "This view was made by a newer KassenSturz, so this one can't open it. Update KassenSturz to open it. You can still rename or delete it.");
         case "store.empty-rule-name":
             return i18nContext.i18nc("@info", "Give the Rule a name.");
         case "store.duplicate-rule-name":

@@ -46,6 +46,7 @@ Kirigami.ApplicationWindow {
         "accounts": accountsPage,
         "categories": categoriesPage,
         "rules": rulesPage,
+        "statistics": statisticsPage,
         "settings": settingsPage,
     })
     // The window width, in grid units, from which the chat sidebar sits
@@ -100,6 +101,14 @@ Kirigami.ApplicationWindow {
     // latest transactions.
     BookOverview {
         id: bookOverview
+    }
+
+    // The views saved in the Statistics workbench (M6a.7). A change is in the
+    // history, so the notice offers Undo like for any other screen.
+    SavedViews {
+        id: savedViews
+
+        onChanged: root.screenChangedBook()
     }
 
     // The accounts and categories screens (M3.3). A change in one of them
@@ -339,6 +348,7 @@ Kirigami.ApplicationWindow {
         categoryTree.refresh();
         ruleBook.refresh();
         accountRegister.refresh();
+        savedViews.refresh();
         changeHistory.refresh();
     }
 
@@ -685,6 +695,11 @@ Kirigami.ApplicationWindow {
                 icon.name: "view-filter"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Rules")
                 onTriggered: root.showScreen("rules")
+            },
+            Kirigami.Action {
+                icon.name: "office-chart-bar"
+                text: root.i18nContext.i18nc("@action:inmenu a screen", "Statistics")
+                onTriggered: root.showScreen("statistics")
             },
             Kirigami.Action {
                 icon.name: "settings-configure"
@@ -1071,6 +1086,14 @@ Kirigami.ApplicationWindow {
             onAddAccountClicked: root.addAccount(false)
             onAddTransactionClicked: root.addTransaction(false, "")
             onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })
+        }
+    }
+
+    Component {
+        id: statisticsPage
+
+        StatisticsPage {
+            saved: savedViews
         }
     }
 

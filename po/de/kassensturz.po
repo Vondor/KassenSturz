@@ -10295,3 +10295,235 @@ msgstr "Zuvor: %1"
 msgctxt "@info a figure that can't be worked out"
 msgid "No value yet"
 msgstr "Noch kein Wert"
+
+#: crates/kassensturz-ui-bridge/qml/ComponentPreview.qml:88
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This couldn't be shown right now. Try another period, or open the page again."
+msgstr ""
+"Das konnte gerade nicht angezeigt werden. Versuchen Sie einen anderen "
+"Zeitraum oder öffnen Sie die Seite noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/ComponentPreview.qml:94
+#, kde-format
+msgctxt "@info"
+msgid ""
+"There is nothing to show for this period yet. Add transactions, or choose "
+"another period."
+msgstr ""
+"Für diesen Zeitraum gibt es noch nichts anzuzeigen. Fügen Sie Buchungen "
+"hinzu oder wählen Sie einen anderen Zeitraum."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:206
+#, kde-format
+msgctxt "@info %1 is the name of a saved view"
+msgid ""
+"You already have a saved view called %1. Choose another name, so you can "
+"tell them apart."
+msgstr ""
+"Sie haben bereits eine gespeicherte Ansicht namens %1. Wählen Sie einen "
+"anderen Namen, damit Sie sie auseinanderhalten können."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:211
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This view couldn't be saved or opened because it isn't one KassenSturz can "
+"use. Nothing was changed. Make it again in Statistics, and choose a short "
+"name."
+msgstr ""
+"Diese Ansicht konnte nicht gespeichert oder geöffnet werden, weil "
+"KassenSturz sie nicht verwenden kann. Es wurde nichts geändert. Erstellen "
+"Sie sie unter Statistik noch einmal und wählen Sie einen kurzen Namen."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:213
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This view was made by a newer KassenSturz, so this one can't open it. Update "
+"KassenSturz to open it. You can still rename or delete it."
+msgstr ""
+"Diese Ansicht wurde mit einem neueren KassenSturz erstellt, deshalb kann "
+"dieses sie nicht öffnen. Aktualisieren Sie KassenSturz, um sie zu öffnen. "
+"Sie können sie weiterhin umbenennen oder löschen."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:701
+#, kde-format
+msgctxt "@action:inmenu a screen"
+msgid "Statistics"
+msgstr "Statistik"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:37
+#, kde-format
+msgctxt "@item:inlistbox a way to show figures"
+msgid "Bars"
+msgstr "Balken"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:39
+#, kde-format
+msgctxt "@item:inlistbox a way to show figures"
+msgid "Pie"
+msgstr "Torte"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:41
+#, kde-format
+msgctxt "@item:inlistbox a way to show figures"
+msgid "Ring"
+msgstr "Ring"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:43
+#, kde-format
+msgctxt "@item:inlistbox a way to show figures"
+msgid "Line"
+msgstr "Linie"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:45
+#, kde-format
+msgctxt "@item:inlistbox a way to show figures"
+msgid "Filled line"
+msgstr "Gefüllte Linie"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:47
+#, kde-format
+msgctxt "@item:inlistbox a way to show figures"
+msgid "Stacked bars"
+msgstr "Gestapelte Balken"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:49
+#, kde-format
+msgctxt "@item:inlistbox a way to show figures"
+msgid "One figure"
+msgstr "Eine Zahl"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:51
+#, kde-format
+msgctxt "@item:inlistbox a way to show figures"
+msgid "Progress bar"
+msgstr "Fortschrittsbalken"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:53
+#, kde-format
+msgctxt "@item:inlistbox a way to show figures"
+msgid "Table"
+msgstr "Tabelle"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:61
+#, kde-format
+msgctxt "@item:inlistbox a period"
+msgid "This month"
+msgstr "Dieser Monat"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:63
+#, kde-format
+msgctxt "@item:inlistbox a period"
+msgid "Last month"
+msgstr "Letzter Monat"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:65
+#, kde-format
+msgctxt "@item:inlistbox a period"
+msgid "The last 12 months"
+msgstr "Die letzten 12 Monate"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:67
+#, kde-format
+msgctxt "@item:inlistbox a period"
+msgid "This year"
+msgstr "Dieses Jahr"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:69
+#, kde-format
+msgctxt "@item:inlistbox a period"
+msgid "Last year"
+msgstr "Letztes Jahr"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:109
+#, kde-format
+msgctxt "@title"
+msgid "Statistics"
+msgstr "Statistik"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:141
+#, kde-format
+msgctxt "@title:window"
+msgid "Rename this view"
+msgstr "Diese Ansicht umbenennen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:155
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:249
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Name of the view"
+msgstr "Name der Ansicht"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:169
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Show as"
+msgstr "Anzeigen als"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:181
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Period"
+msgstr "Zeitraum"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:211
+#, kde-format
+msgctxt "@title:group"
+msgid "Saved views"
+msgstr "Gespeicherte Ansichten"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:218
+#, kde-format
+msgctxt "@info %1 is the name of a saved view"
+msgid "You are looking at the saved view “%1”."
+msgstr "Sie sehen die gespeicherte Ansicht „%1“."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:219
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Give what you see a name to keep it. Saving, renaming and deleting a view "
+"can be undone from the menu."
+msgstr ""
+"Geben Sie dem, was Sie sehen, einen Namen, um es zu behalten. Speichern, "
+"Umbenennen und Löschen einer Ansicht lassen sich über das Menü rückgängig "
+"machen."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:228
+#, kde-format
+msgctxt "@action:button"
+msgid "Save changes to this view"
+msgstr "Änderungen an dieser Ansicht speichern"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:234
+#, kde-format
+msgctxt "@action:button start from a clean page"
+msgid "Start a new one"
+msgstr "Neu anfangen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:248
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "A name for this view"
+msgstr "Ein Name für diese Ansicht"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:254
+#, kde-format
+msgctxt "@action:button"
+msgid "Save as a new view"
+msgstr "Als neue Ansicht speichern"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:277
+#, kde-format
+msgctxt "@action:button %1 is the name of a saved view"
+msgid "%1 (can't be opened by this version)"
+msgstr "%1 (kann mit dieser Version nicht geöffnet werden)"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:296
+#, kde-format
+msgctxt "@action:button"
+msgid "Delete"
+msgstr "Löschen"

@@ -62,6 +62,8 @@ mod register;
 mod register_model;
 mod rules;
 mod rules_model;
+mod saved_views;
+mod saved_views_model;
 mod secret_field_audit;
 mod session;
 mod settings;

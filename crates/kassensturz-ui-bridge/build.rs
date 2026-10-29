@@ -57,6 +57,7 @@ fn main() {
                 "qml/ChangeNames.qml",
                 "qml/ChartTable.qml",
                 "qml/ChartView.qml",
+                "qml/ComponentPreview.qml",
                 "qml/CsvColumnBox.qml",
                 "qml/DataTable.qml",
                 "qml/CsvSettingsPage.qml",
@@ -80,6 +81,7 @@ fn main() {
                 "qml/RulesPage.qml",
                 "qml/SecretField.qml",
                 "qml/SettingsPage.qml",
+                "qml/StatisticsPage.qml",
                 "qml/TransactionPage.qml",
                 "qml/TransactionRow.qml",
                 "qml/TransferPrompt.qml",
@@ -119,6 +121,7 @@ fn main() {
         "src/properties_model.rs",
         "src/register_model.rs",
         "src/rules_model.rs",
+        "src/saved_views_model.rs",
         "src/settings.rs",
         "src/statement_import_model.rs",
     ])

@@ -50,6 +50,7 @@ ColumnLayout {
                 text: table.columnTitle(modelData)
                 font.bold: true
                 elide: Text.ElideRight
+                Accessible.role: Accessible.ColumnHeader
                 // The first column is names, the others are figures.
                 horizontalAlignment: index === 0 ? Text.AlignLeft : Text.AlignRight
                 textFormat: Text.PlainText
@@ -83,6 +84,7 @@ ColumnLayout {
                     Layout.preferredWidth: 1
                     text: modelData
                     elide: Text.ElideRight
+                    Accessible.role: Accessible.Cell
                     horizontalAlignment: index === 0 ? Text.AlignLeft : Text.AlignRight
                 }
             }

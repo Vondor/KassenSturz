@@ -50,6 +50,12 @@ pub mod qobject {
         #[qinvokable]
         fn load(self: Pin<&mut ComponentProperties>, json: &QString);
 
+        /// Makes the component another type (`chart.pie`, ...), keeping what
+        /// still fits.
+        #[qinvokable]
+        #[cxx_name = "setType"]
+        fn set_type(self: Pin<&mut ComponentProperties>, kind: &QString);
+
         /// Shows another dataset; settings that no longer fit go back to
         /// their defaults.
         #[qinvokable]
@@ -125,6 +131,17 @@ fn view_object(component: Option<&Component>, error: Option<&ReportError>) -> QV
             list(properties::fields(component).iter().map(field_object)),
         ));
         entries.push(("json", text(&properties::json(component))));
+        let preview = properties::preview(component);
+        entries.push((
+            "preview",
+            map([
+                ("shows", text(preview.shows)),
+                ("chart", text(preview.chart)),
+                ("grouping", text(preview.grouping)),
+                ("compare", text(&preview.compare)),
+                ("measure", text(&preview.measure)),
+            ]),
+        ));
     }
     if let Some(error) = error {
         entries.push(("error", error_object(error)));
@@ -183,6 +200,17 @@ impl qobject::ComponentProperties {
         }
     }
 
+    fn set_type(self: Pin<&mut Self>, kind: &QString) {
+        let kind = kind.to_string();
+        self.change(|component| {
+            let kind = ComponentType::from_id(&kind).ok_or(ReportError::DocumentInvalid {
+                reason: "unknown-type",
+                path: "type".to_owned(),
+            })?;
+            component.change_kind(kind)
+        });
+    }
+
     fn set_dataset(self: Pin<&mut Self>, dataset: &QString) {
         let dataset = dataset.to_string();
         self.change(|component| component.use_dataset(&dataset));
@@ -219,7 +247,7 @@ mod tests {
         let view = view_object(Some(&chart), None);
         assert_eq!(
             keys(&view),
-            ["dataset", "datasets", "fields", "json", "type"]
+            ["dataset", "datasets", "fields", "json", "preview", "type"]
         );
         assert_eq!(text_of(&view, "type"), "chart.pie");
         assert_eq!(text_of(&view, "dataset"), "spending_by_category");
@@ -248,6 +276,86 @@ mod tests {
         assert_eq!(text_of(&fields[1], "kind"), "text");
         assert_eq!(text_of(&fields[2], "kind"), "flag");
         assert!(flag_of(&fields[2], "flag"));
+        let preview = object_of(&view, "preview");
+        assert_eq!(
+            keys(&preview),
+            ["chart", "compare", "grouping", "measure", "shows"]
+        );
+        assert_eq!(text_of(&preview, "shows"), "chart");
+        assert_eq!(text_of(&preview, "chart"), "pie");
+        assert_eq!(text_of(&preview, "grouping"), "each");
+    }
+
+    #[test]
+    fn the_preview_names_what_charts_and_cards_are_asked_for() {
+        let ask =
+            |kind: ComponentType, dataset: &str| properties::preview(&component(kind, dataset));
+        let top = {
+            let mut pie = component(ComponentType::ChartPie, "spending_by_category");
+            pie.set("grouping", Setting::Word("top_level_category".into()))
+                .unwrap();
+            properties::preview(&pie)
+        };
+        assert_eq!((top.chart, top.grouping), ("pie", "top-level"));
+        let card = ask(ComponentType::KpiCard, "income_expense_by_month");
+        assert_eq!(
+            (
+                card.shows,
+                card.chart,
+                card.measure.as_str(),
+                card.compare.as_str()
+            ),
+            ("card", "", "income", "previous_period")
+        );
+        let bar = ask(ComponentType::ProgressBar, "income_expense_by_month");
+        assert_eq!(
+            (bar.shows, bar.measure.as_str()),
+            ("progress", "savings-rate")
+        );
+        let table = ask(ComponentType::TableRows, "spending_by_category");
+        assert_eq!((table.shows, table.chart), ("table", "bar"));
+        // Every name is one `BookCharts` and `BookCards` take.
+        for kind in ComponentType::ALL {
+            for dataset in kind.datasets() {
+                let preview = ask(kind, dataset.id);
+                assert!(
+                    ["", "line", "bar", "stacked-bar", "area", "pie", "donut"]
+                        .contains(&preview.chart)
+                );
+                assert!(["top-level", "each"].contains(&preview.grouping));
+            }
+        }
+    }
+
+    #[test]
+    fn what_the_preview_asks_for_is_accepted_by_charts_and_cards() {
+        use crate::register::tests::TestLocale;
+        use crate::{cards, charts};
+
+        let book = kassensturz_store::Book::create_in_memory().unwrap();
+        let locale = TestLocale;
+        for kind in ComponentType::ALL {
+            for dataset in kind.datasets() {
+                let component = component(kind, dataset.id);
+                let preview = properties::preview(&component);
+                if preview.chart.is_empty() {
+                    let request = cards::Request {
+                        period: "this-year".into(),
+                        compare: preview.compare.clone(),
+                    };
+                    cards::cards(&book, &locale, &request).expect("cards accept it");
+                } else {
+                    let request = charts::Request {
+                        dataset: dataset.id.into(),
+                        kind: preview.chart.into(),
+                        period: "this-year".into(),
+                        grouping: preview.grouping.into(),
+                    };
+                    charts::charts(&book, &locale, &request)
+                        .unwrap_or_else(|e| panic!("{} on {}: {e:?}", kind.id(), dataset.id));
+                }
+            }
+        }
     }
 
     #[test]

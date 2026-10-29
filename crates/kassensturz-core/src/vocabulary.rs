@@ -50,6 +50,7 @@ pub const DETAILS: &[&str] = &[
     "RulePage",
     "RulesPage",
     "SettingsPage",
+    "StatisticsPage",
     "TransactionPage",
     "WelcomePage",
 ];

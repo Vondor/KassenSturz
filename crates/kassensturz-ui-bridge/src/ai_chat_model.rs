@@ -572,6 +572,16 @@ pub(crate) mod engine {
                 ("amount", text(amount)),
                 ("category", text(category)),
             ]),
+            ChangeView::NewView {
+                title,
+                period,
+                component,
+            } => map([
+                ("kind", text("newView")),
+                ("title", text(title)),
+                ("period", text(period)),
+                ("component", text(component)),
+            ]),
         }))
     }
 
@@ -1299,10 +1309,15 @@ mod tests {
                 amount: "-12,34 €".into(),
                 category: String::new(),
             },
+            ChangeView::NewView {
+                title: "<b>Where it goes</b>".into(),
+                period: "this-year".into(),
+                component: r#"{"type":"chart.pie"}"#.into(),
+            },
         ];
         let object = changes_object(&views);
         let items = elements(&object).expect("an array");
-        assert_eq!(items.len(), 13);
+        assert_eq!(items.len(), 14);
         assert_eq!(keys(&items[0]), ["income", "kind", "name", "path"]);
         assert_eq!(text_of(&items[0], "kind"), "newCategory");
         assert!(!flag_of(&items[0], "income"));
@@ -1381,5 +1396,10 @@ mod tests {
         );
         assert_eq!(text_of(&items[12], "kind"), "deleteTransaction");
         assert_eq!(text_of(&items[12], "category"), "");
+        assert_eq!(keys(&items[13]), ["component", "kind", "period", "title"]);
+        assert_eq!(text_of(&items[13], "kind"), "newView");
+        assert_eq!(text_of(&items[13], "title"), "<b>Where it goes</b>");
+        assert_eq!(text_of(&items[13], "period"), "this-year");
+        assert_eq!(text_of(&items[13], "component"), r#"{"type":"chart.pie"}"#);
     }
 }

@@ -39,6 +39,9 @@ pub enum Row {
     Accounts,
     /// The transactions.
     Transactions,
+    /// The saved charts (D-282): the AI may only propose new ones, so the
+    /// row has no Read cell.
+    Charts,
 }
 
 /// One cell of the permission grid: what the AI may do with one row (D-252).
@@ -78,11 +81,13 @@ pub enum Permission {
     NewAccounts,
     /// Rename accounts, close them and open them again (D-253).
     EditAccounts,
+    /// Propose a new chart for the user to save (Charts, Add; D-282).
+    NewViews,
 }
 
 impl Permission {
     /// Every permission, in the order the settings page shows them.
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 16] = [
         Self::CategoriesRead,
         Self::NewCategories,
         Self::EditCategories,
@@ -98,6 +103,7 @@ impl Permission {
         Self::SortTransactions,
         Self::NewTransactions,
         Self::DeleteTransactions,
+        Self::NewViews,
     ];
 
     /// The key of this permission in [`GROUP`].
@@ -118,6 +124,7 @@ impl Permission {
             Self::DeleteCategories => "AllowDeleteCategories",
             Self::NewAccounts => "AllowNewAccounts",
             Self::EditAccounts => "AllowEditAccounts",
+            Self::NewViews => "AllowNewViews",
         }
     }
 
@@ -134,6 +141,7 @@ impl Permission {
             | Self::NewTransactions
             | Self::DeleteTransactions
             | Self::TransactionsRead => Row::Transactions,
+            Self::NewViews => Row::Charts,
         }
     }
 
@@ -160,13 +168,14 @@ impl Permission {
         )
     }
 
-    /// The Read cell of `row`.
-    pub const fn read_of(row: Row) -> Self {
+    /// The Read cell of `row`, if it has one.
+    pub const fn read_of(row: Row) -> Option<Self> {
         match row {
-            Row::Categories => Self::CategoriesRead,
-            Row::Rules => Self::RulesRead,
-            Row::Accounts => Self::AccountsRead,
-            Row::Transactions => Self::TransactionsRead,
+            Row::Categories => Some(Self::CategoriesRead),
+            Row::Rules => Some(Self::RulesRead),
+            Row::Accounts => Some(Self::AccountsRead),
+            Row::Transactions => Some(Self::TransactionsRead),
+            Row::Charts => None,
         }
     }
 
@@ -314,7 +323,7 @@ impl Permissions {
 
     /// Whether the AI may read `row`.
     pub fn reads(self, row: Row) -> bool {
-        self.allows(Permission::read_of(row))
+        Permission::read_of(row).is_some_and(|read| self.allows(read))
     }
 
     /// These permissions with `permission` given or taken away.

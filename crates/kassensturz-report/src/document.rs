@@ -30,6 +30,9 @@ pub const MAX_BYTES: usize = 1 << 20;
 pub const MAX_DEPTH: usize = 8;
 /// The most components in one document (D-281).
 pub const MAX_COMPONENTS: usize = 100;
+
+/// The ID of the one component of a view.
+const VIEW_COMPONENT_ID: &str = "c1";
 /// The longest name or component ID, in characters (D-281).
 pub const MAX_NAME_CHARS: usize = 200;
 /// The largest number in a component's frame.
@@ -220,6 +223,21 @@ fn read_entry(value: &Value, index: usize) -> Result<Entry, ReportError> {
 }
 
 impl Document {
+    /// A view: one component, no frame. The name and period are checked
+    /// when the text is read back with [`Document::read`].
+    pub fn view(name: &str, period: Option<&str>, component: Component) -> Self {
+        Self {
+            kind: ViewKind::View,
+            name: name.to_owned(),
+            period: period.map(str::to_owned),
+            entries: vec![Entry {
+                id: VIEW_COMPONENT_ID.to_owned(),
+                item: Item::Component(component),
+                frame: None,
+            }],
+        }
+    }
+
     /// Reads and checks a document.
     pub fn read(text: &str) -> Result<Self, ReportError> {
         if text.len() > MAX_BYTES {

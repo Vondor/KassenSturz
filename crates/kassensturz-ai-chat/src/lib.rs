@@ -43,7 +43,9 @@ mod log;
 mod prompt;
 mod session;
 
-pub use demo::{DEMO_CATEGORY, DEMO_ENV, DEMO_LABEL, DemoModel, INVENTED, demo_provider};
+pub use demo::{
+    DEMO_CATEGORY, DEMO_CHART, DEMO_ENV, DEMO_LABEL, DemoModel, INVENTED, demo_provider,
+};
 pub use error::ChatError;
 pub use features::{AnswerLanguage, Feature};
 pub use log::{LogEntry, MAX_ARGUMENT_CHARS};

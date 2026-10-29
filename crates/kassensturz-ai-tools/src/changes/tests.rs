@@ -7,6 +7,7 @@ use serde_json::json;
 
 use super::*;
 use crate::FUNCTIONS;
+use kassensturz_report::{Component, ComponentType, PERIODS};
 
 const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
@@ -2320,4 +2321,189 @@ fn the_same_transaction_cannot_be_removed_and_changed_in_one_set() {
         )),
         "bad-argument transaction_id"
     );
+}
+
+#[test]
+fn a_chart_is_chosen_from_lists_checked_and_saved_only_when_confirmed() {
+    use kassensturz_core::ViewKind;
+    let Sample { mut book, .. } = sample();
+    let proposal = propose(
+        &book,
+        &json!({"new_views": [{
+            "title": " Where the money goes ",
+            "dataset": "spending_by_category",
+            "chart": "auto",
+            "period": "this-year"
+        }]}),
+    )
+    .expect("prepared");
+    let ProposedChange::NewView(new) = &proposal.changes.changes()[0] else {
+        panic!("a chart");
+    };
+    // `auto` for money by category is a pie.
+    assert_eq!(
+        (
+            new.title.as_str(),
+            new.type_id(),
+            new.dataset_id(),
+            new.period.as_str()
+        ),
+        (
+            "Where the money goes",
+            "chart.pie",
+            "spending_by_category",
+            "this-year"
+        )
+    );
+    // The preview reads the component the way a hand-made one is read.
+    let component = Component::from_json(&new.component_json()).expect("a component");
+    assert_eq!(component.kind().id(), "chart.pie");
+    assert!(
+        proposal
+            .changes
+            .summary()
+            .contains("new chart \"Where the money goes\"")
+    );
+    assert!(book.views(Some(ViewKind::View)).expect("views").is_empty());
+
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    let saved = book.views(Some(ViewKind::View)).expect("views");
+    assert_eq!(saved.len(), 1);
+    assert_eq!(saved[0].name, "Where the money goes");
+    assert_eq!(
+        book.history().expect("history")[0].action,
+        Action::ApplyAiChanges
+    );
+    book.undo().expect("undone");
+    assert!(book.views(Some(ViewKind::View)).expect("views").is_empty());
+}
+
+#[test]
+fn a_chart_that_does_not_fit_its_dataset_or_names_a_taken_title_is_refused() {
+    let Sample { mut book, .. } = sample();
+    let view = |extra: Value| {
+        let mut view = json!({
+            "title": "Months",
+            "dataset": "income_expense_by_month",
+            "chart": "chart.line"
+        });
+        view.as_object_mut()
+            .expect("object")
+            .extend(extra.as_object().expect("object").clone());
+        json!({"new_views": [view]})
+    };
+    assert_eq!(code(propose(&book, &view(json!({})))), "prepared");
+    for (extra, expected) in [
+        (json!({"chart": "chart.pie"}), "bad-argument chart"),
+        (json!({"chart": "chart.nothing"}), "bad-argument chart"),
+        (json!({"dataset": "everything"}), "bad-argument dataset"),
+        (json!({"grouping": "category"}), "bad-argument grouping"),
+        (json!({"measure": "net"}), "bad-argument measure"),
+        (json!({"period": "last-century"}), "bad-argument period"),
+        (json!({"title": ""}), "bad-argument title"),
+        (json!({"title": "two\nlines"}), "bad-argument title"),
+        (json!({"title": "x".repeat(201)}), "bad-argument title"),
+        (json!({"unit": "euro"}), "bad-argument new_views"),
+    ] {
+        assert_eq!(
+            code(propose(&book, &view(extra.clone()))),
+            expected,
+            "{extra}"
+        );
+    }
+    // A key figure takes a measure; a line chart doesn't.
+    assert_eq!(
+        code(propose(
+            &book,
+            &view(json!({"chart": "kpi.card", "measure": "net", "compare": "previous_period"}))
+        )),
+        "prepared"
+    );
+    // Two charts of one title in one set, and a title the book has.
+    let twice = json!({"new_views": [
+        {"title": "A", "dataset": "income_expense_by_month", "chart": "auto"},
+        {"title": "a", "dataset": "income_expense_by_month", "chart": "auto"}
+    ]});
+    assert_eq!(code(propose(&book, &twice)), "ai-tools.name-taken");
+    propose(&book, &view(json!({})))
+        .expect("prepared")
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    assert_eq!(
+        code(propose(&book, &view(json!({"title": "MONTHS"})))),
+        "ai-tools.name-taken"
+    );
+    // At most three at a time.
+    let many = json!({"new_views": (0..4).map(|n| json!({
+        "title": format!("Chart {n}"), "dataset": "spending_by_category", "chart": "auto"
+    })).collect::<Vec<_>>()});
+    assert_eq!(code(propose(&book, &many)), "ai-tools.too-many-changes");
+}
+
+#[test]
+fn a_chart_needs_its_own_cell_of_the_grid_and_the_schema_lists_the_catalog() {
+    let Sample { book, .. } = sample();
+    let call = json!({"new_views": [
+        {"title": "Months", "dataset": "income_expense_by_month", "chart": "auto"}
+    ]});
+    let without = Permissions::all().with(Permission::NewViews, false);
+    assert!(matches!(
+        super::propose(&book, &call, without),
+        Err(ToolError::NotAllowed {
+            argument: "new_views"
+        })
+    ));
+    let proposal = super::propose(&book, &call, Permissions::all()).expect("prepared");
+    assert!(proposal.changes.check_allowed(Permissions::all()).is_ok());
+    assert!(matches!(
+        proposal.changes.check_allowed(without),
+        Err(ChangeError::NotAllowed)
+    ));
+    // Only this cell: the AI may propose a chart and nothing else.
+    let only = Permissions::NONE.with(Permission::NewViews, true);
+    let spec = propose_spec(only).expect("a chart may be proposed");
+    let parameters: Value = serde_json::from_str(&spec.parameters).expect("JSON");
+    assert_eq!(
+        parameters["properties"]
+            .as_object()
+            .expect("properties")
+            .keys()
+            .collect::<Vec<_>>(),
+        ["new_views"]
+    );
+    assert!(spec.description.contains("spending_by_category"));
+    assert!(propose_spec(without).is_some());
+    assert!(
+        !propose_spec(without)
+            .expect("spec")
+            .parameters
+            .contains("new_views")
+    );
+    // The fixed lists of the schema are the catalog's and the report's.
+    let schema: Value = serde_json::from_str(PROPOSE_CHANGES.parameters).expect("JSON");
+    let item = &schema["properties"]["new_views"]["items"]["properties"];
+    let words = |value: &Value| -> Vec<String> {
+        value["enum"]
+            .as_array()
+            .expect("enum")
+            .iter()
+            .map(|word| word.as_str().expect("word").to_owned())
+            .collect()
+    };
+    let datasets: Vec<_> = kassensturz_report::CATALOG.iter().map(|d| d.id).collect();
+    assert_eq!(words(&item["dataset"]), datasets);
+    let mut charts = vec!["auto".to_owned()];
+    charts.extend(ComponentType::ALL.iter().map(|kind| kind.id().to_owned()));
+    assert_eq!(words(&item["chart"]), charts);
+    assert_eq!(words(&item["period"]), PERIODS);
+    let mut groupings: Vec<&str> = kassensturz_report::CATALOG
+        .iter()
+        .flat_map(|d| d.groupings.iter().copied())
+        .collect();
+    groupings.dedup();
+    assert_eq!(words(&item["grouping"]), groupings);
 }

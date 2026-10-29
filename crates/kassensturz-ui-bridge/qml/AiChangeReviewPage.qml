@@ -4,7 +4,7 @@
 // The review of the changes the AI prepared (M5.8, D-047, D-200, threat
 // T-27): every change in words, the new categories, the new Rules and the
 // transactions that get a category or have other fields changed (D-257), with the amount and day as the register
-// shows them. Nothing has changed yet. The confirm button below is the only
+// shows them, and a chart the AI proposes (M6a.9, D-282) with a preview of real figures. Nothing has changed yet. The confirm button below is the only
 // way to apply the set (`AiChat.confirm`): all of it is made or none, as one
 // change that Undo takes back, which this page offers once it is done. The
 // texts come from the model or the book and are shown as plain text (T-08).
@@ -54,6 +54,7 @@ Kirigami.ScrollablePage {
     readonly property var editedTransactions: changes.filter ? changes.filter(change => change.kind === "editTransaction") : []
     readonly property var deletedCategories: changes.filter ? changes.filter(change => change.kind === "deleteCategory") : []
     readonly property var newAccounts: changes.filter ? changes.filter(change => change.kind === "newAccount") : []
+    readonly property var newViews: changes.filter ? changes.filter(change => change.kind === "newView") : []
     readonly property var editedAccounts: changes.filter ? changes.filter(change => change.kind === "editAccount") : []
     readonly property bool shows: changes.code === undefined && !done
 
@@ -76,6 +77,23 @@ Kirigami.ScrollablePage {
 
     AccountTypes {
         id: accountTypes
+    }
+
+    // The name of a period of a chart.
+    function periodName(id: string): string {
+        switch (id) {
+        case "this-month":
+            return i18nContext.i18nc("@item:inlistbox a period", "This month");
+        case "last-month":
+            return i18nContext.i18nc("@item:inlistbox a period", "Last month");
+        case "last-12-months":
+            return i18nContext.i18nc("@item:inlistbox a period", "The last 12 months");
+        case "this-year":
+            return i18nContext.i18nc("@item:inlistbox a period", "This year");
+        case "last-year":
+            return i18nContext.i18nc("@item:inlistbox a period", "Last year");
+        }
+        return "";
     }
 
     // A Rule's condition in words.
@@ -837,6 +855,65 @@ Kirigami.ScrollablePage {
                         text: modelData.before !== ""
                             ? page.i18nContext.i18nc("@info %1 and %2 are paths of categories", "Category: %1 → %2", modelData.before, modelData.after)
                             : page.i18nContext.i18nc("@info %1 is the path of a category", "Category: %1 (none before)", modelData.after)
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.newViews.length > 0
+            text: page.i18nContext.i18nc("@title:group", "New charts")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.newViews : []
+
+            Kirigami.AbstractCard {
+                id: chartCard
+
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                // The chart is read by the same code as one made by hand, so
+                // the preview shows exactly what would be saved.
+                ComponentProperties {
+                    id: chartProperties
+                }
+
+                Component.onCompleted: chartProperties.load(modelData.component)
+
+                contentItem: ColumnLayout {
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        font.bold: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: chartCard.modelData.title
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.periodName(chartCard.modelData.period)
+                    }
+
+                    ComponentPreview {
+                        Layout.fillWidth: true
+                        subject: chartProperties.view
+                        period: chartCard.modelData.period
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info", "The AI chose what this chart shows. The figures are worked out by KassenSturz from your book, not by the AI. It is saved under Statistics only when you confirm, and Undo removes it again.")
                     }
                 }
             }

@@ -143,7 +143,7 @@ M6 is done in five Sprints, each with its own Phases 0 to 3 (D-284): **M6a** is 
 | **M6a.6** | Component schema and the properties panel driven by it | M6a.4 | standard, high | **doing** |
 | **M6a.7** | Statistics workbench page and saved views (rename, delete, undo through the history) | M6a.L, M6a.6 | standard, high | **doing** (7a #238 merged; 7b: workbench page, in review) |
 | **M6a.8** | The Overview rebuilt from components on a fixed default layout, no regressions in its tests | M6a.6, M6a.2 | standard, high | in review |
-| **M6a.9** | First "AI proposes a chart": one enum tool, preview, change set; human gate (AI data sharing) | M6a.7 | strong, high | todo |
+| **M6a.9** | First "AI proposes a chart": one enum tool, preview, change set; human gate (AI data sharing) | M6a.7 | strong, high | in review |
 | **M6b.1** | Grid model in Rust: geometry, snapping, spans, collisions (property tests) | M6a | strong, high | todo |
 | **M6b.2** | Grid model in `ui-bridge` and view mode on the grid | M6b.1 | standard, high | todo |
 | **M6b.3** | Edit mode: add a component from the library, drag, resize | M6b.2 | standard, high | todo |

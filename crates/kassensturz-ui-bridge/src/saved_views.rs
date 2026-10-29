@@ -12,11 +12,8 @@
 //! one that can't be opened, and can still be renamed or deleted.
 
 use kassensturz_core::{StoredView, ViewKind};
-use kassensturz_report::{Component, Document, Entry, Item, ReportError};
+use kassensturz_report::{Component, Document, Item, ReportError};
 use kassensturz_store::{Book, StoreError};
-
-/// The ID of the one component of a saved view.
-const COMPONENT_ID: &str = "c1";
 
 /// Why a saved view couldn't be kept or opened.
 #[derive(Debug)]
@@ -115,16 +112,7 @@ pub fn list(book: &Book) -> Result<Vec<Row>, StoreError> {
 }
 
 fn document(name: &str, period: &str, component: Component) -> Document {
-    Document {
-        kind: ViewKind::View,
-        name: name.to_owned(),
-        period: (!period.is_empty()).then(|| period.to_owned()),
-        entries: vec![Entry {
-            id: COMPONENT_ID.to_owned(),
-            item: Item::Component(component),
-            frame: None,
-        }],
-    }
+    Document::view(name, (!period.is_empty()).then_some(period), component)
 }
 
 /// Saves a new view; returns its ID. The book refuses an empty name or one

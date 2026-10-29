@@ -10527,3 +10527,24 @@ msgstr "%1 (kann mit dieser Version nicht geöffnet werden)"
 msgctxt "@action:button"
 msgid "Delete"
 msgstr "Löschen"
+
+#, kde-format
+msgctxt "@title:group"
+msgid "New charts"
+msgstr "Neue Diagramme"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The AI chose what this chart shows. The figures are worked out by "
+"KassenSturz from your book, not by the AI. It is saved under Statistics only "
+"when you confirm, and Undo removes it again."
+msgstr ""
+"Die KI hat gewählt, was dieses Diagramm zeigt. Die Zahlen berechnet "
+"KassenSturz aus Ihrem Buch, nicht die KI. Es wird nur unter Statistik "
+"gespeichert, wenn Sie bestätigen, und Rückgängig entfernt es wieder."
+
+#, kde-format
+msgctxt "@label a part of the book"
+msgid "Charts"
+msgstr "Diagramme"

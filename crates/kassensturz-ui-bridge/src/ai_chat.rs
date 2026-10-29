@@ -437,6 +437,16 @@ pub enum ChangeView {
         /// Its category as a path, empty for none.
         category: String,
     },
+    /// A chart the user may save (M6a.9, D-282).
+    NewView {
+        /// Its title, which is also its name.
+        title: String,
+        /// The period it shows, a fixed name (`last-12-months`).
+        period: String,
+        /// The component as JSON text, which the preview loads like a chart
+        /// the user made.
+        component: String,
+    },
 }
 
 /// One field of a transaction that changes, written for the user.
@@ -577,6 +587,11 @@ pub fn view_of(
                         .as_ref()
                         .map(|path| path.join(" › "))
                         .unwrap_or_default(),
+                },
+                ProposedChange::NewView(new) => ChangeView::NewView {
+                    title: new.title.clone(),
+                    period: new.period.clone(),
+                    component: new.component_json(),
                 },
             })
         })
@@ -937,6 +952,56 @@ mod tests {
         assert!(book.account(first.id).unwrap().closed);
         assert!(book.undo().unwrap().is_some());
         assert!(!book.account(first.id).unwrap().closed);
+    }
+
+    #[test]
+    fn a_proposed_chart_is_previewed_like_a_hand_made_one_and_saved_by_confirm() {
+        let mut book = space_colony();
+        let call = serde_json::json!({"new_views": [{
+            "title": "Where the money goes",
+            "dataset": "spending_by_category",
+            "chart": "auto",
+            "period": "this-year",
+        }]});
+        let proposal = kassensturz_ai_tools::propose(&book, &call, Permissions::all()).unwrap();
+        let views = view_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let [
+            ChangeView::NewView {
+                title,
+                period,
+                component,
+            },
+        ] = views.as_slice()
+        else {
+            panic!("one chart: {views:?}");
+        };
+        assert_eq!(
+            (title.as_str(), period.as_str()),
+            ("Where the money goes", "this-year")
+        );
+        // The preview loads it with the app's own component reader.
+        assert_eq!(
+            kassensturz_report::Component::from_json(component)
+                .unwrap()
+                .kind()
+                .id(),
+            "chart.pie"
+        );
+        assert!(crate::saved_views::list(&book).unwrap().is_empty());
+
+        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+
+        // The saved chart opens in the statistics page as any other.
+        let [row] = <[_; 1]>::try_from(crate::saved_views::list(&book).unwrap()).unwrap();
+        assert_eq!(
+            (row.name.as_str(), row.kind.as_str()),
+            ("Where the money goes", "chart.pie")
+        );
+        assert!(row.usable);
+        let opened = crate::saved_views::open(&book, &row.id).unwrap();
+        assert_eq!(opened.period, "this-year");
+        assert!(book.undo().unwrap().is_some());
+        assert!(crate::saved_views::list(&book).unwrap().is_empty());
     }
 
     #[test]

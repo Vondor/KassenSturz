@@ -12,7 +12,8 @@
 //! with "sort" in it makes it prepare a change set: a new category for the
 //! newest few transactions it can move, for the review and undo (D-199). A
 //! question with "open" in it about a Rule or an account lists them and then
-//! opens the first one's page (D-265). The app
+//! opens the first one's page (D-265). A question with "chart" in it makes
+//! it propose a chart, by choices alone (M6a.9, D-282). The app
 //! offers it only when started with [`DEMO_ENV`] set, as the fake bank is
 //! (D-159).
 
@@ -36,6 +37,9 @@ pub const INVENTED: &str = "4711.08";
 
 /// The category the fake model prepares when asked to sort.
 pub const DEMO_CATEGORY: &str = "Sorted by the fake model";
+
+/// The title of the chart the fake model proposes when asked for one.
+pub const DEMO_CHART: &str = "Chart from the fake model";
 
 /// The most transactions it puts into that category at once.
 const DEMO_MOVES: usize = 3;
@@ -95,6 +99,15 @@ fn respond(model: DemoModel, messages: &[Message], offered: &[String]) -> Result
     {
         return Ok(calls_reply(PROPOSE_CHANGES.name, &arguments));
     }
+    if wants_chart(&question)
+        && last != Some(Role::Tool)
+        && offered.iter().any(|offer| offer == PROPOSE_CHANGES.name)
+    {
+        return Ok(calls_reply(
+            PROPOSE_CHANGES.name,
+            &chart_proposal(&question),
+        ));
+    }
     if wants_opening(&question)
         && last == Some(Role::Tool)
         && offered.iter().any(|offer| offer == OPEN_PAGE.name)
@@ -149,6 +162,27 @@ fn wants_sorting(question: &str) -> bool {
     ["sort", "einsortier"]
         .iter()
         .any(|word| question.contains(word))
+}
+
+/// Whether `question` (lowercase) asks for a chart.
+fn wants_chart(question: &str) -> bool {
+    ["chart", "diagramm"]
+        .iter()
+        .any(|word| question.contains(word))
+}
+
+/// A chart by choices alone: the months of a year when the question says
+/// month, else what the money went to.
+fn chart_proposal(question: &str) -> Value {
+    let monthly = ["month", "monat"]
+        .iter()
+        .any(|word| question.contains(word));
+    json!({"new_views": [{
+        "title": DEMO_CHART,
+        "dataset": if monthly { "income_expense_by_month" } else { "spending_by_category" },
+        "chart": "auto",
+        "period": "last-12-months",
+    }]})
 }
 
 /// Whether `question` (lowercase) asks to open a page.

@@ -13,8 +13,8 @@ mod common;
 use common::{Script, Step, TODAY, calls, fails, says, settings, space_colony};
 use kassensturz_ai::{AiError, KeyUse, Message, Role};
 use kassensturz_ai_chat::{
-    BuildInfo, ChatSession, DEMO_CATEGORY, DEMO_LABEL, DemoModel, LogEntry, NoHooks, Outcome,
-    demo_provider,
+    BuildInfo, ChatSession, DEMO_CATEGORY, DEMO_CHART, DEMO_LABEL, DemoModel, LogEntry, NoHooks,
+    Outcome, demo_provider,
 };
 use kassensturz_ai_tools::{Confirmed, PROPOSE_CHANGES, ProposedChange};
 use kassensturz_store::Action;
@@ -377,4 +377,39 @@ fn a_note_is_prepared_for_review_and_a_locked_amount_is_refused() {
             }
         }
     }
+}
+
+#[test]
+fn the_fake_model_proposes_a_chart_that_is_saved_only_on_confirm_and_needs_its_cell() {
+    use kassensturz_core::ViewKind;
+    use kassensturz_core::ai_switch::{Permission, Permissions};
+    let mut book = space_colony();
+    let provider = demo_provider(on(), DemoModel::Functions);
+    // Without the Charts cell the function isn't offered with it, so the
+    // fake model prepares nothing.
+    let mut chat = ChatSession::new(BuildInfo::new("0.261025.0", "1775d22"))
+        .with_permissions(Permissions::all().with(Permission::NewViews, false));
+    let answer = chat
+        .ask(&book, &provider, None, "Draw a chart", TODAY, &mut NoHooks)
+        .unwrap();
+    assert!(answer.changes.is_empty());
+
+    let mut chat = session();
+    let answer = chat
+        .ask(&book, &provider, None, "Draw a chart", TODAY, &mut NoHooks)
+        .unwrap();
+    assert!(answer.unverified.is_empty(), "{:?}", answer.unverified);
+    let [changes] = <[_; 1]>::try_from(answer.changes).unwrap();
+    let ProposedChange::NewView(new) = &changes.changes()[0] else {
+        panic!("a chart");
+    };
+    assert_eq!(new.title, DEMO_CHART);
+    assert!(book.views(Some(ViewKind::View)).unwrap().is_empty());
+
+    changes.apply(&mut book, Confirmed::by_the_user()).unwrap();
+    let saved = book.views(Some(ViewKind::View)).unwrap();
+    assert_eq!(saved.len(), 1);
+    assert_eq!(saved[0].name, DEMO_CHART);
+    book.undo().unwrap();
+    assert!(book.views(Some(ViewKind::View)).unwrap().is_empty());
 }

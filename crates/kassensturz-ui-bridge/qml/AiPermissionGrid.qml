@@ -74,6 +74,15 @@ ColumnLayout {
                 { key: "AllowSortTransactions", needsRead: true },
                 { key: "AllowDeleteTransactions", needsRead: true }
             ]
+        },
+        {
+            name: i18nContext.i18nc("@label a part of the book", "Charts"),
+            cells: [
+                { key: "", absent: "never" },
+                { key: "AllowNewViews" },
+                { key: "", absent: "never" },
+                { key: "", absent: "never" }
+            ]
         }
     ]
 

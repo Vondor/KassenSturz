@@ -1419,6 +1419,7 @@ dependencies = [
  "kassensturz-core",
  "kassensturz-import",
  "kassensturz-pipeline",
+ "kassensturz-report",
  "kassensturz-store",
  "proptest",
  "regex",

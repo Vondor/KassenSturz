@@ -127,6 +127,11 @@ fn changes(allowed: Permissions) -> String {
             "removed entries of a cash account (delete_transactions)",
         ),
         (
+            allowed.allows(Permission::NewViews),
+            "propose a chart or key figure for the user to save",
+            "a new chart (new_views)",
+        ),
+        (
             allowed.allows(Permission::NewCategories),
             "add categories",
             "new categories",

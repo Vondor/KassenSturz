@@ -54,6 +54,8 @@ fn main() {
                 "qml/CategoriesPage.qml",
                 "qml/CategoryPage.qml",
                 "qml/ChangeNames.qml",
+                "qml/ChartTable.qml",
+                "qml/ChartView.qml",
                 "qml/CsvColumnBox.qml",
                 "qml/DataTable.qml",
                 "qml/CsvSettingsPage.qml",
@@ -81,8 +83,12 @@ fn main() {
                 "qml/TransferPrompt.qml",
                 "qml/WelcomePage.qml",
             ])
-            // A helper, not a screen: `Plain.plain()` (D-143).
-            .qml_files([QmlFile::from("qml/Plain.qml").singleton(true)]),
+            // Helpers, not screens: `Plain.plain()` (D-143) and the colors of
+            // the charts (D-283).
+            .qml_files([
+                QmlFile::from("qml/Plain.qml").singleton(true),
+                QmlFile::from("qml/ChartPalette.qml").singleton(true),
+            ]),
     )
     .qt_module("Network")
     .files([

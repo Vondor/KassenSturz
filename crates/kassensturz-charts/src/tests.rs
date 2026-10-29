@@ -476,3 +476,95 @@ fn chosen_categories_and_groups_are_lines_named_by_the_book() {
         ));
     }
 }
+
+/// Ten spending categories of 100, 90, ... 10 euros, one category with only
+/// a refund and a little money not sorted yet, read the way the app reads it.
+fn busy_spending() -> kassensturz_report::SpendingByCategory {
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    let checking = account(&mut book, "Checking account", AccountKind::Asset, None);
+    for step in 0..10_i64 {
+        let category = account(
+            &mut book,
+            &format!("Category {step}"),
+            AccountKind::Expense,
+            None,
+        );
+        let amount = (100 - 10 * step) * 100;
+        add(
+            &mut book,
+            date(2026, 10, 2),
+            &[(Some(checking), -amount), (Some(category), amount)],
+        );
+    }
+    let returned = account(&mut book, "Returned", AccountKind::Expense, None);
+    add(
+        &mut book,
+        date(2026, 10, 3),
+        &[(Some(checking), 500), (Some(returned), -500)],
+    );
+    add(
+        &mut book,
+        date(2026, 10, 4),
+        &[(Some(checking), -300), (None, 300)],
+    );
+    spending(&book)
+}
+
+#[test]
+fn a_round_chart_has_at_most_eight_slices_and_the_rest_is_other() {
+    let data = busy_spending();
+    assert_eq!(data.rows.len(), 12);
+    for kind in [ChartKind::Pie, ChartKind::Donut] {
+        let model = spending_by_category(&data, kind, &Words).expect("model");
+        // Seven largest, Other, then the refund that can't be a slice.
+        assert_eq!(model.categories.len(), 9);
+        assert_eq!(model.categories[0], "Category 0");
+        assert_eq!(model.categories[6], "Category 6");
+        assert_eq!(model.categories[7], "");
+        assert_eq!(model.categories[8], "Returned");
+        assert_eq!(model.slices.other, Some(7));
+        // 30 + 20 + 10 euros and the 3 euros not sorted, largest first.
+        let holds: Vec<_> = model.slices.holds.iter().map(|h| h.0.as_str()).collect();
+        assert_eq!(
+            holds,
+            ["Category 7", "Category 8", "Category 9", "(unsorted)"]
+        );
+        assert_eq!(model.series[0].points[7].label, "63,00 EUR");
+        assert_eq!(
+            model.slices.undrawn,
+            [false, false, false, false, false, false, false, false, true]
+        );
+        // 100 of 553 euros is 18.1 %, and a slice from 5 % has its name.
+        assert_eq!(model.slices.shares[0], "181 tenths");
+        assert_eq!(model.slices.shares[8], "");
+        assert_eq!(
+            model.slices.named,
+            [true, true, true, true, true, true, true, true, false]
+        );
+        // The table lists the same rows, and the refund keeps its amount.
+        assert_eq!(model.table.rows.len(), 9);
+        assert_eq!(model.table.rows[8], ["Returned", "-5,00 EUR"]);
+        assert_eq!(model.total, "548,00 EUR");
+    }
+}
+
+#[test]
+fn a_round_chart_of_eight_or_fewer_has_no_other_and_a_bar_chart_keeps_every_row() {
+    let book = book();
+    let data = spending(&book);
+    let model = spending_by_category(&data, ChartKind::Pie, &Words).expect("model");
+    assert_eq!(model.slices.other, None);
+    assert!(model.slices.holds.is_empty());
+    assert_eq!(model.categories.len(), 3);
+    assert_eq!(model.unsorted, Some(2));
+    assert_eq!(model.slices.shares.len(), 3);
+    // Shares of what is drawn add up to about a hundred percent.
+    let busy = busy_spending();
+    let bars = spending_by_category(&busy, ChartKind::Bar, &Words).expect("model");
+    assert_eq!(bars.categories.len(), 12);
+    assert_eq!(bars.slices, Slices::default());
+    // Money not sorted yet that lands in Other is not a slice of its own.
+    let pie = spending_by_category(&busy, ChartKind::Pie, &Words).expect("model");
+    assert_eq!(pie.unsorted, None);
+}

@@ -28,7 +28,11 @@ DataTable {
         const rows = limit > 0 ? chart.table.rows.slice(0, limit) : chart.table.rows;
         return rows.map((row, index) => (chart.unsortedIndex === index)
             ? [i18nContext.i18nc("@label money with no category yet", "Not sorted yet"), ...row.slice(1)]
-            : row);
+            : (chart.round && chart.slices.other === index)
+                ? [i18nContext.i18nc("@label the smaller slices of a pie put together", "Other"), ...row.slice(1)]
+                : (chart.round && chart.slices.undrawn[index] === true)
+                    ? [i18nContext.i18nc("@label %1 is a category, whose total is money that came back", "%1 (money that came back, not drawn)", row[0]), ...row.slice(1)]
+                    : row);
     }
 
     columns: chart.table.columns

@@ -57,7 +57,7 @@ Window {
             empty: false,
             charts: [{
                 kind: "donut", dataset: "spending_by_category", currency: "EUR", round: true,
-                total: "1.330,00 €", paletteSize: 8, count: 2, unsortedIndex: -1, hidden: ({}),
+                total: "1.330,00 €", paletteSize: 8, count: 2, unsortedIndex: -1, hidden: ({}), slices: ({other: -1, holds: [], shares: [], named: [], undrawn: []}), 
                 categories: ["Rent", "Groceries", "Fuel", "Phone", "Gym", "Books", "Gifts"],
                 series: [{key: "spending", name: "", color: 0, marker: 0, points: [
                     {label: "800,00 €", minorUnits: "80000", value: 80000, color: 0, marker: 0},
@@ -82,7 +82,7 @@ Window {
             empty: false,
             charts: [{
                 kind: "line", dataset: "income_expense_by_month", currency: "EUR", round: false,
-                total: "100,00 €", paletteSize: 8, count: 2, unsortedIndex: -1, hidden: ({}),
+                total: "100,00 €", paletteSize: 8, count: 2, unsortedIndex: -1, hidden: ({}), slices: ({other: -1, holds: [], shares: [], named: [], undrawn: []}), 
                 categories: ["Aug 2026", "Sep 2026"],
                 series: [
                     {key: "income", name: "", color: 0, marker: 0, points: [
@@ -150,7 +150,9 @@ Window {
             const grids = window.find(month, "KpiGrid");
             window.check(grids.length === 1 && grids[0].columns >= 2, "cards side by side, columns: " + (grids.length > 0 ? grids[0].columns : "no grid"));
             // The table of the largest spending lists five of the seven rows.
-            const tables = window.find(month, "ChartTable");
+            // Each chart also holds its own table for "Show as table", which
+            // lists every row; the page's table is the one with a limit.
+            const tables = window.find(month, "ChartTable").filter(table => table.limit > 0);
             window.check(tables.length === 1 && tables[0].rows.length === 5, "five largest categories, found " + (tables.length > 0 ? tables[0].rows.length : "no table"));
             // Going to another month asks again for that month.
             window.asked = [];

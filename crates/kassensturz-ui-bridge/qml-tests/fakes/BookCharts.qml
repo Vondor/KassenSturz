@@ -25,7 +25,7 @@ QtObject {
         const values = [800, 320, 60];
         view = {empty: false, charts: [{
             kind: kind, dataset: dataset, currency: "EUR", round: kind === "pie" || kind === "donut",
-            total: "1.180,00 €", paletteSize: 8, count: 3, unsortedIndex: 2, hidden: ({}),
+            total: "1.180,00 €", paletteSize: 8, count: 3, unsortedIndex: 2, hidden: ({}), slices: ({other: -1, holds: [], shares: [], named: [], undrawn: []}), 
             categories: names,
             series: [{key: "spending", name: "", color: 0, marker: 0, points: values.map((v, i) => point(v + ",00 €", v, i))}],
             ticks: [], 

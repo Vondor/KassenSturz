@@ -26,6 +26,16 @@ pub enum ReportError {
         /// The key or dotted path of the value.
         path: String,
     },
+    /// A document is bigger than the book keeps (D-281).
+    DocumentTooBig {
+        /// The most bytes a document may have.
+        max_bytes: usize,
+    },
+    /// A document was written by a newer KassenSturz (D-278).
+    UnsupportedDocumentVersion {
+        /// The version the document says it has.
+        version: i64,
+    },
     /// The book couldn't be read, or a total doesn't fit.
     Store(StoreError),
 }
@@ -53,6 +63,12 @@ impl Report for ReportError {
             Self::DocumentInvalid { reason, path } => ErrorReport::new("report.document-invalid")
                 .with("reason", ErrorParam::Keyword(reason))
                 .with("path", ErrorParam::Text(path.clone())),
+            Self::DocumentTooBig { max_bytes } => ErrorReport::new("report.document-too-big")
+                .with("max_bytes", ErrorParam::count(*max_bytes)),
+            Self::UnsupportedDocumentVersion { version } => {
+                ErrorReport::new("report.unsupported-document-version")
+                    .with("version", ErrorParam::Number(*version))
+            }
             Self::Store(error) => {
                 ErrorReport::new("report.book-unreadable").caused_by(error.report())
             }
@@ -85,6 +101,8 @@ mod tests {
                 reason: "bad-choice",
                 path: "params.grouping".into(),
             },
+            ReportError::DocumentTooBig { max_bytes: 1 },
+            ReportError::UnsupportedDocumentVersion { version: 2 },
             ReportError::Store(StoreError::AmountOverflow),
         ] {
             let report = error.report();

@@ -15,16 +15,23 @@
 //! into text for QML only through [`TextFormat`], which the app implements
 //! with the user's locale (D-065). The crate has no UI, AI or network code.
 
+mod catalog;
 mod error;
 mod filter;
+mod metrics;
 mod monthly;
 mod period;
 mod source;
 mod spending;
 mod text;
 
+pub use catalog::{CATALOG, DatasetInfo, dataset};
 pub use error::ReportError;
 pub use filter::Filter;
+pub use metrics::{
+    Change, Compare, IncomeExpenseChange, Percent, compare_income_expense, comparison_span,
+    savings_rate,
+};
 pub use monthly::{
     INCOME_EXPENSE_BY_MONTH, IncomeExpenseByMonth, MonthRow, income_expense_by_month,
 };

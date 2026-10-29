@@ -75,6 +75,50 @@ impl Period {
         Self::new(first, first.last_of_year())
     }
 
+    /// The period right before this one, to compare with: for whole calendar
+    /// months, the same number of months before; otherwise the same number
+    /// of days before.
+    pub fn before(self) -> Result<Self, ReportError> {
+        let last = self.first.yesterday().map_err(|_| ReportError::BadPeriod)?;
+        let first = if self.is_whole_months() {
+            let months = self.months().len() as i32;
+            self.first
+                .checked_sub(months.months())
+                .map_err(|_| ReportError::BadPeriod)?
+        } else {
+            let days = self
+                .first
+                .until(self.last)
+                .map_err(|_| ReportError::BadPeriod)?
+                .get_days();
+            last.checked_sub(days.days())
+                .map_err(|_| ReportError::BadPeriod)?
+        };
+        Self::new(first, last)
+    }
+
+    /// The same days one year earlier. For whole calendar months it is the
+    /// same months of the year before, with the last day of the last month.
+    pub fn year_before(self) -> Result<Self, ReportError> {
+        let first = self
+            .first
+            .checked_sub(1.year())
+            .map_err(|_| ReportError::BadPeriod)?;
+        let mut last = self
+            .last
+            .checked_sub(1.year())
+            .map_err(|_| ReportError::BadPeriod)?;
+        if self.is_whole_months() {
+            last = last.last_of_month();
+        }
+        Self::new(first, last)
+    }
+
+    /// Whether it starts on the first of a month and ends on the last of one.
+    fn is_whole_months(self) -> bool {
+        self.first == self.first.first_of_month() && self.last == self.last.last_of_month()
+    }
+
     /// The first day.
     pub fn first(self) -> Date {
         self.first
@@ -168,6 +212,57 @@ mod tests {
             Period::new(date(1, 1, 1), date(9999, 12, 31)),
             Err(ReportError::PeriodTooLong)
         ));
+    }
+
+    #[test]
+    fn the_period_before_has_the_same_length_in_months_or_days() {
+        let before = |first, last| {
+            let period = Period::new(first, last).expect("a period").before();
+            let period = period.expect("a period before");
+            (period.first(), period.last())
+        };
+        // A month is followed by the month before, whatever its length.
+        assert_eq!(
+            before(date(2026, 3, 1), date(2026, 3, 31)),
+            (date(2026, 2, 1), date(2026, 2, 28))
+        );
+        assert_eq!(
+            before(date(2026, 1, 1), date(2026, 3, 31)),
+            (date(2025, 10, 1), date(2025, 12, 31))
+        );
+        // Days that are not whole months: the same number of days.
+        assert_eq!(
+            before(date(2026, 3, 11), date(2026, 3, 20)),
+            (date(2026, 3, 1), date(2026, 3, 10))
+        );
+        assert_eq!(
+            before(date(2026, 3, 5), date(2026, 3, 5)),
+            (date(2026, 3, 4), date(2026, 3, 4))
+        );
+        // The calendar ends somewhere.
+        let first_day = Period::new(date(-9999, 1, 1), date(-9999, 1, 31)).expect("a period");
+        assert!(matches!(first_day.before(), Err(ReportError::BadPeriod)));
+    }
+
+    #[test]
+    fn the_same_days_a_year_earlier() {
+        let year_before = |first, last| {
+            let period = Period::new(first, last).expect("a period").year_before();
+            let period = period.expect("a period a year before");
+            (period.first(), period.last())
+        };
+        assert_eq!(
+            year_before(date(2028, 2, 1), date(2028, 2, 29)),
+            (date(2027, 2, 1), date(2027, 2, 28))
+        );
+        assert_eq!(
+            year_before(date(2028, 2, 10), date(2028, 2, 29)),
+            (date(2027, 2, 10), date(2027, 2, 28))
+        );
+        assert_eq!(
+            year_before(date(2026, 1, 1), date(2026, 12, 31)),
+            (date(2025, 1, 1), date(2025, 12, 31))
+        );
     }
 
     #[test]

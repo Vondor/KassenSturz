@@ -186,7 +186,7 @@ New rows T-37 to T-40 in `docs/THREAT_MODEL.md`: hostile dashboard or view docum
 
 ## 9. The M6 steps
 
-The final table is in `docs/ROADMAP.md` (row "M6 steps"). The Sprints: M6a = M6.0 + the reporting layer, built-in charts, properties panel, Statistics workbench, Overview rebuilt from components, first AI chart; M6b the grid editor; M6c financial components, budgets, shared filters and the AI chart builder; M6d several dashboards, templates, import and export, KMyMoney report import; M6e Vega-Lite custom charts (D-284).
+The final table is in `docs/ROADMAP.md` (row "M6 steps"). The Sprints: M6a = M6.0 + the reporting layer, built-in charts, properties panel, Statistics workbench, Overview rebuilt from components, first AI chart; M6b the grid editor; M6c financial components, budgets, shared filters and the AI chart builder; M6d several dashboards, templates, import and export, KMyMoney report import; M6e Vega-Lite custom charts (D-284). M6b was replanned in its Phase 0 (D-286); its design is `docs/REPORT_DESIGNER_M6B.md`.
 
 ## 10. Questions for the maintainer (through the coordinator)
 

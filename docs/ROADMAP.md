@@ -129,31 +129,36 @@ M5 is done in these steps, one small pull request each, the same way as M4. Ever
 
 ## M6 steps
 
-M6 is done in five Sprints, each with its own Phases 0 to 3 (D-284): **M6a** is M6.0 and the steps M6a.\*, M6b to M6e follow and are replanned from what the part before taught. The design is in `docs/REPORT_DESIGNER.md`. Fable is Off: "strong" is the top model that is switched on, "standard" the next tier (`environments/claude/README.md` in the Agent-Teams repository). Only steps marked in a Sprint's prompt as side by side run at once, and only when their file lists do not overlap. Release stage: Alpha, no migrations (layout 20 and 21 are built by the migrations from the first; an older Alpha book is refused as before).
+M6 is done in five Sprints, each with its own Phases 0 to 3 (D-284): **M6a** is M6.0 and the steps M6a.\*, M6b to M6e follow and are replanned from what the part before taught. The design is in `docs/REPORT_DESIGNER.md`, and for M6b in `docs/REPORT_DESIGNER_M6B.md` (D-286). Fable is Off: "strong" is the top model that is switched on, "standard" the next tier (`environments/claude/README.md` in the Agent-Teams repository). Only steps marked in a Sprint's prompt as side by side run at once, and only when their file lists do not overlap. Release stage: Alpha, no migrations (layouts 20 to 22 are built by the migrations from the first; an older Alpha book is refused as before).
 
 | Step | Scope | Needs | Tier, effort | Status |
 |---|---|---|---|---|
-| **M6.0** | Design, library check and proposals (docs and spikes, one pull request, human gate: a new dependency and a document format): `docs/REPORT_DESIGNER.md`, D-275 to D-284, threat rows T-37 to T-40, THIRD_PARTY and glossary rows, this table, one CI step that proves KQuickCharts is in the KDE runtime | — | strong, high | **doing** |
-| **M6a.1** | `kassensturz-report`: dataset types, periods, filters, spending by category and income and expenses by month; property tests for exact totals | M6.0 | strong, high | **doing** |
-| **M6a.2** | Period comparison, calculated metrics (net, savings rate with the explicit rounding), the dataset catalog with plain-word descriptions | M6a.1 | strong, high | **doing** |
-| **M6a.L** | Layout 20: the `views` table and `changed_views`, the five history actions, `docs/BOOK_FORMAT.md`, the complete export gets `views` (own small pull request) | M6.0 | strong, high | in review |
-| **M6a.3** | `ChartProvider` and chart models in `ui-bridge` (read-back tests for every QML object, amounts only as text); Qt container gets Xvfb and Mesa; the import smoke test | M6a.1, maintainer's approval of the dependency | standard, high | in review |
-| **M6a.4** | Charts: line, bar, stacked bar, area, pie and donut, each with its text table | M6a.3 | standard, high | **doing** |
-| **M6a.5** | KPI card, progress bar, table | M6a.3 | standard, high | in review |
-| **M6a.6** | Component schema and the properties panel driven by it | M6a.4 | standard, high | **doing** |
-| **M6a.7** | Statistics workbench page and saved views (rename, delete, undo through the history) | M6a.L, M6a.6 | standard, high | **doing** (7a #238 merged; 7b: workbench page, in review) |
-| **M6a.8** | The Overview rebuilt from components on a fixed default layout, no regressions in its tests | M6a.6, M6a.2 | standard, high | in review |
-| **M6a.9** | First "AI proposes a chart": one enum tool, preview, change set; human gate (AI data sharing) | M6a.7 | strong, high | in review |
-| **M6b.1** | Grid model in Rust: geometry, snapping, spans, collisions (property tests) | M6a | strong, high | todo |
-| **M6b.2** | Grid model in `ui-bridge` and view mode on the grid | M6b.1 | standard, high | todo |
-| **M6b.3** | Edit mode: add a component from the library, drag, resize | M6b.2 | standard, high | todo |
-| **M6b.4** | Duplicate, delete, span and snap controls | M6b.3 | standard, high | todo |
-| **M6b.5** | Undo and redo command stack of the editor | M6b.3 | strong, high | todo |
-| **M6b.6** | Keyboard operation and screen-reader labels of the editor | M6b.4 | standard, high | todo |
-| **M6b.7** | Dashboard document v1 saved and loaded, reset to the default, preview | M6b.5 | strong, high | todo |
+| **M6.0** | Design, library check and proposals (docs and spikes, one pull request, human gate: a new dependency and a document format): `docs/REPORT_DESIGNER.md`, D-275 to D-284, threat rows T-37 to T-40, THIRD_PARTY and glossary rows, this table, one CI step that proves KQuickCharts is in the KDE runtime | — | strong, high | done (#229) |
+| **M6a.1** | `kassensturz-report`: dataset types, periods, filters, spending by category and income and expenses by month; property tests for exact totals | M6.0 | strong, high | done (#231) |
+| **M6a.2** | Period comparison, calculated metrics (net, savings rate with the explicit rounding), the dataset catalog with plain-word descriptions | M6a.1 | strong, high | done (#233) |
+| **M6a.L** | Layout 20: the `views` table and `changed_views`, the five history actions, `docs/BOOK_FORMAT.md`, the complete export gets `views` (own small pull request) | M6.0 | strong, high | done (#232) |
+| **M6a.3** | `ChartProvider` and chart models in `ui-bridge` (read-back tests for every QML object, amounts only as text); Qt container gets Xvfb and Mesa; the import smoke test | M6a.1, maintainer's approval of the dependency | standard, high | done (#234) |
+| **M6a.4** | Charts: line, bar, stacked bar, area, pie and donut, each with its text table | M6a.3 | standard, high | done (#236) |
+| **M6a.5** | KPI card, progress bar, table | M6a.3 | standard, high | done (#235) |
+| **M6a.6** | Component schema and the properties panel driven by it | M6a.4 | standard, high | done (#237) |
+| **M6a.7** | Statistics workbench page and saved views (rename, delete, undo through the history) | M6a.L, M6a.6 | standard, high | done (#238, #240) |
+| **M6a.8** | The Overview rebuilt from components on a fixed default layout, no regressions in its tests | M6a.6, M6a.2 | standard, high | done (#239, #242) |
+| **M6a.9** | First "AI proposes a chart": one enum tool, preview, change set; human gate (AI data sharing) | M6a.7 | strong, high | done (#241) |
+| **M6b.0** | Design and proposals (docs, one pull request; human gate: the dashboard format and where groups are kept): `docs/REPORT_DESIGNER_M6B.md`, D-286 to D-294, Q-225 to Q-227, threat rows T-41 to T-45, glossary, planned error codes, this table | M6a | strong, high | in review |
+| **M6b.C** | One shared table component (`DataTable`, `ChartTable` folded in), full category names in bars: wrap, then horizontal bars (M6-B3) | M6b.0 | standard, medium | todo |
+| **M6b.1** | Grid model in Rust (`kassensturz-report`): geometry, snapping, push down, smallest sizes, reading order, narrow-window order, the editor's command stack (D-287, D-288); property tests that no edit leaves an overlap | M6b.0 | strong, high | todo |
+| **M6b.2** | Dashboard document v1: frame checks, `props.period`, the built-in default Overview document, saving and loading a session through `edit_view` and `add_view`, hostile-document tests (D-289, T-37) | M6b.1 | strong, high | todo |
+| **M6b.3** | QML grid editor: view and edit mode, drag, resize, add from the library, duplicate, delete, preview, reset to the built-in layout, undo and redo, keyboard and screen reader (D-287, D-288) | M6b.2 | standard, high | todo |
+| **M6b.L** | Layout 21: `report_groups`, `report_group_members`, `report_hidden` with their `changed_` tables and history actions, `docs/BOOK_FORMAT.md`, the complete export version 7 (own small pull request, D-290) | M6b.0 | strong, high | todo |
+| **M6b.4** | Groups and hide list in the store and the reporting layer: write checks, read with the `Source`, subtrees counted once, overlap refused for parts of a whole, the hidden note, `category_over_time` if not built yet; tests with the real report output (D-290, D-291) | M6b.L | strong, high | todo |
+| **M6b.5** | Charts and the table use groups and the hide list; any category or group as a series; pie, donut and ring with 8 slices, "Other", labels, legend, tooltips; the My groups and Hidden categories page (M6-B1, B5, B6; D-291) | M6b.4, M6b.C | standard, high | todo |
+| **M6b.6** | Formula parser and evaluator in `kassensturz-report`: wave 1, kinds, exact arithmetic, limits, error codes; property tests for exact results and fuzz-style tests for hostile input; tests on the real datasets and groups (D-292, T-41, T-42) | M6b.0, M6b.4 | strong, high | todo |
+| **M6b.7** | Formula editing in the properties panel (function list, name completion, result with what it counts); One figure and the progress bar use formulas (M6-B7, D-292) | M6b.6, M6b.5 | standard, high | todo |
+| **M6b.8** | Edit AI-prepared changes on the review page before confirming (#191, D-293, T-44); human gate (AI data sharing) | M5 change sets, M6b.0 | strong, high | todo |
+| **M6b.9** | Capability check in "Test connection": function calling and context size (Q-223 = A, D-294, T-45); human gate (AI data sharing) | M6b.0 | standard, high | todo |
 | **M6c.1** | Net worth, assets, liabilities, cash flow datasets | M6b | strong, high | todo |
 | **M6c.2** | Financial components: balances, category spending, cash flow | M6c.1 | standard, high | todo |
-| **M6c.3** | Layout 21: budgets table (a monthly limit per category) with history | M6b | strong, high | todo |
+| **M6c.3** | Layout 22: budgets table (a monthly limit per category) with history | M6b | strong, high | todo |
 | **M6c.4** | Budget utilization dataset and its rounding rules | M6c.3 | strong, high | todo |
 | **M6c.5** | Budget progress component and the budget editing screen | M6c.4 | standard, high | todo |
 | **M6c.6** | Shared filters: period, accounts, categories, applied by the report layer | M6b | strong, high | todo |
@@ -165,7 +170,7 @@ M6 is done in five Sprints, each with its own Phases 0 to 3 (D-284): **M6a** is 
 | **M6d.2** | Templates | M6d.1 | standard, medium | todo |
 | **M6d.3** | Export a dashboard file | M6d.1 | standard, high | todo |
 | **M6d.4** | Import a dashboard file (untrusted input: limits, plain text) | M6d.3 | strong, high | todo |
-| **M6d.5** | Restore the default dashboard | M6d.1 | standard, medium | todo |
+| **M6d.5** | Restore the default dashboard of each of several dashboards (the one dashboard of M6b gets its reset in M6b.3, D-286) | M6d.1 | standard, medium | todo |
 | **M6d.6** | KMyMoney report import as saved views, with an import summary of what cannot map; golden tests on the maintainer's sample files | M6a.7, the maintainer's sample reports | strong, high | todo |
 | **M6e.1** | Vega-Lite subset parser with all limits (own code, `serde_json` only) | M6a | strong, high | todo |
 | **M6e.2** | Renderer: the subset mapped to the components | M6e.1 | standard, high | todo |

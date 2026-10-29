@@ -456,7 +456,7 @@ jobs:
           dnf install -y --setopt=install_weak_deps=False \
             cmake dejavu-sans-fonts extra-cmake-modules gcc-c++ gettext git \
             kf6-kconfig-devel kf6-ki18n kf6-ki18n-devel kf6-kirigami kf6-kirigami-devel \
-            kf6-qqc2-desktop-style ninja-build \
+            kf6-kquickcharts kf6-qqc2-desktop-style ninja-build \
             pkgconf-pkg-config qt6-qtbase-devel qt6-qtdeclarative \
             qt6-qtdeclarative-devel rustup sqlite-devel tar \
             /usr/lib64/qt6/qml/org/kde/kirigamiaddons/formcard/qmldir \

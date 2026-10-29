@@ -66,7 +66,7 @@ pub fn spending_by_category(
     }
     let table = data.to_text(format);
     let categories = table.rows.iter().map(|row| row[0].clone()).collect();
-    let unsorted = data.rows.iter().position(|row| row.category.is_none());
+    let unsorted = data.rows.iter().position(|row| row.is_unsorted());
     let series = vec![Series {
         key: "spending",
         color: 0,

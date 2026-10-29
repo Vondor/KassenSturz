@@ -261,6 +261,8 @@ fn an_empty_dataset_gives_an_empty_chart() {
         currency: EUR,
         rows: Vec::new(),
         total: money(0),
+        hidden: Vec::new(),
+        hidden_total: money(0),
     };
     let chart = spending_by_category(&data, ChartKind::Pie, &Words).expect("chart");
     assert!(chart.categories.is_empty() && chart.series[0].points.is_empty());

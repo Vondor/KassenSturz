@@ -400,6 +400,7 @@ Why a dataset for a chart or a card couldn't be made (M6a.1, D-277). No report r
 | `report.document-too-big` | `max_bytes` | | This view or dashboard is bigger than {max_bytes} bytes, more than KassenSturz opens. Leave out some components. |
 | `report.unsupported-document-version` | `version` | | This view or dashboard was made by a newer KassenSturz (version {version}), so this one doesn't open it. Update KassenSturz, or use a file made by this version. |
 | `report.grid-edit-refused` | `reason` | `unknown-component`, `not-editable`, `too-many-components`, `no-room`, `not-a-dashboard` | This change to the layout couldn't be made, so nothing was changed. A dashboard holds at most 100 components and reaches down at most 1,000 rows; a component of a type this KassenSturz doesn't know can be moved but not changed. Remove a component or move one up to make room, then try again. |
+| `report.groups-overlap` | `category`, `first`, `second` | | {category} is in {first} and in {second}; a chart that shows parts of a whole can't count it twice. Take it out of one of them, or show them as bars or lines. |
 | `report.book-unreadable` | | | The book couldn't be read for this chart, or a total is too large for KassenSturz to work with. The detail says why; see that message. |
 
 ### Planned for M6b (D-289 to D-295)
@@ -407,7 +408,6 @@ Why a dataset for a chart or a card couldn't be made (M6a.1, D-277). No report r
 Not rows yet: each code gets its row in the table above (or in the store's section) in the pull request that raises it, since the test compares the table with the code. Parameters are data, shown as plain text.
 
 - `report.document-invalid`'s reasons `frame-outside-grid`, `frame-too-small`, `frames-overlap` are rows now: M6b.1 checks them in the grid editor (`grid::check`), and M6b.2 runs the same check in `Document::read`.
-- `report.groups-overlap` with `category`, `first`, `second`: a chart of parts of a whole would count a category twice (M6b.4).
 - `report.formula-syntax` with `position` and a reason keyword (`expected-value`, `missing-close`, `wrong-separator`, `bad-number`, `bad-period`, `two-comparisons`, …) (M6b.6).
 - `report.formula-unknown-name`, `report.formula-ambiguous-name` with `name` (and the paths to choose from), `report.formula-unknown-function` with `name`, `report.formula-arguments` with `function` and a reason keyword (M6b.6).
 - `report.formula-kinds` with a reason keyword (`amount-times-amount`, `number-over-amount`, `yes-no-in-arithmetic`, `yes-no-result`, `if-kinds-differ`), `report.formula-mixed-currencies` with `first` and `second` (M6b.6).

@@ -10,7 +10,7 @@ QtObject {
     property var view: ({empty: true, sets: []})
 
     function show(period, compare) {
-        const card = (measure, value, direction) => ({measure: measure, currency: "EUR", value: value, previous: "100,00 €", change: "20,00 €", changePercent: "20 %", direction: direction});
+        const card = (measure, value, direction) => ({measure: measure, currency: "EUR", value: value, previous: "100,00 €", change: "20,00 €", changePercent: "20 %", direction: direction, exactValue: value, negative: false});
         view = {empty: false, sets: [{currency: "EUR", cards: [
             card("income", "120,00 €", "up"), card("expenses", "80,00 €", "down"), card("net", "40,00 €", "up"),
             Object.assign(card("savings-rate", "33,3 %", "up"), {permille: 333})

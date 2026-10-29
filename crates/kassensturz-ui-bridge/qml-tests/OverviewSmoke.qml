@@ -31,7 +31,7 @@ Window {
 
     function card(measure, value) {
         return {measure: measure, currency: "EUR", value: value, previous: value, change: "0,00 €",
-                changePercent: "0,0 %", direction: "same"};
+                changePercent: "0,0 %", direction: "same", exactValue: value, negative: false};
     }
 
     // The shapes BookCards.view and BookCharts.view have (cards_model.rs,

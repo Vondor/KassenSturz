@@ -61,8 +61,8 @@ Kirigami.AbstractCard {
             text: card.hasValue ? card.modelData.value : names.noValue()
             // Pointing at a rounded figure shows it exactly (D-002).
             exactText: card.hasValue ? (card.modelData.exactValue ?? card.modelData.value) : text
-            // What is left below zero is red, besides its minus sign.
-            color: card.modelData.negative === true && card.modelData.measure === "net"
+            // What is left, or the net worth, below zero is red, besides its minus sign.
+            color: card.modelData.negative === true && (card.modelData.measure === "net" || card.modelData.measure === "net-worth")
                 ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor
             font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.6
             font.bold: true

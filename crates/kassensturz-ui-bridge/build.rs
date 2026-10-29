@@ -25,6 +25,7 @@ fn main() {
                 "qml/Main.qml",
                 "qml/AccountCard.qml",
                 "qml/KpiCard.qml",
+                "qml/KpiGrid.qml",
                 "qml/KpiNames.qml",
                 "qml/OverviewMonth.qml",
                 "qml/ProgressMeter.qml",

@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // The overview (M3.9): how the user is doing on one page: what all the
-// accounts hold together, and one month's money in and money out with where
+// accounts hold together (the net worth card), and one month's money in and money out with where
 // it came from and where it went. The accounts and their transactions are on
 // their own screens (round 1). Money moved between the user's own accounts
 // counts as neither (D-021). Every amount, total and order comes from Rust,
 // per currency (D-065); this page only shows text. The month's figures and
-// the chart of where the money went are report components (M6a.8).
+// the chart of where the money went, its five largest categories and the last 12
+// months' line are report components (M6a.8, Q-215).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -33,11 +34,10 @@ Kirigami.ScrollablePage {
         translationDomain: "kassensturz"
     }
 
-    // All accounts of a currency together, with `amount` as shown or exactly.
-    function togetherText(amount: string, owes: bool): string {
-        return owes
-            ? i18nContext.i18nc("@label %1 is an amount of money", "All your accounts together: you owe %1", amount)
-            : i18nContext.i18nc("@label %1 is an amount of money", "All your accounts together: %1", amount);
+    // `amount` as the figure of the net worth card: a debt reads "You owe",
+    // not a minus sign (D-067).
+    function owedText(amount: string, owes: bool): string {
+        return owes ? i18nContext.i18nc("@label %1 is an amount of money", "You owe %1", amount) : amount;
     }
 
     function categoryName(total: var): string {
@@ -50,6 +50,10 @@ Kirigami.ScrollablePage {
 
     BookCharts {
         id: monthCharts
+    }
+
+    BookCharts {
+        id: trendCharts
     }
 
     // Going to another screen and back starts from the current month again.
@@ -97,7 +101,9 @@ Kirigami.ScrollablePage {
             }
         }
 
-        // What all the accounts hold, per currency.
+        // What all the accounts hold together less what is owed, per
+        // currency: the net worth card (Q-215). It is today's figure, so it
+        // stays when the month below changes.
         Repeater {
             model: page.sections
 
@@ -117,14 +123,18 @@ Kirigami.ScrollablePage {
                     level: 3
                 }
 
-                AmountLabel {
-                    textFormat: Text.PlainText
-                    Layout.fillWidth: true
-                    text: page.togetherText(section.modelData.together, section.modelData.togetherOwes)
-                    exactText: page.togetherText(section.modelData.exactTogether, section.modelData.togetherOwes)
-                    font.bold: true
-                    font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.3
-                    wrapMode: Text.Wrap
+                KpiGrid {
+                    cards: [{
+                        measure: "net-worth",
+                        currency: section.modelData.currency,
+                        value: page.owedText(section.modelData.together, section.modelData.togetherOwes),
+                        exactValue: page.owedText(section.modelData.exactTogether, section.modelData.togetherOwes),
+                        negative: section.modelData.togetherOwes,
+                        previous: "",
+                        change: "",
+                        changePercent: "",
+                        direction: "none"
+                    }]
                 }
             }
         }
@@ -194,6 +204,7 @@ Kirigami.ScrollablePage {
             view: page.view
             cards: monthCards
             charts: monthCharts
+            trend: trendCharts
         }
 
         Repeater {

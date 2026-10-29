@@ -114,11 +114,11 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.unknown-group` | `group` | | This group doesn't exist (any more). Choose one from My groups. |
 | `store.group-name-taken` | `name` | | There is already a group or a category called {name}. Choose another name, so a chart or a formula can tell them apart. |
 | `store.group-name-too-long` | `max_chars` | | A group's name can have at most {max_chars} characters. Choose a shorter name. |
-| `store.group-wrong-kind` | `name` | | {name} doesn't fit this group: a spending group takes only spending categories and groups, an income group only income ones. Take it out, or put it in a group of its kind. |
+| `store.group-wrong-kind` | `name` | | {name} doesn't fit this group: a group of money spent takes only categories and groups of money spent, a group of money received only those of money received. Take it out, or put it in a group of its kind. |
 | `store.group-loop` | `name` | | {name} would end up inside itself. Take out the group that contains it. |
 | `store.group-too-deep` | `max_levels` | | Groups can go at most {max_levels} levels deep: a group, a group inside it, and so on. Put the categories into this group directly instead. |
-| `store.too-many-groups` | `max` | | A book keeps at most {max} groups. Remove a group you no longer need first. |
-| `store.too-many-group-members` | `max` | | A group can have at most {max} members. Put some of them into a group of their own and add that group instead. |
+| `store.too-many-groups` | `max` | | A book keeps at most {max} groups. Remove a group you no longer need, then try again. |
+| `store.too-many-group-members` | `max` | | A group can have at most {max} members. Put some of them into another group, and then that group into this one. |
 | `store.duplicate-account-name` | `existing` | | {existing} already has this name. Choose another one, so you can tell them apart. |
 | `store.account-type-mismatch` | `account_type`, `kind` | | {account_type} doesn't fit this kind of account. Choose another type. |
 | `store.not-an-account` | `account` | | {account} is a category, not an account. Choose an account. |

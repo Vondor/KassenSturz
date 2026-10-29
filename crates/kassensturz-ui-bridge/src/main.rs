@@ -30,6 +30,8 @@ mod cards;
 mod cards_model;
 mod categories;
 mod categories_model;
+mod category_groups;
+mod category_groups_model;
 mod charts;
 mod charts_model;
 mod developer_mode;

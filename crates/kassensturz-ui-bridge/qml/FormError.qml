@@ -211,6 +211,24 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This view couldn't be saved or opened because it isn't one KassenSturz can use. Nothing was changed. Make it again in Statistics, and choose a short name.");
         case "report.unsupported-document-version":
             return i18nContext.i18nc("@info", "This view was made by a newer KassenSturz, so this one can't open it. Update KassenSturz to open it. You can still rename or delete it.");
+        case "store.empty-name":
+            return i18nContext.i18nc("@info", "Give it a name.");
+        case "store.unknown-group":
+            return i18nContext.i18nc("@info", "This group isn't in the book anymore. It may have just been removed.");
+        case "store.group-name-taken":
+            return i18nContext.i18nc("@info %1 is a name", "There is already a group or a category called %1. Choose another name, so a chart or a formula can tell them apart.", result.name);
+        case "store.group-name-too-long":
+            return i18nContext.i18nc("@info %1 is a number", "A group's name can have at most %1 characters. Choose a shorter name.", result.max_chars);
+        case "store.group-wrong-kind":
+            return i18nContext.i18nc("@info %1 is the name of a category or group", "%1 doesn't fit this group: a group of money spent takes only categories and groups of money spent, a group of money received only those of money received. Take it out, or put it in a group of its kind.", result.name);
+        case "store.group-loop":
+            return i18nContext.i18nc("@info %1 is the name of a group", "%1 would end up inside itself. Take out the group that contains it.", result.name);
+        case "store.group-too-deep":
+            return i18nContext.i18nc("@info %1 is a number", "Groups can go at most %1 levels deep: a group, a group inside it, and so on. Put the categories into this group directly instead.", result.max_levels);
+        case "store.too-many-groups":
+            return i18nContext.i18nc("@info %1 is a number", "A book keeps at most %1 groups. Remove a group you no longer need, then try again.", result.max);
+        case "store.too-many-group-members":
+            return i18nContext.i18nc("@info %1 is a number", "A group can have at most %1 members. Put some of them into another group, and then that group into this one.", result.max);
         case "report.groups-overlap":
             return i18nContext.i18nc("@info %1 is the name of a category, %2 and %3 are the names of two groups", "%1 is in %2 and in %3; a chart that shows parts of a whole can't count it twice. Take it out of one of them, or show them as bars or lines.", result.category, result.first, result.second);
         case "store.empty-rule-name":

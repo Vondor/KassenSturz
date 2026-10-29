@@ -36,6 +36,8 @@ pub const DETAILS: &[&str] = &[
     "BookFromFilePage",
     "BookProblemPage",
     "CategoriesPage",
+    "CategoryGroupPage",
+    "CategoryGroupsPage",
     "CategoryPage",
     "CsvSettingsPage",
     "ExportPage",

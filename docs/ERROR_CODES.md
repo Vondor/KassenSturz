@@ -393,6 +393,19 @@ Why a dataset for a chart or a card couldn't be made (M6a.1, D-277). No report r
 | `report.unsupported-document-version` | `version` | | This view or dashboard was made by a newer KassenSturz (version {version}), so this one doesn't open it. Update KassenSturz, or use a file made by this version. |
 | `report.book-unreadable` | | | The book couldn't be read for this chart, or a total is too large for KassenSturz to work with. The detail says why; see that message. |
 
+### Planned for M6b (D-289 to D-294)
+
+Not rows yet: each code gets its row in the table above (or in the store's section) in the pull request that raises it, since the test compares the table with the code. Parameters are data, shown as plain text.
+
+- `report.document-invalid`, new reasons: `frame-outside-grid`, `frame-too-small`, `frames-overlap` (M6b.2).
+- `report.groups-overlap` with `category`, `first`, `second`: a chart of parts of a whole would count a category twice (M6b.4).
+- `report.formula-syntax` with `position` and a reason keyword (`expected-value`, `missing-close`, `use-semicolon`, `bad-number`, `bad-period`, `two-comparisons`, …) (M6b.6).
+- `report.formula-unknown-name`, `report.formula-ambiguous-name` with `name` (and the paths to choose from), `report.formula-unknown-function` with `name`, `report.formula-arguments` with `function` and a reason keyword (M6b.6).
+- `report.formula-kinds` with a reason keyword (`amount-times-amount`, `number-over-amount`, `yes-no-in-arithmetic`, `yes-no-result`, `if-kinds-differ`), `report.formula-mixed-currencies` with `first` and `second` (M6b.6).
+- `report.formula-no-value`, `report.formula-too-large`, `report.formula-too-big` with `limit` (M6b.6).
+- `store.group-name-taken`, `store.unknown-group`, `store.group-loop`, `store.group-too-deep`, `store.group-wrong-kind`, `store.too-many-groups`, `store.not-a-category` (M6b.L, M6b.4).
+- `ai-tools.` codes for an edited change reuse the existing ones of `propose` (M6b.8); the capability check reuses the `ai.` codes of "Test connection" (M6b.9).
+
 ## Charts (`kassensturz-charts`)
 
 Why a chart model couldn't be made (M6a.3, D-276).

@@ -143,16 +143,16 @@ product    = unary { ( "*" | "/" ) unary }
 unary      = { "-" | "+" } postfix
 postfix    = primary [ "%" ]                      20% is 0.2
 primary    = number | reference | call | "(" test ")"
-call       = FUNCTION "(" [ test { ";" test } ] ")"
+call       = FUNCTION "(" [ test { SEP test } ] ")"   SEP: see below
 reference  = name [ "@" period ]
 name       = bare name | "'" any text, '' for a quote "'"
 period     = '"' period words '"' | dates
-number     = digits [ ( "." | "," ) digits ]       no grouping, no exponent
+number     = digits [ DECIMAL digits ]              no grouping, no exponent
 ```
 
 - **Names.** A bare name starts with a letter and has letters, digits and `_` (any language's letters: `Lebensmittel`, `Café`). Any other name is in single quotes, as spreadsheets write sheet names: `'Eating out'`. A path names a category inside another: `'Everyday > Pets'`.
-- **Argument separator `;` only**, as in German spreadsheets. Because `,` never separates arguments, both `.` and `,` are a decimal mark in a number, so a formula means the same in every language and on every computer. Writing `SUM(Pets, Travel)` gets the plain error "Put ; between the parts: SUM(Pets; Travel)". (The planning draft also allowed `,` as a separator in some languages; this is simpler and never ambiguous, Q-227.)
-- **Function names are English and fixed** (`SUM`, `AVERAGE`, …), stored as typed, so a book works in every language. The function list in the editor explains each in the user's language (Q-226 asks about German names such as `SUMME`).
+- **Separators the way LibreOffice does it** (Q-227, D-295). The book **stores** every formula in one canonical form, as OpenDocument files store theirs: `;` between arguments, `.` as the decimal mark, English function names. The formula field **shows and takes** the form of the user's number format (D-002, Settings → How amounts look): with a decimal comma (e.g. German) the separator is `;` and the decimal mark `,` (`=ROUND(Pets * 1,5; 2)`); with a decimal point (e.g. English) the separator is `,` and the decimal mark `.` (`=ROUND(Pets * 1.5, 2)`). As in LibreOffice, `;` is accepted as a separator in every number format, so a formula copied from German help text still works. Rust converts between the two forms token by token (only separator and decimal-mark tokens change; names, quoted text and spacing stay as typed), so a book moved to a computer with another language shows the same formula in that computer's form and means the same. A round-trip test covers every number format. A separator in the wrong place gets a plain error with the right form ("Put ; between the parts: SUM(Pets; Travel)"). A setting of its own for the separator, as LibreOffice has, is not part of M6b (ideas backlog).
+- **Function names are English and fixed** (`SUM`, `AVERAGE`, …), stored as typed, so a book works in every language. The function list in the editor explains each in the user's language (Q-226 = A: no German names such as `SUMME` in M6b).
 
 **What a name means.** A name is a category or one of My groups. It stands for that category's or group's figure in the period: money spent for a spending category, money received for an income category, both as positive amounts (a refund makes it smaller and can make it negative), everything inside the category included. So `=Salary - Rent` is what is left of the salary after the rent. Hidden categories count when a formula names them (section 4). Accounts are not names in wave 1 (`BALANCE` is wave 2).
 

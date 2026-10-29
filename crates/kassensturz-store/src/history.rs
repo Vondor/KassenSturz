@@ -100,11 +100,21 @@ pub enum Action {
     ApplyAiChanges,
     /// Removed a category that nothing used (D-253).
     RemoveCategory,
+    /// Saved a new view or dashboard (D-278).
+    AddView,
+    /// Changed the document of a view or dashboard (D-278, D-279).
+    EditView,
+    /// Gave a view or dashboard another name.
+    RenameView,
+    /// Moved a view or dashboard to another place in its list.
+    MoveView,
+    /// Deleted a view or dashboard.
+    RemoveView,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 30] = [
+    pub const ALL: [Self; 35] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -135,6 +145,11 @@ impl Action {
         Self::FetchStatement,
         Self::ApplyAiChanges,
         Self::RemoveCategory,
+        Self::AddView,
+        Self::EditView,
+        Self::RenameView,
+        Self::MoveView,
+        Self::RemoveView,
     ];
 }
 
@@ -234,7 +249,7 @@ pub(crate) struct Recorded {
 
 /// Every table that holds the book's data. Only the history's own tables
 /// aren't recorded: `changes`, the `changed_` tables and `history_settings`.
-pub(crate) const RECORDED: [Recorded; 17] = [
+pub(crate) const RECORDED: [Recorded; 18] = [
     Recorded {
         name: "settings",
         key: "id",
@@ -435,6 +450,18 @@ pub(crate) const RECORDED: [Recorded; 17] = [
             ("bank_code", "TEXT"),
             ("number", "TEXT"),
             ("last_fetched_on", "TEXT"),
+        ],
+    },
+    Recorded {
+        name: "views",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("kind", "TEXT"),
+            ("name", "TEXT"),
+            ("position", "INTEGER"),
+            ("format_version", "INTEGER"),
+            ("document", "TEXT"),
         ],
     },
 ];
@@ -1331,6 +1358,11 @@ fn action_to_text(action: Action) -> &'static str {
         Action::FetchStatement => "fetch_statement",
         Action::ApplyAiChanges => "apply_ai_changes",
         Action::RemoveCategory => "remove_category",
+        Action::AddView => "add_view",
+        Action::EditView => "edit_view",
+        Action::RenameView => "rename_view",
+        Action::MoveView => "move_view",
+        Action::RemoveView => "remove_view",
     }
 }
 

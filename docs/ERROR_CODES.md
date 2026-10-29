@@ -107,6 +107,10 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.incomplete-bank-link` | `account` | | To link {account} to your bank, KassenSturz needs the bank account's IBAN, or its bank code with its account number. |
 | `store.bank-account-already-linked` | `existing` | | {existing} is already linked to this bank account. Remove that link first, or choose another bank account. |
 | `store.not-linked` | `account` | | {account} isn't linked to a bank account yet. Link it first, then fetch. |
+| `store.unknown-view` | `view` | | This view or dashboard doesn't exist (any more). Choose one from the list. |
+| `store.view-name-taken` | `name` | | There is already a view or dashboard called {name}. Choose another name. |
+| `store.view-document-invalid` | `reason` | `not-json`, `not-an-object`, `wrong-format`, `bad-version`, `bad-kind`, `bad-name` | This isn't a view or dashboard KassenSturz can keep. Nothing was changed. Create it again in the app or use a file made by KassenSturz. |
+| `store.view-document-too-big` | `max_bytes` | | This view or dashboard is bigger than {max_bytes} bytes, more than KassenSturz keeps in a book. Leave out some components. |
 | `store.duplicate-account-name` | `existing` | | {existing} already has this name. Choose another one, so you can tell them apart. |
 | `store.account-type-mismatch` | `account_type`, `kind` | | {account_type} doesn't fit this kind of account. Choose another type. |
 | `store.not-an-account` | `account` | | {account} is a category, not an account. Choose an account. |

@@ -8,7 +8,7 @@ In the command-line tool, `export FILE --format book` writes it and `create --fr
 
 ## What is in it
 
-Everything the book holds, with its IDs: the settings, the currencies with their decimal places, the banks, the accounts and categories, the payees, the tags, the price table, the Rules, the transactions with all their parts, what a bank or file delivered for a part, the amount a part had in a withdrawn currency before it was converted, the date and payee a part's account shows if they aren't its transaction's, the notes, numbers, status and tags of parts, the links to a transaction's documents, and which parts a Rule booked.
+Everything the book holds, with its IDs: the settings, the currencies with their decimal places, the banks, the accounts and categories, the payees, the tags, the saved views and dashboards, the price table, the Rules, the transactions with all their parts, what a bank or file delivered for a part, the amount a part had in a withdrawn currency before it was converted, the date and payee a part's account shows if they aren't its transaction's, the notes, numbers, status and tags of parts, the links to a transaction's documents, and which parts a Rule booked.
 
 Left out is the **change history** (D-032, D-066). It belongs to the book file, not to its data, so a book made from the file starts with an empty history, as a new book does. How long it keeps its history is a setting and does come along.
 
@@ -40,8 +40,9 @@ Left out is the **change history** (D-032, D-066). It belongs to the book file, 
 | 3 | A part can have a `date` and a `payee` of its own, which its account shows instead of the transaction's, as the second side of a joined Transfer does (#44, D-108). |
 | 4 | The file lists the `institutions` (banks), `payees` and `tags`. An account has a `number`, `notes` and an `institution`, and may sit inside another account (`parent`); a transaction has a `note`, the date it was `entered` and `attachments` (links); a part has a `note`, a `number`, a `status` and `tags`. What the KMyMoney import used to drop (D-132). |
 | 5 | The file lists the `bank_links`: which bank account an account is filled from and the day it was last fetched, without any login data (M4.4a, D-148). |
+| 6 | The file lists the `views`: the saved views and dashboards, each with its ID and its document as JSON text (M6a.L, D-278). |
 
-An older file is read as version 5 without what came later: a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, so is a version 1 to 3 file with any key of version 4, and so is a version 1 to 4 file with `bank_links` (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three lists of version 4, and a version 5 file the `bank_links` list too, even when they are empty (`export.missing-value`).
+An older file is read as version 6 without what came later: a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, so is a version 1 to 3 file with any key of version 4, and so is a version 1 to 4 file with `bank_links`, and so is a version 1 to 5 file with `views` (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three lists of version 4, a version 5 file the `bank_links` list too, and a version 6 file the `views` list too, even when they are empty (`export.missing-value`).
 
 ## The top level
 
@@ -54,6 +55,7 @@ An older file is read as version 5 without what came later: a version 1 file wit
   "institutions": [...],
   "accounts": [...],
   "bank_links": [...],
+  "views": [...],
   "payees": [...],
   "tags": [...],
   "rates": [...],
@@ -71,6 +73,7 @@ An older file is read as version 5 without what came later: a version 1 file wit
 | `institutions` | The [banks](#banks) the accounts are held at. Version 4 and later. |
 | `accounts` | The [accounts and categories](#accounts-and-categories). |
 | `bank_links` | The [bank links](#bank-links): which bank account an account is filled from. Version 5 and later. |
+| `views` | The [saved views and dashboards](#views-and-dashboards). Version 6 and later. |
 | `payees` | The [payees](#payees) with their details. Version 4 and later. |
 | `tags` | The [tags](#tags) parts can carry. Version 4 and later. |
 | `rates` | The [price table](#rates). |
@@ -136,6 +139,15 @@ One object per account that is filled from a bank account (D-148), sorted by acc
 | `bank_code` | The bank's code in its country, e.g. a German bank code, or `null`. Required with `number` when `iban` is `null`. |
 | `number` | The number the bank lists the account by, e.g. a card number as the bank shows it, or `null`. Required with `bank_code` when `iban` is `null`. |
 | `last_fetched` | The day the account was last fetched from the bank, as a date, or `null` before the first fetch. |
+
+### Views and dashboards
+
+One object per saved view or dashboard (D-278), dashboards first, each kind in the order of its list in the book. Version 6 and later.
+
+| Key | Value |
+|---|---|
+| `id` | The document's ID. Unique. |
+| `document` | The document as **JSON text** (a string, not a nested object), exactly as the book keeps it, so a round trip changes nothing. It says its own `kind` (`view` or `dashboard`), `name` and `version`; the book relies on those three keys, on `format` being `kassensturz-dashboard` and on a size of at most 1 MiB when it is filled (`store.view-document-invalid`, `store.view-document-too-big`, `store.view-name-taken`). Everything else in it is checked when it is used, by the reporting layer (D-281). |
 
 ### Payees
 
@@ -255,7 +267,7 @@ A book with one account, one category and one transaction:
 ```json
 {
   "format": "kassensturz-book",
-  "version": 5,
+  "version": 6,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2}
@@ -268,6 +280,7 @@ A book with one account, one category and one transaction:
   "bank_links": [
     {"account": "019a0000-0000-7000-8000-000000000001", "iban": "DE89370400440532013000", "bank_code": null, "number": null, "last_fetched": "2026-10-05"}
   ],
+  "views": [],
   "payees": [],
   "tags": [],
   "rates": [],

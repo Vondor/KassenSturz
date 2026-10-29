@@ -7,7 +7,7 @@
 use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{Account, AccountId, AccountKind, RuleId, RuleNode};
-use kassensturz_export::{BookData, BookedByRule, ExportData};
+use kassensturz_export::{BookData, BookedByRule, ExportData, ViewData};
 use kassensturz_store::{Book, HistoryRetention, StoreError};
 
 /// Everything `book` holds, for the complete export (`BookExport`): its
@@ -54,6 +54,14 @@ pub fn export_book(book: &Book) -> Result<ExportData, StoreError> {
             .collect(),
         institutions: book.institutions()?,
         bank_links: book.bank_links()?,
+        views: book
+            .views(None)?
+            .into_iter()
+            .map(|view| ViewData {
+                id: view.id,
+                document: view.document,
+            })
+            .collect(),
         payees: book.payees()?,
         tags: book.tags()?,
     }))
@@ -91,6 +99,9 @@ pub fn fill_book(book: &mut Book, data: &BookData) -> Result<(), StoreError> {
         }
         for link in &data.bank_links {
             book.link_bank_account(link)?;
+        }
+        for view in &data.views {
+            book.restore_view(view.id, &view.document)?;
         }
         for rate in &data.rates {
             book.add_rate(rate)?;

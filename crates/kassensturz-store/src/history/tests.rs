@@ -181,6 +181,26 @@ fn every_change_can_be_undone_and_redone() {
     steps.did(&book, Action::AddCategory);
     book.remove_category(unused).expect("removed");
     steps.did(&book, Action::RemoveCategory);
+    let spending = book
+        .add_view(r#"{"format":"kassensturz-dashboard","version":1,"kind":"view","name":"Spending","components":[]}"#)
+        .expect("added");
+    steps.did(&book, Action::AddView);
+    book.edit_view(spending, r#"{"format":"kassensturz-dashboard","version":1,"kind":"view","name":"Spending","components":[{"id":"c1"}]}"#)
+        .expect("edited");
+    steps.did(&book, Action::EditView);
+    book.rename_view(spending, "Spending by month")
+        .expect("renamed");
+    steps.did(&book, Action::RenameView);
+    let overview = book
+        .add_view(
+            r#"{"format":"kassensturz-dashboard","version":1,"kind":"view","name":"Overview"}"#,
+        )
+        .expect("added");
+    steps.did(&book, Action::AddView);
+    book.move_view(overview, 0).expect("moved");
+    steps.did(&book, Action::MoveView);
+    book.remove_view(spending).expect("removed");
+    steps.did(&book, Action::RemoveView);
     book.rename_account(groceries, "Groceries and drinks")
         .expect("renamed");
     steps.did(&book, Action::RenameCategory);

@@ -136,7 +136,7 @@ M6 is done in five Sprints, each with its own Phases 0 to 3 (D-284): **M6a** is 
 | **M6.0** | Design, library check and proposals (docs and spikes, one pull request, human gate: a new dependency and a document format): `docs/REPORT_DESIGNER.md`, D-275 to D-284, threat rows T-37 to T-40, THIRD_PARTY and glossary rows, this table, one CI step that proves KQuickCharts is in the KDE runtime | — | strong, high | **doing** |
 | **M6a.1** | `kassensturz-report`: dataset types, periods, filters, spending by category and income and expenses by month; property tests for exact totals | M6.0 | strong, high | **doing** |
 | **M6a.2** | Period comparison, calculated metrics (net, savings rate with the explicit rounding), the dataset catalog with plain-word descriptions | M6a.1 | strong, high | **doing** |
-| **M6a.L** | Layout 20: the `views` table and `changed_views`, the five history actions, `docs/BOOK_FORMAT.md`, the complete export gets `views` (own small pull request) | M6.0 | strong, high | todo |
+| **M6a.L** | Layout 20: the `views` table and `changed_views`, the five history actions, `docs/BOOK_FORMAT.md`, the complete export gets `views` (own small pull request) | M6.0 | strong, high | in review |
 | **M6a.3** | `ChartProvider` and chart models in `ui-bridge` (read-back tests for every QML object, amounts only as text); Qt container gets Xvfb and Mesa; the import smoke test | M6a.1, maintainer's approval of the dependency | standard, high | todo |
 | **M6a.4** | Charts: line, bar, stacked bar, area, pie and donut, each with its text table | M6a.3 | standard, high | todo |
 | **M6a.5** | KPI card, progress bar, table | M6a.3 | standard, high | todo |

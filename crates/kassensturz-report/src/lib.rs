@@ -14,12 +14,17 @@
 //! The datasets keep exact [`Money`](kassensturz_core::Money); a result turns
 //! into text for QML only through [`TextFormat`], which the app implements
 //! with the user's locale (D-065). The crate has no UI, AI or network code.
+//!
+//! The dashboard grid and the editor's session with its own undo are in
+//! [`grid`] and [`Editor`] (M6b.1, D-287, D-288).
 
 mod catalog;
 mod component;
 mod document;
+mod editor;
 mod error;
 mod filter;
+pub mod grid;
 mod metrics;
 mod monthly;
 mod period;
@@ -34,6 +39,7 @@ pub use document::{
     Document, Entry, FORMAT, Frame, Item, MAX_BYTES, MAX_COMPONENTS, MAX_DEPTH, MAX_NAME_CHARS,
     PERIODS, VERSION,
 };
+pub use editor::{Edit, Editor, MAX_UNDO};
 pub use error::ReportError;
 pub use filter::Filter;
 pub use metrics::{
@@ -55,5 +61,7 @@ pub use text::{TextFormat, TextTable};
 mod component_tests;
 #[cfg(test)]
 mod document_tests;
+#[cfg(test)]
+mod grid_tests;
 #[cfg(test)]
 mod tests;

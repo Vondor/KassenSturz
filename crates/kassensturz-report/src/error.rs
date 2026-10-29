@@ -36,6 +36,11 @@ pub enum ReportError {
         /// The version the document says it has.
         version: i64,
     },
+    /// The grid editor refused an edit, which changed nothing (D-296).
+    GridEditRefused {
+        /// Why, by a fixed word.
+        reason: &'static str,
+    },
     /// The book couldn't be read, or a total doesn't fit.
     Store(StoreError),
 }
@@ -69,6 +74,8 @@ impl Report for ReportError {
                 ErrorReport::new("report.unsupported-document-version")
                     .with("version", ErrorParam::Number(*version))
             }
+            Self::GridEditRefused { reason } => ErrorReport::new("report.grid-edit-refused")
+                .with("reason", ErrorParam::Keyword(reason)),
             Self::Store(error) => {
                 ErrorReport::new("report.book-unreadable").caused_by(error.report())
             }
@@ -103,6 +110,7 @@ mod tests {
             },
             ReportError::DocumentTooBig { max_bytes: 1 },
             ReportError::UnsupportedDocumentVersion { version: 2 },
+            ReportError::GridEditRefused { reason: "no-room" },
             ReportError::Store(StoreError::AmountOverflow),
         ] {
             let report = error.report();

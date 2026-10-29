@@ -118,6 +118,9 @@ pub struct LatestRow {
 pub struct OverviewView {
     /// The month shown, e.g. "October 2026".
     pub month: String,
+    /// The same month as `YYYY-MM`, which the charts and cards take as a
+    /// period (M6a.8).
+    pub month_key: String,
     /// Whether an earlier month has transactions.
     pub has_earlier: bool,
     /// Whether a later month has transactions, or is the current one.
@@ -229,6 +232,11 @@ pub fn view(book: &Book, month: Month, locale: &impl Locale) -> Result<OverviewV
 
     Ok(OverviewView {
         month: locale.month_and_year(month.first_day()),
+        month_key: format!(
+            "{:04}-{:02}",
+            month.first_day().year(),
+            month.first_day().month()
+        ),
         has_earlier,
         has_later,
         this_month: month == today,

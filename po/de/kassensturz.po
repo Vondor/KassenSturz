@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-10-29 04:09+0000\n"
+"POT-Creation-Date: 2026-10-29 04:36+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -8066,6 +8066,139 @@ msgid ""
 msgstr ""
 "Beim Entfernen verschwindet die Buchung aus der Liste und dem Kontostand "
 "dieses Kontos. „Rückgängig“ holt sie zurück."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:33
+#, kde-format
+msgctxt "@item:inlistbox what a chart shows"
+msgid "What you spent, by category"
+msgstr "Was Sie ausgegeben haben, nach Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:35
+#, kde-format
+msgctxt "@item:inlistbox what a chart shows"
+msgid "Money in and money out, by month"
+msgstr "Einnahmen und Ausgaben, nach Monat"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:43
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Shows what went out in the period. A refund reduces its category. Money "
+"moved between your own accounts is not counted."
+msgstr ""
+"Zeigt, was im Zeitraum ausgegeben wurde. Eine Erstattung verringert ihre "
+"Kategorie. Geld, das zwischen Ihren eigenen Konten verschoben wird, wird "
+"nicht mitgezählt."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:45
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Shows what came in and what went out in each month. Money moved between your "
+"own accounts is not counted."
+msgstr ""
+"Zeigt, was in jedem Monat hereingekommen und was ausgegeben wurde. Geld, "
+"das zwischen Ihren eigenen Konten verschoben wird, wird nicht mitgezählt."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:53
+#, kde-format
+msgctxt "@label:textbox a title above a chart"
+msgid "Title"
+msgstr "Titel"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:55
+#, kde-format
+msgctxt "@option:check"
+msgid "Show the legend"
+msgstr "Legende anzeigen"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:57
+#, kde-format
+msgctxt "@label:listbox how the figures are grouped"
+msgid "Group by"
+msgstr "Gruppieren nach"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:59
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Compare with"
+msgstr "Vergleichen mit"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:61
+#, kde-format
+msgctxt "@label:listbox which figure a card shows"
+msgid "Show"
+msgstr "Anzeigen"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:69
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Each category"
+msgstr "Jede Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:71
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Main categories, with their subcategories"
+msgstr "Hauptkategorien, mit ihren Unterkategorien"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:73
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Month"
+msgstr "Monat"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:75
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "The period before"
+msgstr "Der Zeitraum davor"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:77
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "The same days a year earlier"
+msgstr "Dieselben Tage ein Jahr früher"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:79
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Money in"
+msgstr "Einnahmen"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:81
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Money out"
+msgstr "Ausgaben"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:83
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "What is left"
+msgstr "Was übrig bleibt"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:85
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Savings rate"
+msgstr "Sparquote"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:100
+#, kde-format
+msgctxt "@info"
+msgid ""
+"That setting can't be used here, so it was left as it was. Choose one of the "
+"offered values."
+msgstr ""
+"Diese Einstellung kann hier nicht verwendet werden, deshalb blieb sie, wie "
+"sie war. Wählen Sie einen der angebotenen Werte."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:109
+#, kde-format
+msgctxt "@label:listbox what a chart shows"
+msgid "Data"
+msgstr "Daten"
 
 #: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:59
 #, kde-format

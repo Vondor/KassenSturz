@@ -4,7 +4,7 @@
 //! Why a dataset couldn't be made (D-034). No report repeats text from the
 //! book.
 
-use kassensturz_core::{ErrorReport, Report};
+use kassensturz_core::{ErrorParam, ErrorReport, Report};
 use kassensturz_store::StoreError;
 
 /// An error of the reporting layer.
@@ -17,6 +17,15 @@ pub enum ReportError {
     /// A dataset was asked for days the `Source` was not read for, which
     /// would give figures that silently leave out transactions.
     PeriodNotRead,
+    /// A component of a dashboard or view doesn't follow the property
+    /// schema (D-281). `path` is where, as text; it is data, never part of a
+    /// message.
+    DocumentInvalid {
+        /// What is wrong, by a fixed word.
+        reason: &'static str,
+        /// The key or dotted path of the value.
+        path: String,
+    },
     /// The book couldn't be read, or a total doesn't fit.
     Store(StoreError),
 }
@@ -41,6 +50,9 @@ impl Report for ReportError {
             Self::BadPeriod => ErrorReport::new("report.bad-period"),
             Self::PeriodTooLong => ErrorReport::new("report.period-too-long"),
             Self::PeriodNotRead => ErrorReport::new("report.period-not-read"),
+            Self::DocumentInvalid { reason, path } => ErrorReport::new("report.document-invalid")
+                .with("reason", ErrorParam::Keyword(reason))
+                .with("path", ErrorParam::Text(path.clone())),
             Self::Store(error) => {
                 ErrorReport::new("report.book-unreadable").caused_by(error.report())
             }
@@ -69,6 +81,10 @@ mod tests {
             ReportError::BadPeriod,
             ReportError::PeriodTooLong,
             ReportError::PeriodNotRead,
+            ReportError::DocumentInvalid {
+                reason: "bad-choice",
+                path: "params.grouping".into(),
+            },
             ReportError::Store(StoreError::AmountOverflow),
         ] {
             let report = error.report();

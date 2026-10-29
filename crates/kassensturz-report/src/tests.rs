@@ -13,24 +13,24 @@ use proptest::prelude::*;
 
 use super::*;
 
-const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
+pub(crate) const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
     Err(_) => panic!("EUR is a valid code"),
 };
-const USD: CurrencyCode = match CurrencyCode::new("USD") {
+pub(crate) const USD: CurrencyCode = match CurrencyCode::new("USD") {
     Ok(code) => code,
     Err(_) => panic!("USD is a valid code"),
 };
 
-fn date(year: i16, month: i8, day: i8) -> Date {
+pub(crate) fn date(year: i16, month: i8, day: i8) -> Date {
     Date::new(year, month, day).expect("valid date")
 }
 
-fn money(minor_units: i64) -> Money {
+pub(crate) fn money(minor_units: i64) -> Money {
     Money::from_minor_units(minor_units, EUR)
 }
 
-fn account(
+pub(crate) fn account(
     book: &mut Book,
     name: &str,
     kind: AccountKind,
@@ -67,7 +67,7 @@ fn transaction(day: Date, parts: &[(Option<AccountId>, Money)]) -> Transaction {
 }
 
 /// Words for the tests, so the output shows what the dataset gave.
-struct Words;
+pub(crate) struct Words;
 
 impl TextFormat for Words {
     fn amount(&self, money: Money) -> String {
@@ -91,22 +91,22 @@ impl TextFormat for Words {
     }
 }
 
-struct Sample {
-    book: Book,
-    checking: AccountId,
-    savings: AccountId,
-    dollars: AccountId,
-    food: AccountId,
-    groceries: AccountId,
-    rent: AccountId,
-    salary: AccountId,
-    travel: AccountId,
+pub(crate) struct Sample {
+    pub(crate) book: Book,
+    pub(crate) checking: AccountId,
+    pub(crate) savings: AccountId,
+    pub(crate) dollars: AccountId,
+    pub(crate) food: AccountId,
+    pub(crate) groceries: AccountId,
+    pub(crate) rent: AccountId,
+    pub(crate) salary: AccountId,
+    pub(crate) travel: AccountId,
 }
 
 /// A book with three months of everyday money, a starting balance, a refund,
 /// money not sorted yet, a Transfer found by the store's own detection and
 /// one account in another currency.
-fn sample() -> Sample {
+pub(crate) fn sample() -> Sample {
     let mut book = Book::create_in_memory().expect("book created");
     book.use_currency(EUR).expect("currency used");
     book.use_currency(USD).expect("currency used");
@@ -239,11 +239,11 @@ fn sample() -> Sample {
     }
 }
 
-fn period(first: Date, last: Date) -> Period {
+pub(crate) fn period(first: Date, last: Date) -> Period {
     Period::new(first, last).expect("a period")
 }
 
-fn autumn() -> Period {
+pub(crate) fn autumn() -> Period {
     period(date(2026, 8, 1), date(2026, 10, 31))
 }
 
@@ -490,12 +490,12 @@ fn the_text_table_names_the_unsorted_row_in_the_users_words() {
 
 /// A tree of accounts without a book: two asset accounts, an income
 /// category and a spending category with a subcategory.
-struct Chart {
-    accounts: Vec<Account>,
-    tree: Vec<CategoryEntry>,
+pub(crate) struct Chart {
+    pub(crate) accounts: Vec<Account>,
+    pub(crate) tree: Vec<CategoryEntry>,
 }
 
-fn chart() -> Chart {
+pub(crate) fn chart() -> Chart {
     let make = |name: &str, kind, parent| Account {
         id: AccountId::generate(),
         name: name.into(),
@@ -535,7 +535,7 @@ fn chart() -> Chart {
 
 /// One random transaction: a day of 2026, which two accounts it books, and
 /// an amount in minor units.
-fn entries() -> impl Strategy<Value = Vec<(i8, i8, usize, usize, i64)>> {
+pub(crate) fn entries() -> impl Strategy<Value = Vec<(i8, i8, usize, usize, i64)>> {
     prop::collection::vec(
         (
             1i8..=12,
@@ -548,7 +548,7 @@ fn entries() -> impl Strategy<Value = Vec<(i8, i8, usize, usize, i64)>> {
     )
 }
 
-fn build(chart: &Chart, entries: &[(i8, i8, usize, usize, i64)]) -> Vec<Transaction> {
+pub(crate) fn build(chart: &Chart, entries: &[(i8, i8, usize, usize, i64)]) -> Vec<Transaction> {
     entries
         .iter()
         .filter(|&&(.., amount)| amount != 0)

@@ -16,7 +16,9 @@
 //! with the user's locale (D-065). The crate has no UI, AI or network code.
 //!
 //! The dashboard grid and the editor's session with its own undo are in
-//! [`grid`] and [`Editor`] (M6b.1, D-287, D-288).
+//! [`grid`] and [`Editor`] (M6b.1, D-287, D-288). My groups and the hide list
+//! change how the datasets by category put figures together, never a figure
+//! of the book ([`Shown`], [`category_over_time`], D-291).
 
 mod catalog;
 mod component;
@@ -25,8 +27,10 @@ mod editor;
 mod error;
 mod filter;
 pub mod grid;
+mod groups;
 mod metrics;
 mod monthly;
+mod over_time;
 mod period;
 mod schema;
 mod source;
@@ -42,6 +46,7 @@ pub use document::{
 pub use editor::{Edit, Editor, MAX_UNDO};
 pub use error::ReportError;
 pub use filter::Filter;
+pub use groups::{Overlap, Shown};
 pub use metrics::{
     Change, Compare, IncomeExpenseChange, Percent, compare_income_expense, comparison_span,
     savings_rate,
@@ -49,11 +54,15 @@ pub use metrics::{
 pub use monthly::{
     INCOME_EXPENSE_BY_MONTH, IncomeExpenseByMonth, MonthRow, income_expense_by_month,
 };
+pub use over_time::{
+    CATEGORY_OVER_TIME, CategoryOverTime, ChosenSeries, MonthTotals, category_over_time,
+};
 pub use period::{MAX_MONTHS, Period};
 pub use schema::{ComponentType, Kind, MAX_TEXT_CHARS, Place, Property, Setting, dataset_for};
 pub use source::Source;
 pub use spending::{
     CategoryRow, Level, SPENDING_BY_CATEGORY, SpendingByCategory, spending_by_category,
+    spending_by_category_shown,
 };
 pub use text::{TextFormat, TextTable};
 
@@ -63,5 +72,7 @@ mod component_tests;
 mod document_tests;
 #[cfg(test)]
 mod grid_tests;
+#[cfg(test)]
+mod groups_tests;
 #[cfg(test)]
 mod tests;

@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Why a dataset couldn't be made (D-034). No report repeats text from the
-//! book.
+//! Why a dataset couldn't be made (D-034). Text from the book is only ever
+//! a parameter, as data the UI shows as plain text, never part of a message.
 
 use kassensturz_core::{ErrorParam, ErrorReport, Report};
 use kassensturz_store::StoreError;
@@ -41,6 +41,16 @@ pub enum ReportError {
         /// Why, by a fixed word.
         reason: &'static str,
     },
+    /// A chart of parts of a whole would count a category twice, because two
+    /// of its groups or series hold it (D-291).
+    GroupsOverlap {
+        /// The category's path, joined with " › ".
+        category: String,
+        /// The first group's name or category's path.
+        first: String,
+        /// The second one.
+        second: String,
+    },
     /// The book couldn't be read, or a total doesn't fit.
     Store(StoreError),
 }
@@ -76,6 +86,14 @@ impl Report for ReportError {
             }
             Self::GridEditRefused { reason } => ErrorReport::new("report.grid-edit-refused")
                 .with("reason", ErrorParam::Keyword(reason)),
+            Self::GroupsOverlap {
+                category,
+                first,
+                second,
+            } => ErrorReport::new("report.groups-overlap")
+                .with("category", ErrorParam::Text(category.clone()))
+                .with("first", ErrorParam::Text(first.clone()))
+                .with("second", ErrorParam::Text(second.clone())),
             Self::Store(error) => {
                 ErrorReport::new("report.book-unreadable").caused_by(error.report())
             }
@@ -111,6 +129,11 @@ mod tests {
             ReportError::DocumentTooBig { max_bytes: 1 },
             ReportError::UnsupportedDocumentVersion { version: 2 },
             ReportError::GridEditRefused { reason: "no-room" },
+            ReportError::GroupsOverlap {
+                category: "Phone".into(),
+                first: "Fixed costs".into(),
+                second: "Household".into(),
+            },
             ReportError::Store(StoreError::AmountOverflow),
         ] {
             let report = error.report();

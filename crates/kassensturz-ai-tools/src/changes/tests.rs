@@ -2523,3 +2523,430 @@ fn a_chart_needs_its_own_cell_of_the_grid_and_the_schema_lists_the_catalog() {
     groupings.dedup();
     assert_eq!(words(&item["grouping"]), groupings);
 }
+
+/// A set with a change of every kind the user may edit (D-293): a new
+/// category, a Rule booking to it, a transaction sorted into it and a chart.
+fn set_to_edit(sample: &Sample) -> ChangeSet {
+    propose(
+        &sample.book,
+        &json!({
+            "new_categories": [{"key": "pets", "name": "Pets", "parent_id": sample.food.to_string()}],
+            "new_rules": [{
+                "name": "Pet shop",
+                "conditions": [{"field": "payee", "test": "contains", "text": "pet"}],
+                "new_category": "pets",
+            }],
+            "categorize": [{"transaction_id": sample.unsorted.to_string(), "new_category": "pets"}],
+            "new_views": [{
+                "title": "Net this month",
+                "dataset": "income_expense_by_month",
+                "chart": "kpi.card",
+                "measure": "net",
+            }],
+        }),
+    )
+    .expect("prepared")
+    .changes
+}
+
+fn slot(text: &str) -> Slot {
+    Slot::parse(text).expect("a slot")
+}
+
+fn edit_code(result: Result<ChangeSet, EditError>) -> String {
+    match result {
+        Ok(_) => "kept".into(),
+        Err(error) => error.report().code.into(),
+    }
+}
+
+#[test]
+fn slots_name_each_change_by_its_place_in_the_call() {
+    let sample = sample();
+    let set = set_to_edit(&sample);
+    let slots: Vec<String> = set.slots().iter().map(ToString::to_string).collect();
+    assert_eq!(
+        slots,
+        [
+            "new_categories/0",
+            "new_rules/0",
+            "categorize/0",
+            "new_views/0"
+        ]
+    );
+    for (slot, change) in set.slots().iter().zip(set.changes()) {
+        assert_eq!(Slot::parse(&slot.to_string()), Some(*slot));
+        assert_eq!(
+            slot.to_string().split('/').next(),
+            Some(edits::list_of(change))
+        );
+    }
+    assert_eq!(slot("new_rules/0").editable().len(), 5);
+    assert!(slot("edit_rules/3").editable().is_empty(), "only left out");
+    for bad in ["", "new_rules", "new_rules/x", "rules/0", "new_rules/-1"] {
+        assert_eq!(Slot::parse(bad), None, "{bad}");
+    }
+    let keys: Vec<&str> = set.new_categories().map(|(key, _)| key).collect();
+    assert_eq!(keys, ["pets"]);
+}
+
+#[test]
+fn an_edited_set_is_applied_as_the_ai_change_the_user_corrected_and_one_undo_takes_back() {
+    let sample = sample();
+    let Sample {
+        food,
+        groceries,
+        unsorted,
+        ..
+    } = sample;
+    let set = set_to_edit(&sample);
+    let mut book = sample.book;
+    let before = state(&book);
+    let all = Permissions::all();
+    let set = set
+        .edit(
+            &book,
+            slot("new_categories/0"),
+            &json!({"name": " Animals ", "parent_id": null}),
+            all,
+        )
+        .expect("renamed and moved to the top");
+    let set = set
+        .edit(
+            &book,
+            slot("new_rules/0"),
+            &json!({
+                "name": "Vet",
+                "match": "any",
+                "conditions": [
+                    {"field": "other_party_name", "test": "starts_with", "text": "Vet"},
+                    {"money_out": true},
+                ],
+                "category_id": groceries.to_string(),
+            }),
+            all,
+        )
+        .expect("the Rule edited");
+    let set = set
+        .edit(
+            &book,
+            slot("categorize/0"),
+            &json!({"category_id": food.to_string()}),
+            all,
+        )
+        .expect("another category");
+    let set = set
+        .edit(
+            &book,
+            slot("new_views/0"),
+            &json!({"title": "Spending", "chart": "chart.line", "period": "this-year"}),
+            all,
+        )
+        .expect("another chart");
+    assert_eq!(state(&book), before, "editing changes nothing");
+    assert!(set.slots().iter().all(|slot| set.edited(*slot)));
+    assert_eq!(
+        set.item(slot("new_views/0"))
+            .and_then(|item| item.get("measure")),
+        None,
+        "a line chart takes no key figure"
+    );
+
+    let changes = set.changes();
+    let ProposedChange::NewCategory(animals) = &changes[0] else {
+        panic!("the new category first: {changes:?}");
+    };
+    assert_eq!(
+        (animals.path.clone(), animals.parent),
+        (vec!["Animals".to_owned()], None)
+    );
+    let ProposedChange::NewRule(rule) = &changes[1] else {
+        panic!("then the Rule");
+    };
+    assert_eq!(rule.rule.name, "Vet");
+    assert_eq!(rule.rule.match_mode, MatchMode::Any);
+    assert_eq!(rule.rule.conditions.len(), 2);
+    assert_eq!(rule.category, ["Food", "Groceries"]);
+    let ProposedChange::Categorize(sorted) = &changes[2] else {
+        panic!("then the transaction");
+    };
+    assert_eq!(sorted.after, ["Food"]);
+    let ProposedChange::NewView(chart) = &changes[3] else {
+        panic!("then the chart");
+    };
+    assert_eq!(
+        (chart.title.as_str(), chart.type_id(), chart.period.as_str()),
+        ("Spending", "chart.line", "this-year")
+    );
+    let animals_id = animals.id;
+
+    set.check_allowed(all).expect("still allowed");
+    set.apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    let history = book.history().expect("history");
+    assert_eq!(history.len(), before.3 + 1, "one change in the history");
+    assert_eq!(history[0].action, Action::ApplyAiChanges, "still the AI's");
+    assert_eq!(book.account(animals_id).expect("added").parent, None);
+    assert_eq!(
+        book.transaction(unsorted).expect("there").splits()[1].account,
+        Some(food)
+    );
+    assert_eq!(
+        book.rules()
+            .expect("rules")
+            .last()
+            .expect("a Rule")
+            .rule
+            .name,
+        "Vet"
+    );
+
+    book.undo().expect("undone");
+    let after = state(&book);
+    assert_eq!((after.0, after.1, after.2), (before.0, before.1, before.2));
+}
+
+#[test]
+fn an_edit_the_checks_refuse_is_not_kept() {
+    let sample = sample();
+    let set = set_to_edit(&sample);
+    let book = &sample.book;
+    let unknown = "00000000-0000-4000-8000-000000000000";
+    let cases = [
+        (
+            "new_categories/0",
+            json!({"name": ""}),
+            "ai-changes.edit-text",
+        ),
+        (
+            "new_categories/0",
+            json!({"name": "x".repeat(101)}),
+            "ai-changes.edit-text",
+        ),
+        (
+            "new_categories/0",
+            json!({"name": "two\nlines"}),
+            "ai-changes.edit-text",
+        ),
+        (
+            "new_categories/0",
+            json!({"name": "a\u{202e}b"}),
+            "ai-changes.edit-text",
+        ),
+        (
+            "new_categories/0",
+            json!({"name": "groceries"}),
+            "ai-changes.edit-name-taken",
+        ),
+        // An income category can't hold a spending one.
+        (
+            "new_categories/0",
+            json!({"parent_id": sample.salary.to_string()}),
+            "ai-changes.edit-refused",
+        ),
+        // In dollars, so the euro transaction can't be sorted into it.
+        (
+            "new_categories/0",
+            json!({"parent_id": sample.travel.to_string()}),
+            "ai-changes.edit-refused",
+        ),
+        (
+            "new_categories/0",
+            json!({"parent_id": unknown}),
+            "ai-changes.edit-refused",
+        ),
+        (
+            "new_categories/0",
+            json!({"income": true}),
+            "ai-changes.not-editable",
+        ),
+        (
+            "new_categories/0",
+            json!({"key": "dogs"}),
+            "ai-changes.not-editable",
+        ),
+        ("new_categories/0", json!({}), "ai-changes.not-editable"),
+        (
+            "new_categories/0",
+            json!("Animals"),
+            "ai-changes.not-editable",
+        ),
+        ("new_rules/0", json!({"name": " "}), "ai-changes.edit-text"),
+        (
+            "new_rules/0",
+            json!({"match": "some"}),
+            "ai-changes.edit-refused",
+        ),
+        (
+            "new_rules/0",
+            json!({"conditions": []}),
+            "ai-changes.edit-refused",
+        ),
+        (
+            "new_rules/0",
+            json!({"conditions": [{"field": "iban", "test": "equals", "text": "x"}]}),
+            "ai-changes.edit-refused",
+        ),
+        (
+            "new_rules/0",
+            json!({"conditions": [{"field": "payee", "test": "matches", "text": "x"}]}),
+            "ai-changes.edit-refused",
+        ),
+        (
+            "new_rules/0",
+            json!({"conditions": [{"field": "payee", "test": "equals", "text": ""}]}),
+            "ai-changes.edit-text",
+        ),
+        (
+            "new_rules/0",
+            json!({"conditions": [{"money_in": true, "money_out": true}]}),
+            "ai-changes.edit-refused",
+        ),
+        (
+            "new_rules/0",
+            json!({"category_id": unknown}),
+            "ai-changes.edit-refused",
+        ),
+        (
+            "new_rules/0",
+            json!({"new_category": "dogs"}),
+            "ai-changes.edit-in-use",
+        ),
+        (
+            "new_rules/0",
+            json!({"payee": "Vet"}),
+            "ai-changes.not-editable",
+        ),
+        (
+            "categorize/0",
+            json!({"category_id": sample.travel.to_string()}),
+            "ai-changes.edit-refused",
+        ),
+        (
+            "categorize/0",
+            json!({"transaction_id": sample.bought.to_string()}),
+            "ai-changes.not-editable",
+        ),
+        ("new_views/0", json!({"title": ""}), "ai-changes.edit-text"),
+        (
+            "new_views/0",
+            json!({"period": "last-century"}),
+            "ai-changes.edit-refused",
+        ),
+        (
+            "new_views/0",
+            json!({"chart": "chart.sankey"}),
+            "ai-changes.edit-refused",
+        ),
+        (
+            "new_views/0",
+            json!({"dataset": "spending_by_category"}),
+            "ai-changes.not-editable",
+        ),
+        (
+            "edit_rules/0",
+            json!({"name": "Vet"}),
+            "ai-changes.not-editable",
+        ),
+    ];
+    for (place, fields, expected) in cases {
+        assert_eq!(
+            edit_code(set.edit(book, slot(place), &fields, Permissions::all())),
+            expected,
+            "{place} {fields}"
+        );
+    }
+    // The kind of change the user turned off since.
+    let no_rules = Permissions::all().with(Permission::NewRules, false);
+    assert_eq!(
+        edit_code(set.edit(book, slot("new_rules/0"), &json!({"name": "Vet"}), no_rules)),
+        "ai-changes.not-allowed"
+    );
+    // A Rule and a transaction use the new category.
+    assert_eq!(
+        edit_code(set.leave_out(book, slot("new_categories/0"), Permissions::all())),
+        "ai-changes.edit-in-use"
+    );
+    assert_eq!(
+        edit_code(set.leave_out(book, slot("new_rules/1"), Permissions::all())),
+        "ai-changes.not-editable"
+    );
+    assert!(
+        set.slots().iter().all(|slot| !set.edited(*slot)),
+        "the set is as it was"
+    );
+}
+
+#[test]
+fn a_change_can_be_left_out_and_brought_back_as_the_ai_prepared_it() {
+    let sample = sample();
+    let set = set_to_edit(&sample);
+    let book = &sample.book;
+    let all = Permissions::all();
+    let without = set
+        .leave_out(book, slot("categorize/0"), all)
+        .expect("left out");
+    assert_eq!(without.changes().len(), 3);
+    assert_eq!(without.item(slot("categorize/0")), None);
+    let left: Vec<(String, bool)> = without
+        .left_out()
+        .map(|(slot, change)| {
+            (
+                slot.to_string(),
+                matches!(change, ProposedChange::Categorize(_)),
+            )
+        })
+        .collect();
+    assert_eq!(left, [("categorize/0".to_owned(), true)]);
+    assert_eq!(
+        edit_code(without.edit(
+            book,
+            slot("categorize/0"),
+            &json!({"category_id": sample.food.to_string()}),
+            all
+        )),
+        "ai-changes.not-editable",
+        "a change left out is brought back first"
+    );
+    let back = without
+        .back_to_ai(book, slot("categorize/0"), all)
+        .expect("back");
+    assert_eq!(back.summary(), set.summary());
+    assert_eq!(back.left_out().count(), 0);
+
+    // An edit back to what the AI wrote is no edit.
+    let renamed = set
+        .edit(book, slot("new_rules/0"), &json!({"name": "Vet"}), all)
+        .expect("renamed");
+    assert!(renamed.edited(slot("new_rules/0")));
+    let same = renamed
+        .edit(book, slot("new_rules/0"), &json!({"name": "Pet shop"}), all)
+        .expect("named back");
+    assert!(!same.edited(slot("new_rules/0")));
+    let undone = renamed
+        .back_to_ai(book, slot("new_rules/0"), all)
+        .expect("back");
+    assert_eq!(undone.summary(), set.summary());
+    assert_eq!(
+        edit_code(set.back_to_ai(book, slot("new_rules/0"), all)),
+        "ai-changes.not-editable",
+        "nothing to go back from"
+    );
+
+    // Leaving the users of the new category out first lets it go too.
+    let mut rest = set.clone();
+    for place in [
+        "new_rules/0",
+        "categorize/0",
+        "new_categories/0",
+        "new_views/0",
+    ] {
+        rest = rest.leave_out(book, slot(place), all).expect("left out");
+    }
+    assert!(rest.changes().is_empty());
+    let mut book = sample.book;
+    let before = state(&book);
+    rest.apply(&mut book, Confirmed::by_the_user())
+        .expect("nothing to make");
+    assert_eq!(state(&book), before, "no entry in the history either");
+}

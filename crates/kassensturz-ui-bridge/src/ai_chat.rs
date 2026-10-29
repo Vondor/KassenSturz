@@ -25,11 +25,12 @@ use kassensturz_ai_chat::{
 };
 use kassensturz_ai_tools::requests::RequestId;
 use kassensturz_ai_tools::{
-    ChangeError, ChangeSet, Confirmed, FieldValue, ProposedChange, ToolError,
+    ChangeError, ChangeSet, Confirmed, EditError, FieldValue, ProposedChange, Slot, ToolError,
 };
 use kassensturz_core::ai_switch::Permissions;
-use kassensturz_core::{Date, ErrorParam, ErrorReport, MatchMode, Rule};
+use kassensturz_core::{AccountKind, Date, ErrorParam, ErrorReport, MatchMode, Rule};
 use kassensturz_platform::Secret;
+use kassensturz_report::ComponentType;
 use kassensturz_store::{Book, StoreError};
 
 use crate::ai_settings::{Store, with_keys};
@@ -263,6 +264,18 @@ impl Sets {
         self.sets.get(&id).map(|waiting| &waiting.set)
     }
 
+    /// Puts the user's edited version of a waiting set in its place
+    /// (D-293); `false` when the set isn't waiting any more.
+    pub fn replace(&mut self, id: u64, set: ChangeSet) -> bool {
+        match self.sets.get_mut(&id) {
+            Some(waiting) => {
+                waiting.set = set;
+                true
+            }
+            None => false,
+        }
+    }
+
     /// Takes the set out, to apply it or throw it away.
     pub fn take(&mut self, id: u64) -> Option<Waiting> {
         self.sets.remove(&id)
@@ -302,6 +315,8 @@ pub enum ChangeView {
         path: String,
         /// Whether it is for money coming in.
         income: bool,
+        /// Its currency code, so the page offers parents of the same one.
+        currency: String,
     },
     /// A new Rule.
     NewRule {
@@ -370,6 +385,9 @@ pub enum ChangeView {
         before: String,
         /// Its category after the change.
         after: String,
+        /// Its currency code, so the page offers categories of the same
+        /// one.
+        currency: String,
     },
     /// An empty category deleted.
     DeleteCategory {
@@ -446,7 +464,48 @@ pub enum ChangeView {
         /// The component as JSON text, which the preview loads like a chart
         /// the user made.
         component: String,
+        /// The kinds of chart its figures suit, by their fixed IDs, which
+        /// the user may choose from (D-293).
+        charts: Vec<&'static str>,
     },
+}
+
+/// One change of a set as the review screen lists it: what it does, and
+/// what the user did with it (D-293).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ChangeRow {
+    /// Where it stands in the model's call (`new_rules/0`): the page names
+    /// the change by it when the user edits it.
+    pub slot: String,
+    /// Whether the user changed it ("changed by you").
+    pub edited: bool,
+    /// Whether the user left it out; it then shows as the model prepared it.
+    pub left_out: bool,
+    /// The fields the user may change, in the call's own words; empty for a
+    /// change that can only be left out.
+    pub fields: Vec<&'static str>,
+    /// The item of the call as it stands, as JSON text, which the edit form
+    /// starts from; empty when the change can't be edited. Its texts came
+    /// from the model or the user and are shown as plain text (T-08).
+    pub form: String,
+    /// What it does.
+    pub view: ChangeView,
+}
+
+/// A category the user may choose on the review page: one of the book's,
+/// by its ID, or a new one of the set, by its key (D-293).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CategoryChoice {
+    /// Its ID in the book, empty for a new one.
+    pub id: String,
+    /// The set's key of a new one, empty for one of the book's.
+    pub key: String,
+    /// Its path, e.g. "Food › Bakery".
+    pub path: String,
+    /// Whether it is for money coming in.
+    pub income: bool,
+    /// Its currency code.
+    pub currency: String,
 }
 
 /// One field of a transaction that changes, written for the user.
@@ -460,142 +519,243 @@ pub struct EditLine {
     pub after: String,
 }
 
-/// The changes of `set` as the review screen shows them, with amounts and
-/// dates written for the user (D-065). Reads `book` only.
-pub fn view_of(
+/// The changes of `set` as the review screen lists them, the ones the user
+/// left out last, with amounts and dates written for the user (D-065).
+/// Reads `book` only.
+pub fn rows_of(
     book: &Book,
     set: &ChangeSet,
     locale: &impl Locale,
-) -> Result<Vec<ChangeView>, StoreError> {
-    set.changes()
-        .iter()
-        .map(|change| {
-            Ok(match change {
-                ProposedChange::NewCategory(new) => ChangeView::NewCategory {
-                    name: new.path.last().cloned().unwrap_or_default(),
-                    path: new.path.join(" › "),
-                    income: new.income,
-                },
-                ProposedChange::NewRule(new) => {
-                    new_rule_view(book, &new.rule, &new.category, locale)?
-                }
-                ProposedChange::EditCategory(edit) => ChangeView::EditCategory {
-                    before: edit.before.join(" › "),
-                    after: edit.after.join(" › "),
-                },
-                ProposedChange::EditRule(edit) => ChangeView::EditRule {
-                    before_name: edit.before.name.clone(),
-                    name: edit.rule.name.clone(),
-                    before_book_to: edit
-                        .before_category
-                        .as_ref()
-                        .map(|path| path.join(" › "))
-                        .unwrap_or_default(),
-                    book_to: edit
-                        .category
-                        .as_ref()
-                        .map(|path| path.join(" › "))
-                        .unwrap_or_default(),
-                    match_all: edit.rule.match_mode == MatchMode::All,
-                    conditions: condition_forms(book, &edit.rule, locale)?,
-                },
-                ProposedChange::MoveRule(moved) => ChangeView::MoveRule {
-                    name: moved.name.clone(),
-                    from: moved.from.to_string(),
-                    to: moved.to.to_string(),
-                },
-                ProposedChange::DeleteRule(delete) => ChangeView::DeleteRule {
-                    name: delete.rule.name.clone(),
-                    book_to: delete
-                        .category
-                        .as_ref()
-                        .map(|path| path.join(" › "))
-                        .unwrap_or_default(),
-                    match_all: delete.rule.match_mode == MatchMode::All,
-                    conditions: condition_forms(book, &delete.rule, locale)?,
-                },
-                ProposedChange::Categorize(change) => ChangeView::Categorize {
-                    date: locale.short_date(change.date),
-                    payee: change.payee.clone().unwrap_or_default(),
-                    account: change.account.clone(),
-                    amount: AmountWriter::new(book, change.amount.currency(), locale)?
-                        .text(change.amount)
-                        .exact,
-                    before: change
-                        .before
-                        .as_ref()
-                        .map(|path| path.join(" › "))
-                        .unwrap_or_default(),
-                    after: change.after.join(" › "),
-                },
-                ProposedChange::DeleteCategory(delete) => ChangeView::DeleteCategory {
-                    path: delete.path.join(" › "),
-                },
-                ProposedChange::NewAccount(new) => ChangeView::NewAccount {
-                    name: new.name.clone(),
-                    account_type: crate::accounts::type_key(new.account_type).to_owned(),
-                    currency: new.currency.as_str().to_owned(),
-                },
-                ProposedChange::EditAccount(edit) => ChangeView::EditAccount {
-                    before: edit.before.clone(),
-                    after: edit.after.clone(),
-                    was_closed: edit.was_closed,
-                    closed: edit.closed,
-                },
-                ProposedChange::EditTransaction(edit) => ChangeView::EditTransaction {
-                    date: locale.short_date(edit.date),
-                    payee: edit.payee.clone().unwrap_or_default(),
-                    account: edit.account.clone(),
-                    amount: AmountWriter::new(book, edit.amount.currency(), locale)?
-                        .text(edit.amount)
-                        .exact,
-                    lines: edit
-                        .edits
-                        .iter()
-                        .map(|line| {
-                            Ok(EditLine {
-                                field: line.field.name(),
-                                before: field_text(book, &line.before, locale)?,
-                                after: field_text(book, &line.after, locale)?,
-                            })
-                        })
-                        .collect::<Result<_, StoreError>>()?,
-                },
-                ProposedChange::NewTransaction(new) => ChangeView::NewTransaction {
-                    date: locale.short_date(new.date),
-                    payee: new.payee.clone().unwrap_or_default(),
-                    account: new.account_name.clone(),
-                    amount: AmountWriter::new(book, new.amount.currency(), locale)?
-                        .text(new.amount)
-                        .exact,
-                    category: new
-                        .category
-                        .as_ref()
-                        .map(|path| path.join(" › "))
-                        .unwrap_or_default(),
-                    note: new.note.clone().unwrap_or_default(),
-                },
-                ProposedChange::DeleteTransaction(delete) => ChangeView::DeleteTransaction {
-                    date: locale.short_date(delete.date),
-                    payee: delete.payee.clone().unwrap_or_default(),
-                    account: delete.account.clone(),
-                    amount: AmountWriter::new(book, delete.amount.currency(), locale)?
-                        .text(delete.amount)
-                        .exact,
-                    category: delete
-                        .category
-                        .as_ref()
-                        .map(|path| path.join(" › "))
-                        .unwrap_or_default(),
-                },
-                ProposedChange::NewView(new) => ChangeView::NewView {
-                    title: new.title.clone(),
-                    period: new.period.clone(),
-                    component: new.component_json(),
-                },
-            })
+) -> Result<Vec<ChangeRow>, StoreError> {
+    let kept = set.slots().iter().zip(set.changes()).map(|(slot, change)| {
+        let fields = slot.editable().to_vec();
+        Ok(ChangeRow {
+            slot: slot.to_string(),
+            edited: set.edited(*slot),
+            left_out: false,
+            form: match set.item(*slot) {
+                Some(item) if !fields.is_empty() => item.to_string(),
+                _ => String::new(),
+            },
+            fields,
+            view: view_of(book, change, locale)?,
         })
+    });
+    let left_out = set.left_out().map(|(slot, change)| {
+        Ok(ChangeRow {
+            slot: slot.to_string(),
+            edited: false,
+            left_out: true,
+            fields: Vec::new(),
+            form: String::new(),
+            view: view_of(book, change, locale)?,
+        })
+    });
+    kept.chain(left_out).collect()
+}
+
+/// The categories the user may choose for a change of `set`: the book's
+/// open ones and the set's new ones, in the order of their paths.
+pub fn category_choices(book: &Book, set: &ChangeSet) -> Result<Vec<CategoryChoice>, StoreError> {
+    let mut choices: Vec<CategoryChoice> = book
+        .categories()?
+        .into_iter()
+        .filter(|entry| !entry.category.closed)
+        .map(|entry| CategoryChoice {
+            id: entry.category.id.to_string(),
+            key: String::new(),
+            path: entry.path.join(" › "),
+            income: entry.category.kind == AccountKind::Income,
+            currency: entry.category.currency.as_str().to_owned(),
+        })
+        .chain(set.new_categories().map(|(key, new)| CategoryChoice {
+            id: String::new(),
+            key: key.to_owned(),
+            path: new.path.join(" › "),
+            income: new.income,
+            currency: new.currency.as_str().to_owned(),
+        }))
+        .collect();
+    choices.sort_by_key(|choice| choice.path.to_lowercase());
+    Ok(choices)
+}
+
+/// What the user does to one change of a waiting set on the review page
+/// (D-293).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Correction {
+    /// New values for some fields, as a JSON object in the call's words.
+    Edit(String),
+    /// Leave the change out of the set.
+    LeaveOut,
+    /// Take the model's version again.
+    BackToAi,
+}
+
+/// The set with the user's correction of the change at `slot`, checked
+/// like the model's call against `book` and `allowed` as they are now.
+pub fn corrected(
+    book: &Book,
+    set: &ChangeSet,
+    slot: &str,
+    correction: &Correction,
+    allowed: Permissions,
+) -> Result<ChangeSet, EditError> {
+    let slot = Slot::parse(slot).ok_or(EditError::NotEditable)?;
+    match correction {
+        Correction::Edit(fields) => set.edit_text(book, slot, fields, allowed),
+        Correction::LeaveOut => set.leave_out(book, slot, allowed),
+        Correction::BackToAi => set.back_to_ai(book, slot, allowed),
+    }
+}
+
+/// What the changes of `set` do, without what the user did with them: for
+/// tests that look only at the views.
+#[cfg(test)]
+pub fn views_of(book: &Book, set: &ChangeSet, locale: &impl Locale) -> Vec<ChangeView> {
+    rows_of(book, set, locale)
+        .expect("the book can be read")
+        .into_iter()
+        .map(|row| row.view)
         .collect()
+}
+
+/// One change as the review screen shows it, with amounts and dates written
+/// for the user (D-065).
+fn view_of(
+    book: &Book,
+    change: &ProposedChange,
+    locale: &impl Locale,
+) -> Result<ChangeView, StoreError> {
+    Ok(match change {
+        ProposedChange::NewCategory(new) => ChangeView::NewCategory {
+            name: new.path.last().cloned().unwrap_or_default(),
+            path: new.path.join(" › "),
+            income: new.income,
+            currency: new.currency.as_str().to_owned(),
+        },
+        ProposedChange::NewRule(new) => new_rule_view(book, &new.rule, &new.category, locale)?,
+        ProposedChange::EditCategory(edit) => ChangeView::EditCategory {
+            before: edit.before.join(" › "),
+            after: edit.after.join(" › "),
+        },
+        ProposedChange::EditRule(edit) => ChangeView::EditRule {
+            before_name: edit.before.name.clone(),
+            name: edit.rule.name.clone(),
+            before_book_to: edit
+                .before_category
+                .as_ref()
+                .map(|path| path.join(" › "))
+                .unwrap_or_default(),
+            book_to: edit
+                .category
+                .as_ref()
+                .map(|path| path.join(" › "))
+                .unwrap_or_default(),
+            match_all: edit.rule.match_mode == MatchMode::All,
+            conditions: condition_forms(book, &edit.rule, locale)?,
+        },
+        ProposedChange::MoveRule(moved) => ChangeView::MoveRule {
+            name: moved.name.clone(),
+            from: moved.from.to_string(),
+            to: moved.to.to_string(),
+        },
+        ProposedChange::DeleteRule(delete) => ChangeView::DeleteRule {
+            name: delete.rule.name.clone(),
+            book_to: delete
+                .category
+                .as_ref()
+                .map(|path| path.join(" › "))
+                .unwrap_or_default(),
+            match_all: delete.rule.match_mode == MatchMode::All,
+            conditions: condition_forms(book, &delete.rule, locale)?,
+        },
+        ProposedChange::Categorize(change) => ChangeView::Categorize {
+            date: locale.short_date(change.date),
+            payee: change.payee.clone().unwrap_or_default(),
+            account: change.account.clone(),
+            amount: AmountWriter::new(book, change.amount.currency(), locale)?
+                .text(change.amount)
+                .exact,
+            before: change
+                .before
+                .as_ref()
+                .map(|path| path.join(" › "))
+                .unwrap_or_default(),
+            after: change.after.join(" › "),
+            currency: change.amount.currency().as_str().to_owned(),
+        },
+        ProposedChange::DeleteCategory(delete) => ChangeView::DeleteCategory {
+            path: delete.path.join(" › "),
+        },
+        ProposedChange::NewAccount(new) => ChangeView::NewAccount {
+            name: new.name.clone(),
+            account_type: crate::accounts::type_key(new.account_type).to_owned(),
+            currency: new.currency.as_str().to_owned(),
+        },
+        ProposedChange::EditAccount(edit) => ChangeView::EditAccount {
+            before: edit.before.clone(),
+            after: edit.after.clone(),
+            was_closed: edit.was_closed,
+            closed: edit.closed,
+        },
+        ProposedChange::EditTransaction(edit) => ChangeView::EditTransaction {
+            date: locale.short_date(edit.date),
+            payee: edit.payee.clone().unwrap_or_default(),
+            account: edit.account.clone(),
+            amount: AmountWriter::new(book, edit.amount.currency(), locale)?
+                .text(edit.amount)
+                .exact,
+            lines: edit
+                .edits
+                .iter()
+                .map(|line| {
+                    Ok(EditLine {
+                        field: line.field.name(),
+                        before: field_text(book, &line.before, locale)?,
+                        after: field_text(book, &line.after, locale)?,
+                    })
+                })
+                .collect::<Result<_, StoreError>>()?,
+        },
+        ProposedChange::NewTransaction(new) => ChangeView::NewTransaction {
+            date: locale.short_date(new.date),
+            payee: new.payee.clone().unwrap_or_default(),
+            account: new.account_name.clone(),
+            amount: AmountWriter::new(book, new.amount.currency(), locale)?
+                .text(new.amount)
+                .exact,
+            category: new
+                .category
+                .as_ref()
+                .map(|path| path.join(" › "))
+                .unwrap_or_default(),
+            note: new.note.clone().unwrap_or_default(),
+        },
+        ProposedChange::DeleteTransaction(delete) => ChangeView::DeleteTransaction {
+            date: locale.short_date(delete.date),
+            payee: delete.payee.clone().unwrap_or_default(),
+            account: delete.account.clone(),
+            amount: AmountWriter::new(book, delete.amount.currency(), locale)?
+                .text(delete.amount)
+                .exact,
+            category: delete
+                .category
+                .as_ref()
+                .map(|path| path.join(" › "))
+                .unwrap_or_default(),
+        },
+        ProposedChange::NewView(new) => ChangeView::NewView {
+            title: new.title.clone(),
+            period: new.period.clone(),
+            component: new.component_json(),
+            charts: ComponentType::ALL
+                .into_iter()
+                .filter(|kind| kind.datasets().any(|info| info.id == new.dataset_id()))
+                .map(ComponentType::id)
+                .collect(),
+        },
+    })
 }
 
 /// A field's value as the review writes it (D-065).
@@ -865,7 +1025,7 @@ mod tests {
         assert_eq!(sets.len(), 1);
 
         // The review shows the set with real figures from the real book.
-        let views = view_of(&book, sets.get(id).unwrap(), &TestLocale).unwrap();
+        let views = views_of(&book, sets.get(id).unwrap(), &TestLocale);
         assert!(views.iter().any(|view| matches!(
             view,
             ChangeView::NewCategory { name, income: false, .. } if name == DEMO_CATEGORY
@@ -916,6 +1076,111 @@ mod tests {
     }
 
     #[test]
+    fn the_fake_models_set_corrected_by_the_user_is_applied_as_the_ais_with_one_undo() {
+        let folder = TestFolder::new();
+        let store = store(&folder);
+        let mut book = space_colony();
+        let screen = Recorder::default();
+        let (_controls, mut hooks) = hooks(Box::new(screen), false);
+        let mut chat = session();
+        let mut answer = ask(
+            &book,
+            &store,
+            &mut chat,
+            "Please sort my transactions.",
+            &mut hooks,
+        )
+        .unwrap();
+        let mut sets = Sets::default();
+        let id = sets.add(answer.changes.remove(0));
+        let all = Permissions::all();
+
+        // The page names each change by its slot and starts an edit from
+        // the model's own call.
+        let rows = rows_of(&book, sets.get(id).unwrap(), &TestLocale).unwrap();
+        assert_eq!(rows[0].slot, "new_categories/0");
+        assert_eq!(rows[0].fields, ["name", "parent_id"]);
+        let form: serde_json::Value = serde_json::from_str(&rows[0].form).unwrap();
+        let key = form["key"].as_str().unwrap().to_owned();
+        assert!(
+            rows[1..]
+                .iter()
+                .all(|row| row.slot.starts_with("categorize/"))
+        );
+        assert!(rows.iter().all(|row| !row.edited && !row.left_out));
+        let choices = category_choices(&book, sets.get(id).unwrap()).unwrap();
+        assert!(choices.iter().any(|choice| choice.key == key
+            && choice.path == DEMO_CATEGORY
+            && choice.id.is_empty()));
+        assert!(choices.iter().any(|choice| !choice.id.is_empty()));
+
+        // Edits the checks refuse leave the set as it was.
+        for (fields, code) in [
+            (r#"{"name": ""}"#, "ai-changes.edit-text"),
+            ("not json", "ai-changes.not-editable"),
+            (r#"{"income": true}"#, "ai-changes.not-editable"),
+        ] {
+            let refused = corrected(
+                &book,
+                sets.get(id).unwrap(),
+                "new_categories/0",
+                &Correction::Edit(fields.to_owned()),
+                all,
+            )
+            .unwrap_err();
+            assert_eq!(refused.report().code, code, "{fields}");
+        }
+        let renamed = corrected(
+            &book,
+            sets.get(id).unwrap(),
+            "new_categories/0",
+            &Correction::Edit(r#"{"name": "Sorted by me"}"#.to_owned()),
+            all,
+        )
+        .unwrap();
+        assert!(sets.replace(id, renamed));
+        let without = corrected(
+            &book,
+            sets.get(id).unwrap(),
+            "categorize/0",
+            &Correction::LeaveOut,
+            all,
+        )
+        .unwrap();
+        assert!(sets.replace(id, without));
+        let rows = rows_of(&book, sets.get(id).unwrap(), &TestLocale).unwrap();
+        assert!(rows[0].edited);
+        let last = rows.last().unwrap();
+        assert!(last.left_out && last.slot == "categorize/0" && last.form.is_empty());
+        let ProposedChange::Categorize(left) = sets.get(id).unwrap().left_out().next().unwrap().1
+        else {
+            panic!("a transaction left out");
+        };
+        let left = left.transaction;
+        let untouched = book.transaction(left).unwrap();
+
+        let before = book.history().unwrap().len();
+        let set = sets.take(id).unwrap().set;
+        confirm_in(&mut book, set, all).unwrap();
+        assert_eq!(book.history().unwrap().len(), before + 1);
+        assert_eq!(
+            book.change_to_undo().unwrap().unwrap().action,
+            Action::ApplyAiChanges,
+            "still the AI's changes, as one entry"
+        );
+        let named = |book: &Book, name: &str| {
+            book.categories()
+                .unwrap()
+                .iter()
+                .any(|entry| entry.path.last().is_some_and(|last| last == name))
+        };
+        assert!(named(&book, "Sorted by me") && !named(&book, DEMO_CATEGORY));
+        assert_eq!(book.transaction(left).unwrap(), untouched);
+        assert!(book.undo().unwrap().is_some());
+        assert!(!named(&book, "Sorted by me"));
+    }
+
+    #[test]
     fn account_changes_are_shown_with_their_words_and_applied_by_confirm() {
         let mut book = space_colony();
         let currency = book.accounts(false).unwrap()[0].currency;
@@ -937,7 +1202,7 @@ mod tests {
             "edit_accounts": [{"account_id": first.id.to_string(), "name": "Renamed by the AI", "closed": true}],
         });
         let proposal = kassensturz_ai_tools::propose(&book, &call, Permissions::all()).unwrap();
-        let views = view_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let views = views_of(&book, &proposal.changes, &TestLocale);
         assert!(views.iter().any(|view| matches!(
             view,
             ChangeView::NewAccount { name, account_type, currency }
@@ -964,12 +1229,13 @@ mod tests {
             "period": "this-year",
         }]});
         let proposal = kassensturz_ai_tools::propose(&book, &call, Permissions::all()).unwrap();
-        let views = view_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let views = views_of(&book, &proposal.changes, &TestLocale);
         let [
             ChangeView::NewView {
                 title,
                 period,
                 component,
+                ..
             },
         ] = views.as_slice()
         else {
@@ -1031,7 +1297,7 @@ mod tests {
         )
         .unwrap();
 
-        let views = view_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let views = views_of(&book, &proposal.changes, &TestLocale);
 
         let [ChangeView::EditTransaction { amount, lines, .. }] = views.as_slice() else {
             panic!("one edit: {views:?}");

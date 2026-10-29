@@ -44,7 +44,7 @@ echo "properties panel: ok"
 # and the stand-ins as they see the Rust objects.
 module="$work/imports/io/github/vondor/kassensturz"
 mkdir -p "$module"
-for file in StatisticsPage AiChangeReviewPage ComponentPreview PropertiesPanel ChartView ChartTable DataTable \
+for file in StatisticsPage AiChangeReviewPage AiChangeCorrection ComponentPreview PropertiesPanel ChartView ChartTable DataTable \
     AmountLabel KpiCard KpiNames ProgressMeter ChartPalette FormError Plain; do
     cp "$bridge/qml/$file.qml" "$module"
 done
@@ -53,7 +53,7 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
     echo 'module io.github.vondor.kassensturz'
     echo 'singleton ChartPalette 1.0 ChartPalette.qml'
     echo 'singleton Plain 1.0 Plain.qml'
-    for file in StatisticsPage AiChangeReviewPage ComponentPreview PropertiesPanel ChartView \
+    for file in StatisticsPage AiChangeReviewPage AiChangeCorrection ComponentPreview PropertiesPanel ChartView \
         ChartTable DataTable AmountLabel KpiCard KpiNames ProgressMeter FormError SavedViews \
         ComponentProperties BookCharts BookCards AiSwitch AiChat AccountTypes AiErrorMessage; do
         echo "$file 1.0 $file.qml"

@@ -360,6 +360,11 @@ The user confirmed a change set (D-199), and it couldn't be applied. Nothing of 
 |---|---|---|---|
 | `ai-changes.out-of-date` | | | A transaction in the changes was changed or removed after the AI prepared them, so nothing was changed. Ask the AI to prepare them again. |
 | `ai-changes.not-allowed` | | | The changes hold a kind of change that you have turned off in the AI settings since the AI prepared them, so nothing was changed. Turn it on again in the AI settings, or ask the AI to prepare the changes again. |
+| `ai-changes.not-editable` | | | The user tried to change a prepared change in a way it can't be changed (a change that can only be left out, a field it doesn't have, or one left out), so nothing was kept. Leave the change out, or take the AI's version (D-297). |
+| `ai-changes.edit-text` | | | A name, title or text to look for that the user typed is empty, too long (100 characters, a chart's title 200) or holds line breaks or hidden characters, so the edit wasn't kept. Type it again. |
+| `ai-changes.edit-name-taken` | | | The name the user typed for a new category, Rule or chart is already used there, so the edit wasn't kept. Pick another name. |
+| `ai-changes.edit-in-use` | | | The user left out a new category that another change of the set uses (a Rule or a transaction booked to it), so it stays. Change or leave out that change first. |
+| `ai-changes.edit-refused` | | | The checks refused the user's edit, e.g. a parent of the other kind or currency, a chart kind that doesn't suit its figures, or a condition the Rule can't hold; the detail is the AI tools' code. Nothing was kept; choose something else, or take the AI's version. |
 | `ai-changes.not-applied` | | | The book refused one of the changes, e.g. because a category of that name was added in the meantime, so nothing was changed. The detail says why; ask the AI to prepare them again. |
 
 ## Your own AI tools' changes (`kassensturz-mcp`, `kassensturz-ai-tools`)

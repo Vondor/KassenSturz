@@ -19,7 +19,7 @@ use kassensturz_report::{
     Component, ComponentType, Document, MAX_TEXT_CHARS, PERIODS, ReportError, Setting,
 };
 use kassensturz_store::Book;
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use super::Object;
 use crate::error::ToolError;
@@ -185,4 +185,31 @@ pub(super) fn new_view(
         component,
         document,
     })
+}
+
+/// Drops the settings a chart's new kind doesn't take, after the user chose
+/// another kind on the review page (D-297): a key figure's measure means
+/// nothing to a bar chart. The checks then judge the kind itself.
+pub(super) fn keep_fitting(item: &mut Map<String, Value>) {
+    let dataset = item.get("dataset").and_then(Value::as_str).unwrap_or("");
+    let grouping = item.get("grouping").and_then(Value::as_str);
+    let kind = match item.get("chart").and_then(Value::as_str) {
+        Some("auto") => automatic(dataset, grouping),
+        Some(id) => ComponentType::from_id(id),
+        None => None,
+    };
+    let Some(component) = kind.and_then(|kind| Component::new(kind, dataset).ok()) else {
+        return;
+    };
+    for key in ["grouping", "measure", "compare"] {
+        let fits = item.get(key).and_then(Value::as_str).is_none_or(|word| {
+            component
+                .clone()
+                .set(key, Setting::Word(word.to_owned()))
+                .is_ok()
+        });
+        if !fits {
+            item.remove(key);
+        }
+    }
 }

@@ -7739,18 +7739,6 @@ msgctxt "@label %1 is an amount of money"
 msgid "All your accounts together: %1"
 msgstr "Alle Ihre Konten zusammen: %1"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:45
-#, kde-format
-msgctxt "@label %1 is an amount of money"
-msgid "Spent more than came in: %1"
-msgstr "Mehr ausgegeben als reingekommen: %1"
-
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:46
-#, kde-format
-msgctxt "@label %1 is an amount of money"
-msgid "Left over: %1"
-msgstr "Übrig: %1"
-
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:56
 #, kde-format
 msgctxt "@title"
@@ -7805,30 +7793,6 @@ msgid ""
 msgstr ""
 "In diesem Monat ist noch nichts hereingekommen oder ausgegeben worden. "
 "Tragen Sie ein, was Sie bezahlt oder erhalten haben, dann erscheint es hier."
-
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:203
-#, kde-format
-msgctxt "@title %1 is a currency code, e.g. EUR"
-msgid "Money in and out in %1"
-msgstr "Geld rein und raus in %1"
-
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:204
-#, kde-format
-msgctxt "@title"
-msgid "Money in and out"
-msgstr "Geld rein und raus"
-
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:210
-#, kde-format
-msgctxt "@label"
-msgid "Money in"
-msgstr "Geld rein"
-
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:211
-#, kde-format
-msgctxt "@label"
-msgid "Money out"
-msgstr "Geld raus"
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:232
 #, kde-format
@@ -10548,3 +10512,9 @@ msgstr ""
 msgctxt "@label a part of the book"
 msgid "Charts"
 msgstr "Diagramme"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewMonth.qml:73
+#, kde-format
+msgctxt "@title %1 is a currency code, e.g. EUR"
+msgid "Where your money went in %1"
+msgstr "Wohin Ihr Geld ging in %1"

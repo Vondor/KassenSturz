@@ -407,6 +407,10 @@ jobs:
       # click through on stand-ins for the Rust objects.
       - name: The properties panel and the Statistics page load and work
         run: tools/check-panel.sh
+      # The overview's month (M6a.8) asks for the month it shows and builds its
+      # cards and chart from what it gets, on stand-ins for the Rust objects.
+      - name: The overview month loads and follows the month shown
+        run: tools/check-overview.sh
       - name: Tests, with the system's SQLite
         run: cargo test --workspace --no-default-features --features ai --locked
         env:
@@ -450,7 +454,8 @@ jobs:
     steps:
       # Kirigami Addons is named by the file it installs: Fedora 44 has no
       # package called kirigami-addons, and its name couldn't be checked
-      # beforehand (D-112).
+      # beforehand (D-112). KQuickCharts, which the Overview's chart imports at
+      # run time (M6a.8, D-275), is named by its file in the same way.
       - name: Install the distribution's build tools, Qt, KDE Frameworks and SQLite
         run: |
           dnf install -y --setopt=install_weak_deps=False \
@@ -460,6 +465,7 @@ jobs:
             pkgconf-pkg-config qt6-qtbase-devel qt6-qtdeclarative \
             qt6-qtdeclarative-devel rustup sqlite-devel tar \
             /usr/lib64/qt6/qml/org/kde/kirigamiaddons/formcard/qmldir \
+            /usr/lib64/qt6/qml/org/kde/quickcharts/qmldir \
             aqbanking-devel gwenhywfar-devel gwenhywfar-gui-qt6-devel
       # Recorded in docs/THIRD_PARTY.md (D-138).
       - name: Fedora's AqBanking and Gwenhywfar versions

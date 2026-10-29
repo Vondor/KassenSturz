@@ -87,6 +87,17 @@ impl<'a, L> AppText<'a, L> {
     }
 }
 
+impl<L: Locale> AppText<'_, L> {
+    /// `money` with all its decimal places, also when the user chose to see
+    /// fewer (D-002).
+    pub(crate) fn exact(&self, money: Money) -> String {
+        match AmountWriter::new(self.book, money.currency(), self.locale) {
+            Ok(writer) => writer.text(money).exact,
+            Err(_) => self.amount(money),
+        }
+    }
+}
+
 impl<L: Locale> TextFormat for AppText<'_, L> {
     fn amount(&self, money: Money) -> String {
         match AmountWriter::new(self.book, money.currency(), self.locale) {
@@ -135,6 +146,18 @@ impl ChartProvider for QuickCharts {
     }
 }
 
+/// The calendar month named `YYYY-MM`, which the overview passes on for the
+/// month it shows (M6a.8).
+fn month_period(key: &str) -> Option<Period> {
+    let (year, month) = key.split_once('-')?;
+    let digits = |text: &str| text.bytes().all(|byte| byte.is_ascii_digit());
+    if year.len() != 4 || month.len() != 2 || !digits(year) || !digits(month) {
+        return None;
+    }
+    let first = Date::new(year.parse().ok()?, month.parse().ok()?, 1).ok()?;
+    Period::new(first, first.last_of_month()).ok()
+}
+
 pub(crate) fn period(key: &str, today: Date) -> Result<Period, ChartsError> {
     Ok(match key {
         "this-month" => Period::this_month(today)?,
@@ -142,7 +165,7 @@ pub(crate) fn period(key: &str, today: Date) -> Result<Period, ChartsError> {
         "last-12-months" => Period::last_12_months(today)?,
         "this-year" => Period::this_year(today)?,
         "last-year" => Period::last_year(today)?,
-        _ => return Err(ChartsError::UnknownName("period")),
+        _ => month_period(key).ok_or(ChartsError::UnknownName("period"))?,
     })
 }
 

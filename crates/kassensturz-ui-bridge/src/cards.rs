@@ -72,6 +72,11 @@ pub struct Card {
     pub currency: String,
     /// The figure; empty if it has no value (a savings rate without income).
     pub value: String,
+    /// The figure with all its decimal places, also when the user chose to
+    /// see fewer (D-002); the same as `value` for the savings rate.
+    pub exact_value: String,
+    /// Whether the figure is below zero, e.g. more went out than came in.
+    pub negative: bool,
     /// The same figure in the earlier period; empty if it has no value.
     pub previous: String,
     /// The change in the figure; empty for the savings rate.
@@ -95,16 +100,18 @@ pub struct CardSet {
     pub cards: Vec<Card>,
 }
 
-fn amount_card(
+fn amount_card<L: Locale>(
     measure: &'static str,
     change: &Change,
     currency: &str,
-    text: &impl TextFormat,
+    text: &AppText<'_, L>,
 ) -> Card {
     Card {
         measure,
         currency: currency.to_owned(),
         value: text.amount(change.current),
+        exact_value: text.exact(change.current),
+        negative: change.current.is_negative(),
         previous: text.amount(change.previous),
         change: text.amount(change.amount),
         change_percent: change.percent.map_or_else(String::new, |p| text.percent(p)),
@@ -128,6 +135,8 @@ fn rate_card(
         measure: "savings-rate",
         currency: currency.to_owned(),
         value: shown(now),
+        exact_value: shown(now),
+        negative: now.is_some_and(|p| p.tenths() < 0),
         previous: shown(before),
         change: String::new(),
         change_percent: String::new(),
@@ -137,7 +146,7 @@ fn rate_card(
     }
 }
 
-fn set(change: &IncomeExpenseChange, text: &impl TextFormat) -> CardSet {
+fn set<L: Locale>(change: &IncomeExpenseChange, text: &AppText<'_, L>) -> CardSet {
     let currency = change.currency.to_string();
     CardSet {
         cards: vec![

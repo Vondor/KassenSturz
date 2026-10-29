@@ -83,7 +83,9 @@ ColumnLayout {
                     Layout.fillWidth: true
                     Layout.preferredWidth: 1
                     text: modelData
-                    elide: Text.ElideRight
+                    // A name wraps; it is never cut short (M6-B3).
+                    wrapMode: index === 0 ? Text.Wrap : Text.NoWrap
+                    elide: index === 0 ? Text.ElideNone : Text.ElideRight
                     Accessible.role: Accessible.Cell
                     horizontalAlignment: index === 0 ? Text.AlignLeft : Text.AlignRight
                 }

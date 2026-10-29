@@ -50,7 +50,7 @@ Window {
     }
 
     function spending(kind) {
-        const names = ["Rent", "Food › Groceries", "", "Travel"];
+        const names = ["Rent", "Food › Groceries", "", kind === "bar" ? "Travel › Long journeys by train and plane" : "Travel"];
         const values = [800, 320, 60, 150];
         return {
             kind: kind, dataset: "spending_by_category", currency: "EUR", round: kind !== "bar",

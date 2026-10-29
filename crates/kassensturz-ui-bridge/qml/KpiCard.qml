@@ -30,7 +30,9 @@ Kirigami.AbstractCard {
     readonly property string summary: {
         if (!hasValue)
             return names.noValue();
-        const parts = [modelData.value, names.direction(modelData.direction)];
+        const parts = [modelData.value];
+        if (modelData.direction !== "none")
+            parts.push(names.direction(modelData.direction));
         if (modelData.change !== "")
             parts.push(modelData.change);
         if (modelData.changePercent !== "")

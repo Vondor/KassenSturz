@@ -242,6 +242,9 @@ mod tests {
         );
         assert_eq!(text_of(&cards[3], "value"), "65,9 %");
         assert_eq!(number_of(&cards[3], "permille"), 659);
+        // August kept 68,0 % of its income, so September kept less.
+        assert_eq!(text_of(&cards[3], "previous"), "68,0 %");
+        assert_eq!(text_of(&cards[3], "direction"), "down");
         assert_eq!(text_of(&cards[3], "change"), "");
     }
 

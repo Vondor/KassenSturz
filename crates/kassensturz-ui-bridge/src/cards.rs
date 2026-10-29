@@ -53,8 +53,8 @@ impl Direction {
         }
     }
 
-    fn of(amount: i64) -> Self {
-        match amount.cmp(&0) {
+    fn of(order: core::cmp::Ordering) -> Self {
+        match order {
             core::cmp::Ordering::Greater => Self::Up,
             core::cmp::Ordering::Less => Self::Down,
             core::cmp::Ordering::Equal => Self::Same,
@@ -108,7 +108,7 @@ fn amount_card(
         previous: text.amount(change.previous),
         change: text.amount(change.amount),
         change_percent: change.percent.map_or_else(String::new, |p| text.percent(p)),
-        direction: Direction::of(change.amount.minor_units()),
+        direction: Direction::of(change.amount.minor_units().cmp(&0)),
         permille: None,
     }
 }
@@ -121,7 +121,7 @@ fn rate_card(
 ) -> Card {
     let shown = |rate: Option<Percent>| rate.map_or_else(String::new, |p| text.percent(p));
     let direction = match (now, before) {
-        (Some(now), Some(before)) => Direction::of(now.tenths() - before.tenths()),
+        (Some(now), Some(before)) => Direction::of(now.cmp(&before)),
         _ => Direction::None,
     };
     Card {

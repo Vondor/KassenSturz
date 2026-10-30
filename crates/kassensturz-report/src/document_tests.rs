@@ -202,8 +202,8 @@ fn components_are_checked_with_their_path() {
 #[test]
 fn a_component_of_an_unknown_type_is_kept_and_the_rest_opens() {
     let text = with(|value| {
-        value["components"][1] =
-            json!({"id": "c9", "type": "chart.radar", "dataset": "x", "props": {"a": 1}});
+        value["components"][1] = json!({"id": "c9", "type": "chart.radar", "dataset": "x", "props": {"a": 1},
+                "frame": {"col": 6, "row": 0, "cols": 6, "rows": 4}});
     });
     let document = Document::read(&text).unwrap();
     assert!(matches!(document.entries[0].item, Item::Component(_)));

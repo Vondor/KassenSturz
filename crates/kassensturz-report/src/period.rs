@@ -75,6 +75,21 @@ impl Period {
         Self::new(first, first.last_of_year())
     }
 
+    /// The period a component shows (`props.period`, D-289): the `page`
+    /// period for `page`, otherwise the fixed period of that name as seen
+    /// from `today`. `None` for a name that is no period.
+    pub fn for_component(name: &str, page: Self, today: Date) -> Option<Result<Self, ReportError>> {
+        match name {
+            "page" => Some(Ok(page)),
+            "this-month" => Some(Self::this_month(today)),
+            "last-month" => Some(Self::last_month(today)),
+            "last-12-months" => Some(Self::last_12_months(today)),
+            "this-year" => Some(Self::this_year(today)),
+            "last-year" => Some(Self::last_year(today)),
+            _ => None,
+        }
+    }
+
     /// The period right before this one, to compare with: for whole calendar
     /// months, the same number of months before; otherwise the same number
     /// of days before.

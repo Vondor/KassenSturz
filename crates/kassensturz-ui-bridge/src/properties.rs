@@ -46,6 +46,11 @@ pub fn fields(component: &Component) -> Vec<Field> {
             {
                 return None;
             }
+            // The period of a component is offered by the grid editor's
+            // panel (M6b.3); the workbench has its own period.
+            if property.key == "period" {
+                return None;
+            }
             // My groups are chosen on their own page (M6b.5), so the grouping
             // that shows them is not offered here until a group can be picked.
             let words: Vec<&'static str> = property
@@ -95,7 +100,7 @@ pub fn json(component: &Component) -> String {
 /// names those objects take, so the screen maps nothing itself.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Preview {
-    /// `chart`, `card`, `progress` or `table`.
+    /// `chart`, `card`, `progress`, `table` or `heading`.
     pub shows: &'static str,
     /// The `kind` for `BookCharts.show`; empty for a card or a progress bar.
     pub chart: &'static str,
@@ -141,6 +146,8 @@ pub fn preview(component: &Component) -> Preview {
         // A table shows the values of a chart; a bar chart is the one both
         // datasets can make.
         ComponentType::TableRows => ("table", "bar"),
+        // Text only: nothing is asked of the book.
+        ComponentType::Heading => ("heading", ""),
     };
     let compare = word(component, "compare");
     let measure = match component.kind() {

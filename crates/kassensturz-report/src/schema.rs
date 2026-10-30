@@ -14,7 +14,7 @@
 //! user-facing text.
 
 use crate::ReportError;
-use crate::catalog::{CATALOG, DatasetInfo};
+use crate::catalog::{CATALOG, DatasetInfo, NO_DATASET};
 
 /// The longest title, in characters (D-281).
 pub const MAX_TEXT_CHARS: usize = 200;
@@ -47,10 +47,14 @@ pub enum ComponentType {
     ProgressBar,
     /// `table.rows`
     TableRows,
+    /// `text.heading`: a line of text that names a section (D-312). It
+    /// shows no data, so it is not in [`ComponentType::ALL`].
+    Heading,
 }
 
 impl ComponentType {
-    /// Every component, in the order the app offers them.
+    /// Every component that shows data, in the order the app offers them.
+    /// The AI may pick any of these (D-282); the heading is not among them.
     pub const ALL: [Self; 9] = [
         Self::ChartLine,
         Self::ChartBar,
@@ -61,6 +65,21 @@ impl ComponentType {
         Self::KpiCard,
         Self::ProgressBar,
         Self::TableRows,
+    ];
+
+    /// Every component the grid editor's library offers: [`Self::ALL`] and
+    /// the heading (D-312).
+    pub const LIBRARY: [Self; 10] = [
+        Self::ChartLine,
+        Self::ChartBar,
+        Self::ChartStackedBar,
+        Self::ChartArea,
+        Self::ChartPie,
+        Self::ChartDonut,
+        Self::KpiCard,
+        Self::ProgressBar,
+        Self::TableRows,
+        Self::Heading,
     ];
 
     /// The id documents and the AI use.
@@ -75,13 +94,14 @@ impl ComponentType {
             Self::KpiCard => "kpi.card",
             Self::ProgressBar => "progress.bar",
             Self::TableRows => "table.rows",
+            Self::Heading => "text.heading",
         }
     }
 
     /// The component with this id; `None` for one this version doesn't
     /// know (a document shows a placeholder for it, D-278).
     pub fn from_id(id: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|kind| kind.id() == id)
+        Self::LIBRARY.into_iter().find(|kind| kind.id() == id)
     }
 
     /// Which entry of a dataset's `suits` (catalog) says it fits this
@@ -95,6 +115,7 @@ impl ComponentType {
             Self::ChartPie | Self::ChartDonut => "pie",
             Self::KpiCard | Self::ProgressBar => "kpi",
             Self::TableRows => "table",
+            Self::Heading => "text",
         }
     }
 
@@ -117,6 +138,7 @@ impl ComponentType {
             Self::KpiCard => &KPI_CARD,
             Self::ProgressBar => &PROGRESS_BAR,
             Self::TableRows => &TABLE,
+            Self::Heading => &HEADING,
         }
     }
 }
@@ -213,6 +235,25 @@ const LEGEND: Property = Property {
     place: Place::Props,
     kind: Kind::Flag { default: true },
 };
+const TEXT: Property = Property {
+    key: "text",
+    place: Place::Props,
+    kind: Kind::Text,
+};
+/// `props.period` (D-289): `page` takes the period of the page the component
+/// is on; the others are the fixed periods of [`crate::PERIODS`].
+const PERIOD: Property = Property {
+    key: "period",
+    place: Place::Props,
+    kind: Kind::Choice(&[
+        "page",
+        "this-month",
+        "last-month",
+        "last-12-months",
+        "this-year",
+        "last-year",
+    ]),
+};
 const COMPARE: Property = Property {
     key: "compare",
     place: Place::Params,
@@ -224,10 +265,11 @@ const MEASURE: Property = Property {
     kind: Kind::Choice(&["income", "expenses", "net", "savings-rate"]),
 };
 
-const CHART: [Property; 6] = [GROUPING, GROUPS, SERIES, TITLE, LEGEND, SHOW_HIDDEN];
-const KPI_CARD: [Property; 3] = [MEASURE, COMPARE, TITLE];
-const PROGRESS_BAR: [Property; 2] = [COMPARE, TITLE];
-const TABLE: [Property; 4] = [GROUPING, GROUPS, TITLE, SHOW_HIDDEN];
+const CHART: [Property; 7] = [GROUPING, GROUPS, SERIES, TITLE, LEGEND, SHOW_HIDDEN, PERIOD];
+const KPI_CARD: [Property; 4] = [MEASURE, COMPARE, TITLE, PERIOD];
+const PROGRESS_BAR: [Property; 3] = [COMPARE, TITLE, PERIOD];
+const TABLE: [Property; 5] = [GROUPING, GROUPS, TITLE, SHOW_HIDDEN, PERIOD];
+const HEADING: [Property; 1] = [TEXT];
 
 fn invalid(reason: &'static str, path: String) -> ReportError {
     ReportError::DocumentInvalid { reason, path }
@@ -308,6 +350,13 @@ pub fn dataset_for(
     component: ComponentType,
     id: &str,
 ) -> Result<&'static DatasetInfo, ReportError> {
+    if component == ComponentType::Heading {
+        return if id.is_empty() {
+            Ok(&NO_DATASET)
+        } else {
+            Err(invalid("dataset-not-suited", "dataset".into()))
+        };
+    }
     let dataset = crate::dataset(id).ok_or_else(|| invalid("unknown-dataset", "dataset".into()))?;
     if dataset.suits.contains(&component.suit()) {
         Ok(dataset)

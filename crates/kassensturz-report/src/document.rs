@@ -316,6 +316,9 @@ impl Document {
                 &format!("components.{position}.id"),
             ));
         }
+        if kind == ViewKind::Dashboard {
+            crate::grid::check(&entries)?;
+        }
         if kind == ViewKind::View {
             if entries.len() != 1 {
                 return Err(invalid("view-needs-one-component", "components"));

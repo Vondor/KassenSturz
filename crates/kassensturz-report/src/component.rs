@@ -158,7 +158,16 @@ impl Component {
         };
         let kind =
             ComponentType::from_id(text("type")?).ok_or_else(|| invalid("unknown-type", "type"))?;
-        let mut component = Self::new(kind, text("dataset")?)?;
+        // A heading shows no data: its document names no dataset (D-312).
+        let dataset = if kind == ComponentType::Heading {
+            if object.contains_key("dataset") {
+                return Err(invalid("unknown-property", "dataset"));
+            }
+            ""
+        } else {
+            text("dataset")?
+        };
+        let mut component = Self::new(kind, dataset)?;
         for place in [Place::Params, Place::Props] {
             let Some(group) = object.get(place.key()) else {
                 continue;
@@ -213,8 +222,10 @@ impl Component {
         }
         let mut object = Map::new();
         object.insert("type".into(), self.kind.id().into());
-        object.insert("dataset".into(), self.dataset.id.into());
-        object.insert("params".into(), Value::Object(params));
+        if self.kind != ComponentType::Heading {
+            object.insert("dataset".into(), self.dataset.id.into());
+            object.insert("params".into(), Value::Object(params));
+        }
         object.insert("props".into(), Value::Object(props));
         Value::Object(object)
     }

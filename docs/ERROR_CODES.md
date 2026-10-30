@@ -412,7 +412,7 @@ Why a dataset for a chart or a card couldn't be made (M6a.1, D-277). No report r
 
 Not rows yet: each code gets its row in the table above (or in the store's section) in the pull request that raises it, since the test compares the table with the code. Parameters are data, shown as plain text.
 
-- `report.document-invalid`'s reasons `frame-outside-grid`, `frame-too-small`, `frames-overlap` are rows now: M6b.1 checks them in the grid editor (`grid::check`), and M6b.2 runs the same check in `Document::read`.
+- `report.document-invalid`'s reasons `frame-outside-grid`, `frame-too-small`, `frames-overlap` are rows now: the grid editor checks them (`grid::check`, M6b.1) and `Document::read` runs the same check for every dashboard (M6b.2, D-313).
 - `report.formula-syntax` with `position` and a reason keyword (`expected-value`, `missing-close`, `wrong-separator`, `bad-number`, `bad-period`, `two-comparisons`, …) (M6b.6).
 - `report.formula-unknown-name`, `report.formula-ambiguous-name` with `name` (and the paths to choose from), `report.formula-unknown-function` with `name`, `report.formula-arguments` with `function` and a reason keyword (M6b.6).
 - `report.formula-kinds` with a reason keyword (`amount-times-amount`, `number-over-amount`, `yes-no-in-arithmetic`, `yes-no-result`, `if-kinds-differ`), `report.formula-mixed-currencies` with `first` and `second` (M6b.6).

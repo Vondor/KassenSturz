@@ -13,7 +13,7 @@
 //! after that, and `remove_view` when the user went back to the built-in
 //! layout, each one entry in the change history (D-288).
 
-use kassensturz_core::{ViewId, ViewKind};
+use kassensturz_core::{StoredView, ViewId, ViewKind};
 use kassensturz_report::grid::{self, COLUMNS, MAX_ROWS};
 use kassensturz_report::{
     Component, ComponentType, Document, Edit, Editor, Entry, Frame, Item, OVERVIEW_NAME,
@@ -29,6 +29,8 @@ pub enum LayoutError {
     /// An edit the grid refused, or a document that doesn't follow the
     /// schema.
     Report(ReportError),
+    /// No saved layout has the ID.
+    NoSuchLayout,
 }
 
 impl From<StoreError> for LayoutError {
@@ -70,6 +72,77 @@ pub struct Layout {
     pub damaged: bool,
 }
 
+/// Whether a dashboard's name is the one the Overview shows (D-330); the
+/// others in the book are saved layouts. Names are compared the way the
+/// book compares them, ignoring case.
+fn is_active_name(name: &str) -> bool {
+    name.to_lowercase() == OVERVIEW_NAME.to_lowercase()
+}
+
+/// A layout the user saved under a name of their own (D-330).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SavedLayout {
+    /// The book's ID of the stored dashboard, as text.
+    pub id: String,
+    /// The name the user gave it.
+    pub name: String,
+}
+
+/// The saved layouts, in the order of the book's list; not the one the
+/// Overview shows.
+pub fn saved_layouts(book: &Book) -> Result<Vec<SavedLayout>, LayoutError> {
+    Ok(book
+        .views(Some(ViewKind::Dashboard))?
+        .into_iter()
+        .filter(|view| !is_active_name(&view.name))
+        .map(|view| SavedLayout {
+            id: view.id.to_string(),
+            name: view.name,
+        })
+        .collect())
+}
+
+/// Keeps the editor's components in the book under `name`, as a layout the
+/// user can load later. This is its own entry in the change history and does
+/// not end the session. A name that is taken, or that the Overview itself
+/// has, is refused (`store.view-name-taken`).
+pub fn save_as(book: &mut Book, editor: &Editor, name: &str) -> Result<String, LayoutError> {
+    let name = name.trim();
+    if is_active_name(name) {
+        return Err(StoreError::ViewNameTaken {
+            name: name.to_owned(),
+        }
+        .into());
+    }
+    let mut document = editor.document().clone();
+    name.clone_into(&mut document.name);
+    let text = document.to_json();
+    Document::read(&text)?;
+    Ok(book.add_view(&text)?.to_string())
+}
+
+/// Puts a saved layout's components into the editor as one edit. Nothing is
+/// written until Done.
+pub fn load(book: &Book, editor: &mut Editor, id: &str) -> Result<bool, LayoutError> {
+    let stored = saved_layout(book, id)?;
+    let document = Document::read(&stored.document)?;
+    Ok(editor.load(&document.entries)?)
+}
+
+/// Deletes a saved layout from the book. The Overview's own layout is not a
+/// saved layout and can't be deleted this way.
+pub fn delete_saved(book: &mut Book, id: &str) -> Result<(), LayoutError> {
+    let stored = saved_layout(book, id)?;
+    Ok(book.remove_view(stored.id)?)
+}
+
+fn saved_layout(book: &Book, id: &str) -> Result<StoredView, LayoutError> {
+    book.views(Some(ViewKind::Dashboard))?
+        .into_iter()
+        .find(|view| view.id.to_string() == id && !is_active_name(&view.name))
+        .ok_or(LayoutError::NoSuchLayout)
+}
+
 /// The built-in Overview's components (D-314).
 pub fn built_in() -> Result<Vec<Entry>, ReportError> {
     Ok(Document::default_overview()?.entries)
@@ -80,7 +153,10 @@ impl Layout {
     /// that can't be read or checked is not repaired: the built-in layout is
     /// shown and [`Layout::damaged`] says so.
     pub fn open(book: &Book) -> Result<Self, LayoutError> {
-        let stored = book.views(Some(ViewKind::Dashboard))?.into_iter().next();
+        let stored = book
+            .views(Some(ViewKind::Dashboard))?
+            .into_iter()
+            .find(|view| is_active_name(&view.name));
         if let Some(stored) = stored {
             if let Ok(editor) = Document::read(&stored.document).and_then(Editor::new) {
                 return Ok(Self {
@@ -328,6 +404,88 @@ mod tests {
         book.undo().unwrap();
         assert!(book.views(Some(ViewKind::Dashboard)).unwrap().is_empty());
         assert!(Layout::open(&book).unwrap().is_built_in());
+    }
+
+    #[test]
+    fn a_saved_layout_is_kept_listed_loaded_and_deleted() {
+        let mut book = book();
+        let mut layout = Layout::open(&book).unwrap();
+        layout.editor.nudge("trend", 0, 2).unwrap();
+        let arranged = layout.editor.document().entries.clone();
+        let id = save_as(&mut book, &layout.editor, "  Month review ").unwrap();
+
+        // A saved layout is not the one the Overview shows.
+        let saved = saved_layouts(&book).unwrap();
+        assert_eq!(
+            saved,
+            [SavedLayout {
+                id: id.clone(),
+                name: "Month review".to_owned()
+            }]
+        );
+        assert!(Layout::open(&book).unwrap().is_built_in());
+
+        // Loading is one edit in the session that Undo takes back, and
+        // writes nothing until Done.
+        let mut layout = Layout::open(&book).unwrap();
+        let before = layout.editor.document().entries.clone();
+        assert!(load(&book, &mut layout.editor, &id).unwrap());
+        assert_eq!(layout.editor.document().entries, arranged);
+        assert_eq!(layout.editor.next_undo(), Some(Edit::Load));
+        assert_eq!(edit_word(layout.editor.next_undo()), "load");
+        assert_eq!(layout.editor.undo(), Some(Edit::Load));
+        assert_eq!(layout.editor.document().entries, before);
+        layout.editor.redo();
+        assert_eq!(layout.save(&mut book).unwrap(), Saved::Added);
+        let shown = Layout::open(&book).unwrap();
+        assert_eq!(shown.editor.document().entries, arranged);
+        assert_eq!(saved_layouts(&book).unwrap().len(), 1);
+
+        delete_saved(&mut book, &id).unwrap();
+        assert!(saved_layouts(&book).unwrap().is_empty());
+        assert!(matches!(
+            load(&book, &mut Layout::open(&book).unwrap().editor, &id),
+            Err(LayoutError::NoSuchLayout)
+        ));
+    }
+
+    #[test]
+    fn a_layout_name_that_is_taken_or_the_overviews_is_refused() {
+        let mut book = book();
+        let layout = Layout::open(&book).unwrap();
+        save_as(&mut book, &layout.editor, "Month review").unwrap();
+        for name in ["month REVIEW", "overview", " Overview "] {
+            assert!(matches!(
+                save_as(&mut book, &layout.editor, name),
+                Err(LayoutError::Store(StoreError::ViewNameTaken { .. }))
+            ));
+        }
+        assert!(save_as(&mut book, &layout.editor, "   ").is_err());
+        assert_eq!(saved_layouts(&book).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn the_overviews_own_layout_is_not_a_saved_layout() {
+        let mut book = book();
+        let mut layout = Layout::open(&book).unwrap();
+        layout.editor.nudge("trend", 0, 2).unwrap();
+        layout.save(&mut book).unwrap();
+        let active = book.views(Some(ViewKind::Dashboard)).unwrap()[0]
+            .id
+            .to_string();
+        assert!(saved_layouts(&book).unwrap().is_empty());
+        assert!(matches!(
+            delete_saved(&mut book, &active),
+            Err(LayoutError::NoSuchLayout)
+        ));
+        // Saved layouts next to it don't change which one the page shows.
+        save_as(&mut book, &layout.editor, "Other").unwrap();
+        let shown = Layout::open(&book).unwrap();
+        assert_eq!(shown.name, OVERVIEW_NAME);
+        assert_eq!(
+            shown.editor.document().entries,
+            layout.editor.document().entries
+        );
     }
 
     #[test]

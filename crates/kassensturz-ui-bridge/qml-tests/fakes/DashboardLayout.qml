@@ -80,6 +80,10 @@ QtObject {
     function undo() { return ""; }
     function redo() { return ""; }
     function reset() { return note("reset"); }
+    function savedLayouts() { return [{id: "l1", name: "Month review"}]; }
+    function saveLayoutAs(name) { return note("saveLayoutAs:" + name); }
+    function loadLayout(id) { return note("loadLayout:" + id); }
+    function deleteLayout(id) { return note("deleteLayout:" + id); }
     function snap(offset, cell) { return cell <= 0 ? 0 : Math.floor((offset * 2 + cell) / (cell * 2)); }
     function narrow(width, gap, unit) { return width - gap * 11 < unit * 3 * 12; }
 }

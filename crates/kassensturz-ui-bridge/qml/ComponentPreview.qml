@@ -23,16 +23,19 @@ ColumnLayout {
     // `last-12-months`, `this-year`, `last-year`).
     property string period: "last-12-months"
 
-    readonly property var asked: subject.preview ?? ({})
+    readonly property var asked: subject?.preview ?? ({})
     readonly property var charts: chartData.view?.charts ?? []
     readonly property var cardSets: cardData.view?.sets ?? []
     readonly property bool failed: asked.shows === "card" || asked.shows === "progress"
         ? cardData.view?.error !== undefined : chartData.view?.error !== undefined
     readonly property bool nothing: !failed && (asked.shows === "card" || asked.shows === "progress"
         ? cardSets.length === 0 : charts.length === 0)
+    // What to call it when the user gave it no title (the grid editor's
+    // built-in components have none, D-316).
+    property string fallbackTitle: ""
     readonly property string title: {
-        const field = (subject.fields ?? []).find(f => f.key === "title");
-        return field ? field.text : "";
+        const field = (subject?.fields ?? []).find(f => f.key === "title");
+        return field && field.text !== "" ? field.text : fallbackTitle;
     }
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -59,8 +62,8 @@ ColumnLayout {
     function show() {
         // Read from `subject` itself: this runs from its change signal, before
         // the bindings that depend on it (`asked`) have been worked out again.
-        const want = subject.preview;
-        if (want === undefined) {
+        const want = subject?.preview;
+        if (want === undefined || period === "") {
             return;
         }
         if (want.shows === "card" || want.shows === "progress") {

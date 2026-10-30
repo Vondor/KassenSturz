@@ -34,13 +34,13 @@ pub const DEFAULT_OVERVIEW: &str = r#"{
      "frame": {"col": 9, "row": 0, "cols": 3, "rows": 2}},
     {"id": "spending", "type": "chart.donut", "dataset": "spending_by_category",
      "params": {"grouping": "top_level_category"},
-     "frame": {"col": 0, "row": 2, "cols": 6, "rows": 4}},
+     "frame": {"col": 0, "row": 2, "cols": 6, "rows": 5}},
     {"id": "biggest", "type": "table.rows", "dataset": "spending_by_category",
      "params": {"grouping": "top_level_category"},
-     "frame": {"col": 6, "row": 2, "cols": 6, "rows": 4}},
+     "frame": {"col": 6, "row": 2, "cols": 6, "rows": 5}},
     {"id": "trend", "type": "chart.line", "dataset": "income_expense_by_month",
      "props": {"period": "last-12-months"},
-     "frame": {"col": 0, "row": 6, "cols": 12, "rows": 4}}
+     "frame": {"col": 0, "row": 7, "cols": 12, "rows": 4}}
   ]
 }"#;
 

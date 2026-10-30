@@ -86,6 +86,20 @@ pub fn fields(component: &Component) -> Vec<Field> {
         .collect()
 }
 
+/// The period choice of a component (`page` or one of the fixed periods),
+/// which the grid editor's panel offers and the workbench does not
+/// (D-313): the chosen word and the words in the order they are offered.
+/// `None` for a component without a period (a heading).
+pub fn period(component: &Component) -> Option<(String, Vec<&'static str>)> {
+    let (property, setting) = component
+        .settings()
+        .find(|(property, _)| property.key == "period")?;
+    let Setting::Word(word) = setting else {
+        return None;
+    };
+    Some((word.clone(), property.words(component.dataset()).to_vec()))
+}
+
 /// The ids of the datasets the component's type can show.
 pub fn dataset_ids(kind: ComponentType) -> Vec<&'static str> {
     kind.datasets().map(|dataset| dataset.id).collect()

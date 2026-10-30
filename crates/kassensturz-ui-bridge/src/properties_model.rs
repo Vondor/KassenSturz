@@ -113,7 +113,7 @@ fn field_object(field: &Field) -> QVariant {
 }
 
 /// What QML gets for a component, with the error of the last refused change.
-fn view_object(component: Option<&Component>, error: Option<&ReportError>) -> QVariant {
+pub(crate) fn view_object(component: Option<&Component>, error: Option<&ReportError>) -> QVariant {
     let mut entries = Vec::new();
     if let Some(component) = component {
         entries.push(("type", text(component.kind().id())));
@@ -131,6 +131,15 @@ fn view_object(component: Option<&Component>, error: Option<&ReportError>) -> QV
             list(properties::fields(component).iter().map(field_object)),
         ));
         entries.push(("json", text(&properties::json(component))));
+        if let Some((word, words)) = properties::period(component) {
+            entries.push((
+                "period",
+                map([
+                    ("word", text(&word)),
+                    ("words", list(words.into_iter().map(text))),
+                ]),
+            ));
+        }
         let preview = properties::preview(component);
         entries.push((
             "preview",
@@ -249,8 +258,16 @@ mod tests {
         let view = view_object(Some(&chart), None);
         assert_eq!(
             keys(&view),
-            ["dataset", "datasets", "fields", "json", "preview", "type"]
+            [
+                "dataset", "datasets", "fields", "json", "period", "preview", "type"
+            ]
         );
+        // The grid editor's panel offers the period; the workbench's fields
+        // do not (it has its own).
+        let period = object_of(&view, "period");
+        assert_eq!(keys(&period), ["word", "words"]);
+        assert_eq!(text_of(&period, "word"), "page");
+        assert_eq!(list_of(&period, "words").len(), 6);
         assert_eq!(text_of(&view, "type"), "chart.pie");
         assert_eq!(text_of(&view, "dataset"), "spending_by_category");
         let datasets: Vec<String> = list_of(&view, "datasets")

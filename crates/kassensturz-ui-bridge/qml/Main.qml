@@ -105,6 +105,15 @@ Kirigami.ApplicationWindow {
 
     // The views saved in the Statistics workbench (M6a.7). A change is in the
     // history, so the notice offers Undo like for any other screen.
+    // The Overview's dashboard and its grid editor (M6b.3).
+    DashboardLayout {
+        id: dashboardLayout
+    }
+
+    GridNames {
+        id: layoutNames
+    }
+
     SavedViews {
         id: savedViews
 
@@ -338,6 +347,8 @@ Kirigami.ApplicationWindow {
     function showBook() {
         // A conversation is about one book.
         chatPanel.startOver();
+        // A layout session belongs to the book it was started on.
+        dashboardLayout.cancel();
         bookChanged();
         if (!firstStartState.hasAccount) {
             pageStack.clear();
@@ -357,6 +368,7 @@ Kirigami.ApplicationWindow {
         ruleBook.refresh();
         accountRegister.refresh();
         savedViews.refresh();
+        dashboardLayout.refresh();
         changeHistory.refresh();
     }
 
@@ -369,11 +381,23 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // The page that is arranging the layout, if the current one is: its Undo
+    // and Redo take back its own edits, not the book's changes (D-288).
+    readonly property var arrangingPage: pageStack.currentItem && pageStack.currentItem.layoutEditing === true ? pageStack.currentItem : null
+
     function undoLast() {
+        if (arrangingPage) {
+            arrangingPage.undoLayout();
+            return;
+        }
         afterStep(changeHistory.undo(), false);
     }
 
     function redoLast() {
+        if (arrangingPage) {
+            arrangingPage.redoLayout();
+            return;
+        }
         afterStep(changeHistory.redo(), true);
     }
 
@@ -719,9 +743,9 @@ Kirigami.ApplicationWindow {
             },
             Kirigami.Action {
                 icon.name: "edit-undo"
-                enabled: root.started && changeHistory.undoChange?.action !== undefined
+                enabled: root.started && (root.arrangingPage ? root.arrangingPage.canUndoLayout : changeHistory.undoChange?.action !== undefined)
                 text: enabled
-                    ? root.i18nContext.i18nc("@action:inmenu %1 is what was done, e.g. Added a transaction", "Undo: %1", changeNames.describe(changeHistory.undoChange))
+                    ? root.i18nContext.i18nc("@action:inmenu %1 is what was done, e.g. Added a transaction", "Undo: %1", root.arrangingPage ? layoutNames.editName(root.arrangingPage.undoLayoutWord) : changeNames.describe(changeHistory.undoChange))
                     : root.i18nContext.i18nc("@action:inmenu there is nothing to undo", "Undo")
                 // The menu cuts a long text, so the tooltip has all of it (#205).
                 tooltip: text
@@ -730,9 +754,9 @@ Kirigami.ApplicationWindow {
             },
             Kirigami.Action {
                 icon.name: "edit-redo"
-                enabled: root.started && changeHistory.redoChange?.action !== undefined
+                enabled: root.started && (root.arrangingPage ? root.arrangingPage.canRedoLayout : changeHistory.redoChange?.action !== undefined)
                 text: enabled
-                    ? root.i18nContext.i18nc("@action:inmenu %1 is what was done, e.g. Added a transaction", "Redo: %1", changeNames.describe(changeHistory.redoChange))
+                    ? root.i18nContext.i18nc("@action:inmenu %1 is what was done, e.g. Added a transaction", "Redo: %1", root.arrangingPage ? layoutNames.editName(root.arrangingPage.redoLayoutWord) : changeNames.describe(changeHistory.redoChange))
                     : root.i18nContext.i18nc("@action:inmenu there is nothing to redo", "Redo")
                 tooltip: text
                 shortcut: StandardKey.Redo
@@ -1091,6 +1115,7 @@ Kirigami.ApplicationWindow {
 
         OverviewPage {
             overview: bookOverview
+            dashboard: dashboardLayout
             onAddAccountClicked: root.addAccount(false)
             onAddTransactionClicked: root.addTransaction(false, "")
             onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })

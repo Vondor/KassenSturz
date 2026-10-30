@@ -98,7 +98,7 @@ kassensturz/
 - `src/accounts.rs` and `src/categories.rs` hold the logic of the two screens, over the public functions of core and store, with no Qt in them, so their tests run on books in memory. They return plain structures (`AccountsView`, `CategoryView`, `BankCheck`) with every amount already as text (`Shown`, D-065) and report refusals as codes with parameters (`errors.rs`, D-034).
 - `src/accounts_model.rs` (`AccountList`) and `src/categories_model.rs` (`CategoryTree`) are the QML objects. They reach the open book through `session.rs` and name accounts and categories to QML by their ID as text; every change ends in their `changed` signal, which `Main.qml` answers by reading the other screens and the first-run mock again. `variant.rs` turns structures into the plain values QML takes.
 - `Book::balance_on` (store) is the balance of an account at the end of a day by the bank's booking date; the import's balance check (`kassensturz-pipeline`) and "Check against my bank" use the same rule through `AccountPart::bank_date`.
-- QML: one file per screen (`AccountsPage`, `NewAccountPage`, `AccountDetailsPage`, `BankCheckPage`, `CategoriesPage`, `CategoryPage`), with `AccountCard`, `Balance` and `AccountTypes` shared.
+- QML: one file per screen (`AccountsPage`, `NewAccountPage`, `AccountDetailsPage`, `BankCheckPage`, `CategoriesPage`, `CategoryPage`, and for My groups and the hide list `CategoryGroupsPage` and `CategoryGroupPage` on the QML object `CategoryGroups`, `src/category_groups_model.rs`, M6b.5c), with `AccountCard`, `Balance` and `AccountTypes` shared.
 
 ## First start (M3.4)
 

@@ -85,6 +85,7 @@ Kirigami.ScrollablePage {
     }
 
     signal addCategoryClicked()
+    signal groupsClicked()
     signal categoryClicked(categoryId: string)
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -98,6 +99,11 @@ Kirigami.ScrollablePage {
             icon.name: "list-add"
             text: page.i18nContext.i18nc("@action:button", "Add category")
             onTriggered: page.addCategoryClicked()
+        },
+        Kirigami.Action {
+            icon.name: "folder-symbolic"
+            text: page.i18nContext.i18nc("@action:button opens the page for groups of categories and hidden ones", "My groups and hidden categories")
+            onTriggered: page.groupsClicked()
         }
     ]
 

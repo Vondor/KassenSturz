@@ -125,6 +125,13 @@ Kirigami.ApplicationWindow {
         onChanged: root.screenChangedBook()
     }
 
+    // My groups and the hide list of the charts (M6b.5c).
+    CategoryGroups {
+        id: categoryGroups
+
+        onChanged: root.screenChangedBook()
+    }
+
     // The Rules and their suggestions (M3.11). A change in them is read
     // again by all the other screens, because a Rule can sort transactions.
     RuleBook {
@@ -346,6 +353,7 @@ Kirigami.ApplicationWindow {
         bookOverview.refresh();
         accountList.refresh();
         categoryTree.refresh();
+        categoryGroups.refresh();
         ruleBook.refresh();
         accountRegister.refresh();
         savedViews.refresh();
@@ -1165,6 +1173,7 @@ Kirigami.ApplicationWindow {
         CategoriesPage {
             categories: categoryTree
             onAddCategoryClicked: root.pushPage(categoryPage)
+            onGroupsClicked: root.pushPage(categoryGroupsPage)
             onCategoryClicked: categoryId => {
                 const row = categoryTree.view.rows.find(row => row.id === categoryId);
                 root.pushPage(categoryPage, {
@@ -1174,6 +1183,33 @@ Kirigami.ApplicationWindow {
                     parentId: row.parent,
                 });
             }
+        }
+    }
+
+    Component {
+        id: categoryGroupsPage
+
+        CategoryGroupsPage {
+            groups: categoryGroups
+            onAddGroupClicked: root.pushPage(categoryGroupPage)
+            onGroupClicked: groupId => {
+                const group = categoryGroups.view.groups.find(group => group.id === groupId);
+                root.pushPage(categoryGroupPage, {
+                    groupId: group.id,
+                    groupName: group.name,
+                    income: group.income,
+                    memberIds: group.members.map(member => member.id),
+                });
+            }
+        }
+    }
+
+    Component {
+        id: categoryGroupPage
+
+        CategoryGroupPage {
+            groups: categoryGroups
+            onDone: root.pageStack.pop()
         }
     }
 

@@ -61,7 +61,9 @@ pub mod qobject {
         /// IDs of My groups (spending) or of the categories and groups of a
         /// chart over time, separated by commas (`params.groups`,
         /// `params.series`), and `show_hidden` shows the hidden categories
-        /// anyway (`props.show_hidden`).
+        /// anyway (`props.show_hidden`). After the list in `chosen` and a `;`
+        /// come the categories and groups spending is limited to, separated
+        /// by commas (`params.categories`, D-331); none for all.
         #[qinvokable]
         #[cxx_name = "showWith"]
         fn show_with(
@@ -115,19 +117,25 @@ impl qobject::BookCharts {
         chosen: &QString,
         show_hidden: bool,
     ) {
-        // Each dataset reads only the list it uses.
-        let ids: Vec<String> = chosen
-            .to_string()
-            .split(',')
-            .filter(|id| !id.is_empty())
-            .map(str::to_owned)
-            .collect();
+        // Each dataset reads only the list it uses. The text holds the list of
+        // groups or series, then `;` and the list of categories the chart is
+        // limited to (D-331).
+        let chosen = chosen.to_string();
+        let (chosen, only) = chosen.split_once(';').unwrap_or((&chosen, ""));
+        let id_list = |text: &str| -> Vec<String> {
+            text.split(',')
+                .filter(|id| !id.is_empty())
+                .map(str::to_owned)
+                .collect()
+        };
+        let ids = id_list(chosen);
         self.as_mut().rust_mut().request = Some(Request {
             dataset: dataset.to_string(),
             kind: kind.to_string(),
             period: period.to_string(),
             grouping: grouping.to_string(),
             groups: ids.clone(),
+            categories: id_list(only),
             series: ids,
             show_hidden,
         });
@@ -717,6 +725,26 @@ mod tests {
         let named: Vec<String> = series.iter().map(|s| text_of(s, "name")).collect();
         assert_eq!(named, ["Rent", "Household"]);
         assert_eq!(number_of(chart, "count"), 12);
+    }
+
+    #[test]
+    fn the_chosen_categories_limit_a_chart_and_a_table_and_unknown_ones_are_counted() {
+        let book = book();
+        let rent = category_id(&book, "Rent");
+        let mut asked = request("spending_by_category", "pie");
+        asked.categories = vec![rent.to_string(), "no-such-category".into()];
+        let view = view_with(&book, &asked);
+        assert_eq!(number_of(&view, "missing"), 1);
+        let chart = &list_of(&view, "charts")[0];
+        assert_eq!(number_of(chart, "count"), 1);
+        assert_eq!(text_of(chart, "total"), "1600,00 €");
+        // The table shows what the chart shows.
+        let rows = list_of(&object_of(chart, "table"), "rows");
+        assert_eq!(rows.len(), 1);
+        asked.categories = Vec::new();
+        let view = view_with(&book, &asked);
+        assert_eq!(number_of(&view, "missing"), 0);
+        assert_eq!(number_of(&list_of(&view, "charts")[0], "count"), 3);
     }
 
     #[test]

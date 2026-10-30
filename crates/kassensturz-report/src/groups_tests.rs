@@ -181,6 +181,70 @@ fn a_chart_of_parts_of_a_whole_refuses_two_groups_that_share_a_category() {
 }
 
 #[test]
+fn only_the_chosen_categories_are_listed_with_what_is_inside_them() {
+    let mut sample = sample();
+    let source = Source::read(&sample.book, autumn()).expect("read");
+    let only = |members: &[GroupMember]| Shown {
+        only: members.to_vec(),
+        ..Shown::default()
+    };
+    // A category brings its subcategories along; money not sorted yet and
+    // the other categories are left out of the rows and of the total.
+    let food = spending(
+        &source,
+        Level::Each,
+        &only(&[GroupMember::Category(sample.food)]),
+    );
+    assert_eq!(
+        named(&food[0].rows),
+        [("Food › Groceries".into(), 7_820), ("Food".into(), 1_000)]
+    );
+    assert_eq!(food[0].total.minor_units(), 8_820);
+    // Two choices, a group among them, and one that is inside the other once.
+    let group = group(
+        &mut sample.book,
+        "Household",
+        &[GroupMember::Category(sample.rent)],
+    );
+    let source = Source::read(&sample.book, autumn()).expect("read");
+    let both = spending(
+        &source,
+        Level::Each,
+        &only(&[
+            GroupMember::Group(group),
+            GroupMember::Category(sample.groceries),
+            GroupMember::Category(sample.groceries),
+        ]),
+    );
+    assert_eq!(
+        named(&both[0].rows),
+        [("Rent".into(), 240_000), ("Food › Groceries".into(), 7_820)]
+    );
+    assert_eq!(both[0].total.minor_units(), 247_820);
+    // Nothing chosen is everything; a choice with no spending in it is
+    // nothing at all.
+    let all = spending(&source, Level::Each, &only(&[]));
+    assert_eq!(all[0].total.minor_units(), 250_070);
+}
+
+#[test]
+fn a_hidden_category_the_user_picked_is_shown() {
+    let mut sample = sample();
+    sample
+        .book
+        .set_hidden_categories(&[sample.rent])
+        .expect("hidden");
+    let source = Source::read(&sample.book, autumn()).expect("read");
+    let picked = Shown {
+        only: vec![GroupMember::Category(sample.rent)],
+        ..Shown::default()
+    };
+    let results = spending(&source, Level::Each, &picked);
+    assert_eq!(named(&results[0].rows), [("Rent".into(), 240_000)]);
+    assert!(results[0].hidden.is_empty());
+}
+
+#[test]
 fn hidden_categories_leave_the_chart_and_are_named_under_it() {
     let mut sample = sample();
     sample

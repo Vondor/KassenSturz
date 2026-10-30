@@ -70,6 +70,8 @@ ColumnLayout {
             return i18nContext.i18nc("@label:textbox the words of a heading in the layout", "Text");
         case "groups":
             return i18nContext.i18nc("@label which of My groups a chart shows", "Groups to show");
+        case "categories":
+            return i18nContext.i18nc("@label which categories and groups a chart or table is limited to", "Only show these categories");
         case "series":
             return i18nContext.i18nc("@label which categories and groups a chart over time draws a line for", "Lines to draw");
         case "legend":
@@ -137,12 +139,14 @@ ColumnLayout {
     function idOptions(key: string): var {
         const book = choices?.view ?? ({});
         const groups = (book.groups ?? [])
-            .filter(group => key !== "groups" || !group.income)
+            .filter(group => (key !== "groups" && key !== "categories") || !group.income)
             .map(group => ({id: group.id, name: i18nContext.i18nc("@option:check %1 is the name of a group", "%1 (group)", group.name)}));
         if (key === "groups") {
             return groups;
         }
-        const categories = (book.categories ?? []).map(category => ({id: category.id, name: category.path ?? category.name}));
+        const categories = (book.categories ?? [])
+            .filter(category => key !== "categories" || !category.income)
+            .map(category => ({id: category.id, name: category.path ?? category.name}));
         return groups.concat(categories);
     }
 
@@ -260,7 +264,10 @@ ColumnLayout {
                             Layout.fillWidth: true
                             visible: picker.options.length === 0
                             wrapMode: Text.Wrap
-                            text: panel.i18nContext.i18nc("@info", "There is nothing to pick yet. Make groups on the page My groups and hidden categories first.")
+                            textFormat: Text.PlainText
+                            text: row.modelData.key === "categories"
+                                ? panel.i18nContext.i18nc("@info", "There are no categories to pick yet.")
+                                : panel.i18nContext.i18nc("@info", "There is nothing to pick yet. Make groups on the page My groups and hidden categories first.")
                         }
 
                         Controls.ScrollView {

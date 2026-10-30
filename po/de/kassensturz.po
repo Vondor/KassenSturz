@@ -12771,3 +12771,15 @@ msgstr "Layout löschen"
 msgctxt "@action:button keep a saved layout"
 msgid "Keep it"
 msgstr "Behalten"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:74
+#, kde-format
+msgctxt "@label which categories and groups a chart or table is limited to"
+msgid "Only show these categories"
+msgstr "Nur diese Kategorien anzeigen"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:269
+#, kde-format
+msgctxt "@info"
+msgid "There are no categories to pick yet."
+msgstr "Es gibt noch keine Kategorien zum Auswählen."

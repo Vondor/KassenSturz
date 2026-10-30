@@ -126,6 +126,10 @@ Window {
             // categories and groups of money received.
             const groups = panel.idOptions("groups");
             window.check(groups.length === 1 && groups[0].id === "g1", "only the groups of money spent: " + JSON.stringify(groups));
+            // Limiting a chart to categories offers the groups and the
+            // categories of money spent, not the ones of money received.
+            const only = panel.idOptions("categories");
+            window.check(only.length === 2 && only[0].id === "g1" && only[1].id === "c1", "spending only: " + JSON.stringify(only));
             const series = panel.idOptions("series");
             window.check(series.length === 3 && series[2].id === "c1" && series[2].name === "Home > Rent", "groups then categories: " + JSON.stringify(series));
 

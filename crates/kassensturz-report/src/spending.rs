@@ -4,7 +4,7 @@
 //! `spending_by_category`: what went out, by category.
 
 use std::cmp::Reverse;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{AccountId, CurrencyCode, GroupId, GroupMember, Money};
 use kassensturz_store::StoreError;
@@ -121,7 +121,15 @@ pub fn spending_by_category_shown(
         .map(GroupMember::Group)
         .collect();
     let groups = source.resolve(&chosen, shown.overlap)?;
-    let hidden_by = if shown.show_hidden {
+    // The categories the user picked, with everything inside them (D-331).
+    let only: Option<HashSet<AccountId>> = (!shown.only.is_empty()).then(|| {
+        shown
+            .only
+            .iter()
+            .flat_map(|&of| source.counted(of))
+            .collect()
+    });
+    let hidden_by = if shown.show_hidden || only.is_some() {
         HashMap::new()
     } else {
         source.hidden_by()
@@ -137,6 +145,13 @@ pub fn spending_by_category_shown(
     };
     for part in source.parts(period, filter)? {
         if part.kind != Kind::Spending {
+            continue;
+        }
+        if only.as_ref().is_some_and(|only| {
+            !part
+                .category
+                .is_some_and(|category| only.contains(&category))
+        }) {
             continue;
         }
         let mut in_group = false;

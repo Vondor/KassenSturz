@@ -291,6 +291,13 @@ const GROUPS: Property = Property {
     place: Place::Params,
     kind: Kind::Ids,
 };
+/// `params.categories` (D-331): the categories and groups a spending chart or
+/// table is limited to. Empty means all of them.
+const CATEGORIES: Property = Property {
+    key: "categories",
+    place: Place::Params,
+    kind: Kind::Ids,
+};
 const SERIES: Property = Property {
     key: "series",
     place: Place::Params,
@@ -363,10 +370,19 @@ const MEASURE: Property = Property {
     kind: Kind::Choice(&["income", "expenses", "net", "savings-rate", FORMULA_MEASURE]),
 };
 
-const CHART: [Property; 7] = [GROUPING, GROUPS, SERIES, TITLE, LEGEND, SHOW_HIDDEN, PERIOD];
+const CHART: [Property; 8] = [
+    GROUPING,
+    GROUPS,
+    CATEGORIES,
+    SERIES,
+    TITLE,
+    LEGEND,
+    SHOW_HIDDEN,
+    PERIOD,
+];
 const KPI_CARD: [Property; 5] = [MEASURE, COMPARE, FORMULA, TITLE, PERIOD];
 const PROGRESS_BAR: [Property; 5] = [COMPARE, FORMULA, TARGET, TITLE, PERIOD];
-const TABLE: [Property; 5] = [GROUPING, GROUPS, TITLE, SHOW_HIDDEN, PERIOD];
+const TABLE: [Property; 6] = [GROUPING, GROUPS, CATEGORIES, TITLE, SHOW_HIDDEN, PERIOD];
 const HEADING: [Property; 1] = [TEXT];
 const PERIOD_BOX: [Property; 2] = [TITLE, BOX_PERIOD];
 

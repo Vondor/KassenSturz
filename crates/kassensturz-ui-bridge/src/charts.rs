@@ -42,6 +42,9 @@ pub struct Request {
     /// For spending: the IDs of My groups to show as one row each
     /// (`params.groups`), as the document writes them.
     pub groups: Vec<String>,
+    /// For spending: the IDs of the categories and groups the chart is
+    /// limited to (`params.categories`, D-331); empty for all.
+    pub categories: Vec<String>,
     /// For `category_over_time`: the IDs of the categories and groups to
     /// draw, one series each (`params.series`).
     pub series: Vec<String>,
@@ -240,8 +243,16 @@ pub fn charts(
         .iter()
         .filter_map(|id| source.member_by_id(id))
         .collect();
+    let only: Vec<GroupMember> = request
+        .categories
+        .iter()
+        .filter_map(|id| source.member_by_id(id))
+        .collect();
     let (named, known) = match request.dataset.as_str() {
-        SPENDING_BY_CATEGORY => (chosen_groups.len(), groups.len()),
+        SPENDING_BY_CATEGORY => (
+            chosen_groups.len() + request.categories.len(),
+            groups.len() + only.len(),
+        ),
         CATEGORY_OVER_TIME => (request.series.len(), series.len()),
         _ => (0, 0),
     };
@@ -253,6 +264,7 @@ pub fn charts(
                 GroupMember::Category(_) => None,
             })
             .collect(),
+        only,
         show_hidden: request.show_hidden,
         overlap,
     };

@@ -169,6 +169,7 @@ pub(crate) fn view_object(
                 ("chart", text(preview.chart)),
                 ("grouping", text(preview.grouping)),
                 ("chosen", text(&preview.chosen)),
+                ("only", text(&preview.only)),
                 ("showHidden", QVariant::from(&preview.show_hidden)),
                 ("compare", text(&preview.compare)),
                 ("measure", text(&preview.measure)),
@@ -328,7 +329,10 @@ mod tests {
         assert_eq!(datasets, ["spending_by_category"]);
         let fields = list_of(&view, "fields");
         let order: Vec<String> = fields.iter().map(|f| text_of(f, "key")).collect();
-        assert_eq!(order, ["grouping", "title", "legend", "show_hidden"]);
+        assert_eq!(
+            order,
+            ["grouping", "categories", "title", "legend", "show_hidden"]
+        );
         for field in &fields {
             assert_eq!(
                 keys(field),
@@ -345,9 +349,11 @@ mod tests {
             .map(|w| w.value::<QString>().expect("text").to_string())
             .collect();
         assert_eq!(words, ["category", "top_level_category", "groups"]);
-        assert_eq!(text_of(&fields[1], "kind"), "text");
-        assert_eq!(text_of(&fields[2], "kind"), "flag");
-        assert!(flag_of(&fields[2], "flag"));
+        assert_eq!(text_of(&fields[1], "kind"), "ids");
+        assert_eq!(text_of(&fields[1], "key"), "categories");
+        assert_eq!(text_of(&fields[2], "kind"), "text");
+        assert_eq!(text_of(&fields[3], "kind"), "flag");
+        assert!(flag_of(&fields[3], "flag"));
         let preview = object_of(&view, "preview");
         assert_eq!(
             keys(&preview),
@@ -358,6 +364,7 @@ mod tests {
                 "formula",
                 "grouping",
                 "measure",
+                "only",
                 "showHidden",
                 "shows",
                 "target",
@@ -389,7 +396,14 @@ mod tests {
         // The list of groups is a field while the chart groups by them.
         assert_eq!(
             order,
-            ["grouping", "groups", "title", "legend", "show_hidden"]
+            [
+                "grouping",
+                "groups",
+                "categories",
+                "title",
+                "legend",
+                "show_hidden"
+            ]
         );
         let fields = list_of(&view, "fields");
         assert_eq!(text_of(&fields[1], "kind"), "ids");
@@ -401,15 +415,26 @@ mod tests {
         assert_eq!(list_of(&fields[0], "words").len(), 3);
         let preview = object_of(&view, "preview");
         assert_eq!(text_of(&preview, "chosen"), "a,b");
+        assert_eq!(text_of(&preview, "only"), "");
         assert!(flag_of(&preview, "showHidden"));
-        // Monthly figures leave nothing out, so no field for hidden ones.
+        // The categories a chart is limited to are asked for as they are
+        // written, and only a spending chart offers them.
+        pie.set("categories", Setting::Ids(vec!["c".into(), "d".into()]))
+            .unwrap();
+        assert_eq!(properties::preview(&pie).only, "c,d");
+        let view = view_object(Some(&pie), None, NumberForm::DecimalComma);
+        assert_eq!(text_of(&object_of(&view, "preview"), "only"), "c,d");
+        // Monthly figures leave nothing out, so no field for hidden ones,
+        // and have no categories to limit to.
         let monthly = component(ComponentType::ChartLine, "income_expense_by_month");
         let view = view_object(Some(&monthly), None, NumberForm::DecimalComma);
-        assert!(
-            !list_of(&view, "fields")
-                .iter()
-                .any(|f| text_of(f, "key") == "show_hidden")
-        );
+        for key in ["show_hidden", "categories"] {
+            assert!(
+                !list_of(&view, "fields")
+                    .iter()
+                    .any(|f| text_of(f, "key") == key)
+            );
+        }
     }
 
     #[test]
@@ -477,6 +502,7 @@ mod tests {
                         period: "this-year".into(),
                         grouping: preview.grouping.into(),
                         groups: Vec::new(),
+                        categories: Vec::new(),
                         series: Vec::new(),
                         show_hidden: preview.show_hidden,
                     };

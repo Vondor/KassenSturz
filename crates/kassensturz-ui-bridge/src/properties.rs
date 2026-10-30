@@ -79,6 +79,9 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                         component.get("grouping"),
                         Some(Setting::Word(word)) if word == kassensturz_report::GROUPS_GROUPING
                     ),
+                    "categories" => {
+                        component.dataset().id == kassensturz_report::SPENDING_BY_CATEGORY
+                    }
                     _ => component.dataset().id == kassensturz_report::CATEGORY_OVER_TIME,
                 };
                 if !wanted {
@@ -156,6 +159,10 @@ pub struct Preview {
     /// The IDs for `BookCharts.showWith`, separated by commas: the groups
     /// of a spending component, the series of a chart over time.
     pub chosen: String,
+    /// The IDs for `BookCharts.showWith` that limit a spending component to
+    /// these categories and groups (D-331), separated by commas; empty for
+    /// all.
+    pub only: String,
     /// Whether the hidden categories are shown anyway.
     pub show_hidden: bool,
     /// The `compare` for `BookCards.show`.
@@ -255,6 +262,7 @@ pub fn preview(component: &Component) -> Preview {
                 "groups"
             },
         ),
+        only: ids(component, "categories"),
         show_hidden: matches!(component.get("show_hidden"), Some(Setting::Flag(true))),
         compare: if compare.is_empty() {
             "previous_period".to_owned()

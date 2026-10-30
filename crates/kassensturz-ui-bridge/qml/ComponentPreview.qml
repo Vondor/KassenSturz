@@ -99,7 +99,7 @@ ColumnLayout {
         } else if (want.shows === "card" || want.shows === "progress") {
             cardData.show(period, want.compare);
         } else {
-            chartData.showWith(subject.dataset, want.chart, period, want.grouping, want.chosen, want.showHidden);
+            chartData.showWith(subject.dataset, want.chart, period, want.grouping, want.chosen + ";" + want.only, want.showHidden);
         }
     }
 

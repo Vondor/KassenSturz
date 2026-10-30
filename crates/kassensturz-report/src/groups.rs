@@ -38,6 +38,11 @@ pub struct Shown {
     /// groups. A group the book doesn't know is skipped
     /// ([`Source::unknown`] says which); one given twice counts once.
     pub groups: Vec<GroupId>,
+    /// Only these categories and groups, each with everything inside it
+    /// (`params.categories`, D-331); empty means all. Money in none of them,
+    /// and money not sorted yet, is left out of the rows and of the total.
+    /// What the user picked is shown even if it is hidden.
+    pub only: Vec<GroupMember>,
     /// Show the hidden categories anyway (`props.show_hidden`).
     pub show_hidden: bool,
     /// Whether two chosen groups may share a category.

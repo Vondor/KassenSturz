@@ -22,6 +22,7 @@
 
 mod catalog;
 mod component;
+mod default_overview;
 mod document;
 mod editor;
 mod error;
@@ -39,6 +40,7 @@ mod text;
 
 pub use catalog::{CATALOG, DatasetInfo, GROUPS_GROUPING, dataset};
 pub use component::Component;
+pub use default_overview::{DEFAULT_OVERVIEW, OVERVIEW_NAME};
 pub use document::{
     Document, Entry, FORMAT, Frame, Item, MAX_BYTES, MAX_COMPONENTS, MAX_DEPTH, MAX_NAME_CHARS,
     PERIODS, VERSION,
@@ -70,6 +72,8 @@ pub use text::{TextFormat, TextTable};
 
 #[cfg(test)]
 mod component_tests;
+#[cfg(test)]
+mod dashboard_tests;
 #[cfg(test)]
 mod document_tests;
 #[cfg(test)]

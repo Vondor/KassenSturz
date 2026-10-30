@@ -32,6 +32,16 @@ pub struct DatasetInfo {
 const LEAVES_OUT: &str = "Money moved between your own accounts and starting balances are not counted, \
      and amounts in different currencies are never added together: there is one result per currency.";
 
+/// What a component without data (the heading, D-312) holds in place of a
+/// dataset. It is in no listing and no document names it.
+pub(crate) const NO_DATASET: DatasetInfo = DatasetInfo {
+    id: "",
+    description: "",
+    groupings: &[],
+    suits: &[],
+    for_ai: false,
+};
+
 /// The datasets, in the order they are offered.
 pub const CATALOG: &[DatasetInfo] = &[
     DatasetInfo {

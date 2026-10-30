@@ -102,14 +102,32 @@ Item {
         return narrow ? width : cellWidth(info.cols);
     }
 
-    // The period a component asks for: its own, or the page's month.
-    function periodFor(info: var): string {
-        return periodOf(info?.subject?.period?.word);
+    // The period box a widget lies completely inside, if any (D-333). Boxes
+    // never overlap each other, so there is at most one.
+    function boxFor(info: var): var {
+        if (!info || info.type === "group.period") {
+            return null;
+        }
+        const inside = box => box.type === "group.period"
+            && box.col <= info.col && box.row <= info.row
+            && info.col + info.cols <= box.col + box.cols
+            && info.row + info.rows <= box.row + box.rows;
+        return items.find(inside) ?? null;
     }
 
-    // The same for a period word on its own.
-    function periodOf(word: var): string {
-        return word === undefined || word === "page" ? monthKey : word;
+    // The period a component asks for: its own, else that of the period box
+    // it lies in, else the page's month.
+    function periodFor(info: var): string {
+        return periodOf(info?.subject?.period?.word, info);
+    }
+
+    // The same for a period word on its own; `info` is the widget it is for.
+    function periodOf(word: var, info: var): string {
+        if (word !== undefined && word !== "page") {
+            return word;
+        }
+        const boxWord = boxFor(info)?.subject?.period?.word;
+        return boxWord === undefined || boxWord === "page" ? monthKey : boxWord;
     }
 
     function itemFor(id: string): var {

@@ -43,6 +43,7 @@ impl ComponentType {
             Self::KpiCard => Size { cols: 2, rows: 2 },
             Self::ProgressBar | Self::Heading => Size { cols: 3, rows: 1 },
             Self::Separator => Size { cols: 1, rows: 1 },
+            Self::PeriodBox => Size { cols: 3, rows: 2 },
             Self::FetchNotice | Self::TransfersNote => Size { cols: 4, rows: 1 },
             Self::TableRows => Size { cols: 4, rows: 3 },
             Self::ChartLine
@@ -64,6 +65,7 @@ impl ComponentType {
             Self::Heading | Self::Separator | Self::FetchNotice | Self::TransfersNote => {
                 Size { cols: 12, rows: 1 }
             }
+            Self::PeriodBox => Size { cols: 12, rows: 5 },
             Self::TableRows
             | Self::ChartLine
             | Self::ChartBar
@@ -86,6 +88,14 @@ impl Frame {
         self.row + self.rows
     }
 
+    /// Whether `inner` lies completely inside this frame.
+    pub const fn contains(self, inner: Self) -> bool {
+        self.col <= inner.col
+            && self.row <= inner.row
+            && inner.right() <= self.right()
+            && inner.bottom() <= self.bottom()
+    }
+
     /// Whether the two frames share a cell.
     pub const fn overlaps(self, other: Self) -> bool {
         self.col < other.right()
@@ -104,6 +114,13 @@ pub const fn smallest_size(item: &Item) -> Size {
     }
 }
 
+/// Whether the item is a period box: a frame that lies under the widgets
+/// it holds (D-333). Boxes and widgets are two layers: a box may overlap
+/// widgets, but no two boxes overlap and no two widgets overlap.
+pub const fn is_box(item: &Item) -> bool {
+    matches!(item, Item::Component(component) if matches!(component.kind(), ComponentType::PeriodBox))
+}
+
 fn invalid(reason: &'static str, index: usize) -> ReportError {
     ReportError::DocumentInvalid {
         reason,
@@ -113,8 +130,9 @@ fn invalid(reason: &'static str, index: usize) -> ReportError {
 
 /// Checks the frames of a dashboard's components: each has one, inside the
 /// 12 columns, at most 24 rows high, starting at most at [`LAST_ROW`] and not
-/// smaller than its type allows, and no two overlap. The path names the
-/// component; for an overlap, the later of the two.
+/// smaller than its type allows, and no two of the same layer overlap (a
+/// period box may lie under widgets, D-333). The path names the component;
+/// for an overlap, the later of the two.
 pub fn check(entries: &[Entry]) -> Result<(), ReportError> {
     for (index, entry) in entries.iter().enumerate() {
         let frame = entry.frame.ok_or_else(|| invalid("bad-frame", index))?;
@@ -129,10 +147,10 @@ pub fn check(entries: &[Entry]) -> Result<(), ReportError> {
         if frame.cols < least.cols || frame.rows < least.rows {
             return Err(invalid("frame-too-small", index));
         }
-        if entries[..index]
-            .iter()
-            .any(|earlier| earlier.frame.is_some_and(|other| other.overlaps(frame)))
-        {
+        if entries[..index].iter().any(|earlier| {
+            is_box(&earlier.item) == is_box(&entry.item)
+                && earlier.frame.is_some_and(|other| other.overlaps(frame))
+        }) {
             return Err(invalid("frames-overlap", index));
         }
     }
@@ -182,20 +200,27 @@ pub(crate) fn refused(reason: &'static str) -> ReportError {
 /// reading order, each where it is or, if it lands on one already put,
 /// just below it. So the frames at `first` win, a frame moves only down and
 /// only as far as it must, and one that lands on nothing stays.
-pub(crate) fn push_down(frames: &mut [Frame], first: &[usize]) -> Result<(), ReportError> {
+///
+/// `boxes` says for each frame whether it is a period box; a box and a
+/// widget never push each other (D-333).
+pub(crate) fn push_down(
+    frames: &mut [Frame],
+    boxes: &[bool],
+    first: &[usize],
+) -> Result<(), ReportError> {
     let mut rest: Vec<usize> = (0..frames.len())
         .filter(|index| !first.contains(index))
         .collect();
     rest.sort_by_key(|&index| (frames[index].row, frames[index].col));
-    let mut put: Vec<Frame> = Vec::with_capacity(frames.len());
+    let mut put: Vec<(Frame, bool)> = Vec::with_capacity(frames.len());
     for index in first.iter().copied().chain(rest) {
         let mut frame = frames[index];
         // Every row above the lowest bottom it lands on still shares a cell
         // with that frame, so this is the nearest row that fits.
         while let Some(below) = put
             .iter()
-            .filter(|other| other.overlaps(frame))
-            .map(|other| other.bottom())
+            .filter(|(other, layer)| *layer == boxes[index] && other.overlaps(frame))
+            .map(|(other, _)| other.bottom())
             .max()
         {
             frame.row = below;
@@ -204,14 +229,24 @@ pub(crate) fn push_down(frames: &mut [Frame], first: &[usize]) -> Result<(), Rep
             return Err(refused("no-room"));
         }
         frames[index] = frame;
-        put.push(frame);
+        put.push((frame, boxes[index]));
     }
     Ok(())
 }
 
 /// The first place in reading order where a frame of this size overlaps
-/// none of `frames`; below everything if there is none.
-pub(crate) fn first_free(frames: &[Frame], size: Size) -> Result<Frame, ReportError> {
+/// none of the `frames` of its own layer (`is_box`, D-333); below everything
+/// if there is none.
+pub(crate) fn first_free(
+    frames: &[(Frame, bool)],
+    is_box: bool,
+    size: Size,
+) -> Result<Frame, ReportError> {
+    let frames: Vec<Frame> = frames
+        .iter()
+        .filter(|(_, layer)| *layer == is_box)
+        .map(|(frame, _)| *frame)
+        .collect();
     let lowest = frames.iter().map(|frame| frame.bottom()).max().unwrap_or(0);
     for row in 0..=lowest.min(LAST_ROW) {
         for col in 0..=COLUMNS.saturating_sub(size.cols) {

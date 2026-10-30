@@ -14,7 +14,7 @@ QtObject {
     property var calls: []
     property var view: ({
         editing: false, damaged: false, hasChanges: false, canUndo: false, canRedo: false,
-        undoEdit: "", redoEdit: "", builtIn: true, columns: 12, maxRows: 24, rows: 6,
+        undoEdit: "", redoEdit: "", builtIn: true, columns: 12, maxRows: 24, rows: 9,
         library: [],
         items: [
             item("income", "kpi.card", 0, 0, 3, 2),
@@ -23,9 +23,19 @@ QtObject {
             item("line", "text.separator", 0, 3, 12, 1),
             item("gaps", "notice.fetch_gap", 0, 4, 12, 1),
             item("moved", "notice.transfers", 0, 5, 12, 1),
+            periodBox("zone", 0, 6, 12, 3, "this-year"),
+            item("inner", "kpi.card", 1, 7, 3, 2),
+            item("outer", "kpi.card", 4, 7, 3, 2),
             Object.assign(item("future", "", 9, 0, 3, 2), {unknown: true, subject: ({})})
         ]
     })
+
+    // A period box with the period it gives (D-333).
+    function periodBox(id, col, row, cols, rows, word) {
+        const box = item(id, "group.period", col, row, cols, rows);
+        box.subject.period = {word: word, words: ["this-month", "last-month", "last-12-months", "this-year", "last-year"]};
+        return box;
+    }
 
     function item(id, type, col, row, cols, rows) {
         const heading = type === "text.heading";

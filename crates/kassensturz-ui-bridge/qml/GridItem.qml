@@ -38,8 +38,11 @@ Item {
     readonly property string heading: present ? names.titleOf(info) : ""
     // The separator and the notices have no card around them while the page
     // is only looked at: a line and a message (D-328, D-334).
+    readonly property bool isBox: present && info.type === "group.period"
     readonly property bool bare: present && (info.type === "text.separator" || info.type === "notice.fetch_gap" || info.type === "notice.transfers")
     readonly property bool showsFrame: !bare || (board.editing && !board.preview)
+    // What a period box says: its title and the period it gives its widgets.
+    readonly property string boxPeriod: isBox ? names.periodName(info.subject?.period?.word ?? "") : ""
     property bool settled: false
     // Dragging and resizing by hand: the pointer sets the pixels, and the
     // editor snaps them to cells when the pointer is let go.
@@ -65,7 +68,8 @@ Item {
     onSubjectJsonChanged: subject = info?.subject ?? ({})
 
     visible: present
-    z: selected ? 2 : (moving || resizing ? 3 : 0)
+    // A period box lies under the widgets it holds (D-333).
+    z: isBox ? (moving || resizing ? 3 : -1) : (selected ? 2 : (moving || resizing ? 3 : 0))
     x: moving ? startX + dragX : (present ? board.frameX(info) : 0)
     y: moving ? startY + dragY : (present ? board.frameY(info) : 0)
     width: resizing ? Math.max(growW, board.cellWidth(info.minCols)) : (present ? board.frameWidth(info) : 0)
@@ -171,7 +175,7 @@ Item {
 
         anchors.fill: parent
         clip: true
-        color: cell.showsFrame ? Kirigami.Theme.backgroundColor : "transparent"
+        color: cell.isBox ? Qt.alpha(Kirigami.Theme.highlightColor, 0.06) : (cell.showsFrame ? Kirigami.Theme.backgroundColor : "transparent")
         radius: Kirigami.Units.smallSpacing
         border.width: cell.selected ? 2 : (cell.showsFrame ? 1 : 0)
         border.color: cell.selected ? Kirigami.Theme.highlightColor
@@ -189,6 +193,7 @@ Item {
             active: cell.present
             sourceComponent: cell.unknown ? unknownBox
                 : cell.info?.type === "text.heading" ? headingBox
+                : cell.info?.type === "group.period" ? boxLabel
                 : cell.info?.type === "text.separator" ? separatorBox
                 : cell.info?.type === "notice.fetch_gap" ? fetchGapBox
                 : cell.info?.type === "notice.transfers" ? transfersBox : figuresBox
@@ -208,6 +213,32 @@ Item {
             readonly property bool failed: false
             Accessible.role: Accessible.Heading
             Accessible.name: text
+        }
+    }
+
+    // A period box: only its title and the period it gives the widgets
+    // inside it, along the top; the widgets are drawn over it (D-333).
+    Component {
+        id: boxLabel
+
+        RowLayout {
+            readonly property bool failed: false
+
+            Kirigami.Heading {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
+                level: 4
+                text: cell.heading
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+            }
+
+            Controls.Label {
+                Layout.alignment: Qt.AlignTop
+                text: cell.boxPeriod
+                textFormat: Text.PlainText
+                color: Kirigami.Theme.disabledTextColor
+            }
         }
     }
 

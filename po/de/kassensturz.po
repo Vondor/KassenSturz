@@ -12645,3 +12645,11 @@ msgctxt ""
 "user's own accounts is not counted"
 msgid "Note about moved money"
 msgstr "Hinweis zu verschobenem Geld"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml
+#, kde-format
+msgctxt ""
+"@item:inlistbox a part of the layout: a framed area with a period of its own "
+"for the widgets inside it"
+msgid "Period box"
+msgstr "Zeitraum-Rahmen"

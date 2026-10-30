@@ -12,7 +12,7 @@ KassenSturz can work with an AI in two different ways. Pick the one that fits wh
 
 ## Route 1: the chat inside KassenSturz
 
-Open **Settings → AI provider and privacy…**. Type the provider's **address**, choose how its **key** is kept, and press **Save**. If you don't know the model's name, leave it empty: after saving, KassenSturz asks the provider which models it offers and you pick one from the list, then press **Save** again. **Test connection** checks the address and the key at any time; it sends nothing from your book.
+Open **Settings → AI provider and privacy…**. Type the provider's **address**, choose how its **key** is kept, and press **Save**. If you don't know the model's name, leave it empty: after saving, KassenSturz asks the provider which models it offers and you pick one from the list, then press **Save** again. **Test connection** checks the address and the key at any time, and once a model is chosen it also asks that model to call a made-up test function, so you see whether it can use KassenSturz's functions. It sends nothing from your book; **Show what the test sends** shows the test question exactly.
 
 ### OpenAI (with an API key)
 

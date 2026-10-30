@@ -39,6 +39,7 @@
 #![forbid(unsafe_code)]
 
 mod address;
+mod capability;
 mod chat;
 mod config;
 mod consent;
@@ -52,7 +53,11 @@ mod scripted;
 mod tls_tests;
 
 pub use address::{Place, ProviderAddress};
-pub use chat::{Finish, FunctionSpec, Message, Reply, Role, ToolCall};
+pub use capability::{
+    FunctionCalling, MIN_CONTEXT_TOKENS, PROBE_FUNCTION, PROBE_WORD, probe_functions,
+    probe_request_body,
+};
+pub use chat::{Finish, FunctionSpec, Message, ModelInfo, Reply, Role, ToolCall};
 pub use config::{
     ADDRESS_KEY, AiConfig, CONSENT_ADDRESS_KEY, CONSENT_DAY_KEY, CONSENT_STATEMENT_KEY, ConfigFile,
     KEY_USE_KEY, KeyUse, MODEL_KEY, ProviderSettings, SLOW_ANSWER_KEY, SlowAnswer,
@@ -275,6 +280,16 @@ impl AiClient {
     /// connection. Sends nothing from the book, only the key, so it needs
     /// no consent.
     pub fn list_models(&self, key: Option<&Secret>) -> Result<Vec<String>, AiError> {
+        Ok(self
+            .list_model_infos(key)?
+            .into_iter()
+            .map(|model| model.id)
+            .collect())
+    }
+
+    /// Like [`AiClient::list_models`], with each model's context size where
+    /// the server's list says it (D-320).
+    pub fn list_model_infos(&self, key: Option<&Secret>) -> Result<Vec<ModelInfo>, AiError> {
         let config = self.config.read();
         if !config.enabled() {
             return Err(AiError::Off);
@@ -290,9 +305,9 @@ impl AiClient {
         &self,
         address: &ProviderAddress,
         key: Option<&Secret>,
-    ) -> Result<Vec<String>, AiError> {
+    ) -> Result<Vec<ModelInfo>, AiError> {
         let reply = http::get(&address.endpoint("models"), key, &self.limits)?;
-        openai::parse_models(&reply)
+        openai::parse_model_infos(&reply)
     }
 
     /// An address without a path whose answer is an error, or isn't an

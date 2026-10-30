@@ -211,6 +211,8 @@ Wave 2 (`MONTHLY`, `MEDIAN`, `PREVIOUS`, `YEAR_AGO`, `SUMIF`, `COUNTIF`, `TOP`, 
 
 **Mistakes in plain words.** Every mistake is an error code with its parameters (D-034), never text from Rust: where it is (the character position, from 1), and the name or function concerned as data. The card or bar shows the message instead of a figure; the formula field (M6b.7) marks the place. A syntax mistake says what was expected ("A ) is missing after Travel").
 
+**As built** (M6b.6): the exact values are our own 128-bit fixed point in `kassensturz-report` (D-317), the details this section leaves open are D-318 (period words count from the figure's last day, a number joins an amount in `IF` and `SUM`, optional places in `ROUND`, names and dates), and the API M6b.7 uses is D-319.
+
 **Trust, for the everyday user** (M6b.7): the formula field lists the functions with one-line explanations, completes category and group names while typing, and shows the result next to the formula with what it counted: "= 312.40 € · counts Pets (with Vet), Travel". So nobody has to trust a formula blindly.
 
 ## 6. Editing AI-prepared changes (#191, D-293)

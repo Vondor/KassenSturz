@@ -9,7 +9,8 @@
 use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, CategoryGroup, CurrencyCode, Date, GroupId, Money, Transaction,
+    Account, AccountId, AccountKind, CategoryGroup, Currency, CurrencyCode, Date, GroupId, Money,
+    RoundingMode, Transaction,
 };
 use kassensturz_store::{Book, CategoryEntry, StoreError};
 
@@ -25,6 +26,8 @@ pub(crate) enum Kind {
 /// One part of a transaction that counts as income or spending.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Part {
+    /// Which transaction of the `Source` it is a part of.
+    pub(crate) transaction: usize,
     pub(crate) currency: CurrencyCode,
     pub(crate) day: Date,
     pub(crate) kind: Kind,
@@ -49,11 +52,16 @@ pub struct Source {
     groups: Vec<CategoryGroup>,
     /// The hidden categories, as the book lists them.
     hidden: Vec<AccountId>,
+    /// The decimal places the book stores for each currency (D-027).
+    currencies: HashMap<CurrencyCode, u8>,
+    /// The book's rounding rule (D-027).
+    rounding: RoundingMode,
 }
 
 impl Source {
     /// Reads the transactions booked in `period`, the accounts and
-    /// categories of the book, and its groups and hidden categories.
+    /// categories of the book, its groups and hidden categories, and the
+    /// decimal places and rounding rule a formula's result needs.
     pub fn read(book: &Book, period: Period) -> Result<Self, ReportError> {
         book.reading(|book| {
             Ok(Self::from_parts(
@@ -62,7 +70,8 @@ impl Source {
                 book.categories()?,
                 book.transactions_between(period.first(), period.last())?,
             )
-            .with_groups(book.category_groups()?, book.hidden_categories()?))
+            .with_groups(book.category_groups()?, book.hidden_categories()?)
+            .with_settings(&book.currencies()?, book.rounding_mode()?))
         })
     }
 
@@ -82,7 +91,36 @@ impl Source {
             transactions,
             groups: Vec::new(),
             hidden: Vec::new(),
+            currencies: HashMap::new(),
+            rounding: RoundingMode::default(),
         }
+    }
+
+    /// The same `Source` with the book's currencies and rounding rule.
+    pub(crate) fn with_settings(self, currencies: &[Currency], rounding: RoundingMode) -> Self {
+        Self {
+            currencies: currencies
+                .iter()
+                .map(|currency| (currency.code(), currency.minor_digits()))
+                .collect(),
+            rounding,
+            ..self
+        }
+    }
+
+    /// The decimal places of `currency`: as the book stores them, else as
+    /// ISO 4217 has them, else 2.
+    pub(crate) fn minor_digits(&self, currency: CurrencyCode) -> u8 {
+        self.currencies
+            .get(&currency)
+            .copied()
+            .or_else(|| currency.iso_minor_digits())
+            .unwrap_or(2)
+    }
+
+    /// The book's rounding rule.
+    pub(crate) fn rounding(&self) -> RoundingMode {
+        self.rounding
     }
 
     /// The same `Source` with these groups and hidden categories.
@@ -176,7 +214,7 @@ impl Source {
             .map(|accounts| accounts.iter().copied().collect());
         let overflow = |_| StoreError::AmountOverflow;
         let mut parts = Vec::new();
-        for transaction in &self.transactions {
+        for (index, transaction) in self.transactions.iter().enumerate() {
             // A Transfer counts by its booking date, not by the days its
             // sides show (D-108).
             let day = transaction.booking_date();
@@ -228,6 +266,7 @@ impl Source {
                     Kind::Income => split.amount.checked_neg().map_err(overflow)?,
                 };
                 parts.push(Part {
+                    transaction: index,
                     currency,
                     day,
                     kind,

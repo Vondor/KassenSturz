@@ -180,15 +180,12 @@ ColumnLayout {
             onActivated: index => panel.model.setDataset(panel.datasets[index])
         }
 
-        Controls.ComboBox {
+        PeriodChoice {
             Kirigami.FormData.label: i18nContext.i18nc("@label:listbox which period a component shows", "Period")
-            Accessible.name: Kirigami.FormData.label
-            model: panel.periodChoice !== undefined ? panel.wordOptions(panel.periodChoice.words) : []
-            textRole: "name"
-            valueRole: "word"
+            options: panel.periodChoice !== undefined ? panel.wordOptions(panel.periodChoice.words) : []
+            word: panel.periodChoice?.word ?? ""
             visible: panel.withPeriod && panel.periodChoice !== undefined
-            currentIndex: panel.periodChoice !== undefined ? panel.periodChoice.words.indexOf(panel.periodChoice.word) : -1
-            onActivated: index => panel.model.setWord("period", panel.periodChoice.words[index])
+            onChosen: word => panel.model.setWord("period", word)
         }
 
         Controls.Label {

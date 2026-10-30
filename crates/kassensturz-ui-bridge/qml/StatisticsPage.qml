@@ -177,16 +177,13 @@ Kirigami.ScrollablePage {
                 onActivated: index => workbench.setType(page.types[index])
             }
 
-            Controls.ComboBox {
+            PeriodChoice {
                 id: periodBox
 
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox", "Period")
-                Accessible.name: Kirigami.FormData.label
-                model: page.periods.map(id => ({id: id, name: page.periodName(id)}))
-                textRole: "name"
-                valueRole: "id"
-                currentIndex: page.periods.indexOf(page.period)
-                onActivated: index => page.period = page.periods[index]
+                options: page.periods.map(id => ({word: id, name: page.periodName(id)}))
+                word: page.period
+                onChosen: word => page.period = word
             }
         }
 

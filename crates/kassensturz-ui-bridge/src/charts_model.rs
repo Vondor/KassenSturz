@@ -728,6 +728,34 @@ mod tests {
     }
 
     #[test]
+    fn a_typed_range_reaches_the_chart_with_the_books_first_day_as_an_open_start() {
+        let book = book();
+        let total = |period: &str| {
+            let mut asked = request("spending_by_category", "bar");
+            asked.show_hidden = true;
+            asked.period = period.into();
+            let view = view_with(&book, &asked);
+            list_of(&view, "charts")
+                .first()
+                .map(|chart| text_of(chart, "total"))
+        };
+        let everything = total("last-12-months");
+        // The book has spending in August and September 2026 only.
+        assert_eq!(total("..2026-09-30"), everything);
+        assert_eq!(total("2026-08-01..2026-09-30"), everything);
+        assert_eq!(total("2026-08-01.."), everything);
+        let september = total("2026-09-01..2026-09-30");
+        assert!(september.is_some() && september != everything);
+        assert_eq!(total("2026-09-01.."), september);
+        assert_eq!(total("..2026-07-31"), None);
+        // A range that is no period is refused, not shown as something else.
+        let mut asked = request("spending_by_category", "bar");
+        asked.period = "2026-09-30..2026-09-01".into();
+        let shown = charts::charts(&book, &TestLocale, &asked);
+        assert!(shown.is_err());
+    }
+
+    #[test]
     fn the_chosen_categories_limit_a_chart_and_a_table_and_unknown_ones_are_counted() {
         let book = book();
         let rent = category_id(&book, "Rent");

@@ -6,11 +6,14 @@
 
 import QtQuick
 import org.kde.ki18n
+import io.github.vondor.kassensturz
 
 QtObject {
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
     }
+
+    readonly property PeriodRange range: PeriodRange {}
 
     function typeName(id: string): string {
         switch (id) {
@@ -97,7 +100,9 @@ QtObject {
         case "last-year":
             return i18nContext.i18nc("@item:inlistbox a period", "Last year");
         }
-        return "";
+        // A range the user typed is named by its dates.
+        const described = range.describe(word);
+        return described.custom ? described.text : "";
     }
 
     // What an edit did, for the Undo and Redo texts.

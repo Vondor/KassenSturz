@@ -161,8 +161,8 @@ M6 is done in five Sprints, each with its own Phases 0 to 3 (D-284): **M6a** is 
 | **M6b.R2b** | The period box instead of the month switcher: a framed widget whose period the widgets inside it take unless they have their own (Q-248 = A, D-333) | M6b.R2a | strong, high | in review |
 | **M6b.R3** | "What you are worth" (D-329) and "Where your money came from" (D-336, Q-250 = A) as widgets, filled from the Overview's own figures | M6b.R2 | standard, high | done |
 | **M6b.R4** | Save and load named Overview layouts (D-330) | M6b.R3 | standard, high | done |
-| **M6b.R5** | Choose which categories a bar, pie, ring or table shows (D-331) | M6b.R4 | standard, high | in review |
-| **M6b.R6** | Statistics period: typed date range and open ends next to the quick choices (D-332) | M6b.R5 | standard, high | todo |
+| **M6b.R5** | Choose which categories a bar, pie, ring or table shows (D-331) | M6b.R4 | standard, high | done |
+| **M6b.R6** | Statistics period: typed date range and open ends next to the quick choices (D-332) | M6b.R5 | standard, high | in review |
 | **M6c.1** | Net worth, assets, liabilities, cash flow datasets | M6b | strong, high | todo |
 | **M6c.2** | Financial components: balances, category spending, cash flow | M6c.1 | standard, high | todo |
 | **M6c.3** | Layout 22: budgets table (a monthly limit per category) with history | M6b | strong, high | todo |

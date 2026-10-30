@@ -12,6 +12,42 @@ use crate::ReportError;
 /// from year 1 to year 9999 can't ask for a hundred thousand rows (D-281).
 pub const MAX_MONTHS: usize = 1200;
 
+/// The word that names a typed range of days (D-332): `FIRST..LAST` with
+/// ISO dates, `..LAST` for everything up to a day, `FIRST..` for a day until
+/// today. Fails with [`ReportError::BadPeriod`] for no day at all or an end
+/// before the start, and with [`ReportError::PeriodTooLong`] for more than
+/// [`MAX_MONTHS`] months between two days.
+pub fn range_word(first: Option<Date>, last: Option<Date>) -> Result<String, ReportError> {
+    match (first, last) {
+        (None, None) => Err(ReportError::BadPeriod),
+        (Some(first), Some(last)) => {
+            Period::new(first, last)?;
+            Ok(format!("{first}..{last}"))
+        }
+        (Some(first), None) => Ok(format!("{first}..")),
+        (None, Some(last)) => Ok(format!("..{last}")),
+    }
+}
+
+/// The days a typed range word names, if it is one that [`range_word`] could
+/// have written: valid ISO dates, at least one of them, in order.
+pub fn read_range_word(word: &str) -> Option<(Option<Date>, Option<Date>)> {
+    let (first, last) = word.split_once("..")?;
+    let day = |text: &str| -> Option<Option<Date>> {
+        if text.is_empty() {
+            return Some(None);
+        }
+        let ok = text.len() == 10 && text.bytes().all(|b| b.is_ascii_digit() || b == b'-');
+        ok.then(|| text.parse().ok()).flatten().map(Some)
+    };
+    let (first, last) = (day(first)?, day(last)?);
+    match (first, last) {
+        (None, None) => None,
+        (Some(first), Some(last)) if last < first => None,
+        _ => Some((first, last)),
+    }
+}
+
 /// A range of days, both ends included.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Period {
@@ -86,8 +122,24 @@ impl Period {
             "last-12-months" => Some(Self::last_12_months(today)),
             "this-year" => Some(Self::this_year(today)),
             "last-year" => Some(Self::last_year(today)),
-            _ => None,
+            _ => Self::from_range_word(name, today, None),
         }
+    }
+
+    /// The period a typed range names (D-332), as written by
+    /// [`range_word`]: `2000-01-01..2020-01-01`, `..2025-01-01` (everything
+    /// up to a day) or `2025-01-01..` (a day until `today`). An open start is
+    /// the first day of the book, `earliest`, or the end when the book has
+    /// no transaction. `None` for a word that is no range.
+    pub fn from_range_word(
+        word: &str,
+        today: Date,
+        earliest: Option<Date>,
+    ) -> Option<Result<Self, ReportError>> {
+        let (first, last) = read_range_word(word)?;
+        let last = last.unwrap_or_else(|| today.max(first.unwrap_or(today)));
+        let first = first.or(earliest).map_or(last, |first| first.min(last));
+        Some(Self::new(first, last))
     }
 
     /// The period right before this one, to compare with: for whole calendar
@@ -278,6 +330,74 @@ mod tests {
             year_before(date(2026, 1, 1), date(2026, 12, 31)),
             (date(2025, 1, 1), date(2025, 12, 31))
         );
+    }
+
+    #[test]
+    fn a_typed_range_is_written_read_and_resolved() {
+        let (first, last) = (date(2000, 1, 1), date(2020, 1, 1));
+        let both = range_word(Some(first), Some(last)).unwrap();
+        assert_eq!(both, "2000-01-01..2020-01-01");
+        assert_eq!(read_range_word(&both), Some((Some(first), Some(last))));
+        let today = date(2026, 10, 30);
+        let period = |word: &str, earliest| {
+            Period::from_range_word(word, today, earliest)
+                .unwrap()
+                .map(|p| (p.first(), p.last()))
+        };
+        assert_eq!(period(&both, None).unwrap(), (first, last));
+        // An open start is the book's first day; an open end is today.
+        let up_to = range_word(None, Some(last)).unwrap();
+        assert_eq!(up_to, "..2020-01-01");
+        let book_start = date(2018, 5, 3);
+        assert_eq!(
+            period(&up_to, Some(book_start)).unwrap(),
+            (book_start, last)
+        );
+        // A book that starts later than the end has just that day.
+        assert_eq!(
+            period(&up_to, Some(date(2021, 1, 1))).unwrap(),
+            (last, last)
+        );
+        assert_eq!(period(&up_to, None).unwrap(), (last, last));
+        let from = range_word(Some(first), None).unwrap();
+        assert_eq!(from, "2000-01-01..");
+        assert_eq!(period(&from, None).unwrap(), (first, today));
+        // A start in the future is that one day, never a backwards period.
+        let future = range_word(Some(date(2030, 1, 1)), None).unwrap();
+        assert_eq!(
+            period(&future, None).unwrap(),
+            (date(2030, 1, 1), date(2030, 1, 1))
+        );
+        // Mistakes are refused, never guessed.
+        assert!(matches!(
+            range_word(Some(last), Some(first)),
+            Err(ReportError::BadPeriod)
+        ));
+        assert!(matches!(
+            range_word(None, None),
+            Err(ReportError::BadPeriod)
+        ));
+        assert!(matches!(
+            range_word(Some(date(1800, 1, 1)), Some(last)),
+            Err(ReportError::PeriodTooLong)
+        ));
+        for word in [
+            "..",
+            "2020-01-01..2000-01-01",
+            "2020-13-01..",
+            "x..",
+            "2020-1-1..",
+            "this-year",
+            "1.1.2000..",
+        ] {
+            assert_eq!(read_range_word(word), None, "{word}");
+            assert!(
+                Period::from_range_word(word, today, None).is_none(),
+                "{word}"
+            );
+        }
+        // The names a component can use work for a range too.
+        assert!(Period::for_component(&both, Period::this_month(today).unwrap(), today).is_some());
     }
 
     #[test]

@@ -57,7 +57,7 @@ Kirigami.ApplicationWindow {
     }
 
     function nameField() {
-        return find(page, "TextField", []).filter(f => f.placeholderText !== "")[0];
+        return find(page, "TextField", []).filter(f => f.placeholderText !== "" && f.placeholderText.indexOf("01.01") < 0)[0];
     }
 
     Timer {
@@ -101,6 +101,33 @@ Kirigami.ApplicationWindow {
             case 6:
                 window.check(page.openId === "", "a deleted view is no longer the one being changed");
                 window.check(page.views.length === 0, "and the list is empty");
+                {
+                    // The last choice of the period is a range of dates the
+                    // user types; the quick choices stay (D-332).
+                    const choice = find(page, "PeriodChoice", [])[0];
+                    const box = find(choice, "ComboBox", [])[0];
+                    window.check(box.count === page.periods.length + 1, "the period box has the quick choices and the range");
+                    window.check(!find(choice, "TextField", [])[0].visible, "no field for dates at first");
+                    box.activated(page.periods.length);
+                }
+                break;
+            case 7:
+                {
+                    const choice = find(page, "PeriodChoice", [])[0];
+                    const field = find(choice, "TextField", [])[0];
+                    window.check(field.visible, "the field for the dates appears");
+                    field.text = "nonsense";
+                    field.editingFinished();
+                    window.check(choice.problem.code === "input.bad-range-text" && page.period === "last-12-months", "text that is no range changes nothing");
+                    field.text = "01.01-02.02";
+                    field.editingFinished();
+                    window.check(page.period === "01.01..02.02", "a range sets the period: " + page.period);
+                    window.check(field.text === "01.01-02.02" && choice.problem.code === undefined, "and is shown as typed");
+                    find(choice, "ComboBox", [])[0].activated(0);
+                }
+                break;
+            case 8:
+                window.check(page.period === "this-month", "a quick choice replaces the range: " + page.period);
                 Qt.exit(window.failed ? 1 : 0);
                 break;
             }

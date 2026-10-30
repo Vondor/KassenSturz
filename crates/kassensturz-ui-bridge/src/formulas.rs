@@ -384,7 +384,7 @@ pub fn show(book: &Book, locale: &impl Locale, request: &Request) -> Result<Outc
     if request.text.trim().is_empty() {
         return Ok(Outcome::Empty);
     }
-    let figure = period(&request.period, locale.today())?;
+    let figure = period(book, &request.period, locale.today())?;
     if let Some(target) = &request.target {
         return Ok(bar(book, locale, request, target, figure));
     }

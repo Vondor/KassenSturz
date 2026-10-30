@@ -458,7 +458,10 @@ impl Property {
                 }
             }
             (Kind::Choice(_) | Kind::Grouping, Setting::Word(word)) => {
-                if self.words(dataset).contains(&word.as_str()) {
+                // A period can also be a typed range of days (D-332).
+                if self.words(dataset).contains(&word.as_str())
+                    || (self.key == "period" && crate::read_range_word(word).is_some())
+                {
                     Ok(())
                 } else {
                     Err(invalid("bad-choice", self.path()))

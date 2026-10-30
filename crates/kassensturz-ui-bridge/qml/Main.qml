@@ -1116,6 +1116,7 @@ Kirigami.ApplicationWindow {
         OverviewPage {
             overview: bookOverview
             dashboard: dashboardLayout
+            savedSource: savedViews
             groupsSource: categoryGroups
             onAddAccountClicked: root.addAccount(false)
             onAddTransactionClicked: root.addTransaction(false, "")

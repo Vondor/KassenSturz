@@ -10,7 +10,7 @@ The maintainer's answers this design builds on, word for word where he wrote the
 
 ## 1. The grid (D-287)
 
-The Overview's components sit on a grid the user arranges. The page parts that are not components (the accounts total, the fetch-gap warnings, the month switcher, the transfers note) stay fixed above the grid; only the grid is edited.
+The Overview's components sit on a grid the user arranges. The page parts that are not components (the accounts total, the fetch-gap warnings, the month switcher, the transfers note) stay fixed above the grid; only the grid is edited. **Changed in the Phase 2 fix room (D-327):** these parts become components too, step by step (M6b.R2, M6b.R3); a view saved under Statistics can be added as a copy (D-326).
 
 **Geometry**
 

@@ -12584,3 +12584,21 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml
+#, kde-format
+msgctxt "@action:button add a view saved in Statistics to the layout"
+msgid "Add a saved view"
+msgstr "Gespeicherte Ansicht hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Adds a copy of a view you saved under Statistics"
+msgstr "Fügt eine Kopie einer Ansicht hinzu, die Sie unter Statistik gespeichert haben"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Nothing saved yet. Save a view under Statistics first."
+msgstr "Noch nichts gespeichert. Speichern Sie zuerst unter Statistik eine Ansicht."

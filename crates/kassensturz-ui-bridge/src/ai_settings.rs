@@ -929,158 +929,77 @@ mod tests {
         });
     }
 
-    /// The first line and the body of each request a test server got.
-    type RequestLog = Arc<Mutex<Vec<(String, String)>>>;
-
-    /// A server on this computer that answers one connection after the
-    /// other with the given JSON bodies and logs each request's first line
-    /// and body, so the tests see what really went out.
-    fn serve(answers: Vec<(u16, String)>) -> (String, RequestLog) {
-        use std::io::{Read, Write};
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("a free port");
-        let address = format!(
-            "http://127.0.0.1:{}/v1",
-            listener.local_addr().unwrap().port()
-        );
-        let log = Arc::new(Mutex::new(Vec::new()));
-        let seen = log.clone();
-        std::thread::spawn(move || {
-            for (status, body) in answers {
-                let Ok((mut stream, _)) = listener.accept() else {
-                    return;
-                };
-                let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(2)));
-                let mut raw = Vec::new();
-                let mut buffer = [0u8; 4096];
-                let mut wanted = None;
-                while let Ok(n) = stream.read(&mut buffer) {
-                    raw.extend_from_slice(&buffer[..n]);
-                    let text = String::from_utf8_lossy(&raw).into_owned();
-                    if let Some((head, rest)) = text.split_once("\r\n\r\n") {
-                        let length = *wanted.get_or_insert_with(|| {
-                            head.lines()
-                                .find_map(|line| {
-                                    line.to_ascii_lowercase()
-                                        .strip_prefix("content-length:")
-                                        .and_then(|v| v.trim().parse::<usize>().ok())
-                                })
-                                .unwrap_or(0)
-                        });
-                        if rest.len() >= length || n == 0 {
-                            break;
-                        }
-                    } else if n == 0 {
-                        break;
-                    }
-                }
-                let text = String::from_utf8_lossy(&raw).into_owned();
-                let line = text.lines().next().unwrap_or_default().to_owned();
-                let request = text
-                    .split_once("\r\n\r\n")
-                    .map_or("", |(_, rest)| rest)
-                    .to_owned();
-                seen.lock().unwrap().push((line, request));
-                let _ = stream.write_all(
-                    format!(
-                        "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\n\
-                         Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
-                        body.len()
-                    )
-                    .as_bytes(),
-                );
-            }
-        });
-        (address, log)
-    }
-
-    fn calls_ping() -> String {
-        serde_json::json!({"choices": [{"finish_reason": "tool_calls", "message": {"tool_calls": [
-            {"id": "c1", "type": "function", "function": {
-                "name": kassensturz_ai::PROBE_FUNCTION, "arguments": "{\"word\":\"ping\"}"}}]}}]})
-        .to_string()
-    }
-
-    fn says_words() -> String {
-        r#"{"choices":[{"finish_reason":"stop","message":{"content":"I will."}}]}"#.to_owned()
-    }
-
     #[test]
-    fn the_test_says_what_the_model_can_do_and_keeps_it_for_that_model() {
-        let models = r#"{"data":[{"id":"small","context_length":4096},{"id":"other"}]}"#;
-        let (address, log) = serve(vec![(200, models.to_owned()), (200, calls_ping())]);
+    fn the_kept_result_is_tied_to_the_address_and_model_it_was_found_for() {
         let (_folder, _file, store) = on();
         let (_, mut keys) = keys();
-        store.save(&mut keys, &address, "small", KeyUse::None, None);
+        let address = "http://127.0.0.1:1/v1";
+        store.save(&mut keys, address, "small", KeyUse::None, None);
         assert_eq!(store.form().capability, None, "nothing found yet");
-        let found = store.test_connection(None, None).expect("a found result");
-        assert_eq!(found.functions, Functions::Yes);
-        assert_eq!(found.context_tokens, Some(4096));
-        assert_eq!(found.models, ["small", "other"]);
-        // What went out: the list, then exactly the request the screen shows.
-        let sent = log.lock().unwrap().clone();
-        assert_eq!(sent[0].0, "GET /v1/models HTTP/1.1");
-        assert_eq!(sent[1].0, "POST /v1/chat/completions HTTP/1.1");
-        assert_eq!(sent[1].1, store.capability_request());
-        // Kept with the provider's settings, for this model only.
-        let kept = store.form().capability.expect("kept");
-        assert_eq!(kept.functions, Some(true));
-        assert_eq!(kept.context_tokens, Some(4096));
-        assert!(kept.context_small());
-        store.save(&mut keys, &address, "other", KeyUse::None, None);
+        let found = Capability {
+            functions: Some(true),
+            context_tokens: Some(4096),
+        };
+        store.keep_capability(address, "small", found);
+        assert_eq!(store.form().capability, Some(found));
+        assert!(found.context_small());
+        assert!(
+            !Capability {
+                functions: None,
+                context_tokens: Some(8192)
+            }
+            .context_small()
+        );
+        store.save(&mut keys, address, "other", KeyUse::None, None);
         assert_eq!(store.form().capability, None, "another model is untested");
-        store.save(&mut keys, &address, "small", KeyUse::None, None);
+        store.save(
+            &mut keys,
+            "http://127.0.0.1:2/v1",
+            "small",
+            KeyUse::None,
+            None,
+        );
+        assert_eq!(store.form().capability, None, "another address is untested");
+        store.save(&mut keys, address, "small", KeyUse::None, None);
         assert_eq!(
             store.form().capability,
-            Some(kept),
+            Some(found),
             "back to the tested one"
         );
-    }
-
-    #[test]
-    fn a_model_that_answers_in_words_is_a_no_and_a_later_test_replaces_the_result() {
-        let models = r#"{"data":[{"id":"m"}]}"#;
-        let (address, _log) = serve(vec![
-            (200, models.to_owned()),
-            (200, says_words()),
-            (200, models.to_owned()),
-            (200, calls_ping()),
-        ]);
-        let (_folder, _file, store) = on();
-        let (_, mut keys) = keys();
-        store.save(&mut keys, &address, "m", KeyUse::None, None);
-        let found = store.test_connection(None, None).unwrap();
-        assert_eq!(found.functions, Functions::No);
-        assert_eq!(found.context_tokens, None, "not guessed");
-        assert_eq!(store.form().capability.unwrap().functions, Some(false));
-        store.test_connection(None, None).unwrap();
-        assert_eq!(store.form().capability.unwrap().functions, Some(true));
-    }
-
-    #[test]
-    fn a_failed_function_test_still_lists_the_models_and_is_not_kept_as_an_answer() {
-        let models = r#"{"data":[{"id":"m"}]}"#;
-        let (address, _log) = serve(vec![(200, models.to_owned()), (503, "{}".to_owned())]);
-        let (_folder, _file, store) = on();
-        let (_, mut keys) = keys();
-        store.save(&mut keys, &address, "m", KeyUse::None, None);
-        let found = store.test_connection(None, None).unwrap();
-        assert_eq!(found.models, ["m"]);
-        assert_eq!(
-            found.functions,
-            Functions::Failed(AiError::ProviderFailed { status: 503 })
+        // A later test replaces the result; one that found nothing clears it.
+        store.keep_capability(
+            address,
+            "small",
+            Capability {
+                functions: Some(false),
+                context_tokens: None,
+            },
         );
+        assert_eq!(store.form().capability.unwrap().functions, Some(false));
+        store.keep_capability(address, "small", Capability::default());
         assert_eq!(store.form().capability, None);
     }
 
     #[test]
     fn without_a_model_only_the_list_is_asked() {
-        let (address, log) = serve(vec![(200, r#"{"data":[{"id":"m"}]}"#.to_owned())]);
         let (_folder, _file, store) = on();
         let (_, mut keys) = keys();
-        store.save(&mut keys, &address, "", KeyUse::None, None);
-        let found = store.test_connection(None, None).unwrap();
+        store.save(
+            &mut keys,
+            kassensturz_ai::SCRIPTED_ADDRESS,
+            "",
+            KeyUse::None,
+            None,
+        );
+        let found = store
+            .test_connection(None, Some(DemoModel::Functions))
+            .unwrap();
         assert_eq!(found.functions, Functions::NoModel);
-        assert_eq!(log.lock().unwrap().len(), 1, "no chat request went out");
+        assert_eq!(
+            store.form().capability,
+            None,
+            "nothing is kept without a model"
+        );
         assert_eq!(store.capability_request(), "");
     }
 

@@ -33,6 +33,8 @@ The Overview's components sit on a grid the user arranges. The page parts that a
 
 **Content that does not fit** in its frame scrolls inside the component, and the component says so to a screen reader; it is never cut off silently.
 
+**Built in M6b.3** (D-315, D-316): `DashboardLayout` (`grid_editor_model.rs`, logic in `grid_editor.rs`) holds the layout the Overview shows and the editor session; `DashboardGrid.qml` and `GridItem.qml` draw it in view and edit mode; the Overview is made from the built-in document or the stored dashboard. Toolbar on the selected component only, animated moves, one top message for components with a problem and the Heading are D-311 and D-312. The keyboard map of section 2 is `DashboardGrid.keyPressed`; `tools/check-panel.sh` runs `GridSmoke.qml` against it. The properties panel is a sheet and offers `period`.
+
 **Built in M6b.1** as `kassensturz-report`'s `grid` module and `Editor` (the command stack of section 2). Its own choices are D-296: default sizes (chart and table 6 × 4, key figure card 3 × 2, progress bar 6 × 1), rows ending at 1,000 with a refused edit (`report.grid-edit-refused`) changing nothing, and how Move earlier and Move later pick a place.
 
 ## 2. The editor and its undo (D-288)

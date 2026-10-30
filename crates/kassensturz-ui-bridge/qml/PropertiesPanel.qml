@@ -22,6 +22,10 @@ ColumnLayout {
     readonly property var view: model.view
     readonly property var fields: view.fields !== undefined ? view.fields : []
     readonly property var datasets: view.datasets !== undefined ? view.datasets : []
+    // The grid editor's panel offers the period of the component; the
+    // Statistics workbench has a period of its own (D-313).
+    property bool withPeriod: false
+    readonly property var periodChoice: view.period
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -55,6 +59,8 @@ ColumnLayout {
         switch (key) {
         case "title":
             return i18nContext.i18nc("@label:textbox a title above a chart", "Title");
+        case "text":
+            return i18nContext.i18nc("@label:textbox the words of a heading in the layout", "Text");
         case "legend":
             return i18nContext.i18nc("@option:check", "Show the legend");
         case "grouping":
@@ -81,6 +87,18 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox", "Month");
         case "series":
             return i18nContext.i18nc("@item:inlistbox", "The categories and groups you picked");
+        case "page":
+            return i18nContext.i18nc("@item:inlistbox a period: the one the page shows", "The period of the page");
+        case "this-month":
+            return i18nContext.i18nc("@item:inlistbox a period", "This month");
+        case "last-month":
+            return i18nContext.i18nc("@item:inlistbox a period", "Last month");
+        case "last-12-months":
+            return i18nContext.i18nc("@item:inlistbox a period", "The last 12 months");
+        case "this-year":
+            return i18nContext.i18nc("@item:inlistbox a period", "This year");
+        case "last-year":
+            return i18nContext.i18nc("@item:inlistbox a period", "Last year");
         case "previous_period":
             return i18nContext.i18nc("@item:inlistbox", "The period before");
         case "same_last_year":
@@ -125,6 +143,17 @@ ColumnLayout {
             visible: panel.datasets.length > 1
             currentIndex: panel.datasets.indexOf(panel.view.dataset)
             onActivated: index => panel.model.setDataset(panel.datasets[index])
+        }
+
+        Controls.ComboBox {
+            Kirigami.FormData.label: i18nContext.i18nc("@label:listbox which period a component shows", "Period")
+            Accessible.name: Kirigami.FormData.label
+            model: panel.periodChoice !== undefined ? panel.wordOptions(panel.periodChoice.words) : []
+            textRole: "name"
+            valueRole: "word"
+            visible: panel.withPeriod && panel.periodChoice !== undefined
+            currentIndex: panel.periodChoice !== undefined ? panel.periodChoice.words.indexOf(panel.periodChoice.word) : -1
+            onActivated: index => panel.model.setWord("period", panel.periodChoice.words[index])
         }
 
         Controls.Label {

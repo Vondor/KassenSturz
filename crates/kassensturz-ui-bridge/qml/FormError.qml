@@ -229,6 +229,18 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is a number", "A book keeps at most %1 groups. Remove a group you no longer need, then try again.", result.max);
         case "store.too-many-group-members":
             return i18nContext.i18nc("@info %1 is a number", "A group can have at most %1 members. Put some of them into another group, and then that group into this one.", result.max);
+        case "report.grid-edit-refused":
+            switch (result.reason) {
+            case "unknown-component":
+                return i18nContext.i18nc("@info", "That part of the layout isn't there anymore, so nothing was changed. It may have just been removed.");
+            case "not-editable":
+                return i18nContext.i18nc("@info", "This part of the layout was made by a newer KassenSturz, so this one can move or remove it but not change it. Nothing was changed.");
+            case "too-many-components":
+                return i18nContext.i18nc("@info", "The page can hold at most 100 components, so nothing was added. Remove one you no longer need, then try again.");
+            case "no-room":
+                return i18nContext.i18nc("@info", "There is no room for that: the page reaches down at most 1,000 rows. Nothing was changed. Move something up or remove it, then try again.");
+            }
+            return i18nContext.i18nc("@info", "That change to the layout couldn't be made, so nothing was changed. Try something else.");
         case "report.groups-overlap":
             return i18nContext.i18nc("@info %1 is the name of a category, %2 and %3 are the names of two groups", "%1 is in %2 and in %3; a chart that shows parts of a whole can't count it twice. Take it out of one of them, or show them as bars or lines.", result.category, result.first, result.second);
         case "store.empty-rule-name":

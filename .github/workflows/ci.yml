@@ -407,10 +407,6 @@ jobs:
       # click through on stand-ins for the Rust objects.
       - name: The properties panel and the Statistics page load and work
         run: tools/check-panel.sh
-      # The overview's month (M6a.8) asks for the month it shows and builds its
-      # cards and chart from what it gets, on stand-ins for the Rust objects.
-      - name: The overview month loads and follows the month shown
-        run: tools/check-overview.sh
       - name: Tests, with the system's SQLite
         run: cargo test --workspace --no-default-features --features ai --locked
         env:

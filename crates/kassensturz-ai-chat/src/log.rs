@@ -54,8 +54,9 @@ pub enum LogEntry {
         /// How many calls.
         calls: usize,
     },
-    /// The provider refused the functions, so the chat goes on with the
-    /// small overview instead (D-052, D-190).
+    /// The provider refused the functions, or the connection test found
+    /// that the model does not call them, so the chat goes on with the
+    /// small overview instead (D-052, D-190, D-324).
     Overview,
     /// The model answered.
     Answered {

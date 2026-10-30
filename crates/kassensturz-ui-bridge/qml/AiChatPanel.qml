@@ -394,6 +394,7 @@ ColumnLayout {
                 // Beside the scroll bar, not under it.
                 width: ListView.view.width - messageBar.width - Kirigami.Units.smallSpacing
                 ai: panel.ai
+                settings: panel.settings
                 onReviewClicked: setId => panel.reviewChangesClicked(setId)
                 onDiscardClicked: setId => {
                     panel.chat.discard(setId);

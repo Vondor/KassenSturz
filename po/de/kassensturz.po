@@ -11894,3 +11894,64 @@ msgstr ""
 "iste des Anbieters sagt es nicht. Wenn der Chat meldet, dass sein Arbe"
 "itsgedächtnis zu klein ist, laden Sie das Modell mit einer Kontextläng"
 "e von 8192 oder mehr."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:110
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This answer comes from a short overview of your accounts, because this"
+" model does not call KassenSturz's functions. Questions the overview d"
+"oes not cover cannot be answered exactly. A model that supports “tools"
+"” or “function calling” works best."
+msgstr ""
+"Diese Antwort stammt aus einer kurzen Übersicht Ihrer Konten, weil die"
+"ses Modell die Funktionen von KassenSturz nicht aufruft. Fragen, die d"
+"ie Übersicht nicht abdeckt, lassen sich nicht genau beantworten. Am be"
+"sten funktioniert ein Modell, das „Tools“ oder „Funktionsaufrufe“ unte"
+"rstützt."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:576
+#, kde-format
+msgctxt "@title:group"
+msgid ""
+"Notices in the chat"
+msgstr ""
+"Hinweise im Chat"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:583
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Choose which hints appear under the AI's answers. Warnings about numbe"
+"rs the AI may have made up, and error messages, always appear."
+msgstr ""
+"Wählen Sie, welche Hinweise unter den Antworten der KI erscheinen. War"
+"nungen vor Zahlen, die sich die KI ausgedacht haben könnte, und Fehler"
+"meldungen erscheinen immer."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:588
+#, kde-format
+msgctxt "@option:check"
+msgid ""
+"Tell me when an answer comes from a short overview because the model c"
+"annot call functions"
+msgstr ""
+"Hinweis, wenn eine Antwort aus einer kurzen Übersicht stammt, weil das"
+" Modell keine Funktionen aufrufen kann"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:589
+#, kde-format
+msgctxt "@option:check"
+msgid ""
+"Tell me when an answer was cut off or held back by the provider"
+msgstr ""
+"Hinweis, wenn eine Antwort abgeschnitten oder vom Anbieter zurückgehal"
+"ten wurde"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:590
+#, kde-format
+msgctxt "@option:check"
+msgid ""
+"Tell me when the AI may not have seen the whole chat"
+msgstr ""
+"Hinweis, wenn die KI den Chat vielleicht nicht ganz gesehen hat"

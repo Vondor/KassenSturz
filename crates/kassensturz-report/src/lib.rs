@@ -50,8 +50,9 @@ pub use editor::{Edit, Editor, MAX_UNDO};
 pub use error::ReportError;
 pub use filter::Filter;
 pub use formula::{
-    Counted, Formula, FormulaResult, FormulaValue, MAX_FORMULA_ARGUMENTS, MAX_FORMULA_CHARS,
-    MAX_FORMULA_DEPTH, MAX_FORMULA_NAMES, MAX_FORMULA_PERIODS, MAX_FORMULA_TOKENS, NumberForm,
+    Counted, FUNCTIONS, Formula, FormulaResult, FormulaValue, FunctionInfo, KnownName,
+    MAX_FORMULA_ARGUMENTS, MAX_FORMULA_CHARS, MAX_FORMULA_DEPTH, MAX_FORMULA_NAMES,
+    MAX_FORMULA_PERIODS, MAX_FORMULA_TOKENS, NumberForm,
 };
 pub use groups::{Overlap, Shown};
 pub use metrics::{
@@ -66,7 +67,8 @@ pub use over_time::{
 };
 pub use period::{MAX_MONTHS, Period};
 pub use schema::{
-    ComponentType, Kind, MAX_IDS, MAX_TEXT_CHARS, Place, Property, Setting, dataset_for,
+    ComponentType, FORMULA_MEASURE, Kind, MAX_IDS, MAX_TEXT_CHARS, Place, Property, Setting,
+    dataset_for,
 };
 pub use source::Source;
 pub use spending::{

@@ -30,13 +30,20 @@ Kirigami.InlineMessage {
     visible: result.code !== undefined
     // An InlineMessage shows markup as markup: nothing from a file may look
     // like it (D-143).
-    text: visible ? Plain.plain(withCondition(result, withPart(result, messageFor(result)))) : ""
+    text: visible ? Plain.plain(withTarget(result, withCondition(result, withPart(result, messageFor(result))))) : ""
 
     // A message about one Part of a transaction names its number (M3.6).
     function withPart(result: var, message: string): string {
         return result.part === undefined
             ? message
             : i18nContext.i18nc("@info %1 is the number of a part of a transaction, %2 a message about it", "Part %1: %2", result.part, message);
+    }
+
+    // A message about the target of a progress bar says so (M6b.7).
+    function withTarget(result: var, message: string): string {
+        return result.target === undefined
+            ? message
+            : i18nContext.i18nc("@info %1 is a message about the target formula of a progress bar", "Target: %1", message);
     }
 
     // A message about something the user typed in one condition of a Rule
@@ -98,6 +105,69 @@ Kirigami.InlineMessage {
         default:
             return "";
         }
+    }
+
+    // The mistakes of a formula's spelling, by what was expected (D-292).
+    function formulaSyntax(result: var): string {
+        switch (result.reason) {
+        case "empty":
+            return i18nContext.i18nc("@info", "The formula is empty. Type one, for example =Pets - Travel.");
+        case "expected-value":
+            return i18nContext.i18nc("@info %1 is a character position", "A value is missing at character %1. Put a number, the name of a category or a function there.", result.position);
+        case "missing-close":
+            return i18nContext.i18nc("@info %1 is a character position", "A closing bracket ) is missing at character %1. Every ( needs a ) that closes it.", result.position);
+        case "missing-open":
+            return i18nContext.i18nc("@info %1 is a character position", "There is a closing bracket ) at character %1 without a ( before it. Take it out, or add the ( that belongs to it.", result.position);
+        case "unexpected":
+            return i18nContext.i18nc("@info %1 is a character position", "Something is out of place at character %1. Take it out, or put + - * or / before it.", result.position);
+        case "two-comparisons":
+            return i18nContext.i18nc("@info %1 is a character position", "A formula can compare only once, and there is a second comparison at character %1. Use AND or OR to put tests together.", result.position);
+        case "wrong-separator":
+            return i18nContext.i18nc("@info %1 is a character position, %2 a separator", "Put %2 between the parts of a call, at character %1, as in SUM(Pets%2 Travel).", result.position, result.separator);
+        case "bad-number":
+            return i18nContext.i18nc("@info %1 is a character position, %2 a decimal mark", "The number at character %1 isn't written the way numbers are here. Use digits and one decimal mark (%2), and no separators between thousands.", result.position, result.decimal);
+        case "bad-character":
+            return i18nContext.i18nc("@info %1 is a character position", "Character %1 isn't one formulas use. Take it out, or put a name with spaces or special characters in single quotes: 'Eating out'.", result.position);
+        case "missing-quote":
+            return i18nContext.i18nc("@info %1 is a character position", "A quote at character %1 is never closed. Add the quote that closes it.", result.position);
+        case "bad-period":
+            return i18nContext.i18nc("@info %1 is a character position", "The time range at character %1 isn't written the way ranges are. Use words in double quotes, such as @\"last month\", or dates, such as @2026-03 or @2026-01..2026-03.", result.position);
+        }
+        return i18nContext.i18nc("@info %1 is a character position", "This isn't written the way formulas are, at character %1. Change it at that place.", result.position);
+    }
+
+    function formulaArguments(result: var): string {
+        switch (result.reason) {
+        case "too-few":
+            return i18nContext.i18nc("@info %1 is a function name, %2 a character position", "%1 was given too few parts (character %2). Add the ones that are missing.", result.function, result.position);
+        case "too-many":
+            return i18nContext.i18nc("@info %1 is a function name, %2 a character position", "%1 was given too many parts (character %2). Take some out.", result.function, result.position);
+        case "names-only":
+            return i18nContext.i18nc("@info %1 is a function name, %2 a character position", "%1 counts only categories and groups (character %2). Give it their names, not figures.", result.function, result.position);
+        case "places":
+            return i18nContext.i18nc("@info %1 is a function name, %2 a character position", "The decimal places of %1 (character %2) must be a whole number from -9 to 10.", result.function, result.position);
+        }
+        return i18nContext.i18nc("@info %1 is a function name, %2 a character position", "%1 was given the wrong parts (character %2). Check them.", result.function, result.position);
+    }
+
+    function formulaKinds(result: var): string {
+        switch (result.reason) {
+        case "amount-times-amount":
+            return i18nContext.i18nc("@info %1 is a character position", "Two amounts can't be multiplied (character %1). Multiply an amount by a plain number instead.", result.position);
+        case "number-over-amount":
+            return i18nContext.i18nc("@info %1 is a character position", "A number can't be divided by an amount (character %1). Divide the amount by the number, or use PERCENT_OF(part; whole) for a share.", result.position);
+        case "yes-no-in-arithmetic":
+            return i18nContext.i18nc("@info %1 is a character position", "A yes-or-no test can't be calculated with (character %1). Put it inside IF(test; yes; no).", result.position);
+        case "yes-no-result":
+            return i18nContext.i18nc("@info %1 is a character position", "The formula ends in a yes-or-no test, not in a figure (character %1). Put it inside IF(test; yes; no).", result.position);
+        case "needs-yes-no":
+            return i18nContext.i18nc("@info %1 is a character position", "IF, AND, OR and NOT need a comparison such as Pets > 100 (character %1).", result.position);
+        case "if-kinds-differ":
+            return i18nContext.i18nc("@info %1 is a character position", "The two answers of IF (character %1) must both be figures or both be yes or no.", result.position);
+        case "ratio-kinds":
+            return i18nContext.i18nc("@info %1 is a character position", "PERCENT_OF and CHANGE need two amounts or two numbers (character %1), not one of each.", result.position);
+        }
+        return i18nContext.i18nc("@info %1 is a character position", "These parts of the formula don't go together (character %1). Change it at that place.", result.position);
     }
 
     function messageFor(result: var): string {
@@ -243,6 +313,34 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "That change to the layout couldn't be made, so nothing was changed. Try something else.");
         case "report.groups-overlap":
             return i18nContext.i18nc("@info %1 is the name of a category, %2 and %3 are the names of two groups", "%1 is in %2 and in %3; a chart that shows parts of a whole can't count it twice. Take it out of one of them, or show them as bars or lines.", result.category, result.first, result.second);
+        case "report.formula-syntax":
+            return formulaSyntax(result);
+        case "report.formula-unknown-name":
+            return i18nContext.i18nc("@info %1 is a name, %2 a character position", "%1 is not a category or one of My groups (character %2). Check the spelling, or put a name with spaces in single quotes: 'Eating out'.", result.name, result.position);
+        case "report.formula-ambiguous-name":
+            return i18nContext.i18nc("@info %1 is a name, %2 a list of names", "%1 fits more than one: %2. Write the one you mean with its path, as listed, or rename a group or category of the same name.", result.name, result.paths);
+        case "report.formula-unknown-function":
+            return i18nContext.i18nc("@info %1 is a function name, %2 a character position", "There is no function called %1 (character %2). The list of functions beside the formula shows the ones there are.", result.name, result.position);
+        case "report.formula-arguments":
+            return formulaArguments(result);
+        case "report.formula-kinds":
+            return formulaKinds(result);
+        case "report.formula-mixed-currencies":
+            return i18nContext.i18nc("@info %1 and %3 are names, %2 and %4 currency codes", "%1 is in %2 and %3 in %4; a formula works in one currency. Leave one of them out.", result.first, result.first_currency, result.second, result.second_currency);
+        case "report.formula-no-value":
+            return i18nContext.i18nc("@info %1 is a character position", "This divides by zero at character %1, so it has no value. Use IFERROR to show something else then.", result.position);
+        case "report.formula-too-large":
+            return i18nContext.i18nc("@info", "A figure in this formula is too large, or has too many decimal places, to be worked out exactly. Use smaller numbers.");
+        case "report.formula-target":
+            switch (result.reason) {
+            case "zero":
+                return i18nContext.i18nc("@info", "The target is zero, so there is nothing to measure the bar against. Change the target.");
+            case "too-large":
+                return i18nContext.i18nc("@info", "The bar can't be worked out from figures this large or small. Use a target nearer to the formula.");
+            }
+            return i18nContext.i18nc("@info", "The target and the formula must be the same kind of figure: amounts in one currency, percents or plain numbers. Change the target.");
+        case "report.formula-too-big":
+            return i18nContext.i18nc("@info", "This formula is bigger than KassenSturz works out: at most 1,000 characters, 500 parts, 16 brackets or calls inside each other, 30 parts in a call, 64 names and 8 different periods. Make it smaller.");
         case "store.empty-rule-name":
             return i18nContext.i18nc("@info", "Give the Rule a name.");
         case "store.duplicate-rule-name":

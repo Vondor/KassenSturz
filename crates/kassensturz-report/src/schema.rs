@@ -15,6 +15,10 @@
 
 use crate::ReportError;
 use crate::catalog::{CATALOG, DatasetInfo, NO_DATASET};
+use crate::formula::MAX_FORMULA_CHARS;
+
+/// The `measure` of a key figure that shows the result of its formula.
+pub const FORMULA_MEASURE: &str = "formula";
 
 /// The longest title, in characters (D-281).
 pub const MAX_TEXT_CHARS: usize = 200;
@@ -179,6 +183,13 @@ pub enum Kind {
     /// A list of up to [`MAX_IDS`] category or group IDs, written as text
     /// (M6b.5). The book decides which of them it still knows.
     Ids,
+    /// A formula in the canonical form the book stores (D-295), at most
+    /// [`MAX_FORMULA_CHARS`] characters on one line. Empty means the
+    /// component shows what its other properties say. Only the length and
+    /// the characters are checked here: a formula with a mistake fails on
+    /// its own component when it is worked out, not the whole document
+    /// (T-41, M6b.7).
+    Formula,
 }
 
 /// One property of a component.
@@ -195,7 +206,7 @@ pub struct Property {
 /// The value of a property.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Setting {
-    /// For [`Kind::Text`].
+    /// For [`Kind::Text`] and [`Kind::Formula`].
     Text(String),
     /// For [`Kind::Flag`].
     Flag(bool),
@@ -235,6 +246,20 @@ const LEGEND: Property = Property {
     place: Place::Props,
     kind: Kind::Flag { default: true },
 };
+/// `props.formula` (D-289, D-322): the figure of a key figure whose measure is
+/// `formula`, or of a progress bar.
+const FORMULA: Property = Property {
+    key: "formula",
+    place: Place::Props,
+    kind: Kind::Formula,
+};
+/// `props.target` (D-289, D-322): the figure a progress bar's formula is
+/// measured against; a full bar.
+const TARGET: Property = Property {
+    key: "target",
+    place: Place::Props,
+    kind: Kind::Formula,
+};
 const TEXT: Property = Property {
     key: "text",
     place: Place::Props,
@@ -262,12 +287,12 @@ const COMPARE: Property = Property {
 const MEASURE: Property = Property {
     key: "measure",
     place: Place::Params,
-    kind: Kind::Choice(&["income", "expenses", "net", "savings-rate"]),
+    kind: Kind::Choice(&["income", "expenses", "net", "savings-rate", FORMULA_MEASURE]),
 };
 
 const CHART: [Property; 7] = [GROUPING, GROUPS, SERIES, TITLE, LEGEND, SHOW_HIDDEN, PERIOD];
-const KPI_CARD: [Property; 4] = [MEASURE, COMPARE, TITLE, PERIOD];
-const PROGRESS_BAR: [Property; 3] = [COMPARE, TITLE, PERIOD];
+const KPI_CARD: [Property; 5] = [MEASURE, COMPARE, FORMULA, TITLE, PERIOD];
+const PROGRESS_BAR: [Property; 5] = [COMPARE, FORMULA, TARGET, TITLE, PERIOD];
 const TABLE: [Property; 5] = [GROUPING, GROUPS, TITLE, SHOW_HIDDEN, PERIOD];
 const HEADING: [Property; 1] = [TEXT];
 
@@ -287,14 +312,14 @@ impl Property {
         match self.kind {
             Kind::Choice(words) => words,
             Kind::Grouping => dataset.groupings,
-            Kind::Text | Kind::Flag { .. } | Kind::Ids => &[],
+            Kind::Text | Kind::Flag { .. } | Kind::Ids | Kind::Formula => &[],
         }
     }
 
     /// The value of a new component.
     pub fn default_setting(&self, dataset: &DatasetInfo) -> Setting {
         match self.kind {
-            Kind::Text => Setting::Text(String::new()),
+            Kind::Text | Kind::Formula => Setting::Text(String::new()),
             Kind::Flag { default } => Setting::Flag(default),
             Kind::Ids => Setting::Ids(Vec::new()),
             Kind::Choice(_) | Kind::Grouping => Setting::Word(
@@ -312,6 +337,15 @@ impl Property {
         match (self.kind, setting) {
             (Kind::Text, Setting::Text(text)) => {
                 if text.chars().count() > MAX_TEXT_CHARS {
+                    Err(invalid("too-long", self.path()))
+                } else if text.chars().any(char::is_control) {
+                    Err(invalid("bad-text", self.path()))
+                } else {
+                    Ok(())
+                }
+            }
+            (Kind::Formula, Setting::Text(text)) => {
+                if text.chars().count() > MAX_FORMULA_CHARS {
                     Err(invalid("too-long", self.path()))
                 } else if text.chars().any(char::is_control) {
                     Err(invalid("bad-text", self.path()))

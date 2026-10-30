@@ -25,9 +25,12 @@
 mod eval;
 mod exact;
 mod lex;
+mod names;
 mod parse;
 
-use kassensturz_core::{CurrencyCode, GroupMember, Money};
+pub use names::{FUNCTIONS, FunctionInfo, KnownName};
+
+use kassensturz_core::{CurrencyCode, GroupMember, Money, RoundingMode};
 
 use crate::{Filter, Percent, Period, ReportError, Source};
 use lex::{Form, Kind as Token};
@@ -79,6 +82,45 @@ pub enum FormulaValue {
     },
 }
 
+impl FormulaValue {
+    /// How full a progress bar is when `self` is the figure and `target`
+    /// what a full bar stands for: `self` as a percent of `target`, to one
+    /// decimal place, half away from zero, as the cards' ratios are (D-285).
+    /// Both are amounts in one currency, both percents or both numbers;
+    /// anything else, a target of zero or a ratio too large to keep is
+    /// `report.formula-target`.
+    pub fn fill(self, target: Self) -> Result<Percent, ReportError> {
+        let (figure, whole) = match (self, target) {
+            (Self::Amount(figure), Self::Amount(whole))
+                if figure.currency() == whole.currency() =>
+            {
+                (
+                    i128::from(figure.minor_units()),
+                    i128::from(whole.minor_units()),
+                )
+            }
+            (Self::Percent(figure), Self::Percent(whole)) => {
+                (i128::from(figure.tenths()), i128::from(whole.tenths()))
+            }
+            (Self::Number { hundredths: figure }, Self::Number { hundredths: whole }) => {
+                (i128::from(figure), i128::from(whole))
+            }
+            _ => return Err(ReportError::FormulaTarget { reason: "kinds" }),
+        };
+        if whole == 0 {
+            return Err(ReportError::FormulaTarget { reason: "zero" });
+        }
+        // Tenths of a percent: figure ÷ whole × 1000, rounded once.
+        RoundingMode::HalfAwayFromZero
+            .divide(figure * 1_000, whole)
+            .and_then(|tenths| i64::try_from(tenths).ok())
+            .map(Percent::from_tenths)
+            .ok_or(ReportError::FormulaTarget {
+                reason: "too-large",
+            })
+    }
+}
+
 /// A category or group a formula counted, for the line "counts Pets (with
 /// Vet), Travel" next to its result.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -88,6 +130,10 @@ pub struct Counted {
     /// The category's names from the top-level category down, or the
     /// group's name alone.
     pub path: Vec<String>,
+    /// The names of the other categories counted with it, in the order of
+    /// the category tree: what is inside a category, or the categories of a
+    /// group.
+    pub inside: Vec<String>,
     /// The days it was counted for.
     pub period: Period,
 }
@@ -131,6 +177,12 @@ impl Formula {
     /// A stored formula in the form of the user's number format.
     pub fn to_users_form(text: &str, form: NumberForm) -> Result<String, ReportError> {
         convert(text, Form::CANONICAL, Form::of(form))
+    }
+
+    /// The categories and groups of `source`, each written the way a
+    /// formula names it, for completing a name while it is typed.
+    pub fn known_names(source: &Source) -> Vec<KnownName> {
+        names::known(source)
     }
 
     /// The days a [`Source`] must be read for to work this formula out for

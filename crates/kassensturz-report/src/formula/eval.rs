@@ -58,12 +58,11 @@ pub(crate) fn period_of(range: Option<Range>, figure: Period) -> Result<Period, 
     }
 }
 
-/// The category or group `text` names: a group's name, a category's path
+/// The categories and groups `text` fits: a group's name, a category's path
 /// written with `>` (its last parts are enough), or a category's name,
-/// ignoring capitals. Two that fit are refused with the paths to write
-/// instead, never guessed (T-42).
-fn resolve(source: &Source, name: &Name) -> Result<GroupMember, ReportError> {
-    let whole = name.text.trim().to_lowercase();
+/// ignoring capitals; each with its path as a formula writes it.
+pub(super) fn fits(source: &Source, text: &str) -> Vec<(GroupMember, String)> {
+    let whole = text.trim().to_lowercase();
     let parts: Vec<String> = whole
         .split('>')
         .map(|part| part.trim().to_owned())
@@ -85,6 +84,13 @@ fn resolve(source: &Source, name: &Name) -> Result<GroupMember, ReportError> {
             ));
         }
     }
+    found
+}
+
+/// The category or group `name` names. Two that fit are refused with the
+/// paths to write instead, never guessed (T-42).
+fn resolve(source: &Source, name: &Name) -> Result<GroupMember, ReportError> {
+    let found = fits(source, &name.text);
     match found.as_slice() {
         [] => Err(ReportError::FormulaUnknownName {
             position: name.at,
@@ -432,9 +438,18 @@ pub(crate) fn evaluate(
         {
             continue;
         }
+        let path = source.path_of(member).unwrap_or_default();
+        let inside = source
+            .counted(member)
+            .into_iter()
+            .map(GroupMember::Category)
+            .filter(|&category| category != member)
+            .filter_map(|category| source.path_of(category)?.pop())
+            .collect();
         counted.push(Counted {
             of: member,
-            path: source.path_of(member).unwrap_or_default(),
+            path,
+            inside,
             period,
         });
     }

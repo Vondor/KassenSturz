@@ -415,6 +415,7 @@ Why a dataset for a chart or a card couldn't be made (M6a.1, D-277). No report r
 | `report.formula-mixed-currencies` | `position`, `first`, `first_currency`, `second`, `second_currency` | | {first} is in {first_currency} and {second} in {second_currency}; a formula works in one currency. Leave one of them out. |
 | `report.formula-no-value` | `position` | | This formula divides by zero at character {position}, so it has no value. Use IFERROR to show something else then. |
 | `report.formula-too-large` | `position` | | A figure in this formula is too large, or has too many decimal places, to be worked out exactly. |
+| `report.formula-target` | `reason` | `kinds`, `zero`, `too-large` | The target of a progress bar does not fit its formula: it must be the same kind of figure (amounts in one currency, percents or plain numbers); a target of zero leaves nothing to measure against; or the ratio is too large to keep. Change the target. |
 | `report.formula-too-big` | `limit` | `characters`, `tokens`, `depth`, `arguments`, `names`, `periods` | This formula is bigger than KassenSturz works out: at most 1,000 characters, 500 parts, 16 brackets or calls inside each other, 30 parts in a call, 64 names and 8 different periods. Make it smaller. |
 | `report.book-unreadable` | | | The book couldn't be read for this chart, or a total is too large for KassenSturz to work with. The detail says why; see that message. |
 
@@ -423,7 +424,7 @@ Why a dataset for a chart or a card couldn't be made (M6a.1, D-277). No report r
 Not rows yet: each code gets its row in the table above (or in the store's section) in the pull request that raises it, since the test compares the table with the code. Parameters are data, shown as plain text.
 
 - `report.document-invalid`'s reasons `frame-outside-grid`, `frame-too-small`, `frames-overlap` are rows now: the grid editor checks them (`grid::check`, M6b.1) and `Document::read` runs the same check for every dashboard (M6b.2, D-313).
-- The `report.formula-` codes are rows now (M6b.6, D-317 to D-319). Every one but `report.formula-too-big` has the position of the character it is at, counted from 1, so the formula field (M6b.7) can mark the place.
+- The `report.formula-` codes are rows now (M6b.6, D-317 to D-319). Every one but `report.formula-too-big` and `report.formula-target` has the position of the character it is at, counted from 1, so the formula field (M6b.7) can mark the place. `FormError.qml` has the words for all of them, and a mistake in a progress bar's target also has the parameter `target` (value `yes`), which puts "Target:" in front.
 - `ai-tools.` codes for an edited change reuse the existing ones of `propose` (M6b.8); the capability check reuses the `ai.` codes of "Test connection" (M6b.9).
 
 ## Charts (`kassensturz-charts`)

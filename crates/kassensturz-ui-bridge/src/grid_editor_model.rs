@@ -25,10 +25,11 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
 use kassensturz_core::Report;
-use kassensturz_report::grid;
+use kassensturz_report::{NumberForm, grid};
 use kassensturz_store::Book;
 
 use crate::errors::{ErrorText, report_text};
+use crate::formulas;
 use crate::grid_editor::{self, Layout, LayoutError};
 use crate::locale::QtLocale;
 use crate::number_format::{UserLocale, app_locale};
@@ -169,7 +170,7 @@ fn number(value: u32) -> QVariant {
     QVariant::from(&i32::try_from(value).unwrap_or(i32::MAX))
 }
 
-fn item_object(row: &grid_editor::Row) -> QVariant {
+fn item_object(row: &grid_editor::Row, form: NumberForm) -> QVariant {
     let kind = row
         .component
         .as_ref()
@@ -188,14 +189,14 @@ fn item_object(row: &grid_editor::Row) -> QVariant {
             "subject",
             row.component.as_ref().map_or_else(
                 || map([]),
-                |component| component_view(Some(component), None),
+                |component| component_view(Some(component), None, form),
             ),
         ),
     ])
 }
 
 /// What QML gets for the layout; empty when no book is open.
-fn view_object(layout: Option<&Layout>, editing: bool) -> QVariant {
+fn view_object(layout: Option<&Layout>, editing: bool, form: NumberForm) -> QVariant {
     let Some(layout) = layout else {
         return map([]);
     };
@@ -223,7 +224,11 @@ fn view_object(layout: Option<&Layout>, editing: bool) -> QVariant {
         ),
         (
             "items",
-            list(grid_editor::rows(editor).iter().map(item_object)),
+            list(
+                grid_editor::rows(editor)
+                    .iter()
+                    .map(|row| item_object(row, form)),
+            ),
         ),
     ])
 }
@@ -257,7 +262,8 @@ fn plain_error(error: &LayoutError) -> ErrorText {
 
 impl qobject::DashboardLayout {
     fn show(mut self: Pin<&mut Self>) {
-        let view = view_object(self.rust().layout.as_ref(), self.rust().editing);
+        let form = formulas::form(&app_locale());
+        let view = view_object(self.rust().layout.as_ref(), self.rust().editing, form);
         self.as_mut().rust_mut().view = view;
         self.as_mut().view_changed();
     }
@@ -443,7 +449,7 @@ mod tests {
     #[test]
     fn the_layout_reads_back_the_way_qml_reads_it() {
         let layout = layout();
-        let view = view_object(Some(&layout), true);
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma);
         assert_eq!(
             keys(&view),
             [
@@ -494,7 +500,7 @@ mod tests {
     fn an_edit_shows_in_the_view_and_the_undo_words() {
         let mut layout = layout();
         layout.editor.nudge("trend", 0, 1).unwrap();
-        let view = view_object(Some(&layout), true);
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma);
         assert!(flag_of(&view, "hasChanges"));
         assert!(flag_of(&view, "canUndo"));
         assert!(!flag_of(&view, "canRedo"));
@@ -506,7 +512,7 @@ mod tests {
     fn a_heading_is_an_item_with_no_data() {
         let mut layout = layout();
         let id = grid_editor::add(&mut layout.editor, "text.heading").unwrap();
-        let view = view_object(Some(&layout), true);
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma);
         let items = list_of(&view, "items");
         let heading = items
             .iter()

@@ -129,6 +129,12 @@ pub enum ReportError {
         /// Which limit, by a fixed word.
         limit: &'static str,
     },
+    /// A progress bar's formula cannot be measured against its target
+    /// (M6b.7, D-322).
+    FormulaTarget {
+        /// Which rule, by a fixed word.
+        reason: &'static str,
+    },
     /// The book couldn't be read, or a total doesn't fit.
     Store(StoreError),
 }
@@ -223,6 +229,8 @@ impl Report for ReportError {
             Self::FormulaTooBig { limit } => {
                 ErrorReport::new("report.formula-too-big").with("limit", ErrorParam::Keyword(limit))
             }
+            Self::FormulaTarget { reason } => ErrorReport::new("report.formula-target")
+                .with("reason", ErrorParam::Keyword(reason)),
             Self::Store(error) => {
                 ErrorReport::new("report.book-unreadable").caused_by(error.report())
             }

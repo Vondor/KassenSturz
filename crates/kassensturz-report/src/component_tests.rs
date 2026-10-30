@@ -313,3 +313,92 @@ fn a_chart_over_time_is_offered_for_lines_and_stacked_bars_only() {
     assert!(!offered(ComponentType::ChartPie));
     assert!(!offered(ComponentType::KpiCard));
 }
+
+#[test]
+fn a_formula_is_a_property_of_the_key_figure_and_the_progress_bar_only() {
+    for kind in [ComponentType::KpiCard, ComponentType::ProgressBar] {
+        let mut component = Component::new(kind, INCOME_EXPENSE_BY_MONTH).unwrap();
+        assert_eq!(
+            component.get("formula"),
+            Some(&Setting::Text(String::new()))
+        );
+        component
+            .set("formula", Setting::Text("=Pets - Travel".into()))
+            .unwrap();
+        if kind == ComponentType::KpiCard {
+            // The key figure shows its formula when its measure says so.
+            component
+                .set("measure", Setting::Word(FORMULA_MEASURE.into()))
+                .unwrap();
+        }
+        // It is a property, like the title (D-289).
+        let value = component.to_value();
+        assert_eq!(value["props"]["formula"], "=Pets - Travel");
+        assert_eq!(Component::from_value(&value).unwrap(), component);
+        // Only length and characters are the schema's business: a mistake
+        // in the formula fails its own component when it is worked out.
+        component
+            .set("formula", Setting::Text("=Pets -".into()))
+            .unwrap();
+        for (setting, why) in [
+            (Setting::Text("x".repeat(1_001)), "too-long"),
+            (Setting::Text("=1\n+2".into()), "bad-text"),
+            (Setting::Word("=1".into()), "wrong-type"),
+        ] {
+            let (found, path) = reason(component.set("formula", setting).unwrap_err());
+            assert_eq!((found, path.as_str()), (why, "props.formula"));
+        }
+        assert_eq!(
+            component.get("formula"),
+            Some(&Setting::Text("=Pets -".into()))
+        );
+    }
+    let mut chart = Component::new(ComponentType::ChartBar, SPENDING_BY_CATEGORY).unwrap();
+    let (why, _) = reason(
+        chart
+            .set("formula", Setting::Text("=Pets".into()))
+            .unwrap_err(),
+    );
+    assert_eq!(why, "unknown-property");
+}
+
+#[test]
+fn a_formula_stays_when_the_card_becomes_a_progress_bar() {
+    let mut card = Component::new(ComponentType::KpiCard, INCOME_EXPENSE_BY_MONTH).unwrap();
+    card.set("formula", Setting::Text("=PERCENT_OF(Pets; 300)".into()))
+        .unwrap();
+    card.change_kind(ComponentType::ProgressBar).unwrap();
+    assert_eq!(
+        card.get("formula"),
+        Some(&Setting::Text("=PERCENT_OF(Pets; 300)".into()))
+    );
+    card.change_kind(ComponentType::ChartBar).unwrap();
+    assert!(card.get("formula").is_none());
+}
+
+#[test]
+fn a_progress_bar_has_a_target_to_measure_its_formula_against() {
+    let mut bar = Component::new(ComponentType::ProgressBar, INCOME_EXPENSE_BY_MONTH).unwrap();
+    assert_eq!(bar.get("target"), Some(&Setting::Text(String::new())));
+    bar.set("target", Setting::Text("=400".into())).unwrap();
+    assert_eq!(bar.to_value()["props"]["target"], "=400");
+    let (why, path) = reason(
+        bar.set("target", Setting::Text("x".repeat(1_001)))
+            .unwrap_err(),
+    );
+    assert_eq!((why, path.as_str()), ("too-long", "props.target"));
+    // The key figure has a formula but no target.
+    let card = Component::new(ComponentType::KpiCard, INCOME_EXPENSE_BY_MONTH).unwrap();
+    assert!(card.get("target").is_none());
+}
+
+#[test]
+fn a_key_figure_can_show_a_formula_as_its_measure() {
+    let card = Component::new(ComponentType::KpiCard, INCOME_EXPENSE_BY_MONTH).unwrap();
+    let measure = card
+        .settings()
+        .find(|(property, _)| property.key == "measure")
+        .map(|(property, _)| property.words(card.dataset()))
+        .unwrap();
+    assert_eq!(measure.last(), Some(&FORMULA_MEASURE));
+}

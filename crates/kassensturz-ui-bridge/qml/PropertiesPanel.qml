@@ -25,6 +25,10 @@ ColumnLayout {
     // The grid editor's panel offers the period of the component; the
     // Statistics workbench has a period of its own (D-313).
     property bool withPeriod: false
+    // The period a formula's result is worked out for: a fixed period's name
+    // or a month as `YYYY-MM` (M6b.7). The host passes what the component
+    // shows.
+    property string period: "last-12-months"
     // A `CategoryGroups`: where the groups and categories a chart can show
     // are listed from. Without it, no list can be picked from.
     property var choices: null
@@ -78,6 +82,10 @@ ColumnLayout {
             return i18nContext.i18nc("@label:listbox", "Compare with");
         case "measure":
             return i18nContext.i18nc("@label:listbox which figure a card shows", "Show");
+        case "formula":
+            return i18nContext.i18nc("@label:textbox a formula that works out a figure", "Formula");
+        case "target":
+            return i18nContext.i18nc("@label:textbox a formula for what a full progress bar stands for", "Target");
         }
         return "";
     }
@@ -118,6 +126,8 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox", "What is left");
         case "savings-rate":
             return i18nContext.i18nc("@item:inlistbox", "Savings rate");
+        case "formula":
+            return i18nContext.i18nc("@item:inlistbox a key figure the user works out with a formula", "A formula I write");
         }
         return "";
     }
@@ -195,10 +205,11 @@ ColumnLayout {
                 required property var modelData
 
                 Kirigami.FormData.label: modelData.kind === "flag" ? "" : panel.fieldLabel(modelData.key)
-                Kirigami.FormData.labelAlignment: modelData.kind === "ids" ? Qt.AlignTop : Qt.AlignVCenter
+                Kirigami.FormData.labelAlignment: modelData.kind === "ids" || modelData.kind === "formula" ? Qt.AlignTop : Qt.AlignVCenter
                 Layout.fillWidth: true
                 sourceComponent: modelData.kind === "text" ? textField
                     : modelData.kind === "flag" ? flagBox
+                    : modelData.kind === "formula" ? formulaBox
                     : modelData.kind === "ids" ? idsBox : choiceBox
 
                 Component {
@@ -209,6 +220,19 @@ ColumnLayout {
                         maximumLength: 200
                         Accessible.name: panel.fieldLabel(row.modelData.key)
                         onEditingFinished: panel.model.setText(row.modelData.key, text)
+                    }
+                }
+
+                Component {
+                    id: formulaBox
+
+                    FormulaField {
+                        text: row.modelData.text
+                        period: panel.period
+                        forBar: panel.view.type === "progress.bar"
+                        isTarget: row.modelData.key === "target"
+                        hasTarget: panel.fields.some(f => f.key === "target" && f.text.trim() !== "")
+                        onCommitted: value => panel.model.setFormula(row.modelData.key, value)
                     }
                 }
 

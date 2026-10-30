@@ -11,7 +11,9 @@
 //! the help of a field up by its key, and the name of a word by the word
 //! (D-034). Titles are the user's own text and go back to QML as text.
 
-use kassensturz_report::{Component, ComponentType, Kind, Setting};
+use kassensturz_report::{Component, ComponentType, FORMULA_MEASURE, Kind, NumberForm, Setting};
+
+use crate::formulas::users_form;
 
 /// One field of the panel.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -20,9 +22,10 @@ pub struct Field {
     pub key: &'static str,
     /// `params` or `props`.
     pub place: &'static str,
-    /// `text`, `flag` or `choice`.
+    /// `text`, `formula`, `flag`, `choice` or `ids`.
     pub kind: &'static str,
-    /// The value of a text; empty for the other kinds.
+    /// The value of a text, or a formula as the user's number format writes
+    /// it; empty for the other kinds.
     pub text: String,
     /// The value of a flag; false for the other kinds.
     pub flag: bool,
@@ -36,8 +39,11 @@ pub struct Field {
 
 /// The fields of a component, in the order of its schema. A choice with
 /// fewer than two words is left out: there is nothing to choose, and the
-/// document still holds its one value.
-pub fn fields(component: &Component) -> Vec<Field> {
+/// document still holds its one value. A formula is shown in the form of
+/// the user's number format `form` (D-295).
+pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
+    let uses = uses_formula(component);
+    let has_formula = uses && !text_of(component, "formula").is_empty();
     component
         .settings()
         .filter_map(|(property, setting)| {
@@ -51,6 +57,18 @@ pub fn fields(component: &Component) -> Vec<Field> {
             // The period of a component is offered by the grid editor's
             // panel (M6b.3); the workbench has its own period.
             if property.key == "period" {
+                return None;
+            }
+            // The formula of a key figure is used when its measure says so,
+            // that of a progress bar always; a bar measures it against its
+            // target. A figure that is a formula has no comparison (M6b.7).
+            let hidden = match property.key {
+                "formula" => component.kind() == ComponentType::KpiCard && !uses,
+                "target" => !has_formula,
+                "compare" => uses,
+                _ => false,
+            };
+            if hidden {
                 return None;
             }
             // A list of IDs is offered only where it is used: the groups of a
@@ -70,6 +88,7 @@ pub fn fields(component: &Component) -> Vec<Field> {
             let words: Vec<&'static str> = property.words(component.dataset()).to_vec();
             let kind = match property.kind {
                 Kind::Text => "text",
+                Kind::Formula => "formula",
                 Kind::Flag { .. } => "flag",
                 Kind::Choice(_) | Kind::Grouping if words.len() > 1 => "choice",
                 Kind::Ids => "ids",
@@ -78,6 +97,9 @@ pub fn fields(component: &Component) -> Vec<Field> {
             let (mut text, mut flag, mut word) = (String::new(), false, String::new());
             let mut chosen = Vec::new();
             match setting {
+                Setting::Text(value) if property.kind == Kind::Formula => {
+                    text = users_form(form, value);
+                }
                 Setting::Text(value) => text.clone_from(value),
                 Setting::Flag(value) => flag = *value,
                 Setting::Word(value) => word.clone_from(value),
@@ -141,6 +163,36 @@ pub struct Preview {
     /// The card to pick from the cards: `income`, `expenses`, `net` or
     /// `savings-rate`.
     pub measure: String,
+    /// Whether a card or a progress bar shows the result of a formula
+    /// instead of a card of the cards (M6b.7).
+    pub uses_formula: bool,
+    /// The formula in the form the book stores; empty for none.
+    pub formula: String,
+    /// What a full progress bar stands for, a formula in the form the book
+    /// stores; empty for none.
+    pub target: String,
+}
+
+/// The text of a formula property in the form the book stores, empty when
+/// the component has none.
+fn text_of(component: &Component, key: &str) -> String {
+    match component.get(key) {
+        Some(Setting::Text(formula)) => formula.trim().to_owned(),
+        _ => String::new(),
+    }
+}
+
+/// Whether the component shows the result of a formula: a key figure whose
+/// measure is `formula`, or a progress bar that has one (M6b.7). A bar
+/// without one shows the share you kept.
+fn uses_formula(component: &Component) -> bool {
+    match component.kind() {
+        ComponentType::KpiCard => {
+            matches!(component.get("measure"), Some(Setting::Word(word)) if word == FORMULA_MEASURE)
+        }
+        ComponentType::ProgressBar => !text_of(component, "formula").is_empty(),
+        _ => false,
+    }
 }
 
 fn word(component: &Component, key: &str) -> String {
@@ -204,5 +256,8 @@ pub fn preview(component: &Component) -> Preview {
             compare
         },
         measure,
+        uses_formula: uses_formula(component),
+        formula: text_of(component, "formula"),
+        target: text_of(component, "target"),
     }
 }

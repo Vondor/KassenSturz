@@ -4,11 +4,15 @@
 // Loads PropertiesPanel.qml (M6a.6) on a stand-in for ComponentProperties and
 // checks what a user sees and what the panel passes on: one control for every
 // field of `view.fields`, none for anything else, and every change goes to the
-// model as the call it names. `tools/check-panel.sh` runs it; it exits 1 and
-// prints why when something is wrong.
+// model as the call it names. A formula field (M6b.7) is checked too: the
+// result and what it counted, a mistake with its place marked, the names
+// that complete and the list of functions. `tools/check-panel.sh` runs it
+// as part of the app's module; it exits 1 and prints why when something is
+// wrong.
 
 import QtQuick
 import QtQuick.Controls as Controls
+import io.github.vondor.kassensturz
 
 Window {
     id: window
@@ -41,7 +45,8 @@ Window {
                  word: "category", words: ["category", "top_level_category"]},
                 {key: "groups", place: "params", kind: "ids", text: "", flag: false, word: "", words: [], ids: ["g1"]},
                 {key: "title", place: "props", kind: "text", text: "Where it went", flag: false, word: "", words: []},
-                {key: "legend", place: "props", kind: "flag", text: "", flag: true, word: "", words: []}
+                {key: "legend", place: "props", kind: "flag", text: "", flag: true, word: "", words: []},
+                {key: "formula", place: "params", kind: "formula", text: "=Pets - Travel", flag: false, word: "", words: []}
             ]
         })
 
@@ -49,6 +54,7 @@ Window {
         function setText(key, value) { window.calls.push("setText:" + key + ":" + value); }
         function setFlag(key, value) { window.calls.push("setFlag:" + key + ":" + value); }
         function setWord(key, value) { window.calls.push("setWord:" + key + ":" + value); }
+        function setFormula(key, value) { window.calls.push("setFormula:" + key + ":" + value); }
     }
 
     PropertiesPanel {
@@ -62,6 +68,31 @@ Window {
                 categories: [{id: "c1", name: "Rent", path: "Home > Rent", income: false}]
             })
         }
+    }
+
+    // A card and a bar that show the result of a formula (M6b.7).
+    ComponentPreview {
+        id: cardPreview
+
+        visible: false
+        subject: ({preview: {shows: "card", usesFormula: true, formula: "=Pets - Travel", target: "", compare: "previous_period", measure: "formula"}, fields: []})
+        period: "last-month"
+    }
+
+    ComponentPreview {
+        id: barPreview
+
+        visible: false
+        subject: ({preview: {shows: "progress", usesFormula: true, formula: "=Pets", target: "=400", compare: "previous_period", measure: "savings-rate"}, fields: []})
+        period: "last-month"
+    }
+
+    ComponentPreview {
+        id: brokenPreview
+
+        visible: false
+        subject: ({preview: {shows: "card", usesFormula: true, formula: "=Nothing", target: "", compare: "previous_period", measure: "formula"}, fields: []})
+        period: "last-month"
     }
 
     function find(item, type, out) {
@@ -84,7 +115,8 @@ Window {
             const flags = window.find(panel, "CheckBox", []).filter(box => box.text === "Show the legend");
             // One choice (the group-by), one title, one legend. The dataset box
             // is hidden: this chart can show only one dataset.
-            const shown = boxes.filter(box => box.visible);
+            // (The formula field's list of functions is a box of its own.)
+            const shown = boxes.filter(box => box.visible && box.textRole === "name");
             window.check(shown.length === 1, "one choice box, got " + shown.length);
             window.check(texts.length === 1 && texts[0].text === "Where it went", "the title field");
             window.check(flags.length === 1 && flags[0].checked, "the legend box is ticked");
@@ -103,6 +135,50 @@ Window {
             flags[0].toggled();
             const expected = ["setWord:grouping:top_level_category", "setText:title:New title", "setFlag:legend:true"];
             window.check(JSON.stringify(window.calls) === JSON.stringify(expected), "calls: " + JSON.stringify(window.calls));
+
+            // The formula field (M6b.7): the formula as it was kept, the result
+            // with what it counted, and every change passed on as one call.
+            const formulas = window.find(panel, "FormulaField", []);
+            window.check(formulas.length === 1, "one formula field, got " + formulas.length);
+            const formula = formulas[0];
+            const input = window.find(formula, "TextField", [])[0];
+            window.check(input.text === "=Pets - Travel", "the formula as kept: " + input.text);
+            formula.check();
+            window.check(formula.result !== undefined && formula.result.value === "312,40 €", "the result: " + JSON.stringify(formula.result));
+            const counted = formula.counts(formula.result.counted);
+            window.check(counted === "Pets (with Vet, Cat food and 2 more), Travel in September 2026", "what it counted: " + counted);
+            window.check(formula.signature({name: "IF", arguments: ["test", "yes", "no"]}) === "IF(test; yes; no)", "the signature in the user's form");
+            window.check(formula.help("PERCENT_OF") !== "" && formula.help("SUM") !== "", "a plain line for each function");
+
+            // Typing a name offers the names that fit; taking one writes it
+            // where the word was and keeps the focus in the field.
+            input.text = "=Pe";
+            input.cursorPosition = 3;
+            input.textEdited();
+            window.check(formula.completion.names.length === 2, "two names fit: " + JSON.stringify(formula.completion));
+            formula.chosen = 1;
+            formula.insertName(formula.completion.names[1]);
+            window.check(input.text === "='Pet food'" && input.cursorPosition === 11, "the name was written: " + input.text);
+            input.text = "=Nothing";
+            formula.check();
+            window.check(formula.mistake !== undefined && formula.mistake.before === "=" && formula.mistake.after === "Nothing", "the place of the mistake is marked");
+            const messages = window.find(formula, "FormError", []).filter(message => message.visible);
+            window.check(messages.length === 1 && messages[0].text.indexOf("Nothing is not a category or one of My groups (character 2)") === 0, "the mistake in words: " + (messages.length > 0 ? messages[0].text : "none"));
+            input.text = "=PERCENT_OF(Pets; 300)";
+            input.editingFinished();
+            window.check(window.calls[window.calls.length - 1] === "setFormula:formula:=PERCENT_OF(Pets; 300)", "the formula is passed on: " + JSON.stringify(window.calls));
+            formula.insertFunction("SUM");
+            window.check(input.text.indexOf("SUM()") >= 0, "a function was written: " + input.text);
+
+            // The card shows the formula's figure like a key figure; the bar fills
+            // by the figure over its target; a mistake takes the figure's place.
+            const cardLabels = window.find(cardPreview, "Label", []).map(label => label.text);
+            window.check(cardLabels.indexOf("312,40 €") >= 0 && cardLabels.indexOf("Your formula") >= 0, "the card shows the figure: " + JSON.stringify(cardLabels));
+            const meters = window.find(barPreview, "ProgressMeter", []);
+            window.check(meters.length === 1 && meters[0].permille === 780 && meters[0].valueText === "312,40 € of 400,00 €", "the bar: " + (meters.length > 0 ? meters[0].permille + " " + meters[0].valueText : "none"));
+            const broken = window.find(brokenPreview, "FormError", []).filter(message => message.result.code !== undefined);
+            window.check(broken.length === 1 && broken[0].result.code === "report.formula-unknown-name" && broken[0].messageFor(broken[0].result).indexOf("Nothing is not a category") === 0, "the mistake takes the place of the figure");
+            window.check(window.find(brokenPreview, "KpiCard", []).length === 0, "no card for a formula with a mistake");
 
             // A refused change shows a message and nothing else.
             fake.view = Object.assign({}, fake.view, {error: {code: "report.document-invalid", reason: "bad-choice", path: "params.grouping"}});

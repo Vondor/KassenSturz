@@ -868,3 +868,330 @@ proptest! {
         prop_assert_eq!(figure("=AVERAGE(Food; Groceries)"), Ok(eur(i64::try_from(average).unwrap())));
     }
 }
+
+// M6b.7: what the formula field offers, and a formula in a saved document.
+
+#[test]
+fn every_name_the_book_offers_reads_back_as_itself_alone() {
+    let mut sample = sample();
+    // Names that need quotes, and names that need a path.
+    account(
+        &mut sample.book,
+        "Eating out",
+        AccountKind::Expense,
+        EUR,
+        None,
+    );
+    account(
+        &mut sample.book,
+        "Groceries",
+        AccountKind::Expense,
+        EUR,
+        Some(sample.rent),
+    );
+    account(
+        &mut sample.book,
+        "Rent - Food",
+        AccountKind::Expense,
+        EUR,
+        None,
+    );
+    account(
+        &mut sample.book,
+        "Mum's gifts",
+        AccountKind::Expense,
+        EUR,
+        None,
+    );
+    sample
+        .book
+        .add_category_group(
+            "Fun & games",
+            GroupKind::Expense,
+            &[GroupMember::Category(sample.food)],
+        )
+        .expect("group added");
+    let source = Source::read(&sample.book, autumn()).expect("read");
+    let known = Formula::known_names(&source);
+    let written = |path: &[&str]| {
+        known
+            .iter()
+            .find(|name| name.path == path)
+            .map(|name| name.written.clone())
+    };
+    assert_eq!(written(&["Rent"]).as_deref(), Some("Rent"));
+    assert_eq!(written(&["Eating out"]).as_deref(), Some("'Eating out'"));
+    assert_eq!(written(&["Rent - Food"]).as_deref(), Some("'Rent - Food'"));
+    assert_eq!(written(&["Mum's gifts"]).as_deref(), Some("'Mum''s gifts'"));
+    assert_eq!(written(&["Fun & games"]).as_deref(), Some("'Fun & games'"));
+    // Two Groceries need their paths.
+    assert_eq!(
+        written(&["Food", "Groceries"]).as_deref(),
+        Some("'Food > Groceries'")
+    );
+    assert_eq!(
+        written(&["Rent", "Groceries"]).as_deref(),
+        Some("'Rent > Groceries'")
+    );
+    assert_eq!(
+        known.iter().filter(|name| name.group).count(),
+        1,
+        "one group"
+    );
+    // Every offered name is a formula that works out to that category alone
+    // (T-42): the figure of the name equals the figure of its category.
+    for name in &known {
+        let formula = format!("={}", name.written);
+        let result = Formula::parse(&formula)
+            .expect("parsed")
+            .evaluate(&source, autumn(), &Filter::default(), EUR)
+            .expect("worked out");
+        assert_eq!(result.counted.len(), 1, "{formula}");
+        assert_eq!(result.counted[0].path, name.path, "{formula}");
+    }
+}
+
+#[test]
+fn what_a_name_counted_includes_what_is_inside() {
+    let mut sample = sample();
+    let household = sample
+        .book
+        .add_category_group(
+            "Household",
+            GroupKind::Expense,
+            &[
+                GroupMember::Category(sample.rent),
+                GroupMember::Category(sample.food),
+            ],
+        )
+        .expect("group added");
+    let source = Source::read(&sample.book, autumn()).expect("read");
+    let result = Formula::parse("=Food + Household")
+        .expect("parsed")
+        .evaluate(&source, autumn(), &Filter::default(), EUR)
+        .expect("worked out");
+    let inside: Vec<(GroupMember, Vec<String>)> = result
+        .counted
+        .iter()
+        .map(|counted| (counted.of, counted.inside.clone()))
+        .collect();
+    assert_eq!(
+        inside,
+        [
+            (
+                GroupMember::Category(sample.food),
+                vec!["Groceries".to_owned()]
+            ),
+            (
+                GroupMember::Group(household),
+                vec!["Food".to_owned(), "Groceries".to_owned(), "Rent".to_owned()]
+            ),
+        ]
+    );
+}
+
+mod saved {
+    //! A formula read from a saved document (T-41, M6b.7): it is data, and
+    //! a mistake in it stays with its own component.
+
+    use super::*;
+
+    fn dashboard(formulas: &[&str]) -> String {
+        let components: Vec<serde_json::Value> = formulas
+            .iter()
+            .enumerate()
+            .map(|(index, formula)| {
+                serde_json::json!({
+                    "id": format!("c{index}"), "type": "kpi.card",
+                    "dataset": "income_expense_by_month",
+                    "params": {"measure": "formula", "compare": "previous_period"},
+                    "props": {"title": "A figure", "period": "page", "formula": formula},
+                    "frame": {"col": 0, "row": index * 4, "cols": 4, "rows": 4}
+                })
+            })
+            .collect();
+        serde_json::json!({
+            "format": "kassensturz-dashboard", "version": 1, "kind": "dashboard",
+            "name": "Overview", "components": components
+        })
+        .to_string()
+    }
+
+    fn stored_formula(document: &Document, index: usize) -> String {
+        let Item::Component(component) = &document.entries[index].item else {
+            panic!("a known component");
+        };
+        match component.get("formula") {
+            Some(Setting::Text(text)) => text.clone(),
+            other => panic!("no formula: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_formula_is_written_and_read_back_as_it_was_stored() {
+        let text = dashboard(&["=SUM(Food; Rent@\"last month\") / 3", ""]);
+        let document = Document::read(&text).expect("read");
+        assert_eq!(
+            stored_formula(&document, 0),
+            "=SUM(Food; Rent@\"last month\") / 3"
+        );
+        assert_eq!(stored_formula(&document, 1), "");
+        let again = Document::read(&document.to_json()).expect("read again");
+        assert_eq!(stored_formula(&again, 0), stored_formula(&document, 0));
+        assert_eq!(again.to_json(), document.to_json());
+    }
+
+    #[test]
+    fn a_formula_from_a_file_works_out_on_the_real_book() {
+        let sample = sample();
+        let source = Source::read(&sample.book, autumn()).expect("read");
+        let document = Document::read(&dashboard(&["=Salary - Rent - Food"])).expect("read");
+        let stored = stored_formula(&document, 0);
+        let value = worked_out(&source, &stored, autumn());
+        assert_eq!(value, Ok(eur(501_180)));
+    }
+
+    #[test]
+    fn a_mistake_in_a_formula_fails_its_own_component_only() {
+        let sample = sample();
+        let source = Source::read(&sample.book, autumn()).expect("read");
+        let text = dashboard(&["=Food +", "=Food", "=Nothing", "=Food / (Rent - Rent)"]);
+        // The document is read whole: the mistakes are in the formulas, not
+        // in the document.
+        let document = Document::read(&text).expect("read");
+        let outcomes: Vec<Result<FormulaValue, String>> = (0..4)
+            .map(|index| worked_out(&source, &stored_formula(&document, index), autumn()))
+            .collect();
+        assert!(matches!(&outcomes[0], Err(error) if error.starts_with("report.formula-syntax")));
+        assert_eq!(outcomes[1], Ok(eur(8_820)));
+        assert!(
+            matches!(&outcomes[2], Err(error) if error.starts_with("report.formula-unknown-name"))
+        );
+        assert!(matches!(&outcomes[3], Err(error) if error.starts_with("report.formula-no-value")));
+    }
+
+    #[test]
+    fn a_formula_over_the_limits_is_refused_before_anything_is_read() {
+        // Too long for the document: the property refuses it, with its path.
+        let long = format!("={}", "1+".repeat(600));
+        let error = Document::read(&dashboard(&[&long])).unwrap_err();
+        assert!(matches!(
+            error,
+            ReportError::DocumentInvalid { reason: "too-long", ref path } if path == "props.formula"
+        ));
+        // Within the document's limit but over a formula limit: the document
+        // is read, and the formula refuses at the limit, nothing read.
+        let deep = format!("={}1{}", "(".repeat(40), ")".repeat(40));
+        let document = Document::read(&dashboard(&[&deep])).expect("read");
+        let stored = stored_formula(&document, 0);
+        assert_eq!(
+            mistake(Formula::parse(&stored).map_err(described)),
+            "report.formula-too-big limit=depth"
+        );
+        // A control character is refused, so a formula stays on one line.
+        let error = Document::read(&dashboard(&["=1\n+2"])).unwrap_err();
+        assert!(matches!(
+            error,
+            ReportError::DocumentInvalid {
+                reason: "bad-text",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn a_formula_cannot_reach_anything_but_figures() {
+        // A function that isn't on the list, a reference to another
+        // component or a web address is a mistake of the formula, shown on
+        // its own component.
+        let source = empty();
+        for hostile in [
+            "=INDIRECT(\"x\")",
+            "=WEBSERVICE(\"http://example.invalid\")",
+            "=c1",
+            "=SUM(c1; c2)",
+        ] {
+            let document = Document::read(&dashboard(&[hostile])).expect("read");
+            let outcome = worked_out(&source, &stored_formula(&document, 0), autumn());
+            assert!(
+                matches!(&outcome, Err(error) if error.starts_with("report.formula-")),
+                "{hostile}: {outcome:?}"
+            );
+        }
+    }
+}
+
+fn filled(figure: FormulaValue, target: FormulaValue) -> Result<i64, String> {
+    figure.fill(target).map(Percent::tenths).map_err(described)
+}
+
+#[test]
+fn a_bar_is_full_by_the_figure_over_its_target_to_a_tenth() {
+    // 312,40 of 400,00 is 78,1 %: 781 tenths exactly.
+    assert_eq!(filled(eur(31_240), eur(40_000)), Ok(781));
+    // Half away from zero, once: 1 of 3 is 33,3 %, 2 of 3 is 66,7 %.
+    assert_eq!(filled(eur(1), eur(3)), Ok(333));
+    assert_eq!(filled(eur(2), eur(3)), Ok(667));
+    assert_eq!(filled(eur(-1), eur(3)), Ok(-333));
+    assert_eq!(filled(eur(-5), eur(-1_000)), Ok(5));
+    assert_eq!(filled(eur(5), eur(-1_000)), Ok(-5));
+    // Over the target is over 100 %; the bar clamps, the figure doesn't.
+    assert_eq!(filled(eur(60_000), eur(40_000)), Ok(1_500));
+    assert_eq!(filled(tenths(400), tenths(500)), Ok(800));
+    assert_eq!(filled(hundredths(250), hundredths(1_000)), Ok(250));
+}
+
+#[test]
+fn a_bar_refuses_a_target_it_cannot_be_measured_against() {
+    assert_eq!(
+        mistake(filled(eur(100), hundredths(100))),
+        "report.formula-target reason=kinds"
+    );
+    assert_eq!(
+        mistake(filled(hundredths(100), tenths(500))),
+        "report.formula-target reason=kinds"
+    );
+    assert_eq!(
+        mistake(filled(
+            eur(100),
+            FormulaValue::Amount(Money::from_minor_units(100, USD))
+        )),
+        "report.formula-target reason=kinds"
+    );
+    assert_eq!(
+        mistake(filled(eur(100), eur(0))),
+        "report.formula-target reason=zero"
+    );
+    assert_eq!(
+        mistake(filled(hundredths(100), hundredths(0))),
+        "report.formula-target reason=zero"
+    );
+    assert_eq!(
+        mistake(filled(
+            FormulaValue::Number {
+                hundredths: i64::MAX
+            },
+            hundredths(1)
+        )),
+        "report.formula-target reason=too-large"
+    );
+}
+
+#[test]
+fn a_figure_and_its_target_come_from_the_book_together() {
+    // The way the bridge does it: both formulas worked out on the real
+    // book, then the one measured against the other.
+    let sample = sample();
+    let source = Source::read(&sample.book, autumn()).expect("read");
+    let figure = worked_out(&source, "=Food", autumn()).expect("Food");
+    let target = worked_out(&source, "=Rent / 10", autumn()).expect("a target");
+    assert_eq!(figure, eur(8_820));
+    assert_eq!(target, eur(24_000));
+    assert_eq!(filled(figure, target), Ok(368));
+    // An amount against a plain number is not a bar.
+    let number = worked_out(&source, "=400", autumn()).expect("a number");
+    assert_eq!(
+        mistake(filled(figure, number)),
+        "report.formula-target reason=kinds"
+    );
+}

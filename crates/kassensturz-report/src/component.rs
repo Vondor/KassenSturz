@@ -184,7 +184,9 @@ impl Component {
                     .ok_or_else(|| invalid("unknown-property", &path))?;
                 let property = &kind.properties()[index];
                 let setting = match (property.kind, value) {
-                    (Kind::Text, Value::String(text)) => Setting::Text(text.clone()),
+                    (Kind::Text | Kind::Formula, Value::String(text)) => {
+                        Setting::Text(text.clone())
+                    }
                     (Kind::Flag { .. }, Value::Bool(flag)) => Setting::Flag(*flag),
                     (Kind::Ids, Value::Array(list)) => Setting::Ids(
                         list.iter()

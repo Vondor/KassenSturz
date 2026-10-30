@@ -8,7 +8,10 @@
 #
 # - PanelSmoke.qml puts PropertiesPanel.qml on a stand-in for the
 #   ComponentProperties object and checks that it shows one control per
-#   field and passes each change on as the call it names.
+#   field and passes each change on as the call it names, and that the
+#   formula field (M6b.7) shows a result with what it counted, marks the place
+#   of a mistake, completes names and lists the functions (the stand-in
+#   BookFormula).
 # - StatisticsSmoke.qml opens StatisticsPage.qml, with the chart, table, card
 #   and progress components, on stand-ins for SavedViews, ComponentProperties,
 #   BookCharts and BookCards (crates/kassensturz-ui-bridge/qml-tests/fakes)
@@ -39,22 +42,13 @@ bridge=crates/kassensturz-ui-bridge
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-# 1. The panel alone.
-cp "$bridge"/qml/PropertiesPanel.qml "$bridge"/qml-tests/PanelSmoke.qml "$work"
-printf 'PropertiesPanel 1.0 PropertiesPanel.qml\n' > "$work/qmldir"
-(
-    cd "$work"
-    QT_QPA_PLATFORM=offscreen timeout 60 qml6 PanelSmoke.qml
-)
-echo "properties panel: ok"
-
-# 2. The page, as a module with the app's URI, so its files see each other
-# and the stand-ins as they see the Rust objects.
+# The pages and the panel, as a module with the app's URI, so their files see
+# each other and the stand-ins as they see the Rust objects.
 module="$work/imports/io/github/vondor/kassensturz"
 mkdir -p "$module"
 for file in StatisticsPage AiChangeReviewPage AiChangeCorrection ComponentPreview PropertiesPanel ChartView ChartTable DataTable \
     CategoryGroupsPage CategoryGroupPage AmountLabel KpiCard KpiNames ProgressMeter ChartPalette FormError Plain \
-    DashboardGrid GridItem GridNames; do
+    DashboardGrid GridItem GridNames FormulaField; do
     cp "$bridge/qml/$file.qml" "$module"
 done
 cp "$bridge"/qml-tests/fakes/*.qml "$module"
@@ -65,11 +59,12 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
     for file in StatisticsPage AiChangeReviewPage AiChangeCorrection ComponentPreview PropertiesPanel ChartView \
         ChartTable DataTable AmountLabel KpiCard KpiNames ProgressMeter FormError SavedViews \
         ComponentProperties BookCharts BookCards AiSwitch AiChat AccountTypes AiErrorMessage \
-        CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames DashboardLayout; do
+        CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames DashboardLayout \
+        FormulaField BookFormula; do
         echo "$file 1.0 $file.qml"
     done
 } > "$module/qmldir"
-cp "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$work"
+cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$work"
 run_smoke() {
     (
         cd "$work"
@@ -85,6 +80,8 @@ run_smoke() {
     )
 }
 
+run_smoke PanelSmoke
+echo "properties panel: ok"
 run_smoke StatisticsSmoke
 echo "statistics page: ok"
 run_smoke ReviewSmoke

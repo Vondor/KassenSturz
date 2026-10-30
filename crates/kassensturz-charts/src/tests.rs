@@ -51,6 +51,10 @@ impl TextFormat for Words {
         format!("{} tenths", percent.tenths())
     }
 
+    fn number(&self, hundredths: i64) -> String {
+        format!("{hundredths} hundredths")
+    }
+
     fn unsorted(&self) -> String {
         "(unsorted)".into()
     }

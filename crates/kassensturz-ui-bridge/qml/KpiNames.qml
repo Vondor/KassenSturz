@@ -24,6 +24,8 @@ QtObject {
             return i18nContext.i18nc("@title:card a key figure: what all accounts hold, less what is owed", "What you are worth");
         case "savings-rate":
             return i18nContext.i18nc("@title:card a key figure", "Share you kept");
+        case "formula":
+            return i18nContext.i18nc("@title:card a key figure the user wrote a formula for", "Your formula");
         }
         return "";
     }

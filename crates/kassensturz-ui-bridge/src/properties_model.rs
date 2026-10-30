@@ -15,8 +15,10 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
 use kassensturz_core::{ErrorParam, Report};
-use kassensturz_report::{Component, ComponentType, ReportError, Setting};
+use kassensturz_report::{Component, ComponentType, NumberForm, ReportError, Setting};
 
+use crate::formulas;
+use crate::number_format::app_locale;
 use crate::properties::{self, Field};
 use crate::variant::{list, map, text};
 
@@ -78,6 +80,14 @@ pub mod qobject {
         #[cxx_name = "setIds"]
         fn set_ids(self: Pin<&mut ComponentProperties>, key: &QString, value: &QString);
 
+        /// Sets a formula property (`formula`, or a progress bar's `target`),
+        /// written in the user's number format as in the field. The book
+        /// keeps it in the form it stores (D-295). A text that cannot be read
+        /// as a formula at all is not kept; the field shows why.
+        #[qinvokable]
+        #[cxx_name = "setFormula"]
+        fn set_formula(self: Pin<&mut ComponentProperties>, key: &QString, value: &QString);
+
         /// Sets a property that is one word of a list.
         #[qinvokable]
         #[cxx_name = "setWord"]
@@ -120,7 +130,11 @@ fn field_object(field: &Field) -> QVariant {
 }
 
 /// What QML gets for a component, with the error of the last refused change.
-pub(crate) fn view_object(component: Option<&Component>, error: Option<&ReportError>) -> QVariant {
+pub(crate) fn view_object(
+    component: Option<&Component>,
+    error: Option<&ReportError>,
+    form: NumberForm,
+) -> QVariant {
     let mut entries = Vec::new();
     if let Some(component) = component {
         entries.push(("type", text(component.kind().id())));
@@ -135,7 +149,7 @@ pub(crate) fn view_object(component: Option<&Component>, error: Option<&ReportEr
         ));
         entries.push((
             "fields",
-            list(properties::fields(component).iter().map(field_object)),
+            list(properties::fields(component, form).iter().map(field_object)),
         ));
         entries.push(("json", text(&properties::json(component))));
         if let Some((word, words)) = properties::period(component) {
@@ -158,6 +172,9 @@ pub(crate) fn view_object(component: Option<&Component>, error: Option<&ReportEr
                 ("showHidden", QVariant::from(&preview.show_hidden)),
                 ("compare", text(&preview.compare)),
                 ("measure", text(&preview.measure)),
+                ("usesFormula", QVariant::from(&preview.uses_formula)),
+                ("formula", text(&preview.formula)),
+                ("target", text(&preview.target)),
             ]),
         ));
     }
@@ -169,7 +186,8 @@ pub(crate) fn view_object(component: Option<&Component>, error: Option<&ReportEr
 
 impl qobject::ComponentProperties {
     fn show(mut self: Pin<&mut Self>, error: Option<&ReportError>) {
-        let view = view_object(self.rust().component.as_ref(), error);
+        let form = formulas::form(&app_locale());
+        let view = view_object(self.rust().component.as_ref(), error, form);
         self.as_mut().rust_mut().view = view;
         self.as_mut().view_changed();
     }
@@ -255,6 +273,21 @@ impl qobject::ComponentProperties {
         self.change(|component| component.set(&key, Setting::Ids(ids)));
     }
 
+    fn set_formula(self: Pin<&mut Self>, key: &QString, value: &QString) {
+        let key = key.to_string();
+        let typed = value.to_string();
+        let stored = if typed.trim().is_empty() {
+            Ok(String::new())
+        } else {
+            formulas::canonical(&app_locale(), typed.trim())
+        };
+        // A text that is no formula at all changes nothing: the field has
+        // shown the mistake while it was typed.
+        if let Ok(stored) = stored {
+            self.change(|component| component.set(&key, Setting::Text(stored)));
+        }
+    }
+
     fn set_word(self: Pin<&mut Self>, key: &QString, value: &QString) {
         let (key, value) = (key.to_string(), value.to_string());
         self.change(|component| component.set(&key, Setting::Word(value)));
@@ -273,7 +306,7 @@ mod tests {
     #[test]
     fn a_chart_reads_back_the_way_qml_reads_it() {
         let chart = component(ComponentType::ChartPie, "spending_by_category");
-        let view = view_object(Some(&chart), None);
+        let view = view_object(Some(&chart), None, NumberForm::DecimalComma);
         assert_eq!(
             keys(&view),
             [
@@ -322,10 +355,13 @@ mod tests {
                 "chart",
                 "chosen",
                 "compare",
+                "formula",
                 "grouping",
                 "measure",
                 "showHidden",
-                "shows"
+                "shows",
+                "target",
+                "usesFormula"
             ]
         );
         assert_eq!(text_of(&preview, "shows"), "chart");
@@ -345,7 +381,7 @@ mod tests {
         assert_eq!(preview.grouping, "groups");
         assert_eq!(preview.chosen, "a,b");
         assert!(preview.show_hidden);
-        let view = view_object(Some(&pie), None);
+        let view = view_object(Some(&pie), None, NumberForm::DecimalComma);
         let order: Vec<String> = list_of(&view, "fields")
             .iter()
             .map(|f| text_of(f, "key"))
@@ -368,7 +404,7 @@ mod tests {
         assert!(flag_of(&preview, "showHidden"));
         // Monthly figures leave nothing out, so no field for hidden ones.
         let monthly = component(ComponentType::ChartLine, "income_expense_by_month");
-        let view = view_object(Some(&monthly), None);
+        let view = view_object(Some(&monthly), None, NumberForm::DecimalComma);
         assert!(
             !list_of(&view, "fields")
                 .iter()
@@ -456,17 +492,20 @@ mod tests {
         // Monthly figures have one grouping, so no "group by" field; a key
         // figure card chooses a figure and a comparison, then has its title.
         let card = component(ComponentType::KpiCard, "income_expense_by_month");
-        let view = view_object(Some(&card), None);
+        let view = view_object(Some(&card), None, NumberForm::DecimalComma);
         let order: Vec<String> = list_of(&view, "fields")
             .iter()
             .map(|f| text_of(f, "key"))
             .collect();
         assert_eq!(order, ["measure", "compare", "title"]);
         let line = component(ComponentType::ChartLine, "income_expense_by_month");
-        let order: Vec<String> = list_of(&view_object(Some(&line), None), "fields")
-            .iter()
-            .map(|f| text_of(f, "key"))
-            .collect();
+        let order: Vec<String> = list_of(
+            &view_object(Some(&line), None, NumberForm::DecimalComma),
+            "fields",
+        )
+        .iter()
+        .map(|f| text_of(f, "key"))
+        .collect();
         assert_eq!(order, ["title", "legend"]);
     }
 
@@ -476,7 +515,7 @@ mod tests {
         chart
             .set("title", Setting::Text("Where it went".into()))
             .unwrap();
-        let view = view_object(Some(&chart), None);
+        let view = view_object(Some(&chart), None, NumberForm::DecimalComma);
         let json = text_of(&view, "json");
         let again = Component::from_json(&json).unwrap();
         assert_eq!(again, chart);
@@ -490,7 +529,7 @@ mod tests {
             .set("grouping", Setting::Word("month".into()))
             .unwrap_err();
         assert_eq!(chart, before);
-        let view = view_object(Some(&chart), Some(&error));
+        let view = view_object(Some(&chart), Some(&error), NumberForm::DecimalComma);
         let shown = object_of(&view, "error");
         assert_eq!(keys(&shown), ["code", "path", "reason"]);
         assert_eq!(text_of(&shown, "code"), "report.document-invalid");
@@ -500,9 +539,9 @@ mod tests {
 
     #[test]
     fn no_component_is_an_empty_view_with_an_error_if_it_could_not_be_made() {
-        assert!(keys(&view_object(None, None)).is_empty());
+        assert!(keys(&view_object(None, None, NumberForm::DecimalComma)).is_empty());
         let error = Component::new(ComponentType::ChartPie, "income_expense_by_month").unwrap_err();
-        let view = view_object(None, Some(&error));
+        let view = view_object(None, Some(&error), NumberForm::DecimalComma);
         assert_eq!(keys(&view), ["error"]);
         assert_eq!(
             text_of(&object_of(&view, "error"), "reason"),
@@ -518,7 +557,7 @@ mod tests {
         );
         line.set("series", Setting::Ids(vec!["x".into(), "y".into()]))
             .unwrap();
-        let fields = properties::fields(&line);
+        let fields = properties::fields(&line, NumberForm::DecimalComma);
         let series = fields
             .iter()
             .find(|field| field.key == "series")
@@ -527,5 +566,132 @@ mod tests {
         assert_eq!(series.ids, ["x", "y"]);
         // The groups of a spending chart are not offered here.
         assert!(!fields.iter().any(|field| field.key == "groups"));
+    }
+
+    fn keys_of_fields(component: &Component, form: NumberForm) -> Vec<String> {
+        properties::fields(component, form)
+            .iter()
+            .map(|field| field.key.to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn a_key_figure_offers_its_formula_when_its_measure_is_a_formula() {
+        let mut card = component(ComponentType::KpiCard, "income_expense_by_month");
+        // Not chosen yet: the formula is not offered, the comparison is.
+        assert_eq!(
+            keys_of_fields(&card, NumberForm::DecimalComma),
+            ["measure", "compare", "title"]
+        );
+        let words: Vec<String> = list_of(
+            &view_object(Some(&card), None, NumberForm::DecimalComma),
+            "fields",
+        )
+        .iter()
+        .find(|field| text_of(field, "key") == "measure")
+        .map(|field| {
+            list_of(field, "words")
+                .iter()
+                .map(|word| word.value::<QString>().expect("text").to_string())
+                .collect()
+        })
+        .expect("the measure field");
+        assert_eq!(
+            words,
+            ["income", "expenses", "net", "savings-rate", "formula"]
+        );
+        card.set("measure", Setting::Word("formula".into()))
+            .unwrap();
+        assert_eq!(
+            keys_of_fields(&card, NumberForm::DecimalComma),
+            ["measure", "formula", "title"]
+        );
+        // The preview asks for the formula, not for a card of the cards.
+        let preview = properties::preview(&card);
+        assert!(preview.uses_formula);
+        assert_eq!(preview.formula, "");
+        // The formula is shown in the user's number format and previewed in
+        // the form the book stores.
+        card.set("formula", Setting::Text("=ROUND(Pets * 1.5; 2)".into()))
+            .unwrap();
+        for (form, shown) in [
+            (NumberForm::DecimalComma, "=ROUND(Pets * 1,5; 2)"),
+            (NumberForm::DecimalPoint, "=ROUND(Pets * 1.5, 2)"),
+        ] {
+            let view = view_object(Some(&card), None, form);
+            let fields = list_of(&view, "fields");
+            let field = fields
+                .iter()
+                .find(|field| text_of(field, "key") == "formula")
+                .expect("the formula field");
+            assert_eq!(text_of(field, "kind"), "formula");
+            assert_eq!(text_of(field, "place"), "props");
+            assert_eq!(text_of(field, "text"), shown);
+            let preview = object_of(&view, "preview");
+            assert_eq!(text_of(&preview, "formula"), "=ROUND(Pets * 1.5; 2)");
+            assert!(flag_of(&preview, "usesFormula"));
+        }
+        // Another measure keeps the formula in the document but does not use
+        // it.
+        card.set("measure", Setting::Word("net".into())).unwrap();
+        assert!(!properties::preview(&card).uses_formula);
+        assert_eq!(properties::preview(&card).formula, "=ROUND(Pets * 1.5; 2)");
+        assert!(!keys_of_fields(&card, NumberForm::DecimalComma).contains(&"formula".to_owned()));
+    }
+
+    #[test]
+    fn a_progress_bar_offers_a_target_once_it_has_a_formula() {
+        let mut bar = component(ComponentType::ProgressBar, "income_expense_by_month");
+        // Without a formula it shows the share you kept.
+        assert_eq!(
+            keys_of_fields(&bar, NumberForm::DecimalComma),
+            ["compare", "formula", "title"]
+        );
+        let preview = properties::preview(&bar);
+        assert!(!preview.uses_formula);
+        assert_eq!(preview.measure, "savings-rate");
+        bar.set("formula", Setting::Text("=Pets".into())).unwrap();
+        bar.set("target", Setting::Text("=Salary / 10".into()))
+            .unwrap();
+        assert_eq!(
+            keys_of_fields(&bar, NumberForm::DecimalComma),
+            ["formula", "target", "title"]
+        );
+        let preview = properties::preview(&bar);
+        assert!(preview.uses_formula);
+        assert_eq!(
+            (preview.formula.as_str(), preview.target.as_str()),
+            ("=Pets", "=Salary / 10")
+        );
+        let view = view_object(Some(&bar), None, NumberForm::DecimalComma);
+        let fields = list_of(&view, "fields");
+        let target = fields
+            .iter()
+            .find(|field| text_of(field, "key") == "target")
+            .expect("the target field");
+        assert_eq!(text_of(target, "kind"), "formula");
+        assert_eq!(text_of(target, "text"), "=Salary / 10");
+        // The formula is gone again when the text is cleared.
+        bar.set("formula", Setting::Text(String::new())).unwrap();
+        assert!(!properties::preview(&bar).uses_formula);
+    }
+
+    #[test]
+    fn a_formula_from_a_saved_document_is_a_field_of_the_panel() {
+        // The way the grid editor gets it: the component read from a
+        // document's JSON, then shown in the panel and in the preview.
+        let json = r#"{"type": "progress.bar", "dataset": "income_expense_by_month",
+            "params": {"compare": "previous_period"},
+            "props": {"title": "Pets", "period": "page",
+                      "formula": "=Pets@\"last month\"", "target": "=300"}}"#;
+        let bar = Component::from_json(json).expect("a component the schema allows");
+        let view = view_object(Some(&bar), None, NumberForm::DecimalPoint);
+        let preview = object_of(&view, "preview");
+        assert_eq!(text_of(&preview, "shows"), "progress");
+        assert_eq!(text_of(&preview, "formula"), "=Pets@\"last month\"");
+        assert_eq!(text_of(&preview, "target"), "=300");
+        // And what the panel shows round-trips through the JSON it saves.
+        let again = Component::from_json(&text_of(&view, "json")).expect("saved and read");
+        assert_eq!(again, bar);
     }
 }

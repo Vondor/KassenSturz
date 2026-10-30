@@ -43,6 +43,8 @@ mod fetch_gap_model;
 mod first_start;
 mod first_start_model;
 mod format;
+mod formulas;
+mod formulas_model;
 mod grid_editor;
 mod grid_editor_model;
 mod history;

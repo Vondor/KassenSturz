@@ -38,4 +38,5 @@ QtObject {
     function setText(key, value) { title = value; build(component.type, component.dataset); }
     function setFlag(key, value) { }
     function setWord(key, value) { }
+    function setFormula(key, value) { }
 }

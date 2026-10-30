@@ -194,7 +194,19 @@ fn month_period(key: &str) -> Option<Period> {
     Period::new(first, first.last_of_month()).ok()
 }
 
-pub(crate) fn period(key: &str, today: Date) -> Result<Period, ChartsError> {
+/// The period a request names (D-332): a fixed name, a month as `YYYY-MM`
+/// or a typed range of days, whose open start is the first day of the book.
+pub(crate) fn period(book: &Book, key: &str, today: Date) -> Result<Period, ChartsError> {
+    if key.contains("..") {
+        let earliest = book
+            .booking_date_range()
+            .ok()
+            .flatten()
+            .map(|(first, _)| first);
+        return Period::from_range_word(key, today, earliest)
+            .ok_or(ChartsError::UnknownName("period"))?
+            .map_err(ChartsError::from);
+    }
     Ok(match key {
         "this-month" => Period::this_month(today)?,
         "last-month" => Period::last_month(today)?,
@@ -213,7 +225,7 @@ pub fn charts(
     request: &Request,
 ) -> Result<ChartSet, ChartsError> {
     let kind = ChartKind::from_key(&request.kind).ok_or(ChartsError::UnknownName("kind"))?;
-    let period = period(&request.period, locale.today())?;
+    let period = period(book, &request.period, locale.today())?;
     let level = match request.grouping.as_str() {
         "top-level" => Level::TopLevel,
         "each" | "groups" => Level::Each,

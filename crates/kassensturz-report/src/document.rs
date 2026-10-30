@@ -289,7 +289,10 @@ impl Document {
                 }
                 match filters.get("period") {
                     None => None,
-                    Some(Value::String(period)) if PERIODS.contains(&period.as_str()) => {
+                    Some(Value::String(period))
+                        if PERIODS.contains(&period.as_str())
+                            || crate::read_range_word(period).is_some() =>
+                    {
                         Some(period.clone())
                     }
                     Some(_) => return Err(invalid("bad-choice", "filters.period")),

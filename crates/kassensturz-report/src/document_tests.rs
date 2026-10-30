@@ -134,6 +134,11 @@ fn the_header_is_checked() {
             "filters.period",
         ),
         (
+            json!({"filters": {"period": "2025-01-01..2000-01-01"}}),
+            "bad-choice",
+            "filters.period",
+        ),
+        (
             json!({"filters": {"url": "x"}}),
             "unknown-property",
             "filters.url",

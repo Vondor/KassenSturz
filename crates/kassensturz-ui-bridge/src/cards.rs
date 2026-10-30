@@ -171,7 +171,7 @@ pub fn cards(
     locale: &impl Locale,
     request: &Request,
 ) -> Result<Vec<CardSet>, ChartsError> {
-    let period = period(&request.period, locale.today())?;
+    let period = period(book, &request.period, locale.today())?;
     let compare = Compare::from_id(&request.compare).ok_or(ChartsError::UnknownName("compare"))?;
     let source = Source::read(book, comparison_span(period, compare)?)?;
     let (_, changes) = compare_income_expense(&source, period, &Filter::default(), compare)?;

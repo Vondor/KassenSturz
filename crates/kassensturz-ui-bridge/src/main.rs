@@ -60,6 +60,8 @@ mod overview_model;
 mod page_stack_audit;
 mod parse;
 mod parts_entry;
+mod period_range;
+mod period_range_model;
 mod plain_text_audit;
 mod platform;
 mod properties;

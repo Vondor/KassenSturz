@@ -12783,3 +12783,27 @@ msgstr "Nur diese Kategorien anzeigen"
 msgctxt "@info"
 msgid "There are no categories to pick yet."
 msgstr "Es gibt noch keine Kategorien zum Auswählen."
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:72
+#, kde-format
+msgctxt "@item:inlistbox a period the user types as two dates"
+msgid "A range of dates…"
+msgstr "Ein Datumsbereich …"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:93
+#, kde-format
+msgctxt "@label:textbox two dates, or one with < or >"
+msgid "Dates of the period"
+msgstr "Daten des Zeitraums"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:104
+#, kde-format
+msgctxt "@info %1 is two dates written as the user types dates"
+msgid "Two dates, like %1. Write < or > before one date for everything before or after it; <= and >= include that day."
+msgstr "Zwei Daten, zum Beispiel %1. Mit < oder > vor einem Datum gilt alles vor oder nach diesem Tag; mit <= und >= zählt der Tag selbst mit."
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:111
+#, kde-format
+msgctxt "@info"
+msgid "That isn't a period KassenSturz can use. Write two dates, for example the first and the last day, with the first one earlier than the last and not more than 100 years apart."
+msgstr "Das ist kein Zeitraum, den KassenSturz verwenden kann. Schreiben Sie zwei Daten, zum Beispiel den ersten und den letzten Tag. Das erste muss vor dem zweiten liegen, und es dürfen nicht mehr als 100 Jahre dazwischen liegen."

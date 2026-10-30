@@ -145,6 +145,37 @@ fn a_period_is_the_page_or_one_of_the_five_fixed_periods() {
 }
 
 #[test]
+fn a_typed_range_is_a_period_for_a_component_and_a_box() {
+    let make = |kind: &str, word: &str| {
+        let mut component = card("c1", 0, 0);
+        component["type"] = kind.into();
+        if kind == "group.period" {
+            component.as_object_mut().unwrap().remove("dataset");
+        }
+        component["props"] = json!({"period": word});
+        dashboard(vec![component])
+    };
+    for kind in ["kpi.card", "group.period"] {
+        for word in ["2000-01-01..2020-01-01", "..2025-01-01", "2025-01-01.."] {
+            let document = Document::read(&make(kind, word)).unwrap();
+            let Item::Component(read) = &document.entries[0].item else {
+                panic!("a known component");
+            };
+            assert_eq!(read.get("period"), Some(&Setting::Word(word.into())));
+            assert_eq!(Document::read(&document.to_json()).unwrap(), document);
+        }
+        for bad in [
+            "2025-01-01..2000-01-01",
+            "..",
+            "2025-1-1..",
+            "2000-02-30..2001-01-01",
+        ] {
+            assert_eq!(reason(&make(kind, bad)).1, "props.period", "{kind} {bad}");
+        }
+    }
+}
+
+#[test]
 fn a_component_takes_the_page_period_or_its_own() {
     let page = period(date(2026, 8, 1), date(2026, 8, 31));
     let today = date(2026, 10, 15);

@@ -34,6 +34,12 @@ QtObject {
             return i18nContext.i18nc("@item:inlistbox a part of the layout", "Table");
         case "text.heading":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a line of text that names a section", "Heading");
+        case "text.separator":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: a thin line that divides the page", "Separator");
+        case "notice.fetch_gap":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: warnings about bank accounts that were not updated for a long time", "Warnings about old bank data");
+        case "notice.transfers":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: a note that money moved between the user's own accounts is not counted", "Note about moved money");
         }
         return i18nContext.i18nc("@item:inlistbox a part of the layout that this version doesn't know", "Unknown");
     }

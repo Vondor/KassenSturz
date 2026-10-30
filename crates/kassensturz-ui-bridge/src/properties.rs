@@ -225,6 +225,9 @@ pub fn preview(component: &Component) -> Preview {
         ComponentType::TableRows => ("table", "bar"),
         // Text only: nothing is asked of the book.
         ComponentType::Heading => ("heading", ""),
+        ComponentType::Separator => ("separator", ""),
+        ComponentType::FetchNotice => ("fetch-notice", ""),
+        ComponentType::TransfersNote => ("transfers-note", ""),
     };
     let compare = word(component, "compare");
     let measure = match component.kind() {

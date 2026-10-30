@@ -70,8 +70,8 @@ Kirigami.ApplicationWindow {
         onTriggered: {
             switch (window.step++) {
             case 0: {
-                window.check(grid.items.length === 4, "four components are given: " + grid.items.length);
-                window.check(grid.ids.length === 4, "one item for each");
+                window.check(grid.items.length === 7, "seven components are given: " + grid.items.length);
+                window.check(grid.ids.length === 7, "one item for each");
                 const income = grid.itemFor("income");
                 const spending = grid.itemFor("spending");
                 window.check(income !== null && spending !== null, "the items exist");
@@ -84,6 +84,12 @@ Kirigami.ApplicationWindow {
                 window.check(grid.problemCount === 1 && grid.problemIds[0] === "future", "the unknown component is the one problem: " + JSON.stringify(grid.problemIds));
                 window.check(!income.selected, "nothing is selected in view mode");
                 window.check(grid.itemFor("title").heading === "Spending", "a heading shows its text");
+                // The separator and the notices draw from the page's own data
+                // (D-328, D-334) and none of them is a problem.
+                grid.pageView = {fetchGaps: [{days: 20, account: "Checking", lastFetched: "2026-10-01", accountId: "a1"}], transfers: 2};
+                window.check(grid.itemFor("line").bare && grid.itemFor("gaps").bare && grid.itemFor("moved").bare, "the line and the notices have no card in view mode");
+                window.check(!grid.itemFor("income").bare, "a figure keeps its card");
+                window.check(!grid.itemFor("gaps").hasProblem && !grid.itemFor("moved").hasProblem && !grid.itemFor("line").hasProblem, "the notices are not problems");
                 window.check(grid.periodFor(grid.items[0]) === "2026-09", "a component on the page's period asks for the page's month: " + grid.periodFor(grid.items[0]));
                 dashboard.edit();
                 break;

@@ -36,6 +36,10 @@ Item {
     readonly property string subjectJson: info?.subject?.json ?? ""
     readonly property bool hasProblem: unknown || (content.item?.failed ?? false)
     readonly property string heading: present ? names.titleOf(info) : ""
+    // The separator and the notices have no card around them while the page
+    // is only looked at: a line and a message (D-328, D-334).
+    readonly property bool bare: present && (info.type === "text.separator" || info.type === "notice.fetch_gap" || info.type === "notice.transfers")
+    readonly property bool showsFrame: !bare || (board.editing && !board.preview)
     property bool settled: false
     // Dragging and resizing by hand: the pointer sets the pixels, and the
     // editor snaps them to cells when the pointer is let go.
@@ -167,9 +171,9 @@ Item {
 
         anchors.fill: parent
         clip: true
-        color: Kirigami.Theme.backgroundColor
+        color: cell.showsFrame ? Kirigami.Theme.backgroundColor : "transparent"
         radius: Kirigami.Units.smallSpacing
-        border.width: cell.selected ? 2 : 1
+        border.width: cell.selected ? 2 : (cell.showsFrame ? 1 : 0)
         border.color: cell.selected ? Kirigami.Theme.highlightColor
             : cell.hasProblem ? Kirigami.Theme.neutralTextColor
             : cell.board.editing && !cell.board.preview ? Kirigami.Theme.disabledTextColor
@@ -184,7 +188,10 @@ Item {
             // above takes the pointer, which selects and drags it.
             active: cell.present
             sourceComponent: cell.unknown ? unknownBox
-                : cell.info?.type === "text.heading" ? headingBox : figuresBox
+                : cell.info?.type === "text.heading" ? headingBox
+                : cell.info?.type === "text.separator" ? separatorBox
+                : cell.info?.type === "notice.fetch_gap" ? fetchGapBox
+                : cell.info?.type === "notice.transfers" ? transfersBox : figuresBox
         }
     }
 
@@ -201,6 +208,96 @@ Item {
             readonly property bool failed: false
             Accessible.role: Accessible.Heading
             Accessible.name: text
+        }
+    }
+
+    // A thin line across the cell (D-334), like Kirigami.Separator.
+    Component {
+        id: separatorBox
+
+        Item {
+            readonly property bool failed: false
+
+            Kirigami.Separator {
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width
+            }
+        }
+    }
+
+    // The warnings about bank accounts that were not updated for a long time
+    // (M5.U, D-180), one message each, as the page showed them before it
+    // was a widget (D-328). Nothing is shown when there is none; while the
+    // layout is arranged, a hint says what the widget is.
+    Component {
+        id: fetchGapBox
+
+        Flickable {
+            readonly property bool failed: false
+            readonly property var gaps: cell.board.pageView.fetchGaps ?? []
+
+            contentHeight: gapColumn.implicitHeight
+            clip: true
+
+            ColumnLayout {
+                id: gapColumn
+
+                width: parent.width
+                spacing: Kirigami.Units.smallSpacing
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    visible: cell.board.editing && gaps.length === 0
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    color: Kirigami.Theme.disabledTextColor
+                    text: names.i18nContext.i18nc("@info", "Warnings about bank accounts that were not updated for a long time appear here. There are none right now.")
+                }
+
+                Repeater {
+                    model: gaps
+
+                    delegate: Kirigami.InlineMessage {
+                        id: gap
+
+                        required property var modelData
+
+                        Layout.fillWidth: true
+                        type: Kirigami.MessageType.Warning
+                        visible: true
+                        text: Plain.plain(names.i18nContext.i18nc("@info %1 is how many days, %2 an account's name, %3 a date", "It has been %1 days since you last got new transactions for %2 from your bank (%3). Your bank only lists its recent transactions, so some may be missing if you wait longer.", gap.modelData.days, gap.modelData.account, gap.modelData.lastFetched))
+                        actions: [
+                            Kirigami.Action {
+                                icon.name: "view-refresh"
+                                text: names.i18nContext.i18nc("@action:button", "Get new transactions")
+                                onTriggered: cell.board.getTransactionsClicked(gap.modelData.accountId)
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+
+    // Transfers are left out of the totals (D-021); the note says so only
+    // when the month has one (while arranging, it says what it is).
+    Component {
+        id: transfersBox
+
+        Controls.Label {
+            readonly property bool failed: false
+            readonly property int count: cell.board.pageView.transfers ?? 0
+
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            elide: Text.ElideRight
+            verticalAlignment: Text.AlignVCenter
+            font: Kirigami.Theme.smallFont
+            color: count > 0 ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
+            visible: count > 0 || cell.board.editing
+            text: count > 0
+                ? names.i18nContext.i18ncp("@info", "Money you moved between your accounts (once this month) isn't counted as money in or out.", "Money you moved between your accounts (%1 times this month) isn't counted as money in or out.", count)
+                : names.i18nContext.i18nc("@info", "A note appears here when you moved money between your own accounts this month. There is none right now.")
         }
     }
 

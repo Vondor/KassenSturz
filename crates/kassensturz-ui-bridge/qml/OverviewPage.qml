@@ -11,9 +11,9 @@
 // months' line are report components (M6a.8, Q-215). Since M6b.3 they sit on
 // the dashboard grid (`DashboardGrid`), which the user can arrange: "Edit
 // layout" starts a session with its own undo, Done keeps it as one change in
-// the history. The parts that are not components (the net worth card, the
-// fetch-gap warnings, the month switcher and the note about transfers) stay
-// fixed around the grid.
+// the history. The parts that are not widgets (the net worth card and the month
+// switcher) stay fixed around the grid for now; the fetch-gap warnings, the note
+// about transfers and the separator are widgets on it (D-327, D-328, D-334).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -35,7 +35,6 @@ Kirigami.ScrollablePage {
     readonly property var view: overview.view ?? ({})
     readonly property var sections: view.sections ?? []
     readonly property var totals: view.totals ?? []
-    readonly property var fetchGaps: view.fetchGaps ?? []
 
     signal addAccountClicked()
     signal addTransactionClicked()
@@ -218,6 +217,9 @@ Kirigami.ScrollablePage {
             LibraryAction { kind: "kpi.card"; onChosen: kind => grid.add(kind) }
             LibraryAction { kind: "progress.bar"; onChosen: kind => grid.add(kind) }
             LibraryAction { kind: "text.heading"; onChosen: kind => grid.add(kind) }
+            LibraryAction { kind: "text.separator"; onChosen: kind => grid.add(kind) }
+            LibraryAction { kind: "notice.fetch_gap"; onChosen: kind => grid.add(kind) }
+            LibraryAction { kind: "notice.transfers"; onChosen: kind => grid.add(kind) }
         },
         Kirigami.Action {
             visible: page.layoutEditing
@@ -350,30 +352,6 @@ Kirigami.ScrollablePage {
 
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
-
-        // An account linked to the bank that was last updated from it long
-        // ago (M5.U, D-180).
-        Repeater {
-            model: page.fetchGaps
-
-            delegate: Kirigami.InlineMessage {
-                id: gap
-
-                required property var modelData
-
-                Layout.fillWidth: true
-                type: Kirigami.MessageType.Warning
-                visible: true
-                text: Plain.plain(page.i18nContext.i18nc("@info %1 is how many days, %2 an account's name, %3 a date", "It has been %1 days since you last got new transactions for %2 from your bank (%3). Your bank only lists its recent transactions, so some may be missing if you wait longer.", gap.modelData.days, gap.modelData.account, gap.modelData.lastFetched))
-                actions: [
-                    Kirigami.Action {
-                        icon.name: "view-refresh"
-                        text: page.i18nContext.i18nc("@action:button", "Get new transactions")
-                        onTriggered: page.getTransactionsClicked(gap.modelData.accountId)
-                    }
-                ]
-            }
-        }
 
         // What all the accounts hold together less what is owed, per
         // currency: the net worth card (Q-215). It is today's figure, so it
@@ -515,6 +493,8 @@ Kirigami.ScrollablePage {
             visible: page.layoutEditing || !(page.view.empty ?? false)
             layout: page.dashboard
             monthKey: page.view.monthKey ?? ""
+            pageView: page.view
+            onGetTransactionsClicked: accountId => page.getTransactionsClicked(accountId)
             onPropertiesRequested: id => page.openProperties(id)
             onFailed: result => layoutError.result = result
         }
@@ -547,17 +527,6 @@ Kirigami.ScrollablePage {
                     }
                 }
             }
-        }
-
-        // Transfers are left out of the totals (D-021); the page says so
-        // only when the month has one.
-        Controls.Label {
-            textFormat: Text.PlainText
-            Layout.fillWidth: true
-            visible: (page.view.transfers ?? 0) > 0
-            text: page.i18nContext.i18ncp("@info", "Money you moved between your accounts (once this month) isn't counted as money in or out.", "Money you moved between your accounts (%1 times this month) isn't counted as money in or out.", page.view.transfers ?? 0)
-            wrapMode: Text.Wrap
-            font: Kirigami.Theme.smallFont
         }
     }
 }

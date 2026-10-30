@@ -1149,7 +1149,7 @@ Kirigami.ScrollablePage {
                         wrapMode: Text.Wrap
                         opacity: 0.8
                         textFormat: Text.PlainText
-                        text: page.i18nContext.i18nc("@info", "The AI chose what this chart shows. The figures are worked out by KassenSturz from your book, not by the AI. It is saved under Statistics only when you confirm, and Undo removes it again.")
+                        text: page.i18nContext.i18nc("@info", "The AI chose what this chart shows. The figures are worked out by KassenSturz from your book, not by the AI. It is saved in the Statistic Builder only when you confirm, and Undo removes it again.")
                     }
 
                     AiChangeCorrection {

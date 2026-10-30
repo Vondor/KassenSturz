@@ -17,7 +17,7 @@ use kassensturz_core::{ViewId, ViewKind};
 use kassensturz_report::grid::{self, COLUMNS, MAX_ROWS};
 use kassensturz_report::{
     Component, ComponentType, Document, Edit, Editor, Entry, Frame, Item, OVERVIEW_NAME,
-    ReportError,
+    ReportError, Setting,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -214,6 +214,18 @@ pub fn add(editor: &mut Editor, kind_id: &str) -> Result<String, LayoutError> {
     Ok(editor.add(component)?)
 }
 
+/// Adds a copy of a saved view's component (`Opened::component`, JSON text)
+/// with the period the view was saved with, so it shows what the Statistics
+/// page showed; gives its ID. Later changes to the saved view don't reach
+/// the copy.
+pub fn add_view(editor: &mut Editor, json: &str, period: &str) -> Result<String, LayoutError> {
+    let mut component = Component::from_json(json)?;
+    if !period.is_empty() {
+        component.set("period", Setting::Word(period.to_owned()))?;
+    }
+    Ok(editor.add(component)?)
+}
+
 /// Replaces a component with one the properties panel made, as JSON text.
 /// The schema checks it; a frame that is too small for its new type grows.
 pub fn set_component(editor: &mut Editor, id: &str, json: &str) -> Result<bool, LayoutError> {
@@ -352,6 +364,45 @@ mod tests {
         }
         assert_eq!(rows(&layout.editor).len(), 17);
         assert!(add(&mut layout.editor, "chart.radar").is_err());
+    }
+
+    #[test]
+    fn a_saved_view_is_added_as_a_copy_with_its_period() {
+        use crate::saved_views;
+
+        let mut book = book();
+        let mut pie = Component::new(ComponentType::ChartPie, "spending_by_category").unwrap();
+        pie.set("title", Setting::Text("Where it went".into()))
+            .unwrap();
+        let id = saved_views::save(
+            &mut book,
+            "Spending",
+            "this-year",
+            &pie.to_value().to_string(),
+        )
+        .unwrap();
+        let opened = saved_views::open(&book, &id).unwrap();
+
+        let mut layout = Layout::open(&book).unwrap();
+        let before = rows(&layout.editor).len();
+        let added = add_view(&mut layout.editor, &opened.component, &opened.period).unwrap();
+        let all = rows(&layout.editor);
+        assert_eq!(all.len(), before + 1);
+        let value = all
+            .into_iter()
+            .find(|row| row.id == added)
+            .unwrap()
+            .component
+            .unwrap()
+            .to_value();
+        assert_eq!(value["type"], "chart.pie");
+        assert_eq!(value["props"]["period"], "this-year");
+        assert_eq!(value["props"]["title"], "Where it went");
+
+        // A view saved without a period follows the page.
+        add_view(&mut layout.editor, &opened.component, "").unwrap();
+        assert!(add_view(&mut layout.editor, "{", "").is_err());
+        assert!(add_view(&mut layout.editor, &opened.component, "next-week").is_err());
     }
 
     #[test]

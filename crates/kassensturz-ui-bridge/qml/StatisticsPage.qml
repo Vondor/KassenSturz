@@ -108,7 +108,7 @@ Kirigami.ScrollablePage {
         workbench.open("chart.bar", "spending_by_category");
     }
 
-    title: i18nContext.i18nc("@title", "Statistics")
+    title: i18nContext.i18nc("@title", "Statistic Builder")
     header: FormError {
         id: error
     }

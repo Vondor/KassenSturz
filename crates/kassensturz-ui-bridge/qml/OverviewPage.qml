@@ -27,6 +27,9 @@ Kirigami.ScrollablePage {
 
     required property BookOverview overview
     required property DashboardLayout dashboard
+    // A `SavedViews`, for adding a view saved in Statistics to the page.
+    property var savedSource: null
+    readonly property var savedList: ((savedSource?.view ?? ({})).views ?? []).filter(row => row.usable)
     // A `CategoryGroups`, for picking My groups and categories in the panel.
     property var groupsSource: null
     readonly property var view: overview.view ?? ({})
@@ -104,6 +107,37 @@ Kirigami.ScrollablePage {
         loadingPanel = false;
         editedId = id;
         propertiesSheet.open();
+    }
+
+    // Adds a copy of a saved view; it keeps its figures and period, and a
+    // later change to the saved view doesn't reach it.
+    function addSaved(id: string) {
+        const opened = savedSource.open(id);
+        if (opened.code !== undefined) {
+            layoutError.result = opened;
+            return;
+        }
+        const result = dashboard.addView(opened.component, opened.period);
+        if (result.code !== undefined) {
+            layoutError.result = result;
+        } else {
+            Qt.callLater(() => grid.select(result.id));
+        }
+    }
+
+    Controls.Menu {
+        id: savedMenu
+
+        Instantiator {
+            model: page.savedList
+            delegate: Controls.MenuItem {
+                required property var modelData
+                text: modelData.name
+                onTriggered: page.addSaved(modelData.id)
+            }
+            onObjectAdded: (index, object) => savedMenu.insertItem(index, object)
+            onObjectRemoved: (index, object) => savedMenu.removeItem(object)
+        }
     }
 
     ComponentProperties {
@@ -184,6 +218,16 @@ Kirigami.ScrollablePage {
             LibraryAction { kind: "kpi.card"; onChosen: kind => grid.add(kind) }
             LibraryAction { kind: "progress.bar"; onChosen: kind => grid.add(kind) }
             LibraryAction { kind: "text.heading"; onChosen: kind => grid.add(kind) }
+        },
+        Kirigami.Action {
+            visible: page.layoutEditing
+            icon.name: "bookmark-new"
+            text: page.i18nContext.i18nc("@action:button add a view saved in the Statistic Builder to the layout", "Add a saved view")
+            tooltip: page.savedList.length > 0
+                ? page.i18nContext.i18nc("@info:tooltip", "Adds a copy of a view you saved in the Statistic Builder")
+                : page.i18nContext.i18nc("@info:tooltip", "Nothing saved yet. Save a view in the Statistic Builder first.")
+            enabled: page.savedList.length > 0
+            onTriggered: savedMenu.popup()
         },
         Kirigami.Action {
             visible: page.layoutEditing
@@ -430,7 +474,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             visible: page.layoutEditing && !grid.preview
             type: Kirigami.MessageType.Information
-            text: page.i18nContext.i18nc("@info", "You are arranging this page. Drag a component to move it, drag its corner to make it larger or smaller, and use the buttons that appear on the one you pick. Press Done to keep the changes, or Cancel to leave everything as it was.")
+            text: page.i18nContext.i18nc("@info", "You are arranging this page. Drag a widget to move it, drag its corner to make it larger or smaller, and use the buttons that appear on the one you pick. Press Done to keep the changes, or Cancel to leave everything as it was.")
         }
 
         Kirigami.InlineMessage {
@@ -444,7 +488,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             visible: page.layoutEditing && grid.narrow
             type: Kirigami.MessageType.Information
-            text: page.i18nContext.i18nc("@info", "This window is too narrow to arrange columns, so the components are listed one under the other. You can move them earlier or later. Make the window wider to arrange them side by side.")
+            text: page.i18nContext.i18nc("@info", "This window is too narrow to arrange columns, so the widgets are listed one under the other. You can move them earlier or later. Make the window wider to arrange them side by side.")
         }
 
         // One message for every component with a problem; the component says
@@ -453,7 +497,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             visible: grid.problemCount > 0
             type: Kirigami.MessageType.Warning
-            text: page.i18nContext.i18ncp("@info %1 is how many components", "%1 component on this page has a problem. It says what is wrong.", "%1 components on this page have a problem. Each says what is wrong.", grid.problemCount)
+            text: page.i18nContext.i18ncp("@info %1 is how many widgets", "%1 widget on this page has a problem. It says what is wrong.", "%1 widgets on this page have a problem. Each says what is wrong.", grid.problemCount)
             actions: [
                 Kirigami.Action {
                     text: page.i18nContext.i18nc("@action:button go to the first component with a problem", "Show")

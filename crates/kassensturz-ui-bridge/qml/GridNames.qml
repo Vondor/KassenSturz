@@ -92,17 +92,17 @@ QtObject {
     function editName(word: string): string {
         switch (word) {
         case "add":
-            return i18nContext.i18nc("@info:tooltip what was done to the layout", "Added a component");
+            return i18nContext.i18nc("@info:tooltip what was done to the layout", "Added a widget");
         case "move":
-            return i18nContext.i18nc("@info:tooltip what was done to the layout", "Moved a component");
+            return i18nContext.i18nc("@info:tooltip what was done to the layout", "Moved a widget");
         case "resize":
-            return i18nContext.i18nc("@info:tooltip what was done to the layout", "Resized a component");
+            return i18nContext.i18nc("@info:tooltip what was done to the layout", "Resized a widget");
         case "duplicate":
-            return i18nContext.i18nc("@info:tooltip what was done to the layout", "Copied a component");
+            return i18nContext.i18nc("@info:tooltip what was done to the layout", "Copied a widget");
         case "delete":
-            return i18nContext.i18nc("@info:tooltip what was done to the layout", "Removed a component");
+            return i18nContext.i18nc("@info:tooltip what was done to the layout", "Removed a widget");
         case "change":
-            return i18nContext.i18nc("@info:tooltip what was done to the layout", "Changed a component");
+            return i18nContext.i18nc("@info:tooltip what was done to the layout", "Changed a widget");
         case "reset":
             return i18nContext.i18nc("@info:tooltip what was done to the layout", "Went back to the built-in layout");
         }

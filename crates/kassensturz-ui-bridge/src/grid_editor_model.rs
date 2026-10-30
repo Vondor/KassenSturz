@@ -79,6 +79,16 @@ pub mod qobject {
         #[qinvokable]
         fn add(self: Pin<&mut DashboardLayout>, kind: &QString) -> QVariant;
 
+        /// Adds a copy of a saved view's component (what `SavedViews.open`
+        /// gives as `component` and `period`). Gives its `id`, or the error.
+        #[qinvokable]
+        #[cxx_name = "addView"]
+        fn add_view(
+            self: Pin<&mut DashboardLayout>,
+            component: &QString,
+            period: &QString,
+        ) -> QVariant;
+
         /// Moves a component so its top left corner is at this cell.
         #[qinvokable]
         #[cxx_name = "moveTo"]
@@ -332,6 +342,14 @@ impl qobject::DashboardLayout {
         let kind = kind.to_string();
         self.edited(
             |layout| grid_editor::add(&mut layout.editor, &kind),
+            |id| map([("id", text(&id))]),
+        )
+    }
+
+    fn add_view(self: Pin<&mut Self>, component: &QString, period: &QString) -> QVariant {
+        let (component, period) = (component.to_string(), period.to_string());
+        self.edited(
+            |layout| grid_editor::add_view(&mut layout.editor, &component, &period),
             |id| map([("id", text(&id))]),
         )
     }

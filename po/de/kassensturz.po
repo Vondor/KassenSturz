@@ -1161,11 +1161,11 @@ msgstr "Neue Diagramme"
 msgctxt "@info"
 msgid ""
 "The AI chose what this chart shows. The figures are worked out by "
-"KassenSturz from your book, not by the AI. It is saved under Statistics only"
-" when you confirm, and Undo removes it again."
+"KassenSturz from your book, not by the AI. It is saved in the Statistic "
+"Builder only when you confirm, and Undo removes it again."
 msgstr ""
 "Die KI hat gewählt, was dieses Diagramm zeigt. Die Zahlen berechnet "
-"KassenSturz aus Ihrem Buch, nicht die KI. Es wird nur unter Statistik "
+"KassenSturz aus Ihrem Buch, nicht die KI. Es wird nur im Statistik-Baukasten "
 "gespeichert, wenn Sie bestätigen, und Rückgängig entfernt es wieder."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1169
@@ -7398,12 +7398,12 @@ msgstr ""
 msgctxt "@info"
 msgid ""
 "This view couldn't be saved or opened because it isn't one KassenSturz can "
-"use. Nothing was changed. Make it again in Statistics, and choose a short "
-"name."
+"use. Nothing was changed. Make it again in the Statistic Builder, and choose "
+"a short name."
 msgstr ""
 "Diese Ansicht konnte nicht gespeichert oder geöffnet werden, weil "
 "KassenSturz sie nicht verwenden kann. Es wurde nichts geändert. Erstellen "
-"Sie sie unter Statistik noch einmal und wählen Sie einen kurzen Namen."
+"Sie sie im Statistik-Baukasten noch einmal und wählen Sie einen kurzen Namen."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:283
 #, kde-format
@@ -7523,12 +7523,12 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid ""
-"The page can hold at most 100 components, so nothing was added. Remove one "
-"you no longer need, then try again."
+"The page can hold at most 100 widgets, so nothing was added. Remove one you "
+"no longer need, then try again."
 msgstr ""
-"Die Seite kann höchstens 100 Bausteine enthalten, deshalb wurde nichts "
-"hinzugefügt. Entfernen Sie einen, den Sie nicht mehr brauchen, und versuchen"
-" Sie es dann noch einmal."
+"Die Seite kann höchstens 100 Widgets enthalten, deshalb wurde nichts "
+"hinzugefügt. Entfernen Sie eines, das Sie nicht mehr brauchen, und "
+"versuchen Sie es dann noch einmal."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:311
 #, kde-format
@@ -8853,38 +8853,38 @@ msgstr "Der Zeitraum der Seite"
 #: crates/kassensturz-ui-bridge/qml/GridNames.qml:95
 #, kde-format
 msgctxt "@info:tooltip what was done to the layout"
-msgid "Added a component"
-msgstr "Einen Baustein hinzugefügt"
+msgid "Added a widget"
+msgstr "Ein Widget hinzugefügt"
 
 #: crates/kassensturz-ui-bridge/qml/GridNames.qml:97
 #, kde-format
 msgctxt "@info:tooltip what was done to the layout"
-msgid "Moved a component"
-msgstr "Einen Baustein verschoben"
+msgid "Moved a widget"
+msgstr "Ein Widget verschoben"
 
 #: crates/kassensturz-ui-bridge/qml/GridNames.qml:99
 #, kde-format
 msgctxt "@info:tooltip what was done to the layout"
-msgid "Resized a component"
-msgstr "Die Größe eines Bausteins geändert"
+msgid "Resized a widget"
+msgstr "Die Größe eines Widgets geändert"
 
 #: crates/kassensturz-ui-bridge/qml/GridNames.qml:101
 #, kde-format
 msgctxt "@info:tooltip what was done to the layout"
-msgid "Copied a component"
-msgstr "Einen Baustein kopiert"
+msgid "Copied a widget"
+msgstr "Ein Widget kopiert"
 
 #: crates/kassensturz-ui-bridge/qml/GridNames.qml:103
 #, kde-format
 msgctxt "@info:tooltip what was done to the layout"
-msgid "Removed a component"
-msgstr "Einen Baustein entfernt"
+msgid "Removed a widget"
+msgstr "Ein Widget entfernt"
 
 #: crates/kassensturz-ui-bridge/qml/GridNames.qml:105
 #, kde-format
 msgctxt "@info:tooltip what was done to the layout"
-msgid "Changed a component"
-msgstr "Einen Baustein geändert"
+msgid "Changed a widget"
+msgstr "Ein Widget geändert"
 
 #: crates/kassensturz-ui-bridge/qml/GridNames.qml:107
 #, kde-format
@@ -9653,8 +9653,8 @@ msgstr "Regeln"
 #: crates/kassensturz-ui-bridge/qml/Main.qml:733
 #, kde-format
 msgctxt "@action:inmenu a screen"
-msgid "Statistics"
-msgstr "Statistik"
+msgid "Statistic Builder"
+msgstr "Statistik-Baukasten"
 
 #: crates/kassensturz-ui-bridge/qml/Main.qml:738
 #, kde-format
@@ -9994,14 +9994,14 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid ""
-"You are arranging this page. Drag a component to move it, drag its corner to"
-" make it larger or smaller, and use the buttons that appear on the one you "
+"You are arranging this page. Drag a widget to move it, drag its corner to "
+"make it larger or smaller, and use the buttons that appear on the one you "
 "pick. Press Done to keep the changes, or Cancel to leave everything as it "
 "was."
 msgstr ""
-"Sie ordnen diese Seite an. Ziehen Sie einen Baustein, um ihn zu verschieben,"
-" ziehen Sie an seiner Ecke, um ihn größer oder kleiner zu machen, und "
-"benutzen Sie die Knöpfe, die am gewählten Baustein erscheinen. „Fertig“ "
+"Sie ordnen diese Seite an. Ziehen Sie ein Widget, um es zu verschieben, "
+"ziehen Sie an seiner Ecke, um es größer oder kleiner zu machen, und "
+"benutzen Sie die Knöpfe, die am gewählten Widget erscheinen. „Fertig“ "
 "behält die Änderungen, „Abbrechen“ lässt alles, wie es war."
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:440
@@ -10019,24 +10019,24 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid ""
-"This window is too narrow to arrange columns, so the components are listed "
-"one under the other. You can move them earlier or later. Make the window "
-"wider to arrange them side by side."
+"This window is too narrow to arrange columns, so the widgets are listed one "
+"under the other. You can move them earlier or later. Make the window wider "
+"to arrange them side by side."
 msgstr ""
 "Dieses Fenster ist zu schmal, um Spalten anzuordnen, deshalb stehen die "
-"Bausteine untereinander. Sie können sie weiter nach vorn oder hinten "
+"Widgets untereinander. Sie können sie weiter nach vorn oder hinten "
 "schieben. Machen Sie das Fenster breiter, um sie nebeneinander anzuordnen."
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:456
 #, kde-format
-msgctxt "@info %1 is how many components"
-msgid "%1 component on this page has a problem. It says what is wrong."
+msgctxt "@info %1 is how many widgets"
+msgid "%1 widget on this page has a problem. It says what is wrong."
 msgid_plural ""
-"%1 components on this page have a problem. Each says what is wrong."
+"%1 widgets on this page have a problem. Each says what is wrong."
 msgstr[0] ""
-"%1 Baustein auf dieser Seite hat ein Problem. Er sagt, was nicht stimmt."
+"%1 Widget auf dieser Seite hat ein Problem. Es sagt, was nicht stimmt."
 msgstr[1] ""
-"%1 Bausteine auf dieser Seite haben ein Problem. Jeder sagt, was nicht "
+"%1 Widgets auf dieser Seite haben ein Problem. Jedes sagt, was nicht "
 "stimmt."
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:459
@@ -12138,8 +12138,8 @@ msgstr "Projektseite auf GitHub"
 #: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:111
 #, kde-format
 msgctxt "@title"
-msgid "Statistics"
-msgstr "Statistik"
+msgid "Statistic Builder"
+msgstr "Statistik-Baukasten"
 
 #: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:143
 #, kde-format
@@ -12584,3 +12584,21 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml
+#, kde-format
+msgctxt "@action:button add a view saved in the Statistic Builder to the layout"
+msgid "Add a saved view"
+msgstr "Gespeicherte Ansicht hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Adds a copy of a view you saved in the Statistic Builder"
+msgstr "Fügt eine Kopie einer Ansicht hinzu, die Sie im Statistik-Baukasten gespeichert haben"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Nothing saved yet. Save a view in the Statistic Builder first."
+msgstr "Noch nichts gespeichert. Speichern Sie zuerst im Statistik-Baukasten eine Ansicht."

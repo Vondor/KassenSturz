@@ -278,7 +278,7 @@ Kirigami.InlineMessage {
         case "store.view-document-too-big":
         case "report.document-invalid":
         case "report.document-too-big":
-            return i18nContext.i18nc("@info", "This view couldn't be saved or opened because it isn't one KassenSturz can use. Nothing was changed. Make it again in Statistics, and choose a short name.");
+            return i18nContext.i18nc("@info", "This view couldn't be saved or opened because it isn't one KassenSturz can use. Nothing was changed. Make it again in the Statistic Builder, and choose a short name.");
         case "report.unsupported-document-version":
             return i18nContext.i18nc("@info", "This view was made by a newer KassenSturz, so this one can't open it. Update KassenSturz to open it. You can still rename or delete it.");
         case "store.empty-name":
@@ -306,7 +306,7 @@ Kirigami.InlineMessage {
             case "not-editable":
                 return i18nContext.i18nc("@info", "This part of the layout was made by a newer KassenSturz, so this one can move or remove it but not change it. Nothing was changed.");
             case "too-many-components":
-                return i18nContext.i18nc("@info", "The page can hold at most 100 components, so nothing was added. Remove one you no longer need, then try again.");
+                return i18nContext.i18nc("@info", "The page can hold at most 100 widgets, so nothing was added. Remove one you no longer need, then try again.");
             case "no-room":
                 return i18nContext.i18nc("@info", "There is no room for that: the page reaches down at most 1,000 rows. Nothing was changed. Move something up or remove it, then try again.");
             }

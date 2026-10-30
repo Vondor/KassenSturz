@@ -730,7 +730,7 @@ Kirigami.ApplicationWindow {
             },
             Kirigami.Action {
                 icon.name: "office-chart-bar"
-                text: root.i18nContext.i18nc("@action:inmenu a screen", "Statistics")
+                text: root.i18nContext.i18nc("@action:inmenu a screen", "Statistic Builder")
                 onTriggered: root.showScreen("statistics")
             },
             Kirigami.Action {
@@ -1116,6 +1116,7 @@ Kirigami.ApplicationWindow {
         OverviewPage {
             overview: bookOverview
             dashboard: dashboardLayout
+            savedSource: savedViews
             groupsSource: categoryGroups
             onAddAccountClicked: root.addAccount(false)
             onAddTransactionClicked: root.addTransaction(false, "")

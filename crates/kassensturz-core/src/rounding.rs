@@ -52,7 +52,7 @@ impl RoundingMode {
     /// Exact: the division is done in integers, so nothing but the result is
     /// rounded. `None` if `denominator` is zero, and for `i128::MIN ÷ -1`,
     /// whose result doesn't fit.
-    pub(crate) fn divide(self, numerator: i128, denominator: i128) -> Option<i128> {
+    pub fn divide(self, numerator: i128, denominator: i128) -> Option<i128> {
         // Rounded toward zero; the exact result lies between `quotient` and
         // the next whole number away from zero.
         let quotient = numerator.checked_div(denominator)?;

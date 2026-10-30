@@ -406,6 +406,16 @@ Why a dataset for a chart or a card couldn't be made (M6a.1, D-277). No report r
 | `report.unsupported-document-version` | `version` | | This view or dashboard was made by a newer KassenSturz (version {version}), so this one doesn't open it. Update KassenSturz, or use a file made by this version. |
 | `report.grid-edit-refused` | `reason` | `unknown-component`, `not-editable`, `too-many-components`, `no-room`, `not-a-dashboard` | This change to the layout couldn't be made, so nothing was changed. A dashboard holds at most 100 components and reaches down at most 1,000 rows; a component of a type this KassenSturz doesn't know can be moved but not changed. Remove a component or move one up to make room, then try again. |
 | `report.groups-overlap` | `category`, `first`, `second` | | {category} is in {first} and in {second}; a chart that shows parts of a whole can't count it twice. Take it out of one of them, or show them as bars or lines. |
+| `report.formula-syntax` | `position`, `reason` | `empty`, `expected-value`, `missing-close`, `missing-open`, `unexpected`, `two-comparisons`, `wrong-separator`, `bad-number`, `bad-character`, `missing-quote`, `bad-period` | This formula isn't written the way formulas are, at character {position}: a value is missing (`expected-value`, `empty`), a ) or a ( is missing, there is a part too many (`unexpected`), it compares twice, the parts of a call need ; between them, a number or a period is written wrongly, a quote isn't closed, or it has a character formulas don't use. Change it at that place. |
+| `report.formula-unknown-name` | `position`, `name` | | {name} is not a category or one of My groups. Check the spelling, or put a name with spaces in single quotes: 'Eating out'. |
+| `report.formula-ambiguous-name` | `position`, `name`, `paths` | | {name} fits more than one: {paths}. Write the one you mean with its path, as listed, or rename a group or category of the same name. |
+| `report.formula-unknown-function` | `position`, `name` | | There is no function called {name}. The formula field lists the functions there are. |
+| `report.formula-arguments` | `position`, `function`, `reason` | `too-few`, `too-many`, `names-only`, `places` | {function} was given the wrong parts: too few, too many, something other than names of categories or groups (COUNT counts only names), or decimal places that aren't a whole number from −9 to 10. |
+| `report.formula-kinds` | `position`, `reason` | `amount-times-amount`, `number-over-amount`, `yes-no-in-arithmetic`, `yes-no-result`, `needs-yes-no`, `if-kinds-differ`, `ratio-kinds` | These parts don't go together: two amounts can't be multiplied, a number can't be divided by an amount, a yes or no can't be calculated with or be the result, IF, AND, OR and NOT need a comparison, IF's two answers must both be figures or both yes or no, and PERCENT_OF and CHANGE need two amounts or two numbers. |
+| `report.formula-mixed-currencies` | `position`, `first`, `first_currency`, `second`, `second_currency` | | {first} is in {first_currency} and {second} in {second_currency}; a formula works in one currency. Leave one of them out. |
+| `report.formula-no-value` | `position` | | This formula divides by zero at character {position}, so it has no value. Use IFERROR to show something else then. |
+| `report.formula-too-large` | `position` | | A figure in this formula is too large, or has too many decimal places, to be worked out exactly. |
+| `report.formula-too-big` | `limit` | `characters`, `tokens`, `depth`, `arguments`, `names`, `periods` | This formula is bigger than KassenSturz works out: at most 1,000 characters, 500 parts, 16 brackets or calls inside each other, 30 parts in a call, 64 names and 8 different periods. Make it smaller. |
 | `report.book-unreadable` | | | The book couldn't be read for this chart, or a total is too large for KassenSturz to work with. The detail says why; see that message. |
 
 ### Planned for M6b (D-289 to D-295)
@@ -413,10 +423,7 @@ Why a dataset for a chart or a card couldn't be made (M6a.1, D-277). No report r
 Not rows yet: each code gets its row in the table above (or in the store's section) in the pull request that raises it, since the test compares the table with the code. Parameters are data, shown as plain text.
 
 - `report.document-invalid`'s reasons `frame-outside-grid`, `frame-too-small`, `frames-overlap` are rows now: the grid editor checks them (`grid::check`, M6b.1) and `Document::read` runs the same check for every dashboard (M6b.2, D-313).
-- `report.formula-syntax` with `position` and a reason keyword (`expected-value`, `missing-close`, `wrong-separator`, `bad-number`, `bad-period`, `two-comparisons`, …) (M6b.6).
-- `report.formula-unknown-name`, `report.formula-ambiguous-name` with `name` (and the paths to choose from), `report.formula-unknown-function` with `name`, `report.formula-arguments` with `function` and a reason keyword (M6b.6).
-- `report.formula-kinds` with a reason keyword (`amount-times-amount`, `number-over-amount`, `yes-no-in-arithmetic`, `yes-no-result`, `if-kinds-differ`), `report.formula-mixed-currencies` with `first` and `second` (M6b.6).
-- `report.formula-no-value`, `report.formula-too-large`, `report.formula-too-big` with `limit` (M6b.6).
+- The `report.formula-` codes are rows now (M6b.6, D-317 to D-319). Every one but `report.formula-too-big` has the position of the character it is at, counted from 1, so the formula field (M6b.7) can mark the place.
 - `ai-tools.` codes for an edited change reuse the existing ones of `propose` (M6b.8); the capability check reuses the `ai.` codes of "Test connection" (M6b.9).
 
 ## Charts (`kassensturz-charts`)

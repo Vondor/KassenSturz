@@ -4,7 +4,7 @@
 //! Why a dataset couldn't be made (D-034). Text from the book is only ever
 //! a parameter, as data the UI shows as plain text, never part of a message.
 
-use kassensturz_core::{ErrorParam, ErrorReport, Report};
+use kassensturz_core::{CurrencyCode, ErrorParam, ErrorReport, Report};
 use kassensturz_store::StoreError;
 
 /// An error of the reporting layer.
@@ -51,6 +51,84 @@ pub enum ReportError {
         /// The second one.
         second: String,
     },
+    /// A formula isn't written the way formulas are (D-292). Every
+    /// formula error has the position of the character it is at, counted
+    /// from 1.
+    FormulaSyntax {
+        /// Where, in characters from 1.
+        position: usize,
+        /// What was expected or is wrong, by a fixed word.
+        reason: &'static str,
+    },
+    /// A formula's name is no category and no group.
+    FormulaUnknownName {
+        /// Where.
+        position: usize,
+        /// The name as the formula writes it.
+        name: String,
+    },
+    /// A formula's name fits more than one category or group (T-42).
+    FormulaAmbiguousName {
+        /// Where.
+        position: usize,
+        /// The name as the formula writes it.
+        name: String,
+        /// The ones it fits, each written as a formula names it, in quotes.
+        paths: String,
+    },
+    /// A formula calls a function there is none of.
+    FormulaUnknownFunction {
+        /// Where.
+        position: usize,
+        /// The name as the formula writes it.
+        name: String,
+    },
+    /// A function was given the wrong arguments.
+    FormulaArguments {
+        /// Where.
+        position: usize,
+        /// The function's name.
+        function: &'static str,
+        /// What is wrong, by a fixed word.
+        reason: &'static str,
+    },
+    /// Two parts of a formula don't go together, such as two amounts
+    /// multiplied.
+    FormulaKinds {
+        /// Where.
+        position: usize,
+        /// Which rule, by a fixed word.
+        reason: &'static str,
+    },
+    /// A formula's names have money in two currencies.
+    FormulaMixedCurrencies {
+        /// Where the second currency is.
+        position: usize,
+        /// The name with the first currency.
+        first: String,
+        /// That currency.
+        first_currency: CurrencyCode,
+        /// The name with the second currency.
+        second: String,
+        /// That currency.
+        second_currency: CurrencyCode,
+    },
+    /// A formula divides by zero, so it has no value.
+    FormulaNoValue {
+        /// Where the division is.
+        position: usize,
+    },
+    /// A figure of a formula is too large, or too precise, to work out
+    /// exactly.
+    FormulaTooLarge {
+        /// Where.
+        position: usize,
+    },
+    /// A formula is over one of its limits (D-292).
+    FormulaTooBig {
+        /// Which limit, by a fixed word.
+        limit: &'static str,
+    },
     /// The book couldn't be read, or a total doesn't fit.
     Store(StoreError),
 }
@@ -94,6 +172,57 @@ impl Report for ReportError {
                 .with("category", ErrorParam::Text(category.clone()))
                 .with("first", ErrorParam::Text(first.clone()))
                 .with("second", ErrorParam::Text(second.clone())),
+            Self::FormulaSyntax { position, reason } => ErrorReport::new("report.formula-syntax")
+                .with("position", ErrorParam::count(*position))
+                .with("reason", ErrorParam::Keyword(reason)),
+            Self::FormulaUnknownName { position, name } => {
+                ErrorReport::new("report.formula-unknown-name")
+                    .with("position", ErrorParam::count(*position))
+                    .with("name", ErrorParam::Text(name.clone()))
+            }
+            Self::FormulaAmbiguousName {
+                position,
+                name,
+                paths,
+            } => ErrorReport::new("report.formula-ambiguous-name")
+                .with("position", ErrorParam::count(*position))
+                .with("name", ErrorParam::Text(name.clone()))
+                .with("paths", ErrorParam::Text(paths.clone())),
+            Self::FormulaUnknownFunction { position, name } => {
+                ErrorReport::new("report.formula-unknown-function")
+                    .with("position", ErrorParam::count(*position))
+                    .with("name", ErrorParam::Text(name.clone()))
+            }
+            Self::FormulaArguments {
+                position,
+                function,
+                reason,
+            } => ErrorReport::new("report.formula-arguments")
+                .with("position", ErrorParam::count(*position))
+                .with("function", ErrorParam::Text((*function).to_owned()))
+                .with("reason", ErrorParam::Keyword(reason)),
+            Self::FormulaKinds { position, reason } => ErrorReport::new("report.formula-kinds")
+                .with("position", ErrorParam::count(*position))
+                .with("reason", ErrorParam::Keyword(reason)),
+            Self::FormulaMixedCurrencies {
+                position,
+                first,
+                first_currency,
+                second,
+                second_currency,
+            } => ErrorReport::new("report.formula-mixed-currencies")
+                .with("position", ErrorParam::count(*position))
+                .with("first", ErrorParam::Text(first.clone()))
+                .with("first_currency", ErrorParam::Currency(*first_currency))
+                .with("second", ErrorParam::Text(second.clone()))
+                .with("second_currency", ErrorParam::Currency(*second_currency)),
+            Self::FormulaNoValue { position } => ErrorReport::new("report.formula-no-value")
+                .with("position", ErrorParam::count(*position)),
+            Self::FormulaTooLarge { position } => ErrorReport::new("report.formula-too-large")
+                .with("position", ErrorParam::count(*position)),
+            Self::FormulaTooBig { limit } => {
+                ErrorReport::new("report.formula-too-big").with("limit", ErrorParam::Keyword(limit))
+            }
             Self::Store(error) => {
                 ErrorReport::new("report.book-unreadable").caused_by(error.report())
             }
@@ -134,6 +263,42 @@ mod tests {
                 first: "Fixed costs".into(),
                 second: "Household".into(),
             },
+            ReportError::FormulaSyntax {
+                position: 5,
+                reason: "missing-close",
+            },
+            ReportError::FormulaUnknownName {
+                position: 1,
+                name: "Travel".into(),
+            },
+            ReportError::FormulaAmbiguousName {
+                position: 1,
+                name: "Other".into(),
+                paths: "'Food > Other', 'Car > Other'".into(),
+            },
+            ReportError::FormulaUnknownFunction {
+                position: 2,
+                name: "SUMME".into(),
+            },
+            ReportError::FormulaArguments {
+                position: 2,
+                function: "ROUND",
+                reason: "places",
+            },
+            ReportError::FormulaKinds {
+                position: 6,
+                reason: "amount-times-amount",
+            },
+            ReportError::FormulaMixedCurrencies {
+                position: 8,
+                first: "Pets".into(),
+                first_currency: kassensturz_core::CurrencyCode::new("EUR").expect("a code"),
+                second: "Travel".into(),
+                second_currency: kassensturz_core::CurrencyCode::new("USD").expect("a code"),
+            },
+            ReportError::FormulaNoValue { position: 6 },
+            ReportError::FormulaTooLarge { position: 1 },
+            ReportError::FormulaTooBig { limit: "depth" },
             ReportError::Store(StoreError::AmountOverflow),
         ] {
             let report = error.report();

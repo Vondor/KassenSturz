@@ -27,6 +27,7 @@ mod document;
 mod editor;
 mod error;
 mod filter;
+mod formula;
 pub mod grid;
 mod groups;
 mod metrics;
@@ -48,6 +49,10 @@ pub use document::{
 pub use editor::{Edit, Editor, MAX_UNDO};
 pub use error::ReportError;
 pub use filter::Filter;
+pub use formula::{
+    Counted, Formula, FormulaResult, FormulaValue, MAX_FORMULA_ARGUMENTS, MAX_FORMULA_CHARS,
+    MAX_FORMULA_DEPTH, MAX_FORMULA_NAMES, MAX_FORMULA_PERIODS, MAX_FORMULA_TOKENS, NumberForm,
+};
 pub use groups::{Overlap, Shown};
 pub use metrics::{
     Change, Compare, IncomeExpenseChange, Percent, compare_income_expense, comparison_span,
@@ -76,6 +81,8 @@ mod component_tests;
 mod dashboard_tests;
 #[cfg(test)]
 mod document_tests;
+#[cfg(test)]
+mod formula_tests;
 #[cfg(test)]
 mod grid_tests;
 #[cfg(test)]

@@ -568,6 +568,40 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@info", "A model that runs on a slow computer can need minutes for one answer. With the second choice, KassenSturz shows a warning with a Cancel button above the question field after a minute and keeps waiting for up to an hour.")
         }
 
+        // Which notices the chat shows (D-324). Kept as soon as it is
+        // chosen. Warnings about numbers the AI made up and every error are
+        // always shown.
+        Kirigami.Heading {
+            level: 2
+            text: page.i18nContext.i18nc("@title:group", "Notices in the chat")
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: page.i18nContext.i18nc("@info", "Choose which hints appear under the AI's answers. Warnings about numbers the AI may have made up, and error messages, always appear.")
+        }
+
+        Repeater {
+            model: [
+                { word: "overview", text: page.i18nContext.i18nc("@option:check", "Tell me when an answer comes from a short overview because the model cannot call functions") },
+                { word: "cut", text: page.i18nContext.i18nc("@option:check", "Tell me when an answer was cut off or held back by the provider") },
+                { word: "context", text: page.i18nContext.i18nc("@option:check", "Tell me when the AI may not have seen the whole chat") },
+            ]
+
+            delegate: Controls.CheckBox {
+                required property var modelData
+
+                text: modelData.text
+                checked: page.settings.notice(modelData.word)
+                onToggled: {
+                    page.notWritten = !page.settings.setNotice(modelData.word, checked);
+                    checked = page.settings.notice(modelData.word);
+                }
+            }
+        }
+
         // The user's own AI tools (D-035, D-219): they can read the book
         // once AI is on; preparing changes is a second, separate yes.
         Kirigami.Heading {

@@ -259,6 +259,12 @@ pub struct ChatSession {
     /// Whether the provider ever took the functions, after which a refusal
     /// is an error, not a model that can't call them.
     functions_taken: bool,
+    /// Whether the connection test found that this model does not call
+    /// functions (D-324). Set by the app before each question.
+    test_found_no_functions: bool,
+    /// Whether the overview mode is on because of that test and not
+    /// because the provider refused the functions.
+    overview_from_test: bool,
     /// The conversation without KassenSturz's instructions, which are
     /// built for each request.
     history: Vec<Message>,
@@ -295,6 +301,8 @@ impl ChatSession {
             build,
             mode: Mode::Functions,
             functions_taken: false,
+            test_found_no_functions: false,
+            overview_from_test: false,
             history: Vec::new(),
             figures,
             log: Vec::new(),
@@ -337,6 +345,17 @@ impl ChatSession {
     /// list, for an issue draft.
     pub fn set_screen(&mut self, screen: Option<&'static str>) {
         self.screen = screen;
+    }
+
+    /// Tells the conversation what the last "Test connection" found out
+    /// about the model: `true` when it did not call the test function
+    /// (D-324). The next question then starts in the overview mode instead
+    /// of offering functions the model would not call; `false` takes the
+    /// chat back to the functions when it was the test that moved it. A
+    /// conversation in which the provider already took the functions is
+    /// left alone: what happened here beats what a test found.
+    pub fn set_test_found_no_functions(&mut self, found: bool) {
+        self.test_found_no_functions = found;
     }
 
     /// How the model gets its figures now.
@@ -431,6 +450,7 @@ impl ChatSession {
             },
             hooks,
         );
+        self.follow_the_test(hooks);
         self.figures.add_text(question);
         self.history.push(Message::user(question));
         self.proposed.clear();
@@ -744,6 +764,19 @@ impl ChatSession {
         }
         #[cfg(not(feature = "debug-log"))]
         let _ = (provider, error);
+    }
+
+    /// Moves between the functions and the overview by what the connection
+    /// test found (D-324), before the question's first request.
+    fn follow_the_test(&mut self, hooks: &mut dyn Hooks) {
+        if self.test_found_no_functions && self.mode == Mode::Functions && !self.functions_taken {
+            self.mode = Mode::Overview;
+            self.overview_from_test = true;
+            self.note(LogEntry::Overview, hooks);
+        } else if !self.test_found_no_functions && self.overview_from_test {
+            self.mode = Mode::Functions;
+            self.overview_from_test = false;
+        }
     }
 
     fn note(&mut self, entry: LogEntry, hooks: &mut dyn Hooks) {

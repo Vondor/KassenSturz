@@ -44,6 +44,12 @@ Kirigami.ScrollablePage {
     // The example request of the consent dialog.
     property var sample: ({})
 
+    // What the model can do: from the test that just ran, else the result
+    // kept from the last test of this address and model (D-294). Empty while
+    // the form differs from what is saved, since it is about the saved model.
+    readonly property var abilities: providerChanged ? ({})
+        : (testResult.models !== undefined ? testResult : (form.capability ?? ({})))
+
     // Whether the provider part of the form differs from what is saved.
     readonly property bool providerChanged: addressField.text.trim() !== (form.address ?? "")
         || modelField.text.trim() !== (form.model ?? "")
@@ -288,6 +294,34 @@ Kirigami.ScrollablePage {
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
+                visible: page.hasServer
+                text: page.i18nContext.i18nc("@info", "The test asks the provider for its list of models. When a model is chosen, it also sends one short test question with a made-up test function, to see whether the model can call functions. Nothing from your books is sent. A provider on another computer only gets the test question after you agreed under “What is sent”.")
+            }
+
+            Controls.Button {
+                id: testRequestToggle
+                visible: page.hasProvider
+                flat: true
+                checkable: true
+                text: checked ? page.i18nContext.i18nc("@action:button", "Hide what the test sends") : page.i18nContext.i18nc("@action:button", "Show what the test sends")
+            }
+
+            Controls.TextArea {
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 28
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 10
+                visible: testRequestToggle.visible && testRequestToggle.checked
+                readOnly: true
+                wrapMode: Text.WrapAnywhere
+                textFormat: TextEdit.PlainText
+                font.family: "monospace"
+                Accessible.name: page.i18nContext.i18nc("@label", "The test question, exactly as it is sent")
+                text: visible ? page.settings.capabilityRequest() : ""
+            }
+
+            Controls.Label {
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
                 visible: page.providerChanged && addressField.text.trim() !== ""
                 text: page.i18nContext.i18nc("@info", "Save first; then you can test the connection. If you don't know the model's name, leave it empty: after saving, KassenSturz asks the provider which models it offers and you choose one.")
             }
@@ -343,6 +377,65 @@ Kirigami.ScrollablePage {
             type: Kirigami.MessageType.Positive
             visible: page.testResult.models !== undefined
             text: visible ? Plain.plain(page.i18nContext.i18ncp("@info %1 is a number", "Connected. The provider offers %1 model.", "Connected. The provider offers %1 models.", page.testResult.models.length)) : ""
+        }
+
+        // What the model can do (D-294): calling functions and the size of
+        // its context. Plain words, never a score.
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Positive
+            visible: page.abilities.functions === "yes"
+            text: page.i18nContext.i18nc("@info", "This model can call KassenSturz's functions, so the chat can look up the exact figures it needs.")
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Warning
+            visible: page.abilities.functions === "no"
+            text: page.i18nContext.i18nc("@info", "This model did not call the test function. The chat may not be able to look up figures with it; KassenSturz can then only give it a short overview of your accounts, and some questions cannot be answered exactly. A model that supports “tools” or “function calling” works best.")
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Information
+            visible: page.abilities.functions === "no-consent"
+            text: page.i18nContext.i18nc("@info", "To see whether this model can call functions, KassenSturz has to send it a short test question. Agree under “What is sent” first, then test the connection again.")
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Warning
+            visible: page.abilities.functions === "failed"
+            text: page.i18nContext.i18nc("@info", "The models were listed, but the test question for calling functions did not work:")
+        }
+
+        AiErrorMessage {
+            Layout.fillWidth: true
+            ai: page.ai
+            result: page.abilities.functionsFailure ?? ({})
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Warning
+            visible: page.abilities.contextSmall === true
+            text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is a number of tokens", "The provider says this model reads only %1 tokens at once, which is too little for the chat. In the program that runs the model, load it again with a context length of 8192 or more (16384 is better).", page.abilities.contextTokens)) : ""
+        }
+
+        Controls.Label {
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            visible: page.abilities.contextTokens !== undefined && page.abilities.contextTokens !== "" && page.abilities.contextSmall !== true
+            text: visible ? page.i18nContext.i18nc("@info %1 is a number of tokens", "The provider says this model can read %1 tokens at once.", page.abilities.contextTokens) : ""
+        }
+
+        Controls.Label {
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            visible: page.abilities.functions !== undefined && page.abilities.functions !== "no-model" && page.abilities.contextTokens === ""
+            text: page.i18nContext.i18nc("@info", "How much this model can read at once is not known: the provider's list does not say. If the chat says its working memory is too small, load the model with a context length of 8192 or more.")
         }
 
         Kirigami.InlineMessage {

@@ -19,7 +19,7 @@
 
 use serde_json::{Map, Value, json};
 
-use crate::chat::{Finish, FunctionSpec, Message, Reply, Role, ToolCall};
+use crate::chat::{Finish, FunctionSpec, Message, ModelInfo, Reply, Role, ToolCall};
 use crate::error::AiError;
 
 /// How deeply a reply's JSON may nest. A real reply nests about six
@@ -165,9 +165,22 @@ pub fn parse_chat_reply(bytes: &[u8], offered: &[String]) -> Result<Reply, AiErr
     })
 }
 
-/// Reads a `models` reply: the IDs of the models the provider offers, in
-/// its order.
-pub fn parse_models(bytes: &[u8]) -> Result<Vec<String>, AiError> {
+/// The fields of a model's entry in which servers that say it name the
+/// number of tokens the model can read at once, in the order they are
+/// trusted: what is loaded now, what the server accepts, then the model's
+/// own window. A training length (`n_ctx_train` of llama.cpp) is not here:
+/// it is not what the server was started with (D-320).
+const CONTEXT_FIELDS: [&str; 4] = [
+    "loaded_context_length",
+    "max_model_len",
+    "context_length",
+    "context_window",
+];
+
+/// Reads a `models` reply: each model's ID and, where the server says it,
+/// its context size in tokens. Nothing is guessed: a missing, zero, negative
+/// or non-integer number is "not known" (D-320).
+pub fn parse_model_infos(bytes: &[u8]) -> Result<Vec<ModelInfo>, AiError> {
     let reply = parse(bytes)?;
     let models = reply
         .get("data")
@@ -176,7 +189,15 @@ pub fn parse_models(bytes: &[u8]) -> Result<Vec<String>, AiError> {
     models
         .iter()
         .take(MAX_MODELS)
-        .map(|model| text_at(model, &["id"]))
+        .map(|model| {
+            Ok(ModelInfo {
+                id: text_at(model, &["id"])?,
+                context_tokens: CONTEXT_FIELDS
+                    .iter()
+                    .find_map(|field| model.get(field).and_then(Value::as_u64))
+                    .filter(|tokens| *tokens > 0),
+            })
+        })
         .collect()
 }
 
@@ -409,8 +430,39 @@ mod tests {
     #[test]
     fn models_are_read() {
         let bytes = br#"{"object":"list","data":[{"id":"qwen3","object":"model"},{"id":"llama"}]}"#;
-        assert_eq!(parse_models(bytes).unwrap(), ["qwen3", "llama"]);
-        assert_eq!(parse_models(br#"{"data":[{}]}"#), Err(AiError::BadReply));
-        assert_eq!(parse_models(br#"[]"#), Err(AiError::BadReply));
+        let ids: Vec<String> = parse_model_infos(bytes)
+            .unwrap()
+            .into_iter()
+            .map(|model| model.id)
+            .collect();
+        assert_eq!(ids, ["qwen3", "llama"]);
+        assert_eq!(
+            parse_model_infos(br#"{"data":[{}]}"#),
+            Err(AiError::BadReply)
+        );
+        assert_eq!(parse_model_infos(br#"[]"#), Err(AiError::BadReply));
+    }
+
+    #[test]
+    fn a_context_size_is_read_only_where_the_server_says_it() {
+        let bytes = br#"{"data":[
+            {"id":"a"},
+            {"id":"b","max_model_len":32768},
+            {"id":"c","context_length":131072,"loaded_context_length":8192},
+            {"id":"d","context_window":0},
+            {"id":"e","context_length":-5},
+            {"id":"f","context_length":"8192"},
+            {"id":"g","context_length":4096.5},
+            {"id":"h","meta":{"n_ctx_train":32768}}]}"#;
+        let tokens: Vec<Option<u64>> = parse_model_infos(bytes)
+            .unwrap()
+            .iter()
+            .map(|model| model.context_tokens)
+            .collect();
+        assert_eq!(
+            tokens,
+            [None, Some(32768), Some(8192), None, None, None, None, None],
+            "the loaded size beats the model's own, and a training length is not read"
+        );
     }
 }

@@ -14,10 +14,11 @@
 use std::sync::Mutex;
 
 use kassensturz_ai::{
-    AiClient, AiError, ConfigFile, ConsentRecord, KeyUse, Place, ProviderAddress, ProviderKeys,
-    ProviderSettings, SCRIPTED_MODEL, STATEMENT, consent_missing,
+    AiClient, AiError, ConfigFile, ConsentRecord, FunctionCalling, KeyUse, MIN_CONTEXT_TOKENS,
+    ModelInfo, Place, ProviderAddress, ProviderKeys, ProviderSettings, SCRIPTED_MODEL, STATEMENT,
+    consent_missing, probe_functions, probe_request_body,
 };
-use kassensturz_ai_chat::{BuildInfo, DEMO_ENV, DemoModel, sample_request};
+use kassensturz_ai_chat::{BuildInfo, DEMO_ENV, DemoModel, demo_provider, sample_request};
 use kassensturz_core::{Date, ai_switch};
 use kassensturz_platform::{APP_ID, Secret, SecretStorage};
 
@@ -97,6 +98,106 @@ pub struct Form {
     pub address_error: Option<AiError>,
     /// The consent for the saved provider.
     pub consent: Consent,
+    /// What the last test found out about the saved model, if it was made
+    /// for this address and model.
+    pub capability: Option<Capability>,
+}
+
+/// What "Test connection" found out about a model, as it is kept on this
+/// computer with the provider's settings (D-294, D-320), never in a book.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Capability {
+    /// Whether the model called the test function; `None` when the test
+    /// could not tell (not asked, or the request failed).
+    pub functions: Option<bool>,
+    /// The context size in tokens, when the provider's list said it.
+    pub context_tokens: Option<u64>,
+}
+
+impl Capability {
+    /// Whether the context is smaller than KassenSturz's chat needs.
+    pub fn context_small(&self) -> bool {
+        self.context_tokens
+            .is_some_and(|tokens| tokens < MIN_CONTEXT_TOKENS)
+    }
+}
+
+/// Whether the test could ask the model to call a function.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Functions {
+    /// It called the test function.
+    Yes,
+    /// It did not, or its provider refused a request that offers functions.
+    No,
+    /// Not asked: no model is chosen yet.
+    NoModel,
+    /// Not asked: the provider is on another computer and the user has not
+    /// agreed yet, and nothing is sent to it before (D-035).
+    NoConsent,
+    /// The request failed; the models were still listed.
+    Failed(AiError),
+}
+
+/// What a successful "Test connection" found.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Found {
+    /// The models the provider offers.
+    pub models: Vec<String>,
+    /// The saved model's context size, when the list says it.
+    pub context_tokens: Option<u64>,
+    /// Whether the saved model called the test function.
+    pub functions: Functions,
+}
+
+impl Found {
+    fn capability(&self) -> Capability {
+        Capability {
+            functions: match self.functions {
+                Functions::Yes => Some(true),
+                Functions::No => Some(false),
+                _ => None,
+            },
+            context_tokens: self.context_tokens,
+        }
+    }
+}
+
+/// The settings keys of the kept test result (D-320): which address and
+/// model it is for, and what it found. Written by the settings page only,
+/// in the `[AI]` group next to the provider's keys.
+const CAPABILITY_FOR_KEY: &str = "CapabilityFor";
+const CAPABILITY_FUNCTIONS_KEY: &str = "CapabilityFunctions";
+const CAPABILITY_CONTEXT_KEY: &str = "CapabilityContext";
+
+/// Whether the test may ask the model to call a function, and what came of
+/// it. `ask` is only run when a model is chosen and, for a provider on
+/// another computer, the user has agreed (`consent_missing` false): nothing
+/// is sent before (D-035).
+fn ask_functions(
+    has_model: bool,
+    consent_missing: bool,
+    ask: impl FnOnce() -> Result<FunctionCalling, AiError>,
+) -> Functions {
+    if !has_model {
+        return Functions::NoModel;
+    }
+    if consent_missing {
+        return Functions::NoConsent;
+    }
+    match ask() {
+        Ok(FunctionCalling::Yes) => Functions::Yes,
+        Ok(FunctionCalling::No) => Functions::No,
+        Err(AiError::NoConsent) => Functions::NoConsent,
+        Err(error) => Functions::Failed(error),
+    }
+}
+
+/// The model's entry in a list, also when the provider writes it with the
+/// `models/` prefix of Gemini's list (D-209).
+fn find_model<'a>(infos: &'a [ModelInfo], model: &str) -> Option<&'a ModelInfo> {
+    infos
+        .iter()
+        .find(|info| info.id == model || info.id.strip_prefix("models/") == Some(model))
 }
 
 /// What saving the form did.
@@ -179,7 +280,9 @@ impl Store {
             Err(error) if !address.trim().is_empty() => Some(error),
             _ => None,
         };
+        let capability = self.kept_capability(&address, &model);
         Form {
+            capability,
             place: ProviderAddress::parse(&address)
                 .ok()
                 .map(|address| address.place()),
@@ -188,6 +291,62 @@ impl Store {
             key_use,
             address_error,
             consent,
+        }
+    }
+
+    fn capability_target(address: &str, model: &str) -> String {
+        format!("{address}|{model}")
+    }
+
+    /// What the last test found, if it was made for this address and model.
+    fn kept_capability(&self, address: &str, model: &str) -> Option<Capability> {
+        if model.is_empty()
+            || self.text(CAPABILITY_FOR_KEY) != Self::capability_target(address, model)
+        {
+            return None;
+        }
+        let capability = Capability {
+            functions: match self.text(CAPABILITY_FUNCTIONS_KEY).as_str() {
+                "yes" => Some(true),
+                "no" => Some(false),
+                _ => None,
+            },
+            context_tokens: self
+                .text(CAPABILITY_CONTEXT_KEY)
+                .parse()
+                .ok()
+                .filter(|tokens| *tokens > 0),
+        };
+        (capability != Capability::default()).then_some(capability)
+    }
+
+    /// Keeps what a test found for the saved address and model, replacing
+    /// the earlier result. Best effort: the test's answer is shown either
+    /// way.
+    fn keep_capability(&self, address: &str, model: &str, capability: Capability) {
+        let functions = match capability.functions {
+            Some(true) => "yes",
+            Some(false) => "no",
+            None => "",
+        };
+        let context = capability
+            .context_tokens
+            .map(|tokens| tokens.to_string())
+            .unwrap_or_default();
+        let _ = self.put(CAPABILITY_FOR_KEY, &Self::capability_target(address, model))
+            && self.put(CAPABILITY_FUNCTIONS_KEY, functions)
+            && self.put(CAPABILITY_CONTEXT_KEY, &context);
+    }
+
+    /// The exact request the function test sends to the saved model, for
+    /// the screen to show before it runs (D-204). Nothing is sent. Empty
+    /// while no model is saved.
+    pub fn capability_request(&self) -> String {
+        let model = self.text(kassensturz_ai::MODEL_KEY);
+        if model.is_empty() {
+            String::new()
+        } else {
+            probe_request_body(&model)
         }
     }
 
@@ -289,23 +448,65 @@ impl Store {
         keys.get(&provider.address, provider.key_use)
     }
 
-    /// The models the saved provider offers, which also shows that the
-    /// address and the key work. Sends only the key, nothing from a book
-    /// (D-182). With `fake` (the fake model is on), nothing is sent anywhere
-    /// and the app's own test model is "offered" (D-205).
-    pub fn test_connection(&self, key: Option<Secret>, fake: bool) -> Result<Vec<String>, AiError> {
+    /// Asks the saved provider for its models, which also shows that the
+    /// address and the key work, and then what the saved model can do
+    /// (D-294, D-320): its context size where the list says it, and whether
+    /// it calls a function (one fixed, made-up test function, nothing from
+    /// a book, T-45). The listing sends only the key (D-182); the function
+    /// test is a request like any other and needs the agreement of a
+    /// provider on another computer first (D-035). With `fake` (the fake
+    /// model is on), nothing is sent anywhere and the fake model answers
+    /// (D-205). What was found is kept with the provider's settings, for
+    /// the address and model it was found for.
+    pub fn test_connection(
+        &self,
+        key: Option<Secret>,
+        fake: Option<DemoModel>,
+    ) -> Result<Found, AiError> {
         let config = self.config.read();
         if !config.enabled() {
             return Err(AiError::Off);
         }
         let provider = config.connection()?;
-        if fake {
-            if provider.key_use != KeyUse::None && key.is_none() {
-                return Err(AiError::KeyNeeded);
+        let has_model = !provider.model.is_empty();
+        let (infos, functions) = match fake {
+            Some(model) => {
+                if provider.key_use != KeyUse::None && key.is_none() {
+                    return Err(AiError::KeyNeeded);
+                }
+                let infos = vec![ModelInfo {
+                    id: SCRIPTED_MODEL.to_owned(),
+                    context_tokens: None,
+                }];
+                let functions = ask_functions(has_model, false, || {
+                    probe_functions(&demo_provider(self.config.clone(), model), None)
+                });
+                (infos, functions)
             }
-            return Ok(vec![SCRIPTED_MODEL.to_owned()]);
+            None => {
+                let client = self.client();
+                let infos = client.list_model_infos(key.as_ref())?;
+                let agreed = !consent_missing(&provider.address, config.consent());
+                let functions = ask_functions(has_model, !agreed, || {
+                    probe_functions(&client, key.as_ref())
+                });
+                (infos, functions)
+            }
+        };
+        let found = Found {
+            context_tokens: find_model(&infos, &provider.model)
+                .and_then(|info| info.context_tokens),
+            models: infos.into_iter().map(|info| info.id).collect(),
+            functions,
+        };
+        if !provider.model.is_empty() {
+            self.keep_capability(
+                provider.address.as_str(),
+                &provider.model,
+                found.capability(),
+            );
         }
-        self.client().list_models(key.as_ref())
+        Ok(found)
     }
 
     /// An example of the first request of a question to the saved
@@ -449,10 +650,7 @@ mod tests {
         let saved = store.save(&mut keys, "http://127.0.0.1:1/v1", "  ", KeyUse::None, None);
         assert!(matches!(saved, Saved::Written { .. }), "{saved:?}");
         // The test reaches the server (nothing listens on port 1) ...
-        assert_eq!(
-            store.test_connection(None, false),
-            Err(AiError::Unreachable)
-        );
+        assert_eq!(store.test_connection(None, None), Err(AiError::Unreachable));
         // ... but there is no provider to ask a question yet.
         assert_eq!(store.sample("", TODAY), Err(AiError::NoProvider));
     }
@@ -634,21 +832,19 @@ mod tests {
     fn the_test_asks_the_saved_provider_and_needs_ai_on() {
         let folder = TestFolder::new();
         let store = Store::at(&folder.join("kassensturzrc"));
-        assert_eq!(store.test_connection(None, false), Err(AiError::Off));
+        assert_eq!(store.test_connection(None, None), Err(AiError::Off));
         assert!(store.put(ai_switch::ENABLED_KEY, ai_switch::ON));
-        assert_eq!(store.test_connection(None, false), Err(AiError::NoProvider));
+        assert_eq!(store.test_connection(None, None), Err(AiError::NoProvider));
         let (_, mut keys) = keys();
 
         // Nothing is listening on port 1 of this computer.
         store.save(&mut keys, "http://127.0.0.1:1/v1", "m", KeyUse::None, None);
-        assert_eq!(
-            store.test_connection(None, false),
-            Err(AiError::Unreachable)
-        );
+        assert_eq!(store.test_connection(None, None), Err(AiError::Unreachable));
 
         // The fake model never connects, and keeps the key rules.
+        let found = store.test_connection(None, Some(DemoModel::Functions));
         assert_eq!(
-            store.test_connection(None, true),
+            found.map(|found| found.models),
             Ok(vec![SCRIPTED_MODEL.to_owned()])
         );
         store.save(
@@ -658,9 +854,14 @@ mod tests {
             KeyUse::AskEachTime,
             None,
         );
-        assert_eq!(store.test_connection(None, true), Err(AiError::KeyNeeded));
         assert_eq!(
-            store.test_connection(Some(secret("test-key-ui-5")), true),
+            store.test_connection(None, Some(DemoModel::Functions)),
+            Err(AiError::KeyNeeded)
+        );
+        let found =
+            store.test_connection(Some(secret("test-key-ui-5")), Some(DemoModel::Functions));
+        assert_eq!(
+            found.map(|found| found.models),
             Ok(vec![SCRIPTED_MODEL.to_owned()])
         );
     }
@@ -726,5 +927,132 @@ mod tests {
             );
             keys.forget(&address).unwrap();
         });
+    }
+
+    #[test]
+    fn the_kept_result_is_tied_to_the_address_and_model_it_was_found_for() {
+        let (_folder, _file, store) = on();
+        let (_, mut keys) = keys();
+        let address = "http://127.0.0.1:1/v1";
+        store.save(&mut keys, address, "small", KeyUse::None, None);
+        assert_eq!(store.form().capability, None, "nothing found yet");
+        let found = Capability {
+            functions: Some(true),
+            context_tokens: Some(4096),
+        };
+        store.keep_capability(address, "small", found);
+        assert_eq!(store.form().capability, Some(found));
+        assert!(found.context_small());
+        assert!(
+            !Capability {
+                functions: None,
+                context_tokens: Some(8192)
+            }
+            .context_small()
+        );
+        store.save(&mut keys, address, "other", KeyUse::None, None);
+        assert_eq!(store.form().capability, None, "another model is untested");
+        store.save(
+            &mut keys,
+            "http://127.0.0.1:2/v1",
+            "small",
+            KeyUse::None,
+            None,
+        );
+        assert_eq!(store.form().capability, None, "another address is untested");
+        store.save(&mut keys, address, "small", KeyUse::None, None);
+        assert_eq!(
+            store.form().capability,
+            Some(found),
+            "back to the tested one"
+        );
+        // A later test replaces the result; one that found nothing clears it.
+        store.keep_capability(
+            address,
+            "small",
+            Capability {
+                functions: Some(false),
+                context_tokens: None,
+            },
+        );
+        assert_eq!(store.form().capability.unwrap().functions, Some(false));
+        store.keep_capability(address, "small", Capability::default());
+        assert_eq!(store.form().capability, None);
+    }
+
+    #[test]
+    fn without_a_model_only_the_list_is_asked() {
+        let (_folder, _file, store) = on();
+        let (_, mut keys) = keys();
+        store.save(
+            &mut keys,
+            kassensturz_ai::SCRIPTED_ADDRESS,
+            "",
+            KeyUse::None,
+            None,
+        );
+        let found = store
+            .test_connection(None, Some(DemoModel::Functions))
+            .unwrap();
+        assert_eq!(found.functions, Functions::NoModel);
+        assert_eq!(
+            store.form().capability,
+            None,
+            "nothing is kept without a model"
+        );
+        assert_eq!(store.capability_request(), "");
+    }
+
+    #[test]
+    fn nothing_is_asked_before_a_model_is_chosen_or_the_user_agreed() {
+        // The list needs no consent (D-182); the function test does for a
+        // provider on another computer (D-035), so `ask` must not even run.
+        let never = || -> Result<FunctionCalling, AiError> { panic!("nothing may be sent") };
+        assert_eq!(ask_functions(false, false, never), Functions::NoModel);
+        assert_eq!(ask_functions(false, true, never), Functions::NoModel);
+        assert_eq!(ask_functions(true, true, never), Functions::NoConsent);
+        assert_eq!(
+            ask_functions(true, false, || Ok(FunctionCalling::Yes)),
+            Functions::Yes
+        );
+        assert_eq!(
+            ask_functions(true, false, || Err(AiError::NoConsent)),
+            Functions::NoConsent,
+            "the client's own check of the consent is the same answer"
+        );
+    }
+
+    #[test]
+    fn the_fake_model_answers_the_function_test_without_connecting() {
+        let (_folder, _file, store) = on();
+        let (_, mut keys) = keys();
+        store.save(
+            &mut keys,
+            kassensturz_ai::SCRIPTED_ADDRESS,
+            SCRIPTED_MODEL,
+            KeyUse::None,
+            None,
+        );
+        let yes = store
+            .test_connection(None, Some(DemoModel::Functions))
+            .unwrap();
+        assert_eq!(yes.functions, Functions::Yes);
+        assert_eq!(yes.context_tokens, None);
+        let no = store
+            .test_connection(None, Some(DemoModel::NoFunctions))
+            .unwrap();
+        assert_eq!(no.functions, Functions::No);
+        assert_eq!(store.form().capability.unwrap().functions, Some(false));
+    }
+
+    #[test]
+    fn with_ai_off_nothing_is_asked_and_nothing_is_kept() {
+        let folder = TestFolder::new();
+        let store = Store::at(&folder.join("kassensturzrc"));
+        assert_eq!(
+            store.test_connection(None, Some(DemoModel::Functions)),
+            Err(AiError::Off)
+        );
+        assert_eq!(store.form().capability, None);
     }
 }

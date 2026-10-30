@@ -141,3 +141,13 @@ pub struct Reply {
     /// when it says (`usage.prompt_tokens`).
     pub prompt_tokens: Option<u64>,
 }
+
+/// One model a provider offers, with what its list says about it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ModelInfo {
+    /// The model's name, as the provider calls it.
+    pub id: String,
+    /// How many tokens it can read at once, when the server's list says so;
+    /// never guessed (D-320).
+    pub context_tokens: Option<u64>,
+}

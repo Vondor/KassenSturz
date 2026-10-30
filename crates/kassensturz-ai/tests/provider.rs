@@ -560,3 +560,120 @@ fn keep_waiting_raises_the_time_limit_of_the_call() {
     let (_, waits) = run("SlowAnswer=warn\n");
     assert!(waits >= Duration::from_millis(2500), "{waits:?}");
 }
+
+/// A reply that calls `name` with `arguments`.
+fn calls_answer(name: &str, arguments: &str) -> Answer {
+    Answer::Json(
+        200,
+        json!({"choices": [{"finish_reason": "tool_calls", "message": {"tool_calls": [
+            {"id": "c1", "type": "function", "function": {"name": name, "arguments": arguments}}
+        ]}}]})
+        .to_string(),
+    )
+}
+
+#[test]
+fn the_model_list_says_the_context_size_where_the_server_does() {
+    let body = json!({"data": [{"id": "test-model", "max_model_len": 4096}, {"id": "plain"}]});
+    let fake = FakeProvider::start(vec![Answer::Json(200, body.to_string())]);
+    let settings = Settings::new();
+    settings.write(true, &fake.address(), KeyUse::None);
+    let infos = settings.client().list_model_infos(None).unwrap();
+    assert_eq!(infos[0].id, "test-model");
+    assert_eq!(infos[0].context_tokens, Some(4096));
+    assert_eq!(infos[1].context_tokens, None, "never guessed");
+}
+
+#[test]
+fn the_function_test_sends_the_fixed_request_and_nothing_else() {
+    let fake = FakeProvider::start(vec![calls_answer(
+        kassensturz_ai::PROBE_FUNCTION,
+        r#"{"word":"ping"}"#,
+    )]);
+    let settings = Settings::new();
+    settings.write(true, &fake.address(), KeyUse::Saved);
+    let client = settings.client();
+    assert_eq!(
+        kassensturz_ai::probe_functions(&client, Some(&key())),
+        Ok(kassensturz_ai::FunctionCalling::Yes)
+    );
+    let sent = &fake.received()[0];
+    assert_eq!(sent.line, "POST /v1/chat/completions HTTP/1.1");
+    // The body is the one the screen shows beforehand, byte for byte.
+    let body = String::from_utf8_lossy(&sent.raw);
+    assert!(
+        body.ends_with(&kassensturz_ai::probe_request_body("test-model")),
+        "the screen's preview is what went out"
+    );
+    // The key is a header, never in the body; nothing of a book is in it.
+    assert!(!body.contains(TEST_KEY) || sent.header("authorization").is_some());
+    let payload = body.rsplit("\r\n\r\n").next().unwrap();
+    assert!(!payload.contains(TEST_KEY));
+    let parsed: serde_json::Value = serde_json::from_str(payload).unwrap();
+    assert_eq!(parsed["messages"].as_array().unwrap().len(), 1);
+    assert_eq!(parsed["tools"].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn a_model_that_answers_in_words_or_is_refused_cannot_call_functions() {
+    for answer in [
+        Answer::text("Sure, I will call it."),
+        calls_answer(kassensturz_ai::PROBE_FUNCTION, "not json"),
+        Answer::Json(400, r#"{"error":{"message":"tools not supported"}}"#.into()),
+    ] {
+        let fake = FakeProvider::start(vec![answer]);
+        let settings = Settings::new();
+        settings.write(true, &fake.address(), KeyUse::None);
+        assert_eq!(
+            kassensturz_ai::probe_functions(&settings.client(), None),
+            Ok(kassensturz_ai::FunctionCalling::No)
+        );
+    }
+}
+
+#[test]
+fn the_function_test_follows_the_consent_rule_of_every_request() {
+    // A provider on another computer is only sent anything after the user
+    // agreed (D-035): the test is no exception, and sends nothing without.
+    let settings = Settings::new();
+    settings.write(true, "https://192.0.2.10:11434/v1", KeyUse::None);
+    assert_eq!(
+        kassensturz_ai::probe_functions(&settings.client(), None),
+        Err(AiError::NoConsent)
+    );
+    // And with AI off nothing runs.
+    let fake = FakeProvider::start(vec![Answer::text("x")]);
+    settings.write(false, &fake.address(), KeyUse::None);
+    assert_eq!(
+        kassensturz_ai::probe_functions(&settings.client(), None),
+        Err(AiError::Off)
+    );
+    assert!(fake.received().is_empty());
+}
+
+#[test]
+fn oversize_and_broken_replies_to_the_function_test_are_errors_not_answers() {
+    for (answer, expected) in [
+        (Answer::Huge(10 * 1024 * 1024), AiError::ReplyTooLarge),
+        (Answer::Raw(b"garbage".to_vec()), AiError::Unreachable),
+        (
+            Answer::Json(
+                400,
+                r#"{"error":{"message":"exceeds the available context size"}}"#.into(),
+            ),
+            AiError::ContextTooSmall,
+        ),
+    ] {
+        let fake = FakeProvider::start(vec![answer]);
+        let settings = Settings::new();
+        settings.write(true, &fake.address(), KeyUse::None);
+        let client = settings.client().with_limits(Limits {
+            reply_bytes: 1024,
+            ..Limits::default()
+        });
+        assert_eq!(
+            kassensturz_ai::probe_functions(&client, None),
+            Err(expected)
+        );
+    }
+}

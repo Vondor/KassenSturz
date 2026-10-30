@@ -17,7 +17,9 @@
 //! offers it only when started with [`DEMO_ENV`] set, as the fake bank is
 //! (D-159).
 
-use kassensturz_ai::{AiError, ConfigFile, Message, Role, ScriptedProvider};
+use kassensturz_ai::{
+    AiError, ConfigFile, Message, PROBE_FUNCTION, PROBE_WORD, Role, ScriptedProvider,
+};
 use kassensturz_ai_tools::{OPEN_PAGE, PROPOSE_CHANGES};
 use serde_json::{Value, json};
 
@@ -76,6 +78,11 @@ pub fn demo_provider(config: ConfigFile, model: DemoModel) -> ScriptedProvider {
 fn respond(model: DemoModel, messages: &[Message], offered: &[String]) -> Result<String, AiError> {
     if model == DemoModel::NoFunctions && !offered.is_empty() {
         return Err(AiError::ProviderFailed { status: 400 });
+    }
+    // The function test of "Test connection" (M6b.9): the model that can
+    // call functions passes the word it is asked to pass.
+    if offered == [PROBE_FUNCTION] {
+        return Ok(calls_reply(PROBE_FUNCTION, &json!({ "word": PROBE_WORD })));
     }
     let question = messages
         .iter()
@@ -382,6 +389,19 @@ mod tests {
         );
         assert_eq!(DemoModel::from_env_value(""), None);
         assert_eq!(DemoModel::from_env_value("yes"), None);
+    }
+
+    #[test]
+    fn the_function_test_of_test_connection_gets_each_models_answer() {
+        use kassensturz_ai::{FunctionCalling, probe_functions};
+        let folder =
+            std::env::temp_dir().join(format!("kassensturz-demo-probe-{}", std::process::id()));
+        std::fs::create_dir_all(&folder).unwrap();
+        let path = folder.join("kassensturzrc");
+        std::fs::write(&path, "[AI]\nEnabled=true\n").unwrap();
+        let answer = |model| probe_functions(&demo_provider(ConfigFile::at(&path), model), None);
+        assert_eq!(answer(DemoModel::Functions), Ok(FunctionCalling::Yes));
+        assert_eq!(answer(DemoModel::NoFunctions), Ok(FunctionCalling::No));
     }
 
     #[test]

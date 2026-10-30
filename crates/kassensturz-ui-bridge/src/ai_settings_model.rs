@@ -102,9 +102,17 @@ pub mod qobject {
         #[cxx_name = "withdrawConsent"]
         fn withdraw_consent(self: &AiSettings) -> bool;
 
+        /// The exact request the function test of "Test connection" sends
+        /// to the saved model, as text, to show before it runs. Nothing is
+        /// sent. Empty while no model is saved.
+        #[qinvokable]
+        #[cxx_name = "capabilityRequest"]
+        fn capability_request(self: &AiSettings) -> QString;
+
         /// Asks the saved provider which models it offers, which also shows
-        /// that the address and the key work. `key` is a key typed for this
-        /// test, empty to use the kept one. The answer comes with
+        /// that the address and the key work, and what the saved model can
+        /// do (calling functions, context size). `key` is a key typed for
+        /// this test, empty to use the kept one. The answer comes with
         /// `testFinished`.
         #[qinvokable]
         #[cxx_name = "testConnection"]
@@ -161,9 +169,12 @@ pub mod qobject {
         #[cxx_name = "setLocked"]
         fn set_locked(self: &AiSettings, key: &QString, locked: bool) -> bool;
 
-        /// The test ended: an object with `models` (a list of names) and
-        /// `modelOffered` (whether the saved model is one of them), or an
-        /// error object.
+        /// The test ended: an object with `models` (a list of names),
+        /// `modelOffered` (whether the saved model is one of them) and what
+        /// the model can do: `functions` (`yes`, `no`, `no-model`,
+        /// `no-consent` or `failed`, with the error object in
+        /// `functionsFailure`), `contextTokens` (text, empty when the list
+        /// doesn't say) and `contextSmall`; or an error object.
         #[qsignal]
         #[cxx_name = "testFinished"]
         fn test_finished(self: Pin<&mut AiSettings>, result: QVariant);
@@ -243,6 +254,10 @@ mod engine {
         false
     }
 
+    pub(super) fn capability_request() -> String {
+        String::new()
+    }
+
     /// Reports `ai.off` at once; there is nothing to wait for.
     pub(super) fn test(qobject: Pin<&mut qobject::AiSettings>, _key: &str) {
         qobject.test_finished(off());
@@ -256,7 +271,9 @@ mod engine {
     use kassensturz_platform::Secret;
 
     use super::*;
-    use crate::ai_settings::{self, Consent, Saved, Store, with_keys};
+    use crate::ai_settings::{
+        self, Capability, Consent, Found, Functions, Saved, Store, with_keys,
+    };
     use crate::format::Locale;
     use crate::number_format::app_locale;
 
@@ -331,6 +348,42 @@ mod engine {
         sample_in(&Store::user(), phrase, app_locale().today())
     }
 
+    pub(super) fn capability_request() -> String {
+        Store::user().capability_request()
+    }
+
+    /// The `functions` state of a kept result.
+    fn kept_state(capability: &Capability) -> &'static str {
+        match capability.functions {
+            Some(true) => "yes",
+            Some(false) => "no",
+            None => "",
+        }
+    }
+
+    /// What a test found about the model, as the fields the screen reads,
+    /// the same for a fresh test and for the kept result: `functions` (the
+    /// state, empty when not known), `contextTokens` (text) and
+    /// `contextSmall`.
+    pub(super) fn capability_fields(
+        capability: &Capability,
+        functions: &str,
+    ) -> Vec<(&'static str, QVariant)> {
+        vec![
+            ("functions", text(functions)),
+            (
+                "contextTokens",
+                text(
+                    &capability
+                        .context_tokens
+                        .map(|tokens| tokens.to_string())
+                        .unwrap_or_default(),
+                ),
+            ),
+            ("contextSmall", QVariant::from(&capability.context_small())),
+        ]
+    }
+
     /// What the form shows, as an object. `fake` is whether the fake model
     /// is on, which adds the address and model its button fills in.
     pub(super) fn load_in(store: &Store, fake: bool) -> QVariant {
@@ -358,6 +411,15 @@ mod engine {
             ),
             ("consent", text(consent)),
             ("consentDay", text(&day)),
+            // What the last test found for this address and model, empty
+            // when there is none (D-294).
+            (
+                "capability",
+                form.capability.map_or_else(
+                    || map(std::iter::empty()),
+                    |c| map(capability_fields(&c, kept_state(&c))),
+                ),
+            ),
         ])
     }
 
@@ -427,20 +489,41 @@ mod engine {
     }
 
     /// What a test found, as an object: the models (at most
-    /// [`MAX_MODELS`], sorted) and whether `model` is one of them, or the
-    /// error.
-    pub(super) fn test_object(result: Result<Vec<String>, AiError>, model: &str) -> QVariant {
+    /// [`MAX_MODELS`], sorted), whether `model` is one of them and what the
+    /// model can do, or the error.
+    pub(super) fn test_object(result: Result<Found, AiError>, model: &str) -> QVariant {
         match result {
-            Ok(mut models) => {
+            Ok(found) => {
+                let mut models = found.models.clone();
                 let offered = models.iter().any(|name| name == model);
                 models.sort();
-                map([
+                let (state, failure) = match &found.functions {
+                    Functions::Yes => ("yes", None),
+                    Functions::No => ("no", None),
+                    Functions::NoModel => ("no-model", None),
+                    Functions::NoConsent => ("no-consent", None),
+                    Functions::Failed(error) => ("failed", Some(error_object(&ai_error(error)))),
+                };
+                let capability = Capability {
+                    functions: match found.functions {
+                        Functions::Yes => Some(true),
+                        Functions::No => Some(false),
+                        _ => None,
+                    },
+                    context_tokens: found.context_tokens,
+                };
+                let mut fields = vec![
                     (
                         "models",
                         list(models.iter().take(MAX_MODELS).map(|name| text(name))),
                     ),
                     ("modelOffered", QVariant::from(&offered)),
-                ])
+                ];
+                fields.extend(capability_fields(&capability, state));
+                if let Some(failure) = failure {
+                    fields.push(("functionsFailure", failure));
+                }
+                map(fields)
             }
             Err(error) => error_object(&ai_error(&error)),
         }
@@ -458,7 +541,7 @@ mod engine {
             // The key is looked up under the lock, the provider is asked
             // without it, so saving elsewhere never waits for a provider.
             let result = with_keys(|keys| store.key_for(keys, typed))
-                .and_then(|key| store.test_connection(key, ai_settings::fake_model()));
+                .and_then(|key| store.test_connection(key, ai_settings::demo_model()));
             let model = store
                 .config()
                 .read()
@@ -522,6 +605,10 @@ impl qobject::AiSettings {
 
     fn withdraw_consent(&self) -> bool {
         engine::withdraw_consent()
+    }
+
+    fn capability_request(&self) -> QString {
+        QString::from(engine::capability_request())
     }
 
     fn test_connection(self: Pin<&mut Self>, key: &QString) {
@@ -829,8 +916,10 @@ mod tests {
 
     use super::engine::{forget_key_in, load_in, sample_in, save_in, statement, test_object};
     use crate::ai_settings::Store;
+    use crate::ai_settings::{Found, Functions};
     use crate::test_folder::TestFolder;
     use crate::variant::read_back::{elements, flag_of, keys, list_of, object, text_of};
+    use kassensturz_ai_chat::DemoModel;
 
     const TODAY: Date = Date::constant(2026, 10, 25);
 
@@ -878,6 +967,7 @@ mod tests {
             [
                 "address",
                 "addressError",
+                "capability",
                 "consent",
                 "consentDay",
                 "keyUse",
@@ -1039,24 +1129,118 @@ mod tests {
         assert!(text_of(&redacted, "replaced").parse::<u32>().unwrap() >= 1);
         assert!(!text_of(&redacted, "text").contains("food"));
 
-        let found = test_object(Ok(vec!["b".into(), "big".into(), "a".into()]), "big");
-        assert_eq!(keys(&found), ["modelOffered", "models"]);
+        let found_in = |models: Vec<String>, context_tokens, functions| Found {
+            models,
+            context_tokens,
+            functions,
+        };
+        let found = test_object(
+            Ok(found_in(
+                vec!["b".into(), "big".into(), "a".into()],
+                Some(4096),
+                Functions::Yes,
+            )),
+            "big",
+        );
+        assert_eq!(
+            keys(&found),
+            [
+                "contextSmall",
+                "contextTokens",
+                "functions",
+                "modelOffered",
+                "models"
+            ]
+        );
         assert!(flag_of(&found, "modelOffered"));
+        assert_eq!(text_of(&found, "functions"), "yes");
+        assert_eq!(text_of(&found, "contextTokens"), "4096");
+        assert!(flag_of(&found, "contextSmall"), "below 8192");
         let models: Vec<String> = list_of(&found, "models")
             .iter()
             .map(|name| name.value::<cxx_qt_lib::QString>().unwrap().to_string())
             .collect();
         assert_eq!(models, ["a", "b", "big"], "sorted");
-        let missing = test_object(Ok(vec!["a".into()]), "big");
+        let missing = test_object(
+            Ok(found_in(vec!["a".into()], None, Functions::NoModel)),
+            "big",
+        );
         assert!(!flag_of(&missing, "modelOffered"));
+        assert_eq!(text_of(&missing, "functions"), "no-model");
+        assert_eq!(text_of(&missing, "contextTokens"), "", "not known");
+        assert!(!flag_of(&missing, "contextSmall"));
+
+        // Every state of the function test reads back as a word.
+        for (functions, word) in [(Functions::No, "no"), (Functions::NoConsent, "no-consent")] {
+            let answer = test_object(Ok(found_in(vec![], Some(8192), functions)), "big");
+            assert_eq!(text_of(&answer, "functions"), word);
+            assert!(!flag_of(&answer, "contextSmall"), "8192 is enough");
+            assert!(
+                object(&answer)
+                    .get(&cxx_qt_lib::QString::from("functionsFailure"))
+                    .is_none()
+            );
+        }
+        let broke = test_object(
+            Ok(found_in(
+                vec![],
+                None,
+                Functions::Failed(AiError::ProviderFailed { status: 503 }),
+            )),
+            "big",
+        );
+        assert_eq!(text_of(&broke, "functions"), "failed");
+        let failure = object(&broke)
+            .get(&cxx_qt_lib::QString::from("functionsFailure"))
+            .expect("the error object");
+        assert_eq!(text_of(&failure, "code"), "ai.provider-failed");
+        assert_eq!(text_of(&failure, "status"), "503");
 
         let many: Vec<String> = (0..300).map(|n| format!("model-{n:03}")).collect();
-        assert_eq!(list_of(&test_object(Ok(many), "x"), "models").len(), 100);
+        assert_eq!(
+            list_of(
+                &test_object(Ok(found_in(many, None, Functions::NoModel)), "x"),
+                "models"
+            )
+            .len(),
+            100
+        );
 
         let failed = test_object(Err(AiError::ProviderFailed { status: 503 }), "big");
         assert_eq!(text_of(&failed, "code"), "ai.provider-failed");
         assert_eq!(text_of(&failed, "status"), "503");
         let plain = test_object(Err(AiError::Unreachable), "big");
         assert_eq!(keys(&plain), ["code"]);
+    }
+
+    #[test]
+    fn the_kept_result_reads_back_as_the_test_result_does() {
+        let (_folder, store, _memory, mut kept) = setup();
+        assert!(store.put(ai_switch::ENABLED_KEY, ai_switch::ON));
+        let scripted = kassensturz_ai::SCRIPTED_ADDRESS;
+        let model = kassensturz_ai::SCRIPTED_MODEL;
+        save_in(&store, &mut kept, scripted, model, "none", "");
+        let none = load_in(&store, true);
+        let nothing = object(&none)
+            .get(&cxx_qt_lib::QString::from("capability"))
+            .expect("the field is always there");
+        assert!(keys(&nothing).is_empty(), "no test yet, so no result");
+
+        // The fake model's real answer, kept by the real test.
+        store
+            .test_connection(None, Some(DemoModel::NoFunctions))
+            .unwrap();
+        let form = load_in(&store, true);
+        let capability = object(&form)
+            .get(&cxx_qt_lib::QString::from("capability"))
+            .expect("the kept result");
+        assert_eq!(
+            keys(&capability),
+            ["contextSmall", "contextTokens", "functions"],
+            "the same fields as the test result"
+        );
+        assert_eq!(text_of(&capability, "functions"), "no");
+        assert_eq!(text_of(&capability, "contextTokens"), "");
+        assert!(!flag_of(&capability, "contextSmall"));
     }
 }

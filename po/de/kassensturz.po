@@ -11771,3 +11771,126 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:298
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The test asks the provider for its list of models. When a model is cho"
+"sen, it also sends one short test question with a made-up test functio"
+"n, to see whether the model can call functions. Nothing from your book"
+"s is sent. A provider on another computer only gets the test question "
+"after you agreed under “What is sent”."
+msgstr ""
+"Der Test fragt den Anbieter nach seiner Liste der Modelle. Ist ein Mod"
+"ell gewählt, sendet er außerdem eine kurze Testfrage mit einer ausgeda"
+"chten Testfunktion, um zu sehen, ob das Modell Funktionen aufrufen kan"
+"n. Aus Ihren Büchern wird nichts gesendet. Ein Anbieter auf einem ande"
+"ren Computer erhält die Testfrage erst, nachdem Sie unter „Was gesende"
+"t wird“ zugestimmt haben."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:306
+#, kde-format
+msgctxt "@action:button"
+msgid ""
+"Hide what the test sends"
+msgstr ""
+"Ausblenden, was der Test sendet"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:306
+#, kde-format
+msgctxt "@action:button"
+msgid ""
+"Show what the test sends"
+msgstr ""
+"Anzeigen, was der Test sendet"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:317
+#, kde-format
+msgctxt "@label"
+msgid ""
+"The test question, exactly as it is sent"
+msgstr ""
+"Die Testfrage, genau so, wie sie gesendet wird"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:388
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This model can call KassenSturz's functions, so the chat can look up t"
+"he exact figures it needs."
+msgstr ""
+"Dieses Modell kann die Funktionen von KassenSturz aufrufen, daher kann"
+" der Chat die genauen Zahlen nachschlagen, die er braucht."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:395
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This model did not call the test function. The chat may not be able to"
+" look up figures with it; KassenSturz can then only give it a short ov"
+"erview of your accounts, and some questions cannot be answered exactly"
+". A model that supports “tools” or “function calling” works best."
+msgstr ""
+"Dieses Modell hat die Testfunktion nicht aufgerufen. Der Chat kann mit"
+" ihm vielleicht keine Zahlen nachschlagen; KassenSturz kann ihm dann n"
+"ur eine kurze Übersicht Ihrer Konten geben, und manche Fragen lassen s"
+"ich nicht genau beantworten. Am besten funktioniert ein Modell, das „T"
+"ools“ oder „Funktionsaufrufe“ unterstützt."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:402
+#, kde-format
+msgctxt "@info"
+msgid ""
+"To see whether this model can call functions, KassenSturz has to send "
+"it a short test question. Agree under “What is sent” first, then test "
+"the connection again."
+msgstr ""
+"Um zu prüfen, ob dieses Modell Funktionen aufrufen kann, muss KassenSt"
+"urz ihm eine kurze Testfrage senden. Stimmen Sie zuerst unter „Was ges"
+"endet wird“ zu und testen Sie die Verbindung dann noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:409
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The models were listed, but the test question for calling functions di"
+"d not work:"
+msgstr ""
+"Die Modelle wurden aufgelistet, aber die Testfrage zum Aufrufen von Fu"
+"nktionen hat nicht funktioniert:"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:422
+#, kde-format
+msgctxt "@info %1 is a number of tokens"
+msgid ""
+"The provider says this model reads only %1 tokens at once, which is to"
+"o little for the chat. In the program that runs the model, load it aga"
+"in with a context length of 8192 or more (16384 is better)."
+msgstr ""
+"Der Anbieter gibt an, dass dieses Modell nur %1 Token auf einmal liest"
+". Das ist für den Chat zu wenig. Laden Sie das Modell im Programm, das"
+" es ausführt, mit einer Kontextlänge von 8192 oder mehr neu (16384 ist"
+" besser)."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:422
+#, kde-format
+msgctxt "@info %1 is a number of tokens"
+msgid ""
+"The provider says this model can read %1 tokens at once."
+msgstr ""
+"Der Anbieter gibt an, dass dieses Modell %1 Token auf einmal lesen kan"
+"n."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:438
+#, kde-format
+msgctxt "@info"
+msgid ""
+"How much this model can read at once is not known: the provider's list"
+" does not say. If the chat says its working memory is too small, load "
+"the model with a context length of 8192 or more."
+msgstr ""
+"Wie viel dieses Modell auf einmal lesen kann, ist nicht bekannt: Die L"
+"iste des Anbieters sagt es nicht. Wenn der Chat meldet, dass sein Arbe"
+"itsgedächtnis zu klein ist, laden Sie das Modell mit einer Kontextläng"
+"e von 8192 oder mehr."

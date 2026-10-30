@@ -229,6 +229,8 @@ pub fn preview(component: &Component) -> Preview {
         ComponentType::FetchNotice => ("fetch-notice", ""),
         ComponentType::TransfersNote => ("transfers-note", ""),
         ComponentType::PeriodBox => ("period-box", ""),
+        ComponentType::NetWorth => ("net-worth", ""),
+        ComponentType::IncomeSources => ("income-sources", ""),
     };
     let compare = word(component, "compare");
     let measure = match component.kind() {

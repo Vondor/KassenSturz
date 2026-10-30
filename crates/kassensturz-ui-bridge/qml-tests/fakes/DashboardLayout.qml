@@ -26,6 +26,8 @@ QtObject {
             periodBox("zone", 0, 6, 12, 3, "this-year"),
             item("inner", "kpi.card", 1, 7, 3, 2),
             item("outer", "kpi.card", 4, 7, 3, 2),
+            item("worth", "card.net_worth", 0, 8, 6, 1),
+            item("sources", "table.income_sources", 6, 8, 6, 1),
             Object.assign(item("future", "", 9, 0, 3, 2), {unknown: true, subject: ({})})
         ]
     })

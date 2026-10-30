@@ -33,8 +33,6 @@ Kirigami.ScrollablePage {
     // A `CategoryGroups`, for picking My groups and categories in the panel.
     property var groupsSource: null
     readonly property var view: overview.view ?? ({})
-    readonly property var sections: view.sections ?? []
-    readonly property var totals: view.totals ?? []
 
     signal addAccountClicked()
     signal addTransactionClicked()
@@ -46,14 +44,6 @@ Kirigami.ScrollablePage {
 
     // `amount` as the figure of the net worth card: a debt reads "You owe",
     // not a minus sign (D-067).
-    function owedText(amount: string, owes: bool): string {
-        return owes ? i18nContext.i18nc("@label %1 is an amount of money", "You owe %1", amount) : amount;
-    }
-
-    function categoryName(total: var): string {
-        return total.unsorted ? i18nContext.i18nc("@label money with no category yet", "Not sorted yet") : total.name;
-    }
-
     GridNames {
         id: names
     }
@@ -221,6 +211,8 @@ Kirigami.ScrollablePage {
             LibraryAction { kind: "notice.fetch_gap"; onChosen: kind => grid.add(kind) }
             LibraryAction { kind: "notice.transfers"; onChosen: kind => grid.add(kind) }
             LibraryAction { kind: "group.period"; onChosen: kind => grid.add(kind) }
+            LibraryAction { kind: "card.net_worth"; onChosen: kind => grid.add(kind) }
+            LibraryAction { kind: "table.income_sources"; onChosen: kind => grid.add(kind) }
         },
         Kirigami.Action {
             visible: page.layoutEditing
@@ -354,44 +346,6 @@ Kirigami.ScrollablePage {
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
 
-        // What all the accounts hold together less what is owed, per
-        // currency: the net worth card (Q-215). It is today's figure, so it
-        // stays when the month below changes.
-        Repeater {
-            model: page.sections
-
-            delegate: ColumnLayout {
-                id: section
-
-                required property var modelData
-
-                Layout.fillWidth: true
-                spacing: Kirigami.Units.smallSpacing
-
-                // Only a book with several currencies needs to say which.
-                Kirigami.Heading {
-                    textFormat: Text.PlainText
-                    visible: page.sections.length > 1
-                    text: section.modelData.currency
-                    level: 3
-                }
-
-                KpiGrid {
-                    cards: [{
-                        measure: "net-worth",
-                        currency: section.modelData.currency,
-                        value: page.owedText(section.modelData.together, section.modelData.togetherOwes),
-                        exactValue: page.owedText(section.modelData.exactTogether, section.modelData.togetherOwes),
-                        negative: section.modelData.togetherOwes,
-                        previous: "",
-                        change: "",
-                        changePercent: "",
-                        direction: "none"
-                    }]
-                }
-            }
-        }
-
         // The month, with the way to the ones before and after it.
         RowLayout {
             Layout.fillWidth: true
@@ -498,36 +452,6 @@ Kirigami.ScrollablePage {
             onGetTransactionsClicked: accountId => page.getTransactionsClicked(accountId)
             onPropertiesRequested: id => page.openProperties(id)
             onFailed: result => layoutError.result = result
-        }
-
-        Repeater {
-            model: page.totals
-
-            delegate: ColumnLayout {
-                id: monthTotals
-
-                required property var modelData
-
-                Layout.fillWidth: true
-                spacing: Kirigami.Units.largeSpacing
-                visible: !(page.view.empty ?? false)
-
-                Kirigami.Heading {
-                    Layout.topMargin: Kirigami.Units.largeSpacing
-                    visible: monthTotals.modelData.income.length > 0
-                    text: page.i18nContext.i18nc("@title", "Where your money came from")
-                    level: 3
-                }
-
-                Repeater {
-                    model: monthTotals.modelData.income
-
-                    delegate: AmountLine {
-                        Layout.fillWidth: true
-                        name: page.categoryName(modelData)
-                    }
-                }
-            }
         }
     }
 }

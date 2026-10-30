@@ -12653,3 +12653,31 @@ msgctxt ""
 "for the widgets inside it"
 msgid "Period box"
 msgstr "Zeitraum-Rahmen"
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
+msgid "Where the month's money came from appears here once something came in."
+msgstr "Hier steht, woher das Geld des Monats kam, sobald etwas eingegangen ist."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@title %1 is a currency"
+msgid "Where your money came from (%1)"
+msgstr "Woher Ihr Geld kam (%1)"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml
+#, kde-format
+msgctxt ""
+"@item:inlistbox a part of the layout: what all the accounts hold together, a "
+"card for each currency"
+msgid "What you are worth"
+msgstr "Ihr Vermögen"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml
+#, kde-format
+msgctxt ""
+"@item:inlistbox a part of the layout: where the month's money came from, by "
+"category"
+msgid "Where your money came from"
+msgstr "Woher Ihr Geld kam"

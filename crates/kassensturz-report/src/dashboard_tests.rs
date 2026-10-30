@@ -295,7 +295,7 @@ fn the_default_overview_is_a_valid_dashboard_that_writes_back_the_same() {
     assert_eq!(document.kind, ViewKind::Dashboard);
     assert_eq!(document.name, OVERVIEW_NAME);
     assert_eq!(document.period, None);
-    assert_eq!(document.entries.len(), 9);
+    assert_eq!(document.entries.len(), 11);
     grid::check(&document.entries).unwrap();
     assert_eq!(Document::read(&document.to_json()).unwrap(), document);
     // Its reading order is the order the Overview shows things in.
@@ -304,6 +304,7 @@ fn the_default_overview_is_a_valid_dashboard_that_writes_back_the_same() {
         editor.reading_order(),
         [
             "fetch-gaps",
+            "worth",
             "income",
             "expenses",
             "left",
@@ -311,6 +312,7 @@ fn the_default_overview_is_a_valid_dashboard_that_writes_back_the_same() {
             "spending",
             "biggest",
             "trend",
+            "sources",
             "transfers"
         ]
     );
@@ -378,6 +380,7 @@ fn the_default_overview_asks_for_what_the_overview_page_asks_for() {
         asked,
         [
             notice("notice.fetch_gap"),
+            notice("card.net_worth"),
             card("income"),
             card("expenses"),
             card("net"),
@@ -391,6 +394,7 @@ fn the_default_overview_asks_for_what_the_overview_page_asks_for() {
                 String::new(),
                 "last-12-months".to_owned(),
             ),
+            notice("table.income_sources"),
             notice("notice.transfers"),
         ]
     );
@@ -493,7 +497,7 @@ fn a_session_is_saved_in_the_book_and_read_back_to_the_same_layout() {
     book.edit_view(id, &second).unwrap();
     let reread = Document::read(&book.view(id).unwrap().document).unwrap();
     assert_eq!(reread, *editor.document());
-    assert_eq!(reread.entries.len(), 10);
+    assert_eq!(reread.entries.len(), 12);
     // A new session on the saved layout starts from it, and undo works in it.
     let mut again = Editor::new(reread).unwrap();
     assert!(!again.has_changes());
@@ -521,6 +525,8 @@ fn the_separator_and_the_two_notices_show_no_data_and_survive_a_save() {
         ("text.separator", ComponentType::Separator),
         ("notice.fetch_gap", ComponentType::FetchNotice),
         ("notice.transfers", ComponentType::TransfersNote),
+        ("card.net_worth", ComponentType::NetWorth),
+        ("table.income_sources", ComponentType::IncomeSources),
     ] {
         assert_eq!(ComponentType::from_id(id), Some(kind));
         assert!(ComponentType::LIBRARY.contains(&kind));
@@ -537,7 +543,7 @@ fn the_separator_and_the_two_notices_show_no_data_and_survive_a_save() {
         assert_eq!(Component::from_json(&value.to_string()).unwrap(), component);
         assert!(Component::from_json(&format!(r#"{{"type":"{id}","dataset":"x"}}"#)).is_err());
         let size = kind.default_size();
-        assert_eq!(size.rows, 1);
+        assert!(size.rows >= 1);
         assert!(kind.smallest_size().cols <= size.cols);
     }
     // The period box shows no data either, and has a title and a period of

@@ -39,7 +39,7 @@ Item {
     // The separator and the notices have no card around them while the page
     // is only looked at: a line and a message (D-328, D-334).
     readonly property bool isBox: present && info.type === "group.period"
-    readonly property bool bare: present && (info.type === "text.separator" || info.type === "notice.fetch_gap" || info.type === "notice.transfers")
+    readonly property bool bare: present && (info.type === "text.separator" || info.type === "notice.fetch_gap" || info.type === "notice.transfers" || info.type === "card.net_worth")
     readonly property bool showsFrame: !bare || (board.editing && !board.preview)
     // What a period box says: its title and the period it gives its widgets.
     readonly property string boxPeriod: isBox ? names.periodName(info.subject?.period?.word ?? "") : ""
@@ -194,6 +194,8 @@ Item {
             sourceComponent: cell.unknown ? unknownBox
                 : cell.info?.type === "text.heading" ? headingBox
                 : cell.info?.type === "group.period" ? boxLabel
+                : cell.info?.type === "card.net_worth" ? netWorthBox
+                : cell.info?.type === "table.income_sources" ? incomeBox
                 : cell.info?.type === "text.separator" ? separatorBox
                 : cell.info?.type === "notice.fetch_gap" ? fetchGapBox
                 : cell.info?.type === "notice.transfers" ? transfersBox : figuresBox
@@ -238,6 +240,130 @@ Item {
                 text: cell.boxPeriod
                 textFormat: Text.PlainText
                 color: Kirigami.Theme.disabledTextColor
+            }
+        }
+    }
+
+    // What all the accounts hold together less what is owed, a card for each
+    // currency (Q-215, D-329). It is today's figure, so it stays when the
+    // month changes. The page's own figures, as text (D-065).
+    Component {
+        id: netWorthBox
+
+        Flickable {
+            readonly property bool failed: false
+            readonly property var sections: cell.board.pageView.sections ?? []
+
+            contentHeight: worthColumn.implicitHeight
+            clip: true
+
+            ColumnLayout {
+                id: worthColumn
+
+                width: parent.width
+                spacing: Kirigami.Units.smallSpacing
+
+                Repeater {
+                    model: sections
+
+                    delegate: ColumnLayout {
+                        id: section
+
+                        required property var modelData
+                        readonly property string value: modelData.togetherOwes
+                            ? names.i18nContext.i18nc("@label %1 is an amount of money", "You owe %1", modelData.together)
+                            : modelData.together
+                        readonly property string exact: modelData.togetherOwes
+                            ? names.i18nContext.i18nc("@label %1 is an amount of money", "You owe %1", modelData.exactTogether)
+                            : modelData.exactTogether
+
+                        Layout.fillWidth: true
+                        spacing: Kirigami.Units.smallSpacing
+
+                        // Only a book with several currencies needs to say which.
+                        Kirigami.Heading {
+                            textFormat: Text.PlainText
+                            visible: sections.length > 1
+                            text: section.modelData.currency
+                            level: 3
+                        }
+
+                        KpiGrid {
+                            cards: [{
+                                measure: "net-worth",
+                                currency: section.modelData.currency,
+                                value: section.value,
+                                exactValue: section.exact,
+                                negative: section.modelData.togetherOwes,
+                                previous: "",
+                                change: "",
+                                changePercent: "",
+                                direction: "none"
+                            }]
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Where the month's money came from, by category and currency (D-336).
+    Component {
+        id: incomeBox
+
+        Flickable {
+            readonly property bool failed: false
+            readonly property var totals: (cell.board.pageView.totals ?? []).filter(entry => entry.income.length > 0)
+
+            contentHeight: incomeColumn.implicitHeight
+            clip: true
+
+            ColumnLayout {
+                id: incomeColumn
+
+                width: parent.width
+                spacing: Kirigami.Units.smallSpacing
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    visible: cell.board.editing && totals.length === 0
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    color: Kirigami.Theme.disabledTextColor
+                    text: names.i18nContext.i18nc("@info", "Where the month's money came from appears here once something came in.")
+                }
+
+                Repeater {
+                    model: totals
+
+                    delegate: ColumnLayout {
+                        id: monthTotals
+
+                        required property var modelData
+
+                        Layout.fillWidth: true
+                        spacing: Kirigami.Units.smallSpacing
+
+                        Kirigami.Heading {
+                            Layout.fillWidth: true
+                            textFormat: Text.PlainText
+                            elide: Text.ElideRight
+                            text: totals.length > 1
+                                ? names.i18nContext.i18nc("@title %1 is a currency", "Where your money came from (%1)", monthTotals.modelData.currency)
+                                : names.i18nContext.i18nc("@title", "Where your money came from")
+                            level: 3
+                        }
+
+                        Repeater {
+                            model: monthTotals.modelData.income
+
+                            delegate: AmountLine {
+                                Layout.fillWidth: true
+                                name: modelData.unsorted ? names.i18nContext.i18nc("@label money with no category yet", "Not sorted yet") : modelData.name
+                            }
+                        }
+                    }
+                }
             }
         }
     }

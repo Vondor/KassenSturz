@@ -70,8 +70,8 @@ Kirigami.ApplicationWindow {
         onTriggered: {
             switch (window.step++) {
             case 0: {
-                window.check(grid.items.length === 10, "ten components are given: " + grid.items.length);
-                window.check(grid.ids.length === 10, "one item for each");
+                window.check(grid.items.length === 12, "twelve components are given: " + grid.items.length);
+                window.check(grid.ids.length === 12, "one item for each");
                 const income = grid.itemFor("income");
                 const spending = grid.itemFor("spending");
                 window.check(income !== null && spending !== null, "the items exist");
@@ -86,7 +86,12 @@ Kirigami.ApplicationWindow {
                 window.check(grid.itemFor("title").heading === "Spending", "a heading shows its text");
                 // The separator and the notices draw from the page's own data
                 // (D-328, D-334) and none of them is a problem.
-                grid.pageView = {fetchGaps: [{days: 20, account: "Checking", lastFetched: "2026-10-01", accountId: "a1"}], transfers: 2};
+                grid.pageView = {
+                    fetchGaps: [{days: 20, account: "Checking", lastFetched: "2026-10-01", accountId: "a1"}], transfers: 2,
+                    sections: [{currency: "EUR", together: "1.000,00 €", exactTogether: "1.000,00 €", togetherOwes: false}],
+                    totals: [{currency: "EUR", income: [{name: "Salary", amount: "2.000,00 €", exactAmount: "2.000,00 €", unsorted: false}]}]
+                };
+                window.check(!grid.itemFor("worth").hasProblem && !grid.itemFor("sources").hasProblem, "the worth card and the income list are not problems");
                 window.check(grid.itemFor("line").bare && grid.itemFor("gaps").bare && grid.itemFor("moved").bare, "the line and the notices have no card in view mode");
                 window.check(!grid.itemFor("income").bare, "a figure keeps its card");
                 // A widget inside a period box takes the box's period unless

@@ -306,7 +306,7 @@ Kirigami.InlineMessage {
             case "not-editable":
                 return i18nContext.i18nc("@info", "This part of the layout was made by a newer KassenSturz, so this one can move or remove it but not change it. Nothing was changed.");
             case "too-many-components":
-                return i18nContext.i18nc("@info", "The page can hold at most 100 components, so nothing was added. Remove one you no longer need, then try again.");
+                return i18nContext.i18nc("@info", "The page can hold at most 100 widgets, so nothing was added. Remove one you no longer need, then try again.");
             case "no-room":
                 return i18nContext.i18nc("@info", "There is no room for that: the page reaches down at most 1,000 rows. Nothing was changed. Move something up or remove it, then try again.");
             }

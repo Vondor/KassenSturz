@@ -474,7 +474,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             visible: page.layoutEditing && !grid.preview
             type: Kirigami.MessageType.Information
-            text: page.i18nContext.i18nc("@info", "You are arranging this page. Drag a component to move it, drag its corner to make it larger or smaller, and use the buttons that appear on the one you pick. Press Done to keep the changes, or Cancel to leave everything as it was.")
+            text: page.i18nContext.i18nc("@info", "You are arranging this page. Drag a widget to move it, drag its corner to make it larger or smaller, and use the buttons that appear on the one you pick. Press Done to keep the changes, or Cancel to leave everything as it was.")
         }
 
         Kirigami.InlineMessage {
@@ -488,7 +488,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             visible: page.layoutEditing && grid.narrow
             type: Kirigami.MessageType.Information
-            text: page.i18nContext.i18nc("@info", "This window is too narrow to arrange columns, so the components are listed one under the other. You can move them earlier or later. Make the window wider to arrange them side by side.")
+            text: page.i18nContext.i18nc("@info", "This window is too narrow to arrange columns, so the widgets are listed one under the other. You can move them earlier or later. Make the window wider to arrange them side by side.")
         }
 
         // One message for every component with a problem; the component says
@@ -497,7 +497,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             visible: grid.problemCount > 0
             type: Kirigami.MessageType.Warning
-            text: page.i18nContext.i18ncp("@info %1 is how many components", "%1 component on this page has a problem. It says what is wrong.", "%1 components on this page have a problem. Each says what is wrong.", grid.problemCount)
+            text: page.i18nContext.i18ncp("@info %1 is how many widgets", "%1 widget on this page has a problem. It says what is wrong.", "%1 widgets on this page have a problem. Each says what is wrong.", grid.problemCount)
             actions: [
                 Kirigami.Action {
                     text: page.i18nContext.i18nc("@action:button go to the first component with a problem", "Show")

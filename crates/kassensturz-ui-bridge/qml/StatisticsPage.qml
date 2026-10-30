@@ -18,6 +18,8 @@ Kirigami.ScrollablePage {
     id: page
 
     required property SavedViews saved
+    // A `CategoryGroups`, for picking My groups and categories in the panel.
+    property var groupsSource: null
     readonly property var views: saved.view?.views ?? []
     // The saved view being changed, by ID; empty for one not saved yet.
     property string openId: ""
@@ -191,6 +193,7 @@ Kirigami.ScrollablePage {
         PropertiesPanel {
             Layout.fillWidth: true
             model: workbench
+            choices: page.groupsSource
         }
 
         ComponentPreview {

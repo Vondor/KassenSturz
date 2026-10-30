@@ -25,6 +25,9 @@ ColumnLayout {
     // The grid editor's panel offers the period of the component; the
     // Statistics workbench has a period of its own (D-313).
     property bool withPeriod: false
+    // A `CategoryGroups`: where the groups and categories a chart can show
+    // are listed from. Without it, no list can be picked from.
+    property var choices: null
     readonly property var periodChoice: view.period
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -61,6 +64,10 @@ ColumnLayout {
             return i18nContext.i18nc("@label:textbox a title above a chart", "Title");
         case "text":
             return i18nContext.i18nc("@label:textbox the words of a heading in the layout", "Text");
+        case "groups":
+            return i18nContext.i18nc("@label which of My groups a chart shows", "Groups to show");
+        case "series":
+            return i18nContext.i18nc("@label which categories and groups a chart over time draws a line for", "Lines to draw");
         case "legend":
             return i18nContext.i18nc("@option:check", "Show the legend");
         case "grouping":
@@ -113,6 +120,20 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox", "Savings rate");
         }
         return "";
+    }
+
+    // What can be ticked for a list: the groups of money spent (`groups`), or
+    // the categories and groups of both kinds (`series`).
+    function idOptions(key: string): var {
+        const book = choices?.view ?? ({});
+        const groups = (book.groups ?? [])
+            .filter(group => key !== "groups" || !group.income)
+            .map(group => ({id: group.id, name: i18nContext.i18nc("@option:check %1 is the name of a group", "%1 (group)", group.name)}));
+        if (key === "groups") {
+            return groups;
+        }
+        const categories = (book.categories ?? []).map(category => ({id: category.id, name: category.path ?? category.name}));
+        return groups.concat(categories);
     }
 
     function wordOptions(words): var {
@@ -174,9 +195,11 @@ ColumnLayout {
                 required property var modelData
 
                 Kirigami.FormData.label: modelData.kind === "flag" ? "" : panel.fieldLabel(modelData.key)
+                Kirigami.FormData.labelAlignment: modelData.kind === "ids" ? Qt.AlignTop : Qt.AlignVCenter
                 Layout.fillWidth: true
                 sourceComponent: modelData.kind === "text" ? textField
-                    : modelData.kind === "flag" ? flagBox : choiceBox
+                    : modelData.kind === "flag" ? flagBox
+                    : modelData.kind === "ids" ? idsBox : choiceBox
 
                 Component {
                     id: textField
@@ -196,6 +219,48 @@ ColumnLayout {
                         text: panel.fieldLabel(row.modelData.key)
                         checked: row.modelData.flag
                         onToggled: panel.model.setFlag(row.modelData.key, checked)
+                    }
+                }
+
+                Component {
+                    id: idsBox
+
+                    ColumnLayout {
+                        id: picker
+
+                        readonly property var options: panel.idOptions(row.modelData.key)
+
+                        spacing: 0
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            visible: picker.options.length === 0
+                            wrapMode: Text.Wrap
+                            text: panel.i18nContext.i18nc("@info", "There is nothing to pick yet. Make groups on the page My groups and hidden categories first.")
+                        }
+
+                        Controls.ScrollView {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Math.min(picker.options.length, 6) * Kirigami.Units.gridUnit * 1.3
+                            visible: picker.options.length > 0
+                            Accessible.name: panel.fieldLabel(row.modelData.key)
+
+                            ListView {
+                                model: picker.options
+                                clip: true
+                                delegate: Controls.CheckBox {
+                                    required property var modelData
+
+                                    width: ListView.view.width
+                                    text: modelData.name
+                                    checked: row.modelData.ids.includes(modelData.id)
+                                    onToggled: {
+                                        const without = row.modelData.ids.filter(id => id !== modelData.id);
+                                        panel.model.setIds(row.modelData.key, (checked ? without.concat([modelData.id]) : without).join(","));
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 

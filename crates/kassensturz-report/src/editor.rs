@@ -42,6 +42,8 @@ pub enum Edit {
     Change,
     /// The built-in layout replaced the components.
     Reset,
+    /// A saved layout replaced the components.
+    Load,
 }
 
 impl Edit {
@@ -55,6 +57,7 @@ impl Edit {
             Self::Delete => "delete",
             Self::Change => "change",
             Self::Reset => "reset",
+            Self::Load => "load",
         }
     }
 }
@@ -497,11 +500,21 @@ impl Editor {
     /// Replaces the components with the built-in layout's, as one edit that
     /// Undo takes back. The entries are checked like a dashboard's.
     pub fn reset(&mut self, built_in: &[Entry]) -> Result<bool, ReportError> {
-        if built_in.len() > MAX_COMPONENTS {
+        self.replace_all(Edit::Reset, built_in)
+    }
+
+    /// Replaces the components with a saved layout's (D-330), as one edit
+    /// that Undo takes back. The entries are checked like a dashboard's.
+    pub fn load(&mut self, saved: &[Entry]) -> Result<bool, ReportError> {
+        self.replace_all(Edit::Load, saved)
+    }
+
+    fn replace_all(&mut self, edit: Edit, replacement: &[Entry]) -> Result<bool, ReportError> {
+        if replacement.len() > MAX_COMPONENTS {
             return Err(refused("too-many-components"));
         }
-        self.apply(Edit::Reset, |entries| {
-            built_in.clone_into(entries);
+        self.apply(edit, |entries| {
+            replacement.clone_into(entries);
             Ok(())
         })
     }

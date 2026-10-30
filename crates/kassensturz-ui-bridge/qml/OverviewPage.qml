@@ -114,6 +114,34 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // The layouts the user saved under a name (D-330). Saving one is its own
+    // step in the change history; loading one is an edit in the session that
+    // Undo takes back.
+    property var savedLayouts: []
+    property var chosenLayout: ({})
+
+    function openLayouts() {
+        savedLayouts = dashboard.savedLayouts();
+        layoutsDialog.open();
+    }
+
+    function loadLayout(id: string) {
+        const result = dashboard.loadLayout(id);
+        if (result.code !== undefined) {
+            layoutError.result = result;
+        } else {
+            layoutsDialog.close();
+        }
+    }
+
+    function deleteLayout(id: string) {
+        const result = dashboard.deleteLayout(id);
+        if (result.code !== undefined) {
+            layoutError.result = result;
+        }
+        savedLayouts = dashboard.savedLayouts();
+    }
+
     Controls.Menu {
         id: savedMenu
 
@@ -254,6 +282,12 @@ Kirigami.ScrollablePage {
         },
         Kirigami.Action {
             visible: page.layoutEditing
+            icon.name: "document-save-as"
+            text: page.i18nContext.i18nc("@action:button save the arrangement under a name or load one saved earlier", "Saved layouts")
+            onTriggered: page.openLayouts()
+        },
+        Kirigami.Action {
+            visible: page.layoutEditing
             icon.name: "document-revert"
             enabled: !(page.dashboard.view.builtIn ?? true)
             text: page.i18nContext.i18nc("@action:button put the layout KassenSturz comes with back", "Back to the built-in layout")
@@ -280,6 +314,126 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button keep arranging the layout", "Keep arranging")
                 icon.name: "go-previous"
                 onTriggered: discardDialog.close()
+            }
+        ]
+    }
+
+    Kirigami.Dialog {
+        id: layoutsDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Saved layouts")
+        standardButtons: Kirigami.Dialog.Close
+        preferredWidth: Kirigami.Units.gridUnit * 24
+
+        ColumnLayout {
+            spacing: Kirigami.Units.largeSpacing
+
+            Controls.Label {
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.largeSpacing
+                wrapMode: Text.Wrap
+                text: page.i18nContext.i18nc("@info", "Keep the way the Overview looks now under a name, and come back to it later. Loading a saved layout replaces what is on the page; you can take that back with Undo until you press Done.")
+            }
+
+            Controls.Button {
+                Layout.alignment: Qt.AlignHCenter
+                icon.name: "document-save-as"
+                text: page.i18nContext.i18nc("@action:button", "Save this layout as…")
+                onClicked: {
+                    layoutName.text = "";
+                    saveLayoutDialog.open();
+                }
+            }
+
+            Controls.Label {
+                visible: page.savedLayouts.length === 0
+                Layout.fillWidth: true
+                Layout.margins: Kirigami.Units.largeSpacing
+                wrapMode: Text.Wrap
+                horizontalAlignment: Text.AlignHCenter
+                text: page.i18nContext.i18nc("@info", "No layouts saved yet.")
+            }
+
+            Repeater {
+                model: page.savedLayouts
+
+                delegate: RowLayout {
+                    required property var modelData
+
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Kirigami.Units.largeSpacing
+                    Layout.rightMargin: Kirigami.Units.largeSpacing
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        textFormat: Text.PlainText
+                        text: modelData.name
+                    }
+
+                    Controls.Button {
+                        text: page.i18nContext.i18nc("@action:button put a saved layout on the page", "Load")
+                        Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of a saved layout", "Load %1", modelData.name)
+                        onClicked: page.loadLayout(modelData.id)
+                    }
+
+                    Controls.Button {
+                        icon.name: "edit-delete"
+                        display: Controls.AbstractButton.IconOnly
+                        text: page.i18nContext.i18nc("@action:button %1 is the name of a saved layout", "Delete %1", modelData.name)
+                        Controls.ToolTip.visible: hovered
+                        Controls.ToolTip.text: text
+                        onClicked: {
+                            page.chosenLayout = modelData;
+                            deleteLayoutDialog.open();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Kirigami.PromptDialog {
+        id: saveLayoutDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Save this layout as")
+        standardButtons: Kirigami.Dialog.Save | Kirigami.Dialog.Cancel
+        onAccepted: {
+            const result = page.dashboard.saveLayoutAs(layoutName.text);
+            if (result.code !== undefined) {
+                layoutError.result = result;
+            }
+            page.savedLayouts = page.dashboard.savedLayouts();
+        }
+
+        Controls.TextField {
+            id: layoutName
+
+            maximumLength: 200
+            Accessible.name: page.i18nContext.i18nc("@label:textbox", "Name of the layout")
+            onAccepted: saveLayoutDialog.accept()
+        }
+    }
+
+    Kirigami.PromptDialog {
+        id: deleteLayoutDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Delete this saved layout?")
+        subtitle: page.i18nContext.i18nc("@info %1 is the name of a saved layout", "“%1” is removed from your saved layouts. The Overview itself doesn't change. You can take this back with Undo in the menu.", page.chosenLayout.name ?? "")
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button", "Delete the layout")
+                icon.name: "edit-delete"
+                onTriggered: {
+                    deleteLayoutDialog.close();
+                    page.deleteLayout(page.chosenLayout.id);
+                }
+            },
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button keep a saved layout", "Keep it")
+                icon.name: "go-previous"
+                onTriggered: deleteLayoutDialog.close()
             }
         ]
     }

@@ -30,7 +30,7 @@ use kassensturz_store::Book;
 
 use crate::errors::{ErrorText, report_text};
 use crate::formulas;
-use crate::grid_editor::{self, Layout, LayoutError};
+use crate::grid_editor::{self, Layout, LayoutError, SavedLayout};
 use crate::locale::QtLocale;
 use crate::number_format::{UserLocale, app_locale};
 use crate::properties_model::view_object as component_view;
@@ -88,6 +88,30 @@ pub mod qobject {
             component: &QString,
             period: &QString,
         ) -> QVariant;
+
+        /// The layouts the user saved under a name, as a list of objects with
+        /// `id` and `name` (D-330); empty when there is none.
+        #[qinvokable]
+        #[cxx_name = "savedLayouts"]
+        fn saved_layouts(self: &DashboardLayout) -> QVariant;
+
+        /// Keeps the components as they are now in the book under this name,
+        /// as a layout to load later. Gives the error, or an empty object.
+        #[qinvokable]
+        #[cxx_name = "saveLayoutAs"]
+        fn save_layout_as(self: Pin<&mut DashboardLayout>, name: &QString) -> QVariant;
+
+        /// Replaces the components with a saved layout's, as one edit that
+        /// Undo takes back; nothing is written until Done.
+        #[qinvokable]
+        #[cxx_name = "loadLayout"]
+        fn load_layout(self: Pin<&mut DashboardLayout>, id: &QString) -> QVariant;
+
+        /// Deletes a saved layout from the book. Gives the error, or an empty
+        /// object.
+        #[qinvokable]
+        #[cxx_name = "deleteLayout"]
+        fn delete_layout(self: Pin<&mut DashboardLayout>, id: &QString) -> QVariant;
 
         /// Moves a component so its top left corner is at this cell.
         #[qinvokable]
@@ -243,11 +267,21 @@ fn view_object(layout: Option<&Layout>, editing: bool, form: NumberForm) -> QVar
     ])
 }
 
+/// The saved layouts as QML gets them: objects with `id` and `name`.
+fn saved_layouts_object(layouts: &[SavedLayout]) -> QVariant {
+    list(
+        layouts
+            .iter()
+            .map(|saved| map([("id", text(&saved.id)), ("name", text(&saved.name))])),
+    )
+}
+
 /// The error as QML gets it.
 fn error_text(book: &Book, error: &LayoutError, locale: &UserLocale<QtLocale>) -> ErrorText {
     match error {
         LayoutError::Store(error) => report_text(book, &error.report(), locale),
         LayoutError::Report(error) => report_text(book, &error.report(), locale),
+        LayoutError::NoSuchLayout => ErrorText::plain("input.no-such-entry"),
     }
 }
 
@@ -354,6 +388,46 @@ impl qobject::DashboardLayout {
         )
     }
 
+    fn saved_layouts(&self) -> QVariant {
+        saved_layouts_object(&read_book(grid_editor::saved_layouts).unwrap_or_default())
+    }
+
+    fn save_layout_as(mut self: Pin<&mut Self>, name: &QString) -> QVariant {
+        let name = name.to_string();
+        let Some(layout) = self.rust().layout.as_ref() else {
+            return map([]);
+        };
+        match change_book(|book| grid_editor::save_as(book, &layout.editor, &name)) {
+            Ok(_) => {
+                self.as_mut().changed();
+                map([])
+            }
+            Err(error) => error_object(&error),
+        }
+    }
+
+    fn load_layout(self: Pin<&mut Self>, id: &QString) -> QVariant {
+        let id = id.to_string();
+        self.edited(
+            |layout| {
+                session::with_book(|book| grid_editor::load(book, &mut layout.editor, &id))
+                    .unwrap_or(Err(LayoutError::NoSuchLayout))
+            },
+            |_| map([]),
+        )
+    }
+
+    fn delete_layout(mut self: Pin<&mut Self>, id: &QString) -> QVariant {
+        let id = id.to_string();
+        match change_book(|book| grid_editor::delete_saved(book, &id)) {
+            Ok(()) => {
+                self.as_mut().changed();
+                map([])
+            }
+            Err(error) => error_object(&error),
+        }
+    }
+
     fn move_to(self: Pin<&mut Self>, id: &QString, col: i32, row: i32) -> QVariant {
         let id = id.to_string();
         self.edited(
@@ -458,7 +532,7 @@ impl qobject::DashboardLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::variant::read_back::{flag_of, keys, list_of, object_of, text_of};
+    use crate::variant::read_back::{elements, flag_of, keys, list_of, object_of, text_of};
 
     fn layout() -> Layout {
         Layout::open(&Book::create_in_memory().unwrap()).unwrap()
@@ -512,6 +586,20 @@ mod tests {
         let library = list_of(&view, "library");
         assert_eq!(library.len(), 16);
         assert_eq!(keys(&library[0]), ["dataset", "type"]);
+    }
+
+    #[test]
+    fn saved_layouts_read_back_with_an_id_and_a_name_from_a_real_book() {
+        let mut book = Book::create_in_memory().unwrap();
+        let layout = Layout::open(&book).unwrap();
+        let id = grid_editor::save_as(&mut book, &layout.editor, "Month review").unwrap();
+        let shown = saved_layouts_object(&grid_editor::saved_layouts(&book).unwrap());
+        let rows = elements(&shown).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(keys(&rows[0]), ["id", "name"]);
+        assert_eq!(text_of(&rows[0], "id"), id);
+        assert_eq!(text_of(&rows[0], "name"), "Month review");
+        assert!(elements(&saved_layouts_object(&[])).unwrap().is_empty());
     }
 
     #[test]

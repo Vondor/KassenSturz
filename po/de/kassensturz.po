@@ -12681,3 +12681,93 @@ msgctxt ""
 "category"
 msgid "Where your money came from"
 msgstr "Woher Ihr Geld kam"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:121
+#, kde-format
+msgctxt "@info:tooltip what was done to the layout"
+msgid "Loaded a saved layout"
+msgstr "Gespeichertes Layout geladen"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:286
+#, kde-format
+msgctxt "@action:button save the arrangement under a name or load one saved earlier"
+msgid "Saved layouts"
+msgstr "Gespeicherte Layouts"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:324
+#, kde-format
+msgctxt "@title:window"
+msgid "Saved layouts"
+msgstr "Gespeicherte Layouts"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:335
+#, kde-format
+msgctxt "@info"
+msgid "Keep the way the Overview looks now under a name, and come back to it later. Loading a saved layout replaces what is on the page; you can take that back with Undo until you press Done."
+msgstr "Speichern Sie die aktuelle Anordnung der Übersicht unter einem Namen und kehren Sie später zu ihr zurück. Beim Laden eines gespeicherten Layouts wird ersetzt, was auf der Seite steht; mit „Rückgängig“ können Sie das zurücknehmen, bis Sie auf „Fertig“ drücken."
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:341
+#, kde-format
+msgctxt "@action:button"
+msgid "Save this layout as…"
+msgstr "Dieses Layout speichern unter …"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:354
+#, kde-format
+msgctxt "@info"
+msgid "No layouts saved yet."
+msgstr "Noch keine Layouts gespeichert."
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:374
+#, kde-format
+msgctxt "@action:button put a saved layout on the page"
+msgid "Load"
+msgstr "Laden"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:375
+#, kde-format
+msgctxt "@action:button %1 is the name of a saved layout"
+msgid "Load %1"
+msgstr "%1 laden"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:382
+#, kde-format
+msgctxt "@action:button %1 is the name of a saved layout"
+msgid "Delete %1"
+msgstr "%1 löschen"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:398
+#, kde-format
+msgctxt "@title:window"
+msgid "Save this layout as"
+msgstr "Dieses Layout speichern unter"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:412
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Name of the layout"
+msgstr "Name des Layouts"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:420
+#, kde-format
+msgctxt "@title:window"
+msgid "Delete this saved layout?"
+msgstr "Dieses gespeicherte Layout löschen?"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:421
+#, kde-format
+msgctxt "@info %1 is the name of a saved layout"
+msgid "“%1” is removed from your saved layouts. The Overview itself doesn't change. You can take this back with Undo in the menu."
+msgstr "„%1“ wird aus Ihren gespeicherten Layouts entfernt. Die Übersicht selbst ändert sich nicht. Sie können das mit „Rückgängig“ im Menü zurücknehmen."
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:425
+#, kde-format
+msgctxt "@action:button"
+msgid "Delete the layout"
+msgstr "Layout löschen"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:433
+#, kde-format
+msgctxt "@action:button keep a saved layout"
+msgid "Keep it"
+msgstr "Behalten"

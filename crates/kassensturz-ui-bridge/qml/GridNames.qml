@@ -117,6 +117,8 @@ QtObject {
             return i18nContext.i18nc("@info:tooltip what was done to the layout", "Changed a widget");
         case "reset":
             return i18nContext.i18nc("@info:tooltip what was done to the layout", "Went back to the built-in layout");
+        case "load":
+            return i18nContext.i18nc("@info:tooltip what was done to the layout", "Loaded a saved layout");
         }
         return "";
     }

@@ -25,6 +25,11 @@ ColumnLayout {
     // The grid editor's panel offers the period of the component; the
     // Statistics workbench has a period of its own (D-313).
     property bool withPeriod: false
+    // Only the fields with these keys, when there are some: the steps of the
+    // Statistic Builder's wizard show the panel a part at a time (D-335).
+    property var only: []
+    // Whether the box for the data (what a chart shows) is offered.
+    property bool showDataset: true
     // The period a formula's result is worked out for: a fixed period's name
     // or a month as `YYYY-MM` (M6b.7). The host passes what the component
     // shows.
@@ -175,7 +180,7 @@ ColumnLayout {
             model: panel.datasets.map(id => ({word: id, name: panel.datasetName(id)}))
             textRole: "name"
             valueRole: "word"
-            visible: panel.datasets.length > 1
+            visible: panel.showDataset && panel.datasets.length > 1
             currentIndex: panel.datasets.indexOf(panel.view.dataset)
             onActivated: index => panel.model.setDataset(panel.datasets[index])
         }
@@ -194,7 +199,7 @@ ColumnLayout {
             wrapMode: Text.Wrap
             text: panel.datasetHelp(panel.view.dataset)
             textFormat: Text.PlainText
-            visible: text !== ""
+            visible: panel.showDataset && text !== ""
         }
 
         Repeater {
@@ -205,6 +210,8 @@ ColumnLayout {
 
                 required property var modelData
 
+                visible: panel.only.length === 0 || panel.only.includes(modelData.key)
+                active: visible
                 Kirigami.FormData.label: modelData.kind === "flag" ? "" : panel.fieldLabel(modelData.key)
                 Kirigami.FormData.labelAlignment: modelData.kind === "ids" || modelData.kind === "formula" ? Qt.AlignTop : Qt.AlignVCenter
                 Layout.fillWidth: true

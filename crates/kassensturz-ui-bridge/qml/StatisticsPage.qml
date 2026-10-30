@@ -28,6 +28,10 @@ Kirigami.ScrollablePage {
     readonly property var periods: ["this-month", "last-month", "last-12-months", "this-year", "last-year"]
     readonly property var types: ["chart.bar", "chart.pie", "chart.donut", "chart.line", "chart.area", "chart.stacked_bar", "kpi.card", "progress.bar", "table.rows"]
     property var renamed: ({})
+    // A new view is made in the wizard (D-335); "Show all settings at once"
+    // and opening a saved view give the page with every setting.
+    property bool wizard: true
+    readonly property alias workbench: workbench
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -85,15 +89,21 @@ Kirigami.ScrollablePage {
         page.period = opened.period !== "" ? opened.period : page.period;
         page.openId = opened.id;
         page.openName = opened.name;
+        page.wizard = false;
     }
 
     function saveNew() {
-        const result = saved.save(nameField.text, page.period, workbench.view.json);
+        saveAs(nameField.text);
+    }
+
+    function saveAs(name: string) {
+        const result = saved.save(name, page.period, workbench.view.json);
         error.result = result;
         if (result.code === undefined) {
             page.openId = result.id;
-            page.openName = nameField.text.trim();
+            page.openName = name.trim();
             nameField.text = "";
+            page.wizard = false;
         }
     }
 
@@ -106,6 +116,8 @@ Kirigami.ScrollablePage {
         page.openName = "";
         error.result = ({});
         workbench.open("chart.bar", "spending_by_category");
+        page.wizard = true;
+        wizardView.restart();
     }
 
     title: i18nContext.i18nc("@title", "Statistic Builder")
@@ -162,8 +174,29 @@ Kirigami.ScrollablePage {
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
 
+        StatisticWizard {
+            id: wizardView
+
+            Layout.fillWidth: true
+            visible: page.wizard
+            builder: page
+            onShowAll: page.wizard = false
+            onSaveRequested: name => page.saveAs(name)
+        }
+
+        Controls.Button {
+            visible: !page.wizard && page.openId === ""
+            text: page.i18nContext.i18nc("@action:button make a new view step by step", "Guide me step by step")
+            icon.name: "tools-wizard"
+            onClicked: {
+                page.wizard = true;
+                wizardView.restart();
+            }
+        }
+
         Kirigami.FormLayout {
             Layout.fillWidth: true
+            visible: !page.wizard
 
             Controls.ComboBox {
                 id: typeBox
@@ -189,6 +222,7 @@ Kirigami.ScrollablePage {
 
         PropertiesPanel {
             Layout.fillWidth: true
+            visible: !page.wizard
             model: workbench
             period: page.period
             choices: page.groupsSource

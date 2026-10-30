@@ -43,7 +43,7 @@ impl ComponentType {
             Self::KpiCard => Size { cols: 2, rows: 2 },
             Self::ProgressBar | Self::Heading => Size { cols: 3, rows: 1 },
             Self::Separator => Size { cols: 1, rows: 1 },
-            Self::PeriodBox => Size { cols: 3, rows: 2 },
+            Self::PeriodBox | Self::NetWorth | Self::IncomeSources => Size { cols: 3, rows: 2 },
             Self::FetchNotice | Self::TransfersNote => Size { cols: 4, rows: 1 },
             Self::TableRows => Size { cols: 4, rows: 3 },
             Self::ChartLine
@@ -66,6 +66,8 @@ impl ComponentType {
                 Size { cols: 12, rows: 1 }
             }
             Self::PeriodBox => Size { cols: 12, rows: 5 },
+            Self::NetWorth => Size { cols: 6, rows: 2 },
+            Self::IncomeSources => Size { cols: 6, rows: 4 },
             Self::TableRows
             | Self::ChartLine
             | Self::ChartBar

@@ -68,6 +68,13 @@ pub enum ComponentType {
     /// widgets that lie completely inside it and have no period of their
     /// own show its period. It shows no data.
     PeriodBox,
+    /// `card.net_worth`: what all the accounts hold together less what is
+    /// owed, a card for each currency (D-329). Today's figure; the page
+    /// fills it.
+    NetWorth,
+    /// `table.income_sources`: where the money of the month came from, by
+    /// category (D-336). The page fills it.
+    IncomeSources,
 }
 
 impl ComponentType {
@@ -87,7 +94,7 @@ impl ComponentType {
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
     /// the heading (D-312).
-    pub const LIBRARY: [Self; 14] = [
+    pub const LIBRARY: [Self; 16] = [
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -102,6 +109,8 @@ impl ComponentType {
         Self::FetchNotice,
         Self::TransfersNote,
         Self::PeriodBox,
+        Self::NetWorth,
+        Self::IncomeSources,
     ];
 
     /// Whether the component shows no figures of the book: its document names
@@ -114,6 +123,8 @@ impl ComponentType {
                 | Self::FetchNotice
                 | Self::TransfersNote
                 | Self::PeriodBox
+                | Self::NetWorth
+                | Self::IncomeSources
         )
     }
 
@@ -134,6 +145,8 @@ impl ComponentType {
             Self::FetchNotice => "notice.fetch_gap",
             Self::TransfersNote => "notice.transfers",
             Self::PeriodBox => "group.period",
+            Self::NetWorth => "card.net_worth",
+            Self::IncomeSources => "table.income_sources",
         }
     }
 
@@ -158,7 +171,9 @@ impl ComponentType {
             | Self::Separator
             | Self::FetchNotice
             | Self::TransfersNote
-            | Self::PeriodBox => "text",
+            | Self::PeriodBox
+            | Self::NetWorth
+            | Self::IncomeSources => "text",
         }
     }
 
@@ -182,7 +197,11 @@ impl ComponentType {
             Self::ProgressBar => &PROGRESS_BAR,
             Self::TableRows => &TABLE,
             Self::Heading => &HEADING,
-            Self::Separator | Self::FetchNotice | Self::TransfersNote => &[],
+            Self::Separator
+            | Self::FetchNotice
+            | Self::TransfersNote
+            | Self::NetWorth
+            | Self::IncomeSources => &[],
             Self::PeriodBox => &PERIOD_BOX,
         }
     }

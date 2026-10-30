@@ -38,6 +38,10 @@ QtObject {
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a thin line that divides the page", "Separator");
         case "notice.fetch_gap":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: warnings about bank accounts that were not updated for a long time", "Warnings about old bank data");
+        case "card.net_worth":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: what all the accounts hold together, a card for each currency", "What you are worth");
+        case "table.income_sources":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: where the month's money came from, by category", "Where your money came from");
         case "group.period":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a framed area with a period of its own for the widgets inside it", "Period box");
         case "notice.transfers":

@@ -295,7 +295,7 @@ fn the_default_overview_is_a_valid_dashboard_that_writes_back_the_same() {
     assert_eq!(document.kind, ViewKind::Dashboard);
     assert_eq!(document.name, OVERVIEW_NAME);
     assert_eq!(document.period, None);
-    assert_eq!(document.entries.len(), 7);
+    assert_eq!(document.entries.len(), 9);
     grid::check(&document.entries).unwrap();
     assert_eq!(Document::read(&document.to_json()).unwrap(), document);
     // Its reading order is the order the Overview shows things in.
@@ -303,7 +303,15 @@ fn the_default_overview_is_a_valid_dashboard_that_writes_back_the_same() {
     assert_eq!(
         editor.reading_order(),
         [
-            "income", "expenses", "left", "kept", "spending", "biggest", "trend"
+            "fetch-gaps",
+            "income",
+            "expenses",
+            "left",
+            "kept",
+            "spending",
+            "biggest",
+            "trend",
+            "transfers"
         ]
     );
 }
@@ -347,6 +355,16 @@ fn the_default_overview_asks_for_what_the_overview_page_asks_for() {
             "page".to_owned(),
         )
     };
+    // The notices ask the book for nothing: the page fills them.
+    let notice = |kind| {
+        (
+            kind,
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+        )
+    };
     let spending = |kind| {
         (
             kind,
@@ -359,6 +377,7 @@ fn the_default_overview_asks_for_what_the_overview_page_asks_for() {
     assert_eq!(
         asked,
         [
+            notice("notice.fetch_gap"),
             card("income"),
             card("expenses"),
             card("net"),
@@ -372,6 +391,7 @@ fn the_default_overview_asks_for_what_the_overview_page_asks_for() {
                 String::new(),
                 "last-12-months".to_owned(),
             ),
+            notice("notice.transfers"),
         ]
     );
 }
@@ -383,15 +403,19 @@ fn the_default_overview_shows_the_same_figures_as_the_overview_on_the_sample_boo
     let today = date(2026, 10, 15);
     let document = Document::default_overview().unwrap();
     let every_component = || {
-        document.entries.iter().map(|entry| {
+        document.entries.iter().filter_map(|entry| {
             let Item::Component(component) = &entry.item else {
                 panic!("a known component");
             };
+            // The notices show no figures of the book.
+            if component.kind().shows_no_data() {
+                return None;
+            }
             let Some(Setting::Word(name)) = component.get("period") else {
                 panic!("a period");
             };
             let shown = Period::for_component(name, page, today).unwrap().unwrap();
-            (component, shown)
+            Some((component, shown))
         })
     };
     let mut figures = 0;
@@ -469,7 +493,7 @@ fn a_session_is_saved_in_the_book_and_read_back_to_the_same_layout() {
     book.edit_view(id, &second).unwrap();
     let reread = Document::read(&book.view(id).unwrap().document).unwrap();
     assert_eq!(reread, *editor.document());
-    assert_eq!(reread.entries.len(), 8);
+    assert_eq!(reread.entries.len(), 10);
     // A new session on the saved layout starts from it, and undo works in it.
     let mut again = Editor::new(reread).unwrap();
     assert!(!again.has_changes());
@@ -489,4 +513,37 @@ fn the_book_keeps_a_broken_layout_and_the_reader_refuses_it() {
         reason(&book.view(id).unwrap().document),
         ("frames-overlap", "components.1.frame".to_owned())
     );
+}
+
+#[test]
+fn the_separator_and_the_two_notices_show_no_data_and_survive_a_save() {
+    for (id, kind) in [
+        ("text.separator", ComponentType::Separator),
+        ("notice.fetch_gap", ComponentType::FetchNotice),
+        ("notice.transfers", ComponentType::TransfersNote),
+    ] {
+        assert_eq!(ComponentType::from_id(id), Some(kind));
+        assert!(ComponentType::LIBRARY.contains(&kind));
+        assert!(!ComponentType::ALL.contains(&kind));
+        assert!(kind.shows_no_data());
+        assert_eq!(kind.datasets().count(), 0);
+        assert!(kind.properties().is_empty());
+        assert!(Component::new(kind, "spending_by_category").is_err());
+        let component = Component::new(kind, "").unwrap();
+        // Its document has a type and props, and no dataset or params.
+        let value = component.to_value();
+        assert_eq!(value["type"], id);
+        assert!(value.get("dataset").is_none() && value.get("params").is_none());
+        assert_eq!(Component::from_json(&value.to_string()).unwrap(), component);
+        assert!(Component::from_json(&format!(r#"{{"type":"{id}","dataset":"x"}}"#)).is_err());
+        let size = kind.default_size();
+        assert_eq!(size.rows, 1);
+        assert!(kind.smallest_size().cols <= size.cols);
+    }
+    // Placed on a grid next to the others, they pass the same checks.
+    let mut editor = Editor::new(Document::default_overview().unwrap()).unwrap();
+    editor
+        .add(Component::new(ComponentType::Separator, "").unwrap())
+        .unwrap();
+    grid::check(&editor.document().entries).unwrap();
 }

@@ -42,6 +42,8 @@ impl ComponentType {
         match self {
             Self::KpiCard => Size { cols: 2, rows: 2 },
             Self::ProgressBar | Self::Heading => Size { cols: 3, rows: 1 },
+            Self::Separator => Size { cols: 1, rows: 1 },
+            Self::FetchNotice | Self::TransfersNote => Size { cols: 4, rows: 1 },
             Self::TableRows => Size { cols: 4, rows: 3 },
             Self::ChartLine
             | Self::ChartBar
@@ -59,7 +61,9 @@ impl ComponentType {
         match self {
             Self::KpiCard => Size { cols: 3, rows: 2 },
             Self::ProgressBar => Size { cols: 6, rows: 1 },
-            Self::Heading => Size { cols: 12, rows: 1 },
+            Self::Heading | Self::Separator | Self::FetchNotice | Self::TransfersNote => {
+                Size { cols: 12, rows: 1 }
+            }
             Self::TableRows
             | Self::ChartLine
             | Self::ChartBar

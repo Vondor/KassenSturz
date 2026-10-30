@@ -159,7 +159,7 @@ impl Component {
         let kind =
             ComponentType::from_id(text("type")?).ok_or_else(|| invalid("unknown-type", "type"))?;
         // A heading shows no data: its document names no dataset (D-312).
-        let dataset = if kind == ComponentType::Heading {
+        let dataset = if kind.shows_no_data() {
             if object.contains_key("dataset") {
                 return Err(invalid("unknown-property", "dataset"));
             }
@@ -224,7 +224,7 @@ impl Component {
         }
         let mut object = Map::new();
         object.insert("type".into(), self.kind.id().into());
-        if self.kind != ComponentType::Heading {
+        if !self.kind.shows_no_data() {
             object.insert("dataset".into(), self.dataset.id.into());
             object.insert("params".into(), Value::Object(params));
         }

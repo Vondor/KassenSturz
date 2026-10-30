@@ -72,7 +72,13 @@ Item {
     // a component keeps its item (and its animation and focus) when it moves.
     property var ids: []
 
+    // What the page knows that is not a figure of the report layer: the
+    // overview's fetch-gap warnings and its count of transfers, for the
+    // notice widgets (D-328).
+    property var pageView: ({})
+
     signal propertiesRequested(string id)
+    signal getTransactionsClicked(string accountId)
     // An edit that was refused: the error object (`code`, ...).
     signal failed(var result)
 

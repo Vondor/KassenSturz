@@ -259,17 +259,25 @@ mod tests {
         assert!(!layout.damaged);
         assert!(!layout.editor.has_changes());
         let shown = rows(&layout.editor);
-        assert_eq!(shown.len(), 7);
-        // Reading order: the four cards, then the donut and the table, then
-        // the line.
+        assert_eq!(shown.len(), 9);
+        // Reading order: the bank warnings, the four cards, then the donut
+        // and the table, the line, and the note about transfers.
         let ids: Vec<&str> = shown.iter().map(|row| row.id.as_str()).collect();
         assert_eq!(
             ids,
             [
-                "income", "expenses", "left", "kept", "spending", "biggest", "trend"
+                "fetch-gaps",
+                "income",
+                "expenses",
+                "left",
+                "kept",
+                "spending",
+                "biggest",
+                "trend",
+                "transfers"
             ]
         );
-        assert_eq!(total_rows(&layout.editor), 11);
+        assert_eq!(total_rows(&layout.editor), 13);
     }
 
     #[test]
@@ -349,9 +357,9 @@ mod tests {
     }"#;
 
     #[test]
-    fn the_library_offers_the_ten_components_and_adds_each_with_its_defaults() {
+    fn the_library_offers_the_thirteen_components_and_adds_each_with_its_defaults() {
         let offered = library();
-        assert_eq!(offered.len(), 10);
+        assert_eq!(offered.len(), 13);
         assert!(offered.contains(&("text.heading", "")));
         let mut layout = Layout::open(&book()).unwrap();
         for (kind, _) in offered {
@@ -362,7 +370,7 @@ mod tests {
                 .unwrap();
             assert_eq!(row.component.unwrap().kind().id(), kind);
         }
-        assert_eq!(rows(&layout.editor).len(), 17);
+        assert_eq!(rows(&layout.editor).len(), 22);
         assert!(add(&mut layout.editor, "chart.radar").is_err());
     }
 

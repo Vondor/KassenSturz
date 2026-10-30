@@ -20,6 +20,9 @@ QtObject {
             item("income", "kpi.card", 0, 0, 3, 2),
             item("spending", "chart.donut", 3, 0, 6, 4),
             item("title", "text.heading", 0, 2, 3, 1),
+            item("line", "text.separator", 0, 3, 12, 1),
+            item("gaps", "notice.fetch_gap", 0, 4, 12, 1),
+            item("moved", "notice.transfers", 0, 5, 12, 1),
             Object.assign(item("future", "", 9, 0, 3, 2), {unknown: true, subject: ({})})
         ]
     })

@@ -54,6 +54,16 @@ pub enum ComponentType {
     /// `text.heading`: a line of text that names a section (D-312). It
     /// shows no data, so it is not in [`ComponentType::ALL`].
     Heading,
+    /// `text.separator`: a thin line that divides the page (D-334). It
+    /// shows no data.
+    Separator,
+    /// `notice.fetch_gap`: the warnings about accounts that were not
+    /// updated from the bank for a long time (D-328). The page's own notices
+    /// fill it, not a dataset.
+    FetchNotice,
+    /// `notice.transfers`: the note that money moved between the user's
+    /// own accounts is not counted (D-328). Filled by the page.
+    TransfersNote,
 }
 
 impl ComponentType {
@@ -73,7 +83,7 @@ impl ComponentType {
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
     /// the heading (D-312).
-    pub const LIBRARY: [Self; 10] = [
+    pub const LIBRARY: [Self; 13] = [
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -84,7 +94,19 @@ impl ComponentType {
         Self::ProgressBar,
         Self::TableRows,
         Self::Heading,
+        Self::Separator,
+        Self::FetchNotice,
+        Self::TransfersNote,
     ];
+
+    /// Whether the component shows no figures of the book: its document names
+    /// no dataset (D-312, D-328, D-334).
+    pub const fn shows_no_data(self) -> bool {
+        matches!(
+            self,
+            Self::Heading | Self::Separator | Self::FetchNotice | Self::TransfersNote
+        )
+    }
 
     /// The id documents and the AI use.
     pub const fn id(self) -> &'static str {
@@ -99,6 +121,9 @@ impl ComponentType {
             Self::ProgressBar => "progress.bar",
             Self::TableRows => "table.rows",
             Self::Heading => "text.heading",
+            Self::Separator => "text.separator",
+            Self::FetchNotice => "notice.fetch_gap",
+            Self::TransfersNote => "notice.transfers",
         }
     }
 
@@ -119,7 +144,7 @@ impl ComponentType {
             Self::ChartPie | Self::ChartDonut => "pie",
             Self::KpiCard | Self::ProgressBar => "kpi",
             Self::TableRows => "table",
-            Self::Heading => "text",
+            Self::Heading | Self::Separator | Self::FetchNotice | Self::TransfersNote => "text",
         }
     }
 
@@ -143,6 +168,7 @@ impl ComponentType {
             Self::ProgressBar => &PROGRESS_BAR,
             Self::TableRows => &TABLE,
             Self::Heading => &HEADING,
+            Self::Separator | Self::FetchNotice | Self::TransfersNote => &[],
         }
     }
 }
@@ -384,7 +410,7 @@ pub fn dataset_for(
     component: ComponentType,
     id: &str,
 ) -> Result<&'static DatasetInfo, ReportError> {
-    if component == ComponentType::Heading {
+    if component.shows_no_data() {
         return if id.is_empty() {
             Ok(&NO_DATASET)
         } else {

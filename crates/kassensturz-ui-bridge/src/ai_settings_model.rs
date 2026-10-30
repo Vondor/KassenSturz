@@ -131,6 +131,19 @@ pub mod qobject {
         #[cxx_name = "setSlowAnswer"]
         fn set_slow_answer(self: &AiSettings, word: &QString) -> bool;
 
+        /// Whether the chat shows the notice `word` (`overview`, `cut` or
+        /// `context`, D-324): on unless the user switched it off. True for
+        /// an unknown word (a notice is never hidden by mistake); false in
+        /// a build without AI.
+        #[qinvokable]
+        fn notice(self: &AiSettings, word: &QString) -> bool;
+
+        /// Shows or hides the notice `word`. Returns whether that was
+        /// saved; an unknown word is not.
+        #[qinvokable]
+        #[cxx_name = "setNotice"]
+        fn set_notice(self: &AiSettings, word: &QString, shown: bool) -> bool;
+
         /// Whether the user's own AI tools may prepare changes through
         /// `kassensturz-mcp`, which the user then confirms in the window
         /// (D-035, D-219). Off until the user turns it on.
@@ -634,6 +647,14 @@ impl qobject::AiSettings {
         keep_slow_answer(&crate::settings::Settings::user(), &word.to_string())
     }
 
+    fn notice(&self, word: &QString) -> bool {
+        notice_in(&crate::settings::Settings::user(), &word.to_string())
+    }
+
+    fn set_notice(&self, word: &QString, shown: bool) -> bool {
+        keep_notice(&crate::settings::Settings::user(), &word.to_string(), shown)
+    }
+
     fn allows(&self, key: &QString) -> bool {
         allows_in(&crate::settings::Settings::user(), &key.to_string())
     }
@@ -760,6 +781,53 @@ fn keep_slow_answer(_settings: &crate::settings::Settings, _word: &str) -> bool 
     false
 }
 
+/// The notices of the chat that only inform and that the user may switch
+/// off (D-324), by the word the screens use and the key it is kept under.
+/// Warnings about numbers the AI made up and every error are not here: they
+/// protect the user and are always shown.
+#[cfg(feature = "ai")]
+const NOTICES: [(&str, &str); 3] = [
+    ("overview", "NoticeOverview"),
+    ("cut", "NoticeCut"),
+    ("context", "NoticeContext"),
+];
+
+/// Whether `settings` show the notice `word`: on unless the user chose
+/// `false`, and for an unknown word, so that nothing is hidden by mistake.
+#[cfg(feature = "ai")]
+fn notice_in(settings: &crate::settings::Settings, word: &str) -> bool {
+    NOTICES
+        .iter()
+        .find(|(name, _)| *name == word)
+        .is_none_or(|(_, key)| settings.text(kassensturz_core::ai_switch::GROUP, key) != "false")
+}
+
+#[cfg(not(feature = "ai"))]
+fn notice_in(_settings: &crate::settings::Settings, _word: &str) -> bool {
+    false
+}
+
+/// Keeps whether the notice `word` is shown. Returns whether that was
+/// saved; an unknown word is not.
+#[cfg(feature = "ai")]
+fn keep_notice(settings: &crate::settings::Settings, word: &str, shown: bool) -> bool {
+    NOTICES
+        .iter()
+        .find(|(name, _)| *name == word)
+        .is_some_and(|(_, key)| {
+            settings.set_text(
+                kassensturz_core::ai_switch::GROUP,
+                key,
+                if shown { "true" } else { "false" },
+            )
+        })
+}
+
+#[cfg(not(feature = "ai"))]
+fn keep_notice(_settings: &crate::settings::Settings, _word: &str, _shown: bool) -> bool {
+    false
+}
+
 /// Whether `settings` turn the MCP write tools on; always false in a build
 /// without AI. AI itself is the other switch (D-013): the MCP server and
 /// the window read both.
@@ -785,6 +853,36 @@ fn keep_write_tools(settings: &crate::settings::Settings, on: bool) -> bool {
 #[cfg(not(feature = "ai"))]
 fn keep_write_tools(_settings: &crate::settings::Settings, _on: bool) -> bool {
     false
+}
+
+#[cfg(all(test, feature = "ai"))]
+mod notice_tests {
+    use super::*;
+    use crate::settings::Settings;
+    use crate::test_folder::TestFolder;
+
+    #[test]
+    fn notices_are_shown_until_the_user_switches_one_off() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        for word in ["overview", "cut", "context"] {
+            assert!(notice_in(&settings, word), "{word} is shown by default");
+        }
+        assert!(keep_notice(&settings, "overview", false));
+        assert!(!notice_in(&settings, "overview"));
+        assert!(notice_in(&settings, "cut"), "the others stay as they were");
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert!(text.contains("NoticeOverview=false"), "{text}");
+        assert!(keep_notice(&settings, "overview", true));
+        assert!(notice_in(&settings, "overview"));
+        // Only a plain "false" hides one, and a word that is none of the
+        // notices neither hides nor writes anything.
+        assert!(settings.set_text(kassensturz_core::ai_switch::GROUP, "NoticeCut", "odd"));
+        assert!(notice_in(&settings, "cut"));
+        assert!(!keep_notice(&settings, "numbers", false));
+        assert!(notice_in(&settings, "numbers"));
+    }
 }
 
 #[cfg(all(test, feature = "ai"))]

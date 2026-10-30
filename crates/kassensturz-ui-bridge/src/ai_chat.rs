@@ -175,6 +175,12 @@ pub fn answer_from(
     answer(&book, session, store, demo, typed, question, today, hooks)
 }
 
+/// Whether the chat starts in the overview because the last connection
+/// test found that the saved model does not call functions (D-324).
+fn found_no_functions(store: &Store, demo: Option<DemoModel>) -> bool {
+    demo.is_none() && store.test_found_no_functions()
+}
+
 /// As [`answer_from`], for a book already open.
 #[allow(clippy::too_many_arguments)]
 pub fn answer(
@@ -190,6 +196,10 @@ pub fn answer(
     // The one holder of keys (M5.7), so a key remembered until the app
     // closes is the key the chat uses.
     let key = with_keys(|keys| store.key_for(keys, typed))?;
+    // What the connection test found about the saved model (D-324). The
+    // fake model answers for itself: its saved result would be about
+    // another run of it.
+    session.set_test_found_no_functions(found_no_functions(store, demo));
     match demo {
         Some(model) => session.ask(
             book,
@@ -911,6 +921,28 @@ mod tests {
     fn session() -> ChatSession {
         ChatSession::new(BuildInfo::new("0.261025.0", "abc1234"))
             .with_permissions(Permissions::all())
+    }
+
+    #[test]
+    fn the_chat_follows_a_recorded_no_but_not_for_the_fake_model() {
+        let folder = TestFolder::new();
+        let store = store(&folder);
+        // The real test of the fake model records its answer (the seam).
+        store
+            .test_connection(None, Some(DemoModel::NoFunctions))
+            .unwrap();
+        assert!(
+            found_no_functions(&store, None),
+            "a recorded no is followed"
+        );
+        assert!(
+            !found_no_functions(&store, Some(DemoModel::Functions)),
+            "the fake model answers for itself"
+        );
+        store
+            .test_connection(None, Some(DemoModel::Functions))
+            .unwrap();
+        assert!(!found_no_functions(&store, None), "a recorded yes is not");
     }
 
     #[test]

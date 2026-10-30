@@ -21,6 +21,8 @@ ColumnLayout {
     id: item
 
     required property AiSwitch ai
+    // The AI settings, for which of the notices the user wants (D-324).
+    required property AiSettings settings
     // What the panel keeps for this message: its `kind` (`question`,
     // `answer`, `error`, `changes`, `changesDone`, `page` or `issue`) and the fields
     // of it.
@@ -103,15 +105,22 @@ ColumnLayout {
 
             Kirigami.InlineMessage {
                 Layout.fillWidth: true
+                type: Kirigami.MessageType.Information
+                visible: item.message.kind === "answer" && item.message.overview === true && item.settings.notice("overview")
+                text: item.i18nContext.i18nc("@info", "This answer comes from a short overview of your accounts, because this model does not call KassenSturz's functions. Questions the overview does not cover cannot be answered exactly. A model that supports “tools” or “function calling” works best.")
+            }
+
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
                 type: Kirigami.MessageType.Warning
-                visible: item.message.kind === "answer" && item.message.contextCut === true
+                visible: item.message.kind === "answer" && item.message.contextCut === true && item.settings.notice("context")
                 text: item.i18nContext.i18nc("@info", "The AI may not have seen all of this conversation: the provider counted far fewer tokens than KassenSturz sent. This happens with a local model whose context length is small. Raise the context length in the program that runs the model (16000 or more), or start a new chat.")
             }
 
             Kirigami.InlineMessage {
                 Layout.fillWidth: true
                 type: Kirigami.MessageType.Information
-                visible: item.message.kind === "answer" && item.message.cut === true
+                visible: item.message.kind === "answer" && item.message.cut === true && item.settings.notice("cut")
                 text: item.i18nContext.i18nc("@info", "The answer was cut off because it got too long. Ask about less at a time.")
             }
 

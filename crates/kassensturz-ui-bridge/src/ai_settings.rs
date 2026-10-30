@@ -338,6 +338,15 @@ impl Store {
             && self.put(CAPABILITY_CONTEXT_KEY, &context);
     }
 
+    /// Whether the last connection test of the saved address and model
+    /// found that the model does not call functions (D-324). False when
+    /// there is no result, or it says yes or does not know.
+    pub fn test_found_no_functions(&self) -> bool {
+        self.form()
+            .capability
+            .is_some_and(|capability| capability.functions == Some(false))
+    }
+
     /// The exact request the function test sends to the saved model, for
     /// the screen to show before it runs (D-204). Nothing is sent. Empty
     /// while no model is saved.

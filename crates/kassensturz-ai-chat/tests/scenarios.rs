@@ -617,6 +617,116 @@ fn a_model_without_functions_gets_the_overview() {
 }
 
 #[test]
+fn a_model_the_test_found_without_functions_starts_in_the_overview() {
+    // D-324: the connection test said the model did not call its test
+    // function, so no request offers functions and no refusal is needed.
+    let book = space_colony();
+    let (provider, script) = Script::provider(
+        on(),
+        vec![
+            says("Everyday Checking has 5531.90 EUR."),
+            says("Savings too."),
+        ],
+    );
+    let mut chat = session();
+    chat.set_test_found_no_functions(true);
+    let answer = chat
+        .ask(
+            &book,
+            &provider,
+            None,
+            "How much is on checking?",
+            TODAY,
+            &mut NoHooks,
+        )
+        .unwrap();
+    assert_eq!(answer.mode, Mode::Overview);
+    assert!(answer.unverified.is_empty(), "the overview's figures pass");
+    assert!(chat.log().contains(&LogEntry::Overview));
+    let seen = script.seen();
+    assert_eq!(seen.len(), 1, "one request, no refused one first");
+    assert!(seen[0].offered.is_empty());
+    assert!(seen[0].messages[0].content.contains(DATA_START));
+    assert!(seen[0].messages[0].content.contains("5531.90"));
+    // Only logged once, at the switch.
+    chat.ask(&book, &provider, None, "And savings?", TODAY, &mut NoHooks)
+        .unwrap();
+    let overviews = chat
+        .log()
+        .iter()
+        .filter(|entry| **entry == LogEntry::Overview)
+        .count();
+    assert_eq!(overviews, 1);
+}
+
+#[test]
+fn a_new_test_result_takes_the_chat_back_to_the_functions() {
+    let book = space_colony();
+    let (provider, script) = Script::provider(
+        on(),
+        vec![says("From the overview."), says("Now with functions.")],
+    );
+    let mut chat = session();
+    chat.set_test_found_no_functions(true);
+    chat.ask(&book, &provider, None, "One?", TODAY, &mut NoHooks)
+        .unwrap();
+    assert_eq!(chat.mode(), Mode::Overview);
+    // The user tested again and the model now calls functions.
+    chat.set_test_found_no_functions(false);
+    let answer = chat
+        .ask(&book, &provider, None, "Two?", TODAY, &mut NoHooks)
+        .unwrap();
+    assert_eq!(answer.mode, Mode::Functions);
+    assert!(!script.seen()[1].offered.is_empty());
+}
+
+#[test]
+fn what_happened_in_the_conversation_beats_what_the_test_found() {
+    // The provider took the functions in this conversation: a test that
+    // says otherwise does not move it, and a provider's refusal still is
+    // the error of D-190.
+    let book = hostile_book();
+    let (provider, script) = Script::provider(
+        on(),
+        vec![
+            calls(&[("c", "list_accounts", "{}")]),
+            says("Done."),
+            says("Again."),
+        ],
+    );
+    let mut chat = session();
+    chat.ask(&book, &provider, None, "Balances?", TODAY, &mut NoHooks)
+        .unwrap();
+    chat.set_test_found_no_functions(true);
+    let answer = chat
+        .ask(&book, &provider, None, "More?", TODAY, &mut NoHooks)
+        .unwrap();
+    assert_eq!(answer.mode, Mode::Functions);
+    assert!(!script.seen().last().unwrap().offered.is_empty());
+    // And a refusal by the provider is not undone by a "yes" from a test.
+    let refuse: common::Step = Box::new(|_, offered| {
+        if offered.is_empty() {
+            Ok(serde_json::json!({"choices": [{"finish_reason": "stop",
+                "message": {"content": "Overview answer."}}]})
+            .to_string())
+        } else {
+            Err(AiError::ProviderFailed { status: 400 })
+        }
+    });
+    let (refusing, _) = Script::provider(on(), vec![refuse]);
+    let mut other = session();
+    other
+        .ask(&book, &refusing, None, "Q?", TODAY, &mut NoHooks)
+        .unwrap();
+    other.set_test_found_no_functions(false);
+    assert_eq!(other.mode(), Mode::Overview);
+    other
+        .ask(&book, &refusing, None, "Q2?", TODAY, &mut NoHooks)
+        .ok();
+    assert_eq!(other.mode(), Mode::Overview, "the refusal still holds");
+}
+
+#[test]
 fn a_refusal_after_functions_worked_is_an_error() {
     let book = hostile_book();
     let (provider, _) = Script::provider(

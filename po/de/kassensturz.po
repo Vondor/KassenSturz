@@ -1161,11 +1161,11 @@ msgstr "Neue Diagramme"
 msgctxt "@info"
 msgid ""
 "The AI chose what this chart shows. The figures are worked out by "
-"KassenSturz from your book, not by the AI. It is saved under Statistics only"
-" when you confirm, and Undo removes it again."
+"KassenSturz from your book, not by the AI. It is saved in the Statistic "
+"Builder only when you confirm, and Undo removes it again."
 msgstr ""
 "Die KI hat gewählt, was dieses Diagramm zeigt. Die Zahlen berechnet "
-"KassenSturz aus Ihrem Buch, nicht die KI. Es wird nur unter Statistik "
+"KassenSturz aus Ihrem Buch, nicht die KI. Es wird nur im Statistik-Baukasten "
 "gespeichert, wenn Sie bestätigen, und Rückgängig entfernt es wieder."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1169
@@ -7398,12 +7398,12 @@ msgstr ""
 msgctxt "@info"
 msgid ""
 "This view couldn't be saved or opened because it isn't one KassenSturz can "
-"use. Nothing was changed. Make it again in Statistics, and choose a short "
-"name."
+"use. Nothing was changed. Make it again in the Statistic Builder, and choose "
+"a short name."
 msgstr ""
 "Diese Ansicht konnte nicht gespeichert oder geöffnet werden, weil "
 "KassenSturz sie nicht verwenden kann. Es wurde nichts geändert. Erstellen "
-"Sie sie unter Statistik noch einmal und wählen Sie einen kurzen Namen."
+"Sie sie im Statistik-Baukasten noch einmal und wählen Sie einen kurzen Namen."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:283
 #, kde-format
@@ -9653,8 +9653,8 @@ msgstr "Regeln"
 #: crates/kassensturz-ui-bridge/qml/Main.qml:733
 #, kde-format
 msgctxt "@action:inmenu a screen"
-msgid "Statistics"
-msgstr "Statistik"
+msgid "Statistic Builder"
+msgstr "Statistik-Baukasten"
 
 #: crates/kassensturz-ui-bridge/qml/Main.qml:738
 #, kde-format
@@ -12138,8 +12138,8 @@ msgstr "Projektseite auf GitHub"
 #: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:111
 #, kde-format
 msgctxt "@title"
-msgid "Statistics"
-msgstr "Statistik"
+msgid "Statistic Builder"
+msgstr "Statistik-Baukasten"
 
 #: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:143
 #, kde-format
@@ -12587,18 +12587,18 @@ msgstr ""
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml
 #, kde-format
-msgctxt "@action:button add a view saved in Statistics to the layout"
+msgctxt "@action:button add a view saved in the Statistic Builder to the layout"
 msgid "Add a saved view"
 msgstr "Gespeicherte Ansicht hinzufügen"
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Adds a copy of a view you saved under Statistics"
-msgstr "Fügt eine Kopie einer Ansicht hinzu, die Sie unter Statistik gespeichert haben"
+msgid "Adds a copy of a view you saved in the Statistic Builder"
+msgstr "Fügt eine Kopie einer Ansicht hinzu, die Sie im Statistik-Baukasten gespeichert haben"
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Nothing saved yet. Save a view under Statistics first."
-msgstr "Noch nichts gespeichert. Speichern Sie zuerst unter Statistik eine Ansicht."
+msgid "Nothing saved yet. Save a view in the Statistic Builder first."
+msgstr "Noch nichts gespeichert. Speichern Sie zuerst im Statistik-Baukasten eine Ansicht."

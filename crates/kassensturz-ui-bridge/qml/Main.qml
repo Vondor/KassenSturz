@@ -730,7 +730,7 @@ Kirigami.ApplicationWindow {
             },
             Kirigami.Action {
                 icon.name: "office-chart-bar"
-                text: root.i18nContext.i18nc("@action:inmenu a screen", "Statistics")
+                text: root.i18nContext.i18nc("@action:inmenu a screen", "Statistic Builder")
                 onTriggered: root.showScreen("statistics")
             },
             Kirigami.Action {

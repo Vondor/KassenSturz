@@ -222,10 +222,10 @@ Kirigami.ScrollablePage {
         Kirigami.Action {
             visible: page.layoutEditing
             icon.name: "bookmark-new"
-            text: page.i18nContext.i18nc("@action:button add a view saved in Statistics to the layout", "Add a saved view")
+            text: page.i18nContext.i18nc("@action:button add a view saved in the Statistic Builder to the layout", "Add a saved view")
             tooltip: page.savedList.length > 0
-                ? page.i18nContext.i18nc("@info:tooltip", "Adds a copy of a view you saved under Statistics")
-                : page.i18nContext.i18nc("@info:tooltip", "Nothing saved yet. Save a view under Statistics first.")
+                ? page.i18nContext.i18nc("@info:tooltip", "Adds a copy of a view you saved in the Statistic Builder")
+                : page.i18nContext.i18nc("@info:tooltip", "Nothing saved yet. Save a view in the Statistic Builder first.")
             enabled: page.savedList.length > 0
             onTriggered: savedMenu.popup()
         },

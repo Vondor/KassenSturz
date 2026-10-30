@@ -307,6 +307,7 @@ mod tests {
             ReportError::FormulaNoValue { position: 6 },
             ReportError::FormulaTooLarge { position: 1 },
             ReportError::FormulaTooBig { limit: "depth" },
+            ReportError::FormulaTarget { reason: "zero" },
             ReportError::Store(StoreError::AmountOverflow),
         ] {
             let report = error.report();

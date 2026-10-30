@@ -1116,6 +1116,7 @@ Kirigami.ApplicationWindow {
         OverviewPage {
             overview: bookOverview
             dashboard: dashboardLayout
+            groupsSource: categoryGroups
             onAddAccountClicked: root.addAccount(false)
             onAddTransactionClicked: root.addTransaction(false, "")
             onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })
@@ -1127,6 +1128,7 @@ Kirigami.ApplicationWindow {
 
         StatisticsPage {
             saved: savedViews
+            groupsSource: categoryGroups
         }
     }
 

@@ -30,6 +30,8 @@ pub struct Field {
     pub word: String,
     /// The words of a choice, in the order they are offered.
     pub words: Vec<&'static str>,
+    /// The IDs of a list of groups or categories; empty for the other kinds.
+    pub ids: Vec<String>,
 }
 
 /// The fields of a component, in the order of its schema. A choice with
@@ -51,27 +53,35 @@ pub fn fields(component: &Component) -> Vec<Field> {
             if property.key == "period" {
                 return None;
             }
-            // My groups are chosen on their own page (M6b.5), so the grouping
-            // that shows them is not offered here until a group can be picked.
-            let words: Vec<&'static str> = property
-                .words(component.dataset())
-                .iter()
-                .copied()
-                .filter(|&word| word != kassensturz_report::GROUPS_GROUPING)
-                .collect();
+            // A list of IDs is offered only where it is used: the groups of a
+            // chart that groups by My groups, the series of a chart over time.
+            if let (Kind::Ids, Setting::Ids(_)) = (&property.kind, setting) {
+                let wanted = match property.key {
+                    "groups" => matches!(
+                        component.get("grouping"),
+                        Some(Setting::Word(word)) if word == kassensturz_report::GROUPS_GROUPING
+                    ),
+                    _ => component.dataset().id == kassensturz_report::CATEGORY_OVER_TIME,
+                };
+                if !wanted {
+                    return None;
+                }
+            }
+            let words: Vec<&'static str> = property.words(component.dataset()).to_vec();
             let kind = match property.kind {
                 Kind::Text => "text",
                 Kind::Flag { .. } => "flag",
                 Kind::Choice(_) | Kind::Grouping if words.len() > 1 => "choice",
-                // The lists of IDs are chosen on the My groups page, not here.
-                Kind::Choice(_) | Kind::Grouping | Kind::Ids => return None,
+                Kind::Ids => "ids",
+                Kind::Choice(_) | Kind::Grouping => return None,
             };
             let (mut text, mut flag, mut word) = (String::new(), false, String::new());
+            let mut chosen = Vec::new();
             match setting {
                 Setting::Text(value) => text.clone_from(value),
                 Setting::Flag(value) => flag = *value,
                 Setting::Word(value) => word.clone_from(value),
-                Setting::Ids(_) => {}
+                Setting::Ids(ids) => chosen.clone_from(ids),
             }
             Some(Field {
                 key: property.key,
@@ -81,6 +91,7 @@ pub fn fields(component: &Component) -> Vec<Field> {
                 flag,
                 word,
                 words,
+                ids: chosen,
             })
         })
         .collect()

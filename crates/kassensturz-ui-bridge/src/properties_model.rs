@@ -72,6 +72,12 @@ pub mod qobject {
         #[cxx_name = "setFlag"]
         fn set_flag(self: Pin<&mut ComponentProperties>, key: &QString, value: bool);
 
+        /// Sets a list of group or category IDs, separated by commas
+        /// (empty for none).
+        #[qinvokable]
+        #[cxx_name = "setIds"]
+        fn set_ids(self: Pin<&mut ComponentProperties>, key: &QString, value: &QString);
+
         /// Sets a property that is one word of a list.
         #[qinvokable]
         #[cxx_name = "setWord"]
@@ -109,6 +115,7 @@ fn field_object(field: &Field) -> QVariant {
         ("flag", QVariant::from(&field.flag)),
         ("word", text(&field.word)),
         ("words", list(field.words.iter().map(|word| text(word)))),
+        ("ids", list(field.ids.iter().map(|id| text(id)))),
     ])
 }
 
@@ -237,6 +244,17 @@ impl qobject::ComponentProperties {
         self.change(|component| component.set(&key, Setting::Flag(value)));
     }
 
+    fn set_ids(self: Pin<&mut Self>, key: &QString, value: &QString) {
+        let key = key.to_string();
+        let ids = value
+            .to_string()
+            .split(',')
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned)
+            .collect();
+        self.change(|component| component.set(&key, Setting::Ids(ids)));
+    }
+
     fn set_word(self: Pin<&mut Self>, key: &QString, value: &QString) {
         let (key, value) = (key.to_string(), value.to_string());
         self.change(|component| component.set(&key, Setting::Word(value)));
@@ -281,7 +299,9 @@ mod tests {
         for field in &fields {
             assert_eq!(
                 keys(field),
-                ["flag", "key", "kind", "place", "text", "word", "words"]
+                [
+                    "flag", "ids", "key", "kind", "place", "text", "word", "words"
+                ]
             );
         }
         assert_eq!(text_of(&fields[0], "kind"), "choice");
@@ -291,7 +311,7 @@ mod tests {
             .iter()
             .map(|w| w.value::<QString>().expect("text").to_string())
             .collect();
-        assert_eq!(words, ["category", "top_level_category"]);
+        assert_eq!(words, ["category", "top_level_category", "groups"]);
         assert_eq!(text_of(&fields[1], "kind"), "text");
         assert_eq!(text_of(&fields[2], "kind"), "flag");
         assert!(flag_of(&fields[2], "flag"));
@@ -314,7 +334,8 @@ mod tests {
     }
 
     #[test]
-    fn the_preview_carries_groups_series_and_the_hidden_flag_and_the_panel_does_not_offer_them() {
+    fn the_preview_carries_groups_series_and_the_hidden_flag_and_the_panel_offers_the_lists_where_they_are_used()
+     {
         let mut pie = component(ComponentType::ChartPie, "spending_by_category");
         pie.set("grouping", Setting::Word("groups".into())).unwrap();
         pie.set("groups", Setting::Ids(vec!["a".into(), "b".into()]))
@@ -329,11 +350,19 @@ mod tests {
             .iter()
             .map(|f| text_of(f, "key"))
             .collect();
-        // Lists of IDs have no field; the grouping offers no word for groups
-        // until a group can be picked.
-        assert_eq!(order, ["grouping", "title", "legend", "show_hidden"]);
-        let grouping = &list_of(&view, "fields")[0];
-        assert_eq!(list_of(grouping, "words").len(), 2);
+        // The list of groups is a field while the chart groups by them.
+        assert_eq!(
+            order,
+            ["grouping", "groups", "title", "legend", "show_hidden"]
+        );
+        let fields = list_of(&view, "fields");
+        assert_eq!(text_of(&fields[1], "kind"), "ids");
+        let chosen: Vec<String> = list_of(&fields[1], "ids")
+            .iter()
+            .map(|id| id.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(chosen, ["a", "b"]);
+        assert_eq!(list_of(&fields[0], "words").len(), 3);
         let preview = object_of(&view, "preview");
         assert_eq!(text_of(&preview, "chosen"), "a,b");
         assert!(flag_of(&preview, "showHidden"));
@@ -479,5 +508,24 @@ mod tests {
             text_of(&object_of(&view, "error"), "reason"),
             "dataset-not-suited"
         );
+    }
+
+    #[test]
+    fn the_series_of_a_chart_over_time_are_a_field_with_their_ids() {
+        let mut line = component(
+            ComponentType::ChartLine,
+            kassensturz_report::CATEGORY_OVER_TIME,
+        );
+        line.set("series", Setting::Ids(vec!["x".into(), "y".into()]))
+            .unwrap();
+        let fields = properties::fields(&line);
+        let series = fields
+            .iter()
+            .find(|field| field.key == "series")
+            .expect("a field for the series");
+        assert_eq!(series.kind, "ids");
+        assert_eq!(series.ids, ["x", "y"]);
+        // The groups of a spending chart are not offered here.
+        assert!(!fields.iter().any(|field| field.key == "groups"));
     }
 }

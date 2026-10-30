@@ -27,6 +27,8 @@ Kirigami.ScrollablePage {
 
     required property BookOverview overview
     required property DashboardLayout dashboard
+    // A `CategoryGroups`, for picking My groups and categories in the panel.
+    property var groupsSource: null
     readonly property var view: overview.view ?? ({})
     readonly property var sections: view.sections ?? []
     readonly property var totals: view.totals ?? []
@@ -286,6 +288,7 @@ Kirigami.ScrollablePage {
                 sourceComponent: PropertiesPanel {
                     model: panelModel
                     withPeriod: true
+                    choices: page.groupsSource
                 }
             }
 

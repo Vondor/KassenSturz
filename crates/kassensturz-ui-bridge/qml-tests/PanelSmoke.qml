@@ -39,6 +39,7 @@ Window {
             fields: [
                 {key: "grouping", place: "params", kind: "choice", text: "", flag: false,
                  word: "category", words: ["category", "top_level_category"]},
+                {key: "groups", place: "params", kind: "ids", text: "", flag: false, word: "", words: [], ids: ["g1"]},
                 {key: "title", place: "props", kind: "text", text: "Where it went", flag: false, word: "", words: []},
                 {key: "legend", place: "props", kind: "flag", text: "", flag: true, word: "", words: []}
             ]
@@ -55,6 +56,12 @@ Window {
 
         anchors.fill: parent
         model: fake
+        choices: QtObject {
+            property var view: ({
+                groups: [{id: "g1", name: "Fixed", income: false}, {id: "g2", name: "Pay", income: true}],
+                categories: [{id: "c1", name: "Rent", path: "Home > Rent", income: false}]
+            })
+        }
     }
 
     function find(item, type, out) {
@@ -74,7 +81,7 @@ Window {
         onTriggered: {
             const boxes = window.find(panel, "ComboBox", []);
             const texts = window.find(panel, "TextField", []).filter(field => field.maximumLength === 200);
-            const flags = window.find(panel, "CheckBox", []);
+            const flags = window.find(panel, "CheckBox", []).filter(box => box.text === "Show the legend");
             // One choice (the group-by), one title, one legend. The dataset box
             // is hidden: this chart can show only one dataset.
             const shown = boxes.filter(box => box.visible);
@@ -82,6 +89,13 @@ Window {
             window.check(texts.length === 1 && texts[0].text === "Where it went", "the title field");
             window.check(flags.length === 1 && flags[0].checked, "the legend box is ticked");
             window.check(shown[0].count === 2 && shown[0].currentIndex === 0, "two words, the first chosen");
+
+            // The groups of money spent can be ticked; the series also take
+            // categories and groups of money received.
+            const groups = panel.idOptions("groups");
+            window.check(groups.length === 1 && groups[0].id === "g1", "only the groups of money spent: " + JSON.stringify(groups));
+            const series = panel.idOptions("series");
+            window.check(series.length === 3 && series[2].id === "c1" && series[2].name === "Home > Rent", "groups then categories: " + JSON.stringify(series));
 
             shown[0].activated(1);
             texts[0].text = "New title";

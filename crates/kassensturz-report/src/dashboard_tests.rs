@@ -540,6 +540,30 @@ fn the_separator_and_the_two_notices_show_no_data_and_survive_a_save() {
         assert_eq!(size.rows, 1);
         assert!(kind.smallest_size().cols <= size.cols);
     }
+    // The period box shows no data either, and has a title and a period of
+    // its own, which is never `page` (D-333).
+    let boxed = Component::new(ComponentType::PeriodBox, "").unwrap();
+    assert!(ComponentType::PeriodBox.shows_no_data());
+    assert_eq!(
+        boxed.get("period"),
+        Some(&Setting::Word("this-month".into()))
+    );
+    assert!(
+        boxed
+            .clone()
+            .set("period", Setting::Word("page".into()))
+            .is_err()
+    );
+    assert!(
+        boxed
+            .clone()
+            .set("period", Setting::Word("last-year".into()))
+            .is_ok()
+    );
+    assert_eq!(
+        Component::from_json(&boxed.to_value().to_string()).unwrap(),
+        boxed
+    );
     // Placed on a grid next to the others, they pass the same checks.
     let mut editor = Editor::new(Document::default_overview().unwrap()).unwrap();
     editor

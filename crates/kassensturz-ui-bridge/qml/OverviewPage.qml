@@ -220,6 +220,7 @@ Kirigami.ScrollablePage {
             LibraryAction { kind: "text.separator"; onChosen: kind => grid.add(kind) }
             LibraryAction { kind: "notice.fetch_gap"; onChosen: kind => grid.add(kind) }
             LibraryAction { kind: "notice.transfers"; onChosen: kind => grid.add(kind) }
+            LibraryAction { kind: "group.period"; onChosen: kind => grid.add(kind) }
         },
         Kirigami.Action {
             visible: page.layoutEditing
@@ -334,7 +335,7 @@ Kirigami.ScrollablePage {
                 sourceComponent: PropertiesPanel {
                     model: panelModel
                     withPeriod: true
-                    period: grid.periodOf(panelModel.view.period?.word)
+                    period: grid.periodOf(panelModel.view.period?.word, grid.byId[page.editedId])
                     choices: page.groupsSource
                 }
             }
@@ -344,7 +345,7 @@ Kirigami.ScrollablePage {
                 active: propertiesSheet.opened && panelModel.view.preview !== undefined
                 sourceComponent: ComponentPreview {
                     subject: panelModel.view
-                    period: grid.periodOf(panelModel.view.period?.word)
+                    period: grid.periodOf(panelModel.view.period?.word, grid.byId[page.editedId])
                 }
             }
         }

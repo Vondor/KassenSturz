@@ -64,6 +64,10 @@ pub enum ComponentType {
     /// `notice.transfers`: the note that money moved between the user's
     /// own accounts is not counted (D-328). Filled by the page.
     TransfersNote,
+    /// `group.period`: a framed area with a period of its own (D-333). The
+    /// widgets that lie completely inside it and have no period of their
+    /// own show its period. It shows no data.
+    PeriodBox,
 }
 
 impl ComponentType {
@@ -83,7 +87,7 @@ impl ComponentType {
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
     /// the heading (D-312).
-    pub const LIBRARY: [Self; 13] = [
+    pub const LIBRARY: [Self; 14] = [
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -97,6 +101,7 @@ impl ComponentType {
         Self::Separator,
         Self::FetchNotice,
         Self::TransfersNote,
+        Self::PeriodBox,
     ];
 
     /// Whether the component shows no figures of the book: its document names
@@ -104,7 +109,11 @@ impl ComponentType {
     pub const fn shows_no_data(self) -> bool {
         matches!(
             self,
-            Self::Heading | Self::Separator | Self::FetchNotice | Self::TransfersNote
+            Self::Heading
+                | Self::Separator
+                | Self::FetchNotice
+                | Self::TransfersNote
+                | Self::PeriodBox
         )
     }
 
@@ -124,6 +133,7 @@ impl ComponentType {
             Self::Separator => "text.separator",
             Self::FetchNotice => "notice.fetch_gap",
             Self::TransfersNote => "notice.transfers",
+            Self::PeriodBox => "group.period",
         }
     }
 
@@ -144,7 +154,11 @@ impl ComponentType {
             Self::ChartPie | Self::ChartDonut => "pie",
             Self::KpiCard | Self::ProgressBar => "kpi",
             Self::TableRows => "table",
-            Self::Heading | Self::Separator | Self::FetchNotice | Self::TransfersNote => "text",
+            Self::Heading
+            | Self::Separator
+            | Self::FetchNotice
+            | Self::TransfersNote
+            | Self::PeriodBox => "text",
         }
     }
 
@@ -169,6 +183,7 @@ impl ComponentType {
             Self::TableRows => &TABLE,
             Self::Heading => &HEADING,
             Self::Separator | Self::FetchNotice | Self::TransfersNote => &[],
+            Self::PeriodBox => &PERIOD_BOX,
         }
     }
 }
@@ -305,6 +320,19 @@ const PERIOD: Property = Property {
         "last-year",
     ]),
 };
+/// The period of a period box (D-333): one of the fixed periods, never
+/// `page`, because a box that followed the page would change nothing.
+const BOX_PERIOD: Property = Property {
+    key: "period",
+    place: Place::Props,
+    kind: Kind::Choice(&[
+        "this-month",
+        "last-month",
+        "last-12-months",
+        "this-year",
+        "last-year",
+    ]),
+};
 const COMPARE: Property = Property {
     key: "compare",
     place: Place::Params,
@@ -321,6 +349,7 @@ const KPI_CARD: [Property; 5] = [MEASURE, COMPARE, FORMULA, TITLE, PERIOD];
 const PROGRESS_BAR: [Property; 5] = [COMPARE, FORMULA, TARGET, TITLE, PERIOD];
 const TABLE: [Property; 5] = [GROUPING, GROUPS, TITLE, SHOW_HIDDEN, PERIOD];
 const HEADING: [Property; 1] = [TEXT];
+const PERIOD_BOX: [Property; 2] = [TITLE, BOX_PERIOD];
 
 fn invalid(reason: &'static str, path: String) -> ReportError {
     ReportError::DocumentInvalid { reason, path }

@@ -24,16 +24,23 @@ fn frame(col: u32, row: u32, cols: u32, rows: u32) -> Frame {
 
 /// A dashboard document as the book would keep it, read the real way.
 fn dashboard(components: &[(&str, &str, Frame)]) -> Document {
+    try_dashboard(components).unwrap()
+}
+
+fn try_dashboard(components: &[(&str, &str, Frame)]) -> Result<Document, ReportError> {
     let components: Vec<_> = components
         .iter()
         .map(|(id, kind, frame)| {
             let kind = ComponentType::from_id(kind).unwrap();
-            json!({
+            let mut value = json!({
                 "id": id,
                 "type": kind.id(),
-                "dataset": kind.datasets().next().unwrap().id,
                 "frame": {"col": frame.col, "row": frame.row, "cols": frame.cols, "rows": frame.rows},
-            })
+            });
+            if !kind.shows_no_data() {
+                value["dataset"] = kind.datasets().next().unwrap().id.into();
+            }
+            value
         })
         .collect();
     let text = json!({
@@ -41,7 +48,7 @@ fn dashboard(components: &[(&str, &str, Frame)]) -> Document {
         "components": components,
     })
     .to_string();
-    Document::read(&text).unwrap()
+    Document::read(&text)
 }
 
 fn editor(components: &[(&str, &str, Frame)]) -> Editor {
@@ -246,6 +253,68 @@ fn add_takes_the_first_free_place_in_reading_order_or_the_row_below_everything()
     assert_eq!(frame_of(&editor, &table), frame(0, 4, 6, 4));
     assert_eq!(editor.document().entries.len(), 5);
     assert_eq!(editor.next_undo(), Some(Edit::Add));
+}
+
+#[test]
+fn a_period_box_lies_under_widgets_but_boxes_and_widgets_never_overlap_their_own_kind() {
+    // A box over two widgets is a valid layout.
+    let mut editor = editor(&[
+        ("box", "group.period", frame(0, 0, 12, 5)),
+        ("a", "chart.pie", frame(0, 0, 6, 4)),
+        ("b", "kpi.card", frame(6, 0, 3, 2)),
+    ]);
+    assert_eq!(frame_of(&editor, "box"), frame(0, 0, 12, 5));
+    // Two widgets still don't overlap, nor two boxes.
+    assert!(
+        try_dashboard(&[
+            ("a", "chart.pie", frame(0, 0, 6, 4)),
+            ("b", "chart.bar", frame(5, 0, 6, 4)),
+        ])
+        .is_err()
+    );
+    assert!(
+        try_dashboard(&[
+            ("x", "group.period", frame(0, 0, 6, 4)),
+            ("y", "group.period", frame(5, 2, 6, 4)),
+        ])
+        .is_err()
+    );
+    // A widget added to a box's area takes the first free place among
+    // widgets, so it can land inside the box; a box ignores widgets.
+    let card = editor.add(component(ComponentType::KpiCard)).unwrap();
+    assert_eq!(frame_of(&editor, &card), frame(9, 0, 3, 2));
+    let second = editor
+        .add(Component::new(ComponentType::PeriodBox, "").unwrap())
+        .unwrap();
+    assert_eq!(frame_of(&editor, &second), frame(0, 5, 12, 5));
+    // Moving a widget over a box pushes no one.
+    editor.move_to("b", 0, 1).unwrap_or(false);
+    assert_eq!(frame_of(&editor, "box"), frame(0, 0, 12, 5));
+}
+
+#[test]
+fn moving_a_period_box_takes_the_widgets_inside_it_along() {
+    let mut editor = editor(&[
+        ("box", "group.period", frame(0, 1, 6, 4)),
+        ("in", "kpi.card", frame(1, 2, 3, 2)),
+        ("half", "kpi.card", frame(5, 2, 3, 2)),
+        ("out", "kpi.card", frame(9, 1, 3, 2)),
+    ]);
+    assert!(editor.move_to("box", 3, 4).unwrap());
+    assert_eq!(frame_of(&editor, "box"), frame(3, 4, 6, 4));
+    // Inside: shifted by the same cells; the one that only touched the box
+    // and the one outside stay.
+    assert_eq!(frame_of(&editor, "in"), frame(4, 5, 3, 2));
+    assert_eq!(frame_of(&editor, "half"), frame(5, 2, 3, 2));
+    assert_eq!(frame_of(&editor, "out"), frame(9, 1, 3, 2));
+    assert_eq!(editor.next_undo(), Some(Edit::Move));
+    // One undo takes the box and what moved with it back.
+    assert_eq!(editor.undo(), Some(Edit::Move));
+    assert_eq!(frame_of(&editor, "box"), frame(0, 1, 6, 4));
+    assert_eq!(frame_of(&editor, "in"), frame(1, 2, 3, 2));
+    // Moving a widget alone never moves a box.
+    editor.move_to("in", 2, 2).unwrap();
+    assert_eq!(frame_of(&editor, "box"), frame(0, 1, 6, 4));
 }
 
 #[test]
@@ -611,7 +680,8 @@ proptest! {
             .collect();
         let before = frames.clone();
         let first = [first % frames.len()];
-        grid::push_down(&mut frames, &first).unwrap();
+        let boxes = vec![false; frames.len()];
+        grid::push_down(&mut frames, &boxes, &first).unwrap();
         prop_assert_eq!(frames[first[0]], before[first[0]]);
         for (index, (new, old)) in frames.iter().zip(&before).enumerate() {
             prop_assert_eq!((new.col, new.cols, new.rows), (old.col, old.cols, old.rows));

@@ -16,8 +16,10 @@ use std::collections::{HashSet, VecDeque};
 
 use kassensturz_core::ViewKind;
 
-use crate::grid::{self, COLUMNS, LAST_ROW, MAX_ROWS, Size, first_free, push_down, refused};
-use crate::{Component, Document, Entry, Frame, Item, MAX_COMPONENTS, ReportError};
+use crate::grid::{
+    self, COLUMNS, LAST_ROW, MAX_ROWS, Size, first_free, is_box, push_down, refused,
+};
+use crate::{Component, ComponentType, Document, Entry, Frame, Item, MAX_COMPONENTS, ReportError};
 
 /// The most edits the editor can take back (D-288).
 pub const MAX_UNDO: usize = 200;
@@ -120,7 +122,8 @@ fn settle(entries: &mut [Entry], first: &[usize]) -> Result<(), ReportError> {
     let mut frames: Vec<Frame> = (0..entries.len())
         .map(|index| frame_at(entries, index))
         .collect::<Result<_, _>>()?;
-    push_down(&mut frames, first)?;
+    let boxes: Vec<bool> = entries.iter().map(|entry| is_box(&entry.item)).collect();
+    push_down(&mut frames, &boxes, first)?;
     for (entry, frame) in entries.iter_mut().zip(frames) {
         entry.frame = Some(frame);
     }
@@ -242,8 +245,12 @@ impl Editor {
         let id = new_id(&self.document.entries);
         let new = id.clone();
         self.apply(Edit::Add, |entries| {
-            let frames: Vec<Frame> = entries.iter().filter_map(|entry| entry.frame).collect();
-            let frame = first_free(&frames, component.kind().default_size())?;
+            let frames: Vec<(Frame, bool)> = entries
+                .iter()
+                .filter_map(|entry| entry.frame.map(|frame| (frame, is_box(&entry.item))))
+                .collect();
+            let layer = component.kind() == ComponentType::PeriodBox;
+            let frame = first_free(&frames, layer, component.kind().default_size())?;
             entries.push(Entry {
                 id: new,
                 item: Item::Component(component),
@@ -266,7 +273,32 @@ impl Editor {
                 row: cells(row, 0, LAST_ROW),
                 ..frame
             };
-            place(entries, index, moved)
+            let mut first = vec![index];
+            // A period box takes the widgets that lie inside it along (D-333).
+            if is_box(&entries[index].item) {
+                let (dcol, drow) = (
+                    i64::from(moved.col) - i64::from(frame.col),
+                    i64::from(moved.row) - i64::from(frame.row),
+                );
+                for other in 0..entries.len() {
+                    let inner = frame_at(entries, other)?;
+                    if other == index || is_box(&entries[other].item) || !frame.contains(inner) {
+                        continue;
+                    }
+                    let row = i64::from(inner.row) + drow;
+                    if row > i64::from(LAST_ROW) {
+                        return Err(refused("no-room"));
+                    }
+                    entries[other].frame = Some(Frame {
+                        col: u32::try_from(i64::from(inner.col) + dcol).unwrap_or(0),
+                        row: u32::try_from(row).unwrap_or(0),
+                        ..inner
+                    });
+                    first.push(other);
+                }
+            }
+            entries[index].frame = Some(moved);
+            settle(entries, &first)
         })
     }
 
@@ -330,10 +362,12 @@ impl Editor {
                 col: frame.right(),
                 ..frame
             };
+            let layer = is_box(&entries[index].item);
             let fits_right = right.right() <= COLUMNS
-                && !entries
-                    .iter()
-                    .any(|entry| entry.frame.is_some_and(|other| other.overlaps(right)));
+                && !entries.iter().any(|entry| {
+                    is_box(&entry.item) == layer
+                        && entry.frame.is_some_and(|other| other.overlaps(right))
+                });
             let item = entries[index].item.clone();
             entries.push(Entry {
                 id: new,
@@ -403,7 +437,10 @@ impl Editor {
     pub fn move_earlier(&mut self, id: &str) -> Result<bool, ReportError> {
         self.apply(Edit::Move, |entries| {
             let index = index_of(entries, id)?;
-            let order = grid::reading_order(entries);
+            let layer = is_box(&entries[index].item);
+            let mut order = grid::reading_order(entries);
+            // Boxes and widgets are ordered among their own kind (D-333).
+            order.retain(|&i| is_box(&entries[i].item) == layer);
             let at = order.iter().position(|&i| i == index).unwrap_or(0);
             let Some(&neighbour) = at.checked_sub(1).and_then(|at| order.get(at)) else {
                 return Ok(());
@@ -444,7 +481,9 @@ impl Editor {
     pub fn move_later(&mut self, id: &str) -> Result<bool, ReportError> {
         let entries = &self.document.entries;
         let index = index_of(entries, id)?;
-        let order = grid::reading_order(entries);
+        let layer = is_box(&entries[index].item);
+        let mut order = grid::reading_order(entries);
+        order.retain(|&i| is_box(&entries[i].item) == layer);
         let at = order.iter().position(|&i| i == index).unwrap_or(0);
         match order.get(at + 1) {
             Some(&after) => {

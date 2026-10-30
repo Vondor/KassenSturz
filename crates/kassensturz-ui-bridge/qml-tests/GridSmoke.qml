@@ -70,8 +70,8 @@ Kirigami.ApplicationWindow {
         onTriggered: {
             switch (window.step++) {
             case 0: {
-                window.check(grid.items.length === 7, "seven components are given: " + grid.items.length);
-                window.check(grid.ids.length === 7, "one item for each");
+                window.check(grid.items.length === 10, "ten components are given: " + grid.items.length);
+                window.check(grid.ids.length === 10, "one item for each");
                 const income = grid.itemFor("income");
                 const spending = grid.itemFor("spending");
                 window.check(income !== null && spending !== null, "the items exist");
@@ -89,6 +89,11 @@ Kirigami.ApplicationWindow {
                 grid.pageView = {fetchGaps: [{days: 20, account: "Checking", lastFetched: "2026-10-01", accountId: "a1"}], transfers: 2};
                 window.check(grid.itemFor("line").bare && grid.itemFor("gaps").bare && grid.itemFor("moved").bare, "the line and the notices have no card in view mode");
                 window.check(!grid.itemFor("income").bare, "a figure keeps its card");
+                // A widget inside a period box takes the box's period unless
+                // it has one of its own; one outside the box follows the page.
+                window.check(grid.periodFor(grid.byId["inner"]) === "this-year", "a widget in a period box takes its period: " + grid.periodFor(grid.byId["inner"]));
+                window.check(grid.periodFor(grid.byId["income"]) === "2026-09", "a widget outside every box follows the page");
+                window.check(grid.itemFor("zone").isBox && grid.itemFor("zone").z < grid.itemFor("inner").z, "the box lies under its widgets");
                 window.check(!grid.itemFor("gaps").hasProblem && !grid.itemFor("moved").hasProblem && !grid.itemFor("line").hasProblem, "the notices are not problems");
                 window.check(grid.periodFor(grid.items[0]) === "2026-09", "a component on the page's period asks for the page's month: " + grid.periodFor(grid.items[0]));
                 dashboard.edit();
@@ -96,7 +101,7 @@ Kirigami.ApplicationWindow {
             }
             case 1: {
                 window.check(grid.editing, "edit mode follows the layout");
-                window.check(grid.implicitHeight > grid.frameHeight(6), "edit mode leaves rows below the lowest component");
+                window.check(grid.implicitHeight > grid.frameHeight(9), "edit mode leaves rows below the lowest component");
                 grid.select("spending");
                 break;
             }

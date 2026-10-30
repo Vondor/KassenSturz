@@ -193,6 +193,7 @@ Kirigami.ScrollablePage {
         PropertiesPanel {
             Layout.fillWidth: true
             model: workbench
+            period: page.period
             choices: page.groupsSource
         }
 

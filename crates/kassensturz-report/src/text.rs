@@ -17,6 +17,10 @@ pub trait TextFormat {
     fn month(&self, first_day: Date) -> String;
     /// `percent` as the user's number format writes it, e.g. "12,3 %".
     fn percent(&self, percent: Percent) -> String;
+    /// A plain number from a formula, given in hundredths (1250 is 12.5),
+    /// as the user's number format writes it: at most two decimal places,
+    /// without trailing zeros, e.g. "12,5".
+    fn number(&self, hundredths: i64) -> String;
     /// The name for money that isn't sorted into a category yet.
     fn unsorted(&self) -> String;
 }

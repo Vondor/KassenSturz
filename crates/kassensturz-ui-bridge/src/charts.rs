@@ -146,6 +146,18 @@ impl<L: Locale> TextFormat for AppText<'_, L> {
         )
     }
 
+    fn number(&self, hundredths: i64) -> String {
+        let sign = if hundredths < 0 { "-" } else { "" };
+        let magnitude = hundredths.unsigned_abs();
+        let whole = self.locale.group_digits(magnitude / 100);
+        let places = match magnitude % 100 {
+            0 => String::new(),
+            places if places % 10 == 0 => format!("{}{}", self.locale.decimal_point(), places / 10),
+            places => format!("{}{places:02}", self.locale.decimal_point()),
+        };
+        format!("{sign}{whole}{places}")
+    }
+
     /// Empty: the screen writes the translated name at the chart's
     /// `unsorted` place (D-034).
     fn unsorted(&self) -> String {

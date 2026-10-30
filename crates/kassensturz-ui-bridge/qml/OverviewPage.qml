@@ -288,6 +288,7 @@ Kirigami.ScrollablePage {
                 sourceComponent: PropertiesPanel {
                     model: panelModel
                     withPeriod: true
+                    period: grid.periodOf(panelModel.view.period?.word)
                     choices: page.groupsSource
                 }
             }

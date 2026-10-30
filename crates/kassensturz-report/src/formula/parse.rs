@@ -79,7 +79,7 @@ pub(crate) enum Function {
 }
 
 impl Function {
-    const ALL: [Self; 18] = [
+    pub(super) const ALL: [Self; 18] = [
         Self::Sum,
         Self::Average,
         Self::Min,

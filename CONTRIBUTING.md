@@ -29,8 +29,9 @@ GitHub-specific checklist; it doesn't duplicate AGENTS.md's rules.
 
 If your idea integrates with or imports from software that is not open source, please contact the maintainer
 with the idea before you start working on it (an issue, or a draft pull request that only describes the idea,
-is fine). The maintainer may decline such ideas, and asking first saves you the time. This applies to AI agents
-working for you as well; see AGENTS.md §9 item 10.
+is fine). The maintainer may decline such ideas, and asking first saves you the time. Importers for open-source programs (for example GnuCash books)
+do not need this step; integrations with closed-source apps (for example a proprietary banking app) do.
+This applies to AI agents working for you as well; see AGENTS.md §9 item 10.
 
 ## What needs the maintainer's sign-off first
 

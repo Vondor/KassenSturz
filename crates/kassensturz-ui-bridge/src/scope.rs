@@ -286,11 +286,6 @@ impl FilterView {
         }
     }
 
-    /// Whether there is anything to say: no mark and no note.
-    pub fn is_quiet(&self) -> bool {
-        self.own.is_empty() && self.filtered.is_empty() && self.notes.is_empty()
-    }
-
     /// The object QML reads as `filter`.
     pub fn object(&self) -> QVariant {
         let words = |words: &[&'static str]| list(words.iter().map(|word| text(word)));
@@ -320,7 +315,109 @@ impl FilterView {
 
 #[cfg(test)]
 mod tests {
+    use kassensturz_core::{
+        Account, AccountId, AccountKind, AccountType, CurrencyCode, Date, Money, Split,
+        Transaction, TransactionId,
+    };
+    use kassensturz_report::Filters;
+
     use super::*;
+    use crate::budgets;
+    use crate::cards::{self, Request as CardRequest};
+    use crate::charts::{self, Request as ChartRequest};
+    use crate::formulas::{self, Outcome, Request as FormulaRequest};
+    use crate::register::tests::TestLocale;
+
+    const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
+        Ok(code) => code,
+        Err(_) => panic!("EUR is a valid code"),
+    };
+
+    fn account(book: &mut Book, name: &str, kind: AccountKind) -> AccountId {
+        let id = AccountId::generate();
+        book.add_account(&Account {
+            id,
+            name: name.into(),
+            kind,
+            currency: EUR,
+            account_type: (kind == AccountKind::Asset).then_some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        })
+        .expect("account added");
+        id
+    }
+
+    /// Two accounts of the user's: rent (800,00) is paid from the checking
+    /// account and groceries (50,00) from the cash box, both in September
+    /// 2026 (last month for `TestLocale`), and 2000,00 of salary arrives in
+    /// the checking account.
+    struct Fixture {
+        book: Book,
+        checking: AccountId,
+        cash: AccountId,
+        rent: AccountId,
+    }
+
+    fn fixture() -> Fixture {
+        let mut book = Book::create_in_memory().expect("book created");
+        book.use_currency(EUR).expect("currency used");
+        let checking = account(&mut book, "Checking account", AccountKind::Asset);
+        let cash = account(&mut book, "Cash box", AccountKind::Asset);
+        let rent = account(&mut book, "Rent", AccountKind::Expense);
+        let groceries = account(&mut book, "Groceries", AccountKind::Expense);
+        let salary = account(&mut book, "Salary", AccountKind::Income);
+        let mut add = |from: AccountId, to: AccountId, minor: i64| {
+            let transaction = Transaction::new(
+                TransactionId::generate(),
+                Date::new(2026, 9, 3).expect("a date"),
+                None,
+                vec![
+                    Split::new(from, Money::from_minor_units(-minor, EUR)),
+                    Split::new(to, Money::from_minor_units(minor, EUR)),
+                ],
+            )
+            .expect("balanced");
+            book.add_transaction(&transaction).expect("added");
+        };
+        add(salary, checking, 200_000);
+        add(checking, rent, 80_000);
+        add(cash, groceries, 5_000);
+        Fixture {
+            book,
+            checking,
+            cash,
+            rent,
+        }
+    }
+
+    fn scope(accounts: &[AccountId], categories: &[AccountId]) -> Scope {
+        Scope {
+            accounts: accounts.iter().map(ToString::to_string).collect(),
+            categories: categories.iter().map(ToString::to_string).collect(),
+            ..Scope::default()
+        }
+    }
+
+    fn expenses(book: &Book, scope: Scope) -> (Vec<String>, FilterView) {
+        let request = CardRequest {
+            dataset: String::new(),
+            period: "last-month".into(),
+            compare: "previous_period".into(),
+            scope,
+        };
+        let (sets, view) = cards::cards_filtered(book, &TestLocale, &request).expect("cards");
+        let shown = sets
+            .iter()
+            .flat_map(|set| set.cards.iter())
+            .filter(|card| card.measure == "expenses")
+            .map(|card| card.exact_value.clone())
+            .collect();
+        (shown, view)
+    }
 
     #[test]
     fn a_scope_reads_back_what_it_was_written_as() {
@@ -340,5 +437,140 @@ mod tests {
         for text in ["", "nonsense", "[]", "{\"takes\": 3}"] {
             assert_eq!(Scope::from_text(text), Scope::default(), "{text}");
         }
+    }
+
+    #[test]
+    fn the_accounts_a_scope_names_narrow_the_figures_and_the_view_says_so() {
+        let f = fixture();
+        let (all, quiet) = expenses(&f.book, Scope::default());
+        assert_eq!(all, ["850,00 €"]);
+        assert!(quiet.filtered.is_empty() && quiet.notes.is_empty());
+        let (cash, view) = expenses(&f.book, scope(&[f.cash], &[]));
+        assert_eq!(cash, ["50,00 €"]);
+        assert_eq!(view.filtered, ["accounts"]);
+        assert_eq!(view.accounts, ["Cash box"]);
+        // The checking account paid the rent and received the salary.
+        let (checking, view) = expenses(&f.book, scope(&[f.checking], &[]));
+        assert_eq!(checking, ["800,00 €"]);
+        assert_eq!(view.accounts, ["Checking account"]);
+    }
+
+    #[test]
+    fn the_categories_a_scope_names_narrow_the_figures_and_are_listed_by_their_names() {
+        let f = fixture();
+        let (rent, view) = expenses(&f.book, scope(&[], &[f.rent]));
+        assert_eq!(rent, ["800,00 €"]);
+        assert_eq!(view.filtered, ["categories"]);
+        assert_eq!(view.categories, ["Rent"]);
+        // An own list is marked as the component's own.
+        let mut own = scope(&[], &[f.rent]);
+        own.categories_own = true;
+        assert_eq!(expenses(&f.book, own).1.own, ["categories"]);
+    }
+
+    #[test]
+    fn a_filter_that_chooses_nothing_draws_no_zeros_and_names_what_is_gone() {
+        let f = fixture();
+        let mut gone = scope(&[], &[]);
+        gone.categories = vec![AccountId::generate().to_string()];
+        let (shown, view) = expenses(&f.book, gone.clone());
+        assert!(shown.is_empty(), "no card, so no zero: {shown:?}");
+        assert!(view.nothing);
+        let kinds: Vec<&str> = view.notes.iter().map(|note| note.kind).collect();
+        assert_eq!(kinds, ["gone", "chooses-nothing"]);
+        // The same for a chart and for a formula.
+        let request = ChartRequest {
+            dataset: "spending_by_category".into(),
+            kind: "pie".into(),
+            period: "last-month".into(),
+            grouping: "each".into(),
+            scope: gone.clone(),
+            ..ChartRequest::default()
+        };
+        let set = charts::charts(&f.book, &TestLocale, &request).expect("charts");
+        assert!(set.charts.is_empty() && set.filter.nothing);
+        let formula = FormulaRequest {
+            period: "last-month".into(),
+            text: "=Rent".into(),
+            scope: gone,
+            ..FormulaRequest::default()
+        };
+        assert!(matches!(
+            formulas::show(&f.book, &TestLocale, &formula),
+            Ok(Outcome::Nothing(_))
+        ));
+    }
+
+    #[test]
+    fn the_accounts_narrow_a_chart_and_a_formula_by_the_same_rule() {
+        let f = fixture();
+        let chart = |scope: Scope| {
+            let request = ChartRequest {
+                dataset: "spending_by_category".into(),
+                kind: "bar".into(),
+                period: "last-month".into(),
+                grouping: "each".into(),
+                scope,
+                ..ChartRequest::default()
+            };
+            let set = charts::charts(&f.book, &TestLocale, &request).expect("charts");
+            let model = &set.charts[0].0;
+            format!("{model:?}")
+        };
+        assert!(chart(Scope::default()).contains("Rent"));
+        let cash_only = chart(scope(&[f.cash], &[]));
+        assert!(cash_only.contains("Groceries") && !cash_only.contains("Rent"));
+        let formula = |scope: Scope| {
+            let request = FormulaRequest {
+                period: "last-month".into(),
+                text: "=Rent".into(),
+                scope,
+                ..FormulaRequest::default()
+            };
+            match formulas::show(&f.book, &TestLocale, &request).expect("formula") {
+                Outcome::Shown(shown) => shown.exact_value,
+                other => panic!("not a figure: {other:?}"),
+            }
+        };
+        assert_eq!(formula(Scope::default()), "800,00 €");
+        assert_eq!(formula(scope(&[f.checking], &[])), "800,00 €");
+        assert_eq!(formula(scope(&[f.cash], &[])), "0,00 €");
+    }
+
+    #[test]
+    fn budgets_count_every_account_and_say_so_when_the_accounts_are_chosen() {
+        let f = fixture();
+        let mut chosen = scope(&[f.cash], &[]);
+        chosen.takes = Takes::NO_ACCOUNTS;
+        let (bars, view) =
+            budgets::bars_filtered(&f.book, &TestLocale, "last-month", &[], &chosen).expect("bars");
+        assert!(bars.is_empty());
+        assert!(view.filtered.is_empty(), "the accounts were not applied");
+        let notes: Vec<(&str, &str)> = view
+            .notes
+            .iter()
+            .map(|note| (note.kind, note.dimension))
+            .collect();
+        assert_eq!(notes, [("not-applied", "accounts")]);
+    }
+
+    #[test]
+    fn what_the_layout_asks_for_is_what_the_datasets_are_asked_with() {
+        // The scope the layout hands QML for a component is read by the
+        // models: a seam test with the real Asked of the report layer.
+        let f = fixture();
+        let document = kassensturz_report::Document::default_overview().expect("default");
+        let bar = Filters {
+            period: Some("last-year".into()),
+            accounts: vec![f.cash.to_string()],
+            categories: Vec::new(),
+        };
+        let income = document.asked("income", &bar).expect("the income card asks");
+        assert_eq!(income.period, "last-year");
+        let scope = Scope::from_asked(&income);
+        assert!(!scope.accounts_own && !scope.period_own);
+        let (shown, view) = expenses(&f.book, Scope::from_text(&scope.to_text()));
+        assert_eq!(shown, ["50,00 €"]);
+        assert_eq!(view.accounts, ["Cash box"]);
     }
 }

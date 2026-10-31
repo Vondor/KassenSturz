@@ -509,7 +509,7 @@ mod tests {
         let view = view_of(&request("spending_by_category", "pie"));
         assert_eq!(
             keys(&view),
-            ["charts", "empty", "missing", "shared", "totals"]
+            ["charts", "empty", "filter", "missing", "shared", "totals"]
         );
         assert_eq!(number_of(&view, "missing"), 0);
         assert!(!flag_of(&view, "empty"));

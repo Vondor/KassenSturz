@@ -22,6 +22,10 @@ ColumnLayout {
     // One of the fixed period names (`this-month`, `last-month`,
     // `last-12-months`, `this-year`, `last-year`).
     property string period: "last-12-months"
+    // The filters of the component on its page (M6c.7): the text the layout
+    // gives. Undefined where there is no page around it (the properties
+    // panel), where only the component's own lists narrow it.
+    property var scope: undefined
 
     readonly property var asked: subject?.preview ?? ({})
     readonly property var charts: chartData.view?.charts ?? []
@@ -45,7 +49,13 @@ ColumnLayout {
         : shownAsBudgets ? budgetData.view?.error !== undefined
         : asked.shows === "card" || asked.shows === "progress"
         ? cardData.view?.error !== undefined : chartData.view?.error !== undefined
-    readonly property bool nothing: !failed && !usesFormula && !textOnly && !shownAsBudgets && (asked.shows === "card" || asked.shows === "progress"
+    // What the object that drew the component says about its filters.
+    readonly property var filterView: shownAsBudgets ? budgetData.view?.filter
+        : usesFormula ? formulaView.filter
+        : asked.shows === "card" || asked.shows === "progress" ? cardData.view?.filter : chartData.view?.filter
+    // A filter that chooses nothing says so; it is not an empty period.
+    readonly property bool filterNothing: filterView?.nothing ?? false
+    readonly property bool nothing: !failed && !filterNothing && !usesFormula && !textOnly && !shownAsBudgets && (asked.shows === "card" || asked.shows === "progress"
         ? cardSets.length === 0 : charts.length === 0)
     // What to call it when the user gave it no title (the grid editor's
     // built-in components have none, D-316).
@@ -107,6 +117,11 @@ ColumnLayout {
         // Read from `subject` itself: this runs from its change signal, before
         // the bindings that depend on it (`asked`) have been worked out again.
         const want = subject?.preview;
+        const filters = scope ?? want?.scope ?? "";
+        budgetData.setScope(filters);
+        chartData.setScope(filters);
+        cardData.setScope(filters);
+        formulaData.setScope(filters);
         if (want?.shows === "budget-progress" && period !== "") {
             budgetData.show(period, want.only);
             return;
@@ -132,6 +147,7 @@ ColumnLayout {
 
     onSubjectChanged: show()
     onPeriodChanged: show()
+    onScopeChanged: show()
     Component.onCompleted: show()
 
     spacing: Kirigami.Units.largeSpacing
@@ -150,6 +166,13 @@ ColumnLayout {
         visible: preview.shared.length > 0
         type: Kirigami.MessageType.Information
         text: preview.shared.length === 0 ? "" : preview.i18nContext.i18nc("@info %1 is the name of a category, %2 the names of the columns it is in", "“%1” is in more than one column (%2), so it is counted in each of them. Added together, the columns count it twice.", preview.shared[0].category, preview.shared[0].columns.join(", "))
+    }
+
+    // The marks and notes about the filters, under the figures' own notes
+    // (D-350). Nothing is drawn when the component is not filtered.
+    FilterNotes {
+        Layout.fillWidth: true
+        filter: preview.filterView
     }
 
     Kirigami.PlaceholderMessage {

@@ -103,6 +103,8 @@ ColumnLayout {
             return i18nContext.i18nc("@label which of My groups a chart shows", "Groups to show");
         case "categories":
             return i18nContext.i18nc("@label which categories and groups a chart or table is limited to", "Only show these categories");
+        case "accounts":
+            return i18nContext.i18nc("@label which accounts a component counts, whatever the filters of the page say", "Only count these accounts");
         case "series":
             return i18nContext.i18nc("@label which categories and groups a chart over time draws a line for", "Lines to draw");
         case "legend":
@@ -183,6 +185,9 @@ ColumnLayout {
     // the categories and groups of both kinds (`series`).
     function idOptions(key: string): var {
         const book = choices?.view ?? ({});
+        if (key === "accounts") {
+            return (book.accounts ?? []).map(account => ({id: account.id, name: account.closed ? i18nContext.i18nc("@option:check %1 is the name of a closed account", "%1 (closed)", account.name) : account.name}));
+        }
         // A budget belongs to a category, not to a group (D-357).
         const forBudgets = view.preview?.shows === "budget-progress";
         const groups = (forBudgets ? [] : book.groups ?? [])
@@ -373,7 +378,21 @@ ColumnLayout {
                             textFormat: Text.PlainText
                             text: row.modelData.key === "categories"
                                 ? panel.i18nContext.i18nc("@info", "There are no categories to pick yet.")
+                                : row.modelData.key === "accounts"
+                                ? panel.i18nContext.i18nc("@info", "There are no accounts to pick yet.")
                                 : panel.i18nContext.i18nc("@info", "There is nothing to pick yet. Make groups on the page My groups and hidden categories first.")
+                        }
+
+                        // An own list wins over the filters of the page for
+                        // its own dimension only (D-350).
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            visible: panel.withPeriod && (row.modelData.key === "accounts" || row.modelData.key === "categories")
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            font: Kirigami.Theme.smallFont
+                            opacity: 0.75
+                            text: panel.i18nContext.i18nc("@info", "Nothing ticked: this follows the filters of the page. Tick some to count only those, whatever the page says.")
                         }
 
                         Controls.ScrollView {

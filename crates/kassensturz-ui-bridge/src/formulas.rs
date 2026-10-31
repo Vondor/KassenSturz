@@ -15,7 +15,7 @@
 
 use kassensturz_core::{CurrencyCode, Report};
 use kassensturz_report::{
-    Counted, FUNCTIONS, Filter, Formula, FormulaValue, KnownName, NumberForm, Period, ReportError,
+    Counted, FUNCTIONS, Formula, FormulaValue, KnownName, NumberForm, Period, ReportError,
     Source, TextFormat,
 };
 use kassensturz_store::Book;

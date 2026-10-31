@@ -446,6 +446,52 @@ mod tests {
     }
 
     #[test]
+    fn the_filters_a_layout_carries_are_saved_with_it_in_one_entry_and_read_back() {
+        let mut book = book();
+        let mut layout = Layout::open(&book).unwrap();
+        assert!(layout.is_built_in());
+        let chosen = Filters {
+            period: Some("this-year".into()),
+            accounts: vec!["a-1".into()],
+            categories: vec!["c-1".into()],
+        };
+        assert!(set_filters(&mut layout.editor, &chosen).unwrap());
+        // The built-in layout with filters is no longer the built-in one,
+        // so it is kept (D-351).
+        assert!(!layout.is_built_in());
+        assert_eq!(layout.save(&mut book).unwrap(), Saved::Added);
+        let reopened = Layout::open(&book).unwrap();
+        assert_eq!(reopened.editor.filters(), chosen);
+        assert!(!reopened.editor.has_changes());
+        // The component asks for the saved filters of its layout.
+        let rows = rows(&reopened.editor, &reopened.editor.filters());
+        let income = rows.iter().find(|row| row.id == "income").unwrap();
+        assert_eq!(income.asked.as_ref().unwrap().period, "this-year");
+        // Taking them out again sends the layout back to being the built-in
+        // one, which removes the stored copy.
+        let mut layout = reopened;
+        assert!(set_filters(&mut layout.editor, &Filters::default()).unwrap());
+        assert!(layout.is_built_in());
+        assert_eq!(layout.save(&mut book).unwrap(), Saved::Removed);
+    }
+
+    #[test]
+    fn a_saved_layout_brings_its_filters_when_it_is_loaded() {
+        let mut book = book();
+        let mut layout = Layout::open(&book).unwrap();
+        let chosen = Filters {
+            categories: vec!["c-1".into()],
+            ..Filters::default()
+        };
+        set_filters(&mut layout.editor, &chosen).unwrap();
+        let id = save_as(&mut book, &layout.editor, "With filters").unwrap();
+        let mut other = Layout::open(&book).unwrap();
+        other.editor = Editor::new(Document::default_overview().unwrap()).unwrap();
+        assert!(load(&book, &mut other.editor, &id).unwrap());
+        assert_eq!(other.editor.filters(), chosen);
+    }
+
+    #[test]
     fn a_session_is_one_entry_the_books_undo_takes_back() {
         let mut book = book();
         let before = book.history().unwrap().len();

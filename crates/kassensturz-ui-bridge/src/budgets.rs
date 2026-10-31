@@ -14,7 +14,7 @@
 
 use kassensturz_core::{AccountId, Budget, BudgetEvery, BudgetId, CurrencyCode, Date, Report};
 use kassensturz_report::{
-    BudgetGrouping, BudgetNote, BudgetPeriod, BudgetUtilization, Filter, ReportError, Source,
+    BudgetGrouping, BudgetNote, BudgetPeriod, BudgetUtilization, ReportError, Source,
     TextFormat, budget_utilization,
 };
 use kassensturz_store::{Book, StoreError};

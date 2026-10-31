@@ -363,7 +363,7 @@ mod tests {
         let order: Vec<String> = fields.iter().map(|f| text_of(f, "key")).collect();
         assert_eq!(
             order,
-            ["grouping", "categories", "title", "legend", "show_hidden"]
+            ["grouping", "categories", "accounts", "title", "legend", "show_hidden"]
         );
         for field in &fields {
             assert_eq!(
@@ -383,9 +383,12 @@ mod tests {
         assert_eq!(words, ["category", "top_level_category", "groups"]);
         assert_eq!(text_of(&fields[1], "kind"), "ids");
         assert_eq!(text_of(&fields[1], "key"), "categories");
-        assert_eq!(text_of(&fields[2], "kind"), "text");
-        assert_eq!(text_of(&fields[3], "kind"), "flag");
-        assert!(flag_of(&fields[3], "flag"));
+        // The accounts it counts on its own (M6c.7).
+        assert_eq!(text_of(&fields[2], "kind"), "ids");
+        assert_eq!(text_of(&fields[2], "key"), "accounts");
+        assert_eq!(text_of(&fields[3], "kind"), "text");
+        assert_eq!(text_of(&fields[4], "kind"), "flag");
+        assert!(flag_of(&fields[4], "flag"));
         let preview = object_of(&view, "preview");
         assert_eq!(
             keys(&preview),
@@ -434,6 +437,7 @@ mod tests {
                 "grouping",
                 "groups",
                 "categories",
+                "accounts",
                 "title",
                 "legend",
                 "show_hidden"
@@ -458,17 +462,16 @@ mod tests {
         assert_eq!(properties::preview(&pie).only, "c,d");
         let view = view_object(Some(&pie), None, NumberForm::DecimalComma);
         assert_eq!(text_of(&object_of(&view, "preview"), "only"), "c,d");
-        // Monthly figures leave nothing out, so no field for hidden ones,
-        // and have no categories to limit to.
+        // Monthly figures leave nothing out, so no field for hidden ones;
+        // they can be limited to categories and accounts as a filter does.
         let monthly = component(ComponentType::ChartLine, "income_expense_by_month");
         let view = view_object(Some(&monthly), None, NumberForm::DecimalComma);
-        for key in ["show_hidden", "categories"] {
-            assert!(
-                !list_of(&view, "fields")
-                    .iter()
-                    .any(|f| text_of(f, "key") == key)
-            );
-        }
+        let keys_of = list_of(&view, "fields")
+            .iter()
+            .map(|f| text_of(f, "key"))
+            .collect::<Vec<_>>();
+        assert!(!keys_of.contains(&"show_hidden".to_owned()));
+        assert!(keys_of.contains(&"categories".to_owned()));
     }
 
     #[test]
@@ -528,6 +531,7 @@ mod tests {
                         dataset: dataset.id.into(),
                         period: "this-year".into(),
                         compare: preview.compare.clone(),
+                        scope: crate::scope::Scope::from_text(&preview.scope),
                     };
                     cards::cards(&book, &locale, &request).expect("cards accept it");
                 } else {
@@ -541,6 +545,7 @@ mod tests {
                         series: Vec::new(),
                         show_hidden: preview.show_hidden,
                         columns: Vec::new(),
+                        scope: crate::scope::Scope::from_text(&preview.scope),
                     };
                     charts::charts(&book, &locale, &request)
                         .unwrap_or_else(|e| panic!("{} on {}: {e:?}", kind.id(), dataset.id));
@@ -559,7 +564,7 @@ mod tests {
             .iter()
             .map(|f| text_of(f, "key"))
             .collect();
-        assert_eq!(order, ["measure", "compare", "title"]);
+        assert_eq!(order, ["measure", "accounts", "compare", "title"]);
         let line = component(ComponentType::ChartLine, "income_expense_by_month");
         let order: Vec<String> = list_of(
             &view_object(Some(&line), None, NumberForm::DecimalComma),
@@ -568,7 +573,8 @@ mod tests {
         .iter()
         .map(|f| text_of(f, "key"))
         .collect();
-        assert_eq!(order, ["title", "legend"]);
+        // Monthly figures take accounts and categories as filters (M6c.7).
+        assert_eq!(order, ["categories", "accounts", "title", "legend"]);
     }
 
     #[test]
@@ -643,7 +649,7 @@ mod tests {
         // Not chosen yet: the formula is not offered, the comparison is.
         assert_eq!(
             keys_of_fields(&card, NumberForm::DecimalComma),
-            ["measure", "compare", "title"]
+            ["measure", "accounts", "compare", "title"]
         );
         let words: Vec<String> = list_of(
             &view_object(Some(&card), None, NumberForm::DecimalComma),
@@ -666,7 +672,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             keys_of_fields(&card, NumberForm::DecimalComma),
-            ["measure", "formula", "title"]
+            ["measure", "accounts", "formula", "title"]
         );
         // The preview asks for the formula, not for a card of the cards.
         let preview = properties::preview(&card);
@@ -707,7 +713,7 @@ mod tests {
         // Without a formula it shows the share you kept.
         assert_eq!(
             keys_of_fields(&bar, NumberForm::DecimalComma),
-            ["compare", "formula", "title"]
+            ["accounts", "compare", "formula", "title"]
         );
         let preview = properties::preview(&bar);
         assert!(!preview.uses_formula);
@@ -717,7 +723,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             keys_of_fields(&bar, NumberForm::DecimalComma),
-            ["formula", "target", "title"]
+            ["accounts", "formula", "target", "title"]
         );
         let preview = properties::preview(&bar);
         assert!(preview.uses_formula);

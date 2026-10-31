@@ -25,7 +25,7 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
 use kassensturz_core::Report;
-use kassensturz_report::{Filters, NumberForm, grid};
+use kassensturz_report::{Filters, NumberForm, Origin, grid};
 use kassensturz_store::Book;
 
 use crate::errors::{ErrorText, report_text};
@@ -249,10 +249,18 @@ fn asked_object(row: &grid_editor::Row) -> QVariant {
                 ("period", text("page")),
                 ("scope", text("")),
                 ("shown", QVariant::from(&false)),
+                ("fromBar", QVariant::from(&false)),
             ])
         },
         |asked| {
+            // Whether any dimension comes from the filter bar.
+            let from_bar = asked.period_origin == Origin::FilterBar
+                || [&asked.accounts, &asked.categories]
+                    .into_iter()
+                    .flatten()
+                    .any(|chosen| chosen.origin == Origin::FilterBar);
             map([
+                ("fromBar", QVariant::from(&from_bar)),
                 ("period", text(&asked.period)),
                 ("scope", text(&Scope::from_asked(asked).to_text())),
                 ("shown", QVariant::from(&true)),
@@ -710,7 +718,7 @@ mod tests {
     #[test]
     fn the_layout_reads_back_the_way_qml_reads_it() {
         let layout = layout();
-        let view = view_object(Some(&layout), true, NumberForm::DecimalComma);
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None);
         assert_eq!(
             keys(&view),
             [
@@ -720,6 +728,7 @@ mod tests {
                 "columns",
                 "damaged",
                 "editing",
+                "filters",
                 "hasChanges",
                 "items",
                 "library",
@@ -739,8 +748,8 @@ mod tests {
         assert_eq!(
             keys(first),
             [
-                "col", "cols", "id", "minCols", "minRows", "row", "rows", "subject", "type",
-                "unknown"
+                "asked", "col", "cols", "id", "minCols", "minRows", "row", "rows", "subject",
+                "type", "unknown"
             ]
         );
         assert_eq!(text_of(first, "id"), "income");
@@ -755,6 +764,57 @@ mod tests {
         let library = list_of(&view, "library");
         assert_eq!(library.len(), 17);
         assert_eq!(keys(&library[0]), ["dataset", "type"]);
+    }
+
+    #[test]
+    fn the_filter_bar_reads_back_and_a_choice_for_now_reaches_every_component() {
+        let layout = layout();
+        let own = layout.editor.filters();
+        // Looked at, with nothing chosen: the layout's own (none).
+        let view = view_object(Some(&layout), false, NumberForm::DecimalComma, None);
+        let filters = object_of(&view, "filters");
+        assert_eq!(keys(&filters), ["accounts", "categories", "forNow", "period"]);
+        assert_eq!(text_of(&filters, "period"), "");
+        assert!(!flag_of(&filters, "forNow"));
+        let income = list_of(&view, "items")
+            .into_iter()
+            .find(|item| text_of(item, "id") == "income")
+            .expect("the income card");
+        let asked = object_of(&income, "asked");
+        assert_eq!(keys(&asked), ["fromBar", "period", "scope", "shown"]);
+        assert_eq!(text_of(&asked, "period"), "page");
+        assert!(!flag_of(&asked, "fromBar"));
+        // A choice for now: the bar's period and accounts reach it.
+        let bar = Filters {
+            period: Some("last-year".into()),
+            accounts: vec!["a-1".into()],
+            categories: Vec::new(),
+        };
+        let view = view_object(Some(&layout), false, NumberForm::DecimalComma, Some(&bar));
+        let filters = object_of(&view, "filters");
+        assert_eq!(text_of(&filters, "period"), "last-year");
+        assert_eq!(list_of(&filters, "accounts").len(), 1);
+        assert!(flag_of(&filters, "forNow"));
+        let income = list_of(&view, "items")
+            .into_iter()
+            .find(|item| text_of(item, "id") == "income")
+            .expect("the income card");
+        let asked = object_of(&income, "asked");
+        assert_eq!(text_of(&asked, "period"), "last-year");
+        assert!(flag_of(&asked, "fromBar"));
+        let scope = Scope::from_text(&text_of(&asked, "scope"));
+        assert!(scope.to_text().contains("\"accounts\":[\"a-1\"]"));
+        // Nothing was written into the layout.
+        assert_eq!(layout.editor.filters(), own);
+        // While arranged, the bar is the layout's own, and a choice is kept
+        // with the layout and counts as a change.
+        let mut layout = layout;
+        layout.editor.set_filters(&bar).unwrap();
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None);
+        assert_eq!(text_of(&object_of(&view, "filters"), "period"), "last-year");
+        assert!(!flag_of(&object_of(&view, "filters"), "forNow"));
+        assert!(flag_of(&view, "hasChanges"));
+        assert!(!flag_of(&view, "builtIn"));
     }
 
     #[test]
@@ -775,7 +835,7 @@ mod tests {
     fn an_edit_shows_in_the_view_and_the_undo_words() {
         let mut layout = layout();
         layout.editor.nudge("trend", 0, 1).unwrap();
-        let view = view_object(Some(&layout), true, NumberForm::DecimalComma);
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None);
         assert!(flag_of(&view, "hasChanges"));
         assert!(flag_of(&view, "canUndo"));
         assert!(!flag_of(&view, "canRedo"));
@@ -787,7 +847,7 @@ mod tests {
     fn a_heading_is_an_item_with_no_data() {
         let mut layout = layout();
         let id = grid_editor::add(&mut layout.editor, "text.heading").unwrap();
-        let view = view_object(Some(&layout), true, NumberForm::DecimalComma);
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None);
         let items = list_of(&view, "items");
         let heading = items
             .iter()

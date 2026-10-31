@@ -275,7 +275,7 @@ mod tests {
     #[test]
     fn a_result_reads_back_the_way_qml_reads_it() {
         let view = viewed(&request("=Pets", None));
-        assert_eq!(keys(&view), ["empty", "result"]);
+        assert_eq!(keys(&view), ["empty", "filter", "result"]);
         assert!(!flag_of(&view, "empty"));
         let result = object_of(&view, "result");
         assert_eq!(

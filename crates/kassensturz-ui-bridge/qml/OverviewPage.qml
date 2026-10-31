@@ -580,6 +580,15 @@ Kirigami.ScrollablePage {
             ]
         }
 
+        // Period, accounts and categories for the whole page (M6c.7, D-351).
+        FilterBar {
+            Layout.fillWidth: true
+            visible: grid.visible
+            layout: page.dashboard
+            choices: page.groupsSource
+            onFailed: result => layoutError.result = result
+        }
+
         // The month's key figures and where its money went, from the
         // report components (M6a.8) on the user's grid (M6b.3).
         DashboardGrid {

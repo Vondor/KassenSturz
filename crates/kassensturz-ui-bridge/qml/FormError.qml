@@ -279,6 +279,21 @@ Kirigami.InlineMessage {
         case "report.document-invalid":
         case "report.document-too-big":
             return i18nContext.i18nc("@info", "This view couldn't be saved or opened because it isn't one KassenSturz can use. Nothing was changed. Make it again in the Statistic Builder, and choose a short name.");
+        case "report.filter-invalid":
+            if (result.reason === "too-many") {
+                return result.dimension === "accounts"
+                    ? i18nContext.i18nc("@info", "A filter can name at most 200 accounts. Take some out of the filter, or choose none to count all of them.")
+                    : i18nContext.i18nc("@info", "A filter can name at most 200 categories. Take some out of the filter, or choose none to count all of them.");
+            }
+            if (result.reason === "repeated") {
+                return result.dimension === "accounts"
+                    ? i18nContext.i18nc("@info", "The filter names the same account twice. Take it out once, then try again.")
+                    : i18nContext.i18nc("@info", "The filter names the same category twice. Take it out once, then try again.");
+            }
+            if (result.reason === "not-an-account") {
+                return i18nContext.i18nc("@info", "The accounts in the filter include something that is not one of your accounts. Take it out of the filter, or choose the accounts again.");
+            }
+            return i18nContext.i18nc("@info", "The categories in the filter include something that is not a category or a group. Take it out of the filter, or choose the categories again.");
         case "report.unsupported-document-version":
             return i18nContext.i18nc("@info", "This view was made by a newer KassenSturz, so this one can't open it. Update KassenSturz to open it. You can still rename or delete it.");
         case "store.empty-name":

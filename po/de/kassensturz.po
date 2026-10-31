@@ -5372,6 +5372,24 @@ msgstr "Geändert, welche Kategorien Diagramme ausblenden"
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:84
 #, kde-format
 msgctxt "@info a change you made"
+msgid "Set a budget"
+msgstr "Ein Budget festgelegt"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:86
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Changed a budget"
+msgstr "Ein Budget geändert"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:88
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Deleted a budget"
+msgstr "Ein Budget gelöscht"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:84
+#, kde-format
+msgctxt "@info a change you made"
 msgid "Removed a category"
 msgstr "Eine Kategorie entfernt"
 
@@ -7781,6 +7799,14 @@ msgid ""
 msgstr ""
 "Eine Regel bucht nach %1 oder prüft sie, deshalb kann sie nicht gelöscht "
 "werden. Ändern oder löschen Sie zuerst die Regel."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:373
+#, kde-format
+msgctxt "@info %1 is the name of a category"
+msgid "%1 has a budget, so it can't be deleted. Delete its budget first."
+msgstr ""
+"%1 hat ein Budget, deshalb kann sie nicht gelöscht werden. Löschen Sie "
+"zuerst ihr Budget."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:373
 #, kde-format

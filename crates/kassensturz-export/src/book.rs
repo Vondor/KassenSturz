@@ -16,10 +16,10 @@ use std::collections::{HashMap, HashSet};
 use std::io::Write;
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, AccountType, AmountTest, BankLink, CategoryGroup, Condition,
-    Currency, CurrencyCode, DatedRate, GroupKind, GroupMember, Institution, MatchMode, Money,
-    PartStatus, Payee, PayeeRecognition, RateSource, RoundingMode, RuleId, RuleNode, SplitId, Tag,
-    TextField, TextOperator, Transaction, ViewId,
+    Account, AccountId, AccountKind, AccountType, AmountTest, BankLink, Budget, BudgetEvery,
+    CategoryGroup, Condition, Currency, CurrencyCode, DatedRate, GroupKind, GroupMember,
+    Institution, MatchMode, Money, PartStatus, Payee, PayeeRecognition, RateSource, RoundingMode,
+    RuleId, RuleNode, SplitId, Tag, TextField, TextOperator, Transaction, ViewId,
 };
 
 use crate::data::ExportData;
@@ -45,8 +45,9 @@ pub const FORMAT: &str = "kassensturz-book";
 /// status that came over from another program's book with them (D-132),
 /// version 5 the bank links (M4.4a, D-148), version 6 the saved views and
 /// dashboards (M6a.L, D-278), version 7 the category groups and the hidden
-/// categories (M6b.L, D-290).
-pub const VERSION: u64 = 7;
+/// categories (M6b.L, D-290), version 8 the budgets (M6c.L, D-344,
+/// D-345).
+pub const VERSION: u64 = 8;
 
 /// How deep Rules can sit inside each other in the file: a top-level Rule is
 /// at depth 1. Deeper trees are refused when writing and reading, so a file
@@ -95,6 +96,9 @@ pub struct BookData {
     pub groups: Vec<CategoryGroup>,
     /// The categories hidden from charts (D-291).
     pub hidden_categories: Vec<AccountId>,
+    /// The budgets in the order the book lists them, each with its amounts,
+    /// oldest first (D-344, D-345).
+    pub budgets: Vec<Budget>,
 }
 
 /// A saved view or dashboard in a complete export: its ID and its document
@@ -198,6 +202,15 @@ impl Exporter for BookExport {
                 ),
             ),
             (
+                "budgets",
+                Json::List(
+                    book.budgets
+                        .iter()
+                        .map(|budget| writer.budget(budget))
+                        .collect::<Result<_, _>>()?,
+                ),
+            ),
+            (
                 "payees",
                 Json::List(book.payees.iter().map(payee).collect()),
             ),
@@ -249,6 +262,11 @@ impl BookData {
                 })
             }
         };
+        for budget in &self.budgets {
+            for row in &budget.amounts {
+                is_listed(row.amount)?;
+            }
+        }
         let mut parts = HashSet::new();
         for transaction in &self.transactions {
             for split in transaction.splits() {
@@ -339,6 +357,31 @@ impl BookWriter {
         decimal_text(amount.minor_units(), digits, '.')
             .map(Json::Text)
             .ok_or(ExportError::BadDecimalPlaces { currency, digits })
+    }
+
+    /// A budget with its amounts, each with its currency, as a Rule's
+    /// amount test has it.
+    fn budget(&self, budget: &Budget) -> Result<Json, ExportError> {
+        let amounts = budget
+            .amounts
+            .iter()
+            .map(|row| {
+                Ok(Json::Object(vec![
+                    ("from_day", Json::date(row.from_day)),
+                    ("amount", self.amount(row.amount)?),
+                    ("currency", Json::text(row.amount.currency().as_str())),
+                    ("carry_over", Json::Bool(row.carry_over)),
+                ]))
+            })
+            .collect::<Result<_, ExportError>>()?;
+        Ok(Json::Object(vec![
+            ("id", Json::id(budget.id)),
+            ("category", Json::id(budget.category)),
+            ("every", Json::text(name_of(&BUDGET_EVERY, budget.every))),
+            ("first_day", Json::date(budget.first_day)),
+            ("last_day", budget.last_day.map_or(Json::Null, Json::date)),
+            ("amounts", Json::List(amounts)),
+        ]))
     }
 
     fn transaction(&self, transaction: &Transaction) -> Result<Json, ExportError> {
@@ -672,6 +715,13 @@ const KINDS: [(AccountKind, &str); 5] = [
     (AccountKind::Income, "income"),
     (AccountKind::Expense, "expense"),
     (AccountKind::Equity, "equity"),
+];
+
+const BUDGET_EVERY: [(BudgetEvery, &str); 4] = [
+    (BudgetEvery::Month, "month"),
+    (BudgetEvery::Quarter, "quarter"),
+    (BudgetEvery::Year, "year"),
+    (BudgetEvery::Range, "range"),
 ];
 
 const GROUP_KINDS: [(GroupKind, &str); 2] = [

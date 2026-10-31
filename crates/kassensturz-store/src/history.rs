@@ -120,11 +120,17 @@ pub enum Action {
     RemoveGroup,
     /// Changed which categories are hidden from charts (D-290, D-291).
     SetHiddenCategories,
+    /// Made a new budget (D-344).
+    AddBudget,
+    /// Changed a budget's amount, its carry over or its last day (D-345).
+    EditBudget,
+    /// Deleted a budget with its past results.
+    RemoveBudget,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 40] = [
+    pub const ALL: [Self; 43] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -165,6 +171,9 @@ impl Action {
         Self::MoveGroup,
         Self::RemoveGroup,
         Self::SetHiddenCategories,
+        Self::AddBudget,
+        Self::EditBudget,
+        Self::RemoveBudget,
     ];
 }
 
@@ -264,7 +273,7 @@ pub(crate) struct Recorded {
 
 /// Every table that holds the book's data. Only the history's own tables
 /// aren't recorded: `changes`, the `changed_` tables and `history_settings`.
-pub(crate) const RECORDED: [Recorded; 21] = [
+pub(crate) const RECORDED: [Recorded; 23] = [
     Recorded {
         name: "settings",
         key: "id",
@@ -504,6 +513,28 @@ pub(crate) const RECORDED: [Recorded; 21] = [
         name: "report_hidden",
         key: "category_id",
         columns: &[("category_id", "BLOB")],
+    },
+    Recorded {
+        name: "budgets",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("category_id", "BLOB"),
+            ("every", "TEXT"),
+            ("first_day", "TEXT"),
+            ("last_day", "TEXT"),
+        ],
+    },
+    Recorded {
+        name: "budget_amounts",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("budget_id", "BLOB"),
+            ("from_day", "TEXT"),
+            ("amount", "INTEGER"),
+            ("carry_over", "INTEGER"),
+        ],
     },
 ];
 
@@ -1409,6 +1440,9 @@ fn action_to_text(action: Action) -> &'static str {
         Action::MoveGroup => "move_group",
         Action::RemoveGroup => "remove_group",
         Action::SetHiddenCategories => "set_hidden_categories",
+        Action::AddBudget => "add_budget",
+        Action::EditBudget => "edit_budget",
+        Action::RemoveBudget => "remove_budget",
     }
 }
 

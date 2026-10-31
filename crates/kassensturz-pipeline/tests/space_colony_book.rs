@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! The five-year Space Colony book as a complete export (version 7), with
+//! The five-year Space Colony book as a complete export (version 8), with
 //! sample category groups and a small hide list (D-270, D-290).
 //!
 //! `tools/space-colony/generate.py` writes the KMyMoney file; this test
@@ -178,7 +178,7 @@ fn the_committed_export_is_what_the_book_gives() {
 #[test]
 fn the_export_opens_as_a_book_with_its_groups_and_hide_list() {
     let text = fs::read_to_string(books().join("space-colony-5y.json")).expect("the export");
-    let data = read_book(text.as_bytes()).expect("a version 7 book");
+    let data = read_book(text.as_bytes()).expect("a version 8 book");
     assert_eq!(data.groups.len(), GROUPS.len());
     assert_eq!(data.hidden_categories.len(), HIDDEN.len());
     let mut book = Book::create_in_memory().expect("a book in memory");

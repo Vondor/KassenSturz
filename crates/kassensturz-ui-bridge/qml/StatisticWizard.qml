@@ -37,6 +37,8 @@ ColumnLayout {
     readonly property var elementKeys: ["title", "legend"]
     // Formulas and fine tuning are one deliberate step away (Q-260).
     property bool advanced: false
+    // Charts and tables are made of columns on a board (D-340).
+    readonly property bool hasBoard: workbench.view.columns !== undefined
     // The kinds of the first step, each with the ways to show it.
     readonly property var kinds: [
         {id: "bars", types: ["chart.bar", "chart.stacked_bar"]},
@@ -62,7 +64,7 @@ ColumnLayout {
 
     // Whether a step has anything to set for the chosen type.
     function usable(index: int): bool {
-        return index !== 1 || hasFields(seriesKeys);
+        return index !== 1 || hasBoard || hasFields(seriesKeys);
     }
 
     function iconOf(id: string): string {
@@ -279,13 +281,30 @@ ColumnLayout {
                 }
             }
 
-            // Step 2: which categories, groups or lines.
+            // Step 2: the board of columns, and the older lists behind
+            // Advanced.
             ColumnLayout {
                 Layout.fillWidth: true
                 visible: wizard.step === 1
 
+                ColumnBoard {
+                    Layout.fillWidth: true
+                    visible: wizard.hasBoard
+                    workbench: wizard.workbench
+                    choices: wizard.builder.groupsSource
+                }
+
+                Controls.Button {
+                    flat: true
+                    visible: wizard.hasBoard && wizard.hasFields(wizard.seriesKeys)
+                    icon.name: wizard.advanced ? "arrow-down" : "arrow-right"
+                    text: wizard.i18nContext.i18nc("@action:button show or hide the lists of categories, groups and lines", "Advanced: pick from lists")
+                    onClicked: wizard.advanced = !wizard.advanced
+                }
+
                 PropertiesPanel {
                     Layout.fillWidth: true
+                    visible: !wizard.hasBoard || wizard.advanced
                     model: wizard.workbench
                     period: wizard.builder.period
                     choices: wizard.builder.groupsSource

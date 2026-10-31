@@ -26,10 +26,15 @@ Kirigami.ApplicationWindow {
         id: saved
     }
 
+    CategoryGroups {
+        id: groups
+    }
+
     pageStack.initialPage: StatisticsPage {
         id: page
 
         saved: saved
+        groupsSource: groups
     }
 
     function check(ok, what) {
@@ -162,7 +167,52 @@ Kirigami.ApplicationWindow {
             case 11:
                 window.check(page.openId !== "" && page.openName === "Wizard view", "the wizard saves the view under its name");
                 window.check(!page.wizard, "and the page shows every setting from then on");
-                Qt.exit(window.failed ? 1 : 0);
+                // The board of columns (D-340): reopen the view at the step.
+                page.changeStep(1);
+                break;
+            case 12:
+                {
+                    const wizard = find(page, "StatisticWizard", [])[0];
+                    const board = find(wizard, "ColumnBoard", [])[0];
+                    window.check(page.wizard && wizard.step === 1 && board !== undefined && board.visible, "the saved view reopens the wizard at the board");
+                    // Food and Groceries inside it, Rent, and one group of money spent.
+                    window.check(board.unused.length === 4, "everything starts in Unused: " + board.unused.length);
+                    window.check(!board.addColumn("  "), "a column needs a name");
+                    window.check(board.addColumn("Fast food") && board.addColumn("Home"), "two columns are added");
+                    window.check(!board.addColumn("fast FOOD") && board.problem !== "", "a name another column has is refused");
+                    board.moveCard("c-food", -1, 0);
+                    board.moveCard("c-rent", -1, 1);
+                    board.alsoPut("c-rent", 0);
+                }
+                break;
+            case 13:
+                {
+                    const wizard = find(page, "StatisticWizard", [])[0];
+                    const board = find(wizard, "ColumnBoard", [])[0];
+                    const columns = JSON.parse(wizard.workbench.view.columns);
+                    window.check(columns.length === 2 && columns[0].name === "Fast food", "the workbench holds the columns: " + wizard.workbench.view.columns);
+                    window.check(columns[0].members.join() === "c-food,c-rent" && columns[1].members.join() === "c-rent", "a card moves, and may also sit in a second column");
+                    // Groceries lies inside Food, so it is counted and not offered again.
+                    window.check(board.unused.map(card => card.id).join() === "g-fixed", "what is counted leaves Unused: " + board.unused.map(card => card.id));
+                    board.moveCard("c-food", 0, -1);
+                    board.removeColumn(1);
+                }
+                break;
+            case 14:
+                {
+                    const wizard = find(page, "StatisticWizard", [])[0];
+                    const columns = JSON.parse(wizard.workbench.view.columns);
+                    window.check(columns.length === 1 && columns[0].members.join() === "c-rent", "a card goes back to Unused and a column can be removed");
+                    window.check(page.saveChanges(), "the changes of the open view are saved with its columns");
+                    wizard.cancelled();
+                }
+                break;
+            case 15:
+                {
+                    const wizard = find(page, "StatisticWizard", [])[0];
+                    window.check(JSON.parse(wizard.workbench.view.columns).length === 1, "the saved view comes back with its column");
+                    Qt.exit(window.failed ? 1 : 0);
+                }
                 break;
             }
         }

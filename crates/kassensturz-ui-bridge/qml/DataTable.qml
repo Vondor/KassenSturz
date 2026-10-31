@@ -30,6 +30,29 @@ ColumnLayout {
     Accessible.role: Accessible.Table
     Accessible.name: title
 
+    // Measures text in the table's font, so a figure column is never narrower
+    // than its longest figure (M6-B26).
+    FontMetrics {
+        id: metrics
+    }
+
+    // The width the figures of column `index` need, without cutting any
+    // (principle 1: amounts are never elided). The first column holds names,
+    // which wrap, so it needs none. Headers are bold, hence the margin.
+    function figureWidth(index: int): real {
+        if (index === 0) {
+            return 0;
+        }
+        let widest = 0;
+        for (const row of rows) {
+            if (row[index] !== undefined) {
+                widest = Math.max(widest, metrics.advanceWidth(row[index]));
+            }
+        }
+        const title = columnTitle(columns[index]);
+        return Math.ceil(Math.max(widest, metrics.advanceWidth(title) * 1.1)) + 2;
+    }
+
     function columnTitle(key): string {
         return columnNames[key] !== undefined ? columnNames[key] : key;
     }
@@ -47,6 +70,7 @@ ColumnLayout {
 
                 Layout.fillWidth: true
                 Layout.preferredWidth: 1
+                Layout.minimumWidth: table.figureWidth(index)
                 text: table.columnTitle(modelData)
                 font.bold: true
                 elide: Text.ElideRight
@@ -82,6 +106,7 @@ ColumnLayout {
 
                     Layout.fillWidth: true
                     Layout.preferredWidth: 1
+                    Layout.minimumWidth: table.figureWidth(index)
                     text: modelData
                     // A name wraps; it is never cut short (M6-B3).
                     wrapMode: index === 0 ? Text.Wrap : Text.NoWrap

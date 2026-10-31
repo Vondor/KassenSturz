@@ -636,7 +636,11 @@ pub fn remove_budget(book: &mut Book, id: &str) -> Result<(), BudgetsError> {
 pub fn error_text(book: &Book, error: &BudgetsError, locale: &impl Locale) -> ErrorText {
     match error {
         BudgetsError::NoSuchEntry => ErrorText::plain("input.no-such-entry"),
-        BudgetsError::UnknownName(_) => ErrorText::plain("input.no-such-entry"),
+        // A mistake in the screen, logged and not shown (like the charts').
+        BudgetsError::UnknownName(what) => {
+            eprintln!("kassensturz: a budget screen sent an unknown {what}");
+            ErrorText::plain("input.no-such-entry")
+        }
         BudgetsError::Amount(error, currency) => ErrorText::amount(*error, book, *currency, locale),
         BudgetsError::Date => ErrorText {
             code: "input.malformed-date",

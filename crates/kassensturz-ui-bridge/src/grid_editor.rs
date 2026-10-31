@@ -554,9 +554,9 @@ mod tests {
     }"#;
 
     #[test]
-    fn the_library_offers_the_sixteen_components_and_adds_each_with_its_defaults() {
+    fn the_library_offers_the_seventeen_components_and_adds_each_with_its_defaults() {
         let offered = library();
-        assert_eq!(offered.len(), 16);
+        assert_eq!(offered.len(), 17);
         assert!(offered.contains(&("text.heading", "")));
         let mut layout = Layout::open(&book()).unwrap();
         for (kind, _) in offered {
@@ -567,7 +567,7 @@ mod tests {
                 .unwrap();
             assert_eq!(row.component.unwrap().kind().id(), kind);
         }
-        assert_eq!(rows(&layout.editor).len(), 27);
+        assert_eq!(rows(&layout.editor).len(), 29);
         assert!(add(&mut layout.editor, "chart.radar").is_err());
     }
 

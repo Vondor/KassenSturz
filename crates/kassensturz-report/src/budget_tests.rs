@@ -660,7 +660,9 @@ fn the_dataset_and_its_component_are_offered_since_the_app_draws_them() {
     for other in ComponentType::LIBRARY {
         if other != kind {
             assert!(
-                other.datasets().all(|dataset| dataset.id != BUDGET_UTILIZATION),
+                other
+                    .datasets()
+                    .all(|dataset| dataset.id != BUDGET_UTILIZATION),
                 "{}",
                 other.id()
             );

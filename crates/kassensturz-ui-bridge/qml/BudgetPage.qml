@@ -140,6 +140,7 @@ Kirigami.ScrollablePage {
             visible: !page.adding
             Kirigami.FormData.label: page.i18nContext.i18nc("@label", "How often:")
             text: words.every(page.everyWord)
+            textFormat: Text.PlainText
         }
 
         Controls.ComboBox {

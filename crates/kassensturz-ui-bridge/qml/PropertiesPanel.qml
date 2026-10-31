@@ -133,6 +133,10 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox", "My groups, with the other categories on their own");
         case "month":
             return i18nContext.i18nc("@item:inlistbox", "Month");
+        case "budget":
+            return i18nContext.i18nc("@item:inlistbox", "Each budget");
+        case "period":
+            return i18nContext.i18nc("@item:inlistbox", "Each period of a budget");
         case "account":
             return i18nContext.i18nc("@item:inlistbox", "Each account");
         case "account_kind":

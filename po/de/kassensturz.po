@@ -14256,3 +14256,13 @@ msgstr "Wie viel von jedem Budget ausgegeben und übrig ist"
 msgctxt "@info"
 msgid "Shows, for each budget, what is planned, what is spent and what is left in its period. Leave the list empty to show every budget."
 msgstr "Zeigt für jedes Budget, was geplant, was ausgegeben und was in seinem Zeitraum übrig ist. Lassen Sie die Liste leer, um jedes Budget zu zeigen."
+
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Each budget"
+msgstr "Jedes Budget"
+
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Each period of a budget"
+msgstr "Jeder Zeitraum eines Budgets"

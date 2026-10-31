@@ -225,6 +225,61 @@ mod tests {
         view_object(&cards::cards(book, &TestLocale, request))
     }
 
+    /// What the book's readings are kept for (M6-B30) must never show old
+    /// figures: the open book is read twice, changed through the session
+    /// the way every screen changes it, and read again.
+    #[test]
+    fn cards_read_after_a_change_show_the_change_though_the_book_was_read_before() {
+        let expenses = |view: &QVariant| {
+            let sets = list_of(view, "sets");
+            text_of(&list_of(&sets[0], "cards")[1], "value")
+        };
+        let open = crate::books::OpenBook {
+            book: book(true),
+            path: std::path::PathBuf::new(),
+            on_network_drive: false,
+        };
+        crate::session::set(open);
+        let ask = || {
+            crate::session::with_book(|book| view_of(book, &request("last-month")))
+                .expect("a book is open")
+        };
+        assert_eq!(expenses(&ask()), "853,20 €");
+        assert_eq!(expenses(&ask()), "853,20 €");
+
+        crate::session::with_book_mut(|book| {
+            let accounts = book.all_accounts().expect("accounts");
+            let id_of = |name: &str| {
+                accounts
+                    .iter()
+                    .find(|account| account.name == name)
+                    .expect("account")
+                    .id
+            };
+            let transaction = Transaction::new(
+                TransactionId::generate(),
+                Date::new(2026, 9, 4).expect("a date"),
+                None,
+                vec![
+                    Split::new(
+                        id_of("Checking account"),
+                        Money::from_minor_units(-1_000, EUR),
+                    ),
+                    Split::new(id_of("Rent"), Money::from_minor_units(1_000, EUR)),
+                ],
+            )
+            .expect("balanced");
+            book.add_transaction(&transaction).expect("added");
+        })
+        .expect("a book is open");
+        assert_eq!(expenses(&ask()), "863,20 €");
+
+        // Undoing it is a change like any other.
+        crate::session::with_book_mut(|book| book.undo().expect("undone")).expect("open");
+        assert_eq!(expenses(&ask()), "853,20 €");
+        crate::session::close();
+    }
+
     #[test]
     fn the_cards_read_back_the_way_qml_reads_them() {
         let view = view_of(&book(true), &request("last-month"));

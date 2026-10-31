@@ -196,6 +196,8 @@ The function's description and enums: the dataset ids with their catalog descrip
 
 In the chat panel, *Describe a chart* (a one-press entry next to the existing ones) puts the hint *e.g. My spending on food each month this year as bars* into the field. The answer shows the prepared chart **as a preview card in the chat**: the real chart from the real figures (`ComponentPreview`, as the review page), the AI-made label, and *Keep*, *Change…* and *Leave out*. *Keep* is the confirm (`Confirmed::by_the_user`) and saves the view under Statistics as one AI-made history entry; *Change…* opens the Statistic Builder on the prepared view, and what the user changes there is the user's version (D-297); *Leave out* drops it. Putting the kept view on the Overview stays the user's own step (*Add to the Overview*, D-326); the AI does not edit layouts in M6c.
 
+**Built in M6c.9 (D-402 to D-404):** a set that holds one new chart becomes a card (`AiChartCard.qml`) in the chat; the answer object has `charts` (each with its `unverified` title numbers) next to `sets`, and `chartFailed` with the `dataset` it understood when the corrections ran out. *Describe a chart* is hidden without the Charts › Add cell. The refusal counter is per question: the call and two corrections, then `CHART_NOT_PREPARED` and no function. *Change…* throws the AI's set away and opens the Statistic Builder on the chart, so what the user saves is the user's own (D-297, D-403).
+
 ### 4.5 Tests (D-356; M6c.10)
 
 - **Fake model** (`KASSENSTURZ_FAKE_AI=1`): a fixed list of plain descriptions, each answered with a fixed call, covering every dataset, `auto`, a range, a comparison, ids, `in_currency` and one refused call it then corrects.

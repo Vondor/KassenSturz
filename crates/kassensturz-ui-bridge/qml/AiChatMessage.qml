@@ -24,15 +24,26 @@ ColumnLayout {
     // The AI settings, for which of the notices the user wants (D-324).
     required property AiSettings settings
     // What the panel keeps for this message: its `kind` (`question`,
-    // `answer`, `error`, `changes`, `changesDone`, `page` or `issue`) and the fields
+    // `answer`, `error`, `changes`, `changesDone`, `chart`, `chartFailed`,
+    // `page` or `issue`) and the fields
     // of it.
     required property var message
+
+    // The `AiChat`, for the chart cards.
+    property var chat: null
 
     // The user wants to read the changes of the set with this ID.
     signal reviewClicked(string setId)
     // The user throws the set with this ID away.
     signal discardClicked(string setId)
     signal settingsClicked()
+    // The user wants the chart of a card made in the Statistic Builder.
+    signal chartChangeClicked(string title, string component, string period)
+    // The user dealt with the chart of a card: `kept`, `builder` or `left`.
+    signal chartHandled(string outcome)
+    // The user wants the Statistic Builder, starting from the dataset the AI
+    // understood (empty for none), after it gave up on a chart.
+    signal builderClicked(string dataset)
     // The user opened the report page (`opened`) or copied the report's text
     // (`copied`).
     signal issueUsed(string how)
@@ -176,6 +187,43 @@ ColumnLayout {
                     text: item.i18nContext.i18nc("@action:button throw the prepared changes away", "Throw away")
                     onClicked: item.discardClicked(item.message.setId)
                 }
+            }
+        }
+    }
+
+    // A chart the AI prepared, drawn from the book, with Keep, Change… and
+    // Leave out (M6c.9, D-355).
+    AiChartCard {
+        Layout.fillWidth: true
+        ai: item.ai
+        chat: item.chat
+        setId: item.message.kind === "chart" ? item.message.setId : ""
+        unverified: item.message.kind === "chart" ? (item.message.unverified ?? []) : []
+        outcome: item.message.kind === "chart" ? (item.message.outcome ?? "") : ""
+        onChangeClicked: (title, component, period) => item.chartChangeClicked(title, component, period)
+        onHandled: outcome => item.chartHandled(outcome)
+    }
+
+    // The AI could not prepare the chart, even after two corrections: said
+    // plainly, with the way on (D-355, D-402).
+    Kirigami.AbstractCard {
+        Layout.fillWidth: true
+        visible: item.message.kind === "chartFailed"
+
+        contentItem: ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            Controls.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: item.i18nContext.i18nc("@info", "The AI could not prepare this chart, even after two corrections. Nothing was changed. You can make the chart yourself in the Statistic Builder.")
+            }
+
+            Controls.Button {
+                icon.name: "view-statistics"
+                text: item.i18nContext.i18nc("@action:button open the Statistic Builder to make a chart yourself", "Open the Statistic Builder")
+                onClicked: item.builderClicked(item.message.kind === "chartFailed" ? (item.message.dataset ?? "") : "")
             }
         }
     }

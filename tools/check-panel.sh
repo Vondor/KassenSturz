@@ -46,7 +46,7 @@ trap 'rm -rf "$work"' EXIT
 # each other and the stand-ins as they see the Rust objects.
 module="$work/imports/io/github/vondor/kassensturz"
 mkdir -p "$module"
-for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange ComponentPreview PropertiesPanel ChartView ChartTable DataTable \
+for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiChartCard ComponentPreview PropertiesPanel ChartView ChartTable DataTable \
     CategoryGroupsPage CategoryGroupPage AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter ChartPalette FormError Plain \
     DashboardGrid GridItem GridNames TitleWords AddMenu FormulaField PeriodChoice StatisticWizard ColumnBoard; do
     cp "$bridge/qml/$file.qml" "$module"
@@ -56,7 +56,7 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
     echo 'module io.github.vondor.kassensturz'
     echo 'singleton ChartPalette 1.0 ChartPalette.qml'
     echo 'singleton Plain 1.0 Plain.qml'
-    for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange ComponentPreview PropertiesPanel ChartView \
+    for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiChartCard ComponentPreview PropertiesPanel ChartView \
         ChartTable DataTable AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter FormError SavedViews \
         ComponentProperties BookCharts BookCards AiSwitch AiChat AccountTypes AiErrorMessage \
         CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames TitleWords DashboardLayout \
@@ -64,7 +64,7 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
         echo "$file 1.0 $file.qml"
     done
 } > "$module/qmldir"
-cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$work"
+cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$work"
 run_smoke() {
     (
         cd "$work"
@@ -86,6 +86,8 @@ run_smoke StatisticsSmoke
 echo "statistics page: ok"
 run_smoke ReviewSmoke
 echo "review page: ok"
+run_smoke ChatChartSmoke
+echo "chat chart card: ok"
 run_smoke GroupsSmoke
 echo "groups pages: ok"
 run_smoke GridSmoke

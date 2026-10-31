@@ -37,6 +37,10 @@ ColumnLayout {
     signal detachClicked()
     // The user's own AI tools prepared changes: the sidebar should show.
     signal changesArrived()
+    // The user wants the Statistic Builder, on the chart the AI prepared
+    // (`component`, as JSON text, with its title and period), or after the
+    // AI gave up on one: with only the `dataset` it understood (D-355).
+    signal statisticBuilderRequested(string title, string component, string period, string dataset)
     // The AI asked to open the page `name` (`overview`, `accounts`,
     // `categories`, `rules` or `account`), about the account or Rule `id`
     // when it has one (D-265). It only shows a page; nothing is changed.
@@ -86,6 +90,19 @@ ColumnLayout {
     function refresh() {
         form = settings.load();
         features = ["categories", "month", "rules"].filter(feature => featureAllowed(feature));
+        chartAllowed = settings.allows("AllowNewViews");
+    }
+
+    // Whether the user lets the AI prepare charts; the button that asks for
+    // one is hidden, not grayed out, when not (D-239).
+    property bool chartAllowed: false
+
+    // *Describe a chart* (M6c.9, D-355): puts an example into the field for
+    // the user to change, and asks nothing yet.
+    function describeChart() {
+        questionField.text = i18nContext.i18nc("@info:placeholder an example of how to describe a chart, which the user changes", "My spending on food each month this year, as bars");
+        questionField.forceActiveFocus();
+        questionField.selectAll();
     }
 
     // The built-in features that are shown: one whose changes the user
@@ -108,6 +125,18 @@ ColumnLayout {
     function add(message: var) {
         messages.append({ message: message });
         messageList.followEnd = true;
+    }
+
+    // The user dealt with the chart card of the set `setId`; the card is
+    // made again from the model when the list is built again, and must then
+    // not load a set that is gone.
+    function markChart(setId: string, outcome: string) {
+        for (let i = 0; i < messages.count; i++) {
+            const message = messages.get(i).message;
+            if (message.kind === "chart" && message.setId === setId) {
+                messages.set(i, { message: { kind: "chart", setId: setId, unverified: message.unverified, outcome: outcome } });
+            }
+        }
     }
 
     // The review screen or the user's choice ended with a set.
@@ -218,6 +247,12 @@ ColumnLayout {
             });
             for (let i = 0; i < result.sets.length; i++) {
                 panel.add({ kind: "changes", setId: result.sets[i].id, count: result.sets[i].count });
+            }
+            for (let i = 0; i < result.charts.length; i++) {
+                panel.add({ kind: "chart", setId: result.charts[i].id, unverified: Array.from(result.charts[i].unverified), outcome: "" });
+            }
+            if (result.chartFailed !== undefined) {
+                panel.add({ kind: "chartFailed", dataset: result.chartFailed.dataset });
             }
             if (result.page !== undefined) {
                 panel.add({ kind: "page", page: result.page.name, hasId: result.page.id !== "" });
@@ -394,7 +429,11 @@ ColumnLayout {
                 // Beside the scroll bar, not under it.
                 width: ListView.view.width - messageBar.width - Kirigami.Units.smallSpacing
                 ai: panel.ai
+                chat: panel.chat
                 settings: panel.settings
+                onChartChangeClicked: (title, component, period) => panel.statisticBuilderRequested(title, component, period, "")
+                onBuilderClicked: dataset => panel.statisticBuilderRequested("", "", "", dataset)
+                onChartHandled: outcome => panel.markChart(message.setId, outcome)
                 onReviewClicked: setId => panel.reviewChangesClicked(setId)
                 onDiscardClicked: setId => {
                     panel.chat.discard(setId);
@@ -525,6 +564,15 @@ ColumnLayout {
                 text: panel.featureLabel(modelData)
                 onClicked: panel.askFeature(modelData, "")
             }
+        }
+
+        Controls.Button {
+            flat: true
+            visible: panel.chartAllowed
+            enabled: !panel.chat.busy
+            icon.name: "view-statistics"
+            text: panel.i18nContext.i18nc("@action:button puts an example of how to describe a chart into the question field", "Describe a chart")
+            onClicked: panel.describeChart()
         }
     }
 

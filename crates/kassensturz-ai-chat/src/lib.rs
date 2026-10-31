@@ -51,6 +51,7 @@ pub use features::{AnswerLanguage, Feature};
 pub use log::{LogEntry, MAX_ARGUMENT_CHARS};
 pub use prompt::{BuildInfo, DATA_END, DATA_START};
 pub use session::{
-    ANSWER_NOW, Answer, Cancel, ChatSession, EMPTY_ANSWER, Hooks, MAX_ROUNDS, Mode, NOT_OFFERED,
-    NoHooks, Outcome, SHORTENED_RESULT, looks_cut, sample_request,
+    ANSWER_NOW, Answer, CHART_NOT_PREPARED, Cancel, ChartFailed, ChatSession, EMPTY_ANSWER, Hooks,
+    MAX_ROUNDS, MAX_VIEW_CORRECTIONS, Mode, NOT_OFFERED, NoHooks, Outcome, SHORTENED_RESULT,
+    looks_cut, sample_request,
 };

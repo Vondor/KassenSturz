@@ -21,6 +21,14 @@ Kirigami.ScrollablePage {
     // A `CategoryGroups`, for picking My groups and categories in the panel.
     property var groupsSource: null
     readonly property var views: saved.view?.views ?? []
+    // A chart to start from, as the AI prepared it in the chat (M6c.9,
+    // D-355): its title, the component as JSON text and its period. What the
+    // user saves is the user's own chart (D-297). Empty for the usual start.
+    property string initialName: ""
+    property string initialComponent: ""
+    property string initialPeriod: ""
+    // Else the dataset the AI understood and gave up on, empty for none.
+    property string initialDataset: ""
     // The saved view being changed, by ID; empty for one not saved yet.
     property string openId: ""
     property string openName: ""
@@ -174,9 +182,32 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // Starts on the chart the AI prepared, or on the dataset it understood,
+    // in the page with every setting so the name and Save are in view. A
+    // component the schema refuses leaves the usual start.
+    function startFrom() {
+        if (initialComponent !== "") {
+            workbench.load(initialComponent);
+            if (workbench.view.error === undefined) {
+                nameField.text = initialName;
+                page.period = initialPeriod !== "" ? initialPeriod : page.period;
+                page.wizard = false;
+                return;
+            }
+        } else if (initialDataset !== "") {
+            for (const kind of ["chart.bar", "chart.line", "kpi.card", "table.rows"]) {
+                workbench.open(kind, initialDataset);
+                if (workbench.view.error === undefined) {
+                    return;
+                }
+            }
+        }
+        workbench.open("chart.bar", "spending_by_category");
+    }
+
     Component.onCompleted: {
         saved.refresh();
-        workbench.open("chart.bar", "spending_by_category");
+        startFrom();
     }
 
     Kirigami.PromptDialog {

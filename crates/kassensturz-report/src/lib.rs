@@ -27,6 +27,11 @@
 //!
 //! How much of each budget is spent and left comes from the budgets the
 //! [`Source`] reads with the parts ([`budget_utilization`], D-346, D-347).
+//!
+//! What a component of a dashboard is drawn with, its period, accounts and
+//! categories from its own settings, its period box or the page's filter
+//! bar, is worked out here too, with the notes it shows ([`Asked`],
+//! [`Document::asked`], D-350, D-351).
 
 mod balances;
 mod budget_utilization;
@@ -73,7 +78,10 @@ pub use document::{
 };
 pub use editor::{Edit, Editor, MAX_UNDO};
 pub use error::ReportError;
-pub use filter::Filter;
+pub use filter::{
+    Applied, Asked, Chosen, Dimension, Filter, FilterNote, Filters, MAX_FILTER_IDS, Origin, Takes,
+    takes,
+};
 pub use formula::{
     Counted, FUNCTIONS, Formula, FormulaResult, FormulaValue, FunctionInfo, KnownName,
     MAX_FORMULA_ARGUMENTS, MAX_FORMULA_CHARS, MAX_FORMULA_DEPTH, MAX_FORMULA_NAMES,
@@ -112,6 +120,8 @@ mod component_tests;
 mod dashboard_tests;
 #[cfg(test)]
 mod document_tests;
+#[cfg(test)]
+mod filter_tests;
 #[cfg(test)]
 mod financial_tests;
 #[cfg(test)]

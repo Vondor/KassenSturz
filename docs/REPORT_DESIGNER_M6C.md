@@ -106,7 +106,7 @@ New datasets in `kassensturz-report`, each a pure function of a `Source`, a `Per
 | Dataset id | Rows | Groupings | Measures |
 |---|---|---|---|
 | `account_balances` | each account the user has (open, or closed with a balance that is not zero on the day): name, *have* or *owe*, balance on the period's last day | `account`, `account_kind` | `assets`, `liabilities`, `net_worth` |
-| `net_worth_over_time` | for each calendar month the period touches, at the end of its last day inside the period: what you have, what you owe, what you are worth | `month` | `assets`, `liabilities`, `net_worth` |
+| `net_worth_over_time` | for each calendar month the period touches, at the end of its last day inside the period: what you have, what you owe, what you are worth; a period inside one month also has an opening row with the figures just before its first day (D-407) | `month` | `assets`, `liabilities`, `net_worth` |
 | `cash_flow_by_month` | for each calendar month: balance at the start, money in, money out, starting balances set, balance at the end, of the chosen accounts together | `month` | `money_in`, `money_out`, `net_change` |
 | `budget_utilization` (§1.4) | for each budget: period, planned, carried in, available, spent, left, used | `budget`, `period` | `spent`, `left`, `used_percent` |
 

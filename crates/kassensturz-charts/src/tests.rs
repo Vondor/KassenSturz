@@ -654,6 +654,32 @@ fn net_worth_is_one_series_with_a_point_for_every_month_and_a_table_with_what_ma
 }
 
 #[test]
+fn net_worth_of_one_month_has_two_points_so_the_line_is_drawn() {
+    // M6-B27, D-407: October alone shows what you were worth on 30 September
+    // and on 31 October, named by their days.
+    let book = with_card();
+    let october = Period::new(date(2026, 10, 1), date(2026, 10, 31)).expect("a period");
+    let source = Source::read_with_balances(&book, october).expect("source");
+    let data = kassensturz_report::net_worth_over_time(&source, october, &Filter::default(), None)
+        .expect("dataset")
+        .results
+        .remove(0);
+    for kind in [ChartKind::Line, ChartKind::Area, ChartKind::Bar] {
+        let chart = net_worth_over_time(&data, kind, &Words).expect("chart");
+        assert_eq!(chart.categories, ["2026-09-30", "2026-10-31"]);
+        let worth: Vec<i64> = chart.series[0]
+            .points
+            .iter()
+            .map(|point| point.minor_units)
+            .collect();
+        assert_eq!(worth, [150_000, 313_446]);
+        assert_eq!(chart.total, "3134,46 EUR");
+        assert_eq!(chart.table.rows.len(), 2);
+        assert_eq!(chart.table.rows[0][0], "2026-09-30");
+    }
+}
+
+#[test]
 fn cash_flow_is_bars_of_money_in_and_out_and_a_table_with_start_and_end() {
     let book = with_card();
     let source = read_with_balances(&book);

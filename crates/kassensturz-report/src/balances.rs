@@ -505,6 +505,10 @@ pub struct WorthRow {
     pub day: Date,
     /// What you had, owed and were worth at the end of `day`.
     pub worth: Worth,
+    /// Whether this is the opening row of a period of one month: what you
+    /// were worth just before the period began, so that a line has two
+    /// points to join (D-407). `month` is then the month of `day`.
+    pub opening: bool,
 }
 
 /// The months of one currency.
@@ -526,13 +530,24 @@ pub struct NetWorthOverTime {
     pub converted: Vec<Converted>,
 }
 
-/// The day each month of `period` ends on inside it.
-fn month_ends(period: Period) -> Vec<(Date, Date)> {
-    period
-        .months()
-        .into_iter()
-        .map(|month| (month, month.last_of_month().min(period.last())))
-        .collect()
+/// The day each month of `period` ends on inside it. A period inside one
+/// month starts with the day before it, marked as the opening row: one point
+/// draws no line, so a short period shows what you were worth when it began
+/// and when it ended (D-407). The third value tells the opening row.
+fn month_ends(period: Period) -> Vec<(Date, Date, bool)> {
+    let months = period.months();
+    let mut ends = Vec::with_capacity(months.len() + 1);
+    if months.len() == 1
+        && let Ok(before) = period.first().yesterday()
+    {
+        ends.push((before.first_of_month(), before, true));
+    }
+    ends.extend(
+        months
+            .into_iter()
+            .map(|month| (month, month.last_of_month().min(period.last()), false)),
+    );
+    ends
 }
 
 /// What the own accounts `filter` chooses had, owed and were worth at the
@@ -548,7 +563,18 @@ pub fn net_worth_over_time(
 ) -> Result<NetWorthOverTime, ReportError> {
     source.require(period)?;
     let ends = month_ends(period);
-    let moments: Vec<Moment> = ends.iter().map(|&(_, day)| Moment::End(day)).collect();
+    // The opening row is the start of the period's first day, which the
+    // `Source` was read for (the day before it was not).
+    let moments: Vec<Moment> = ends
+        .iter()
+        .map(|&(_, day, opening)| {
+            if opening {
+                Moment::Start(period.first())
+            } else {
+                Moment::End(day)
+            }
+        })
+        .collect();
     let balances = source.balances_at(&moments)?;
     let accounts = source.own_accounts(filter);
     let mut currencies: Vec<CurrencyCode> = accounts
@@ -571,7 +597,7 @@ pub fn net_worth_over_time(
         })
         .collect();
     let mut converted = Vec::new();
-    for (&(month, day), balances) in ends.iter().zip(&balances) {
+    for (&(month, day, opening), balances) in ends.iter().zip(&balances) {
         let mut worths: Vec<Worth> = currencies.iter().map(|&c| Worth::zero(c)).collect();
         for account in &accounts {
             if let (Ok(at), Some(&balance)) = (
@@ -582,7 +608,12 @@ pub fn net_worth_over_time(
             }
         }
         for (result, &worth) in results.iter_mut().zip(&worths) {
-            result.rows.push(WorthRow { month, day, worth });
+            result.rows.push(WorthRow {
+                month,
+                day,
+                worth,
+                opening,
+            });
         }
         if let Some(to) = in_currency {
             converted.push(source.convert_worths(&worths, to, day)?);
@@ -608,6 +639,23 @@ impl CurrencyBalances {
 }
 
 impl CurrencyWorth {
+    /// What each row is called on a chart or in a table: its month, or its
+    /// day when the period is inside one month and has an opening row, whose
+    /// month would repeat (D-407).
+    pub fn labels(&self, format: &impl TextFormat) -> Vec<String> {
+        let by_day = self.rows.iter().any(|row| row.opening);
+        self.rows
+            .iter()
+            .map(|row| {
+                if by_day {
+                    format.day(row.day)
+                } else {
+                    format.month(row.month)
+                }
+            })
+            .collect()
+    }
+
     /// The result as a table of text with the columns `month`, `assets`,
     /// `liabilities` and `net_worth`.
     pub fn to_text(&self, format: &impl TextFormat) -> TextTable {
@@ -617,9 +665,10 @@ impl CurrencyWorth {
             rows: self
                 .rows
                 .iter()
-                .map(|row| {
+                .zip(self.labels(format))
+                .map(|(row, label)| {
                     vec![
-                        format.month(row.month),
+                        label,
                         format.amount(row.worth.assets),
                         format.amount(row.worth.liabilities),
                         format.amount(row.worth.net_worth),

@@ -1108,6 +1108,93 @@ mod tests {
         assert_eq!(rows(&book, &checking, Sort::default()).len(), 2);
     }
 
+    /// The register reads only an outline of each transaction (M6-B8,
+    /// D-387): every line still has the kind, category and note the whole
+    /// transaction gives it.
+    #[test]
+    fn the_register_tells_each_line_as_the_whole_transaction_does() {
+        let (mut book, checking) = book_with_checking();
+        let savings = account(&mut book, "Savings", AccountType::Savings, "");
+        let checking_id = find_account(&book, &checking).expect("account").id;
+        let savings_id = find_account(&book, &savings).expect("account").id;
+        let groceries = category_id(&book, "Food › Groceries");
+        add(
+            &mut book,
+            &paid(&checking, "12", "Corner Grocery", &groceries),
+            &TestLocale,
+        )
+        .expect("added");
+        add(&mut book, &paid(&checking, "3", "Kiosk", ""), &TestLocale).expect("added");
+        let eur = |minor| Money::from_minor_units(minor, EUR);
+        let day = Date::constant(2026, 10, 8);
+        let noted_part = Split {
+            note: Some("Rent share".into()),
+            ..Split::new(checking_id, eur(-20000))
+        };
+        let transfer = Transaction::new(
+            TransactionId::generate(),
+            day,
+            None,
+            vec![noted_part, Split::new(savings_id, eur(20000))],
+        )
+        .expect("transfer");
+        book.add_transaction(&transfer).expect("added");
+        let parts = Transaction::new(
+            TransactionId::generate(),
+            day,
+            Some("Supermarket".into()),
+            vec![
+                Split::new(checking_id, eur(-3000)),
+                Split::uncategorized(eur(3000)),
+                Split::new(checking_id, eur(1000)),
+                Split::uncategorized(eur(-1000)),
+            ],
+        )
+        .expect("parts")
+        .with_note(Some("Bottle deposit back".into()));
+        book.add_transaction(&parts).expect("added");
+
+        for id in [checking_id, savings_id] {
+            let entries = crate::register::entries(&book, id).expect("register");
+            assert!(!entries.is_empty());
+            for entry in entries {
+                let whole = book.transaction(entry.transaction).expect("read");
+                let note = whole
+                    .note()
+                    .or_else(|| {
+                        whole
+                            .splits()
+                            .iter()
+                            .find(|split| split.account == Some(id))
+                            .and_then(|split| split.note.as_deref())
+                    })
+                    .unwrap_or_default();
+                assert_eq!(
+                    (entry.kind, entry.category, entry.note.as_str()),
+                    {
+                        let (kind, category) = kind_of(&book, id, &whole).expect("kind");
+                        (kind, category, note)
+                    },
+                    "{:?}",
+                    entry.transaction
+                );
+            }
+        }
+        let kinds: Vec<EntryKind> = crate::register::entries(&book, checking_id)
+            .expect("register")
+            .into_iter()
+            .map(|entry| entry.kind)
+            .collect();
+        for kind in [
+            EntryKind::Simple,
+            EntryKind::StartingBalance,
+            EntryKind::Transfer,
+            EntryKind::Parts,
+        ] {
+            assert!(kinds.contains(&kind), "{kind:?}");
+        }
+    }
+
     #[test]
     fn keeps_what_the_bank_delivered() {
         let (mut book, checking) = book_with_checking();

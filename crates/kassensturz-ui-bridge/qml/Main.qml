@@ -126,6 +126,7 @@ Kirigami.ApplicationWindow {
         id: accountList
 
         onChanged: root.screenChangedBook()
+        onAdded: root.accountAdded()
     }
 
     CategoryTree {
@@ -372,10 +373,26 @@ Kirigami.ApplicationWindow {
         changeHistory.refresh();
     }
 
+    // An account was added: only what lists accounts or counts money reads
+    // the book again. The register, the categories and their groups, the
+    // saved views and the layout show nothing of a new account, and reading
+    // them again made saving it wait (M6-B8).
+    function accountAdded() {
+        firstStartState.refresh();
+        bookOverview.refresh();
+        ruleBook.refresh();
+        changeHistory.refresh();
+        offerUndo();
+    }
+
     // A screen changed the book: every screen reads it again, and the user
     // can undo the change from the notice (M3.8, D-086).
     function screenChangedBook() {
         bookChanged();
+        offerUndo();
+    }
+
+    function offerUndo() {
         if (started && changeHistory.undoChange?.action !== undefined) {
             showPassiveNotification(changeNames.name(changeHistory.undoChange.action), 8000, i18nContext.i18nc("@action:button take the last change back", "Undo"), () => root.undoLast());
         }

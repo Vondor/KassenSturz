@@ -87,6 +87,7 @@ fn main() {
                 "qml/PartsPage.qml",
                 "qml/PropertiesPanel.qml",
                 "qml/RegisterPage.qml",
+                "qml/RemoveOriginalDialog.qml",
                 "qml/ReplacedCurrency.qml",
                 "qml/RuleCondition.qml",
                 "qml/RulePage.qml",

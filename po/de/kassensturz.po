@@ -13310,3 +13310,95 @@ msgstr "„%1“ ist keine Funktion. Es gibt: %2."
 msgctxt "@info a mistake in a formula; %1 is what was typed"
 msgid "“%1” is not the name of a column, category or group. Pick one from the suggestions."
 msgstr "„%1“ ist weder der Name einer Spalte noch einer Kategorie oder Gruppe. Wählen Sie einen Vorschlag aus."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:384
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz keeps what your bank or a file delivered exactly as it came, so "
+"this change wasn't made and nothing was lost. This is a mistake in "
+"KassenSturz or in another program that changed the book; please report it."
+msgstr ""
+"KassenSturz bewahrt genau so auf, was Ihre Bank oder eine Datei geliefert "
+"hat. Deshalb wurde diese Änderung nicht gemacht, und nichts ging verloren. "
+"Das ist ein Fehler in KassenSturz oder in einem anderen Programm, das das "
+"Buch geändert hat; bitte melden Sie ihn."
+
+#: crates/kassensturz-ui-bridge/qml/RemoveOriginalDialog.qml:42
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Undo can bring it back later, unless you clean up the history in Settings "
+"first."
+msgstr ""
+"„Rückgängig“ kann die Buchung auch später zurückbringen, außer Sie räumen vorher in "
+"den Einstellungen den Verlauf auf."
+
+#: crates/kassensturz-ui-bridge/qml/RemoveOriginalDialog.qml:44
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Undo can bring it back only until you close this book, because your settings "
+"keep no history after that."
+msgstr ""
+"„Rückgängig“ kann die Buchung nur zurückbringen, bis Sie dieses Buch schließen, denn "
+"nach Ihren Einstellungen wird danach kein Verlauf aufbewahrt."
+
+#: crates/kassensturz-ui-bridge/qml/RemoveOriginalDialog.qml:46
+#, kde-format
+msgctxt "@info %1 is a number of days"
+msgid ""
+"Undo can bring it back within the next day, unless you clean up the history "
+"in Settings first."
+msgid_plural ""
+"Undo can bring it back within the next %1 days, unless you clean up the "
+"history in Settings first."
+msgstr[0] ""
+"„Rückgängig“ kann die Buchung innerhalb des nächsten Tages zurückbringen, außer Sie "
+"räumen vorher in den Einstellungen den Verlauf auf."
+msgstr[1] ""
+"„Rückgängig“ kann die Buchung innerhalb der nächsten %1 Tage zurückbringen, außer Sie"
+" räumen vorher in den Einstellungen den Verlauf auf."
+
+#: crates/kassensturz-ui-bridge/qml/RemoveOriginalDialog.qml:49
+#, kde-format
+msgctxt "@title:window"
+msgid "Remove what your bank sent?"
+msgstr "Entfernen, was Ihre Bank geschickt hat?"
+
+#: crates/kassensturz-ui-bridge/qml/RemoveOriginalDialog.qml:50
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This transaction came from your bank or a file. KassenSturz keeps what was "
+"delivered for it unchanged, as the original, and your own changes sit on top "
+"of it. Removing the transaction removes the original too."
+msgstr ""
+"Diese Buchung kam von Ihrer Bank oder aus einer Datei. KassenSturz bewahrt "
+"unverändert auf, was dazu geliefert wurde, als Original; Ihre eigenen "
+"Änderungen liegen darüber. Wenn Sie die Buchung entfernen, wird auch das "
+"Original entfernt."
+
+#: crates/kassensturz-ui-bridge/qml/RemoveOriginalDialog.qml:54
+#, kde-format
+msgctxt "@action:button"
+msgid "Remove it with the original"
+msgstr "Mit dem Original entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/RemoveOriginalDialog.qml:62
+#, kde-format
+msgctxt "@action:button keep a transaction"
+msgid "Keep it"
+msgstr "Behalten"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:266
+#, kde-format
+msgctxt "@label the other party's name as the bank or file delivered it"
+msgid "As delivered:"
+msgstr "Wie geliefert:"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:271
+#, kde-format
+msgctxt "@info %1 is a name as the bank delivered it"
+msgid "As delivered by your bank or file: %1"
+msgstr "Wie von Ihrer Bank oder der Datei geliefert: %1"

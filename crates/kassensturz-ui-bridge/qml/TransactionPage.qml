@@ -129,12 +129,31 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // A transaction with what a bank or file delivered is removed only
+    // after the plain warning (D-375); one typed in is removed at once.
     function remove() {
+        const notice = register.removalNotice(chosenAccount, transactionId);
+        if (notice.code !== undefined) {
+            error.result = notice;
+        } else if (notice.holdsOriginal) {
+            removeOriginal.ask(notice);
+        } else {
+            removeNow();
+        }
+    }
+
+    function removeNow() {
         const result = register.removeTransaction(chosenAccount, transactionId);
         error.result = result;
         if (result.code === undefined) {
             done();
         }
+    }
+
+    RemoveOriginalDialog {
+        id: removeOriginal
+
+        onRemoveConfirmed: page.removeNow()
     }
 
     TransferPrompt {
@@ -237,6 +256,19 @@ Kirigami.ScrollablePage {
                 ? page.i18nContext.i18nc("@info:placeholder", "For example your employer")
                 : page.i18nContext.i18nc("@info:placeholder", "For example the shop")
             onAccepted: page.save()
+        }
+
+        // The name as the bank or file delivered it, when the transaction
+        // shows another one: the original stays next to the user's own
+        // (D-375).
+        Controls.Label {
+            visible: !page.adding && (page.entry.deliveredName ?? "") !== ""
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label the other party's name as the bank or file delivered it", "As delivered:")
+            text: page.entry.deliveredName ?? ""
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            Accessible.name: page.i18nContext.i18nc("@info %1 is a name as the bank delivered it", "As delivered by your bank or file: %1", text)
         }
 
         Controls.ComboBox {

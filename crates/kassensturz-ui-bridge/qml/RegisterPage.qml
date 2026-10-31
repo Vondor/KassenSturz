@@ -27,6 +27,9 @@ Kirigami.ScrollablePage {
     // same category by hand several times (M3.11, D-071).
     required property RuleBook rules
 
+    // The lines were read and a picture with them was drawn.
+    signal ready()
+
     // Add a transaction to this account.
     signal addTransactionClicked(string accountId)
     // Import a file from the bank into this account (M3.10).
@@ -104,6 +107,16 @@ Kirigami.ScrollablePage {
         }
         register.show(accountId);
         loaded = true;
+        // The first picture with the lines in it, for the developer mode's
+        // timing of how long the register takes.
+        const window = Window.window;
+        if (window) {
+            const drawn = () => {
+                window.frameSwapped.disconnect(drawn);
+                page.ready();
+            };
+            window.frameSwapped.connect(drawn);
+        }
     }
 
     title: loaded ? register.accountName : chosenName

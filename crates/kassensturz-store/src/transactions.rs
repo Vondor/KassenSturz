@@ -39,6 +39,28 @@ pub struct RegisterEntry {
     pub amount: Money,
 }
 
+/// The note of a transaction and an outline of each of its parts: what an
+/// account's register shows besides [`RegisterEntry`], read without making
+/// whole transactions (D-387).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TransactionOutline {
+    /// The transaction's note, if it has one that isn't empty.
+    pub note: Option<String>,
+    /// Its parts, in their order.
+    pub parts: Vec<PartOutline>,
+}
+
+/// One part of a [`TransactionOutline`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PartOutline {
+    /// The account or category it is booked to, if any.
+    pub account: Option<AccountId>,
+    /// Whether it is in another currency than its transaction (D-043).
+    pub foreign: bool,
+    /// The part's own note, as stored.
+    pub note: Option<String>,
+}
+
 /// One part booked to an account, with what a bank or file delivered for
 /// it, e.g. for comparing a statement's entries with what the account
 /// already holds (D-030, D-092).
@@ -445,6 +467,43 @@ impl Book {
             tags.entry(split).or_default().push(tag);
         }
         Ok(tags)
+    }
+
+    /// The note and an outline of every part of each transaction with a part
+    /// booked to `account`, by transaction. One query reads them, without
+    /// making and checking whole transactions as [`Book::transactions_of`]
+    /// does, so an account's register with thousands of lines opens quickly
+    /// (M6-B8, D-387). Unknown accounts have no transactions.
+    pub fn transaction_outlines(
+        &self,
+        account: AccountId,
+    ) -> Result<HashMap<TransactionId, TransactionOutline>, StoreError> {
+        let mut statement = self.conn.prepare_cached(
+            "SELECT s.transaction_id, t.note, s.account_id, s.foreign_amount IS NOT NULL, s.note
+             FROM splits AS s JOIN transactions AS t ON t.id = s.transaction_id
+             WHERE s.transaction_id IN (SELECT transaction_id FROM splits WHERE account_id = ?1)
+             ORDER BY s.transaction_id, s.position",
+        )?;
+        let mut outlines: HashMap<TransactionId, TransactionOutline> = HashMap::new();
+        let mut rows = statement.query([account.to_bytes()])?;
+        while let Some(row) = rows.next()? {
+            let transaction = TransactionId::from_bytes(row.get(0)?);
+            let outline = outlines.entry(transaction).or_default();
+            if outline.parts.is_empty() {
+                // An empty note counts as none, as in a whole transaction.
+                outline.note = row
+                    .get::<_, Option<String>>(1)?
+                    .filter(|note| !note.is_empty());
+            }
+            outline.parts.push(PartOutline {
+                account: row
+                    .get::<_, Option<[u8; 16]>>(2)?
+                    .map(AccountId::from_bytes),
+                foreign: row.get(3)?,
+                note: row.get(4)?,
+            });
+        }
+        Ok(outlines)
     }
 
     /// The transactions that touch `account`, oldest first, each as seen from

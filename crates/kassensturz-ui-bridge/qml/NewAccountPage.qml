@@ -145,7 +145,10 @@ Kirigami.ScrollablePage {
         Controls.ComboBox {
             id: currencyBox
             visible: otherCurrency.checked
-            model: page.accounts.currencies
+            // The list is long and a ComboBox builds all of it up front, so
+            // it is handed over only when the box is wanted: a page that is
+            // only opened should not wait for it.
+            model: otherCurrency.checked ? page.accounts.currencies : []
         }
 
         Controls.Button {

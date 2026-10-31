@@ -280,6 +280,16 @@ pub fn library() -> Vec<(&'static str, &'static str)> {
         .collect()
 }
 
+/// The debug-log detail for an added widget of the type `kind_id`: the id
+/// with its dot written as an underscore, if it is in the library.
+pub fn widget_detail(kind_id: &str) -> Option<&'static str> {
+    let wanted = kind_id.replace('.', "_");
+    kassensturz_core::vocabulary::DETAILS
+        .iter()
+        .copied()
+        .find(|detail| *detail == wanted)
+}
+
 /// Adds a component of the type `kind_id` with its defaults; gives its ID.
 pub fn add(editor: &mut Editor, kind_id: &str) -> Result<String, LayoutError> {
     let kind = ComponentType::from_id(kind_id).ok_or(ReportError::DocumentInvalid {
@@ -326,6 +336,15 @@ mod tests {
 
     fn book() -> Book {
         Book::create_in_memory().unwrap()
+    }
+
+    #[test]
+    fn every_library_kind_has_a_debug_log_detail() {
+        for (kind, _) in library() {
+            let detail = widget_detail(kind).unwrap_or_else(|| panic!("no detail for {kind}"));
+            assert_eq!(detail, kind.replace('.', "_"));
+        }
+        assert_eq!(widget_detail("nonsense"), None);
     }
 
     #[test]

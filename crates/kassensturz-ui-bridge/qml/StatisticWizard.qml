@@ -295,8 +295,11 @@ ColumnLayout {
                 }
             
 
+                // Only offered when the chosen type has something to put
+                // there; an open row with nothing under it did nothing (M6-B14).
                 Controls.Button {
                     flat: true
+                    visible: wizard.hasFields(wizard.advancedKeys)
                     icon.name: wizard.advanced ? "arrow-down" : "arrow-right"
                     text: wizard.i18nContext.i18nc("@action:button show or hide formulas and fine tuning", "Advanced: formulas and fine tuning")
                     onClicked: wizard.advanced = !wizard.advanced
@@ -304,7 +307,7 @@ ColumnLayout {
 
                 PropertiesPanel {
                     Layout.fillWidth: true
-                    visible: wizard.advanced
+                    visible: wizard.advanced && wizard.hasFields(wizard.advancedKeys)
                     model: wizard.workbench
                     period: wizard.builder.period
                     choices: wizard.builder.groupsSource

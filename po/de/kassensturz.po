@@ -13001,6 +13001,11 @@ msgid "Name of the column"
 msgstr "Name der Spalte"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info"
+msgid "Nothing was spent on this in the period."
+msgstr "In diesem Zeitraum wurde dafür nichts ausgegeben."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@info %1 is an amount of money, or several with + between them"
 msgid "Adds up to %1"
 msgstr "Ergibt zusammen %1"

@@ -17,6 +17,7 @@ use std::collections::HashSet;
 use kassensturz_core::ViewKind;
 use kassensturz_report::{
     Component, ComponentType, Document, MAX_TEXT_CHARS, PERIODS, ReportError, Setting,
+    read_range_word,
 };
 use kassensturz_store::Book;
 use serde_json::{Map, Value};
@@ -59,15 +60,20 @@ impl NewView {
 }
 
 /// The kind of component `auto` stands for: money by category reads best as
-/// a pie, anything else as bars, and a dataset that suits neither as a key
-/// figure or a table.
-fn automatic(dataset: &str, grouping: Option<&str>) -> Option<ComponentType> {
+/// a pie, budgets as their bars, anything else as bars or, for a figure
+/// over time such as what you are worth, a line (D-352), and a dataset that
+/// suits none of them as a key figure or a table.
+pub(super) fn automatic(dataset: &str, grouping: Option<&str>) -> Option<ComponentType> {
     let grouping = grouping.or_else(|| {
         kassensturz_report::dataset(dataset).and_then(|info| info.groupings.first().copied())
     });
     let by_category = grouping.is_some_and(|grouping| grouping.ends_with("category"));
     let order: &[ComponentType] = if by_category {
         &[ComponentType::ChartPie, ComponentType::ChartBar]
+    } else if kassensturz_report::dataset(dataset)
+        .is_some_and(|info| info.suits.contains(&ComponentType::BudgetProgress.suit()))
+    {
+        &[ComponentType::BudgetProgress]
     } else {
         &[
             ComponentType::ChartStackedBar,
@@ -84,7 +90,7 @@ fn automatic(dataset: &str, grouping: Option<&str>) -> Option<ComponentType> {
 
 /// The title the AI wrote: one line of plain text, the longest the property
 /// allows.
-fn title(text: &str) -> Result<String, ToolError> {
+pub(super) fn title(text: &str) -> Result<String, ToolError> {
     let text = text.trim();
     let bad = text.is_empty()
         || text.chars().count() > MAX_TEXT_CHARS
@@ -111,7 +117,37 @@ fn choose(
     }
 }
 
-/// Checks one entry of `new_views` against the book.
+/// Sets a list of ids the AI named (`categories`, `accounts`), which the
+/// schema may refuse for this kind of component. The ids were checked
+/// against the book and the grid by `propose_view` (D-353); an edited call
+/// keeps the ones the model sent.
+fn choose_ids(
+    component: &mut Component,
+    key: &'static str,
+    ids: &[Value],
+) -> Result<(), ToolError> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let ids = ids
+        .iter()
+        .map(|id| id.as_str().map(str::to_owned))
+        .collect::<Option<Vec<_>>>()
+        .ok_or(ToolError::BadArgument { argument: key })?;
+    component
+        .set(key, Setting::Ids(ids))
+        .map_err(|_| ToolError::BadArgument { argument: key })
+}
+
+/// Whether `period` is one a saved chart can have: a fixed one or a typed
+/// range (D-332).
+pub(super) fn is_view_period(period: &str) -> bool {
+    PERIODS.contains(&period) || read_range_word(period).is_some()
+}
+
+/// Checks one entry of `new_views` against the book: the item
+/// `propose_view` made of a model's call (D-352), or that item as the user
+/// edited it (D-297).
 pub(super) fn new_view(
     book: &Book,
     value: &Value,
@@ -120,7 +156,15 @@ pub(super) fn new_view(
     let item = Object::read(
         value,
         &[
-            "title", "dataset", "chart", "grouping", "measure", "compare", "period",
+            "title",
+            "dataset",
+            "chart",
+            "grouping",
+            "measure",
+            "compare",
+            "period",
+            "categories",
+            "accounts",
         ],
         "new_views",
     )?;
@@ -160,11 +204,13 @@ pub(super) fn new_view(
         item.string("compare")?,
         "compare",
     )?;
+    choose_ids(&mut component, "categories", item.array("categories")?)?;
+    choose_ids(&mut component, "accounts", item.array("accounts")?)?;
     component
         .set("title", Setting::Text(title.clone()))
         .map_err(|_| ToolError::BadArgument { argument: "title" })?;
     let period = item.string("period")?.unwrap_or(DEFAULT_PERIOD);
-    if !PERIODS.contains(&period) {
+    if !is_view_period(period) {
         return Err(ToolError::BadArgument { argument: "period" });
     }
     // The name is the title; no two saved charts share one, ignoring
@@ -201,13 +247,18 @@ pub(super) fn keep_fitting(item: &mut Map<String, Value>) {
     let Some(component) = kind.and_then(|kind| Component::new(kind, dataset).ok()) else {
         return;
     };
-    for key in ["grouping", "measure", "compare"] {
-        let fits = item.get(key).and_then(Value::as_str).is_none_or(|word| {
-            component
+    for key in ["grouping", "measure", "compare", "categories", "accounts"] {
+        let fits = match item.get(key) {
+            None => true,
+            Some(Value::String(word)) => component
                 .clone()
-                .set(key, Setting::Word(word.to_owned()))
-                .is_ok()
-        });
+                .set(key, Setting::Word(word.clone()))
+                .is_ok(),
+            Some(Value::Array(ids)) => {
+                ids.is_empty() || choose_ids(&mut component.clone(), key, ids).is_ok()
+            }
+            Some(_) => false,
+        };
         if !fits {
             item.remove(key);
         }

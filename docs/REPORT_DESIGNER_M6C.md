@@ -173,6 +173,8 @@ Arguments (JSON object; every value but `title` and the dates is from a fixed li
 
 The values go through `Component::new` and `Component::set` and the finished document through `Document::read`, exactly as a hand-made view, so the schema alone decides what fits. One call prepares one view; one answer holds at most 3 (as M6a.9).
 
+**Built in M6c.8 (D-391 to D-393):** `in_currency` waits for a component that can keep a currency, `accounts` is offered once the schema has `params.accounts` (M6c.6), and `budget_utilization` stays off for the AI until the Budgets row of the grid (M6c.11). A refused list argument is answered with its allowed values; `page` means the dataset's own period; a request file of the MCP server names its `function`. Code: `kassensturz-ai-tools` `src/changes/view_call.rs`.
+
 ### 4.2 Malformed calls (D-353; M6c.8, suite in M6c.10)
 
 A call from a model is untrusted input (T-21, T-46). Checked in this order, before anything is built; the first failure answers:
@@ -194,12 +196,18 @@ The function's description and enums: the dataset ids with their catalog descrip
 
 In the chat panel, *Describe a chart* (a one-press entry next to the existing ones) puts the hint *e.g. My spending on food each month this year as bars* into the field. The answer shows the prepared chart **as a preview card in the chat**: the real chart from the real figures (`ComponentPreview`, as the review page), the AI-made label, and *Keep*, *Change…* and *Leave out*. *Keep* is the confirm (`Confirmed::by_the_user`) and saves the view under Statistics as one AI-made history entry; *Change…* opens the Statistic Builder on the prepared view, and what the user changes there is the user's version (D-297); *Leave out* drops it. Putting the kept view on the Overview stays the user's own step (*Add to the Overview*, D-326); the AI does not edit layouts in M6c.
 
+**Built in M6c.9 (D-402 to D-404):** a set that holds one new chart becomes a card (`AiChartCard.qml`) in the chat; the answer object has `charts` (each with its `unverified` title numbers) next to `sets`, and `chartFailed` with the `dataset` it understood when the corrections ran out. *Describe a chart* is hidden without the Charts › Add cell. The refusal counter is per question: the call and two corrections, then `CHART_NOT_PREPARED` and no function. *Change…* throws the AI's set away and opens the Statistic Builder on the chart, so what the user saves is the user's own (D-297, D-403).
+
 ### 4.5 Tests (D-356; M6c.10)
 
 - **Fake model** (`KASSENSTURZ_FAKE_AI=1`): a fixed list of plain descriptions, each answered with a fixed call, covering every dataset, `auto`, a range, a comparison, ids, `in_currency` and one refused call it then corrects.
 - **Malformed-call suite:** one table-driven test with at least 40 hostile or broken calls (each check of §4.2, giant strings, deep nesting, every enum misspelt, ids of another kind, titles with control characters or direction marks, a prompt-injection title), each with the error code it must give, run in CI with no network.
 - **One small local model:** a script under `tools/` run by hand, never in CI, on the Space Colony book: ten fixed descriptions, the share of calls accepted at the first try and after corrections, recorded in the AI questionnaire (`ai-tests/`, the project's shared folder). It is opt-in, uses only a model on the same computer, and sends no book data anywhere else.
 - **Seams:** the tests read the real catalog, schema and datasets of M6c.1, M6c.4 and M6c.6, never a hand-built copy, and expectations come from printed output.
+
+**Built in M6c.10a (D-397):** the malformed-call suite is one table in `kassensturz-ai-tools/tests/malformed/mod.rs`, shared with `kassensturz-ai-chat` by path; fake-model descriptions and the local model script follow in M6c.10b.
+
+**Built in M6c.10b (D-411, D-412):** the fake model's ten descriptions are `DESCRIBED_CHARTS` in `kassensturz-ai-chat` (`src/demo/charts.rs`), the first being the *Describe a chart* example; a test asks each through the chat on the Space Colony book and checks that every dataset the AI may name is covered (`in_currency` waits for D-391). The local model script is `tools/describe-charts-local.sh`, which runs the example `describe_charts_local` against a loopback address only, on the synthetic book only, and prints a table for `ai-tests/`.
 
 ## 5. The debug-log event per action handler (D-359; M6c.D)
 

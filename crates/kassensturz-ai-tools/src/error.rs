@@ -22,6 +22,17 @@ pub enum ToolError {
         /// The argument's name, from the function's fixed list.
         argument: &'static str,
     },
+    /// A call of `propose_view` is longer than its limit (D-353).
+    CallTooBig {
+        /// The most bytes a call may have.
+        max_bytes: usize,
+    },
+    /// An object of a `propose_view` call has the same key twice, compared
+    /// after decoding escapes (D-353).
+    RepeatedKey,
+    /// A `propose_view` call has an argument the function doesn't take. The
+    /// model's key is not repeated back to it (D-353).
+    UnknownArgument,
     /// No account of the user's has that ID.
     UnknownAccount,
     /// No category has that ID.
@@ -117,6 +128,10 @@ impl Report for ToolError {
             Self::UnknownFunction => ErrorReport::new("ai-tools.unknown-function"),
             Self::BadArgument { argument } => ErrorReport::new("ai-tools.bad-argument")
                 .with("argument", ErrorParam::Keyword(argument)),
+            Self::CallTooBig { max_bytes } => ErrorReport::new("ai-tools.call-too-big")
+                .with("max_bytes", ErrorParam::count(*max_bytes)),
+            Self::RepeatedKey => ErrorReport::new("ai-tools.repeated-key"),
+            Self::UnknownArgument => ErrorReport::new("ai-tools.unknown-argument"),
             Self::UnknownAccount => ErrorReport::new("ai-tools.unknown-account"),
             Self::UnknownCategory => ErrorReport::new("ai-tools.unknown-category"),
             Self::BadPeriod => ErrorReport::new("ai-tools.bad-period"),
@@ -172,6 +187,11 @@ mod tests {
     fn examples() -> Vec<ToolError> {
         let mut examples = vec![
             ToolError::UnknownFunction,
+            ToolError::CallTooBig {
+                max_bytes: crate::changes::MAX_VIEW_CALL_BYTES,
+            },
+            ToolError::RepeatedKey,
+            ToolError::UnknownArgument,
             ToolError::UnknownAccount,
             ToolError::UnknownCategory,
             ToolError::BadPeriod,
@@ -203,6 +223,10 @@ mod tests {
                 .map(|&(argument, _)| ToolError::NotAllowed { argument }),
         );
         examples.push(ToolError::NotAllowed { argument: "page" });
+        // The chart builder's ids and the function itself (D-353).
+        for argument in ["categories", "accounts", crate::changes::PROPOSE_VIEW_NAME] {
+            examples.push(ToolError::NotAllowed { argument });
+        }
         examples.extend(kassensturz_core::ai_switch::Field::ALL.iter().map(|field| {
             ToolError::FieldLocked {
                 field: field.name(),
@@ -225,6 +249,7 @@ mod tests {
             ARGUMENTS
                 .iter()
                 .chain(CHANGE_ARGUMENTS)
+                .chain(crate::changes::VIEW_ARGUMENTS)
                 .chain(crate::issue::FIELDS)
                 .chain(crate::open_page::FIELDS)
                 .map(|&argument| ToolError::BadArgument { argument }),

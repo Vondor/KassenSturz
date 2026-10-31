@@ -57,6 +57,29 @@ fn call() -> Value {
 }
 
 #[test]
+fn a_request_names_its_function_and_one_the_app_does_not_know_is_not_read() {
+    let scratch = Scratch::new("function");
+    let book = scratch.book("Household.ksz");
+    let server = scratch.folder();
+    let mut app = scratch.folder();
+    let view = json!({"title": "Months", "data": "income_expense_by_month", "show_as": "auto"});
+    let id = server
+        .send_call(&book, crate::PROPOSE_VIEW_NAME, &view)
+        .expect("sent");
+    let taken = app.take_new(&book);
+    assert_eq!(taken.len(), 1);
+    assert_eq!(
+        (taken[0].id.clone(), taken[0].function, &taken[0].arguments),
+        (id, "propose_view", &view)
+    );
+    // A function that prepares nothing is not taken as a request.
+    server
+        .send_call(&book, "list_accounts", &json!({}))
+        .expect("sent");
+    assert!(app.take_new(&book).is_empty());
+}
+
+#[test]
 fn a_request_goes_from_the_server_to_the_app_and_its_answers_come_back() {
     let scratch = Scratch::new("round-trip");
     let book = scratch.book("Household.ksz");
@@ -73,6 +96,7 @@ fn a_request_goes_from_the_server_to_the_app_and_its_answers_come_back() {
         [Request {
             id: id.clone(),
             book: book.clone(),
+            function: "propose_changes",
             arguments: call(),
         }]
     );

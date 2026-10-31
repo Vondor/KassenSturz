@@ -261,7 +261,9 @@ pub(crate) mod engine {
         Answer, BuildInfo, ChatError, ChatSession, Feature, LogEntry, Mode, Outcome,
     };
     use kassensturz_ai_tools::requests::RequestFolder;
-    use kassensturz_ai_tools::{ChangeError, EditError, IssueDraft, PageTarget, ToolError};
+    use kassensturz_ai_tools::{
+        ChangeError, ChangeSet, EditError, IssueDraft, PageTarget, ProposedChange, ToolError,
+    };
     use kassensturz_core::{Date, Report};
     use kassensturz_platform::Secret;
     use kassensturz_store::StoreError;
@@ -395,11 +397,33 @@ pub(crate) mod engine {
         ])
     }
 
+    /// A chart the model prepared, which waits in the chat as a preview card
+    /// with *Keep*, *Change…* and *Leave out* (M6c.9, D-355, D-402).
+    pub(crate) struct ChartSet {
+        /// The set's ID: `AiChat.changes` gives its chart, `confirm` keeps
+        /// it and `discard` leaves it out.
+        pub(crate) id: u64,
+        /// The numbers in its title that no function produced (D-188).
+        pub(crate) unverified: Vec<String>,
+    }
+
+    /// Whether `set` is one new chart and nothing else, which the chat shows
+    /// as a preview card instead of a line that leads to the review page
+    /// (D-402).
+    pub(crate) fn is_chart(set: &ChangeSet) -> bool {
+        matches!(set.changes(), [ProposedChange::NewView(_)])
+    }
+
     /// The model's answer as QML reads it: its text (untrusted, shown as
     /// plain text and labelled as AI, T-34), the numbers no function
-    /// produced (D-188, T-26), the sets that wait for the user and the
+    /// produced (D-188, T-26), the sets that wait for the user, the charts
+    /// that wait for the user's look, the chart the model gave up on and the
     /// issue draft the user reads before opening its page (D-228).
-    pub(crate) fn finished_object(answer: &Answer, sets: &[(u64, usize)]) -> QVariant {
+    pub(crate) fn finished_object(
+        answer: &Answer,
+        sets: &[(u64, usize)],
+        charts: &[ChartSet],
+    ) -> QVariant {
         let finish = match answer.finish {
             Finish::Length => "length",
             Finish::Other => "other",
@@ -415,7 +439,16 @@ pub(crate) mod engine {
             ("overview", QVariant::from(&(answer.mode == Mode::Overview))),
             ("contextCut", QVariant::from(&answer.context_cut)),
             ("sets", sets_object(sets)),
+            ("charts", charts_object(charts)),
         ];
+        if let Some(failed) = &answer.chart_failed {
+            // The dataset it understood is one of the catalog's own ids,
+            // empty when it named none the AI may use (D-402).
+            fields.push((
+                "chartFailed",
+                map([("dataset", text(failed.dataset.unwrap_or_default()))]),
+            ));
+        }
         if let Some(issue) = &answer.issue {
             fields.push(("issue", issue_object(issue)));
         }
@@ -444,6 +477,20 @@ pub(crate) mod engine {
             ("name", text(page.name())),
             ("id", text(page.id().unwrap_or_default())),
         ])
+    }
+
+    /// Charts that wait in the chat as QML reads them: each with an `id` and
+    /// the `unverified` numbers of its title.
+    pub(crate) fn charts_object(charts: &[ChartSet]) -> QVariant {
+        list(charts.iter().map(|chart| {
+            map([
+                ("id", text(&chart.id.to_string())),
+                (
+                    "unverified",
+                    list(chart.unverified.iter().map(|number| text(number))),
+                ),
+            ])
+        }))
     }
 
     /// Sets that wait for the user as QML reads them: each with an `id`
@@ -849,15 +896,27 @@ pub(crate) mod engine {
             state.controls = None;
             let outcome = match result {
                 Ok(mut answer) => {
-                    let sets: Vec<(u64, usize)> = answer
-                        .changes
-                        .drain(..)
-                        .map(|set| {
+                    let numbers = std::mem::take(&mut answer.title_numbers);
+                    let mut sets = Vec::new();
+                    let mut charts = Vec::new();
+                    for (index, set) in answer.changes.drain(..).enumerate() {
+                        if is_chart(&set) {
+                            // A number the chat could not check is marked,
+                            // never left unmarked (D-188, D-402).
+                            let unverified = numbers.get(index).map_or_else(
+                                || vec!["?".to_owned()],
+                                |found| found.iter().map(|number| number.text.clone()).collect(),
+                            );
+                            charts.push(ChartSet {
+                                id: state.sets.add(set),
+                                unverified,
+                            });
+                        } else {
                             let count = set.changes().len();
-                            (state.sets.add(set), count)
-                        })
-                        .collect();
-                    finished_object(&answer, &sets)
+                            sets.push((state.sets.add(set), count));
+                        }
+                    }
+                    finished_object(&answer, &sets, &charts)
                 }
                 Err(failure) => error(&code_text(&failure.report())),
             };
@@ -1254,7 +1313,9 @@ mod tests {
     };
     use crate::ai_chat::{BasisView, CategoryChoice, ChangeRow, ChangeView, EditLine, Review};
     use crate::rules::ConditionForm;
-    use crate::variant::read_back::{elements, flag_of, keys, list_of, number_of, text_of};
+    use crate::variant::read_back::{
+        elements, flag_of, keys, list_of, number_of, object_of, text_of,
+    };
 
     #[test]
     fn a_screen_asks_for_a_feature_by_a_key_the_core_knows() {
@@ -1358,13 +1419,16 @@ mod tests {
             mode: Mode::Overview,
             context_cut: true,
             changes: Vec::new(),
+            title_numbers: Vec::new(),
+            chart_failed: None,
             issue: None,
             page: None,
         };
-        let object = finished_object(&answer, &[(3, 2), (4, 1)]);
+        let object = finished_object(&answer, &[(3, 2), (4, 1)], &[]);
         assert_eq!(
             keys(&object),
             [
+                "charts",
                 "contextCut",
                 "finish",
                 "overview",
@@ -1392,6 +1456,74 @@ mod tests {
     }
 
     #[test]
+    fn charts_and_a_given_up_chart_read_back_as_qml_reads_them() {
+        use kassensturz_ai_chat::ChartFailed;
+
+        use super::engine::{ChartSet, charts_object};
+        let mut answer = Answer {
+            text: "Here is your chart.".into(),
+            unverified: Vec::new(),
+            finish: Finish::Done,
+            mode: Mode::Functions,
+            context_cut: false,
+            changes: Vec::new(),
+            title_numbers: Vec::new(),
+            chart_failed: None,
+            issue: None,
+            page: None,
+        };
+        let charts = [
+            ChartSet {
+                id: 5,
+                unverified: vec!["12345.67".into()],
+            },
+            ChartSet {
+                id: 6,
+                unverified: Vec::new(),
+            },
+        ];
+        let object = finished_object(&answer, &[(3, 2)], &charts);
+        assert!(
+            !keys(&object).contains(&"chartFailed".to_owned()),
+            "{:?}",
+            keys(&object)
+        );
+        let read = list_of(&object, "charts");
+        assert_eq!(read.len(), 2);
+        assert_eq!(keys(&read[0]), ["id", "unverified"]);
+        assert_eq!(text_of(&read[0], "id"), "5");
+        let numbers = list_of(&read[0], "unverified");
+        assert_eq!(numbers.len(), 1);
+        assert_eq!(
+            numbers[0].value::<QString>().map(|n| n.to_string()),
+            Some("12345.67".to_owned()),
+            "a number is text"
+        );
+        assert!(list_of(&read[1], "unverified").is_empty());
+        assert_eq!(
+            elements(&charts_object(&[])).map(|found| found.len()),
+            Some(0)
+        );
+
+        // A chart the chat gave up on carries the dataset it understood.
+        answer.chart_failed = Some(ChartFailed {
+            code: "ai-tools.bad-argument",
+            dataset: Some("spending_by_category"),
+        });
+        let object = finished_object(&answer, &[], &[]);
+        assert!(keys(&object).contains(&"chartFailed".to_owned()));
+        let failed = object_of(&object, "chartFailed");
+        assert_eq!(keys(&failed), ["dataset"]);
+        assert_eq!(text_of(&failed, "dataset"), "spending_by_category");
+        answer.chart_failed = Some(ChartFailed {
+            code: "ai-tools.bad-argument",
+            dataset: None,
+        });
+        let object = finished_object(&answer, &[], &[]);
+        assert_eq!(text_of(&object_of(&object, "chartFailed"), "dataset"), "");
+    }
+
+    #[test]
     fn an_issue_draft_reads_back_as_qml_reads_it() {
         use kassensturz_ai_tools::{ISSUE_PAGE, IssueDraft};
         let issue = IssueDraft {
@@ -1407,13 +1539,16 @@ mod tests {
             mode: Mode::Functions,
             context_cut: false,
             changes: Vec::new(),
+            title_numbers: Vec::new(),
+            chart_failed: None,
             issue: Some(issue.clone()),
             page: None,
         };
-        let object = finished_object(&answer, &[]);
+        let object = finished_object(&answer, &[], &[]);
         assert_eq!(
             keys(&object),
             [
+                "charts",
                 "contextCut",
                 "finish",
                 "issue",
@@ -1444,13 +1579,16 @@ mod tests {
             mode: Mode::Functions,
             context_cut: false,
             changes: Vec::new(),
+            title_numbers: Vec::new(),
+            chart_failed: None,
             issue: None,
             page: Some(page.clone()),
         };
-        let object = finished_object(&answer, &[]);
+        let object = finished_object(&answer, &[], &[]);
         assert_eq!(
             keys(&object),
             [
+                "charts",
                 "contextCut",
                 "finish",
                 "overview",

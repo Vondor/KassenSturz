@@ -243,6 +243,12 @@ Kirigami.ApplicationWindow {
                     window.check(board.examples(0).length === 3, "two other columns give three ready-made formulas: " + board.examples(0).length);
                     window.check(board.suggest(0, "Empty", 5).some(entry => entry.label === "Empty formula"), "typing suggests the name of another column");
                     window.check(board.suggest(0, "SU", 2).some(entry => entry.insert === "SUM("), "typing suggests a function");
+                    const inCall = board.suggest(0, "SUM(", 4);
+                    window.check(inCall.length > 1 && inCall[0].label === "SUM(…)" && inCall[0].insert === "", "inside a call the syntax and names are offered: " + JSON.stringify(inCall.map(entry => entry.label)));
+                    window.check(board.formulaProblem(0, "SUM(Empty formula").indexOf(")") >= 0, "a missing bracket is named");
+                    window.check(board.formulaProblem(0, "SUM(1))").indexOf(")") >= 0, "an extra bracket is named");
+                    window.check(board.formulaProblem(0, "Zzzqq + 1").indexOf("Zzzqq") >= 0, "an unknown name is named");
+                    window.check(board.formulaProblem(0, "SUM(1)") === "", "a good formula has no problem");
                     board.removeColumn(board.columns.length - 1);
                     board.removeColumn(board.columns.length - 1);
                     board.removeColumn(emptyOne);

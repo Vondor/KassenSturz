@@ -21,6 +21,7 @@ use kassensturz_store::Book;
 
 use crate::charts::{AppText, ChartsError, period};
 use crate::format::Locale;
+use crate::session;
 
 /// What the user asked for, by the fixed names QML uses.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -277,13 +278,15 @@ pub fn cards(
     let text = AppText::new(book, locale);
     match request.dataset.as_str() {
         "" | INCOME_EXPENSE_BY_MONTH => {
-            let source = Source::read(book, span)?;
+            let source = session::cached_source(book, span, false, || Source::read(book, span))?;
             let (_, changes) =
                 compare_income_expense(&source, period, &Filter::default(), compare)?;
             Ok(changes.iter().map(|change| set(change, &text)).collect())
         }
         ACCOUNT_BALANCES => {
-            let source = Source::read_with_balances(book, span)?;
+            let source = session::cached_source(book, span, true, || {
+                Source::read_with_balances(book, span)
+            })?;
             balance_cards(&source, period, compare, &text)
         }
         _ => Err(ChartsError::UnknownName("dataset")),

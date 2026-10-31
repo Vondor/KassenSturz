@@ -15,7 +15,7 @@ use kassensturz_store::{Book, StoreError};
 
 use crate::accounts::{self, CurrencySection};
 use crate::format::Locale;
-use crate::register::{AmountWriter, Entry, Shown, entries};
+use crate::register::{AmountWriter, Entry, Shown, latest_entries};
 
 /// How many transactions the overview lists.
 const LATEST: usize = 5;
@@ -340,10 +340,10 @@ fn latest(
         if !account.kind.is_account() || account.closed {
             continue;
         }
-        for entry in entries(book, account.id)? {
-            if !entry.starting_balance() {
-                found.push((account, entry));
-            }
+        // Only an account's newest few can be among the newest of all, so
+        // the rest of its transactions are never read (M6-B30).
+        for entry in latest_entries(book, account.id, accounts, LATEST)? {
+            found.push((account, entry));
         }
     }
     // Newest first, on the same day the one added last, as in a register
@@ -699,6 +699,137 @@ mod tests {
         );
         assert_eq!(after.latest[1].amount.exact, "100,00 €");
         assert!(after.latest[1].incoming);
+    }
+
+    /// The newest transactions the way they were found before M6-B30: every
+    /// transaction of every open account read, then the newest five of them.
+    fn latest_from_everything(book: &Book) -> Vec<(String, String, String, String)> {
+        let accounts: HashMap<AccountId, Account> = book
+            .all_accounts()
+            .expect("accounts")
+            .into_iter()
+            .map(|account| (account.id, account))
+            .collect();
+        let mut found: Vec<(&Account, Entry)> = Vec::new();
+        for account in accounts.values() {
+            if !account.kind.is_account() || account.closed {
+                continue;
+            }
+            for entry in crate::register::entries(book, account.id).expect("entries") {
+                if !entry.starting_balance() {
+                    found.push((account, entry));
+                }
+            }
+        }
+        found.sort_by_key(|(_, entry)| {
+            core::cmp::Reverse((entry.date, entry.transaction, entry.amount.minor_units()))
+        });
+        let mut listed = HashSet::new();
+        found
+            .into_iter()
+            .filter(|(_, entry)| listed.insert(entry.transaction))
+            .take(LATEST)
+            .map(|(account, entry)| {
+                (
+                    account.name.clone(),
+                    entry.transaction.to_string(),
+                    entry.date.to_string(),
+                    entry.amount.minor_units().to_string(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn the_latest_list_is_what_reading_every_transaction_would_give() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "EUR",
+            "500,00",
+            "2026-01-01",
+        );
+        let savings = account(
+            &mut book,
+            "Savings",
+            AccountType::Savings,
+            "EUR",
+            "50,00",
+            "2026-01-01",
+        );
+        // Many more than the list shows, in both accounts, some on the same
+        // day, and one move between them that is joined into a Transfer.
+        for day in 1..=28 {
+            entered(
+                &mut book,
+                &checking,
+                day % 5 == 0,
+                &format!("{day},50"),
+                &format!("Shop {day}"),
+                if day % 5 == 0 {
+                    ""
+                } else {
+                    "Food › Groceries"
+                },
+                &format!("2026-09-{day:02}"),
+            );
+        }
+        for day in [3, 3, 9, 20] {
+            entered(
+                &mut book,
+                &savings,
+                true,
+                "5,00",
+                "Interest",
+                "",
+                &format!("2026-10-{day:02}"),
+            );
+        }
+        let out = entered(
+            &mut book,
+            &checking,
+            false,
+            "100,00",
+            "Own transfer",
+            "",
+            "2026-10-05",
+        );
+        let into = entered(
+            &mut book,
+            &savings,
+            true,
+            "100,00",
+            "Own transfer",
+            "",
+            "2026-10-06",
+        );
+        join(&mut book, &out, &into).expect("joined");
+
+        let shown = overview(&book, october());
+        let shown: Vec<_> = shown
+            .latest
+            .iter()
+            .map(|row| {
+                (
+                    row.account.clone(),
+                    row.id.clone(),
+                    row.date.clone(),
+                    row.amount.exact.clone(),
+                )
+            })
+            .collect();
+        let expected = latest_from_everything(&book);
+        assert_eq!(shown.len(), LATEST);
+        assert_eq!(
+            shown.iter().map(|row| &row.1).collect::<Vec<_>>(),
+            expected.iter().map(|row| &row.1).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            shown.iter().map(|row| &row.0).collect::<Vec<_>>(),
+            expected.iter().map(|row| &row.0).collect::<Vec<_>>()
+        );
     }
 
     #[test]

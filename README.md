@@ -5,6 +5,7 @@ A free, open-source personal finance app for the desktop, **simpler than KMyMone
 ## Goals
 
 - Simple, plain-language interface with progressive disclosure
+- Open the app and see what you need: the start screen with your personalised overview is complete on its own, and everything deeper (automatic sorting rules, more details per transaction, AI help) is optional customisation
 - Correct money handling with multi-currency support and European standards
 - Local-first and private. Your data stays on your machine
 - Open plugin system (WASM)

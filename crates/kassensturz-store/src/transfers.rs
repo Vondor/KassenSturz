@@ -13,6 +13,7 @@ use kassensturz_core::{
 use rusqlite::params;
 
 use crate::error::StoreError;
+use crate::originals::keeping_originals;
 use crate::transactions::insert_splits;
 use crate::{Action, Book};
 
@@ -75,19 +76,24 @@ impl Book {
         let removed = if joined.id() == a { b } else { a };
         let id = joined.id().to_bytes();
         self.as_one_action(Action::JoinTransfer, |book| {
-            // Its parts, with what their bank delivered, go with it; the one
-            // booked to its account comes back in the joined transaction.
-            book.conn.execute(
-                "DELETE FROM transactions WHERE id = ?1",
-                [removed.to_bytes()],
-            )?;
-            book.conn.execute(
-                "UPDATE transactions SET payee = ?2 WHERE id = ?1",
-                params![id, joined.payee()],
-            )?;
-            book.conn
-                .execute("DELETE FROM splits WHERE transaction_id = ?1", [id])?;
-            insert_splits(&book.conn, &joined)
+            // Every original of both sides must be back afterwards, on the
+            // same part (D-375).
+            keeping_originals(&book.conn, &[a, b], || {
+                // Its parts, with what their bank delivered, go with it; the
+                // one booked to its account comes back in the joined
+                // transaction.
+                book.conn.execute(
+                    "DELETE FROM transactions WHERE id = ?1",
+                    [removed.to_bytes()],
+                )?;
+                book.conn.execute(
+                    "UPDATE transactions SET payee = ?2 WHERE id = ?1",
+                    params![id, joined.payee()],
+                )?;
+                book.conn
+                    .execute("DELETE FROM splits WHERE transaction_id = ?1", [id])?;
+                insert_splits(&book.conn, &joined)
+            })
         })?;
         Ok(joined.id())
     }

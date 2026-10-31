@@ -30,7 +30,7 @@ use crate::number_format::app_locale;
 use crate::parts_entry::{self, PartInput, PartsError, PartsInput};
 use crate::register::{RegisterRow, Sort, SortKey, register_view};
 use crate::session;
-use crate::transaction_entry::{self, EntryError, NewEntry};
+use crate::transaction_entry::{self, EntryError, EntryForm, NewEntry, RemovalNotice};
 use crate::transfer_prompt::{self, SideText, SuggestionText};
 use crate::variant::{error_object, list, map, text};
 
@@ -151,6 +151,18 @@ pub mod qobject {
             account_id: &QString,
             transaction_id: &QString,
             form: &QVariant,
+        ) -> QVariant;
+
+        /// What removing a transaction takes with it, for the warning before
+        /// it (D-375): `holdsOriginal` (a bank or file delivered a part of
+        /// it), `undo` (`days`, `forever` or `until-closed`) and `undoDays`,
+        /// or an error's `code`.
+        #[qinvokable]
+        #[cxx_name = "removalNotice"]
+        fn removal_notice(
+            self: &AccountRegister,
+            account_id: &QString,
+            transaction_id: &QString,
         ) -> QVariant;
 
         /// Removes a transaction. Returns an empty map, or the error.
@@ -483,18 +495,20 @@ impl qobject::AccountRegister {
                 .map_err(|error| error_text(book, &account_id, &error))
         });
         match found {
-            Some(Ok(form)) => map([
-                ("id", text(&form.id)),
-                ("kind", text(form.kind)),
-                ("account", text(&form.account)),
-                ("moneyIn", QVariant::from(&form.money_in)),
-                ("amount", text(&form.amount)),
-                ("otherParty", text(&form.other_party)),
-                ("category", text(&form.category)),
-                ("otherAccount", text(&form.other_account)),
-                ("date", text(&form.date)),
-                ("imported", QVariant::from(&form.imported)),
-            ]),
+            Some(Ok(form)) => form_object(&form),
+            Some(Err(error)) => error_object(&error),
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        }
+    }
+
+    fn removal_notice(&self, account_id: &QString, transaction_id: &QString) -> QVariant {
+        let (account_id, transaction_id) = (account_id.to_string(), transaction_id.to_string());
+        let found = session::with_book(|book| {
+            transaction_entry::removal_notice(book, &account_id, &transaction_id)
+                .map_err(|error| error_text(book, &account_id, &error))
+        });
+        match found {
+            Some(Ok(notice)) => notice_object(&notice),
             Some(Err(error)) => error_object(&error),
             None => error_object(&ErrorText::plain("input.no-such-entry")),
         }
@@ -888,6 +902,36 @@ impl PartsFormData {
     }
 }
 
+/// A transaction as the page reads it (`details`).
+fn form_object(form: &EntryForm) -> QVariant {
+    map([
+        ("id", text(&form.id)),
+        ("kind", text(form.kind)),
+        ("account", text(&form.account)),
+        ("moneyIn", QVariant::from(&form.money_in)),
+        ("amount", text(&form.amount)),
+        ("otherParty", text(&form.other_party)),
+        ("category", text(&form.category)),
+        ("otherAccount", text(&form.other_account)),
+        ("date", text(&form.date)),
+        ("imported", QVariant::from(&form.imported)),
+        ("deliveredName", text(&form.delivered_name)),
+    ])
+}
+
+/// What removing a transaction takes with it, as the page reads it
+/// (`removalNotice`).
+fn notice_object(notice: &RemovalNotice) -> QVariant {
+    map([
+        ("holdsOriginal", QVariant::from(&notice.holds_original)),
+        ("undo", text(notice.undo)),
+        (
+            "undoDays",
+            QVariant::from(&i32::try_from(notice.undo_days).unwrap_or(i32::MAX)),
+        ),
+    ])
+}
+
 /// A text field of a form, empty if missing.
 pub(crate) fn field(map: &QMap<QMapPair_QString_QVariant>, key: &str) -> String {
     map.get(&QString::from(key))
@@ -922,6 +966,42 @@ fn error_text(book: &Book, account_id: &str, error: &EntryError) -> ErrorText {
 
 #[cfg(test)]
 mod tests {
+    use super::{form_object, notice_object};
+    use crate::transaction_entry::{EntryForm, RemovalNotice};
+    use crate::variant::read_back::{flag_of, keys, number_of, text_of};
+
+    /// The pages read these by name (AGENTS.md §9.4): `deliveredName` next
+    /// to the payee (D-375), and the notice before a removal.
+    #[test]
+    fn the_transaction_page_reads_back_what_was_delivered_and_the_removal_notice() {
+        let form = form_object(&EntryForm {
+            id: "id".into(),
+            kind: "simple",
+            account: "account".into(),
+            money_in: false,
+            amount: "53,20".into(),
+            other_party: "Corner Grocery".into(),
+            category: String::new(),
+            other_account: String::new(),
+            date: "2026-10-08".into(),
+            imported: true,
+            delivered_name: "CORNER GROCERY".into(),
+        });
+        assert_eq!(text_of(&form, "otherParty"), "Corner Grocery");
+        assert_eq!(text_of(&form, "deliveredName"), "CORNER GROCERY");
+        assert!(flag_of(&form, "imported"));
+        assert_eq!(keys(&form).len(), 11);
+        let notice = notice_object(&RemovalNotice {
+            holds_original: true,
+            undo: "days",
+            undo_days: 30,
+        });
+        assert!(flag_of(&notice, "holdsOriginal"));
+        assert_eq!(text_of(&notice, "undo"), "days");
+        assert_eq!(number_of(&notice, "undoDays"), 30);
+        assert_eq!(keys(&notice), ["holdsOriginal", "undo", "undoDays"]);
+    }
+
     /// The account page must not read the account while it is still being
     /// made: a list filled before it has a size makes a row for every
     /// transaction (D-156). The test reads the QML as text, like

@@ -13031,9 +13031,19 @@ msgid "Formula of the column"
 msgstr "Formel der Spalte"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
-msgctxt "@action:inmenu shown when there is no column yet"
-msgid "Add a column first, then move this card into it"
-msgstr "Legen Sie zuerst eine Spalte an, dann können Sie die Karte hineinschieben"
+msgctxt "@action:inmenu starts a new column with the card"
+msgid "Move to a new column"
+msgstr "In eine neue Spalte verschieben"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@label the name given to a column made from a card, to be changed"
+msgid "New column"
+msgstr "Neue Spalte"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@label %1 is a number; the name given to another column made from a card"
+msgid "New column %1"
+msgstr "Neue Spalte %1"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@action:button %1 is the name of a column"
@@ -13097,8 +13107,8 @@ msgstr "Spalte hinzufügen"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@info"
-msgid "Name it, then drag categories in. For example, put Restaurants and Coffee into a column called Fast food."
-msgstr "Geben Sie ihr einen Namen und ziehen Sie dann Kategorien hinein. Zum Beispiel: Restaurants und Kaffee in eine Spalte namens Schnellimbiss."
+msgid "Name it, then drag categories in, or drop a category here to start a column with it. For example, put Restaurants and Coffee into a column called Fast food."
+msgstr "Geben Sie ihr einen Namen und ziehen Sie dann Kategorien hinein, oder legen Sie eine Kategorie hier ab, um damit eine Spalte zu beginnen. Zum Beispiel: Restaurants und Kaffee in eine Spalte namens Schnellimbiss."
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@action:button show or hide the lists of categories, groups and lines"

@@ -39,6 +39,9 @@ ColumnLayout {
     // The columns (by name) the user has turned into a formula and not yet
     // typed one for.
     property var formulaOn: ({})
+    // The column that was just made from a card: its name is asked for at
+    // once, so its field takes the focus.
+    property string focusName: ""
     // What saving a column as a group answered, and the words for success.
     property var groupResult: ({})
     property string saved: ""
@@ -199,6 +202,33 @@ ColumnLayout {
         save(list);
     }
 
+    // A name for a column made from a card: the one typed in the Add a
+    // column box when it is free, otherwise "New column", "New column 2", ...
+    function freeName(wanted: string): string {
+        if (wanted.trim() !== "" && !nameTaken(wanted, -1)) {
+            return wanted.trim();
+        }
+        let name = i18nContext.i18nc("@label the name given to a column made from a card, to be changed", "New column");
+        for (let number = 2; nameTaken(name, -1); ++number) {
+            name = i18nContext.i18nc("@label %1 is a number; the name given to another column made from a card", "New column %1", number);
+        }
+        return name;
+    }
+
+    // Makes a column that holds the card, taking it out of `from` (-1 is
+    // Unused), and asks for the column's name.
+    function moveToNew(id: string, from: int, wanted: string): string {
+        const name = freeName(wanted);
+        const list = JSON.parse(JSON.stringify(columns));
+        if (from >= 0) {
+            list[from].members = list[from].members.filter(member => member !== id);
+        }
+        list.push({name: name, members: [id]});
+        focusName = name;
+        save(list);
+        return name;
+    }
+
     // Takes the card out of `from` (-1 is Unused) and puts it in `to`.
     function moveCard(id: string, from: int, to: int) {
         if (from === to) {
@@ -247,11 +277,9 @@ ColumnLayout {
                 entries.push({move: false, to: index, text: i18nContext.i18nc("@action:inmenu %1 is the name of a column; the card stays where it is too", "Also put in %1", column.name)});
             }
         });
-        // With no column yet there is nowhere to move a card to; say so
-        // instead of opening an empty menu.
-        if (entries.length === 0) {
-            entries.push({hint: true, text: i18nContext.i18nc("@action:inmenu shown when there is no column yet", "Add a column first, then move this card into it")});
-        }
+        // A card can always start a column of its own, so the menu is never
+        // empty, also while there is no column yet.
+        entries.push({create: true, text: i18nContext.i18nc("@action:inmenu starts a new column with the card", "Move to a new column")});
         return entries;
     }
 
@@ -304,8 +332,7 @@ ColumnLayout {
                 required property var modelData
 
                 text: modelData.text
-                enabled: modelData.hint !== true
-                onTriggered: modelData.move ? board.moveCard(cardMenu.cardId, cardMenu.from, modelData.to) : board.alsoPut(cardMenu.cardId, modelData.to)
+                onTriggered: modelData.create ? board.moveToNew(cardMenu.cardId, cardMenu.from, "") : modelData.move ? board.moveCard(cardMenu.cardId, cardMenu.from, modelData.to) : board.alsoPut(cardMenu.cardId, modelData.to)
             }
 
             onObjectAdded: (index, object) => cardMenu.insertItem(index, object)
@@ -374,6 +401,13 @@ ColumnLayout {
                             text: slotColumn.modelData.name
                             maximumLength: 200
                             Accessible.name: board.i18nContext.i18nc("@label:textbox", "Name of the column")
+                        Component.onCompleted: {
+                            if (!slotColumn.isUnused && board.focusName !== "" && slotColumn.modelData.name === board.focusName) {
+                                board.focusName = "";
+                                forceActiveFocus();
+                                selectAll();
+                            }
+                        }
                             onEditingFinished: {
                                 if (text !== slotColumn.modelData.name) {
                                     board.renameColumn(slotColumn.modelData.index, text);
@@ -538,8 +572,20 @@ ColumnLayout {
             height: Kirigami.Units.gridUnit * 12
             radius: Kirigami.Units.cornerRadius
             color: Kirigami.Theme.backgroundColor
-            border.width: 1
+            border.width: addDrop.containsDrag ? 2 : 1
             border.color: Kirigami.Theme.highlightColor
+
+            // A card dropped here starts a new column.
+            DropArea {
+                id: addDrop
+
+                anchors.fill: parent
+                keys: ["card"]
+                onDropped: drop => {
+                    board.moveToNew(drop.source.cardId, drop.source.from, newName.text);
+                    newName.text = "";
+                }
+            }
 
             ColumnLayout {
                 anchors {
@@ -585,7 +631,7 @@ ColumnLayout {
                     textFormat: Text.PlainText
                     font: Kirigami.Theme.smallFont
                     opacity: 0.7
-                    text: board.i18nContext.i18nc("@info", "Name it, then drag categories in. For example, put Restaurants and Coffee into a column called Fast food.")
+                    text: board.i18nContext.i18nc("@info", "Name it, then drag categories in, or drop a category here to start a column with it. For example, put Restaurants and Coffee into a column called Fast food.")
                 }
             }
         }

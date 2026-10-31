@@ -177,8 +177,14 @@ Kirigami.ApplicationWindow {
                     window.check(page.wizard && wizard.step === 1 && board !== undefined && board.visible, "the saved view reopens the wizard at the board");
                     // Food and Groceries inside it, Rent, and one group of money spent.
                     window.check(board.unused.length === 4, "everything starts in Unused: " + board.unused.length);
+                    // A card can start a column, so its menu is never empty.
                     const noColumn = board.choicesFor("c-food", -1);
-                    window.check(noColumn.length === 1 && noColumn[0].hint === true, "the menu of a card says so when there is no column yet, and is never empty");
+                    window.check(noColumn.length === 1 && noColumn[0].create === true, "the menu of a card offers a new column when there is none yet");
+                    window.check(board.freeName("") === "New column" && board.freeName("Pets") === "Pets", "a column made from a card is named by what was typed, or New column");
+                    board.moveToNew("c-groceries", -1, "");
+                    window.check(board.columns.length === 1 && board.columns[0].members.join() === "c-groceries" && board.focusName === "New column", "a card makes a new column of its own and asks for its name");
+                    window.check(board.freeName("") === "New column 2", "the next one is named New column 2");
+                    board.removeColumn(0);
                     window.check(!board.addColumn("  "), "a column needs a name");
                     window.check(board.addColumn("Fast food") && board.addColumn("Home"), "two columns are added");
                     window.check(!board.addColumn("fast FOOD") && board.problem !== "", "a name another column has is refused");

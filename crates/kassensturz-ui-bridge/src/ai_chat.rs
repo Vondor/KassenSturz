@@ -1388,13 +1388,14 @@ mod tests {
     #[test]
     fn a_proposed_chart_is_previewed_like_a_hand_made_one_and_saved_by_confirm() {
         let mut book = space_colony();
-        let call = serde_json::json!({"new_views": [{
+        let call = serde_json::json!({
             "title": "Where the money goes",
-            "dataset": "spending_by_category",
-            "chart": "auto",
+            "data": "spending_by_category",
+            "show_as": "auto",
             "period": "this-year",
-        }]});
-        let proposal = kassensturz_ai_tools::propose(&book, &call, Permissions::all()).unwrap();
+        });
+        let proposal =
+            kassensturz_ai_tools::propose_view(&book, &call, Permissions::all()).unwrap();
         let views = views_of(&book, &proposal.changes, &TestLocale);
         let [
             ChangeView::NewView {
@@ -1434,6 +1435,35 @@ mod tests {
         assert_eq!(opened.period, "this-year");
         assert!(book.undo().unwrap().is_some());
         assert!(crate::saved_views::list(&book).unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_proposed_financial_chart_opens_as_the_statistics_page_draws_it() {
+        // The datasets the AI may name since M6c.8 (D-354), through the
+        // real preview and saved-view readers.
+        let mut book = space_colony();
+        for (data, kind) in [
+            ("net_worth_over_time", "chart.line"),
+            ("cash_flow_by_month", "chart.bar"),
+            ("account_balances", "kpi.card"),
+        ] {
+            let call = serde_json::json!({"title": data, "data": data, "show_as": "auto"});
+            let proposal =
+                kassensturz_ai_tools::propose_view(&book, &call, Permissions::all()).unwrap();
+            let views = views_of(&book, &proposal.changes, &TestLocale);
+            let [ChangeView::NewView { component, .. }] = views.as_slice() else {
+                panic!("one chart: {views:?}");
+            };
+            let read = kassensturz_report::Component::from_json(component).unwrap();
+            assert_eq!((read.kind().id(), read.dataset().id), (kind, data));
+            confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        }
+        let rows = crate::saved_views::list(&book).unwrap();
+        assert_eq!(rows.len(), 3);
+        for row in &rows {
+            assert!(row.usable, "{}", row.name);
+            crate::saved_views::open(&book, &row.id).unwrap();
+        }
     }
 
     #[test]

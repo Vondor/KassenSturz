@@ -234,7 +234,9 @@ mod tests {
     }
 
     /// The sidebar and its toggles show only while AI is on (D-013, D-210),
-    /// and the only QML that confirms a set is the review page's button.
+    /// and the only QML that confirms a set is the review page's button and
+    /// the *Keep* button of a chart's preview card in the chat (D-355,
+    /// D-402).
     #[test]
     fn the_sidebar_and_its_toggles_hide_with_the_switch_and_only_the_review_page_confirms() {
         let main = qml("Main.qml");
@@ -259,8 +261,31 @@ mod tests {
                     !line.trim_start().starts_with("//") && line.contains("chat.confirm(")
                 })
                 .count();
-            let expected = usize::from(name == "AiChangeReviewPage.qml");
+            let expected =
+                usize::from(name == "AiChangeReviewPage.qml" || name == "AiChartCard.qml");
             assert_eq!(confirms, expected, "{name}: calls of confirm");
+        }
+        // The card confirms in one function, which only its *Keep* button
+        // calls, and nothing outside the file calls that function.
+        let card = qml("AiChartCard.qml");
+        let keep = &card[card.find("function keep() {").expect("Keep")..];
+        let keep = &keep[..keep.find("\n    }\n").expect("its end")];
+        assert_eq!(keep.matches("chat.confirm(").count(), 1, "{keep}");
+        let calls: Vec<&str> = card
+            .lines()
+            .filter(|line| line.contains("keep()") && !line.contains("function keep()"))
+            .collect();
+        assert_eq!(calls.len(), 1, "{calls:?}");
+        assert!(calls[0].contains("onClicked: card.keep()"), "{calls:?}");
+        let button = &card[..card.find("onClicked: card.keep()").unwrap()];
+        assert!(
+            button.rfind("Controls.Button {").unwrap() > button.rfind("RowLayout {").unwrap(),
+            "the call sits in a button"
+        );
+        for (name, text) in qml_files() {
+            if name != "AiChartCard.qml" {
+                assert!(!text.contains(".keep()"), "{name}: calls a card's keep()");
+            }
         }
     }
 }

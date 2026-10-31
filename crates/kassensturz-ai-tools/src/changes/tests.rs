@@ -7,7 +7,7 @@ use serde_json::json;
 
 use super::*;
 use crate::FUNCTIONS;
-use kassensturz_report::{Component, ComponentType, PERIODS};
+use kassensturz_report::Component;
 
 const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
@@ -138,8 +138,10 @@ fn sample() -> Sample {
 
 /// Prepares changes with every kind of change allowed; the permissions
 /// have their own tests below.
+/// The lists of a call, with the chart in `new_views` as `propose_view`
+/// and the user's edits make it (D-352, D-297).
 fn propose(book: &Book, arguments: &Value) -> Result<Proposal, ToolError> {
-    super::propose(book, arguments, Permissions::all())
+    super::prepare(book, arguments, Permissions::all())
 }
 
 fn code(result: Result<Proposal, ToolError>) -> String {
@@ -586,7 +588,21 @@ fn the_function_is_offered_apart_from_the_read_functions() {
     for name in &found {
         assert!(ARGUMENTS.contains(&name.as_str()), "{name}");
     }
-    for name in ARGUMENTS {
+    // The keys of a `new_views` item are made by propose_view and the
+    // user's edits only, not offered here (D-352).
+    for name in ARGUMENTS.iter().filter(|name| {
+        ![
+            "new_views",
+            "title",
+            "dataset",
+            "chart",
+            "grouping",
+            "measure",
+            "compare",
+            "period",
+        ]
+        .contains(name)
+    }) {
         assert!(found.iter().any(|found| found == name), "{name} is unused");
     }
     // Named in the threat model, like every function (T-23).
@@ -1136,7 +1152,11 @@ fn a_model_is_offered_only_the_lists_the_user_allows() {
     assert!(!none_new.parameters.contains("new_categories"));
 
     // One kind alone is still a complete, valid tool.
-    for permission in Permission::ALL.into_iter().filter(|p| !p.is_read()) {
+    // Charts alone are offered as propose_view, not here (D-352).
+    for permission in Permission::ALL
+        .into_iter()
+        .filter(|p| !p.is_read() && *p != Permission::NewViews)
+    {
         let none = Field::ALL
             .iter()
             .fold(Permissions::NONE, |p, field| p.with_lock(*field, false));
@@ -2454,74 +2474,47 @@ fn a_chart_that_does_not_fit_its_dataset_or_names_a_taken_title_is_refused() {
 }
 
 #[test]
-fn a_chart_needs_its_own_cell_of_the_grid_and_the_schema_lists_the_catalog() {
+fn a_chart_needs_its_own_cell_of_the_grid_and_propose_changes_has_no_list_for_it() {
     let Sample { book, .. } = sample();
     let call = json!({"new_views": [
         {"title": "Months", "dataset": "income_expense_by_month", "chart": "auto"}
     ]});
     let without = Permissions::all().with(Permission::NewViews, false);
     assert!(matches!(
-        super::propose(&book, &call, without),
+        super::prepare(&book, &call, without),
         Err(ToolError::NotAllowed {
             argument: "new_views"
         })
     ));
-    let proposal = super::propose(&book, &call, Permissions::all()).expect("prepared");
+    let proposal = super::prepare(&book, &call, Permissions::all()).expect("prepared");
     assert!(proposal.changes.check_allowed(Permissions::all()).is_ok());
     assert!(matches!(
         proposal.changes.check_allowed(without),
         Err(ChangeError::NotAllowed)
     ));
-    // Only this cell: the AI may propose a chart and nothing else.
+    // A model's call of propose_changes can't name the list: charts have
+    // their own function since M6c.8 (D-352).
+    assert!(matches!(
+        super::propose(&book, &call, Permissions::all()),
+        Err(ToolError::UnknownArgument)
+    ));
+    let schema: Value = serde_json::from_str(PROPOSE_CHANGES.parameters).expect("JSON");
+    assert!(schema["properties"].get("new_views").is_none());
+    // Only this cell: the AI may propose a chart and nothing else, so it is
+    // offered propose_view and not propose_changes.
     let only = Permissions::NONE.with(Permission::NewViews, true);
-    let spec = propose_spec(only).expect("a chart may be proposed");
-    let parameters: Value = serde_json::from_str(&spec.parameters).expect("JSON");
-    assert_eq!(
-        parameters["properties"]
-            .as_object()
-            .expect("properties")
-            .keys()
-            .collect::<Vec<_>>(),
-        ["new_views"]
-    );
-    assert!(spec.description.contains("spending_by_category"));
-    assert!(propose_spec(without).is_some());
+    assert!(propose_spec(only).is_none());
+    assert!(propose_view_spec(only).is_some());
+    assert!(propose_view_spec(without).is_none());
+    let all = propose_spec(Permissions::all()).expect("spec");
+    assert!(!all.parameters.contains("new_views"));
+    assert!(all.description.contains("propose_view"));
     assert!(
         !propose_spec(without)
             .expect("spec")
-            .parameters
-            .contains("new_views")
+            .description
+            .contains("propose_view")
     );
-    // The fixed lists of the schema are the catalog's and the report's.
-    let schema: Value = serde_json::from_str(PROPOSE_CHANGES.parameters).expect("JSON");
-    let item = &schema["properties"]["new_views"]["items"]["properties"];
-    let words = |value: &Value| -> Vec<String> {
-        value["enum"]
-            .as_array()
-            .expect("enum")
-            .iter()
-            .map(|word| word.as_str().expect("word").to_owned())
-            .collect()
-    };
-    // Without what uses My groups: the AI sees no groups in M6b (D-291).
-    let datasets: Vec<_> = kassensturz_report::CATALOG
-        .iter()
-        .filter(|d| d.for_ai)
-        .map(|d| d.id)
-        .collect();
-    assert_eq!(words(&item["dataset"]), datasets);
-    let mut charts = vec!["auto".to_owned()];
-    charts.extend(ComponentType::ALL.iter().map(|kind| kind.id().to_owned()));
-    assert_eq!(words(&item["chart"]), charts);
-    assert_eq!(words(&item["period"]), PERIODS);
-    let mut groupings: Vec<&str> = kassensturz_report::CATALOG
-        .iter()
-        .filter(|d| d.for_ai)
-        .flat_map(|d| d.groupings.iter().copied())
-        .filter(|&grouping| grouping != kassensturz_report::GROUPS_GROUPING)
-        .collect();
-    groupings.dedup();
-    assert_eq!(words(&item["grouping"]), groupings);
 }
 
 /// A set with a change of every kind the user may edit (D-293): a new
@@ -2951,3 +2944,5 @@ fn a_change_can_be_left_out_and_brought_back_as_the_ai_prepared_it() {
         .expect("nothing to make");
     assert_eq!(state(&book), before, "no entry in the history either");
 }
+
+mod view_call;

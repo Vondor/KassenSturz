@@ -211,7 +211,7 @@ impl Component {
                         Setting::Text(text.clone())
                     }
                     (Kind::Flag { .. }, Value::Bool(flag)) => Setting::Flag(*flag),
-                    (Kind::Ids, Value::Array(list)) => Setting::Ids(
+                    (Kind::Ids | Kind::Accounts, Value::Array(list)) => Setting::Ids(
                         list.iter()
                             .map(|id| id.as_str().map(str::to_owned))
                             .collect::<Option<Vec<_>>>()

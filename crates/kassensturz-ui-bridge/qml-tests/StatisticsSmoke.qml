@@ -57,7 +57,8 @@ Kirigami.ApplicationWindow {
     }
 
     function nameField() {
-        return find(page, "TextField", []).filter(f => f.placeholderText !== "" && f.placeholderText.indexOf("01.01") < 0)[0];
+        // The last one: the saved views' own box comes after the wizard's.
+        return find(page, "TextField", []).filter(f => f.placeholderText !== "" && f.placeholderText.indexOf("01.01") < 0).pop();
     }
 
     Timer {
@@ -83,7 +84,7 @@ Kirigami.ApplicationWindow {
                 window.check(page.header.visible && page.header.text.indexOf("rent CHART") >= 0 || page.header.text.length > 0, "and the message is shown");
                 window.check(page.views.length === 1, "and nothing was added");
                 // Change the type: the chart gives way to a key figure.
-                find(page, "ComboBox", []).filter(box => box.textRole === "name")[0].activated(page.types.indexOf("kpi.card"));
+                find(page, "ComboBox", []).filter(box => box.textRole === "name" && box.model.length === page.types.length)[0].activated(page.types.indexOf("kpi.card"));
                 break;
             case 3:
                 window.check(window.shown("ChartView") === 0, "the chart is gone");
@@ -104,7 +105,7 @@ Kirigami.ApplicationWindow {
                 {
                     // The last choice of the period is a range of dates the
                     // user types; the quick choices stay (D-332).
-                    const choice = find(page, "PeriodChoice", [])[0];
+                    const choice = find(page, "PeriodChoice", []).filter(c => c.options.length === page.periods.length).pop();
                     const box = find(choice, "ComboBox", [])[0];
                     window.check(box.count === page.periods.length + 1, "the period box has the quick choices and the range");
                     window.check(!find(choice, "TextField", [])[0].visible, "no field for dates at first");
@@ -113,7 +114,7 @@ Kirigami.ApplicationWindow {
                 break;
             case 7:
                 {
-                    const choice = find(page, "PeriodChoice", [])[0];
+                    const choice = find(page, "PeriodChoice", []).filter(c => c.options.length === page.periods.length).pop();
                     const field = find(choice, "TextField", [])[0];
                     window.check(field.visible, "the field for the dates appears");
                     field.text = "nonsense";
@@ -128,6 +129,31 @@ Kirigami.ApplicationWindow {
                 break;
             case 8:
                 window.check(page.period === "this-month", "a quick choice replaces the range: " + page.period);
+                // A new view starts in the wizard (D-335).
+                page.startNew();
+                break;
+            case 9:
+                {
+                    const wizard = find(page, "StatisticWizard", [])[0];
+                    window.check(page.wizard && wizard.visible && wizard.step === 0, "a new view starts in the wizard at its first step");
+                    const types = find(wizard, "AbstractButton", []).filter(button => button.checkable);
+                    window.check(types.length === page.types.length, "one picture to choose for each type: " + types.length);
+                    types[1].clicked();
+                }
+                break;
+            case 10:
+                {
+                    const wizard = find(page, "StatisticWizard", [])[0];
+                    window.check(wizard.workbench.view.type === "chart.pie", "choosing a picture sets the type: " + wizard.workbench.view.type);
+                    window.check(window.shown("ChartView") === 1, "and the preview shows it");
+                    wizard.step = 3;
+                    window.check(wizard.step === 3, "the last step is reachable");
+                    wizard.saveRequested("Wizard view");
+                }
+                break;
+            case 11:
+                window.check(page.openId !== "" && page.openName === "Wizard view", "the wizard saves the view under its name");
+                window.check(!page.wizard, "and the page shows every setting from then on");
                 Qt.exit(window.failed ? 1 : 0);
                 break;
             }

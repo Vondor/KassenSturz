@@ -48,7 +48,7 @@ module="$work/imports/io/github/vondor/kassensturz"
 mkdir -p "$module"
 for file in StatisticsPage AiChangeReviewPage AiChangeCorrection ComponentPreview PropertiesPanel ChartView ChartTable DataTable \
     CategoryGroupsPage CategoryGroupPage AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter ChartPalette FormError Plain \
-    DashboardGrid GridItem GridNames FormulaField PeriodChoice; do
+    DashboardGrid GridItem GridNames FormulaField PeriodChoice StatisticWizard; do
     cp "$bridge/qml/$file.qml" "$module"
 done
 cp "$bridge"/qml-tests/fakes/*.qml "$module"
@@ -60,7 +60,7 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
         ChartTable DataTable AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter FormError SavedViews \
         ComponentProperties BookCharts BookCards AiSwitch AiChat AccountTypes AiErrorMessage \
         CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames DashboardLayout \
-        FormulaField BookFormula PeriodChoice PeriodRange; do
+        FormulaField BookFormula PeriodChoice PeriodRange StatisticWizard; do
         echo "$file 1.0 $file.qml"
     done
 } > "$module/qmldir"

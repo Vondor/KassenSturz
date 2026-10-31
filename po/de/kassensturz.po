@@ -12807,3 +12807,75 @@ msgstr "Zwei Daten, zum Beispiel %1. Mit < oder > vor einem Datum gilt alles vor
 msgctxt "@info"
 msgid "That isn't a period KassenSturz can use. Write two dates, for example the first and the last day, with the first one earlier than the last and not more than 100 years apart."
 msgstr "Das ist kein Zeitraum, den KassenSturz verwenden kann. Schreiben Sie zwei Daten, zum Beispiel den ersten und den letzten Tag. Das erste muss vor dem zweiten liegen, und es dürfen nicht mehr als 100 Jahre dazwischen liegen."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:67
+#, kde-format
+msgctxt "@title:group a step of the wizard"
+msgid "How should it look?"
+msgstr "Wie soll es aussehen?"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:69
+#, kde-format
+msgctxt "@title:group a step of the wizard"
+msgid "What should it show?"
+msgstr "Was soll es zeigen?"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:71
+#, kde-format
+msgctxt "@title:group a step of the wizard"
+msgid "Details"
+msgstr "Einzelheiten"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:73
+#, kde-format
+msgctxt "@title:group a step of the wizard"
+msgid "Title and name"
+msgstr "Titel und Name"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:89
+#, kde-format
+msgctxt "@title:group %1 is the number of the step, %2 how many there are, %3 its name"
+msgid "Step %1 of %2: %3"
+msgstr "Schritt %1 von %2: %3"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:95
+#, kde-format
+msgctxt "@action:button leave the wizard and see every setting on one page"
+msgid "Show all settings at once"
+msgstr "Alle Einstellungen auf einmal zeigen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:188
+#, kde-format
+msgctxt "@info"
+msgid "There is nothing more to set for this one. Go on to the title and the name."
+msgstr "Hier gibt es nichts mehr einzustellen. Weiter zu Titel und Name."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:229
+#, kde-format
+msgctxt "@action:button keep the view the wizard made"
+msgid "Save the view"
+msgstr "Ansicht speichern"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:240
+#, kde-format
+msgctxt "@info"
+msgid "To put it on the Overview, choose Edit layout there and add it with Add a saved view."
+msgstr "Um sie auf die Übersicht zu legen, wählen Sie dort „Layout bearbeiten“ und fügen sie mit „Gespeicherte Ansicht hinzufügen“ hinzu."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:248
+#, kde-format
+msgctxt "@action:button go to the step before"
+msgid "Back"
+msgstr "Zurück"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:259
+#, kde-format
+msgctxt "@action:button go to the next step"
+msgid "Next"
+msgstr "Weiter"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:189
+#, kde-format
+msgctxt "@action:button make a new view step by step"
+msgid "Guide me step by step"
+msgstr "Schritt für Schritt führen"

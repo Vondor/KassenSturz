@@ -42,7 +42,7 @@ pub use error::{Corruption, DatabaseError, StoreError};
 pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};
 pub use lock::Lock;
 pub use rules::{RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
-pub use transactions::{AccountPart, RegisterEntry};
+pub use transactions::{AccountPart, PartOutline, RegisterEntry, TransactionOutline};
 
 use lock::HeldLock;
 

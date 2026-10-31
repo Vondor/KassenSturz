@@ -314,7 +314,7 @@ ColumnLayout {
         // Unused first, then the named columns, then the one that adds a
         // column.
         Repeater {
-            model: [{index: -1, name: "", members: board.unused.map(card => card.id)}].concat(board.columns.map((column, index) => ({index: index, name: column.name, members: column.members, formula: column.formula ?? "", asFormula: board.isFormula(column)})))
+            model: [{index: -1, name: "", members: board.unused.map(card => card.id), formula: "", asFormula: false}].concat(board.columns.map((column, index) => ({index: index, name: column.name, members: column.members, formula: column.formula ?? "", asFormula: board.isFormula(column)})))
 
             delegate: Rectangle {
                 id: slotColumn
@@ -427,12 +427,12 @@ ColumnLayout {
                     Controls.TextField {
                         Layout.fillWidth: true
                         visible: slotColumn.asFormula
-                        text: slotColumn.modelData.formula
+                        text: slotColumn.modelData.formula ?? ""
                         placeholderText: board.i18nContext.i18nc("@info:placeholder an example of a formula that uses the names of two columns", "For example: Home + Eating")
                         maximumLength: 500
                         Accessible.name: board.i18nContext.i18nc("@label:textbox", "Formula of the column")
                         onEditingFinished: {
-                            if (text.trim() !== slotColumn.modelData.formula) {
+                            if (text.trim() !== (slotColumn.modelData.formula ?? "")) {
                                 board.setColumnFormula(slotColumn.modelData.index, text);
                             }
                         }

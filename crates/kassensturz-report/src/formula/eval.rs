@@ -335,11 +335,10 @@ pub(crate) fn evaluate(
     for (period, chosen) in &asked {
         for result in category_over_time(source, *period, filter, chosen, Overlap::Allowed)? {
             for (series, total) in result.series.iter().zip(&result.totals) {
-                if !total.is_zero() {
-                    figures
-                        .entry((*period, series.of))
-                        .or_default()
-                        .push(*total);
+                if let Some(of) = series.of
+                    && !total.is_zero()
+                {
+                    figures.entry((*period, of)).or_default().push(*total);
                 }
             }
         }

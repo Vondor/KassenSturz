@@ -12942,3 +12942,8 @@ msgstr "Kategorien …"
 msgctxt "@action:button opens the wizard at the step for the look and the title"
 msgid "Look and title…"
 msgstr "Aussehen und Titel …"
+
+#: crates/kassensturz-ui-bridge/qml/ComponentPreview.qml
+msgctxt "@info %1 is the name of a category, %2 the names of the columns it is in"
+msgid "“%1” is in more than one column (%2), so it is counted in each of them. Added together, the columns count it twice."
+msgstr "„%1“ steht in mehr als einer Spalte (%2) und wird deshalb in jeder davon gezählt. Zusammengezählt zählen die Spalten es doppelt."

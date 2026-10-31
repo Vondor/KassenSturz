@@ -21,6 +21,7 @@
 //! of the book ([`Shown`], [`category_over_time`], D-291).
 
 mod catalog;
+mod columns;
 mod component;
 mod default_overview;
 mod document;
@@ -40,6 +41,10 @@ mod spending;
 mod text;
 
 pub use catalog::{CATALOG, DatasetInfo, GROUPS_GROUPING, dataset};
+pub use columns::{
+    Column, MAX_COLUMNS, SharedCategory, columns_over_time, columns_spending,
+    shared as shared_categories, unknown as unknown_column_members,
+};
 pub use component::Component;
 pub use default_overview::{DEFAULT_OVERVIEW, OVERVIEW_NAME};
 pub use document::{
@@ -67,8 +72,8 @@ pub use over_time::{
 };
 pub use period::{MAX_MONTHS, Period, range_word, read_range_word};
 pub use schema::{
-    ComponentType, FORMULA_MEASURE, Kind, MAX_IDS, MAX_TEXT_CHARS, Place, Property, Setting,
-    dataset_for,
+    ColumnSetting, ComponentType, FORMULA_MEASURE, Kind, MAX_IDS, MAX_TEXT_CHARS, Place, Property,
+    Setting, dataset_for,
 };
 pub use source::Source;
 pub use spending::{
@@ -77,6 +82,8 @@ pub use spending::{
 };
 pub use text::{TextFormat, TextTable};
 
+#[cfg(test)]
+mod columns_tests;
 #[cfg(test)]
 mod component_tests;
 #[cfg(test)]

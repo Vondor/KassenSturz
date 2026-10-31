@@ -150,7 +150,7 @@ Kirigami.ApplicationWindow {
                     window.check(window.shown("ChartView") === 1, "and the preview shows it");
                     wizard.step = 0;
                     wizard.next();
-                    window.check(wizard.step === 1, "Next goes to the categories");
+                    window.check(wizard.step === (wizard.usable(1) ? 1 : 2), "Next goes to the categories, or past them when there is nothing to choose: " + wizard.step);
                     wizard.goTo(2);
                     window.check(wizard.step === 2, "the last step is reachable by its list");
                     wizard.step = 0;

@@ -189,7 +189,7 @@ ColumnLayout {
 
     GridLayout {
         Layout.fillWidth: true
-        columns: width > Kirigami.Units.gridUnit * 36 ? 2 : 1
+        columns: wizard.width > Kirigami.Units.gridUnit * 36 ? 2 : 1
         columnSpacing: Kirigami.Units.largeSpacing
         rowSpacing: Kirigami.Units.largeSpacing
 

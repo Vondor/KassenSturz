@@ -76,6 +76,8 @@ The dataset `budget_utilization` in `kassensturz-report`, a pure function of a `
 
 The catalog entry's description says all of this in plain words for the properties panel and the AI.
 
+**As built in M6c.4 (D-378 to D-380):** the current period counts its spending from its first day to the day asked for (`counted_to`), so a booking dated later in it is not spent yet; grouped by `period`, only the periods that start by that day are shown. `Source::read_with_budgets` reads the budgets and the days they need (back to a carrying budget's first day) in one read. The dataset (`BUDGETS`) and `budget.progress` (properties `categories`, `title`, `period`) join the catalog and the component library in M6c.5, which draws them. Each period carries notes by fixed word (`over`, `nothing-to-spend`, `carried-in`) for the UI's sentences.
+
 ### 1.5 The budget screens (D-357; Q-264 = A; built in M6c.5)
 
 - **Budgets** page in the side menu: the budgets with their current period's bar, *Add a budget*, and per budget *Change*, *Stop* and *Delete*. With none yet, the page explains in two sentences what a budget is and offers *Add a budget*.

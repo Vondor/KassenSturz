@@ -23,6 +23,12 @@ pub trait TextFormat {
     fn number(&self, hundredths: i64) -> String;
     /// The name for money that isn't sorted into a category yet.
     fn unsorted(&self) -> String;
+    /// The days from `first` to `last`, e.g. "1 Oct 2026 to 31 Dec 2026",
+    /// for a budget's quarter, year or range (D-346). Without a locale of
+    /// its own, ISO 8601 dates.
+    fn days(&self, first: Date, last: Date) -> String {
+        format!("{first} – {last}")
+    }
 }
 
 /// A result as a table of text, which is also the screen-reader alternative

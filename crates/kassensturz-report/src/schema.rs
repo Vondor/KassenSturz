@@ -76,6 +76,14 @@ pub enum ComponentType {
     /// `table.income_sources`: where the money of the month came from, by
     /// category (D-336). The page fills it.
     IncomeSources,
+    /// `budget.progress`: one bar per budget, or for the budgets of the
+    /// chosen categories, from `budget_utilization` (D-357, D-378). Its
+    /// type is here; it joins [`ComponentType::LIBRARY`] and its dataset the
+    /// catalog in the step that draws it (M6c.5), so until then a document
+    /// that names it shows the placeholder of a type the app doesn't know
+    /// (D-278). It is not in [`ComponentType::ALL`]: the AI sees budgets
+    /// only with the Budgets row of the permission grid (D-358).
+    BudgetProgress,
 }
 
 impl ComponentType {
@@ -148,6 +156,7 @@ impl ComponentType {
             Self::PeriodBox => "group.period",
             Self::NetWorth => "card.net_worth",
             Self::IncomeSources => "table.income_sources",
+            Self::BudgetProgress => "budget.progress",
         }
     }
 
@@ -168,6 +177,7 @@ impl ComponentType {
             Self::ChartPie | Self::ChartDonut => "pie",
             Self::KpiCard | Self::ProgressBar => "kpi",
             Self::TableRows => "table",
+            Self::BudgetProgress => "budget",
             Self::Heading
             | Self::Separator
             | Self::FetchNotice
@@ -204,6 +214,7 @@ impl ComponentType {
             | Self::NetWorth
             | Self::IncomeSources => &[],
             Self::PeriodBox => &PERIOD_BOX,
+            Self::BudgetProgress => &BUDGET_PROGRESS,
         }
     }
 }
@@ -425,6 +436,10 @@ const TABLE: [Property; 7] = [
 ];
 const HEADING: [Property; 1] = [TEXT];
 const PERIOD_BOX: [Property; 2] = [TITLE, BOX_PERIOD];
+/// The budget bars (D-357): which categories' budgets (empty: every
+/// budget), a title and the period whose last day (or today, if earlier)
+/// the bars are asked for (D-346).
+const BUDGET_PROGRESS: [Property; 3] = [CATEGORIES, TITLE, PERIOD];
 
 fn invalid(reason: &'static str, path: String) -> ReportError {
     ReportError::DocumentInvalid { reason, path }

@@ -363,6 +363,45 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "Categories for money you receive go inside categories for money you receive, and the same for spending. Choose another category.");
         case "store.parent-currency-mismatch":
             return i18nContext.i18nc("@info %1 is the name of a category, %2 and %3 are currency codes", "%1 counts in %2, this category in %3. Choose a category in the same currency.", result.parent, result.parent_currency, result.currency);
+        case "store.budget-unknown":
+            return i18nContext.i18nc("@info", "This budget isn't in the book anymore. It may have just been deleted.");
+        case "store.budget-not-spending":
+            return i18nContext.i18nc("@info %1 is the name of a category", "%1 isn't a category for money you spend, so it can't have a budget. Choose a category for spending.", result.category);
+        case "store.budget-overlap":
+            return i18nContext.i18nc("@info %1 is the name of a category", "%1 already has a budget for some of these days. A category has one budget at a time: change or stop the other one first, or start this one after it ends.", result.category);
+        case "store.budget-amount":
+            switch (result.reason) {
+            case "too-large":
+                return i18nContext.i18nc("@info", "This amount is larger than KassenSturz can add up over the periods of a budget. Enter a smaller amount.");
+            case "currency":
+                return i18nContext.i18nc("@info", "The amount isn't in the currency of this category. Enter an amount in the category's currency.");
+            default:
+                return i18nContext.i18nc("@info", "A budget needs an amount of more than zero. Enter what you plan to spend.");
+            }
+        case "store.budget-period":
+            switch (result.reason) {
+            case "not-period-start":
+                return i18nContext.i18nc("@info", "A budget for every month, quarter or year, and a change to it, starts on the first day of one. Choose one of the periods in the list.");
+            case "not-period-end":
+                return i18nContext.i18nc("@info", "A budget for every month, quarter or year ends on the last day of one. Choose one of the periods in the list.");
+            case "ends-before-starts":
+                return i18nContext.i18nc("@info", "The last day can't be before the first day. Choose other days.");
+            case "no-last-day":
+                return i18nContext.i18nc("@info", "A budget for some days needs a last day. Enter the last day.");
+            case "too-long":
+                return i18nContext.i18nc("@info", "A budget for some days can cover at most 100 years. Choose other days.");
+            case "carry-over-on-range":
+                return i18nContext.i18nc("@info", "A budget for some days has no next period to carry anything into. Switch off carrying over.");
+            case "amount-before-start":
+            case "amount-after-end":
+                return i18nContext.i18nc("@info", "A change can't apply before the budget starts or after it ends. Choose one of the periods in the list.");
+            default:
+                return i18nContext.i18nc("@info", "These days don't fit the budget. Choose other days.");
+            }
+        case "store.budget-too-many":
+            return result.limit === "amounts"
+                ? i18nContext.i18nc("@info %1 is a number", "A budget can keep at most %1 changes of its amount. Change the amount from an earlier period on instead.", result.max)
+                : i18nContext.i18nc("@info %1 is a number", "A book can keep at most %1 budgets. Delete a budget you no longer need.", result.max);
         case "store.category-in-use":
             switch (result.used_by) {
             case "subcategories":

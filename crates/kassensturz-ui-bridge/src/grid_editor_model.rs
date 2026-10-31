@@ -603,7 +603,7 @@ mod tests {
         assert!(!flag_of(&view, "hasChanges"));
         assert_eq!(text_of(&view, "undoEdit"), "");
         let items = list_of(&view, "items");
-        assert_eq!(items.len(), 11);
+        assert_eq!(items.len(), 12);
         let first = &items[2];
         assert_eq!(
             keys(first),
@@ -622,7 +622,7 @@ mod tests {
         assert_eq!(text_of(&preview, "shows"), "card");
         assert_eq!(text_of(&preview, "measure"), "income");
         let library = list_of(&view, "library");
-        assert_eq!(library.len(), 16);
+        assert_eq!(library.len(), 17);
         assert_eq!(keys(&library[0]), ["dataset", "type"]);
     }
 

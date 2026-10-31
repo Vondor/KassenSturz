@@ -22,6 +22,9 @@ ColumnLayout {
     property int permille: 0
     // Whether there is a figure to show.
     property bool hasValue: true
+    // Whether the figure went past what the bar stands for, e.g. a budget
+    // spent beyond what was available: the fill takes the color of a warning.
+    property bool over: false
 
     spacing: Kirigami.Units.smallSpacing
     Accessible.role: Accessible.ProgressBar
@@ -58,7 +61,7 @@ ColumnLayout {
             width: parent.width * Math.max(0, Math.min(1000, meter.permille)) / 1000
             height: parent.height
             radius: parent.radius
-            color: Kirigami.Theme.highlightColor
+            color: meter.over ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.highlightColor
         }
     }
 }

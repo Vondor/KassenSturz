@@ -137,6 +137,9 @@ pub struct OverviewView {
     /// How many transactions of the month moved money between the user's
     /// own accounts, which count as neither income nor spending.
     pub transfers: usize,
+    /// How many budgets the book has: the budget bars take no room on the
+    /// Overview while there is none (D-357, Q-264).
+    pub budgets: usize,
     /// The newest transactions, newest first, without starting balances.
     pub latest: Vec<LatestRow>,
 }
@@ -244,6 +247,7 @@ pub fn view(book: &Book, month: Month, locale: &impl Locale) -> Result<OverviewV
         accounts: accounts::view(book, locale)?.sections,
         totals,
         transfers,
+        budgets: book.budgets()?.len(),
         latest: latest(book, &accounts, locale)?,
     })
 }

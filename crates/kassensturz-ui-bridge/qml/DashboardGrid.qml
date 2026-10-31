@@ -56,11 +56,16 @@ Item {
         let top = 0;
         for (const entry of items) {
             found[entry.id] = top;
-            top += frameHeight(entry.rows) + gap;
+            if (!isCollapsed(entry)) {
+                top += frameHeight(entry.rows) + gap;
+            }
         }
         found._end = Math.max(0, top - gap);
         return found;
     }
+    // How many budgets the book has (the overview's page view); the budget
+    // bars take no room in view mode while there is none (D-357, Q-264).
+    readonly property int budgetCount: pageView.budgets ?? 0
 
     property string selectedId: ""
     // The cells a drag would end on, or null.
@@ -81,6 +86,7 @@ Item {
 
     signal propertiesRequested(string id)
     signal getTransactionsClicked(string accountId)
+    signal setBudgetClicked()
     // An edit that was refused: the error object (`code`, ...).
     signal failed(var result)
 
@@ -92,12 +98,31 @@ Item {
         return Math.max(0, rows * rowHeight + (rows - 1) * gap);
     }
 
+    // A component that shows nothing and takes no room: the budget bars of
+    // a book with no budget, while the page is only looked at. Arranging the
+    // layout shows it, so it can still be moved and removed.
+    function isCollapsed(info: var): bool {
+        return !editing && info.type === "budget.progress" && budgetCount === 0;
+    }
+
+    // The height of the full-width components that take no room and lie
+    // completely above `row`: what the components below move up by.
+    function collapsedAbove(row: int): real {
+        let removed = 0;
+        for (const entry of items) {
+            if (isCollapsed(entry) && entry.cols === columns && entry.row + entry.rows <= row) {
+                removed += entry.rows * (rowHeight + gap);
+            }
+        }
+        return removed;
+    }
+
     function frameX(info: var): real {
         return narrow ? 0 : info.col * (cell + gap);
     }
 
     function frameY(info: var): real {
-        return narrow ? (offsets[info.id] ?? 0) : info.row * (rowHeight + gap);
+        return narrow ? (offsets[info.id] ?? 0) : info.row * (rowHeight + gap) - collapsedAbove(info.row);
     }
 
     function frameWidth(info: var): real {
@@ -279,7 +304,7 @@ Item {
         }
     }
 
-    implicitHeight: narrow ? (offsets._end ?? 0) + (editing ? frameHeight(1) : 0) : frameHeight(shownRows)
+    implicitHeight: narrow ? (offsets._end ?? 0) + (editing ? frameHeight(1) : 0) : Math.max(0, frameHeight(shownRows) - collapsedAbove(shownRows + 1))
 
     Accessible.role: Accessible.Grouping
 

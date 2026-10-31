@@ -336,13 +336,107 @@ ColumnLayout {
         ];
     }
 
+    // A category or group as a formula writes it: bare when it is one word,
+    // otherwise in single quotes with a quote inside doubled.
+    function writtenName(name: string): string {
+        return /^[A-Za-z_][A-Za-z_0-9]*$/.test(name) ? name : "'" + name.replace(/'/g, "''") + "'";
+    }
+
+    // Where the formula says what comes next (right after an opening
+    // bracket, a `;`, a `,` or an operator, or at its start), no word is typed
+    // yet: offer the names to use and, inside a call, the call's syntax
+    // (M6-B23).
+    function argumentSuggestions(index: int, before: string, cursor: int): var {
+        const last = before.trimEnd().slice(-1);
+        if (before.trim() !== "" && !["(", ";", ",", "+", "-", "*", "/"].includes(last)) {
+            return [];
+        }
+        const found = [];
+        const call = enclosingCall(before);
+        if (call !== "") {
+            const entry = functionHelp().find(help => help.name === call);
+            if (entry) {
+                found.push({label: call + "(…)", detail: entry.text, start: cursor, end: cursor, insert: ""});
+            }
+        }
+        columns.forEach((column, other) => {
+            if (other !== index && column.name.trim() !== "") {
+                found.push({label: column.name, detail: i18nContext.i18nc("@item a column of the board, in the list of suggestions", "column"), start: cursor, end: cursor, insert: quoted(column.name)});
+            }
+        });
+        cards.forEach(card => found.push({
+            label: card.isGroup ? card.label : card.path,
+            detail: card.isGroup ? i18nContext.i18nc("@item a group, in the list of suggestions", "group") : i18nContext.i18nc("@item a category, in the list of suggestions", "category"),
+            start: cursor, end: cursor, insert: writtenName(card.isGroup ? card.label.replace(/ \(group\)$/, "") : card.path)
+        }));
+        return found.slice(0, 8);
+    }
+
+    // The name of the function whose brackets are still open at the end of
+    // `before`, or "".
+    function enclosingCall(before: string): string {
+        const text = before.replace(/"[^"]*"/g, "\"\"");
+        let depth = 0;
+        for (let at = text.length - 1; at >= 0; --at) {
+            if (text[at] === ")") {
+                ++depth;
+            } else if (text[at] === "(") {
+                if (depth === 0) {
+                    return (/([A-Za-z_]+)\s*$/.exec(text.slice(0, at)) ?? ["", ""])[1].toUpperCase();
+                }
+                --depth;
+            }
+        }
+        return "";
+    }
+
+    // What is wrong with a formula as typed, in words, or "": a bracket left
+    // open or closed too often, a name that is none of the columns,
+    // categories or groups, a function that doesn't exist (M6-B23).
+    function formulaProblem(index: int, text: string): string {
+        const plain = text.replace(/"[^"]*"/g, "\"\"").replace(/'(?:[^']|'')*'/g, "''").replace(/@\S*/g, "");
+        let depth = 0;
+        for (const c of plain) {
+            if (c === "(") {
+                ++depth;
+            } else if (c === ")" && --depth < 0) {
+                return i18nContext.i18nc("@info a mistake in a formula", "There is a ) too many. Take it out, or add a ( before it.");
+            }
+        }
+        if (depth > 0) {
+            return i18nContext.i18nc("@info a mistake in a formula", "A ) is missing at the end. Add it to close the bracket.");
+        }
+        const known = functionHelp().map(entry => entry.name);
+        const names = columns.filter((column, other) => other !== index).map(column => column.name.toLowerCase())
+            .concat(cards.map(card => (card.isGroup ? card.label : card.path).toLowerCase()));
+        for (const found of plain.matchAll(/[A-Za-z_][A-Za-z_0-9]*(\s*\()?/g)) {
+            const word = found[0].replace(/\s*\($/, "");
+            if (found[1] !== undefined) {
+                if (!known.includes(word.toUpperCase())) {
+                    return i18nContext.i18nc("@info a mistake in a formula; %1 is what was typed", "“%1” is not a function. The functions are %2.", word, known.join(", "));
+                }
+            } else if (!names.some(name => name.includes(word.toLowerCase()))) {
+                return i18nContext.i18nc("@info a mistake in a formula; %1 is what was typed", "“%1” is not the name of a column, category or group. Pick one from the suggestions.", word);
+            }
+        }
+        // Names written in quotes must exist too.
+        for (const found of text.matchAll(/"([^"]+)"|'((?:[^']|'')+)'/g)) {
+            const typed = found[1] ?? found[2].replace(/''/g, "'");
+            const word = typed.toLowerCase();
+            if (!names.some(name => name.includes(word))) {
+                return i18nContext.i18nc("@info a mistake in a formula; %1 is what was typed", "“%1” is not the name of a column, category or group. Pick one from the suggestions.", typed);
+            }
+        }
+        return "";
+    }
+
     // The suggestions for the word at the cursor in the formula of column
     // `index`: {label, detail, start, end, insert}.
     function suggest(index: int, text: string, cursor: int): var {
         const before = text.slice(0, cursor);
         const word = (/[^\s+\-*\/();,"]*$/.exec(before) ?? [""])[0];
         if (word === "") {
-            return [];
+            return argumentSuggestions(index, before, cursor);
         }
         const start = cursor - word.length;
         const lower = word.toLowerCase();
@@ -660,24 +754,52 @@ ColumnLayout {
 
                 // Written out, not an icon alone: nobody should have to guess
                 // where formulas are.
-                Controls.Button {
+                Rectangle {
                     id: formulaToggle
 
+                    readonly property string text: slotColumn.asFormula
+                        ? board.i18nContext.i18nc("@action:button %1 is the name of a column", "Use categories in %1 instead of a formula", slotColumn.modelData.name)
+                        : board.i18nContext.i18nc("@action:button %1 is the name of a column", "Work out %1 with a formula", slotColumn.modelData.name)
+
                     Layout.fillWidth: true
+                    Layout.preferredHeight: toggleLabel.implicitHeight + Kirigami.Units.largeSpacing
                     visible: !slotColumn.isUnused && (slotColumn.asFormula || slotColumn.modelData.members.length === 0)
-                    flat: true
-                    // A long name wraps instead of being cut off at both ends.
-                    contentItem: Controls.Label {
+                    radius: Kirigami.Units.cornerRadius
+                    color: toggleTap.pressed ? Qt.alpha(Kirigami.Theme.highlightColor, 0.25) : (toggleHover.hovered ? Qt.alpha(Kirigami.Theme.highlightColor, 0.1) : "transparent")
+                    border.width: activeFocus ? 1 : 0
+                    border.color: Kirigami.Theme.highlightColor
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.Button
+                    Accessible.name: text
+                    Accessible.onPressAction: board.toggleFormula(slotColumn.modelData.index)
+                    Keys.onReturnPressed: board.toggleFormula(slotColumn.modelData.index)
+                    Keys.onSpacePressed: board.toggleFormula(slotColumn.modelData.index)
+
+                    // Written out, not an icon alone: nobody should have to
+                    // guess where formulas are. A long name wraps.
+                    Controls.Label {
+                        id: toggleLabel
+
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.margins: Kirigami.Units.smallSpacing
                         text: formulaToggle.text
                         wrapMode: Text.Wrap
                         horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
                         textFormat: Text.PlainText
+                        font.bold: true
                     }
-                    text: slotColumn.asFormula
-                        ? board.i18nContext.i18nc("@action:button %1 is the name of a column", "Use categories in %1 instead of a formula", slotColumn.modelData.name)
-                        : board.i18nContext.i18nc("@action:button %1 is the name of a column", "Work out %1 with a formula", slotColumn.modelData.name)
-                    onClicked: board.toggleFormula(slotColumn.modelData.index)
+
+                    HoverHandler {
+                        id: toggleHover
+                    }
+
+                    TapHandler {
+                        id: toggleTap
+
+                        onTapped: board.toggleFormula(slotColumn.modelData.index)
+                    }
                 }
 
                 Controls.TextField {
@@ -689,6 +811,19 @@ ColumnLayout {
                     placeholderText: board.i18nContext.i18nc("@info:placeholder an example of a formula that uses the names of two columns", "For example: Home + Eating")
                     maximumLength: 500
                     Accessible.name: board.i18nContext.i18nc("@label:textbox", "Formula of the column")
+                    // A bracket is closed as it is opened, and typing the closing
+                    // one over an existing one just steps past it.
+                    Keys.onPressed: event => {
+                        if (event.text === "(" && !event.modifiers) {
+                            const at = cursorPosition;
+                            text = text.slice(0, at) + "()" + text.slice(selectionEnd);
+                            cursorPosition = at + 1;
+                            event.accepted = true;
+                        } else if (event.text === ")" && text.charAt(cursorPosition) === ")") {
+                            cursorPosition += 1;
+                            event.accepted = true;
+                        }
+                    }
                     onEditingFinished: {
                         if (text.trim() !== (slotColumn.modelData.formula ?? "")) {
                             board.setColumnFormula(slotColumn.modelData.index, text);
@@ -712,9 +847,23 @@ ColumnLayout {
 
                     function put(entry: var) {
                         const text = formulaInput.text;
-                        formulaInput.text = text.slice(0, entry.start) + entry.insert + text.slice(entry.end);
+                        // A function comes with its brackets closed.
+                        const closes = entry.insert.endsWith("(") && text.charAt(entry.end) !== "(";
+                        const put = closes ? entry.insert + ")" : entry.insert;
+                        formulaInput.text = text.slice(0, entry.start) + put + text.slice(entry.end);
                         formulaInput.cursorPosition = entry.start + entry.insert.length;
                         formulaInput.forceActiveFocus();
+                    }
+
+                    // What is wrong so far, in words, as it is typed.
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: text !== ""
+                        text: slotColumn.asFormula ? board.formulaProblem(slotColumn.modelData.index, formulaInput.text) : ""
+                        color: Kirigami.Theme.negativeTextColor
+                        font: Kirigami.Theme.smallFont
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
                     }
 
                     Controls.Label {

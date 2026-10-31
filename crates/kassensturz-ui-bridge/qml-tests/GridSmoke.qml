@@ -185,6 +185,12 @@ Kirigami.ApplicationWindow {
                 }
                 const added = window.asked.slice(before);
                 window.check(added.length === 5 && added.filter(entry => entry.startsWith("add:")).length === 4 && added.filter(entry => entry === "saved:a").length === 1, "choosing the first item of every submenu says so: " + added);
+                // The period box is one of them (M6-B12).
+                const layoutGroup = addMenu.groups.findIndex(group => group.rows.some(row => row.id === "group.period"));
+                const boxRow = addMenu.groups[layoutGroup].rows.findIndex(row => row.id === "group.period");
+                const beforeBox = window.asked.length;
+                addMenu.menuAt(layoutGroup).itemAt(boxRow).triggered();
+                window.check(window.asked.slice(beforeBox).join() === "add:group.period", "choosing the period box says so: " + window.asked.slice(beforeBox));
                 window.check(!grid.editing && grid.selectedId === "", "leaving edit mode selects nothing");
                 if (window.failed) {
                     console.log("FAIL: the grid smoke test");

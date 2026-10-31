@@ -460,12 +460,22 @@ Kirigami.ScrollablePage {
                 }
             }
 
-            Loader {
+            // The preview area has a fixed height, so the dialog does not
+            // shrink when a choice leaves it with only a short message
+            // (M6-B12); what does not fit scrolls.
+            Controls.ScrollView {
                 Layout.fillWidth: true
-                active: propertiesSheet.opened && panelModel.view.preview !== undefined
-                sourceComponent: ComponentPreview {
-                    subject: panelModel.view
-                    period: grid.periodOf(panelModel.view.period?.word, grid.byId[page.editedId])
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 22
+                contentWidth: availableWidth
+                clip: true
+
+                Loader {
+                    width: parent.width
+                    active: propertiesSheet.opened && panelModel.view.preview !== undefined
+                    sourceComponent: ComponentPreview {
+                        subject: panelModel.view
+                        period: grid.periodOf(panelModel.view.period?.word, grid.byId[page.editedId])
+                    }
                 }
             }
         }

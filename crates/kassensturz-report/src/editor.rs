@@ -252,8 +252,20 @@ impl Editor {
                 .iter()
                 .filter_map(|entry| entry.frame.map(|frame| (frame, is_box(&entry.item))))
                 .collect();
-            let layer = component.kind() == ComponentType::PeriodBox;
-            let frame = first_free(&frames, layer, component.kind().default_size())?;
+            // A period box also keeps clear of the widgets: lying under them
+            // it would be invisible and would silently give them its period
+            // (M6-B12), so it gets one layer with everything else.
+            let frames: Vec<(Frame, bool)> = if component.kind() == ComponentType::PeriodBox {
+                frames
+                    .into_iter()
+                    .map(|(frame, _)| (frame, false))
+                    .collect()
+            } else {
+                frames
+            };
+            // A widget's own layer is `false` (a box counts only against boxes
+            // for it), so the box, whose frames were all set to `false`, uses it too.
+            let frame = first_free(&frames, false, component.kind().default_size())?;
             entries.push(Entry {
                 id: new,
                 item: Item::Component(component),

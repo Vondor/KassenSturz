@@ -377,6 +377,7 @@ impl qobject::DashboardLayout {
     /// refused, `input.no-such-entry` if no layout was loaded to add to.
     fn edited_add(
         self: Pin<&mut Self>,
+        detail: Option<&'static str>,
         edit: impl FnOnce(&mut Layout) -> Result<String, LayoutError>,
     ) -> QVariant {
         let mut ran = false;
@@ -385,25 +386,28 @@ impl qobject::DashboardLayout {
                 ran = true;
                 let result = edit(layout);
                 let code = result.as_ref().err().map(|error| plain_error(error).code);
-                crate::note!(LayoutWidgetAdded, None, code);
+                crate::note!(LayoutWidgetAdded, detail, code);
                 result
             },
             |id| map([("id", text(&id))]),
         );
         if !ran {
-            crate::note!(LayoutWidgetAdded, None, Some("input.no-such-entry"));
+            crate::note!(LayoutWidgetAdded, detail, Some("input.no-such-entry"));
         }
         answer
     }
 
     fn add(self: Pin<&mut Self>, kind: &QString) -> QVariant {
         let kind = kind.to_string();
-        self.edited_add(|layout| grid_editor::add(&mut layout.editor, &kind))
+        let detail = grid_editor::widget_detail(&kind);
+        self.edited_add(detail, |layout| grid_editor::add(&mut layout.editor, &kind))
     }
 
     fn add_view(self: Pin<&mut Self>, component: &QString, period: &QString) -> QVariant {
         let (component, period) = (component.to_string(), period.to_string());
-        self.edited_add(|layout| grid_editor::add_view(&mut layout.editor, &component, &period))
+        self.edited_add(Some("saved_view"), |layout| {
+            grid_editor::add_view(&mut layout.editor, &component, &period)
+        })
     }
 
     fn saved_layouts(&self) -> QVariant {

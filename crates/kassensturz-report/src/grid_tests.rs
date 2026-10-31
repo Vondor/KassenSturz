@@ -280,7 +280,8 @@ fn a_period_box_lies_under_widgets_but_boxes_and_widgets_never_overlap_their_own
         .is_err()
     );
     // A widget added to a box's area takes the first free place among
-    // widgets, so it can land inside the box; a box ignores widgets.
+    // widgets, so it can land inside the box; a new box keeps clear of widgets too, since
+    // under their cards it could not be seen (M6-B12).
     let card = editor.add(component(ComponentType::KpiCard)).unwrap();
     assert_eq!(frame_of(&editor, &card), frame(9, 0, 3, 2));
     let second = editor
@@ -691,4 +692,16 @@ proptest! {
             }
         }
     }
+}
+
+#[test]
+fn a_new_period_box_lands_where_no_widget_is() {
+    let mut editor = editor(&[
+        ("a", "chart.pie", frame(0, 0, 6, 4)),
+        ("b", "chart.bar", frame(6, 0, 6, 4)),
+    ]);
+    let added = editor
+        .add(Component::new(ComponentType::PeriodBox, "").unwrap())
+        .unwrap();
+    assert_eq!(frame_of(&editor, &added), frame(0, 4, 12, 5));
 }

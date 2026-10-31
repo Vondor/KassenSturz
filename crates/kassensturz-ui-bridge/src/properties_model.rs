@@ -81,7 +81,8 @@ pub mod qobject {
         fn set_ids(self: Pin<&mut ComponentProperties>, key: &QString, value: &QString);
 
         /// Sets the columns of a chart or table: a JSON list of
-        /// `{"name": ..., "members": [...]}`, empty list for none (D-339).
+        /// `{"name": ..., "members": [...], "formula": "..."}` (the formula in the
+        /// user's number format, empty for none), empty list for none (D-339).
         /// A text that is no such list changes nothing.
         #[qinvokable]
         #[cxx_name = "setColumns"]
@@ -160,7 +161,9 @@ pub(crate) fn view_object(
         ));
         entries.push(("json", text(&properties::json(component))));
         // The columns, as JSON text, for a component that has them (D-339).
-        if let Some(columns) = properties::columns_json(component) {
+        // Their formulas are written in the user's number format (D-341).
+        let show = |stored: &str| formulas::users_form(form, stored);
+        if let Some(columns) = properties::columns_json(component, &show) {
             entries.push(("columns", text(&columns)));
         }
         if let Some((word, words)) = properties::period(component) {
@@ -287,7 +290,16 @@ impl qobject::ComponentProperties {
     }
 
     fn set_columns(self: Pin<&mut Self>, json: &QString) {
-        let Some(columns) = properties::read_columns(&json.to_string()) else {
+        // A formula comes in the user's number format and goes to the book
+        // in the form it stores; empty means no formula.
+        let keep = |typed: &str| {
+            if typed.trim().is_empty() {
+                Some(String::new())
+            } else {
+                formulas::canonical(&app_locale(), typed.trim()).ok()
+            }
+        };
+        let Some(columns) = properties::read_columns(&json.to_string(), &keep) else {
             return;
         };
         self.change(|component| component.set("columns", Setting::Columns(columns)));
@@ -740,5 +752,38 @@ mod tests {
         // And what the panel shows round-trips through the JSON it saves.
         let again = Component::from_json(&text_of(&view, "json")).expect("saved and read");
         assert_eq!(again, bar);
+    }
+
+    #[test]
+    fn a_column_formula_goes_through_the_columns_text_and_back() {
+        let mut pie = component(ComponentType::ChartPie, "spending_by_category");
+        pie.set(
+            "columns",
+            Setting::Columns(vec![kassensturz_report::ColumnSetting {
+                name: "Left over".into(),
+                members: Vec::new(),
+                formula: "Pay - Food".into(),
+            }]),
+        )
+        .unwrap();
+        let json = properties::columns_json(&pie, &|stored| format!("<{stored}>")).unwrap();
+        assert!(json.contains("<Pay - Food>"), "{json}");
+        let unwrap = |typed: &str| {
+            typed
+                .strip_prefix('<')
+                .and_then(|rest| rest.strip_suffix('>'))
+                .map(str::to_owned)
+        };
+        let back = properties::read_columns(&json, &unwrap).unwrap();
+        assert_eq!(back[0].formula, "Pay - Food");
+        // A text that is no formula refuses the whole list.
+        assert!(properties::read_columns(&json, &|_| None).is_none());
+        // A column of the older kind has no formula.
+        let plain = properties::read_columns(r#"[{"name":"A","members":["x"]}]"#, &|typed| {
+            Some(typed.to_owned())
+        })
+        .unwrap();
+        assert_eq!(plain[0].formula, "");
+        assert_eq!(plain[0].members, ["x"]);
     }
 }

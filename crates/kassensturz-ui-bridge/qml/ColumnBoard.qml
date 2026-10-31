@@ -36,6 +36,12 @@ ColumnLayout {
     // What each column adds up to for the period, as the preview worked it
     // out: a list of {column, amounts}, amounts being one text per currency.
     property var totals: []
+    // The columns (by name) the user has turned into a formula and not yet
+    // typed one for.
+    property var formulaOn: ({})
+    // The column that was just made from a card: its name is asked for at
+    // once, so its field takes the focus.
+    property string focusName: ""
     // What saving a column as a group answered, and the words for success.
     property var groupResult: ({})
     property string saved: ""
@@ -157,15 +163,79 @@ ColumnLayout {
         }
     }
 
+    // Whether the column is worked out by a formula (D-341): it has one, or
+    // the user has just asked for one and not typed it yet.
+    function isFormula(column): bool {
+        return (column.formula ?? "") !== "" || formulaOn[column.name] === true;
+    }
+
+    // Turns the formula of a column on or off. Only an empty column can
+    // become a formula, so no card is lost; turning it off forgets the
+    // formula.
+    function toggleFormula(index: int) {
+        const column = columns[index];
+        const on = !isFormula(column);
+        const marks = Object.assign({}, formulaOn);
+        if (on) {
+            marks[column.name] = true;
+        } else {
+            delete marks[column.name];
+            if ((column.formula ?? "") !== "") {
+                setColumnFormula(index, "");
+            }
+        }
+        formulaOn = marks;
+    }
+
+    // Keeps what was typed as the formula of the column, in the user's
+    // number format; the book keeps it in its own form.
+    function setColumnFormula(index: int, typed: string) {
+        const list = JSON.parse(JSON.stringify(columns));
+        list[index].formula = typed.trim();
+        list[index].members = [];
+        save(list);
+    }
+
     function removeColumn(index: int) {
         const list = JSON.parse(JSON.stringify(columns));
         list.splice(index, 1);
         save(list);
     }
 
+    // A name for a column made from a card: the one typed in the Add a
+    // column box when it is free, otherwise "New column", "New column 2", ...
+    function freeName(wanted: string): string {
+        if (wanted.trim() !== "" && !nameTaken(wanted, -1)) {
+            return wanted.trim();
+        }
+        let name = i18nContext.i18nc("@label the name given to a column made from a card, to be changed", "New column");
+        for (let number = 2; nameTaken(name, -1); ++number) {
+            name = i18nContext.i18nc("@label %1 is a number; the name given to another column made from a card", "New column %1", number);
+        }
+        return name;
+    }
+
+    // Makes a column that holds the card, taking it out of `from` (-1 is
+    // Unused), and asks for the column's name.
+    function moveToNew(id: string, from: int, wanted: string): string {
+        const name = freeName(wanted);
+        const list = JSON.parse(JSON.stringify(columns));
+        if (from >= 0) {
+            list[from].members = list[from].members.filter(member => member !== id);
+        }
+        list.push({name: name, members: [id]});
+        focusName = name;
+        save(list);
+        return name;
+    }
+
     // Takes the card out of `from` (-1 is Unused) and puts it in `to`.
     function moveCard(id: string, from: int, to: int) {
         if (from === to) {
+            return;
+        }
+        if (to >= 0 && isFormula(columns[to])) {
+            board.problem = i18nContext.i18nc("@info", "A column with a formula can't hold categories. Name them in its formula instead.");
             return;
         }
         const list = JSON.parse(JSON.stringify(columns));
@@ -178,8 +248,21 @@ ColumnLayout {
         save(list);
     }
 
+    // Puts the card in `to` and leaves it where it is: a drag with Ctrl held
+    // (-1 is Unused; from Unused it is the same as a move).
+    function copyCard(id: string, from: int, to: int) {
+        if (from === to) {
+            return;
+        }
+        alsoPut(id, to);
+    }
+
     // Puts the card in `to` as well, where it already is.
     function alsoPut(id: string, to: int) {
+        if (isFormula(columns[to])) {
+            board.problem = i18nContext.i18nc("@info", "A column with a formula can't hold categories. Name them in its formula instead.");
+            return;
+        }
         const list = JSON.parse(JSON.stringify(columns));
         if (!list[to].members.includes(id)) {
             list[to].members.push(id);
@@ -194,15 +277,18 @@ ColumnLayout {
             entries.push({move: true, to: -1, text: i18nContext.i18nc("@action:inmenu take the card out of its column", "Move to Unused")});
         }
         columns.forEach((column, index) => {
-            if (index !== from) {
+            if (index !== from && !isFormula(column)) {
                 entries.push({move: true, to: index, text: i18nContext.i18nc("@action:inmenu %1 is the name of a column", "Move to %1", column.name)});
             }
         });
         columns.forEach((column, index) => {
-            if (index !== from && !column.members.includes(id) && from >= 0) {
+            if (index !== from && !isFormula(column) && !column.members.includes(id) && from >= 0) {
                 entries.push({move: false, to: index, text: i18nContext.i18nc("@action:inmenu %1 is the name of a column; the card stays where it is too", "Also put in %1", column.name)});
             }
         });
+        // A card can always start a column of its own, so the menu is never
+        // empty, also while there is no column yet.
+        entries.push({create: true, text: i18nContext.i18nc("@action:inmenu starts a new column with the card", "Move to a new column")});
         return entries;
     }
 
@@ -220,6 +306,15 @@ ColumnLayout {
         wrapMode: Text.Wrap
         textFormat: Text.PlainText
         text: board.i18nContext.i18nc("@info", "Drag categories into columns, or use the menu on a card. Each column becomes one bar, slice, line or row, and adds up its categories. A category may be in more than one column. What is in Unused is not counted.")
+    }
+
+    Controls.Label {
+        Layout.fillWidth: true
+        wrapMode: Text.Wrap
+        textFormat: Text.PlainText
+        font: Kirigami.Theme.smallFont
+        opacity: 0.7
+        text: board.i18nContext.i18nc("@info", "To count a category in more than one column, hold Ctrl while you drag it, or choose Also put in … in its menu.")
     }
 
     FormError {
@@ -255,7 +350,7 @@ ColumnLayout {
                 required property var modelData
 
                 text: modelData.text
-                onTriggered: modelData.move ? board.moveCard(cardMenu.cardId, cardMenu.from, modelData.to) : board.alsoPut(cardMenu.cardId, modelData.to)
+                onTriggered: modelData.create ? board.moveToNew(cardMenu.cardId, cardMenu.from, "") : modelData.move ? board.moveCard(cardMenu.cardId, cardMenu.from, modelData.to) : board.alsoPut(cardMenu.cardId, modelData.to)
             }
 
             onObjectAdded: (index, object) => cardMenu.insertItem(index, object)
@@ -270,7 +365,7 @@ ColumnLayout {
         // Unused first, then the named columns, then the one that adds a
         // column.
         Repeater {
-            model: [{index: -1, name: "", members: board.unused.map(card => card.id)}].concat(board.columns.map((column, index) => ({index: index, name: column.name, members: column.members})))
+            model: [{index: -1, name: "", members: board.unused.map(card => card.id), formula: "", asFormula: false}].concat(board.columns.map((column, index) => ({index: index, name: column.name, members: column.members, formula: column.formula ?? "", asFormula: board.isFormula(column)})))
 
             delegate: Rectangle {
                 id: slotColumn
@@ -278,6 +373,7 @@ ColumnLayout {
                 required property var modelData
 
                 readonly property bool isUnused: modelData.index < 0
+                readonly property bool asFormula: !isUnused && modelData.asFormula
 
                 width: Kirigami.Units.gridUnit * 14
                 height: Math.max(Kirigami.Units.gridUnit * 12, content.implicitHeight + Kirigami.Units.largeSpacing * 2)
@@ -292,7 +388,7 @@ ColumnLayout {
 
                     anchors.fill: parent
                     keys: ["card"]
-                    onDropped: drop => board.moveCard(drop.source.cardId, drop.source.from, slotColumn.modelData.index)
+                    onDropped: drop => drop.source.copying ? board.copyCard(drop.source.cardId, drop.source.from, slotColumn.modelData.index) : board.moveCard(drop.source.cardId, drop.source.from, slotColumn.modelData.index)
                 }
 
                 ColumnLayout {
@@ -323,6 +419,13 @@ ColumnLayout {
                             text: slotColumn.modelData.name
                             maximumLength: 200
                             Accessible.name: board.i18nContext.i18nc("@label:textbox", "Name of the column")
+                        Component.onCompleted: {
+                            if (!slotColumn.isUnused && board.focusName !== "" && slotColumn.modelData.name === board.focusName) {
+                                board.focusName = "";
+                                forceActiveFocus();
+                                selectAll();
+                            }
+                        }
                             onEditingFinished: {
                                 if (text !== slotColumn.modelData.name) {
                                     board.renameColumn(slotColumn.modelData.index, text);
@@ -360,9 +463,37 @@ ColumnLayout {
                         opacity: 0.7
                         text: slotColumn.isUnused
                             ? board.i18nContext.i18nc("@info", "Not counted. A category you add under Categories shows up here.")
+                            : slotColumn.asFormula && board.totalOf(slotColumn.modelData.name) === ""
+                                ? board.i18nContext.i18nc("@info", "Worked out from a formula. Use the names of columns, categories and groups, like Home + Eating.")
                             : board.totalOf(slotColumn.modelData.name) !== ""
                                 ? board.i18nContext.i18nc("@info %1 is an amount of money, or several with + between them", "Adds up to %1", board.totalOf(slotColumn.modelData.name))
                                 : board.i18nContext.i18nc("@info", "Counted together as one figure.")
+                    }
+
+                    // Written out, not an icon alone: nobody should have to guess
+                    // where formulas are.
+                    Controls.Button {
+                        Layout.fillWidth: true
+                        visible: !slotColumn.isUnused && (slotColumn.asFormula || slotColumn.modelData.members.length === 0)
+                        flat: true
+                        text: slotColumn.asFormula
+                            ? board.i18nContext.i18nc("@action:button %1 is the name of a column", "Use categories in %1 instead of a formula", slotColumn.modelData.name)
+                            : board.i18nContext.i18nc("@action:button %1 is the name of a column", "Work out %1 with a formula", slotColumn.modelData.name)
+                        onClicked: board.toggleFormula(slotColumn.modelData.index)
+                    }
+
+                    Controls.TextField {
+                        Layout.fillWidth: true
+                        visible: slotColumn.asFormula
+                        text: slotColumn.modelData.formula ?? ""
+                        placeholderText: board.i18nContext.i18nc("@info:placeholder an example of a formula that uses the names of two columns", "For example: Home + Eating")
+                        maximumLength: 500
+                        Accessible.name: board.i18nContext.i18nc("@label:textbox", "Formula of the column")
+                        onEditingFinished: {
+                            if (text.trim() !== (slotColumn.modelData.formula ?? "")) {
+                                board.setColumnFormula(slotColumn.modelData.index, text);
+                            }
+                        }
                     }
 
                     Repeater {
@@ -375,9 +506,23 @@ ColumnLayout {
                             // What the drop reads.
                             readonly property string cardId: modelData
                             readonly property int from: slotColumn.modelData.index
+                            // Whether the drag holds Ctrl: the card is copied, not moved.
+                            property bool copying: false
 
                             Layout.fillWidth: true
                             Layout.preferredHeight: tile.height
+
+                            function dragged(active: bool) {
+                                if (active) {
+                                    board.dragFrom = slot.from;
+                                    tile.Drag.start();
+                                } else {
+                                    tile.Drag.drop();
+                                    tile.x = 0;
+                                    tile.y = 0;
+                                    board.dragFrom = -2;
+                                }
+                            }
 
                             Rectangle {
                                 id: tile
@@ -387,27 +532,33 @@ ColumnLayout {
                                 radius: Kirigami.Units.cornerRadius
                                 color: Kirigami.Theme.backgroundColor
                                 border.width: 1
-                                border.color: handler.active ? Kirigami.Theme.highlightColor : Kirigami.Theme.disabledTextColor
-                                z: handler.active ? 100 : 0
+                                border.color: handler.active || copyHandler.active ? Kirigami.Theme.highlightColor : Kirigami.Theme.disabledTextColor
+                                z: handler.active || copyHandler.active ? 100 : 0
                                 Drag.dragType: Drag.None
                                 Drag.keys: ["card"]
                                 Drag.source: slot
                                 Drag.hotSpot.x: width / 2
                                 Drag.hotSpot.y: height / 2
 
+                                // A plain drag moves the card, a drag with Ctrl held copies
+                                // it into another column too.
                                 DragHandler {
                                     id: handler
 
+                                    acceptedModifiers: Qt.NoModifier
                                     onActiveChanged: {
-                                        if (active) {
-                                            board.dragFrom = slot.from;
-                                            tile.Drag.start();
-                                        } else {
-                                            tile.Drag.drop();
-                                            tile.x = 0;
-                                            tile.y = 0;
-                                            board.dragFrom = -2;
-                                        }
+                                        slot.copying = false;
+                                        slot.dragged(active);
+                                    }
+                                }
+
+                                DragHandler {
+                                    id: copyHandler
+
+                                    acceptedModifiers: Qt.ControlModifier
+                                    onActiveChanged: {
+                                        slot.copying = true;
+                                        slot.dragged(active);
                                     }
                                 }
 
@@ -421,6 +572,14 @@ ColumnLayout {
                                         textFormat: Text.PlainText
                                         text: board.labelOf(slot.modelData)
                                         opacity: board.cardOf(slot.modelData) === undefined ? 0.6 : 1
+                                    }
+
+                                    // Shown while the card is being copied.
+                                    Controls.Label {
+                                        visible: copyHandler.active
+                                        font.bold: true
+                                        text: "+"
+                                        Accessible.ignored: true
                                     }
 
                                     Controls.ToolButton {
@@ -440,7 +599,7 @@ ColumnLayout {
 
                     Controls.Label {
                         Layout.fillWidth: true
-                        visible: slotColumn.modelData.members.length === 0
+                        visible: slotColumn.modelData.members.length === 0 && !slotColumn.asFormula
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText
@@ -459,8 +618,20 @@ ColumnLayout {
             height: Kirigami.Units.gridUnit * 12
             radius: Kirigami.Units.cornerRadius
             color: Kirigami.Theme.backgroundColor
-            border.width: 1
+            border.width: addDrop.containsDrag ? 2 : 1
             border.color: Kirigami.Theme.highlightColor
+
+            // A card dropped here starts a new column.
+            DropArea {
+                id: addDrop
+
+                anchors.fill: parent
+                keys: ["card"]
+                onDropped: drop => {
+                    board.moveToNew(drop.source.cardId, drop.source.copying ? -2 : drop.source.from, newName.text);
+                    newName.text = "";
+                }
+            }
 
             ColumnLayout {
                 anchors {
@@ -506,7 +677,7 @@ ColumnLayout {
                     textFormat: Text.PlainText
                     font: Kirigami.Theme.smallFont
                     opacity: 0.7
-                    text: board.i18nContext.i18nc("@info", "Name it, then drag categories in. For example, put Restaurants and Coffee into a column called Fast food.")
+                    text: board.i18nContext.i18nc("@info", "Name it, then drag categories in, or drop a category here to start a column with it. For example, put Restaurants and Coffee into a column called Fast food.")
                 }
             }
         }

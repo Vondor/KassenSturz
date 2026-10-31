@@ -42,7 +42,7 @@ mod text;
 
 pub use catalog::{CATALOG, DatasetInfo, GROUPS_GROUPING, dataset};
 pub use columns::{
-    Column, MAX_COLUMNS, SharedCategory, columns_over_time, columns_spending,
+    Column, MAX_COLUMNS, SharedCategory, columns_over_time, columns_span, columns_spending,
     shared as shared_categories, unknown as unknown_column_members,
 };
 pub use component::Component;

@@ -34,7 +34,12 @@ mkdir "$work/out"
 (
     cd "$work"
     LIBGL_ALWAYS_SOFTWARE=1 QSG_RHI_BACKEND=opengl QT_QPA_PLATFORM=xcb \
-        timeout 120 xvfb-run -a -s "-screen 0 1280x1024x24" qml6 ChartsSmoke.qml
+        timeout 120 xvfb-run -a -s "-screen 0 1280x1024x24" qml6 ChartsSmoke.qml 2>&1 | tee run.log
+    # A layout that sizes itself from its own width loops (M6-B11).
+    if grep -E 'recursive rearrange|Binding loop' run.log; then
+        echo "check-charts: QML printed a layout or binding loop (above)" >&2
+        exit 1
+    fi
 )
 
 python3 - "$work/out" <<'PY'

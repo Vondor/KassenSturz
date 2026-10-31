@@ -26,7 +26,7 @@ use kassensturz_core::{GroupKind, GroupMember};
 use kassensturz_export::{BookExport, ExportData, export, read_book};
 use kassensturz_import::{Imported, KmySqlite, Limits, import};
 use kassensturz_pipeline::{export_book, fill_book, fill_book_from};
-use kassensturz_store::Book;
+use kassensturz_store::{Book, PartOutline, TransactionOutline};
 
 fn books() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../kassensturz-import/tests/books")
@@ -214,4 +214,47 @@ fn exported_from(data: &ExportData) -> String {
     let mut book = Book::create_in_memory().expect("a book in memory");
     fill_book(&mut book, data).expect("filled");
     exported(&book)
+}
+
+/// An account's register reads only an outline of each transaction (M6-B8,
+/// D-387). In the book the importer fills, every account's outlines agree
+/// with its whole transactions: notes, parts, categories and the parts in
+/// another currency.
+#[test]
+fn the_register_outlines_agree_with_the_whole_transactions_in_every_account() {
+    let book = the_book();
+    let mut lines = 0;
+    for account in book.all_accounts().expect("accounts read") {
+        let whole: HashMap<_, _> = book
+            .transactions_of(account.id)
+            .expect("transactions read")
+            .into_iter()
+            .map(|transaction| {
+                let outline = TransactionOutline {
+                    note: transaction.note().map(Into::into),
+                    parts: transaction
+                        .splits()
+                        .iter()
+                        .map(|split| PartOutline {
+                            account: split.account,
+                            foreign: split.foreign.is_some(),
+                            note: split.note.clone(),
+                        })
+                        .collect(),
+                };
+                (transaction.id(), outline)
+            })
+            .collect();
+        lines += whole.len();
+        assert_eq!(
+            book.transaction_outlines(account.id)
+                .expect("outlines read"),
+            whole,
+            "{}",
+            account.name
+        );
+    }
+    // Every transaction has at least two parts, so it is counted in at
+    // least two accounts or categories.
+    assert!(lines >= 2 * 3791, "{lines}");
 }

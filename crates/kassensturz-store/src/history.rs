@@ -23,6 +23,7 @@ use rusqlite::{Connection, OptionalExtension, ToSql, params};
 
 use crate::cached::Cached;
 use crate::error::{Corruption, StoreError};
+use crate::originals::unlocked;
 use crate::{Book, date_from_text};
 
 /// What the user did in one change to the book, e.g. adding an account. The
@@ -1089,29 +1090,33 @@ impl Book {
                 return Err(StoreError::Corrupt(Corruption::HistoryMismatch));
             }
         }
-        for table in &RECORDED {
-            let Recorded { name, key, .. } = table;
-            let columns = table.names("");
-            self.conn
-                .execute_cached(
+        // Writing back can take away or bring back what a bank or file
+        // delivered, which the history kept (D-375).
+        let conn = &self.conn;
+        unlocked(conn, || {
+            for table in &RECORDED {
+                let Recorded { name, key, .. } = table;
+                let columns = table.names("");
+                conn.execute_cached(
                     &format!(
                         "DELETE FROM main.{name} WHERE {key} IN (
-                             SELECT {key} FROM {schema}.changed_{name} WHERE change_id = ?1)"
+                                 SELECT {key} FROM {schema}.changed_{name} WHERE change_id = ?1)"
                     ),
                     [id],
                 )
                 .map_err(mismatch_if_refused)?;
-            self.conn
-                .execute_cached(
+                conn.execute_cached(
                     &format!(
                         "INSERT INTO main.{name} ({columns})
-                         SELECT {columns} FROM {schema}.changed_{name}
-                         WHERE change_id = ?1 AND side = ?2"
+                             SELECT {columns} FROM {schema}.changed_{name}
+                             WHERE change_id = ?1 AND side = ?2"
                     ),
                     params![id, side.as_str()],
                 )
                 .map_err(mismatch_if_refused)?;
-        }
+            }
+            Ok(())
+        })?;
         let broken_references: i64 = self.conn.query_row_cached(
             "SELECT count(*) FROM pragma_foreign_key_check",
             [],

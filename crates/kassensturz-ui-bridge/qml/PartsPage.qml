@@ -118,12 +118,31 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // A transaction with what a bank or file delivered is removed only
+    // after the plain warning (D-375); one typed in is removed at once.
     function remove() {
+        const notice = register.removalNotice(accountId, transactionId);
+        if (notice.code !== undefined) {
+            error.result = notice;
+        } else if (notice.holdsOriginal) {
+            removeOriginal.ask(notice);
+        } else {
+            removeNow();
+        }
+    }
+
+    function removeNow() {
         const result = register.removeTransaction(accountId, transactionId);
         error.result = result;
         if (result.code === undefined) {
             done();
         }
+    }
+
+    RemoveOriginalDialog {
+        id: removeOriginal
+
+        onRemoveConfirmed: page.removeNow()
     }
 
     Kirigami.FormLayout {

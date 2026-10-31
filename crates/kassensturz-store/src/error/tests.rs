@@ -238,6 +238,7 @@ fn examples() -> Vec<ErrorReport> {
         },
         StoreError::ImportedSplitChanged(split),
         StoreError::OriginalChanged(split),
+        StoreError::DeliveredKept,
         StoreError::UnknownRule(rule),
         StoreError::RuleIdInUse(rule),
         StoreError::EmptyRuleName,

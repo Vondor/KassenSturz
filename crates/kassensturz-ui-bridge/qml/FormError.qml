@@ -380,6 +380,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This transaction isn't in the book anymore. It may have just been removed.");
         case "store.imported-split-changed":
             return i18nContext.i18nc("@info", "This transaction came from your bank or a file, so its amount stays as it was delivered. You can change the rest.");
+        case "store.delivered-kept":
+            return i18nContext.i18nc("@info", "KassenSturz keeps what your bank or a file delivered exactly as it came, so this change wasn't made and nothing was lost. This is a mistake in KassenSturz or in another program that changed the book; please report it.");
         case "store.account-closed":
             return i18nContext.i18nc("@info %1 is the name of an account", "%1 is closed. Open it again to add or change its transactions.", result.account);
         case "store.corrupt.history-mismatch":

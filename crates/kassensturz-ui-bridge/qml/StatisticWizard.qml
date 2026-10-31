@@ -292,6 +292,7 @@ ColumnLayout {
                     visible: wizard.hasBoard
                     workbench: wizard.workbench
                     choices: wizard.builder.groupsSource
+                    totals: preview.totals
                 }
 
                 Controls.Button {

@@ -33,6 +33,12 @@ ColumnLayout {
     property int dragFrom: -2
     // What went wrong with the last change, in words, or empty.
     property string problem: ""
+    // What each column adds up to for the period, as the preview worked it
+    // out: a list of {column, amounts}, amounts being one text per currency.
+    property var totals: []
+    // What saving a column as a group answered, and the words for success.
+    property var groupResult: ({})
+    property string saved: ""
 
     readonly property var columns: {
         try {
@@ -61,6 +67,13 @@ ColumnLayout {
         translationDomain: "kassensturz"
     }
 
+    // The words for what the column `name` adds up to, or empty when the
+    // preview has no figure for it (yet, or it has no money).
+    function totalOf(name: string): string {
+        const found = totals.find(each => each.column === name);
+        return found === undefined ? "" : found.amounts.join(" + ");
+    }
+
     function cardOf(id: string): var {
         return cards.find(card => card.id === id);
     }
@@ -86,6 +99,8 @@ ColumnLayout {
 
     function save(list) {
         board.problem = "";
+        board.groupResult = ({});
+        board.saved = "";
         workbench.setColumns(JSON.stringify(list));
     }
 
@@ -126,6 +141,20 @@ ColumnLayout {
         const list = JSON.parse(JSON.stringify(columns));
         list[index].name = name.trim();
         save(list);
+    }
+
+    // Keeps a column as one of My groups, under its name, so it can be used
+    // again in other statistics (D-341). The column stays as it is.
+    function saveAsGroup(index: int) {
+        board.problem = "";
+        board.groupResult = ({});
+        board.saved = "";
+        const column = columns[index];
+        const result = choices.addGroup(column.name, false, column.members.join(","));
+        board.groupResult = result;
+        if (result.code === undefined) {
+            board.saved = i18nContext.i18nc("@info %1 is the name of a column", "Saved “%1” as a group. You find it under My groups.", column.name);
+        }
     }
 
     function removeColumn(index: int) {
@@ -191,6 +220,18 @@ ColumnLayout {
         wrapMode: Text.Wrap
         textFormat: Text.PlainText
         text: board.i18nContext.i18nc("@info", "Drag categories into columns, or use the menu on a card. Each column becomes one bar, slice, line or row, and adds up its categories. A category may be in more than one column. What is in Unused is not counted.")
+    }
+
+    FormError {
+        Layout.fillWidth: true
+        result: board.groupResult
+    }
+
+    Kirigami.InlineMessage {
+        Layout.fillWidth: true
+        visible: board.saved !== ""
+        type: Kirigami.MessageType.Positive
+        text: board.saved
     }
 
     Kirigami.InlineMessage {
@@ -291,6 +332,16 @@ ColumnLayout {
                         }
 
                         Controls.ToolButton {
+                            visible: !slotColumn.isUnused && slotColumn.modelData.members.length > 0
+                            icon.name: "folder-new"
+                            text: board.i18nContext.i18nc("@action:button %1 is the name of a column", "Save the column %1 as a group", slotColumn.modelData.name)
+                            display: Controls.AbstractButton.IconOnly
+                            Controls.ToolTip.text: text
+                            Controls.ToolTip.visible: hovered
+                            onClicked: board.saveAsGroup(slotColumn.modelData.index)
+                        }
+
+                        Controls.ToolButton {
                             visible: !slotColumn.isUnused
                             icon.name: "edit-delete"
                             text: board.i18nContext.i18nc("@action:button %1 is the name of a column", "Remove the column %1", slotColumn.modelData.name)
@@ -309,7 +360,9 @@ ColumnLayout {
                         opacity: 0.7
                         text: slotColumn.isUnused
                             ? board.i18nContext.i18nc("@info", "Not counted. A category you add under Categories shows up here.")
-                            : board.i18nContext.i18nc("@info", "Counted together as one figure.")
+                            : board.totalOf(slotColumn.modelData.name) !== ""
+                                ? board.i18nContext.i18nc("@info %1 is an amount of money, or several with + between them", "Adds up to %1", board.totalOf(slotColumn.modelData.name))
+                                : board.i18nContext.i18nc("@info", "Counted together as one figure.")
                     }
 
                     Repeater {

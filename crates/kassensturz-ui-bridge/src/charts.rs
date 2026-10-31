@@ -69,6 +69,9 @@ pub struct ChartSet {
     /// The categories that more than one column counts, so the screen can
     /// say plainly that they are counted twice (D-339).
     pub shared: Vec<SharedCategory>,
+    /// What each column adds up to over the period, one text per currency,
+    /// in the order of the columns; a column with no money has none (D-341).
+    pub totals: Vec<(String, Vec<String>)>,
 }
 
 /// Why a request couldn't be answered.
@@ -321,6 +324,7 @@ pub fn charts(
         charts,
         missing: named - known,
         shared: Vec::new(),
+        totals: Vec::new(),
     })
 }
 
@@ -328,6 +332,34 @@ pub fn charts(
 /// stacked bars draw one series per column month by month, everything else
 /// shows one row per column for the whole period. A category in two columns
 /// counts in both; the result names it so the screen can say so.
+/// What each column adds up to over `period`, in every currency it has money
+/// in, written for the screen.
+fn column_totals(
+    source: &Source,
+    text: &impl TextFormat,
+    period: Period,
+    columns: &[Column],
+) -> Result<Vec<(String, Vec<String>)>, ChartsError> {
+    let results = columns_spending(source, period, &Filter::default(), columns)?;
+    Ok(columns
+        .iter()
+        .map(|column| {
+            let amounts = results
+                .iter()
+                .filter_map(|result| {
+                    // The rows keep the columns' names, and a name is unique.
+                    let row = result
+                        .rows
+                        .iter()
+                        .find(|row| row.path.first() == Some(&column.name))?;
+                    Some(text.amount(row.total))
+                })
+                .collect();
+            (column.name.clone(), amounts)
+        })
+        .collect())
+}
+
 fn columns_charts(
     source: &Source,
     text: &impl TextFormat,
@@ -373,5 +405,6 @@ fn columns_charts(
         charts,
         missing: named - known,
         shared: shared_categories(source, &columns),
+        totals: column_totals(source, text, period, &columns)?,
     })
 }

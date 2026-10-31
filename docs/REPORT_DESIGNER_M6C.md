@@ -146,6 +146,8 @@ A dimension a dataset does not take is **not applied, and the component says so*
 
 **The filter bar (M6c.7):** a row above the Overview's grid (and every dashboard of M6d) with *Period*, *Accounts* and *Categories*, each a button that opens a list with check boxes (the period one the choices of D-332). In view mode a choice is **for now**: it changes what the page shows, is not written into the book and is not a history entry; *Reset filters* goes back to the layout's own. In **edit mode** the bar's choices are saved with the layout when the user presses Done (one `edit_view` entry, one Undo), so a layout can carry its filters. The properties panel gets *Accounts* next to *Categories* and, for each dimension, *Follow the page* or the component's own.
 
+**Built in M6c.6 (D-384 to D-386):** `filter.rs` in `kassensturz-report`. `Document::asked(id, bar)` gives what a component asks for (`Asked`: the period word and, per dimension, the IDs and where they come from) and `Asked::apply(&Source)` the `Filter`, the marks and the notes (`Applied`). `DatasetInfo::takes` lists the dimensions of each dataset; the dataset functions did not change, since each already took a `Filter`. `Document` has `accounts` and `categories` next to `period` (`Document::filters`), components have `params.accounts` (`Kind::Accounts`), and `VERSION` is 2. Tests on the real datasets: `filter_tests.rs`.
+
 ## 4. The AI chart builder (D-352 to D-356)
 
 ### 4.1 One function, `propose_view` (D-352; M6c.8)

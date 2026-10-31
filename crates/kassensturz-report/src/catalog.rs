@@ -11,7 +11,7 @@
 
 use crate::{
     ACCOUNT_BALANCES, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, FORMULA_MEASURE,
-    INCOME_EXPENSE_BY_MONTH, NET_WORTH_OVER_TIME, SPENDING_BY_CATEGORY,
+    INCOME_EXPENSE_BY_MONTH, NET_WORTH_OVER_TIME, SPENDING_BY_CATEGORY, Takes,
 };
 
 /// One dataset a chart or card can show.
@@ -29,6 +29,9 @@ pub struct DatasetInfo {
     /// first is the default. They are the words of the card's `measure`
     /// (D-368). Empty for a dataset no card shows.
     pub measures: &'static [&'static str],
+    /// The dimensions of the shared filters it honours (D-350); a filter
+    /// of another dimension is not applied, and the component says so.
+    pub takes: Takes,
     /// Whether the AI may choose it for a chart it prepares. Not in M6b for
     /// anything that uses My groups or the hide list: the AI sees neither
     /// (D-291).
@@ -47,6 +50,7 @@ pub(crate) const NO_DATASET: DatasetInfo = DatasetInfo {
     groupings: &[],
     suits: &[],
     measures: &[],
+    takes: Takes::NOTHING,
     for_ai: false,
 };
 
@@ -62,6 +66,7 @@ pub const CATALOG: &[DatasetInfo] = &[
         groupings: &["category", "top_level_category", GROUPS_GROUPING],
         suits: &["pie", "bar", "table"],
         measures: &[],
+        takes: Takes::ALL,
         for_ai: true,
     },
     DatasetInfo {
@@ -75,6 +80,7 @@ pub const CATALOG: &[DatasetInfo] = &[
         groupings: &["month"],
         suits: &["line", "stacked_bar", "kpi", "progress", "table"],
         measures: &["income", "expenses", "net", "savings-rate", FORMULA_MEASURE],
+        takes: Takes::ALL,
         for_ai: true,
     },
     DatasetInfo {
@@ -88,6 +94,7 @@ pub const CATALOG: &[DatasetInfo] = &[
         groupings: &["series"],
         suits: &["line", "stacked_bar"],
         measures: &[],
+        takes: Takes::ALL,
         for_ai: false,
     },
     // What the user has, owes and is worth and the money in and out of
@@ -112,6 +119,7 @@ pub const CATALOG: &[DatasetInfo] = &[
         groupings: &["account", "account_kind"],
         suits: &["kpi", "table"],
         measures: &["net_worth", "assets", "liabilities", FORMULA_MEASURE],
+        takes: Takes::NO_CATEGORIES,
         for_ai: true,
     },
     DatasetInfo {
@@ -129,6 +137,7 @@ pub const CATALOG: &[DatasetInfo] = &[
         groupings: &["month"],
         suits: &["line", "table"],
         measures: &["net_worth", "assets", "liabilities"],
+        takes: Takes::NO_CATEGORIES,
         for_ai: true,
     },
     DatasetInfo {
@@ -146,6 +155,7 @@ pub const CATALOG: &[DatasetInfo] = &[
         groupings: &["month"],
         suits: &["bar", "table"],
         measures: &["net_change", "money_in", "money_out"],
+        takes: Takes::NO_CATEGORIES,
         for_ai: true,
     },
 ];

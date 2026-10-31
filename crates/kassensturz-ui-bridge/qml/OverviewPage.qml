@@ -466,10 +466,17 @@ Kirigami.ScrollablePage {
 
     // The properties of the selected component (the panel of M6a.6), with
     // the figures it shows now. A change is part of the session's undo.
-    Kirigami.OverlaySheet {
+    //
+    // A Kirigami.Dialog, not an OverlaySheet: the sheet of KF 6.x prints
+    // "binding loop" for its implicitHeight on every opening, whatever it
+    // holds (M6-B10).
+    Kirigami.Dialog {
         id: propertiesSheet
 
         title: page.i18nContext.i18nc("@title:window", "Properties")
+        padding: Kirigami.Units.largeSpacing
+        preferredWidth: Kirigami.Units.gridUnit * 32
+        standardButtons: Kirigami.Dialog.Close
         onClosed: page.editedId = ""
 
         ColumnLayout {

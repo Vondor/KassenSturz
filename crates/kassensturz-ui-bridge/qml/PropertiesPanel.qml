@@ -38,6 +38,12 @@ ColumnLayout {
     // are listed from. Without it, no list can be picked from.
     property var choices: null
     readonly property var periodChoice: view.period
+    // Once the statistic has columns, they decide what it shows: the older
+    // lists of categories would be ignored, so they are not offered.
+    readonly property bool hasColumns: {
+        const text = view.columns !== undefined ? String(view.columns) : "";
+        return text.trim() !== "" && text.trim() !== "[]";
+    }
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -210,7 +216,8 @@ ColumnLayout {
 
                 required property var modelData
 
-                visible: panel.only.length === 0 || panel.only.includes(modelData.key)
+                visible: (panel.only.length === 0 || panel.only.includes(modelData.key))
+                    && !(panel.hasColumns && ["categories", "series", "groups"].includes(modelData.key))
                 active: visible
                 Kirigami.FormData.label: modelData.kind === "flag" ? "" : panel.fieldLabel(modelData.key)
                 Kirigami.FormData.labelAlignment: modelData.kind === "ids" || modelData.kind === "formula" ? Qt.AlignTop : Qt.AlignVCenter

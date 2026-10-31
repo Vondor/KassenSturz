@@ -3,9 +3,9 @@
 
 //! `category_over_time`: chosen categories and groups, month by month.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use kassensturz_core::{CurrencyCode, Date, GroupMember, Money};
+use kassensturz_core::{AccountId, CurrencyCode, Date, GroupMember, Money};
 use kassensturz_store::StoreError;
 
 use crate::{Filter, Overlap, Period, ReportError, Source, TextFormat, TextTable};
@@ -16,10 +16,11 @@ pub const CATEGORY_OVER_TIME: &str = "category_over_time";
 /// One line, area or stack of the chart: a category or one of My groups.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChosenSeries {
-    /// The category or group.
-    pub of: GroupMember,
+    /// The category or group; `None` for a column the user made up in the
+    /// Statistic Builder (D-339).
+    pub of: Option<GroupMember>,
     /// The category's names from the top-level category down, or the
-    /// group's name alone.
+    /// group's or column's name alone.
     pub path: Vec<String>,
 }
 
@@ -67,8 +68,34 @@ pub fn category_over_time(
     series: &[GroupMember],
     overlap: Overlap,
 ) -> Result<Vec<CategoryOverTime>, ReportError> {
+    let series = source
+        .resolve(series, overlap)?
+        .into_iter()
+        .map(|chosen| Line {
+            of: Some(chosen.of),
+            path: chosen.path,
+            categories: chosen.categories,
+        })
+        .collect::<Vec<_>>();
+    sum_lines(source, period, filter, &series)
+}
+
+/// One series to add up: what it is called and the categories it counts.
+pub(crate) struct Line {
+    pub(crate) of: Option<GroupMember>,
+    pub(crate) path: Vec<String>,
+    pub(crate) categories: HashSet<AccountId>,
+}
+
+/// The months of `period` for each of `series`, shared by the chosen
+/// categories and groups and by columns (D-339).
+pub(crate) fn sum_lines(
+    source: &Source,
+    period: Period,
+    filter: &Filter,
+    series: &[Line],
+) -> Result<Vec<CategoryOverTime>, ReportError> {
     let overflow = |_| ReportError::Store(StoreError::AmountOverflow);
-    let series = source.resolve(series, overlap)?;
     let months = period.months();
     let position: HashMap<Date, usize> = months
         .iter()

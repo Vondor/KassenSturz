@@ -44,7 +44,7 @@ pub struct CategoryRow {
 impl CategoryRow {
     /// Whether this is the row of money not sorted into a category yet.
     pub fn is_unsorted(&self) -> bool {
-        self.category.is_none() && self.group.is_none()
+        self.category.is_none() && self.group.is_none() && self.path.is_empty()
     }
 }
 

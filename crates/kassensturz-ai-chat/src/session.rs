@@ -14,7 +14,7 @@ use kassensturz_ai::{
 use kassensturz_ai_tools::{
     ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, MAX_VIEWS_PER_ANSWER,
     OPEN_PAGE, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, PageTarget, ProposedChange, ToolError,
-    Unverified, check_numbers, draft_issue, open_page_allowed, propose, propose_spec,
+    Unverified, check_numbers, draft_issue, open_page_allowed, propose_on, propose_spec,
     propose_view_spec, propose_view_text, readable_functions, unique_codes, view_choices,
 };
 #[cfg(feature = "debug-log")]
@@ -653,7 +653,7 @@ impl ChatSession {
                 .and_then(|arguments| {
                     if call.name == PROPOSE_CHANGES.name {
                         // Prepared for the user, never applied here (T-27).
-                        propose(book, &arguments, self.permissions()).map(|proposal| {
+                        propose_on(book, &arguments, self.permissions(), today).map(|proposal| {
                             self.proposed.push(proposal.changes);
                             proposal.output
                         })

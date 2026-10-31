@@ -165,7 +165,11 @@ async fn propose(
     // a bad call at once, and nothing reaches the app that can't work.
     Book::open_to_read(book)
         .map_err(ToolError::from)
-        .and_then(|book| book.reading(|book| prepare_named(book, name, arguments, permissions)))
+        .and_then(|book| {
+            book.reading(|book| {
+                prepare_named(book, name, arguments, permissions, crate::server::today())
+            })
+        })
         .map_err(Failure::Tool)?;
     let id = folder
         .send_call(book, name, arguments)

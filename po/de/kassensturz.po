@@ -13846,3 +13846,95 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+#, kde-format
+msgctxt "@info how often a budget starts again"
+msgid "Every month"
+msgstr "Jeden Monat"
+
+#, kde-format
+msgctxt "@info how often a budget starts again"
+msgid "Every quarter"
+msgstr "Jedes Quartal"
+
+#, kde-format
+msgctxt "@info how often a budget starts again"
+msgid "Every year"
+msgstr "Jedes Jahr"
+
+#, kde-format
+msgctxt "@info how often a budget starts again"
+msgid "Once, for some days"
+msgstr "Einmal, für einige Tage"
+
+#, kde-format
+msgctxt "@info %1 and %2 are dates, %3 an amount, %4 the step it is rounded up to"
+msgid "Based on what was spent in the last full period, %1 to %2: %3, rounded up to a multiple of %4."
+msgstr "Auf Basis der Ausgaben im letzten vollen Zeitraum, %1 bis %2: %3, aufgerundet auf ein Vielfaches von %4."
+
+#, kde-format
+msgctxt "@info %1 is what a budget plans now, %2 what it plans from then on"
+msgid "%1 → %2"
+msgstr "%1 → %2"
+
+#, kde-format
+msgctxt "@info %1 says how often a budget starts again, %2 and %3 are the days of its first period"
+msgid "%1, first period %2 to %3"
+msgstr "%1, erster Zeitraum %2 bis %3"
+
+#, kde-format
+msgctxt "@info %1 says how often a budget starts again, %2 and %3 are the days of the period a change applies from"
+msgid "%1. The change applies from the period %2 to %3 on; earlier periods stay as they were."
+msgstr "%1. Die Änderung gilt ab dem Zeitraum %2 bis %3; frühere Zeiträume bleiben, wie sie waren."
+
+#, kde-format
+msgctxt "@info"
+msgid "What is left, or spent too much, moves into the next period."
+msgstr "Was übrig bleibt oder zu viel ausgegeben wurde, geht in den nächsten Zeitraum über."
+
+#, kde-format
+msgctxt "@info"
+msgid "Each period starts afresh."
+msgstr "Jeder Zeitraum beginnt neu."
+
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz worked out this amount from your book, not the AI. A budget only shows how your spending compares; it changes no booking. Undo takes it back."
+msgstr "KassenSturz hat diesen Betrag aus Ihrem Haushaltsbuch berechnet, nicht die KI. Ein Budget zeigt nur, wie Ihre Ausgaben dazu stehen; es ändert keine Buchung. Rückgängig nimmt es zurück."
+
+#, kde-format
+msgctxt "@info"
+msgid "The AI took this amount from what you wrote. A budget only shows how your spending compares; it changes no booking. Undo takes it back."
+msgstr "Die KI hat diesen Betrag aus Ihrer Nachricht übernommen. Ein Budget zeigt nur, wie Ihre Ausgaben dazu stehen; es ändert keine Buchung. Rückgängig nimmt es zurück."
+
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "New budget"
+msgstr "Neues Budget"
+
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Changed budget"
+msgstr "Geändertes Budget"
+
+#, kde-format
+msgctxt "@title:group"
+msgid "New budgets"
+msgstr "Neue Budgets"
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Budgets that change"
+msgstr "Budgets, die sich ändern"
+
+#, kde-format
+msgctxt "@label a part of the book"
+msgid "Budgets"
+msgstr "Budgets"
+
+#, kde-format
+msgctxt "@info %1 is a number of periods, %2 and %3 are dates, %4 and %5 amounts, %6 the step it is rounded up to"
+msgid "Average of the last full period, %2 to %3: %5 per period (%4 in all), rounded up to a multiple of %6."
+msgid_plural "Average of the last %1 full periods, %2 to %3: %5 per period (%4 in all), rounded up to a multiple of %6."
+msgstr[0] "Durchschnitt des letzten vollen Zeitraums, %2 bis %3: %5 je Zeitraum (%4 insgesamt), aufgerundet auf ein Vielfaches von %6."
+msgstr[1] "Durchschnitt der letzten %1 vollen Zeiträume, %2 bis %3: %5 je Zeitraum (%4 insgesamt), aufgerundet auf ein Vielfaches von %6."

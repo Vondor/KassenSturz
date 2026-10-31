@@ -83,6 +83,15 @@ ColumnLayout {
                 { key: "", absent: "never" },
                 { key: "", absent: "never" }
             ]
+        },
+        {
+            name: i18nContext.i18nc("@label a part of the book", "Budgets"),
+            cells: [
+                { key: "AllowReadBudgets", read: true },
+                { key: "AllowNewBudgets", needsRead: true },
+                { key: "AllowEditBudgets", needsRead: true },
+                { key: "", absent: "never" }
+            ]
         }
     ]
 

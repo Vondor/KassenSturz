@@ -16,7 +16,7 @@
 use std::collections::BTreeMap;
 
 use kassensturz_core::ai_switch::Permissions;
-use kassensturz_core::{ErrorReport, Report};
+use kassensturz_core::{Date, ErrorReport, Report};
 use kassensturz_store::Book;
 use serde_json::{Map, Value};
 
@@ -25,7 +25,7 @@ use crate::error::ToolError;
 
 /// The lists of a call in the order [`super::build`] turns their items into
 /// changes, one change for each item.
-const ORDER: [&str; 14] = [
+const ORDER: [&str; 16] = [
     "new_categories",
     "edit_categories",
     "new_rules",
@@ -40,6 +40,8 @@ const ORDER: [&str; 14] = [
     "new_transactions",
     "delete_transactions",
     "new_views",
+    "new_budgets",
+    "edit_budgets",
 ];
 
 /// The fields the user may change in an item of each list (D-293). Every
@@ -100,12 +102,20 @@ pub(super) struct Call {
     /// Every change as the model prepared it, for a change the user left
     /// out, which the page still lists.
     ai_changes: Vec<(Slot, ProposedChange)>,
+    /// The day the set was prepared on, which budgets start with (D-394):
+    /// the user's edits are checked on the same day.
+    today: Option<Date>,
 }
 
 impl Call {
     /// The call of a fresh proposal, and the slot of each of its changes.
-    pub(super) fn first(arguments: &Value, changes: &[ProposedChange]) -> (Vec<Slot>, Self) {
+    pub(super) fn first(
+        arguments: &Value,
+        changes: &[ProposedChange],
+        today: Option<Date>,
+    ) -> (Vec<Slot>, Self) {
         let call = Self {
+            today,
             ai: arguments.clone(),
             edits: BTreeMap::new(),
             ai_changes: Vec::new(),
@@ -376,7 +386,7 @@ impl ChangeSet {
         let Built {
             changes,
             rule_order,
-        } = build(book, &call.as_edited(), allowed)?;
+        } = build(book, &call.as_edited(), allowed, call.today)?;
         let slots = call.slots();
         debug_assert!(
             slots
@@ -411,5 +421,7 @@ pub(super) fn list_of(change: &ProposedChange) -> &'static str {
         ProposedChange::NewTransaction(_) => "new_transactions",
         ProposedChange::DeleteTransaction(_) => "delete_transactions",
         ProposedChange::NewView(_) => "new_views",
+        ProposedChange::NewBudget(_) => "new_budgets",
+        ProposedChange::EditBudget(_) => "edit_budgets",
     }
 }

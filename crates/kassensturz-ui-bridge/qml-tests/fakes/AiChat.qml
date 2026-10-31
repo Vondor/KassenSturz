@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // A stand-in for the Rust object AiChat, for `tools/check-panel.sh`
-// (M6a.9): one prepared set, with a new chart as the bridge writes it
-// (`ChangeView::NewView` in a `ChangeRow`), and the calls the review page
+// (M6a.9): one prepared set, with a new chart and a new budget as the bridge
+// writes them (`ChangeView::NewView` and `ChangeView::NewBudget` in a
+// `ChangeRow`, M6c.11), and the calls the review page
 // makes, among them the user's corrections (M6b.8, D-293), which the real
 // object checks in Rust.
 
@@ -35,6 +36,25 @@ QtObject {
             period: view.period,
             charts: ["chart.pie", "chart.donut", "chart.bar"],
             component: JSON.stringify({type: view.chart, dataset: "spending_by_category", params: {grouping: "category"}, props: {title: view.title}})
+        }, {
+            kind: "newBudget",
+            slot: "new_budgets/0",
+            edited: false,
+            leftOut: false,
+            fields: [],
+            form: "",
+            category: "Food › Groceries",
+            every: "month",
+            from: "01.11.2026",
+            to: "30.11.2026",
+            amount: "390,00 €",
+            carryOver: true,
+            basisPeriods: 6,
+            basisFrom: "01.05.2026",
+            basisTo: "31.10.2026",
+            basisSpent: "2.324,40 €",
+            basisAverage: "387,40 €",
+            basisStep: "10,00 €"
         }];
     }
 

@@ -42,6 +42,8 @@ pub enum Row {
     /// The saved charts (D-282): the AI may only propose new ones, so the
     /// row has no Read cell.
     Charts,
+    /// The budgets (D-358): read, add and change; never delete.
+    Budgets,
 }
 
 /// One cell of the permission grid: what the AI may do with one row (D-252).
@@ -83,11 +85,18 @@ pub enum Permission {
     EditAccounts,
     /// Propose a new chart for the user to save (Charts, Add; D-282).
     NewViews,
+    /// Read the budgets (Budgets, Read; D-358).
+    BudgetsRead,
+    /// Prepare new budgets (Budgets, Add; D-358).
+    NewBudgets,
+    /// Change the amount or carry over of budgets from the current period
+    /// on (Budgets, Change; D-358).
+    EditBudgets,
 }
 
 impl Permission {
     /// Every permission, in the order the settings page shows them.
-    pub const ALL: [Self; 16] = [
+    pub const ALL: [Self; 19] = [
         Self::CategoriesRead,
         Self::NewCategories,
         Self::EditCategories,
@@ -104,6 +113,9 @@ impl Permission {
         Self::NewTransactions,
         Self::DeleteTransactions,
         Self::NewViews,
+        Self::BudgetsRead,
+        Self::NewBudgets,
+        Self::EditBudgets,
     ];
 
     /// The key of this permission in [`GROUP`].
@@ -125,6 +137,9 @@ impl Permission {
             Self::NewAccounts => "AllowNewAccounts",
             Self::EditAccounts => "AllowEditAccounts",
             Self::NewViews => "AllowNewViews",
+            Self::BudgetsRead => "AllowReadBudgets",
+            Self::NewBudgets => "AllowNewBudgets",
+            Self::EditBudgets => "AllowEditBudgets",
         }
     }
 
@@ -142,6 +157,7 @@ impl Permission {
             | Self::DeleteTransactions
             | Self::TransactionsRead => Row::Transactions,
             Self::NewViews => Row::Charts,
+            Self::BudgetsRead | Self::NewBudgets | Self::EditBudgets => Row::Budgets,
         }
     }
 
@@ -149,12 +165,18 @@ impl Permission {
     pub const fn is_read(self) -> bool {
         matches!(
             self,
-            Self::CategoriesRead | Self::RulesRead | Self::AccountsRead | Self::TransactionsRead
+            Self::CategoriesRead
+                | Self::RulesRead
+                | Self::AccountsRead
+                | Self::TransactionsRead
+                | Self::BudgetsRead
         )
     }
 
     /// Whether it is a cell that changes or removes what is there (Change
-    /// or Delete). These switch Read of their row on (D-252).
+    /// or Delete). These switch Read of their row on (D-252). So does
+    /// Budgets, Add: a budget is prepared from what the category spent, and
+    /// a new one must not overlap one the AI can't see (D-358).
     pub const fn needs_read(self) -> bool {
         matches!(
             self,
@@ -165,6 +187,8 @@ impl Permission {
                 | Self::DeleteTransactions
                 | Self::DeleteCategories
                 | Self::EditAccounts
+                | Self::NewBudgets
+                | Self::EditBudgets
         )
     }
 
@@ -176,6 +200,7 @@ impl Permission {
             Row::Accounts => Some(Self::AccountsRead),
             Row::Transactions => Some(Self::TransactionsRead),
             Row::Charts => None,
+            Row::Budgets => Some(Self::BudgetsRead),
         }
     }
 
@@ -185,8 +210,8 @@ impl Permission {
         false
     }
 
-    const fn bit(self) -> u16 {
-        1 << self as u16
+    const fn bit(self) -> u32 {
+        1 << self as u32
     }
 }
 
@@ -260,7 +285,7 @@ impl Field {
 /// every case applied only after the user confirms it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Permissions {
-    cells: u16,
+    cells: u32,
     locks: u8,
 }
 

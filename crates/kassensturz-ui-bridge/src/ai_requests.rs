@@ -45,10 +45,12 @@ pub fn take_requests(
     book: &Book,
     sets: &mut Sets,
     allowed: Permissions,
+    today: kassensturz_core::Date,
 ) -> Vec<Arrived> {
     let mut arrived = Vec::new();
     for request in inbox.take_new(path) {
-        let reply = match prepare_named(book, request.function, &request.arguments, allowed) {
+        let reply = match prepare_named(book, request.function, &request.arguments, allowed, today)
+        {
             Ok(proposal) => {
                 let count = proposal.changes.changes().len();
                 let id = sets.add_requested(proposal.changes, request.id.clone());
@@ -103,6 +105,10 @@ mod tests {
 
     use super::*;
     use crate::ai_chat::{ChangeView, confirm_in, views_of};
+    use kassensturz_ai_tools::propose;
+
+    /// The day the tests' requests arrive on.
+    const DAY: kassensturz_core::Date = kassensturz_core::Date::constant(2026, 10, 25);
     use crate::platform::APP_ID;
     use crate::register::tests::TestLocale;
     use crate::test_folder::TestFolder;
@@ -200,7 +206,14 @@ mod tests {
         let id = ends.server.send(&path, &call).expect("sent");
         let mut sets = Sets::default();
 
-        let arrived = take_requests(&mut ends.app, &path, &book, &mut sets, Permissions::all());
+        let arrived = take_requests(
+            &mut ends.app,
+            &path,
+            &book,
+            &mut sets,
+            Permissions::all(),
+            DAY,
+        );
 
         assert_eq!(arrived.len(), 1);
         let count = arrived[0].count;
@@ -255,7 +268,14 @@ mod tests {
         let declined = ends.server.send(&path, &call).expect("sent");
         let forgotten = ends.server.send(&path, &call).expect("sent");
         let mut sets = Sets::default();
-        let arrived = take_requests(&mut ends.app, &path, &book, &mut sets, Permissions::all());
+        let arrived = take_requests(
+            &mut ends.app,
+            &path,
+            &book,
+            &mut sets,
+            Permissions::all(),
+            DAY,
+        );
         assert_eq!(arrived.len(), 2);
 
         let first = sets.take(arrived[0].id).unwrap();
@@ -293,7 +313,15 @@ mod tests {
             .expect("sent");
         let mut sets = Sets::default();
         assert!(
-            take_requests(&mut ends.app, &path, &book, &mut sets, Permissions::all()).is_empty()
+            take_requests(
+                &mut ends.app,
+                &path,
+                &book,
+                &mut sets,
+                Permissions::all(),
+                DAY
+            )
+            .is_empty()
         );
         assert!(sets.clear().is_empty());
         assert_eq!(
@@ -315,7 +343,15 @@ mod tests {
         let id = ends.server.send(&other, &call).expect("sent");
         let mut sets = Sets::default();
         assert!(
-            take_requests(&mut ends.app, &path, &book, &mut sets, Permissions::all()).is_empty()
+            take_requests(
+                &mut ends.app,
+                &path,
+                &book,
+                &mut sets,
+                Permissions::all(),
+                DAY
+            )
+            .is_empty()
         );
         assert_eq!(ends.server.standing(&id), Standing::NotTaken);
     }

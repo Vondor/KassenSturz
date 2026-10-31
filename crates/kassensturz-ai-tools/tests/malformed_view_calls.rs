@@ -26,6 +26,11 @@ use kassensturz_import::{Imported, KmySqlite, Limits, import};
 use kassensturz_pipeline::fill_book_from;
 use kassensturz_store::Book;
 use malformed::{Case, GOOD, Ids, MARKER, PREPARED, bad, cases, misspellings, with};
+
+/// A day for the calls that need one (budgets, D-394); a chart needs none.
+fn today() -> kassensturz_core::Date {
+    "2026-10-31".parse().expect("a day")
+}
 use serde_json::{Value, json};
 
 fn space_colony() -> Book {
@@ -108,7 +113,13 @@ fn run(book: &Book, rows: &[Case], allowed: Permissions) -> Vec<String> {
         }
         if let Ok(value) = serde_json::from_str::<Value>(&case.text) {
             let parsed = answer(&propose_view(book, &value, allowed));
-            let named = answer(&prepare_named(book, PROPOSE_VIEW_NAME, &value, allowed));
+            let named = answer(&prepare_named(
+                book,
+                PROPOSE_VIEW_NAME,
+                &value,
+                allowed,
+                today(),
+            ));
             if parsed != case.expected || named != case.expected {
                 failures.push(format!(
                     "{} (read first): {parsed} and {named}, not {}",

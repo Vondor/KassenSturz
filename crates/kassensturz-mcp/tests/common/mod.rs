@@ -22,7 +22,7 @@ use serde_json::{Value, json};
 /// The reading of every row of the book, on (D-252): everything is off
 /// until the user chooses.
 const READS: &str = "AllowReadAccounts=true\nAllowReadCategories=true\nAllowReadRules=true\n\
-                     AllowReadTransactions=true\n";
+                     AllowReadTransactions=true\nAllowReadBudgets=true\n";
 
 /// The kinds of change the tests of the write tools start from.
 const ADDITIONS: &str = "AllowNewCategories=true\nAllowNewRules=true\nAllowSortTransactions=true\n";

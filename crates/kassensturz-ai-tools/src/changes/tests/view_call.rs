@@ -11,6 +11,11 @@ use kassensturz_report::{CATALOG, ComponentType, Document, PERIODS};
 
 use super::*;
 
+/// A day for the calls that need one.
+fn today() -> kassensturz_core::Date {
+    "2026-10-31".parse().expect("a day")
+}
+
 /// The code a call gives, with the argument a bad one names.
 fn view_code(result: Result<Proposal, ToolError>) -> String {
     match result {
@@ -508,13 +513,28 @@ fn a_refusal_never_carries_the_models_text() {
 fn the_mcp_and_the_request_files_reach_both_functions_by_name() {
     let Sample { book, .. } = sample();
     let view = json!({"title": "Months", "data": "income_expense_by_month", "show_as": "auto"});
-    let proposal =
-        prepare_named(&book, PROPOSE_VIEW_NAME, &view, Permissions::all()).expect("prepared");
+    let proposal = prepare_named(&book, PROPOSE_VIEW_NAME, &view, Permissions::all(), today())
+        .expect("prepared");
     assert_eq!(chart(&proposal).type_id(), "chart.stacked_bar");
     let changes = json!({"new_accounts": [{"name": "Wallet", "type": "cash"}]});
-    assert!(prepare_named(&book, PROPOSE_CHANGES.name, &changes, Permissions::all()).is_ok());
+    assert!(
+        prepare_named(
+            &book,
+            PROPOSE_CHANGES.name,
+            &changes,
+            Permissions::all(),
+            today()
+        )
+        .is_ok()
+    );
     assert!(matches!(
-        prepare_named(&book, "list_accounts", &changes, Permissions::all()),
+        prepare_named(
+            &book,
+            "list_accounts",
+            &changes,
+            Permissions::all(),
+            today()
+        ),
         Err(ToolError::UnknownFunction)
     ));
     // A parsed call has no key twice, but is checked for size and depth.
@@ -525,7 +545,8 @@ fn the_mcp_and_the_request_files_reach_both_functions_by_name() {
             &book,
             PROPOSE_VIEW_NAME,
             &deep,
-            Permissions::all()
+            Permissions::all(),
+            today()
         )),
         "bad-argument arguments"
     );

@@ -170,6 +170,16 @@ fn changes(allowed: Permissions) -> String {
             "rename, close or reopen accounts",
             "renamed, closed or reopened accounts",
         ),
+        (
+            allowed.allows(Permission::NewBudgets),
+            "set a budget for a spending category",
+            "new budgets (new_budgets, with based_on unless the user named the amount)",
+        ),
+        (
+            allowed.allows(Permission::EditBudgets),
+            "change the amount of a budget or whether it carries over",
+            "changed budgets (edit_budgets, from the current period on)",
+        ),
     ];
     let join = |texts: Vec<&str>| match texts.as_slice() {
         [] => String::new(),

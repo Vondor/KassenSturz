@@ -391,11 +391,15 @@ const COMPARE: Property = Property {
     place: Place::Params,
     kind: Kind::Choice(&["previous_period", "same_last_year"]),
 };
+/// `params.measure`: the figure a key figure card shows. Its words are the
+/// dataset's `measures` (catalog, D-368), so each dataset offers its own
+/// figures; [`Property::words`] looks them up.
 const MEASURE: Property = Property {
-    key: "measure",
+    key: MEASURE_KEY,
     place: Place::Params,
-    kind: Kind::Choice(&["income", "expenses", "net", "savings-rate", FORMULA_MEASURE]),
+    kind: Kind::Choice(&[]),
 };
+const MEASURE_KEY: &str = "measure";
 
 const CHART: [Property; 9] = [
     GROUPING,
@@ -433,9 +437,13 @@ impl Property {
     }
 
     /// The words this property can take for `dataset`; empty unless it is a
-    /// [`Kind::Choice`] or [`Kind::Grouping`].
+    /// [`Kind::Choice`] or [`Kind::Grouping`]. A key figure's `measure`
+    /// takes the dataset's own figures (D-368).
     pub fn words(&self, dataset: &DatasetInfo) -> &'static [&'static str] {
         match self.kind {
+            Kind::Choice(_) if self.key == MEASURE_KEY && self.place == Place::Params => {
+                dataset.measures
+            }
             Kind::Choice(words) => words,
             Kind::Grouping => dataset.groupings,
             Kind::Text | Kind::Flag { .. } | Kind::Ids | Kind::Formula | Kind::Columns => &[],

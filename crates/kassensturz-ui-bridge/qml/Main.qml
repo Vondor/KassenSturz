@@ -508,6 +508,8 @@ Kirigami.ApplicationWindow {
     // garbage while it is in the stack; `onPageRemoved` below deletes it
     // when it leaves, which the stack does not always do (D-161).
     function makePage(component: Component, properties: var): Item {
+        // The developer mode times how long a screen takes from here.
+        developerMode.screenRequested();
         const page = component.createObject(root, properties ?? {});
         if (!page) {
             throw new Error("Error while making a page: " + component.errorString());
@@ -1150,6 +1152,7 @@ Kirigami.ApplicationWindow {
             onImportClicked: accountId => root.importStatement(accountId)
             onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })
             onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
+            onReady: developerMode.screenReady("RegisterPage")
             Component.onCompleted: bankReady = root.bankUsable()
         }
     }

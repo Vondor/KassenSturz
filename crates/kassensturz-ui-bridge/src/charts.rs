@@ -155,6 +155,10 @@ impl<L: Locale> TextFormat for AppText<'_, L> {
         self.locale.month_and_year(first_day)
     }
 
+    fn day(&self, day: Date) -> String {
+        self.locale.short_date(day)
+    }
+
     fn percent(&self, percent: Percent) -> String {
         let tenths = percent.tenths();
         let sign = if tenths < 0 { "-" } else { "" };

@@ -80,6 +80,14 @@ ColumnLayout {
         return found === undefined ? "" : found.amounts.join(" + ");
     }
 
+    // Whether the preview worked this column out and found no money in it
+    // (M6-B15): it is in the totals with no amount, unlike a column the
+    // preview has not seen yet.
+    function hasNoSpending(name: string): bool {
+        const found = totals.find(each => each.column === name);
+        return found !== undefined && found.amounts.length === 0;
+    }
+
     function cardOf(id: string): var {
         return cards.find(card => card.id === id);
     }
@@ -465,6 +473,8 @@ ColumnLayout {
                             ? board.i18nContext.i18nc("@info", "Not counted. A category you add under Categories shows up here.")
                             : slotColumn.asFormula && board.totalOf(slotColumn.modelData.name) === ""
                                 ? board.i18nContext.i18nc("@info", "Worked out from a formula. Use the names of columns, categories and groups, like Home + Eating.")
+                            : board.hasNoSpending(slotColumn.modelData.name)
+                                ? board.i18nContext.i18nc("@info", "Nothing was spent on this in the period.")
                             : board.totalOf(slotColumn.modelData.name) !== ""
                                 ? board.i18nContext.i18nc("@info %1 is an amount of money, or several with + between them", "Adds up to %1", board.totalOf(slotColumn.modelData.name))
                                 : board.i18nContext.i18nc("@info", "Counted together as one figure.")

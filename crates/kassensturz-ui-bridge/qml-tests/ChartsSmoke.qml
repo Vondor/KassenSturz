@@ -100,9 +100,43 @@ Window {
         return chart;
     }
 
+    // What you are worth at the end of each month, one line (M6c.2).
+    function netWorth() {
+        const assets = [1700, 1900, 3350, 3300];
+        const owed = [200, 200, 250, 400];
+        const worth = assets.map((v, i) => v - owed[i]);
+        return {
+            kind: "line", dataset: "net_worth_over_time", currency: "EUR", round: false,
+            total: "2.900,00 €", paletteSize: 8, count: 4, unsortedIndex: -1, hidden: ({}), slices: ({other: -1, holds: [], shares: [], named: [], undrawn: []}),
+            categories: months(),
+            series: [{key: "net_worth", name: "", color: 0, marker: 0, points: worth.map(v => point(v + ",00 €", v, 0))}],
+            ticks: [0, 1000, 2000, 3000, 4000].map(v => ({label: v + " €", minorUnits: String(v * 100), value: v * 100})),
+            table: {currency: "EUR", columns: ["month", "assets", "liabilities", "net_worth"],
+                    rows: months().map((m, i) => [m, assets[i] + ",00 €", owed[i] + ",00 €", worth[i] + ",00 €"])}
+        };
+    }
+
+    // Money in and out of the accounts as bars, with the table that has what
+    // they held at the start and at the end (M6c.2).
+    function cashFlow() {
+        const start = [1700, 2400, 2450, 3100];
+        const inn = [2500, 2500, 2650, 2500];
+        const out = [1800, 2450, 2000, 2750];
+        const chart = monthly("bar");
+        chart.dataset = "cash_flow_by_month";
+        chart.total = "850,00 €";
+        chart.series = [
+            {key: "money_in", name: "", color: 0, marker: 0, points: inn.map(v => point(v + ",00 €", v, 0))},
+            {key: "money_out", name: "", color: 1, marker: 1, points: out.map(v => point(v + ",00 €", v, 1))}
+        ];
+        chart.table = {currency: "EUR", columns: ["month", "start", "money_in", "money_out", "starting", "end"],
+                       rows: months().map((m, i) => [m, start[i] + ",00 €", inn[i] + ",00 €", out[i] + ",00 €", "0,00 €", (start[i] + inn[i] - out[i]) + ",00 €"])};
+        return chart;
+    }
+
     readonly property var charts: [
         monthly("line"), monthly("area"), monthly("bar"), monthly("stacked-bar"),
-        spending("bar"), spending("pie"), spending("donut"), spendingWithHidden("pie"), spendingWithOther("pie"), spendingWithOther("donut"), overTime()
+        spending("bar"), spending("pie"), spending("donut"), spendingWithHidden("pie"), spendingWithOther("pie"), spendingWithOther("donut"), overTime(), netWorth(), cashFlow()
     ]
     property int shown: 0
 

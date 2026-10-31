@@ -79,6 +79,14 @@ pub mod qobject {
         #[qinvokable]
         fn add(self: Pin<&mut DashboardLayout>, kind: &QString) -> QVariant;
 
+        /// Adds a component of this type that shows `dataset` (one the type
+        /// can show, e.g. `net_worth_over_time` for `chart.line`, M6c.2).
+        /// Gives its `id`, or the error.
+        #[qinvokable]
+        #[cxx_name = "addWith"]
+        fn add_with(self: Pin<&mut DashboardLayout>, kind: &QString, dataset: &QString)
+        -> QVariant;
+
         /// Adds a copy of a saved view's component (what `SavedViews.open`
         /// gives as `component` and `period`). Gives its `id`, or the error.
         #[qinvokable]
@@ -401,6 +409,14 @@ impl qobject::DashboardLayout {
         let kind = kind.to_string();
         let detail = grid_editor::widget_detail(&kind);
         self.edited_add(detail, |layout| grid_editor::add(&mut layout.editor, &kind))
+    }
+
+    fn add_with(self: Pin<&mut Self>, kind: &QString, dataset: &QString) -> QVariant {
+        let (kind, dataset) = (kind.to_string(), dataset.to_string());
+        let detail = grid_editor::widget_detail(&kind);
+        self.edited_add(detail, |layout| {
+            grid_editor::add_with(&mut layout.editor, &kind, &dataset)
+        })
     }
 
     fn add_view(self: Pin<&mut Self>, component: &QString, period: &QString) -> QVariant {

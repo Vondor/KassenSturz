@@ -183,8 +183,9 @@ Item {
         return result;
     }
 
-    function add(kind: string) {
-        const result = edit(layout.add(kind));
+    // `dataset` is empty for the kind's first dataset (M6c.2).
+    function add(kind: string, dataset: var) {
+        const result = edit(dataset === undefined || dataset === "" ? layout.add(kind) : layout.addWith(kind, dataset));
         if (result.id !== undefined) {
             // The new item exists after the view has changed.
             Qt.callLater(() => grid.select(result.id));

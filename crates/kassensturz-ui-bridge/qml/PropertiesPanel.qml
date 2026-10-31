@@ -63,6 +63,12 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox what a chart shows", "Money in and money out, by month");
         case "budget_utilization":
             return i18nContext.i18nc("@item:inlistbox what a component shows", "How much of each budget is spent and left");
+        case "account_balances":
+            return i18nContext.i18nc("@item:inlistbox what a chart shows", "What your accounts hold");
+        case "net_worth_over_time":
+            return i18nContext.i18nc("@item:inlistbox what a chart shows", "What you are worth, month by month");
+        case "cash_flow_by_month":
+            return i18nContext.i18nc("@item:inlistbox what a chart shows", "Money in and out of your accounts, by month");
         }
         return "";
     }
@@ -77,6 +83,12 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "Shows what came in and what went out in each month. Money moved between your own accounts is not counted.");
         case "budget_utilization":
             return i18nContext.i18nc("@info", "Shows, for each budget, what is planned, what is spent and what is left in its period. Leave the list empty to show every budget.");
+        case "account_balances":
+            return i18nContext.i18nc("@info", "Shows what each account held at the end of the period, and what you have, what you owe and what you are worth. Each currency is shown on its own; they are never added together.");
+        case "net_worth_over_time":
+            return i18nContext.i18nc("@info", "Shows what you have, what you owe and what you are worth at the end of each month. Each currency is shown on its own; they are never added together.");
+        case "cash_flow_by_month":
+            return i18nContext.i18nc("@info", "Shows the money that came into and went out of your checking, savings and cash accounts in each month, and what they held at the start and at the end. Moving money between two of them counts as neither, and starting balances are listed on their own.");
         }
         return "";
     }
@@ -121,6 +133,10 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox", "My groups, with the other categories on their own");
         case "month":
             return i18nContext.i18nc("@item:inlistbox", "Month");
+        case "account":
+            return i18nContext.i18nc("@item:inlistbox", "Each account");
+        case "account_kind":
+            return i18nContext.i18nc("@item:inlistbox", "What you have, what you owe and what you are worth");
         case "series":
             return i18nContext.i18nc("@item:inlistbox", "The categories and groups you picked");
         case "page":
@@ -145,6 +161,12 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox", "Money out");
         case "net":
             return i18nContext.i18nc("@item:inlistbox", "What is left");
+        case "net_worth":
+            return i18nContext.i18nc("@item:inlistbox a key figure", "What you are worth");
+        case "assets":
+            return i18nContext.i18nc("@item:inlistbox a key figure", "What you have");
+        case "liabilities":
+            return i18nContext.i18nc("@item:inlistbox a key figure", "What you owe");
         case "savings-rate":
             return i18nContext.i18nc("@item:inlistbox", "Savings rate");
         case "formula":

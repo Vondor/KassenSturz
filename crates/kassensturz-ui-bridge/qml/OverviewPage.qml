@@ -147,7 +147,7 @@ Kirigami.ScrollablePage {
         id: addMenu
 
         savedList: page.savedList
-        onKindChosen: kind => grid.add(kind)
+        onKindChosen: (kind, dataset) => grid.add(kind, dataset)
         onSavedChosen: id => page.addSaved(id)
     }
 

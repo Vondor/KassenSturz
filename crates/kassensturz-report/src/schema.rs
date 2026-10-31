@@ -166,15 +166,17 @@ impl ComponentType {
     }
 
     /// Which entry of a dataset's `suits` (catalog) says it fits this
-    /// component: an area chart reads like a line, a donut like a pie, a
-    /// progress bar like a key figure.
+    /// component: an area chart reads like a line, a donut like a pie. A
+    /// progress bar has a fit of its own (D-370): the figures of the
+    /// balances do not make one.
     pub const fn suit(self) -> &'static str {
         match self {
             Self::ChartLine | Self::ChartArea => "line",
             Self::ChartBar => "bar",
             Self::ChartStackedBar => "stacked_bar",
             Self::ChartPie | Self::ChartDonut => "pie",
-            Self::KpiCard | Self::ProgressBar => "kpi",
+            Self::KpiCard => "kpi",
+            Self::ProgressBar => "progress",
             Self::TableRows => "table",
             Self::BudgetProgress => "budget",
             Self::Heading

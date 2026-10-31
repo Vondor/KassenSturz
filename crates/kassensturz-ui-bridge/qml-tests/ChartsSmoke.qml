@@ -89,6 +89,28 @@ Window {
         return chart;
     }
 
+    // Eight slices of about the same size with long names, all big enough to
+    // carry their name: the names are crowded and must not cover each other.
+    function spendingCrowded(kind) {
+        const names = ["Miscellaneous › Everyday things", "Taxes and Fees › Colony land use", "Clothing and Gear › Helmets", "Food › Groceries", "Housing › Rent", "Travel › Long journeys", "Health › Dentist", "Fun › Games"];
+        const values = [200, 150, 140, 130, 120, 110, 90, 60];
+        const whole = values.reduce((sum, v) => sum + v, 0);
+        const chart = spending(kind);
+        chart.categories = names;
+        chart.count = names.length;
+        chart.unsortedIndex = -1;
+        chart.series = [{key: "spending", name: "", color: 0, marker: 0, points: values.map((v, i) => point(v + ",00 €", v, i))}];
+        chart.table = {currency: "EUR", columns: ["category", "total"], rows: names.map((n, i) => [n, values[i] + ",00 €"])};
+        chart.slices = {
+            other: -1,
+            holds: [],
+            shares: values.map(v => Math.round(v / whole * 1000) / 10 + " %"),
+            named: values.map(() => true),
+            undrawn: values.map(() => false)
+        };
+        return chart;
+    }
+
     // Two series the user chose: named by the book, told apart by key.
     function overTime() {
         const chart = monthly("line");
@@ -136,7 +158,8 @@ Window {
 
     readonly property var charts: [
         monthly("line"), monthly("area"), monthly("bar"), monthly("stacked-bar"),
-        spending("bar"), spending("pie"), spending("donut"), spendingWithHidden("pie"), spendingWithOther("pie"), spendingWithOther("donut"), overTime(), netWorth(), cashFlow()
+        spending("bar"), spending("pie"), spending("donut"), spendingWithHidden("pie"), spendingWithOther("pie"), spendingWithOther("donut"), overTime(), netWorth(), cashFlow(),
+        spendingCrowded("pie"), spendingCrowded("donut")
     ]
     property int shown: 0
 
@@ -157,6 +180,10 @@ Window {
         repeat: true
         onTriggered: {
             const name = window.shown + "-" + view.chart.kind + (view.showTable ? "-table" : "");
+            if (!view.showTable) {
+                // tools/check-charts.sh fails on any slice names that cover each other.
+                console.log("name-overlaps", name, view.nameOverlaps());
+            }
             view.grabToImage(function (result) {
                 result.saveToFile(window.outDir + "/" + name + ".png");
                 if (!view.showTable) {

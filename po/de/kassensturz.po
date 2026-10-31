@@ -13006,6 +13006,56 @@ msgid "Adds up to %1"
 msgstr "Ergibt zusammen %1"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info"
+msgid "To count a category in more than one column, hold Ctrl while you drag it, or choose Also put in … in its menu."
+msgstr "Um eine Kategorie in mehr als einer Spalte zu zählen, halten Sie beim Ziehen die Strg-Taste gedrückt oder wählen Sie im Menü der Karte „Auch in … legen“."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:button %1 is the name of a column"
+msgid "Work out %1 with a formula"
+msgstr "„%1“ mit einer Formel berechnen"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:button %1 is the name of a column"
+msgid "Use categories in %1 instead of a formula"
+msgstr "Statt einer Formel Kategorien in „%1“ verwenden"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info"
+msgid "A column with a formula can't hold categories. Name them in its formula instead."
+msgstr "Eine Spalte mit Formel kann keine Kategorien enthalten. Nennen Sie sie stattdessen in der Formel."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info"
+msgid "Worked out from a formula. Use the names of columns, categories and groups, like Home + Eating."
+msgstr "Wird aus einer Formel berechnet. Verwenden Sie die Namen von Spalten, Kategorien und Gruppen, zum Beispiel Wohnen + Essen."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info:placeholder an example of a formula that uses the names of two columns"
+msgid "For example: Home + Eating"
+msgstr "Zum Beispiel: Wohnen + Essen"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@label:textbox"
+msgid "Formula of the column"
+msgstr "Formel der Spalte"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:inmenu starts a new column with the card"
+msgid "Move to a new column"
+msgstr "In eine neue Spalte verschieben"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@label the name given to a column made from a card, to be changed"
+msgid "New column"
+msgstr "Neue Spalte"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@label %1 is a number; the name given to another column made from a card"
+msgid "New column %1"
+msgstr "Neue Spalte %1"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@action:button %1 is the name of a column"
 msgid "Save the column %1 as a group"
 msgstr "Spalte „%1“ als Gruppe speichern"
@@ -13067,8 +13117,8 @@ msgstr "Spalte hinzufügen"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@info"
-msgid "Name it, then drag categories in. For example, put Restaurants and Coffee into a column called Fast food."
-msgstr "Geben Sie ihr einen Namen und ziehen Sie dann Kategorien hinein. Zum Beispiel: Restaurants und Kaffee in eine Spalte namens Schnellimbiss."
+msgid "Name it, then drag categories in, or drop a category here to start a column with it. For example, put Restaurants and Coffee into a column called Fast food."
+msgstr "Geben Sie ihr einen Namen und ziehen Sie dann Kategorien hinein, oder legen Sie eine Kategorie hier ab, um damit eine Spalte zu beginnen. Zum Beispiel: Restaurants und Kaffee in eine Spalte namens Schnellimbiss."
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@action:button show or hide the lists of categories, groups and lines"

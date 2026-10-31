@@ -177,6 +177,14 @@ Kirigami.ApplicationWindow {
                     window.check(page.wizard && wizard.step === 1 && board !== undefined && board.visible, "the saved view reopens the wizard at the board");
                     // Food and Groceries inside it, Rent, and one group of money spent.
                     window.check(board.unused.length === 4, "everything starts in Unused: " + board.unused.length);
+                    // A card can start a column, so its menu is never empty.
+                    const noColumn = board.choicesFor("c-food", -1);
+                    window.check(noColumn.length === 1 && noColumn[0].create === true, "the menu of a card offers a new column when there is none yet");
+                    window.check(board.freeName("") === "New column" && board.freeName("Pets") === "Pets", "a column made from a card is named by what was typed, or New column");
+                    board.moveToNew("c-groceries", -1, "");
+                    window.check(board.columns.length === 1 && board.columns[0].members.join() === "c-groceries", "a card makes a new column of its own");
+                    window.check(board.freeName("") === "New column 2", "the next one is named New column 2");
+                    board.removeColumn(0);
                     window.check(!board.addColumn("  "), "a column needs a name");
                     window.check(board.addColumn("Fast food") && board.addColumn("Home"), "two columns are added");
                     window.check(!board.addColumn("fast FOOD") && board.problem !== "", "a name another column has is refused");
@@ -206,6 +214,33 @@ Kirigami.ApplicationWindow {
                     const board = find(wizard, "ColumnBoard", [])[0];
                     board.totals = [{column: "Fast food", amounts: ["12,00 €", "3,00 $"]}];
                     window.check(board.totalOf("Fast food") === "12,00 € + 3,00 $" && board.totalOf("Home") === "", "a card shows what its column adds up to, and nothing for a column with no figure");
+                    // A column worked out by a formula (D-341): only an empty one can
+                    // become that, it takes no cards, and it keeps what was typed.
+                    window.check(board.addColumn("Both"), "a column is added for a formula");
+                    const both = board.columns.length - 1;
+                    board.toggleFormula(both);
+                    window.check(board.isFormula(board.columns[both]), "an empty column can become a formula");
+                    board.moveCard("c-food", -1, both);
+                    window.check(board.problem !== "" && board.columns[both].members.length === 0, "a card is not put into a formula column: " + board.problem);
+                    board.setColumnFormula(both, " Fast food + 1 ");
+                    window.check(JSON.parse(wizard.workbench.view.columns)[both].formula === "Fast food + 1", "the formula is kept: " + wizard.workbench.view.columns);
+                    window.check(board.choicesFor("c-rent", -1).every(entry => entry.to !== both), "the menu does not offer a formula column");
+                    board.removeColumn(both);
+                    // Copying a card (Ctrl while dragging) keeps it in its column too.
+                    window.check(board.addColumn("Copy"), "a column to copy into");
+                    const copy = board.columns.length - 1;
+                    board.copyCard("c-rent", 0, copy);
+                    window.check(board.columns[0].members.includes("c-rent") && board.columns[copy].members.includes("c-rent"), "a copied card is in both columns");
+                    board.removeColumn(copy);
+                    window.check(board.columns.length === 1, "and the column goes again");
+                    // Looking at a kind without columns (one figure) and coming back
+                    // does not lose the columns.
+                    wizard.step = 2;
+                    wizard.workbench.setType("kpi.card");
+                    window.check(wizard.workbench.view.columns === undefined, "one figure has no columns");
+                    wizard.workbench.setType("chart.bar");
+                    window.check(JSON.parse(wizard.workbench.view.columns).length === 1, "the columns come back with the chart: " + wizard.workbench.view.columns);
+                    wizard.step = 1;
                     board.saveAsGroup(0);
                     window.check(groups.calls.includes("addGroup:Fast food:false:c-rent") && board.saved !== "" && board.groupResult.code === undefined, "a column is kept as a group of its categories: " + groups.calls);
                     window.check(page.saveChanges(), "the changes of the open view are saved with its columns");

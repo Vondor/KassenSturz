@@ -14,11 +14,14 @@
 use std::cmp::Reverse;
 use std::collections::HashSet;
 
-use kassensturz_core::{AccountId, GroupMember, Money};
+use kassensturz_core::{
+    AccountId, CategoryGroup, CurrencyCode, GroupId, GroupKind, GroupMember, Money,
+};
 
-use crate::over_time::{Line, sum_lines};
+use crate::over_time::{Line, MonthTotals, sum_lines};
 use crate::{
-    CategoryOverTime, CategoryRow, Filter, Period, ReportError, Source, SpendingByCategory,
+    CategoryOverTime, CategoryRow, ChosenSeries, Filter, Formula, FormulaValue, Period,
+    ReportError, Source, SpendingByCategory,
 };
 
 /// The most columns one chart or table can have.
@@ -33,6 +36,10 @@ pub struct Column {
     /// The categories (each with everything inside it) and groups put
     /// under it.
     pub members: Vec<GroupMember>,
+    /// A formula in the form the book stores, whose amount is the column's
+    /// figure (D-341); then `members` is empty. It may name categories,
+    /// groups and the other columns (those with members), like any formula.
+    pub formula: Option<String>,
 }
 
 /// A category that is counted in more than one column.
@@ -73,8 +80,150 @@ pub fn columns_over_time(
     period: Period,
     filter: &Filter,
     columns: &[Column],
+    fallback: CurrencyCode,
 ) -> Result<Vec<CategoryOverTime>, ReportError> {
-    sum_lines(source, period, filter, &lines(source, columns))
+    let mut results = sum_lines(source, period, filter, &lines(source, columns))?;
+    if columns.iter().any(|column| column.formula.is_some()) {
+        add_formulas(source, period, filter, columns, fallback, &mut results)?;
+    }
+    Ok(results)
+}
+
+/// The days a chart's columns need the book read for: `period`, and what
+/// the formulas of the columns name beyond it (like [`Formula::span`]).
+pub fn columns_span(columns: &[Column], period: Period) -> Result<Period, ReportError> {
+    let mut span = period;
+    for text in columns
+        .iter()
+        .filter_map(|column| column.formula.as_deref())
+    {
+        let wanted = Formula::parse(text)?.span(period)?;
+        span = Period::new(
+            span.first().min(wanted.first()),
+            span.last().max(wanted.last()),
+        )?;
+    }
+    Ok(span)
+}
+
+/// The id of the stand-in group for the column at `index`.
+fn column_group(index: usize) -> GroupId {
+    let mut bytes = [0xC0; 16];
+    bytes[15] = u8::try_from(index).unwrap_or(u8::MAX);
+    GroupId::from_bytes(bytes)
+}
+
+/// A column's figure, which must be an amount, from its formula in `period`.
+fn formula_figure(
+    source: &Source,
+    column: &Column,
+    text: &str,
+    period: Period,
+    filter: &Filter,
+    fallback: CurrencyCode,
+) -> Result<Money, ReportError> {
+    match Formula::parse(text)?
+        .evaluate(source, period, filter, fallback)?
+        .value
+    {
+        FormulaValue::Amount(money) => Ok(money),
+        _ => Err(ReportError::ColumnFormulaNotAmount {
+            column: column.name.clone(),
+        }),
+    }
+}
+
+/// Puts `money` into the result of its currency, adding that result when the
+/// columns had no money in the currency. `month` is the row, or `None` for
+/// the figure of the whole period.
+fn put(
+    results: &mut Vec<CategoryOverTime>,
+    columns: &[Column],
+    months: &[kassensturz_core::Date],
+    index: usize,
+    month: Option<usize>,
+    money: Money,
+) {
+    if money.is_zero() {
+        return;
+    }
+    let currency = money.currency();
+    let at = match results.binary_search_by_key(&currency, |result| result.currency) {
+        Ok(at) => at,
+        Err(at) => {
+            results.insert(
+                at,
+                CategoryOverTime {
+                    currency,
+                    series: columns
+                        .iter()
+                        .map(|column| ChosenSeries {
+                            of: None,
+                            path: vec![column.name.clone()],
+                        })
+                        .collect(),
+                    rows: months
+                        .iter()
+                        .map(|&month| MonthTotals {
+                            month,
+                            totals: vec![Money::zero(currency); columns.len()],
+                        })
+                        .collect(),
+                    totals: vec![Money::zero(currency); columns.len()],
+                },
+            );
+            at
+        }
+    };
+    match month {
+        Some(row) => results[at].rows[row].totals[index] = money,
+        None => results[at].totals[index] = money,
+    }
+}
+
+/// Works out the columns that are a formula (D-341), month by month and for
+/// the whole of `period`. A formula names categories and groups as ever,
+/// and also the columns that have members, by their names.
+fn add_formulas(
+    source: &Source,
+    period: Period,
+    filter: &Filter,
+    columns: &[Column],
+    fallback: CurrencyCode,
+    results: &mut Vec<CategoryOverTime>,
+) -> Result<(), ReportError> {
+    let stand_ins = columns
+        .iter()
+        .enumerate()
+        .filter(|(_, column)| column.formula.is_none())
+        .map(|(index, column)| CategoryGroup {
+            id: column_group(index),
+            name: column.name.clone(),
+            kind: GroupKind::Expense,
+            position: u32::try_from(index).unwrap_or(u32::MAX),
+            members: column.members.clone(),
+        })
+        .collect();
+    let named = source.with_more_groups(stand_ins);
+    let months = period.months();
+    for (index, column) in columns.iter().enumerate() {
+        let Some(text) = column.formula.as_deref() else {
+            continue;
+        };
+        let whole = formula_figure(&named, column, text, period, filter, fallback)?;
+        put(results, columns, &months, index, None, whole);
+        for (row, &month) in months.iter().enumerate() {
+            // A first or last month the period covers only in part counts
+            // only the days inside it, as everywhere.
+            let inside = Period::new(
+                month.max(period.first()),
+                month.last_of_month().min(period.last()),
+            )?;
+            let figure = formula_figure(&named, column, text, inside, filter, fallback)?;
+            put(results, columns, &months, index, Some(row), figure);
+        }
+    }
+    Ok(())
 }
 
 /// What each column added up to over the whole of `period`, as the rows of
@@ -87,10 +236,11 @@ pub fn columns_spending(
     period: Period,
     filter: &Filter,
     columns: &[Column],
+    fallback: CurrencyCode,
 ) -> Result<Vec<SpendingByCategory>, ReportError> {
     let lines = lines(source, columns);
     let mut results = Vec::new();
-    for data in sum_lines(source, period, filter, &lines)? {
+    for data in columns_over_time(source, period, filter, columns, fallback)? {
         let mut rows: Vec<CategoryRow> = data
             .series
             .iter()

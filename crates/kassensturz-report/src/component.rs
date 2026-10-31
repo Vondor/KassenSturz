@@ -28,10 +28,16 @@ pub struct Component {
 /// One column as a document writes it: `{"name": ..., "members": [...]}`.
 fn read_column(entry: &Value) -> Option<ColumnSetting> {
     let entry = entry.as_object()?;
-    if entry.len() != 2 {
+    // The formula is written only when there is one (D-341).
+    let formula = match entry.get("formula") {
+        None => String::new(),
+        Some(formula) => formula.as_str()?.to_owned(),
+    };
+    if entry.len() != 2 + usize::from(entry.contains_key("formula")) {
         return None;
     }
     Some(ColumnSetting {
+        formula,
         name: entry.get("name")?.as_str()?.to_owned(),
         members: entry
             .get("members")?
@@ -252,6 +258,9 @@ impl Component {
                                     column.members.iter().cloned().map(Value::String).collect(),
                                 ),
                             );
+                            if !column.formula.is_empty() {
+                                entry.insert("formula".into(), column.formula.clone().into());
+                            }
                             Value::Object(entry)
                         })
                         .collect(),

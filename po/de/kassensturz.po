@@ -13136,6 +13136,11 @@ msgid "Formula of the column"
 msgstr "Formel der Spalte"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info %1 is a list of category names"
+msgid "Money booked straight to %1 is not in any column. Only its subcategories are counted. Put the category itself in a column to count everything."
+msgstr "Geld, das direkt auf %1 gebucht wurde, steht in keiner Spalte. Gezählt werden nur die Unterkategorien. Legen Sie die Kategorie selbst in eine Spalte, um alles zu zählen."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@action:inmenu makes a column for each subcategory of the card"
 msgid "Make a column for each subcategory"
 msgstr "Für jede Unterkategorie eine Spalte anlegen"

@@ -46,6 +46,11 @@ ColumnLayout {
     // What saving a column as a group answered, and the words for success.
     property var groupResult: ({})
     property string saved: ""
+    // The parents the user split into subcategory columns: money booked
+    // straight to one has no column, which the board says (the report layer
+    // counts a category with everything below it, so it cannot be a column).
+    property var splitParents: []
+    readonly property var leftOut: splitParents.map(id => cardOf(id)).filter(card => card !== undefined && !counted(card)).map(card => card.label)
 
     readonly property var columns: {
         try {
@@ -424,6 +429,9 @@ ColumnLayout {
             }
             list.push({name: name, members: [child.id]});
         });
+        if (!splitParents.includes(id)) {
+            splitParents = splitParents.concat([id]);
+        }
         save(list);
     }
 
@@ -484,6 +492,15 @@ ColumnLayout {
         font: Kirigami.Theme.smallFont
         opacity: 0.7
         text: board.i18nContext.i18nc("@info", "To count a category in more than one column, hold Ctrl while you drag it, or choose Also put in … in its menu.")
+    }
+
+    Controls.Label {
+        Layout.fillWidth: true
+        visible: board.leftOut.length > 0
+        wrapMode: Text.Wrap
+        textFormat: Text.PlainText
+        color: Kirigami.Theme.neutralTextColor
+        text: board.i18nContext.i18nc("@info %1 is a list of category names", "Money booked straight to %1 is not in any column. Only its subcategories are counted. Put the category itself in a column to count everything.", board.leftOut.join(", "))
     }
 
     FormError {

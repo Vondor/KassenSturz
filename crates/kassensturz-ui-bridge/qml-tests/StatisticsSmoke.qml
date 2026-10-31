@@ -250,6 +250,7 @@ Kirigami.ApplicationWindow {
                     const splitBefore = board.columns.length;
                     board.splitCard("c-food", -1);
                     window.check(board.columns.length === splitBefore + 1 && board.columns[splitBefore].name === "Groceries" && board.columns[splitBefore].members.join() === "c-groceries", "a column for the subcategory, named after it");
+                    window.check(board.leftOut.length === 1, "the board says money booked straight to the parent has no column: " + board.leftOut);
                     board.removeColumn(splitBefore);
                     // Copying a card (Ctrl while dragging) keeps it in its column too.
                     window.check(board.addColumn("Copy"), "a column to copy into");

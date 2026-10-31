@@ -25,10 +25,11 @@ use kassensturz_ai_chat::{
 };
 use kassensturz_ai_tools::requests::RequestId;
 use kassensturz_ai_tools::{
-    ChangeError, ChangeSet, Confirmed, EditError, FieldValue, ProposedChange, Slot, ToolError,
+    AmountBasis, ChangeError, ChangeSet, Confirmed, EditError, FieldValue, ProposedChange, Slot,
+    ToolError, every_word,
 };
 use kassensturz_core::ai_switch::Permissions;
-use kassensturz_core::{AccountKind, Date, ErrorParam, ErrorReport, MatchMode, Rule};
+use kassensturz_core::{AccountKind, Date, ErrorParam, ErrorReport, MatchMode, Money, Rule};
 use kassensturz_platform::Secret;
 use kassensturz_report::ComponentType;
 use kassensturz_store::{Book, StoreError};
@@ -478,6 +479,66 @@ pub enum ChangeView {
         /// the user may choose from (D-293).
         charts: Vec<&'static str>,
     },
+    /// A new budget (M6c.11, D-358).
+    NewBudget {
+        /// Its category as a path.
+        category: String,
+        /// How often it starts again: `month`, `quarter` or `year`.
+        every: &'static str,
+        /// The first and last day of its first period, in the user's
+        /// format.
+        from: String,
+        /// The last day of its first period.
+        to: String,
+        /// What it plans per period, exact, in the user's format.
+        amount: String,
+        /// Whether what is left moves into the next period.
+        carry_over: bool,
+        /// How the amount was computed; `None` for one the user named.
+        basis: Option<BasisView>,
+    },
+    /// A budget changed from one period on (M6c.11, D-358).
+    EditBudget {
+        /// Its category as a path.
+        category: String,
+        /// How often it starts again: `month`, `quarter`, `year` or
+        /// `range`.
+        every: &'static str,
+        /// The first day of the period the change applies from.
+        from: String,
+        /// The last day of that period.
+        to: String,
+        /// What it plans now, exact.
+        before: String,
+        /// What it plans from then on, exact.
+        amount: String,
+        /// Whether it carries over now.
+        carried_over: bool,
+        /// Whether it carries over from then on.
+        carry_over: bool,
+        /// How the new amount was computed; `None` for one the user named
+        /// or one that stays.
+        basis: Option<BasisView>,
+    },
+}
+
+/// How the amount of a prepared budget was computed, written for the user
+/// (D-395): *Average of the last 6 months: 387,40 €, rounded up to a
+/// multiple of 10,00 €*.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BasisView {
+    /// How many full periods were counted.
+    pub periods: u8,
+    /// The first day counted, in the user's format.
+    pub from: String,
+    /// The last day counted.
+    pub to: String,
+    /// What was spent in them, exact.
+    pub spent: String,
+    /// What was spent per period, exact to the smallest unit.
+    pub average: String,
+    /// The step the amount was rounded up to, exact.
+    pub step: String,
 }
 
 /// One change of a set as the review screen lists it: what it does, and
@@ -755,6 +816,39 @@ fn view_of(
                 .map(|path| path.join(" › "))
                 .unwrap_or_default(),
         },
+        ProposedChange::NewBudget(new) => ChangeView::NewBudget {
+            category: new.path.join(" › "),
+            every: every_word(new.every),
+            from: locale.short_date(new.first_day),
+            to: locale.short_date(new.first_period_end),
+            amount: AmountWriter::new(book, new.amount.currency(), locale)?
+                .text(new.amount)
+                .exact,
+            carry_over: new.carry_over,
+            basis: new
+                .basis
+                .as_ref()
+                .map(|basis| basis_view(book, basis, locale))
+                .transpose()?,
+        },
+        ProposedChange::EditBudget(edit) => {
+            let writer = AmountWriter::new(book, edit.amount.currency(), locale)?;
+            ChangeView::EditBudget {
+                category: edit.path.join(" › "),
+                every: every_word(edit.every),
+                from: locale.short_date(edit.from_day),
+                to: locale.short_date(edit.from_period_end),
+                before: writer.text(edit.before.amount).exact,
+                amount: writer.text(edit.amount).exact,
+                carried_over: edit.before.carry_over,
+                carry_over: edit.carry_over,
+                basis: edit
+                    .basis
+                    .as_ref()
+                    .map(|basis| basis_view(book, basis, locale))
+                    .transpose()?,
+            }
+        }
         ProposedChange::NewView(new) => ChangeView::NewView {
             title: new.title.clone(),
             period: new.period.clone(),
@@ -765,6 +859,26 @@ fn view_of(
                 .map(ComponentType::id)
                 .collect(),
         },
+    })
+}
+
+/// How a budget's amount was computed, as the review writes it (D-065).
+fn basis_view(
+    book: &Book,
+    basis: &AmountBasis,
+    locale: &impl Locale,
+) -> Result<BasisView, StoreError> {
+    let currency = basis.spent.currency();
+    let writer = AmountWriter::new(book, currency, locale)?;
+    let unit = 10_i64.pow(u32::from(book.currency_minor_digits(currency)?));
+    let step = Money::from_minor_units(i64::from(basis.round_to) * unit, currency);
+    Ok(BasisView {
+        periods: basis.periods,
+        from: locale.short_date(basis.first_day),
+        to: locale.short_date(basis.last_day),
+        spent: writer.text(basis.spent).exact,
+        average: writer.text(basis.average).exact,
+        step: writer.text(step).exact,
     })
 }
 

@@ -182,9 +182,11 @@ impl Source {
         self.holdings.as_ref().ok_or(ReportError::PeriodNotRead)
     }
 
-    /// The same `Source` with these budgets.
-    #[cfg(test)]
-    pub(crate) fn with_budgets(self, budgets: Vec<Budget>) -> Self {
+    /// The same `Source` with these budgets instead of the book's, e.g. one
+    /// the AI prepares and the book doesn't hold yet, so its figures come
+    /// from the same counting as a stored one's (D-358, D-395). The
+    /// `Source` must cover the days they need, as for the book's own.
+    pub fn with_budgets(self, budgets: Vec<Budget>) -> Self {
         Self {
             budgets: Some(budgets),
             ..self

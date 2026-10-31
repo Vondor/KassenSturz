@@ -14,7 +14,7 @@ use serde_json::{Map, Value};
 
 use crate::ReportError;
 use crate::catalog::DatasetInfo;
-use crate::schema::{ComponentType, Kind, Place, Property, Setting, dataset_for};
+use crate::schema::{ColumnSetting, ComponentType, Kind, Place, Property, Setting, dataset_for};
 
 /// A component with a dataset and one value for every property of its type.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -23,6 +23,23 @@ pub struct Component {
     dataset: &'static DatasetInfo,
     /// One value for each of `kind.properties()`, in the same order.
     settings: Vec<Setting>,
+}
+
+/// One column as a document writes it: `{"name": ..., "members": [...]}`.
+fn read_column(entry: &Value) -> Option<ColumnSetting> {
+    let entry = entry.as_object()?;
+    if entry.len() != 2 {
+        return None;
+    }
+    Some(ColumnSetting {
+        name: entry.get("name")?.as_str()?.to_owned(),
+        members: entry
+            .get("members")?
+            .as_array()?
+            .iter()
+            .map(|id| id.as_str().map(str::to_owned))
+            .collect::<Option<Vec<_>>>()?,
+    })
 }
 
 fn invalid(reason: &'static str, path: &str) -> ReportError {
@@ -194,6 +211,13 @@ impl Component {
                             .collect::<Option<Vec<_>>>()
                             .ok_or_else(|| invalid("wrong-type", &path))?,
                     ),
+                    (Kind::Columns, Value::Array(list)) => Setting::Columns(
+                        list.iter()
+                            .map(|entry| {
+                                read_column(entry).ok_or_else(|| invalid("wrong-type", &path))
+                            })
+                            .collect::<Result<Vec<_>, _>>()?,
+                    ),
                     (Kind::Choice(_) | Kind::Grouping, Value::String(word)) => {
                         Setting::Word(word.clone())
                     }
@@ -216,6 +240,22 @@ impl Component {
                 Setting::Text(text) | Setting::Word(text) => Value::String(text.clone()),
                 Setting::Flag(flag) => Value::Bool(*flag),
                 Setting::Ids(ids) => Value::Array(ids.iter().cloned().map(Value::String).collect()),
+                Setting::Columns(columns) => Value::Array(
+                    columns
+                        .iter()
+                        .map(|column| {
+                            let mut entry = Map::new();
+                            entry.insert("name".into(), column.name.clone().into());
+                            entry.insert(
+                                "members".into(),
+                                Value::Array(
+                                    column.members.iter().cloned().map(Value::String).collect(),
+                                ),
+                            );
+                            Value::Object(entry)
+                        })
+                        .collect(),
+                ),
             };
             match property.place {
                 Place::Params => params.insert(property.key.to_owned(), value),

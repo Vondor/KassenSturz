@@ -402,3 +402,68 @@ fn a_key_figure_can_show_a_formula_as_its_measure() {
         .unwrap();
     assert_eq!(measure.last(), Some(&FORMULA_MEASURE));
 }
+
+fn column(name: &str, members: &[&str]) -> ColumnSetting {
+    ColumnSetting {
+        name: name.to_owned(),
+        members: members.iter().map(|id| (*id).to_owned()).collect(),
+    }
+}
+
+#[test]
+fn columns_round_trip_through_a_document_and_are_checked() {
+    let mut pie = Component::new(ComponentType::ChartPie, "spending_by_category").unwrap();
+    assert_eq!(pie.get("columns"), Some(&Setting::Columns(Vec::new())));
+    let columns = vec![
+        column("Work food", &["0197-aaa", "0197-bbb"]),
+        column("Freelancer food", &["0197-aaa"]),
+    ];
+    pie.set("columns", Setting::Columns(columns)).unwrap();
+    let value = pie.to_value();
+    assert_eq!(
+        value["params"]["columns"],
+        json!([
+            {"name": "Work food", "members": ["0197-aaa", "0197-bbb"]},
+            {"name": "Freelancer food", "members": ["0197-aaa"]},
+        ])
+    );
+    assert_eq!(Component::from_value(&value).unwrap(), pie);
+    // A table and a chart over time take columns too.
+    for kind in [ComponentType::TableRows, ComponentType::ChartLine] {
+        let dataset = if kind == ComponentType::TableRows {
+            "spending_by_category"
+        } else {
+            "category_over_time"
+        };
+        let mut other = Component::new(kind, dataset).unwrap();
+        other
+            .set("columns", Setting::Columns(vec![column("A", &[])]))
+            .unwrap();
+    }
+    let mut set = |columns| pie.set("columns", Setting::Columns(columns)).unwrap_err();
+    assert_eq!(
+        reason(set(vec![column("  ", &[])])),
+        ("bad-text", "params.columns".into())
+    );
+    assert_eq!(
+        reason(set(vec![column("Food", &[]), column(" food ", &[])])),
+        ("duplicate-name", "params.columns".into())
+    );
+    assert_eq!(
+        reason(set((0..=MAX_COLUMNS)
+            .map(|n| column(&n.to_string(), &[]))
+            .collect())),
+        ("too-many", "params.columns".into())
+    );
+    assert_eq!(
+        reason(set(vec![column("A", &["x\ny"])])),
+        ("bad-text", "params.columns".into())
+    );
+    // A document whose column has an unknown key is refused as a whole.
+    let mut bad = pie.to_value();
+    bad["params"]["columns"] = json!([{"name": "A", "members": [], "extra": 1}]);
+    assert_eq!(
+        reason(Component::from_value(&bad).unwrap_err()),
+        ("wrong-type", "params.columns".into())
+    );
+}

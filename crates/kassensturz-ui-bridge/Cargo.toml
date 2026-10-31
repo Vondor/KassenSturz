@@ -57,14 +57,15 @@ kassensturz-pipeline.workspace = true
 kassensturz-platform.workspace = true
 kassensturz-report.workspace = true
 kassensturz-store.workspace = true
+# The columns of a chart as JSON text for the UI (D-339), and the calls of the
+# MCP write tools' tests (M5.10), as AI tools send them.
+serde_json.workspace = true
 
 [build-dependencies]
 cxx-qt-build.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
-# The calls of the MCP write tools' tests (M5.10), as AI tools send them.
-serde_json.workspace = true
 
 [lints]
 workspace = true

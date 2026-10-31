@@ -12790,53 +12790,11 @@ msgctxt "@info"
 msgid "That isn't a period KassenSturz can use. Write two dates, for example the first and the last day, with the first one earlier than the last and not more than 100 years apart."
 msgstr "Das ist kein Zeitraum, den KassenSturz verwenden kann. Schreiben Sie zwei Daten, zum Beispiel den ersten und den letzten Tag. Das erste muss vor dem zweiten liegen, und es dürfen nicht mehr als 100 Jahre dazwischen liegen."
 
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:67
-#, kde-format
-msgctxt "@title:group a step of the wizard"
-msgid "How should it look?"
-msgstr "Wie soll es aussehen?"
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:69
-#, kde-format
-msgctxt "@title:group a step of the wizard"
-msgid "What should it show?"
-msgstr "Was soll es zeigen?"
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:71
-#, kde-format
-msgctxt "@title:group a step of the wizard"
-msgid "Details"
-msgstr "Einzelheiten"
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:73
-#, kde-format
-msgctxt "@title:group a step of the wizard"
-msgid "Title and name"
-msgstr "Titel und Name"
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:89
-#, kde-format
-msgctxt "@title:group %1 is the number of the step, %2 how many there are, %3 its name"
-msgid "Step %1 of %2: %3"
-msgstr "Schritt %1 von %2: %3"
-
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:95
 #, kde-format
 msgctxt "@action:button leave the wizard and see every setting on one page"
 msgid "Show all settings at once"
 msgstr "Alle Einstellungen auf einmal zeigen"
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:188
-#, kde-format
-msgctxt "@info"
-msgid "There is nothing more to set for this one. Go on to the title and the name."
-msgstr "Hier gibt es nichts mehr einzustellen. Weiter zu Titel und Name."
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:229
-#, kde-format
-msgctxt "@action:button keep the view the wizard made"
-msgid "Save the view"
-msgstr "Ansicht speichern"
 
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:240
 #, kde-format
@@ -12886,3 +12844,218 @@ msgstr "Hinweise"
 msgctxt "@title:menu a group of widgets: views saved in the Statistic Builder"
 msgid "Saved views"
 msgstr "Gespeicherte Ansichten"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@item:inlistbox a kind of chart"
+msgid "Bars"
+msgstr "Balken"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@item:inlistbox a kind of chart"
+msgid "Pie"
+msgstr "Kreis"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@item:inlistbox a kind of chart"
+msgid "Lines"
+msgstr "Linien"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@item:inlistbox a kind of display"
+msgid "One figure"
+msgstr "Eine Zahl"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@item:inlistbox a kind of display"
+msgid "Table"
+msgstr "Tabelle"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@title:group"
+msgid "New statistic"
+msgstr "Neue Auswertung"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@title:group %1 is the name of a saved view"
+msgid "Change “%1”"
+msgstr "„%1“ ändern"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@item:inlistbox %1 is the number of a step, %2 its name"
+msgid "%1. %2"
+msgstr "%1. %2"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button leave the wizard without a change of the saved view"
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button keep the view the wizard made"
+msgid "Finish"
+msgstr "Fertig"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@label change parts of the open view in the wizard"
+msgid "Change in the wizard:"
+msgstr "Im Assistenten ändern:"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@title:group a step of the wizard"
+msgid "Period"
+msgstr "Zeitraum"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@title:group a step of the wizard"
+msgid "Choose categories"
+msgstr "Kategorien wählen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@title:group a step of the wizard"
+msgid "Look and preview"
+msgstr "Aussehen und Vorschau"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@info"
+msgid "Choose the period the figures are taken from. For example: this month, or from 01.01.2026 to 31.03.2026."
+msgstr "Wählen Sie den Zeitraum, aus dem die Zahlen stammen. Zum Beispiel: dieser Monat oder vom 01.01.2026 bis 31.03.2026."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@info"
+msgid "Choose which categories are counted. Every category that is not ticked is left out. For example: Groceries and Restaurants, but not Insurance."
+msgstr "Wählen Sie, welche Kategorien gezählt werden. Jede Kategorie ohne Haken bleibt außen vor. Zum Beispiel: Lebensmittel und Restaurants, aber nicht Versicherungen."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@info"
+msgid "Choose how it looks and give it a title and a name. For example: Household costs."
+msgstr "Wählen Sie das Aussehen und geben Sie einen Titel und einen Namen an. Zum Beispiel: Haushaltskosten."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button show or hide formulas and fine tuning"
+msgid "Advanced: formulas and fine tuning"
+msgstr "Erweitert: Formeln und Feineinstellungen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button opens the wizard at the step for the period"
+msgid "Period…"
+msgstr "Zeitraum …"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button opens the wizard at the step for the categories"
+msgid "Categories…"
+msgstr "Kategorien …"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button opens the wizard at the step for the look and the title"
+msgid "Look and title…"
+msgstr "Aussehen und Titel …"
+
+#: crates/kassensturz-ui-bridge/qml/ComponentPreview.qml
+msgctxt "@info %1 is the name of a category, %2 the names of the columns it is in"
+msgid "“%1” is in more than one column (%2), so it is counted in each of them. Added together, the columns count it twice."
+msgstr "„%1“ steht in mehr als einer Spalte (%2) und wird deshalb in jeder davon gezählt. Zusammengezählt zählen die Spalten es doppelt."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@item something in a column that is gone from the book"
+msgid "Something that no longer exists"
+msgstr "Etwas, das es nicht mehr gibt"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info"
+msgid "Give the column a name first. For example: Fast food."
+msgstr "Geben Sie der Spalte zuerst einen Namen. Zum Beispiel: Schnellimbiss."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info"
+msgid "Another column already has that name. Choose a different one."
+msgstr "Eine andere Spalte hat diesen Namen schon. Wählen Sie einen anderen."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:inmenu take the card out of its column"
+msgid "Move to Unused"
+msgstr "In „Nicht verwendet“ verschieben"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:inmenu %1 is the name of a column"
+msgid "Move to %1"
+msgstr "Nach „%1“ verschieben"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:inmenu %1 is the name of a column; the card stays where it is too"
+msgid "Also put in %1"
+msgstr "Auch in „%1“ legen"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info"
+msgid "Drag categories into columns, or use the menu on a card. Each column becomes one bar, slice, line or row, and adds up its categories. A category may be in more than one column. What is in Unused is not counted."
+msgstr "Ziehen Sie Kategorien in Spalten oder nutzen Sie das Menü an der Karte. Jede Spalte wird ein Balken, ein Stück, eine Linie oder eine Zeile und zählt ihre Kategorien zusammen. Eine Kategorie darf in mehr als einer Spalte stehen. Was unter „Nicht verwendet“ steht, wird nicht gezählt."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@title:group the column of categories that are not counted"
+msgid "Unused"
+msgstr "Nicht verwendet"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@label:textbox"
+msgid "Name of the column"
+msgstr "Name der Spalte"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:button %1 is the name of a column"
+msgid "Remove the column %1"
+msgstr "Spalte „%1“ entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info"
+msgid "Not counted. A category you add under Categories shows up here."
+msgstr "Wird nicht gezählt. Eine Kategorie, die Sie unter „Kategorien“ anlegen, erscheint hier."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info"
+msgid "Counted together as one figure."
+msgstr "Wird zu einer Zahl zusammengezählt."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:button %1 is the name of a category; opens a menu to put it in a column"
+msgid "Move %1 to…"
+msgstr "„%1“ verschieben nach …"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info"
+msgid "Everything is in a column."
+msgstr "Alles liegt in einer Spalte."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info"
+msgid "Drag categories here"
+msgstr "Kategorien hierher ziehen"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@title:group a place to add a column"
+msgid "Add a column"
+msgstr "Spalte hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info:placeholder an example of a column name"
+msgid "For example: Fast food"
+msgstr "Zum Beispiel: Schnellimbiss"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@label:textbox"
+msgid "Name of the new column"
+msgstr "Name der neuen Spalte"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:button"
+msgid "Add column"
+msgstr "Spalte hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info"
+msgid "Name it, then drag categories in. For example, put Restaurants and Coffee into a column called Fast food."
+msgstr "Geben Sie ihr einen Namen und ziehen Sie dann Kategorien hinein. Zum Beispiel: Restaurants und Kaffee in eine Spalte namens Schnellimbiss."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:button show or hide the lists of categories, groups and lines"
+msgid "Advanced: pick from lists"
+msgstr "Erweitert: aus Listen wählen"

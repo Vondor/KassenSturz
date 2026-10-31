@@ -9,9 +9,9 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, Actions, BookTo, Condition, CurrencyCode, DatedRate,
-    DatedRateId, ForeignAmount, GroupKind, GroupMember, ImportedDetails, MatchMode, Money,
-    RateSource, RoundingMode, Rule, RuleId, Split, TextField, TextOperator, Transaction,
+    Account, AccountId, AccountKind, Actions, BookTo, BudgetEvery, Condition, CurrencyCode,
+    DatedRate, DatedRateId, ForeignAmount, GroupKind, GroupMember, ImportedDetails, MatchMode,
+    Money, RateSource, RoundingMode, Rule, RuleId, Split, TextField, TextOperator, Transaction,
     TransactionId,
 };
 
@@ -236,6 +236,27 @@ fn every_change_can_be_undone_and_redone() {
     steps.did(&book, Action::RemoveView);
     book.remove_category_group(fixed).expect("removed");
     steps.did(&book, Action::RemoveGroup);
+    // A budget, a new amount from December on, stopped after November
+    // (which takes December's amount with it), then deleted (D-345).
+    let budget = book
+        .add_budget(
+            groceries,
+            BudgetEvery::Month,
+            date(2026, 10, 1),
+            None,
+            eur(40_000),
+            true,
+        )
+        .expect("added");
+    steps.did(&book, Action::AddBudget);
+    book.edit_budget_amount(budget, date(2026, 12, 1), eur(45_000), false)
+        .expect("edited");
+    steps.did(&book, Action::EditBudget);
+    book.set_budget_last_day(budget, Some(date(2026, 11, 30)))
+        .expect("stopped");
+    steps.did(&book, Action::EditBudget);
+    book.remove_budget(budget).expect("removed");
+    steps.did(&book, Action::RemoveBudget);
     book.rename_account(groceries, "Groceries and drinks")
         .expect("renamed");
     steps.did(&book, Action::RenameCategory);

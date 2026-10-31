@@ -11,7 +11,7 @@ use kassensturz_core::{
     MatchMode, Money, RateSource, RoundingMode, Rule, RuleId, Split, TextField, TextOperator,
     Transaction, TransactionId, ViewKind,
 };
-use kassensturz_core::{GroupKind, GroupMember};
+use kassensturz_core::{BudgetEvery, GroupKind, GroupMember};
 use kassensturz_export::{BookData, BookExport, ExportData, export, read_book};
 use kassensturz_pipeline::{export_book, fill_book};
 use kassensturz_store::{Book, HistoryRetention, StoreError};
@@ -267,6 +267,38 @@ fn household() -> Book {
         None,
     );
     book.set_hidden_categories(&[bakery]).expect("hidden");
+    // Budgets (D-344, D-345): a monthly one for Groceries whose amount
+    // changes from November on, stopped after the year, and one for some
+    // days of Travel, in dollars like the category.
+    let on = |year, month, day| Date::new(year, month, day).expect("valid date");
+    let monthly = book
+        .add_budget(
+            groceries,
+            BudgetEvery::Month,
+            on(2026, 9, 1),
+            None,
+            Money::from_minor_units(40_000, EUR),
+            true,
+        )
+        .expect("budget added");
+    book.edit_budget_amount(
+        monthly,
+        on(2026, 11, 1),
+        Money::from_minor_units(42_550, EUR),
+        false,
+    )
+    .expect("budget changed");
+    book.set_budget_last_day(monthly, Some(on(2026, 12, 31)))
+        .expect("budget stopped");
+    book.add_budget(
+        travel,
+        BudgetEvery::Range,
+        on(2026, 7, 10),
+        Some(on(2026, 7, 24)),
+        Money::from_minor_units(150_000, USD),
+        false,
+    )
+    .expect("budget added");
 
     let rate = DatedRate {
         id: DatedRateId::generate(),
@@ -576,6 +608,10 @@ fn a_book_comes_back_from_its_export_as_it_was() {
         book.hidden_categories().expect("read")
     );
     assert_eq!(copy.hidden_categories().expect("read").len(), 1);
+    // The budgets with their IDs, days and dated amounts (D-345).
+    assert_eq!(copy.budgets().expect("read"), book.budgets().expect("read"));
+    assert_eq!(copy.budgets().expect("read").len(), 2);
+    assert_eq!(copy.budgets().expect("read")[0].amounts.len(), 2);
     assert_eq!(copy.rounding_mode().expect("read"), RoundingMode::HalfEven);
     assert_eq!(
         copy.history_retention().expect("read"),

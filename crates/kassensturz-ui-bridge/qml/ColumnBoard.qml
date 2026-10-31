@@ -544,13 +544,403 @@ ColumnLayout {
         }
     }
 
-    Flow {
+    // One place for categories: the list of what is not counted, or a column.
+    Component {
+        id: slotDelegate
+
+        Rectangle {
+            id: slotColumn
+
+            required property var modelData
+
+            readonly property bool isUnused: modelData.index < 0
+            readonly property bool asFormula: !isUnused && modelData.asFormula
+
+            // In the row of the list of what is not counted; the columns sit in
+            // a Flow, which ignores these.
+            Layout.alignment: Qt.AlignTop
+            Layout.preferredWidth: width
+            Layout.preferredHeight: height
+            width: Kirigami.Units.gridUnit * 14
+            height: Math.max(Kirigami.Units.gridUnit * 12, content.implicitHeight + Kirigami.Units.largeSpacing * 2)
+            radius: Kirigami.Units.cornerRadius
+            color: isUnused ? Kirigami.Theme.alternateBackgroundColor : Kirigami.Theme.backgroundColor
+            border.width: dropHere.containsDrag ? 2 : 1
+            border.color: dropHere.containsDrag ? Kirigami.Theme.highlightColor : Kirigami.Theme.disabledTextColor
+            z: board.dragFrom === modelData.index ? 10 : 0
+
+            DropArea {
+                id: dropHere
+
+                anchors.fill: parent
+                keys: ["card"]
+                onDropped: drop => drop.source.copying ? board.copyCard(drop.source.cardId, drop.source.from, slotColumn.modelData.index) : board.moveCard(drop.source.cardId, drop.source.from, slotColumn.modelData.index)
+            }
+
+            ColumnLayout {
+                id: content
+
+                anchors {
+                    left: parent.left
+                    right: parent.right
+                    top: parent.top
+                    margins: Kirigami.Units.largeSpacing
+                }
+                spacing: Kirigami.Units.smallSpacing
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Kirigami.Heading {
+                        Layout.fillWidth: true
+                        visible: slotColumn.isUnused
+                        level: 3
+                        text: board.i18nContext.i18nc("@title:group the column of categories that are not counted", "Unused")
+                        textFormat: Text.PlainText
+                    }
+
+                    Controls.TextField {
+                        Layout.fillWidth: true
+                        visible: !slotColumn.isUnused
+                        text: slotColumn.modelData.name
+                        maximumLength: 200
+                        Accessible.name: board.i18nContext.i18nc("@label:textbox", "Name of the column")
+                    Component.onCompleted: {
+                        if (!slotColumn.isUnused && board.focusName !== "" && slotColumn.modelData.name === board.focusName) {
+                            board.focusName = "";
+                            forceActiveFocus();
+                            selectAll();
+                        }
+                    }
+                        onEditingFinished: {
+                            if (text !== slotColumn.modelData.name) {
+                                board.renameColumn(slotColumn.modelData.index, text);
+                                text = Qt.binding(() => slotColumn.modelData.name);
+                            }
+                        }
+                    }
+
+                    Controls.ToolButton {
+                        visible: !slotColumn.isUnused && slotColumn.modelData.members.length > 0
+                        icon.name: "folder-new"
+                        text: board.i18nContext.i18nc("@action:button %1 is the name of a column", "Save the column %1 as a group", slotColumn.modelData.name)
+                        display: Controls.AbstractButton.IconOnly
+                        Controls.ToolTip.text: text
+                        Controls.ToolTip.visible: hovered
+                        onClicked: board.saveAsGroup(slotColumn.modelData.index)
+                    }
+
+                    Controls.ToolButton {
+                        visible: !slotColumn.isUnused
+                        icon.name: "edit-delete"
+                        text: board.i18nContext.i18nc("@action:button %1 is the name of a column", "Remove the column %1", slotColumn.modelData.name)
+                        display: Controls.AbstractButton.IconOnly
+                        Controls.ToolTip.text: text
+                        Controls.ToolTip.visible: hovered
+                        onClicked: board.removeColumn(slotColumn.modelData.index)
+                    }
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    font: Kirigami.Theme.smallFont
+                    opacity: 0.7
+                    text: slotColumn.isUnused
+                        ? board.i18nContext.i18nc("@info", "Not counted. A category you add under Categories shows up here.")
+                        : slotColumn.asFormula && board.totalOf(slotColumn.modelData.name) === ""
+                            ? board.i18nContext.i18nc("@info", "Worked out from a formula. Use the names of columns, categories and groups, like Home + Eating.")
+                        : board.hasNoSpending(slotColumn.modelData.name)
+                            ? board.i18nContext.i18nc("@info", "Nothing was spent on this in the period.")
+                        : board.totalOf(slotColumn.modelData.name) !== ""
+                            ? board.i18nContext.i18nc("@info %1 is an amount of money, or several with + between them", "Adds up to %1", board.totalOf(slotColumn.modelData.name))
+                            : board.i18nContext.i18nc("@info", "Counted together as one figure.")
+                }
+
+                // Written out, not an icon alone: nobody should have to guess
+                // where formulas are.
+                Controls.Button {
+                    id: formulaToggle
+
+                    Layout.fillWidth: true
+                    visible: !slotColumn.isUnused && (slotColumn.asFormula || slotColumn.modelData.members.length === 0)
+                    flat: true
+                    // A long name wraps instead of being cut off at both ends.
+                    contentItem: Controls.Label {
+                        text: formulaToggle.text
+                        wrapMode: Text.Wrap
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        textFormat: Text.PlainText
+                    }
+                    text: slotColumn.asFormula
+                        ? board.i18nContext.i18nc("@action:button %1 is the name of a column", "Use categories in %1 instead of a formula", slotColumn.modelData.name)
+                        : board.i18nContext.i18nc("@action:button %1 is the name of a column", "Work out %1 with a formula", slotColumn.modelData.name)
+                    onClicked: board.toggleFormula(slotColumn.modelData.index)
+                }
+
+                Controls.TextField {
+                    id: formulaInput
+
+                    Layout.fillWidth: true
+                    visible: slotColumn.asFormula
+                    text: slotColumn.modelData.formula ?? ""
+                    placeholderText: board.i18nContext.i18nc("@info:placeholder an example of a formula that uses the names of two columns", "For example: Home + Eating")
+                    maximumLength: 500
+                    Accessible.name: board.i18nContext.i18nc("@label:textbox", "Formula of the column")
+                    onEditingFinished: {
+                        if (text.trim() !== (slotColumn.modelData.formula ?? "")) {
+                            board.setColumnFormula(slotColumn.modelData.index, text);
+                        }
+                    }
+                }
+
+                // Help for people who do not write formulas every day: names
+                // that fit what is typed, each function with a plain line, and
+                // ready-made formulas to start from. Clicking keeps the focus
+                // in the field; the keyboard can use Tab to reach the buttons.
+                ColumnLayout {
+                    id: formulaHelp
+
+                    Layout.fillWidth: true
+                    visible: slotColumn.asFormula
+                    spacing: 0
+
+                    readonly property var fitting: slotColumn.asFormula ? board.suggest(slotColumn.modelData.index, formulaInput.text, formulaInput.cursorPosition) : []
+                    readonly property var ready: slotColumn.asFormula && formulaInput.text.trim() === "" ? board.examples(slotColumn.modelData.index) : []
+
+                    function put(entry: var) {
+                        const text = formulaInput.text;
+                        formulaInput.text = text.slice(0, entry.start) + entry.insert + text.slice(entry.end);
+                        formulaInput.cursorPosition = entry.start + entry.insert.length;
+                        formulaInput.forceActiveFocus();
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: formulaHelp.fitting.length > 0
+                        text: board.i18nContext.i18nc("@info above a list of names and functions that fit what is typed", "Suggestions. Click one to use it:")
+                        font: Kirigami.Theme.smallFont
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                    }
+
+                    Repeater {
+                        model: formulaHelp.fitting
+
+                        delegate: Controls.ItemDelegate {
+                            required property var modelData
+
+                            Layout.fillWidth: true
+                            focusPolicy: Qt.NoFocus
+                            padding: Kirigami.Units.smallSpacing
+                            contentItem: ColumnLayout {
+                                spacing: 0
+
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    text: modelData.label
+                                    font.bold: true
+                                    elide: Text.ElideRight
+                                    textFormat: Text.PlainText
+                                }
+
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    text: modelData.detail
+                                    font: Kirigami.Theme.smallFont
+                                    wrapMode: Text.Wrap
+                                    textFormat: Text.PlainText
+                                }
+                            }
+                            Accessible.name: modelData.label + ", " + modelData.detail
+                            onClicked: formulaHelp.put(modelData)
+                        }
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: formulaHelp.ready.length > 0
+                        text: board.i18nContext.i18nc("@info above a list of ready-made formulas", "Start from an example, then change it:")
+                        font: Kirigami.Theme.smallFont
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                    }
+
+                    Repeater {
+                        model: formulaHelp.ready
+
+                        delegate: Controls.ItemDelegate {
+                            required property var modelData
+
+                            Layout.fillWidth: true
+                            focusPolicy: Qt.NoFocus
+                            padding: Kirigami.Units.smallSpacing
+                            contentItem: ColumnLayout {
+                                spacing: 0
+
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    text: modelData.text
+                                    font.bold: true
+                                    wrapMode: Text.Wrap
+                                    textFormat: Text.PlainText
+                                }
+
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    text: modelData.detail
+                                    font: Kirigami.Theme.smallFont
+                                    wrapMode: Text.Wrap
+                                    textFormat: Text.PlainText
+                                }
+                            }
+                            Accessible.name: modelData.text + ", " + modelData.detail
+                            onClicked: {
+                                formulaInput.text = modelData.text;
+                                board.setColumnFormula(slotColumn.modelData.index, modelData.text);
+                            }
+                        }
+                    }
+                }
+
+                Repeater {
+                    model: slotColumn.isUnused ? [board.formulaCard].concat(slotColumn.modelData.members) : slotColumn.modelData.members
+
+                    delegate: Item {
+                        id: slot
+
+                        required property string modelData
+                        // What the drop reads.
+                        readonly property string cardId: modelData
+                        readonly property int from: slotColumn.modelData.index
+                        // Whether the drag holds Ctrl: the card is copied, not moved.
+                        property bool copying: false
+
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: tile.height
+
+                        function dragged(active: bool) {
+                            if (active) {
+                                board.dragFrom = slot.from;
+                                tile.Drag.start();
+                            } else {
+                                tile.Drag.drop();
+                                tile.x = 0;
+                                tile.y = 0;
+                                board.dragFrom = -2;
+                            }
+                        }
+
+                        Rectangle {
+                            id: tile
+
+                            width: slot.width
+                            height: Kirigami.Units.gridUnit * 2
+                            radius: Kirigami.Units.cornerRadius
+                            color: Kirigami.Theme.backgroundColor
+                            border.width: 1
+                            border.color: handler.active || copyHandler.active ? Kirigami.Theme.highlightColor : Kirigami.Theme.disabledTextColor
+                            z: handler.active || copyHandler.active ? 100 : 0
+                            Drag.dragType: Drag.None
+                            Drag.keys: ["card"]
+                            Drag.source: slot
+                            Drag.hotSpot.x: width / 2
+                            Drag.hotSpot.y: height / 2
+
+                            // A plain drag moves the card, a drag with Ctrl held copies
+                            // it into another column too.
+                            DragHandler {
+                                id: handler
+
+                                acceptedModifiers: Qt.NoModifier
+                                onActiveChanged: {
+                                    slot.copying = false;
+                                    slot.dragged(active);
+                                }
+                            }
+
+                            DragHandler {
+                                id: copyHandler
+
+                                acceptedModifiers: Qt.ControlModifier
+                                onActiveChanged: {
+                                    slot.copying = true;
+                                    slot.dragged(active);
+                                }
+                            }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: Kirigami.Units.smallSpacing
+
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                    textFormat: Text.PlainText
+                                    text: board.labelOf(slot.modelData)
+                                    opacity: board.cardOf(slot.modelData) === undefined && slot.modelData !== board.formulaCard ? 0.6 : 1
+                                }
+
+                                // Shown while the card is being copied.
+                                Controls.Label {
+                                    visible: copyHandler.active
+                                    font.bold: true
+                                    text: "+"
+                                    Accessible.ignored: true
+                                }
+
+                                Controls.ToolButton {
+                                    id: menuButton
+
+                                    icon.name: "overflow-menu"
+                                    text: board.i18nContext.i18nc("@action:button %1 is the name of a category; opens a menu to put it in a column", "Move %1 to…", board.labelOf(slot.modelData))
+                                    display: Controls.AbstractButton.IconOnly
+                                    Controls.ToolTip.text: text
+                                    Controls.ToolTip.visible: hovered
+                                    onClicked: board.openMenu(menuButton, slot.modelData, slot.from)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    visible: slotColumn.modelData.members.length === 0 && !slotColumn.asFormula
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    opacity: 0.6
+                    text: slotColumn.isUnused
+                        ? board.i18nContext.i18nc("@info", "Everything is in a column.")
+                        : board.i18nContext.i18nc("@info", "Drag categories here")
+                }
+            }
+        }
+    }
+
+    // The list of what is not counted comes first on the left, and the rest
+    // wraps to its right: when a row is full, the next column starts a new
+    // row just below it, never below the tall list out of sight (M6-B22).
+    RowLayout {
         Layout.fillWidth: true
         spacing: Kirigami.Units.largeSpacing
 
-        // The one that adds a column comes first, so it is never wrapped
-        // below the tall Unused list out of sight (M6-B16); then Unused,
-        // then the named columns.
+        Repeater {
+            model: [{index: -1, name: "", members: board.unused.map(card => card.id), formula: "", asFormula: false}]
+            delegate: slotDelegate
+        }
+
+    Flow {
+        Layout.fillWidth: true
+        Layout.alignment: Qt.AlignTop
+        Layout.minimumWidth: Kirigami.Units.gridUnit * 14
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 14
+        spacing: Kirigami.Units.largeSpacing
+
+        // The one that adds a column comes first, then the named columns.
         // Adds a column.
         Rectangle {
             width: Kirigami.Units.gridUnit * 14
@@ -622,374 +1012,9 @@ ColumnLayout {
         }
 
         Repeater {
-            model: [{index: -1, name: "", members: board.unused.map(card => card.id), formula: "", asFormula: false}].concat(board.columns.map((column, index) => ({index: index, name: column.name, members: column.members, formula: column.formula ?? "", asFormula: board.isFormula(column)})))
-
-            delegate: Rectangle {
-                id: slotColumn
-
-                required property var modelData
-
-                readonly property bool isUnused: modelData.index < 0
-                readonly property bool asFormula: !isUnused && modelData.asFormula
-
-                width: Kirigami.Units.gridUnit * 14
-                height: Math.max(Kirigami.Units.gridUnit * 12, content.implicitHeight + Kirigami.Units.largeSpacing * 2)
-                radius: Kirigami.Units.cornerRadius
-                color: isUnused ? Kirigami.Theme.alternateBackgroundColor : Kirigami.Theme.backgroundColor
-                border.width: dropHere.containsDrag ? 2 : 1
-                border.color: dropHere.containsDrag ? Kirigami.Theme.highlightColor : Kirigami.Theme.disabledTextColor
-                z: board.dragFrom === modelData.index ? 10 : 0
-
-                DropArea {
-                    id: dropHere
-
-                    anchors.fill: parent
-                    keys: ["card"]
-                    onDropped: drop => drop.source.copying ? board.copyCard(drop.source.cardId, drop.source.from, slotColumn.modelData.index) : board.moveCard(drop.source.cardId, drop.source.from, slotColumn.modelData.index)
-                }
-
-                ColumnLayout {
-                    id: content
-
-                    anchors {
-                        left: parent.left
-                        right: parent.right
-                        top: parent.top
-                        margins: Kirigami.Units.largeSpacing
-                    }
-                    spacing: Kirigami.Units.smallSpacing
-
-                    RowLayout {
-                        Layout.fillWidth: true
-
-                        Kirigami.Heading {
-                            Layout.fillWidth: true
-                            visible: slotColumn.isUnused
-                            level: 3
-                            text: board.i18nContext.i18nc("@title:group the column of categories that are not counted", "Unused")
-                            textFormat: Text.PlainText
-                        }
-
-                        Controls.TextField {
-                            Layout.fillWidth: true
-                            visible: !slotColumn.isUnused
-                            text: slotColumn.modelData.name
-                            maximumLength: 200
-                            Accessible.name: board.i18nContext.i18nc("@label:textbox", "Name of the column")
-                        Component.onCompleted: {
-                            if (!slotColumn.isUnused && board.focusName !== "" && slotColumn.modelData.name === board.focusName) {
-                                board.focusName = "";
-                                forceActiveFocus();
-                                selectAll();
-                            }
-                        }
-                            onEditingFinished: {
-                                if (text !== slotColumn.modelData.name) {
-                                    board.renameColumn(slotColumn.modelData.index, text);
-                                    text = Qt.binding(() => slotColumn.modelData.name);
-                                }
-                            }
-                        }
-
-                        Controls.ToolButton {
-                            visible: !slotColumn.isUnused && slotColumn.modelData.members.length > 0
-                            icon.name: "folder-new"
-                            text: board.i18nContext.i18nc("@action:button %1 is the name of a column", "Save the column %1 as a group", slotColumn.modelData.name)
-                            display: Controls.AbstractButton.IconOnly
-                            Controls.ToolTip.text: text
-                            Controls.ToolTip.visible: hovered
-                            onClicked: board.saveAsGroup(slotColumn.modelData.index)
-                        }
-
-                        Controls.ToolButton {
-                            visible: !slotColumn.isUnused
-                            icon.name: "edit-delete"
-                            text: board.i18nContext.i18nc("@action:button %1 is the name of a column", "Remove the column %1", slotColumn.modelData.name)
-                            display: Controls.AbstractButton.IconOnly
-                            Controls.ToolTip.text: text
-                            Controls.ToolTip.visible: hovered
-                            onClicked: board.removeColumn(slotColumn.modelData.index)
-                        }
-                    }
-
-                    Controls.Label {
-                        Layout.fillWidth: true
-                        wrapMode: Text.Wrap
-                        textFormat: Text.PlainText
-                        font: Kirigami.Theme.smallFont
-                        opacity: 0.7
-                        text: slotColumn.isUnused
-                            ? board.i18nContext.i18nc("@info", "Not counted. A category you add under Categories shows up here.")
-                            : slotColumn.asFormula && board.totalOf(slotColumn.modelData.name) === ""
-                                ? board.i18nContext.i18nc("@info", "Worked out from a formula. Use the names of columns, categories and groups, like Home + Eating.")
-                            : board.hasNoSpending(slotColumn.modelData.name)
-                                ? board.i18nContext.i18nc("@info", "Nothing was spent on this in the period.")
-                            : board.totalOf(slotColumn.modelData.name) !== ""
-                                ? board.i18nContext.i18nc("@info %1 is an amount of money, or several with + between them", "Adds up to %1", board.totalOf(slotColumn.modelData.name))
-                                : board.i18nContext.i18nc("@info", "Counted together as one figure.")
-                    }
-
-                    // Written out, not an icon alone: nobody should have to guess
-                    // where formulas are.
-                    Controls.Button {
-                        id: formulaToggle
-
-                        Layout.fillWidth: true
-                        visible: !slotColumn.isUnused && (slotColumn.asFormula || slotColumn.modelData.members.length === 0)
-                        flat: true
-                        // A long name wraps instead of being cut off at both ends.
-                        contentItem: Controls.Label {
-                            text: formulaToggle.text
-                            wrapMode: Text.Wrap
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                            textFormat: Text.PlainText
-                        }
-                        text: slotColumn.asFormula
-                            ? board.i18nContext.i18nc("@action:button %1 is the name of a column", "Use categories in %1 instead of a formula", slotColumn.modelData.name)
-                            : board.i18nContext.i18nc("@action:button %1 is the name of a column", "Work out %1 with a formula", slotColumn.modelData.name)
-                        onClicked: board.toggleFormula(slotColumn.modelData.index)
-                    }
-
-                    Controls.TextField {
-                        id: formulaInput
-
-                        Layout.fillWidth: true
-                        visible: slotColumn.asFormula
-                        text: slotColumn.modelData.formula ?? ""
-                        placeholderText: board.i18nContext.i18nc("@info:placeholder an example of a formula that uses the names of two columns", "For example: Home + Eating")
-                        maximumLength: 500
-                        Accessible.name: board.i18nContext.i18nc("@label:textbox", "Formula of the column")
-                        onEditingFinished: {
-                            if (text.trim() !== (slotColumn.modelData.formula ?? "")) {
-                                board.setColumnFormula(slotColumn.modelData.index, text);
-                            }
-                        }
-                    }
-
-                    // Help for people who do not write formulas every day: names
-                    // that fit what is typed, each function with a plain line, and
-                    // ready-made formulas to start from. Clicking keeps the focus
-                    // in the field; the keyboard can use Tab to reach the buttons.
-                    ColumnLayout {
-                        id: formulaHelp
-
-                        Layout.fillWidth: true
-                        visible: slotColumn.asFormula
-                        spacing: 0
-
-                        readonly property var fitting: slotColumn.asFormula ? board.suggest(slotColumn.modelData.index, formulaInput.text, formulaInput.cursorPosition) : []
-                        readonly property var ready: slotColumn.asFormula && formulaInput.text.trim() === "" ? board.examples(slotColumn.modelData.index) : []
-
-                        function put(entry: var) {
-                            const text = formulaInput.text;
-                            formulaInput.text = text.slice(0, entry.start) + entry.insert + text.slice(entry.end);
-                            formulaInput.cursorPosition = entry.start + entry.insert.length;
-                            formulaInput.forceActiveFocus();
-                        }
-
-                        Controls.Label {
-                            Layout.fillWidth: true
-                            visible: formulaHelp.fitting.length > 0
-                            text: board.i18nContext.i18nc("@info above a list of names and functions that fit what is typed", "Suggestions. Click one to use it:")
-                            font: Kirigami.Theme.smallFont
-                            wrapMode: Text.Wrap
-                            textFormat: Text.PlainText
-                        }
-
-                        Repeater {
-                            model: formulaHelp.fitting
-
-                            delegate: Controls.ItemDelegate {
-                                required property var modelData
-
-                                Layout.fillWidth: true
-                                focusPolicy: Qt.NoFocus
-                                padding: Kirigami.Units.smallSpacing
-                                contentItem: ColumnLayout {
-                                    spacing: 0
-
-                                    Controls.Label {
-                                        Layout.fillWidth: true
-                                        text: modelData.label
-                                        font.bold: true
-                                        elide: Text.ElideRight
-                                        textFormat: Text.PlainText
-                                    }
-
-                                    Controls.Label {
-                                        Layout.fillWidth: true
-                                        text: modelData.detail
-                                        font: Kirigami.Theme.smallFont
-                                        wrapMode: Text.Wrap
-                                        textFormat: Text.PlainText
-                                    }
-                                }
-                                Accessible.name: modelData.label + ", " + modelData.detail
-                                onClicked: formulaHelp.put(modelData)
-                            }
-                        }
-
-                        Controls.Label {
-                            Layout.fillWidth: true
-                            visible: formulaHelp.ready.length > 0
-                            text: board.i18nContext.i18nc("@info above a list of ready-made formulas", "Start from an example, then change it:")
-                            font: Kirigami.Theme.smallFont
-                            wrapMode: Text.Wrap
-                            textFormat: Text.PlainText
-                        }
-
-                        Repeater {
-                            model: formulaHelp.ready
-
-                            delegate: Controls.ItemDelegate {
-                                required property var modelData
-
-                                Layout.fillWidth: true
-                                focusPolicy: Qt.NoFocus
-                                padding: Kirigami.Units.smallSpacing
-                                contentItem: ColumnLayout {
-                                    spacing: 0
-
-                                    Controls.Label {
-                                        Layout.fillWidth: true
-                                        text: modelData.text
-                                        font.bold: true
-                                        wrapMode: Text.Wrap
-                                        textFormat: Text.PlainText
-                                    }
-
-                                    Controls.Label {
-                                        Layout.fillWidth: true
-                                        text: modelData.detail
-                                        font: Kirigami.Theme.smallFont
-                                        wrapMode: Text.Wrap
-                                        textFormat: Text.PlainText
-                                    }
-                                }
-                                Accessible.name: modelData.text + ", " + modelData.detail
-                                onClicked: {
-                                    formulaInput.text = modelData.text;
-                                    board.setColumnFormula(slotColumn.modelData.index, modelData.text);
-                                }
-                            }
-                        }
-                    }
-
-                    Repeater {
-                        model: slotColumn.isUnused ? [board.formulaCard].concat(slotColumn.modelData.members) : slotColumn.modelData.members
-
-                        delegate: Item {
-                            id: slot
-
-                            required property string modelData
-                            // What the drop reads.
-                            readonly property string cardId: modelData
-                            readonly property int from: slotColumn.modelData.index
-                            // Whether the drag holds Ctrl: the card is copied, not moved.
-                            property bool copying: false
-
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: tile.height
-
-                            function dragged(active: bool) {
-                                if (active) {
-                                    board.dragFrom = slot.from;
-                                    tile.Drag.start();
-                                } else {
-                                    tile.Drag.drop();
-                                    tile.x = 0;
-                                    tile.y = 0;
-                                    board.dragFrom = -2;
-                                }
-                            }
-
-                            Rectangle {
-                                id: tile
-
-                                width: slot.width
-                                height: Kirigami.Units.gridUnit * 2
-                                radius: Kirigami.Units.cornerRadius
-                                color: Kirigami.Theme.backgroundColor
-                                border.width: 1
-                                border.color: handler.active || copyHandler.active ? Kirigami.Theme.highlightColor : Kirigami.Theme.disabledTextColor
-                                z: handler.active || copyHandler.active ? 100 : 0
-                                Drag.dragType: Drag.None
-                                Drag.keys: ["card"]
-                                Drag.source: slot
-                                Drag.hotSpot.x: width / 2
-                                Drag.hotSpot.y: height / 2
-
-                                // A plain drag moves the card, a drag with Ctrl held copies
-                                // it into another column too.
-                                DragHandler {
-                                    id: handler
-
-                                    acceptedModifiers: Qt.NoModifier
-                                    onActiveChanged: {
-                                        slot.copying = false;
-                                        slot.dragged(active);
-                                    }
-                                }
-
-                                DragHandler {
-                                    id: copyHandler
-
-                                    acceptedModifiers: Qt.ControlModifier
-                                    onActiveChanged: {
-                                        slot.copying = true;
-                                        slot.dragged(active);
-                                    }
-                                }
-
-                                RowLayout {
-                                    anchors.fill: parent
-                                    anchors.leftMargin: Kirigami.Units.smallSpacing
-
-                                    Controls.Label {
-                                        Layout.fillWidth: true
-                                        elide: Text.ElideRight
-                                        textFormat: Text.PlainText
-                                        text: board.labelOf(slot.modelData)
-                                        opacity: board.cardOf(slot.modelData) === undefined && slot.modelData !== board.formulaCard ? 0.6 : 1
-                                    }
-
-                                    // Shown while the card is being copied.
-                                    Controls.Label {
-                                        visible: copyHandler.active
-                                        font.bold: true
-                                        text: "+"
-                                        Accessible.ignored: true
-                                    }
-
-                                    Controls.ToolButton {
-                                        id: menuButton
-
-                                        icon.name: "overflow-menu"
-                                        text: board.i18nContext.i18nc("@action:button %1 is the name of a category; opens a menu to put it in a column", "Move %1 to…", board.labelOf(slot.modelData))
-                                        display: Controls.AbstractButton.IconOnly
-                                        Controls.ToolTip.text: text
-                                        Controls.ToolTip.visible: hovered
-                                        onClicked: board.openMenu(menuButton, slot.modelData, slot.from)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Controls.Label {
-                        Layout.fillWidth: true
-                        visible: slotColumn.modelData.members.length === 0 && !slotColumn.asFormula
-                        horizontalAlignment: Text.AlignHCenter
-                        wrapMode: Text.Wrap
-                        textFormat: Text.PlainText
-                        opacity: 0.6
-                        text: slotColumn.isUnused
-                            ? board.i18nContext.i18nc("@info", "Everything is in a column.")
-                            : board.i18nContext.i18nc("@info", "Drag categories here")
-                    }
-                }
-            }
+            model: board.columns.map((column, index) => ({index: index, name: column.name, members: column.members, formula: column.formula ?? "", asFormula: board.isFormula(column)}))
+            delegate: slotDelegate
         }
+    }
     }
 }

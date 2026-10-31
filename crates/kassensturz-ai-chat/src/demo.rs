@@ -13,7 +13,9 @@
 //! newest few transactions it can move, for the review and undo (D-199). A
 //! question with "open" in it about a Rule or an account lists them and then
 //! opens the first one's page (D-265). A question with "chart" in it makes
-//! it propose a chart, by choices alone (M6a.9, D-282). The app
+//! it propose a chart, by choices alone (M6a.9, D-282), and each of a fixed
+//! list of plain descriptions gets its own chart ([`DESCRIBED_CHARTS`],
+//! M6c.10b). The app
 //! offers it only when started with [`DEMO_ENV`] set, as the fake bank is
 //! (D-159).
 
@@ -24,7 +26,11 @@ use kassensturz_ai_tools::{OPEN_PAGE, PROPOSE_CHANGES, PROPOSE_VIEW_NAME};
 use serde_json::{Value, json};
 
 use crate::prompt::{DATA_END, DATA_START};
+
+mod charts;
+
 use crate::session::{EMPTY_ANSWER, NOT_OFFERED};
+pub use charts::{DESCRIBED_CHARTS, DescribedChart, DescribedIds, described};
 
 /// The environment variable that offers the fake model: `1` for a model
 /// that calls functions, `overview` for one that can't.
@@ -42,6 +48,10 @@ pub const DEMO_CATEGORY: &str = "Sorted by the fake model";
 
 /// The title of the chart the fake model proposes when asked for one.
 pub const DEMO_CHART: &str = "Chart from the fake model";
+
+/// What it says once a described chart is prepared.
+pub const CHART_PREPARED: &str =
+    "I prepared the chart. It waits for you: keep it, change it or leave it out.";
 
 /// The most transactions it puts into that category at once.
 const DEMO_MOVES: usize = 3;
@@ -95,6 +105,19 @@ fn respond(model: DemoModel, messages: &[Message], offered: &[String]) -> Result
         .map(|message| message.content.to_lowercase())
         .unwrap_or_default();
     let last = messages.last().map(|message| message.role);
+    if let Some(chart) = described(&question) {
+        if let Some((name, arguments)) = charts::next_call(chart, messages, offered) {
+            return Ok(calls_reply(name, &arguments));
+        }
+        let prepared = messages
+            .last()
+            .filter(|message| message.role == Role::Tool)
+            .and_then(|result| serde_json::from_str::<Value>(&result.content).ok())
+            .is_some_and(|result| result.get("prepared").is_some());
+        if prepared {
+            return Ok(text_reply(&format!("{DEMO_LABEL} {CHART_PREPARED}")));
+        }
+    }
     let sorting = wants_sorting(&question);
     if sorting
         && last == Some(Role::Tool)

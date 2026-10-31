@@ -126,7 +126,7 @@ impl Source {
     }
 
     /// The set behind [`Source::counted`], `None` for an unknown one.
-    fn counted_set(&self, of: GroupMember) -> Option<HashSet<AccountId>> {
+    pub(crate) fn counted_set(&self, of: GroupMember) -> Option<HashSet<AccountId>> {
         self.path_of(of)?;
         let mut roots = HashSet::new();
         let mut seen = HashSet::new();

@@ -80,6 +80,13 @@ pub mod qobject {
         #[cxx_name = "setIds"]
         fn set_ids(self: Pin<&mut ComponentProperties>, key: &QString, value: &QString);
 
+        /// Sets the columns of a chart or table: a JSON list of
+        /// `{"name": ..., "members": [...]}`, empty list for none (D-339).
+        /// A text that is no such list changes nothing.
+        #[qinvokable]
+        #[cxx_name = "setColumns"]
+        fn set_columns(self: Pin<&mut ComponentProperties>, json: &QString);
+
         /// Sets a formula property (`formula`, or a progress bar's `target`),
         /// written in the user's number format as in the field. The book
         /// keeps it in the form it stores (D-295). A text that cannot be read
@@ -152,6 +159,10 @@ pub(crate) fn view_object(
             list(properties::fields(component, form).iter().map(field_object)),
         ));
         entries.push(("json", text(&properties::json(component))));
+        // The columns, as JSON text, for a component that has them (D-339).
+        if let Some(columns) = properties::columns_json(component) {
+            entries.push(("columns", text(&columns)));
+        }
         if let Some((word, words)) = properties::period(component) {
             entries.push((
                 "period",
@@ -171,6 +182,7 @@ pub(crate) fn view_object(
                 ("chosen", text(&preview.chosen)),
                 ("only", text(&preview.only)),
                 ("showHidden", QVariant::from(&preview.show_hidden)),
+                ("columns", text(&preview.columns)),
                 ("compare", text(&preview.compare)),
                 ("measure", text(&preview.measure)),
                 ("usesFormula", QVariant::from(&preview.uses_formula)),
@@ -274,6 +286,13 @@ impl qobject::ComponentProperties {
         self.change(|component| component.set(&key, Setting::Ids(ids)));
     }
 
+    fn set_columns(self: Pin<&mut Self>, json: &QString) {
+        let Some(columns) = properties::read_columns(&json.to_string()) else {
+            return;
+        };
+        self.change(|component| component.set("columns", Setting::Columns(columns)));
+    }
+
     fn set_formula(self: Pin<&mut Self>, key: &QString, value: &QString) {
         let key = key.to_string();
         let typed = value.to_string();
@@ -311,7 +330,7 @@ mod tests {
         assert_eq!(
             keys(&view),
             [
-                "dataset", "datasets", "fields", "json", "period", "preview", "type"
+                "columns", "dataset", "datasets", "fields", "json", "period", "preview", "type"
             ]
         );
         // The grid editor's panel offers the period; the workbench's fields
@@ -360,6 +379,7 @@ mod tests {
             [
                 "chart",
                 "chosen",
+                "columns",
                 "compare",
                 "formula",
                 "grouping",
@@ -505,6 +525,7 @@ mod tests {
                         categories: Vec::new(),
                         series: Vec::new(),
                         show_hidden: preview.show_hidden,
+                        columns: Vec::new(),
                     };
                     charts::charts(&book, &locale, &request)
                         .unwrap_or_else(|e| panic!("{} on {}: {e:?}", kind.id(), dataset.id));

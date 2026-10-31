@@ -45,6 +45,7 @@ Kirigami.ApplicationWindow {
         "overview": overviewPage,
         "accounts": accountsPage,
         "categories": categoriesPage,
+        "budgets": budgetsPage,
         "rules": rulesPage,
         "statistics": statisticsPage,
         "settings": settingsPage,
@@ -138,6 +139,13 @@ Kirigami.ApplicationWindow {
     // My groups and the hide list of the charts (M6b.5c).
     CategoryGroups {
         id: categoryGroups
+
+        onChanged: root.screenChangedBook()
+    }
+
+    // The budgets and how much of each is spent (M6c.5).
+    BudgetBook {
+        id: budgetBook
 
         onChanged: root.screenChangedBook()
     }
@@ -366,6 +374,7 @@ Kirigami.ApplicationWindow {
         accountList.refresh();
         categoryTree.refresh();
         categoryGroups.refresh();
+        budgetBook.refresh();
         ruleBook.refresh();
         accountRegister.refresh();
         savedViews.refresh();
@@ -741,6 +750,11 @@ Kirigami.ApplicationWindow {
                 icon.name: "view-financial-categories"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Categories")
                 onTriggered: root.showScreen("categories")
+            },
+            Kirigami.Action {
+                icon.name: "wallet-open"
+                text: root.i18nContext.i18nc("@action:inmenu a screen", "Budgets")
+                onTriggered: root.showScreen("budgets")
             },
             Kirigami.Action {
                 icon.name: "view-filter"
@@ -1152,6 +1166,7 @@ Kirigami.ApplicationWindow {
             onAddAccountClicked: root.addAccount(false)
             onAddTransactionClicked: root.addTransaction(false, "")
             onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })
+            onSetBudgetClicked: root.pushPage(budgetPage, { categoryId: "" })
         }
     }
 
@@ -1278,6 +1293,26 @@ Kirigami.ApplicationWindow {
 
         CategoryPage {
             categories: categoryTree
+            onDone: root.pageStack.pop()
+            onSetBudgetClicked: categoryId => root.pushPage(budgetPage, { categoryId: categoryId })
+        }
+    }
+
+    Component {
+        id: budgetsPage
+
+        BudgetsPage {
+            budgets: budgetBook
+            onAddBudgetClicked: root.pushPage(budgetPage)
+            onChangeBudgetClicked: budgetId => root.pushPage(budgetPage, { budgetId: budgetId })
+        }
+    }
+
+    Component {
+        id: budgetPage
+
+        BudgetPage {
+            budgets: budgetBook
             onDone: root.pageStack.pop()
         }
     }

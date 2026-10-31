@@ -37,6 +37,7 @@ Kirigami.ScrollablePage {
     signal addAccountClicked()
     signal addTransactionClicked()
     signal getTransactionsClicked(string accountId)
+    signal setBudgetClicked()
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -590,6 +591,7 @@ Kirigami.ScrollablePage {
             monthKey: page.view.monthKey ?? ""
             pageView: page.view
             onGetTransactionsClicked: accountId => page.getTransactionsClicked(accountId)
+            onSetBudgetClicked: page.setBudgetClicked()
             onPropertiesRequested: id => page.openProperties(id)
             onFailed: result => layoutError.result = result
         }

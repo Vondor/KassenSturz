@@ -28,6 +28,10 @@
 #   the one-column list of a narrow window, the problem count and what each
 #   key asks the layout for.
 #
+# - BudgetsSmoke.qml opens the Budgets page, the sheet that sets or changes a
+#   budget and the budget bars (M6c.5) on stand-ins for BudgetBook and
+#   BookBudgets.
+#
 # Needs `qml6` and the QML modules the pages import (Kirigami, KI18n,
 # QuickCharts). It fails if a page doesn't load, if a check fails, or if QML
 # prints a warning about a type, a binding or a property.
@@ -48,7 +52,8 @@ module="$work/imports/io/github/vondor/kassensturz"
 mkdir -p "$module"
 for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiChartCard ComponentPreview PropertiesPanel ChartView ChartTable DataTable \
     CategoryGroupsPage CategoryGroupPage AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter ChartPalette FormError Plain \
-    DashboardGrid GridItem GridNames TitleWords AddMenu FormulaField PeriodChoice StatisticWizard ColumnBoard; do
+    DashboardGrid GridItem GridNames TitleWords AddMenu FormulaField PeriodChoice StatisticWizard ColumnBoard \
+    BudgetBars BudgetWords BudgetsPage BudgetPage; do
     cp "$bridge/qml/$file.qml" "$module"
 done
 cp "$bridge"/qml-tests/fakes/*.qml "$module"
@@ -60,11 +65,12 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
         ChartTable DataTable AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter FormError SavedViews \
         ComponentProperties BookCharts BookCards AiSwitch AiChat AccountTypes AiErrorMessage \
         CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames TitleWords DashboardLayout \
-        FormulaField BookFormula PeriodChoice PeriodRange StatisticWizard ColumnBoard AddMenu; do
+        FormulaField BookFormula PeriodChoice PeriodRange StatisticWizard ColumnBoard AddMenu \
+        BudgetBars BudgetWords BudgetsPage BudgetPage BudgetBook BookBudgets; do
         echo "$file 1.0 $file.qml"
     done
 } > "$module/qmldir"
-cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$work"
+cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$work"
 run_smoke() {
     (
         cd "$work"
@@ -92,3 +98,5 @@ run_smoke GroupsSmoke
 echo "groups pages: ok"
 run_smoke GridSmoke
 echo "dashboard grid: ok"
+run_smoke BudgetsSmoke
+echo "budget pages: ok"

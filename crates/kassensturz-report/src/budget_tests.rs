@@ -613,13 +613,12 @@ fn a_source_without_the_budgets_or_their_days_is_refused() {
 }
 
 #[test]
-fn the_dataset_and_its_component_wait_for_the_step_that_draws_them() {
-    let [info] = BUDGETS else {
-        panic!("one budget dataset");
-    };
+fn the_dataset_and_its_component_are_offered_since_the_app_draws_them() {
+    let info = dataset(BUDGET_UTILIZATION).expect("the dataset is in the catalog (D-381)");
     assert_eq!(info.id, BUDGET_UTILIZATION);
+    // The AI sees budgets only with the permission grid's Budgets row
+    // (D-358, M6c.11).
     assert!(!info.for_ai);
-    assert!(dataset(BUDGET_UTILIZATION).is_none());
     let flat = info
         .description
         .split_whitespace()
@@ -647,15 +646,28 @@ fn the_dataset_and_its_component_wait_for_the_step_that_draws_them() {
     assert!(info.suits.contains(&kind.suit()));
     assert!(!kind.shows_no_data());
     assert!(!ComponentType::ALL.contains(&kind));
-    assert!(!ComponentType::LIBRARY.contains(&kind));
-    assert_eq!(ComponentType::from_id("budget.progress"), None);
+    assert!(ComponentType::LIBRARY.contains(&kind));
+    assert_eq!(ComponentType::from_id("budget.progress"), Some(kind));
     let keys: Vec<&str> = kind
         .properties()
         .iter()
         .map(|property| property.key)
         .collect();
     assert_eq!(keys, vec!["categories", "title", "period"]);
-    assert_eq!(kind.datasets().count(), 0);
+    let offered: Vec<&str> = kind.datasets().map(|dataset| dataset.id).collect();
+    assert_eq!(offered, vec![BUDGET_UTILIZATION]);
+    // No other component takes it: a budget has bars, not a chart yet.
+    for other in ComponentType::LIBRARY {
+        if other != kind {
+            assert!(
+                other
+                    .datasets()
+                    .all(|dataset| dataset.id != BUDGET_UTILIZATION),
+                "{}",
+                other.id()
+            );
+        }
+    }
 }
 
 /// One month of a generated budget: what it plans, whether it carries over,

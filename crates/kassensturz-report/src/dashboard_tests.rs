@@ -326,7 +326,7 @@ fn the_default_overview_is_a_valid_dashboard_that_writes_back_the_same() {
     assert_eq!(document.kind, ViewKind::Dashboard);
     assert_eq!(document.name, OVERVIEW_NAME);
     assert_eq!(document.period, None);
-    assert_eq!(document.entries.len(), 11);
+    assert_eq!(document.entries.len(), 12);
     grid::check(&document.entries).unwrap();
     assert_eq!(Document::read(&document.to_json()).unwrap(), document);
     // Its reading order is the order the Overview shows things in.
@@ -340,6 +340,7 @@ fn the_default_overview_is_a_valid_dashboard_that_writes_back_the_same() {
             "expenses",
             "left",
             "kept",
+            "budgets",
             "spending",
             "biggest",
             "trend",
@@ -416,6 +417,14 @@ fn the_default_overview_asks_for_what_the_overview_page_asks_for() {
             card("expenses"),
             card("net"),
             card("savings-rate"),
+            // The budget bars ask for the budgets of the page's period.
+            (
+                "budget.progress",
+                "budget_utilization".to_owned(),
+                String::new(),
+                String::new(),
+                "page".to_owned(),
+            ),
             spending("chart.donut"),
             spending("table.rows"),
             (
@@ -463,6 +472,20 @@ fn the_default_overview_shows_the_same_figures_as_the_overview_on_the_sample_boo
         };
         let source = Source::read(&sample.book, span).unwrap();
         match component.dataset().id {
+            BUDGET_UTILIZATION => {
+                // The sample book has no budget: the bars are empty, and
+                // the component takes no room until one is set (D-357).
+                let source = Source::read_with_budgets(&sample.book, shown, today).unwrap();
+                let bars = budget_utilization(
+                    &source,
+                    shown,
+                    today,
+                    BudgetGrouping::Budget,
+                    &Filter::default(),
+                )
+                .unwrap();
+                assert!(bars.is_empty());
+            }
             SPENDING_BY_CATEGORY => {
                 // What the Overview's donut and table are made from.
                 let by_category =
@@ -528,7 +551,7 @@ fn a_session_is_saved_in_the_book_and_read_back_to_the_same_layout() {
     book.edit_view(id, &second).unwrap();
     let reread = Document::read(&book.view(id).unwrap().document).unwrap();
     assert_eq!(reread, *editor.document());
-    assert_eq!(reread.entries.len(), 12);
+    assert_eq!(reread.entries.len(), 13);
     // A new session on the saved layout starts from it, and undo works in it.
     let mut again = Editor::new(reread).unwrap();
     assert!(!again.has_changes());

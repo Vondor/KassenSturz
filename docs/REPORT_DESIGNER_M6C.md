@@ -1,10 +1,10 @@
 # The report designer, part 3: budgets, financial figures, shared filters and the AI chart builder (M6c)
 
-Design of the M6c Sprint (D-284), written in step M6c.0. It builds on `docs/REPORT_DESIGNER.md` (the reporting layer, D-277; the AI and the designer, D-282) and `docs/REPORT_DESIGNER_M6B.md` (the grid, groups, formulas, the period box of D-333). Decisions D-344 to D-359, open questions Q-266 to Q-268; threat rows T-46 to T-50; the steps are in `docs/ROADMAP.md` ("M6c steps").
+Design of the M6c Sprint (D-284), written in step M6c.0. It builds on `docs/REPORT_DESIGNER.md` (the reporting layer, D-277; the AI and the designer, D-282) and `docs/REPORT_DESIGNER_M6B.md` (the grid, groups, formulas, the period box of D-333). Decisions D-344 to D-359, questions Q-264 to Q-268; threat rows T-46 to T-50; the steps are in `docs/ROADMAP.md` ("M6c steps").
 
 Release stage: **Alpha** (D-274). Layout 22 is a development layout: no migration of older books is written, and the development migrations are merged into one starting layout at the end of Alpha (D-045).
 
-**The maintainer's answers this design applies:** Q-216 = D (each budget has its own period, month, quarter, year or a range of days, and its own switch to carry what is left into the next period), Q-264 = A (a budget widget on the Overview, hidden until a budget exists; the rest of the Overview's design is left to the team), Q-265 = B (the AI may prepare budgets in M6c, always as changes the user confirms).
+**The maintainer's answers this design applies:** Q-216 = D (each budget has its own period, month, quarter, year or a range of days, and its own switch to carry what is left into the next period), Q-264 = A (a budget widget on the Overview, hidden until a budget exists; the rest of the Overview's design is left to the team), Q-265 = B (the AI may prepare budgets in M6c, always as changes the user confirms), Q-266 = A (carry over moves overspending too), Q-267 = A (an own setting wins for its dimension only), Q-268 = A (no My groups for the AI in M6c).
 
 ## 1. Budgets (D-344, D-345, D-346, D-347)
 
@@ -17,7 +17,7 @@ A **budget** is an amount the user plans to spend on one spending category in a 
 | Category | One **spending** category (kind `expense`). It counts with everything inside it, each category once, as a group does (D-291) | An income category, an account, or money not sorted yet can't have one (`store.budget-not-spending`) |
 | Period | `month`, `quarter` or `year` (calendar months, quarters, years; it repeats) or `range` (one stretch of days, from a first to a last day; it does not repeat) | A repeating budget starts on the first day of a month, quarter or year and may end on the last day of one; a range has both days and covers at most 100 years (`MAX_MONTHS`, D-281) |
 | Amount | What the user plans to spend in one period, in the **category's own currency**, as `Money` in minor units, more than zero | Up to the largest amount `Money` holds; zero or less is refused (`store.budget-amount`) |
-| Carry over | On or off. When on, what is left at the end of a period is added to the next one; what was spent beyond the amount is taken off the next one (Q-266, R) | Not offered for a range, which has no next period (`store.budget-period`, `carry-over-on-range`) |
+| Carry over | On or off. When on, what is left at the end of a period is added to the next one; what was spent beyond the amount is taken off the next one (Q-266 = A) | Not offered for a range, which has no next period (`store.budget-period`, `carry-over-on-range`) |
 
 Monthly, quarterly and yearly budgets and envelope-style budgeting ("money left in the envelope stays in it") are all settings of this one model, as Q-216 = D asked.
 
@@ -126,7 +126,7 @@ A **filter** narrows what a dashboard shows: the **period**, the **accounts** an
 3. The dashboard's **filter bar** (`filters` of the document).
 4. Nothing: all accounts, all categories, the dashboard's default period.
 
-So an own setting wins **for its dimension only**, as an own period already wins over the period box (Q-267, R): a pie with its own categories still follows the filter bar's period and accounts. The component shows a small *Own filter* mark naming which dimensions are its own.
+So an own setting wins **for its dimension only**, as an own period already wins over the period box (Q-267 = A): a pie with its own categories still follows the filter bar's period and accounts. The component shows a small *Own filter* mark naming which dimensions are its own.
 
 **What a dataset takes:** each catalog entry lists the dimensions it can honour without making a figure wrong:
 
@@ -182,7 +182,7 @@ The title is shown as plain text, labelled AI-made, and run through the number c
 
 ### 4.3 What the model sees (D-354)
 
-The function's description and enums: the dataset ids with their catalog descriptions, measures, groupings and chart kinds; nothing computed. `for_ai` becomes true for `account_balances`, `net_worth_over_time`, `cash_flow_by_month` and `budget_utilization`: naming one sends no figure, the preview is drawn by code. Category and account ids come only through the read functions and the grid (D-252). My groups, the hide list and `category_over_time` stay out (D-306) unless Q-268 decides otherwise. The model never receives a preview's figures to "check".
+The function's description and enums: the dataset ids with their catalog descriptions, measures, groupings and chart kinds; nothing computed. `for_ai` becomes true for `account_balances`, `net_worth_over_time`, `cash_flow_by_month` and `budget_utilization`: naming one sends no figure, the preview is drawn by code. Category and account ids come only through the read functions and the grid (D-252). My groups, the hide list and `category_over_time` stay out (D-306, Q-268 = A). The model never receives a preview's figures to "check".
 
 ### 4.4 Describe a chart in plain words (D-355; M6c.9)
 

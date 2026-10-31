@@ -35,7 +35,7 @@ Item {
     property var subject: ({})
     readonly property string subjectJson: info?.subject?.json ?? ""
     readonly property bool hasProblem: unknown || (content.item?.failed ?? false)
-    readonly property string heading: present ? names.titleOf(info) : ""
+    readonly property string heading: present ? words.resolve(names.titleOf(info), board.periodFor(info)) : ""
     // The separator and the notices have no card around them while the page
     // is only looked at: a line and a message (D-328, D-334).
     readonly property bool isBox: present && info.type === "group.period"
@@ -56,6 +56,10 @@ Item {
     property real startH: 0
     property real growW: 0
     property real growH: 0
+
+    TitleWords {
+        id: words
+    }
 
     GridNames {
         id: names

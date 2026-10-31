@@ -13229,3 +13229,33 @@ msgstr "Geben Sie ihr einen Namen und ziehen Sie dann Kategorien hinein, oder le
 msgctxt "@action:button show or hide the lists of categories, groups and lines"
 msgid "Advanced: pick from lists"
 msgstr "Erweitert: aus Listen wählen"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+msgctxt "@label words that can be put into a title"
+msgid "Add:"
+msgstr "Einfügen:"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+msgctxt "@info %1 is the title as it is shown"
+msgid "Shown as: %1"
+msgstr "Wird angezeigt als: %1"
+
+#: crates/kassensturz-ui-bridge/qml/TitleWords.qml
+msgctxt "@info:tooltip a word for titles"
+msgid "The month of the period, e.g. October"
+msgstr "Der Monat des Zeitraums, z. B. Oktober"
+
+#: crates/kassensturz-ui-bridge/qml/TitleWords.qml
+msgctxt "@info:tooltip a word for titles"
+msgid "The year of the period, e.g. 2026"
+msgstr "Das Jahr des Zeitraums, z. B. 2026"
+
+#: crates/kassensturz-ui-bridge/qml/TitleWords.qml
+msgctxt "@info:tooltip a word for titles"
+msgid "The whole period, e.g. October 2026"
+msgstr "Der ganze Zeitraum, z. B. Oktober 2026"
+
+#: crates/kassensturz-ui-bridge/qml/TitleWords.qml
+msgctxt "@info:tooltip a word for titles"
+msgid "Today's date"
+msgstr "Das heutige Datum"

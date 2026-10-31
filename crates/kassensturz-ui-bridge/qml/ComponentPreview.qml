@@ -36,17 +36,20 @@ ColumnLayout {
         && asked.usesFormula === true
     readonly property var formulaView: formulaData.view ?? ({})
     readonly property var formulaResult: formulaView.result
-    readonly property bool failed: usesFormula ? false
+    // Headings, notices and boxes show no figures: nothing is asked of the
+    // book for them, so there is nothing that can fail (M6-B19).
+    readonly property bool textOnly: asked.shows !== undefined && !["chart", "table", "card", "progress"].includes(asked.shows)
+    readonly property bool failed: usesFormula || textOnly ? false
         : asked.shows === "card" || asked.shows === "progress"
         ? cardData.view?.error !== undefined : chartData.view?.error !== undefined
-    readonly property bool nothing: !failed && !usesFormula && (asked.shows === "card" || asked.shows === "progress"
+    readonly property bool nothing: !failed && !usesFormula && !textOnly && (asked.shows === "card" || asked.shows === "progress"
         ? cardSets.length === 0 : charts.length === 0)
     // What to call it when the user gave it no title (the grid editor's
     // built-in components have none, D-316).
     property string fallbackTitle: ""
     readonly property string title: {
         const field = (subject?.fields ?? []).find(f => f.key === "title");
-        return field && field.text !== "" ? field.text : fallbackTitle;
+        return words.resolve(field && field.text !== "" ? field.text : fallbackTitle, period);
     }
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -55,6 +58,10 @@ ColumnLayout {
 
     KpiNames {
         id: names
+    }
+
+    TitleWords {
+        id: words
     }
 
     BookCharts {
@@ -93,7 +100,7 @@ ColumnLayout {
         // Read from `subject` itself: this runs from its change signal, before
         // the bindings that depend on it (`asked`) have been worked out again.
         const want = subject?.preview;
-        if (want === undefined || period === "") {
+        if (want === undefined || period === "" || !["chart", "table", "card", "progress"].includes(want.shows)) {
             return;
         }
         if (want.shows === "progress" && want.usesFormula === true) {

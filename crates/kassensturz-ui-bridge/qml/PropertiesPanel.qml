@@ -49,6 +49,8 @@ ColumnLayout {
         translationDomain: "kassensturz"
     }
 
+    readonly property TitleWords titleWords: TitleWords {}
+
     function datasetName(id: string): string {
         switch (id) {
         case "spending_by_category":
@@ -230,11 +232,70 @@ ColumnLayout {
                 Component {
                     id: textField
 
-                    Controls.TextField {
-                        text: row.modelData.text
-                        maximumLength: 200
-                        Accessible.name: panel.fieldLabel(row.modelData.key)
-                        onEditingFinished: panel.model.setText(row.modelData.key, text)
+                    ColumnLayout {
+                        id: titleBox
+
+                        // Only titles and heading texts can hold the words
+                        // that stand for the period.
+                        readonly property bool withWords: row.modelData.key === "title" || row.modelData.key === "text"
+
+                        spacing: Kirigami.Units.smallSpacing
+
+                        Controls.TextField {
+                            id: entry
+
+                            Layout.fillWidth: true
+                            text: row.modelData.text
+                            maximumLength: 200
+                            Accessible.name: panel.fieldLabel(row.modelData.key)
+                            onEditingFinished: panel.model.setText(row.modelData.key, text)
+                        }
+
+                        // The words to pick; one click puts one into the title.
+                        Flow {
+                            Layout.fillWidth: true
+                            visible: titleBox.withWords
+                            spacing: Kirigami.Units.smallSpacing
+
+                            Controls.Label {
+                                text: panel.i18nContext.i18nc("@label words that can be put into a title", "Add:")
+                                height: addWord.implicitHeight
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            Repeater {
+                                model: panel.titleWords.tokens
+
+                                delegate: Controls.Button {
+                                    id: addWord
+
+                                    required property var modelData
+
+                                    text: modelData.token
+                                    flat: true
+                                    Accessible.description: modelData.help
+                                    Controls.ToolTip.text: modelData.help
+                                    Controls.ToolTip.visible: hovered
+                                    Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
+                                    onClicked: {
+                                        entry.insert(entry.cursorPosition, modelData.token);
+                                        panel.model.setText(row.modelData.key, entry.text);
+                                        entry.forceActiveFocus();
+                                    }
+                                }
+                            }
+                        }
+
+                        // What the title says for the period of the component,
+                        // as it is shown.
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            visible: titleBox.withWords && panel.titleWords.hasWords(entry.text)
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            opacity: 0.75
+                            text: panel.i18nContext.i18nc("@info %1 is the title as it is shown", "Shown as: %1", panel.titleWords.resolve(entry.text, panel.period))
+                        }
                     }
                 }
 

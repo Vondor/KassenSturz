@@ -177,6 +177,9 @@ events! {
     /// The AI tool called an MCP tool; the detail names it, the code says
     /// why it failed.
     McpToolCalled = "mcp.tool-called",
+    /// The user added a widget to the Overview page (M6-B9); the code says
+    /// why it failed, if it did.
+    LayoutWidgetAdded = "layout.widget-added",
 }
 
 impl Event {

@@ -13,7 +13,10 @@ import org.kde.ki18n
 import io.github.vondor.kassensturz
 
 Controls.Menu {
-    id: menu
+    // Not `menu`: inside a MenuItem that name is the MenuItem's own `menu`
+    // property (the submenu), so `addMenu.kindChosen` was no function there
+    // and the click did nothing (M6-B9).
+    id: addMenu
 
     // Rows with `id` and `name` of the usable saved views.
     property var savedList: []
@@ -44,13 +47,13 @@ Controls.Menu {
             { name: ctx.i18nc("@title:menu a group of widgets: notes and warnings", "Notes"),
               rows: kindRows(["notice.fetch_gap", "notice.transfers"]) },
             { name: ctx.i18nc("@title:menu a group of widgets: views saved in the Statistic Builder", "Saved views"),
-              rows: sorted(menu.savedList.map(row => ({ id: row.id, name: row.name, saved: true }))) }
+              rows: sorted(addMenu.savedList.map(row => ({ id: row.id, name: row.name, saved: true }))) }
         ];
         return sorted(list.filter(group => group.rows.length > 0));
     }
 
     Instantiator {
-        model: menu.groups
+        model: addMenu.groups
         delegate: Controls.Menu {
             id: groupMenu
 
@@ -63,13 +66,13 @@ Controls.Menu {
                 delegate: Controls.MenuItem {
                     required property var modelData
                     text: modelData.name
-                    onTriggered: modelData.saved ? menu.savedChosen(modelData.id) : menu.kindChosen(modelData.id)
+                    onTriggered: modelData.saved ? addMenu.savedChosen(modelData.id) : addMenu.kindChosen(modelData.id)
                 }
                 onObjectAdded: (index, object) => groupMenu.insertItem(index, object)
                 onObjectRemoved: (index, object) => groupMenu.removeItem(object)
             }
         }
-        onObjectAdded: (index, object) => menu.insertMenu(index, object)
-        onObjectRemoved: (index, object) => menu.removeMenu(object)
+        onObjectAdded: (index, object) => addMenu.insertMenu(index, object)
+        onObjectRemoved: (index, object) => addMenu.removeMenu(object)
     }
 }

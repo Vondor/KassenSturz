@@ -35,6 +35,8 @@ Kirigami.ApplicationWindow {
         id: addMenu
 
         savedList: [{id: "b", name: "Zeta"}, {id: "a", name: "Alpha"}]
+        onKindChosen: kind => window.asked.push("add:" + kind)
+        onSavedChosen: id => window.asked.push("saved:" + id)
     }
 
     pageStack.initialPage: Kirigami.Page {
@@ -175,6 +177,14 @@ Kirigami.ApplicationWindow {
                 const kinds = addMenu.groups.filter(group => !group.rows[0].saved).reduce((all, group) => all.concat(group.rows), []).length;
                 window.check(kinds === 16, "every kind of widget is in a group: " + kinds);
                 window.check(addMenu.count === 5, "one submenu for each group: " + addMenu.count);
+                // Choosing an item of a submenu reaches the menu's signals (M6-B9:
+                // `menu` inside a MenuItem is the MenuItem's own property).
+                const before = window.asked.length;
+                for (let g = 0; g < addMenu.count; ++g) {
+                    addMenu.menuAt(g).itemAt(0).triggered();
+                }
+                const added = window.asked.slice(before);
+                window.check(added.length === 5 && added.filter(entry => entry.startsWith("add:")).length === 4 && added.filter(entry => entry === "saved:a").length === 1, "choosing the first item of every submenu says so: " + added);
                 window.check(!grid.editing && grid.selectedId === "", "leaving edit mode selects nothing");
                 if (window.failed) {
                     console.log("FAIL: the grid smoke test");

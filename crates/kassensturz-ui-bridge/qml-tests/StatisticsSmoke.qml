@@ -178,7 +178,7 @@ Kirigami.ApplicationWindow {
                     // Food and Groceries inside it, Rent, and one group of money spent.
                     window.check(board.unused.length === 4, "everything starts in Unused: " + board.unused.length);
                     // A card can start a column, so its menu is never empty.
-                    const noColumn = board.choicesFor("c-food", -1);
+                    const noColumn = board.choicesFor("c-groceries", -1);
                     window.check(noColumn.length === 1 && noColumn[0].create === true, "the menu of a card offers a new column when there is none yet");
                     window.check(board.freeName("") === "New column" && board.freeName("Pets") === "Pets", "a column made from a card is named by what was typed, or New column");
                     board.moveToNew("c-groceries", -1, "");
@@ -239,9 +239,12 @@ Kirigami.ApplicationWindow {
                     board.moveCard(board.formulaCard, -1, emptyOne);
                     window.check(board.isFormula(board.columns[emptyOne]), "the Formula card makes an empty column a formula");
                     window.check(board.choicesFor(board.formulaCard, -1).some(entry => entry.create), "the Formula card's menu can make a new formula column");
+                    window.check(board.addColumn("First plain") && board.addColumn("Second plain"), "two plain columns for the examples");
                     window.check(board.examples(0).length === 3, "two other columns give three ready-made formulas: " + board.examples(0).length);
                     window.check(board.suggest(0, "Empty", 5).some(entry => entry.label === "Empty formula"), "typing suggests the name of another column");
                     window.check(board.suggest(0, "SU", 2).some(entry => entry.insert === "SUM("), "typing suggests a function");
+                    board.removeColumn(board.columns.length - 1);
+                    board.removeColumn(board.columns.length - 1);
                     board.removeColumn(emptyOne);
                     board.removeColumn(countBefore);
                     // A parent category makes a column for each subcategory.

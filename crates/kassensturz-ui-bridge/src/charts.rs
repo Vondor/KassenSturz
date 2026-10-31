@@ -29,6 +29,7 @@ use kassensturz_store::Book;
 use crate::format::Locale;
 use crate::register::AmountWriter;
 use crate::scope::{FilterView, Scope};
+use crate::session;
 
 /// What the user asked for, by the fixed names QML uses.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -278,9 +279,9 @@ pub fn charts(
     // made from them ask for them (D-365). Columns decide what a chart shows,
     // whatever its dataset says, and they are made of spending.
     let source = if request.columns.is_empty() && is_financial(&request.dataset) {
-        Source::read_with_balances(book, span)?
+        session::cached_source(book, span, true, || Source::read_with_balances(book, span))?
     } else {
-        Source::read(book, span)?
+        session::cached_source(book, span, false, || Source::read(book, span))?
     };
     let text = AppText::new(book, locale);
     let (filter, filter_view) = request.scope.resolve(book, &source)?;

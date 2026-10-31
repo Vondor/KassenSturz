@@ -322,6 +322,74 @@ pub fn entries(book: &Book, account: AccountId) -> Result<Vec<Entry>, StoreError
     Ok(entries)
 }
 
+/// The newest `limit` entries of `account` that are not its starting
+/// balance, each a different transaction, newest first (the order of
+/// [`entries`] reversed). Unlike [`entries`] it reads only those
+/// transactions, not every one of the account, so a book with years of
+/// history opens the overview as fast as a small one; the balance after
+/// each entry isn't added up, so it stays zero. `accounts` is every account
+/// of the book, read once by the caller.
+pub fn latest_entries(
+    book: &Book,
+    account: AccountId,
+    accounts: &HashMap<AccountId, kassensturz_core::Account>,
+    limit: usize,
+) -> Result<Vec<Entry>, StoreError> {
+    let details = accounts
+        .get(&account)
+        .ok_or(StoreError::UnknownAccount(account))?;
+    let mut found: Vec<Entry> = Vec::new();
+    // The register is in date order, so the newest are at its end. An
+    // account can show one transaction on two days (D-108): only the later
+    // counts, as in the overview's list of the newest.
+    for entry in book.register(account)?.into_iter().rev() {
+        if found.len() == limit {
+            break;
+        }
+        if found
+            .iter()
+            .any(|listed| listed.transaction == entry.transaction)
+        {
+            continue;
+        }
+        let transaction = book.transaction(entry.transaction)?;
+        let parts = transaction
+            .splits()
+            .iter()
+            .map(|split| (split.account, split.foreign.is_some()));
+        let (kind, category) = match one_other_part(account, parts) {
+            None => (EntryKind::Parts, String::new()),
+            Some(None) => (EntryKind::Simple, String::new()),
+            Some(Some(id)) => kind_from(accounts.get(&id).ok_or(StoreError::UnknownAccount(id))?),
+        };
+        if kind == EntryKind::StartingBalance {
+            continue;
+        }
+        let note = transaction
+            .note()
+            .or_else(|| {
+                transaction
+                    .splits()
+                    .iter()
+                    .find(|split| split.account == Some(account))
+                    .and_then(|split| split.note.as_deref())
+            })
+            .unwrap_or_default()
+            .to_owned();
+        found.push(Entry {
+            transaction: entry.transaction,
+            date: entry.booking_date,
+            other_party: entry.payee.unwrap_or_default(),
+            category,
+            amount: entry.amount,
+            kind,
+            balance: Money::zero(details.currency),
+            note,
+        });
+    }
+    Ok(found)
+}
+
 /// What the register is sorted by. The balance after each entry doesn't
 /// change with the order: it always counts the entries in date order.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

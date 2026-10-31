@@ -22,6 +22,7 @@ use kassensturz_store::Book;
 use crate::charts::{AppText, ChartsError, period};
 use crate::format::Locale;
 use crate::scope::{FilterView, Scope};
+use crate::session;
 
 /// What the user asked for, by the fixed names QML uses.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -293,7 +294,7 @@ pub fn cards_filtered(
     let text = AppText::new(book, locale);
     match request.dataset.as_str() {
         "" | INCOME_EXPENSE_BY_MONTH => {
-            let source = Source::read(book, span)?;
+            let source = session::cached_source(book, span, false, || Source::read(book, span))?;
             let (filter, view) = request.scope.resolve(book, &source)?;
             if view.nothing {
                 return Ok((Vec::new(), view));
@@ -302,7 +303,9 @@ pub fn cards_filtered(
             Ok((changes.iter().map(|change| set(change, &text)).collect(), view))
         }
         ACCOUNT_BALANCES => {
-            let source = Source::read_with_balances(book, span)?;
+            let source = session::cached_source(book, span, true, || {
+                Source::read_with_balances(book, span)
+            })?;
             let (filter, view) = request.scope.resolve(book, &source)?;
             if view.nothing {
                 return Ok((Vec::new(), view));

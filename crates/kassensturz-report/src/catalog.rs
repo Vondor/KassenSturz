@@ -73,7 +73,7 @@ pub const CATALOG: &[DatasetInfo] = &[
              balances are not counted, and amounts in different currencies are never added \
              together: there is one result per currency.",
         groupings: &["month"],
-        suits: &["line", "stacked_bar", "kpi", "table"],
+        suits: &["line", "stacked_bar", "kpi", "progress", "table"],
         measures: &["income", "expenses", "net", "savings-rate", FORMULA_MEASURE],
         for_ai: true,
     },
@@ -90,14 +90,9 @@ pub const CATALOG: &[DatasetInfo] = &[
         measures: &[],
         for_ai: false,
     },
-];
-
-/// The datasets of what the user has, owes and is worth and of the money in
-/// and out of their accounts (D-348, D-349), built in M6c.1. They join
-/// [`CATALOG`] in the step that teaches the app to draw them (M6c.2), so no
-/// chart offers a dataset it cannot show yet (D-368). Until then no
-/// component, document or AI names them.
-pub const FINANCIAL: &[DatasetInfo] = &[
+    // What the user has, owes and is worth and the money in and out of
+    // their accounts (D-348, D-349), built in M6c.1 and drawn since M6c.2
+    // (D-368, D-370). The AI does not know them until M6c.8.
     DatasetInfo {
         id: ACCOUNT_BALANCES,
         description: "What each of your accounts held at the end of the period's last day, and \
@@ -172,11 +167,11 @@ mod tests {
 
     #[test]
     fn every_dataset_is_described_once_and_says_what_it_leaves_out() {
-        let every = || CATALOG.iter().chain(FINANCIAL);
+        let every = || CATALOG.iter();
         let mut ids: Vec<&str> = every().map(|dataset| dataset.id).collect();
         ids.sort_unstable();
         ids.dedup();
-        assert_eq!(ids.len(), CATALOG.len() + FINANCIAL.len());
+        assert_eq!(ids.len(), CATALOG.len());
         for dataset in every() {
             assert!(!dataset.groupings.is_empty(), "{}", dataset.id);
             assert!(!dataset.suits.is_empty(), "{}", dataset.id);
@@ -225,10 +220,11 @@ mod tests {
             Some(SPENDING_BY_CATEGORY)
         );
         assert!(dataset("no_such_dataset").is_none());
-        // Not offered before the app can draw them (D-368).
-        for financial in FINANCIAL {
-            assert!(dataset(financial.id).is_none(), "{}", financial.id);
-            assert!(!financial.for_ai, "{}", financial.id);
+        // The financial datasets are offered since the app draws them, but
+        // the AI does not know them until its tools do (D-368, M6c.8).
+        for id in balances {
+            let info = dataset(id).expect("a financial dataset is in the catalog");
+            assert!(!info.for_ai, "{id}");
         }
     }
 }

@@ -180,7 +180,8 @@ pub struct Preview {
     /// The `compare` for `BookCards.show`.
     pub compare: String,
     /// The card to pick from the cards: `income`, `expenses`, `net` or
-    /// `savings-rate`.
+    /// `savings-rate`; `net_worth`, `assets` or `liabilities` for the
+    /// balances of the accounts.
     pub measure: String,
     /// Whether a card or a progress bar shows the result of a formula
     /// instead of a card of the cards (M6b.7).
@@ -321,6 +322,9 @@ pub fn preview(component: &Component) -> Preview {
         grouping: match word(component, "grouping").as_str() {
             "top_level_category" => "top-level",
             "groups" => "groups",
+            // The balances of the accounts as what you have, owe and are
+            // worth (M6c.2).
+            "account_kind" => "account-kind",
             _ => "each",
         },
         chosen: ids(

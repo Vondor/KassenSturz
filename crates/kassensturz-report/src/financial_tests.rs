@@ -547,11 +547,7 @@ fn a_key_figure_offers_the_figures_of_its_dataset() {
         .find(|property| property.key == "measure")
         .unwrap();
     let words = |id| {
-        let info = CATALOG
-            .iter()
-            .chain(FINANCIAL)
-            .find(|dataset| dataset.id == id)
-            .unwrap();
+        let info = dataset(id).unwrap();
         measure.words(info).to_vec()
     };
     // Unchanged for the monthly figures; the default stays the first.
@@ -563,7 +559,7 @@ fn a_key_figure_offers_the_figures_of_its_dataset() {
         words(ACCOUNT_BALANCES),
         ["net_worth", "assets", "liabilities", FORMULA_MEASURE]
     );
-    let info = FINANCIAL[0];
+    let info = *dataset(ACCOUNT_BALANCES).unwrap();
     assert_eq!(
         measure.default_setting(&info),
         Setting::Word("net_worth".into())
@@ -579,15 +575,21 @@ fn a_key_figure_offers_the_figures_of_its_dataset() {
             .is_err()
     );
     // Every component the financial datasets suit exists.
-    for dataset in FINANCIAL {
-        for suit in dataset.suits {
+    for id in [ACCOUNT_BALANCES, NET_WORTH_OVER_TIME, CASH_FLOW_BY_MONTH] {
+        let info = dataset(id).unwrap();
+        for suit in info.suits {
             assert!(
                 ComponentType::ALL.iter().any(|kind| kind.suit() == *suit),
-                "{} {suit}",
-                dataset.id
+                "{id} {suit}"
             );
         }
     }
+    // A progress bar is not offered what it cannot show (D-370).
+    assert!(
+        !ComponentType::ProgressBar
+            .datasets()
+            .any(|info| info.id == ACCOUNT_BALANCES)
+    );
 }
 
 #[test]

@@ -21,7 +21,8 @@ Controls.Menu {
     // Rows with `id` and `name` of the usable saved views.
     property var savedList: []
 
-    signal kindChosen(string kind)
+    // `dataset` is empty for a kind that starts with its first dataset.
+    signal kindChosen(string kind, string dataset)
     signal savedChosen(string id)
 
     readonly property GridNames names: GridNames {}
@@ -31,7 +32,13 @@ Controls.Menu {
     }
 
     function kindRows(kinds: var): var {
-        return sorted(kinds.map(kind => ({ id: kind, name: names.typeName(kind), saved: false })));
+        return sorted(kinds.map(kind => ({ id: kind, kind: kind, dataset: "", name: names.typeName(kind), saved: false })));
+    }
+
+    // Kinds that start with a dataset of their own (M6c.2), by `kind` and
+    // `dataset`: they have a name that says what they show.
+    function dataRows(entries: var): var {
+        return sorted(entries.map(entry => ({ id: entry.kind + "/" + entry.dataset, kind: entry.kind, dataset: entry.dataset, name: names.dataName(entry.dataset, entry.kind), saved: false })));
     }
 
     // Each group: its name and its rows, sorted; empty groups are left out.
@@ -39,9 +46,11 @@ Controls.Menu {
         const ctx = names.i18nContext;
         const list = [
             { name: ctx.i18nc("@title:menu a group of widgets: charts", "Charts"),
-              rows: kindRows(["chart.bar", "chart.pie", "chart.donut", "chart.line", "chart.area", "chart.stacked_bar"]) },
+              rows: kindRows(["chart.bar", "chart.pie", "chart.donut", "chart.line", "chart.area", "chart.stacked_bar"])
+                  .concat(dataRows([{ kind: "chart.line", dataset: "net_worth_over_time" }, { kind: "chart.bar", dataset: "cash_flow_by_month" }])).sort((a, b) => a.name.localeCompare(b.name)) },
             { name: ctx.i18nc("@title:menu a group of widgets: single figures and tables", "Figures and tables"),
-              rows: kindRows(["kpi.card", "progress.bar", "table.rows", "table.income_sources", "card.net_worth"]) },
+              rows: kindRows(["kpi.card", "progress.bar", "table.rows", "table.income_sources", "card.net_worth"])
+                  .concat(dataRows([{ kind: "kpi.card", dataset: "account_balances" }, { kind: "table.rows", dataset: "account_balances" }, { kind: "table.rows", dataset: "cash_flow_by_month" }])).sort((a, b) => a.name.localeCompare(b.name)) },
             { name: ctx.i18nc("@title:menu a group of widgets: those that arrange the page", "Layout"),
               rows: kindRows(["text.heading", "text.separator", "group.period"]) },
             { name: ctx.i18nc("@title:menu a group of widgets: notes and warnings", "Notes"),
@@ -66,7 +75,7 @@ Controls.Menu {
                 delegate: Controls.MenuItem {
                     required property var modelData
                     text: modelData.name
-                    onTriggered: modelData.saved ? widgetMenu.savedChosen(modelData.id) : widgetMenu.kindChosen(modelData.id)
+                    onTriggered: modelData.saved ? widgetMenu.savedChosen(modelData.id) : widgetMenu.kindChosen(modelData.kind, modelData.dataset)
                 }
                 onObjectAdded: (index, object) => groupMenu.insertItem(index, object)
                 onObjectRemoved: (index, object) => groupMenu.removeItem(object)

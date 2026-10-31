@@ -16,12 +16,14 @@
 
 mod datasets;
 mod error;
+mod financial;
 mod model;
 mod provider;
 mod ticks;
 
 pub use datasets::{category_over_time, income_expense_by_month, spending_by_category};
 pub use error::ChartError;
+pub use financial::{BalancesBy, account_balances, cash_flow_by_month, net_worth_over_time};
 pub use model::{
     ChartKind, ChartModel, HiddenNote, MAX_SLICES, NAMED_FROM_TENTHS, PALETTE_SIZE, Point, Series,
     Slices, Tick,

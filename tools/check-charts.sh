@@ -107,6 +107,8 @@ expected = {
     "4-bar": [blue],
     "5-pie": [blue, orange],
     "6-donut": [blue, orange],
+    "11-line": [blue],
+    "12-bar": [blue, orange],
 }
 failed = False
 for name, colors in expected.items():
@@ -121,7 +123,7 @@ for name, colors in expected.items():
         print(f"{name}: {found} pixels of #{color[0]:02X}{color[1]:02X}{color[2]:02X}")
         # A line is thin, and an area's fill is see-through; bars and slices
         # are solid.
-        if found < (300 if name in ("0-line", "1-area") else 3000):
+        if found < (300 if name in ("0-line", "1-area", "11-line") else 3000):
             print("  too few: the chart was not drawn")
             failed = True
 sys.exit(1 if failed else 0)

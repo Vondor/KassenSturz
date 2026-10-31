@@ -108,7 +108,7 @@ ColumnLayout {
         } else if (want.shows === "card" && want.usesFormula === true) {
             formulaData.show(period, want.formula, false);
         } else if (want.shows === "card" || want.shows === "progress") {
-            cardData.show(period, want.compare);
+            cardData.showDataset(subject.dataset, period, want.compare);
         } else {
             chartData.showWith(subject.dataset, want.chart, period, want.grouping, want.chosen + ";" + want.only + ";" + want.columns, want.showHidden);
         }

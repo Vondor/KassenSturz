@@ -84,7 +84,12 @@ ColumnLayout {
         case "income":
             return i18nContext.i18nc("@label a series of a chart", "Money in");
         case "expenses":
+        case "money_out":
             return i18nContext.i18nc("@label a series of a chart", "Money out");
+        case "money_in":
+            return i18nContext.i18nc("@label a series of a chart", "Money in");
+        case "net_worth":
+            return i18nContext.i18nc("@label a series of a chart: what the user has less what they owe", "What you are worth");
         }
         return "";
     }
@@ -594,6 +599,10 @@ ColumnLayout {
         visible: !view.showTable
         text: view.chart.kind === "pie" || view.chart.kind === "donut" || view.chart.dataset === "spending_by_category"
             ? i18nContext.i18nc("@label %1 is an amount of money", "Total spent: %1", view.chart.total)
+            : view.chart.dataset === "net_worth_over_time"
+            ? i18nContext.i18nc("@label %1 is an amount of money", "What you are worth at the end: %1", view.chart.total)
+            : view.chart.dataset === "cash_flow_by_month"
+            ? i18nContext.i18nc("@label %1 is an amount of money, the money in less the money out of the accounts", "Net change in total: %1", view.chart.total)
             : i18nContext.i18nc("@label %1 is an amount of money", "Left over in total: %1", view.chart.total)
         textFormat: Text.PlainText
         font.bold: true

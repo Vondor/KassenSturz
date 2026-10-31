@@ -21,7 +21,12 @@ QtObject {
         case "net":
             return i18nContext.i18nc("@title:card a key figure", "What is left");
         case "net-worth":
+        case "net_worth":
             return i18nContext.i18nc("@title:card a key figure: what all accounts hold, less what is owed", "What you are worth");
+        case "assets":
+            return i18nContext.i18nc("@title:card a key figure: what the checking, savings and cash accounts hold together", "What you have");
+        case "liabilities":
+            return i18nContext.i18nc("@title:card a key figure: the debt on the credit cards", "What you owe");
         case "savings-rate":
             return i18nContext.i18nc("@title:card a key figure", "Share you kept");
         case "formula":

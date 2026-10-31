@@ -52,7 +52,7 @@ pub use balances::{
     NET_WORTH_OVER_TIME, NetWorthOverTime, Worth, WorthRow, account_balances, net_worth_over_time,
 };
 pub use cash_flow::{CASH_FLOW_BY_MONTH, CashFlowByMonth, CashFlowRow, cash_flow_by_month};
-pub use catalog::{CATALOG, DatasetInfo, FINANCIAL, GROUPS_GROUPING, dataset};
+pub use catalog::{CATALOG, DatasetInfo, GROUPS_GROUPING, dataset};
 pub use columns::{
     Column, MAX_COLUMNS, SharedCategory, columns_over_time, columns_span, columns_spending,
     shared as shared_categories, unknown as unknown_column_members,

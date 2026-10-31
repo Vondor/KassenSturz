@@ -15,7 +15,7 @@ use crate::{
     Slices,
 };
 
-fn point(money: Money, format: &impl TextFormat) -> Point {
+pub(crate) fn point(money: Money, format: &impl TextFormat) -> Point {
     Point {
         minor_units: money.minor_units(),
         label: format.amount(money),
@@ -25,12 +25,12 @@ fn point(money: Money, format: &impl TextFormat) -> Point {
 /// One major unit of the currency in minor units, the closest a mark on the
 /// value axis may come to the next one. The ISO table's decimal places; a
 /// book's own setting changes only how fine the marks are, not any amount.
-fn major_unit(currency: CurrencyCode) -> i64 {
+pub(crate) fn major_unit(currency: CurrencyCode) -> i64 {
     10_i64.pow(u32::from(currency.iso_minor_digits().unwrap_or(2)))
 }
 
 /// The lowest and the highest value the axis has to reach.
-fn extent(series: &[Series], stacked: bool) -> (i64, i64) {
+pub(crate) fn extent(series: &[Series], stacked: bool) -> (i64, i64) {
     let count = series.first().map_or(0, |series| series.points.len());
     let (mut low, mut high) = (0_i64, 0_i64);
     for index in 0..count {

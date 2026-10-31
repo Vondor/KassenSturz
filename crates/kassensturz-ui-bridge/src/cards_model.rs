@@ -46,6 +46,18 @@ pub mod qobject {
         #[qinvokable]
         fn show(self: Pin<&mut BookCards>, period: &QString, compare: &QString);
 
+        /// As `show`, for the figures of `dataset`: `income_expense_by_month`
+        /// or `account_balances` (what you have, owe and are worth at the end
+        /// of the period; `period` may also be `today`, M6c.2).
+        #[qinvokable]
+        #[cxx_name = "showDataset"]
+        fn show_dataset(
+            self: Pin<&mut BookCards>,
+            dataset: &QString,
+            period: &QString,
+            compare: &QString,
+        );
+
         /// Reads the open book again for the last request, e.g. after a
         /// screen changed the book or the number format changed.
         #[qinvokable]
@@ -61,8 +73,18 @@ pub struct BookCardsRust {
 }
 
 impl qobject::BookCards {
-    fn show(mut self: Pin<&mut Self>, period: &QString, compare: &QString) {
+    fn show(self: Pin<&mut Self>, period: &QString, compare: &QString) {
+        self.show_dataset(&QString::from(""), period, compare);
+    }
+
+    fn show_dataset(
+        mut self: Pin<&mut Self>,
+        dataset: &QString,
+        period: &QString,
+        compare: &QString,
+    ) {
         self.as_mut().rust_mut().request = Some(Request {
+            dataset: dataset.to_string(),
             period: period.to_string(),
             compare: compare.to_string(),
         });
@@ -94,6 +116,9 @@ fn card_object(card: &Card) -> QVariant {
         ("change", text(&card.change)),
         ("changePercent", text(&card.change_percent)),
         ("direction", text(card.direction.key())),
+        // What you are worth without its sign; empty for the other figures.
+        ("magnitude", text(&card.magnitude)),
+        ("exactMagnitude", text(&card.exact_magnitude)),
     ];
     // Only the savings rate has a bar, and only when it has a value.
     if let Some(permille) = card.permille {
@@ -126,6 +151,8 @@ mod tests {
         Transaction, TransactionId,
     };
     use kassensturz_store::Book;
+
+    use kassensturz_report::{Filter, Period, Source, account_balances};
 
     use super::*;
     use crate::register::tests::TestLocale;
@@ -188,6 +215,7 @@ mod tests {
 
     fn request(period: &str) -> Request {
         Request {
+            dataset: String::new(),
             period: period.into(),
             compare: "previous_period".into(),
         }
@@ -215,7 +243,9 @@ mod tests {
                 "changePercent",
                 "currency",
                 "direction",
+                "exactMagnitude",
                 "exactValue",
+                "magnitude",
                 "measure",
                 "negative",
                 "previous",
@@ -241,7 +271,9 @@ mod tests {
                 "changePercent",
                 "currency",
                 "direction",
+                "exactMagnitude",
                 "exactValue",
+                "magnitude",
                 "measure",
                 "negative",
                 "permille",
@@ -305,5 +337,144 @@ mod tests {
         bad.compare = "yesterday".into();
         let view = view_of(&book(true), &bad);
         assert_eq!(keys(&view), ["error"]);
+    }
+
+    /// The monthly sample plus a credit card: bought with in September,
+    /// paid from checking in October before `TestLocale`'s today.
+    fn book_with_card() -> Book {
+        let mut book = book(true);
+        let card = account(&mut book, "Credit card", AccountKind::Liability);
+        let named = |book: &Book, name: &str| {
+            book.all_accounts()
+                .expect("accounts")
+                .into_iter()
+                .find(|account| account.name == name)
+                .expect("account")
+                .id
+        };
+        let (checking, rent) = (named(&book, "Checking account"), named(&book, "Rent"));
+        let mut add = |day: Date, other: AccountId, amount: i64| {
+            let transaction = Transaction::new(
+                TransactionId::generate(),
+                day,
+                None,
+                vec![
+                    Split::new(other, Money::from_minor_units(amount, EUR)),
+                    Split::new(card, Money::from_minor_units(-amount, EUR)),
+                ],
+            )
+            .expect("balanced");
+            book.add_transaction(&transaction).expect("added");
+        };
+        // Bought for 200,00 with the card, then 150,00 paid from checking.
+        add(Date::new(2026, 9, 15).expect("a date"), rent, 20_000);
+        add(Date::new(2026, 10, 10).expect("a date"), checking, -15_000);
+        book
+    }
+
+    fn balances(period: &str) -> Request {
+        Request {
+            dataset: "account_balances".into(),
+            ..request(period)
+        }
+    }
+
+    #[test]
+    fn the_figures_of_the_balances_read_back_and_agree_with_the_dataset() {
+        let book = book_with_card();
+        let view = view_of(&book, &balances("last-month"));
+        assert_eq!(keys(&view), ["empty", "sets"]);
+        let sets = list_of(&view, "sets");
+        assert_eq!(sets.len(), 1);
+        let cards = list_of(&sets[0], "cards");
+        let measures: Vec<String> = cards.iter().map(|card| text_of(card, "measure")).collect();
+        assert_eq!(measures, ["net_worth", "assets", "liabilities"]);
+        // The same keys as every other card, so QML reads them alike.
+        assert_eq!(
+            keys(&cards[0]),
+            keys(
+                &list_of(
+                    &list_of(&view_of(&book, &request("last-month")), "sets")[0],
+                    "cards"
+                )[0]
+            )
+        );
+        // End of September against the end of August: checking holds
+        // 3346,80 (1700,00 before), the card owes 200,00 (nothing before).
+        assert_eq!(text_of(&cards[0], "value"), "3146,80 €");
+        assert_eq!(text_of(&cards[0], "previous"), "1700,00 €");
+        assert_eq!(text_of(&cards[0], "change"), "1446,80 €");
+        assert_eq!(text_of(&cards[0], "direction"), "up");
+        assert_eq!(text_of(&cards[1], "value"), "3346,80 €");
+        assert_eq!(text_of(&cards[2], "value"), "200,00 €");
+        assert_eq!(text_of(&cards[2], "previous"), "0,00 €");
+        assert_eq!(text_of(&cards[2], "direction"), "up");
+        // A positive worth has the same figure without a sign.
+        assert!(!flag_of(&cards[0], "negative"));
+        assert_eq!(text_of(&cards[0], "magnitude"), "3146,80 €");
+        assert_eq!(text_of(&cards[1], "magnitude"), "");
+        // The figures are the dataset's own (tests where steps meet).
+        let source = Source::read_with_balances(
+            &book,
+            Period::new(
+                Date::new(2026, 8, 1).expect("a date"),
+                Date::new(2026, 9, 30).expect("a date"),
+            )
+            .expect("a period"),
+        )
+        .expect("source");
+        let period = Period::new(
+            Date::new(2026, 9, 1).expect("a date"),
+            Date::new(2026, 9, 30).expect("a date"),
+        )
+        .expect("a period");
+        let data = account_balances(&source, period, &Filter::default(), None).expect("dataset");
+        assert_eq!(data.results[0].worth.net_worth.minor_units(), 314_680);
+    }
+
+    #[test]
+    fn today_is_the_balance_at_the_end_of_today_and_a_debt_has_a_figure_without_its_sign() {
+        let view = view_of(&book_with_card(), &balances("today"));
+        let cards = list_of(&list_of(&view, "sets")[0], "cards");
+        // 3346,80 less the 150,00 paid on 10 October; the card owes 50,00.
+        assert_eq!(text_of(&cards[1], "value"), "3196,80 €");
+        assert_eq!(text_of(&cards[2], "value"), "50,00 €");
+        assert_eq!(text_of(&cards[0], "value"), "3146,80 €");
+        // Nothing happened yesterday: the same as before.
+        assert_eq!(text_of(&cards[0], "direction"), "same");
+
+        // Only a debt: below zero, red, and "You owe" has the figure alone.
+        let mut debt = Book::create_in_memory().expect("book created");
+        debt.use_currency(EUR).expect("currency used");
+        let card = account(&mut debt, "Credit card", AccountKind::Liability);
+        let shop = account(&mut debt, "Groceries", AccountKind::Expense);
+        let transaction = Transaction::new(
+            TransactionId::generate(),
+            Date::new(2026, 9, 15).expect("a date"),
+            None,
+            vec![
+                Split::new(card, Money::from_minor_units(-50_000, EUR)),
+                Split::new(shop, Money::from_minor_units(50_000, EUR)),
+            ],
+        )
+        .expect("balanced");
+        debt.add_transaction(&transaction).expect("added");
+        let view = view_of(&debt, &balances("today"));
+        let cards = list_of(&list_of(&view, "sets")[0], "cards");
+        assert_eq!(text_of(&cards[0], "value"), "-500,00 €");
+        assert!(flag_of(&cards[0], "negative"));
+        assert_eq!(text_of(&cards[0], "magnitude"), "500,00 €");
+        assert_eq!(text_of(&cards[0], "exactMagnitude"), "500,00 €");
+        assert_eq!(text_of(&cards[1], "value"), "0,00 €");
+        assert_eq!(text_of(&cards[2], "value"), "500,00 €");
+    }
+
+    #[test]
+    fn a_dataset_the_cards_do_not_know_is_a_bad_request() {
+        let bad = Request {
+            dataset: "spending_by_category".into(),
+            ..request("last-month")
+        };
+        assert_eq!(keys(&view_of(&book(true), &bad)), ["error"]);
     }
 }

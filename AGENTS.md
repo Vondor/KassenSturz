@@ -20,6 +20,8 @@ Success looks like this: someone who has never heard the words "double-entry boo
 
 KMyMoney is the functional reference. We like it. We keep what makes it good and drop what makes it heavy.
 
+**The start screen is the product (D-342).** Opening the app shows a personalised overview with everything a person needs day to day; nobody has to dig through menus to see where they stand. Everything deeper is optional customisation for people who want to go further: sorting rules that set themselves up, more details on each transaction, AI help. These never stand between the user and the overview, and a new feature is judged by whether the app is still complete without it.
+
 ### What is our mission? (orientation for anyone writing code here)
 
 This is for agents and developers from outside. It is not about what the app does, but about how we build it and what we value.

@@ -142,19 +142,12 @@ Kirigami.ScrollablePage {
         savedLayouts = dashboard.savedLayouts();
     }
 
-    Controls.Menu {
-        id: savedMenu
+    AddMenu {
+        id: addMenu
 
-        Instantiator {
-            model: page.savedList
-            delegate: Controls.MenuItem {
-                required property var modelData
-                text: modelData.name
-                onTriggered: page.addSaved(modelData.id)
-            }
-            onObjectAdded: (index, object) => savedMenu.insertItem(index, object)
-            onObjectRemoved: (index, object) => savedMenu.removeItem(object)
-        }
+        savedList: page.savedList
+        onKindChosen: kind => grid.add(kind)
+        onSavedChosen: id => page.addSaved(id)
     }
 
     ComponentProperties {
@@ -224,33 +217,7 @@ Kirigami.ScrollablePage {
             visible: page.layoutEditing
             icon.name: "list-add"
             text: page.i18nContext.i18nc("@action:button add a chart, table or figure to the layout", "Add to the page")
-
-            LibraryAction { kind: "chart.donut"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "chart.bar"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "chart.line"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "chart.area"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "chart.stacked_bar"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "chart.pie"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "table.rows"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "kpi.card"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "progress.bar"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "text.heading"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "text.separator"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "notice.fetch_gap"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "notice.transfers"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "group.period"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "card.net_worth"; onChosen: kind => grid.add(kind) }
-            LibraryAction { kind: "table.income_sources"; onChosen: kind => grid.add(kind) }
-        },
-        Kirigami.Action {
-            visible: page.layoutEditing
-            icon.name: "bookmark-new"
-            text: page.i18nContext.i18nc("@action:button add a view saved in the Statistic Builder to the layout", "Add a saved view")
-            tooltip: page.savedList.length > 0
-                ? page.i18nContext.i18nc("@info:tooltip", "Adds a copy of a view you saved in the Statistic Builder")
-                : page.i18nContext.i18nc("@info:tooltip", "Nothing saved yet. Save a view in the Statistic Builder first.")
-            enabled: page.savedList.length > 0
-            onTriggered: savedMenu.popup()
+            onTriggered: addMenu.popup()
         },
         Kirigami.Action {
             visible: page.layoutEditing
@@ -466,10 +433,17 @@ Kirigami.ScrollablePage {
 
     // The properties of the selected component (the panel of M6a.6), with
     // the figures it shows now. A change is part of the session's undo.
-    Kirigami.OverlaySheet {
+    //
+    // A Kirigami.Dialog, not an OverlaySheet: the sheet of KF 6.x prints
+    // "binding loop" for its implicitHeight on every opening, whatever it
+    // holds (M6-B10).
+    Kirigami.Dialog {
         id: propertiesSheet
 
         title: page.i18nContext.i18nc("@title:window", "Properties")
+        padding: Kirigami.Units.largeSpacing
+        preferredWidth: Kirigami.Units.gridUnit * 32
+        standardButtons: Kirigami.Dialog.Close
         onClosed: page.editedId = ""
 
         ColumnLayout {
@@ -486,12 +460,22 @@ Kirigami.ScrollablePage {
                 }
             }
 
-            Loader {
+            // The preview area has a fixed height, so the dialog does not
+            // shrink when a choice leaves it with only a short message
+            // (M6-B12); what does not fit scrolls.
+            Controls.ScrollView {
                 Layout.fillWidth: true
-                active: propertiesSheet.opened && panelModel.view.preview !== undefined
-                sourceComponent: ComponentPreview {
-                    subject: panelModel.view
-                    period: grid.periodOf(panelModel.view.period?.word, grid.byId[page.editedId])
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 22
+                contentWidth: availableWidth
+                clip: true
+
+                Loader {
+                    width: parent.width
+                    active: propertiesSheet.opened && panelModel.view.preview !== undefined
+                    sourceComponent: ComponentPreview {
+                        subject: panelModel.view
+                        period: grid.periodOf(panelModel.view.period?.word, grid.byId[page.editedId])
+                    }
                 }
             }
         }

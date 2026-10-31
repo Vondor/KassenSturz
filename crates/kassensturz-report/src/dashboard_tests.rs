@@ -316,7 +316,7 @@ fn the_heading_is_in_the_library_and_not_among_what_the_ai_may_pick() {
     );
     assert_eq!(
         ComponentType::Heading.default_size(),
-        grid::Size { cols: 12, rows: 1 }
+        grid::Size { cols: 4, rows: 1 }
     );
 }
 

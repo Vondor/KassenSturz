@@ -30,6 +30,15 @@ Kirigami.ApplicationWindow {
         id: dashboard
     }
 
+    // The menu that adds a widget (D-337).
+    AddMenu {
+        id: addMenu
+
+        savedList: [{id: "b", name: "Zeta"}, {id: "a", name: "Alpha"}]
+        onKindChosen: kind => window.asked.push("add:" + kind)
+        onSavedChosen: id => window.asked.push("saved:" + id)
+    }
+
     pageStack.initialPage: Kirigami.Page {
         id: page
 
@@ -156,6 +165,32 @@ Kirigami.ApplicationWindow {
                 break;
             }
             default:
+                const groupNames = addMenu.groups.map(group => group.name);
+                window.check(groupNames.length === 5, "five groups with a saved view: " + groupNames);
+                window.check(groupNames.join() === groupNames.slice().sort((x, y) => x.localeCompare(y)).join(), "the groups are in alphabetical order: " + groupNames);
+                for (const group of addMenu.groups) {
+                    const rowNames = group.rows.map(row => row.name);
+                    window.check(rowNames.join() === rowNames.slice().sort((x, y) => x.localeCompare(y)).join(), "the rows of " + group.name + " are in alphabetical order: " + rowNames);
+                }
+                const saved = addMenu.groups.find(group => group.rows[0].saved);
+                window.check(saved && saved.rows.map(row => row.id).join() === "a,b", "the saved views are sorted by name");
+                const kinds = addMenu.groups.filter(group => !group.rows[0].saved).reduce((all, group) => all.concat(group.rows), []).length;
+                window.check(kinds === 16, "every kind of widget is in a group: " + kinds);
+                window.check(addMenu.count === 5, "one submenu for each group: " + addMenu.count);
+                // Choosing an item of a submenu reaches the menu's signals (M6-B9:
+                // `menu` inside a MenuItem is the MenuItem's own property).
+                const before = window.asked.length;
+                for (let g = 0; g < addMenu.count; ++g) {
+                    addMenu.menuAt(g).itemAt(0).triggered();
+                }
+                const added = window.asked.slice(before);
+                window.check(added.length === 5 && added.filter(entry => entry.startsWith("add:")).length === 4 && added.filter(entry => entry === "saved:a").length === 1, "choosing the first item of every submenu says so: " + added);
+                // The period box is one of them (M6-B12).
+                const layoutGroup = addMenu.groups.findIndex(group => group.rows.some(row => row.id === "group.period"));
+                const boxRow = addMenu.groups[layoutGroup].rows.findIndex(row => row.id === "group.period");
+                const beforeBox = window.asked.length;
+                addMenu.menuAt(layoutGroup).itemAt(boxRow).triggered();
+                window.check(window.asked.slice(beforeBox).join() === "add:group.period", "choosing the period box says so: " + window.asked.slice(beforeBox));
                 window.check(!grid.editing && grid.selectedId === "", "leaving edit mode selects nothing");
                 if (window.failed) {
                     console.log("FAIL: the grid smoke test");

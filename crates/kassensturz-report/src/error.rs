@@ -124,6 +124,12 @@ pub enum ReportError {
         /// Where.
         position: usize,
     },
+    /// The formula of a column of the Statistic Builder gives a percent or a
+    /// number, and a column's figure must be an amount (D-341).
+    ColumnFormulaNotAmount {
+        /// The column's name.
+        column: String,
+    },
     /// A formula is over one of its limits (D-292).
     FormulaTooBig {
         /// Which limit, by a fixed word.
@@ -226,6 +232,10 @@ impl Report for ReportError {
                 .with("position", ErrorParam::count(*position)),
             Self::FormulaTooLarge { position } => ErrorReport::new("report.formula-too-large")
                 .with("position", ErrorParam::count(*position)),
+            Self::ColumnFormulaNotAmount { column } => {
+                ErrorReport::new("report.column-formula-not-amount")
+                    .with("column", ErrorParam::Text(column.clone()))
+            }
             Self::FormulaTooBig { limit } => {
                 ErrorReport::new("report.formula-too-big").with("limit", ErrorParam::Keyword(limit))
             }
@@ -306,6 +316,9 @@ mod tests {
             },
             ReportError::FormulaNoValue { position: 6 },
             ReportError::FormulaTooLarge { position: 1 },
+            ReportError::ColumnFormulaNotAmount {
+                column: "Share".into(),
+            },
             ReportError::FormulaTooBig { limit: "depth" },
             ReportError::FormulaTarget { reason: "zero" },
             ReportError::Store(StoreError::AmountOverflow),

@@ -62,9 +62,8 @@ impl ComponentType {
         match self {
             Self::KpiCard => Size { cols: 3, rows: 2 },
             Self::ProgressBar => Size { cols: 6, rows: 1 },
-            Self::Heading | Self::Separator | Self::FetchNotice | Self::TransfersNote => {
-                Size { cols: 12, rows: 1 }
-            }
+            Self::Heading => Size { cols: 4, rows: 1 },
+            Self::Separator | Self::FetchNotice | Self::TransfersNote => Size { cols: 12, rows: 1 },
             Self::PeriodBox => Size { cols: 12, rows: 5 },
             Self::NetWorth => Size { cols: 6, rows: 2 },
             Self::IncomeSources => Size { cols: 6, rows: 4 },

@@ -456,8 +456,11 @@ ColumnLayout {
                 spacing: Kirigami.Units.smallSpacing
 
                 Controls.Label {
-                    Layout.preferredWidth: barRow.width * 0.4
-                    Layout.maximumWidth: barRow.width * 0.4
+                    // One fixed width, so the wrapped name settles its height at
+                    // once and the row does not rearrange again (M6-B17).
+                    Layout.preferredWidth: view.width * 0.4
+                    Layout.minimumWidth: view.width * 0.4
+                    Layout.maximumWidth: view.width * 0.4
                     text: view.categoryName(barRow.index)
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap

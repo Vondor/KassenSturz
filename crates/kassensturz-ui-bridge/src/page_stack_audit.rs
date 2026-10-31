@@ -211,4 +211,29 @@ mod tests {
             "only showChangeReview may push the review page"
         );
     }
+
+    /// Kirigami's `OverlaySheet` prints "Binding loop detected for property
+    /// implicitHeight" on every opening, even around a single rectangle (KF
+    /// 6.x, M6-B10), so a screen that needs a floating panel uses a
+    /// `Kirigami.Dialog`.
+    #[test]
+    fn no_screen_uses_the_overlay_sheet() {
+        for entry in
+            fs::read_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("qml")).expect("the qml folder")
+        {
+            let path = entry.expect("a file").path();
+            if path.extension().is_none_or(|e| e != "qml") {
+                continue;
+            }
+            let source = fs::read_to_string(&path).expect("a readable file");
+            assert!(
+                !source.lines().any(|line| {
+                    let line = line.trim_start();
+                    !line.starts_with("//") && line.contains("OverlaySheet {")
+                }),
+                "{}: use Kirigami.Dialog, not OverlaySheet (M6-B10)",
+                path.display()
+            );
+        }
+    }
 }

@@ -24,6 +24,25 @@ pub const DETAILS: &[&str] = &[
     "open_page",
     // A call of a function that isn't offered.
     "unknown",
+    // The kinds of widget the Overview editor adds (M6-B12), with the dot
+    // of the type id written as an underscore; a saved view is one more.
+    "chart_bar",
+    "chart_pie",
+    "chart_donut",
+    "chart_line",
+    "chart_area",
+    "chart_stacked_bar",
+    "kpi_card",
+    "progress_bar",
+    "table_rows",
+    "table_income_sources",
+    "card_net_worth",
+    "text_heading",
+    "text_separator",
+    "group_period",
+    "notice_fetch_gap",
+    "notice_transfers",
+    "saved_view",
     // The screens, by the names of their QML files.
     "AccountDetailsPage",
     "AccountsPage",

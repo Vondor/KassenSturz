@@ -25,6 +25,10 @@ ColumnLayout {
 
     readonly property var asked: subject?.preview ?? ({})
     readonly property var charts: chartData.view?.charts ?? []
+    // The categories that more than one column counts (D-339).
+    readonly property var shared: chartData.view?.shared ?? []
+    // What each column adds up to, for the cards of the board (D-341).
+    readonly property var totals: chartData.view?.totals ?? []
     readonly property var cardSets: cardData.view?.sets ?? []
     // A card or a progress bar that shows the result of a formula instead of a
     // key figure (M6b.7).
@@ -99,7 +103,7 @@ ColumnLayout {
         } else if (want.shows === "card" || want.shows === "progress") {
             cardData.show(period, want.compare);
         } else {
-            chartData.showWith(subject.dataset, want.chart, period, want.grouping, want.chosen + ";" + want.only, want.showHidden);
+            chartData.showWith(subject.dataset, want.chart, period, want.grouping, want.chosen + ";" + want.only + ";" + want.columns, want.showHidden);
         }
     }
 
@@ -119,6 +123,15 @@ ColumnLayout {
         visible: preview.failed
         type: Kirigami.MessageType.Warning
         text: preview.i18nContext.i18nc("@info", "This couldn't be shown right now. Try another period, or open the page again.")
+    }
+
+    // A category that is in more than one column counts in each of them
+    // (D-339): said plainly, never refused.
+    Kirigami.InlineMessage {
+        Layout.fillWidth: true
+        visible: preview.shared.length > 0
+        type: Kirigami.MessageType.Information
+        text: preview.shared.length === 0 ? "" : preview.i18nContext.i18nc("@info %1 is the name of a category, %2 the names of the columns it is in", "“%1” is in more than one column (%2), so it is counted in each of them. Added together, the columns count it twice.", preview.shared[0].category, preview.shared[0].columns.join(", "))
     }
 
     Kirigami.PlaceholderMessage {

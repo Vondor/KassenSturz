@@ -57,6 +57,18 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "screenShown"]
         fn screen_shown(self: &DeveloperMode, name: &QString);
+
+        /// The user asked for a screen and the app starts making it:
+        /// logged in the developer mode, to time how long screens take.
+        #[qinvokable]
+        #[cxx_name = "screenRequested"]
+        fn screen_requested(self: &DeveloperMode);
+
+        /// The screen QML names has its content and was drawn: logged in
+        /// the developer mode. A name outside the fixed list is not logged.
+        #[qinvokable]
+        #[cxx_name = "screenReady"]
+        fn screen_ready(self: &DeveloperMode, name: &QString);
     }
 
     impl cxx_qt::Initialize for DeveloperMode {}
@@ -95,6 +107,19 @@ impl qobject::DeveloperMode {
         set_current_screen(screen);
         if screen.is_some() {
             crate::note!(ScreenShown, screen, None);
+        }
+    }
+}
+
+impl qobject::DeveloperMode {
+    fn screen_requested(&self) {
+        crate::note!(ScreenRequested);
+    }
+
+    fn screen_ready(&self, name: &QString) {
+        let screen = kassensturz_core::vocabulary::screen(&name.to_string());
+        if screen.is_some() {
+            crate::note!(ScreenReady, screen, None);
         }
     }
 }

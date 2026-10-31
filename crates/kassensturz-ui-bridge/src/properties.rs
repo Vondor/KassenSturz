@@ -11,7 +11,9 @@
 //! the help of a field up by its key, and the name of a word by the word
 //! (D-034). Titles are the user's own text and go back to QML as text.
 
-use kassensturz_report::{Component, ComponentType, FORMULA_MEASURE, Kind, NumberForm, Setting};
+use kassensturz_report::{
+    ColumnSetting, Component, ComponentType, FORMULA_MEASURE, Kind, NumberForm, Setting,
+};
 
 use crate::formulas::users_form;
 
@@ -52,6 +54,11 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
             if property.key == "show_hidden"
                 && component.dataset().id != kassensturz_report::SPENDING_BY_CATEGORY
             {
+                return None;
+            }
+            // The columns have a board of their own, not a field (D-340);
+            // the view carries them as `columns`.
+            if property.key == "columns" {
                 return None;
             }
             // The period of a component is offered by the grid editor's
@@ -95,7 +102,7 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                 Kind::Flag { .. } => "flag",
                 Kind::Choice(_) | Kind::Grouping if words.len() > 1 => "choice",
                 Kind::Ids => "ids",
-                Kind::Choice(_) | Kind::Grouping => return None,
+                Kind::Columns | Kind::Choice(_) | Kind::Grouping => return None,
             };
             let (mut text, mut flag, mut word) = (String::new(), false, String::new());
             let mut chosen = Vec::new();
@@ -107,6 +114,7 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                 Setting::Flag(value) => flag = *value,
                 Setting::Word(value) => word.clone_from(value),
                 Setting::Ids(ids) => chosen.clone_from(ids),
+                Setting::Columns(_) => {}
             }
             Some(Field {
                 key: property.key,
@@ -165,6 +173,10 @@ pub struct Preview {
     pub only: String,
     /// Whether the hidden categories are shown anyway.
     pub show_hidden: bool,
+    /// The columns of a chart or table as the document writes them (a JSON
+    /// list of `{"name", "members"}`), for `BookCharts.showWith`; empty for
+    /// none (D-339).
+    pub columns: String,
     /// The `compare` for `BookCards.show`.
     pub compare: String,
     /// The card to pick from the cards: `income`, `expenses`, `net` or
@@ -178,6 +190,63 @@ pub struct Preview {
     /// What a full progress bar stands for, a formula in the form the book
     /// stores; empty for none.
     pub target: String,
+}
+
+/// The columns of a chart or table as the document writes them: a JSON list
+/// of `{"name": ..., "members": [...], "formula": "..."}`. `None` for a component that has no
+/// columns property (D-339). `show` writes a column's formula for whoever
+/// reads the text: in the user's number format for the screen, as stored for
+/// the charts (D-341).
+pub fn columns_json(component: &Component, show: &dyn Fn(&str) -> String) -> Option<String> {
+    match component.get("columns") {
+        Some(Setting::Columns(columns)) => Some(
+            serde_json::Value::Array(
+                columns
+                    .iter()
+                    .map(|column| {
+                        serde_json::json!({
+                            "name": column.name,
+                            "members": column.members,
+                            "formula": show(&column.formula),
+                        })
+                    })
+                    .collect(),
+            )
+            .to_string(),
+        ),
+        _ => None,
+    }
+}
+
+/// The columns a JSON list of `{"name", "members", "formula"}` says, or `None` when
+/// the text is no such list.
+pub fn read_columns(
+    json: &str,
+    keep: &dyn Fn(&str) -> Option<String>,
+) -> Option<Vec<ColumnSetting>> {
+    let value: serde_json::Value = serde_json::from_str(json).ok()?;
+    value
+        .as_array()?
+        .iter()
+        .map(|entry| {
+            Some(ColumnSetting {
+                name: entry.get("name")?.as_str()?.to_owned(),
+                members: entry
+                    .get("members")?
+                    .as_array()?
+                    .iter()
+                    .map(|id| id.as_str().map(str::to_owned))
+                    .collect::<Option<Vec<_>>>()?,
+                // Optional: a column with members has none (D-341). `keep`
+                // gives the form the book stores, or `None` when the text is
+                // no formula, which refuses the whole list.
+                formula: match entry.get("formula").map(|formula| formula.as_str()) {
+                    None => String::new(),
+                    Some(formula) => keep(formula?)?,
+                },
+            })
+        })
+        .collect()
 }
 
 /// The text of a formula property in the form the book stores, empty when
@@ -264,6 +333,9 @@ pub fn preview(component: &Component) -> Preview {
         ),
         only: ids(component, "categories"),
         show_hidden: matches!(component.get("show_hidden"), Some(Setting::Flag(true))),
+        columns: columns_json(component, &str::to_owned)
+            .filter(|json| json != "[]")
+            .unwrap_or_default(),
         compare: if compare.is_empty() {
             "previous_period".to_owned()
         } else {

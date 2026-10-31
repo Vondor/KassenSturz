@@ -153,7 +153,14 @@ async fn propose(
     Book::open_to_read(book)
         .map_err(ToolError::from)
         .and_then(|book| {
-            book.reading(|book| kassensturz_ai_tools::propose(book, arguments, permissions))
+            book.reading(|book| {
+                kassensturz_ai_tools::propose_on(
+                    book,
+                    arguments,
+                    permissions,
+                    crate::server::today(),
+                )
+            })
         })
         .map_err(Failure::Tool)?;
     let id = folder

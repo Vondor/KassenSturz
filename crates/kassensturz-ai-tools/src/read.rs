@@ -157,7 +157,12 @@ pub(crate) fn list_accounts(
 }
 
 /// Notes in `result` how many of `found` rows were left out above `limit`.
-fn left_out(result: &mut Map<String, Value>, w: &mut Writer<'_>, found: usize, limit: usize) {
+pub(crate) fn left_out(
+    result: &mut Map<String, Value>,
+    w: &mut Writer<'_>,
+    found: usize,
+    limit: usize,
+) {
     if found > limit {
         result.insert("left_out".into(), w.count(found - limit));
     }
@@ -804,6 +809,106 @@ fn condition_row(
         Condition::Currency(currency) => json!({ "currency": currency.as_str() }),
         Condition::Account(id) => json!({ "account": w.text(&names.name(*id)?) }),
     })
+}
+
+/// The most budgets `list_budgets` lists.
+pub(crate) const MAX_BUDGETS: usize = 100;
+
+/// `list_budgets`: the budgets that run on `today` or start later, each
+/// with its category, how often it repeats, what it plans for its current
+/// (or first) period and whether it carries over (D-358, D-396). With
+/// `spending`, which needs the reading of Transactions as well, the
+/// current period's spent and left come with it, as `budget_utilization`
+/// counts them. Ended budgets are left out: they can't be changed.
+pub(crate) fn list_budgets(
+    book: &Book,
+    w: &mut Writer<'_>,
+    today: Date,
+    spending: bool,
+) -> Result<Value, ToolError> {
+    use kassensturz_report::{BudgetGrouping, Filter, Period, budget_utilization};
+
+    let paths: HashMap<AccountId, Vec<String>> = book
+        .categories()?
+        .into_iter()
+        .map(|entry| (entry.category.id, entry.path))
+        .collect();
+    let budgets: Vec<_> = book
+        .budgets()?
+        .into_iter()
+        .filter(|budget| budget.last_day.is_none_or(|last| last >= today))
+        .collect();
+    let figures = if spending && !budgets.is_empty() {
+        let period = Period::new(today, today).map_err(|_| ToolError::BadPeriod)?;
+        let source = kassensturz_report::Source::read_with_budgets(book, period, today)
+            .map_err(read_error)?;
+        budget_utilization(
+            &source,
+            period,
+            today,
+            BudgetGrouping::Budget,
+            &Filter::default(),
+        )
+        .map_err(read_error)?
+        .into_iter()
+        .filter_map(|row| row.periods.first().map(|shown| (row.budget, *shown)))
+        .collect()
+    } else {
+        HashMap::new()
+    };
+    let mut rows = Vec::new();
+    for budget in budgets.iter().take(MAX_BUDGETS) {
+        let mut row = Map::new();
+        row.insert("budget_id".into(), Value::String(budget.id.to_string()));
+        row.insert(
+            "category_id".into(),
+            Value::String(budget.category.to_string()),
+        );
+        let path = paths
+            .get(&budget.category)
+            .map(|path| path.join(" › "))
+            .unwrap_or_default();
+        row.insert("category".into(), w.text(&path));
+        row.insert(
+            "every".into(),
+            Value::from(crate::changes::every_word(budget.every)),
+        );
+        let day = today.max(budget.first_day);
+        if budget.first_day > today {
+            row.insert("starts".into(), Value::String(budget.first_day.to_string()));
+        }
+        if let Some(last) = budget.last_day {
+            row.insert("ends".into(), Value::String(last.to_string()));
+        }
+        if let Some((first, _)) = budget.period_containing(day)
+            && let Some(amount) = budget.amount_for(first)
+        {
+            row.insert("amount".into(), w.amount(amount.amount)?);
+            row.insert("carry_over".into(), Value::Bool(amount.carry_over));
+        }
+        if let Some(shown) = figures.get(&budget.id) {
+            let mut current = Map::new();
+            current.insert("from".into(), Value::String(shown.first_day.to_string()));
+            current.insert("to".into(), Value::String(shown.last_day.to_string()));
+            current.insert("available".into(), w.amount(shown.available)?);
+            current.insert("spent".into(), w.amount(shown.spent)?);
+            current.insert("left".into(), w.amount(shown.left)?);
+            row.insert("current_period".into(), Value::Object(current));
+        }
+        rows.push(Value::Object(row));
+    }
+    let mut result = Map::new();
+    result.insert("budgets".into(), Value::Array(rows));
+    left_out(&mut result, w, budgets.len(), MAX_BUDGETS);
+    Ok(Value::Object(result))
+}
+
+/// A report error of `list_budgets`: the book's own as it is.
+fn read_error(error: kassensturz_report::ReportError) -> ToolError {
+    match error {
+        kassensturz_report::ReportError::Store(error) => ToolError::Store(error),
+        _ => ToolError::BadPeriod,
+    }
 }
 
 #[cfg(test)]

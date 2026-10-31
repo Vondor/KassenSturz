@@ -95,6 +95,8 @@ The AI may prepare budgets, for example amounts based on past spending; the user
 - **What the model sees:** the category ids and names only as `list_categories` gives them under Categories › Read; the budgets only under Budgets › Read; never the book's other figures. Budget amounts it reads count as book figures in the number check (D-188).
 - **Checks:** the same store checks as a hand-made budget (spending category, no overlap, amount above zero), plus at most 50 budgets in one set; an edit of a budget changes from the current period on only, so the AI can't rewrite the past.
 
+**As built in M6c.11 (D-394 to D-396):** the AI offers `month`, `quarter` and `year` budgets only (no budget for some days) that start with the current period; `based_on` words are `last_period`, `average_3_periods`, `average_6_periods`, `average_12_periods`, with `round_to` 1, 5, 10, 50 or 100; the amount is the total spent in those full periods divided by their number, rounded up to the step, refused when the book doesn't reach back to the first period or nothing was spent. Budgets › Add also switches Read on. `list_budgets` needs Budgets › Read and Categories › Read, and shows the current period's figures only with Transactions › Read. On the review page a budget card (`AiBudgetChange`) says how the amount came about; a budget can be left out, not edited, until a later step adds the form.
+
 ## 2. Financial datasets (D-348, D-349; built in M6c.1)
 
 New datasets in `kassensturz-report`, each a pure function of a `Source`, a `Period` and a `Filter`, with a plain-word catalog description that says what it counts and leaves out.

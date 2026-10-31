@@ -36,6 +36,7 @@ fn main() {
                 "qml/AccountTypes.qml",
                 "qml/AccountsPage.qml",
                 "qml/AiChangeCorrection.qml",
+                "qml/AiBudgetChange.qml",
                 "qml/AiChangeReviewPage.qml",
                 "qml/AiChatLogLine.qml",
                 "qml/AiChatMessage.qml",

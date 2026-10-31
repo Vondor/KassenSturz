@@ -64,6 +64,8 @@ Kirigami.ScrollablePage {
     readonly property var deletedCategories: kept.filter(change => change.kind === "deleteCategory")
     readonly property var newAccounts: kept.filter(change => change.kind === "newAccount")
     readonly property var newViews: kept.filter(change => change.kind === "newView")
+    readonly property var newBudgets: kept.filter(change => change.kind === "newBudget")
+    readonly property var editedBudgets: kept.filter(change => change.kind === "editBudget")
     readonly property var editedAccounts: kept.filter(change => change.kind === "editAccount")
     readonly property bool shows: changes.code === undefined && !done
 
@@ -196,6 +198,9 @@ Kirigami.ScrollablePage {
             return change.before;
         case "newView":
             return change.title;
+        case "newBudget":
+        case "editBudget":
+            return change.category;
         }
         return i18nContext.i18nc("@info %1 is a date, %2 who was paid or paid, %3 an amount", "%1 · %2 · %3", change.date, change.payee, change.amount);
     }
@@ -228,6 +233,10 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@info a kind of prepared change", "New account");
         case "editAccount":
             return i18nContext.i18nc("@info a kind of prepared change", "Changed account");
+        case "newBudget":
+            return i18nContext.i18nc("@info a kind of prepared change", "New budget");
+        case "editBudget":
+            return i18nContext.i18nc("@info a kind of prepared change", "Changed budget");
         }
         return i18nContext.i18nc("@info a kind of prepared change", "New chart");
     }
@@ -1160,6 +1169,48 @@ Kirigami.ScrollablePage {
                         review: page
                     }
                 }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.newBudgets.length > 0
+            text: page.i18nContext.i18nc("@title:group", "New budgets")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.newBudgets : []
+
+            AiBudgetChange {
+                required property var modelData
+
+                Layout.fillWidth: true
+                ai: page.ai
+                change: modelData
+                choices: page.choices
+                review: page
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.editedBudgets.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Budgets that change")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.editedBudgets : []
+
+            AiBudgetChange {
+                required property var modelData
+
+                Layout.fillWidth: true
+                ai: page.ai
+                change: modelData
+                choices: page.choices
+                review: page
             }
         }
 

@@ -407,6 +407,7 @@ fn column(name: &str, members: &[&str]) -> ColumnSetting {
     ColumnSetting {
         name: name.to_owned(),
         members: members.iter().map(|id| (*id).to_owned()).collect(),
+        formula: String::new(),
     }
 }
 
@@ -465,5 +466,46 @@ fn columns_round_trip_through_a_document_and_are_checked() {
     assert_eq!(
         reason(Component::from_value(&bad).unwrap_err()),
         ("wrong-type", "params.columns".into())
+    );
+}
+
+#[test]
+fn a_column_may_be_a_formula_instead_of_members() {
+    let mut pie = Component::new(ComponentType::ChartPie, "spending_by_category").unwrap();
+    let share = ColumnSetting {
+        name: "Left over".to_owned(),
+        members: Vec::new(),
+        formula: "Pay - Food".to_owned(),
+    };
+    pie.set(
+        "columns",
+        Setting::Columns(vec![column("Food", &["0197-aaa"]), share.clone()]),
+    )
+    .unwrap();
+    let value = pie.to_value();
+    assert_eq!(
+        value["params"]["columns"],
+        json!([
+            {"name": "Food", "members": ["0197-aaa"]},
+            {"name": "Left over", "members": [], "formula": "Pay - Food"},
+        ])
+    );
+    assert_eq!(Component::from_value(&value).unwrap(), pie);
+    // Members and a formula together are refused, and so is a formula with
+    // a control character.
+    let mut both = share.clone();
+    both.members = vec!["0197-aaa".to_owned()];
+    assert_eq!(
+        reason(
+            pie.set("columns", Setting::Columns(vec![both]))
+                .unwrap_err()
+        ),
+        ("wrong-type", "params.columns".into())
+    );
+    let mut odd = share;
+    odd.formula = "Pay\n- Food".to_owned();
+    assert_eq!(
+        reason(pie.set("columns", Setting::Columns(vec![odd])).unwrap_err()),
+        ("bad-text", "params.columns".into())
     );
 }

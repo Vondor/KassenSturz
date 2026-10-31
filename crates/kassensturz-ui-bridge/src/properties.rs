@@ -193,16 +193,22 @@ pub struct Preview {
 }
 
 /// The columns of a chart or table as the document writes them: a JSON list
-/// of `{"name": ..., "members": [...]}`. `None` for a component that has no
-/// columns property (D-339).
-pub fn columns_json(component: &Component) -> Option<String> {
+/// of `{"name": ..., "members": [...], "formula": "..."}`. `None` for a component that has no
+/// columns property (D-339). `show` writes a column's formula for whoever
+/// reads the text: in the user's number format for the screen, as stored for
+/// the charts (D-341).
+pub fn columns_json(component: &Component, show: &dyn Fn(&str) -> String) -> Option<String> {
     match component.get("columns") {
         Some(Setting::Columns(columns)) => Some(
             serde_json::Value::Array(
                 columns
                     .iter()
                     .map(|column| {
-                        serde_json::json!({"name": column.name, "members": column.members})
+                        serde_json::json!({
+                            "name": column.name,
+                            "members": column.members,
+                            "formula": show(&column.formula),
+                        })
                     })
                     .collect(),
             )
@@ -212,9 +218,12 @@ pub fn columns_json(component: &Component) -> Option<String> {
     }
 }
 
-/// The columns a JSON list of `{"name", "members"}` says, or `None` when
+/// The columns a JSON list of `{"name", "members", "formula"}` says, or `None` when
 /// the text is no such list.
-pub fn read_columns(json: &str) -> Option<Vec<ColumnSetting>> {
+pub fn read_columns(
+    json: &str,
+    keep: &dyn Fn(&str) -> Option<String>,
+) -> Option<Vec<ColumnSetting>> {
     let value: serde_json::Value = serde_json::from_str(json).ok()?;
     value
         .as_array()?
@@ -228,6 +237,13 @@ pub fn read_columns(json: &str) -> Option<Vec<ColumnSetting>> {
                     .iter()
                     .map(|id| id.as_str().map(str::to_owned))
                     .collect::<Option<Vec<_>>>()?,
+                // Optional: a column with members has none (D-341). `keep`
+                // gives the form the book stores, or `None` when the text is
+                // no formula, which refuses the whole list.
+                formula: match entry.get("formula").map(|formula| formula.as_str()) {
+                    None => String::new(),
+                    Some(formula) => keep(formula?)?,
+                },
             })
         })
         .collect()
@@ -317,7 +333,7 @@ pub fn preview(component: &Component) -> Preview {
         ),
         only: ids(component, "categories"),
         show_hidden: matches!(component.get("show_hidden"), Some(Setting::Flag(true))),
-        columns: columns_json(component)
+        columns: columns_json(component, &str::to_owned)
             .filter(|json| json != "[]")
             .unwrap_or_default(),
         compare: if compare.is_empty() {

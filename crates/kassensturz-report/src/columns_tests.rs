@@ -15,6 +15,7 @@ fn column(name: &str, members: &[GroupMember]) -> Column {
     Column {
         name: name.to_owned(),
         members: members.to_vec(),
+        formula: None,
     }
 }
 
@@ -34,7 +35,7 @@ fn a_column_adds_up_its_categories_with_everything_inside() {
         column("Eating", &[GroupMember::Category(sample.food)]),
     ];
     let results =
-        columns_over_time(&source, autumn(), &Filter::default(), &columns).expect("columns");
+        columns_over_time(&source, autumn(), &Filter::default(), &columns, EUR).expect("columns");
     let [euros] = results.as_slice() else {
         panic!("only euros have money in these columns: {results:?}");
     };
@@ -75,7 +76,7 @@ fn a_column_can_hold_a_group_and_a_category_each_counted_once() {
         ],
     )];
     let results =
-        columns_over_time(&source, autumn(), &Filter::default(), &columns).expect("columns");
+        columns_over_time(&source, autumn(), &Filter::default(), &columns, EUR).expect("columns");
     let [euros, dollars] = results.as_slice() else {
         panic!("{results:?}");
     };
@@ -95,7 +96,7 @@ fn columns_that_share_a_category_count_it_in_each_and_say_so() {
     ];
     // Groceries (7,820) sits in both food columns; no error, no refusal.
     let results =
-        columns_over_time(&source, autumn(), &Filter::default(), &columns).expect("columns");
+        columns_over_time(&source, autumn(), &Filter::default(), &columns, EUR).expect("columns");
     assert_eq!(totals(&results[0]), [7_820, 8_820, 240_000]);
     assert_eq!(
         shared_categories(&source, &columns),
@@ -106,7 +107,7 @@ fn columns_that_share_a_category_count_it_in_each_and_say_so() {
     );
     // The rows of a pie add up to more than was spent, the total does not.
     let spending =
-        columns_spending(&source, autumn(), &Filter::default(), &columns).expect("spending");
+        columns_spending(&source, autumn(), &Filter::default(), &columns, EUR).expect("spending");
     let euros = &spending[0];
     let rows: Vec<(String, i64)> = euros
         .rows
@@ -138,7 +139,7 @@ fn a_column_never_changes_the_book_and_unknown_members_are_counted() {
     ];
     assert_eq!(unknown_column_members(&source, &columns), 1);
     let results =
-        columns_over_time(&source, autumn(), &Filter::default(), &columns).expect("columns");
+        columns_over_time(&source, autumn(), &Filter::default(), &columns, EUR).expect("columns");
     assert_eq!(totals(&results[0]), [240_000, 0]);
     // The spending dataset of the same book is as before.
     let plain =
@@ -146,6 +147,77 @@ fn a_column_never_changes_the_book_and_unknown_members_are_counted() {
     assert_eq!(plain[0].total.minor_units(), 250_070);
     // A column with no money is no row.
     let spending =
-        columns_spending(&source, autumn(), &Filter::default(), &columns).expect("spending");
+        columns_spending(&source, autumn(), &Filter::default(), &columns, EUR).expect("spending");
     assert_eq!(spending[0].rows.len(), 1);
+}
+
+fn formula_column(name: &str, formula: &str) -> Column {
+    Column {
+        name: name.to_owned(),
+        members: Vec::new(),
+        formula: Some(formula.to_owned()),
+    }
+}
+
+#[test]
+fn a_column_can_be_a_formula_that_names_the_other_columns() {
+    let sample = sample();
+    let source = Source::read(&sample.book, autumn()).expect("read");
+    let columns = [
+        column("Home", &[GroupMember::Category(sample.rent)]),
+        column("Eating", &[GroupMember::Category(sample.food)]),
+        formula_column("Both", "Home + Eating"),
+        formula_column("Twice the rent", "2 * Home"),
+    ];
+    let results =
+        columns_over_time(&source, autumn(), &Filter::default(), &columns, EUR).expect("columns");
+    let [euros] = results.as_slice() else {
+        panic!("only euros: {results:?}");
+    };
+    assert_eq!(totals(euros), [240_000, 8_820, 248_820, 480_000]);
+    // Month by month the formula is worked out for that month alone, so an
+    // additive one adds up to its whole figure.
+    assert_eq!(euros.rows.len(), 3);
+    for index in 0..4 {
+        let months: i64 = euros
+            .rows
+            .iter()
+            .map(|row| row.totals[index].minor_units())
+            .sum();
+        assert_eq!(months, euros.totals[index].minor_units(), "series {index}");
+    }
+    // As the rows of a pie the formula column is a row like the others, and
+    // the total counts each part once, the formulas adding nothing.
+    let spending =
+        columns_spending(&source, autumn(), &Filter::default(), &columns, EUR).expect("spending");
+    assert_eq!(spending[0].total.minor_units(), 248_820);
+    assert_eq!(spending[0].rows.len(), 4);
+    assert_eq!(spending[0].rows[0].path, ["Twice the rent"]);
+}
+
+#[test]
+fn a_formula_column_must_give_an_amount_and_may_only_name_columns_with_members() {
+    let sample = sample();
+    let source = Source::read(&sample.book, autumn()).expect("read");
+    let home = column("Home", &[GroupMember::Category(sample.rent)]);
+    let ratio = [
+        home.clone(),
+        formula_column("Share", "PERCENT_OF(Home; Home)"),
+    ];
+    let answer = columns_over_time(&source, autumn(), &Filter::default(), &ratio, EUR);
+    assert!(matches!(
+        answer,
+        Err(ReportError::ColumnFormulaNotAmount { column }) if column == "Share"
+    ));
+    // Another formula column has no figure to name, and a column cannot name
+    // itself.
+    let loops = [
+        home,
+        formula_column("A", "B + 1"),
+        formula_column("B", "A + 1"),
+    ];
+    assert!(matches!(
+        columns_over_time(&source, autumn(), &Filter::default(), &loops, EUR),
+        Err(ReportError::FormulaUnknownName { .. })
+    ));
 }

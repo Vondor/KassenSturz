@@ -206,6 +206,19 @@ Kirigami.ApplicationWindow {
                     const board = find(wizard, "ColumnBoard", [])[0];
                     board.totals = [{column: "Fast food", amounts: ["12,00 €", "3,00 $"]}];
                     window.check(board.totalOf("Fast food") === "12,00 € + 3,00 $" && board.totalOf("Home") === "", "a card shows what its column adds up to, and nothing for a column with no figure");
+                    // A column worked out by a formula (D-341): only an empty one can
+                    // become that, it takes no cards, and it keeps what was typed.
+                    window.check(board.addColumn("Both"), "a column is added for a formula");
+                    const both = board.columns.length - 1;
+                    board.toggleFormula(both);
+                    window.check(board.isFormula(board.columns[both]), "an empty column can become a formula");
+                    board.moveCard("c-food", -1, both);
+                    window.check(board.problem !== "" && board.columns[both].members.length === 0, "a card is not put into a formula column: " + board.problem);
+                    board.setColumnFormula(both, " Fast food + 1 ");
+                    window.check(JSON.parse(wizard.workbench.view.columns)[both].formula === "Fast food + 1", "the formula is kept: " + wizard.workbench.view.columns);
+                    window.check(board.choicesFor("c-rent", -1).every(entry => entry.to !== both), "the menu does not offer a formula column");
+                    board.removeColumn(both);
+                    window.check(board.columns.length === 1, "and the column goes again");
                     board.saveAsGroup(0);
                     window.check(groups.calls.includes("addGroup:Fast food:false:c-rent") && board.saved !== "" && board.groupResult.code === undefined, "a column is kept as a group of its categories: " + groups.calls);
                     window.check(page.saveChanges(), "the changes of the open view are saved with its columns");

@@ -130,11 +130,12 @@ impl qobject::BookCharts {
             parts.next().unwrap_or(""),
             parts.next().unwrap_or(""),
         );
-        let columns: Vec<(String, Vec<String>)> = properties::read_columns(columns)
-            .unwrap_or_default()
-            .into_iter()
-            .map(|column| (column.name, column.members))
-            .collect();
+        let columns: Vec<(String, Vec<String>, String)> =
+            properties::read_columns(columns, &|formula| Some(formula.to_owned()))
+                .unwrap_or_default()
+                .into_iter()
+                .map(|column| (column.name, column.members, column.formula))
+                .collect();
         let id_list = |text: &str| -> Vec<String> {
             text.split(',')
                 .filter(|id| !id.is_empty())
@@ -724,7 +725,7 @@ mod tests {
         let rent = category_id(&book, "Rent");
         let mut asked = request("spending_by_category", "pie");
         asked.columns = vec![
-            ("Home".into(), vec![rent.to_string()]),
+            ("Home".into(), vec![rent.to_string()], String::new()),
             (
                 "Both".into(),
                 vec![
@@ -732,6 +733,7 @@ mod tests {
                     rent.to_string(),
                     "no-such-category".into(),
                 ],
+                String::new(),
             ),
         ];
         let view = view_with(&book, &asked);

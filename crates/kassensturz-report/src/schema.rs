@@ -266,6 +266,9 @@ pub struct ColumnSetting {
     pub name: String,
     /// The IDs of the categories and groups under it, written as text.
     pub members: Vec<String>,
+    /// A formula in the form the book stores, whose amount is the column's
+    /// figure (D-341), or empty; then `members` is empty.
+    pub formula: String,
 }
 
 /// One property of a component.
@@ -510,6 +513,18 @@ impl Property {
                     }
                     names.push(lower);
                     self.check_ids(&column.members, MAX_IDS)?;
+                    // A column is made of members or of a formula, not both.
+                    if !column.formula.is_empty() {
+                        if !column.members.is_empty() {
+                            return Err(invalid("wrong-type", self.path()));
+                        }
+                        if column.formula.chars().count() > MAX_FORMULA_CHARS {
+                            return Err(invalid("too-long", self.path()));
+                        }
+                        if column.formula.chars().any(char::is_control) {
+                            return Err(invalid("bad-text", self.path()));
+                        }
+                    }
                 }
                 Ok(())
             }

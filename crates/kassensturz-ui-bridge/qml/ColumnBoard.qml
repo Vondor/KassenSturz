@@ -36,6 +36,9 @@ ColumnLayout {
     // What each column adds up to for the period, as the preview worked it
     // out: a list of {column, amounts}, amounts being one text per currency.
     property var totals: []
+    // The columns (by name) the user has turned into a formula and not yet
+    // typed one for.
+    property var formulaOn: ({})
     // What saving a column as a group answered, and the words for success.
     property var groupResult: ({})
     property string saved: ""
@@ -157,6 +160,39 @@ ColumnLayout {
         }
     }
 
+    // Whether the column is worked out by a formula (D-341): it has one, or
+    // the user has just asked for one and not typed it yet.
+    function isFormula(column): bool {
+        return (column.formula ?? "") !== "" || formulaOn[column.name] === true;
+    }
+
+    // Turns the formula of a column on or off. Only an empty column can
+    // become a formula, so no card is lost; turning it off forgets the
+    // formula.
+    function toggleFormula(index: int) {
+        const column = columns[index];
+        const on = !isFormula(column);
+        const marks = Object.assign({}, formulaOn);
+        if (on) {
+            marks[column.name] = true;
+        } else {
+            delete marks[column.name];
+            if ((column.formula ?? "") !== "") {
+                setColumnFormula(index, "");
+            }
+        }
+        formulaOn = marks;
+    }
+
+    // Keeps what was typed as the formula of the column, in the user's
+    // number format; the book keeps it in its own form.
+    function setColumnFormula(index: int, typed: string) {
+        const list = JSON.parse(JSON.stringify(columns));
+        list[index].formula = typed.trim();
+        list[index].members = [];
+        save(list);
+    }
+
     function removeColumn(index: int) {
         const list = JSON.parse(JSON.stringify(columns));
         list.splice(index, 1);
@@ -166,6 +202,10 @@ ColumnLayout {
     // Takes the card out of `from` (-1 is Unused) and puts it in `to`.
     function moveCard(id: string, from: int, to: int) {
         if (from === to) {
+            return;
+        }
+        if (to >= 0 && isFormula(columns[to])) {
+            board.problem = i18nContext.i18nc("@info", "A column with a formula can't hold categories. Name them in its formula instead.");
             return;
         }
         const list = JSON.parse(JSON.stringify(columns));
@@ -180,6 +220,10 @@ ColumnLayout {
 
     // Puts the card in `to` as well, where it already is.
     function alsoPut(id: string, to: int) {
+        if (isFormula(columns[to])) {
+            board.problem = i18nContext.i18nc("@info", "A column with a formula can't hold categories. Name them in its formula instead.");
+            return;
+        }
         const list = JSON.parse(JSON.stringify(columns));
         if (!list[to].members.includes(id)) {
             list[to].members.push(id);
@@ -194,12 +238,12 @@ ColumnLayout {
             entries.push({move: true, to: -1, text: i18nContext.i18nc("@action:inmenu take the card out of its column", "Move to Unused")});
         }
         columns.forEach((column, index) => {
-            if (index !== from) {
+            if (index !== from && !isFormula(column)) {
                 entries.push({move: true, to: index, text: i18nContext.i18nc("@action:inmenu %1 is the name of a column", "Move to %1", column.name)});
             }
         });
         columns.forEach((column, index) => {
-            if (index !== from && !column.members.includes(id) && from >= 0) {
+            if (index !== from && !isFormula(column) && !column.members.includes(id) && from >= 0) {
                 entries.push({move: false, to: index, text: i18nContext.i18nc("@action:inmenu %1 is the name of a column; the card stays where it is too", "Also put in %1", column.name)});
             }
         });
@@ -270,7 +314,7 @@ ColumnLayout {
         // Unused first, then the named columns, then the one that adds a
         // column.
         Repeater {
-            model: [{index: -1, name: "", members: board.unused.map(card => card.id)}].concat(board.columns.map((column, index) => ({index: index, name: column.name, members: column.members})))
+            model: [{index: -1, name: "", members: board.unused.map(card => card.id)}].concat(board.columns.map((column, index) => ({index: index, name: column.name, members: column.members, formula: column.formula ?? "", asFormula: board.isFormula(column)})))
 
             delegate: Rectangle {
                 id: slotColumn
@@ -278,6 +322,7 @@ ColumnLayout {
                 required property var modelData
 
                 readonly property bool isUnused: modelData.index < 0
+                readonly property bool asFormula: !isUnused && modelData.asFormula
 
                 width: Kirigami.Units.gridUnit * 14
                 height: Math.max(Kirigami.Units.gridUnit * 12, content.implicitHeight + Kirigami.Units.largeSpacing * 2)
@@ -332,6 +377,18 @@ ColumnLayout {
                         }
 
                         Controls.ToolButton {
+                            visible: !slotColumn.isUnused && (slotColumn.asFormula || slotColumn.modelData.members.length === 0)
+                            checkable: true
+                            checked: slotColumn.asFormula
+                            icon.name: "view-calculator"
+                            text: board.i18nContext.i18nc("@action:button %1 is the name of a column", "Work out the column %1 with a formula", slotColumn.modelData.name)
+                            display: Controls.AbstractButton.IconOnly
+                            Controls.ToolTip.text: text
+                            Controls.ToolTip.visible: hovered
+                            onClicked: board.toggleFormula(slotColumn.modelData.index)
+                        }
+
+                        Controls.ToolButton {
                             visible: !slotColumn.isUnused && slotColumn.modelData.members.length > 0
                             icon.name: "folder-new"
                             text: board.i18nContext.i18nc("@action:button %1 is the name of a column", "Save the column %1 as a group", slotColumn.modelData.name)
@@ -360,9 +417,25 @@ ColumnLayout {
                         opacity: 0.7
                         text: slotColumn.isUnused
                             ? board.i18nContext.i18nc("@info", "Not counted. A category you add under Categories shows up here.")
+                            : slotColumn.asFormula && board.totalOf(slotColumn.modelData.name) === ""
+                                ? board.i18nContext.i18nc("@info", "Worked out from a formula. Use the names of columns, categories and groups, like Home + Eating.")
                             : board.totalOf(slotColumn.modelData.name) !== ""
                                 ? board.i18nContext.i18nc("@info %1 is an amount of money, or several with + between them", "Adds up to %1", board.totalOf(slotColumn.modelData.name))
                                 : board.i18nContext.i18nc("@info", "Counted together as one figure.")
+                    }
+
+                    Controls.TextField {
+                        Layout.fillWidth: true
+                        visible: slotColumn.asFormula
+                        text: slotColumn.modelData.formula
+                        placeholderText: board.i18nContext.i18nc("@info:placeholder an example of a formula that uses the names of two columns", "For example: Home + Eating")
+                        maximumLength: 500
+                        Accessible.name: board.i18nContext.i18nc("@label:textbox", "Formula of the column")
+                        onEditingFinished: {
+                            if (text.trim() !== slotColumn.modelData.formula) {
+                                board.setColumnFormula(slotColumn.modelData.index, text);
+                            }
+                        }
                     }
 
                     Repeater {
@@ -440,7 +513,7 @@ ColumnLayout {
 
                     Controls.Label {
                         Layout.fillWidth: true
-                        visible: slotColumn.modelData.members.length === 0
+                        visible: slotColumn.modelData.members.length === 0 && !slotColumn.asFormula
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText

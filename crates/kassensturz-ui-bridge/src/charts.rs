@@ -13,11 +13,11 @@ use kassensturz_charts::{
     ChartError, ChartKind, ChartModel, ChartProvider, Prepared, category_over_time,
     income_expense_by_month, spending_by_category,
 };
-use kassensturz_core::{Date, ErrorReport, GroupMember, Money, Report};
+use kassensturz_core::{CurrencyCode, Date, ErrorReport, GroupMember, Money, Report};
 use kassensturz_report::{
     CATEGORY_OVER_TIME, Column, Filter, INCOME_EXPENSE_BY_MONTH, Level, Overlap, Percent, Period,
     ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat,
-    category_over_time as over_time_dataset, columns_over_time, columns_spending,
+    category_over_time as over_time_dataset, columns_over_time, columns_span, columns_spending,
     income_expense_by_month as monthly_dataset, shared_categories,
     spending_by_category_shown as spending_dataset,
 };
@@ -54,7 +54,7 @@ pub struct Request {
     /// The columns of the chart (`params.columns`, D-339): each a name and
     /// the IDs of the categories and groups under it. When there are some,
     /// they are the series or rows and the dataset's own are not used.
-    pub columns: Vec<(String, Vec<String>)>,
+    pub columns: Vec<(String, Vec<String>, String)>,
 }
 
 /// What a request gave: the charts, and how many of the IDs it named the
@@ -242,10 +242,14 @@ pub fn charts(
         "each" | "groups" => Level::Each,
         _ => return Err(ChartsError::UnknownName("grouping")),
     };
-    let source = Source::read(book, period)?;
+    // A formula of a column may name periods of its own, so the book is read
+    // for all of them (D-341).
+    let span = columns_span(&formula_columns(&request.columns), period)?;
+    let source = Source::read(book, span)?;
     let text = AppText::new(book, locale);
     if !request.columns.is_empty() {
-        return columns_charts(&source, &text, kind, period, &request.columns);
+        let fallback = fallback_currency(book);
+        return columns_charts(&source, &text, kind, period, &request.columns, fallback);
     }
     // Parts of a whole count a category once; separate series may share it.
     let overlap = if kind.is_round() || kind == ChartKind::StackedBar {
@@ -332,6 +336,27 @@ pub fn charts(
 /// stacked bars draw one series per column month by month, everything else
 /// shows one row per column for the whole period. A category in two columns
 /// counts in both; the result names it so the screen can say so.
+/// The columns of a request with only what the book's span needs: their
+/// formulas.
+fn formula_columns(chosen: &[(String, Vec<String>, String)]) -> Vec<Column> {
+    chosen
+        .iter()
+        .map(|(name, _, formula)| Column {
+            name: name.clone(),
+            members: Vec::new(),
+            formula: (!formula.is_empty()).then(|| formula.clone()),
+        })
+        .collect()
+}
+
+/// The currency of a result with no money at all: the first the book uses.
+fn fallback_currency(book: &Book) -> CurrencyCode {
+    book.currencies()
+        .ok()
+        .and_then(|used| used.first().map(|currency| currency.code()))
+        .unwrap_or(CurrencyCode::new("EUR").expect("EUR is a valid code"))
+}
+
 /// What each column adds up to over `period`, in every currency it has money
 /// in, written for the screen.
 fn column_totals(
@@ -339,8 +364,9 @@ fn column_totals(
     text: &impl TextFormat,
     period: Period,
     columns: &[Column],
+    fallback: CurrencyCode,
 ) -> Result<Vec<(String, Vec<String>)>, ChartsError> {
-    let results = columns_spending(source, period, &Filter::default(), columns)?;
+    let results = columns_spending(source, period, &Filter::default(), columns, fallback)?;
     Ok(columns
         .iter()
         .map(|column| {
@@ -365,31 +391,33 @@ fn columns_charts(
     text: &impl TextFormat,
     kind: ChartKind,
     period: Period,
-    chosen: &[(String, Vec<String>)],
+    chosen: &[(String, Vec<String>, String)],
+    fallback: CurrencyCode,
 ) -> Result<ChartSet, ChartsError> {
     let columns: Vec<Column> = chosen
         .iter()
-        .map(|(name, members)| Column {
+        .map(|(name, members, formula)| Column {
             name: name.clone(),
             members: members
                 .iter()
                 .filter_map(|id| source.member_by_id(id))
                 .collect(),
+            formula: (!formula.is_empty()).then(|| formula.clone()),
         })
         .collect();
-    let named: usize = chosen.iter().map(|(_, members)| members.len()).sum();
+    let named: usize = chosen.iter().map(|(_, members, _)| members.len()).sum();
     let known: usize = columns.iter().map(|column| column.members.len()).sum();
     let filter = Filter::default();
     let models = if matches!(
         kind,
         ChartKind::Line | ChartKind::Area | ChartKind::StackedBar
     ) {
-        columns_over_time(source, period, &filter, &columns)?
+        columns_over_time(source, period, &filter, &columns, fallback)?
             .iter()
             .map(|data| category_over_time(data, kind, text))
             .collect::<Result<Vec<_>, _>>()?
     } else {
-        columns_spending(source, period, &filter, &columns)?
+        columns_spending(source, period, &filter, &columns, fallback)?
             .iter()
             .map(|data| spending_by_category(data, kind, text))
             .collect::<Result<Vec<_>, _>>()?
@@ -405,6 +433,6 @@ fn columns_charts(
         charts,
         missing: named - known,
         shared: shared_categories(source, &columns),
-        totals: column_totals(source, text, period, &columns)?,
+        totals: column_totals(source, text, period, &columns, fallback)?,
     })
 }

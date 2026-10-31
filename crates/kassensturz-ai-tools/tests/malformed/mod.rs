@@ -143,6 +143,9 @@ pub fn cases(ids: &Ids) -> Vec<Case> {
     let many: Vec<String> = (0..=MAX_VIEW_CATEGORIES)
         .map(|n| format!("00000000-0000-0000-0000-{n:012}"))
         .collect();
+    let many_accounts: Vec<String> = (0..=kassensturz_ai_tools::MAX_VIEW_ACCOUNTS)
+        .map(|n| format!("00000000-0000-0000-0001-{n:012}"))
+        .collect();
     let spending = |extra: Value| {
         let mut call =
             json!({"title": "Spending", "data": "spending_by_category", "show_as": "pie"});
@@ -583,6 +586,21 @@ pub fn cases(ids: &Ids) -> Vec<Case> {
             "an account of the book",
             with(json!({"data": "net_worth_over_time", "accounts": [account]})),
             &if_accounts(PREPARED),
+        ),
+        row(
+            "a name for the accounts",
+            with(json!({"data": "net_worth_over_time", "accounts": "Checking"})),
+            &if_accounts("bad-argument accounts"),
+        ),
+        row(
+            "an account twice",
+            with(json!({"data": "net_worth_over_time", "accounts": [account, account]})),
+            &if_accounts("bad-argument accounts"),
+        ),
+        row(
+            "too many accounts",
+            with(json!({"data": "net_worth_over_time", "accounts": many_accounts})),
+            &if_accounts("bad-argument accounts"),
         ),
         // 6. The schema's own checks.
         row(

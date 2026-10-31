@@ -20,7 +20,7 @@ use kassensturz_store::{Corruption, StoreError};
 
 use crate::catalog::DatasetInfo;
 use crate::metrics::percent_of;
-use crate::{Filter, Percent, Period, ReportError, Source, TextFormat, TextTable};
+use crate::{Filter, Percent, Period, ReportError, Source, Takes, TextFormat, TextTable};
 
 /// The dataset's ID, as dashboards and the AI name it (D-346).
 pub const BUDGET_UTILIZATION: &str = "budget_utilization";
@@ -54,6 +54,7 @@ pub const BUDGETS: &[DatasetInfo] = &[DatasetInfo {
     groupings: &["budget", "period"],
     suits: &["budget", "table"],
     measures: &["spent", "left", "used_percent"],
+    takes: Takes::NO_ACCOUNTS,
     for_ai: false,
 }];
 
@@ -360,8 +361,8 @@ fn spending(
 /// come in the order of the category tree, a category's budgets by their
 /// first day. `filter.categories` keeps the budgets whose category is one of
 /// them or inside one; `filter.accounts` does not apply, since a budget
-/// counts its category's spending from every account (until the shared
-/// filters, D-350).
+/// counts its category's spending from every account (D-350: the shared
+/// filters do not apply accounts to it, and say so).
 ///
 /// The `Source` must be read with [`Source::read_with_budgets`] for
 /// `period` and `today`, else this fails with

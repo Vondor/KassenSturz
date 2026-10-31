@@ -530,3 +530,67 @@ fn the_mcp_and_the_request_files_reach_both_functions_by_name() {
         "bad-argument arguments"
     );
 }
+
+#[test]
+fn a_chart_can_count_only_some_accounts_where_its_dataset_takes_them() {
+    // The shared filters of M6c.6 (D-350, D-351): `params.accounts`.
+    let Sample {
+        mut book,
+        checking,
+        food,
+        ..
+    } = sample();
+    let text = |data: &str, ids: Vec<String>| {
+        json!({"title": data, "data": data, "show_as": "auto", "accounts": ids}).to_string()
+    };
+    let proposal = call(
+        &book,
+        &text("net_worth_over_time", vec![checking.to_string()]),
+    )
+    .expect("prepared");
+    let component: Value = serde_json::from_str(&chart(&proposal).component_json()).expect("JSON");
+    assert_eq!(
+        component["params"]["accounts"],
+        json!([checking.to_string()])
+    );
+    // The saved document is read back by the report layer, filter and all.
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    let saved = book.views(Some(ViewKind::View)).expect("views");
+    let document = Document::read(&saved[0].document).expect("a valid document");
+    assert!(document.to_json().contains(&checking.to_string()));
+    // A category is no account, an unknown id is refused, and without the
+    // reading of accounts the argument isn't there.
+    assert_eq!(
+        view_code(call(
+            &book,
+            &text("spending_by_category", vec![food.to_string()])
+        )),
+        "ai-tools.unknown-account"
+    );
+    let only_charts = Permissions::NONE.with(Permission::NewViews, true);
+    assert_eq!(
+        view_code(propose_view_text(
+            &book,
+            &text("spending_by_category", vec![checking.to_string()]),
+            only_charts
+        )),
+        "ai-tools.unknown-argument"
+    );
+    // Every dataset the AI may name either takes accounts or refuses them.
+    for dataset in CATALOG.iter().filter(|dataset| dataset.for_ai) {
+        let result = view_code(call(
+            &book,
+            &json!({"title": format!("{} by account", dataset.id), "data": dataset.id,
+                "show_as": "table", "accounts": [checking.to_string()]})
+            .to_string(),
+        ));
+        if dataset.takes.accounts {
+            assert_ne!(result, "bad-argument accounts", "{}", dataset.id);
+        } else {
+            assert_eq!(result, "bad-argument accounts", "{}", dataset.id);
+        }
+    }
+}

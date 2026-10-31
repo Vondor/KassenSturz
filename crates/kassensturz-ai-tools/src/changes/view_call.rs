@@ -28,8 +28,8 @@ use std::collections::{HashMap, HashSet};
 use kassensturz_core::AccountId;
 use kassensturz_core::ai_switch::{Permission, Permissions, Row};
 use kassensturz_report::{
-    ACCOUNT_BALANCES, BUDGET_UTILIZATION, CASH_FLOW_BY_MONTH, CATALOG, ComponentType, DatasetInfo,
-    FORMULA_MEASURE, GROUPS_GROUPING, Kind, NET_WORTH_OVER_TIME, PERIODS, range_word,
+    ACCOUNT_BALANCES, BUDGET_UTILIZATION, CATALOG, ComponentType, DatasetInfo, FORMULA_MEASURE,
+    GROUPS_GROUPING, Kind, PERIODS, range_word,
 };
 use kassensturz_store::Book;
 use serde_json::{Map, Value, json};
@@ -134,12 +134,12 @@ fn schema_words(key: &str) -> &'static [&'static str] {
 
 /// Whether some kind of component the AI may choose has a list of ids
 /// called `key`: `categories` since D-331, `accounts` once the report
-/// layer filters by account (D-351, M6c.6).
+/// layer filters by account (D-351, M6c.6, `Kind::Accounts`).
 fn schema_has_ids(key: &str) -> bool {
     shown_kinds()
         .filter_map(|(_, kind)| kind)
         .flat_map(|kind| kind.properties())
-        .any(|property| property.key == key && matches!(property.kind, Kind::Ids))
+        .any(|property| property.key == key && matches!(property.kind, Kind::Ids | Kind::Accounts))
 }
 
 /// The words an argument can take, from the catalog and the schema, for the
@@ -529,9 +529,15 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
     // 6. A dimension the dataset doesn't apply is refused, never kept: a
     // chart of net worth with categories would look limited while every
     // category counts (M6-B29, D-350).
-    if !categories.is_empty() && !takes_categories(data) {
+    let takes = kassensturz_report::dataset(data).map(|info| info.takes);
+    if !categories.is_empty() && !takes.is_some_and(|takes| takes.categories) {
         return Err(ToolError::BadArgument {
             argument: "categories",
+        });
+    }
+    if !accounts.is_empty() && !takes.is_some_and(|takes| takes.accounts) {
+        return Err(ToolError::BadArgument {
+            argument: "accounts",
         });
     }
     // The schema's own checks run when the set is built from this item.
@@ -564,13 +570,6 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
         }
     }
     Ok(Value::Object(item))
-}
-
-/// Whether the dataset applies a choice of categories. The balances count
-/// accounts, not categories (D-350). When the report layer lists what each
-/// dataset takes (M6c.6), this reads that list instead.
-fn takes_categories(dataset: &str) -> bool {
-    ![ACCOUNT_BALANCES, NET_WORTH_OVER_TIME, CASH_FLOW_BY_MONTH].contains(&dataset)
 }
 
 /// The period a dataset starts with: today's balances and budgets this

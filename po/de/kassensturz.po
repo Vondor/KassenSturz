@@ -12585,24 +12585,6 @@ msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml
-#, kde-format
-msgctxt "@action:button add a view saved in the Statistic Builder to the layout"
-msgid "Add a saved view"
-msgstr "Gespeicherte Ansicht hinzufügen"
-
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml
-#, kde-format
-msgctxt "@info:tooltip"
-msgid "Adds a copy of a view you saved in the Statistic Builder"
-msgstr "Fügt eine Kopie einer Ansicht hinzu, die Sie im Statistik-Baukasten gespeichert haben"
-
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml
-#, kde-format
-msgctxt "@info:tooltip"
-msgid "Nothing saved yet. Save a view in the Statistic Builder first."
-msgstr "Noch nichts gespeichert. Speichern Sie zuerst im Statistik-Baukasten eine Ansicht."
-
 #: crates/kassensturz-ui-bridge/qml/GridItem.qml
 #, kde-format
 msgctxt "@info"
@@ -12817,8 +12799,8 @@ msgstr "Alle Einstellungen auf einmal zeigen"
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:240
 #, kde-format
 msgctxt "@info"
-msgid "To put it on the Overview, choose Edit layout there and add it with Add a saved view."
-msgstr "Um sie auf die Übersicht zu legen, wählen Sie dort „Layout bearbeiten“ und fügen sie mit „Gespeicherte Ansicht hinzufügen“ hinzu."
+msgid "To put it on the Overview, choose Edit layout there, then Add to the page and Saved views."
+msgstr "Um sie auf die Übersicht zu legen, wählen Sie dort „Layout bearbeiten“, dann „Zur Seite hinzufügen“ und „Gespeicherte Ansichten“."
 
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:248
 #, kde-format
@@ -12837,6 +12819,31 @@ msgstr "Weiter"
 msgctxt "@action:button make a new view step by step"
 msgid "Guide me step by step"
 msgstr "Schritt für Schritt führen"
+
+#, kde-format
+msgctxt "@title:menu a group of widgets: charts"
+msgid "Charts"
+msgstr "Diagramme"
+
+#, kde-format
+msgctxt "@title:menu a group of widgets: single figures and tables"
+msgid "Figures and tables"
+msgstr "Zahlen und Tabellen"
+
+#, kde-format
+msgctxt "@title:menu a group of widgets: those that arrange the page"
+msgid "Layout"
+msgstr "Aufbau"
+
+#, kde-format
+msgctxt "@title:menu a group of widgets: notes and warnings"
+msgid "Notes"
+msgstr "Hinweise"
+
+#, kde-format
+msgctxt "@title:menu a group of widgets: views saved in the Statistic Builder"
+msgid "Saved views"
+msgstr "Gespeicherte Ansichten"
 
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
 msgctxt "@item:inlistbox a kind of chart"

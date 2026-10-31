@@ -66,14 +66,15 @@ fn a_question_goes_through_the_real_client_and_functions() {
     let first: Value = serde_json::from_slice(&received[0].body).unwrap();
     assert_eq!(first["stream"], false);
     // The seven read functions (list_budgets since M6c.11), propose_changes
-    // (M5.5) and draft_issue (M5.13); the debug log isn't offered, since it
-    // is off.
+    // (M5.5), propose_view (M6c.8), draft_issue (M5.13) and open_page; the
+    // debug log isn't offered, since it is off.
     let tools = first["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 10);
+    assert_eq!(tools.len(), 11);
     assert_eq!(tools[6]["function"]["name"], "list_budgets");
     assert_eq!(tools[7]["function"]["name"], "propose_changes");
-    assert_eq!(tools[8]["function"]["name"], "draft_issue");
-    assert_eq!(tools[9]["function"]["name"], "open_page");
+    assert_eq!(tools[8]["function"]["name"], "propose_view");
+    assert_eq!(tools[9]["function"]["name"], "draft_issue");
+    assert_eq!(tools[10]["function"]["name"], "open_page");
     let system = first["messages"][0]["content"].as_str().unwrap();
     assert!(system.contains("KassenSturz 0.261025.0 (commit 1775d22), a pre-release build"));
     assert!(system.contains("Today is 2026-10-25."));

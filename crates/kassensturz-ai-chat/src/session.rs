@@ -12,9 +12,10 @@ use kassensturz_ai::{
     AiError, Finish, FunctionSpec, Message, PreparedRequest, Provider, Role, ToolCall,
 };
 use kassensturz_ai_tools::{
-    ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, OPEN_PAGE,
-    PROPOSE_CHANGES, PageTarget, ToolError, Unverified, check_numbers, draft_issue,
-    open_page_allowed, propose_on, propose_spec, readable_functions, unique_codes,
+    ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, MAX_VIEWS_PER_ANSWER,
+    OPEN_PAGE, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, PageTarget, ProposedChange, ToolError,
+    Unverified, check_numbers, draft_issue, open_page_allowed, propose_on, propose_spec,
+    propose_view_spec, propose_view_text, readable_functions, unique_codes, view_choices,
 };
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
@@ -101,6 +102,19 @@ pub const NOT_OFFERED: &str = "KassenSturz: a function you asked for is not offe
                                was not run (error ai-tools.unknown-function). Call only the \
                                functions offered.";
 
+/// How often the model may correct a refused call of `propose_view` in one
+/// question: the call and two corrections (D-355, D-402). The next refusal
+/// ends the attempt, and the chat offers the Statistic Builder instead.
+pub const MAX_VIEW_CORRECTIONS: usize = 2;
+
+/// Said to the model once when its corrections of `propose_view` ran out, as
+/// the last request of the question. The chat card tells the user itself
+/// that no chart could be prepared (D-402).
+pub const CHART_NOT_PREPARED: &str = "KassenSturz: the chart could not be prepared, and no \
+    more corrections are allowed. Do not call propose_view again. Tell the user in one or two \
+    plain sentences that you could not prepare the chart and that they can make it in the \
+    Statistic Builder. Do not describe what the chart would have shown.";
+
 /// What the user did with the changes the model prepared, which the model
 /// hears at its next question (D-229).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -164,6 +178,19 @@ pub enum Mode {
     Overview,
 }
 
+/// A chart the model could not prepare, even after the corrections
+/// [`MAX_VIEW_CORRECTIONS`] allows (D-402). The chat says so plainly and
+/// offers the Statistic Builder.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ChartFailed {
+    /// The code of the last refusal.
+    pub code: &'static str,
+    /// The dataset the last call named, when that was one the AI may name:
+    /// what it understood, which the builder starts from. Always one of the
+    /// catalog's own ids, never the model's text.
+    pub dataset: Option<&'static str>,
+}
+
 /// What the model answered to a question.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Answer {
@@ -185,6 +212,12 @@ pub struct Answer {
     /// called `propose_changes`, for the user to review (D-171, D-199).
     /// Nothing in them is applied: only the review screen's confirm does.
     pub changes: Vec<ChangeSet>,
+    /// For each set of `changes`, the numbers in the titles of its new
+    /// charts that no function produced, marked like those of an answer
+    /// (D-188, D-402).
+    pub title_numbers: Vec<Vec<Unverified>>,
+    /// Set when the model's attempts at a chart ran out (D-402).
+    pub chart_failed: Option<ChartFailed>,
     /// The issue draft the model prepared for this question, the last one
     /// if it made several, for the user to read (D-173, D-228). Nothing is
     /// sent: only the user opens the prefilled page.
@@ -280,6 +313,11 @@ pub struct ChatSession {
     issue: Option<IssueDraft>,
     /// The page the model asked to open for the question under way.
     page: Option<PageTarget>,
+    /// How many calls of `propose_view` were refused in the question under
+    /// way (D-402).
+    view_refusals: usize,
+    /// Set when the refusals went past [`MAX_VIEW_CORRECTIONS`].
+    chart_failed: Option<ChartFailed>,
     /// The debug log the conversation writes to and the model may read
     /// while AI and the log are on (D-173).
     #[cfg(feature = "debug-log")]
@@ -310,6 +348,8 @@ impl ChatSession {
             proposed: Vec::new(),
             issue: None,
             page: None,
+            view_refusals: 0,
+            chart_failed: None,
             #[cfg(feature = "debug-log")]
             debug_log: DebugLog::none(),
             screen: None,
@@ -456,6 +496,8 @@ impl ChatSession {
         self.proposed.clear();
         self.issue = None;
         self.page = None;
+        self.view_refusals = 0;
+        self.chart_failed = None;
         let mut overview = None;
         let mut context_cut = false;
         if self.mode == Mode::Overview {
@@ -576,13 +618,17 @@ impl ChatSession {
                 );
                 self.history
                     .push(Message::assistant(reply.text.clone(), Vec::new()));
+                let changes = std::mem::take(&mut self.proposed);
+                let title_numbers = changes.iter().map(|set| self.title_numbers(set)).collect();
                 return Ok(Answer {
                     text: reply.text,
                     unverified,
                     finish: reply.finish,
                     mode: self.mode,
                     context_cut,
-                    changes: std::mem::take(&mut self.proposed),
+                    changes,
+                    title_numbers,
+                    chart_failed: self.chart_failed.take(),
                     issue: self.issue.take(),
                     page: self.page.take(),
                 });
@@ -608,6 +654,12 @@ impl ChatSession {
                 );
                 self.history.push(Message::user(NOT_OFFERED));
             }
+            // The corrections of a chart ran out: the next request is the
+            // one that says so, with no function offered (D-402).
+            if self.chart_failed.is_some() && !closing {
+                closing = true;
+                self.history.push(Message::user(CHART_NOT_PREPARED));
+            }
             // The same call again gets the same result: the model is going
             // round in a circle, so its next request has to be the answer.
             if repeated && !closing {
@@ -627,34 +679,60 @@ impl ChatSession {
         today: Date,
         hooks: &mut dyn Hooks,
     ) -> Message {
-        let outcome = serde_json::from_str::<Value>(&call.arguments)
-            .map_err(|_| ToolError::BadArgument {
-                argument: "arguments",
-            })
-            .and_then(|arguments| {
-                if call.name == PROPOSE_CHANGES.name {
-                    // Prepared for the user, never applied here (T-27).
-                    propose_on(book, &arguments, self.permissions(), today).map(|proposal| {
+        let views = self
+            .proposed
+            .iter()
+            .flat_map(ChangeSet::changes)
+            .filter(|change| matches!(change, ProposedChange::NewView(_)))
+            .count();
+        let mut view_refused = false;
+        let outcome = if call.name == PROPOSE_VIEW_NAME {
+            // The text itself, so a key written twice is seen (D-353).
+            // Prepared for the user, never applied here (T-27, T-46).
+            if views >= MAX_VIEWS_PER_ANSWER {
+                Err(ToolError::TooManyChanges)
+            } else {
+                propose_view_text(book, &call.arguments, self.permissions())
+                    .inspect_err(|_| view_refused = true)
+                    .map(|proposal| {
                         self.proposed.push(proposal.changes);
                         proposal.output
                     })
-                } else if call.name == DRAFT_ISSUE.name {
-                    // Shown to the user, never sent from here (T-33).
-                    draft_issue(book, &arguments, &self.issue_context()).map(|(draft, output)| {
-                        self.issue = Some(draft);
-                        output
-                    })
-                } else if call.name == OPEN_PAGE.name {
-                    // Shown to the user when the answer is ready; changes
-                    // nothing (T-36).
-                    open_page_allowed(book, &arguments, self.permissions()).map(|(page, output)| {
-                        self.page = Some(page);
-                        output
-                    })
-                } else {
-                    self.read(book, &call.name, &arguments, today)
-                }
-            });
+            }
+        } else {
+            serde_json::from_str::<Value>(&call.arguments)
+                .map_err(|_| ToolError::BadArgument {
+                    argument: "arguments",
+                })
+                .and_then(|arguments| {
+                    if call.name == PROPOSE_CHANGES.name {
+                        // Prepared for the user, never applied here (T-27).
+                        propose_on(book, &arguments, self.permissions(), today).map(|proposal| {
+                            self.proposed.push(proposal.changes);
+                            proposal.output
+                        })
+                    } else if call.name == DRAFT_ISSUE.name {
+                        // Shown to the user, never sent from here (T-33).
+                        draft_issue(book, &arguments, &self.issue_context()).map(
+                            |(draft, output)| {
+                                self.issue = Some(draft);
+                                output
+                            },
+                        )
+                    } else if call.name == OPEN_PAGE.name {
+                        // Shown to the user when the answer is ready; changes
+                        // nothing (T-36).
+                        open_page_allowed(book, &arguments, self.permissions()).map(
+                            |(page, output)| {
+                                self.page = Some(page);
+                                output
+                            },
+                        )
+                    } else {
+                        self.read(book, &call.name, &arguments, today)
+                    }
+                })
+        };
         let (result, error) = match outcome {
             Ok(output) => {
                 self.figures.extend(&output.figures);
@@ -662,11 +740,22 @@ impl ChatSession {
             }
             Err(error) => {
                 let report = error.report();
+                if view_refused {
+                    self.view_refusals += 1;
+                    if self.view_refusals > MAX_VIEW_CORRECTIONS && self.chart_failed.is_none() {
+                        self.chart_failed = Some(ChartFailed {
+                            code: report.code,
+                            dataset: understood_dataset(&call.arguments),
+                        });
+                    }
+                }
                 let prepares = call.name == PROPOSE_CHANGES.name;
-                (
-                    prompt::data_json(&error_json(&report, prepares)),
-                    Some(report.code),
-                )
+                let answer = if call.name == PROPOSE_VIEW_NAME {
+                    view_error_json(&report)
+                } else {
+                    error_json(&report, prepares)
+                };
+                (prompt::data_json(&answer), Some(report.code))
             }
         };
         self.note(
@@ -679,6 +768,20 @@ impl ChatSession {
             hooks,
         );
         Message::tool_result(call.id.clone(), result)
+    }
+
+    /// The numbers in the titles of the new charts of `set` that no function
+    /// produced (D-188, D-402). A title is the model's text: it is shown as
+    /// plain text and marked like an answer.
+    fn title_numbers(&self, set: &ChangeSet) -> Vec<Unverified> {
+        set.changes()
+            .iter()
+            .filter_map(|change| match change {
+                ProposedChange::NewView(view) => Some(check_numbers(&view.title, &self.figures)),
+                _ => None,
+            })
+            .flatten()
+            .collect()
     }
 
     /// The overview for a model that can't call functions, with its figures
@@ -831,6 +934,12 @@ fn function_specs(log_readable: bool, permissions: Permissions) -> Vec<FunctionS
         parameters:
             serde_json::from_str(&propose.parameters).unwrap_or_else(|_| json!({"type": "object"})),
     }));
+    specs.extend(propose_view_spec(permissions).map(|view| FunctionSpec {
+        name: view.name.to_owned(),
+        description: view.description,
+        parameters:
+            serde_json::from_str(&view.parameters).unwrap_or_else(|_| json!({"type": "object"})),
+    }));
     specs.push(spec(&DRAFT_ISSUE));
     specs.push(spec(&OPEN_PAGE));
     #[cfg(feature = "debug-log")]
@@ -872,7 +981,8 @@ prepared. Fix the call and call propose_changes again, or say plainly that it di
 fn error_json(report: &ErrorReport, prepares: bool) -> Value {
     let mut out = Map::new();
     out.insert("error".into(), json!(report.code));
-    let mut wrong_id = report.code.starts_with("ai-tools.unknown-");
+    let mut wrong_id =
+        report.code.starts_with("ai-tools.unknown-") && report.code != "ai-tools.unknown-argument";
     let mut hints = Vec::new();
     for (name, value) in &report.params {
         match value {
@@ -906,10 +1016,56 @@ fn error_json(report: &ErrorReport, prepares: bool) -> Value {
     Value::Object(out)
 }
 
+/// The dataset a refused call of `propose_view` named, when it is one the AI
+/// may name: the catalog's own id, never the model's text (D-402).
+fn understood_dataset(arguments: &str) -> Option<&'static str> {
+    let named = serde_json::from_str::<Value>(arguments).ok()?;
+    let named = named.get("data")?.as_str()?;
+    view_choices("data")?.into_iter().find(|id| *id == named)
+}
+
+/// What the model is told when its call of `propose_view` is refused: the
+/// code, the argument by its fixed name and, for a list, the values it
+/// takes from the catalog and schema (D-353). Never the model's own text.
+fn view_error_json(report: &ErrorReport) -> Value {
+    let mut out = error_json(report, true);
+    let argument = report.params.iter().find_map(|(name, value)| match value {
+        ErrorParam::Keyword(keyword) if *name == "argument" => Some(*keyword),
+        _ => None,
+    });
+    if report.code == "ai-tools.bad-argument"
+        && let Some(words) = argument.and_then(view_choices)
+        && let Value::Object(object) = &mut out
+    {
+        object.insert("allowed".into(), json!(words));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use kassensturz_ai_tools::FUNCTIONS;
+
+    #[test]
+    fn a_refused_chart_lists_what_its_argument_takes() {
+        let bad = ToolError::BadArgument {
+            argument: "show_as",
+        }
+        .report();
+        let answer = view_error_json(&bad);
+        assert_eq!(answer["argument"], json!("show_as"));
+        assert_eq!(answer["allowed"], json!(view_choices("show_as").unwrap()));
+        assert!(answer["hint"].as_str().unwrap().contains(NOT_PREPARED_HINT));
+        // An argument that is no list, and other codes, list nothing.
+        let title = ToolError::BadArgument { argument: "title" }.report();
+        assert!(view_error_json(&title).get("allowed").is_none());
+        assert!(
+            view_error_json(&ToolError::UnknownArgument.report())
+                .get("allowed")
+                .is_none()
+        );
+    }
 
     #[test]
     fn a_request_is_cut_when_the_provider_counts_far_fewer_tokens() {
@@ -932,8 +1088,18 @@ mod tests {
             .iter()
             .fold(Permissions::all(), |p, field| p.with_lock(*field, false));
         let specs = function_specs(false, everything);
-        assert_eq!(specs.len(), FUNCTIONS.len() + 3);
+        assert_eq!(specs.len(), FUNCTIONS.len() + 4);
         assert_eq!(specs[FUNCTIONS.len()].name, PROPOSE_CHANGES.name);
+        // A chart has its own function, offered with Charts › Add (D-352).
+        let all_specs = specs.clone();
+        let mut specs = specs;
+        let view = specs.remove(FUNCTIONS.len() + 1);
+        assert_eq!(view.name, PROPOSE_VIEW_NAME);
+        assert_eq!(
+            view.parameters,
+            serde_json::from_str::<Value>(&propose_view_spec(everything).unwrap().parameters)
+                .unwrap()
+        );
         assert_eq!(specs[FUNCTIONS.len() + 1].name, DRAFT_ISSUE.name);
         assert_eq!(specs[FUNCTIONS.len() + 2].name, OPEN_PAGE.name);
         for (spec, function) in
@@ -956,16 +1122,16 @@ mod tests {
         let with_log = function_specs(true, everything);
         #[cfg(feature = "debug-log")]
         {
-            assert_eq!(with_log.len(), specs.len() + 1);
-            assert_eq!(with_log[specs.len()].name, READ_DEBUG_LOG.name);
+            assert_eq!(with_log.len(), all_specs.len() + 1);
+            assert_eq!(with_log[all_specs.len()].name, READ_DEBUG_LOG.name);
             assert_eq!(
-                with_log[specs.len()].parameters,
+                with_log[all_specs.len()].parameters,
                 serde_json::from_str::<Value>(READ_DEBUG_LOG.parameters).unwrap()
             );
         }
         #[cfg(not(feature = "debug-log"))]
-        assert_eq!(with_log.len(), specs.len());
-        assert_eq!(with_log[..specs.len()], specs[..]);
+        assert_eq!(with_log.len(), all_specs.len());
+        assert_eq!(with_log[..all_specs.len()], all_specs[..]);
     }
     #[test]
     fn an_error_carries_only_its_code_and_fixed_names() {

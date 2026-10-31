@@ -962,6 +962,18 @@ Kirigami.ApplicationWindow {
                     root.showChangeReview(setId);
                     root.raiseMainWindow();
                 }
+                onStatisticBuilderRequested: (title, component, period, dataset) => {
+                    if (chatDrawer.modal) {
+                        chatDrawer.close();
+                    }
+                    root.pushPage(statisticsPage, {
+                        initialName: title,
+                        initialComponent: component,
+                        initialPeriod: period,
+                        initialDataset: dataset
+                    });
+                    root.raiseMainWindow();
+                }
                 onCloseClicked: chatDrawer.close()
                 onDetachClicked: root.chatDetached ? root.attachChat(true) : root.detachChat()
                 onChangesArrived: chatDrawer.open()

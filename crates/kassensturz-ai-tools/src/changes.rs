@@ -28,6 +28,7 @@ mod budgets;
 mod cash;
 mod edits;
 mod transactions;
+mod view_call;
 mod views;
 
 use kassensturz_core::ai_switch::{Field, Permission, Permissions};
@@ -49,6 +50,12 @@ pub use budgets::{AmountBasis, EditBudget, NewBudget, every_word};
 pub use cash::{DeleteTransaction, NewTransaction};
 pub use edits::{EditError, Slot};
 pub use transactions::{EditTransaction, FieldEdit, FieldValue};
+#[cfg(test)]
+pub(crate) use view_call::ARGUMENTS as VIEW_ARGUMENTS;
+pub use view_call::{
+    MAX_VIEW_ACCOUNTS, MAX_VIEW_CALL_BYTES, MAX_VIEW_CATEGORIES, MAX_VIEWS_PER_ANSWER,
+    PROPOSE_VIEW_NAME, propose_view, propose_view_spec, propose_view_text, view_choices,
+};
 pub use views::NewView;
 
 /// The function a model calls to prepare changes. It is not in
@@ -61,8 +68,8 @@ pub const PROPOSE_CHANGES: Function = Function {
         categories, renaming or moving categories, new Rules that sort future transactions \
         into a category, changing, moving or deleting existing Rules, and a category for \
         transactions you found with search_transactions, deleting empty categories, \
-        adding, renaming, closing or reopening accounts, proposing a new chart \
-        and preparing or changing budgets (only when the user allows it). Nothing changes until the user confirms them in KassenSturz's window, and the user may refuse them. A new category \
+        adding, renaming, closing or reopening accounts and preparing or changing budgets. A \
+        chart is prepared with propose_view instead (only when the user allows it). Nothing changes until the user confirms them in KassenSturz's window, and the user may refuse them. A new category \
         has a key of your choice, which edit_categories (as new_parent), new_rules, \
         edit_rules and categorize use as new_category. Only a transaction with one category, \
         or none yet, can get another one; a transfer between the user's own accounts can't. \
@@ -70,7 +77,7 @@ pub const PROPOSE_CHANGES: Function = Function {
         until you move it with move_rules. Categories and Rules are named by the IDs that \
         list_categories and list_rules give. Prepare everything that belongs together in one \
         call.",
-    parameters: r#"{"type":"object","properties":{"new_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"key":{"type":"string","maxLength":40,"description":"Your short name for it, used as new_category below."},"name":{"type":"string","maxLength":100},"parent_id":{"type":"string","description":"Put it inside this category, ID from list_categories. Default: at the top."},"income":{"type":"boolean","description":"An income category, not a spending one. Default false. Inside a category it must be the same kind."},"currency":{"type":"string","description":"ISO 4217 code. Default: the parent's, or the one all the user's accounts use."}},"required":["key","name"],"additionalProperties":false}},"new_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"],"description":"Whether every condition must hold or one is enough. Default all."},"conditions":{"type":"array","minItems":1,"maxItems":10,"items":{"type":"object","description":"Either field, test and text, or money_in: true, or money_out: true.","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with"]},"text":{"type":"string","maxLength":100},"case_sensitive":{"type":"boolean"},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"Where it books what it finds, ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["name","conditions"],"additionalProperties":false}},"edit_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"The category to rename or move, ID from list_categories."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"parent_id":{"type":"string","description":"Move it, with everything inside it, into this category, ID from list_categories. It must be the same kind and currency."},"new_parent":{"type":"string","description":"Or into the new category with this key."},"to_top":{"type":"boolean","description":"Move it to the top level."}},"required":["category_id"],"additionalProperties":false}},"edit_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to change, ID from list_rules."},"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"]},"conditions":{"type":"array","minItems":1,"maxItems":10,"description":"All of its conditions as they should be, same shape as in new_rules. Only for a Rule whose conditions list_rules shows in full.","items":{"type":"object","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with"]},"text":{"type":"string","maxLength":100},"case_sensitive":{"type":"boolean"},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"The category it books to, ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["rule_id"],"additionalProperties":false}},"move_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"A top-level Rule, ID from list_rules."},"position":{"type":"integer","minimum":1,"description":"Its new place in the list of top-level Rules, 1 is the first. New Rules in this call are at the end."}},"required":["rule_id","position"],"additionalProperties":false}},"delete_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to delete, ID from list_rules. It must have no sub-Rules. What it booked stays as it is."}},"required":["rule_id"],"additionalProperties":false}},"new_transactions":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"account_id":{"type":"string","description":"A cash account of the user, ID from list_accounts."},"date":{"type":"string","description":"The day of the purchase, YYYY-MM-DD."},"amount":{"type":"string","description":"Exact decimal text with a dot, in the account's currency: negative is money out, positive money in, e.g. -12.50."},"payee":{"type":"string","maxLength":200,"description":"Who was paid or who paid, e.g. the shop."},"note":{"type":"string","maxLength":200,"description":"A note, e.g. what the money was for."},"category_id":{"type":"string","description":"The category it belongs to, ID from list_categories, in the account's currency. Leave it out for none yet."}},"required":["account_id","date","amount"],"additionalProperties":false}},"delete_transactions":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"A transaction of a cash account that the user entered by hand, ID from search_transactions."}},"required":["transaction_id"],"additionalProperties":false}},"edit_transactions":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"date":{"type":"string","description":"The new day, YYYY-MM-DD."},"payee":{"type":"string","maxLength":200,"description":"The new payee: who was paid or who paid. An empty text removes it."},"note":{"type":"string","maxLength":200,"description":"The new note. An empty text removes it."},"amount":{"type":"string","description":"The new amount of the transaction in the account, exact decimal text with a dot, in the transaction's currency: negative is money out, positive money in, e.g. -12.50. Only for a plain transaction with one account and one category."},"account_id":{"type":"string","description":"Move the transaction to this other account, ID from list_accounts, in the same currency. Only for a plain transaction."}},"required":["transaction_id"],"additionalProperties":false}},"categorize":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"category_id":{"type":"string","description":"ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["transaction_id"],"additionalProperties":false}},"delete_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"An empty category to delete, ID from list_categories. It must have no transactions, no sub-categories and no Rule that books to it."}},"required":["category_id"],"additionalProperties":false}},"new_accounts":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100},"type":{"type":"string","enum":["checking","savings","cash","credit_card"]},"currency":{"type":"string","description":"ISO 4217 code. Default: the one all the user's accounts use."}},"required":["name","type"],"additionalProperties":false}},"edit_accounts":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"account_id":{"type":"string","description":"The account to change, ID from list_accounts."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"closed":{"type":"boolean","description":"true closes it (its balance must be zero), false opens a closed one again."}},"required":["account_id"],"additionalProperties":false}},"new_views":{"type":"array","maxItems":3,"items":{"type":"object","properties":{"title":{"type":"string","maxLength":200,"description":"A short plain-text title for the chart. It is also the name it is saved under."},"dataset":{"type":"string","enum":["spending_by_category","income_expense_by_month"],"description":"What the chart shows. The description of each dataset says what it counts."},"chart":{"type":"string","enum":["auto","chart.line","chart.bar","chart.stacked_bar","chart.area","chart.pie","chart.donut","kpi.card","progress.bar","table.rows"],"description":"The kind of chart, or auto to let KassenSturz pick one that suits the dataset. Not every kind suits every dataset."},"grouping":{"type":"string","enum":["category","top_level_category","month"],"description":"How the figures are grouped, if the dataset offers a choice."},"measure":{"type":"string","enum":["income","expenses","net","savings-rate"],"description":"Only for kpi.card: which key figure."},"compare":{"type":"string","enum":["previous_period","same_last_year"],"description":"Only for kpi.card and progress.bar: what to compare with."},"period":{"type":"string","enum":["this-month","last-month","last-12-months","this-year","last-year"],"description":"The period shown. Default last-12-months."}},"required":["title","dataset","chart"],"additionalProperties":false}},"new_budgets":{"type":"array","maxItems":50,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"A spending category without a budget yet, ID from list_categories. The budget counts it with everything inside it."},"every":{"type":"string","enum":["month","quarter","year"],"description":"How often the budget starts again. It starts with the current month, quarter or year."},"based_on":{"type":"string","enum":["last_period","average_3_periods","average_6_periods","average_12_periods"],"description":"Let KassenSturz compute the amount from what the category spent in the last full period, or on average in the last 3, 6 or 12 full periods. Use this whenever the user did not name an amount."},"round_to":{"type":"integer","enum":[1,5,10,50,100],"description":"Only with based_on: round the computed amount up to a multiple of this many whole units of the currency. Default 1."},"amount":{"type":"string","description":"Only for an amount the user named: exact decimal text with a dot, in the category's currency, above zero, e.g. 250.00. Never compute it yourself; use based_on instead."},"carry_over":{"type":"boolean","description":"Whether what is left at the end of a period, or spent too much, moves into the next one. Default false."}},"required":["category_id","every"],"additionalProperties":false}},"edit_budgets":{"type":"array","maxItems":50,"items":{"type":"object","properties":{"budget_id":{"type":"string","description":"The budget to change, ID from list_budgets. The change applies from the current period on; earlier periods stay as they were."},"based_on":{"type":"string","enum":["last_period","average_3_periods","average_6_periods","average_12_periods"],"description":"Let KassenSturz compute the new amount from what the category spent in the last full period, or on average in the last 3, 6 or 12 full periods."},"round_to":{"type":"integer","enum":[1,5,10,50,100],"description":"Only with based_on: round the computed amount up to a multiple of this many whole units of the currency. Default 1."},"amount":{"type":"string","description":"Only for an amount the user named: exact decimal text with a dot, above zero. Never compute it yourself."},"carry_over":{"type":"boolean","description":"Whether what is left moves into the next period from now on."}},"required":["budget_id"],"additionalProperties":false}}},"additionalProperties":false}"#,
+    parameters: r#"{"type":"object","properties":{"new_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"key":{"type":"string","maxLength":40,"description":"Your short name for it, used as new_category below."},"name":{"type":"string","maxLength":100},"parent_id":{"type":"string","description":"Put it inside this category, ID from list_categories. Default: at the top."},"income":{"type":"boolean","description":"An income category, not a spending one. Default false. Inside a category it must be the same kind."},"currency":{"type":"string","description":"ISO 4217 code. Default: the parent's, or the one all the user's accounts use."}},"required":["key","name"],"additionalProperties":false}},"new_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"],"description":"Whether every condition must hold or one is enough. Default all."},"conditions":{"type":"array","minItems":1,"maxItems":10,"items":{"type":"object","description":"Either field, test and text, or money_in: true, or money_out: true.","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with"]},"text":{"type":"string","maxLength":100},"case_sensitive":{"type":"boolean"},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"Where it books what it finds, ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["name","conditions"],"additionalProperties":false}},"edit_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"The category to rename or move, ID from list_categories."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"parent_id":{"type":"string","description":"Move it, with everything inside it, into this category, ID from list_categories. It must be the same kind and currency."},"new_parent":{"type":"string","description":"Or into the new category with this key."},"to_top":{"type":"boolean","description":"Move it to the top level."}},"required":["category_id"],"additionalProperties":false}},"edit_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to change, ID from list_rules."},"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"]},"conditions":{"type":"array","minItems":1,"maxItems":10,"description":"All of its conditions as they should be, same shape as in new_rules. Only for a Rule whose conditions list_rules shows in full.","items":{"type":"object","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with"]},"text":{"type":"string","maxLength":100},"case_sensitive":{"type":"boolean"},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"The category it books to, ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["rule_id"],"additionalProperties":false}},"move_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"A top-level Rule, ID from list_rules."},"position":{"type":"integer","minimum":1,"description":"Its new place in the list of top-level Rules, 1 is the first. New Rules in this call are at the end."}},"required":["rule_id","position"],"additionalProperties":false}},"delete_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to delete, ID from list_rules. It must have no sub-Rules. What it booked stays as it is."}},"required":["rule_id"],"additionalProperties":false}},"new_transactions":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"account_id":{"type":"string","description":"A cash account of the user, ID from list_accounts."},"date":{"type":"string","description":"The day of the purchase, YYYY-MM-DD."},"amount":{"type":"string","description":"Exact decimal text with a dot, in the account's currency: negative is money out, positive money in, e.g. -12.50."},"payee":{"type":"string","maxLength":200,"description":"Who was paid or who paid, e.g. the shop."},"note":{"type":"string","maxLength":200,"description":"A note, e.g. what the money was for."},"category_id":{"type":"string","description":"The category it belongs to, ID from list_categories, in the account's currency. Leave it out for none yet."}},"required":["account_id","date","amount"],"additionalProperties":false}},"delete_transactions":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"A transaction of a cash account that the user entered by hand, ID from search_transactions."}},"required":["transaction_id"],"additionalProperties":false}},"edit_transactions":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"date":{"type":"string","description":"The new day, YYYY-MM-DD."},"payee":{"type":"string","maxLength":200,"description":"The new payee: who was paid or who paid. An empty text removes it."},"note":{"type":"string","maxLength":200,"description":"The new note. An empty text removes it."},"amount":{"type":"string","description":"The new amount of the transaction in the account, exact decimal text with a dot, in the transaction's currency: negative is money out, positive money in, e.g. -12.50. Only for a plain transaction with one account and one category."},"account_id":{"type":"string","description":"Move the transaction to this other account, ID from list_accounts, in the same currency. Only for a plain transaction."}},"required":["transaction_id"],"additionalProperties":false}},"categorize":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"category_id":{"type":"string","description":"ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["transaction_id"],"additionalProperties":false}},"delete_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"An empty category to delete, ID from list_categories. It must have no transactions, no sub-categories and no Rule that books to it."}},"required":["category_id"],"additionalProperties":false}},"new_accounts":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100},"type":{"type":"string","enum":["checking","savings","cash","credit_card"]},"currency":{"type":"string","description":"ISO 4217 code. Default: the one all the user's accounts use."}},"required":["name","type"],"additionalProperties":false}},"edit_accounts":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"account_id":{"type":"string","description":"The account to change, ID from list_accounts."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"closed":{"type":"boolean","description":"true closes it (its balance must be zero), false opens a closed one again."}},"required":["account_id"],"additionalProperties":false}},"new_budgets":{"type":"array","maxItems":50,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"A spending category without a budget yet, ID from list_categories. The budget counts it with everything inside it."},"every":{"type":"string","enum":["month","quarter","year"],"description":"How often the budget starts again. It starts with the current month, quarter or year."},"based_on":{"type":"string","enum":["last_period","average_3_periods","average_6_periods","average_12_periods"],"description":"Let KassenSturz compute the amount from what the category spent in the last full period, or on average in the last 3, 6 or 12 full periods. Use this whenever the user did not name an amount."},"round_to":{"type":"integer","enum":[1,5,10,50,100],"description":"Only with based_on: round the computed amount up to a multiple of this many whole units of the currency. Default 1."},"amount":{"type":"string","description":"Only for an amount the user named: exact decimal text with a dot, in the category's currency, above zero, e.g. 250.00. Never compute it yourself; use based_on instead."},"carry_over":{"type":"boolean","description":"Whether what is left at the end of a period, or spent too much, moves into the next one. Default false."}},"required":["category_id","every"],"additionalProperties":false}},"edit_budgets":{"type":"array","maxItems":50,"items":{"type":"object","properties":{"budget_id":{"type":"string","description":"The budget to change, ID from list_budgets. The change applies from the current period on; earlier periods stay as they were."},"based_on":{"type":"string","enum":["last_period","average_3_periods","average_6_periods","average_12_periods"],"description":"Let KassenSturz compute the new amount from what the category spent in the last full period, or on average in the last 3, 6 or 12 full periods."},"round_to":{"type":"integer","enum":[1,5,10,50,100],"description":"Only with based_on: round the computed amount up to a multiple of this many whole units of the currency. Default 1."},"amount":{"type":"string","description":"Only for an amount the user named: exact decimal text with a dot, above zero. Never compute it yourself."},"carry_over":{"type":"boolean","description":"Whether what is left moves into the next period from now on."}},"required":["budget_id"],"additionalProperties":false}}},"additionalProperties":false}"#,
 };
 
 /// The most changes one set may hold, so the user can still review it.
@@ -188,6 +195,11 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
             properties.remove(name);
         }
     }
+    // Charts have a function of their own (D-352): a user who allows only
+    // them is offered `propose_view` and not this one.
+    if properties.is_empty() {
+        return None;
+    }
     // A locked field is not offered either (D-257).
     if let Some(fields) = properties
         .get_mut("edit_transactions")
@@ -260,10 +272,6 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
         ),
         (adds_allowed(allowed), "writing down purchases in cash"),
         (
-            allowed.allows(Permission::NewViews),
-            "proposing a new chart for the user to save",
-        ),
-        (
             allowed.allows(Permission::DeleteTransactions),
             "removing transactions of a cash account that the user entered by hand",
         ),
@@ -316,19 +324,7 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
         );
     }
     if allowed.allows(Permission::NewViews) {
-        description.push_str(
-            " With new_views only choices from the lists are made: a dataset, a kind of chart \
-             (or auto), a grouping, a key figure, a comparison and a period, plus a short \
-             title. KassenSturz computes every figure itself and shows the user a preview \
-             before anything is saved, so never put numbers in a title as facts. The \
-             datasets are:",
-        );
-        for dataset in kassensturz_report::CATALOG
-            .iter()
-            .filter(|dataset| dataset.for_ai)
-        {
-            description.push_str(&format!(" {}: {}", dataset.id, dataset.description));
-        }
+        description.push_str(" A chart is prepared with propose_view, not here.");
     }
     if allowed.allows(Permission::NewBudgets) || allowed.allows(Permission::EditBudgets) {
         description.push_str(
@@ -984,13 +980,24 @@ fn recategorized(change: &Categorize) -> Result<Transaction, ChangeError> {
 /// Checks a model's call of [`PROPOSE_CHANGES`] against `book` and turns it
 /// into a change set for the user to review. The book doesn't change. A
 /// list of a kind the user doesn't allow under `allowed` is refused, not
-/// left out (D-239).
+/// left out (D-239). Charts are not among its lists since `propose_view`
+/// replaced `new_views` (D-352), so a call with that list is refused.
 pub fn propose(
     book: &Book,
     arguments: &Value,
     allowed: Permissions,
 ) -> Result<Proposal, ToolError> {
+    refuse_views(arguments)?;
     propose_with(book, arguments, allowed, None)
+}
+
+/// A model's call of [`PROPOSE_CHANGES`] may not name `new_views`: charts
+/// have their own function since M6c.8 (D-352).
+fn refuse_views(arguments: &Value) -> Result<(), ToolError> {
+    if arguments.get("new_views").is_some() {
+        return Err(ToolError::UnknownArgument);
+    }
+    Ok(())
 }
 
 /// [`propose`] on `today`, the day of this computer's clock: budgets
@@ -1002,7 +1009,33 @@ pub fn propose_on(
     allowed: Permissions,
     today: Date,
 ) -> Result<Proposal, ToolError> {
+    refuse_views(arguments)?;
     propose_with(book, arguments, allowed, Some(today))
+}
+
+/// Checks a call of one of the two functions that prepare changes, by its
+/// name: [`PROPOSE_CHANGES`] (on `today`) or `propose_view`. The MCP server
+/// and the request files use it, since a request names its function
+/// (D-352, D-393).
+pub fn prepare_named(
+    book: &Book,
+    name: &str,
+    arguments: &Value,
+    allowed: Permissions,
+    today: Date,
+) -> Result<Proposal, ToolError> {
+    match name {
+        _ if name == PROPOSE_CHANGES.name => propose_on(book, arguments, allowed, today),
+        PROPOSE_VIEW_NAME => propose_view(book, arguments, allowed),
+        _ => Err(ToolError::UnknownFunction),
+    }
+}
+
+/// Prepares a change set from a call of the lists of [`build`] without a
+/// day: the one `propose_view` makes of its call, with the chart in
+/// `new_views`, and the tests of the lists.
+fn prepare(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Proposal, ToolError> {
+    propose_with(book, arguments, allowed, None)
 }
 
 fn propose_with(

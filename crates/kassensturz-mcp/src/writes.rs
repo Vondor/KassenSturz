@@ -6,8 +6,8 @@
 //!
 //! They are offered only while the user has turned them on next to the AI
 //! switch (`McpWriteTools`, D-219), and this program still never changes
-//! the book: `propose_changes` checks the call against the book like the
-//! chat's (D-199), then hands it to the running app as a request file
+//! the book: `propose_changes`, and `propose_view` for a chart (D-352),
+//! check the call against the book like the chat's (D-199), then hand it to the running app as a request file
 //! (D-216) and waits a while for the user's decision. The app checks the
 //! call again itself, shows the set, and only its confirm button applies it
 //! (D-200). `check_proposed_changes` asks again later about a set the user
@@ -18,7 +18,10 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use kassensturz_ai_tools::requests::{Reply, RequestFolder, RequestId, Standing};
-use kassensturz_ai_tools::{PROPOSE_CHANGES, ToolError, propose_spec};
+use kassensturz_ai_tools::{
+    PROPOSE_CHANGES, PROPOSE_VIEW_NAME, ProposeSpec, ToolError, prepare_named, propose_spec,
+    propose_view_spec,
+};
 use kassensturz_core::ai_switch::{self, Permissions};
 use kassensturz_store::Book;
 use rmcp::model::{JsonObject, Tool, ToolAnnotations};
@@ -70,20 +73,18 @@ pub(crate) enum Failure {
 }
 
 /// The write tools, offered while they are turned on: `propose_changes`
-/// with only the lists the user allows (D-239), and nothing at all when
-/// they allow none.
+/// with only the lists the user allows (D-239), `propose_view` while the
+/// user allows Charts › Add (D-352), and nothing at all when they allow
+/// none.
 pub(crate) fn tools(permissions: Permissions) -> Vec<Tool> {
-    let Some(propose) = propose_spec(permissions) else {
-        return Vec::new();
-    };
     let schema = |text: &str| -> Arc<JsonObject> {
         Arc::new(serde_json::from_str(text).expect("the parameters are a JSON object"))
     };
-    vec![
+    let prepares = |spec: ProposeSpec| {
         Tool::new(
-            propose.name,
-            format!("{}{PROPOSE_NOTE}", propose.description),
-            schema(&propose.parameters),
+            spec.name,
+            format!("{}{PROPOSE_NOTE}", spec.description),
+            schema(&spec.parameters),
         )
         .with_annotations(
             ToolAnnotations::new()
@@ -91,7 +92,17 @@ pub(crate) fn tools(permissions: Permissions) -> Vec<Tool> {
                 .destructive(false)
                 .idempotent(false)
                 .open_world(false),
-        ),
+        )
+    };
+    let mut tools: Vec<Tool> = propose_spec(permissions)
+        .into_iter()
+        .chain(propose_view_spec(permissions))
+        .map(prepares)
+        .collect();
+    if tools.is_empty() {
+        return tools;
+    }
+    tools.push(
         Tool::new(
             CHECK_PROPOSED_CHANGES,
             CHECK_DESCRIPTION,
@@ -104,12 +115,13 @@ pub(crate) fn tools(permissions: Permissions) -> Vec<Tool> {
                 .idempotent(true)
                 .open_world(false),
         ),
-    ]
+    );
+    tools
 }
 
 /// Whether `name` is one of the write tools.
 pub(crate) fn is_write_tool(name: &str) -> bool {
-    name == PROPOSE_CHANGES.name || name == CHECK_PROPOSED_CHANGES
+    name == PROPOSE_CHANGES.name || name == PROPOSE_VIEW_NAME || name == CHECK_PROPOSED_CHANGES
 }
 
 /// Runs the write tool `name`, with the request folder at `folder` (`None`
@@ -128,8 +140,8 @@ pub(crate) async fn call(
     let folder = folder
         .and_then(|path| RequestFolder::open(path.to_path_buf()).ok())
         .ok_or_else(|| Failure::Code("mcp-writes.folder".into()))?;
-    let result = if name == PROPOSE_CHANGES.name {
-        propose(book, arguments, permissions, &folder, waits).await
+    let result = if name == PROPOSE_CHANGES.name || name == PROPOSE_VIEW_NAME {
+        propose(book, name, arguments, permissions, &folder, waits).await
     } else {
         let id = request_of(arguments)?;
         wait_for(&folder, &id, waits, ai_switch::write_tools_enabled).await
@@ -143,6 +155,7 @@ pub(crate) async fn call(
 /// Checks the call against the book, hands it to the app and waits.
 async fn propose(
     book: &Path,
+    name: &str,
     arguments: &Value,
     permissions: Permissions,
     folder: &RequestFolder,
@@ -154,17 +167,12 @@ async fn propose(
         .map_err(ToolError::from)
         .and_then(|book| {
             book.reading(|book| {
-                kassensturz_ai_tools::propose_on(
-                    book,
-                    arguments,
-                    permissions,
-                    crate::server::today(),
-                )
+                prepare_named(book, name, arguments, permissions, crate::server::today())
             })
         })
         .map_err(Failure::Tool)?;
     let id = folder
-        .send(book, arguments)
+        .send_call(book, name, arguments)
         .map_err(|_| Failure::Code("mcp-writes.folder".into()))?;
     wait_for(folder, &id, waits, ai_switch::write_tools_enabled).await
 }
@@ -272,17 +280,34 @@ fn known_code(code: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kassensturz_core::ai_switch::Permission;
+
+    fn tools_named(permissions: Permissions) -> Vec<String> {
+        tools(permissions)
+            .iter()
+            .map(|tool| tool.name.to_string())
+            .collect()
+    }
 
     #[test]
     fn the_write_tools_are_marked_as_such() {
         let tools = tools(Permissions::all());
         let names: Vec<&str> = tools.iter().map(|tool| tool.name.as_ref()).collect();
-        assert_eq!(names, ["propose_changes", "check_proposed_changes"]);
-        let propose = tools[0].annotations.as_ref().expect("annotated");
-        assert_eq!(propose.read_only_hint, Some(false));
-        assert_eq!(propose.destructive_hint, Some(false));
-        assert_eq!(propose.idempotent_hint, Some(false));
-        let check = tools[1].annotations.as_ref().expect("annotated");
+        assert_eq!(
+            names,
+            ["propose_changes", "propose_view", "check_proposed_changes"]
+        );
+        for prepares in &tools[..2] {
+            let propose = prepares.annotations.as_ref().expect("annotated");
+            assert_eq!(propose.read_only_hint, Some(false));
+            assert_eq!(propose.destructive_hint, Some(false));
+            assert_eq!(propose.idempotent_hint, Some(false));
+        }
+        // Charts alone: propose_view and the check, no propose_changes.
+        let charts = tools_named(Permissions::NONE.with(Permission::NewViews, true));
+        assert_eq!(charts, ["propose_view", "check_proposed_changes"]);
+        assert!(tools_named(Permissions::NONE).is_empty());
+        let check = tools[2].annotations.as_ref().expect("annotated");
         assert_eq!(check.read_only_hint, Some(true));
         assert!(
             tools[0]

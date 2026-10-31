@@ -452,7 +452,7 @@ Kirigami.ScrollablePage {
 
             Loader {
                 Layout.fillWidth: true
-                active: propertiesSheet.opened && panelModel.view.type !== undefined
+                active: propertiesSheet.opened && panelModel.view?.type !== undefined
                 sourceComponent: PropertiesPanel {
                     model: panelModel
                     withPeriod: true
@@ -468,13 +468,13 @@ Kirigami.ScrollablePage {
                 Layout.fillWidth: true
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 22
                 // Headings, notices and boxes have no figures to show.
-                visible: ["chart", "table", "card", "progress"].includes(panelModel.view.preview?.shows)
+                visible: ["chart", "table", "card", "progress"].includes(panelModel.view?.preview?.shows)
                 contentWidth: availableWidth
                 clip: true
 
                 Loader {
                     width: parent.width
-                    active: propertiesSheet.opened && panelModel.view.preview !== undefined
+                    active: propertiesSheet.opened && panelModel.view?.preview !== undefined
                     sourceComponent: ComponentPreview {
                         subject: panelModel.view
                         period: grid.periodOf(panelModel.view.period?.word, grid.byId[page.editedId])

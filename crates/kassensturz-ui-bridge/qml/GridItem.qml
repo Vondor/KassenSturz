@@ -418,6 +418,10 @@ Item {
             contentHeight: bars.implicitHeight
             clip: true
 
+            Controls.ScrollBar.vertical: Controls.ScrollBar {
+                policy: Controls.ScrollBar.AsNeeded
+            }
+
             BookBudgets {
                 id: feed
             }
@@ -425,7 +429,8 @@ Item {
             BudgetBars {
                 id: bars
 
-                width: parent.width
+                // Leaves room for the scroll bar, which would cover the figures.
+                width: parent.width - Kirigami.Units.gridUnit
                 shown: feed.view?.bars ?? []
                 budgetCount: feed.view?.count ?? 0
                 arranging: cell.board.editing

@@ -166,7 +166,6 @@ Kirigami.ScrollablePage {
                         Controls.ToolButton {
                             icon.name: "document-edit"
                             text: page.i18nContext.i18nc("@action:button change a budget", "Change")
-                            display: Controls.AbstractButton.IconOnly
                             Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of a category", "Change the budget for %1", card.modelData.name)
                             onClicked: page.changeBudgetClicked(card.modelData.id)
                             Controls.ToolTip.text: text
@@ -178,7 +177,6 @@ Kirigami.ScrollablePage {
                             icon.name: "media-playback-stop"
                             visible: card.modelData.canStop
                             text: page.i18nContext.i18nc("@action:button end a budget after the current period", "Stop")
-                            display: Controls.AbstractButton.IconOnly
                             Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of a category", "Stop the budget for %1", card.modelData.name)
                             onClicked: error.result = page.budgets.stopBudget(card.modelData.id)
                             Controls.ToolTip.text: page.i18nContext.i18nc("@info", "Ends the budget after the current period. Its past results stay.")
@@ -189,7 +187,6 @@ Kirigami.ScrollablePage {
                         Controls.ToolButton {
                             icon.name: "edit-delete"
                             text: page.i18nContext.i18nc("@action:button delete a budget", "Delete")
-                            display: Controls.AbstractButton.IconOnly
                             Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of a category", "Delete the budget for %1", card.modelData.name)
                             onClicked: {
                                 removeDialog.budgetId = card.modelData.id;

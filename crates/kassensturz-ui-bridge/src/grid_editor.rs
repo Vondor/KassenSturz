@@ -392,7 +392,7 @@ mod tests {
                 "transfers"
             ]
         );
-        assert_eq!(total_rows(&layout.editor), 22);
+        assert_eq!(total_rows(&layout.editor), 23);
     }
 
     #[test]

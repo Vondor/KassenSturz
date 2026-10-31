@@ -40,20 +40,20 @@ pub const DEFAULT_OVERVIEW: &str = r#"{
      "params": {"measure": "savings-rate", "compare": "previous_period"},
      "frame": {"col": 9, "row": 3, "cols": 3, "rows": 2}},
     {"id": "budgets", "type": "budget.progress", "dataset": "budget_utilization",
-     "frame": {"col": 0, "row": 5, "cols": 12, "rows": 3}},
+     "frame": {"col": 0, "row": 5, "cols": 12, "rows": 4}},
     {"id": "spending", "type": "chart.donut", "dataset": "spending_by_category",
      "params": {"grouping": "top_level_category"},
-     "frame": {"col": 0, "row": 8, "cols": 6, "rows": 5}},
+     "frame": {"col": 0, "row": 9, "cols": 6, "rows": 5}},
     {"id": "biggest", "type": "table.rows", "dataset": "spending_by_category",
      "params": {"grouping": "top_level_category"},
-     "frame": {"col": 6, "row": 8, "cols": 6, "rows": 5}},
+     "frame": {"col": 6, "row": 9, "cols": 6, "rows": 5}},
     {"id": "trend", "type": "chart.line", "dataset": "income_expense_by_month",
      "props": {"period": "last-12-months"},
-     "frame": {"col": 0, "row": 13, "cols": 12, "rows": 4}},
+     "frame": {"col": 0, "row": 14, "cols": 12, "rows": 4}},
     {"id": "sources", "type": "table.income_sources",
-     "frame": {"col": 0, "row": 17, "cols": 12, "rows": 4}},
+     "frame": {"col": 0, "row": 18, "cols": 12, "rows": 4}},
     {"id": "transfers", "type": "notice.transfers",
-     "frame": {"col": 0, "row": 21, "cols": 12, "rows": 1}}
+     "frame": {"col": 0, "row": 22, "cols": 12, "rows": 1}}
   ]
 }"#;
 

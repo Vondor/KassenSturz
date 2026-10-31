@@ -567,6 +567,7 @@ Item {
             }
         }
 
+        Rectangle {
             id: bar
 
             visible: cell.selected && !cell.board.preview && !cell.moving && !cell.resizing

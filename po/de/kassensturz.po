@@ -12808,53 +12808,11 @@ msgctxt "@info"
 msgid "That isn't a period KassenSturz can use. Write two dates, for example the first and the last day, with the first one earlier than the last and not more than 100 years apart."
 msgstr "Das ist kein Zeitraum, den KassenSturz verwenden kann. Schreiben Sie zwei Daten, zum Beispiel den ersten und den letzten Tag. Das erste muss vor dem zweiten liegen, und es dürfen nicht mehr als 100 Jahre dazwischen liegen."
 
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:67
-#, kde-format
-msgctxt "@title:group a step of the wizard"
-msgid "How should it look?"
-msgstr "Wie soll es aussehen?"
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:69
-#, kde-format
-msgctxt "@title:group a step of the wizard"
-msgid "What should it show?"
-msgstr "Was soll es zeigen?"
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:71
-#, kde-format
-msgctxt "@title:group a step of the wizard"
-msgid "Details"
-msgstr "Einzelheiten"
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:73
-#, kde-format
-msgctxt "@title:group a step of the wizard"
-msgid "Title and name"
-msgstr "Titel und Name"
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:89
-#, kde-format
-msgctxt "@title:group %1 is the number of the step, %2 how many there are, %3 its name"
-msgid "Step %1 of %2: %3"
-msgstr "Schritt %1 von %2: %3"
-
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:95
 #, kde-format
 msgctxt "@action:button leave the wizard and see every setting on one page"
 msgid "Show all settings at once"
 msgstr "Alle Einstellungen auf einmal zeigen"
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:188
-#, kde-format
-msgctxt "@info"
-msgid "There is nothing more to set for this one. Go on to the title and the name."
-msgstr "Hier gibt es nichts mehr einzustellen. Weiter zu Titel und Name."
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:229
-#, kde-format
-msgctxt "@action:button keep the view the wizard made"
-msgid "Save the view"
-msgstr "Ansicht speichern"
 
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:240
 #, kde-format
@@ -12879,3 +12837,113 @@ msgstr "Weiter"
 msgctxt "@action:button make a new view step by step"
 msgid "Guide me step by step"
 msgstr "Schritt für Schritt führen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@item:inlistbox a kind of chart"
+msgid "Bars"
+msgstr "Balken"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@item:inlistbox a kind of chart"
+msgid "Pie"
+msgstr "Kreis"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@item:inlistbox a kind of chart"
+msgid "Lines"
+msgstr "Linien"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@item:inlistbox a kind of display"
+msgid "One figure"
+msgstr "Eine Zahl"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@item:inlistbox a kind of display"
+msgid "Table"
+msgstr "Tabelle"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@title:group a step of the wizard"
+msgid "Chart type"
+msgstr "Diagrammtyp"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@title:group a step of the wizard"
+msgid "Data range"
+msgstr "Datenbereich"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@title:group a step of the wizard"
+msgid "Data series"
+msgstr "Datenreihen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@title:group a step of the wizard"
+msgid "Chart elements"
+msgstr "Diagrammelemente"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@info"
+msgid "Choose how the figures are shown."
+msgstr "Wählen Sie, wie die Zahlen gezeigt werden."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@info"
+msgid "Choose the period and which figures are used."
+msgstr "Wählen Sie den Zeitraum und welche Zahlen verwendet werden."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@info"
+msgid "Choose which categories, groups or lines are shown."
+msgstr "Wählen Sie, welche Kategorien, Gruppen oder Linien gezeigt werden."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@info"
+msgid "Give it a title and decide what is shown around it."
+msgstr "Geben Sie einen Titel an und bestimmen Sie, was drumherum gezeigt wird."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@title:group"
+msgid "New statistic"
+msgstr "Neue Auswertung"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@title:group %1 is the name of a saved view"
+msgid "Change “%1”"
+msgstr "„%1“ ändern"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@item:inlistbox %1 is the number of a step, %2 its name"
+msgid "%1. %2"
+msgstr "%1. %2"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button leave the wizard without a change of the saved view"
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button keep the view the wizard made"
+msgid "Finish"
+msgstr "Fertig"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@label change parts of the open view in the wizard"
+msgid "Change in the wizard:"
+msgstr "Im Assistenten ändern:"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button opens the wizard at its first step"
+msgid "Chart type…"
+msgstr "Diagrammtyp …"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button opens the wizard at the step for the data"
+msgid "Data range…"
+msgstr "Datenbereich …"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button opens the wizard at the step for title and legend"
+msgid "Chart elements…"
+msgstr "Diagrammelemente …"

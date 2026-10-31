@@ -380,7 +380,6 @@ ColumnLayout {
 
     FormError {
         Layout.fillWidth: true
-        visible: input.text.trim() !== ""
-        result: field.shown.error !== undefined ? field.shown.error : ({})
+        result: input.text.trim() !== "" && field.shown.error !== undefined ? field.shown.error : ({})
     }
 }

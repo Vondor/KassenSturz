@@ -178,7 +178,7 @@ Kirigami.ApplicationWindow {
                     // Food and Groceries inside it, Rent, and one group of money spent.
                     window.check(board.unused.length === 4, "everything starts in Unused: " + board.unused.length);
                     // A card can start a column, so its menu is never empty.
-                    const noColumn = board.choicesFor("c-food", -1);
+                    const noColumn = board.choicesFor("c-groceries", -1);
                     window.check(noColumn.length === 1 && noColumn[0].create === true, "the menu of a card offers a new column when there is none yet");
                     window.check(board.freeName("") === "New column" && board.freeName("Pets") === "Pets", "a column made from a card is named by what was typed, or New column");
                     board.moveToNew("c-groceries", -1, "");
@@ -226,6 +226,35 @@ Kirigami.ApplicationWindow {
                     window.check(JSON.parse(wizard.workbench.view.columns)[both].formula === "Fast food + 1", "the formula is kept: " + wizard.workbench.view.columns);
                     window.check(board.choicesFor("c-rent", -1).every(entry => entry.to !== both), "the menu does not offer a formula column");
                     board.removeColumn(both);
+                    // The Formula card is never used up and makes formula columns.
+                    const unusedBefore = board.unused.length;
+                    const countBefore = board.columns.length;
+                    board.moveToNew(board.formulaCard, -1, "");
+                    window.check(board.columns.length === countBefore + 1 && board.isFormula(board.columns[countBefore]) && board.columns[countBefore].members.length === 0, "the Formula card makes a formula column");
+                    window.check(board.unused.length === unusedBefore, "the Formula card is not a category and is not used up");
+                    board.moveCard(board.formulaCard, -1, 0);
+                    window.check(board.problem !== "" && !board.isFormula(board.columns[0]), "the Formula card is refused by a column that holds categories: " + board.problem);
+                    window.check(board.addColumn("Empty formula"), "an empty column");
+                    const emptyOne = board.columns.length - 1;
+                    board.moveCard(board.formulaCard, -1, emptyOne);
+                    window.check(board.isFormula(board.columns[emptyOne]), "the Formula card makes an empty column a formula");
+                    window.check(board.choicesFor(board.formulaCard, -1).some(entry => entry.create), "the Formula card's menu can make a new formula column");
+                    window.check(board.addColumn("First plain") && board.addColumn("Second plain"), "two plain columns for the examples");
+                    window.check(board.examples(0).length === 3, "two other columns give three ready-made formulas: " + board.examples(0).length);
+                    window.check(board.suggest(0, "Empty", 5).some(entry => entry.label === "Empty formula"), "typing suggests the name of another column");
+                    window.check(board.suggest(0, "SU", 2).some(entry => entry.insert === "SUM("), "typing suggests a function");
+                    board.removeColumn(board.columns.length - 1);
+                    board.removeColumn(board.columns.length - 1);
+                    board.removeColumn(emptyOne);
+                    board.removeColumn(countBefore);
+                    // A parent category makes a column for each subcategory.
+                    window.check(board.choicesFor("c-food", -1).some(entry => entry.split), "a parent category's menu can split it");
+                    window.check(!board.choicesFor("c-groceries", -1).some(entry => entry.split), "a category with no subcategory has no split");
+                    const splitBefore = board.columns.length;
+                    board.splitCard("c-food", -1);
+                    window.check(board.columns.length === splitBefore + 1 && board.columns[splitBefore].name === "Groceries" && board.columns[splitBefore].members.join() === "c-groceries", "a column for the subcategory, named after it");
+                    window.check(board.leftOut.length === 1, "the board says money booked straight to the parent has no column: " + board.leftOut);
+                    board.removeColumn(splitBefore);
                     // Copying a card (Ctrl while dragging) keeps it in its column too.
                     window.check(board.addColumn("Copy"), "a column to copy into");
                     const copy = board.columns.length - 1;

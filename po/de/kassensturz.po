@@ -13016,6 +13016,96 @@ msgid "To count a category in more than one column, hold Ctrl while you drag it,
 msgstr "Um eine Kategorie in mehr als einer Spalte zu zählen, halten Sie beim Ziehen die Strg-Taste gedrückt oder wählen Sie im Menü der Karte „Auch in … legen“."
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@item a card that makes a column worked out by a formula"
+msgid "Formula"
+msgstr "Formel"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info"
+msgid "Only an empty column can be worked out by a formula. Take its categories out first, or drop the Formula card on Add a column."
+msgstr "Nur eine leere Spalte kann mit einer Formel berechnet werden. Nehmen Sie zuerst ihre Kategorien heraus oder ziehen Sie die Karte „Formel“ auf „Spalte hinzufügen“."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:inmenu %1 is the name of an empty column"
+msgid "Work out %1 with a formula"
+msgstr "„%1“ mit einer Formel berechnen"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:inmenu starts a new column that is worked out by a formula"
+msgid "Make a new formula column"
+msgstr "Neue Formel-Spalte anlegen"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info a function of formulas, then an example"
+msgid "Adds the figures up. Example: SUM(Food; Habitat)"
+msgstr "Zählt die Zahlen zusammen. Beispiel: SUM(Food; Habitat)"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info a function of formulas, then an example"
+msgid "The sum divided by how many figures there are. Example: AVERAGE(Food; Habitat)"
+msgstr "Die Summe geteilt durch die Anzahl der Zahlen. Beispiel: AVERAGE(Food; Habitat)"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info a function of formulas, then an example"
+msgid "What share one figure is of another. Example: PERCENT_OF(Food; Food + Habitat)"
+msgstr "Welchen Anteil eine Zahl an einer anderen hat. Beispiel: PERCENT_OF(Food; Food + Habitat)"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info a function of formulas, then an example"
+msgid "How much a figure changed compared with an older one. Example: CHANGE(Food; Habitat)"
+msgstr "Wie stark sich eine Zahl gegenüber einer älteren verändert hat. Beispiel: CHANGE(Food; Habitat)"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info a function of formulas, then an example"
+msgid "Rounds to that many decimal places. Example: ROUND(Food / 3; 2)"
+msgstr "Rundet auf so viele Nachkommastellen. Beispiel: ROUND(Food / 3; 2)"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info a function of formulas, then an example"
+msgid "Uses a fallback when the first figure can't be worked out. Example: IFERROR(Food / Habitat; 0)"
+msgstr "Nimmt einen Ersatzwert, wenn die erste Zahl nicht berechnet werden kann. Beispiel: IFERROR(Food / Habitat; 0)"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@item a column of the board, in the list of suggestions"
+msgid "column"
+msgstr "Spalte"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@item a group, in the list of suggestions"
+msgid "group"
+msgstr "Gruppe"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@item a category, in the list of suggestions"
+msgid "category"
+msgstr "Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info a ready-made formula"
+msgid "The difference between two columns"
+msgstr "Der Unterschied zwischen zwei Spalten"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info a ready-made formula"
+msgid "Two columns added together"
+msgstr "Zwei Spalten zusammengezählt"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info a ready-made formula"
+msgid "The share of the first column in both together"
+msgstr "Der Anteil der ersten Spalte an beiden zusammen"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info above a list of names and functions that fit what is typed"
+msgid "Suggestions. Click one to use it:"
+msgstr "Vorschläge. Klicken Sie auf einen, um ihn zu übernehmen:"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info above a list of ready-made formulas"
+msgid "Start from an example, then change it:"
+msgstr "Beginnen Sie mit einem Beispiel und ändern Sie es dann:"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@action:button %1 is the name of a column"
 msgid "Work out %1 with a formula"
 msgstr "„%1“ mit einer Formel berechnen"
@@ -13044,6 +13134,16 @@ msgstr "Zum Beispiel: Wohnen + Essen"
 msgctxt "@label:textbox"
 msgid "Formula of the column"
 msgstr "Formel der Spalte"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info %1 is a list of category names"
+msgid "Money booked straight to %1 is not in any column. Only its subcategories are counted. Put the category itself in a column to count everything."
+msgstr "Geld, das direkt auf %1 gebucht wurde, steht in keiner Spalte. Gezählt werden nur die Unterkategorien. Legen Sie die Kategorie selbst in eine Spalte, um alles zu zählen."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:inmenu makes a column for each subcategory of the card"
+msgid "Make a column for each subcategory"
+msgstr "Für jede Unterkategorie eine Spalte anlegen"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@action:inmenu starts a new column with the card"

@@ -336,7 +336,7 @@ fn error_result(report: &ErrorReport) -> CallToolResult {
 }
 
 /// Today on this computer's clock, in its time zone (D-196).
-fn today() -> Date {
+pub(crate) fn today() -> Date {
     jiff::Zoned::now().date()
 }
 

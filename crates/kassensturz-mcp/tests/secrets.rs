@@ -105,6 +105,7 @@ fn no_tool_answer_holds_a_secret() {
         ("search_transactions", json!({"category_id": groceries})),
         ("list_categories", json!({})),
         ("list_rules", json!({})),
+        ("list_budgets", json!({})),
     ] {
         let (answer, is_error) = session.call(name, arguments);
         assert!(!is_error, "{name}: {answer}");

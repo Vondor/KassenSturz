@@ -268,9 +268,9 @@ pub(crate) mod engine {
 
     use super::*;
     use crate::ai_chat::{
-        CategoryChoice, ChangeRow, ChangeView, Command, Controls, Correction, Review, Screen, Sets,
-        Waiting, answer_from, category_choices, code_text, confirm_in, corrected, hooks,
-        outcome_of, rows_of,
+        BasisView, CategoryChoice, ChangeRow, ChangeView, Command, Controls, Correction, Review,
+        Screen, Sets, Waiting, answer_from, category_choices, code_text, confirm_in, corrected,
+        hooks, outcome_of, rows_of,
     };
     use crate::ai_requests::{Arrived, take_requests, tell_confirmed, tell_declined, tell_dropped};
     use crate::ai_settings::{self, Store};
@@ -658,7 +658,80 @@ pub(crate) mod engine {
                 ("component", text(component)),
                 ("charts", list(charts.iter().map(|chart| text(chart)))),
             ],
+            ChangeView::NewBudget {
+                category,
+                every,
+                from,
+                to,
+                amount,
+                carry_over,
+                basis,
+            } => {
+                let mut fields = vec![
+                    ("kind", text("newBudget")),
+                    ("category", text(category)),
+                    ("every", text(every)),
+                    ("from", text(from)),
+                    ("to", text(to)),
+                    ("amount", text(amount)),
+                    ("carryOver", QVariant::from(carry_over)),
+                ];
+                fields.extend(basis_fields(basis.as_ref()));
+                fields
+            }
+            ChangeView::EditBudget {
+                category,
+                every,
+                from,
+                to,
+                before,
+                amount,
+                carried_over,
+                carry_over,
+                basis,
+            } => {
+                let mut fields = vec![
+                    ("kind", text("editBudget")),
+                    ("category", text(category)),
+                    ("every", text(every)),
+                    ("from", text(from)),
+                    ("to", text(to)),
+                    ("before", text(before)),
+                    ("amount", text(amount)),
+                    ("carriedOver", QVariant::from(carried_over)),
+                    ("carryOver", QVariant::from(carry_over)),
+                ];
+                fields.extend(basis_fields(basis.as_ref()));
+                fields
+            }
         }
+    }
+
+    /// How a budget's amount was computed, as fields of its change object:
+    /// `basisPeriods` is 0 for an amount the user named, and the texts are
+    /// then empty (D-395).
+    fn basis_fields(basis: Option<&BasisView>) -> [(&'static str, QVariant); 6] {
+        let none = String::new();
+        let texts = basis.map_or([&none, &none, &none, &none, &none], |basis| {
+            [
+                &basis.from,
+                &basis.to,
+                &basis.spent,
+                &basis.average,
+                &basis.step,
+            ]
+        });
+        [
+            (
+                "basisPeriods",
+                QVariant::from(&i32::from(basis.map_or(0, |basis| basis.periods))),
+            ),
+            ("basisFrom", text(texts[0])),
+            ("basisTo", text(texts[1])),
+            ("basisSpent", text(texts[2])),
+            ("basisAverage", text(texts[3])),
+            ("basisStep", text(texts[4])),
+        ]
     }
 
     fn error(error: &ErrorText) -> QVariant {
@@ -988,6 +1061,7 @@ pub(crate) mod engine {
                     book,
                     sets,
                     kassensturz_core::ai_switch::permissions(),
+                    app_locale().today(),
                 )
             })
             .unwrap_or_default()
@@ -1178,7 +1252,7 @@ mod tests {
     use super::engine::{
         changes_object, choices_object, entry_object, finished_object, review_object, sets_object,
     };
-    use crate::ai_chat::{CategoryChoice, ChangeRow, ChangeView, EditLine, Review};
+    use crate::ai_chat::{BasisView, CategoryChoice, ChangeRow, ChangeView, EditLine, Review};
     use crate::rules::ConditionForm;
     use crate::variant::read_back::{elements, flag_of, keys, list_of, number_of, text_of};
 
@@ -1512,6 +1586,33 @@ mod tests {
                 component: r#"{"type":"chart.pie"}"#.into(),
                 charts: vec!["chart.pie", "chart.bar"],
             },
+            ChangeView::NewBudget {
+                category: "Food › <b>Groceries</b>".into(),
+                every: "month",
+                from: "01.11.2026".into(),
+                to: "30.11.2026".into(),
+                amount: "390,00 €".into(),
+                carry_over: true,
+                basis: Some(BasisView {
+                    periods: 6,
+                    from: "01.05.2026".into(),
+                    to: "31.10.2026".into(),
+                    spent: "2.324,40 €".into(),
+                    average: "387,40 €".into(),
+                    step: "10,00 €".into(),
+                }),
+            },
+            ChangeView::EditBudget {
+                category: "Fun".into(),
+                every: "quarter",
+                from: "01.10.2026".into(),
+                to: "31.12.2026".into(),
+                before: "100,00 €".into(),
+                amount: "120,00 €".into(),
+                carried_over: false,
+                carry_over: true,
+                basis: None,
+            },
         ];
         let rows: Vec<ChangeRow> = views
             .into_iter()
@@ -1535,7 +1636,7 @@ mod tests {
             .collect();
         let object = changes_object(&rows);
         let items = elements(&object).expect("an array");
-        assert_eq!(items.len(), 14);
+        assert_eq!(items.len(), 16);
         // What the user did with each change (D-293).
         assert_eq!(
             keys(&items[1]),
@@ -1662,6 +1763,59 @@ mod tests {
         assert_eq!(text_of(&items[13], "title"), "<b>Where it goes</b>");
         assert_eq!(text_of(&items[13], "period"), "this-year");
         assert_eq!(text_of(&items[13], "component"), r#"{"type":"chart.pie"}"#);
+        let basis = [
+            "basisAverage",
+            "basisFrom",
+            "basisPeriods",
+            "basisSpent",
+            "basisStep",
+            "basisTo",
+        ];
+        let mut expected: Vec<&str> = [
+            "amount",
+            "carryOver",
+            "category",
+            "every",
+            "from",
+            "kind",
+            "to",
+        ]
+        .into_iter()
+        .chain(basis)
+        .collect();
+        expected.sort_unstable();
+        assert_eq!(own_keys(&items[14]), expected);
+        assert_eq!(text_of(&items[14], "kind"), "newBudget");
+        assert_eq!(text_of(&items[14], "category"), "Food › <b>Groceries</b>");
+        assert_eq!(text_of(&items[14], "every"), "month");
+        assert_eq!(text_of(&items[14], "amount"), "390,00 €");
+        assert!(flag_of(&items[14], "carryOver"));
+        assert_eq!(number_of(&items[14], "basisPeriods"), 6);
+        assert_eq!(text_of(&items[14], "basisAverage"), "387,40 €");
+        assert_eq!(text_of(&items[14], "basisStep"), "10,00 €");
+        assert_eq!(text_of(&items[14], "basisFrom"), "01.05.2026");
+        let mut expected: Vec<&str> = [
+            "amount",
+            "before",
+            "carriedOver",
+            "carryOver",
+            "category",
+            "every",
+            "from",
+            "kind",
+            "to",
+        ]
+        .into_iter()
+        .chain(basis)
+        .collect();
+        expected.sort_unstable();
+        assert_eq!(own_keys(&items[15]), expected);
+        assert_eq!(text_of(&items[15], "kind"), "editBudget");
+        assert_eq!(text_of(&items[15], "before"), "100,00 €");
+        assert!(!flag_of(&items[15], "carriedOver"));
+        assert!(flag_of(&items[15], "carryOver"));
+        assert_eq!(number_of(&items[15], "basisPeriods"), 0);
+        assert_eq!(text_of(&items[15], "basisAverage"), "");
     }
 
     /// The keys of a change object without those every change has.

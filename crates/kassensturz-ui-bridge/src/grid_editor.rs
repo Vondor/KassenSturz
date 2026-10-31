@@ -284,7 +284,7 @@ pub fn library() -> Vec<(&'static str, &'static str)> {
 /// with its dot written as an underscore, if it is in the library.
 pub fn widget_detail(kind_id: &str) -> Option<&'static str> {
     let wanted = kind_id.replace('.', "_");
-    kassensturz_core::debug_log::DETAILS
+    kassensturz_core::vocabulary::DETAILS
         .iter()
         .copied()
         .find(|detail| *detail == wanted)

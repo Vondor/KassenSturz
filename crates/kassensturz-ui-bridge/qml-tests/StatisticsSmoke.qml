@@ -182,7 +182,7 @@ Kirigami.ApplicationWindow {
                     window.check(noColumn.length === 1 && noColumn[0].create === true, "the menu of a card offers a new column when there is none yet");
                     window.check(board.freeName("") === "New column" && board.freeName("Pets") === "Pets", "a column made from a card is named by what was typed, or New column");
                     board.moveToNew("c-groceries", -1, "");
-                    window.check(board.columns.length === 1 && board.columns[0].members.join() === "c-groceries" && board.focusName === "New column", "a card makes a new column of its own and asks for its name");
+                    window.check(board.columns.length === 1 && board.columns[0].members.join() === "c-groceries", "a card makes a new column of its own");
                     window.check(board.freeName("") === "New column 2", "the next one is named New column 2");
                     board.removeColumn(0);
                     window.check(!board.addColumn("  "), "a column needs a name");

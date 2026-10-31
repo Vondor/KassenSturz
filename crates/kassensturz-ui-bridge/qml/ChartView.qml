@@ -30,6 +30,11 @@ ColumnLayout {
     property bool showTable: false
     // The point in focus, or -1.
     property int current: -1
+    // The legend entry the pointer rests on and where, for the one tooltip
+    // below, which is a popup of the chart and never part of the legend's
+    // layout.
+    property int legendTip: -1
+    property point legendPoint: Qt.point(0, 0)
 
     readonly property bool round: chart.round
     readonly property int count: chart.count
@@ -501,6 +506,15 @@ ColumnLayout {
         Accessible.ignored: true
     }
 
+    Controls.ToolTip {
+        parent: view
+        x: view.legendPoint.x + Kirigami.Units.largeSpacing
+        y: view.legendPoint.y + Kirigami.Units.gridUnit
+        visible: view.round && view.legendTip >= 0
+        text: view.legendTip >= 0 ? view.pointText(view.legendTip) : ""
+        delay: Kirigami.Units.toolTipDelay
+    }
+
     // The legend: color, second mark and name, never the color alone.
     Flow {
         Layout.fillWidth: true
@@ -562,12 +576,15 @@ ColumnLayout {
                     id: legendHover
 
                     enabled: view.round
-                    onHoveredChanged: view.current = hovered ? entry.index : -1
+                    // Hover only sets a number and a point; nothing that
+                    // hover shows may take room in the legend (M6-B18).
+                    onHoveredChanged: {
+                        view.current = hovered ? entry.index : -1;
+                        view.legendTip = hovered ? entry.index : -1;
+                    }
+                    onPointChanged: if (hovered) view.legendPoint = entry.mapToItem(view, point.position)
                 }
 
-                Controls.ToolTip.visible: view.round && legendHover.hovered
-                Controls.ToolTip.text: view.pointText(entry.index)
-                Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
             }
         }
     }

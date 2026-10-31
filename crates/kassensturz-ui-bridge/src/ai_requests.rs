@@ -105,7 +105,6 @@ mod tests {
 
     use super::*;
     use crate::ai_chat::{ChangeView, confirm_in, views_of};
-    use kassensturz_ai_tools::propose;
 
     /// The day the tests' requests arrive on.
     const DAY: kassensturz_core::Date = kassensturz_core::Date::constant(2026, 10, 25);

@@ -10,7 +10,7 @@
 use std::collections::HashMap;
 
 use kassensturz_core::{AccountId, AccountKind, CurrencyCode, Date, Money, TransactionId};
-use kassensturz_store::{Book, StoreError};
+use kassensturz_store::{Book, StoreError, TransactionOutline};
 
 use crate::format::{AmountFormat, Locale};
 
@@ -218,40 +218,49 @@ pub fn kind_of(
     account: AccountId,
     transaction: &kassensturz_core::Transaction,
 ) -> Result<(EntryKind, String), StoreError> {
-    kind_of_with(account, transaction, |id| book.account(id))
+    let parts = transaction
+        .splits()
+        .iter()
+        .map(|split| (split.account, split.foreign.is_some()));
+    Ok(match one_other_part(account, parts) {
+        None => (EntryKind::Parts, String::new()),
+        Some(None) => (EntryKind::Simple, String::new()),
+        Some(Some(id)) => kind_from(&book.account(id)?),
+    })
 }
 
-/// [`kind_of`] with the other part's account looked up by `lookup`, so a
-/// whole register can use one list of accounts instead of a query per line.
-fn kind_of_with(
+/// Where the one other part of a transaction is booked to, seen from
+/// `account`, from its `parts` (each one's account and whether it is in
+/// another currency): `None` if it has several parts, a foreign one, or
+/// several in `account`; `Some(None)` if the other part is not sorted yet.
+fn one_other_part(
     account: AccountId,
-    transaction: &kassensturz_core::Transaction,
-    lookup: impl Fn(AccountId) -> Result<kassensturz_core::Account, StoreError>,
-) -> Result<(EntryKind, String), StoreError> {
+    parts: impl IntoIterator<Item = (Option<AccountId>, bool)>,
+) -> Option<Option<AccountId>> {
     let mut own = 0;
     let mut others = Vec::new();
-    for split in transaction.splits() {
-        if split.account == Some(account) {
+    for (booked_to, foreign) in parts {
+        if booked_to == Some(account) {
             own += 1;
         } else {
-            others.push(split);
+            others.push((booked_to, foreign));
         }
     }
-    let [other] = others.as_slice() else {
-        return Ok((EntryKind::Parts, String::new()));
-    };
-    if own != 1 || other.foreign.is_some() {
-        return Ok((EntryKind::Parts, String::new()));
+    match others.as_slice() {
+        [(other, false)] if own == 1 => Some(*other),
+        _ => None,
     }
-    let Some(id) = other.account else {
-        return Ok((EntryKind::Simple, String::new()));
-    };
-    let other = lookup(id)?;
-    Ok(match other.kind {
-        AccountKind::Income | AccountKind::Expense => (EntryKind::Simple, other.name),
+}
+
+/// The kind of a line whose one other part is booked to `other`, with the
+/// name it shows: the category's or the other account's, none for a
+/// starting balance.
+fn kind_from(other: &kassensturz_core::Account) -> (EntryKind, String) {
+    match other.kind {
+        AccountKind::Income | AccountKind::Expense => (EntryKind::Simple, other.name.clone()),
         AccountKind::Equity => (EntryKind::StartingBalance, String::new()),
-        AccountKind::Asset | AccountKind::Liability => (EntryKind::Transfer, other.name),
-    })
+        AccountKind::Asset | AccountKind::Liability => (EntryKind::Transfer, other.name.clone()),
+    }
 }
 
 /// `account`'s transactions, oldest first, each with what its other part is
@@ -261,38 +270,41 @@ pub fn entries(book: &Book, account: AccountId) -> Result<Vec<Entry>, StoreError
     let details = book.account(account)?;
     let mut balance = Money::zero(details.currency);
     let mut entries = Vec::new();
-    // Read once, not once per line.
-    let transactions: HashMap<TransactionId, kassensturz_core::Transaction> = book
-        .transactions_of(account)?
-        .into_iter()
-        .map(|transaction| (transaction.id(), transaction))
-        .collect();
+    // Read once, not once per line, and only the outline of each
+    // transaction: making whole transactions took most of the time a
+    // register with thousands of lines needed to open (M6-B8, D-387).
+    let outlines: HashMap<TransactionId, TransactionOutline> =
+        book.transaction_outlines(account)?;
     let accounts: HashMap<AccountId, kassensturz_core::Account> = book
         .all_accounts()?
         .into_iter()
         .map(|account| (account.id, account))
         .collect();
     for entry in book.register(account)? {
-        let transaction = transactions
+        let outline = outlines
             .get(&entry.transaction)
             .ok_or(StoreError::UnknownTransaction(entry.transaction))?;
-        let (kind, category) = kind_of_with(account, transaction, |id| {
-            accounts
-                .get(&id)
-                .cloned()
-                .ok_or(StoreError::UnknownAccount(id))
-        })?;
+        let parts = outline
+            .parts
+            .iter()
+            .map(|part| (part.account, part.foreign));
+        let (kind, category) = match one_other_part(account, parts) {
+            None => (EntryKind::Parts, String::new()),
+            Some(None) => (EntryKind::Simple, String::new()),
+            Some(Some(id)) => kind_from(accounts.get(&id).ok_or(StoreError::UnknownAccount(id))?),
+        };
         balance = balance
             .checked_add(entry.amount)
             .map_err(|_| StoreError::AmountOverflow)?;
-        let note = transaction
-            .note()
+        let note = outline
+            .note
+            .as_deref()
             .or_else(|| {
-                transaction
-                    .splits()
+                outline
+                    .parts
                     .iter()
-                    .find(|split| split.account == Some(account))
-                    .and_then(|split| split.note.as_deref())
+                    .find(|part| part.account == Some(account))
+                    .and_then(|part| part.note.as_deref())
             })
             .unwrap_or_default()
             .to_owned();
@@ -399,8 +411,13 @@ pub fn register_view(
 ) -> Result<RegisterView, StoreError> {
     let details = book.account(account)?;
     let writer = AmountWriter::new(book, details.currency, locale)?;
-    let (balance, owes) = writer.balance(book.balance(account)?, details.kind);
     let mut entries = entries(book, account)?;
+    // The last entry in date order holds the balance, so it isn't added up
+    // a second time.
+    let now = entries
+        .last()
+        .map_or(Money::zero(details.currency), |entry| entry.balance);
+    let (balance, owes) = writer.balance(now, details.kind);
     sort.apply(&mut entries);
     let rows = entries
         .iter()

@@ -44,7 +44,8 @@ mod prompt;
 mod session;
 
 pub use demo::{
-    DEMO_CATEGORY, DEMO_CHART, DEMO_ENV, DEMO_LABEL, DemoModel, INVENTED, demo_provider,
+    CHART_PREPARED, DEMO_CATEGORY, DEMO_CHART, DEMO_ENV, DEMO_LABEL, DESCRIBED_CHARTS, DemoModel,
+    DescribedChart, DescribedIds, INVENTED, demo_provider, described,
 };
 pub use error::ChatError;
 pub use features::{AnswerLanguage, Feature};

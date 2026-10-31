@@ -207,6 +207,8 @@ In the chat panel, *Describe a chart* (a one-press entry next to the existing on
 
 **Built in M6c.10a (D-397):** the malformed-call suite is one table in `kassensturz-ai-tools/tests/malformed/mod.rs`, shared with `kassensturz-ai-chat` by path; fake-model descriptions and the local model script follow in M6c.10b.
 
+**Built in M6c.10b (D-411, D-412):** the fake model's ten descriptions are `DESCRIBED_CHARTS` in `kassensturz-ai-chat` (`src/demo/charts.rs`), the first being the *Describe a chart* example; a test asks each through the chat on the Space Colony book and checks that every dataset the AI may name is covered (`in_currency` waits for D-391). The local model script is `tools/describe-charts-local.sh`, which runs the example `describe_charts_local` against a loopback address only, on the synthetic book only, and prints a table for `ai-tests/`.
+
 ## 5. The debug-log event per action handler (D-359; M6c.D)
 
 Every button, menu item and shortcut handler in QML emits a fixed event name to the debug log (terminal only, `KASSENSTURZ_DEBUG_LOG=1`, D-227), through one helper, and a check under `tools/` fails when a handler has none; this catches the silent *does nothing* bugs of M6b (M6-B9, B13, B14). The events carry the handler's fixed name only, never book data. Making *every action handler logs* a rule for all developers is a change to the product's agent rules, a human gate: M6c.D proposes it in its pull request and the maintainer decides.

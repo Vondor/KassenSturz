@@ -46,3 +46,9 @@ kassensturz-store = { workspace = true, features = ["bundled-sqlite"] }
 
 [lints]
 workspace = true
+
+# Asks a model on this computer for the described charts; run by hand through
+# tools/describe-charts-local.sh, never in CI (D-356, D-412).
+[[example]]
+name = "describe_charts_local"
+required-features = ["ai"]

@@ -30,6 +30,13 @@ Kirigami.ApplicationWindow {
         id: dashboard
     }
 
+    // The menu that adds a widget (D-337).
+    AddMenu {
+        id: addMenu
+
+        savedList: [{id: "b", name: "Zeta"}, {id: "a", name: "Alpha"}]
+    }
+
     pageStack.initialPage: Kirigami.Page {
         id: page
 
@@ -156,6 +163,18 @@ Kirigami.ApplicationWindow {
                 break;
             }
             default:
+                const groupNames = addMenu.groups.map(group => group.name);
+                window.check(groupNames.length === 5, "five groups with a saved view: " + groupNames);
+                window.check(groupNames.join() === groupNames.slice().sort((x, y) => x.localeCompare(y)).join(), "the groups are in alphabetical order: " + groupNames);
+                for (const group of addMenu.groups) {
+                    const rowNames = group.rows.map(row => row.name);
+                    window.check(rowNames.join() === rowNames.slice().sort((x, y) => x.localeCompare(y)).join(), "the rows of " + group.name + " are in alphabetical order: " + rowNames);
+                }
+                const saved = addMenu.groups.find(group => group.rows[0].saved);
+                window.check(saved && saved.rows.map(row => row.id).join() === "a,b", "the saved views are sorted by name");
+                const kinds = addMenu.groups.filter(group => !group.rows[0].saved).reduce((all, group) => all.concat(group.rows), []).length;
+                window.check(kinds === 16, "every kind of widget is in a group: " + kinds);
+                window.check(addMenu.count === 5, "one submenu for each group: " + addMenu.count);
                 window.check(!grid.editing && grid.selectedId === "", "leaving edit mode selects nothing");
                 if (window.failed) {
                     console.log("FAIL: the grid smoke test");

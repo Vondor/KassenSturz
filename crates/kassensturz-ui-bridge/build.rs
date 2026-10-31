@@ -70,7 +70,7 @@ fn main() {
                 "qml/DefaultCategories.qml",
                 "qml/ExportPage.qml",
                 "qml/FormError.qml",
-                "qml/LibraryAction.qml",
+                "qml/AddMenu.qml",
                 "qml/GridNames.qml",
                 "qml/GridItem.qml",
                 "qml/DashboardGrid.qml",

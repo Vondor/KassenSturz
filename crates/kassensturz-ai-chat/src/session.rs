@@ -102,6 +102,19 @@ pub const NOT_OFFERED: &str = "KassenSturz: a function you asked for is not offe
                                was not run (error ai-tools.unknown-function). Call only the \
                                functions offered.";
 
+/// How often the model may correct a refused call of `propose_view` in one
+/// question: the call and two corrections (D-355, D-402). The next refusal
+/// ends the attempt, and the chat offers the Statistic Builder instead.
+pub const MAX_VIEW_CORRECTIONS: usize = 2;
+
+/// Said to the model once when its corrections of `propose_view` ran out, as
+/// the last request of the question. The chat card tells the user itself
+/// that no chart could be prepared (D-402).
+pub const CHART_NOT_PREPARED: &str = "KassenSturz: the chart could not be prepared, and no \
+    more corrections are allowed. Do not call propose_view again. Tell the user in one or two \
+    plain sentences that you could not prepare the chart and that they can make it in the \
+    Statistic Builder. Do not describe what the chart would have shown.";
+
 /// What the user did with the changes the model prepared, which the model
 /// hears at its next question (D-229).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -165,6 +178,19 @@ pub enum Mode {
     Overview,
 }
 
+/// A chart the model could not prepare, even after the corrections
+/// [`MAX_VIEW_CORRECTIONS`] allows (D-402). The chat says so plainly and
+/// offers the Statistic Builder.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ChartFailed {
+    /// The code of the last refusal.
+    pub code: &'static str,
+    /// The dataset the last call named, when that was one the AI may name:
+    /// what it understood, which the builder starts from. Always one of the
+    /// catalog's own ids, never the model's text.
+    pub dataset: Option<&'static str>,
+}
+
 /// What the model answered to a question.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Answer {
@@ -186,6 +212,12 @@ pub struct Answer {
     /// called `propose_changes`, for the user to review (D-171, D-199).
     /// Nothing in them is applied: only the review screen's confirm does.
     pub changes: Vec<ChangeSet>,
+    /// For each set of `changes`, the numbers in the titles of its new
+    /// charts that no function produced, marked like those of an answer
+    /// (D-188, D-402).
+    pub title_numbers: Vec<Vec<Unverified>>,
+    /// Set when the model's attempts at a chart ran out (D-402).
+    pub chart_failed: Option<ChartFailed>,
     /// The issue draft the model prepared for this question, the last one
     /// if it made several, for the user to read (D-173, D-228). Nothing is
     /// sent: only the user opens the prefilled page.
@@ -281,6 +313,11 @@ pub struct ChatSession {
     issue: Option<IssueDraft>,
     /// The page the model asked to open for the question under way.
     page: Option<PageTarget>,
+    /// How many calls of `propose_view` were refused in the question under
+    /// way (D-402).
+    view_refusals: usize,
+    /// Set when the refusals went past [`MAX_VIEW_CORRECTIONS`].
+    chart_failed: Option<ChartFailed>,
     /// The debug log the conversation writes to and the model may read
     /// while AI and the log are on (D-173).
     #[cfg(feature = "debug-log")]
@@ -311,6 +348,8 @@ impl ChatSession {
             proposed: Vec::new(),
             issue: None,
             page: None,
+            view_refusals: 0,
+            chart_failed: None,
             #[cfg(feature = "debug-log")]
             debug_log: DebugLog::none(),
             screen: None,
@@ -457,6 +496,8 @@ impl ChatSession {
         self.proposed.clear();
         self.issue = None;
         self.page = None;
+        self.view_refusals = 0;
+        self.chart_failed = None;
         let mut overview = None;
         let mut context_cut = false;
         if self.mode == Mode::Overview {
@@ -577,13 +618,17 @@ impl ChatSession {
                 );
                 self.history
                     .push(Message::assistant(reply.text.clone(), Vec::new()));
+                let changes = std::mem::take(&mut self.proposed);
+                let title_numbers = changes.iter().map(|set| self.title_numbers(set)).collect();
                 return Ok(Answer {
                     text: reply.text,
                     unverified,
                     finish: reply.finish,
                     mode: self.mode,
                     context_cut,
-                    changes: std::mem::take(&mut self.proposed),
+                    changes,
+                    title_numbers,
+                    chart_failed: self.chart_failed.take(),
                     issue: self.issue.take(),
                     page: self.page.take(),
                 });
@@ -608,6 +653,12 @@ impl ChatSession {
                     hooks,
                 );
                 self.history.push(Message::user(NOT_OFFERED));
+            }
+            // The corrections of a chart ran out: the next request is the
+            // one that says so, with no function offered (D-402).
+            if self.chart_failed.is_some() && !closing {
+                closing = true;
+                self.history.push(Message::user(CHART_NOT_PREPARED));
             }
             // The same call again gets the same result: the model is going
             // round in a circle, so its next request has to be the answer.
@@ -634,16 +685,19 @@ impl ChatSession {
             .flat_map(ChangeSet::changes)
             .filter(|change| matches!(change, ProposedChange::NewView(_)))
             .count();
+        let mut view_refused = false;
         let outcome = if call.name == PROPOSE_VIEW_NAME {
             // The text itself, so a key written twice is seen (D-353).
             // Prepared for the user, never applied here (T-27, T-46).
             if views >= MAX_VIEWS_PER_ANSWER {
                 Err(ToolError::TooManyChanges)
             } else {
-                propose_view_text(book, &call.arguments, self.permissions()).map(|proposal| {
-                    self.proposed.push(proposal.changes);
-                    proposal.output
-                })
+                propose_view_text(book, &call.arguments, self.permissions())
+                    .inspect_err(|_| view_refused = true)
+                    .map(|proposal| {
+                        self.proposed.push(proposal.changes);
+                        proposal.output
+                    })
             }
         } else {
             serde_json::from_str::<Value>(&call.arguments)
@@ -686,6 +740,15 @@ impl ChatSession {
             }
             Err(error) => {
                 let report = error.report();
+                if view_refused {
+                    self.view_refusals += 1;
+                    if self.view_refusals > MAX_VIEW_CORRECTIONS && self.chart_failed.is_none() {
+                        self.chart_failed = Some(ChartFailed {
+                            code: report.code,
+                            dataset: understood_dataset(&call.arguments),
+                        });
+                    }
+                }
                 let prepares = call.name == PROPOSE_CHANGES.name;
                 let answer = if call.name == PROPOSE_VIEW_NAME {
                     view_error_json(&report)
@@ -705,6 +768,20 @@ impl ChatSession {
             hooks,
         );
         Message::tool_result(call.id.clone(), result)
+    }
+
+    /// The numbers in the titles of the new charts of `set` that no function
+    /// produced (D-188, D-402). A title is the model's text: it is shown as
+    /// plain text and marked like an answer.
+    fn title_numbers(&self, set: &ChangeSet) -> Vec<Unverified> {
+        set.changes()
+            .iter()
+            .filter_map(|change| match change {
+                ProposedChange::NewView(view) => Some(check_numbers(&view.title, &self.figures)),
+                _ => None,
+            })
+            .flatten()
+            .collect()
     }
 
     /// The overview for a model that can't call functions, with its figures
@@ -937,6 +1014,14 @@ fn error_json(report: &ErrorReport, prepares: bool) -> Value {
         out.insert("hint".into(), json!(hints.join(" ")));
     }
     Value::Object(out)
+}
+
+/// The dataset a refused call of `propose_view` named, when it is one the AI
+/// may name: the catalog's own id, never the model's text (D-402).
+fn understood_dataset(arguments: &str) -> Option<&'static str> {
+    let named = serde_json::from_str::<Value>(arguments).ok()?;
+    let named = named.get("data")?.as_str()?;
+    view_choices("data")?.into_iter().find(|id| *id == named)
 }
 
 /// What the model is told when its call of `propose_view` is refused: the

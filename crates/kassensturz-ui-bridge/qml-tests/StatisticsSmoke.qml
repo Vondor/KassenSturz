@@ -26,10 +26,15 @@ Kirigami.ApplicationWindow {
         id: saved
     }
 
+    CategoryGroups {
+        id: groups
+    }
+
     pageStack.initialPage: StatisticsPage {
         id: page
 
         saved: saved
+        groupsSource: groups
     }
 
     function check(ok, what) {
@@ -137,24 +142,77 @@ Kirigami.ApplicationWindow {
                     const wizard = find(page, "StatisticWizard", [])[0];
                     window.check(page.wizard && wizard.visible && wizard.step === 0, "a new view starts in the wizard at its first step");
                     const types = find(wizard, "AbstractButton", []).filter(button => button.checkable);
-                    window.check(types.length === page.types.length, "one picture to choose for each type: " + types.length);
-                    types[1].clicked();
+                    window.check(types.length === 2, "the first kind offers its two ways to show: " + types.length);
+                    const entries = find(wizard, "ItemDelegate", []);
+                    window.check(entries.length === wizard.steps + wizard.kinds.length, "a list of steps and a list of kinds: " + entries.length);
+                    entries[wizard.steps + 1].clicked();
                 }
                 break;
             case 10:
                 {
                     const wizard = find(page, "StatisticWizard", [])[0];
-                    window.check(wizard.workbench.view.type === "chart.pie", "choosing a picture sets the type: " + wizard.workbench.view.type);
+                    window.check(wizard.workbench.view.type === "chart.pie", "choosing a kind sets its first type: " + wizard.workbench.view.type);
                     window.check(window.shown("ChartView") === 1, "and the preview shows it");
-                    wizard.step = 3;
-                    window.check(wizard.step === 3, "the last step is reachable");
-                    wizard.saveRequested("Wizard view");
+                    wizard.step = 0;
+                    wizard.next();
+                    window.check(wizard.step === (wizard.usable(1) ? 1 : 2), "Next goes to the categories, or past them when there is nothing to choose: " + wizard.step);
+                    wizard.goTo(2);
+                    window.check(wizard.step === 2, "the last step is reachable by its list");
+                    wizard.step = 0;
+                    wizard.finish();
+                    window.check(wizard.step === 2 && page.openId === "", "Finish without a name asks for it first");
+                    wizard.finishRequested("Wizard view");
                 }
                 break;
             case 11:
                 window.check(page.openId !== "" && page.openName === "Wizard view", "the wizard saves the view under its name");
                 window.check(!page.wizard, "and the page shows every setting from then on");
-                Qt.exit(window.failed ? 1 : 0);
+                // The board of columns (D-340): reopen the view at the step.
+                page.changeStep(1);
+                break;
+            case 12:
+                {
+                    const wizard = find(page, "StatisticWizard", [])[0];
+                    const board = find(wizard, "ColumnBoard", [])[0];
+                    window.check(page.wizard && wizard.step === 1 && board !== undefined && board.visible, "the saved view reopens the wizard at the board");
+                    // Food and Groceries inside it, Rent, and one group of money spent.
+                    window.check(board.unused.length === 4, "everything starts in Unused: " + board.unused.length);
+                    window.check(!board.addColumn("  "), "a column needs a name");
+                    window.check(board.addColumn("Fast food") && board.addColumn("Home"), "two columns are added");
+                    window.check(!board.addColumn("fast FOOD") && board.problem !== "", "a name another column has is refused");
+                    board.moveCard("c-food", -1, 0);
+                    board.moveCard("c-rent", -1, 1);
+                    board.alsoPut("c-rent", 0);
+                }
+                break;
+            case 13:
+                {
+                    const wizard = find(page, "StatisticWizard", [])[0];
+                    const board = find(wizard, "ColumnBoard", [])[0];
+                    const columns = JSON.parse(wizard.workbench.view.columns);
+                    window.check(columns.length === 2 && columns[0].name === "Fast food", "the workbench holds the columns: " + wizard.workbench.view.columns);
+                    window.check(columns[0].members.join() === "c-food,c-rent" && columns[1].members.join() === "c-rent", "a card moves, and may also sit in a second column");
+                    // Groceries lies inside Food, so it is counted and not offered again.
+                    window.check(board.unused.map(card => card.id).join() === "g-fixed", "what is counted leaves Unused: " + board.unused.map(card => card.id));
+                    board.moveCard("c-food", 0, -1);
+                    board.removeColumn(1);
+                }
+                break;
+            case 14:
+                {
+                    const wizard = find(page, "StatisticWizard", [])[0];
+                    const columns = JSON.parse(wizard.workbench.view.columns);
+                    window.check(columns.length === 1 && columns[0].members.join() === "c-rent", "a card goes back to Unused and a column can be removed");
+                    window.check(page.saveChanges(), "the changes of the open view are saved with its columns");
+                    wizard.cancelled();
+                }
+                break;
+            case 15:
+                {
+                    const wizard = find(page, "StatisticWizard", [])[0];
+                    window.check(JSON.parse(wizard.workbench.view.columns).length === 1, "the saved view comes back with its column");
+                    Qt.exit(window.failed ? 1 : 0);
+                }
                 break;
             }
         }

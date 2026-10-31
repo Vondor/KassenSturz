@@ -29,6 +29,7 @@ fn main() {
                 "qml/KpiNames.qml",
                 "qml/PeriodChoice.qml",
                 "qml/StatisticWizard.qml",
+                "qml/ColumnBoard.qml",
                 "qml/ProgressMeter.qml",
                 "qml/AccountGrid.qml",
                 "qml/AccountDetailsPage.qml",

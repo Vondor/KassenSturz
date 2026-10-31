@@ -50,6 +50,8 @@ ColumnLayout {
     }
 
     readonly property TitleWords titleWords: TitleWords {}
+    // How far each list of ticks was scrolled, by field key.
+    property var scrolledTo: ({})
 
     function datasetName(id: string): string {
         switch (id) {
@@ -349,8 +351,23 @@ ColumnLayout {
                             Accessible.name: panel.fieldLabel(row.modelData.key)
 
                             ListView {
+                                id: optionList
+
+                                // A tick changes the view, which builds the
+                                // panel's fields again: the place in the list
+                                // is kept in the panel and put back (M6-B21).
+                                property bool settledAt: false
+
                                 model: picker.options
                                 clip: true
+                                onContentYChanged: if (settledAt) panel.scrolledTo[row.modelData.key] = contentY
+                                Component.onCompleted: Qt.callLater(() => {
+                                    const kept = panel.scrolledTo[row.modelData.key];
+                                    if (kept !== undefined) {
+                                        optionList.contentY = Math.min(kept, Math.max(0, optionList.contentHeight - optionList.height));
+                                    }
+                                    optionList.settledAt = true;
+                                })
                                 delegate: Controls.CheckBox {
                                     required property var modelData
 

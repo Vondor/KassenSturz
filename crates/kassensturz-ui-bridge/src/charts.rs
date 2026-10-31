@@ -330,7 +330,7 @@ pub fn charts(
 /// counts in both; the result names it so the screen can say so.
 fn columns_charts(
     source: &Source,
-    text: &AppText,
+    text: &impl TextFormat,
     kind: ChartKind,
     period: Period,
     chosen: &[(String, Vec<String>)],

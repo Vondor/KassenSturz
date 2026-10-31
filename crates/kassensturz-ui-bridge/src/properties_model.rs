@@ -525,6 +525,7 @@ mod tests {
                         categories: Vec::new(),
                         series: Vec::new(),
                         show_hidden: preview.show_hidden,
+                        columns: Vec::new(),
                     };
                     charts::charts(&book, &locale, &request)
                         .unwrap_or_else(|e| panic!("{} on {}: {e:?}", kind.id(), dataset.id));

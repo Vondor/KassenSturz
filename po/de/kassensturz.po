@@ -13031,6 +13031,11 @@ msgid "Formula of the column"
 msgstr "Formel der Spalte"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:inmenu shown when there is no column yet"
+msgid "Add a column first, then move this card into it"
+msgstr "Legen Sie zuerst eine Spalte an, dann können Sie die Karte hineinschieben"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@action:button %1 is the name of a column"
 msgid "Save the column %1 as a group"
 msgstr "Spalte „%1“ als Gruppe speichern"

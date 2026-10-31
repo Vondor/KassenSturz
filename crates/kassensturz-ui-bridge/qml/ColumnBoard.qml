@@ -247,6 +247,11 @@ ColumnLayout {
                 entries.push({move: false, to: index, text: i18nContext.i18nc("@action:inmenu %1 is the name of a column; the card stays where it is too", "Also put in %1", column.name)});
             }
         });
+        // With no column yet there is nowhere to move a card to; say so
+        // instead of opening an empty menu.
+        if (entries.length === 0) {
+            entries.push({hint: true, text: i18nContext.i18nc("@action:inmenu shown when there is no column yet", "Add a column first, then move this card into it")});
+        }
         return entries;
     }
 
@@ -299,6 +304,7 @@ ColumnLayout {
                 required property var modelData
 
                 text: modelData.text
+                enabled: modelData.hint !== true
                 onTriggered: modelData.move ? board.moveCard(cardMenu.cardId, cardMenu.from, modelData.to) : board.alsoPut(cardMenu.cardId, modelData.to)
             }
 

@@ -177,6 +177,8 @@ Kirigami.ApplicationWindow {
                     window.check(page.wizard && wizard.step === 1 && board !== undefined && board.visible, "the saved view reopens the wizard at the board");
                     // Food and Groceries inside it, Rent, and one group of money spent.
                     window.check(board.unused.length === 4, "everything starts in Unused: " + board.unused.length);
+                    const noColumn = board.choicesFor("c-food", -1);
+                    window.check(noColumn.length === 1 && noColumn[0].hint === true, "the menu of a card says so when there is no column yet, and is never empty");
                     window.check(!board.addColumn("  "), "a column needs a name");
                     window.check(board.addColumn("Fast food") && board.addColumn("Home"), "two columns are added");
                     window.check(!board.addColumn("fast FOOD") && board.problem !== "", "a name another column has is refused");

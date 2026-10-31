@@ -892,4 +892,132 @@ mod tests {
         let view = view_with(&book, &asked);
         assert!(keys(&view).contains(&"charts".to_owned()));
     }
+
+    #[test]
+    fn net_worth_and_cash_flow_read_back_the_way_qml_reads_them() {
+        // Net worth over twelve months: nothing until July, then what the
+        // checking account holds (1700,00 in August, 3334,46 from September
+        // on).
+        let view = view_of(&request("net_worth_over_time", "line"));
+        let chart = &list_of(&view, "charts")[0];
+        assert_eq!(text_of(chart, "dataset"), "net_worth_over_time");
+        assert_eq!(number_of(chart, "count"), 12);
+        assert!(!flag_of(chart, "round"));
+        let series = list_of(chart, "series");
+        assert_eq!(series.len(), 1);
+        assert_eq!(text_of(&series[0], "key"), "net_worth");
+        let worth: Vec<String> = list_of(&series[0], "points")
+            .iter()
+            .map(|point| text_of(point, "minorUnits"))
+            .collect();
+        assert_eq!(worth[7..], ["0", "0", "170000", "333446", "333446"][..]);
+        assert_eq!(text_of(chart, "total"), "3334,46 €");
+        let table = object_of(chart, "table");
+        let columns: Vec<String> = list_of(&table, "columns")
+            .iter()
+            .map(|name| name.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(columns, ["month", "assets", "liabilities", "net_worth"]);
+        // The table of the same dataset, as a table asks for it.
+        let as_table = view_of(&request("net_worth_over_time", "bar"));
+        assert_eq!(list_of(&list_of(&as_table, "charts")[0], "series").len(), 1);
+
+        // Cash flow: money in and out as two series of bars.
+        let view = view_of(&request("cash_flow_by_month", "bar"));
+        let chart = &list_of(&view, "charts")[0];
+        let keys_of: Vec<String> = list_of(chart, "series")
+            .iter()
+            .map(|series| text_of(series, "key"))
+            .collect();
+        assert_eq!(keys_of, ["money_in", "money_out"]);
+        assert_eq!(text_of(chart, "total"), "3334,46 €");
+        let table = object_of(chart, "table");
+        let rows = list_of(&table, "rows");
+        assert_eq!(rows.len(), 12);
+        // September, the second to last row: start 1700,00, in 2500,00, out
+        // 865,54, starting balances 0, end 3334,46.
+        let cells: Vec<String> = elements(&rows[10])
+            .expect("a row")
+            .iter()
+            .map(|cell| cell.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(
+            cells[1..],
+            ["1700,00 €", "2500,00 €", "865,54 €", "0,00 €", "3334,46 €"][..]
+        );
+        // A kind the dataset cannot show is an error the screen can read.
+        let view = view_of(&request("cash_flow_by_month", "pie"));
+        assert_eq!(
+            text_of(&object_of(&view, "error"), "code"),
+            "charts.kind-not-supported"
+        );
+    }
+
+    #[test]
+    fn the_balances_are_a_table_by_account_or_by_kind() {
+        let mut asked = request("account_balances", "bar");
+        asked.period = "today".into();
+        let view = view_of(&asked);
+        let chart = &list_of(&view, "charts")[0];
+        let rows = list_of(&object_of(chart, "table"), "rows");
+        let cells = |row: &QVariant| -> Vec<String> {
+            elements(row)
+                .expect("a row")
+                .iter()
+                .map(|cell| cell.value::<QString>().expect("text").to_string())
+                .collect()
+        };
+        assert_eq!(rows.len(), 1);
+        assert_eq!(cells(&rows[0]), ["Checking account", "have", "3334,46 €"]);
+        assert_eq!(text_of(chart, "total"), "3334,46 €");
+        asked.grouping = "account-kind".into();
+        let view = view_of(&asked);
+        let chart = &list_of(&view, "charts")[0];
+        let rows = list_of(&object_of(chart, "table"), "rows");
+        let kinds: Vec<String> = rows.iter().map(|row| cells(row)[0].clone()).collect();
+        assert_eq!(kinds, ["have", "owe", "worth"]);
+        // A grouping that is not fixed is a mistake in the screen.
+        asked.grouping = "someday".into();
+        let view = view_of(&asked);
+        assert_eq!(
+            text_of(&object_of(&view, "error"), "code"),
+            "charts.bad-request"
+        );
+    }
+
+    #[test]
+    fn the_datasets_of_the_balances_ignore_what_only_spending_uses() {
+        // Columns decide what a chart shows (D-339), so they win over any
+        // dataset; without them the balances are read.
+        let mut asked = request("net_worth_over_time", "line");
+        asked.show_hidden = true;
+        asked.groups = vec!["no-such-group".into()];
+        let view = view_of(&asked);
+        assert_eq!(number_of(&view, "missing"), 0);
+        assert!(!flag_of(&view, "empty"));
+    }
+
+    #[test]
+    fn every_column_of_the_tables_of_the_accounts_has_a_name_on_screen() {
+        // A column the screen has no words for would show its fixed name.
+        let table = include_str!("../qml/ChartTable.qml");
+        for (dataset, kind, grouping) in [
+            ("account_balances", "bar", "each"),
+            ("account_balances", "bar", "account-kind"),
+            ("net_worth_over_time", "line", "each"),
+            ("cash_flow_by_month", "bar", "each"),
+        ] {
+            let mut asked = request(dataset, kind);
+            asked.grouping = grouping.into();
+            let view = view_of(&asked);
+            let chart = &list_of(&view, "charts")[0];
+            for column in list_of(&object_of(chart, "table"), "columns") {
+                let name = column.value::<QString>().expect("text").to_string();
+                assert!(
+                    table.contains(&format!("\"{name}\":")),
+                    "{name} of {dataset} needs a title in ChartTable.qml"
+                );
+            }
+        }
+    }
 }

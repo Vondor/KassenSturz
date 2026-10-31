@@ -10,16 +10,19 @@
 //! and are never read back.
 
 use kassensturz_charts::{
-    ChartError, ChartKind, ChartModel, ChartProvider, Prepared, category_over_time,
-    income_expense_by_month, spending_by_category,
+    BalancesBy, ChartError, ChartKind, ChartModel, ChartProvider, Prepared,
+    account_balances as balances_chart, cash_flow_by_month as cash_flow_chart, category_over_time,
+    income_expense_by_month, net_worth_over_time as net_worth_chart, spending_by_category,
 };
 use kassensturz_core::{CurrencyCode, Date, ErrorReport, GroupMember, Money, Report};
 use kassensturz_report::{
-    CATEGORY_OVER_TIME, Column, Filter, INCOME_EXPENSE_BY_MONTH, Level, Overlap, Percent, Period,
-    ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat,
+    ACCOUNT_BALANCES, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, Column, Filter,
+    INCOME_EXPENSE_BY_MONTH, Level, NET_WORTH_OVER_TIME, Overlap, Percent, Period, ReportError,
+    SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat,
+    account_balances as balances_dataset, cash_flow_by_month as cash_flow_dataset,
     category_over_time as over_time_dataset, columns_over_time, columns_span, columns_spending,
-    income_expense_by_month as monthly_dataset, shared_categories,
-    spending_by_category_shown as spending_dataset,
+    income_expense_by_month as monthly_dataset, net_worth_over_time as net_worth_dataset,
+    shared_categories, spending_by_category_shown as spending_dataset,
 };
 use kassensturz_store::Book;
 
@@ -29,7 +32,9 @@ use crate::register::AmountWriter;
 /// What the user asked for, by the fixed names QML uses.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Request {
-    /// `spending_by_category` or `income_expense_by_month`.
+    /// `spending_by_category`, `income_expense_by_month`,
+    /// `category_over_time`, `account_balances`, `net_worth_over_time` or
+    /// `cash_flow_by_month`.
     pub dataset: String,
     /// `line`, `bar`, `stacked-bar`, `area`, `pie` or `donut`.
     pub kind: String,
@@ -38,7 +43,9 @@ pub struct Request {
     pub period: String,
     /// For spending: `top-level` adds subcategories to the category they sit
     /// in, `each` lists every category, `groups` shows each of `groups` as
-    /// one row and every other category on its own.
+    /// one row and every other category on its own. For the balances of the
+    /// accounts: `each` lists every account, `account-kind` what you have,
+    /// what you owe and what you are worth.
     pub grouping: String,
     /// For spending: the IDs of My groups to show as one row each
     /// (`params.groups`), as the document writes them.
@@ -205,8 +212,9 @@ fn month_period(key: &str) -> Option<Period> {
     Period::new(first, first.last_of_month()).ok()
 }
 
-/// The period a request names (D-332): a fixed name, a month as `YYYY-MM`
-/// or a typed range of days, whose open start is the first day of the book.
+/// The period a request names (D-332): a fixed name, `today`, a month as
+/// `YYYY-MM` or a typed range of days, whose open start is the first day of
+/// the book.
 pub(crate) fn period(book: &Book, key: &str, today: Date) -> Result<Period, ChartsError> {
     if key.contains("..") {
         let earliest = book
@@ -219,6 +227,8 @@ pub(crate) fn period(book: &Book, key: &str, today: Date) -> Result<Period, Char
             .map_err(ChartsError::from);
     }
     Ok(match key {
+        // The day itself: what the accounts hold today (D-370).
+        "today" => Period::new(today, today)?,
         "this-month" => Period::this_month(today)?,
         "last-month" => Period::last_month(today)?,
         "last-12-months" => Period::last_12_months(today)?,
@@ -226,6 +236,15 @@ pub(crate) fn period(book: &Book, key: &str, today: Date) -> Result<Period, Char
         "last-year" => Period::last_year(today)?,
         _ => month_period(key).ok_or(ChartsError::UnknownName("period"))?,
     })
+}
+
+/// Whether the dataset is made from the balances of the accounts, which the
+/// `Source` reads only when asked to (D-365).
+pub(crate) fn is_financial(dataset: &str) -> bool {
+    matches!(
+        dataset,
+        ACCOUNT_BALANCES | NET_WORTH_OVER_TIME | CASH_FLOW_BY_MONTH
+    )
 }
 
 /// One chart per currency the dataset has money in, in the order of the
@@ -239,13 +258,20 @@ pub fn charts(
     let period = period(book, &request.period, locale.today())?;
     let level = match request.grouping.as_str() {
         "top-level" => Level::TopLevel,
-        "each" | "groups" => Level::Each,
+        "each" | "groups" | "account-kind" => Level::Each,
         _ => return Err(ChartsError::UnknownName("grouping")),
     };
     // A formula of a column may name periods of its own, so the book is read
     // for all of them (D-341).
     let span = columns_span(&formula_columns(&request.columns), period)?;
-    let source = Source::read(book, span)?;
+    // The balances of the accounts take longer to read, so only the datasets
+    // made from them ask for them (D-365). Columns decide what a chart shows,
+    // whatever its dataset says, and they are made of spending.
+    let source = if request.columns.is_empty() && is_financial(&request.dataset) {
+        Source::read_with_balances(book, span)?
+    } else {
+        Source::read(book, span)?
+    };
     let text = AppText::new(book, locale);
     if !request.columns.is_empty() {
         let fallback = fallback_currency(book);
@@ -314,6 +340,27 @@ pub fn charts(
         INCOME_EXPENSE_BY_MONTH => monthly_dataset(&source, period, &Filter::default())?
             .iter()
             .map(|data| income_expense_by_month(data, kind, &text))
+            .collect::<Result<Vec<_>, _>>()?,
+        ACCOUNT_BALANCES => {
+            let by = if request.grouping == "account-kind" {
+                BalancesBy::Kind
+            } else {
+                BalancesBy::Account
+            };
+            balances_dataset(&source, period, &Filter::default(), None)?
+                .results
+                .iter()
+                .map(|data| balances_chart(data, by, kind, &text))
+                .collect::<Result<Vec<_>, _>>()?
+        }
+        NET_WORTH_OVER_TIME => net_worth_dataset(&source, period, &Filter::default(), None)?
+            .results
+            .iter()
+            .map(|data| net_worth_chart(data, kind, &text))
+            .collect::<Result<Vec<_>, _>>()?,
+        CASH_FLOW_BY_MONTH => cash_flow_dataset(&source, period, &Filter::default())?
+            .iter()
+            .map(|data| cash_flow_chart(data, kind, &text))
             .collect::<Result<Vec<_>, _>>()?,
         _ => return Err(ChartsError::UnknownName("dataset")),
     };

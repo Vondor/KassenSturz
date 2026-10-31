@@ -35,7 +35,7 @@ Kirigami.ApplicationWindow {
         id: addMenu
 
         savedList: [{id: "b", name: "Zeta"}, {id: "a", name: "Alpha"}]
-        onKindChosen: kind => window.asked.push("add:" + kind)
+        onKindChosen: (kind, dataset) => window.asked.push("add:" + kind + (dataset !== "" ? "/" + dataset : ""))
         onSavedChosen: id => window.asked.push("saved:" + id)
     }
 
@@ -145,6 +145,8 @@ Kirigami.ApplicationWindow {
                 window.check(!end.accepted, "Tab leaves the grid after the last one");
                 grid.add("text.heading");
                 window.check(window.last() === "add:text.heading", "the library adds by kind");
+                grid.add("chart.line", "net_worth_over_time");
+                window.check(window.last() === "add:chart.line/net_worth_over_time", "the library adds by kind and dataset: " + window.last());
                 grid.width = 300;
                 break;
             }
@@ -175,7 +177,10 @@ Kirigami.ApplicationWindow {
                 const saved = addMenu.groups.find(group => group.rows[0].saved);
                 window.check(saved && saved.rows.map(row => row.id).join() === "a,b", "the saved views are sorted by name");
                 const kinds = addMenu.groups.filter(group => !group.rows[0].saved).reduce((all, group) => all.concat(group.rows), []).length;
-                window.check(kinds === 16, "every kind of widget is in a group: " + kinds);
+                // 16 kinds, and the 5 that start with the data of the accounts (M6c.2).
+                window.check(kinds === 21, "every kind of widget is in a group: " + kinds);
+                const withData = addMenu.groups.reduce((all, group) => all.concat(group.rows), []).filter(row => row.dataset !== undefined && row.dataset !== "").map(row => row.id).sort();
+                window.check(withData.join() === "chart.bar/cash_flow_by_month,chart.line/net_worth_over_time,kpi.card/account_balances,table.rows/account_balances,table.rows/cash_flow_by_month", "the widgets with data of their own: " + withData);
                 window.check(addMenu.count === 5, "one submenu for each group: " + addMenu.count);
                 // Choosing an item of a submenu reaches the menu's signals (M6-B9:
                 // `menu` inside a MenuItem is the MenuItem's own property).

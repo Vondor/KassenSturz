@@ -53,6 +53,28 @@ QtObject {
         return i18nContext.i18nc("@item:inlistbox a part of the layout that this version doesn't know", "Unknown");
     }
 
+    // What a kind of component that starts with data of its own is called in
+    // the Add menu (M6c.2).
+    function dataName(dataset: string, kind: string): string {
+        const ctx = i18nContext;
+        if (dataset === "net_worth_over_time") {
+            return ctx.i18nc("@item:inlistbox a part of the layout: a line of what the user is worth at the end of each month", "What you are worth over time");
+        }
+        if (dataset === "cash_flow_by_month" && kind === "table.rows") {
+            return ctx.i18nc("@item:inlistbox a part of the layout: a table of the money in and out of the user's accounts and what they held, month by month", "Money in and out of your accounts (table)");
+        }
+        if (dataset === "cash_flow_by_month") {
+            return ctx.i18nc("@item:inlistbox a part of the layout: bars of the money in and out of the user's accounts, month by month", "Money in and out of your accounts");
+        }
+        if (dataset === "account_balances" && kind === "table.rows") {
+            return ctx.i18nc("@item:inlistbox a part of the layout: a table of what each account holds", "What your accounts hold");
+        }
+        if (dataset === "account_balances") {
+            return ctx.i18nc("@item:inlistbox a part of the layout: one figure of what the user has, owes or is worth", "What you have, owe and are worth");
+        }
+        return typeName(kind);
+    }
+
     // The title the user gave a component (or the text of a heading), if any.
     function titleOf(item: var): string {
         const fields = item.subject?.fields ?? [];
@@ -81,6 +103,17 @@ QtObject {
         }
         if (dataset === "income_expense_by_month" && shows === "chart") {
             return i18nContext.i18nc("@title", "Money in and out");
+        }
+        // The figures of the accounts (M6c.2). A card says what it shows
+        // itself, so it needs no title.
+        if (dataset === "net_worth_over_time" && shows !== "card") {
+            return i18nContext.i18nc("@title", "What you are worth over time");
+        }
+        if (dataset === "cash_flow_by_month" && shows !== "card") {
+            return i18nContext.i18nc("@title", "Money in and out of your accounts");
+        }
+        if (dataset === "account_balances" && shows === "table") {
+            return i18nContext.i18nc("@title", "What your accounts hold");
         }
         return "";
     }

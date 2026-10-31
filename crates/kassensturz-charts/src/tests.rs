@@ -572,3 +572,187 @@ fn a_round_chart_of_eight_or_fewer_has_no_other_and_a_bar_chart_keeps_every_row(
     let pie = spending_by_category(&busy, ChartKind::Pie, &Words).expect("model");
     assert_eq!(pie.unsorted, None);
 }
+
+/// The financial datasets on a book with a credit card: what the sample
+/// earns and spends, a purchase with the card in September, and the card paid
+/// off from checking in October.
+fn with_card() -> Book {
+    let mut book = book();
+    let card = account(&mut book, "Credit card", AccountKind::Liability, None);
+    let groceries = book
+        .all_accounts()
+        .expect("accounts")
+        .into_iter()
+        .find(|account| account.name == "Groceries")
+        .expect("groceries")
+        .id;
+    let checking = book
+        .all_accounts()
+        .expect("accounts")
+        .into_iter()
+        .find(|account| account.name == "Checking account")
+        .expect("checking")
+        .id;
+    add(
+        &mut book,
+        date(2026, 9, 15),
+        &[(Some(card), -20_000), (Some(groceries), 20_000)],
+    );
+    add(
+        &mut book,
+        date(2026, 10, 20),
+        &[(Some(checking), -15_000), (Some(card), 15_000)],
+    );
+    book
+}
+
+fn read_with_balances(book: &Book) -> Source {
+    Source::read_with_balances(book, autumn()).expect("source")
+}
+
+#[test]
+fn net_worth_is_one_series_with_a_point_for_every_month_and_a_table_with_what_made_it() {
+    let book = with_card();
+    let source = read_with_balances(&book);
+    let data = kassensturz_report::net_worth_over_time(&source, autumn(), &Filter::default(), None)
+        .expect("dataset")
+        .results
+        .remove(0);
+    for kind in [ChartKind::Line, ChartKind::Area, ChartKind::Bar] {
+        let chart = net_worth_over_time(&data, kind, &Words).expect("chart");
+        assert_eq!(chart.dataset, "net_worth_over_time");
+        assert_eq!(chart.categories, ["2026-09", "2026-10"]);
+        assert_eq!(chart.series.len(), 1);
+        assert_eq!(chart.series[0].key, "net_worth");
+        // September: checking holds 1700,00 and the card owes 200,00. October:
+        // checking holds 3184,46 and the card owes 50,00.
+        let worth: Vec<i64> = chart.series[0]
+            .points
+            .iter()
+            .map(|point| point.minor_units)
+            .collect();
+        assert_eq!(worth, [150_000, 313_446]);
+        assert_eq!(chart.total, "3134,46 EUR");
+        // The table is the dataset's own, with what you have and owe.
+        assert_eq!(chart.table, data.to_text(&Words));
+        assert_eq!(
+            chart.table.columns,
+            ["month", "assets", "liabilities", "net_worth"]
+        );
+        assert_eq!(
+            chart.table.rows[1],
+            ["2026-10", "3184,46 EUR", "50,00 EUR", "3134,46 EUR"]
+        );
+        assert!(chart.ticks.len() >= 2);
+    }
+    for kind in [ChartKind::Pie, ChartKind::Donut, ChartKind::StackedBar] {
+        assert_eq!(
+            net_worth_over_time(&data, kind, &Words),
+            Err(ChartError::KindNotSupported(kind))
+        );
+    }
+}
+
+#[test]
+fn cash_flow_is_bars_of_money_in_and_out_and_a_table_with_start_and_end() {
+    let book = with_card();
+    let source = read_with_balances(&book);
+    let data = kassensturz_report::cash_flow_by_month(&source, autumn(), &Filter::default())
+        .expect("dataset")
+        .remove(0);
+    let chart = cash_flow_by_month(&data, ChartKind::Bar, &Words).expect("chart");
+    assert_eq!(chart.dataset, "cash_flow_by_month");
+    assert_eq!(chart.categories, ["2026-09", "2026-10"]);
+    let keys: Vec<&str> = chart.series.iter().map(|series| series.key).collect();
+    assert_eq!(keys, ["money_in", "money_out"]);
+    assert_eq!(chart.series[0].color, 0);
+    assert_eq!(chart.series[1].color, 1);
+    let amounts = |series: usize| -> Vec<i64> {
+        chart.series[series]
+            .points
+            .iter()
+            .map(|point| point.minor_units)
+            .collect()
+    };
+    // Paying the card from checking is money out of the chosen accounts.
+    assert_eq!(amounts(0), [250_000, 250_000]);
+    assert_eq!(amounts(1), [80_000, 101_554]);
+    // Money in less money out over both months, as the dataset adds it up.
+    assert_eq!(chart.total, "3184,46 EUR");
+    assert_eq!(chart.table, data.to_text(&Words));
+    assert_eq!(
+        chart.table.columns,
+        ["month", "start", "money_in", "money_out", "starting", "end"]
+    );
+    assert_eq!(
+        chart.table.rows[1],
+        [
+            "2026-10",
+            "1700,00 EUR",
+            "2500,00 EUR",
+            "1015,54 EUR",
+            "0,00 EUR",
+            "3184,46 EUR"
+        ]
+    );
+    // Start plus in less out plus starting balances is the end, per row.
+    for row in &data.rows {
+        assert_eq!(
+            row.start.minor_units() + row.money_in.minor_units() - row.money_out.minor_units()
+                + row.starting.minor_units(),
+            row.end.minor_units()
+        );
+    }
+    for kind in [ChartKind::Line, ChartKind::Pie, ChartKind::StackedBar] {
+        assert_eq!(
+            cash_flow_by_month(&data, kind, &Words),
+            Err(ChartError::KindNotSupported(kind))
+        );
+    }
+}
+
+#[test]
+fn the_balances_are_a_table_by_account_or_by_what_you_have_and_owe() {
+    let book = with_card();
+    let source = read_with_balances(&book);
+    let data = kassensturz_report::account_balances(&source, autumn(), &Filter::default(), None)
+        .expect("dataset")
+        .results
+        .remove(0);
+    let by_account =
+        account_balances(&data, BalancesBy::Account, ChartKind::Bar, &Words).expect("chart");
+    assert_eq!(by_account.dataset, "account_balances");
+    assert_eq!(by_account.categories, ["Checking account", "Credit card"]);
+    assert_eq!(by_account.table.columns, ["account", "kind", "balance"]);
+    // A debt is what is owed, as a positive amount.
+    assert_eq!(
+        by_account.table.rows,
+        [
+            ["Checking account", "have", "3184,46 EUR"],
+            ["Credit card", "owe", "50,00 EUR"]
+        ]
+    );
+    assert_eq!(by_account.total, "3134,46 EUR");
+    assert!(by_account.ticks.is_empty());
+    let by_kind = account_balances(&data, BalancesBy::Kind, ChartKind::Bar, &Words).expect("chart");
+    assert_eq!(by_kind.table.columns, ["figure", "total"]);
+    assert_eq!(
+        by_kind.table.rows,
+        [
+            ["have", "3184,46 EUR"],
+            ["owe", "50,00 EUR"],
+            ["worth", "3134,46 EUR"]
+        ]
+    );
+    // Have less owe is worth: the three rows add up.
+    let amounts: Vec<i64> = by_kind.series[0]
+        .points
+        .iter()
+        .map(|point| point.minor_units)
+        .collect();
+    assert_eq!(amounts[0] - amounts[1], amounts[2]);
+    assert_eq!(
+        account_balances(&data, BalancesBy::Kind, ChartKind::Line, &Words),
+        Err(ChartError::KindNotSupported(ChartKind::Line))
+    );
+}

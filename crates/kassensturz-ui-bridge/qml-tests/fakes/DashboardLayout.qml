@@ -68,6 +68,7 @@ QtObject {
     function cancel() { setEditing(false); }
     function done() { setEditing(false); return ({}); }
     function add(kind) { note("add:" + kind); return ({id: "c9"}); }
+    function addWith(kind, dataset) { note("add:" + kind + "/" + dataset); return ({id: "c9"}); }
     function moveTo(id, col, row) { return note("moveTo:" + id + ":" + col + ":" + row); }
     function nudge(id, cols, rows) { return note("nudge:" + id + ":" + cols + ":" + rows); }
     function resizeTo(id, cols, rows) { return note("resizeTo:" + id + ":" + cols + ":" + rows); }

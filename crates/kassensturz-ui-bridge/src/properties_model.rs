@@ -505,7 +505,7 @@ mod tests {
                     ["", "line", "bar", "stacked-bar", "area", "pie", "donut"]
                         .contains(&preview.chart)
                 );
-                assert!(["top-level", "each"].contains(&preview.grouping));
+                assert!(["top-level", "each", "account-kind"].contains(&preview.grouping));
             }
         }
     }
@@ -523,6 +523,7 @@ mod tests {
                 let preview = properties::preview(&component);
                 if preview.chart.is_empty() {
                     let request = cards::Request {
+                        dataset: dataset.id.into(),
                         period: "this-year".into(),
                         compare: preview.compare.clone(),
                     };
@@ -785,5 +786,30 @@ mod tests {
         .unwrap();
         assert_eq!(plain[0].formula, "");
         assert_eq!(plain[0].members, ["x"]);
+    }
+
+    #[test]
+    fn every_dataset_and_word_the_catalog_offers_has_plain_words_in_the_panel() {
+        let panel = include_str!("../qml/PropertiesPanel.qml");
+        for dataset in kassensturz_report::CATALOG {
+            let case = format!("case \"{}\":", dataset.id);
+            assert!(
+                panel.matches(&case).count() >= 2,
+                "{} needs a name and a help text in the panel",
+                dataset.id
+            );
+            let figures = if dataset.suits.contains(&"kpi") {
+                dataset.measures
+            } else {
+                &[]
+            };
+            for word in dataset.groupings.iter().chain(figures) {
+                assert!(
+                    panel.contains(&format!("case \"{word}\":")),
+                    "{word} of {} needs words in the panel",
+                    dataset.id
+                );
+            }
+        }
     }
 }

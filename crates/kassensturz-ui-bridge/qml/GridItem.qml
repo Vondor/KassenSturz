@@ -15,6 +15,7 @@ import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
+import io.github.vondor.kassensturz
 
 Item {
     id: cell
@@ -249,14 +250,34 @@ Item {
     }
 
     // What all the accounts hold together less what is owed, a card for each
-    // currency (Q-215, D-329). It is today's figure, so it stays when the
-    // month changes. The page's own figures, as text (D-065).
+    // currency (Q-215, D-329). Its figures are those of `account_balances`
+    // (M6c.2, D-370): what the accounts held at the end of today, so it stays
+    // when the month changes, or at the end of the period of the period box
+    // it lies in. As text (D-065).
     Component {
         id: netWorthBox
 
         Flickable {
-            readonly property bool failed: false
-            readonly property var sections: cell.board.pageView.sections ?? []
+            id: worth
+
+            readonly property bool failed: balances.view?.error !== undefined
+            // One section for each currency, with the card of what you are
+            // worth: a debt reads "You owe", not a minus sign (D-067).
+            readonly property var sections: (balances.view?.sets ?? [])
+                .map(set => ({currency: set.currency, card: set.cards.find(card => card.measure === "net_worth")}))
+                .filter(section => section.card !== undefined)
+            readonly property string worthPeriod: cell.board.boxFor(cell.info)?.subject?.period?.word ?? "today"
+
+            function ask() {
+                balances.showDataset("account_balances", worthPeriod, "previous_period");
+            }
+
+            onWorthPeriodChanged: ask()
+            Component.onCompleted: ask()
+
+            BookCards {
+                id: balances
+            }
 
             contentHeight: worthColumn.implicitHeight
             clip: true
@@ -274,12 +295,12 @@ Item {
                         id: section
 
                         required property var modelData
-                        readonly property string value: modelData.togetherOwes
-                            ? names.i18nContext.i18nc("@label %1 is an amount of money", "You owe %1", modelData.together)
-                            : modelData.together
-                        readonly property string exact: modelData.togetherOwes
-                            ? names.i18nContext.i18nc("@label %1 is an amount of money", "You owe %1", modelData.exactTogether)
-                            : modelData.exactTogether
+                        readonly property string value: modelData.card.negative
+                            ? names.i18nContext.i18nc("@label %1 is an amount of money", "You owe %1", modelData.card.magnitude)
+                            : modelData.card.value
+                        readonly property string exact: modelData.card.negative
+                            ? names.i18nContext.i18nc("@label %1 is an amount of money", "You owe %1", modelData.card.exactMagnitude)
+                            : modelData.card.exactValue
 
                         Layout.fillWidth: true
                         spacing: Kirigami.Units.smallSpacing
@@ -298,7 +319,7 @@ Item {
                                 currency: section.modelData.currency,
                                 value: section.value,
                                 exactValue: section.exact,
-                                negative: section.modelData.togetherOwes,
+                                negative: section.modelData.card.negative,
                                 previous: "",
                                 change: "",
                                 changePercent: "",

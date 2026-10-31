@@ -292,11 +292,27 @@ pub fn widget_detail(kind_id: &str) -> Option<&'static str> {
 
 /// Adds a component of the type `kind_id` with its defaults; gives its ID.
 pub fn add(editor: &mut Editor, kind_id: &str) -> Result<String, LayoutError> {
+    add_with(editor, kind_id, "")
+}
+
+/// Adds a component of the type `kind_id` that shows the dataset
+/// `dataset_id`, which the schema checks the type can show; an empty one
+/// means the type's first (M6c.2). Gives its ID.
+pub fn add_with(
+    editor: &mut Editor,
+    kind_id: &str,
+    dataset_id: &str,
+) -> Result<String, LayoutError> {
     let kind = ComponentType::from_id(kind_id).ok_or(ReportError::DocumentInvalid {
         reason: "unknown-type",
         path: "type".to_owned(),
     })?;
-    let component = Component::new(kind, default_dataset(kind))?;
+    let dataset = if dataset_id.is_empty() {
+        default_dataset(kind)
+    } else {
+        dataset_id
+    };
+    let component = Component::new(kind, dataset)?;
     Ok(editor.add(component)?)
 }
 
@@ -551,6 +567,39 @@ mod tests {
         }
         assert_eq!(rows(&layout.editor).len(), 27);
         assert!(add(&mut layout.editor, "chart.radar").is_err());
+    }
+
+    #[test]
+    fn a_component_is_added_with_the_dataset_asked_for_when_its_type_can_show_it() {
+        let mut layout = Layout::open(&book()).unwrap();
+        let shown = |layout: &Layout, id: &str| {
+            let row = rows(&layout.editor)
+                .into_iter()
+                .find(|row| row.id == id)
+                .unwrap();
+            let component = row.component.unwrap();
+            (component.kind().id(), component.dataset().id)
+        };
+        for (kind, dataset) in [
+            ("chart.line", "net_worth_over_time"),
+            ("chart.area", "net_worth_over_time"),
+            ("chart.bar", "cash_flow_by_month"),
+            ("table.rows", "cash_flow_by_month"),
+            ("table.rows", "account_balances"),
+            ("kpi.card", "account_balances"),
+        ] {
+            let id = add_with(&mut layout.editor, kind, dataset).unwrap();
+            assert_eq!(shown(&layout, &id), (kind, dataset));
+        }
+        // No dataset asked for is the type's first, as `add` always did.
+        let id = add_with(&mut layout.editor, "kpi.card", "").unwrap();
+        assert_eq!(shown(&layout, &id), ("kpi.card", "income_expense_by_month"));
+        // A dataset the type cannot show, or does not exist, is refused, and
+        // so is a progress bar of the balances (D-370).
+        assert!(add_with(&mut layout.editor, "chart.pie", "net_worth_over_time").is_err());
+        assert!(add_with(&mut layout.editor, "progress.bar", "account_balances").is_err());
+        assert!(add_with(&mut layout.editor, "chart.bar", "no_such_dataset").is_err());
+        assert!(add_with(&mut layout.editor, "chart.radar", "").is_err());
     }
 
     #[test]

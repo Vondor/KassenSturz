@@ -20,7 +20,9 @@ use crate::ticks::ticks;
 use crate::{ChartError, ChartKind, ChartModel, Series, Slices};
 
 /// What you are worth at the end of each month as a line or a filled line:
-/// one series, `net_worth`, with a point for every month. A table (which
+/// one series, `net_worth`, with a point for every month. A period inside
+/// one month has a second point, what you were worth when it began, named by
+/// its day (D-407). A table (which
 /// asks for a bar chart, whose values it shows) gets the same model. The
 /// table also lists what you have and what you owe. The total is what you
 /// were worth at the end of the last month.
@@ -53,11 +55,7 @@ pub fn net_worth_over_time(
         kind,
         dataset: NET_WORTH_OVER_TIME,
         currency: data.currency.to_string(),
-        categories: data
-            .rows
-            .iter()
-            .map(|row| format.month(row.month))
-            .collect(),
+        categories: data.labels(format),
         unsorted: None,
         series,
         ticks,

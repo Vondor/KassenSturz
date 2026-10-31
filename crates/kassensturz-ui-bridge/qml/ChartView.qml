@@ -418,7 +418,7 @@ ColumnLayout {
                         readonly property int seriesIndex: Math.floor(index / view.count)
                         readonly property int pointIndex: index % view.count
                         readonly property var place: view.barPlace(seriesIndex, pointIndex, plot.width, plot.height, height)
-                        readonly property int marker: view.chart.series[seriesIndex].marker
+                        readonly property int marker: view.chart.series[seriesIndex]?.marker ?? -1
 
                         visible: place !== null && marker >= 0
                         x: place ? place.x - width / 2 : 0
@@ -812,14 +812,19 @@ ColumnLayout {
     // `height`: near the top of the bar, or null when the bar is too short
     // for it, then the table has the value. `size` is the mark's height.
     function barPlace(series: int, point: int, width: real, height: real, size: real): var {
+        // While the charts switch, a mark can ask for a series that is gone.
+        const points = chart.series[series]?.points;
+        if (!points || points[point] === undefined) {
+            return null;
+        }
         const stacked = chart.kind === "stacked-bar";
         const slot = width / count;
         const group = chart.series.length;
         let from = 0;
-        let to = chart.series[series].points[point].value;
+        let to = points[point].value;
         if (stacked) {
             for (let before = 0; before < series; ++before) {
-                const value = chart.series[before].points[point].value;
+                const value = chart.series[before].points[point]?.value ?? 0;
                 if (value > 0) {
                     from += value;
                 }

@@ -126,6 +126,12 @@ pub mod qobject {
         /// again.
         #[qsignal]
         fn changed(self: Pin<&mut AccountList>);
+
+        /// An account was added. Unlike `changed`, nothing the other
+        /// screens show of the existing accounts, transactions or
+        /// categories moved, so they need not read the book again.
+        #[qsignal]
+        fn added(self: Pin<&mut AccountList>);
     }
 
     impl cxx_qt::Initialize for AccountList {}
@@ -176,7 +182,7 @@ impl qobject::AccountList {
     }
 
     fn add_account(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         account_type: &QString,
         name: &QString,
         currency: &QString,
@@ -200,7 +206,14 @@ impl qobject::AccountList {
             date: &date,
         };
         let result = change(|book, locale| accounts::add_account(book, &new, locale).map(drop));
-        self.finish(result)
+        match result {
+            Ok(()) => {
+                self.as_mut().refresh();
+                self.as_mut().added();
+                map([])
+            }
+            Err(error) => error_object(&error),
+        }
     }
 
     fn details(&self, id: &QString) -> QVariant {

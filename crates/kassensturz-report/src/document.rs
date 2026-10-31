@@ -18,12 +18,15 @@ use std::collections::HashSet;
 use kassensturz_core::ViewKind;
 use serde_json::{Map, Value};
 
-use crate::{Component, ReportError};
+use crate::filter::{Dimension, check_list};
+use crate::{Asked, Component, Filters, ReportError};
 
 /// The `format` value every document carries.
 pub const FORMAT: &str = "kassensturz-dashboard";
-/// The version this program writes and the newest it reads.
-pub const VERSION: u32 = 1;
+/// The version this program writes and the newest it reads. Version 2
+/// (D-351) added `filters.accounts`, `filters.categories` and the
+/// components' `params.accounts`; version 1 documents are still read.
+pub const VERSION: u32 = 2;
 /// The largest document, in bytes (D-281).
 pub const MAX_BYTES: usize = 1 << 20;
 /// The deepest nesting of objects and arrays (D-281).
@@ -87,8 +90,15 @@ pub struct Document {
     pub kind: ViewKind,
     /// The name; never empty, at most 200 characters.
     pub name: String,
-    /// One of [`PERIODS`] for the whole document, if it names one.
+    /// One of [`PERIODS`] for the whole document, if it names one: the
+    /// filter bar's period (`filters.period`).
     pub period: Option<String>,
+    /// The filter bar's accounts (`filters.accounts`, D-351): IDs of own
+    /// accounts, written as text. Empty narrows nothing.
+    pub accounts: Vec<String>,
+    /// The filter bar's categories (`filters.categories`, D-351): IDs of
+    /// categories or My groups, written as text. Empty narrows nothing.
+    pub categories: Vec<String>,
     /// The components, in the order of the document.
     pub entries: Vec<Entry>,
 }
@@ -222,6 +232,63 @@ fn read_entry(value: &Value, index: usize) -> Result<Entry, ReportError> {
     })
 }
 
+/// The longest ID in a filter's list, in characters, as in a component's
+/// list (D-281).
+const MAX_ID_CHARS: usize = 64;
+
+/// One list of the filter bar: text IDs, each short and on one line, at most
+/// [`crate::MAX_FILTER_IDS`] of them and none twice.
+fn read_ids(value: &Value, dimension: Dimension) -> Result<Vec<String>, ReportError> {
+    let path = format!("filters.{}", dimension.word());
+    let ids = value
+        .as_array()
+        .ok_or_else(|| invalid("wrong-type", &path))?
+        .iter()
+        .map(|id| id.as_str().map(str::to_owned))
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| invalid("wrong-type", &path))?;
+    if ids.iter().any(|id| {
+        id.is_empty() || id.chars().count() > MAX_ID_CHARS || id.chars().any(char::is_control)
+    }) {
+        return Err(invalid("bad-text", &path));
+    }
+    check_list(dimension, &ids)?;
+    Ok(ids)
+}
+
+/// The document's `filters`: a period, accounts and categories, each
+/// optional.
+fn read_filters(value: &Value) -> Result<Filters, ReportError> {
+    let filters = value
+        .as_object()
+        .ok_or_else(|| invalid("wrong-type", "filters"))?;
+    if let Some(key) = filters
+        .keys()
+        .find(|key| !matches!(key.as_str(), "period" | "accounts" | "categories"))
+    {
+        return Err(invalid("unknown-property", &format!("filters.{key}")));
+    }
+    let period = match filters.get("period") {
+        None => None,
+        Some(Value::String(period))
+            if PERIODS.contains(&period.as_str()) || crate::read_range_word(period).is_some() =>
+        {
+            Some(period.clone())
+        }
+        Some(_) => return Err(invalid("bad-choice", "filters.period")),
+    };
+    let list = |dimension: Dimension| {
+        filters
+            .get(dimension.word())
+            .map_or(Ok(Vec::new()), |value| read_ids(value, dimension))
+    };
+    Ok(Filters {
+        period,
+        accounts: list(Dimension::Accounts)?,
+        categories: list(Dimension::Categories)?,
+    })
+}
+
 impl Document {
     /// A view: one component, no frame. The name and period are checked
     /// when the text is read back with [`Document::read`].
@@ -230,6 +297,8 @@ impl Document {
             kind: ViewKind::View,
             name: name.to_owned(),
             period: period.map(str::to_owned),
+            accounts: Vec::new(),
+            categories: Vec::new(),
             entries: vec![Entry {
                 id: VIEW_COMPONENT_ID.to_owned(),
                 item: Item::Component(component),
@@ -278,26 +347,13 @@ impl Document {
         if name.is_empty() || name != name.trim() || name.chars().count() > MAX_NAME_CHARS {
             return Err(invalid("bad-name", "name"));
         }
-        let period = match object.get("filters") {
-            None => None,
-            Some(filters) => {
-                let filters = filters
-                    .as_object()
-                    .ok_or_else(|| invalid("wrong-type", "filters"))?;
-                if let Some(key) = filters.keys().find(|key| key.as_str() != "period") {
-                    return Err(invalid("unknown-property", &format!("filters.{key}")));
-                }
-                match filters.get("period") {
-                    None => None,
-                    Some(Value::String(period))
-                        if PERIODS.contains(&period.as_str())
-                            || crate::read_range_word(period).is_some() =>
-                    {
-                        Some(period.clone())
-                    }
-                    Some(_) => return Err(invalid("bad-choice", "filters.period")),
-                }
-            }
+        let Filters {
+            period,
+            accounts,
+            categories,
+        } = match object.get("filters") {
+            None => Filters::default(),
+            Some(filters) => read_filters(filters)?,
         };
         let components = match object.get("components") {
             None => &Vec::new(),
@@ -334,8 +390,48 @@ impl Document {
             kind,
             name: name.to_owned(),
             period,
+            accounts,
+            categories,
             entries,
         })
+    }
+
+    /// What the document's filter bar holds (`filters`, D-351).
+    pub fn filters(&self) -> Filters {
+        Filters {
+            period: self.period.clone(),
+            accounts: self.accounts.clone(),
+            categories: self.categories.clone(),
+        }
+    }
+
+    /// What the component with ID `id` asks for (D-350): its own settings,
+    /// else for the period the period box it lies completely in, else what
+    /// `bar` holds, the document's own [`Document::filters`] or a choice the
+    /// user made for now. `None` for an ID the document doesn't have, a
+    /// component of a type this version doesn't know, and one that shows no
+    /// figures.
+    pub fn asked(&self, id: &str, bar: &Filters) -> Option<Asked> {
+        let entry = self.entries.iter().find(|entry| entry.id == id)?;
+        let Item::Component(component) = &entry.item else {
+            return None;
+        };
+        let in_box = entry.frame.and_then(|frame| {
+            self.entries.iter().find_map(|other| match &other.item {
+                Item::Component(period_box)
+                    if crate::grid::is_box(&other.item)
+                        && other.id != entry.id
+                        && other.frame.is_some_and(|outer| outer.contains(frame)) =>
+                {
+                    match period_box.get("period") {
+                        Some(crate::Setting::Word(word)) => Some(word.as_str()),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            })
+        });
+        Asked::new(component, in_box, bar)
     }
 
     /// The document as the text the book keeps. Keys are in alphabetical
@@ -353,9 +449,20 @@ impl Document {
             .into(),
         );
         object.insert("name".into(), self.name.clone().into());
+        let mut filters = Map::new();
         if let Some(period) = &self.period {
-            let mut filters = Map::new();
             filters.insert("period".into(), period.clone().into());
+        }
+        for (key, ids) in [
+            ("accounts", &self.accounts),
+            ("categories", &self.categories),
+        ] {
+            if !ids.is_empty() {
+                let ids = ids.iter().cloned().map(Value::String).collect();
+                filters.insert(key.into(), Value::Array(ids));
+            }
+        }
+        if !filters.is_empty() {
             object.insert("filters".into(), Value::Object(filters));
         }
         let entries = self.entries.iter().map(|entry| {

@@ -40,6 +40,12 @@ mkdir "$work/out"
         echo "check-charts: QML printed a layout or binding loop (above)" >&2
         exit 1
     fi
+    # The names on the slices of a pie or donut never cover each other.
+    if grep -E 'name-overlaps .* [1-9][0-9]*$' run.log; then
+        echo "check-charts: names on slices cover each other (above)" >&2
+        exit 1
+    fi
+    grep -c 'name-overlaps' run.log | grep -qv '^0$' || { echo "check-charts: no name check ran" >&2; exit 1; }
 )
 
 python3 - "$work/out" <<'PY'

@@ -159,7 +159,7 @@ fn the_header_is_checked() {
 
 #[test]
 fn a_newer_version_is_refused_by_its_own_code() {
-    let text = with(|value| value["version"] = 2.into());
+    let text = with(|value| value["version"] = (VERSION + 1).into());
     let error = Document::read(&text).unwrap_err();
     assert_eq!(error.report().code, "report.unsupported-document-version");
 }

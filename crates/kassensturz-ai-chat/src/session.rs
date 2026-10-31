@@ -12,9 +12,10 @@ use kassensturz_ai::{
     AiError, Finish, FunctionSpec, Message, PreparedRequest, Provider, Role, ToolCall,
 };
 use kassensturz_ai_tools::{
-    ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, OPEN_PAGE,
-    PROPOSE_CHANGES, PageTarget, ToolError, Unverified, check_numbers, draft_issue,
-    open_page_allowed, propose, propose_spec, readable_functions, unique_codes,
+    ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, MAX_VIEWS_PER_ANSWER,
+    OPEN_PAGE, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, PageTarget, ProposedChange, ToolError,
+    Unverified, check_numbers, draft_issue, open_page_allowed, propose, propose_spec,
+    propose_view_spec, propose_view_text, readable_functions, unique_codes, view_choices,
 };
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
@@ -627,34 +628,57 @@ impl ChatSession {
         today: Date,
         hooks: &mut dyn Hooks,
     ) -> Message {
-        let outcome = serde_json::from_str::<Value>(&call.arguments)
-            .map_err(|_| ToolError::BadArgument {
-                argument: "arguments",
-            })
-            .and_then(|arguments| {
-                if call.name == PROPOSE_CHANGES.name {
-                    // Prepared for the user, never applied here (T-27).
-                    propose(book, &arguments, self.permissions()).map(|proposal| {
-                        self.proposed.push(proposal.changes);
-                        proposal.output
-                    })
-                } else if call.name == DRAFT_ISSUE.name {
-                    // Shown to the user, never sent from here (T-33).
-                    draft_issue(book, &arguments, &self.issue_context()).map(|(draft, output)| {
-                        self.issue = Some(draft);
-                        output
-                    })
-                } else if call.name == OPEN_PAGE.name {
-                    // Shown to the user when the answer is ready; changes
-                    // nothing (T-36).
-                    open_page_allowed(book, &arguments, self.permissions()).map(|(page, output)| {
-                        self.page = Some(page);
-                        output
-                    })
-                } else {
-                    self.read(book, &call.name, &arguments, today)
-                }
-            });
+        let views = self
+            .proposed
+            .iter()
+            .flat_map(ChangeSet::changes)
+            .filter(|change| matches!(change, ProposedChange::NewView(_)))
+            .count();
+        let outcome = if call.name == PROPOSE_VIEW_NAME {
+            // The text itself, so a key written twice is seen (D-353).
+            // Prepared for the user, never applied here (T-27, T-46).
+            if views >= MAX_VIEWS_PER_ANSWER {
+                Err(ToolError::TooManyChanges)
+            } else {
+                propose_view_text(book, &call.arguments, self.permissions()).map(|proposal| {
+                    self.proposed.push(proposal.changes);
+                    proposal.output
+                })
+            }
+        } else {
+            serde_json::from_str::<Value>(&call.arguments)
+                .map_err(|_| ToolError::BadArgument {
+                    argument: "arguments",
+                })
+                .and_then(|arguments| {
+                    if call.name == PROPOSE_CHANGES.name {
+                        // Prepared for the user, never applied here (T-27).
+                        propose(book, &arguments, self.permissions()).map(|proposal| {
+                            self.proposed.push(proposal.changes);
+                            proposal.output
+                        })
+                    } else if call.name == DRAFT_ISSUE.name {
+                        // Shown to the user, never sent from here (T-33).
+                        draft_issue(book, &arguments, &self.issue_context()).map(
+                            |(draft, output)| {
+                                self.issue = Some(draft);
+                                output
+                            },
+                        )
+                    } else if call.name == OPEN_PAGE.name {
+                        // Shown to the user when the answer is ready; changes
+                        // nothing (T-36).
+                        open_page_allowed(book, &arguments, self.permissions()).map(
+                            |(page, output)| {
+                                self.page = Some(page);
+                                output
+                            },
+                        )
+                    } else {
+                        self.read(book, &call.name, &arguments, today)
+                    }
+                })
+        };
         let (result, error) = match outcome {
             Ok(output) => {
                 self.figures.extend(&output.figures);
@@ -663,10 +687,12 @@ impl ChatSession {
             Err(error) => {
                 let report = error.report();
                 let prepares = call.name == PROPOSE_CHANGES.name;
-                (
-                    prompt::data_json(&error_json(&report, prepares)),
-                    Some(report.code),
-                )
+                let answer = if call.name == PROPOSE_VIEW_NAME {
+                    view_error_json(&report)
+                } else {
+                    error_json(&report, prepares)
+                };
+                (prompt::data_json(&answer), Some(report.code))
             }
         };
         self.note(
@@ -831,6 +857,12 @@ fn function_specs(log_readable: bool, permissions: Permissions) -> Vec<FunctionS
         parameters:
             serde_json::from_str(&propose.parameters).unwrap_or_else(|_| json!({"type": "object"})),
     }));
+    specs.extend(propose_view_spec(permissions).map(|view| FunctionSpec {
+        name: view.name.to_owned(),
+        description: view.description,
+        parameters:
+            serde_json::from_str(&view.parameters).unwrap_or_else(|_| json!({"type": "object"})),
+    }));
     specs.push(spec(&DRAFT_ISSUE));
     specs.push(spec(&OPEN_PAGE));
     #[cfg(feature = "debug-log")]
@@ -872,7 +904,8 @@ prepared. Fix the call and call propose_changes again, or say plainly that it di
 fn error_json(report: &ErrorReport, prepares: bool) -> Value {
     let mut out = Map::new();
     out.insert("error".into(), json!(report.code));
-    let mut wrong_id = report.code.starts_with("ai-tools.unknown-");
+    let mut wrong_id =
+        report.code.starts_with("ai-tools.unknown-") && report.code != "ai-tools.unknown-argument";
     let mut hints = Vec::new();
     for (name, value) in &report.params {
         match value {
@@ -906,10 +939,48 @@ fn error_json(report: &ErrorReport, prepares: bool) -> Value {
     Value::Object(out)
 }
 
+/// What the model is told when its call of `propose_view` is refused: the
+/// code, the argument by its fixed name and, for a list, the values it
+/// takes from the catalog and schema (D-353). Never the model's own text.
+fn view_error_json(report: &ErrorReport) -> Value {
+    let mut out = error_json(report, true);
+    let argument = report.params.iter().find_map(|(name, value)| match value {
+        ErrorParam::Keyword(keyword) if *name == "argument" => Some(*keyword),
+        _ => None,
+    });
+    if report.code == "ai-tools.bad-argument"
+        && let Some(words) = argument.and_then(view_choices)
+        && let Value::Object(object) = &mut out
+    {
+        object.insert("allowed".into(), json!(words));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use kassensturz_ai_tools::FUNCTIONS;
+
+    #[test]
+    fn a_refused_chart_lists_what_its_argument_takes() {
+        let bad = ToolError::BadArgument {
+            argument: "show_as",
+        }
+        .report();
+        let answer = view_error_json(&bad);
+        assert_eq!(answer["argument"], json!("show_as"));
+        assert_eq!(answer["allowed"], json!(view_choices("show_as").unwrap()));
+        assert!(answer["hint"].as_str().unwrap().contains(NOT_PREPARED_HINT));
+        // An argument that is no list, and other codes, list nothing.
+        let title = ToolError::BadArgument { argument: "title" }.report();
+        assert!(view_error_json(&title).get("allowed").is_none());
+        assert!(
+            view_error_json(&ToolError::UnknownArgument.report())
+                .get("allowed")
+                .is_none()
+        );
+    }
 
     #[test]
     fn a_request_is_cut_when_the_provider_counts_far_fewer_tokens() {
@@ -932,8 +1003,18 @@ mod tests {
             .iter()
             .fold(Permissions::all(), |p, field| p.with_lock(*field, false));
         let specs = function_specs(false, everything);
-        assert_eq!(specs.len(), FUNCTIONS.len() + 3);
+        assert_eq!(specs.len(), FUNCTIONS.len() + 4);
         assert_eq!(specs[FUNCTIONS.len()].name, PROPOSE_CHANGES.name);
+        // A chart has its own function, offered with Charts › Add (D-352).
+        let all_specs = specs.clone();
+        let mut specs = specs;
+        let view = specs.remove(FUNCTIONS.len() + 1);
+        assert_eq!(view.name, PROPOSE_VIEW_NAME);
+        assert_eq!(
+            view.parameters,
+            serde_json::from_str::<Value>(&propose_view_spec(everything).unwrap().parameters)
+                .unwrap()
+        );
         assert_eq!(specs[FUNCTIONS.len() + 1].name, DRAFT_ISSUE.name);
         assert_eq!(specs[FUNCTIONS.len() + 2].name, OPEN_PAGE.name);
         for (spec, function) in
@@ -956,16 +1037,16 @@ mod tests {
         let with_log = function_specs(true, everything);
         #[cfg(feature = "debug-log")]
         {
-            assert_eq!(with_log.len(), specs.len() + 1);
-            assert_eq!(with_log[specs.len()].name, READ_DEBUG_LOG.name);
+            assert_eq!(with_log.len(), all_specs.len() + 1);
+            assert_eq!(with_log[all_specs.len()].name, READ_DEBUG_LOG.name);
             assert_eq!(
-                with_log[specs.len()].parameters,
+                with_log[all_specs.len()].parameters,
                 serde_json::from_str::<Value>(READ_DEBUG_LOG.parameters).unwrap()
             );
         }
         #[cfg(not(feature = "debug-log"))]
-        assert_eq!(with_log.len(), specs.len());
-        assert_eq!(with_log[..specs.len()], specs[..]);
+        assert_eq!(with_log.len(), all_specs.len());
+        assert_eq!(with_log[..all_specs.len()], all_specs[..]);
     }
     #[test]
     fn an_error_carries_only_its_code_and_fixed_names() {

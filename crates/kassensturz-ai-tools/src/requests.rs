@@ -89,15 +89,19 @@ impl RequestId {
     }
 }
 
-/// A call of `propose_changes` from outside the window, for the book it
-/// names. Its arguments are untrusted: the app checks them with
-/// [`crate::propose`] like a call from its own chat (X-8).
+/// A call of `propose_changes` or `propose_view` from outside the window,
+/// for the book it names. Its arguments are untrusted: the app checks them
+/// with [`crate::prepare_named`] like a call from its own chat (X-8).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Request {
     /// Its ID, for the answer.
     pub id: RequestId,
     /// The book the call was prepared against.
     pub book: PathBuf,
+    /// The function called: `propose_changes`, or `propose_view` (D-352).
+    /// A request file without one is a call of `propose_changes`, as every
+    /// file was before M6c.8.
+    pub function: &'static str,
     /// The call's arguments, as the model sent them.
     pub arguments: Value,
 }
@@ -255,11 +259,27 @@ impl RequestFolder {
     /// Hands the call `arguments` for the book at `book` to the app: the
     /// MCP server's side.
     pub fn send(&self, book: &Path, arguments: &Value) -> io::Result<RequestId> {
+        self.send_call(book, crate::PROPOSE_CHANGES.name, arguments)
+    }
+
+    /// Hands the call of `function` (`propose_changes` or `propose_view`)
+    /// with `arguments` for the book at `book` to the app.
+    pub fn send_call(
+        &self,
+        book: &Path,
+        function: &str,
+        arguments: &Value,
+    ) -> io::Result<RequestId> {
         let book = book.to_str().ok_or_else(|| {
             io::Error::new(io::ErrorKind::InvalidInput, "the book's path isn't UTF-8")
         })?;
         let id = RequestId::new();
-        let request = json!({"version": VERSION, "book": book, "arguments": arguments});
+        let request = json!({
+            "version": VERSION,
+            "book": book,
+            "function": function,
+            "arguments": arguments,
+        });
         self.write(&id.file(REQUEST), request.to_string().as_bytes())?;
         Ok(id)
     }
@@ -400,10 +420,19 @@ impl RequestFolder {
             return None;
         }
         let book = PathBuf::from(value.get("book")?.as_str()?);
+        // Only the two functions that prepare changes; anything else is not
+        // a request this app reads.
+        let function = match value.get("function") {
+            None => crate::PROPOSE_CHANGES.name,
+            Some(name) => [crate::PROPOSE_CHANGES.name, crate::PROPOSE_VIEW_NAME]
+                .into_iter()
+                .find(|known| name.as_str() == Some(known))?,
+        };
         let arguments = value.get("arguments")?.clone();
         Some(Request {
             id: id.clone(),
             book,
+            function,
             arguments,
         })
     }

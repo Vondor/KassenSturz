@@ -6,8 +6,9 @@
 //!
 //! A request reaches the window through an [`Inbox`] (today the request
 //! folder, D-216). The window never trusts what the AI tool's server
-//! checked: it checks the call itself with [`propose`] against its own open
-//! book, exactly as for a set from its chat, and keeps the set with the
+//! checked: it checks the call itself with [`prepare_named`]
+//! (`propose_changes` or `propose_view`, D-352) against its own open book,
+//! exactly as for a set from its chat, and keeps the set with the
 //! chat's sets. From there it is the same set: the same review page, and
 //! only its confirm button applies it (`ai_chat::confirm_in`, D-200). The
 //! request is answered when the set is shown, and again when the user has
@@ -18,7 +19,7 @@
 use std::path::Path;
 
 use kassensturz_ai_tools::requests::{Inbox, Reply, RequestId};
-use kassensturz_ai_tools::{ChangeError, propose};
+use kassensturz_ai_tools::{ChangeError, prepare_named};
 use kassensturz_core::Report;
 use kassensturz_core::ai_switch::Permissions;
 use kassensturz_store::Book;
@@ -47,7 +48,7 @@ pub fn take_requests(
 ) -> Vec<Arrived> {
     let mut arrived = Vec::new();
     for request in inbox.take_new(path) {
-        let reply = match propose(book, &request.arguments, allowed) {
+        let reply = match prepare_named(book, request.function, &request.arguments, allowed) {
             Ok(proposal) => {
                 let count = proposal.changes.changes().len();
                 let id = sets.add_requested(proposal.changes, request.id.clone());
@@ -105,6 +106,7 @@ mod tests {
     use crate::platform::APP_ID;
     use crate::register::tests::TestLocale;
     use crate::test_folder::TestFolder;
+    use kassensturz_ai_tools::propose;
 
     /// The synthetic Space Colony book, filled by the importer, the
     /// pipeline and the store, in a file as the window has it open.

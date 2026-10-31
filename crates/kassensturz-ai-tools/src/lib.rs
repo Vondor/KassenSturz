@@ -20,7 +20,8 @@
 //! every number in a model's answer that no function produced (threat T-26).
 //!
 //! A model can also prepare changes, never make them: [`propose`] turns its
-//! call of [`PROPOSE_CHANGES`] into a [`ChangeSet`] the user reviews, and
+//! call of [`PROPOSE_CHANGES`], and [`propose_view_text`] its call of
+//! `propose_view` (one chart, D-352), into a [`ChangeSet`] the user reviews, and
 //! only [`ChangeSet::apply`] with the user's [`Confirmed`] changes the book,
 //! as one change one undo takes back (D-171, D-198 to D-201).
 //!
@@ -67,9 +68,11 @@ mod writer;
 #[cfg(feature = "ai")]
 pub use changes::{
     Categorize, ChangeError, ChangeSet, Confirmed, DeleteCategory, DeleteTransaction, EditAccount,
-    EditError, EditTransaction, FieldEdit, FieldValue, MAX_CHANGES, NewAccount, NewCategory,
-    NewRule, NewTransaction, PROPOSE_CHANGES, Proposal, ProposeSpec, ProposedChange, Slot,
-    adds_allowed, edits_allowed, propose, propose_spec,
+    EditError, EditTransaction, FieldEdit, FieldValue, MAX_CHANGES, MAX_VIEW_ACCOUNTS,
+    MAX_VIEW_CALL_BYTES, MAX_VIEW_CATEGORIES, MAX_VIEWS_PER_ANSWER, NewAccount, NewCategory,
+    NewRule, NewTransaction, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, Proposal, ProposeSpec,
+    ProposedChange, Slot, adds_allowed, edits_allowed, prepare_named, propose, propose_spec,
+    propose_view, propose_view_spec, propose_view_text, view_choices,
 };
 #[cfg(all(feature = "ai", feature = "debug-log"))]
 pub use debug_log::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};

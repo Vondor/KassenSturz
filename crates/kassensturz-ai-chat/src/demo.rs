@@ -20,7 +20,7 @@
 use kassensturz_ai::{
     AiError, ConfigFile, Message, PROBE_FUNCTION, PROBE_WORD, Role, ScriptedProvider,
 };
-use kassensturz_ai_tools::{OPEN_PAGE, PROPOSE_CHANGES};
+use kassensturz_ai_tools::{OPEN_PAGE, PROPOSE_CHANGES, PROPOSE_VIEW_NAME};
 use serde_json::{Value, json};
 
 use crate::prompt::{DATA_END, DATA_START};
@@ -108,12 +108,9 @@ fn respond(model: DemoModel, messages: &[Message], offered: &[String]) -> Result
     }
     if wants_chart(&question)
         && last != Some(Role::Tool)
-        && offered.iter().any(|offer| offer == PROPOSE_CHANGES.name)
+        && offered.iter().any(|offer| offer == PROPOSE_VIEW_NAME)
     {
-        return Ok(calls_reply(
-            PROPOSE_CHANGES.name,
-            &chart_proposal(&question),
-        ));
+        return Ok(calls_reply(PROPOSE_VIEW_NAME, &chart_proposal(&question)));
     }
     if wants_opening(&question)
         && last == Some(Role::Tool)
@@ -184,12 +181,12 @@ fn chart_proposal(question: &str) -> Value {
     let monthly = ["month", "monat"]
         .iter()
         .any(|word| question.contains(word));
-    json!({"new_views": [{
+    json!({
         "title": DEMO_CHART,
-        "dataset": if monthly { "income_expense_by_month" } else { "spending_by_category" },
-        "chart": "auto",
+        "data": if monthly { "income_expense_by_month" } else { "spending_by_category" },
+        "show_as": "auto",
         "period": "last-12-months",
-    }]})
+    })
 }
 
 /// Whether `question` (lowercase) asks to open a page.

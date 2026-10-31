@@ -10,7 +10,7 @@
 //! with `<` and `>` written as JSON escapes, so no text from the book can
 //! close the block it stands in or look like markup (threats T-21, T-34).
 
-use kassensturz_ai_tools::{DATA_NOTE, adds_allowed, edits_allowed};
+use kassensturz_ai_tools::{DATA_NOTE, MAX_VIEWS_PER_ANSWER, adds_allowed, edits_allowed};
 use kassensturz_core::Date;
 use kassensturz_core::ai_switch::{Permission, Permissions};
 use serde_json::Value;
@@ -94,6 +94,9 @@ averages, percentages or roundings. If no function gives a figure the user asks 
 you can't answer that exactly. When you need data from the book, call the function at once: \
 never ask the user whether you may look, and never end an answer by offering to start. Every function result is JSON; amounts are exact decimal text.";
 
+/// What the user asks for when they want a chart prepared.
+const CHART_ASK: &str = "propose a chart or key figure for the user to save";
+
 /// What the model may prepare and how to say so, for the kinds of change
 /// the user allows (D-239). The kinds it may not prepare are named, so it
 /// tells the user instead of trying another way.
@@ -126,11 +129,7 @@ fn changes(allowed: Permissions) -> String {
             "remove entries the user made by hand in a cash account",
             "removed entries of a cash account (delete_transactions)",
         ),
-        (
-            allowed.allows(Permission::NewViews),
-            "propose a chart or key figure for the user to save",
-            "a new chart (new_views)",
-        ),
+        (allowed.allows(Permission::NewViews), CHART_ASK, ""),
         (
             allowed.allows(Permission::NewCategories),
             "add categories",
@@ -177,25 +176,39 @@ fn changes(allowed: Permissions) -> String {
         [only] => (*only).to_owned(),
         [init @ .., last] => format!("{} or {last}", init.join(", ")),
     };
+    // A chart has its own function (D-352), so it is not in this sentence.
     let asks = join(
         kinds
             .iter()
-            .filter(|kind| kind.0)
+            .filter(|kind| kind.0 && kind.1 != CHART_ASK)
             .map(|kind| kind.1)
             .collect(),
     );
     let prepared = kinds
         .iter()
-        .filter(|kind| kind.0)
+        .filter(|kind| kind.0 && kind.1 != CHART_ASK)
         .map(|kind| kind.2)
         .collect::<Vec<_>>()
         .join(", ");
-    let mut text = format!(
-        "When the user asks you to {asks}, prepare the changes with propose_changes: {prepared}. \
-         You can't do these: delete an account, delete a category that is used, merge two categories, move a Rule into or out \
+    let mut text = String::new();
+    if !asks.is_empty() {
+        text.push_str(&format!(
+            "When the user asks you to {asks}, prepare the changes with propose_changes: \
+             {prepared}. "
+        ));
+    }
+    if allowed.allows(Permission::NewViews) {
+        text.push_str(&format!(
+            "When the user asks you to {CHART_ASK}, prepare it with propose_view, one call per \
+             chart and at most {MAX_VIEWS_PER_ANSWER} in one answer; choose only from its lists \
+             and never write a figure into its title. "
+        ));
+    }
+    text.push_str(
+        "You can't do these: delete an account, delete a category that is used, merge two categories, move a Rule into or out \
          of another Rule (a sub-Rule), delete a Rule that has sub-Rules, change the category of \
          a Rule that makes a Transfer, or rewrite the conditions of a Rule whose conditions \
-         list_rules doesn't show in full (an IBAN, a pattern, an amount, a date or an account). "
+         list_rules doesn't show in full (an IBAN, a pattern, an amount, a date or an account). ",
     );
     let denied = join(
         kinds

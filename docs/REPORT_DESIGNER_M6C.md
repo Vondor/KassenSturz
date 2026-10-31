@@ -169,6 +169,8 @@ Arguments (JSON object; every value but `title` and the dates is from a fixed li
 
 The values go through `Component::new` and `Component::set` and the finished document through `Document::read`, exactly as a hand-made view, so the schema alone decides what fits. One call prepares one view; one answer holds at most 3 (as M6a.9).
 
+**Built in M6c.8 (D-391 to D-393):** `in_currency` waits for a component that can keep a currency, `accounts` is offered once the schema has `params.accounts` (M6c.6), and `budget_utilization` stays off for the AI until the Budgets row of the grid (M6c.11). A refused list argument is answered with its allowed values; `page` means the dataset's own period; a request file of the MCP server names its `function`. Code: `kassensturz-ai-tools` `src/changes/view_call.rs`.
+
 ### 4.2 Malformed calls (D-353; M6c.8, suite in M6c.10)
 
 A call from a model is untrusted input (T-21, T-46). Checked in this order, before anything is built; the first failure answers:

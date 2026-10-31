@@ -92,7 +92,8 @@ pub const CATALOG: &[DatasetInfo] = &[
     },
     // What the user has, owes and is worth and the money in and out of
     // their accounts (D-348, D-349), built in M6c.1 and drawn since M6c.2
-    // (D-368, D-370). The AI does not know them until M6c.8.
+    // (D-368, D-370). The AI may name them since M6c.8 (D-354): naming one
+    // sends no figure, the preview is drawn by code.
     DatasetInfo {
         id: ACCOUNT_BALANCES,
         description: "What each of your accounts held at the end of the period's last day, and \
@@ -111,7 +112,7 @@ pub const CATALOG: &[DatasetInfo] = &[
         groupings: &["account", "account_kind"],
         suits: &["kpi", "table"],
         measures: &["net_worth", "assets", "liabilities", FORMULA_MEASURE],
-        for_ai: false,
+        for_ai: true,
     },
     DatasetInfo {
         id: NET_WORTH_OVER_TIME,
@@ -128,7 +129,7 @@ pub const CATALOG: &[DatasetInfo] = &[
         groupings: &["month"],
         suits: &["line", "table"],
         measures: &["net_worth", "assets", "liabilities"],
-        for_ai: false,
+        for_ai: true,
     },
     DatasetInfo {
         id: CASH_FLOW_BY_MONTH,
@@ -145,7 +146,7 @@ pub const CATALOG: &[DatasetInfo] = &[
         groupings: &["month"],
         suits: &["bar", "table"],
         measures: &["net_change", "money_in", "money_out"],
-        for_ai: false,
+        for_ai: true,
     },
 ];
 
@@ -220,11 +221,13 @@ mod tests {
             Some(SPENDING_BY_CATEGORY)
         );
         assert!(dataset("no_such_dataset").is_none());
-        // The financial datasets are offered since the app draws them, but
-        // the AI does not know them until its tools do (D-368, M6c.8).
+        // The financial datasets are offered to the AI since its chart
+        // builder takes them (D-354, M6c.8); the one with My groups is not
+        // (D-306).
         for id in balances {
             let info = dataset(id).expect("a financial dataset is in the catalog");
-            assert!(!info.for_ai, "{id}");
+            assert!(info.for_ai, "{id}");
         }
+        assert!(!dataset(CATEGORY_OVER_TIME).is_some_and(|info| info.for_ai));
     }
 }

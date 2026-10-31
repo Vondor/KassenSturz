@@ -16,7 +16,7 @@ use kassensturz_ai_chat::{
     BuildInfo, ChatSession, DEMO_CATEGORY, DEMO_CHART, DEMO_LABEL, DemoModel, LogEntry, NoHooks,
     Outcome, demo_provider,
 };
-use kassensturz_ai_tools::{Confirmed, PROPOSE_CHANGES, ProposedChange};
+use kassensturz_ai_tools::{Confirmed, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, ProposedChange};
 use kassensturz_store::Action;
 use serde_json::{Value, json};
 
@@ -425,4 +425,69 @@ fn the_fake_model_proposes_a_chart_that_is_saved_only_on_confirm_and_needs_its_c
     assert_eq!(saved[0].name, DEMO_CHART);
     book.undo().unwrap();
     assert!(book.views(Some(ViewKind::View)).unwrap().is_empty());
+}
+
+#[test]
+fn one_answer_prepares_at_most_three_charts_and_a_refusal_lists_the_choices() {
+    let book = space_colony();
+    let view = |title: &str| {
+        json!({"title": title, "data": "net_worth_over_time", "show_as": "auto"}).to_string()
+    };
+    let (one, two, three, four) = (view("One"), view("Two"), view("Three"), view("Four"));
+    let misspelt = json!({"title": "Five", "data": "net_worth", "show_as": "auto"}).to_string();
+    let twice = r#"{"title":"Six","title":"Seven","data":"net_worth_over_time","show_as":"auto"}"#;
+    let (provider, script) = Script::provider(
+        on(),
+        vec![
+            calls(&[
+                ("c1", PROPOSE_VIEW_NAME, &misspelt),
+                ("c2", PROPOSE_VIEW_NAME, twice),
+                ("c3", PROPOSE_VIEW_NAME, &one),
+                ("c4", PROPOSE_VIEW_NAME, &two),
+                ("c5", PROPOSE_VIEW_NAME, &three),
+                ("c6", PROPOSE_VIEW_NAME, &four),
+            ]),
+            says("Three charts wait for you."),
+        ],
+    );
+    let mut chat = session();
+    let answer = chat
+        .ask(
+            &book,
+            &provider,
+            None,
+            "Draw my net worth",
+            TODAY,
+            &mut NoHooks,
+        )
+        .unwrap();
+    // Each call is a set of its own with one chart, as for propose_changes.
+    let titles: Vec<String> = answer
+        .changes
+        .iter()
+        .flat_map(|set| set.changes())
+        .map(|change| match change {
+            ProposedChange::NewView(new) => new.title.clone(),
+            other => panic!("a chart, not {other:?}"),
+        })
+        .collect();
+    assert_eq!(titles, ["One", "Two", "Three"]);
+    // What the model was told: the list of datasets for the misspelt one,
+    // the repeated key, and that a fourth is too many; never its own text.
+    let seen = script.seen();
+    let results: Vec<Value> = seen[1]
+        .messages
+        .iter()
+        .filter(|message| message.role == Role::Tool)
+        .map(|message| serde_json::from_str(&message.content).unwrap())
+        .collect();
+    assert_eq!(results.len(), 6);
+    assert_eq!(results[0]["error"], "ai-tools.bad-argument");
+    assert_eq!(results[0]["argument"], "data");
+    let allowed = results[0]["allowed"].as_array().unwrap();
+    assert!(allowed.iter().any(|word| word == "net_worth_over_time"));
+    assert!(!results[0].to_string().contains("\"net_worth\""));
+    assert_eq!(results[1]["error"], "ai-tools.repeated-key");
+    assert!(!results[1].to_string().contains("Seven"));
+    assert_eq!(results[5]["error"], "ai-tools.too-many-changes");
 }

@@ -21,7 +21,7 @@ use kassensturz_ai_chat::{
     LogEntry, MAX_ROUNDS, Mode, NOT_OFFERED, NoHooks, SHORTENED_RESULT, sample_request,
 };
 use kassensturz_ai_tools::{
-    DATA_NOTE, DRAFT_ISSUE, FUNCTIONS, OPEN_PAGE, PROPOSE_CHANGES, PageTarget,
+    DATA_NOTE, DRAFT_ISSUE, FUNCTIONS, OPEN_PAGE, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, PageTarget,
 };
 use serde_json::Value;
 
@@ -117,9 +117,11 @@ fn a_model_that_follows_a_hostile_memo_gets_nothing_more() {
             .iter()
             .all(|o| FUNCTIONS.iter().any(|f| f.name == o)
                 || o == PROPOSE_CHANGES.name
+                || o == PROPOSE_VIEW_NAME
                 || o == DRAFT_ISSUE.name
                 || o == OPEN_PAGE.name)),
-        "only the read functions, propose_changes, draft_issue and open_page are ever offered"
+        "only the read functions, propose_changes, propose_view, draft_issue and open_page are \
+         ever offered"
     );
     assert_eq!(seen[2].messages.last().unwrap().content, NOT_OFFERED);
 
@@ -336,11 +338,12 @@ fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
     let book = hostile_book();
     let (provider, _) = Script::provider(
         on(),
-        vec![says_counting("A", 5_000), says_counting("B", 5_000)],
+        vec![says_counting("A", 6_000), says_counting("B", 6_000)],
     );
     let mut chat = session();
     // A request of about 8 KB of question plus the prompt and the functions for
-    // 5,000 tokens is what an uncut request comes to.
+    // 6,000 tokens is what an uncut request comes to (with propose_view's
+    // datasets, D-354).
     let long = "word ".repeat(1_600);
     let answer = chat
         .ask(&book, &provider, None, &long, TODAY, &mut NoHooks)

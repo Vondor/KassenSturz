@@ -214,7 +214,8 @@ pub(crate) fn instructions(write_tools: bool, log_readable: bool) -> String {
     };
     let reach = if write_tools {
         "These tools read the user's book on this computer. They can't change it: \
-         propose_changes only prepares changes, which the user reviews in the change panel \
+         propose_changes and propose_view only prepare changes, which the user reviews in the \
+         change panel \
          of KassenSturz's chat sidebar, where Confirm applies them and the user can refuse them \
          or take them back with Undo, and KassenSturz must be running for that. Don't name \
          any other menu or button of KassenSturz to the user; there are none for this."
@@ -352,14 +353,14 @@ mod tests {
         let functions: Vec<&str> = FUNCTIONS.iter().map(|function| function.name).collect();
         assert_eq!(names, functions);
         let with_writes = super::tools(Permissions::all(), Some(Permissions::all()), false);
-        assert_eq!(with_writes.len(), FUNCTIONS.len() + 2);
+        assert_eq!(with_writes.len(), FUNCTIONS.len() + 3);
         assert_eq!(with_writes[..tools.len()], tools[..]);
         // In the developer mode, the debug log's tool comes after the read
         // functions (D-227).
         let with_log = super::tools(Permissions::all(), Some(Permissions::all()), true);
         #[cfg(feature = "debug-log")]
         {
-            assert_eq!(with_log.len(), FUNCTIONS.len() + 3);
+            assert_eq!(with_log.len(), FUNCTIONS.len() + 4);
             assert_eq!(with_log[FUNCTIONS.len()].name, READ_DEBUG_LOG.name);
         }
         #[cfg(not(feature = "debug-log"))]

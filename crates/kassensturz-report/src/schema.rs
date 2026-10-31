@@ -16,6 +16,7 @@
 use crate::ReportError;
 use crate::catalog::{CATALOG, DatasetInfo, NO_DATASET};
 use crate::columns::MAX_COLUMNS;
+use crate::filter::MAX_FILTER_IDS;
 use crate::formula::MAX_FORMULA_CHARS;
 
 /// The `measure` of a key figure that shows the result of its formula.
@@ -256,6 +257,11 @@ pub enum Kind {
     /// A list of up to [`MAX_IDS`] category or group IDs, written as text
     /// (M6b.5). The book decides which of them it still knows.
     Ids,
+    /// A list of up to [`MAX_FILTER_IDS`] IDs of the user's own accounts,
+    /// written as text (D-351): the accounts a component counts on its own.
+    /// Empty means it follows the page's filter bar. The book decides
+    /// which of them it still knows, when the filter is applied.
+    Accounts,
     /// A formula in the canonical form the book stores (D-295), at most
     /// [`MAX_FORMULA_CHARS`] characters on one line. Empty means the
     /// component shows what its other properties say. Only the length and
@@ -303,7 +309,7 @@ pub enum Setting {
     Flag(bool),
     /// For [`Kind::Choice`] and [`Kind::Grouping`].
     Word(String),
-    /// For [`Kind::Ids`].
+    /// For [`Kind::Ids`] and [`Kind::Accounts`].
     Ids(Vec<String>),
     /// For [`Kind::Columns`].
     Columns(Vec<ColumnSetting>),
@@ -330,6 +336,13 @@ const CATEGORIES: Property = Property {
     key: "categories",
     place: Place::Params,
     kind: Kind::Ids,
+};
+/// `params.accounts` (D-351): the accounts a component counts on its own,
+/// whatever the filter bar says. Empty means it follows the page.
+const ACCOUNTS: Property = Property {
+    key: "accounts",
+    place: Place::Params,
+    kind: Kind::Accounts,
 };
 const SERIES: Property = Property {
     key: "series",
@@ -413,10 +426,11 @@ const MEASURE: Property = Property {
 };
 const MEASURE_KEY: &str = "measure";
 
-const CHART: [Property; 9] = [
+const CHART: [Property; 10] = [
     GROUPING,
     GROUPS,
     CATEGORIES,
+    ACCOUNTS,
     SERIES,
     COLUMNS,
     TITLE,
@@ -424,12 +438,13 @@ const CHART: [Property; 9] = [
     SHOW_HIDDEN,
     PERIOD,
 ];
-const KPI_CARD: [Property; 5] = [MEASURE, COMPARE, FORMULA, TITLE, PERIOD];
-const PROGRESS_BAR: [Property; 5] = [COMPARE, FORMULA, TARGET, TITLE, PERIOD];
-const TABLE: [Property; 7] = [
+const KPI_CARD: [Property; 6] = [MEASURE, ACCOUNTS, COMPARE, FORMULA, TITLE, PERIOD];
+const PROGRESS_BAR: [Property; 6] = [ACCOUNTS, COMPARE, FORMULA, TARGET, TITLE, PERIOD];
+const TABLE: [Property; 8] = [
     GROUPING,
     GROUPS,
     CATEGORIES,
+    ACCOUNTS,
     COLUMNS,
     TITLE,
     SHOW_HIDDEN,
@@ -462,7 +477,12 @@ impl Property {
             }
             Kind::Choice(words) => words,
             Kind::Grouping => dataset.groupings,
-            Kind::Text | Kind::Flag { .. } | Kind::Ids | Kind::Formula | Kind::Columns => &[],
+            Kind::Text
+            | Kind::Flag { .. }
+            | Kind::Ids
+            | Kind::Accounts
+            | Kind::Formula
+            | Kind::Columns => &[],
         }
     }
 
@@ -471,7 +491,7 @@ impl Property {
         match self.kind {
             Kind::Text | Kind::Formula => Setting::Text(String::new()),
             Kind::Flag { default } => Setting::Flag(default),
-            Kind::Ids => Setting::Ids(Vec::new()),
+            Kind::Ids | Kind::Accounts => Setting::Ids(Vec::new()),
             Kind::Columns => Setting::Columns(Vec::new()),
             Kind::Choice(_) | Kind::Grouping => Setting::Word(
                 self.words(dataset)
@@ -518,6 +538,7 @@ impl Property {
             }
             (Kind::Flag { .. }, Setting::Flag(_)) => Ok(()),
             (Kind::Ids, Setting::Ids(ids)) => self.check_ids(ids, MAX_IDS),
+            (Kind::Accounts, Setting::Ids(ids)) => self.check_ids(ids, MAX_FILTER_IDS),
             (Kind::Columns, Setting::Columns(columns)) => {
                 if columns.len() > MAX_COLUMNS {
                     return Err(invalid("too-many", self.path()));

@@ -102,7 +102,8 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                 Kind::Flag { .. } => "flag",
                 Kind::Choice(_) | Kind::Grouping if words.len() > 1 => "choice",
                 Kind::Ids => "ids",
-                Kind::Columns | Kind::Choice(_) | Kind::Grouping => return None,
+                // The accounts get their field with the filter bar (M6c.7).
+                Kind::Accounts | Kind::Columns | Kind::Choice(_) | Kind::Grouping => return None,
             };
             let (mut text, mut flag, mut word) = (String::new(), false, String::new());
             let mut chosen = Vec::new();

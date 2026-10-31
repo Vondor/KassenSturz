@@ -106,6 +106,12 @@ ColumnLayout {
             : i18nContext.i18nc("@info %1 is a category name, %2 an amount", "Hidden: %1 (%2 not shown)", hidden.first, hidden.total);
     }
 
+    FontMetrics {
+        id: nameFont
+
+        font: Kirigami.Theme.smallFont
+    }
+
     function categoryName(index: int): string {
         if (round && chart.slices.other === index) {
             return i18nContext.i18nc("@label the smaller slices of a pie put together", "Other");
@@ -159,6 +165,80 @@ ColumnLayout {
                 : series.points[index].label);
         }
         return i18nContext.i18nc("@label %1 is a category or month, %2 the values there", "%1: %2", categoryName(index), parts.join(", "));
+    }
+
+    // Where the names of a round chart's slices go in a picture of `width`
+    // by `height`: for each slice a box (`x`, `y`, `width`, `height`) or null
+    // when the slice is too small to carry its name (the model's `named`) or
+    // when its name would cover a bigger slice's name in every place tried.
+    // The biggest slices are placed first, each at the usual distance from the
+    // middle, then nearer to and farther from it; the legend and the table
+    // have every name, so a name left out loses nothing. The places depend on
+    // the chart and the size only (hover must never change geometry).
+    function sliceLabelBoxes(width: real, height: real): var {
+        const boxes = [];
+        for (let index = 0; index < count; ++index) {
+            boxes.push(null);
+        }
+        if (!round || count === 0 || width <= 0 || height <= 0) {
+            return boxes;
+        }
+        const padding = Kirigami.Units.smallSpacing;
+        const radius = Math.min(width, height) / 2;
+        const donut = chart.kind === "donut";
+        const reaches = donut
+            ? [radius - Kirigami.Units.gridUnit * 1.25, radius - Kirigami.Units.gridUnit * 0.75, radius - Kirigami.Units.gridUnit * 1.75]
+            : [radius * 0.62, radius * 0.82, radius * 0.42];
+        const points = chart.series[0].points;
+        const order = [];
+        for (let index = 0; index < count; ++index) {
+            if (chart.slices.named[index] === true) {
+                order.push(index);
+            }
+        }
+        order.sort((a, b) => points[b].value - points[a].value || a - b);
+        const height1 = nameFont.height + padding;
+        const placed = [];
+        for (const index of order) {
+            const boxWidth = Math.min(nameFont.advanceWidth(categoryName(index)), Kirigami.Units.gridUnit * 7) + padding * 2;
+            const angle = sliceMiddle(index);
+            for (const reach of reaches) {
+                const box = {
+                    x: Math.max(0, Math.min(width - boxWidth, width / 2 + reach * Math.sin(angle) - boxWidth / 2)),
+                    y: Math.max(0, Math.min(height - height1, height / 2 - reach * Math.cos(angle) - height1 / 2)),
+                    width: boxWidth,
+                    height: height1
+                };
+                if (!placed.some(other => boxesMeet(box, other, padding / 2))) {
+                    boxes[index] = box;
+                    placed.push(box);
+                    break;
+                }
+            }
+        }
+        return boxes;
+    }
+
+    // Whether two boxes touch or cover each other, with `gap` to spare.
+    function boxesMeet(one: var, other: var, gap: real): bool {
+        return one.x < other.x + other.width + gap && other.x < one.x + one.width + gap
+            && one.y < other.y + other.height + gap && other.y < one.y + one.height + gap;
+    }
+
+    // How many pairs of slice names on the picture cover each other; the
+    // checks of the charts (tools/check-charts.sh) read this.
+    function nameOverlaps(): int {
+        let found = 0;
+        for (let one = 0; one < sliceNames.count; ++one) {
+            for (let other = one + 1; other < sliceNames.count; ++other) {
+                const first = sliceNames.itemAt(one);
+                const second = sliceNames.itemAt(other);
+                if (first && second && first.visible && second.visible && boxesMeet(first, second, 0)) {
+                    ++found;
+                }
+            }
+        }
+        return found;
     }
 
     // Where slice `index` of a round chart is, as the angle of its middle in
@@ -290,6 +370,10 @@ ColumnLayout {
                 Layout.minimumHeight: Kirigami.Units.gridUnit * 12
                 Layout.minimumWidth: Kirigami.Units.gridUnit * 12
 
+                // Where the names of a round chart's slices go; null for a
+                // slice whose name is left to the legend.
+                readonly property var sliceBoxes: view.sliceLabelBoxes(width, height)
+
                 // Grid lines at the ticks.
                 Repeater {
                     model: view.round ? [] : view.ticks
@@ -347,33 +431,35 @@ ColumnLayout {
                 }
 
                 // The names of the slices that are big enough (5 %), on the
-                // slices themselves; the legend has every slice.
+                // slices themselves; the legend has every slice. Where two
+                // names would cover each other the smaller slice's name is
+                // left to the legend (`sliceLabelBoxes`). The places depend
+                // only on the chart and the picture's size, never on the
+                // pointer, so pointing at a slice moves nothing.
                 Repeater {
+                    id: sliceNames
+
                     model: view.round ? view.count : 0
 
                     delegate: Rectangle {
                         required property int index
-                        readonly property real angle: view.sliceMiddle(index)
-                        readonly property real pieRadius: Math.min(plot.width, plot.height) / 2
-                        readonly property real reach: view.chart.kind === "donut"
-                            ? pieRadius - Kirigami.Units.gridUnit * 1.25 : pieRadius * 0.62
+                        readonly property var box: plot.sliceBoxes[index] ?? null
 
-                        visible: view.chart.slices.named[index] === true
-                        x: plot.width / 2 + reach * Math.sin(angle) - width / 2
-                        y: plot.height / 2 - reach * Math.cos(angle) - height / 2
-                        width: Math.min(sliceName.implicitWidth, Kirigami.Units.gridUnit * 7) + Kirigami.Units.smallSpacing * 2
-                        height: sliceName.implicitHeight + Kirigami.Units.smallSpacing
+                        visible: box !== null
+                        x: box ? box.x : 0
+                        y: box ? box.y : 0
+                        width: box ? box.width : 0
+                        height: box ? box.height : 0
                         radius: 3
                         color: Qt.rgba(Kirigami.Theme.backgroundColor.r, Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 0.8)
 
                         Controls.Label {
-                            id: sliceName
-
                             anchors.centerIn: parent
-                            width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 7)
+                            width: Math.max(0, parent.width - Kirigami.Units.smallSpacing * 2)
                             text: view.categoryName(parent.index)
                             textFormat: Text.PlainText
                             elide: Text.ElideRight
+                            horizontalAlignment: Text.AlignHCenter
                             font: Kirigami.Theme.smallFont
                             Accessible.ignored: true
                         }

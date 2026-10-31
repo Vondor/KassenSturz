@@ -26,6 +26,16 @@ pub enum ReportError {
         /// The key or dotted path of the value.
         path: String,
     },
+    /// A filter names something it can't narrow by, or too much (D-350):
+    /// an account list with a category or the starting balances in it, a
+    /// category list with an account in it, more than
+    /// [`MAX_FILTER_IDS`](crate::MAX_FILTER_IDS) IDs, or an ID twice.
+    FilterInvalid {
+        /// What is wrong, by a fixed word.
+        reason: &'static str,
+        /// Which list: `accounts` or `categories`.
+        dimension: &'static str,
+    },
     /// A document is bigger than the book keeps (D-281).
     DocumentTooBig {
         /// The most bytes a document may have.
@@ -168,6 +178,9 @@ impl Report for ReportError {
             Self::DocumentInvalid { reason, path } => ErrorReport::new("report.document-invalid")
                 .with("reason", ErrorParam::Keyword(reason))
                 .with("path", ErrorParam::Text(path.clone())),
+            Self::FilterInvalid { reason, dimension } => ErrorReport::new("report.filter-invalid")
+                .with("reason", ErrorParam::Keyword(reason))
+                .with("dimension", ErrorParam::Keyword(dimension)),
             Self::DocumentTooBig { max_bytes } => ErrorReport::new("report.document-too-big")
                 .with("max_bytes", ErrorParam::count(*max_bytes)),
             Self::UnsupportedDocumentVersion { version } => {
@@ -272,6 +285,10 @@ mod tests {
             ReportError::DocumentInvalid {
                 reason: "bad-choice",
                 path: "params.grouping".into(),
+            },
+            ReportError::FilterInvalid {
+                reason: "repeated",
+                dimension: "accounts",
             },
             ReportError::DocumentTooBig { max_bytes: 1 },
             ReportError::UnsupportedDocumentVersion { version: 2 },

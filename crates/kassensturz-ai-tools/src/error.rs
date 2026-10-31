@@ -91,6 +91,10 @@ pub enum ToolError {
     },
     /// The book couldn't be read.
     Store(StoreError),
+    /// The book would refuse the budget the call prepares, for the reason
+    /// the store gives a budget made by hand (D-358): the model hears the
+    /// store's own code, as the user would.
+    BudgetRefused(StoreError),
 }
 
 impl From<StoreError> for ToolError {
@@ -144,6 +148,7 @@ impl Report for ToolError {
             Self::Store(error) => {
                 ErrorReport::new("ai-tools.book-unreadable").caused_by(error.report())
             }
+            Self::BudgetRefused(error) => error.report(),
         }
     }
 }

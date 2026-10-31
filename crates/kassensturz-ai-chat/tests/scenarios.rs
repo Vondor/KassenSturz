@@ -336,18 +336,19 @@ fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
     let book = hostile_book();
     let (provider, _) = Script::provider(
         on(),
-        vec![says_counting("A", 5_000), says_counting("B", 5_000)],
+        vec![says_counting("A", 6_000), says_counting("B", 6_000)],
     );
     let mut chat = session();
-    // A request of about 8 KB of question plus the prompt and the functions for
-    // 5,000 tokens is what an uncut request comes to.
+    // A request of about 8 KB of question plus the prompt and the functions
+    // (about 46 KB with the budget lists of M6c.11) for 6,000 tokens is what
+    // an uncut request comes to.
     let long = "word ".repeat(1_600);
     let answer = chat
         .ask(&book, &provider, None, &long, TODAY, &mut NoHooks)
         .unwrap();
     assert!(!answer.context_cut);
-    // The history grows by the first question and answer: 75 KB or more for 5,000
-    // tokens is a request the provider cut.
+    // The history grows by the first question and answer: 100 KB or more for
+    // 6,000 tokens is a request the provider cut.
     let longer = "word ".repeat(12_000);
     let answer = chat
         .ask(&book, &provider, None, &longer, TODAY, &mut NoHooks)

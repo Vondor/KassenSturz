@@ -66,10 +66,11 @@ mod writer;
 
 #[cfg(feature = "ai")]
 pub use changes::{
-    Categorize, ChangeError, ChangeSet, Confirmed, DeleteCategory, DeleteTransaction, EditAccount,
-    EditError, EditTransaction, FieldEdit, FieldValue, MAX_CHANGES, NewAccount, NewCategory,
-    NewRule, NewTransaction, PROPOSE_CHANGES, Proposal, ProposeSpec, ProposedChange, Slot,
-    adds_allowed, edits_allowed, propose, propose_spec,
+    AmountBasis, Categorize, ChangeError, ChangeSet, Confirmed, DeleteCategory, DeleteTransaction,
+    EditAccount, EditBudget, EditError, EditTransaction, FieldEdit, FieldValue, MAX_CHANGES,
+    NewAccount, NewBudget, NewCategory, NewRule, NewTransaction, PROPOSE_CHANGES, Proposal,
+    ProposeSpec, ProposedChange, Slot, adds_allowed, edits_allowed, every_word, propose,
+    propose_on, propose_spec,
 };
 #[cfg(all(feature = "ai", feature = "debug-log"))]
 pub use debug_log::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};

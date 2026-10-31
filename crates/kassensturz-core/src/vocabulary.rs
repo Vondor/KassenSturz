@@ -17,6 +17,7 @@ pub const DETAILS: &[&str] = &[
     "search_transactions",
     "list_categories",
     "list_rules",
+    "list_budgets",
     "propose_changes",
     "check_proposed_changes",
     "read_debug_log",

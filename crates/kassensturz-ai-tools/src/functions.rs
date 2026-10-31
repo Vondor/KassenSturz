@@ -44,6 +44,8 @@ impl Function {
             "search_transactions" => &[Row::Transactions],
             "list_categories" => &[Row::Categories],
             "list_rules" => &[Row::Rules],
+            // A budget names its category (D-396).
+            "list_budgets" => &[Row::Budgets, Row::Categories],
             // A function that reads no row of the book.
             _ => &[],
         }
@@ -117,6 +119,17 @@ pub const FUNCTIONS: &[Function] = &[
             what each one looks for, what it books to, and its sub-Rules.",
         parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
     },
+    Function {
+        name: "list_budgets",
+        description: "Lists the user's budgets that run now or start later, with their IDs: \
+            the spending category each one is for (counted with everything inside it), how \
+            often it starts again (month, quarter or year, or range for one stretch of days), \
+            what it plans for the current period and whether what is left moves into the next \
+            one. When the user also lets you read transactions, each budget has \
+            \"current_period\" with what is available, spent and left in it so far. Amounts \
+            are exact decimal text with a dot as the decimal mark.",
+        parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
+    },
 ];
 
 /// The name of every argument any function takes, and `arguments` for a
@@ -173,6 +186,19 @@ impl Output {
 /// as a model sent them: a JSON object, or null for none. `today` is the
 /// day of this computer's clock, for defaults such as a balance today.
 pub fn call(book: &Book, name: &str, arguments: &Value, today: Date) -> Result<Output, ToolError> {
+    call_with(book, name, arguments, today, Permissions::all())
+}
+
+/// [`call`] with what `permissions` let a result hold beyond the rows
+/// its function needs: the spending of `list_budgets` needs the reading of
+/// Transactions too (D-396).
+fn call_with(
+    book: &Book,
+    name: &str,
+    arguments: &Value,
+    today: Date,
+    permissions: Permissions,
+) -> Result<Output, ToolError> {
     let function = FUNCTIONS
         .iter()
         .find(|function| function.name == name)
@@ -230,6 +256,9 @@ pub fn call(book: &Book, name: &str, arguments: &Value, today: Date) -> Result<O
         }
         "list_categories" => read::list_categories(book, &mut w)?,
         "list_rules" => read::list_rules(book, &mut w, &Names::read(book)?)?,
+        "list_budgets" => {
+            read::list_budgets(book, &mut w, today, permissions.reads(Row::Transactions))?
+        }
         _ => return Err(ToolError::UnknownFunction),
     };
     Ok(Output::new(result, w.figures))
@@ -253,7 +282,7 @@ pub fn call_allowed(
             argument: function.name,
         });
     }
-    call(book, name, arguments, today)
+    call_with(book, name, arguments, today, permissions)
 }
 
 /// The small overview for a model that can't call functions (D-052): the

@@ -46,7 +46,7 @@ trap 'rm -rf "$work"' EXIT
 # each other and the stand-ins as they see the Rust objects.
 module="$work/imports/io/github/vondor/kassensturz"
 mkdir -p "$module"
-for file in StatisticsPage AiChangeReviewPage AiChangeCorrection ComponentPreview PropertiesPanel ChartView ChartTable DataTable \
+for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange ComponentPreview PropertiesPanel ChartView ChartTable DataTable \
     CategoryGroupsPage CategoryGroupPage AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter ChartPalette FormError Plain \
     DashboardGrid GridItem GridNames TitleWords AddMenu FormulaField PeriodChoice StatisticWizard ColumnBoard; do
     cp "$bridge/qml/$file.qml" "$module"
@@ -56,7 +56,7 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
     echo 'module io.github.vondor.kassensturz'
     echo 'singleton ChartPalette 1.0 ChartPalette.qml'
     echo 'singleton Plain 1.0 Plain.qml'
-    for file in StatisticsPage AiChangeReviewPage AiChangeCorrection ComponentPreview PropertiesPanel ChartView \
+    for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange ComponentPreview PropertiesPanel ChartView \
         ChartTable DataTable AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter FormError SavedViews \
         ComponentProperties BookCharts BookCards AiSwitch AiChat AccountTypes AiErrorMessage \
         CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames TitleWords DashboardLayout \

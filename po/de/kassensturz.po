@@ -13259,3 +13259,8 @@ msgstr "Der ganze Zeitraum, z. B. Oktober 2026"
 msgctxt "@info:tooltip a word for titles"
 msgid "Today's date"
 msgstr "Das heutige Datum"
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+msgctxt "@action:button select the period box, to change or move it"
+msgid "Period box"
+msgstr "Zeitraum-Rahmen"

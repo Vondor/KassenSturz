@@ -71,6 +71,8 @@ Item {
     // The IDs the Repeater keeps one component for, in alphabetical order, so
     // a component keeps its item (and its animation and focus) when it moves.
     property var ids: []
+    // Where what must not be covered by a widget is drawn.
+    readonly property alias topLayer: topLayerItem
 
     // What the page knows that is not a figure of the report layer: the
     // overview's fetch-gap warnings and its count of transfers, for the
@@ -336,5 +338,14 @@ Item {
             board: grid
             itemId: modelData
         }
+    }
+
+    // Over everything: the toolbar and tab of a period box, which lies under
+    // the widgets it holds and must stay reachable (M6-B20).
+    Item {
+        id: topLayerItem
+
+        z: 10
+        anchors.fill: parent
     }
 }

@@ -13136,6 +13136,11 @@ msgid "Formula of the column"
 msgstr "Formel der Spalte"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:inmenu makes a column for each subcategory of the card"
+msgid "Make a column for each subcategory"
+msgstr "Für jede Unterkategorie eine Spalte anlegen"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@action:inmenu starts a new column with the card"
 msgid "Move to a new column"
 msgstr "In eine neue Spalte verschieben"

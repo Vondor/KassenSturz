@@ -244,6 +244,13 @@ Kirigami.ApplicationWindow {
                     window.check(board.suggest(0, "SU", 2).some(entry => entry.insert === "SUM("), "typing suggests a function");
                     board.removeColumn(emptyOne);
                     board.removeColumn(countBefore);
+                    // A parent category makes a column for each subcategory.
+                    window.check(board.choicesFor("c-food", -1).some(entry => entry.split), "a parent category's menu can split it");
+                    window.check(!board.choicesFor("c-groceries", -1).some(entry => entry.split), "a category with no subcategory has no split");
+                    const splitBefore = board.columns.length;
+                    board.splitCard("c-food", -1);
+                    window.check(board.columns.length === splitBefore + 1 && board.columns[splitBefore].name === "Groceries" && board.columns[splitBefore].members.join() === "c-groceries", "a column for the subcategory, named after it");
+                    board.removeColumn(splitBefore);
                     // Copying a card (Ctrl while dragging) keeps it in its column too.
                     window.check(board.addColumn("Copy"), "a column to copy into");
                     const copy = board.columns.length - 1;

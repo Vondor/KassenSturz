@@ -393,6 +393,40 @@ ColumnLayout {
         toggleFormula(to);
     }
 
+    // The categories directly under a category card: the fastest way to a
+    // standard pie of one parent (M6b Phase 2).
+    function childrenOf(id: string): var {
+        const parent = cardOf(id);
+        if (parent === undefined || parent.isGroup) {
+            return [];
+        }
+        const prefix = parent.path + " › ";
+        return cards.filter(card => !card.isGroup && card.path.startsWith(prefix) && !card.path.slice(prefix.length).includes(" › "));
+    }
+
+    // Makes one column for each subcategory of the card, named after it, and
+    // takes the card itself out of `from`. A subcategory's own subcategories
+    // are counted with it. Money booked straight to the parent has no column,
+    // as the parent card counts everything below it.
+    function splitCard(id: string, from: int) {
+        const children = childrenOf(id);
+        if (children.length === 0) {
+            return;
+        }
+        const list = JSON.parse(JSON.stringify(columns));
+        if (from >= 0) {
+            list[from].members = list[from].members.filter(member => member !== id);
+        }
+        children.forEach(child => {
+            let name = child.path.split(" › ").pop();
+            for (let number = 2; list.some(column => column.name.trim().toLowerCase() === name.trim().toLowerCase()); ++number) {
+                name = child.path.split(" › ").pop() + " " + number;
+            }
+            list.push({name: name, members: [child.id]});
+        });
+        save(list);
+    }
+
     // What the card menu offers for a card in `from`.
     function choicesFor(id: string, from: int): var {
         const entries = [];
@@ -418,6 +452,9 @@ ColumnLayout {
                 entries.push({move: false, to: index, text: i18nContext.i18nc("@action:inmenu %1 is the name of a column; the card stays where it is too", "Also put in %1", column.name)});
             }
         });
+        if (childrenOf(id).length > 0) {
+            entries.push({split: true, text: i18nContext.i18nc("@action:inmenu makes a column for each subcategory of the card", "Make a column for each subcategory")});
+        }
         // A card can always start a column of its own, so the menu is never
         // empty, also while there is no column yet.
         entries.push({create: true, text: i18nContext.i18nc("@action:inmenu starts a new column with the card", "Move to a new column")});
@@ -482,7 +519,7 @@ ColumnLayout {
                 required property var modelData
 
                 text: modelData.text
-                onTriggered: modelData.create ? board.moveToNew(cardMenu.cardId, cardMenu.from, "") : modelData.move ? board.moveCard(cardMenu.cardId, cardMenu.from, modelData.to) : board.alsoPut(cardMenu.cardId, modelData.to)
+                onTriggered: modelData.split ? board.splitCard(cardMenu.cardId, cardMenu.from) : modelData.create ? board.moveToNew(cardMenu.cardId, cardMenu.from, "") : modelData.move ? board.moveCard(cardMenu.cardId, cardMenu.from, modelData.to) : board.alsoPut(cardMenu.cardId, modelData.to)
             }
 
             onObjectAdded: (index, object) => cardMenu.insertItem(index, object)

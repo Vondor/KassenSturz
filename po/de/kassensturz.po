@@ -13001,6 +13001,11 @@ msgid "Name of the column"
 msgstr "Name der Spalte"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info %1 is an amount of money, or several with + between them"
+msgid "Adds up to %1"
+msgstr "Ergibt zusammen %1"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@action:button %1 is the name of a column"
 msgid "Save the column %1 as a group"
 msgstr "Spalte „%1“ als Gruppe speichern"

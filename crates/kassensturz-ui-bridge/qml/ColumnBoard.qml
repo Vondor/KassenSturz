@@ -33,6 +33,9 @@ ColumnLayout {
     property int dragFrom: -2
     // What went wrong with the last change, in words, or empty.
     property string problem: ""
+    // What each column adds up to for the period, as the preview worked it
+    // out: a list of {column, amounts}, amounts being one text per currency.
+    property var totals: []
     // What saving a column as a group answered, and the words for success.
     property var groupResult: ({})
     property string saved: ""
@@ -62,6 +65,13 @@ ColumnLayout {
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
+    }
+
+    // The words for what the column `name` adds up to, or empty when the
+    // preview has no figure for it (yet, or it has no money).
+    function totalOf(name: string): string {
+        const found = totals.find(each => each.column === name);
+        return found === undefined ? "" : found.amounts.join(" + ");
     }
 
     function cardOf(id: string): var {
@@ -350,7 +360,9 @@ ColumnLayout {
                         opacity: 0.7
                         text: slotColumn.isUnused
                             ? board.i18nContext.i18nc("@info", "Not counted. A category you add under Categories shows up here.")
-                            : board.i18nContext.i18nc("@info", "Counted together as one figure.")
+                            : board.totalOf(slotColumn.modelData.name) !== ""
+                                ? board.i18nContext.i18nc("@info %1 is an amount of money, or several with + between them", "Adds up to %1", board.totalOf(slotColumn.modelData.name))
+                                : board.i18nContext.i18nc("@info", "Counted together as one figure.")
                     }
 
                     Repeater {

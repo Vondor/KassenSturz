@@ -27,6 +27,8 @@ ColumnLayout {
     readonly property var charts: chartData.view?.charts ?? []
     // The categories that more than one column counts (D-339).
     readonly property var shared: chartData.view?.shared ?? []
+    // What each column adds up to, for the cards of the board (D-341).
+    readonly property var totals: chartData.view?.totals ?? []
     readonly property var cardSets: cardData.view?.sets ?? []
     // A card or a progress bar that shows the result of a formula instead of a
     // key figure (M6b.7).

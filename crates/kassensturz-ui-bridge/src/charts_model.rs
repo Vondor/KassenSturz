@@ -368,6 +368,15 @@ fn view_object(result: &Result<ChartSet, ChartsError>) -> QVariant {
                 })),
             ),
             (
+                "totals",
+                list(set.totals.iter().map(|(column, amounts)| {
+                    map([
+                        ("column", text(column)),
+                        ("amounts", list(amounts.iter().map(|amount| text(amount)))),
+                    ])
+                })),
+            ),
+            (
                 "charts",
                 list(
                     set.charts
@@ -478,7 +487,10 @@ mod tests {
     #[test]
     fn a_spending_chart_reads_back_the_way_qml_reads_it() {
         let view = view_of(&request("spending_by_category", "pie"));
-        assert_eq!(keys(&view), ["charts", "empty", "missing", "shared"]);
+        assert_eq!(
+            keys(&view),
+            ["charts", "empty", "missing", "shared", "totals"]
+        );
         assert_eq!(number_of(&view, "missing"), 0);
         assert!(!flag_of(&view, "empty"));
         let shown = list_of(&view, "charts");
@@ -738,6 +750,18 @@ mod tests {
             .map(|name| name.value::<QString>().expect("text").to_string())
             .collect();
         assert_eq!(columns, ["Home", "Both"]);
+        // Each column's figure for its card on the board, in the order of the
+        // columns, one text per currency.
+        let totals = list_of(&view, "totals");
+        assert_eq!(totals.len(), 2);
+        assert_eq!(text_of(&totals[0], "column"), "Home");
+        assert_eq!(text_of(&totals[1], "column"), "Both");
+        for total in &totals {
+            let amounts = list_of(total, "amounts");
+            assert_eq!(amounts.len(), 1);
+            let amount = amounts[0].value::<QString>().expect("text").to_string();
+            assert!(!amount.is_empty());
+        }
         // The same columns month by month, as lines.
         let mut lines = asked.clone();
         lines.kind = "line".into();

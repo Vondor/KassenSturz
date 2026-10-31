@@ -148,6 +148,7 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.split-id-in-use` | `split` | | This part belongs to another transaction already. |
 | `store.split-currency-mismatch` | `account`, `account_currency`, `split_currency` | | {account} counts in {account_currency}, but this part's amount is in {split_currency}. Enter the amount in {account_currency} as well. |
 | `store.imported-split-changed` | `split` | | This part came from your bank or a file, so its account, amount and details stay as they were delivered. You can change the other parts. |
+| `store.delivered-kept` | | | KassenSturz keeps what your bank or a file delivered exactly as it came, so this change wasn't made and nothing was lost. This is a mistake in KassenSturz or in another program that changed the book; please report it. |
 | `store.original-changed` | `split` | | This part was converted from a currency that isn't used any more, so its amount stays as it was converted, with the amount it had before. You can choose another account or category in the same currency, or change the other parts. |
 | `store.unknown-rule` | `rule` | | This Rule isn't in the book anymore. It may have just been removed. |
 | `store.rule-id-in-use` | `rule` | | This Rule is in the book already. |

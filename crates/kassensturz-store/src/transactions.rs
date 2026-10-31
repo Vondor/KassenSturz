@@ -16,6 +16,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::cached::Cached;
 use crate::error::{Corruption, StoreError};
+use crate::originals::{keeping_originals, unlocked};
 use crate::{
     Action, Book, RateRow, currency_from_text, date_from_text, date_to_text, source_to_text,
 };
@@ -163,29 +164,34 @@ impl Book {
             }
         }
         let id = transaction.id().to_bytes();
+        // The parts are deleted and written again, so the guard of the
+        // originals is opened, and every original is checked to be back as
+        // it was (D-375).
         self.as_one_action(Action::EditTransaction, |book| {
-            book.conn.execute_cached(
-                "UPDATE transactions
-                 SET booking_date = ?2, payee = ?3, currency = ?4, note = ?5, entered_on = ?6
-                 WHERE id = ?1",
-                params![
-                    id,
-                    date_to_text(transaction.booking_date())?,
-                    transaction.payee(),
-                    transaction.currency().as_str(),
-                    transaction.note(),
-                    transaction.entered_on().map(date_to_text).transpose()?,
-                ],
-            )?;
-            // Their rates and imported details go with them, and come back
-            // with the new parts. The history records only the parts that
-            // really changed.
-            book.conn
-                .execute_cached("DELETE FROM splits WHERE transaction_id = ?1", [id])?;
-            insert_splits(&book.conn, transaction)?;
-            book.conn
-                .execute_cached("DELETE FROM attachments WHERE transaction_id = ?1", [id])?;
-            insert_attachments(&book.conn, transaction)
+            keeping_originals(&book.conn, &[transaction.id()], || {
+                book.conn.execute_cached(
+                    "UPDATE transactions
+                     SET booking_date = ?2, payee = ?3, currency = ?4, note = ?5, entered_on = ?6
+                     WHERE id = ?1",
+                    params![
+                        id,
+                        date_to_text(transaction.booking_date())?,
+                        transaction.payee(),
+                        transaction.currency().as_str(),
+                        transaction.note(),
+                        transaction.entered_on().map(date_to_text).transpose()?,
+                    ],
+                )?;
+                // Their rates and imported details go with them, and come
+                // back with the new parts. The history records only the
+                // parts that really changed.
+                book.conn
+                    .execute_cached("DELETE FROM splits WHERE transaction_id = ?1", [id])?;
+                insert_splits(&book.conn, transaction)?;
+                book.conn
+                    .execute_cached("DELETE FROM attachments WHERE transaction_id = ?1", [id])?;
+                insert_attachments(&book.conn, transaction)
+            })
         })
     }
 
@@ -222,10 +228,14 @@ impl Book {
         }
         // Its parts, their rates and imported details go with it, and come
         // back with it when the removal is undone.
+        // The user removes it, so what its bank or file delivered may go
+        // too (D-375); the UI said so first.
         self.as_one_action(Action::RemoveTransaction, |book| {
-            let removed = book
-                .conn
-                .execute_cached("DELETE FROM transactions WHERE id = ?1", [id.to_bytes()])?;
+            let removed = unlocked(&book.conn, || {
+                Ok(book
+                    .conn
+                    .execute_cached("DELETE FROM transactions WHERE id = ?1", [id.to_bytes()])?)
+            })?;
             if removed == 1 {
                 Ok(())
             } else {

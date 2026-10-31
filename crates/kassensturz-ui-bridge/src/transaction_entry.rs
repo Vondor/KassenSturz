@@ -17,7 +17,7 @@ use kassensturz_core::{
     Account, AccountId, AccountKind, Money, Report, Split, Transaction, TransactionError,
     TransactionId,
 };
-use kassensturz_store::{Book, StoreError};
+use kassensturz_store::{Book, HistoryRetention, StoreError};
 
 use crate::errors::{ErrorText, amount_example, report_text};
 use crate::format::{Affixes, AmountFormat, Locale};
@@ -96,6 +96,25 @@ pub struct EntryForm {
     /// Whether the account's part came from a bank or a file, so its amount
     /// stays as delivered (D-067).
     pub imported: bool,
+    /// The other party's name as the bank or file delivered it, when the
+    /// page shows another one (the user or a Rule changed it); empty
+    /// otherwise. The original stays next to what the user sees (D-375).
+    pub delivered_name: String,
+}
+
+/// What removing a transaction takes with it, for the plain warning before
+/// a removal that takes what a bank or file delivered (D-375).
+#[derive(Debug, PartialEq, Eq)]
+pub struct RemovalNotice {
+    /// Whether a bank or file delivered one of its parts: removing it
+    /// removes what was delivered too, and only Undo brings that back.
+    pub holds_original: bool,
+    /// How long Undo can still bring it back, as a key the UI translates:
+    /// `days` (see `undo_days`), `forever`, or `until-closed` when the
+    /// history is kept only while the book is open (0 days, D-066).
+    pub undo: &'static str,
+    /// For `days`, how many.
+    pub undo_days: u32,
 }
 
 /// A category the page offers.
@@ -235,6 +254,13 @@ pub fn details(
     // The account's own date and payee, as the register shows them (D-108).
     let date = transaction.date_of(own_split);
     let other_party = transaction.payee_of(own_split).unwrap_or_default();
+    let delivered_name = own_split
+        .imported
+        .as_ref()
+        .and_then(|delivered| delivered.other_party_name.as_deref())
+        .filter(|name| *name != other_party)
+        .unwrap_or_default()
+        .to_owned();
     Ok(EntryForm {
         id: transaction.id().to_string(),
         kind: kind.key(),
@@ -249,6 +275,27 @@ pub fn details(
         },
         date: locale.short_date(date),
         imported: own.iter().any(|split| split.imported.is_some()),
+        delivered_name,
+    })
+}
+
+/// What removing the transaction with `id` (as text), seen from `account`,
+/// takes with it, and how long Undo can bring it back (D-066, D-375).
+pub fn removal_notice(book: &Book, account: &str, id: &str) -> Result<RemovalNotice, EntryError> {
+    let account = find_account(book, account)?;
+    let transaction = find_transaction(book, account.id, id)?;
+    let (undo, undo_days) = match book.history_retention()? {
+        HistoryRetention::Forever => ("forever", 0),
+        HistoryRetention::Days(0) => ("until-closed", 0),
+        HistoryRetention::Days(days) => ("days", days),
+    };
+    Ok(RemovalNotice {
+        holds_original: transaction
+            .splits()
+            .iter()
+            .any(|split| split.imported.is_some()),
+        undo,
+        undo_days,
     })
 }
 
@@ -298,7 +345,8 @@ pub fn edit(
 }
 
 /// Removes the transaction with `id` (as text) from the book, whatever its
-/// kind. Undo brings it back (D-086).
+/// kind, with what a bank or file delivered for it: the page asked first
+/// when it holds that (D-375). Undo brings it back (D-086).
 pub fn remove(book: &mut Book, account: &str, id: &str) -> Result<(), EntryError> {
     let account = find_account(book, account)?;
     let transaction = find_transaction(book, account.id, id)?;
@@ -813,6 +861,7 @@ mod tests {
                 other_account: String::new(),
                 date: "2026-10-05".into(),
                 imported: false,
+                delivered_name: String::new(),
             }
         );
         // Saving the form unchanged reads the amount it wrote.
@@ -1089,6 +1138,8 @@ mod tests {
         let form = details(&book, &checking, &id, &TestLocale).expect("details");
         assert!(form.imported);
         assert_eq!(form.kind, "simple");
+        // Shown as delivered, so there is nothing to show next to it.
+        assert_eq!(form.delivered_name, "");
 
         // Sorting it into a category keeps the amount; changing the amount
         // is refused with the store's code.
@@ -1101,6 +1152,10 @@ mod tests {
         )
         .expect("sorted");
         assert_eq!(rows(&book, &checking, Sort::default())[0].2, "Groceries");
+        // The new name is shown, the delivered one stays next to it (D-375).
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(form.other_party, "Corner Grocery");
+        assert_eq!(form.delivered_name, "CORNER GROCERY");
         let refused = edit(
             &mut book,
             &id,
@@ -1111,6 +1166,71 @@ mod tests {
             code(&book, &checking, refused),
             "store.imported-split-changed"
         );
+    }
+
+    #[test]
+    fn removing_says_what_goes_with_it_and_how_long_undo_brings_it_back() {
+        let (mut book, checking) = book_with_checking();
+        let checking_id = find_account(&book, &checking).expect("account").id;
+        let eur = |minor| Money::from_minor_units(minor, EUR);
+        // An entry as the import pipeline makes it from a statement, with
+        // what the bank delivered on the account's part.
+        let imported = Transaction::new(
+            TransactionId::generate(),
+            Date::constant(2026, 10, 8),
+            Some("CORNER GROCERY".into()),
+            vec![
+                Split {
+                    imported: Some(ImportedDetails {
+                        bank_id: Some("1".into()),
+                        booking_date: None,
+                        value_date: None,
+                        other_party_name: Some("CORNER GROCERY".into()),
+                        other_party_iban: None,
+                        remittance_information: None,
+                    }),
+                    ..Split::new(checking_id, eur(-5320))
+                },
+                Split::uncategorized(eur(5320)),
+            ],
+        )
+        .expect("imported");
+        book.add_transaction(&imported).expect("added");
+        let imported_id = imported.id().to_string();
+        let groceries = category_id(&book, "Food › Groceries");
+        let typed = add(
+            &mut book,
+            &paid(&checking, "12,00", "Bakery", &groceries),
+            &TestLocale,
+        )
+        .expect("added")
+        .to_string();
+
+        let notice = removal_notice(&book, &checking, &imported_id).expect("notice");
+        assert_eq!(
+            notice,
+            RemovalNotice {
+                holds_original: true,
+                undo: "days",
+                undo_days: 30,
+            }
+        );
+        let typed_notice = removal_notice(&book, &checking, &typed).expect("notice");
+        assert!(!typed_notice.holds_original);
+        for (keep, undo, days) in [
+            (HistoryRetention::Days(0), "until-closed", 0),
+            (HistoryRetention::Days(7), "days", 7),
+            (HistoryRetention::Forever, "forever", 0),
+        ] {
+            book.set_history_retention(keep).expect("set");
+            let notice = removal_notice(&book, &checking, &imported_id).expect("notice");
+            assert_eq!((notice.undo, notice.undo_days), (undo, days));
+        }
+        // Removing takes the original too; Undo brings it back whole.
+        remove(&mut book, &checking, &imported_id).expect("removed");
+        assert!(book.transaction(imported.id()).is_err());
+        book.undo().expect("undone").expect("a change");
+        assert_eq!(book.transaction(imported.id()).expect("back"), imported);
     }
 
     #[test]

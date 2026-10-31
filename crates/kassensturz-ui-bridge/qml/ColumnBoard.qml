@@ -370,8 +370,79 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: Kirigami.Units.largeSpacing
 
-        // Unused first, then the named columns, then the one that adds a
-        // column.
+        // The one that adds a column comes first, so it is never wrapped
+        // below the tall Unused list out of sight (M6-B16); then Unused,
+        // then the named columns.
+        // Adds a column.
+        Rectangle {
+            width: Kirigami.Units.gridUnit * 14
+            height: Kirigami.Units.gridUnit * 12
+            radius: Kirigami.Units.cornerRadius
+            color: Kirigami.Theme.backgroundColor
+            border.width: addDrop.containsDrag ? 2 : 1
+            border.color: Kirigami.Theme.highlightColor
+
+            // A card dropped here starts a new column.
+            DropArea {
+                id: addDrop
+
+                anchors.fill: parent
+                keys: ["card"]
+                onDropped: drop => {
+                    board.moveToNew(drop.source.cardId, drop.source.copying ? -2 : drop.source.from, newName.text);
+                    newName.text = "";
+                }
+            }
+
+            ColumnLayout {
+                anchors {
+                    left: parent.left
+                    right: parent.right
+                    top: parent.top
+                    margins: Kirigami.Units.largeSpacing
+                }
+                spacing: Kirigami.Units.smallSpacing
+
+                Kirigami.Heading {
+                    Layout.fillWidth: true
+                    level: 3
+                    text: board.i18nContext.i18nc("@title:group a place to add a column", "Add a column")
+                    textFormat: Text.PlainText
+                }
+
+                Controls.TextField {
+                    id: newName
+
+                    Layout.fillWidth: true
+                    maximumLength: 200
+                    placeholderText: board.i18nContext.i18nc("@info:placeholder an example of a column name", "For example: Fast food")
+                    Accessible.name: board.i18nContext.i18nc("@label:textbox", "Name of the new column")
+                    onAccepted: addButton.clicked()
+                }
+
+                Controls.Button {
+                    id: addButton
+
+                    text: board.i18nContext.i18nc("@action:button", "Add column")
+                    icon.name: "list-add"
+                    onClicked: {
+                        if (board.addColumn(newName.text)) {
+                            newName.text = "";
+                        }
+                    }
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    font: Kirigami.Theme.smallFont
+                    opacity: 0.7
+                    text: board.i18nContext.i18nc("@info", "Name it, then drag categories in, or drop a category here to start a column with it. For example, put Restaurants and Coffee into a column called Fast food.")
+                }
+            }
+        }
+
         Repeater {
             model: [{index: -1, name: "", members: board.unused.map(card => card.id), formula: "", asFormula: false}].concat(board.columns.map((column, index) => ({index: index, name: column.name, members: column.members, formula: column.formula ?? "", asFormula: board.isFormula(column)})))
 
@@ -618,76 +689,6 @@ ColumnLayout {
                             ? board.i18nContext.i18nc("@info", "Everything is in a column.")
                             : board.i18nContext.i18nc("@info", "Drag categories here")
                     }
-                }
-            }
-        }
-
-        // Adds a column.
-        Rectangle {
-            width: Kirigami.Units.gridUnit * 14
-            height: Kirigami.Units.gridUnit * 12
-            radius: Kirigami.Units.cornerRadius
-            color: Kirigami.Theme.backgroundColor
-            border.width: addDrop.containsDrag ? 2 : 1
-            border.color: Kirigami.Theme.highlightColor
-
-            // A card dropped here starts a new column.
-            DropArea {
-                id: addDrop
-
-                anchors.fill: parent
-                keys: ["card"]
-                onDropped: drop => {
-                    board.moveToNew(drop.source.cardId, drop.source.copying ? -2 : drop.source.from, newName.text);
-                    newName.text = "";
-                }
-            }
-
-            ColumnLayout {
-                anchors {
-                    left: parent.left
-                    right: parent.right
-                    top: parent.top
-                    margins: Kirigami.Units.largeSpacing
-                }
-                spacing: Kirigami.Units.smallSpacing
-
-                Kirigami.Heading {
-                    Layout.fillWidth: true
-                    level: 3
-                    text: board.i18nContext.i18nc("@title:group a place to add a column", "Add a column")
-                    textFormat: Text.PlainText
-                }
-
-                Controls.TextField {
-                    id: newName
-
-                    Layout.fillWidth: true
-                    maximumLength: 200
-                    placeholderText: board.i18nContext.i18nc("@info:placeholder an example of a column name", "For example: Fast food")
-                    Accessible.name: board.i18nContext.i18nc("@label:textbox", "Name of the new column")
-                    onAccepted: addButton.clicked()
-                }
-
-                Controls.Button {
-                    id: addButton
-
-                    text: board.i18nContext.i18nc("@action:button", "Add column")
-                    icon.name: "list-add"
-                    onClicked: {
-                        if (board.addColumn(newName.text)) {
-                            newName.text = "";
-                        }
-                    }
-                }
-
-                Controls.Label {
-                    Layout.fillWidth: true
-                    wrapMode: Text.Wrap
-                    textFormat: Text.PlainText
-                    font: Kirigami.Theme.smallFont
-                    opacity: 0.7
-                    text: board.i18nContext.i18nc("@info", "Name it, then drag categories in, or drop a category here to start a column with it. For example, put Restaurants and Coffee into a column called Fast food.")
                 }
             }
         }

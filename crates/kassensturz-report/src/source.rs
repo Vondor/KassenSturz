@@ -3,15 +3,16 @@
 
 //! What the datasets are made from: the transactions of a period, the
 //! accounts and categories they refer to, My groups and the hide list
-//! (D-291), and the balances of the user's own accounts with the book's
-//! exchange rates (D-348, D-365), read from the book in one read transaction
-//! so every figure comes from the same state (Q-036).
+//! (D-291), the balances of the user's own accounts with the book's
+//! exchange rates (D-348, D-365) and the budgets (D-346, D-378), read from
+//! the book in one read transaction so every figure comes from the same
+//! state (Q-036).
 
 use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, CategoryGroup, Currency, CurrencyCode, Date, GroupId, Money,
-    RoundingMode, Transaction,
+    Account, AccountId, AccountKind, Budget, CategoryGroup, Currency, CurrencyCode, Date, GroupId,
+    Money, RoundingMode, Transaction,
 };
 use kassensturz_store::{Book, CategoryEntry, StoreError};
 
@@ -62,6 +63,8 @@ pub struct Source {
     /// The own accounts' balances before the period, what was booked to
     /// them in it, and the exchange rates, if they were read (D-365).
     holdings: Option<Holdings>,
+    /// The book's budgets, if they were read (D-378).
+    budgets: Option<Vec<Budget>>,
 }
 
 impl Source {
@@ -87,6 +90,36 @@ impl Source {
     /// [`cash_flow_by_month`]: crate::cash_flow_by_month
     pub fn read_with_balances(book: &Book, period: Period) -> Result<Self, ReportError> {
         book.reading(|book| Self::read_now(book, period, true))
+    }
+
+    /// Reads what [`Source::read`] reads and, in the same read transaction,
+    /// the book's budgets, which [`budget_utilization`] is made from (D-346,
+    /// D-378).
+    ///
+    /// The transactions are read from the first day a budget's figures for
+    /// `period` and `today` need: the start of the first of its periods
+    /// that the shown days touch, or, for a budget that carries over, its
+    /// first day, where the carried chain starts at zero (D-347). So the
+    /// `Source` may cover more days than `period`; every dataset still
+    /// counts only the days it is asked for. Fails with
+    /// [`ReportError::PeriodTooLong`] if those days span more than
+    /// [`MAX_MONTHS`](crate::MAX_MONTHS) months.
+    ///
+    /// [`budget_utilization`]: crate::budget_utilization
+    pub fn read_with_budgets(
+        book: &Book,
+        period: Period,
+        today: Date,
+    ) -> Result<Self, ReportError> {
+        book.reading(|book| {
+            let budgets = book.budgets()?;
+            let covers = crate::budget_utilization::days_needed(&budgets, period, today)?;
+            let source = Self::read_now(book, covers, false)?;
+            Ok(Self {
+                budgets: Some(budgets),
+                ..source
+            })
+        })
     }
 
     fn read_now(book: &Book, period: Period, balances: bool) -> Result<Self, ReportError> {
@@ -129,6 +162,7 @@ impl Source {
             currencies: HashMap::new(),
             rounding: RoundingMode::default(),
             holdings: None,
+            budgets: None,
         }
     }
 
@@ -146,6 +180,28 @@ impl Source {
     /// read.
     pub(crate) fn holdings(&self) -> Result<&Holdings, ReportError> {
         self.holdings.as_ref().ok_or(ReportError::PeriodNotRead)
+    }
+
+    /// The same `Source` with these budgets.
+    #[cfg(test)]
+    pub(crate) fn with_budgets(self, budgets: Vec<Budget>) -> Self {
+        Self {
+            budgets: Some(budgets),
+            ..self
+        }
+    }
+
+    /// The book's budgets. Fails with [`ReportError::PeriodNotRead`] if the
+    /// `Source` was read without them: no budget is ever left out for lack
+    /// of a read.
+    pub(crate) fn budgets(&self) -> Result<&[Budget], ReportError> {
+        self.budgets.as_deref().ok_or(ReportError::PeriodNotRead)
+    }
+
+    /// The transactions the `Source` was read for, in the order the book
+    /// gave them.
+    pub(crate) fn transactions(&self) -> &[Transaction] {
+        &self.transactions
     }
 
     /// The days the `Source` was read for.

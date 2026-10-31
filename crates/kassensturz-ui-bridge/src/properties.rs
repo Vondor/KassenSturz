@@ -307,6 +307,8 @@ pub fn preview(component: &Component) -> Preview {
         ComponentType::PeriodBox => ("period-box", ""),
         ComponentType::NetWorth => ("net-worth", ""),
         ComponentType::IncomeSources => ("income-sources", ""),
+        // Not in the library before M6c.5 draws it (D-378).
+        ComponentType::BudgetProgress => ("budget-progress", ""),
     };
     let compare = word(component, "compare");
     let measure = match component.kind() {

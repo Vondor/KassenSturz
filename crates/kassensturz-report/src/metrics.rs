@@ -44,7 +44,7 @@ fn overflow<E>(_: E) -> ReportError {
 
 /// `part` as a percentage of `whole`'s size, rounded to one decimal place,
 /// half away from zero; `None` if `whole` is zero.
-fn percent_of(part: Money, whole: Money) -> Result<Option<Percent>, ReportError> {
+pub(crate) fn percent_of(part: Money, whole: Money) -> Result<Option<Percent>, ReportError> {
     if whole.is_zero() {
         return Ok(None);
     }

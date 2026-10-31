@@ -552,7 +552,10 @@ ColumnLayout {
                     wrapMode: view.round ? Text.Wrap : Text.NoWrap
                     elide: view.round ? Text.ElideNone : Text.ElideRight
                     Layout.maximumWidth: Kirigami.Units.gridUnit * (view.round ? 22 : 14)
-                    font.bold: view.current === entry.index
+                    // Underlined, not bold: bold is wider, which re-wrapped the
+                    // legend under the pointer, lost the hover, and made it
+                    // flicker (M6-B18).
+                    font.underline: view.current === entry.index
                 }
 
                 HoverHandler {

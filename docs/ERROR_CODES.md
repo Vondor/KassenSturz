@@ -428,6 +428,15 @@ Not rows yet: each code gets its row in the table above (or in the store's secti
 - The `report.formula-` codes are rows now (M6b.6, D-317 to D-319). Every one but `report.formula-too-big` and `report.formula-target` has the position of the character it is at, counted from 1, so the formula field (M6b.7) can mark the place. `FormError.qml` has the words for all of them, and a mistake in a progress bar's target also has the parameter `target` (value `yes`), which puts "Target:" in front.
 - `ai-tools.` codes for an edited change reuse the existing ones of `propose` (M6b.8); the capability check reuses the `ai.` codes of "Test connection" (M6b.9).
 
+### Planned for M6c (D-344 to D-358)
+
+Not rows yet: each code gets its row (in this section, the store's or the AI's) in the pull request that raises it, since the test compares the table with the code. Parameters are data, shown as plain text.
+
+- **Budgets, in the store (M6c.L):** `store.budget-not-spending` (`category`: only a spending category can have a budget), `store.budget-overlap` (`category`: it already has a budget for some of these days), `store.budget-amount` (keywords `zero`, `too-large`), `store.budget-period` (keywords `not-period-start`, `not-period-end`, `ends-before-starts`, `too-long`, `carry-over-on-range`, `amount-before-start`), `store.budget-too-many` (`limit`: 1,000 budgets, 1,200 amounts of one budget), `store.budget-unknown`; `store.category-in-use` gains the keyword `budgets`.
+- **Filters, in the report layer (M6c.6):** `report.filter-invalid` (`reason`: `not-an-account`, `not-a-category`, `too-many`, `repeated`). A missing exchange rate (D-349), a dimension a dataset does not take and a filter that chooses nothing are **notes** in the result, not errors: the component writes their words.
+- **The chart builder (M6c.8):** `ai-tools.call-too-big` (`max_bytes`), `ai-tools.repeated-key`, `ai-tools.unknown-argument` (no parameter: the model's key is never repeated); `ai-tools.bad-argument` gains the keywords `data`, `show_as`, `group_by`, `categories`, `accounts`, `in_currency` (and keeps `title`, `measure`, `compare`, `period`); `ai-tools.not-allowed` gains `categories` and `accounts` (reading them is off in the grid).
+- **AI-prepared budgets (M6c.11):** `ai-tools.not-allowed` gains `new_budgets`, `edit_budgets` and `list_budgets`; `ai-tools.bad-argument` gains `based_on`, `round_to`, `every`, `amount`, `carry_over`; the store's budget codes above reach the model as they reach the user; `ai-tools.too-many-changes` counts at most 50 budgets.
+
 ## Charts (`kassensturz-charts`)
 
 Why a chart model couldn't be made (M6a.3, D-276).

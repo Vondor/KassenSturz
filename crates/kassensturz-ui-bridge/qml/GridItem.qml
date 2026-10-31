@@ -15,6 +15,7 @@ import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
+import io.github.vondor.kassensturz
 
 Item {
     id: cell

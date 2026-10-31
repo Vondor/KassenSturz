@@ -13310,3 +13310,151 @@ msgstr "„%1“ ist keine Funktion. Es gibt: %2."
 msgctxt "@info a mistake in a formula; %1 is what was typed"
 msgid "“%1” is not the name of a column, category or group. Pick one from the suggestions."
 msgstr "„%1“ ist weder der Name einer Spalte noch einer Kategorie oder Gruppe. Wählen Sie einen Vorschlag aus."
+
+msgctxt "@label a row of a table: money the user has"
+msgid "What you have"
+msgstr "Was Sie haben"
+
+msgctxt "@label a row of a table: money the user owes"
+msgid "What you owe"
+msgstr "Was Sie schulden"
+
+msgctxt "@label a row of a table: what the user has less what they owe"
+msgid "What you are worth"
+msgstr "Ihr Vermögen"
+
+msgctxt "@title:column a table of a chart"
+msgid "Account"
+msgstr "Konto"
+
+msgctxt "@title:column a table of a chart: whether the user has the money or owes it"
+msgid "Have or owe"
+msgstr "Haben oder schulden"
+
+msgctxt "@title:column a table of a chart: what has been added up"
+msgid "Figure"
+msgstr "Größe"
+
+msgctxt "@title:column a table of a chart"
+msgid "Balance"
+msgstr "Kontostand"
+
+msgctxt "@title:column a table of a chart: what the user has"
+msgid "You have"
+msgstr "Sie haben"
+
+msgctxt "@title:column a table of a chart: what the user owes"
+msgid "You owe"
+msgstr "Sie schulden"
+
+msgctxt "@title:column a table of a chart: what the user has less what they owe"
+msgid "You are worth"
+msgstr "Ihr Vermögen"
+
+msgctxt "@title:column a table of a chart: what the accounts held at the start of the month"
+msgid "At the start"
+msgstr "Am Anfang"
+
+msgctxt "@title:column a table of a chart: starting balances set in the month"
+msgid "Starting balances"
+msgstr "Anfangsstände"
+
+msgctxt "@title:column a table of a chart: what the accounts held at the end of the month"
+msgid "At the end"
+msgstr "Am Ende"
+
+msgctxt "@label a series of a chart: what the user has less what they owe"
+msgid "What you are worth"
+msgstr "Ihr Vermögen"
+
+msgctxt "@label %1 is an amount of money"
+msgid "What you are worth at the end: %1"
+msgstr "Ihr Vermögen am Ende: %1"
+
+msgctxt "@label %1 is an amount of money, the money in less the money out of the accounts"
+msgid "Net change in total: %1"
+msgstr "Veränderung insgesamt: %1"
+
+msgctxt "@item:inlistbox a part of the layout: a line of what the user is worth at the end of each month"
+msgid "What you are worth over time"
+msgstr "Ihr Vermögen im Lauf der Zeit"
+
+msgctxt "@item:inlistbox a part of the layout: a table of the money in and out of the user's accounts and what they held, month by month"
+msgid "Money in and out of your accounts (table)"
+msgstr "Geld rein und raus auf Ihren Konten (Tabelle)"
+
+msgctxt "@item:inlistbox a part of the layout: bars of the money in and out of the user's accounts, month by month"
+msgid "Money in and out of your accounts"
+msgstr "Geld rein und raus auf Ihren Konten"
+
+msgctxt "@item:inlistbox a part of the layout: a table of what each account holds"
+msgid "What your accounts hold"
+msgstr "Was Ihre Konten enthalten"
+
+msgctxt "@item:inlistbox a part of the layout: one figure of what the user has, owes or is worth"
+msgid "What you have, owe and are worth"
+msgstr "Was Sie haben, schulden und wert sind"
+
+msgctxt "@title"
+msgid "What you are worth over time"
+msgstr "Ihr Vermögen im Lauf der Zeit"
+
+msgctxt "@title"
+msgid "Money in and out of your accounts"
+msgstr "Geld rein und raus auf Ihren Konten"
+
+msgctxt "@title"
+msgid "What your accounts hold"
+msgstr "Was Ihre Konten enthalten"
+
+msgctxt "@title:card a key figure: what the checking, savings and cash accounts hold together"
+msgid "What you have"
+msgstr "Was Sie haben"
+
+msgctxt "@title:card a key figure: the debt on the credit cards"
+msgid "What you owe"
+msgstr "Was Sie schulden"
+
+msgctxt "@item:inlistbox what a chart shows"
+msgid "What your accounts hold"
+msgstr "Was Ihre Konten enthalten"
+
+msgctxt "@item:inlistbox what a chart shows"
+msgid "What you are worth, month by month"
+msgstr "Ihr Vermögen, Monat für Monat"
+
+msgctxt "@item:inlistbox what a chart shows"
+msgid "Money in and out of your accounts, by month"
+msgstr "Geld rein und raus auf Ihren Konten, nach Monat"
+
+msgctxt "@info"
+msgid "Shows what each account held at the end of the period, and what you have, what you owe and what you are worth. Each currency is shown on its own; they are never added together."
+msgstr "Zeigt, was jedes Konto am Ende des Zeitraums enthielt, und was Sie haben, was Sie schulden und was Sie wert sind. Jede Währung wird für sich gezeigt; sie werden nie zusammengezählt."
+
+msgctxt "@info"
+msgid "Shows what you have, what you owe and what you are worth at the end of each month. Each currency is shown on its own; they are never added together."
+msgstr "Zeigt am Ende jedes Monats, was Sie haben, was Sie schulden und was Sie wert sind. Jede Währung wird für sich gezeigt; sie werden nie zusammengezählt."
+
+msgctxt "@info"
+msgid "Shows the money that came into and went out of your checking, savings and cash accounts in each month, and what they held at the start and at the end. Moving money between two of them counts as neither, and starting balances are listed on their own."
+msgstr "Zeigt das Geld, das in jedem Monat auf Ihre Giro-, Spar- und Bargeldkonten kam und von ihnen ging, und was sie am Anfang und am Ende enthielten. Geld, das Sie zwischen zwei von ihnen verschieben, zählt weder als rein noch als raus; Anfangsstände stehen für sich."
+
+msgctxt "@item:inlistbox"
+msgid "Each account"
+msgstr "Jedes Konto"
+
+msgctxt "@item:inlistbox"
+msgid "What you have, what you owe and what you are worth"
+msgstr "Was Sie haben, was Sie schulden und was Sie wert sind"
+
+msgctxt "@item:inlistbox a key figure"
+msgid "What you are worth"
+msgstr "Ihr Vermögen"
+
+msgctxt "@item:inlistbox a key figure"
+msgid "What you have"
+msgstr "Was Sie haben"
+
+msgctxt "@item:inlistbox a key figure"
+msgid "What you owe"
+msgstr "Was Sie schulden"

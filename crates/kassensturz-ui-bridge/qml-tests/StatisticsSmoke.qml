@@ -226,6 +226,24 @@ Kirigami.ApplicationWindow {
                     window.check(JSON.parse(wizard.workbench.view.columns)[both].formula === "Fast food + 1", "the formula is kept: " + wizard.workbench.view.columns);
                     window.check(board.choicesFor("c-rent", -1).every(entry => entry.to !== both), "the menu does not offer a formula column");
                     board.removeColumn(both);
+                    // The Formula card is never used up and makes formula columns.
+                    const unusedBefore = board.unused.length;
+                    const countBefore = board.columns.length;
+                    board.moveToNew(board.formulaCard, -1, "");
+                    window.check(board.columns.length === countBefore + 1 && board.isFormula(board.columns[countBefore]) && board.columns[countBefore].members.length === 0, "the Formula card makes a formula column");
+                    window.check(board.unused.length === unusedBefore, "the Formula card is not a category and is not used up");
+                    board.moveCard(board.formulaCard, -1, 0);
+                    window.check(board.problem !== "" && !board.isFormula(board.columns[0]), "the Formula card is refused by a column that holds categories: " + board.problem);
+                    window.check(board.addColumn("Empty formula"), "an empty column");
+                    const emptyOne = board.columns.length - 1;
+                    board.moveCard(board.formulaCard, -1, emptyOne);
+                    window.check(board.isFormula(board.columns[emptyOne]), "the Formula card makes an empty column a formula");
+                    window.check(board.choicesFor(board.formulaCard, -1).some(entry => entry.create), "the Formula card's menu can make a new formula column");
+                    window.check(board.examples(0).length === 3, "two other columns give three ready-made formulas: " + board.examples(0).length);
+                    window.check(board.suggest(0, "Empty", 5).some(entry => entry.label === "Empty formula"), "typing suggests the name of another column");
+                    window.check(board.suggest(0, "SU", 2).some(entry => entry.insert === "SUM("), "typing suggests a function");
+                    board.removeColumn(emptyOne);
+                    board.removeColumn(countBefore);
                     // Copying a card (Ctrl while dragging) keeps it in its column too.
                     window.check(board.addColumn("Copy"), "a column to copy into");
                     const copy = board.columns.length - 1;

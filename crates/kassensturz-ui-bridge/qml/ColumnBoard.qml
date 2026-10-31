@@ -18,6 +18,7 @@ import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
+import io.github.vondor.kassensturz
 
 ColumnLayout {
     id: board
@@ -69,6 +70,10 @@ ColumnLayout {
     // in a column is counted there, so it is not offered again.
     readonly property var unused: cards.filter(card => !counted(card))
 
+    // The card at the top of Unused that makes a formula column. It is not a
+    // category and is never used up: it can be dragged again and again.
+    readonly property string formulaCard: "@formula"
+
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
     }
@@ -95,6 +100,9 @@ ColumnLayout {
     // The words on the card of `id`; a category the book no longer has is
     // still shown, so it can be taken out.
     function labelOf(id: string): string {
+        if (id === formulaCard) {
+            return i18nContext.i18nc("@item a card that makes a column worked out by a formula", "Formula");
+        }
         return cardOf(id)?.label ?? i18nContext.i18nc("@item something in a column that is gone from the book", "Something that no longer exists");
     }
 
@@ -228,6 +236,16 @@ ColumnLayout {
     function moveToNew(id: string, from: int, wanted: string): string {
         const name = freeName(wanted);
         const list = JSON.parse(JSON.stringify(columns));
+        if (id === formulaCard) {
+            // A new column that is worked out by a formula.
+            const marks = Object.assign({}, formulaOn);
+            marks[name] = true;
+            formulaOn = marks;
+            list.push({name: name, members: []});
+            focusName = name;
+            save(list);
+            return name;
+        }
         if (from >= 0) {
             list[from].members = list[from].members.filter(member => member !== id);
         }
@@ -240,6 +258,10 @@ ColumnLayout {
     // Takes the card out of `from` (-1 is Unused) and puts it in `to`.
     function moveCard(id: string, from: int, to: int) {
         if (from === to) {
+            return;
+        }
+        if (id === formulaCard) {
+            formulaInto(to);
             return;
         }
         if (to >= 0 && isFormula(columns[to])) {
@@ -262,11 +284,19 @@ ColumnLayout {
         if (from === to) {
             return;
         }
+        if (id === formulaCard) {
+            formulaInto(to);
+            return;
+        }
         alsoPut(id, to);
     }
 
     // Puts the card in `to` as well, where it already is.
     function alsoPut(id: string, to: int) {
+        if (id === formulaCard) {
+            formulaInto(to);
+            return;
+        }
         if (isFormula(columns[to])) {
             board.problem = i18nContext.i18nc("@info", "A column with a formula can't hold categories. Name them in its formula instead.");
             return;
@@ -278,9 +308,103 @@ ColumnLayout {
         save(list);
     }
 
+    // The words the formula field of a column offers while the user types
+    // (M6b Phase 2): the names of other columns, of categories and groups, and
+    // the functions, each with one plain line.
+    BookFormula {
+        id: formulaBook
+    }
+
+    function quoted(name: string): string {
+        return /^[A-Za-z0-9_]+$/.test(name) ? name : "\"" + name.replace(/"/g, "") + "\"";
+    }
+
+    // One plain line, with an example, for each function offered.
+    function functionHelp(): var {
+        return [
+            {name: "SUM", text: i18nContext.i18nc("@info a function of formulas, then an example", "Adds the figures up. Example: SUM(Food; Habitat)")},
+            {name: "AVERAGE", text: i18nContext.i18nc("@info a function of formulas, then an example", "The sum divided by how many figures there are. Example: AVERAGE(Food; Habitat)")},
+            {name: "PERCENT_OF", text: i18nContext.i18nc("@info a function of formulas, then an example", "What share one figure is of another. Example: PERCENT_OF(Food; Food + Habitat)")},
+            {name: "CHANGE", text: i18nContext.i18nc("@info a function of formulas, then an example", "How much a figure changed compared with an older one. Example: CHANGE(Food; Habitat)")},
+            {name: "ROUND", text: i18nContext.i18nc("@info a function of formulas, then an example", "Rounds to that many decimal places. Example: ROUND(Food / 3; 2)")},
+            {name: "IFERROR", text: i18nContext.i18nc("@info a function of formulas, then an example", "Uses a fallback when the first figure can't be worked out. Example: IFERROR(Food / Habitat; 0)")}
+        ];
+    }
+
+    // The suggestions for the word at the cursor in the formula of column
+    // `index`: {label, detail, start, end, insert}.
+    function suggest(index: int, text: string, cursor: int): var {
+        const before = text.slice(0, cursor);
+        const word = (/[^\s+\-*\/();,"]*$/.exec(before) ?? [""])[0];
+        if (word === "") {
+            return [];
+        }
+        const start = cursor - word.length;
+        const lower = word.toLowerCase();
+        const found = [];
+        columns.forEach((column, other) => {
+            if (other !== index && column.name.toLowerCase().includes(lower)) {
+                found.push({label: column.name, detail: i18nContext.i18nc("@item a column of the board, in the list of suggestions", "column"), start: start, end: cursor, insert: quoted(column.name)});
+            }
+        });
+        const completion = formulaBook.complete(text, cursor);
+        (completion.names ?? []).forEach(name => found.push({
+            label: name.label,
+            detail: name.group ? i18nContext.i18nc("@item a group, in the list of suggestions", "group") : i18nContext.i18nc("@item a category, in the list of suggestions", "category"),
+            start: completion.start, end: completion.end, insert: name.insert
+        }));
+        functionHelp().forEach(entry => {
+            if (entry.name.startsWith(word.toUpperCase())) {
+                found.push({label: entry.name + "(…)", detail: entry.text, start: start, end: cursor, insert: entry.name + "("});
+            }
+        });
+        return found.slice(0, 8);
+    }
+
+    // Ready-made formulas made from the other columns, to start from.
+    function examples(index: int): var {
+        const names = columns.filter((column, other) => other !== index && !isFormula(column)).map(column => quoted(column.name));
+        if (names.length < 2) {
+            return [];
+        }
+        const [first, second] = names;
+        return [
+            {text: first + " - " + second, detail: i18nContext.i18nc("@info a ready-made formula", "The difference between two columns")},
+            {text: first + " + " + second, detail: i18nContext.i18nc("@info a ready-made formula", "Two columns added together")},
+            {text: "PERCENT_OF(" + first + "; " + first + " + " + second + ")", detail: i18nContext.i18nc("@info a ready-made formula", "The share of the first column in both together")}
+        ];
+    }
+
+    // The Formula card dropped on a column: an empty column becomes a
+    // formula column. One that holds categories is refused, so none are lost.
+    function formulaInto(to: int) {
+        if (to < 0) {
+            return;
+        }
+        const column = columns[to];
+        if (isFormula(column)) {
+            return;
+        }
+        if (column.members.length > 0) {
+            board.problem = i18nContext.i18nc("@info", "Only an empty column can be worked out by a formula. Take its categories out first, or drop the Formula card on Add a column.");
+            return;
+        }
+        board.problem = "";
+        toggleFormula(to);
+    }
+
     // What the card menu offers for a card in `from`.
     function choicesFor(id: string, from: int): var {
         const entries = [];
+        if (id === formulaCard) {
+            columns.forEach((column, index) => {
+                if (!isFormula(column) && column.members.length === 0) {
+                    entries.push({move: true, to: index, text: i18nContext.i18nc("@action:inmenu %1 is the name of an empty column", "Work out %1 with a formula", column.name)});
+                }
+            });
+            entries.push({create: true, text: i18nContext.i18nc("@action:inmenu starts a new column that is worked out by a formula", "Make a new formula column")});
+            return entries;
+        }
         if (from >= 0) {
             entries.push({move: true, to: -1, text: i18nContext.i18nc("@action:inmenu take the card out of its column", "Move to Unused")});
         }
@@ -554,9 +678,19 @@ ColumnLayout {
                     // Written out, not an icon alone: nobody should have to guess
                     // where formulas are.
                     Controls.Button {
+                        id: formulaToggle
+
                         Layout.fillWidth: true
                         visible: !slotColumn.isUnused && (slotColumn.asFormula || slotColumn.modelData.members.length === 0)
                         flat: true
+                        // A long name wraps instead of being cut off at both ends.
+                        contentItem: Controls.Label {
+                            text: formulaToggle.text
+                            wrapMode: Text.Wrap
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            textFormat: Text.PlainText
+                        }
                         text: slotColumn.asFormula
                             ? board.i18nContext.i18nc("@action:button %1 is the name of a column", "Use categories in %1 instead of a formula", slotColumn.modelData.name)
                             : board.i18nContext.i18nc("@action:button %1 is the name of a column", "Work out %1 with a formula", slotColumn.modelData.name)
@@ -564,6 +698,8 @@ ColumnLayout {
                     }
 
                     Controls.TextField {
+                        id: formulaInput
+
                         Layout.fillWidth: true
                         visible: slotColumn.asFormula
                         text: slotColumn.modelData.formula ?? ""
@@ -577,8 +713,117 @@ ColumnLayout {
                         }
                     }
 
+                    // Help for people who do not write formulas every day: names
+                    // that fit what is typed, each function with a plain line, and
+                    // ready-made formulas to start from. Clicking keeps the focus
+                    // in the field; the keyboard can use Tab to reach the buttons.
+                    ColumnLayout {
+                        id: formulaHelp
+
+                        Layout.fillWidth: true
+                        visible: slotColumn.asFormula
+                        spacing: 0
+
+                        readonly property var fitting: slotColumn.asFormula ? board.suggest(slotColumn.modelData.index, formulaInput.text, formulaInput.cursorPosition) : []
+                        readonly property var ready: slotColumn.asFormula && formulaInput.text.trim() === "" ? board.examples(slotColumn.modelData.index) : []
+
+                        function put(entry: var) {
+                            const text = formulaInput.text;
+                            formulaInput.text = text.slice(0, entry.start) + entry.insert + text.slice(entry.end);
+                            formulaInput.cursorPosition = entry.start + entry.insert.length;
+                            formulaInput.forceActiveFocus();
+                        }
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            visible: formulaHelp.fitting.length > 0
+                            text: board.i18nContext.i18nc("@info above a list of names and functions that fit what is typed", "Suggestions. Click one to use it:")
+                            font: Kirigami.Theme.smallFont
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                        }
+
+                        Repeater {
+                            model: formulaHelp.fitting
+
+                            delegate: Controls.ItemDelegate {
+                                required property var modelData
+
+                                Layout.fillWidth: true
+                                focusPolicy: Qt.NoFocus
+                                padding: Kirigami.Units.smallSpacing
+                                contentItem: ColumnLayout {
+                                    spacing: 0
+
+                                    Controls.Label {
+                                        Layout.fillWidth: true
+                                        text: modelData.label
+                                        font.bold: true
+                                        elide: Text.ElideRight
+                                        textFormat: Text.PlainText
+                                    }
+
+                                    Controls.Label {
+                                        Layout.fillWidth: true
+                                        text: modelData.detail
+                                        font: Kirigami.Theme.smallFont
+                                        wrapMode: Text.Wrap
+                                        textFormat: Text.PlainText
+                                    }
+                                }
+                                Accessible.name: modelData.label + ", " + modelData.detail
+                                onClicked: formulaHelp.put(modelData)
+                            }
+                        }
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            visible: formulaHelp.ready.length > 0
+                            text: board.i18nContext.i18nc("@info above a list of ready-made formulas", "Start from an example, then change it:")
+                            font: Kirigami.Theme.smallFont
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                        }
+
+                        Repeater {
+                            model: formulaHelp.ready
+
+                            delegate: Controls.ItemDelegate {
+                                required property var modelData
+
+                                Layout.fillWidth: true
+                                focusPolicy: Qt.NoFocus
+                                padding: Kirigami.Units.smallSpacing
+                                contentItem: ColumnLayout {
+                                    spacing: 0
+
+                                    Controls.Label {
+                                        Layout.fillWidth: true
+                                        text: modelData.text
+                                        font.bold: true
+                                        wrapMode: Text.Wrap
+                                        textFormat: Text.PlainText
+                                    }
+
+                                    Controls.Label {
+                                        Layout.fillWidth: true
+                                        text: modelData.detail
+                                        font: Kirigami.Theme.smallFont
+                                        wrapMode: Text.Wrap
+                                        textFormat: Text.PlainText
+                                    }
+                                }
+                                Accessible.name: modelData.text + ", " + modelData.detail
+                                onClicked: {
+                                    formulaInput.text = modelData.text;
+                                    board.setColumnFormula(slotColumn.modelData.index, modelData.text);
+                                }
+                            }
+                        }
+                    }
+
                     Repeater {
-                        model: slotColumn.modelData.members
+                        model: slotColumn.isUnused ? [board.formulaCard].concat(slotColumn.modelData.members) : slotColumn.modelData.members
 
                         delegate: Item {
                             id: slot
@@ -652,7 +897,7 @@ ColumnLayout {
                                         elide: Text.ElideRight
                                         textFormat: Text.PlainText
                                         text: board.labelOf(slot.modelData)
-                                        opacity: board.cardOf(slot.modelData) === undefined ? 0.6 : 1
+                                        opacity: board.cardOf(slot.modelData) === undefined && slot.modelData !== board.formulaCard ? 0.6 : 1
                                     }
 
                                     // Shown while the card is being copied.

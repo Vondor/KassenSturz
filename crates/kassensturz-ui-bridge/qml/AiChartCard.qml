@@ -4,7 +4,7 @@
 // A chart the AI prepared, shown in the chat as a preview (M6c.9, D-355,
 // D-402): the real chart, drawn by KassenSturz from the book's own figures,
 // the AI-made label and the title as plain text, and three ways on. *Keep* is
-// the confirm: the chart is saved under Statistics and Undo takes it back.
+// the confirm: the chart is saved in the Statistic Builder and Undo takes it back.
 // *Change…* hands the chart to the Statistic Builder; what the user saves
 // there is the user's own chart (D-297), so this one is thrown away. *Leave
 // out* throws it away. Nothing is saved before *Keep* (D-200). Every text a
@@ -113,7 +113,7 @@ Kirigami.AbstractCard {
         chartProperties.load(chart.component);
     }
 
-    visible: ai.enabled && setId !== ""
+    visible: ai.enabled
 
     contentItem: ColumnLayout {
         spacing: Kirigami.Units.smallSpacing
@@ -172,7 +172,7 @@ Kirigami.AbstractCard {
             wrapMode: Text.Wrap
             opacity: 0.8
             textFormat: Text.PlainText
-            text: card.i18nContext.i18nc("@info", "The AI chose what this chart shows. The figures are worked out by KassenSturz from your book, not by the AI. It is saved under Statistics only when you keep it, and Undo removes it again.")
+            text: card.i18nContext.i18nc("@info", "The AI chose what this chart shows. The figures are worked out by KassenSturz from your book, not by the AI. It is saved in the Statistic Builder only when you keep it, and Undo removes it again.")
         }
 
         FormError {
@@ -210,7 +210,7 @@ Kirigami.AbstractCard {
             font: Kirigami.Theme.smallFont
             textFormat: Text.PlainText
             text: card.outcome === "kept"
-                ? card.i18nContext.i18nc("@info", "Kept. The chart is saved under Statistics. You can take it back with Undo.")
+                ? card.i18nContext.i18nc("@info", "Kept. The chart is saved in the Statistic Builder. You can take it back with Undo.")
                 : card.outcome === "builder"
                     ? card.i18nContext.i18nc("@info", "Opened in the Statistic Builder. Save it there if you want to keep it: it is then your own chart.")
                     : card.i18nContext.i18nc("@info", "Left out. Nothing was changed.")

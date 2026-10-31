@@ -13938,3 +13938,73 @@ msgid "Average of the last full period, %2 to %3: %5 per period (%4 in all), rou
 msgid_plural "Average of the last %1 full periods, %2 to %3: %5 per period (%4 in all), rounded up to a multiple of %6."
 msgstr[0] "Durchschnitt des letzten vollen Zeitraums, %2 bis %3: %5 je Zeitraum (%4 insgesamt), aufgerundet auf ein Vielfaches von %6."
 msgstr[1] "Durchschnitt der letzten %1 vollen Zeiträume, %2 bis %3: %5 je Zeitraum (%4 insgesamt), aufgerundet auf ein Vielfaches von %6."
+
+#, kde-format
+msgctxt "@label a chart that an AI prepared, not KassenSturz"
+msgid "Chart prepared by the AI"
+msgstr "Diagramm, von der KI vorbereitet"
+
+#, kde-format
+msgctxt "@info"
+msgid "This chart is no longer available. Ask for it again if you still want it."
+msgstr "Dieses Diagramm ist nicht mehr verfügbar. Fragen Sie erneut danach, wenn Sie es noch möchten."
+
+#, kde-format
+msgctxt "@info %1 is a list of numbers"
+msgid "Don't rely on the numbers in this title: they don't come from your book, so the AI may have made them up: %1"
+msgstr "Verlassen Sie sich nicht auf die Zahlen in diesem Titel: Sie stammen nicht aus Ihrem Buch, die KI kann sie erfunden haben: %1"
+
+#, kde-format
+msgctxt "@info"
+msgid "The AI chose what this chart shows. The figures are worked out by KassenSturz from your book, not by the AI. It is saved in the Statistic Builder only when you keep it, and Undo removes it again."
+msgstr "Die KI hat gewählt, was dieses Diagramm zeigt. Die Zahlen rechnet KassenSturz aus Ihrem Buch aus, nicht die KI. Es wird nur im Statistik-Baukasten gespeichert, wenn Sie es behalten, und „Rückgängig“ entfernt es wieder."
+
+#, kde-format
+msgctxt "@action:button save the chart the AI prepared"
+msgid "Keep"
+msgstr "Behalten"
+
+#, kde-format
+msgctxt "@action:button open the chart the AI prepared in the Statistic Builder to change it"
+msgid "Change…"
+msgstr "Ändern …"
+
+#, kde-format
+msgctxt "@action:button throw the chart the AI prepared away"
+msgid "Leave out"
+msgstr "Weglassen"
+
+#, kde-format
+msgctxt "@info"
+msgid "Kept. The chart is saved in the Statistic Builder. You can take it back with Undo."
+msgstr "Behalten. Das Diagramm ist im Statistik-Baukasten gespeichert. Sie können es mit „Rückgängig“ zurücknehmen."
+
+#, kde-format
+msgctxt "@info"
+msgid "Opened in the Statistic Builder. Save it there if you want to keep it: it is then your own chart."
+msgstr "Im Statistik-Baukasten geöffnet. Speichern Sie es dort, wenn Sie es behalten möchten: Es ist dann Ihr eigenes Diagramm."
+
+#, kde-format
+msgctxt "@info"
+msgid "Left out. Nothing was changed."
+msgstr "Weggelassen. Es wurde nichts geändert."
+
+#, kde-format
+msgctxt "@info"
+msgid "The AI could not prepare this chart, even after two corrections. Nothing was changed. You can make the chart yourself in the Statistic Builder."
+msgstr "Die KI konnte dieses Diagramm auch nach zwei Korrekturen nicht vorbereiten. Es wurde nichts geändert. Sie können das Diagramm selbst im Statistik-Baukasten erstellen."
+
+#, kde-format
+msgctxt "@action:button open the Statistic Builder to make a chart yourself"
+msgid "Open the Statistic Builder"
+msgstr "Statistik-Baukasten öffnen"
+
+#, kde-format
+msgctxt "@info:placeholder an example of how to describe a chart, which the user changes"
+msgid "My spending on food each month this year, as bars"
+msgstr "Meine Ausgaben für Essen in jedem Monat dieses Jahres, als Balken"
+
+#, kde-format
+msgctxt "@action:button puts an example of how to describe a chart into the question field"
+msgid "Describe a chart"
+msgstr "Diagramm beschreiben"

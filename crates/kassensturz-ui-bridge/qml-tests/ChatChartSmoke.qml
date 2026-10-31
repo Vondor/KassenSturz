@@ -72,7 +72,8 @@ Kirigami.ApplicationWindow {
             }
 
             // A message that is not a chart, and one made again for a chart
-            // that was dealt with: neither asks the book for anything.
+            // that was dealt with: neither asks the book for anything (the
+            // chat hides the first, which is not a chart).
             AiChartCard {
                 id: other
 
@@ -136,7 +137,7 @@ Kirigami.ApplicationWindow {
             window.check(!window.texts(changing, []).some(text => text.includes("Don't rely")), "and only for the card that has one");
             window.check(all.includes("Keep") && all.includes("Change…") && all.includes("Leave out"), "the three buttons");
             window.check(chat.confirmed.length === 0 && chat.discarded.length === 0, "nothing happens before a button is pressed");
-            window.check(!other.visible, "a message that is not a chart shows nothing");
+            window.check(other.chart === null && other.outcome === "", "a message that is not a chart loads nothing");
             window.check(!window.texts(again, []).includes("Where the money goes"), "a card made again for a dealt-with chart loads nothing");
 
             keeping.keep();

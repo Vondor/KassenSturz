@@ -195,6 +195,9 @@ ColumnLayout {
     // Leave out (M6c.9, D-355).
     AiChartCard {
         Layout.fillWidth: true
+        // Shown for a chart only; the card is inside this message, which
+        // is hidden with the rest of AI (D-013).
+        visible: item.message.kind === "chart"
         ai: item.ai
         chat: item.chat
         setId: item.message.kind === "chart" ? item.message.setId : ""

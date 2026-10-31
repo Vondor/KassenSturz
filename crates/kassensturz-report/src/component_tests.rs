@@ -402,3 +402,129 @@ fn a_key_figure_can_show_a_formula_as_its_measure() {
         .unwrap();
     assert_eq!(measure.last(), Some(&FORMULA_MEASURE));
 }
+
+fn column(name: &str, members: &[&str]) -> ColumnSetting {
+    ColumnSetting {
+        name: name.to_owned(),
+        members: members.iter().map(|id| (*id).to_owned()).collect(),
+        formula: String::new(),
+    }
+}
+
+#[test]
+fn columns_round_trip_through_a_document_and_are_checked() {
+    let mut pie = Component::new(ComponentType::ChartPie, "spending_by_category").unwrap();
+    assert_eq!(pie.get("columns"), Some(&Setting::Columns(Vec::new())));
+    let columns = vec![
+        column("Work food", &["0197-aaa", "0197-bbb"]),
+        column("Freelancer food", &["0197-aaa"]),
+    ];
+    pie.set("columns", Setting::Columns(columns)).unwrap();
+    let value = pie.to_value();
+    assert_eq!(
+        value["params"]["columns"],
+        json!([
+            {"name": "Work food", "members": ["0197-aaa", "0197-bbb"]},
+            {"name": "Freelancer food", "members": ["0197-aaa"]},
+        ])
+    );
+    assert_eq!(Component::from_value(&value).unwrap(), pie);
+    // A table and a chart over time take columns too.
+    for kind in [ComponentType::TableRows, ComponentType::ChartLine] {
+        let dataset = if kind == ComponentType::TableRows {
+            "spending_by_category"
+        } else {
+            "category_over_time"
+        };
+        let mut other = Component::new(kind, dataset).unwrap();
+        other
+            .set("columns", Setting::Columns(vec![column("A", &[])]))
+            .unwrap();
+    }
+    let mut set = |columns| pie.set("columns", Setting::Columns(columns)).unwrap_err();
+    assert_eq!(
+        reason(set(vec![column("  ", &[])])),
+        ("bad-text", "params.columns".into())
+    );
+    assert_eq!(
+        reason(set(vec![column("Food", &[]), column(" food ", &[])])),
+        ("duplicate-name", "params.columns".into())
+    );
+    assert_eq!(
+        reason(set((0..=MAX_COLUMNS)
+            .map(|n| column(&n.to_string(), &[]))
+            .collect())),
+        ("too-many", "params.columns".into())
+    );
+    assert_eq!(
+        reason(set(vec![column("A", &["x\ny"])])),
+        ("bad-text", "params.columns".into())
+    );
+    // A document whose column has an unknown key is refused as a whole.
+    let mut bad = pie.to_value();
+    bad["params"]["columns"] = json!([{"name": "A", "members": [], "extra": 1}]);
+    assert_eq!(
+        reason(Component::from_value(&bad).unwrap_err()),
+        ("wrong-type", "params.columns".into())
+    );
+}
+
+#[test]
+fn a_column_may_be_a_formula_instead_of_members() {
+    let mut pie = Component::new(ComponentType::ChartPie, "spending_by_category").unwrap();
+    let share = ColumnSetting {
+        name: "Left over".to_owned(),
+        members: Vec::new(),
+        formula: "Pay - Food".to_owned(),
+    };
+    pie.set(
+        "columns",
+        Setting::Columns(vec![column("Food", &["0197-aaa"]), share.clone()]),
+    )
+    .unwrap();
+    let value = pie.to_value();
+    assert_eq!(
+        value["params"]["columns"],
+        json!([
+            {"name": "Food", "members": ["0197-aaa"]},
+            {"name": "Left over", "members": [], "formula": "Pay - Food"},
+        ])
+    );
+    assert_eq!(Component::from_value(&value).unwrap(), pie);
+    // Members and a formula together are refused, and so is a formula with
+    // a control character.
+    let mut both = share.clone();
+    both.members = vec!["0197-aaa".to_owned()];
+    assert_eq!(
+        reason(
+            pie.set("columns", Setting::Columns(vec![both]))
+                .unwrap_err()
+        ),
+        ("wrong-type", "params.columns".into())
+    );
+    let mut odd = share;
+    odd.formula = "Pay\n- Food".to_owned();
+    assert_eq!(
+        reason(pie.set("columns", Setting::Columns(vec![odd])).unwrap_err()),
+        ("bad-text", "params.columns".into())
+    );
+}
+
+#[test]
+fn columns_survive_changing_between_charts_and_tables_and_back() {
+    let mut chart = Component::new(ComponentType::ChartBar, "spending_by_category").unwrap();
+    let columns = Setting::Columns(vec![column("Fast food", &["0197-aaa"])]);
+    chart.set("columns", columns.clone()).unwrap();
+    for kind in [
+        ComponentType::ChartLine,
+        ComponentType::ChartPie,
+        ComponentType::ChartStackedBar,
+        ComponentType::TableRows,
+        ComponentType::ChartDonut,
+        ComponentType::ChartArea,
+        ComponentType::ChartBar,
+    ] {
+        chart.change_kind(kind).unwrap();
+        assert_eq!(chart.get("columns"), Some(&columns), "after {kind:?}");
+    }
+}

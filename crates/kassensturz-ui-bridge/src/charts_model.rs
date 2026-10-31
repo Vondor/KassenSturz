@@ -18,6 +18,7 @@ use kassensturz_core::ErrorParam;
 
 use crate::charts::{self, ChartSet, ChartsError, Request};
 use crate::number_format::app_locale;
+use crate::properties;
 use crate::session;
 use crate::variant::{list, map, text};
 
@@ -120,8 +121,21 @@ impl qobject::BookCharts {
         // Each dataset reads only the list it uses. The text holds the list of
         // groups or series, then `;` and the list of categories the chart is
         // limited to (D-331).
+        // After a second `;` come the columns of the chart as a JSON list of
+        // `{"name", "members"}` (D-339); it may hold `;` itself.
         let chosen = chosen.to_string();
-        let (chosen, only) = chosen.split_once(';').unwrap_or((&chosen, ""));
+        let mut parts = chosen.splitn(3, ';');
+        let (chosen, only, columns) = (
+            parts.next().unwrap_or(""),
+            parts.next().unwrap_or(""),
+            parts.next().unwrap_or(""),
+        );
+        let columns: Vec<(String, Vec<String>, String)> =
+            properties::read_columns(columns, &|formula| Some(formula.to_owned()))
+                .unwrap_or_default()
+                .into_iter()
+                .map(|column| (column.name, column.members, column.formula))
+                .collect();
         let id_list = |text: &str| -> Vec<String> {
             text.split(',')
                 .filter(|id| !id.is_empty())
@@ -138,6 +152,7 @@ impl qobject::BookCharts {
             categories: id_list(only),
             series: ids,
             show_hidden,
+            columns,
         });
         self.refresh();
     }
@@ -342,6 +357,27 @@ fn view_object(result: &Result<ChartSet, ChartsError>) -> QVariant {
             ("empty", QVariant::from(&set.charts.is_empty())),
             ("missing", count(set.missing)),
             (
+                "shared",
+                list(set.shared.iter().map(|shared| {
+                    map([
+                        ("category", text(&shared.path.join(" › "))),
+                        (
+                            "columns",
+                            list(shared.columns.iter().map(|name| text(name))),
+                        ),
+                    ])
+                })),
+            ),
+            (
+                "totals",
+                list(set.totals.iter().map(|(column, amounts)| {
+                    map([
+                        ("column", text(column)),
+                        ("amounts", list(amounts.iter().map(|amount| text(amount)))),
+                    ])
+                })),
+            ),
+            (
                 "charts",
                 list(
                     set.charts
@@ -452,7 +488,10 @@ mod tests {
     #[test]
     fn a_spending_chart_reads_back_the_way_qml_reads_it() {
         let view = view_of(&request("spending_by_category", "pie"));
-        assert_eq!(keys(&view), ["charts", "empty", "missing"]);
+        assert_eq!(
+            keys(&view),
+            ["charts", "empty", "missing", "shared", "totals"]
+        );
         assert_eq!(number_of(&view, "missing"), 0);
         assert!(!flag_of(&view, "empty"));
         let shown = list_of(&view, "charts");
@@ -677,6 +716,60 @@ mod tests {
         let chart = &list_of(&view, "charts")[0];
         assert!(keys(&object_of(chart, "hidden")).is_empty());
         assert_eq!(number_of(chart, "count"), 3);
+    }
+
+    #[test]
+    fn columns_are_the_rows_and_the_series_and_a_shared_category_is_named() {
+        let book = book();
+        let groceries = category_id(&book, "Groceries");
+        let rent = category_id(&book, "Rent");
+        let mut asked = request("spending_by_category", "pie");
+        asked.columns = vec![
+            ("Home".into(), vec![rent.to_string()], String::new()),
+            (
+                "Both".into(),
+                vec![
+                    groceries.to_string(),
+                    rent.to_string(),
+                    "no-such-category".into(),
+                ],
+                String::new(),
+            ),
+        ];
+        let view = view_with(&book, &asked);
+        assert_eq!(number_of(&view, "missing"), 1);
+        let chart = &list_of(&view, "charts")[0];
+        let names: Vec<String> = list_of(chart, "categories")
+            .iter()
+            .map(|name| name.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(names, ["Both", "Home"]);
+        let shared = list_of(&view, "shared");
+        assert_eq!(shared.len(), 1);
+        assert_eq!(text_of(&shared[0], "category"), "Rent");
+        let columns: Vec<String> = list_of(&shared[0], "columns")
+            .iter()
+            .map(|name| name.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(columns, ["Home", "Both"]);
+        // Each column's figure for its card on the board, in the order of the
+        // columns, one text per currency.
+        let totals = list_of(&view, "totals");
+        assert_eq!(totals.len(), 2);
+        assert_eq!(text_of(&totals[0], "column"), "Home");
+        assert_eq!(text_of(&totals[1], "column"), "Both");
+        for total in &totals {
+            let amounts = list_of(total, "amounts");
+            assert_eq!(amounts.len(), 1);
+            let amount = amounts[0].value::<QString>().expect("text").to_string();
+            assert!(!amount.is_empty());
+        }
+        // The same columns month by month, as lines.
+        let mut lines = asked.clone();
+        lines.kind = "line".into();
+        let view = view_with(&book, &lines);
+        assert!(!flag_of(&view, "empty"));
+        assert_eq!(list_of(&view, "shared").len(), 1);
     }
 
     #[test]

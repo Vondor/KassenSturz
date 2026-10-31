@@ -13,11 +13,12 @@ use kassensturz_charts::{
     ChartError, ChartKind, ChartModel, ChartProvider, Prepared, category_over_time,
     income_expense_by_month, spending_by_category,
 };
-use kassensturz_core::{Date, ErrorReport, GroupMember, Money, Report};
+use kassensturz_core::{CurrencyCode, Date, ErrorReport, GroupMember, Money, Report};
 use kassensturz_report::{
-    CATEGORY_OVER_TIME, Filter, INCOME_EXPENSE_BY_MONTH, Level, Overlap, Percent, Period,
-    ReportError, SPENDING_BY_CATEGORY, Shown, Source, TextFormat,
-    category_over_time as over_time_dataset, income_expense_by_month as monthly_dataset,
+    CATEGORY_OVER_TIME, Column, Filter, INCOME_EXPENSE_BY_MONTH, Level, Overlap, Percent, Period,
+    ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat,
+    category_over_time as over_time_dataset, columns_over_time, columns_span, columns_spending,
+    income_expense_by_month as monthly_dataset, shared_categories,
     spending_by_category_shown as spending_dataset,
 };
 use kassensturz_store::Book;
@@ -50,6 +51,10 @@ pub struct Request {
     pub series: Vec<String>,
     /// Show the hidden categories anyway (`props.show_hidden`).
     pub show_hidden: bool,
+    /// The columns of the chart (`params.columns`, D-339): each a name and
+    /// the IDs of the categories and groups under it. When there are some,
+    /// they are the series or rows and the dataset's own are not used.
+    pub columns: Vec<(String, Vec<String>, String)>,
 }
 
 /// What a request gave: the charts, and how many of the IDs it named the
@@ -59,8 +64,14 @@ pub struct Request {
 pub struct ChartSet {
     /// One chart per currency; empty when there was nothing to show.
     pub charts: Vec<(ChartModel, Prepared)>,
-    /// IDs in `groups` or `series` that the book doesn't have.
+    /// IDs in `groups`, `series` or a column that the book doesn't have.
     pub missing: usize,
+    /// The categories that more than one column counts, so the screen can
+    /// say plainly that they are counted twice (D-339).
+    pub shared: Vec<SharedCategory>,
+    /// What each column adds up to over the period, one text per currency,
+    /// in the order of the columns; a column with no money has none (D-341).
+    pub totals: Vec<(String, Vec<String>)>,
 }
 
 /// Why a request couldn't be answered.
@@ -231,8 +242,15 @@ pub fn charts(
         "each" | "groups" => Level::Each,
         _ => return Err(ChartsError::UnknownName("grouping")),
     };
-    let source = Source::read(book, period)?;
+    // A formula of a column may name periods of its own, so the book is read
+    // for all of them (D-341).
+    let span = columns_span(&formula_columns(&request.columns), period)?;
+    let source = Source::read(book, span)?;
     let text = AppText::new(book, locale);
+    if !request.columns.is_empty() {
+        let fallback = fallback_currency(book);
+        return columns_charts(&source, &text, kind, period, &request.columns, fallback);
+    }
     // Parts of a whole count a category once; separate series may share it.
     let overlap = if kind.is_round() || kind == ChartKind::StackedBar {
         Overlap::Refused
@@ -309,5 +327,112 @@ pub fn charts(
     Ok(ChartSet {
         charts,
         missing: named - known,
+        shared: Vec::new(),
+        totals: Vec::new(),
+    })
+}
+
+/// The charts of a request that has columns (D-339): the lines, areas and
+/// stacked bars draw one series per column month by month, everything else
+/// shows one row per column for the whole period. A category in two columns
+/// counts in both; the result names it so the screen can say so.
+/// The columns of a request with only what the book's span needs: their
+/// formulas.
+fn formula_columns(chosen: &[(String, Vec<String>, String)]) -> Vec<Column> {
+    chosen
+        .iter()
+        .map(|(name, _, formula)| Column {
+            name: name.clone(),
+            members: Vec::new(),
+            formula: (!formula.is_empty()).then(|| formula.clone()),
+        })
+        .collect()
+}
+
+/// The currency of a result with no money at all: the first the book uses.
+fn fallback_currency(book: &Book) -> CurrencyCode {
+    book.currencies()
+        .ok()
+        .and_then(|used| used.first().map(|currency| currency.code()))
+        .unwrap_or(CurrencyCode::new("EUR").expect("EUR is a valid code"))
+}
+
+/// What each column adds up to over `period`, in every currency it has money
+/// in, written for the screen.
+fn column_totals(
+    source: &Source,
+    text: &impl TextFormat,
+    period: Period,
+    columns: &[Column],
+    fallback: CurrencyCode,
+) -> Result<Vec<(String, Vec<String>)>, ChartsError> {
+    let results = columns_spending(source, period, &Filter::default(), columns, fallback)?;
+    Ok(columns
+        .iter()
+        .map(|column| {
+            let amounts = results
+                .iter()
+                .filter_map(|result| {
+                    // The rows keep the columns' names, and a name is unique.
+                    let row = result
+                        .rows
+                        .iter()
+                        .find(|row| row.path.first() == Some(&column.name))?;
+                    Some(text.amount(row.total))
+                })
+                .collect();
+            (column.name.clone(), amounts)
+        })
+        .collect())
+}
+
+fn columns_charts(
+    source: &Source,
+    text: &impl TextFormat,
+    kind: ChartKind,
+    period: Period,
+    chosen: &[(String, Vec<String>, String)],
+    fallback: CurrencyCode,
+) -> Result<ChartSet, ChartsError> {
+    let columns: Vec<Column> = chosen
+        .iter()
+        .map(|(name, members, formula)| Column {
+            name: name.clone(),
+            members: members
+                .iter()
+                .filter_map(|id| source.member_by_id(id))
+                .collect(),
+            formula: (!formula.is_empty()).then(|| formula.clone()),
+        })
+        .collect();
+    let named: usize = chosen.iter().map(|(_, members, _)| members.len()).sum();
+    let known: usize = columns.iter().map(|column| column.members.len()).sum();
+    let filter = Filter::default();
+    let models = if matches!(
+        kind,
+        ChartKind::Line | ChartKind::Area | ChartKind::StackedBar
+    ) {
+        columns_over_time(source, period, &filter, &columns, fallback)?
+            .iter()
+            .map(|data| category_over_time(data, kind, text))
+            .collect::<Result<Vec<_>, _>>()?
+    } else {
+        columns_spending(source, period, &filter, &columns, fallback)?
+            .iter()
+            .map(|data| spending_by_category(data, kind, text))
+            .collect::<Result<Vec<_>, _>>()?
+    };
+    let charts = models
+        .into_iter()
+        .map(|model| {
+            let prepared = QuickCharts.prepare(&model)?;
+            Ok((model, prepared))
+        })
+        .collect::<Result<Vec<_>, ChartError>>()?;
+    Ok(ChartSet {
+        charts,
+        missing: named - known,
+        shared: shared_categories(source, &columns),
+        totals: column_totals(source, text, period, &columns, fallback)?,
     })
 }

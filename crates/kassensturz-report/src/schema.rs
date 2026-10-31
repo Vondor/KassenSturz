@@ -15,6 +15,7 @@
 
 use crate::ReportError;
 use crate::catalog::{CATALOG, DatasetInfo, NO_DATASET};
+use crate::columns::MAX_COLUMNS;
 use crate::formula::MAX_FORMULA_CHARS;
 
 /// The `measure` of a key figure that shows the result of its formula.
@@ -250,6 +251,24 @@ pub enum Kind {
     /// its own component when it is worked out, not the whole document
     /// (T-41, M6b.7).
     Formula,
+    /// A list of up to [`MAX_COLUMNS`] columns, each a name and up to
+    /// [`MAX_IDS`] category or group IDs (D-339). Empty means the chart or
+    /// table shows what its dataset says; otherwise one series or row for
+    /// each column. Names are not empty and differ from each other, ignoring
+    /// case, so a formula can use them.
+    Columns,
+}
+
+/// One column of a chart or table: what it is called and what is under it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ColumnSetting {
+    /// The name; a series' name, and what a formula calls it.
+    pub name: String,
+    /// The IDs of the categories and groups under it, written as text.
+    pub members: Vec<String>,
+    /// A formula in the form the book stores, whose amount is the column's
+    /// figure (D-341), or empty; then `members` is empty.
+    pub formula: String,
 }
 
 /// One property of a component.
@@ -274,6 +293,8 @@ pub enum Setting {
     Word(String),
     /// For [`Kind::Ids`].
     Ids(Vec<String>),
+    /// For [`Kind::Columns`].
+    Columns(Vec<ColumnSetting>),
 }
 
 const TITLE: Property = Property {
@@ -302,6 +323,12 @@ const SERIES: Property = Property {
     key: "series",
     place: Place::Params,
     kind: Kind::Ids,
+};
+/// `params.columns` (D-339): the columns a chart or table is made of.
+const COLUMNS: Property = Property {
+    key: "columns",
+    place: Place::Params,
+    kind: Kind::Columns,
 };
 const SHOW_HIDDEN: Property = Property {
     key: "show_hidden",
@@ -370,11 +397,12 @@ const MEASURE: Property = Property {
     kind: Kind::Choice(&["income", "expenses", "net", "savings-rate", FORMULA_MEASURE]),
 };
 
-const CHART: [Property; 8] = [
+const CHART: [Property; 9] = [
     GROUPING,
     GROUPS,
     CATEGORIES,
     SERIES,
+    COLUMNS,
     TITLE,
     LEGEND,
     SHOW_HIDDEN,
@@ -382,7 +410,15 @@ const CHART: [Property; 8] = [
 ];
 const KPI_CARD: [Property; 5] = [MEASURE, COMPARE, FORMULA, TITLE, PERIOD];
 const PROGRESS_BAR: [Property; 5] = [COMPARE, FORMULA, TARGET, TITLE, PERIOD];
-const TABLE: [Property; 6] = [GROUPING, GROUPS, CATEGORIES, TITLE, SHOW_HIDDEN, PERIOD];
+const TABLE: [Property; 7] = [
+    GROUPING,
+    GROUPS,
+    CATEGORIES,
+    COLUMNS,
+    TITLE,
+    SHOW_HIDDEN,
+    PERIOD,
+];
 const HEADING: [Property; 1] = [TEXT];
 const PERIOD_BOX: [Property; 2] = [TITLE, BOX_PERIOD];
 
@@ -402,7 +438,7 @@ impl Property {
         match self.kind {
             Kind::Choice(words) => words,
             Kind::Grouping => dataset.groupings,
-            Kind::Text | Kind::Flag { .. } | Kind::Ids | Kind::Formula => &[],
+            Kind::Text | Kind::Flag { .. } | Kind::Ids | Kind::Formula | Kind::Columns => &[],
         }
     }
 
@@ -412,6 +448,7 @@ impl Property {
             Kind::Text | Kind::Formula => Setting::Text(String::new()),
             Kind::Flag { default } => Setting::Flag(default),
             Kind::Ids => Setting::Ids(Vec::new()),
+            Kind::Columns => Setting::Columns(Vec::new()),
             Kind::Choice(_) | Kind::Grouping => Setting::Word(
                 self.words(dataset)
                     .first()
@@ -419,6 +456,18 @@ impl Property {
                     .unwrap_or("")
                     .to_owned(),
             ),
+        }
+    }
+
+    fn check_ids(&self, ids: &[String], most: usize) -> Result<(), ReportError> {
+        if ids.len() > most {
+            Err(invalid("too-many", self.path()))
+        } else if ids.iter().any(|id| {
+            id.is_empty() || id.chars().count() > MAX_ID_CHARS || id.chars().any(char::is_control)
+        }) {
+            Err(invalid("bad-text", self.path()))
+        } else {
+            Ok(())
         }
     }
 
@@ -444,18 +493,40 @@ impl Property {
                 }
             }
             (Kind::Flag { .. }, Setting::Flag(_)) => Ok(()),
-            (Kind::Ids, Setting::Ids(ids)) => {
-                if ids.len() > MAX_IDS {
-                    Err(invalid("too-many", self.path()))
-                } else if ids.iter().any(|id| {
-                    id.is_empty()
-                        || id.chars().count() > MAX_ID_CHARS
-                        || id.chars().any(char::is_control)
-                }) {
-                    Err(invalid("bad-text", self.path()))
-                } else {
-                    Ok(())
+            (Kind::Ids, Setting::Ids(ids)) => self.check_ids(ids, MAX_IDS),
+            (Kind::Columns, Setting::Columns(columns)) => {
+                if columns.len() > MAX_COLUMNS {
+                    return Err(invalid("too-many", self.path()));
                 }
+                let mut names: Vec<String> = Vec::new();
+                for column in columns {
+                    let name = column.name.trim();
+                    if name.is_empty()
+                        || column.name.chars().count() > MAX_TEXT_CHARS
+                        || column.name.chars().any(char::is_control)
+                    {
+                        return Err(invalid("bad-text", self.path()));
+                    }
+                    let lower = name.to_lowercase();
+                    if names.contains(&lower) {
+                        return Err(invalid("duplicate-name", self.path()));
+                    }
+                    names.push(lower);
+                    self.check_ids(&column.members, MAX_IDS)?;
+                    // A column is made of members or of a formula, not both.
+                    if !column.formula.is_empty() {
+                        if !column.members.is_empty() {
+                            return Err(invalid("wrong-type", self.path()));
+                        }
+                        if column.formula.chars().count() > MAX_FORMULA_CHARS {
+                            return Err(invalid("too-long", self.path()));
+                        }
+                        if column.formula.chars().any(char::is_control) {
+                            return Err(invalid("bad-text", self.path()));
+                        }
+                    }
+                }
+                Ok(())
             }
             (Kind::Choice(_) | Kind::Grouping, Setting::Word(word)) => {
                 // A period can also be a typed range of days (D-332).

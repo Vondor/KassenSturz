@@ -117,8 +117,16 @@ macro_rules! events {
 events! {
     /// The app started.
     AppStarted = "app.started",
+    /// The user asked for a screen (a click on a menu entry, an account or
+    /// a button) and the app starts making it. It has no detail: the screen
+    /// is named by the `screen.shown` that follows, so the time between the
+    /// two is the time the screen took to make.
+    ScreenRequested = "screen.requested",
     /// A screen came up; the detail names it.
     ScreenShown = "screen.shown",
+    /// A screen has its content and a frame with it was drawn; the detail
+    /// names it. Only screens that load a lot (the register) say so.
+    ScreenReady = "screen.ready",
     /// The user switched AI on.
     AiSwitchedOn = "ai.switched-on",
     /// The user switched AI off.
@@ -181,7 +189,7 @@ impl Event {
 /// One entry of the log.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Entry {
-    /// When it happened, to the second.
+    /// When it happened, to the millisecond (older lines: to the second).
     pub at: Timestamp,
     /// What happened.
     pub event: Event,
@@ -198,7 +206,7 @@ impl Entry {
     fn line(&self) -> String {
         let mut line = format!(
             "{{\"at\":\"{}\",\"event\":\"{}\"",
-            self.at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            self.at.strftime("%Y-%m-%dT%H:%M:%S%.3fZ"),
             self.event.name()
         );
         if let Some(detail) = self.detail {
@@ -217,7 +225,7 @@ impl Entry {
         static LINE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
         let pattern = LINE.get_or_init(|| {
             Regex::new(
-                r#"^\{"at":"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)","event":"([a-z.-]+)"(?:,"detail":"([A-Za-z_]+)")?(?:,"code":"([a-z0-9.-]+)")?\}$"#,
+                r#"^\{"at":"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{3})?Z)","event":"([a-z.-]+)"(?:,"detail":"([A-Za-z_]+)")?(?:,"code":"([a-z0-9.-]+)")?\}$"#,
             )
             .expect("the line pattern is valid")
         });
@@ -689,6 +697,28 @@ mod tests {
         }
         log.clear().unwrap();
         assert!(log.read(10).is_empty());
+    }
+
+    #[test]
+    fn entries_have_milliseconds_and_older_lines_without_are_still_read() {
+        let scratch = Scratch::new("millis");
+        let log = scratch.log(true, "");
+        log.record(Event::ScreenRequested, None, None);
+        log.record(Event::ScreenReady, Some("RegisterPage"), None);
+        let file = scratch.0.join("debug-log/current.jsonl");
+        let text = fs::read_to_string(&file).unwrap();
+        assert!(
+            text.lines()
+                .all(|line| line.contains(r#""at":"20"#) && line.contains('.')),
+            "{text}"
+        );
+        let mut text = text;
+        text.push_str("{\"at\":\"2026-10-25T10:00:00Z\",\"event\":\"app.started\"}\n");
+        fs::write(&file, text).unwrap();
+        let entries = log.read(10);
+        assert_eq!(entries.len(), 3, "{entries:?}");
+        assert_eq!(entries[0].event, Event::ScreenRequested);
+        assert_eq!(entries[1].detail, Some("RegisterPage"));
     }
 
     #[test]

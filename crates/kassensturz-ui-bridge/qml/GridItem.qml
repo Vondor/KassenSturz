@@ -375,9 +375,14 @@ Item {
         Item {
             readonly property bool failed: false
 
+            // The line follows the shape of its box: a box that is taller
+            // than it is wide holds an upright line (D-337).
+            readonly property bool upright: height > width
+
             Kirigami.Separator {
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width
+                anchors.centerIn: parent
+                width: parent.upright ? implicitWidth : parent.width
+                height: parent.upright ? parent.height : implicitHeight
             }
         }
     }

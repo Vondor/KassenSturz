@@ -41,6 +41,7 @@ pub(crate) struct Part {
 
 /// The book's transactions of a period with the accounts they use, and the
 /// user's groups and hidden categories.
+#[derive(Clone)]
 pub struct Source {
     /// The days the transactions were read for.
     covers: Period,
@@ -130,6 +131,14 @@ impl Source {
             hidden,
             ..self
         }
+    }
+
+    /// A copy that also has `groups`, after the book's own (D-341): columns
+    /// of the Statistic Builder, which a formula names like a group.
+    pub(crate) fn with_more_groups(&self, more: Vec<CategoryGroup>) -> Self {
+        let mut copy = self.clone();
+        copy.groups.extend(more);
+        copy
     }
 
     /// My groups, in the book's order.

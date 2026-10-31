@@ -8,8 +8,8 @@
 use std::io::ErrorKind;
 
 use kassensturz_core::{
-    AccountId, AccountKind, AccountType, CurrencyCode, Date, DatedRateId, ErrorParam, ErrorReport,
-    GroupId, InstitutionId, Money, PayeeId, Report, RuleError, RuleId, SplitId, TagId,
+    AccountId, AccountKind, AccountType, BudgetId, CurrencyCode, Date, DatedRateId, ErrorParam,
+    ErrorReport, GroupId, InstitutionId, Money, PayeeId, Report, RuleError, RuleId, SplitId, TagId,
     TransactionError, TransactionId, TransferError, ViewId,
 };
 
@@ -154,6 +154,40 @@ pub enum StoreError {
         /// The most members a group keeps.
         max: usize,
     },
+    /// There is no budget with this ID (D-344).
+    UnknownBudget(BudgetId),
+    /// Only a spending category can have a budget: not an income category
+    /// or an account (D-344).
+    BudgetNotSpending(AccountId),
+    /// The category already has a budget for some of these days: a category
+    /// has one budget at a time (D-344).
+    BudgetOverlap {
+        /// The category.
+        category: AccountId,
+    },
+    /// A budget's amount can't be kept: `reason` is `zero` (not above
+    /// zero), `too-large` or `currency` (not in the category's currency).
+    BudgetAmount {
+        /// What is wrong, as a keyword.
+        reason: &'static str,
+    },
+    /// A budget's days don't fit its kind of period (D-344, D-345):
+    /// `reason` is `not-period-start`, `not-period-end`,
+    /// `ends-before-starts`, `no-last-day`, `too-long`,
+    /// `carry-over-on-range`, `amount-before-start`, `amount-after-end`,
+    /// `first-amount-missing` or `amount-twice`.
+    BudgetPeriod {
+        /// What is wrong, as a keyword.
+        reason: &'static str,
+    },
+    /// The book has as many budgets as it keeps, or the budget as many
+    /// amounts (D-345).
+    TooManyBudgets {
+        /// What is full: `budgets` or `amounts`.
+        limit: &'static str,
+        /// The most it keeps.
+        max: usize,
+    },
     /// Another account already has this name, ignoring capitals. The user
     /// can pick another name.
     DuplicateAccountName {
@@ -191,11 +225,13 @@ pub enum StoreError {
         balance: Money,
     },
     /// A category that something uses can't be removed: it has
-    /// subcategories, transactions or Rules that book to it (D-253).
+    /// subcategories, transactions, Rules that book to it or a budget
+    /// (D-253, D-345).
     CategoryInUse {
         /// The category.
         category: AccountId,
-        /// What uses it: `subcategories`, `transactions` or `rules`.
+        /// What uses it: `subcategories`, `transactions`, `rules` or
+        /// `budgets`.
         used_by: &'static str,
     },
     /// Only a category can sit inside another one; an account can't.
@@ -522,6 +558,24 @@ impl Report for StoreError {
             Self::TooManyGroupMembers { max } => {
                 new("store.too-many-group-members").with("max", P::count(*max))
             }
+            Self::UnknownBudget(budget) => {
+                new("store.budget-unknown").with("budget", P::Text(budget.to_string()))
+            }
+            Self::BudgetNotSpending(category) => {
+                new("store.budget-not-spending").with("category", P::Account(*category))
+            }
+            Self::BudgetOverlap { category } => {
+                new("store.budget-overlap").with("category", P::Account(*category))
+            }
+            Self::BudgetAmount { reason } => {
+                new("store.budget-amount").with("reason", P::Keyword(reason))
+            }
+            Self::BudgetPeriod { reason } => {
+                new("store.budget-period").with("reason", P::Keyword(reason))
+            }
+            Self::TooManyBudgets { limit, max } => new("store.budget-too-many")
+                .with("limit", P::Keyword(limit))
+                .with("max", P::count(*max)),
             Self::DuplicateAccountName { existing } => {
                 new("store.duplicate-account-name").with("existing", P::Account(*existing))
             }

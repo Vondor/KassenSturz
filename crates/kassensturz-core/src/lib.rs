@@ -15,6 +15,7 @@ mod account;
 #[cfg(feature = "ai")]
 pub mod ai_switch;
 mod bank_link;
+mod budget;
 mod category_group;
 mod changeover;
 mod currency;
@@ -36,6 +37,7 @@ mod withdrawn;
 
 pub use account::{Account, AccountId, AccountKind, AccountType};
 pub use bank_link::BankLink;
+pub use budget::{Budget, BudgetAmount, BudgetEvery, BudgetId};
 pub use category_group::{CategoryGroup, GroupId, GroupKind, GroupMember};
 pub use changeover::{Changeover, ConvertedPart};
 pub use currency::{Currency, CurrencyCode, CurrencyCodeError};

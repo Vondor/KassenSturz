@@ -32,8 +32,8 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 6] = [
-    LAYOUT_16, LAYOUT_17, LAYOUT_18, LAYOUT_19, LAYOUT_20, LAYOUT_21,
+pub(crate) const MIGRATIONS: [&str; 7] = [
+    LAYOUT_16, LAYOUT_17, LAYOUT_18, LAYOUT_19, LAYOUT_20, LAYOUT_21, LAYOUT_22,
 ];
 
 /// The layout version the first migration creates. Layouts 1 to 15 were the
@@ -775,6 +775,88 @@ CREATE TABLE new_changes (
         'add_view', 'edit_view', 'rename_view', 'move_view', 'remove_view',
         'add_group', 'edit_group', 'move_group', 'remove_group',
         'set_hidden_categories'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
+    file_name TEXT
+) STRICT;
+INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
+    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
+DROP TABLE changes;
+ALTER TABLE new_changes RENAME TO changes;
+";
+
+/// Layout 22 (M6c.L, D-344, D-345): budgets, an amount the user plans to
+/// spend on one spending category in each of a budget's periods. Nothing in
+/// these tables is ever written onto a transaction or a category. `budgets`
+/// holds each budget with its category, its kind of period and its days;
+/// `budget_amounts` what it plans from one of its periods on, so a change
+/// never rewrites an earlier period (D-345). A category that has a budget
+/// can't be removed (the foreign key has no cascade, and the store says so
+/// first with `store.category-in-use`); removing a budget removes its
+/// amounts in the same change (ON DELETE CASCADE), so its Undo brings them
+/// back. The three new user actions rebuild `changes` as layouts 17 to 21
+/// did; its rows stay as they were.
+const LAYOUT_22: &str = "
+CREATE TABLE budgets (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    category_id BLOB NOT NULL REFERENCES accounts (id),
+    every TEXT NOT NULL CHECK (every IN ('month', 'quarter', 'year', 'range')),
+    first_day TEXT NOT NULL
+        CHECK (first_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    last_day TEXT
+        CHECK (last_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    CHECK (last_day IS NULL OR last_day >= first_day),
+    CHECK (every <> 'range' OR last_day IS NOT NULL)
+) STRICT;
+CREATE INDEX budgets_by_category ON budgets (category_id, first_day);
+CREATE TABLE budget_amounts (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    budget_id BLOB NOT NULL REFERENCES budgets (id) ON DELETE CASCADE,
+    from_day TEXT NOT NULL
+        CHECK (from_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    amount INTEGER NOT NULL CHECK (amount > 0),
+    carry_over INTEGER NOT NULL CHECK (carry_over IN (0, 1))
+) STRICT;
+CREATE UNIQUE INDEX budget_amounts_by_day ON budget_amounts (budget_id, from_day);
+CREATE TABLE changed_budgets (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    category_id BLOB,
+    every TEXT,
+    first_day TEXT,
+    last_day TEXT,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+CREATE TABLE changed_budget_amounts (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    budget_id BLOB,
+    from_day TEXT,
+    amount INTEGER,
+    carry_over INTEGER,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+CREATE TABLE new_changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction', 'join_transfer',
+        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
+        'import_statement', 'correct_starting_balance',
+        'add_institution', 'add_payee', 'add_tag',
+        'link_bank_account', 'unlink_bank_account', 'fetch_statement',
+        'apply_ai_changes', 'remove_category',
+        'add_view', 'edit_view', 'rename_view', 'move_view', 'remove_view',
+        'add_group', 'edit_group', 'move_group', 'remove_group',
+        'set_hidden_categories',
+        'add_budget', 'edit_budget', 'remove_budget'
     )),
     made_at TEXT NOT NULL
         CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),

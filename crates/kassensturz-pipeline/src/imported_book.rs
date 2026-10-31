@@ -234,6 +234,7 @@ pub fn fill_book_from_with(
         views: Vec::new(),
         groups: Vec::new(),
         hidden_categories: Vec::new(),
+        budgets: Vec::new(),
     };
     fill_book(book, &data)?;
     let count = |kind: fn(AccountKind) -> bool| {

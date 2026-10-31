@@ -16,6 +16,7 @@ use kassensturz_core::{
     Split, SplitId, Tag, TagId, TextField, TextOperator, Transaction, TransactionError,
     TransactionId, ViewId,
 };
+use kassensturz_core::{Budget, BudgetAmount, BudgetEvery, BudgetId};
 use kassensturz_core::{CategoryGroup, GroupId, GroupKind, GroupMember};
 use kassensturz_export::{
     BookData, BookExport, BookedByRule, CsvExport, Expected, ExportData, ExportError, ExportKind,
@@ -49,6 +50,10 @@ fn id(n: u8) -> [u8; 16] {
 
 fn eur(minor_units: i64) -> Money {
     Money::from_minor_units(minor_units, EUR)
+}
+
+fn date(year: i16, month: i8, day: i8) -> Date {
+    Date::new(year, month, day).expect("valid date")
 }
 
 fn day(day: i8) -> Date {
@@ -470,6 +475,41 @@ fn sample() -> BookData {
             },
         ],
         hidden_categories: vec![AccountId::from_bytes(id(bakery))],
+        // A monthly budget whose amount changed, carrying over until then,
+        // and a budget for some days in another currency (D-344, D-345).
+        budgets: vec![
+            Budget {
+                id: BudgetId::from_bytes(id(0x91)),
+                category: AccountId::from_bytes(id(food)),
+                every: BudgetEvery::Month,
+                first_day: date(2026, 9, 1),
+                last_day: None,
+                amounts: vec![
+                    BudgetAmount {
+                        from_day: date(2026, 9, 1),
+                        amount: eur(40_000),
+                        carry_over: true,
+                    },
+                    BudgetAmount {
+                        from_day: date(2026, 11, 1),
+                        amount: eur(42_550),
+                        carry_over: false,
+                    },
+                ],
+            },
+            Budget {
+                id: BudgetId::from_bytes(id(0x92)),
+                category: AccountId::from_bytes(id(travel)),
+                every: BudgetEvery::Range,
+                first_day: date(2026, 7, 10),
+                last_day: Some(date(2026, 7, 24)),
+                amounts: vec![BudgetAmount {
+                    from_day: date(2026, 7, 10),
+                    amount: Money::from_minor_units(150_000, USD),
+                    carry_over: false,
+                }],
+            },
+        ],
     }
 }
 
@@ -601,6 +641,7 @@ fn values_that_may_be_empty_can_be_left_out() {
             views: Vec::new(),
             groups: Vec::new(),
             hidden_categories: Vec::new(),
+            budgets: Vec::new(),
         }
     );
 }
@@ -631,13 +672,13 @@ fn what_is_not_a_complete_export_is_refused() {
     assert_eq!(read_book(b"[1, 2]"), Err(ExportError::NotABook));
     assert_eq!(read_book(b"{\"name\": \"x\"}"), Err(ExportError::NotABook));
     assert_eq!(
-        read_book(&changed("\"version\": 7", "\"version\": 8")),
-        Err(ExportError::NewerVersion { version: 8 })
+        read_book(&changed("\"version\": 8", "\"version\": 9")),
+        Err(ExportError::NewerVersion { version: 9 })
     );
     for version in ["\"2\"", "0", "-1", "2.5"] {
         assert_eq!(
             read_book(&changed(
-                "\"version\": 7",
+                "\"version\": 8",
                 &format!("\"version\": {version}")
             )),
             bad("version", Expected::Number),
@@ -1097,7 +1138,7 @@ fn ids_are_unique_and_amounts_in_listed_currencies() {
         )),
         Err(ExportError::UnlistedCurrency {
             currency: USD,
-            path: Some("transactions[2].parts[0].foreign.amount".into()),
+            path: Some("budgets[1].amounts[0].amount".into())
         })
     );
 }
@@ -1349,5 +1390,90 @@ fn groups_and_hidden_categories_come_with_version_7() {
     assert_eq!(
         read_book(with(&one.replace("expense", "asset"), "[]").as_bytes()),
         bad("groups[0].kind", Expected::Keyword)
+    );
+}
+
+#[test]
+fn budgets_come_with_version_8() {
+    // A version 7 file has none; a version 8 file must list them, even when
+    // there are none (D-345).
+    let lists = r#""institutions": [], "payees": [], "tags": [], "rates": [], "bank_links": [], "views": [], "groups": [], "hidden_categories": []"#;
+    let version_7 = SHORT
+        .replacen("\"version\": 1", "\"version\": 7", 1)
+        .replacen(r#""rates": []"#, lists, 1);
+    let with_budgets = version_7.replacen(
+        r#""hidden_categories": []"#,
+        r#""hidden_categories": [], "budgets": []"#,
+        1,
+    );
+    assert_eq!(
+        read_book(with_budgets.as_bytes()),
+        Err(ExportError::UnknownValue {
+            path: "budgets".into()
+        })
+    );
+    let version_8 = version_7.replacen("\"version\": 7", "\"version\": 8", 1);
+    assert_eq!(
+        read_book(version_8.as_bytes()),
+        Err(ExportError::MissingValue {
+            path: "budgets".into()
+        })
+    );
+    let with = |budgets: &str| {
+        version_8.replacen(
+            r#""hidden_categories": []"#,
+            &format!(r#""hidden_categories": [], "budgets": {budgets}"#),
+            1,
+        )
+    };
+    let food = "019a0000-0000-7000-8000-000000000002";
+    let budget = |every: &str, amounts: &str| {
+        format!(
+            r#"{{"id": "019a0000-0000-7000-8000-000000000091", "category": "{food}", "every": "{every}", "first_day": "2026-09-01", "amounts": {amounts}}}"#
+        )
+    };
+    let monthly = budget(
+        "month",
+        r#"[{"from_day": "2026-09-01", "amount": "400", "currency": "EUR", "carry_over": true}]"#,
+    );
+    // A left-out last day is none: the budget keeps going.
+    let book = read_book(with(&format!("[{monthly}]")).as_bytes()).expect("read");
+    assert_eq!(
+        book.budgets,
+        vec![Budget {
+            id: BudgetId::from_bytes(id(0x91)),
+            category: AccountId::from_bytes(id(2)),
+            every: BudgetEvery::Month,
+            first_day: date(2026, 9, 1),
+            last_day: None,
+            amounts: vec![BudgetAmount {
+                from_day: date(2026, 9, 1),
+                amount: eur(40_000),
+                carry_over: true,
+            }],
+        }]
+    );
+    // An ID twice, a kind of period the format doesn't know, or an amount
+    // that isn't exact in its currency is refused with its path.
+    assert_eq!(
+        read_book(with(&format!("[{monthly}, {monthly}]")).as_bytes()),
+        Err(ExportError::Duplicate {
+            path: "budgets[1].id".into()
+        })
+    );
+    assert_eq!(
+        read_book(with(&format!("[{}]", monthly.replace("month", "week"))).as_bytes()),
+        bad("budgets[0].every", Expected::Keyword)
+    );
+    assert_eq!(
+        read_book(with(&format!("[{}]", monthly.replace("\"400\"", "\"400.001\""))).as_bytes()),
+        bad("budgets[0].amounts[0].amount", Expected::Amount)
+    );
+    assert_eq!(
+        read_book(with(&format!("[{}]", monthly.replace("\"EUR\"", "\"USD\""))).as_bytes()),
+        Err(ExportError::UnlistedCurrency {
+            currency: USD,
+            path: Some("budgets[0].amounts[0].amount".into())
+        })
     );
 }

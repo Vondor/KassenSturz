@@ -18,17 +18,18 @@ use std::io::Read;
 use std::path::Path;
 
 use kassensturz_core::{
-    Account, AccountId, Actions, AmountTest, Attachment, BankLink, BookTo, CategoryGroup,
-    Condition, Currency, CurrencyCode, Date, DatedRate, DatedRateId, ExchangeRate, ForeignAmount,
-    GroupId, GroupMember, ImportedDetails, Institution, InstitutionId, Money, OriginalAmount,
-    Payee, PayeeId, PayeeRecognition, RateSource, Rule, RuleId, RuleNode, Split, SplitId, Tag,
-    TagId, Transaction, TransactionId, ViewId,
+    Account, AccountId, Actions, AmountTest, Attachment, BankLink, BookTo, Budget, BudgetAmount,
+    BudgetId, CategoryGroup, Condition, Currency, CurrencyCode, Date, DatedRate, DatedRateId,
+    ExchangeRate, ForeignAmount, GroupId, GroupMember, ImportedDetails, Institution, InstitutionId,
+    Money, OriginalAmount, Payee, PayeeId, PayeeRecognition, RateSource, Rule, RuleId, RuleNode,
+    Split, SplitId, Tag, TagId, Transaction, TransactionId, ViewId,
 };
 use serde_json::{Map, Value};
 
 use super::{
-    BookData, BookedByRule, FORMAT, GROUP_KINDS, KINDS, MATCH_MODES, MAX_RULE_DEPTH, RECOGNITIONS,
-    ROUNDING_MODES, SOURCES, STATUSES, TEXT_FIELDS, TEXT_OPERATORS, TYPES, VERSION, ViewData,
+    BUDGET_EVERY, BookData, BookedByRule, FORMAT, GROUP_KINDS, KINDS, MATCH_MODES, MAX_RULE_DEPTH,
+    RECOGNITIONS, ROUNDING_MODES, SOURCES, STATUSES, TEXT_FIELDS, TEXT_OPERATORS, TYPES, VERSION,
+    ViewData,
 };
 use crate::error::{Expected, ExportError};
 
@@ -103,6 +104,9 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
     }
     if version >= 7 {
         keys.extend(["groups", "hidden_categories"]);
+    }
+    if version >= 8 {
+        keys.push("budgets");
     }
     let top = Object::new(&file, "", &keys)?;
     let mut reader = Reader {
@@ -299,6 +303,54 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         }
     }
 
+    let mut budgets = Vec::new();
+    if version >= 8 {
+        let mut ids = HashSet::new();
+        for (value, path) in top.list("budgets")? {
+            let budget = Object::new(
+                value,
+                &path,
+                &[
+                    "id",
+                    "category",
+                    "every",
+                    "first_day",
+                    "last_day",
+                    "amounts",
+                ],
+            )?;
+            let id = BudgetId::from_bytes(budget.id("id")?);
+            if !ids.insert(id) {
+                return Err(ExportError::Duplicate {
+                    path: format!("{path}.id"),
+                });
+            }
+            let mut amounts = Vec::new();
+            for (value, path) in budget.list("amounts")? {
+                let row = Object::new(
+                    value,
+                    &path,
+                    &["from_day", "amount", "currency", "carry_over"],
+                )?;
+                let currency = row.currency("currency")?;
+                let (amount, amount_path) = row.required("amount")?;
+                amounts.push(BudgetAmount {
+                    from_day: row.date("from_day")?,
+                    amount: reader.amount(amount, &amount_path, currency)?,
+                    carry_over: row.boolean("carry_over")?,
+                });
+            }
+            budgets.push(Budget {
+                id,
+                category: AccountId::from_bytes(budget.id("category")?),
+                every: budget.keyword("every", &BUDGET_EVERY)?,
+                first_day: budget.date("first_day")?,
+                last_day: budget.optional_date("last_day")?,
+                amounts,
+            });
+        }
+    }
+
     let mut payees = Vec::new();
     let mut tags = Vec::new();
     if version >= 4 {
@@ -430,6 +482,7 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         views,
         groups,
         hidden_categories,
+        budgets,
     })
 }
 

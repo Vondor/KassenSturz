@@ -11,6 +11,7 @@
 
 mod backup;
 mod bank_links;
+mod budgets;
 mod cached;
 mod category_groups;
 mod details;
@@ -666,8 +667,8 @@ impl Book {
     }
 
     /// What keeps a category from being removed: `"subcategories"`,
-    /// `"transactions"` or `"rules"`, or `None` when nothing uses it
-    /// (D-253).
+    /// `"transactions"`, `"rules"` or `"budgets"`, or `None` when nothing
+    /// uses it (D-253, D-345).
     pub fn category_use(&self, id: AccountId) -> Result<Option<&'static str>, StoreError> {
         if !self.account(id)?.kind.is_category() {
             return Err(StoreError::NotACategory(id));
@@ -686,13 +687,16 @@ impl Book {
                 OR EXISTS (SELECT 1 FROM rule_conditions WHERE account_id = ?1)",
         )? {
             Ok(Some("rules"))
+        } else if used("SELECT EXISTS (SELECT 1 FROM budgets WHERE category_id = ?1)")? {
+            Ok(Some("budgets"))
         } else {
             Ok(None)
         }
     }
 
     /// Removes a category that nothing uses: no subcategory, no transaction
-    /// part and no Rule books to it or tests it (D-253). A category that is
+    /// part, no Rule books to it or tests it, and it has no budget (D-253,
+    /// D-345). A category that is
     /// used is refused with [`StoreError::CategoryInUse`], so no transaction
     /// ever loses its category. Undo brings it back.
     pub fn remove_category(&mut self, id: AccountId) -> Result<(), StoreError> {

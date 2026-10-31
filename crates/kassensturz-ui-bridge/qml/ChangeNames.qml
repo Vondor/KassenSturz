@@ -80,6 +80,12 @@ QtObject {
             return i18nContext.i18nc("@info a change you made", "Removed a category group");
         case "set-hidden-categories":
             return i18nContext.i18nc("@info a change you made", "Changed which categories charts hide");
+        case "add-budget":
+            return i18nContext.i18nc("@info a change you made", "Set a budget");
+        case "edit-budget":
+            return i18nContext.i18nc("@info a change you made", "Changed a budget");
+        case "remove-budget":
+            return i18nContext.i18nc("@info a change you made", "Deleted a budget");
         case "remove-category":
             return i18nContext.i18nc("@info a change you made", "Removed a category");
         case "remove-rule":

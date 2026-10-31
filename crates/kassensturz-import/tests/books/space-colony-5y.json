@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 7,
+  "version": 8,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2},
@@ -150,6 +150,7 @@
     }
   ],
   "hidden_categories": ["019a0000-0000-7000-8000-000000000040", "019a0000-0000-7000-8000-000000000053", "019a0000-0000-7000-8000-000000000017", "019a0000-0000-7000-8000-000000000045"],
+  "budgets": [],
   "payees": [
     {
       "id": "019a0000-0000-7000-8000-000000000059",

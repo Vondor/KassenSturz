@@ -13,9 +13,8 @@ use crate::{Action, Book, HistoryRetention};
 impl Book {
     /// Whether nothing is in the book yet: no currency, account, rate,
     /// Rule, transaction, institution, payee, tag, view, dashboard, category
-    /// group or hidden category, and no change in its history. Only such a
-    /// book
-    /// can be filled ([`Book::fill_new`]); one after the app's first start
+    /// group, hidden category or budget, and no change in its history. Only
+    /// such a book can be filled ([`Book::fill_new`]); one after the app's first start
     /// has the household's currency and categories, so it is not empty.
     pub fn is_empty(&self) -> Result<bool, StoreError> {
         self.conn
@@ -32,6 +31,7 @@ impl Book {
                      OR EXISTS (SELECT 1 FROM main.views)
                      OR EXISTS (SELECT 1 FROM main.report_groups)
                      OR EXISTS (SELECT 1 FROM main.report_hidden)
+                     OR EXISTS (SELECT 1 FROM main.budgets)
                      OR EXISTS (SELECT 1 FROM main.changes)
                      OR EXISTS (SELECT 1 FROM temp.changes))",
                 [],

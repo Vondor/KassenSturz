@@ -174,6 +174,17 @@ fn examples() -> Vec<ErrorReport> {
         StoreError::GroupTooDeep { max_levels: 4 },
         StoreError::TooManyGroups { max: 200 },
         StoreError::TooManyGroupMembers { max: 500 },
+        StoreError::UnknownBudget(kassensturz_core::BudgetId::generate()),
+        StoreError::BudgetNotSpending(account),
+        StoreError::BudgetOverlap { category: account },
+        StoreError::BudgetAmount { reason: "zero" },
+        StoreError::BudgetPeriod {
+            reason: "not-period-start",
+        },
+        StoreError::TooManyBudgets {
+            limit: "budgets",
+            max: 1_000,
+        },
         StoreError::DuplicateAccountName { existing: account },
         StoreError::AccountTypeMismatch {
             account_type: AccountType::CreditCard,

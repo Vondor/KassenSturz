@@ -436,7 +436,23 @@ fn a_broken_or_hostile_call_is_refused_in_the_fixed_order() {
         )),
         "ai-tools.unknown-category"
     );
-    assert_eq!(view_code(call(&book, &categories(vec![food]))), "prepared");
+    assert_eq!(
+        view_code(call(&book, &categories(vec![food.clone()]))),
+        "prepared"
+    );
+    // A dataset that doesn't apply categories doesn't keep them (M6-B29).
+    for data in [
+        "net_worth_over_time",
+        "account_balances",
+        "cash_flow_by_month",
+    ] {
+        let text = json!({"title": data, "data": data, "show_as": "auto", "categories": [food]});
+        assert_eq!(
+            view_code(call(&book, &text.to_string())),
+            "bad-argument categories",
+            "{data}"
+        );
+    }
     // 6. The schema: a pie of a monthly dataset, a grouping a key figure
     // doesn't have, a measure a line doesn't take.
     for (extra, expected) in [

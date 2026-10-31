@@ -28,8 +28,8 @@ use std::collections::{HashMap, HashSet};
 use kassensturz_core::AccountId;
 use kassensturz_core::ai_switch::{Permission, Permissions, Row};
 use kassensturz_report::{
-    ACCOUNT_BALANCES, BUDGET_UTILIZATION, CATALOG, ComponentType, DatasetInfo, FORMULA_MEASURE,
-    GROUPS_GROUPING, Kind, PERIODS, range_word,
+    ACCOUNT_BALANCES, BUDGET_UTILIZATION, CASH_FLOW_BY_MONTH, CATALOG, ComponentType, DatasetInfo,
+    FORMULA_MEASURE, GROUPS_GROUPING, Kind, NET_WORTH_OVER_TIME, PERIODS, range_word,
 };
 use kassensturz_store::Book;
 use serde_json::{Map, Value, json};
@@ -526,7 +526,15 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
             return Err(ToolError::UnknownAccount);
         }
     }
-    // 6. The schema's own checks run when the set is built from this item.
+    // 6. A dimension the dataset doesn't apply is refused, never kept: a
+    // chart of net worth with categories would look limited while every
+    // category counts (M6-B29, D-350).
+    if !categories.is_empty() && !takes_categories(data) {
+        return Err(ToolError::BadArgument {
+            argument: "categories",
+        });
+    }
+    // The schema's own checks run when the set is built from this item.
     let chart = SHOW_AS
         .iter()
         .find(|(word, _)| *word == show_as)
@@ -556,6 +564,13 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
         }
     }
     Ok(Value::Object(item))
+}
+
+/// Whether the dataset applies a choice of categories. The balances count
+/// accounts, not categories (D-350). When the report layer lists what each
+/// dataset takes (M6c.6), this reads that list instead.
+fn takes_categories(dataset: &str) -> bool {
+    ![ACCOUNT_BALANCES, NET_WORTH_OVER_TIME, CASH_FLOW_BY_MONTH].contains(&dataset)
 }
 
 /// The period a dataset starts with: today's balances and budgets this

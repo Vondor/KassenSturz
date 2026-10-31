@@ -347,7 +347,7 @@ ColumnLayout {
     // yet: offer the names to use and, inside a call, the call's syntax
     // (M6-B23).
     function argumentSuggestions(index: int, before: string, cursor: int): var {
-        const last = before.trimEnd().slice(-1);
+        const last = before.replace(/\s+$/, "").slice(-1);
         if (before.trim() !== "" && !["(", ";", ",", "+", "-", "*", "/"].includes(last)) {
             return [];
         }
@@ -390,6 +390,19 @@ ColumnLayout {
         return "";
     }
 
+    // Every match of a global expression, as lists (the engine's own
+    // `matchAll` is left out so older Qt versions work too).
+    function matches(text: string, pattern: var): var {
+        const found = [];
+        pattern.lastIndex = 0;
+        let hit = pattern.exec(text);
+        while (hit !== null) {
+            found.push(hit);
+            hit = pattern.exec(text);
+        }
+        return found;
+    }
+
     // What is wrong with a formula as typed, in words, or "": a bracket left
     // open or closed too often, a name that is none of the columns,
     // categories or groups, a function that doesn't exist (M6-B23).
@@ -409,7 +422,7 @@ ColumnLayout {
         const known = functionHelp().map(entry => entry.name);
         const names = columns.filter((column, other) => other !== index).map(column => column.name.toLowerCase())
             .concat(cards.map(card => (card.isGroup ? card.label : card.path).toLowerCase()));
-        for (const found of plain.matchAll(/[A-Za-z_][A-Za-z_0-9]*(\s*\()?/g)) {
+        for (const found of matches(plain, /[A-Za-z_][A-Za-z_0-9]*(\s*\()?/g)) {
             const word = found[0].replace(/\s*\($/, "");
             if (found[1] !== undefined) {
                 if (!known.includes(word.toUpperCase())) {
@@ -420,7 +433,7 @@ ColumnLayout {
             }
         }
         // Names written in quotes must exist too.
-        for (const found of text.matchAll(/"([^"]+)"|'((?:[^']|'')+)'/g)) {
+        for (const found of matches(text, /"([^"]+)"|'((?:[^']|'')+)'/g)) {
             const typed = found[1] ?? found[2].replace(/''/g, "'");
             const word = typed.toLowerCase();
             if (!names.some(name => name.includes(word))) {

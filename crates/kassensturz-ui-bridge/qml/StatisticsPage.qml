@@ -226,18 +226,18 @@ Kirigami.ScrollablePage {
             }
 
             Controls.Button {
-                text: page.i18nContext.i18nc("@action:button opens the wizard at its first step", "Chart type…")
+                text: page.i18nContext.i18nc("@action:button opens the wizard at the step for the period", "Period…")
                 onClicked: page.changeStep(0)
             }
 
             Controls.Button {
-                text: page.i18nContext.i18nc("@action:button opens the wizard at the step for the data", "Data range…")
+                text: page.i18nContext.i18nc("@action:button opens the wizard at the step for the categories", "Categories…")
                 onClicked: page.changeStep(1)
             }
 
             Controls.Button {
-                text: page.i18nContext.i18nc("@action:button opens the wizard at the step for title and legend", "Chart elements…")
-                onClicked: page.changeStep(3)
+                text: page.i18nContext.i18nc("@action:button opens the wizard at the step for the look and the title", "Look and title…")
+                onClicked: page.changeStep(2)
             }
         }
 

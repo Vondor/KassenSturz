@@ -12864,46 +12864,6 @@ msgid "Table"
 msgstr "Tabelle"
 
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
-msgctxt "@title:group a step of the wizard"
-msgid "Chart type"
-msgstr "Diagrammtyp"
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
-msgctxt "@title:group a step of the wizard"
-msgid "Data range"
-msgstr "Datenbereich"
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
-msgctxt "@title:group a step of the wizard"
-msgid "Data series"
-msgstr "Datenreihen"
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
-msgctxt "@title:group a step of the wizard"
-msgid "Chart elements"
-msgstr "Diagrammelemente"
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
-msgctxt "@info"
-msgid "Choose how the figures are shown."
-msgstr "Wählen Sie, wie die Zahlen gezeigt werden."
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
-msgctxt "@info"
-msgid "Choose the period and which figures are used."
-msgstr "Wählen Sie den Zeitraum und welche Zahlen verwendet werden."
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
-msgctxt "@info"
-msgid "Choose which categories, groups or lines are shown."
-msgstr "Wählen Sie, welche Kategorien, Gruppen oder Linien gezeigt werden."
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
-msgctxt "@info"
-msgid "Give it a title and decide what is shown around it."
-msgstr "Geben Sie einen Titel an und bestimmen Sie, was drumherum gezeigt wird."
-
-#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
 msgctxt "@title:group"
 msgid "New statistic"
 msgstr "Neue Auswertung"
@@ -12934,16 +12894,51 @@ msgid "Change in the wizard:"
 msgstr "Im Assistenten ändern:"
 
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
-msgctxt "@action:button opens the wizard at its first step"
-msgid "Chart type…"
-msgstr "Diagrammtyp …"
+msgctxt "@title:group a step of the wizard"
+msgid "Period"
+msgstr "Zeitraum"
 
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
-msgctxt "@action:button opens the wizard at the step for the data"
-msgid "Data range…"
-msgstr "Datenbereich …"
+msgctxt "@title:group a step of the wizard"
+msgid "Choose categories"
+msgstr "Kategorien wählen"
 
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
-msgctxt "@action:button opens the wizard at the step for title and legend"
-msgid "Chart elements…"
-msgstr "Diagrammelemente …"
+msgctxt "@title:group a step of the wizard"
+msgid "Look and preview"
+msgstr "Aussehen und Vorschau"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@info"
+msgid "Choose the period the figures are taken from. For example: this month, or from 01.01.2026 to 31.03.2026."
+msgstr "Wählen Sie den Zeitraum, aus dem die Zahlen stammen. Zum Beispiel: dieser Monat oder vom 01.01.2026 bis 31.03.2026."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@info"
+msgid "Choose which categories are counted. Every category that is not ticked is left out. For example: Groceries and Restaurants, but not Insurance."
+msgstr "Wählen Sie, welche Kategorien gezählt werden. Jede Kategorie ohne Haken bleibt außen vor. Zum Beispiel: Lebensmittel und Restaurants, aber nicht Versicherungen."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@info"
+msgid "Choose how it looks and give it a title and a name. For example: Household costs."
+msgstr "Wählen Sie das Aussehen und geben Sie einen Titel und einen Namen an. Zum Beispiel: Haushaltskosten."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button show or hide formulas and fine tuning"
+msgid "Advanced: formulas and fine tuning"
+msgstr "Erweitert: Formeln und Feineinstellungen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button opens the wizard at the step for the period"
+msgid "Period…"
+msgstr "Zeitraum …"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button opens the wizard at the step for the categories"
+msgid "Categories…"
+msgstr "Kategorien …"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml
+msgctxt "@action:button opens the wizard at the step for the look and the title"
+msgid "Look and title…"
+msgstr "Aussehen und Titel …"

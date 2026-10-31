@@ -26,14 +26,17 @@ ColumnLayout {
     required property var builder
 
     property int step: 0
-    readonly property int steps: 4
+    readonly property int steps: 3
     readonly property var workbench: builder.workbench
     readonly property bool isNew: builder.openId === ""
     // The properties that belong to each step; the others are not offered
     // there.
-    readonly property var rangeKeys: ["grouping", "measure", "compare", "formula", "target"]
-    readonly property var seriesKeys: ["categories", "groups", "series"]
-    readonly property var elementKeys: ["title", "legend", "show_hidden"]
+    readonly property var rangeKeys: ["grouping", "measure"]
+    readonly property var advancedKeys: ["compare", "formula", "target"]
+    readonly property var seriesKeys: ["categories", "groups", "series", "show_hidden"]
+    readonly property var elementKeys: ["title", "legend"]
+    // Formulas and fine tuning are one deliberate step away (Q-260).
+    property bool advanced: false
     // The kinds of the first step, each with the ways to show it.
     readonly property var kinds: [
         {id: "bars", types: ["chart.bar", "chart.stacked_bar"]},
@@ -59,7 +62,7 @@ ColumnLayout {
 
     // Whether a step has anything to set for the chosen type.
     function usable(index: int): bool {
-        return index !== 2 || hasFields(seriesKeys);
+        return index !== 1 || hasFields(seriesKeys);
     }
 
     function iconOf(id: string): string {
@@ -108,25 +111,21 @@ ColumnLayout {
     function stepName(index: int): string {
         switch (index) {
         case 0:
-            return i18nContext.i18nc("@title:group a step of the wizard", "Chart type");
+            return i18nContext.i18nc("@title:group a step of the wizard", "Period");
         case 1:
-            return i18nContext.i18nc("@title:group a step of the wizard", "Data range");
-        case 2:
-            return i18nContext.i18nc("@title:group a step of the wizard", "Data series");
+            return i18nContext.i18nc("@title:group a step of the wizard", "Choose categories");
         }
-        return i18nContext.i18nc("@title:group a step of the wizard", "Chart elements");
+        return i18nContext.i18nc("@title:group a step of the wizard", "Look and preview");
     }
 
     function stepHelp(index: int): string {
         switch (index) {
         case 0:
-            return i18nContext.i18nc("@info", "Choose how the figures are shown.");
+            return i18nContext.i18nc("@info", "Choose the period the figures are taken from. For example: this month, or from 01.01.2026 to 31.03.2026.");
         case 1:
-            return i18nContext.i18nc("@info", "Choose the period and which figures are used.");
-        case 2:
-            return i18nContext.i18nc("@info", "Choose which categories, groups or lines are shown.");
+            return i18nContext.i18nc("@info", "Choose which categories are counted. Every category that is not ticked is left out. For example: Groceries and Restaurants, but not Insurance.");
         }
-        return i18nContext.i18nc("@info", "Give it a title and decide what is shown around it.");
+        return i18nContext.i18nc("@info", "Choose how it looks and give it a title and a name. For example: Household costs.");
     }
 
     function goTo(index: int) {
@@ -147,7 +146,7 @@ ColumnLayout {
     // is shown when it has none.
     function finish() {
         if (isNew && wizardName.text.trim() === "") {
-            step = 3;
+            step = 2;
             wizardName.forceActiveFocus();
             return;
         }
@@ -223,23 +222,6 @@ ColumnLayout {
             Layout.alignment: Qt.AlignTop
             spacing: Kirigami.Units.largeSpacing
 
-            // The live preview: always in view, above the options.
-            Kirigami.AbstractCard {
-                Layout.fillWidth: true
-
-                contentItem: ComponentPreview {
-                    id: preview
-
-                    subject: wizard.workbench.view
-                    period: wizard.builder.period
-                    // A double click on the title goes to the step with it.
-                    TapHandler {
-                        acceptedButtons: Qt.LeftButton
-                        onDoubleTapped: wizard.goTo(3)
-                    }
-                }
-            }
-
             Kirigami.Heading {
                 Layout.fillWidth: true
                 level: 3
@@ -254,92 +236,10 @@ ColumnLayout {
                 text: wizard.stepHelp(wizard.step)
             }
 
-            // Step 1: the kind on the left, its variants as pictures.
-            RowLayout {
-                Layout.fillWidth: true
-                visible: wizard.step === 0
-                spacing: Kirigami.Units.largeSpacing
-
-                ColumnLayout {
-                    Layout.alignment: Qt.AlignTop
-                    spacing: Kirigami.Units.smallSpacing
-
-                    Repeater {
-                        model: wizard.kinds
-
-                        delegate: Controls.ItemDelegate {
-                            id: kindEntry
-
-                            required property var modelData
-
-                            Layout.fillWidth: true
-                            icon.name: wizard.iconOf(modelData.id)
-                            text: wizard.kindName(modelData.id)
-                            highlighted: wizard.currentKind.id === modelData.id
-                            onClicked: {
-                                if (!modelData.types.includes(wizard.workbench.view.type)) {
-                                    wizard.workbench.setType(modelData.types[0]);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Flow {
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignTop
-                    spacing: Kirigami.Units.largeSpacing
-
-                    Repeater {
-                        model: wizard.currentKind.types
-
-                        delegate: Controls.AbstractButton {
-                            id: choice
-
-                            required property string modelData
-
-                            width: Kirigami.Units.gridUnit * 7
-                            height: Kirigami.Units.gridUnit * 6
-                            checkable: true
-                            checked: wizard.workbench.view.type === modelData
-                            Accessible.name: wizard.builder.typeName(modelData)
-                            onClicked: wizard.workbench.setType(modelData)
-
-                            background: Rectangle {
-                                radius: Kirigami.Units.cornerRadius
-                                color: choice.checked ? Kirigami.Theme.highlightColor : Kirigami.Theme.backgroundColor
-                                opacity: choice.checked ? 0.25 : 1
-                                border.width: 1
-                                border.color: choice.checked || choice.visualFocus ? Kirigami.Theme.highlightColor : Kirigami.Theme.disabledTextColor
-                            }
-
-                            contentItem: ColumnLayout {
-                                spacing: Kirigami.Units.smallSpacing
-
-                                Kirigami.Icon {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    Layout.preferredWidth: Kirigami.Units.iconSizes.large
-                                    Layout.preferredHeight: Kirigami.Units.iconSizes.large
-                                    source: wizard.iconOf(choice.modelData)
-                                }
-
-                                Controls.Label {
-                                    Layout.fillWidth: true
-                                    horizontalAlignment: Text.AlignHCenter
-                                    wrapMode: Text.Wrap
-                                    textFormat: Text.PlainText
-                                    text: wizard.builder.typeName(choice.modelData)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Step 2: the period and the figures it works on.
+            // Step 1: the period and the figures it works on.
             ColumnLayout {
                 Layout.fillWidth: true
-                visible: wizard.step === 1
+                visible: wizard.step === 0
 
                 Kirigami.FormLayout {
                     Layout.fillWidth: true
@@ -359,23 +259,127 @@ ColumnLayout {
                     choices: wizard.builder.groupsSource
                     only: wizard.rangeKeys
                 }
+            
+
+                Controls.Button {
+                    flat: true
+                    icon.name: wizard.advanced ? "arrow-down" : "arrow-right"
+                    text: wizard.i18nContext.i18nc("@action:button show or hide formulas and fine tuning", "Advanced: formulas and fine tuning")
+                    onClicked: wizard.advanced = !wizard.advanced
+                }
+
+                PropertiesPanel {
+                    Layout.fillWidth: true
+                    visible: wizard.advanced
+                    model: wizard.workbench
+                    period: wizard.builder.period
+                    choices: wizard.builder.groupsSource
+                    only: wizard.advancedKeys
+                    showDataset: false
+                }
             }
 
-            // Step 3: which categories, groups or lines.
-            PropertiesPanel {
-                Layout.fillWidth: true
-                visible: wizard.step === 2
-                model: wizard.workbench
-                period: wizard.builder.period
-                choices: wizard.builder.groupsSource
-                only: wizard.seriesKeys
-                showDataset: false
-            }
-
-            // Step 4: title, legend, and the name it is kept under.
+            // Step 2: which categories, groups or lines.
             ColumnLayout {
                 Layout.fillWidth: true
-                visible: wizard.step === 3
+                visible: wizard.step === 1
+
+                PropertiesPanel {
+                    Layout.fillWidth: true
+                    model: wizard.workbench
+                    period: wizard.builder.period
+                    choices: wizard.builder.groupsSource
+                    only: wizard.seriesKeys
+                    showDataset: false
+                }
+            }
+
+            // Step 3: how it looks, its title, and the name it is kept under.
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: wizard.step === 2
+
+                // The kind on the left, its variants as pictures.
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: true
+                    spacing: Kirigami.Units.largeSpacing
+
+                    ColumnLayout {
+                        Layout.alignment: Qt.AlignTop
+                        spacing: Kirigami.Units.smallSpacing
+
+                        Repeater {
+                            model: wizard.kinds
+
+                            delegate: Controls.ItemDelegate {
+                                id: kindEntry
+
+                                required property var modelData
+
+                                Layout.fillWidth: true
+                                icon.name: wizard.iconOf(modelData.id)
+                                text: wizard.kindName(modelData.id)
+                                highlighted: wizard.currentKind.id === modelData.id
+                                onClicked: {
+                                    if (!modelData.types.includes(wizard.workbench.view.type)) {
+                                        wizard.workbench.setType(modelData.types[0]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Flow {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignTop
+                        spacing: Kirigami.Units.largeSpacing
+
+                        Repeater {
+                            model: wizard.currentKind.types
+
+                            delegate: Controls.AbstractButton {
+                                id: choice
+
+                                required property string modelData
+
+                                width: Kirigami.Units.gridUnit * 7
+                                height: Kirigami.Units.gridUnit * 6
+                                checkable: true
+                                checked: wizard.workbench.view.type === modelData
+                                Accessible.name: wizard.builder.typeName(modelData)
+                                onClicked: wizard.workbench.setType(modelData)
+
+                                background: Rectangle {
+                                    radius: Kirigami.Units.cornerRadius
+                                    color: choice.checked ? Kirigami.Theme.highlightColor : Kirigami.Theme.backgroundColor
+                                    opacity: choice.checked ? 0.25 : 1
+                                    border.width: 1
+                                    border.color: choice.checked || choice.visualFocus ? Kirigami.Theme.highlightColor : Kirigami.Theme.disabledTextColor
+                                }
+
+                                contentItem: ColumnLayout {
+                                    spacing: Kirigami.Units.smallSpacing
+
+                                    Kirigami.Icon {
+                                        Layout.alignment: Qt.AlignHCenter
+                                        Layout.preferredWidth: Kirigami.Units.iconSizes.large
+                                        Layout.preferredHeight: Kirigami.Units.iconSizes.large
+                                        source: wizard.iconOf(choice.modelData)
+                                    }
+
+                                    Controls.Label {
+                                        Layout.fillWidth: true
+                                        horizontalAlignment: Text.AlignHCenter
+                                        wrapMode: Text.Wrap
+                                        textFormat: Text.PlainText
+                                        text: wizard.builder.typeName(choice.modelData)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
                 PropertiesPanel {
                     Layout.fillWidth: true
@@ -403,6 +407,23 @@ ColumnLayout {
                     wrapMode: Text.Wrap
                     textFormat: Text.PlainText
                     text: wizard.i18nContext.i18nc("@info", "To put it on the Overview, choose Edit layout there and add it with Add a saved view.")
+                }
+            }
+
+            // The live preview: below the options of every step (Q-254).
+            Kirigami.AbstractCard {
+                Layout.fillWidth: true
+
+                contentItem: ComponentPreview {
+                    id: preview
+
+                    subject: wizard.workbench.view
+                    period: wizard.builder.period
+                    // A double click on the title goes to the step with it.
+                    TapHandler {
+                        acceptedButtons: Qt.LeftButton
+                        onDoubleTapped: wizard.goTo(2)
+                    }
                 }
             }
         }

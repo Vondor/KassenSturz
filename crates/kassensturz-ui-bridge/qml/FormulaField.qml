@@ -342,7 +342,8 @@ ColumnLayout {
     // A mistake, with the place marked in the formula.
     ColumnLayout {
         Layout.fillWidth: true
-        visible: field.mistake !== undefined
+        // An empty field is not a mistake: the example in it is the hint.
+        visible: field.mistake !== undefined && input.text.trim() !== ""
         spacing: Kirigami.Units.smallSpacing
 
         FormError {
@@ -379,6 +380,7 @@ ColumnLayout {
 
     FormError {
         Layout.fillWidth: true
+        visible: input.text.trim() !== ""
         result: field.shown.error !== undefined ? field.shown.error : ({})
     }
 }

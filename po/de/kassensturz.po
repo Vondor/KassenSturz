@@ -13006,6 +13006,11 @@ msgid "Adds up to %1"
 msgstr "Ergibt zusammen %1"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info"
+msgid "To count a category in more than one column, hold Ctrl while you drag it, or choose Also put in … in its menu."
+msgstr "Um eine Kategorie in mehr als einer Spalte zu zählen, halten Sie beim Ziehen die Strg-Taste gedrückt oder wählen Sie im Menü der Karte „Auch in … legen“."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@action:button %1 is the name of a column"
 msgid "Work out %1 with a formula"
 msgstr "„%1“ mit einer Formel berechnen"

@@ -226,6 +226,12 @@ Kirigami.ApplicationWindow {
                     window.check(JSON.parse(wizard.workbench.view.columns)[both].formula === "Fast food + 1", "the formula is kept: " + wizard.workbench.view.columns);
                     window.check(board.choicesFor("c-rent", -1).every(entry => entry.to !== both), "the menu does not offer a formula column");
                     board.removeColumn(both);
+                    // Copying a card (Ctrl while dragging) keeps it in its column too.
+                    window.check(board.addColumn("Copy"), "a column to copy into");
+                    const copy = board.columns.length - 1;
+                    board.copyCard("c-rent", 0, copy);
+                    window.check(board.columns[0].members.includes("c-rent") && board.columns[copy].members.includes("c-rent"), "a copied card is in both columns");
+                    board.removeColumn(copy);
                     window.check(board.columns.length === 1, "and the column goes again");
                     // Looking at a kind without columns (one figure) and coming back
                     // does not lose the columns.

@@ -248,6 +248,15 @@ ColumnLayout {
         save(list);
     }
 
+    // Puts the card in `to` and leaves it where it is: a drag with Ctrl held
+    // (-1 is Unused; from Unused it is the same as a move).
+    function copyCard(id: string, from: int, to: int) {
+        if (from === to) {
+            return;
+        }
+        alsoPut(id, to);
+    }
+
     // Puts the card in `to` as well, where it already is.
     function alsoPut(id: string, to: int) {
         if (isFormula(columns[to])) {
@@ -297,6 +306,15 @@ ColumnLayout {
         wrapMode: Text.Wrap
         textFormat: Text.PlainText
         text: board.i18nContext.i18nc("@info", "Drag categories into columns, or use the menu on a card. Each column becomes one bar, slice, line or row, and adds up its categories. A category may be in more than one column. What is in Unused is not counted.")
+    }
+
+    Controls.Label {
+        Layout.fillWidth: true
+        wrapMode: Text.Wrap
+        textFormat: Text.PlainText
+        font: Kirigami.Theme.smallFont
+        opacity: 0.7
+        text: board.i18nContext.i18nc("@info", "To count a category in more than one column, hold Ctrl while you drag it, or choose Also put in … in its menu.")
     }
 
     FormError {
@@ -370,7 +388,7 @@ ColumnLayout {
 
                     anchors.fill: parent
                     keys: ["card"]
-                    onDropped: drop => board.moveCard(drop.source.cardId, drop.source.from, slotColumn.modelData.index)
+                    onDropped: drop => drop.source.copying ? board.copyCard(drop.source.cardId, drop.source.from, slotColumn.modelData.index) : board.moveCard(drop.source.cardId, drop.source.from, slotColumn.modelData.index)
                 }
 
                 ColumnLayout {
@@ -488,9 +506,23 @@ ColumnLayout {
                             // What the drop reads.
                             readonly property string cardId: modelData
                             readonly property int from: slotColumn.modelData.index
+                            // Whether the drag holds Ctrl: the card is copied, not moved.
+                            property bool copying: false
 
                             Layout.fillWidth: true
                             Layout.preferredHeight: tile.height
+
+                            function dragged(active: bool) {
+                                if (active) {
+                                    board.dragFrom = slot.from;
+                                    tile.Drag.start();
+                                } else {
+                                    tile.Drag.drop();
+                                    tile.x = 0;
+                                    tile.y = 0;
+                                    board.dragFrom = -2;
+                                }
+                            }
 
                             Rectangle {
                                 id: tile
@@ -500,27 +532,33 @@ ColumnLayout {
                                 radius: Kirigami.Units.cornerRadius
                                 color: Kirigami.Theme.backgroundColor
                                 border.width: 1
-                                border.color: handler.active ? Kirigami.Theme.highlightColor : Kirigami.Theme.disabledTextColor
-                                z: handler.active ? 100 : 0
+                                border.color: handler.active || copyHandler.active ? Kirigami.Theme.highlightColor : Kirigami.Theme.disabledTextColor
+                                z: handler.active || copyHandler.active ? 100 : 0
                                 Drag.dragType: Drag.None
                                 Drag.keys: ["card"]
                                 Drag.source: slot
                                 Drag.hotSpot.x: width / 2
                                 Drag.hotSpot.y: height / 2
 
+                                // A plain drag moves the card, a drag with Ctrl held copies
+                                // it into another column too.
                                 DragHandler {
                                     id: handler
 
+                                    acceptedModifiers: Qt.NoModifier
                                     onActiveChanged: {
-                                        if (active) {
-                                            board.dragFrom = slot.from;
-                                            tile.Drag.start();
-                                        } else {
-                                            tile.Drag.drop();
-                                            tile.x = 0;
-                                            tile.y = 0;
-                                            board.dragFrom = -2;
-                                        }
+                                        slot.copying = false;
+                                        slot.dragged(active);
+                                    }
+                                }
+
+                                DragHandler {
+                                    id: copyHandler
+
+                                    acceptedModifiers: Qt.ControlModifier
+                                    onActiveChanged: {
+                                        slot.copying = true;
+                                        slot.dragged(active);
                                     }
                                 }
 
@@ -534,6 +572,14 @@ ColumnLayout {
                                         textFormat: Text.PlainText
                                         text: board.labelOf(slot.modelData)
                                         opacity: board.cardOf(slot.modelData) === undefined ? 0.6 : 1
+                                    }
+
+                                    // Shown while the card is being copied.
+                                    Controls.Label {
+                                        visible: copyHandler.active
+                                        font.bold: true
+                                        text: "+"
+                                        Accessible.ignored: true
                                     }
 
                                     Controls.ToolButton {
@@ -582,7 +628,7 @@ ColumnLayout {
                 anchors.fill: parent
                 keys: ["card"]
                 onDropped: drop => {
-                    board.moveToNew(drop.source.cardId, drop.source.from, newName.text);
+                    board.moveToNew(drop.source.cardId, drop.source.copying ? -2 : drop.source.from, newName.text);
                     newName.text = "";
                 }
             }

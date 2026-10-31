@@ -263,7 +263,7 @@ Kirigami.ScrollablePage {
                 model: page.types.map(id => ({id: id, name: page.typeName(id)}))
                 textRole: "name"
                 valueRole: "id"
-                currentIndex: page.types.indexOf(workbench.view.type)
+                currentIndex: page.types.indexOf(workbench.view?.type)
                 onActivated: index => workbench.setType(page.types[index])
             }
 

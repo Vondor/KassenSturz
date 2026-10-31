@@ -32,8 +32,8 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 7] = [
-    LAYOUT_16, LAYOUT_17, LAYOUT_18, LAYOUT_19, LAYOUT_20, LAYOUT_21, LAYOUT_22,
+pub(crate) const MIGRATIONS: [&str; 8] = [
+    LAYOUT_16, LAYOUT_17, LAYOUT_18, LAYOUT_19, LAYOUT_20, LAYOUT_21, LAYOUT_22, LAYOUT_23,
 ];
 
 /// The layout version the first migration creates. Layouts 1 to 15 were the
@@ -867,6 +867,64 @@ INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
     SELECT id, sequence, action, made_at, undone, file_name FROM changes;
 DROP TABLE changes;
 ALTER TABLE new_changes RENAME TO changes;
+";
+
+/// Layout 23 (M6c.B, D-375): what a bank or file delivered stays as it was
+/// delivered, also against a slip in KassenSturz or another program writing
+/// to the book. The user's own changes (payee, date, note, category) live
+/// in other columns, on top of the original, as before (D-067).
+///
+/// The triggers refuse four things. A row of `split_imports` never changes.
+/// It, or a part that has one, is deleted only while `originals_unlocked`
+/// holds its one row, which KassenSturz writes and deletes again in the same
+/// database transaction, only around removing whole transactions the user
+/// removes, undo and redo, and the edits that write a transaction's parts
+/// again unchanged (`originals.rs`); it never stays in a saved book. Such a
+/// part keeps its account and its amount in the account's currency, and its
+/// transaction keeps its currency while the part has no amount of its own in
+/// another currency. A program that writes the guard row itself can still
+/// delete originals: the triggers stop mistakes, not someone set on it.
+///
+/// A later migration that rebuilds `splits`, `split_imports` or
+/// `transactions` drops these triggers with the table and makes them again.
+const LAYOUT_23: &str = "
+CREATE TABLE originals_unlocked (
+    id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1)
+) STRICT;
+CREATE TRIGGER original_never_changes BEFORE UPDATE ON split_imports
+BEGIN
+    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original changed');
+END;
+CREATE TRIGGER original_kept BEFORE DELETE ON split_imports
+WHEN NOT EXISTS (SELECT 1 FROM originals_unlocked)
+BEGIN
+    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original removed');
+END;
+CREATE TRIGGER original_part_kept BEFORE DELETE ON splits
+WHEN EXISTS (SELECT 1 FROM split_imports WHERE split_id = OLD.id)
+    AND NOT EXISTS (SELECT 1 FROM originals_unlocked)
+BEGIN
+    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original removed');
+END;
+CREATE TRIGGER original_part_unchanged
+BEFORE UPDATE OF account_id, amount, foreign_amount, foreign_currency ON splits
+WHEN EXISTS (SELECT 1 FROM split_imports WHERE split_id = OLD.id)
+    AND (NEW.account_id IS NOT OLD.account_id
+        OR coalesce(NEW.foreign_amount, NEW.amount) IS NOT coalesce(OLD.foreign_amount, OLD.amount)
+        OR NEW.foreign_currency IS NOT OLD.foreign_currency)
+BEGIN
+    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original changed');
+END;
+CREATE TRIGGER original_currency_kept BEFORE UPDATE OF currency ON transactions
+WHEN NEW.currency IS NOT OLD.currency
+    AND EXISTS (
+        SELECT 1 FROM splits AS s JOIN split_imports AS i ON i.split_id = s.id
+        WHERE s.transaction_id = OLD.id AND s.foreign_amount IS NULL
+    )
+    AND NOT EXISTS (SELECT 1 FROM originals_unlocked)
+BEGIN
+    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original changed');
+END;
 ";
 
 /// Brings a book from layout `from` to the current one, or a new, empty

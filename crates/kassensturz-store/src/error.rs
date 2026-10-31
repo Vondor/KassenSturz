@@ -308,6 +308,10 @@ pub enum StoreError {
     /// book it to an account in another currency (D-104). Its account can
     /// change to one in the same currency.
     OriginalChanged(SplitId),
+    /// The book refused to change or remove what a bank or file delivered
+    /// (layout 23's triggers, D-375). Only a mistake in a program writing to
+    /// the book gets here; nothing was changed.
+    DeliveredKept,
     /// The two transactions can't be joined into a Transfer (D-087).
     Transfer(TransferError),
     /// There's no Rule with this ID.
@@ -465,9 +469,24 @@ impl From<rusqlite::Error> for StoreError {
     fn from(error: rusqlite::Error) -> Self {
         match error.sqlite_error_code() {
             Some(rusqlite::ErrorCode::NotADatabase) => Self::NotABook,
+            Some(rusqlite::ErrorCode::ConstraintViolation) if refused_by_layout_23(&error) => {
+                Self::DeliveredKept
+            }
             _ => Self::Database(DatabaseError(error)),
         }
     }
+}
+
+/// The text that starts each refusal of layout 23's triggers.
+const DELIVERED_KEPT: &str = "KassenSturz keeps what a bank or file delivered";
+
+/// Whether `error` is one of layout 23's triggers refusing a change to what
+/// a bank or file delivered.
+fn refused_by_layout_23(error: &rusqlite::Error) -> bool {
+    matches!(
+        error,
+        rusqlite::Error::SqliteFailure(_, Some(message)) if message.starts_with(DELIVERED_KEPT)
+    )
 }
 
 impl Report for StoreError {
@@ -663,6 +682,7 @@ impl Report for StoreError {
             Self::OriginalChanged(split) => {
                 new("store.original-changed").with("split", P::Split(*split))
             }
+            Self::DeliveredKept => new("store.delivered-kept"),
             // The transfer's own error says what doesn't fit.
             Self::Transfer(error) => error.report(),
             Self::UnknownRule(rule) => new("store.unknown-rule").with("rule", P::Rule(*rule)),

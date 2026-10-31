@@ -1323,7 +1323,7 @@ fn the_history_records_every_table_with_every_column() {
     let data: Vec<&String> = tables
         .iter()
         .filter(|name| {
-            !["changes", "history_settings"].contains(&name.as_str())
+            !["changes", "history_settings", "originals_unlocked"].contains(&name.as_str())
                 && !name.starts_with("changed_")
         })
         .collect();

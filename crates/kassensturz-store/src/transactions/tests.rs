@@ -1024,20 +1024,27 @@ fn delivered_details_that_are_wrong_in_the_file_are_reported() {
             ..
         })) if id == open_part
     ));
+    // Layout 23 keeps delivered details as they are (D-375); a program set
+    // on changing them anyway writes the guard row first.
     book.as_another_program()
-        .execute(
-            "DELETE FROM split_imports WHERE split_id = ?1",
-            [open_part.to_bytes()],
-        )
-        .expect("removed again");
-    // A date that looks like one but isn't.
-    book.as_another_program()
-        .execute("UPDATE split_imports SET value_date = '2026-13-45'", [])
+        .execute_batch(&format!(
+            "INSERT INTO originals_unlocked (id) VALUES (1);
+             DELETE FROM split_imports WHERE split_id = x'{open}';
+             DELETE FROM split_imports;
+             INSERT INTO split_imports (split_id, value_date) VALUES (x'{bank}', '2026-13-45');
+             DELETE FROM originals_unlocked;",
+            open = hex(open_part.to_bytes()),
+            bank = hex(purchase.splits()[0].id.to_bytes()),
+        ))
         .expect("changed behind KassenSturz's back");
     assert!(matches!(
         book.transaction(purchase.id()),
         Err(StoreError::Corrupt(Corruption::BadDate(text))) if text == "2026-13-45"
     ));
+}
+
+fn hex(bytes: [u8; 16]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 const DEM: CurrencyCode = match CurrencyCode::new("DEM") {

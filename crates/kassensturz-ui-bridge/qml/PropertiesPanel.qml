@@ -261,7 +261,7 @@ ColumnLayout {
 
                             Controls.Label {
                                 text: panel.i18nContext.i18nc("@label words that can be put into a title", "Add:")
-                                height: addWord.implicitHeight
+                                height: Kirigami.Units.gridUnit * 2
                                 verticalAlignment: Text.AlignVCenter
                             }
 

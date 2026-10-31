@@ -13002,6 +13002,16 @@ msgstr "Name der Spalte"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@action:button %1 is the name of a column"
+msgid "Save the column %1 as a group"
+msgstr "Spalte „%1“ als Gruppe speichern"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info %1 is the name of a column"
+msgid "Saved “%1” as a group. You find it under My groups."
+msgstr "„%1“ wurde als Gruppe gespeichert. Sie finden sie unter „Meine Gruppen“."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:button %1 is the name of a column"
 msgid "Remove the column %1"
 msgstr "Spalte „%1“ entfernen"
 

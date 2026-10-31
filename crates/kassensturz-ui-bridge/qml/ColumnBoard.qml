@@ -33,6 +33,9 @@ ColumnLayout {
     property int dragFrom: -2
     // What went wrong with the last change, in words, or empty.
     property string problem: ""
+    // What saving a column as a group answered, and the words for success.
+    property var groupResult: ({})
+    property string saved: ""
 
     readonly property var columns: {
         try {
@@ -86,6 +89,8 @@ ColumnLayout {
 
     function save(list) {
         board.problem = "";
+        board.groupResult = ({});
+        board.saved = "";
         workbench.setColumns(JSON.stringify(list));
     }
 
@@ -126,6 +131,20 @@ ColumnLayout {
         const list = JSON.parse(JSON.stringify(columns));
         list[index].name = name.trim();
         save(list);
+    }
+
+    // Keeps a column as one of My groups, under its name, so it can be used
+    // again in other statistics (D-341). The column stays as it is.
+    function saveAsGroup(index: int) {
+        board.problem = "";
+        board.groupResult = ({});
+        board.saved = "";
+        const column = columns[index];
+        const result = choices.addGroup(column.name, false, column.members.join(","));
+        board.groupResult = result;
+        if (result.code === undefined) {
+            board.saved = i18nContext.i18nc("@info %1 is the name of a column", "Saved “%1” as a group. You find it under My groups.", column.name);
+        }
     }
 
     function removeColumn(index: int) {
@@ -191,6 +210,18 @@ ColumnLayout {
         wrapMode: Text.Wrap
         textFormat: Text.PlainText
         text: board.i18nContext.i18nc("@info", "Drag categories into columns, or use the menu on a card. Each column becomes one bar, slice, line or row, and adds up its categories. A category may be in more than one column. What is in Unused is not counted.")
+    }
+
+    FormError {
+        Layout.fillWidth: true
+        result: board.groupResult
+    }
+
+    Kirigami.InlineMessage {
+        Layout.fillWidth: true
+        visible: board.saved !== ""
+        type: Kirigami.MessageType.Positive
+        text: board.saved
     }
 
     Kirigami.InlineMessage {
@@ -288,6 +319,16 @@ ColumnLayout {
                                     text = Qt.binding(() => slotColumn.modelData.name);
                                 }
                             }
+                        }
+
+                        Controls.ToolButton {
+                            visible: !slotColumn.isUnused && slotColumn.modelData.members.length > 0
+                            icon.name: "folder-new"
+                            text: board.i18nContext.i18nc("@action:button %1 is the name of a column", "Save the column %1 as a group", slotColumn.modelData.name)
+                            display: Controls.AbstractButton.IconOnly
+                            Controls.ToolTip.text: text
+                            Controls.ToolTip.visible: hovered
+                            onClicked: board.saveAsGroup(slotColumn.modelData.index)
                         }
 
                         Controls.ToolButton {

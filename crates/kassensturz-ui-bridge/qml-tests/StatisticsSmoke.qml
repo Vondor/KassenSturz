@@ -203,6 +203,9 @@ Kirigami.ApplicationWindow {
                     const wizard = find(page, "StatisticWizard", [])[0];
                     const columns = JSON.parse(wizard.workbench.view.columns);
                     window.check(columns.length === 1 && columns[0].members.join() === "c-rent", "a card goes back to Unused and a column can be removed");
+                    const board = find(wizard, "ColumnBoard", [])[0];
+                    board.saveAsGroup(0);
+                    window.check(groups.calls.includes("addGroup:Fast food:false:c-rent") && board.saved !== "" && board.groupResult.code === undefined, "a column is kept as a group of its categories: " + groups.calls);
                     window.check(page.saveChanges(), "the changes of the open view are saved with its columns");
                     wizard.cancelled();
                 }

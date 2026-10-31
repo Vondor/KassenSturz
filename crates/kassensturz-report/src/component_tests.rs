@@ -509,3 +509,22 @@ fn a_column_may_be_a_formula_instead_of_members() {
         ("bad-text", "params.columns".into())
     );
 }
+
+#[test]
+fn columns_survive_changing_between_charts_and_tables_and_back() {
+    let mut chart = Component::new(ComponentType::ChartBar, "spending_by_category").unwrap();
+    let columns = Setting::Columns(vec![column("Fast food", &["0197-aaa"])]);
+    chart.set("columns", columns.clone()).unwrap();
+    for kind in [
+        ComponentType::ChartLine,
+        ComponentType::ChartPie,
+        ComponentType::ChartStackedBar,
+        ComponentType::TableRows,
+        ComponentType::ChartDonut,
+        ComponentType::ChartArea,
+        ComponentType::ChartBar,
+    ] {
+        chart.change_kind(kind).unwrap();
+        assert_eq!(chart.get("columns"), Some(&columns), "after {kind:?}");
+    }
+}

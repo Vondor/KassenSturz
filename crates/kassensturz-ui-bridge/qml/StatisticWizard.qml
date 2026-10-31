@@ -50,6 +50,13 @@ ColumnLayout {
     readonly property var currentKind: kinds.find(kind => kind.types.includes(workbench.view.type)) ?? kinds[0]
     readonly property alias nameText: wizardName.text
 
+    // The columns the user made, kept while a kind without columns (one
+    // figure) is looked at, so that going back to a chart or table does not
+    // lose them.
+    property string keptColumns: "[]"
+    // Whether the view before the last change had columns.
+    property bool hadColumns: false
+
     signal showAll()
     signal cancelled()
     signal finishRequested(string name)
@@ -159,7 +166,32 @@ ColumnLayout {
         step = usable(index) ? index : 0;
     }
 
+    // Remembers the columns, and puts them back when the user returns from a
+    // kind that has none to one that has (and the new one starts empty).
+    function keepColumns() {
+        const columns = workbench.view.columns;
+        const has = columns !== undefined;
+        if (has && !hadColumns && columns === "[]" && keptColumns !== "[]" && step === 2) {
+            hadColumns = true;
+            workbench.setColumns(keptColumns);
+            return;
+        }
+        if (has) {
+            keptColumns = columns;
+        }
+        hadColumns = has;
+    }
+
+    Connections {
+        target: wizard.workbench
+
+        function onViewChanged() {
+            wizard.keepColumns();
+        }
+    }
+
     function restart() {
+        keptColumns = "[]";
         step = 0;
         wizardName.text = "";
     }

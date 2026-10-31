@@ -41,7 +41,13 @@ QtObject {
 
     function open(type, dataset) { title = ""; columnsJson = "[]"; build(type, dataset); }
     function load(json) { const c = JSON.parse(json); title = c.props.title; columnsJson = JSON.stringify(c.params?.columns ?? []); build(c.type, c.dataset); }
-    function setType(type) { build(type, component.dataset); }
+    function setType(type) {
+        // As the real object: a type without columns does not keep them.
+        if (!(type.startsWith("chart.") || type === "table.rows")) {
+            columnsJson = "[]";
+        }
+        build(type, component.dataset);
+    }
     function setDataset(dataset) { build(component.type, dataset); }
     function setText(key, value) { title = value; build(component.type, component.dataset); }
     function setColumns(json) { columnsJson = json; build(component.type, component.dataset); }

@@ -227,6 +227,14 @@ Kirigami.ApplicationWindow {
                     window.check(board.choicesFor("c-rent", -1).every(entry => entry.to !== both), "the menu does not offer a formula column");
                     board.removeColumn(both);
                     window.check(board.columns.length === 1, "and the column goes again");
+                    // Looking at a kind without columns (one figure) and coming back
+                    // does not lose the columns.
+                    wizard.step = 2;
+                    wizard.workbench.setType("kpi.card");
+                    window.check(wizard.workbench.view.columns === undefined, "one figure has no columns");
+                    wizard.workbench.setType("chart.bar");
+                    window.check(JSON.parse(wizard.workbench.view.columns).length === 1, "the columns come back with the chart: " + wizard.workbench.view.columns);
+                    wizard.step = 1;
                     board.saveAsGroup(0);
                     window.check(groups.calls.includes("addGroup:Fast food:false:c-rent") && board.saved !== "" && board.groupResult.code === undefined, "a column is kept as a group of its categories: " + groups.calls);
                     window.check(page.saveChanges(), "the changes of the open view are saved with its columns");

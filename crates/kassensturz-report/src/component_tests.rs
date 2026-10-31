@@ -21,7 +21,7 @@ fn ids_round_trip_and_every_dataset_has_a_component() {
     assert_eq!(ComponentType::from_id("chart.radar"), None);
     for dataset in CATALOG {
         assert!(
-            ComponentType::ALL
+            ComponentType::LIBRARY
                 .into_iter()
                 .any(|kind| kind.datasets().any(|d| d.id == dataset.id)),
             "{} suits no component",
@@ -44,7 +44,7 @@ fn every_component_has_a_title_and_unique_keys() {
 
 #[test]
 fn a_new_component_is_valid_for_every_dataset_it_suits() {
-    for kind in ComponentType::ALL {
+    for kind in ComponentType::LIBRARY {
         for dataset in kind.datasets() {
             let component = Component::new(kind, dataset.id).unwrap();
             for (property, setting) in component.settings() {

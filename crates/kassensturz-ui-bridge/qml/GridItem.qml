@@ -15,6 +15,7 @@ import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
+import io.github.vondor.kassensturz
 
 Item {
     id: cell
@@ -71,7 +72,7 @@ Item {
 
     onSubjectJsonChanged: subject = info?.subject ?? ({})
 
-    visible: present
+    visible: present && !board.isCollapsed(info)
     // A period box lies under the widgets it holds (D-333).
     z: isBox ? (moving || resizing ? 3 : -1) : (selected ? 2 : (moving || resizing ? 3 : 0))
     x: moving ? startX + dragX : (present ? board.frameX(info) : 0)
@@ -200,6 +201,7 @@ Item {
                 : cell.info?.type === "group.period" ? boxLabel
                 : cell.info?.type === "card.net_worth" ? netWorthBox
                 : cell.info?.type === "table.income_sources" ? incomeBox
+                : cell.info?.type === "budget.progress" ? budgetBox
                 : cell.info?.type === "text.separator" ? separatorBox
                 : cell.info?.type === "notice.fetch_gap" ? fetchGapBox
                 : cell.info?.type === "notice.transfers" ? transfersBox : figuresBox
@@ -368,6 +370,46 @@ Item {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // The bars of the budgets (M6c.5, D-357): how much of each is spent and
+    // left in the period the page shows. The book decides which budgets
+    // there are; the page asks again when the month changes.
+    Component {
+        id: budgetBox
+
+        Flickable {
+            id: budgets
+
+            readonly property bool failed: feed.view?.error !== undefined
+            readonly property string period: cell.board.periodFor(cell.info)
+            readonly property string only: cell.subject?.preview?.only ?? ""
+
+            function ask() {
+                feed.show(period, only);
+            }
+
+            onPeriodChanged: ask()
+            onOnlyChanged: ask()
+            Component.onCompleted: ask()
+
+            contentHeight: bars.implicitHeight
+            clip: true
+
+            BookBudgets {
+                id: feed
+            }
+
+            BudgetBars {
+                id: bars
+
+                width: parent.width
+                shown: feed.view?.bars ?? []
+                budgetCount: feed.view?.count ?? 0
+                arranging: cell.board.editing
+                onSetBudgetClicked: cell.board.setBudgetClicked()
             }
         }
     }

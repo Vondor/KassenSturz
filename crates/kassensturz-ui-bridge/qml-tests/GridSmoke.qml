@@ -175,7 +175,7 @@ Kirigami.ApplicationWindow {
                 const saved = addMenu.groups.find(group => group.rows[0].saved);
                 window.check(saved && saved.rows.map(row => row.id).join() === "a,b", "the saved views are sorted by name");
                 const kinds = addMenu.groups.filter(group => !group.rows[0].saved).reduce((all, group) => all.concat(group.rows), []).length;
-                window.check(kinds === 16, "every kind of widget is in a group: " + kinds);
+                window.check(kinds === 17, "every kind of widget is in a group: " + kinds);
                 window.check(addMenu.count === 5, "one submenu for each group: " + addMenu.count);
                 // Choosing an item of a submenu reaches the menu's signals (M6-B9:
                 // `menu` inside a MenuItem is the MenuItem's own property).

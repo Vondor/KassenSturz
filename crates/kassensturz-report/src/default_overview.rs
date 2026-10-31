@@ -13,10 +13,12 @@ use crate::{Document, ReportError};
 pub const OVERVIEW_NAME: &str = "Overview";
 
 /// The document, as text. The warnings about accounts not updated from the
-/// bank, what the accounts are worth, four key figures in a row, the spending donut and
-/// the table of what it shows side by side, then the line of the last 12
-/// months, where the money came from and the note about transfers. A component without a `props.period` takes the page's period (the
-/// month the Overview shows); the line asks for its own.
+/// bank, what the accounts are worth, four key figures in a row, the budget
+/// bars (which take no room until the book has a budget, D-357, Q-264), the
+/// spending donut and the table of what it shows side by side, then the line
+/// of the last 12 months, where the money came from and the note about
+/// transfers. A component without a `props.period` takes the page's period
+/// (the month the Overview shows); the line asks for its own.
 pub const DEFAULT_OVERVIEW: &str = r#"{
   "format": "kassensturz-dashboard", "version": 1, "kind": "dashboard",
   "name": "Overview",
@@ -37,19 +39,21 @@ pub const DEFAULT_OVERVIEW: &str = r#"{
     {"id": "kept", "type": "kpi.card", "dataset": "income_expense_by_month",
      "params": {"measure": "savings-rate", "compare": "previous_period"},
      "frame": {"col": 9, "row": 3, "cols": 3, "rows": 2}},
+    {"id": "budgets", "type": "budget.progress", "dataset": "budget_utilization",
+     "frame": {"col": 0, "row": 5, "cols": 12, "rows": 3}},
     {"id": "spending", "type": "chart.donut", "dataset": "spending_by_category",
      "params": {"grouping": "top_level_category"},
-     "frame": {"col": 0, "row": 5, "cols": 6, "rows": 5}},
+     "frame": {"col": 0, "row": 8, "cols": 6, "rows": 5}},
     {"id": "biggest", "type": "table.rows", "dataset": "spending_by_category",
      "params": {"grouping": "top_level_category"},
-     "frame": {"col": 6, "row": 5, "cols": 6, "rows": 5}},
+     "frame": {"col": 6, "row": 8, "cols": 6, "rows": 5}},
     {"id": "trend", "type": "chart.line", "dataset": "income_expense_by_month",
      "props": {"period": "last-12-months"},
-     "frame": {"col": 0, "row": 10, "cols": 12, "rows": 4}},
+     "frame": {"col": 0, "row": 13, "cols": 12, "rows": 4}},
     {"id": "sources", "type": "table.income_sources",
-     "frame": {"col": 0, "row": 14, "cols": 12, "rows": 4}},
+     "frame": {"col": 0, "row": 17, "cols": 12, "rows": 4}},
     {"id": "transfers", "type": "notice.transfers",
-     "frame": {"col": 0, "row": 18, "cols": 12, "rows": 1}}
+     "frame": {"col": 0, "row": 21, "cols": 12, "rows": 1}}
   ]
 }"#;
 

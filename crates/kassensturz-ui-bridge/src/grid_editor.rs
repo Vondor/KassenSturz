@@ -354,9 +354,10 @@ mod tests {
         assert!(!layout.damaged);
         assert!(!layout.editor.has_changes());
         let shown = rows(&layout.editor);
-        assert_eq!(shown.len(), 11);
-        // Reading order: the bank warnings, the four cards, then the donut
-        // and the table, the line, and the note about transfers.
+        assert_eq!(shown.len(), 12);
+        // Reading order: the bank warnings, the four cards, the budget bars,
+        // then the donut and the table, the line, and the note about
+        // transfers.
         let ids: Vec<&str> = shown.iter().map(|row| row.id.as_str()).collect();
         assert_eq!(
             ids,
@@ -367,6 +368,7 @@ mod tests {
                 "expenses",
                 "left",
                 "kept",
+                "budgets",
                 "spending",
                 "biggest",
                 "trend",
@@ -374,7 +376,7 @@ mod tests {
                 "transfers"
             ]
         );
-        assert_eq!(total_rows(&layout.editor), 19);
+        assert_eq!(total_rows(&layout.editor), 22);
     }
 
     #[test]

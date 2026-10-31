@@ -45,6 +45,8 @@ QtObject {
             return i18nContext.i18nc("@item:inlistbox a part of the layout: what all the accounts hold together, a card for each currency", "What you are worth");
         case "table.income_sources":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: where the month's money came from, by category", "Where your money came from");
+        case "budget.progress":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: how much of each budget is spent and left", "Budgets");
         case "group.period":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a framed area with a period of its own for the widgets inside it", "Period box");
         case "notice.transfers":
@@ -78,6 +80,9 @@ QtObject {
         }
         if (dataset === "spending_by_category" && shows === "table") {
             return i18nContext.i18nc("@title", "Your biggest spending");
+        }
+        if (shows === "budget-progress") {
+            return i18nContext.i18nc("@title", "Your budgets");
         }
         if (dataset === "income_expense_by_month" && shows === "chart") {
             return i18nContext.i18nc("@title", "Money in and out");

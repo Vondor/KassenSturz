@@ -18,44 +18,11 @@ use std::collections::{HashMap, HashSet};
 use kassensturz_core::{AccountId, Budget, BudgetEvery, BudgetId, CurrencyCode, Date, Money};
 use kassensturz_store::{Corruption, StoreError};
 
-use crate::catalog::DatasetInfo;
 use crate::metrics::percent_of;
 use crate::{Filter, Percent, Period, ReportError, Source, TextFormat, TextTable};
 
 /// The dataset's ID, as dashboards and the AI name it (D-346).
 pub const BUDGET_UTILIZATION: &str = "budget_utilization";
-
-/// The budget datasets (D-346), described as the catalog describes a
-/// dataset. Like the financial datasets before M6c.2 (D-368), they join the
-/// catalog in the step that teaches the app to draw them (M6c.5), so no
-/// chart offers a dataset it cannot show yet (D-378). They are not offered
-/// to the AI: it sees budgets only with the permission grid's Budgets row
-/// (D-358, M6c.11).
-pub const BUDGETS: &[DatasetInfo] = &[DatasetInfo {
-    id: BUDGET_UTILIZATION,
-    description: "For each budget: how much was planned for one of its periods, what was carried \
-         in from the period before, what was available (planned plus carried in), what was \
-         spent, what is left (available less spent; below zero, the amount it is over by) and \
-         the share used. Spent is what was booked to the budget's category and every category \
-         inside it, each category once, by the transaction's date, from the period's first day \
-         to the day asked for (the shown period's last day, or today if that is earlier), in \
-         the category's own currency as it was booked; a refund reduces it. Hidden categories \
-         count as well, and money not sorted into a category yet is not in any budget. Without \
-         a grouping each budget shows the period that contains the day asked for; a budget that \
-         has not started or has ended by then is not shown. Grouped by period, each budget \
-         shows every one of its periods the shown period touches, up to the day asked for. \
-         With carry over on, what is left at the end of a period, or what was spent beyond it, \
-         goes into the next one; the chain starts at zero in the budget's first period. A \
-         change of the planned amount applies from one period on and never changes an earlier \
-         one. The share used is spent divided by available, rounded half away from zero to one \
-         decimal place of a percent; it has no value when nothing is available. Money moved \
-         between your own accounts and starting balances are not counted, and amounts in \
-         different currencies are never added together: there is one result per currency.",
-    groupings: &["budget", "period"],
-    suits: &["budget", "table"],
-    measures: &["spent", "left", "used_percent"],
-    for_ai: false,
-}];
 
 /// How the budgets' periods are shown (the dataset's groupings).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

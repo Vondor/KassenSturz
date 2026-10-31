@@ -38,11 +38,14 @@ ColumnLayout {
     readonly property var formulaResult: formulaView.result
     // Headings, notices and boxes show no figures: nothing is asked of the
     // book for them, so there is nothing that can fail (M6-B19).
-    readonly property bool textOnly: asked.shows !== undefined && !["chart", "table", "card", "progress"].includes(asked.shows)
+    // The budget bars (M6c.5) are drawn by `BudgetBars` from `BookBudgets`.
+    readonly property bool shownAsBudgets: asked.shows === "budget-progress"
+    readonly property bool textOnly: asked.shows !== undefined && !shownAsBudgets && !["chart", "table", "card", "progress"].includes(asked.shows)
     readonly property bool failed: usesFormula || textOnly ? false
+        : shownAsBudgets ? budgetData.view?.error !== undefined
         : asked.shows === "card" || asked.shows === "progress"
         ? cardData.view?.error !== undefined : chartData.view?.error !== undefined
-    readonly property bool nothing: !failed && !usesFormula && !textOnly && (asked.shows === "card" || asked.shows === "progress"
+    readonly property bool nothing: !failed && !usesFormula && !textOnly && !shownAsBudgets && (asked.shows === "card" || asked.shows === "progress"
         ? cardSets.length === 0 : charts.length === 0)
     // What to call it when the user gave it no title (the grid editor's
     // built-in components have none, D-316).
@@ -76,6 +79,10 @@ ColumnLayout {
         id: formulaData
     }
 
+    BookBudgets {
+        id: budgetData
+    }
+
     // The card of a formula's result, in the shape the cards of the key
     // figures have, so `KpiCard` shows it like one of them (M6b.7).
     function formulaCard(result: var): var {
@@ -100,6 +107,10 @@ ColumnLayout {
         // Read from `subject` itself: this runs from its change signal, before
         // the bindings that depend on it (`asked`) have been worked out again.
         const want = subject?.preview;
+        if (want?.shows === "budget-progress" && period !== "") {
+            budgetData.show(period, want.only);
+            return;
+        }
         if (want === undefined || period === "" || !["chart", "table", "card", "progress"].includes(want.shows)) {
             return;
         }
@@ -183,6 +194,23 @@ ColumnLayout {
                 chart: tableBox.modelData
             }
         }
+    }
+
+    Kirigami.Heading {
+        Layout.fillWidth: true
+        level: 3
+        text: preview.title
+        visible: text.length > 0 && preview.shownAsBudgets
+        wrapMode: Text.Wrap
+        textFormat: Text.PlainText
+    }
+
+    BudgetBars {
+        Layout.fillWidth: true
+        visible: preview.shownAsBudgets
+        shown: preview.shownAsBudgets ? (budgetData.view?.bars ?? []) : []
+        budgetCount: budgetData.view?.count ?? 0
+        arranging: true
     }
 
     Kirigami.Heading {

@@ -10,7 +10,7 @@
 //! the rounding rule of every ratio (D-285).
 
 use crate::{
-    ACCOUNT_BALANCES, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, FORMULA_MEASURE,
+    ACCOUNT_BALANCES, BUDGET_UTILIZATION, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, FORMULA_MEASURE,
     INCOME_EXPENSE_BY_MONTH, NET_WORTH_OVER_TIME, SPENDING_BY_CATEGORY,
 };
 
@@ -87,6 +87,35 @@ pub const CATALOG: &[DatasetInfo] = &[
              different currencies are never added together: there is one result per currency.",
         groupings: &["series"],
         suits: &["line", "stacked_bar"],
+        measures: &[],
+        for_ai: false,
+    },
+    // How much of each budget is spent and left (D-346, D-347), built in
+    // M6c.4 and drawn since M6c.5 (D-378, D-381). The AI sees budgets only
+    // with the Budgets row of the permission grid (D-358, M6c.11), so it
+    // does not know this dataset.
+    DatasetInfo {
+        id: BUDGET_UTILIZATION,
+        description: "For each budget: how much was planned for one of its periods, what was carried \
+         in from the period before, what was available (planned plus carried in), what was \
+         spent, what is left (available less spent; below zero, the amount it is over by) and \
+         the share used. Spent is what was booked to the budget's category and every category \
+         inside it, each category once, by the transaction's date, from the period's first day \
+         to the day asked for (the shown period's last day, or today if that is earlier), in \
+         the category's own currency as it was booked; a refund reduces it. Hidden categories \
+         count as well, and money not sorted into a category yet is not in any budget. Without \
+         a grouping each budget shows the period that contains the day asked for; a budget that \
+         has not started or has ended by then is not shown. Grouped by period, each budget \
+         shows every one of its periods the shown period touches, up to the day asked for. \
+         With carry over on, what is left at the end of a period, or what was spent beyond it, \
+         goes into the next one; the chain starts at zero in the budget's first period. A \
+         change of the planned amount applies from one period on and never changes an earlier \
+         one. The share used is spent divided by available, rounded half away from zero to one \
+         decimal place of a percent; it has no value when nothing is available. Money moved \
+         between your own accounts and starting balances are not counted, and amounts in \
+         different currencies are never added together: there is one result per currency.",
+        groupings: &["budget", "period"],
+        suits: &["budget"],
         measures: &[],
         for_ai: false,
     },

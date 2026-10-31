@@ -315,6 +315,64 @@ fn net_worth_over_time_is_the_balances_at_each_months_end() {
 }
 
 #[test]
+fn one_month_has_an_opening_row_with_what_you_were_worth_before_it() {
+    let f = financial();
+    let whole = july_to_november();
+    let source = Source::read_with_balances(&f.book, whole).unwrap();
+    for (first, last, before) in [
+        (date(2026, 10, 1), date(2026, 10, 31), date(2026, 9, 30)),
+        (date(2026, 10, 10), date(2026, 10, 20), date(2026, 10, 9)),
+    ] {
+        let shown = period(first, last);
+        let over_time = net_worth_over_time(&source, shown, &Filter::default(), Some(EUR)).unwrap();
+        // The converted totals have a row for the opening day too.
+        assert_eq!(over_time.converted.len(), 2);
+        for result in &over_time.results {
+            assert_eq!(result.rows.len(), 2, "{first}");
+            let [opening, closing] = &result.rows[..] else {
+                unreachable!()
+            };
+            assert!(opening.opening && !closing.opening);
+            assert_eq!((opening.day, closing.day), (before, last));
+            for row in &result.rows {
+                let balances = account_balances(
+                    &source,
+                    period(whole.first(), row.day),
+                    &Filter::default(),
+                    None,
+                )
+                .unwrap();
+                let same = balances
+                    .results
+                    .iter()
+                    .find(|r| r.currency == result.currency);
+                assert_eq!(
+                    Some(row.worth),
+                    same.map(|r| r.worth),
+                    "{} {}",
+                    result.currency,
+                    row.day
+                );
+            }
+            // Named by day, ISO 8601 in the test format.
+            assert_eq!(
+                result.labels(&Words),
+                [before.to_string(), last.to_string()]
+            );
+            assert_eq!(result.to_text(&Words).rows[0][0], before.to_string());
+        }
+    }
+    // Two months or more stay one row for each month, named by month.
+    let autumn = period(date(2026, 9, 1), date(2026, 10, 31));
+    let two = net_worth_over_time(&source, autumn, &Filter::default(), None).unwrap();
+    for result in &two.results {
+        assert_eq!(result.rows.len(), 2);
+        assert!(result.rows.iter().all(|row| !row.opening));
+        assert_eq!(result.labels(&Words), ["2026-09", "2026-10"]);
+    }
+}
+
+#[test]
 fn one_currency_converts_with_the_stores_rule_and_never_guesses() {
     let f = financial();
     let whole = july_to_november();
@@ -708,12 +766,15 @@ proptest! {
             }
             // With every account chosen, the end is what you are worth;
             // without a choice, what you have.
-            let months = &worth
+            let months: Vec<&WorthRow> = worth
                 .results
                 .iter()
                 .find(|r| r.currency == result.currency)
                 .unwrap()
-                .rows;
+                .rows
+                .iter()
+                .filter(|row| !row.opening)
+                .collect();
             for (row, month) in result.rows.iter().zip(months) {
                 let expected = if everything {
                     month.worth.net_worth
@@ -722,6 +783,58 @@ proptest! {
                 };
                 prop_assert_eq!(row.end, expected);
             }
+        }
+    }
+
+    /// A period inside one month has two rows, so a line has something to
+    /// draw (M6-B27, D-407): what you were worth before its first day and at
+    /// its last, each the opening plus every part up to then, per currency.
+    #[test]
+    fn a_period_inside_one_month_has_an_opening_and_a_closing_row(
+        entries in movements(),
+        opening in prop::collection::vec(-1_000_000i64..1_000_000, 4),
+        from in 1i64..119,
+        length in 0i64..40,
+    ) {
+        let accounts = own_accounts();
+        let (source, movements) = holdings_source(&accounts, &opening, &entries);
+        let start = date(2026, 1, 1).checked_add(jiff::Span::new().days(from)).unwrap();
+        let end = start
+            .checked_add(jiff::Span::new().days(length))
+            .unwrap()
+            .min(start.last_of_month());
+        let shown = period(start, end);
+        let before = start.yesterday().unwrap();
+        let worth = net_worth_over_time(&source, shown, &Filter::default(), None).unwrap();
+        prop_assert_eq!(worth.results.len(), 2);
+        for result in &worth.results {
+            prop_assert_eq!(result.rows.len(), 2);
+            prop_assert!(result.rows[0].opening && !result.rows[1].opening);
+            prop_assert_eq!(result.rows[0].day, before);
+            prop_assert_eq!(result.rows[1].day, end);
+            // What you are worth is every balance of the currency added up.
+            let worth_on = |last: Date| -> i64 {
+                accounts
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, a)| a.currency == result.currency)
+                    .map(|(at, a)| {
+                        opening[at]
+                            + movements
+                                .iter()
+                                .filter(|m| m.account == a.id && m.day <= last)
+                                .map(|m| m.amount.minor_units())
+                                .sum::<i64>()
+                    })
+                    .sum()
+            };
+            prop_assert_eq!(result.rows[0].worth.net_worth.minor_units(), worth_on(before));
+            prop_assert_eq!(result.rows[1].worth.net_worth.minor_units(), worth_on(end));
+            // Named by their days, which differ, so a table is not read as
+            // one month twice.
+            let labels = result.labels(&Words);
+            prop_assert_eq!(labels.len(), 2);
+            prop_assert_ne!(&labels[0], &labels[1]);
         }
     }
 

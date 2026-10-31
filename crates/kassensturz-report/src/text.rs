@@ -15,6 +15,11 @@ pub trait TextFormat {
     fn amount(&self, money: Money) -> String;
     /// The month that starts on `first_day`, e.g. "October 2026".
     fn month(&self, first_day: Date) -> String;
+    /// `day` as a short date, e.g. "31 Oct 2026", for a row that is one
+    /// day's figure (D-407). Without a locale of its own, ISO 8601.
+    fn day(&self, day: Date) -> String {
+        day.to_string()
+    }
     /// `percent` as the user's number format writes it, e.g. "12,3 %".
     fn percent(&self, percent: Percent) -> String;
     /// A plain number from a formula, given in hundredths (1250 is 12.5),

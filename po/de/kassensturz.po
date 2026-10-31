@@ -13938,3 +13938,423 @@ msgid "Average of the last full period, %2 to %3: %5 per period (%4 in all), rou
 msgid_plural "Average of the last %1 full periods, %2 to %3: %5 per period (%4 in all), rounded up to a multiple of %6."
 msgstr[0] "Durchschnitt des letzten vollen Zeitraums, %2 bis %3: %5 je Zeitraum (%4 insgesamt), aufgerundet auf ein Vielfaches von %6."
 msgstr[1] "Durchschnitt der letzten %1 vollen Zeiträume, %2 bis %3: %5 je Zeitraum (%4 insgesamt), aufgerundet auf ein Vielfaches von %6."
+
+#, kde-format
+msgctxt "@info %1 is an amount of money"
+msgid "%1 less to spend, because more was spent in the period before."
+msgstr "%1 weniger zum Ausgeben, weil im Zeitraum davor mehr ausgegeben wurde."
+
+#, kde-format
+msgctxt "@info %1 is an amount of money"
+msgid "%1 carried over from the period before."
+msgstr "%1 aus dem Zeitraum davor übernommen."
+
+#, kde-format
+msgctxt "@info"
+msgid "Nothing is available to spend in this period, so there is no share to show."
+msgstr "In diesem Zeitraum steht nichts zum Ausgeben zur Verfügung, deshalb gibt es keinen Anteil zu zeigen."
+
+#, kde-format
+msgctxt "@info"
+msgid "Your budgets appear here once you set one."
+msgstr "Ihre Budgets erscheinen hier, sobald Sie eines festlegen."
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Set a budget"
+msgstr "Ein Budget festlegen"
+
+#, kde-format
+msgctxt "@info"
+msgid "None of your budgets covers these days."
+msgstr "Keines Ihrer Budgets deckt diese Tage ab."
+
+#, kde-format
+msgctxt "@info %1 is the amount spent, %2 the amount available, %3 the share used in percent"
+msgid "%1 of %2 (%3)"
+msgstr "%1 von %2 (%3)"
+
+#, kde-format
+msgctxt "@info %1 is the amount spent"
+msgid "%1 spent"
+msgstr "%1 ausgegeben"
+
+#, kde-format
+msgctxt "@info %1 is an amount of money"
+msgid "%1 over"
+msgstr "%1 darüber"
+
+#, kde-format
+msgctxt "@info %1 is an amount of money"
+msgid "%1 left"
+msgstr "%1 übrig"
+
+#, kde-format
+msgctxt "@info %1 and %2 are dates, %3 a date"
+msgid "%1 to %2. Spending counted up to %3."
+msgstr "%1 bis %2. Ausgaben gezählt bis %3."
+
+#, kde-format
+msgctxt "@title"
+msgid "Set a budget"
+msgstr "Ein Budget festlegen"
+
+#, kde-format
+msgctxt "@title %1 is the name of a category"
+msgid "Change the budget for %1"
+msgstr "Budget für %1 ändern"
+
+#, kde-format
+msgctxt "@info"
+msgid "You have no spending categories yet. Add a category for money you spend first."
+msgstr "Sie haben noch keine Kategorien für Ausgaben. Legen Sie zuerst eine Kategorie für Geld an, das Sie ausgeben."
+
+#, kde-format
+msgctxt "@label"
+msgid "Category:"
+msgstr "Kategorie:"
+
+#, kde-format
+msgctxt "@label:listbox"
+msgid "How often:"
+msgstr "Wie oft:"
+
+#, kde-format
+msgctxt "@label"
+msgid "How often:"
+msgstr "Wie oft:"
+
+#, kde-format
+msgctxt "@label:listbox the first period of a new budget"
+msgid "Start with:"
+msgstr "Beginnen mit:"
+
+#, kde-format
+msgctxt "@info %1 is a stretch of days"
+msgid "The first period is %1."
+msgstr "Der erste Zeitraum ist %1."
+
+#, kde-format
+msgctxt "@label:textbox the first day of a budget for some days"
+msgid "First day:"
+msgstr "Erster Tag:"
+
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "For example 1 Nov 2026, in your regional format"
+msgstr "Zum Beispiel 1.11.2026, in Ihrem regionalen Format"
+
+#, kde-format
+msgctxt "@label:textbox the last day of a budget for some days"
+msgid "Last day:"
+msgstr "Letzter Tag:"
+
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "For example 30 Nov 2026, in your regional format"
+msgstr "Zum Beispiel 30.11.2026, in Ihrem regionalen Format"
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Amount:"
+msgstr "Betrag:"
+
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "What you plan to spend"
+msgstr "Was Sie ausgeben möchten"
+
+#, kde-format
+msgctxt "@label:listbox the period a change starts to apply from"
+msgid "From this period on:"
+msgstr "Ab diesem Zeitraum:"
+
+#, kde-format
+msgctxt "@item:inlistbox %1 is a stretch of days"
+msgid "%1 (the first period, to correct it from the start)"
+msgstr "%1 (der erste Zeitraum, um es von Anfang an zu korrigieren)"
+
+#, kde-format
+msgctxt "@info"
+msgid "Earlier periods keep what they had, so their results don't change."
+msgstr "Frühere Zeiträume behalten, was sie hatten, ihre Ergebnisse ändern sich also nicht."
+
+#, kde-format
+msgctxt "@option:check"
+msgid "Carry over what is left"
+msgstr "Übrig Gebliebenes mitnehmen"
+
+#, kde-format
+msgctxt "@label"
+msgid "At the end of a period:"
+msgstr "Am Ende eines Zeitraums:"
+
+#, kde-format
+msgctxt "@info"
+msgid "What is left at the end of a period, or what was spent beyond it, moves into the next one."
+msgstr "Was am Ende eines Zeitraums übrig ist, oder was darüber hinaus ausgegeben wurde, geht in den nächsten über."
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Set the budget"
+msgstr "Budget festlegen"
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Save the change"
+msgstr "Änderung speichern"
+
+#, kde-format
+msgctxt "@item:inlistbox how often a budget repeats"
+msgid "Every month"
+msgstr "Jeden Monat"
+
+#, kde-format
+msgctxt "@item:inlistbox how often a budget repeats"
+msgid "Every quarter"
+msgstr "Jedes Quartal"
+
+#, kde-format
+msgctxt "@item:inlistbox how often a budget repeats"
+msgid "Every year"
+msgstr "Jedes Jahr"
+
+#, kde-format
+msgctxt "@item:inlistbox a budget for one stretch of days"
+msgid "Once, for some days"
+msgstr "Einmalig, für einige Tage"
+
+#, kde-format
+msgctxt "@item:inlistbox %1 is a stretch of days"
+msgid "%1 (this one)"
+msgstr "%1 (dieser)"
+
+#, kde-format
+msgctxt "@info %1 is how often a budget repeats, %2 an amount of money"
+msgid "%1, %2"
+msgstr "%1, %2"
+
+#, kde-format
+msgctxt "@info"
+msgid "what is left is carried over"
+msgstr "Übriges wird mitgenommen"
+
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid "Starts %1"
+msgstr "Beginnt am %1"
+
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid "Ended %1"
+msgstr "Endete am %1"
+
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid "Runs until %1"
+msgstr "Läuft bis %1"
+
+#, kde-format
+msgctxt "@title"
+msgid "Budgets"
+msgstr "Budgets"
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Add a budget"
+msgstr "Budget hinzufügen"
+
+#, kde-format
+msgctxt "@title:window"
+msgid "Delete this budget?"
+msgstr "Dieses Budget löschen?"
+
+#, kde-format
+msgctxt "@info %1 is the name of a category"
+msgid "This deletes the budget for %1 with its past results. Your transactions and categories stay as they are, and Undo brings the budget back."
+msgstr "Das löscht das Budget für %1 samt seinen früheren Ergebnissen. Ihre Buchungen und Kategorien bleiben, wie sie sind, und mit „Rückgängig“ kommt das Budget zurück."
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Delete the budget"
+msgstr "Das Budget löschen"
+
+#, kde-format
+msgctxt "@action:button keep a budget"
+msgid "Keep it"
+msgstr "Behalten"
+
+#, kde-format
+msgctxt "@info"
+msgid "A budget is what you plan to spend on a category in a month, a quarter, a year or some days. The bar shows how much of it is spent and how much is left. A budget doesn't change any transaction or total."
+msgstr "Ein Budget ist das, was Sie für eine Kategorie in einem Monat, einem Quartal, einem Jahr oder einigen Tagen ausgeben möchten. Der Balken zeigt, wie viel davon ausgegeben ist und wie viel übrig bleibt. Ein Budget ändert keine Buchung und keine Summe."
+
+#, kde-format
+msgctxt "@info"
+msgid "You have no budgets yet"
+msgstr "Sie haben noch keine Budgets"
+
+#, kde-format
+msgctxt "@info"
+msgid "Set an amount for a spending category, for example Groceries, and the Overview shows how much of it is left."
+msgstr "Legen Sie für eine Ausgabenkategorie, zum Beispiel Lebensmittel, einen Betrag fest, und die Übersicht zeigt, wie viel davon übrig ist."
+
+#, kde-format
+msgctxt "@action:button change a budget"
+msgid "Change"
+msgstr "Ändern"
+
+#, kde-format
+msgctxt "@action:button %1 is the name of a category"
+msgid "Change the budget for %1"
+msgstr "Budget für %1 ändern"
+
+#, kde-format
+msgctxt "@action:button end a budget after the current period"
+msgid "Stop"
+msgstr "Beenden"
+
+#, kde-format
+msgctxt "@action:button %1 is the name of a category"
+msgid "Stop the budget for %1"
+msgstr "Budget für %1 beenden"
+
+#, kde-format
+msgctxt "@info"
+msgid "Ends the budget after the current period. Its past results stay."
+msgstr "Beendet das Budget nach dem aktuellen Zeitraum. Seine früheren Ergebnisse bleiben."
+
+#, kde-format
+msgctxt "@action:button delete a budget"
+msgid "Delete"
+msgstr "Löschen"
+
+#, kde-format
+msgctxt "@action:button %1 is the name of a category"
+msgid "Delete the budget for %1"
+msgstr "Budget für %1 löschen"
+
+#, kde-format
+msgctxt "@info"
+msgid "Deletes the budget with its past results. Undo brings it back."
+msgstr "Löscht das Budget mit seinen früheren Ergebnissen. „Rückgängig“ bringt es zurück."
+
+#, kde-format
+msgctxt "@action:button opens the page that sets a budget for this category"
+msgid "Set a budget…"
+msgstr "Budget festlegen …"
+
+#, kde-format
+msgctxt "@info"
+msgid "This budget isn't in the book anymore. It may have just been deleted."
+msgstr "Dieses Budget ist nicht mehr im Buch. Es wurde vielleicht gerade gelöscht."
+
+#, kde-format
+msgctxt "@info %1 is the name of a category"
+msgid "%1 isn't a category for money you spend, so it can't have a budget. Choose a category for spending."
+msgstr "%1 ist keine Kategorie für Geld, das Sie ausgeben, und kann deshalb kein Budget haben. Wählen Sie eine Ausgabenkategorie."
+
+#, kde-format
+msgctxt "@info %1 is the name of a category"
+msgid "%1 already has a budget for some of these days. A category has one budget at a time: change or stop the other one first, or start this one after it ends."
+msgstr "%1 hat für einige dieser Tage schon ein Budget. Eine Kategorie hat immer nur ein Budget: Ändern oder beenden Sie zuerst das andere, oder beginnen Sie dieses erst nach dessen Ende."
+
+#, kde-format
+msgctxt "@info"
+msgid "This amount is larger than KassenSturz can add up over the periods of a budget. Enter a smaller amount."
+msgstr "Dieser Betrag ist größer, als KassenSturz über die Zeiträume eines Budgets zusammenzählen kann. Geben Sie einen kleineren Betrag ein."
+
+#, kde-format
+msgctxt "@info"
+msgid "The amount isn't in the currency of this category. Enter an amount in the category's currency."
+msgstr "Der Betrag ist nicht in der Währung dieser Kategorie. Geben Sie einen Betrag in der Währung der Kategorie ein."
+
+#, kde-format
+msgctxt "@info"
+msgid "A budget needs an amount of more than zero. Enter what you plan to spend."
+msgstr "Ein Budget braucht einen Betrag über null. Geben Sie ein, was Sie ausgeben möchten."
+
+#, kde-format
+msgctxt "@info"
+msgid "A budget for every month, quarter or year, and a change to it, starts on the first day of one. Choose one of the periods in the list."
+msgstr "Ein Budget für jeden Monat, jedes Quartal oder jedes Jahr und eine Änderung daran beginnt am ersten Tag eines solchen Zeitraums. Wählen Sie einen der Zeiträume aus der Liste."
+
+#, kde-format
+msgctxt "@info"
+msgid "A budget for every month, quarter or year ends on the last day of one. Choose one of the periods in the list."
+msgstr "Ein Budget für jeden Monat, jedes Quartal oder jedes Jahr endet am letzten Tag eines solchen Zeitraums. Wählen Sie einen der Zeiträume aus der Liste."
+
+#, kde-format
+msgctxt "@info"
+msgid "The last day can't be before the first day. Choose other days."
+msgstr "Der letzte Tag darf nicht vor dem ersten Tag liegen. Wählen Sie andere Tage."
+
+#, kde-format
+msgctxt "@info"
+msgid "A budget for some days needs a last day. Enter the last day."
+msgstr "Ein Budget für einige Tage braucht einen letzten Tag. Geben Sie den letzten Tag ein."
+
+#, kde-format
+msgctxt "@info"
+msgid "A budget for some days can cover at most 100 years. Choose other days."
+msgstr "Ein Budget für einige Tage kann höchstens 100 Jahre umfassen. Wählen Sie andere Tage."
+
+#, kde-format
+msgctxt "@info"
+msgid "A budget for some days has no next period to carry anything into. Switch off carrying over."
+msgstr "Ein Budget für einige Tage hat keinen nächsten Zeitraum, in den etwas mitgenommen werden könnte. Schalten Sie das Mitnehmen aus."
+
+#, kde-format
+msgctxt "@info"
+msgid "A change can't apply before the budget starts or after it ends. Choose one of the periods in the list."
+msgstr "Eine Änderung kann nicht vor dem Beginn oder nach dem Ende des Budgets gelten. Wählen Sie einen der Zeiträume aus der Liste."
+
+#, kde-format
+msgctxt "@info"
+msgid "These days don't fit the budget. Choose other days."
+msgstr "Diese Tage passen nicht zum Budget. Wählen Sie andere Tage."
+
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "A budget can keep at most %1 changes of its amount. Change the amount from an earlier period on instead."
+msgstr "Ein Budget kann höchstens %1 Änderungen seines Betrags behalten. Ändern Sie den Betrag stattdessen ab einem früheren Zeitraum."
+
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "A book can keep at most %1 budgets. Delete a budget you no longer need."
+msgstr "Ein Buch kann höchstens %1 Budgets behalten. Löschen Sie ein Budget, das Sie nicht mehr brauchen."
+
+#, kde-format
+msgctxt "@item:inlistbox a part of the layout: how much of each budget is spent and left"
+msgid "Budgets"
+msgstr "Budgets"
+
+#, kde-format
+msgctxt "@title"
+msgid "Your budgets"
+msgstr "Ihre Budgets"
+
+#, kde-format
+msgctxt "@action:inmenu a screen"
+msgid "Budgets"
+msgstr "Budgets"
+
+#, kde-format
+msgctxt "@item:inlistbox what a component shows"
+msgid "How much of each budget is spent and left"
+msgstr "Wie viel von jedem Budget ausgegeben und übrig ist"
+
+#, kde-format
+msgctxt "@info"
+msgid "Shows, for each budget, what is planned, what is spent and what is left in its period. Leave the list empty to show every budget."
+msgstr "Zeigt für jedes Budget, was geplant, was ausgegeben und was in seinem Zeitraum übrig ist. Lassen Sie die Liste leer, um jedes Budget zu zeigen."
+
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Each budget"
+msgstr "Jedes Budget"
+
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Each period of a budget"
+msgstr "Jeder Zeitraum eines Budgets"

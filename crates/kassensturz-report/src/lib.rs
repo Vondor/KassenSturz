@@ -61,7 +61,7 @@ pub use balances::{
     NET_WORTH_OVER_TIME, NetWorthOverTime, Worth, WorthRow, account_balances, net_worth_over_time,
 };
 pub use budget_utilization::{
-    BUDGET_UTILIZATION, BUDGETS, BudgetGrouping, BudgetNote, BudgetPeriod, BudgetUtilization,
+    BUDGET_UTILIZATION, BudgetGrouping, BudgetNote, BudgetPeriod, BudgetUtilization,
     budget_utilization,
 };
 pub use cash_flow::{CASH_FLOW_BY_MONTH, CashFlowByMonth, CashFlowRow, cash_flow_by_month};

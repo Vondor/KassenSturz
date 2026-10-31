@@ -33,6 +33,8 @@ Kirigami.ScrollablePage {
 
     // The page is done: a category was added, or the changes were saved.
     signal done()
+    // The user wants to set a budget for this category (M6c.5).
+    signal setBudgetClicked(categoryId: string)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -45,6 +47,16 @@ Kirigami.ScrollablePage {
         id: error
         forCategory: true
     }
+
+    actions: [
+        Kirigami.Action {
+            icon.name: "wallet-open"
+            // Only a category for money spent can have a budget (D-344).
+            visible: !page.adding && !page.income
+            text: page.i18nContext.i18nc("@action:button opens the page that sets a budget for this category", "Set a budget…")
+            onTriggered: page.setBudgetClicked(page.categoryId)
+        }
+    ]
 
     // The ID of the category chosen in the list, empty for the top level.
     function chosenParent(): string {

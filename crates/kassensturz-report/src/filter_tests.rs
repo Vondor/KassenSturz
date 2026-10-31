@@ -533,7 +533,9 @@ fn a_budget_counts_every_account_and_takes_the_categories() {
     let today = date(2026, 12, 1);
     let shown = period(date(2026, 9, 1), date(2026, 9, 30));
     let source = Source::read_with_budgets(&base.book, shown, today).expect("read");
-    let takes = BUDGETS[0].takes;
+    let takes = crate::dataset(BUDGET_UTILIZATION)
+        .expect("in the catalog")
+        .takes;
     assert_eq!(takes, Takes::NO_ACCOUNTS);
 
     // The bar's accounts are not applied: both budgets, all their spending.
@@ -568,7 +570,7 @@ fn a_budget_counts_every_account_and_takes_the_categories() {
 #[test]
 fn every_dataset_says_what_it_takes() {
     let takes = |id: &str| crate::dataset(id).map(|dataset| dataset.takes);
-    for dataset in crate::CATALOG.iter().chain(BUDGETS) {
+    for dataset in crate::CATALOG.iter() {
         assert!(dataset.takes.period, "{} takes the period", dataset.id);
     }
     assert_eq!(takes(SPENDING_BY_CATEGORY), Some(Takes::ALL));
@@ -577,7 +579,7 @@ fn every_dataset_says_what_it_takes() {
     for id in [ACCOUNT_BALANCES, NET_WORTH_OVER_TIME, CASH_FLOW_BY_MONTH] {
         assert_eq!(takes(id), Some(Takes::NO_CATEGORIES), "{id}");
     }
-    assert_eq!(BUDGETS[0].takes, Takes::NO_ACCOUNTS);
+    assert_eq!(takes(BUDGET_UTILIZATION), Some(Takes::NO_ACCOUNTS));
 
     // The cards the page fills take what the dataset they come from takes;
     // what shows no figures takes nothing.

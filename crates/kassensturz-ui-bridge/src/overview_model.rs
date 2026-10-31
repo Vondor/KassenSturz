@@ -186,6 +186,7 @@ fn view_object(view: &OverviewView, gaps: &[FetchGap]) -> QVariant {
     });
     let latest = view.latest.iter().map(latest_row_object);
     let transfers = i32::try_from(view.transfers).unwrap_or(i32::MAX);
+    let budgets = i32::try_from(view.budgets).unwrap_or(i32::MAX);
     map([
         ("month", text(&view.month)),
         ("monthKey", text(&view.month_key)),
@@ -196,6 +197,7 @@ fn view_object(view: &OverviewView, gaps: &[FetchGap]) -> QVariant {
         ("sections", sections_object(&view.accounts)),
         ("totals", list(totals)),
         ("transfers", QVariant::from(&transfers)),
+        ("budgets", QVariant::from(&budgets)),
         ("latest", list(latest)),
         ("fetchGaps", list(gaps.iter().map(fetch_gap_object))),
     ])
@@ -210,7 +212,7 @@ mod tests {
     use crate::accounts::{NewAccount, add_account};
     use crate::fetch_gap;
     use crate::register::tests::TestLocale;
-    use crate::variant::read_back::{keys, list_of, text_of};
+    use crate::variant::read_back::{keys, list_of, number_of, text_of};
 
     /// A fetch gap read back the way QML reads it, from a book where the
     /// store's own operations made the link and noted the fetch.
@@ -266,5 +268,40 @@ mod tests {
         // With the warning off, the list is there and empty.
         let off = view_object(&view, &[]);
         assert!(list_of(&off, "fetchGaps").is_empty());
+    }
+
+    /// The budget count the Overview grid collapses the budget bars by,
+    /// read back from a book where the real store holds a budget (D-357).
+    #[test]
+    fn the_number_of_budgets_reads_back_for_the_grid() {
+        use crate::categories::{NewCategory, add_category};
+        use kassensturz_core::{BudgetEvery, CurrencyCode, Money};
+
+        let eur = CurrencyCode::new("EUR").expect("EUR");
+        let mut book = Book::create_in_memory().expect("book in memory");
+        book.use_currency(eur).expect("currency used");
+        let month = overview::Month::of(Date::new(2026, 10, 25).expect("a date"));
+        let shown = |book: &Book| {
+            let view = overview::view(book, month, &TestLocale).expect("overview");
+            view_object(&view, &[])
+        };
+        assert_eq!(number_of(&shown(&book), "budgets"), 0);
+        let new = NewCategory {
+            name: "Food",
+            income: false,
+            parent: "",
+            currency: "",
+        };
+        let food = add_category(&mut book, &new, eur).expect("category");
+        book.add_budget(
+            food,
+            BudgetEvery::Month,
+            Date::new(2026, 10, 1).expect("a date"),
+            None,
+            Money::from_minor_units(10_000, eur),
+            false,
+        )
+        .expect("budget");
+        assert_eq!(number_of(&shown(&book), "budgets"), 1);
     }
 }

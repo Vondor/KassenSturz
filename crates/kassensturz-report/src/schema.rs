@@ -78,12 +78,10 @@ pub enum ComponentType {
     /// category (D-336). The page fills it.
     IncomeSources,
     /// `budget.progress`: one bar per budget, or for the budgets of the
-    /// chosen categories, from `budget_utilization` (D-357, D-378). Its
-    /// type is here; it joins [`ComponentType::LIBRARY`] and its dataset the
-    /// catalog in the step that draws it (M6c.5), so until then a document
-    /// that names it shows the placeholder of a type the app doesn't know
-    /// (D-278). It is not in [`ComponentType::ALL`]: the AI sees budgets
-    /// only with the Budgets row of the permission grid (D-358).
+    /// chosen categories, from `budget_utilization` (D-357, D-378). It is
+    /// in [`ComponentType::LIBRARY`] since M6c.5 draws it (D-381), but not
+    /// in [`ComponentType::ALL`]: the AI sees budgets only with the Budgets
+    /// row of the permission grid (D-358).
     BudgetProgress,
 }
 
@@ -104,7 +102,7 @@ impl ComponentType {
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
     /// the heading (D-312).
-    pub const LIBRARY: [Self; 16] = [
+    pub const LIBRARY: [Self; 17] = [
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -121,6 +119,7 @@ impl ComponentType {
         Self::PeriodBox,
         Self::NetWorth,
         Self::IncomeSources,
+        Self::BudgetProgress,
     ];
 
     /// Whether the component shows no figures of the book: its document names

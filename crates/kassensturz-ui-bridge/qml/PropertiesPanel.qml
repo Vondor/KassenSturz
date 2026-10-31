@@ -61,6 +61,8 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox what a chart shows", "Categories and groups you pick, month by month");
         case "income_expense_by_month":
             return i18nContext.i18nc("@item:inlistbox what a chart shows", "Money in and money out, by month");
+        case "budget_utilization":
+            return i18nContext.i18nc("@item:inlistbox what a component shows", "How much of each budget is spent and left");
         case "account_balances":
             return i18nContext.i18nc("@item:inlistbox what a chart shows", "What your accounts hold");
         case "net_worth_over_time":
@@ -79,6 +81,8 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "Shows what you spent or received in each month for the categories and groups you pick, one line each. A group counts all its categories, hidden ones too.");
         case "income_expense_by_month":
             return i18nContext.i18nc("@info", "Shows what came in and what went out in each month. Money moved between your own accounts is not counted.");
+        case "budget_utilization":
+            return i18nContext.i18nc("@info", "Shows, for each budget, what is planned, what is spent and what is left in its period. Leave the list empty to show every budget.");
         case "account_balances":
             return i18nContext.i18nc("@info", "Shows what each account held at the end of the period, and what you have, what you owe and what you are worth. Each currency is shown on its own; they are never added together.");
         case "net_worth_over_time":
@@ -129,6 +133,10 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox", "My groups, with the other categories on their own");
         case "month":
             return i18nContext.i18nc("@item:inlistbox", "Month");
+        case "budget":
+            return i18nContext.i18nc("@item:inlistbox", "Each budget");
+        case "period":
+            return i18nContext.i18nc("@item:inlistbox", "Each period of a budget");
         case "account":
             return i18nContext.i18nc("@item:inlistbox", "Each account");
         case "account_kind":
@@ -175,7 +183,9 @@ ColumnLayout {
     // the categories and groups of both kinds (`series`).
     function idOptions(key: string): var {
         const book = choices?.view ?? ({});
-        const groups = (book.groups ?? [])
+        // A budget belongs to a category, not to a group (D-357).
+        const forBudgets = view.preview?.shows === "budget-progress";
+        const groups = (forBudgets ? [] : book.groups ?? [])
             .filter(group => (key !== "groups" && key !== "categories") || !group.income)
             .map(group => ({id: group.id, name: i18nContext.i18nc("@option:check %1 is the name of a group", "%1 (group)", group.name)}));
         if (key === "groups") {

@@ -142,7 +142,7 @@ Window {
 
             // The words for a title: four to pick, and they are worked out for
             // the period, in the language of the app.
-            const wordButtons = window.find(panel, "Button", []).filter(button => button.text.startsWith("$"));
+            const wordButtons = window.find(panel, "Button", []).filter(button => typeof button.text === "string" && button.text.startsWith("$") && button.text.length > 1);
             window.check(wordButtons.length === 4, "four title words to pick, got " + wordButtons.length);
             const october = Qt.locale().monthName(9, Locale.LongFormat);
             window.check(panel.titleWords.resolve("Spending in $month", "2026-10") === "Spending in " + october, "month word: " + panel.titleWords.resolve("Spending in $month", "2026-10"));

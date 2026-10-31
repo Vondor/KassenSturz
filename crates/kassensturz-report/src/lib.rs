@@ -24,8 +24,12 @@
 //! accounts come from the accounts' balances, which the [`Source`] reads too
 //! ([`account_balances`], [`net_worth_over_time`], [`cash_flow_by_month`],
 //! D-348, D-349).
+//!
+//! How much of each budget is spent and left comes from the budgets the
+//! [`Source`] reads with the parts ([`budget_utilization`], D-346, D-347).
 
 mod balances;
+mod budget_utilization;
 mod cash_flow;
 mod catalog;
 mod columns;
@@ -50,6 +54,10 @@ mod text;
 pub use balances::{
     ACCOUNT_BALANCES, AccountBalance, AccountBalances, Converted, CurrencyBalances, CurrencyWorth,
     NET_WORTH_OVER_TIME, NetWorthOverTime, Worth, WorthRow, account_balances, net_worth_over_time,
+};
+pub use budget_utilization::{
+    BUDGET_UTILIZATION, BUDGETS, BudgetGrouping, BudgetNote, BudgetPeriod, BudgetUtilization,
+    budget_utilization,
 };
 pub use cash_flow::{CASH_FLOW_BY_MONTH, CashFlowByMonth, CashFlowRow, cash_flow_by_month};
 pub use catalog::{CATALOG, DatasetInfo, GROUPS_GROUPING, dataset};
@@ -94,6 +102,8 @@ pub use spending::{
 };
 pub use text::{TextFormat, TextTable};
 
+#[cfg(test)]
+mod budget_tests;
 #[cfg(test)]
 mod columns_tests;
 #[cfg(test)]

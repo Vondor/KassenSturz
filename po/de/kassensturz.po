@@ -13229,3 +13229,58 @@ msgstr "Geben Sie ihr einen Namen und ziehen Sie dann Kategorien hinein, oder le
 msgctxt "@action:button show or hide the lists of categories, groups and lines"
 msgid "Advanced: pick from lists"
 msgstr "Erweitert: aus Listen wählen"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+msgctxt "@label words that can be put into a title"
+msgid "Add:"
+msgstr "Einfügen:"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+msgctxt "@info %1 is the title as it is shown"
+msgid "Shown as: %1"
+msgstr "Wird angezeigt als: %1"
+
+#: crates/kassensturz-ui-bridge/qml/TitleWords.qml
+msgctxt "@info:tooltip a word for titles"
+msgid "The month of the period, e.g. October"
+msgstr "Der Monat des Zeitraums, z. B. Oktober"
+
+#: crates/kassensturz-ui-bridge/qml/TitleWords.qml
+msgctxt "@info:tooltip a word for titles"
+msgid "The year of the period, e.g. 2026"
+msgstr "Das Jahr des Zeitraums, z. B. 2026"
+
+#: crates/kassensturz-ui-bridge/qml/TitleWords.qml
+msgctxt "@info:tooltip a word for titles"
+msgid "The whole period, e.g. October 2026"
+msgstr "Der ganze Zeitraum, z. B. Oktober 2026"
+
+#: crates/kassensturz-ui-bridge/qml/TitleWords.qml
+msgctxt "@info:tooltip a word for titles"
+msgid "Today's date"
+msgstr "Das heutige Datum"
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+msgctxt "@action:button select the period box, to change or move it"
+msgid "Period box"
+msgstr "Zeitraum-Rahmen"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info a mistake in a formula"
+msgid "There is a ) too many. Take it out, or add a ( before it."
+msgstr "Hier ist eine ) zu viel. Nehmen Sie sie heraus oder setzen Sie davor eine ( dazu."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info a mistake in a formula"
+msgid "A ) is missing at the end. Add it to close the bracket."
+msgstr "Am Ende fehlt eine ). Fügen Sie sie hinzu, um die Klammer zu schließen."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info a mistake in a formula; %1 is what was typed"
+msgid "“%1” is not a function. The functions are %2."
+msgstr "„%1“ ist keine Funktion. Es gibt: %2."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@info a mistake in a formula; %1 is what was typed"
+msgid "“%1” is not the name of a column, category or group. Pick one from the suggestions."
+msgstr "„%1“ ist weder der Name einer Spalte noch einer Kategorie oder Gruppe. Wählen Sie einen Vorschlag aus."

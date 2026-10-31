@@ -73,6 +73,7 @@ fn main() {
                 "qml/FormError.qml",
                 "qml/AddMenu.qml",
                 "qml/GridNames.qml",
+                "qml/TitleWords.qml",
                 "qml/GridItem.qml",
                 "qml/DashboardGrid.qml",
                 "qml/HistoryPage.qml",

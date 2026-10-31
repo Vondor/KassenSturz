@@ -140,6 +140,16 @@ Window {
             const expected = ["setWord:grouping:top_level_category", "setText:title:New title", "setFlag:legend:true"];
             window.check(JSON.stringify(window.calls) === JSON.stringify(expected), "calls: " + JSON.stringify(window.calls));
 
+            // The words for a title: four to pick, and they are worked out for
+            // the period, in the language of the app.
+            const wordButtons = window.find(panel, "Button", []).filter(button => typeof button.text === "string" && button.text.startsWith("$") && button.text.length > 1);
+            window.check(wordButtons.length === 4, "four title words to pick, got " + wordButtons.length);
+            const october = Qt.locale().monthName(9, Locale.LongFormat);
+            window.check(panel.titleWords.resolve("Spending in $month", "2026-10") === "Spending in " + october, "month word: " + panel.titleWords.resolve("Spending in $month", "2026-10"));
+            window.check(panel.titleWords.resolve("$period", "2026-10") === october + " 2026", "period word");
+            window.check(panel.titleWords.resolve("$year", "last-year") === String(new Date().getFullYear() - 1), "year word");
+            window.check(panel.titleWords.resolve("Plain $months title", "2026-10") === "Plain $months title", "other text stays as typed");
+
             // The formula field (M6b.7): the formula as it was kept, the result
             // with what it counted, and every change passed on as one call.
             const formulas = window.find(panel, "FormulaField", []);

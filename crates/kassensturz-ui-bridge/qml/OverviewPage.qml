@@ -466,6 +466,8 @@ Kirigami.ScrollablePage {
             Controls.ScrollView {
                 Layout.fillWidth: true
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 22
+                // Headings, notices and boxes have no figures to show.
+                visible: ["chart", "table", "card", "progress"].includes(panelModel.view.preview?.shows)
                 contentWidth: availableWidth
                 clip: true
 

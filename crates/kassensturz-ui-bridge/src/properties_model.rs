@@ -191,6 +191,7 @@ pub(crate) fn view_object(
                 ("usesFormula", QVariant::from(&preview.uses_formula)),
                 ("formula", text(&preview.formula)),
                 ("target", text(&preview.target)),
+                ("scope", text(&preview.scope)),
             ]),
         ));
     }
@@ -397,6 +398,7 @@ mod tests {
                 "grouping",
                 "measure",
                 "only",
+                "scope",
                 "showHidden",
                 "shows",
                 "target",

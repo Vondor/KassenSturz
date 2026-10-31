@@ -16,8 +16,8 @@
 use kassensturz_core::{StoredView, ViewId, ViewKind};
 use kassensturz_report::grid::{self, COLUMNS, MAX_ROWS};
 use kassensturz_report::{
-    Component, ComponentType, Document, Edit, Editor, Entry, Frame, Item, OVERVIEW_NAME,
-    ReportError, Setting,
+    Asked, Component, ComponentType, Document, Edit, Editor, Entry, Filters, Frame, Item,
+    OVERVIEW_NAME, ReportError, Setting,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -126,7 +126,9 @@ pub fn save_as(book: &mut Book, editor: &Editor, name: &str) -> Result<String, L
 pub fn load(book: &Book, editor: &mut Editor, id: &str) -> Result<bool, LayoutError> {
     let stored = saved_layout(book, id)?;
     let document = Document::read(&stored.document)?;
-    Ok(editor.load(&document.entries)?)
+    // A saved layout carries its filters with it (D-351).
+    let filters = editor.set_filters(&document.filters())?;
+    Ok(editor.load(&document.entries)? || filters)
 }
 
 /// Deletes a saved layout from the book. The Overview's own layout is not a
@@ -183,7 +185,10 @@ impl Layout {
 
     /// Whether the components are the built-in layout's.
     pub fn is_built_in(&self) -> bool {
-        built_in().is_ok_and(|entries| entries == self.editor.document().entries)
+        // A layout that carries filters is no longer the built-in one: it
+        // has to be kept to keep them.
+        self.editor.filters() == Filters::default()
+            && built_in().is_ok_and(|entries| entries == self.editor.document().entries)
     }
 
     /// Writes the session to the book as one entry of its change history.
@@ -226,11 +231,15 @@ pub struct Row {
     pub least: grid::Size,
     /// The component; `None` for one of a type this version doesn't know.
     pub component: Option<Component>,
+    /// What it asks for with the filter bar's choices (M6c.7); `None` for a
+    /// component that shows no figures.
+    pub asked: Option<Asked>,
 }
 
 /// The components in reading order (D-287), which is the order of the
-/// screen's Tab key, the screen reader and a narrow window.
-pub fn rows(editor: &Editor) -> Vec<Row> {
+/// screen's Tab key, the screen reader and a narrow window. `bar` is what
+/// the filter bar holds now (D-350).
+pub fn rows(editor: &Editor, bar: &Filters) -> Vec<Row> {
     let entries = &editor.document().entries;
     grid::reading_order(entries)
         .into_iter()
@@ -244,6 +253,7 @@ pub fn rows(editor: &Editor) -> Vec<Row> {
                     Item::Component(component) => Some(component.clone()),
                     Item::Unknown(_) => None,
                 },
+                asked: editor.document().asked(&entry.id, bar),
             })
         })
         .collect()
@@ -258,6 +268,13 @@ pub fn total_rows(editor: &Editor) -> u32 {
         .filter_map(|entry| entry.frame.map(Frame::bottom))
         .max()
         .unwrap_or(0)
+}
+
+/// Sets the filters the layout carries (D-351): kept with the layout when
+/// the session is saved, not an edit on its stack. Gives whether they
+/// changed.
+pub fn set_filters(editor: &mut Editor, filters: &Filters) -> Result<bool, LayoutError> {
+    Ok(editor.set_filters(filters)?)
 }
 
 /// The grid's size, for the screen: columns and the most rows a component
@@ -369,7 +386,7 @@ mod tests {
         assert!(layout.is_built_in());
         assert!(!layout.damaged);
         assert!(!layout.editor.has_changes());
-        let shown = rows(&layout.editor);
+        let shown = rows(&layout.editor, &Filters::default());
         assert_eq!(shown.len(), 12);
         // Reading order: the bank warnings, the four cards, the budget bars,
         // then the donut and the table, the line, and the note about
@@ -561,13 +578,13 @@ mod tests {
         let mut layout = Layout::open(&book()).unwrap();
         for (kind, _) in offered {
             let id = add(&mut layout.editor, kind).unwrap();
-            let row = rows(&layout.editor)
+            let row = rows(&layout.editor, &Filters::default())
                 .into_iter()
                 .find(|row| row.id == id)
                 .unwrap();
             assert_eq!(row.component.unwrap().kind().id(), kind);
         }
-        assert_eq!(rows(&layout.editor).len(), 29);
+        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 29);
         assert!(add(&mut layout.editor, "chart.radar").is_err());
     }
 
@@ -575,7 +592,7 @@ mod tests {
     fn a_component_is_added_with_the_dataset_asked_for_when_its_type_can_show_it() {
         let mut layout = Layout::open(&book()).unwrap();
         let shown = |layout: &Layout, id: &str| {
-            let row = rows(&layout.editor)
+            let row = rows(&layout.editor, &Filters::default())
                 .into_iter()
                 .find(|row| row.id == id)
                 .unwrap();
@@ -622,9 +639,9 @@ mod tests {
         let opened = saved_views::open(&book, &id).unwrap();
 
         let mut layout = Layout::open(&book).unwrap();
-        let before = rows(&layout.editor).len();
+        let before = rows(&layout.editor, &Filters::default()).len();
         let added = add_view(&mut layout.editor, &opened.component, &opened.period).unwrap();
-        let all = rows(&layout.editor);
+        let all = rows(&layout.editor, &Filters::default());
         assert_eq!(all.len(), before + 1);
         let value = all
             .into_iter()
@@ -652,7 +669,7 @@ mod tests {
             .set("text", kassensturz_report::Setting::Text("Spending".into()))
             .unwrap();
         assert!(set_component(&mut layout.editor, &id, &heading.to_value().to_string()).unwrap());
-        let row = rows(&layout.editor)
+        let row = rows(&layout.editor, &Filters::default())
             .into_iter()
             .find(|row| row.id == id)
             .unwrap();

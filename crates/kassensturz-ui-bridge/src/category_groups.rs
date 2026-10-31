@@ -55,9 +55,22 @@ pub struct GroupRow {
     pub members: Vec<MemberRow>,
 }
 
+/// One of the user's own accounts, for the lists of the filter bar (M6c.7).
+#[derive(Debug, PartialEq, Eq)]
+pub struct AccountRow {
+    /// The account's ID as text.
+    pub id: String,
+    /// Its name.
+    pub name: String,
+    /// Whether it is closed.
+    pub closed: bool,
+}
+
 /// Everything the page shows.
 #[derive(Debug)]
 pub struct GroupsView {
+    /// The user's own accounts, open ones first, by name.
+    pub accounts: Vec<AccountRow>,
     /// The groups in the order of the list.
     pub groups: Vec<GroupRow>,
     /// The categories in tree order, for picking members and hiding.
@@ -110,7 +123,22 @@ pub fn view(book: &Book) -> Result<GroupsView, StoreError> {
         .into_iter()
         .map(|id| id.to_string())
         .collect();
+    let mut accounts: Vec<AccountRow> = book
+        .accounts(true)?
+        .into_iter()
+        .map(|account| AccountRow {
+            id: account.id.to_string(),
+            name: account.name,
+            closed: account.closed,
+        })
+        .collect();
+    accounts.sort_by(|a, b| {
+        a.closed
+            .cmp(&b.closed)
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
     Ok(GroupsView {
+        accounts,
         groups,
         categories,
         hidden,

@@ -21,6 +21,7 @@ use kassensturz_store::Book;
 
 use crate::charts::{AppText, ChartsError, period};
 use crate::format::Locale;
+use crate::scope::{FilterView, Scope};
 
 /// What the user asked for, by the fixed names QML uses.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -33,6 +34,8 @@ pub struct Request {
     pub period: String,
     /// `previous_period` or `same_last_year` (the ids of `Compare`).
     pub compare: String,
+    /// The filters the dashboard puts on the component (M6c.7, D-350).
+    pub scope: Scope,
 }
 
 /// Which way a figure moved against the earlier period.
@@ -202,11 +205,12 @@ fn balance_cards<L: Locale>(
     source: &Source,
     period: kassensturz_report::Period,
     compare: Compare,
+    filter: &Filter,
     text: &AppText<'_, L>,
 ) -> Result<Vec<CardSet>, ChartsError> {
     let earlier = compare.earlier(period)?;
     let worths = |period| -> Result<Vec<Worth>, ReportError> {
-        Ok(account_balances(source, period, &Filter::default(), None)?
+        Ok(account_balances(source, period, filter, None)?
             .results
             .iter()
             .map(|result| result.worth)
@@ -266,11 +270,23 @@ fn balance_cards<L: Locale>(
 
 /// The cards of every currency the period or the one before has money in,
 /// in the order of the currency codes. Empty means there was nothing to show.
+#[cfg(test)]
 pub fn cards(
     book: &Book,
     locale: &impl Locale,
     request: &Request,
 ) -> Result<Vec<CardSet>, ChartsError> {
+    cards_filtered(book, locale, request).map(|(sets, _)| sets)
+}
+
+/// As [`cards`], with the marks and notes about the filters the request's
+/// scope puts on the figures (M6c.7, D-350). A filter that chooses nothing
+/// gives no cards.
+pub fn cards_filtered(
+    book: &Book,
+    locale: &impl Locale,
+    request: &Request,
+) -> Result<(Vec<CardSet>, FilterView), ChartsError> {
     let period = period(book, &request.period, locale.today())?;
     let compare = Compare::from_id(&request.compare).ok_or(ChartsError::UnknownName("compare"))?;
     let span = comparison_span(period, compare)?;
@@ -278,13 +294,23 @@ pub fn cards(
     match request.dataset.as_str() {
         "" | INCOME_EXPENSE_BY_MONTH => {
             let source = Source::read(book, span)?;
-            let (_, changes) =
-                compare_income_expense(&source, period, &Filter::default(), compare)?;
-            Ok(changes.iter().map(|change| set(change, &text)).collect())
+            let (filter, view) = request.scope.resolve(book, &source)?;
+            if view.nothing {
+                return Ok((Vec::new(), view));
+            }
+            let (_, changes) = compare_income_expense(&source, period, &filter, compare)?;
+            Ok((changes.iter().map(|change| set(change, &text)).collect(), view))
         }
         ACCOUNT_BALANCES => {
             let source = Source::read_with_balances(book, span)?;
-            balance_cards(&source, period, compare, &text)
+            let (filter, view) = request.scope.resolve(book, &source)?;
+            if view.nothing {
+                return Ok((Vec::new(), view));
+            }
+            Ok((
+                balance_cards(&source, period, compare, &filter, &text)?,
+                view,
+            ))
         }
         _ => Err(ChartsError::UnknownName("dataset")),
     }

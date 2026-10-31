@@ -19,7 +19,11 @@ use kassensturz_core::ViewKind;
 use crate::grid::{
     self, COLUMNS, LAST_ROW, MAX_ROWS, Size, first_free, is_box, push_down, refused,
 };
-use crate::{Component, ComponentType, Document, Entry, Frame, Item, MAX_COMPONENTS, ReportError};
+use crate::filter::{Dimension, check_list};
+use crate::{
+    Component, ComponentType, Document, Entry, Filters, Frame, Item, MAX_COMPONENTS, PERIODS,
+    ReportError, read_range_word,
+};
 
 /// The most edits the editor can take back (D-288).
 pub const MAX_UNDO: usize = 200;
@@ -75,6 +79,7 @@ struct Step {
 pub struct Editor {
     document: Document,
     start: Vec<Entry>,
+    start_filters: Filters,
     undo: VecDeque<Step>,
     redo: Vec<Step>,
 }
@@ -155,6 +160,7 @@ impl Editor {
         check(&document.entries)?;
         Ok(Self {
             start: document.entries.clone(),
+            start_filters: document.filters(),
             document,
             undo: VecDeque::new(),
             redo: Vec::new(),
@@ -182,7 +188,43 @@ impl Editor {
     /// Whether the dashboard differs from what the session started with, so
     /// Cancel must ask before throwing the changes away.
     pub fn has_changes(&self) -> bool {
-        self.document.entries != self.start
+        self.document.entries != self.start || self.document.filters() != self.start_filters
+    }
+
+    /// What the dashboard's own filter bar holds (D-351): the filters that
+    /// are saved with the layout.
+    pub fn filters(&self) -> Filters {
+        self.document.filters()
+    }
+
+    /// Sets the filters the layout carries (M6c.7, D-351). They are not an
+    /// edit on the stack: they are kept with the layout when the session is
+    /// stored, as part of its one history entry, and dropped with it on
+    /// Cancel. Refused: a list of more than [`crate::MAX_FILTER_IDS`] IDs or
+    /// with one twice (`report.filter-invalid`); a period that is neither a
+    /// fixed one nor a typed range (`report.document-invalid`). An ID the book no longer knows
+    /// is kept, so the user can take it out. Gives `false` when nothing
+    /// changed.
+    pub fn set_filters(&mut self, filters: &Filters) -> Result<bool, ReportError> {
+        if filters
+            .period
+            .as_deref()
+            .is_some_and(|period| !PERIODS.contains(&period) && read_range_word(period).is_none())
+        {
+            return Err(ReportError::DocumentInvalid {
+                reason: "bad-choice",
+                path: "filters.period".into(),
+            });
+        }
+        check_list(Dimension::Accounts, &filters.accounts)?;
+        check_list(Dimension::Categories, &filters.categories)?;
+        if self.document.filters() == *filters {
+            return Ok(false);
+        }
+        self.document.period.clone_from(&filters.period);
+        self.document.accounts.clone_from(&filters.accounts);
+        self.document.categories.clone_from(&filters.categories);
+        Ok(true)
     }
 
     /// The edit that Undo would take back, if any.

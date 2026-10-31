@@ -24,6 +24,7 @@ use crate::charts::{AppText, ChartsError, period};
 use crate::errors::{ErrorText, report_text};
 use crate::format::Locale;
 use crate::parse::{AmountInputError, AmountReader};
+use crate::scope::{FilterView, Scope};
 
 /// How many periods back a change or a start can reach in the lists of the
 /// page: a long-running budget keeps the list short, and its first period is
@@ -215,32 +216,34 @@ fn bar<L: Locale>(
 /// earlier. `only` are the IDs of categories: only the budgets of those and
 /// the categories inside them (empty: every budget). A budget that has not
 /// started or has ended by then has no bar.
-pub fn bars(
+pub fn bars_filtered(
     book: &Book,
     locale: &impl Locale,
     period_key: &str,
     only: &[String],
-) -> Result<Vec<Bar>, BudgetsError> {
+    scope: &Scope,
+) -> Result<(Vec<Bar>, FilterView), BudgetsError> {
     let today = locale.today();
     let period = period(book, period_key, today)?;
-    let filter = if only.is_empty() {
-        Filter::default()
-    } else {
+    let source = Source::read_with_budgets(book, period, today)?;
+    // The filter bar's or the component's own categories (M6c.7); budgets
+    // count every account, so the accounts are noted and not applied.
+    let (mut filter, view) = scope.resolve(book, &source)?;
+    if view.nothing {
+        return Ok((Vec::new(), view));
+    }
+    if filter.categories.is_none() && !only.is_empty() {
         let ids: Vec<AccountId> = book
             .categories()?
             .into_iter()
             .map(|entry| entry.category.id)
             .filter(|id| only.contains(&id.to_string()))
             .collect();
-        Filter {
-            accounts: None,
-            categories: Some(ids),
-        }
-    };
-    let source = Source::read_with_budgets(book, period, today)?;
+        filter.categories = Some(ids);
+    }
     let shown = budget_utilization(&source, period, today, BudgetGrouping::Budget, &filter)?;
     let text = AppText::new(book, locale);
-    Ok(shown
+    let bars = shown
         .iter()
         .flat_map(|budget| {
             budget
@@ -248,7 +251,19 @@ pub fn bars(
                 .iter()
                 .map(|period| bar(budget, period, locale, &text))
         })
-        .collect())
+        .collect();
+    Ok((bars, view))
+}
+
+/// As [`bars_filtered`], with nothing narrowed by a filter bar.
+#[cfg(test)]
+pub fn bars(
+    book: &Book,
+    locale: &impl Locale,
+    period_key: &str,
+    only: &[String],
+) -> Result<Vec<Bar>, BudgetsError> {
+    bars_filtered(book, locale, period_key, only, &Scope::default()).map(|(bars, _)| bars)
 }
 
 /// How many budgets the book has.

@@ -28,6 +28,7 @@ use kassensturz_store::Book;
 
 use crate::format::Locale;
 use crate::register::AmountWriter;
+use crate::scope::{FilterView, Scope};
 
 /// What the user asked for, by the fixed names QML uses.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -62,6 +63,9 @@ pub struct Request {
     /// the IDs of the categories and groups under it. When there are some,
     /// they are the series or rows and the dataset's own are not used.
     pub columns: Vec<(String, Vec<String>, String)>,
+    /// The filters the dashboard puts on the component: its own, else the
+    /// filter bar's (M6c.7, D-350). The default narrows nothing.
+    pub scope: Scope,
 }
 
 /// What a request gave: the charts, and how many of the IDs it named the
@@ -79,6 +83,8 @@ pub struct ChartSet {
     /// What each column adds up to over the period, one text per currency,
     /// in the order of the columns; a column with no money has none (D-341).
     pub totals: Vec<(String, Vec<String>)>,
+    /// The marks and notes about the filters (D-350).
+    pub filter: FilterView,
 }
 
 /// Why a request couldn't be answered.
@@ -277,9 +283,30 @@ pub fn charts(
         Source::read(book, span)?
     };
     let text = AppText::new(book, locale);
+    let (filter, filter_view) = request.scope.resolve(book, &source)?;
+    // A filter that chooses nothing says so instead of drawing zeros.
+    if filter_view.nothing {
+        return Ok(ChartSet {
+            charts: Vec::new(),
+            missing: 0,
+            shared: Vec::new(),
+            totals: Vec::new(),
+            filter: filter_view,
+        });
+    }
     if !request.columns.is_empty() {
         let fallback = fallback_currency(book);
-        return columns_charts(&source, &text, kind, period, &request.columns, fallback);
+        let mut set = columns_charts(
+            &source,
+            &text,
+            kind,
+            period,
+            &request.columns,
+            &filter,
+            fallback,
+        )?;
+        set.filter = filter_view;
+        return Ok(set);
     }
     // Parts of a whole count a category once; separate series may share it.
     let overlap = if kind.is_round() || kind == ChartKind::StackedBar {
@@ -330,18 +357,18 @@ pub fn charts(
     };
     let models = match request.dataset.as_str() {
         SPENDING_BY_CATEGORY => {
-            spending_dataset(&source, period, &Filter::default(), level, &shown)?
+            spending_dataset(&source, period, &filter, level, &shown)?
                 .iter()
                 .map(|data| spending_by_category(data, kind, &text))
                 .collect::<Result<Vec<_>, _>>()?
         }
         CATEGORY_OVER_TIME => {
-            over_time_dataset(&source, period, &Filter::default(), &series, overlap)?
+            over_time_dataset(&source, period, &filter, &series, overlap)?
                 .iter()
                 .map(|data| category_over_time(data, kind, &text))
                 .collect::<Result<Vec<_>, _>>()?
         }
-        INCOME_EXPENSE_BY_MONTH => monthly_dataset(&source, period, &Filter::default())?
+        INCOME_EXPENSE_BY_MONTH => monthly_dataset(&source, period, &filter)?
             .iter()
             .map(|data| income_expense_by_month(data, kind, &text))
             .collect::<Result<Vec<_>, _>>()?,
@@ -351,18 +378,18 @@ pub fn charts(
             } else {
                 BalancesBy::Account
             };
-            balances_dataset(&source, period, &Filter::default(), None)?
+            balances_dataset(&source, period, &filter, None)?
                 .results
                 .iter()
                 .map(|data| balances_chart(data, by, kind, &text))
                 .collect::<Result<Vec<_>, _>>()?
         }
-        NET_WORTH_OVER_TIME => net_worth_dataset(&source, period, &Filter::default(), None)?
+        NET_WORTH_OVER_TIME => net_worth_dataset(&source, period, &filter, None)?
             .results
             .iter()
             .map(|data| net_worth_chart(data, kind, &text))
             .collect::<Result<Vec<_>, _>>()?,
-        CASH_FLOW_BY_MONTH => cash_flow_dataset(&source, period, &Filter::default())?
+        CASH_FLOW_BY_MONTH => cash_flow_dataset(&source, period, &filter)?
             .iter()
             .map(|data| cash_flow_chart(data, kind, &text))
             .collect::<Result<Vec<_>, _>>()?,
@@ -380,6 +407,7 @@ pub fn charts(
         missing: named - known,
         shared: Vec::new(),
         totals: Vec::new(),
+        filter: filter_view,
     })
 }
 
@@ -415,9 +443,10 @@ fn column_totals(
     text: &impl TextFormat,
     period: Period,
     columns: &[Column],
+    filter: &Filter,
     fallback: CurrencyCode,
 ) -> Result<Vec<(String, Vec<String>)>, ChartsError> {
-    let results = columns_spending(source, period, &Filter::default(), columns, fallback)?;
+    let results = columns_spending(source, period, filter, columns, fallback)?;
     Ok(columns
         .iter()
         .map(|column| {
@@ -443,6 +472,7 @@ fn columns_charts(
     kind: ChartKind,
     period: Period,
     chosen: &[(String, Vec<String>, String)],
+    filter: &Filter,
     fallback: CurrencyCode,
 ) -> Result<ChartSet, ChartsError> {
     let columns: Vec<Column> = chosen
@@ -458,17 +488,16 @@ fn columns_charts(
         .collect();
     let named: usize = chosen.iter().map(|(_, members, _)| members.len()).sum();
     let known: usize = columns.iter().map(|column| column.members.len()).sum();
-    let filter = Filter::default();
     let models = if matches!(
         kind,
         ChartKind::Line | ChartKind::Area | ChartKind::StackedBar
     ) {
-        columns_over_time(source, period, &filter, &columns, fallback)?
+        columns_over_time(source, period, filter, &columns, fallback)?
             .iter()
             .map(|data| category_over_time(data, kind, text))
             .collect::<Result<Vec<_>, _>>()?
     } else {
-        columns_spending(source, period, &filter, &columns, fallback)?
+        columns_spending(source, period, filter, &columns, fallback)?
             .iter()
             .map(|data| spending_by_category(data, kind, text))
             .collect::<Result<Vec<_>, _>>()?
@@ -484,6 +513,7 @@ fn columns_charts(
         charts,
         missing: named - known,
         shared: shared_categories(source, &columns),
-        totals: column_totals(source, text, period, &columns, fallback)?,
+        totals: column_totals(source, text, period, &columns, filter, fallback)?,
+        filter: FilterView::default(),
     })
 }

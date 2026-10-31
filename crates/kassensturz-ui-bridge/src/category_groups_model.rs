@@ -201,6 +201,16 @@ fn change<T>(f: impl FnOnce(&mut Book) -> Result<T, GroupsError>) -> Result<T, E
 
 fn view_object(view: &GroupsView) -> QVariant {
     map([
+        (
+            "accounts",
+            list(view.accounts.iter().map(|row| {
+                map([
+                    ("id", text(&row.id)),
+                    ("name", text(&row.name)),
+                    ("closed", QVariant::from(&row.closed)),
+                ])
+            })),
+        ),
         ("groups", list(view.groups.iter().map(group_object))),
         (
             "categories",
@@ -272,7 +282,7 @@ mod tests {
             .expect("group");
         category_groups::set_hidden(&mut book, std::slice::from_ref(&food)).expect("hidden");
         let view = view_object(&category_groups::view(&book).expect("view"));
-        assert_eq!(keys(&view), ["categories", "groups"]);
+        assert_eq!(keys(&view), ["accounts", "categories", "groups"]);
         let groups = list_of(&view, "groups");
         assert_eq!(groups.len(), 1);
         assert_eq!(keys(&groups[0]), ["id", "income", "members", "name"]);

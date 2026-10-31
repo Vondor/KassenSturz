@@ -15,6 +15,7 @@ use kassensturz_core::Report;
 use crate::budgets::{self, BudgetsError};
 use crate::budgets_model::bar_object;
 use crate::number_format::app_locale;
+use crate::scope::{FilterView, Scope};
 use crate::session;
 use crate::variant::{list, map, text};
 
@@ -25,6 +26,8 @@ pub struct Request {
     pub period: String,
     /// IDs of categories; empty for every budget.
     pub only: Vec<String>,
+    /// The filters the dashboard puts on the component (M6c.7, D-350).
+    pub scope: Scope,
 }
 
 #[cxx_qt::bridge]
@@ -55,6 +58,13 @@ pub mod qobject {
         #[qinvokable]
         fn show(self: Pin<&mut BookBudgets>, period: &QString, only: &QString);
 
+        /// Sets the filters the next request is narrowed by (M6c.7, D-350):
+        /// the `scope` text the dashboard's layout gives a component (empty
+        /// for none). Call it before `show`.
+        #[qinvokable]
+        #[cxx_name = "setScope"]
+        fn set_scope(self: Pin<&mut BookBudgets>, scope: &QString);
+
         /// Reads the open book again for the last request, e.g. after a
         /// screen changed the book.
         #[qinvokable]
@@ -67,10 +77,12 @@ pub mod qobject {
 pub struct BookBudgetsRust {
     view: QVariant,
     request: Option<Request>,
+    scope: Scope,
 }
 
 impl qobject::BookBudgets {
     fn show(mut self: Pin<&mut Self>, period: &QString, only: &QString) {
+        let scope = self.rust().scope.clone();
         self.as_mut().rust_mut().request = Some(Request {
             period: period.to_string(),
             only: only
@@ -79,8 +91,13 @@ impl qobject::BookBudgets {
                 .filter(|id| !id.is_empty())
                 .map(str::to_owned)
                 .collect(),
+            scope,
         });
         self.refresh();
+    }
+
+    fn set_scope(mut self: Pin<&mut Self>, scope: &QString) {
+        self.as_mut().rust_mut().scope = Scope::from_text(&scope.to_string());
     }
 
     fn refresh(mut self: Pin<&mut Self>) {
@@ -89,9 +106,10 @@ impl qobject::BookBudgets {
         };
         let locale = app_locale();
         let view = match session::with_book(|book| {
-            let bars = budgets::bars(book, &locale, &request.period, &request.only)?;
+            let (bars, filter) =
+                budgets::bars_filtered(book, &locale, &request.period, &request.only, &request.scope)?;
             let count = budgets::count(book)?;
-            Ok::<_, BudgetsError>((bars, count))
+            Ok::<_, BudgetsError>((bars, count, filter))
         }) {
             Some(result) => view_object(&result),
             None => QVariant::default(),
@@ -101,9 +119,10 @@ impl qobject::BookBudgets {
     }
 }
 
-fn view_object(result: &Result<(Vec<budgets::Bar>, usize), BudgetsError>) -> QVariant {
+fn view_object(result: &Result<(Vec<budgets::Bar>, usize, FilterView), BudgetsError>) -> QVariant {
     match result {
-        Ok((bars, count)) => map([
+        Ok((bars, count, filter)) => map([
+            ("filter", filter.object()),
             ("bars", list(bars.iter().map(bar_object))),
             (
                 "count",
@@ -147,10 +166,12 @@ mod tests {
 
     fn ask(book: &Book, period: &str, only: &[String]) -> QVariant {
         view_object(
-            &budgets::bars(book, &TestLocale, period, only).and_then(|bars| {
-                let count = budgets::count(book)?;
-                Ok((bars, count))
-            }),
+            &budgets::bars_filtered(book, &TestLocale, period, only, &Scope::default()).and_then(
+                |(bars, filter)| {
+                    let count = budgets::count(book)?;
+                    Ok((bars, count, filter))
+                },
+            ),
         )
     }
 
@@ -168,7 +189,7 @@ mod tests {
         // With no budget, there is nothing to draw and the count says so:
         // the component takes no room on the Overview (D-357).
         let none = ask(&book, "this-month", &[]);
-        assert_eq!(keys(&none), ["bars", "count"]);
+        assert_eq!(keys(&none), ["bars", "count", "filter"]);
         assert!(list_of(&none, "bars").is_empty());
         assert_eq!(number_of(&none, "count"), 0);
         book.add_budget(

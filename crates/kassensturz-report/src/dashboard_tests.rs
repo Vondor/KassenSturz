@@ -631,3 +631,68 @@ fn the_separator_and_the_two_notices_show_no_data_and_survive_a_save() {
         .unwrap();
     grid::check(&editor.document().entries).unwrap();
 }
+
+#[test]
+fn the_filters_a_layout_carries_are_kept_with_the_session_and_count_as_a_change() {
+    let mut editor = Editor::new(Document::default_overview().expect("default")).expect("editor");
+    assert!(!editor.has_changes());
+    assert_eq!(editor.filters(), Filters::default());
+    let chosen = Filters {
+        period: Some("last-year".into()),
+        accounts: vec!["a-1".into()],
+        categories: vec!["c-1".into(), "c-2".into()],
+    };
+    assert!(editor.set_filters(&chosen).expect("set"));
+    assert!(editor.has_changes());
+    assert_eq!(editor.filters(), chosen);
+    // The same choice again changes nothing and is not an edit.
+    assert!(!editor.set_filters(&chosen).expect("same"));
+    // They are not on the stack of edits: Undo has nothing to take back.
+    assert_eq!(editor.next_undo(), None);
+    // What is stored reads back to the same filters (D-351).
+    let text = editor.document().to_json();
+    assert_eq!(Document::read(&text).expect("read").filters(), chosen);
+    // Taking them out again is the layout's own as it was.
+    assert!(editor.set_filters(&Filters::default()).expect("clear"));
+    assert!(!editor.has_changes());
+}
+
+#[test]
+fn the_filters_of_a_session_are_checked_like_a_documents() {
+    let mut editor = Editor::new(Document::default_overview().expect("default")).expect("editor");
+    let twice = Filters {
+        categories: vec!["c-1".into(), "C-1".into()],
+        ..Filters::default()
+    };
+    assert!(matches!(
+        editor.set_filters(&twice),
+        Err(ReportError::FilterInvalid {
+            reason: "repeated",
+            dimension: "categories"
+        })
+    ));
+    let many = Filters {
+        accounts: (0..=MAX_FILTER_IDS).map(|n| format!("a-{n}")).collect(),
+        ..Filters::default()
+    };
+    assert!(matches!(
+        editor.set_filters(&many),
+        Err(ReportError::FilterInvalid {
+            reason: "too-many",
+            dimension: "accounts"
+        })
+    ));
+    let word = Filters {
+        period: Some("page".into()),
+        ..Filters::default()
+    };
+    assert!(matches!(
+        editor.set_filters(&word),
+        Err(ReportError::DocumentInvalid {
+            reason: "bad-choice",
+            ..
+        })
+    ));
+    // A refused choice leaves the session as it was.
+    assert!(!editor.has_changes());
+}

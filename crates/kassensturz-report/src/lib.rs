@@ -19,7 +19,14 @@
 //! [`grid`] and [`Editor`] (M6b.1, D-287, D-288). My groups and the hide list
 //! change how the datasets by category put figures together, never a figure
 //! of the book ([`Shown`], [`category_over_time`], D-291).
+//!
+//! What the user has, owes and is worth and the money in and out of their
+//! accounts come from the accounts' balances, which the [`Source`] reads too
+//! ([`account_balances`], [`net_worth_over_time`], [`cash_flow_by_month`],
+//! D-348, D-349).
 
+mod balances;
+mod cash_flow;
 mod catalog;
 mod columns;
 mod component;
@@ -40,7 +47,12 @@ mod source;
 mod spending;
 mod text;
 
-pub use catalog::{CATALOG, DatasetInfo, GROUPS_GROUPING, dataset};
+pub use balances::{
+    ACCOUNT_BALANCES, AccountBalance, AccountBalances, Converted, CurrencyBalances, CurrencyWorth,
+    NET_WORTH_OVER_TIME, NetWorthOverTime, Worth, WorthRow, account_balances, net_worth_over_time,
+};
+pub use cash_flow::{CASH_FLOW_BY_MONTH, CashFlowByMonth, CashFlowRow, cash_flow_by_month};
+pub use catalog::{CATALOG, DatasetInfo, FINANCIAL, GROUPS_GROUPING, dataset};
 pub use columns::{
     Column, MAX_COLUMNS, SharedCategory, columns_over_time, columns_span, columns_spending,
     shared as shared_categories, unknown as unknown_column_members,
@@ -90,6 +102,8 @@ mod component_tests;
 mod dashboard_tests;
 #[cfg(test)]
 mod document_tests;
+#[cfg(test)]
+mod financial_tests;
 #[cfg(test)]
 mod formula_tests;
 #[cfg(test)]

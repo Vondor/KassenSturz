@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! What the datasets are made from: the transactions of a period, the
-//! accounts and categories they refer to, and My groups and the hide list
-//! (D-291), read from the book in one read transaction so every figure comes
-//! from the same state (Q-036).
+//! accounts and categories they refer to, My groups and the hide list
+//! (D-291), and the balances of the user's own accounts with the book's
+//! exchange rates (D-348, D-365), read from the book in one read transaction
+//! so every figure comes from the same state (Q-036).
 
 use std::collections::{HashMap, HashSet};
 
@@ -14,6 +15,7 @@ use kassensturz_core::{
 };
 use kassensturz_store::{Book, CategoryEntry, StoreError};
 
+use crate::balances::Holdings;
 use crate::{Filter, Period, ReportError};
 
 /// Whether money counts as income or as spending.
@@ -57,22 +59,54 @@ pub struct Source {
     currencies: HashMap<CurrencyCode, u8>,
     /// The book's rounding rule (D-027).
     rounding: RoundingMode,
+    /// The own accounts' balances before the period, what was booked to
+    /// them in it, and the exchange rates, if they were read (D-365).
+    holdings: Option<Holdings>,
 }
 
 impl Source {
     /// Reads the transactions booked in `period`, the accounts and
     /// categories of the book, its groups and hidden categories, and the
     /// decimal places and rounding rule a formula's result needs.
+    ///
+    /// It does not read the balances the financial datasets need, which
+    /// take longer in a book with many years of history (D-365): use
+    /// [`Source::read_with_balances`] for those.
     pub fn read(book: &Book, period: Period) -> Result<Self, ReportError> {
-        book.reading(|book| {
-            Ok(Self::from_parts(
-                period,
-                book.all_accounts()?,
-                book.categories()?,
-                book.transactions_between(period.first(), period.last())?,
-            )
-            .with_groups(book.category_groups()?, book.hidden_categories()?)
-            .with_settings(&book.currencies()?, book.rounding_mode()?))
+        book.reading(|book| Self::read_now(book, period, false))
+    }
+
+    /// Reads what [`Source::read`] reads and, in the same read transaction,
+    /// every own account's balance before `period`, the parts booked to them
+    /// on its days and the book's exchange rates, which [`account_balances`],
+    /// [`net_worth_over_time`] and [`cash_flow_by_month`] are made from
+    /// (D-348, D-365).
+    ///
+    /// [`account_balances`]: crate::account_balances
+    /// [`net_worth_over_time`]: crate::net_worth_over_time
+    /// [`cash_flow_by_month`]: crate::cash_flow_by_month
+    pub fn read_with_balances(book: &Book, period: Period) -> Result<Self, ReportError> {
+        book.reading(|book| Self::read_now(book, period, true))
+    }
+
+    fn read_now(book: &Book, period: Period, balances: bool) -> Result<Self, ReportError> {
+        let accounts = book.all_accounts()?;
+        let holdings = if balances {
+            Some(Holdings::read(book, &accounts, period)?)
+        } else {
+            None
+        };
+        let source = Self::from_parts(
+            period,
+            accounts,
+            book.categories()?,
+            book.transactions_between(period.first(), period.last())?,
+        )
+        .with_groups(book.category_groups()?, book.hidden_categories()?)
+        .with_settings(&book.currencies()?, book.rounding_mode()?);
+        Ok(match holdings {
+            Some(holdings) => source.with_holdings(holdings),
+            None => source,
         })
     }
 
@@ -94,7 +128,34 @@ impl Source {
             hidden: Vec::new(),
             currencies: HashMap::new(),
             rounding: RoundingMode::default(),
+            holdings: None,
         }
+    }
+
+    /// The same `Source` with these balances and rates.
+    pub(crate) fn with_holdings(self, holdings: Holdings) -> Self {
+        Self {
+            holdings: Some(holdings),
+            ..self
+        }
+    }
+
+    /// The own accounts' balances and the exchange rates. Fails with
+    /// [`ReportError::PeriodNotRead`] if the `Source` was read without them
+    /// ([`Source::read`]): a balance is never taken as zero for lack of a
+    /// read.
+    pub(crate) fn holdings(&self) -> Result<&Holdings, ReportError> {
+        self.holdings.as_ref().ok_or(ReportError::PeriodNotRead)
+    }
+
+    /// The days the `Source` was read for.
+    pub(crate) fn covers(&self) -> Period {
+        self.covers
+    }
+
+    /// Every account and category, by ID.
+    pub(crate) fn accounts(&self) -> &HashMap<AccountId, Account> {
+        &self.accounts
     }
 
     /// The same `Source` with the book's currencies and rounding rule.

@@ -417,18 +417,6 @@ ColumnLayout {
                         }
 
                         Controls.ToolButton {
-                            visible: !slotColumn.isUnused && (slotColumn.asFormula || slotColumn.modelData.members.length === 0)
-                            checkable: true
-                            checked: slotColumn.asFormula
-                            icon.name: "view-calculator"
-                            text: board.i18nContext.i18nc("@action:button %1 is the name of a column", "Work out the column %1 with a formula", slotColumn.modelData.name)
-                            display: Controls.AbstractButton.IconOnly
-                            Controls.ToolTip.text: text
-                            Controls.ToolTip.visible: hovered
-                            onClicked: board.toggleFormula(slotColumn.modelData.index)
-                        }
-
-                        Controls.ToolButton {
                             visible: !slotColumn.isUnused && slotColumn.modelData.members.length > 0
                             icon.name: "folder-new"
                             text: board.i18nContext.i18nc("@action:button %1 is the name of a column", "Save the column %1 as a group", slotColumn.modelData.name)
@@ -462,6 +450,18 @@ ColumnLayout {
                             : board.totalOf(slotColumn.modelData.name) !== ""
                                 ? board.i18nContext.i18nc("@info %1 is an amount of money, or several with + between them", "Adds up to %1", board.totalOf(slotColumn.modelData.name))
                                 : board.i18nContext.i18nc("@info", "Counted together as one figure.")
+                    }
+
+                    // Written out, not an icon alone: nobody should have to guess
+                    // where formulas are.
+                    Controls.Button {
+                        Layout.fillWidth: true
+                        visible: !slotColumn.isUnused && (slotColumn.asFormula || slotColumn.modelData.members.length === 0)
+                        flat: true
+                        text: slotColumn.asFormula
+                            ? board.i18nContext.i18nc("@action:button %1 is the name of a column", "Use categories in %1 instead of a formula", slotColumn.modelData.name)
+                            : board.i18nContext.i18nc("@action:button %1 is the name of a column", "Work out %1 with a formula", slotColumn.modelData.name)
+                        onClicked: board.toggleFormula(slotColumn.modelData.index)
                     }
 
                     Controls.TextField {

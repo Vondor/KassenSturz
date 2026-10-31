@@ -13007,8 +13007,13 @@ msgstr "Ergibt zusammen %1"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@action:button %1 is the name of a column"
-msgid "Work out the column %1 with a formula"
-msgstr "Spalte „%1“ mit einer Formel berechnen"
+msgid "Work out %1 with a formula"
+msgstr "„%1“ mit einer Formel berechnen"
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+msgctxt "@action:button %1 is the name of a column"
+msgid "Use categories in %1 instead of a formula"
+msgstr "Statt einer Formel Kategorien in „%1“ verwenden"
 
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 msgctxt "@info"

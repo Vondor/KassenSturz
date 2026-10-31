@@ -1368,6 +1368,81 @@ fn a_months_transactions_are_read_by_booking_date_with_both_ends_included() {
     );
 }
 
+/// The outline [`Book::transaction_outlines`] reads, made from whole
+/// transactions as [`Book::transactions_of`] reads them.
+fn outlines_of(transactions: &[Transaction]) -> HashMap<TransactionId, TransactionOutline> {
+    transactions
+        .iter()
+        .map(|transaction| {
+            let outline = TransactionOutline {
+                note: transaction.note().map(Into::into),
+                parts: transaction
+                    .splits()
+                    .iter()
+                    .map(|split| PartOutline {
+                        account: split.account,
+                        foreign: split.foreign.is_some(),
+                        note: split.note.clone(),
+                    })
+                    .collect(),
+            };
+            (transaction.id(), outline)
+        })
+        .collect()
+}
+
+#[test]
+fn the_outlines_of_an_accounts_transactions_agree_with_the_whole_transactions() {
+    let TwoCurrencies {
+        mut book,
+        checking,
+        dollars,
+    } = two_currencies();
+    let groceries = account(&mut book, "Food", AccountKind::Expense, EUR);
+    // A note on the transaction, none but one on a part instead, a part
+    // without a category, one in dollars.
+    let shopping = transaction(
+        date(2026, 10, 5),
+        "Corner Grocery",
+        &[(checking, eur(-5320)), (groceries, eur(5320))],
+    )
+    .with_note(Some("Weekly shopping".into()));
+    let market = transaction(
+        date(2026, 10, 6),
+        "Market",
+        &[(checking, eur(-1200)), (groceries, eur(1200))],
+    );
+    let mut parts = market.splits().to_vec();
+    parts[0].note = Some("Paid in cash at the stall".into());
+    let market = with_parts(&market, parts);
+    let imported = imported_purchase(&mut book, checking);
+    let moved = transfer(checking, dollars, None);
+    for added in [&shopping, &market, &moved] {
+        book.add_transaction(added).expect("added");
+    }
+
+    let outlines = book.transaction_outlines(checking).expect("read");
+    let whole = book.transactions_of(checking).expect("read");
+    assert_eq!(whole.len(), 4);
+    assert_eq!(outlines, outlines_of(&whole));
+    assert_eq!(outlines[&market.id()].note, None);
+    assert_eq!(
+        outlines[&market.id()].parts[0].note.as_deref(),
+        Some("Paid in cash at the stall")
+    );
+    assert!(outlines[&moved.id()].parts[1].foreign);
+    assert_eq!(outlines[&imported.id()].parts[1].account, None);
+    assert_eq!(
+        book.transaction_outlines(dollars).expect("read"),
+        outlines_of(&book.transactions_of(dollars).expect("read"))
+    );
+    assert!(
+        book.transaction_outlines(AccountId::generate())
+            .expect("read")
+            .is_empty()
+    );
+}
+
 #[test]
 fn the_transactions_of_an_account_are_those_with_a_part_in_it_as_read_one_by_one() {
     let Sample {

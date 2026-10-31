@@ -237,7 +237,7 @@ ColumnLayout {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
-            text: wizard.i18nContext.i18nc("@info", "To put it on the Overview, choose Edit layout there and add it with Add a saved view.")
+            text: wizard.i18nContext.i18nc("@info", "To put it on the Overview, choose Edit layout there, then Add to the page and Saved views.")
         }
     }
 

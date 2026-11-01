@@ -15519,3 +15519,18 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+#, kde-format
+msgctxt "@action:inmenu add a dashboard that someone saved to a file"
+msgid "Add from a file…"
+msgstr "Aus Datei hinzufügen …"
+
+#, kde-format
+msgctxt "@title:window"
+msgid "Add a dashboard from a file"
+msgstr "Dashboard aus einer Datei hinzufügen"
+
+#, kde-format
+msgctxt "@item:inlistbox a file type"
+msgid "Dashboard files (*.json)"
+msgstr "Dashboard-Dateien (*.json)"

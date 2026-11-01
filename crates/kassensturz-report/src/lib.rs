@@ -39,6 +39,8 @@ mod cash_flow;
 mod catalog;
 mod columns;
 mod component;
+mod dashboard_file;
+mod dashboard_file_read;
 mod default_overview;
 mod document;
 mod editor;
@@ -71,6 +73,14 @@ pub use columns::{
     shared as shared_categories, unknown as unknown_column_members,
 };
 pub use component::Component;
+pub use dashboard_file::{
+    DASHBOARD_FILE_FORMAT, DASHBOARD_FILE_VERSION, MAX_APPLICATION_CHARS, MAX_DASHBOARD_FILE_BYTES,
+    MAX_PATH_NAMES, MAX_REFERENCE_NAME_CHARS, MAX_REFERENCES, Reference,
+};
+pub use dashboard_file_read::{
+    BookNames, FormulaName, IncomingDashboardFile, MAX_DASHBOARD_FILE_DEPTH, MissingName, Resolved,
+    ShowsMore, Widget, free_dashboard_name,
+};
 pub use default_overview::{DEFAULT_OVERVIEW, OVERVIEW_NAME};
 pub use document::{
     Document, Entry, FORMAT, Frame, Item, MAX_BYTES, MAX_COMPONENTS, MAX_DEPTH, MAX_NAME_CHARS,
@@ -116,6 +126,8 @@ mod budget_tests;
 mod columns_tests;
 #[cfg(test)]
 mod component_tests;
+#[cfg(test)]
+mod dashboard_file_read_tests;
 #[cfg(test)]
 mod dashboard_tests;
 #[cfg(test)]

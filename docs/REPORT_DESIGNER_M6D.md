@@ -1,6 +1,6 @@
 # The report designer, part 4: several dashboards, templates, dashboard files, KMyMoney reports and Update all (M6d)
 
-Design of the M6d Sprint, written in step M6d.0. It builds on `docs/REPORT_DESIGNER.md` (the dashboard document and layout 20, D-278, D-279), `docs/REPORT_DESIGNER_M6B.md` (the grid, the document v1, D-289; the editor, D-315; named layouts, D-330) and `docs/REPORT_DESIGNER_M6C.md` (filters and document version 2, D-350, D-351). Decisions D-435 to D-449 (the maintainer's Phase 0 answers are D-431 to D-433; D-448 and D-449 apply his answers to Q-317 and Q-318), questions Q-317 to Q-320; threat rows T-51 to T-55; the steps are in `docs/ROADMAP.md` ("M6 steps", rows M6d.\*).
+Design of the M6d Sprint, written in step M6d.0. It builds on `docs/REPORT_DESIGNER.md` (the dashboard document and layout 20, D-278, D-279), `docs/REPORT_DESIGNER_M6B.md` (the grid, the document v1, D-289; the editor, D-315; named layouts, D-330) and `docs/REPORT_DESIGNER_M6C.md` (filters and document version 2, D-350, D-351). Decisions D-435 to D-450 (the maintainer's Phase 0 answers are D-431 to D-433; D-448 to D-450 apply his answers to Q-317, Q-318 and Q-320), questions Q-317 to Q-320; threat rows T-51 to T-55; the steps are in `docs/ROADMAP.md` ("M6 steps", rows M6d.\*).
 
 Release stage: **Alpha** (D-274). **No new layout:** everything below fits the `views` table of layout 20 and the existing history actions (`add_view`, `edit_view`, `rename_view`, `move_view`, `remove_view`), combined with `Book::as_one_action` where one user action takes several calls. The dashboard document stays version 2; its one new key is additive (section 3). A second additive key marks the default dashboard (D-448, section 1.3); nothing is added to the book's settings or to this computer's config.
 
@@ -141,11 +141,11 @@ All names and texts from the file are data, shown as plain text, never as markup
 
 **Round trip.** The second of M6d.3 and M6d.4 to merge adds the test: the real exported file of a Space Colony dashboard, read back into the same book, gives the same document with the same IDs; read into a second synthetic book with some names missing, gives the listed notes.
 
-## 5. KMyMoney reports into saved views (D-444, D-445; M6d.6)
+## 5. KMyMoney reports into saved views (D-444, D-445, D-450; M6d.6a and M6d.6b)
 
-**Clean-room** (AGENTS.md §3.1 rule 5, D-044): written from KMyMoney's public handbook (the report types and the settings of its report configuration dialog) and from the maintainer's checked sample files (D-431). No KMyMoney source is read. The attribute names of the file's report records are read off the sample files by M6d.6, which records them in `docs/THIRD_PARTY.md`'s KMyMoney note and in the golden tests; this section speaks of KMyMoney's settings as its dialog names them.
+**Clean-room** (AGENTS.md §3.1 rule 5, D-044): written from KMyMoney's public handbook (the report types and the settings of its report configuration dialog) and from the maintainer's checked sample files (D-431). No KMyMoney source is read. The attribute names of the file's report records are read off the sample files by M6d.6a, which records them in `docs/THIRD_PARTY.md`'s KMyMoney note and in the golden tests; this section speaks of KMyMoney's settings as its dialog names them.
 
-**Where it runs.** Reports come along when a new book is made from a KMyMoney file (`.kmy` or SQLite, the existing book import, D-044); Q-320 asks about the open book. The file is untrusted, as the rest of it is: the importer's existing limits apply, plus at most 500 reports and the document limits for each view made. A report's name, comment and text filters are data.
+**Where it runs.** Reports come along when a new book is made from a KMyMoney file (`.kmy` or SQLite, the existing book import, D-044), and can be brought into a book that already exists, as often as the user likes (section 5.3, D-450). The file is untrusted, as the rest of it is: the importer's existing limits apply, plus at most 500 reports and the document limits for each view made. A report's name, comment and text filters are data.
 
 **Each report becomes one saved view** (`kind` `view`, one component, Q-213 = A) under Statistics, in the file's order, after the book's accounts and categories exist, so its accounts and categories are mapped by the importer's own mapping of the file's IDs to the new book's (not by name). A name taken by an earlier report becomes *Name (2)*.
 
@@ -173,9 +173,30 @@ Never guessed: a setting that has no row above is listed as not kept by its dial
 
 The book import's done page (`BookFromFileDonePage`, which lists what the book left out, D-132) gets a section **Reports**: *{n} of your {m} reports are now saved views under Statistics.* Then one line per report, in three groups: **Kept as they were**, **Kept with changes** (each change in plain words, as in the last column above) and **Not kept** (with the kind: *a list of transactions*, *an investment report*, …). `SkippedData::Reports` now counts only the reports not kept.
 
-**A period turned into days is easy to check (Q-319 = A; the maintainer expects it may need debugging).** Its line shows the KMyMoney period by its dialog name beside the first and last day it became and the day of the import, so it can be compared with KMyMoney at a glance. The conversion writes one debug-log event (D-227, `KASSENSTURZ_DEBUG_LOG=1`) per converted period with the period's keyword, the day of the import and the two days, and nothing else (no report name, no account or category). M6d.6 tests every relative period of the sample files with a fixed import day, and one test per period word the dialog offers, with the days printed by the code (AGENTS.md §9.4). Each line's wording is written in QML from keywords (D-034): outcome `kept`, `changed`, `not-kept`; reasons `by-month`, `range-fixed`, `range-future`, `totals-only`, `filter-left-out` (with the filter's kind: `payee`, `tag`, `text`, `amount`, `state`, `type`, `number`), `account-left-out`, `currency`, `options-left-out`, `transactions-list`, `investments`, `tax`, `budget`, `forecast`, `information`, `unclear`.
+**A period turned into days is easy to check (Q-319 = A; the maintainer expects it may need debugging).** Its line shows the KMyMoney period by its dialog name beside the first and last day it became and the day of the import, so it can be compared with KMyMoney at a glance. The conversion writes one debug-log event (D-227, `KASSENSTURZ_DEBUG_LOG=1`) per converted period with the period's keyword, the day of the import and the two days, and nothing else (no report name, no account or category). M6d.6a tests every relative period of the sample files with a fixed import day, and one test per period word the dialog offers, with the days printed by the code (AGENTS.md §9.4). Each line's wording is written in QML from keywords (D-034): outcome `kept`, `changed`, `not-kept`; reasons `by-month`, `range-fixed`, `range-future`, `totals-only`, `filter-left-out` (with the filter's kind: `payee`, `tag`, `text`, `amount`, `state`, `type`, `number`), `account-left-out`, `currency`, `options-left-out`, `transactions-list`, `investments`, `tax`, `budget`, `forecast`, `information`, `unclear`.
 
 **Tests.** Golden files on the maintainer's checked sample files (both formats give the same views), each part A report of `proposals/kmymoney-reports-acceptance.md` named in a test, and the figures of each kept view compared with the importer's real book (tests where steps meet, AGENTS.md §9.4).
+
+### 5.3 Reports into a book that already exists, again and again (D-450; M6d.6b)
+
+Someone who is not sure yet whether to switch keeps using KMyMoney for a while and brings its reports over more than once (Q-320, the maintainer's answer). So besides the book import, the Statistics page gets **Add reports from a KMyMoney file…**. It reads only the reports of the file (the same reader, limits and mapping as 5.1) and changes nothing else in the book: no accounts, categories or transactions come with it.
+
+- **Where a view came from.** Every view made from a KMyMoney report, by the book import or by this action, carries the additive top-level key `origin`: `{"from": "kmymoney", "report": "<the report's ID in the file>", "imported": "<day>"}` (plain text, the ID at most 64 characters; the document stays version 2). It is what a later import recognises. A copy of the view on a dashboard does not carry it (D-326), and a dashboard file never does.
+- **Accounts and categories in the open book.** There is no ID mapping here, so they are found by name, as dashboard files do (D-442): an account by its whole name, a category by its whole path from the top, ignoring capitals only, never by a similar name. What the book lacks is left out of the view's filter and listed, and a filter left empty says that the view now shows more. A report whose rows need a category the book lacks keeps the others and lists it.
+- **What happens to each report**, shown on a preview page before anything is written:
+
+| The report in the file | Default | The user can |
+|---|---|---|
+| not imported before (no view with its `origin`) | **Add** as a new view | leave it out |
+| imported before, and mapping it now gives the view that is there | **Nothing to do** (*already here*) | — |
+| imported before, and the view is different now (changed in KMyMoney or in KassenSturz since) | **Keep yours**: the view stays as it is | *Replace with KMyMoney's version*, which keeps the view's ID, name and place |
+| imported before, but the view was deleted since | **Add** again, marked *you deleted it earlier* only if the change history still shows it; otherwise as a new report | leave it out |
+| a view whose report is no longer in the file | **Keep**: the view stays | — (deleting stays a separate, deliberate action) |
+
+  Never overwritten by default and never deleted by an import. Two reports of the file with the same ID (a broken file) are both refused and listed.
+- **One history entry.** *Add reports* writes all added and replaced views in one entry (`as_one_action`, `add_view` and `edit_view`), so one Undo takes the whole import back. A name taken by another view gets *(2)*, as in 5.1.
+- **The preview's words** reuse 5.2's keywords and add `already-here`, `kept-yours`, `replaced`, `no-longer-in-file`, `account-not-found`, `category-not-found`, `shows-more`.
+- **Tests.** Import the sample file into a fresh synthetic book, change one view and delete another, import the same file again: the changed view is kept, the deleted one is offered again, the others are *already here*, and Undo restores the book before the second import. Then the same with a sample file changed in KMyMoney, if the maintainer provides a second version; otherwise the change is made to the golden copy of the records only.
 
 ## 6. The Update all accounts widget (D-446; M6d.7; human gate: bank connections)
 
@@ -199,7 +220,7 @@ The book import's done page (`BookFromFileDonePage`, which lists what the book l
 
 ## 7. Shared QML components (the M6a retro rule)
 
-Planned names and their owners, carried in every M6d brief: M6d.1 `DashboardTabs`, `DashboardMenu`, `NewDashboardDialog`; M6d.2 `TemplatePicture` (inside `NewDashboardDialog`); M6d.3 none (the file chooser of `ExportPage` is reused); M6d.4 `DashboardFilePage` (the summary of 4.3); M6d.6 `KmyReportsSummary` (inside `BookFromFileDonePage`); M6d.7 `UpdateAllWidget`. M6d.4 and M6d.6 do not share a summary component: the first is a preview before adding, the second a report after a finished import.
+Planned names and their owners, carried in every M6d brief: M6d.1 `DashboardTabs`, `DashboardMenu`, `NewDashboardDialog`; M6d.2 `TemplatePicture` (inside `NewDashboardDialog`); M6d.3 none (the file chooser of `ExportPage` is reused); M6d.4 `DashboardFilePage` (the summary of 4.3); M6d.6a `KmyReportsSummary` (inside `BookFromFileDonePage`); M6d.6b `KmyReportsImportPage` (the preview of 5.3, using `KmyReportsSummary` for its lines); M6d.7 `UpdateAllWidget`. M6d.4 and M6d.6 do not share a summary component: the first is a preview before adding, the second a report after a finished import.
 
 ## 8. Risks and their rows in the threat model
 
@@ -207,7 +228,7 @@ New rows T-51 to T-55 in `docs/THREAT_MODEL.md`: a hostile dashboard file, a das
 
 ## 9. The M6d steps
 
-The table is in `docs/ROADMAP.md` ("M6 steps", rows M6d.\*), with needs, tier, effort and gate. Wave 1 after M6d.0: M6d.1, M6d.3, M6d.4, M6d.6 (with the sample files) and M6d.7; wave 2 after M6d.1: M6d.2, M6d.5 and the menu entries of M6d.3 and M6d.4.
+The table is in `docs/ROADMAP.md` ("M6 steps", rows M6d.\*), with needs, tier, effort and gate. Wave 1 after M6d.0: M6d.1, M6d.3, M6d.4, M6d.6a (with the sample files) and M6d.7; wave 2 after M6d.1: M6d.2, M6d.5 and the menu entries of M6d.3 and M6d.4; M6d.6b after M6d.6a. M6d.6 is split in two because the import into an existing book (5.3) is as big again as the mapping.
 
 ## 10. Questions for the maintainer (through the coordinator)
 
@@ -216,4 +237,4 @@ Each has a safe default that the steps build until it is answered.
 - ~~**Q-317: Which dashboard opens when a book opens?**~~ Answered by the maintainer, 2026-11-01: the user can mark one dashboard as the default, and while none is marked a standard dashboard carries the mark (D-448, section 1.3).
 - ~~**Q-318: After *Update all accounts*, what happens with the new transactions?**~~ Answered by the maintainer, 2026-11-01: they are booked at once, with a notice only for a transaction no Rule sorted and for an unusual amount (D-449, section 6).
 - ~~**Q-319: A KMyMoney report with a relative period that KassenSturz has no word for?**~~ Answered by the maintainer, 2026-11-01: A, the days it covers on the day of the import, made easy to check (section 5.2). The other option was new relative period words.
-- **Q-320: Reports from a KMyMoney file into a book that already exists?** A (R): not in M6d; reports come with a new book made from the file. B: also *Add reports from a KMyMoney file* for the open book, matching accounts and categories by name as dashboard files do.
+- ~~**Q-320: Reports from a KMyMoney file into a book that already exists?**~~ Answered by the maintainer, 2026-11-01: B, also into an existing book and again later, for someone who is not sure yet whether to switch (D-450, section 5.3).

@@ -33,10 +33,13 @@ Kirigami.AbstractCard {
     // The user wants to make the chart in the Statistic Builder, starting
     // from this one.
     signal changeClicked(string title, string component, string period)
-    // What became of the chart: `kept`, `builder` or `left`.
+    // The user wants the kept chart on the Overview (D-428): the component
+    // as JSON text and its period, as D-326 adds a saved view.
+    signal addToOverviewClicked(string component, string period)
+    // What became of the chart: `kept`, `added`, `builder` or `left`.
     signal handled(string outcome)
 
-    // What the user did: empty while the chart waits, then `kept`,
+    // What the user did: empty while the chart waits, then `kept`, `added`,
     // `builder`, `left` or `outOfDate`. A card made again for a chart that
     // was dealt with starts with it and loads nothing.
     property string outcome: ""
@@ -75,6 +78,18 @@ Kirigami.AbstractCard {
         refusal = ({});
         outcome = "kept";
         handled("kept");
+    }
+
+    // After *Keep*: the chart, already saved, is also put on the Overview as
+    // a copy, the way a saved view is (D-326, D-428). Only this button does
+    // it; keeping alone never touches the Overview.
+    function addToOverview() {
+        if (chart === null || outcome !== "kept") {
+            return;
+        }
+        outcome = "added";
+        handled("added");
+        addToOverviewClicked(chart.component, chart.period);
     }
 
     function change() {
@@ -212,14 +227,26 @@ Kirigami.AbstractCard {
             }
         }
 
+        Controls.Button {
+            visible: card.chart !== null && card.outcome === "kept"
+            icon.name: "view-grid"
+            text: card.i18nContext.i18nc("@action:button put the chart the AI prepared on the Overview page", "Add to Overview")
+            onClicked: {
+                ActionLog.taken("AiChartCard_addToOverview")
+                card.addToOverview()
+            }
+        }
+
         Controls.Label {
             Layout.fillWidth: true
-            visible: card.outcome === "kept" || card.outcome === "builder" || card.outcome === "left"
+            visible: card.outcome === "kept" || card.outcome === "added" || card.outcome === "builder" || card.outcome === "left"
             wrapMode: Text.Wrap
             font: Kirigami.Theme.smallFont
             textFormat: Text.PlainText
             text: card.outcome === "kept"
                 ? card.i18nContext.i18nc("@info", "Kept. The chart is saved in the Statistic Builder. You can take it back with Undo.")
+                : card.outcome === "added"
+                    ? card.i18nContext.i18nc("@info", "Kept and added to the Overview. You can take it back with Undo.")
                 : card.outcome === "builder"
                     ? card.i18nContext.i18nc("@info", "Opened in the Statistic Builder. Save it there if you want to keep it: it is then your own chart.")
                     : card.i18nContext.i18nc("@info", "Left out. Nothing was changed.")

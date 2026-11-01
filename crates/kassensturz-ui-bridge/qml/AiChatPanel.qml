@@ -40,6 +40,8 @@ ColumnLayout {
     // The user wants the Statistic Builder, on the chart the AI prepared
     // (`component`, as JSON text, with its title and period), or after the
     // AI gave up on one: with only the `dataset` it understood (D-355).
+    // The user wants a kept chart on the Overview (D-428).
+    signal addToOverviewRequested(string component, string period)
     signal statisticBuilderRequested(string title, string component, string period, string dataset)
     // The AI asked to open the page `name` (`overview`, `accounts`,
     // `categories`, `rules` or `account`), about the account or Rule `id`
@@ -445,6 +447,7 @@ ColumnLayout {
                 settings: panel.settings
                 onChartChangeClicked: (title, component, period) => panel.statisticBuilderRequested(title, component, period, "")
                 onBuilderClicked: dataset => panel.statisticBuilderRequested("", "", "", dataset)
+                onChartAddToOverviewClicked: (component, period) => panel.addToOverviewRequested(component, period)
                 onChartHandled: outcome => panel.markChart(message.setId, outcome)
                 onReviewClicked: setId => panel.reviewChangesClicked(setId)
                 onDiscardClicked: setId => {

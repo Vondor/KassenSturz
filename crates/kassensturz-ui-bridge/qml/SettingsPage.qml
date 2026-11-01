@@ -155,9 +155,25 @@ FormCard.FormCardPage {
     }
 
     title: i18nContext.i18nc("@title", "Settings")
-    // Why the last change to the history settings failed, if it did.
-    header: FormError {
-        result: page.historyResult
+    header: ColumnLayout {
+        spacing: 0
+
+        // A new language applies at the next start (D-127): said at the top
+        // of the page, where the other information bars are (D-498, M6-B4),
+        // so it is seen wherever the page is scrolled to.
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            position: Kirigami.InlineMessage.Position.Header
+            type: Kirigami.MessageType.Information
+            visible: page.language.restartNeeded && !page.languageNotSaved
+            text: page.i18nContext.i18nc("@info", "Close KassenSturz and open it again to see it in the new language.")
+        }
+
+        // Why the last change to the history settings failed, if it did.
+        FormError {
+            Layout.fillWidth: true
+            result: page.historyResult
+        }
     }
 
     FormCard.FormHeader {
@@ -559,17 +575,14 @@ FormCard.FormCardPage {
             }
         }
 
-        // The screens can't switch language while the app runs (D-127), so
-        // a new choice says so right under the box, where it is seen, rather
-        // than in the small note below the card (M6-B4).
+        // A choice that couldn't be saved says so under the box; the
+        // restart note is the bar at the top of the page (D-498).
         Kirigami.InlineMessage {
             Layout.fillWidth: true
             Layout.margins: Kirigami.Units.largeSpacing
-            visible: page.languageNotSaved || page.language.restartNeeded
-            type: page.languageNotSaved ? Kirigami.MessageType.Error : Kirigami.MessageType.Information
-            text: page.languageNotSaved
-                ? page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice. Check that your settings folder can be written to, then choose again.")
-                : page.i18nContext.i18nc("@info", "Close KassenSturz and open it again to see it in the new language.")
+            visible: page.languageNotSaved
+            type: Kirigami.MessageType.Error
+            text: page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice. Check that your settings folder can be written to, then choose again.")
         }
     }
 

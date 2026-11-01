@@ -47,6 +47,7 @@ pub const DETAILS: &[&str] = &[
     "notice_transfers",
     "page_period",
     "page_filters",
+    "bank_update_all",
     "saved_view",
     // The screens, by the names of their QML files.
     "AccountDetailsPage",
@@ -66,6 +67,7 @@ pub const DETAILS: &[&str] = &[
     "CategoryGroupsPage",
     "CategoryPage",
     "CsvSettingsPage",
+    "DashboardFilePage",
     "ExportPage",
     "HistoryPage",
     "ImportDonePage",

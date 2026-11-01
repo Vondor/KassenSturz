@@ -253,3 +253,57 @@ fn the_book_keeps_what_is_written_and_the_reader_catches_what_the_book_cannot() 
         ("duplicate-key", "title".to_owned())
     );
 }
+
+#[test]
+fn a_dashboard_keeps_its_template_and_its_default_mark() {
+    // Neither key is written while it is not set, so older documents come
+    // back the same text.
+    let plain = Document::read(DASHBOARD).unwrap();
+    assert_eq!(plain.template, None);
+    assert!(!plain.default);
+    assert!(!plain.to_json().contains("template"));
+    assert!(!plain.to_json().contains("default"));
+
+    let marked = with(|value| {
+        value["template"] = json!("overview");
+        value["default"] = json!(true);
+    });
+    let document = Document::read(&marked).unwrap();
+    assert_eq!(document.template.as_deref(), Some("overview"));
+    assert!(document.default);
+    let text = document.to_json();
+    assert!(text.contains(r#""template":"overview""#));
+    assert!(text.contains(r#""default":true"#));
+    assert_eq!(Document::read(&text).unwrap(), document);
+
+    // A mark that is false reads as not marked and is not written.
+    let unmarked = Document::read(&with(|value| value["default"] = json!(false))).unwrap();
+    assert!(!unmarked.default);
+    assert!(!unmarked.to_json().contains("default"));
+}
+
+#[test]
+fn a_template_word_or_mark_that_is_not_known_is_refused() {
+    for (patch, wanted, path) in [
+        (json!({"template": "radar"}), "bad-choice", "template"),
+        (json!({"template": "Overview"}), "bad-choice", "template"),
+        (json!({"template": 1}), "wrong-type", "template"),
+        (json!({"default": "yes"}), "wrong-type", "default"),
+    ] {
+        let text = with(|value| {
+            for (key, item) in patch.as_object().unwrap() {
+                value[key] = item.clone();
+            }
+        });
+        assert_eq!(reason(&text), (wanted, path.to_owned()), "{patch}");
+    }
+    // A view is never made from a template and never opens a book.
+    let pie = Component::new(ComponentType::ChartPie, "spending_by_category").unwrap();
+    let mut view: serde_json::Value =
+        serde_json::from_str(&Document::view("Pie", None, pie).to_json()).unwrap();
+    view["default"] = json!(true);
+    assert_eq!(
+        reason(&view.to_string()),
+        ("unknown-property", "default".to_owned())
+    );
+}

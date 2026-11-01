@@ -6,20 +6,22 @@
 //! session is saved. No Qt in this file: `grid_editor_model.rs` hands the
 //! results to QML.
 //!
-//! The page shows the dashboard stored in the book, or the built-in
-//! Overview (D-314) when there is none or the stored one cannot be read.
-//! The editor works on a copy in memory (`kassensturz_report::Editor`) and
+//! The page shows one of the book's dashboards (M6d.1, D-436; the list and
+//! its actions are in `dashboards.rs`), or the built-in Overview (D-314)
+//! when there is none or the stored one cannot be read. The editor works on a copy in memory (`kassensturz_report::Editor`) and
 //! writes to the book only on Done: `add_view` the first time, `edit_view`
 //! after that, and `remove_view` when the user went back to the built-in
 //! layout, each one entry in the change history (D-288).
 
-use kassensturz_core::{StoredView, ViewId, ViewKind};
+use kassensturz_core::{ViewId, ViewKind};
 use kassensturz_report::grid::{self, COLUMNS, MAX_ROWS};
 use kassensturz_report::{
     Asked, Component, ComponentType, Document, Edit, Editor, Entry, Filters, Frame, Item,
-    OVERVIEW_NAME, ReportError, Setting,
+    OVERVIEW_NAME, ReportError, Setting, templates,
 };
 use kassensturz_store::{Book, StoreError};
+
+use crate::dashboards;
 
 /// Why the layout couldn't be read, edited or kept.
 #[derive(Debug)]
@@ -29,7 +31,7 @@ pub enum LayoutError {
     /// An edit the grid refused, or a document that doesn't follow the
     /// schema.
     Report(ReportError),
-    /// No saved layout has the ID.
+    /// No dashboard has the ID.
     NoSuchLayout,
 }
 
@@ -63,86 +65,17 @@ pub enum Saved {
 pub struct Layout {
     /// The components as they are now, with the undo and redo of the session.
     pub editor: Editor,
-    /// The stored dashboard this session started from, if the book has one.
-    stored: Option<ViewId>,
-    /// The name the stored dashboard has, kept when it is replaced.
-    name: String,
+    /// The stored dashboard this session started from; `None` for the
+    /// built-in Overview while the book has no dashboard.
+    pub stored: Option<ViewId>,
+    /// The name the dashboard has, kept when it is replaced.
+    pub name: String,
     /// The stored dashboard couldn't be read, so the built-in layout is
     /// shown; saving a change replaces the stored one.
     pub damaged: bool,
-}
-
-/// Whether a dashboard's name is the one the Overview shows (D-330); the
-/// others in the book are saved layouts. Names are compared the way the
-/// book compares them, ignoring case.
-fn is_active_name(name: &str) -> bool {
-    name.to_lowercase() == OVERVIEW_NAME.to_lowercase()
-}
-
-/// A layout the user saved under a name of their own (D-330).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SavedLayout {
-    /// The book's ID of the stored dashboard, as text.
-    pub id: String,
-    /// The name the user gave it.
-    pub name: String,
-}
-
-/// The saved layouts, in the order of the book's list; not the one the
-/// Overview shows.
-pub fn saved_layouts(book: &Book) -> Result<Vec<SavedLayout>, LayoutError> {
-    Ok(book
-        .views(Some(ViewKind::Dashboard))?
-        .into_iter()
-        .filter(|view| !is_active_name(&view.name))
-        .map(|view| SavedLayout {
-            id: view.id.to_string(),
-            name: view.name,
-        })
-        .collect())
-}
-
-/// Keeps the editor's components in the book under `name`, as a layout the
-/// user can load later. This is its own entry in the change history and does
-/// not end the session. A name that is taken, or that the Overview itself
-/// has, is refused (`store.view-name-taken`).
-pub fn save_as(book: &mut Book, editor: &Editor, name: &str) -> Result<String, LayoutError> {
-    let name = name.trim();
-    if is_active_name(name) {
-        return Err(StoreError::ViewNameTaken {
-            name: name.to_owned(),
-        }
-        .into());
-    }
-    let mut document = editor.document().clone();
-    name.clone_into(&mut document.name);
-    let text = document.to_json();
-    Document::read(&text)?;
-    Ok(book.add_view(&text)?.to_string())
-}
-
-/// Puts a saved layout's components into the editor as one edit. Nothing is
-/// written until Done.
-pub fn load(book: &Book, editor: &mut Editor, id: &str) -> Result<bool, LayoutError> {
-    let stored = saved_layout(book, id)?;
-    let document = Document::read(&stored.document)?;
-    // A saved layout carries its filters with it (D-351).
-    let filters = editor.set_filters(&document.filters())?;
-    Ok(editor.load(&document.entries)? || filters)
-}
-
-/// Deletes a saved layout from the book. The Overview's own layout is not a
-/// saved layout and can't be deleted this way.
-pub fn delete_saved(book: &mut Book, id: &str) -> Result<(), LayoutError> {
-    let stored = saved_layout(book, id)?;
-    Ok(book.remove_view(stored.id)?)
-}
-
-fn saved_layout(book: &Book, id: &str) -> Result<StoredView, LayoutError> {
-    book.views(Some(ViewKind::Dashboard))?
-        .into_iter()
-        .find(|view| view.id.to_string() == id && !is_active_name(&view.name))
-        .ok_or(LayoutError::NoSuchLayout)
+    /// The built-in Overview's name in the user's language, which a stored
+    /// copy of it may carry.
+    built_in_name: String,
 }
 
 /// The built-in Overview's components (D-314).
@@ -151,35 +84,45 @@ pub fn built_in() -> Result<Vec<Entry>, ReportError> {
 }
 
 impl Layout {
-    /// Reads the book's dashboard, or the built-in one. A stored dashboard
-    /// that can't be read or checked is not repaired: the built-in layout is
-    /// shown and [`Layout::damaged`] says so.
-    pub fn open(book: &Book) -> Result<Self, LayoutError> {
-        let stored = book
-            .views(Some(ViewKind::Dashboard))?
-            .into_iter()
-            .find(|view| is_active_name(&view.name));
-        if let Some(stored) = stored {
-            if let Ok(editor) = Document::read(&stored.document).and_then(Editor::new) {
-                return Ok(Self {
-                    editor,
-                    stored: Some(stored.id),
-                    name: stored.name,
-                    damaged: false,
-                });
-            }
+    /// Reads the dashboard `wanted` from the book, or the one the book
+    /// opens at (D-448) when `wanted` is `None` or no longer there, or the
+    /// built-in Overview when the book has none. A stored dashboard that
+    /// can't be read or checked is not repaired: the built-in layout is
+    /// shown and [`Layout::damaged`] says so. `built_in_name` is the
+    /// built-in Overview's name in the user's language.
+    pub fn open(
+        book: &Book,
+        wanted: Option<ViewId>,
+        built_in_name: &str,
+    ) -> Result<Self, LayoutError> {
+        let list = dashboards::list(book, built_in_name)?;
+        let chosen = list
+            .iter()
+            .find(|dashboard| wanted.is_some() && dashboard.id == wanted)
+            .or_else(|| list.iter().find(|dashboard| dashboard.is_default))
+            .and_then(|dashboard| dashboard.id);
+        let Some(id) = chosen else {
+            let mut document = templates::document(templates::OVERVIEW)?;
+            built_in_name.clone_into(&mut document.name);
             return Ok(Self {
-                editor: Editor::new(Document::default_overview()?)?,
-                stored: Some(stored.id),
-                name: stored.name,
-                damaged: true,
+                editor: Editor::new(document)?,
+                stored: None,
+                name: built_in_name.to_owned(),
+                damaged: false,
+                built_in_name: built_in_name.to_owned(),
             });
-        }
+        };
+        let stored = book.view(id)?;
+        let (editor, damaged) = match Document::read(&stored.document).and_then(Editor::new) {
+            Ok(editor) => (editor, false),
+            Err(_) => (Editor::new(Document::default_overview()?)?, true),
+        };
         Ok(Self {
-            editor: Editor::new(Document::default_overview()?)?,
-            stored: None,
-            name: OVERVIEW_NAME.to_owned(),
-            damaged: false,
+            editor,
+            stored: Some(id),
+            name: stored.name,
+            damaged,
+            built_in_name: built_in_name.to_owned(),
         })
     }
 
@@ -189,6 +132,22 @@ impl Layout {
         // has to be kept to keep them.
         self.editor.filters() == Filters::default()
             && built_in().is_ok_and(|entries| entries == self.editor.document().entries)
+    }
+
+    /// Whether Done may remove the stored copy because it is the built-in
+    /// Overview again (D-315, kept for a list of one, D-436): unmarked,
+    /// made from the Overview (or stored before templates) and still named
+    /// like it, so nothing the user gave it is lost.
+    fn is_plain_overview(&self) -> bool {
+        let document = self.editor.document();
+        let name = self.name.to_lowercase();
+        self.is_built_in()
+            && !document.default
+            && matches!(
+                document.template.as_deref(),
+                None | Some(templates::OVERVIEW)
+            )
+            && (name == OVERVIEW_NAME.to_lowercase() || name == self.built_in_name.to_lowercase())
     }
 
     /// Writes the session to the book as one entry of its change history.
@@ -203,17 +162,20 @@ impl Layout {
         // Read back what is about to be kept, so a document the reader
         // refuses never reaches the book.
         Document::read(&text)?;
-        match (self.stored, self.is_built_in()) {
-            (None, true) => Ok(Saved::Nothing),
-            (None, false) => {
+        let alone = book.views(Some(ViewKind::Dashboard))?.len() <= 1;
+        match self.stored {
+            None if self.is_built_in() => Ok(Saved::Nothing),
+            None => {
                 book.add_view(&text)?;
                 Ok(Saved::Added)
             }
-            (Some(id), true) => {
+            // With two or more dashboards nothing is removed: their order
+            // must be kept (D-436).
+            Some(id) if alone && self.is_plain_overview() => {
                 book.remove_view(id)?;
                 Ok(Saved::Removed)
             }
-            (Some(id), false) => {
+            Some(id) => {
                 book.edit_view(id, &text)?;
                 Ok(Saved::Edited)
             }
@@ -382,7 +344,7 @@ mod tests {
 
     #[test]
     fn a_book_without_a_dashboard_shows_the_built_in_layout() {
-        let layout = Layout::open(&book()).unwrap();
+        let layout = Layout::open(&book(), None, OVERVIEW_NAME).unwrap();
         assert!(layout.is_built_in());
         assert!(!layout.damaged);
         assert!(!layout.editor.has_changes());
@@ -417,7 +379,7 @@ mod tests {
     #[test]
     fn nothing_is_written_until_the_layout_changes() {
         let mut book = book();
-        let layout = Layout::open(&book).unwrap();
+        let layout = Layout::open(&book, None, OVERVIEW_NAME).unwrap();
         assert_eq!(layout.save(&mut book).unwrap(), Saved::Nothing);
         assert!(book.views(Some(ViewKind::Dashboard)).unwrap().is_empty());
     }
@@ -425,7 +387,7 @@ mod tests {
     #[test]
     fn a_changed_layout_is_added_then_replaced_then_removed_by_a_reset() {
         let mut book = book();
-        let mut layout = Layout::open(&book).unwrap();
+        let mut layout = Layout::open(&book, None, OVERVIEW_NAME).unwrap();
         assert!(layout.editor.nudge("trend", 0, 2).unwrap());
         assert_eq!(layout.save(&mut book).unwrap(), Saved::Added);
         let stored = book.views(Some(ViewKind::Dashboard)).unwrap();
@@ -433,7 +395,7 @@ mod tests {
         assert_eq!(stored[0].name, OVERVIEW_NAME);
 
         // The page now shows the stored copy, and a later session replaces it.
-        let mut layout = Layout::open(&book).unwrap();
+        let mut layout = Layout::open(&book, None, OVERVIEW_NAME).unwrap();
         assert!(!layout.is_built_in());
         assert!(!layout.editor.has_changes());
         assert!(layout.editor.nudge("trend", 0, 1).unwrap());
@@ -441,7 +403,7 @@ mod tests {
         assert_eq!(book.views(Some(ViewKind::Dashboard)).unwrap().len(), 1);
 
         // Back to the built-in layout removes the stored copy.
-        let mut layout = Layout::open(&book).unwrap();
+        let mut layout = Layout::open(&book, None, OVERVIEW_NAME).unwrap();
         assert!(layout.editor.reset(&built_in().unwrap()).unwrap());
         assert_eq!(layout.save(&mut book).unwrap(), Saved::Removed);
         assert!(book.views(Some(ViewKind::Dashboard)).unwrap().is_empty());
@@ -450,7 +412,7 @@ mod tests {
     #[test]
     fn the_filters_a_layout_carries_are_saved_with_it_in_one_entry_and_read_back() {
         let mut book = book();
-        let mut layout = Layout::open(&book).unwrap();
+        let mut layout = Layout::open(&book, None, OVERVIEW_NAME).unwrap();
         assert!(layout.is_built_in());
         let chosen = Filters {
             period: Some("this-year".into()),
@@ -462,7 +424,7 @@ mod tests {
         // so it is kept (D-351).
         assert!(!layout.is_built_in());
         assert_eq!(layout.save(&mut book).unwrap(), Saved::Added);
-        let reopened = Layout::open(&book).unwrap();
+        let reopened = Layout::open(&book, None, OVERVIEW_NAME).unwrap();
         assert_eq!(reopened.editor.filters(), chosen);
         assert!(!reopened.editor.has_changes());
         // The component asks for the saved filters of its layout.
@@ -478,26 +440,10 @@ mod tests {
     }
 
     #[test]
-    fn a_saved_layout_brings_its_filters_when_it_is_loaded() {
-        let mut book = book();
-        let mut layout = Layout::open(&book).unwrap();
-        let chosen = Filters {
-            categories: vec!["c-1".into()],
-            ..Filters::default()
-        };
-        set_filters(&mut layout.editor, &chosen).unwrap();
-        let id = save_as(&mut book, &layout.editor, "With filters").unwrap();
-        let mut other = Layout::open(&book).unwrap();
-        other.editor = Editor::new(Document::default_overview().unwrap()).unwrap();
-        assert!(load(&book, &mut other.editor, &id).unwrap());
-        assert_eq!(other.editor.filters(), chosen);
-    }
-
-    #[test]
     fn a_session_is_one_entry_the_books_undo_takes_back() {
         let mut book = book();
         let before = book.history().unwrap().len();
-        let mut layout = Layout::open(&book).unwrap();
+        let mut layout = Layout::open(&book, None, OVERVIEW_NAME).unwrap();
         layout.editor.nudge("trend", 0, 2).unwrap();
         layout.editor.nudge("trend", 0, 1).unwrap();
         layout.editor.duplicate("income").unwrap();
@@ -505,88 +451,10 @@ mod tests {
         assert_eq!(book.history().unwrap().len(), before + 1);
         book.undo().unwrap();
         assert!(book.views(Some(ViewKind::Dashboard)).unwrap().is_empty());
-        assert!(Layout::open(&book).unwrap().is_built_in());
-    }
-
-    #[test]
-    fn a_saved_layout_is_kept_listed_loaded_and_deleted() {
-        let mut book = book();
-        let mut layout = Layout::open(&book).unwrap();
-        layout.editor.nudge("trend", 0, 2).unwrap();
-        let arranged = layout.editor.document().entries.clone();
-        let id = save_as(&mut book, &layout.editor, "  Month review ").unwrap();
-
-        // A saved layout is not the one the Overview shows.
-        let saved = saved_layouts(&book).unwrap();
-        assert_eq!(
-            saved,
-            [SavedLayout {
-                id: id.clone(),
-                name: "Month review".to_owned()
-            }]
-        );
-        assert!(Layout::open(&book).unwrap().is_built_in());
-
-        // Loading is one edit in the session that Undo takes back, and
-        // writes nothing until Done.
-        let mut layout = Layout::open(&book).unwrap();
-        let before = layout.editor.document().entries.clone();
-        assert!(load(&book, &mut layout.editor, &id).unwrap());
-        assert_eq!(layout.editor.document().entries, arranged);
-        assert_eq!(layout.editor.next_undo(), Some(Edit::Load));
-        assert_eq!(edit_word(layout.editor.next_undo()), "load");
-        assert_eq!(layout.editor.undo(), Some(Edit::Load));
-        assert_eq!(layout.editor.document().entries, before);
-        layout.editor.redo();
-        assert_eq!(layout.save(&mut book).unwrap(), Saved::Added);
-        let shown = Layout::open(&book).unwrap();
-        assert_eq!(shown.editor.document().entries, arranged);
-        assert_eq!(saved_layouts(&book).unwrap().len(), 1);
-
-        delete_saved(&mut book, &id).unwrap();
-        assert!(saved_layouts(&book).unwrap().is_empty());
-        assert!(matches!(
-            load(&book, &mut Layout::open(&book).unwrap().editor, &id),
-            Err(LayoutError::NoSuchLayout)
-        ));
-    }
-
-    #[test]
-    fn a_layout_name_that_is_taken_or_the_overviews_is_refused() {
-        let mut book = book();
-        let layout = Layout::open(&book).unwrap();
-        save_as(&mut book, &layout.editor, "Month review").unwrap();
-        for name in ["month REVIEW", "overview", " Overview "] {
-            assert!(matches!(
-                save_as(&mut book, &layout.editor, name),
-                Err(LayoutError::Store(StoreError::ViewNameTaken { .. }))
-            ));
-        }
-        assert!(save_as(&mut book, &layout.editor, "   ").is_err());
-        assert_eq!(saved_layouts(&book).unwrap().len(), 1);
-    }
-
-    #[test]
-    fn the_overviews_own_layout_is_not_a_saved_layout() {
-        let mut book = book();
-        let mut layout = Layout::open(&book).unwrap();
-        layout.editor.nudge("trend", 0, 2).unwrap();
-        layout.save(&mut book).unwrap();
-        let active = book.views(Some(ViewKind::Dashboard)).unwrap()[0]
-            .id
-            .to_string();
-        assert!(saved_layouts(&book).unwrap().is_empty());
-        assert!(matches!(
-            delete_saved(&mut book, &active),
-            Err(LayoutError::NoSuchLayout)
-        ));
-        // Saved layouts next to it don't change which one the page shows.
-        save_as(&mut book, &layout.editor, "Other").unwrap();
-        let shown = Layout::open(&book).unwrap();
-        assert_eq!(shown.name, OVERVIEW_NAME);
-        assert_eq!(
-            shown.editor.document().entries,
-            layout.editor.document().entries
+        assert!(
+            Layout::open(&book, None, OVERVIEW_NAME)
+                .unwrap()
+                .is_built_in()
         );
     }
 
@@ -597,13 +465,13 @@ mod tests {
         let text = DEFAULT_WITH_OVERLAP;
         assert!(Document::read(text).is_err());
         book.add_view(text).unwrap();
-        let mut layout = Layout::open(&book).unwrap();
+        let mut layout = Layout::open(&book, None, OVERVIEW_NAME).unwrap();
         assert!(layout.damaged);
         assert!(layout.is_built_in());
         // Changing the built-in layout replaces the damaged copy.
         layout.editor.nudge("trend", 0, 1).unwrap();
         assert_eq!(layout.save(&mut book).unwrap(), Saved::Edited);
-        assert!(!Layout::open(&book).unwrap().damaged);
+        assert!(!Layout::open(&book, None, OVERVIEW_NAME).unwrap().damaged);
     }
 
     const DEFAULT_WITH_OVERLAP: &str = r#"{
@@ -619,13 +487,13 @@ mod tests {
     }"#;
 
     #[test]
-    fn the_library_offers_the_nineteen_components_and_adds_each_with_its_defaults() {
+    fn the_library_offers_the_twenty_components_and_adds_each_with_its_defaults() {
         let offered = library();
-        assert_eq!(offered.len(), 19);
+        assert_eq!(offered.len(), 20);
         assert!(offered.contains(&("text.heading", "")));
         assert!(offered.contains(&("page.period", "")));
         assert!(offered.contains(&("page.filters", "")));
-        let mut layout = Layout::open(&book()).unwrap();
+        let mut layout = Layout::open(&book(), None, OVERVIEW_NAME).unwrap();
         for (kind, _) in offered {
             // The built-in Overview has the period header and the filter
             // bar already, and a page holds one of each (D-474).
@@ -640,13 +508,13 @@ mod tests {
                 .unwrap();
             assert_eq!(row.component.unwrap().kind().id(), kind);
         }
-        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 31);
+        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 32);
         assert!(add(&mut layout.editor, "chart.radar").is_err());
     }
 
     #[test]
     fn a_component_is_added_with_the_dataset_asked_for_when_its_type_can_show_it() {
-        let mut layout = Layout::open(&book()).unwrap();
+        let mut layout = Layout::open(&book(), None, OVERVIEW_NAME).unwrap();
         let shown = |layout: &Layout, id: &str| {
             let row = rows(&layout.editor, &Filters::default())
                 .into_iter()
@@ -694,7 +562,7 @@ mod tests {
         .unwrap();
         let opened = saved_views::open(&book, &id).unwrap();
 
-        let mut layout = Layout::open(&book).unwrap();
+        let mut layout = Layout::open(&book, None, OVERVIEW_NAME).unwrap();
         let before = rows(&layout.editor, &Filters::default()).len();
         let added = add_view(&mut layout.editor, &opened.component, &opened.period).unwrap();
         let all = rows(&layout.editor, &Filters::default());
@@ -718,7 +586,7 @@ mod tests {
 
     #[test]
     fn the_panels_component_replaces_the_one_in_the_grid() {
-        let mut layout = Layout::open(&book()).unwrap();
+        let mut layout = Layout::open(&book(), None, OVERVIEW_NAME).unwrap();
         let id = add(&mut layout.editor, "text.heading").unwrap();
         let mut heading = Component::new(ComponentType::Heading, "").unwrap();
         heading

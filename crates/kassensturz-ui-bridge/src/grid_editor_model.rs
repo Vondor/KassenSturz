@@ -15,6 +15,11 @@
 //! `minRows` and `subject`: the component as `ComponentProperties.view`
 //! shows it, which `ComponentPreview` and the properties panel take.
 //!
+//! Since M6d.1 the object shows one of the book's dashboards (D-436):
+//! `view` also holds `dashboards` (each with `id`, `name`, `isDefault` and
+//! `shown`), `name` of the one shown, `stored`, `isDefault` and `instead`,
+//! and the dashboard menu's calls each make one change in the history.
+//!
 //! The calls that edit return an empty object (or `id` of a new component)
 //! when they worked, or an object with the error's `code` and parameters. A
 //! refused edit changes nothing. Nothing is written to the book until
@@ -25,12 +30,14 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
 use kassensturz_core::Report;
-use kassensturz_report::{Filters, NumberForm, Origin, grid};
+use kassensturz_core::{ViewId, ViewKind};
+use kassensturz_report::{Filters, NumberForm, OVERVIEW_NAME, Origin, grid};
 use kassensturz_store::Book;
 
+use crate::dashboards::{self, Dashboard};
 use crate::errors::{ErrorText, report_text};
 use crate::formulas;
-use crate::grid_editor::{self, Layout, LayoutError, SavedLayout};
+use crate::grid_editor::{self, Layout, LayoutError};
 use crate::locale::QtLocale;
 use crate::number_format::{UserLocale, app_locale};
 use crate::properties_model::view_object as component_view;
@@ -98,29 +105,73 @@ pub mod qobject {
             period: &QString,
         ) -> QVariant;
 
-        /// The layouts the user saved under a name, as a list of objects with
-        /// `id` and `name` (D-330); empty when there is none.
-        #[qinvokable]
-        #[cxx_name = "savedLayouts"]
-        fn saved_layouts(self: &DashboardLayout) -> QVariant;
-
-        /// Keeps the components as they are now in the book under this name,
-        /// as a layout to load later. Gives the error, or an empty object.
+        /// Keeps the components as they are now in the book as a new
+        /// dashboard with this name, at the end of the list (*Save as a new
+        /// dashboard…*, D-330's behaviour); the session goes on. Gives the
+        /// error, or an empty object.
         #[qinvokable]
         #[cxx_name = "saveLayoutAs"]
         fn save_layout_as(self: Pin<&mut DashboardLayout>, name: &QString) -> QVariant;
 
-        /// Replaces the components with a saved layout's, as one edit that
-        /// Undo takes back; nothing is written until Done.
+        /// The built-in Overview's name in the user's language: what the
+        /// list shows for it and the name it is stored under when an action
+        /// stores it (M6d.1).
         #[qinvokable]
-        #[cxx_name = "loadLayout"]
-        fn load_layout(self: Pin<&mut DashboardLayout>, id: &QString) -> QVariant;
+        #[cxx_name = "setBuiltInName"]
+        fn set_built_in_name(self: Pin<&mut DashboardLayout>, name: &QString);
 
-        /// Deletes a saved layout from the book. Gives the error, or an empty
-        /// object.
+        /// A book was opened: shows the dashboard it opens at (D-448).
         #[qinvokable]
-        #[cxx_name = "deleteLayout"]
-        fn delete_layout(self: Pin<&mut DashboardLayout>, id: &QString) -> QVariant;
+        fn reopen(self: Pin<&mut DashboardLayout>);
+
+        /// Shows the dashboard with this `id` from `view.dashboards` (empty
+        /// for the built-in Overview). Ends any session.
+        #[qinvokable]
+        #[cxx_name = "showDashboard"]
+        fn show_dashboard(self: Pin<&mut DashboardLayout>, id: &QString);
+
+        /// Makes a new empty dashboard with this name at the end of the list
+        /// and shows it, being arranged (*New dashboard…*). Gives the error,
+        /// or an empty object.
+        #[qinvokable]
+        #[cxx_name = "newDashboard"]
+        fn new_dashboard(self: Pin<&mut DashboardLayout>, name: &QString) -> QVariant;
+
+        /// Gives the dashboard shown this name (*Rename…*). Gives the error,
+        /// or an empty object.
+        #[qinvokable]
+        #[cxx_name = "renameDashboard"]
+        fn rename_dashboard(self: Pin<&mut DashboardLayout>, name: &QString) -> QVariant;
+
+        /// Copies the dashboard shown right after it and shows the copy
+        /// (*Duplicate*): named `first`, or `numbered` with a number where it
+        /// holds the character U+0001 if `first` is taken. Gives the error,
+        /// or an empty object.
+        #[qinvokable]
+        #[cxx_name = "duplicateDashboard"]
+        fn duplicate_dashboard(
+            self: Pin<&mut DashboardLayout>,
+            first: &QString,
+            numbered: &QString,
+        ) -> QVariant;
+
+        /// Marks the dashboard shown as the one the book opens at (*Make
+        /// this the default*, D-448). Gives the error, or an empty object.
+        #[qinvokable]
+        #[cxx_name = "makeDefault"]
+        fn make_default(self: Pin<&mut DashboardLayout>) -> QVariant;
+
+        /// Moves the dashboard shown `by` places in the list (-1 earlier, 1
+        /// later). Gives the error, or an empty object.
+        #[qinvokable]
+        #[cxx_name = "moveDashboard"]
+        fn move_dashboard(self: Pin<&mut DashboardLayout>, by: i32) -> QVariant;
+
+        /// Deletes the dashboard shown and shows the one the book opens at
+        /// (*Delete…*). Gives the error, or an empty object.
+        #[qinvokable]
+        #[cxx_name = "deleteDashboard"]
+        fn delete_dashboard(self: Pin<&mut DashboardLayout>) -> QVariant;
 
         /// Moves a component so its top left corner is at this cell.
         #[qinvokable]
@@ -225,15 +276,73 @@ pub mod qobject {
 }
 
 /// The Rust side of [`qobject::DashboardLayout`].
-#[derive(Default)]
 pub struct DashboardLayoutRust {
     view: QVariant,
     layout: Option<Layout>,
     editing: bool,
+    /// The dashboards, as last read (M6d.1).
+    dashboards: Vec<Dashboard>,
+    /// The stored dashboard shown; `None` for the one the book opens at.
+    /// Kept while the user goes to other pages (D-448).
+    shown: Option<ViewId>,
+    /// The book's dashboards as last read, to follow what Undo changed;
+    /// `None` until the book is read the first time.
+    seen: Option<Vec<Seen>>,
+    /// The built-in Overview's name in the user's language.
+    built_in_name: String,
     /// What the filter bar holds for now (D-351): a choice made while the
     /// layout is only looked at, never written to the book. `None` means
     /// the layout's own filters.
     bar: Option<Filters>,
+}
+
+impl Default for DashboardLayoutRust {
+    fn default() -> Self {
+        Self {
+            view: QVariant::default(),
+            layout: None,
+            editing: false,
+            dashboards: Vec::new(),
+            shown: None,
+            seen: None,
+            built_in_name: OVERVIEW_NAME.to_owned(),
+            bar: None,
+        }
+    }
+}
+
+/// A stored dashboard as it was read: its ID and its document.
+type Seen = (ViewId, String);
+
+/// Which dashboard to show after the book changed (D-436, *Undo across
+/// dashboards*): the one shown if it is still there and either it changed
+/// or nothing else did; otherwise the first that changed or came back, so
+/// the user sees what Undo did; otherwise the one the book opens at
+/// (`None`). Without an earlier reading, the one shown.
+pub fn follow(shown: Option<ViewId>, before: Option<&[Seen]>, now: &[Seen]) -> Option<ViewId> {
+    let Some(before) = before else {
+        return shown;
+    };
+    let changed: Vec<ViewId> = now
+        .iter()
+        .filter(|(id, document)| {
+            before
+                .iter()
+                .find(|(old, _)| old == id)
+                .is_none_or(|(_, old)| old != document)
+        })
+        .map(|(id, _)| *id)
+        .collect();
+    match shown {
+        Some(id) if now.iter().any(|(other, _)| *other == id) => {
+            if changed.is_empty() || changed.contains(&id) {
+                Some(id)
+            } else {
+                changed.first().copied()
+            }
+        }
+        _ => changed.first().copied(),
+    }
 }
 
 fn number(value: u32) -> QVariant {
@@ -295,22 +404,54 @@ fn item_object(row: &grid_editor::Row, form: NumberForm) -> QVariant {
     ])
 }
 
-/// What QML gets for the layout; empty when no book is open.
+/// The dashboards as QML gets them: objects with `id` (empty for the
+/// built-in Overview), `name`, `isDefault` (the book opens at it, D-448) and
+/// `shown`.
+fn dashboards_object(dashboards: &[Dashboard], shown: Option<ViewId>) -> QVariant {
+    list(dashboards.iter().map(|dashboard| {
+        map([
+            (
+                "id",
+                text(&dashboard.id.map(|id| id.to_string()).unwrap_or_default()),
+            ),
+            ("name", text(&dashboard.name)),
+            ("isDefault", QVariant::from(&dashboard.is_default)),
+            ("shown", QVariant::from(&(dashboard.id == shown))),
+        ])
+    }))
+}
+
+/// What QML gets for the layout; empty when no book is open. Besides the
+/// grid: `dashboards` (see [`dashboards_object`]), `name` of the one shown,
+/// `stored` (whether it is in the book, so it can be moved and deleted),
+/// `isDefault` and `instead`, the name of the one the book would open at if
+/// it were deleted.
 fn view_object(
     layout: Option<&Layout>,
     editing: bool,
     form: NumberForm,
     bar: Option<&Filters>,
+    dashboards: &[Dashboard],
+    instead: &str,
 ) -> QVariant {
     let Some(layout) = layout else {
         return map([]);
     };
+    let shown_default = dashboards
+        .iter()
+        .find(|dashboard| dashboard.id == layout.stored)
+        .is_some_and(|dashboard| dashboard.is_default);
     let (columns, max_rows) = grid_editor::size();
     let editor = &layout.editor;
     let own = editor.filters();
     // While arranged, the bar is the layout's own filters.
     let bar = if editing { None } else { bar }.unwrap_or(&own);
     map([
+        ("dashboards", dashboards_object(dashboards, layout.stored)),
+        ("name", text(&layout.name)),
+        ("stored", QVariant::from(&layout.stored.is_some())),
+        ("isDefault", QVariant::from(&shown_default)),
+        ("instead", text(instead)),
         ("filters", filters_object(bar, bar != &own)),
         ("editing", QVariant::from(&editing)),
         ("damaged", QVariant::from(&layout.damaged)),
@@ -354,15 +495,6 @@ fn filters_object(bar: &Filters, for_now: bool) -> QVariant {
     ])
 }
 
-/// The saved layouts as QML gets them: objects with `id` and `name`.
-fn saved_layouts_object(layouts: &[SavedLayout]) -> QVariant {
-    list(
-        layouts
-            .iter()
-            .map(|saved| map([("id", text(&saved.id)), ("name", text(&saved.name))])),
-    )
-}
-
 /// The error as QML gets it.
 fn error_text(book: &Book, error: &LayoutError, locale: &UserLocale<QtLocale>) -> ErrorText {
     match error {
@@ -394,23 +526,198 @@ fn plain_error(error: &LayoutError) -> ErrorText {
 impl qobject::DashboardLayout {
     fn show(mut self: Pin<&mut Self>) {
         let form = formulas::form(&app_locale());
+        let rust = self.rust();
+        let instead = rust
+            .layout
+            .as_ref()
+            .and_then(|layout| layout.stored)
+            .and_then(|id| {
+                read_book(|book| dashboards::default_without(book, id, &rust.built_in_name)).ok()
+            })
+            .unwrap_or_default();
         let view = view_object(
-            self.rust().layout.as_ref(),
-            self.rust().editing,
+            rust.layout.as_ref(),
+            rust.editing,
             form,
-            self.rust().bar.as_ref(),
+            rust.bar.as_ref(),
+            &rust.dashboards,
+            &instead,
         );
         self.as_mut().rust_mut().view = view;
         self.as_mut().view_changed();
     }
 
-    /// Reads the layout from the book and shows it, ending any session.
+    /// Reads the dashboards and the one to show from the book and shows it,
+    /// ending any session. After a change it follows what changed
+    /// ([`follow`]).
     fn load(mut self: Pin<&mut Self>, editing: bool) {
-        let layout = read_book(Layout::open).ok();
+        let (shown, built_in_name) = (self.rust().shown, self.rust().built_in_name.clone());
+        let before = self.rust().seen.clone();
+        let read = read_book(|book| {
+            let now: Vec<Seen> = book
+                .views(Some(ViewKind::Dashboard))?
+                .into_iter()
+                .map(|view| (view.id, view.document))
+                .collect();
+            let wanted = follow(shown, before.as_deref(), &now);
+            let layout = Layout::open(book, wanted, &built_in_name)?;
+            let list = dashboards::list(book, &built_in_name)?;
+            Ok((layout, list, now))
+        })
+        .ok();
         let mut this = self.as_mut().rust_mut();
-        this.layout = layout;
+        match read {
+            Some((layout, list, now)) => {
+                if this.shown != layout.stored {
+                    // Another dashboard: what was chosen for now was for
+                    // the one before.
+                    this.bar = None;
+                }
+                this.shown = layout.stored;
+                this.layout = Some(layout);
+                this.dashboards = list;
+                this.seen = Some(now);
+            }
+            None => {
+                this.layout = None;
+                this.dashboards = Vec::new();
+            }
+        }
         this.editing = editing && this.layout.is_some();
         self.show();
+    }
+
+    /// Does a dashboard action on the book; on success shows `then` (or
+    /// the dashboard shown, for `None`), tells the screens the book changed
+    /// and gives an empty object, otherwise the error.
+    fn dashboard_action(
+        mut self: Pin<&mut Self>,
+        action: impl FnOnce(&mut Book, Option<ViewId>, &str) -> Result<Option<ViewId>, LayoutError>,
+        editing: bool,
+    ) -> QVariant {
+        if self.rust().editing {
+            // The menu is not offered while a dashboard is arranged.
+            return map([]);
+        }
+        let shown = self.rust().layout.as_ref().and_then(|layout| layout.stored);
+        let built_in_name = self.rust().built_in_name.clone();
+        match change_book(|book| action(book, shown, &built_in_name)) {
+            Ok(then) => {
+                {
+                    let mut this = self.as_mut().rust_mut();
+                    if let Some(id) = then {
+                        this.shown = Some(id);
+                        this.bar = None;
+                    }
+                    // The action's own change is not something to follow.
+                    this.seen = None;
+                }
+                self.as_mut().load(editing);
+                self.as_mut().changed();
+                map([])
+            }
+            Err(error) => error_object(&error),
+        }
+    }
+
+    fn set_built_in_name(mut self: Pin<&mut Self>, name: &QString) {
+        let name = name.to_string();
+        let name = name.trim();
+        if name.is_empty() || name == self.rust().built_in_name {
+            return;
+        }
+        name.clone_into(&mut self.as_mut().rust_mut().built_in_name);
+        if !self.rust().editing {
+            self.load(false);
+        }
+    }
+
+    fn reopen(mut self: Pin<&mut Self>) {
+        {
+            let mut this = self.as_mut().rust_mut();
+            this.shown = None;
+            this.seen = None;
+            this.bar = None;
+        }
+        self.load(false);
+    }
+
+    fn show_dashboard(mut self: Pin<&mut Self>, id: &QString) {
+        let id = id.to_string();
+        let wanted = if id.is_empty() {
+            None
+        } else {
+            read_book(|book| dashboards::find(book, &id)).ok()
+        };
+        {
+            let mut this = self.as_mut().rust_mut();
+            if this.shown != wanted {
+                this.bar = None;
+            }
+            this.shown = wanted;
+            this.seen = None;
+        }
+        self.load(false);
+    }
+
+    fn new_dashboard(self: Pin<&mut Self>, name: &QString) -> QVariant {
+        let name = name.to_string();
+        // An empty dashboard opens being arranged, so the user can add to
+        // it at once (section 2, `empty`).
+        self.dashboard_action(
+            |book, _, built_in| {
+                dashboards::add(book, kassensturz_report::templates::EMPTY, &name, built_in)
+                    .map(Some)
+            },
+            true,
+        )
+    }
+
+    fn rename_dashboard(self: Pin<&mut Self>, name: &QString) -> QVariant {
+        let name = name.to_string();
+        self.dashboard_action(
+            |book, shown, built_in| dashboards::rename(book, shown, &name, built_in).map(Some),
+            false,
+        )
+    }
+
+    fn duplicate_dashboard(self: Pin<&mut Self>, first: &QString, numbered: &QString) -> QVariant {
+        let (first, numbered) = (first.to_string(), numbered.to_string());
+        self.dashboard_action(
+            |book, shown, built_in| {
+                dashboards::duplicate(book, shown, &first, &numbered, built_in).map(Some)
+            },
+            false,
+        )
+    }
+
+    fn make_default(self: Pin<&mut Self>) -> QVariant {
+        self.dashboard_action(
+            |book, shown, built_in| dashboards::make_default(book, shown, built_in).map(Some),
+            false,
+        )
+    }
+
+    fn move_dashboard(self: Pin<&mut Self>, by: i32) -> QVariant {
+        self.dashboard_action(
+            |book, shown, _| {
+                let id = shown.ok_or(LayoutError::NoSuchLayout)?;
+                dashboards::move_by(book, id, by)?;
+                Ok(Some(id))
+            },
+            false,
+        )
+    }
+
+    fn delete_dashboard(self: Pin<&mut Self>) -> QVariant {
+        // Then the one the book opens at is shown.
+        self.dashboard_action(
+            |book, shown, _| {
+                dashboards::delete(book, shown.ok_or(LayoutError::NoSuchLayout)?)?;
+                Ok(None)
+            },
+            false,
+        )
     }
 
     fn refresh(self: Pin<&mut Self>) {
@@ -514,39 +821,35 @@ impl qobject::DashboardLayout {
         })
     }
 
-    fn saved_layouts(&self) -> QVariant {
-        saved_layouts_object(&read_book(grid_editor::saved_layouts).unwrap_or_default())
-    }
-
     fn save_layout_as(mut self: Pin<&mut Self>, name: &QString) -> QVariant {
         let name = name.to_string();
+        let built_in_name = self.rust().built_in_name.clone();
         let Some(layout) = self.rust().layout.as_ref() else {
             return map([]);
         };
-        match change_book(|book| grid_editor::save_as(book, &layout.editor, &name)) {
-            Ok(_) => {
-                self.as_mut().changed();
-                map([])
-            }
-            Err(error) => error_object(&error),
-        }
-    }
-
-    fn load_layout(self: Pin<&mut Self>, id: &QString) -> QVariant {
-        let id = id.to_string();
-        self.edited(
-            |layout| {
-                session::with_book(|book| grid_editor::load(book, &mut layout.editor, &id))
-                    .unwrap_or(Err(LayoutError::NoSuchLayout))
-            },
-            |_| map([]),
-        )
-    }
-
-    fn delete_layout(mut self: Pin<&mut Self>, id: &QString) -> QVariant {
-        let id = id.to_string();
-        match change_book(|book| grid_editor::delete_saved(book, &id)) {
-            Ok(()) => {
+        match change_book(|book| {
+            dashboards::save_as(book, &layout.editor, &name, &built_in_name)?;
+            let list = dashboards::list(book, &built_in_name)?;
+            Ok((
+                book.views(Some(ViewKind::Dashboard))?
+                    .first()
+                    .map(|view| view.id),
+                list,
+            ))
+        }) {
+            Ok((first, list)) => {
+                let mut this = self.as_mut().rust_mut();
+                if let Some(layout) = this.layout.as_mut()
+                    && layout.stored.is_none()
+                {
+                    // The built-in Overview was stored first: the session
+                    // goes on with the stored copy.
+                    layout.stored = first;
+                    this.shown = first;
+                }
+                this.dashboards = list;
+                this.seen = None;
+                self.as_mut().show();
                 self.as_mut().changed();
                 map([])
             }
@@ -709,16 +1012,16 @@ impl qobject::DashboardLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::variant::read_back::{elements, flag_of, keys, list_of, object_of, text_of};
+    use crate::variant::read_back::{flag_of, keys, list_of, object_of, text_of};
 
     fn layout() -> Layout {
-        Layout::open(&Book::create_in_memory().unwrap()).unwrap()
+        Layout::open(&Book::create_in_memory().unwrap(), None, OVERVIEW_NAME).unwrap()
     }
 
     #[test]
     fn the_layout_reads_back_the_way_qml_reads_it() {
         let layout = layout();
-        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None);
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None, &[], "");
         assert_eq!(
             keys(&view),
             [
@@ -727,14 +1030,19 @@ mod tests {
                 "canUndo",
                 "columns",
                 "damaged",
+                "dashboards",
                 "editing",
                 "filters",
                 "hasChanges",
+                "instead",
+                "isDefault",
                 "items",
                 "library",
                 "maxRows",
+                "name",
                 "redoEdit",
                 "rows",
+                "stored",
                 "undoEdit"
             ]
         );
@@ -764,7 +1072,7 @@ mod tests {
         assert_eq!(text_of(&preview, "shows"), "card");
         assert_eq!(text_of(&preview, "measure"), "income");
         let library = list_of(&view, "library");
-        assert_eq!(library.len(), 19);
+        assert_eq!(library.len(), 20);
         assert_eq!(keys(&library[0]), ["dataset", "type"]);
     }
 
@@ -773,7 +1081,14 @@ mod tests {
         let layout = layout();
         let own = layout.editor.filters();
         // Looked at, with nothing chosen: the layout's own (none).
-        let view = view_object(Some(&layout), false, NumberForm::DecimalComma, None);
+        let view = view_object(
+            Some(&layout),
+            false,
+            NumberForm::DecimalComma,
+            None,
+            &[],
+            "",
+        );
         let filters = object_of(&view, "filters");
         assert_eq!(
             keys(&filters),
@@ -795,7 +1110,14 @@ mod tests {
             accounts: vec!["a-1".into()],
             categories: Vec::new(),
         };
-        let view = view_object(Some(&layout), false, NumberForm::DecimalComma, Some(&bar));
+        let view = view_object(
+            Some(&layout),
+            false,
+            NumberForm::DecimalComma,
+            Some(&bar),
+            &[],
+            "",
+        );
         let filters = object_of(&view, "filters");
         assert_eq!(text_of(&filters, "period"), "last-year");
         assert_eq!(list_of(&filters, "accounts").len(), 1);
@@ -815,7 +1137,7 @@ mod tests {
         // with the layout and counts as a change.
         let mut layout = layout;
         layout.editor.set_filters(&bar).unwrap();
-        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None);
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None, &[], "");
         assert_eq!(text_of(&object_of(&view, "filters"), "period"), "last-year");
         assert!(!flag_of(&object_of(&view, "filters"), "forNow"));
         assert!(flag_of(&view, "hasChanges"));
@@ -823,24 +1145,97 @@ mod tests {
     }
 
     #[test]
-    fn saved_layouts_read_back_with_an_id_and_a_name_from_a_real_book() {
+    fn the_dashboards_read_back_with_the_one_shown_and_the_default_from_a_real_book() {
         let mut book = Book::create_in_memory().unwrap();
-        let layout = Layout::open(&book).unwrap();
-        let id = grid_editor::save_as(&mut book, &layout.editor, "Month review").unwrap();
-        let shown = saved_layouts_object(&grid_editor::saved_layouts(&book).unwrap());
-        let rows = elements(&shown).unwrap();
+        let holidays = dashboards::add(&mut book, "empty", "Holidays", "Übersicht").unwrap();
+        let list = dashboards::list(&book, "Übersicht").unwrap();
+        let layout = Layout::open(&book, Some(holidays), "Übersicht").unwrap();
+        let instead = dashboards::default_without(&book, holidays, "Übersicht").unwrap();
+        let view = view_object(
+            Some(&layout),
+            false,
+            NumberForm::DecimalComma,
+            None,
+            &list,
+            &instead,
+        );
+        assert_eq!(text_of(&view, "name"), "Holidays");
+        assert!(flag_of(&view, "stored"));
+        assert!(!flag_of(&view, "isDefault"));
+        assert_eq!(text_of(&view, "instead"), "Übersicht");
+        assert!(list_of(&view, "items").is_empty());
+        let rows = list_of(&view, "dashboards");
+        assert_eq!(rows.len(), 2);
+        assert_eq!(keys(&rows[0]), ["id", "isDefault", "name", "shown"]);
+        assert_eq!(text_of(&rows[0], "name"), "Übersicht");
+        assert!(flag_of(&rows[0], "isDefault"));
+        assert!(!flag_of(&rows[0], "shown"));
+        assert_eq!(text_of(&rows[1], "id"), holidays.to_string());
+        assert!(flag_of(&rows[1], "shown"));
+        // The built-in Overview alone has no ID and is not stored.
+        let book = Book::create_in_memory().unwrap();
+        let list = dashboards::list(&book, "Übersicht").unwrap();
+        let layout = Layout::open(&book, None, "Übersicht").unwrap();
+        let view = view_object(
+            Some(&layout),
+            false,
+            NumberForm::DecimalComma,
+            None,
+            &list,
+            "",
+        );
+        let rows = list_of(&view, "dashboards");
         assert_eq!(rows.len(), 1);
-        assert_eq!(keys(&rows[0]), ["id", "name"]);
-        assert_eq!(text_of(&rows[0], "id"), id);
-        assert_eq!(text_of(&rows[0], "name"), "Month review");
-        assert!(elements(&saved_layouts_object(&[])).unwrap().is_empty());
+        assert_eq!(text_of(&rows[0], "id"), "");
+        assert!(flag_of(&rows[0], "shown"));
+        assert!(flag_of(&view, "isDefault"));
+        assert!(!flag_of(&view, "stored"));
+        assert_eq!(text_of(&view, "name"), "Übersicht");
+    }
+
+    #[test]
+    fn after_a_change_the_page_follows_what_changed() {
+        let [a, b, c] = [ViewId::generate(), ViewId::generate(), ViewId::generate()];
+        let seen = |items: &[(ViewId, &str)]| -> Vec<Seen> {
+            items
+                .iter()
+                .map(|(id, text)| (*id, (*text).to_owned()))
+                .collect()
+        };
+        let before = seen(&[(a, "1"), (b, "1")]);
+        // No earlier reading: the one asked for.
+        assert_eq!(follow(Some(b), None, &before), Some(b));
+        assert_eq!(follow(None, None, &before), None);
+        // Nothing changed, or the one shown changed: it stays.
+        assert_eq!(follow(Some(b), Some(&before), &before), Some(b));
+        assert_eq!(
+            follow(Some(b), Some(&before), &seen(&[(a, "2"), (b, "2")])),
+            Some(b)
+        );
+        // Undo changed another one, or brought one back: the page goes there.
+        assert_eq!(
+            follow(Some(b), Some(&before), &seen(&[(a, "2"), (b, "1")])),
+            Some(a)
+        );
+        assert_eq!(
+            follow(
+                Some(b),
+                Some(&before),
+                &seen(&[(a, "1"), (b, "1"), (c, "1")])
+            ),
+            Some(c)
+        );
+        // The one shown is gone and nothing else changed: the default.
+        assert_eq!(follow(Some(b), Some(&before), &seen(&[(a, "1")])), None);
+        // The built-in Overview was shown and Undo brought a stored one back.
+        assert_eq!(follow(None, Some(&[]), &seen(&[(a, "1")])), Some(a));
     }
 
     #[test]
     fn an_edit_shows_in_the_view_and_the_undo_words() {
         let mut layout = layout();
         layout.editor.nudge("trend", 0, 1).unwrap();
-        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None);
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None, &[], "");
         assert!(flag_of(&view, "hasChanges"));
         assert!(flag_of(&view, "canUndo"));
         assert!(!flag_of(&view, "canRedo"));
@@ -852,7 +1247,7 @@ mod tests {
     fn a_heading_is_an_item_with_no_data() {
         let mut layout = layout();
         let id = grid_editor::add(&mut layout.editor, "text.heading").unwrap();
-        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None);
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None, &[], "");
         let items = list_of(&view, "items");
         let heading = items
             .iter()
@@ -872,7 +1267,7 @@ mod tests {
     fn errors_have_a_code_a_screen_can_put_into_words() {
         let locale = app_locale();
         let book = Book::create_in_memory().unwrap();
-        let mut layout = Layout::open(&book).unwrap();
+        let mut layout = Layout::open(&book, None, OVERVIEW_NAME).unwrap();
         let refused = layout.editor.delete("nothing").unwrap_err();
         let shown = error_text(&book, &LayoutError::Report(refused), &locale);
         assert_eq!(shown.code, "report.grid-edit-refused");

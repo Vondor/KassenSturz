@@ -322,6 +322,8 @@ pub fn preview(component: &Component) -> Preview {
         // The page fills them (D-474): the month and the page's filters.
         ComponentType::PeriodHeader => ("period-header", ""),
         ComponentType::FilterBar => ("filter-bar", ""),
+        // A button, drawn by the page (M6d.7).
+        ComponentType::BankUpdateAll => ("update-all", ""),
     };
     let compare = word(component, "compare");
     let measure = match component.kind() {

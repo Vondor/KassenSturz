@@ -79,6 +79,20 @@ Item {
     // Where what must not be covered by a widget is drawn.
     readonly property alias topLayer: topLayerItem
 
+    // The app's `BankConnection` and whether bank connections can be used
+    // (D-054), for the Update all accounts widget (M6d.7); null and false
+    // where the grid has no bank, which hides the widget.
+    property var bank: null
+    property bool bankReady: false
+    // What the widget shows before it is pressed, asked again whenever the
+    // page's own figures are (after an import, a link, an undo).
+    readonly property var updateAll: {
+        void pageView;
+        const state = bankReady && bank ? bank.updateAllState() : ({});
+        return state.code === undefined ? state : ({});
+    }
+    readonly property bool updateAllShown: bankReady && (updateAll.linked ?? 0) > 0
+
     // What the page knows that is not a figure of the report layer: the
     // overview's fetch-gap warnings and its count of transfers, for the
     // notice widgets (D-328).
@@ -106,6 +120,8 @@ Item {
     signal propertiesRequested(string id)
     signal getTransactionsClicked(string accountId)
     signal setBudgetClicked()
+    // A notice of Update all accounts was clicked (M6d.7).
+    signal transactionClicked(string accountId, string transactionId)
     // An edit that was refused: the error object (`code`, ...).
     signal failed(var result)
 
@@ -118,10 +134,13 @@ Item {
     }
 
     // A component that shows nothing and takes no room: the budget bars of
-    // a book with no budget, while the page is only looked at. Arranging the
-    // layout shows it, so it can still be moved and removed.
+    // a book with no budget, and the Update all accounts button while no
+    // account is linked or bank connections can't be used (D-446), while the
+    // page is only looked at. Arranging the layout shows it, so it can still
+    // be moved and removed.
     function isCollapsed(info: var): bool {
-        return !editing && info.type === "budget.progress" && budgetCount === 0;
+        return !editing && ((info.type === "budget.progress" && budgetCount === 0)
+            || (info.type === "bank.update_all" && !updateAllShown));
     }
 
     // The height of the full-width components that take no room and lie

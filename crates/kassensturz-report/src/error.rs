@@ -46,6 +46,24 @@ pub enum ReportError {
         /// The version the document says it has.
         version: i64,
     },
+    /// A dashboard file can't be read (M6d.4, D-441, T-51). The file is
+    /// refused whole; nothing of it is used.
+    DashboardFileInvalid {
+        /// What is wrong, by a fixed word.
+        reason: &'static str,
+        /// The key or dotted path of the value.
+        path: String,
+    },
+    /// A dashboard file is bigger than KassenSturz reads (D-441).
+    DashboardFileTooBig {
+        /// The most bytes a dashboard file may have.
+        max_bytes: usize,
+    },
+    /// A dashboard file was written by a newer KassenSturz (D-441).
+    UnsupportedDashboardFileVersion {
+        /// The version the file says it has.
+        version: i64,
+    },
     /// The grid editor refused an edit, which changed nothing (D-296).
     GridEditRefused {
         /// Why, by a fixed word.
@@ -187,6 +205,19 @@ impl Report for ReportError {
                 ErrorReport::new("report.unsupported-document-version")
                     .with("version", ErrorParam::Number(*version))
             }
+            Self::DashboardFileInvalid { reason, path } => {
+                ErrorReport::new("report.dashboard-file-invalid")
+                    .with("reason", ErrorParam::Keyword(reason))
+                    .with("path", ErrorParam::Text(path.clone()))
+            }
+            Self::DashboardFileTooBig { max_bytes } => {
+                ErrorReport::new("report.dashboard-file-too-big")
+                    .with("max_bytes", ErrorParam::count(*max_bytes))
+            }
+            Self::UnsupportedDashboardFileVersion { version } => {
+                ErrorReport::new("report.unsupported-dashboard-file-version")
+                    .with("version", ErrorParam::Number(*version))
+            }
             Self::GridEditRefused { reason } => ErrorReport::new("report.grid-edit-refused")
                 .with("reason", ErrorParam::Keyword(reason)),
             Self::GroupsOverlap {
@@ -292,6 +323,12 @@ mod tests {
             },
             ReportError::DocumentTooBig { max_bytes: 1 },
             ReportError::UnsupportedDocumentVersion { version: 2 },
+            ReportError::DashboardFileInvalid {
+                reason: "id-in-file",
+                path: "dashboard.filters.accounts.0".into(),
+            },
+            ReportError::DashboardFileTooBig { max_bytes: 1 },
+            ReportError::UnsupportedDashboardFileVersion { version: 2 },
             ReportError::GridEditRefused { reason: "no-room" },
             ReportError::GroupsOverlap {
                 category: "Phone".into(),

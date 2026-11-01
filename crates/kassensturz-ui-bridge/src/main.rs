@@ -38,6 +38,9 @@ mod category_groups;
 mod category_groups_model;
 mod charts;
 mod charts_model;
+mod dashboard_file;
+mod dashboard_file_model;
+mod dashboards;
 mod developer_mode;
 mod errors;
 mod export;
@@ -86,6 +89,7 @@ mod statement_import_model;
 mod test_folder;
 mod transaction_entry;
 mod transfer_prompt;
+mod update_all;
 mod variant;
 mod window_state_model;
 

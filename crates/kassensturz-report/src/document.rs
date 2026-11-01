@@ -109,6 +109,13 @@ pub struct Document {
     pub categories: Vec<String>,
     /// The components, in the order of the document.
     pub entries: Vec<Entry>,
+    /// The word of the template a dashboard was made from (`template`,
+    /// D-439): one of [`crate::templates::WORDS`]. `None` for a view and
+    /// for a dashboard stored before M6d.
+    pub template: Option<String>,
+    /// Whether the user marked this dashboard as the one a book opens at
+    /// (`"default": true`, D-448). Written only when it is set.
+    pub default: bool,
 }
 
 fn invalid(reason: &'static str, path: &str) -> ReportError {
@@ -172,10 +179,96 @@ fn add_page_widgets(entries: &mut Vec<Entry>) {
     }
 }
 
+/// [`add_page_widgets`] for a dashboard as JSON, before it is read: for a
+/// reader that also follows the components by their place in the JSON (the
+/// dashboard file of M6d.4), so its places and the document's agree. A
+/// dashboard of version 1 or 2 gets the two components in front, the others'
+/// `frame.row` two higher, and `version` [`VERSION`]; anything that doesn't
+/// look like such a dashboard is left for [`Document::read`] to judge.
+pub(crate) fn add_page_widgets_to_json(dashboard: &mut Map<String, Value>) {
+    let old = dashboard
+        .get("version")
+        .and_then(Value::as_i64)
+        .is_some_and(|version| (1..3).contains(&version));
+    if !old || dashboard.get("kind").and_then(Value::as_str) != Some("dashboard") {
+        return;
+    }
+    let Some(Value::Array(components)) = dashboard.get_mut("components") else {
+        return;
+    };
+    let page_widget = |component: &Value| {
+        component
+            .get("type")
+            .and_then(Value::as_str)
+            .and_then(ComponentType::from_id)
+            .is_some_and(ComponentType::one_per_page)
+    };
+    if components.len() + 2 > MAX_COMPONENTS || components.iter().any(page_widget) {
+        return;
+    }
+    for component in components.iter_mut() {
+        if let Some(row) = component.pointer_mut("/frame/row")
+            && let Some(old_row) = row.as_u64()
+        {
+            *row = old_row.saturating_add(2).into();
+        }
+    }
+    let taken = |id: &str| {
+        components
+            .iter()
+            .any(|component| component.get("id").and_then(Value::as_str) == Some(id))
+    };
+    let mut added = Vec::new();
+    for (row, kind, base) in [
+        (0, ComponentType::PeriodHeader, PERIOD_HEADER_ID),
+        (1, ComponentType::FilterBar, FILTER_BAR_ID),
+    ] {
+        let id = (1..)
+            .map(|n| {
+                if n == 1 {
+                    base.to_owned()
+                } else {
+                    format!("{base}-{n}")
+                }
+            })
+            .find(|id| !taken(id))
+            .unwrap_or_default();
+        let size = kind.default_size();
+        added.push(serde_json::json!({
+            "id": id, "type": kind.id(),
+            "frame": {"col": 0, "row": row, "cols": size.cols, "rows": size.rows}
+        }));
+    }
+    components.splice(0..0, added);
+    dashboard.insert("version".into(), VERSION.into());
+}
+
 /// Refuses text in which an object has the same key twice or the nesting is
-/// deeper than [`MAX_DEPTH`]. The text is valid JSON already, so only the
-/// brackets, commas and strings need to be followed.
+/// deeper than [`MAX_DEPTH`].
 fn guard(text: &str) -> Result<(), ReportError> {
+    scan(text, MAX_DEPTH).map_err(|found| match found {
+        Scanned::TooDeep => invalid("too-deep", ""),
+        Scanned::DuplicateKey(key) => invalid("duplicate-key", &key),
+        Scanned::NotJson => invalid("not-json", ""),
+    })
+}
+
+/// What [`scan`] refused.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Scanned {
+    /// The nesting is deeper than allowed.
+    TooDeep,
+    /// An object has this key twice.
+    DuplicateKey(String),
+    /// A key could not be decoded.
+    NotJson,
+}
+
+/// Looks for an object with the same key twice and nesting deeper than
+/// `max_depth`, which `serde_json` would let through. The text is valid JSON
+/// already, so only the brackets, commas and strings need to be followed.
+/// Shared by documents and dashboard files (M6d.4).
+pub(crate) fn scan(text: &str, max_depth: usize) -> Result<(), Scanned> {
     // One entry per open bracket: the keys seen so far if it is an object.
     let mut open: Vec<Option<HashSet<String>>> = Vec::new();
     // Whether the next string is a key of the innermost object.
@@ -184,8 +277,8 @@ fn guard(text: &str) -> Result<(), ReportError> {
     while let Some((start, c)) = chars.next() {
         match c {
             '{' | '[' => {
-                if open.len() >= MAX_DEPTH {
-                    return Err(invalid("too-deep", ""));
+                if open.len() >= max_depth {
+                    return Err(Scanned::TooDeep);
                 }
                 key_next = c == '{';
                 open.push((c == '{').then(HashSet::new));
@@ -211,12 +304,12 @@ fn guard(text: &str) -> Result<(), ReportError> {
                 if key_next {
                     key_next = false;
                     // Decoded, so "a" and "a" are the same key.
-                    let key: String = serde_json::from_str(&text[start..=end])
-                        .map_err(|_| invalid("not-json", ""))?;
+                    let key: String =
+                        serde_json::from_str(&text[start..=end]).map_err(|_| Scanned::NotJson)?;
                     if let Some(Some(keys)) = open.last_mut()
                         && !keys.insert(key.clone())
                     {
-                        return Err(invalid("duplicate-key", &key));
+                        return Err(Scanned::DuplicateKey(key));
                     }
                 }
             }
@@ -366,6 +459,8 @@ impl Document {
                 item: Item::Component(component),
                 frame: None,
             }],
+            template: None,
+            default: false,
         }
     }
 
@@ -384,7 +479,14 @@ impl Document {
         if let Some(key) = object.keys().find(|key| {
             !matches!(
                 key.as_str(),
-                "format" | "version" | "kind" | "name" | "filters" | "components"
+                "format"
+                    | "version"
+                    | "kind"
+                    | "name"
+                    | "filters"
+                    | "components"
+                    | "template"
+                    | "default"
             )
         }) {
             return Err(invalid("unknown-property", key));
@@ -417,6 +519,25 @@ impl Document {
             None => Filters::default(),
             Some(filters) => read_filters(filters)?,
         };
+        let template = match object.get("template") {
+            None => None,
+            Some(Value::String(word)) if crate::templates::WORDS.contains(&word.as_str()) => {
+                Some(word.clone())
+            }
+            Some(Value::String(_)) => return Err(invalid("bad-choice", "template")),
+            Some(_) => return Err(invalid("wrong-type", "template")),
+        };
+        let default = match object.get("default") {
+            None => false,
+            Some(Value::Bool(marked)) => *marked,
+            Some(_) => return Err(invalid("wrong-type", "default")),
+        };
+        if kind == ViewKind::View && (template.is_some() || default) {
+            return Err(invalid(
+                "unknown-property",
+                if default { "default" } else { "template" },
+            ));
+        }
         let components = match object.get("components") {
             None => &Vec::new(),
             Some(Value::Array(components)) => components,
@@ -458,6 +579,8 @@ impl Document {
             accounts,
             categories,
             entries,
+            template,
+            default,
         })
     }
 
@@ -530,6 +653,12 @@ impl Document {
             .into(),
         );
         object.insert("name".into(), self.name.clone().into());
+        if let Some(template) = &self.template {
+            object.insert("template".into(), template.clone().into());
+        }
+        if self.default {
+            object.insert("default".into(), true.into());
+        }
         let mut filters = Map::new();
         if let Some(period) = &self.period {
             filters.insert("period".into(), period.clone().into());

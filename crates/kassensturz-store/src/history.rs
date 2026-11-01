@@ -1221,7 +1221,7 @@ impl Book {
 
     /// Where the history is kept: in the book (`main`), or in memory
     /// (`temp`) if the book keeps it for 0 days.
-    fn history_schema(&self) -> Result<&'static str, StoreError> {
+    pub(crate) fn history_schema(&self) -> Result<&'static str, StoreError> {
         Ok(match self.history_retention()? {
             HistoryRetention::Days(0) => "temp",
             _ => "main",

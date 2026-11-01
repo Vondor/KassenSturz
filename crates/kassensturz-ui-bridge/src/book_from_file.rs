@@ -19,7 +19,7 @@ use kassensturz_core::{CurrencyCode, Date, ExchangeRate, Report};
 use kassensturz_export::{BookData, ExportError, read_book_file};
 use kassensturz_import::{
     Camt053, ImportError, Imported, ImportedBook, Importer, Kmy, KmySqlite, Limits, Mt940, Ofx,
-    RECOGNITION_BYTES, Recognition, Replacement, UnlistedCurrency, import, read_file,
+    RECOGNITION_BYTES, Recognition, Replacement, SkippedData, UnlistedCurrency, import, read_file,
 };
 use kassensturz_pipeline::{
     BookImportReport, PipelineError, ReportLine, RuleScope, fill_book, fill_book_from_on,
@@ -37,6 +37,9 @@ pub enum FromFileError {
     IsABook,
     /// The file is a bank's statement, which is imported into an account.
     IsAStatement,
+    /// Reports can come only from a KMyMoney book, and the file isn't one
+    /// (M6d.6b).
+    NotKmyMoney,
     /// The step meant isn't there (anymore): no file read, or an answer for
     /// a currency the file doesn't need one for.
     NoSuchEntry,
@@ -144,6 +147,7 @@ pub fn error_text_in(
     match error {
         FromFileError::IsABook => ErrorText::plain("input.is-a-book"),
         FromFileError::IsAStatement => ErrorText::plain("input.is-a-statement"),
+        FromFileError::NotKmyMoney => ErrorText::plain("input.not-kmymoney"),
         FromFileError::NoSuchEntry => ErrorText::plain("input.no-such-entry"),
         FromFileError::Replacement {
             currency,
@@ -391,23 +395,9 @@ pub fn read(path: &Path) -> Result<Prepared, FromFileError> {
     if extension.as_deref() == Some(crate::books::EXTENSION) {
         return Err(FromFileError::IsABook);
     }
-    let limits = Limits::default();
     let start = start_of(path);
-    let importer: Option<&dyn Importer> = if Kmy.recognize(&start) == Recognition::Yes {
-        Some(&Kmy)
-    } else if KmySqlite.recognize(&start) != Recognition::No {
-        // Any SQLite file could be KMyMoney's; neither a complete export nor
-        // a KassenSturz book is one.
-        Some(&KmySqlite)
-    } else {
-        None
-    };
-    let source = if let Some(importer) = importer {
-        let input = read_file(path, &limits)?;
-        let Imported::Book(book) = import(importer, &input, &limits)? else {
-            unreachable!("the KMyMoney importers read a book")
-        };
-        Source::Other(book)
+    let source = if let Some(importer) = kmymoney_importer(&start) {
+        Source::Other(read_kmymoney_with(importer, path)?)
     } else if STATEMENTS
         .iter()
         .any(|importer| importer.recognize(&start) == Recognition::Yes)
@@ -421,6 +411,47 @@ pub fn read(path: &Path) -> Result<Prepared, FromFileError> {
         stem,
         source,
     })
+}
+
+/// The KMyMoney importer for a file that starts with `start`, if it may be
+/// a KMyMoney book.
+fn kmymoney_importer(start: &[u8]) -> Option<&'static dyn Importer> {
+    if Kmy.recognize(start) == Recognition::Yes {
+        Some(&Kmy)
+    } else if KmySqlite.recognize(start) != Recognition::No {
+        // Any SQLite file could be KMyMoney's; neither a complete export nor
+        // a KassenSturz book is one.
+        Some(&KmySqlite)
+    } else {
+        None
+    }
+}
+
+fn read_kmymoney_with(
+    importer: &dyn Importer,
+    path: &Path,
+) -> Result<Box<ImportedBook>, FromFileError> {
+    let limits = Limits::default();
+    let input = read_file(path, &limits)?;
+    let Imported::Book(book) = import(importer, &input, &limits)? else {
+        unreachable!("the KMyMoney importers read a book")
+    };
+    Ok(book)
+}
+
+/// Reads the KMyMoney book at `path`, as untrusted input with the
+/// importer's limits, for its saved reports (M6d.6b): a KassenSturz book is
+/// [`FromFileError::IsABook`], any other file that isn't KMyMoney's
+/// [`FromFileError::NotKmyMoney`].
+pub fn read_kmymoney(path: &Path) -> Result<Box<ImportedBook>, FromFileError> {
+    let extension = path
+        .extension()
+        .map(|extension| extension.to_string_lossy().to_ascii_lowercase());
+    if extension.as_deref() == Some(crate::books::EXTENSION) {
+        return Err(FromFileError::IsABook);
+    }
+    let importer = kmymoney_importer(&start_of(path)).ok_or(FromFileError::NotKmyMoney)?;
+    read_kmymoney_with(importer, path)
 }
 
 /// The first bytes of the file, for recognizing its format. If it can't be
@@ -630,9 +661,9 @@ pub fn fill(
 
 /// Writes one debug-log entry for each report period that became fixed
 /// days (Q-319 = A): its KMyMoney word and the three days, nothing else.
-fn note_fixed_periods(lines: &[ReportLine]) {
+pub(crate) fn note_fixed_periods<'a>(lines: impl IntoIterator<Item = &'a ReportLine>) {
     #[cfg(feature = "debug-log")]
-    for period in lines.iter().filter_map(|line| line.period) {
+    for period in lines.into_iter().filter_map(|line| line.period) {
         crate::developer_mode::log().record_fixed_period(
             period.kmymoney,
             kassensturz_core::debug_log::Days {
@@ -647,7 +678,7 @@ fn note_fixed_periods(lines: &[ReportLine]) {
 }
 
 /// The summary lines of the reports, in the user's date format.
-fn report_texts(lines: &[ReportLine], locale: &impl Locale) -> Vec<ReportText> {
+pub(crate) fn report_texts(lines: &[ReportLine], locale: &impl Locale) -> Vec<ReportText> {
     let day = |day: Option<Date>| day.map(|day| locale.short_date(day)).unwrap_or_default();
     lines
         .iter()
@@ -704,9 +735,12 @@ fn created_text(
                 parts: converted.parts,
             })
             .collect(),
+        // The reports not kept are listed under *Reports* with why, so
+        // *Left out* doesn't count them again (M6d.6b).
         skipped: report
             .skipped
             .iter()
+            .filter(|skipped| skipped.what != SkippedData::Reports || report.reports.is_empty())
             .map(|skipped| (skipped.what.keyword(), skipped.count))
             .collect(),
         transfers: report.transfers.len(),
@@ -805,7 +839,8 @@ mod tests {
         );
         assert_eq!(created.reports[3].period, "");
         assert_eq!(created.reports[3].first, "");
-        assert!(created.skipped.contains(&("reports", 4)));
+        // Listed under Reports, so not counted again under Left out.
+        assert!(!created.skipped.iter().any(|(what, _)| *what == "reports"));
         assert_eq!(book.views(None).expect("views").len(), 3);
     }
 

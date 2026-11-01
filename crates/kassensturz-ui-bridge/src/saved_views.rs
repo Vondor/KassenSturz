@@ -143,7 +143,10 @@ pub fn open(book: &Book, id: &str) -> Result<Opened, ViewsError> {
     })
 }
 
-/// Replaces what a saved view shows; its name stays.
+/// Replaces what a saved view shows and its period; its name stays, and so
+/// does the rest of its document: the accounts and categories it is
+/// narrowed to and where it came from (`origin`, D-450), which the page
+/// doesn't show (M6-B75).
 pub fn update(
     book: &mut Book,
     id: &str,
@@ -152,7 +155,15 @@ pub fn update(
 ) -> Result<(), ViewsError> {
     let stored = find(book, id)?;
     let component = Component::from_json(component_json)?;
-    let text = document(&stored.name, period, component).to_json();
+    let fresh = document(&stored.name, period, component);
+    let text = match Document::read(&stored.document) {
+        Ok(mut kept) => {
+            kept.period = fresh.period;
+            kept.entries = fresh.entries;
+            kept.to_json()
+        }
+        Err(_) => fresh.to_json(),
+    };
     Document::read(&text)?;
     book.edit_view(stored.id, &text)?;
     Ok(())
@@ -257,6 +268,31 @@ mod tests {
         assert_eq!(open(&book, &id).unwrap().name, "A");
         book.undo().unwrap().expect("the save");
         assert!(list(&book).unwrap().is_empty());
+    }
+
+    /// M6-B75: a view brought from KMyMoney is narrowed to accounts and
+    /// knows its report; saving a change on the page keeps both.
+    #[test]
+    fn saving_changes_keeps_the_accounts_categories_and_origin_of_a_view() {
+        let mut book = Book::create_in_memory().unwrap();
+        let mut imported = document("From KMyMoney", "this-year", pie());
+        imported.accounts = vec!["0190f5f2-7c3a-7000-8000-000000000001".into()];
+        imported.categories = vec!["0190f5f2-7c3a-7000-8000-000000000002".into()];
+        imported.origin = Some(kassensturz_report::ViewOrigin::kmymoney(
+            "R000001",
+            "2026-11-01".parse().unwrap(),
+        ));
+        let id = book.add_view(&imported.to_json()).unwrap().to_string();
+        let mut donut = pie();
+        donut.set("legend", Setting::Flag(false)).unwrap();
+        update(&mut book, &id, "last-year", &json(&donut)).unwrap();
+        let stored = find(&book, &id).unwrap();
+        let kept = Document::read(&stored.document).unwrap();
+        assert_eq!(kept.period.as_deref(), Some("last-year"));
+        assert_eq!(kept.accounts, imported.accounts);
+        assert_eq!(kept.categories, imported.categories);
+        assert_eq!(kept.origin, imported.origin);
+        assert_eq!(component_of(&stored).unwrap().1, donut);
     }
 
     #[test]

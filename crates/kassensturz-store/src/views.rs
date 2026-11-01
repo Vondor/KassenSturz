@@ -150,6 +150,34 @@ impl Book {
             .ok_or(StoreError::UnknownView(id))
     }
 
+    /// The documents of the views or dashboards of `kind` that changes still
+    /// in the history removed, and not undone, newest first, each once
+    /// (M6d.6b, D-450): so a later import can tell a view the user deleted
+    /// from one it never made. Read only; a book that keeps no history, or
+    /// cleaned it up, has none.
+    pub fn removed_views(&self, kind: ViewKind) -> Result<Vec<String>, StoreError> {
+        let schema = self.history_schema()?;
+        let mut statement = self.conn.prepare_cached(&format!(
+            "SELECT before.document FROM {schema}.changed_views AS before
+             JOIN {schema}.changes AS change ON change.id = before.change_id
+             WHERE before.side = 'before' AND before.kind = ?1 AND change.undone = 0
+               AND before.document IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM {schema}.changed_views AS after
+                               WHERE after.change_id = before.change_id
+                                 AND after.id = before.id AND after.side = 'after')
+               AND NOT EXISTS (SELECT 1 FROM views WHERE views.id = before.id)
+             ORDER BY change.sequence DESC"
+        ))?;
+        let documents = statement
+            .query_map([kind_to_text(kind)], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut seen = std::collections::HashSet::new();
+        Ok(documents
+            .into_iter()
+            .filter(|document| seen.insert(document.clone()))
+            .collect())
+    }
+
     /// Saves a new view or dashboard at the end of its list; the user action
     /// [`Action::AddView`].
     ///

@@ -15,7 +15,8 @@
 //!
 //! The mapping does not know where the IDs come from: a new book made from
 //! the file maps the file's keys to the new IDs ([`ReportBook`]); bringing
-//! reports into an existing book (M6d.6b) will find them by name.
+//! reports into an existing book (M6d.6b, `kmy_reports_into.rs`) finds them
+//! by name.
 
 use std::collections::HashSet;
 
@@ -58,6 +59,12 @@ pub enum Found {
     Category(AccountId),
     /// Nothing the book holds, such as an investment account (D-029).
     Nothing,
+    /// One of the file's accounts that the open book has no account of that
+    /// name for (M6d.6b, D-450).
+    AccountNotFound,
+    /// One of the file's categories that the open book has no category of
+    /// that path for (M6d.6b, D-450).
+    CategoryNotFound,
 }
 
 /// The book the views are made for, as the mapping needs to see it.
@@ -67,6 +74,11 @@ pub trait ReportBook {
     /// The categories of money out (`income` false) or money in, in the
     /// book's order: only the top-level ones, or all of them.
     fn categories(&self, income: bool, top_only: bool) -> Vec<AccountId>;
+    /// Whether [`ReportBook::categories`] leaves out categories of the file
+    /// that the book lacks (M6d.6b); a book made from the file lacks none.
+    fn lacks_categories(&self, _income: bool, _top_only: bool) -> bool {
+        false
+    }
 }
 
 /// What became of a report.
@@ -244,6 +256,10 @@ pub fn map_report(report: &BookReport, book: &dyn ReportBook, today: Date) -> Ma
     let mut income = false;
     let mut accounts: Vec<String> = Vec::new();
     let mut categories: Vec<AccountId> = Vec::new();
+    // Whether the report narrowed its accounts or categories at all: a
+    // filter that loses every one of them shows more than it did.
+    let mut asked_accounts = false;
+    let mut asked_categories = false;
     for part in &report.parts {
         match part.name.as_str() {
             "ACCOUNTGROUP" => match part.setting("group") {
@@ -255,17 +271,30 @@ pub fn map_report(report: &BookReport, book: &dyn ReportBook, today: Date) -> Ma
             },
             "ACCOUNT" | "CATEGORY" => match part.setting("id").map(|key| book.find(key)) {
                 Some(Found::Account(id)) => {
+                    asked_accounts = true;
                     let id = id.to_string();
                     if !accounts.contains(&id) {
                         accounts.push(id);
                     }
                 }
                 Some(Found::Category(id)) => {
+                    asked_categories = true;
                     if !categories.contains(&id) {
                         categories.push(id);
                     }
                 }
-                Some(Found::Nothing) => reasons.add("account-left-out"),
+                Some(Found::Nothing) => {
+                    asked_accounts = true;
+                    reasons.add("account-left-out");
+                }
+                Some(Found::AccountNotFound) => {
+                    asked_accounts = true;
+                    reasons.add("account-not-found");
+                }
+                Some(Found::CategoryNotFound) => {
+                    asked_categories = true;
+                    reasons.add("category-not-found");
+                }
                 None => reasons.add("options-left-out"),
             },
             "PAYEE" => reasons.filter("payee"),
@@ -324,6 +353,11 @@ pub fn map_report(report: &BookReport, book: &dyn ReportBook, today: Date) -> Ma
             || report.setting("columnsaredays") == Some("1"))
     {
         reasons.add("by-month");
+    }
+    if (asked_accounts && accounts.is_empty())
+        || (matches!(kind, ReportKind::IncomeExpense) && asked_categories && categories.is_empty())
+    {
+        reasons.add("shows-more");
     }
     if report.setting("convertcurrency") == Some("0") {
         reasons.add("currency");
@@ -590,6 +624,9 @@ fn income_expense(
         for (wanted, is_income) in [(expense, false), (income, true)] {
             if wanted {
                 all.extend(book.categories(is_income, top_only));
+                if book.lacks_categories(is_income, top_only) {
+                    reasons.add("category-not-found");
+                }
             }
         }
         all
@@ -633,7 +670,7 @@ fn net_worth(chart: Option<&str>, reasons: &mut Reasons) -> Result<Component, &'
 
 /// The name a report's view gets: its name on one line, at most
 /// [`MAX_NAME_CHARS`] characters, or its ID if it has none.
-fn view_name(report: &BookReport) -> String {
+pub(crate) fn view_name(report: &BookReport) -> String {
     let one_line: String = report
         .name
         .chars()
@@ -649,13 +686,13 @@ fn view_name(report: &BookReport) -> String {
 }
 
 /// The first `max` characters of `text`.
-fn cut(text: &str, max: usize) -> String {
+pub(crate) fn cut(text: &str, max: usize) -> String {
     text.chars().take(max).collect()
 }
 
 /// `name`, or `name (2)`, `name (3)`, … if `taken` has it, ignoring
 /// capitals; the result is added to `taken`.
-fn unique_name(name: &str, taken: &mut HashSet<String>) -> String {
+pub(crate) fn unique_name(name: &str, taken: &mut HashSet<String>) -> String {
     let mut candidate = name.to_owned();
     let mut number = 2;
     while taken.contains(&candidate.to_lowercase()) {
@@ -667,7 +704,7 @@ fn unique_name(name: &str, taken: &mut HashSet<String>) -> String {
 }
 
 /// Gives the view `document` and its one component the name `name`.
-fn rename(document: &mut Document, name: &str) {
+pub(crate) fn rename(document: &mut Document, name: &str) {
     document.name = name.to_owned();
     if let Some(entry) = document.entries.first_mut()
         && let kassensturz_report::Item::Component(component) = &mut entry.item

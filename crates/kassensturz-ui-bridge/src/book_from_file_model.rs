@@ -15,7 +15,7 @@ use kassensturz_core::CurrencyCode;
 use kassensturz_pipeline::RuleScope;
 
 use crate::book_from_file::{
-    self, Answer, Created, FromFileError, Prepared, PreparedView, UnlistedView,
+    self, Answer, Created, FromFileError, Prepared, PreparedView, ReportText, UnlistedView,
 };
 use crate::book_session::local_path;
 use crate::books::{Books, Filled};
@@ -376,21 +376,37 @@ fn created_object(
         ),
         (
             "reports",
-            list(created.reports.iter().map(|report| {
-                let words = |words: &[&str]| list(words.iter().map(|word| text(word)));
-                map([
-                    ("name", text(&report.name)),
-                    ("outcome", text(report.outcome)),
-                    ("reasons", words(&report.reasons)),
-                    ("filters", words(&report.filters)),
-                    ("period", text(report.period)),
-                    ("first", text(&report.first)),
-                    ("last", text(&report.last)),
-                    ("imported", text(&report.imported)),
-                ])
-            })),
+            list(
+                created
+                    .reports
+                    .iter()
+                    .map(|report| report_object(report, [])),
+            ),
         ),
     ])
+}
+
+/// One line of the *Reports* section (`KmyReportsSummary.qml`): the
+/// report's name, its `outcome`, `reasons` and `filters` as keywords, and a
+/// fixed period's `period` word with its `first`, `last` and `imported`
+/// days, plus `more` fields the page needs besides (M6d.6b's preview).
+pub(crate) fn report_object<const N: usize>(
+    report: &ReportText,
+    more: [(&str, QVariant); N],
+) -> QVariant {
+    let words = |words: &[&str]| list(words.iter().map(|word| text(word)));
+    map([
+        ("name", text(&report.name)),
+        ("outcome", text(report.outcome)),
+        ("reasons", words(&report.reasons)),
+        ("filters", words(&report.filters)),
+        ("period", text(report.period)),
+        ("first", text(&report.first)),
+        ("last", text(&report.last)),
+        ("imported", text(&report.imported)),
+    ]
+    .into_iter()
+    .chain(more))
 }
 
 /// The answers as QML sends them: a list of objects, every field as text.
@@ -417,7 +433,7 @@ fn read_answers(answers: &QVariant) -> Vec<Answer> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::book_from_file::{PatternText, ReportText};
+    use crate::book_from_file::PatternText;
     use crate::variant::read_back::{flag_of, keys, list_of, number_of, text_of};
 
     #[test]

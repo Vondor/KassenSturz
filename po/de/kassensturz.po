@@ -16037,3 +16037,162 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This isn't a KMyMoney file. Reports can be added from a KMyMoney book, saved"
+" as a .kmy file or as its SQLite database."
+msgstr ""
+"Das ist keine KMyMoney-Datei. Berichte lassen sich aus einem KMyMoney-Buch "
+"hinzufügen, gespeichert als .kmy-Datei oder als seine SQLite-Datenbank."
+
+#, kde-format
+msgctxt "@title"
+msgid "Add reports from KMyMoney"
+msgstr "Berichte aus KMyMoney hinzufügen"
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Add reports"
+msgstr "Berichte hinzufügen"
+
+#, kde-format
+msgctxt "@info about a report brought in before"
+msgid "you deleted its view earlier"
+msgstr "Sie haben seine Ansicht früher gelöscht"
+
+#, kde-format
+msgctxt "@info %1 is the name of a file"
+msgid "Reports in %1"
+msgstr "Berichte in %1"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Only the reports come into your book, as saved views under Statistics; its "
+"accounts, categories and transactions don't. A view you have is changed only"
+" if you tick it, and nothing is deleted. Adding them can be undone from the "
+"menu."
+msgstr ""
+"Nur die Berichte kommen in Ihr Haushaltsbuch, als gespeicherte Ansichten im "
+"Statistik-Baukasten; seine Konten, Kategorien und Buchungen nicht. Eine "
+"Ansicht, die Sie haben, wird nur geändert, wenn Sie sie ankreuzen, und "
+"nichts wird gelöscht. Das Hinzufügen lässt sich im Menü rückgängig machen."
+
+#, kde-format
+msgctxt "@info"
+msgid "This file has no saved reports."
+msgstr "Diese Datei hat keine gespeicherten Berichte."
+
+#, kde-format
+msgctxt "@title:group reports from KMyMoney"
+msgid "New in this file"
+msgstr "Neu in dieser Datei"
+
+#, kde-format
+msgctxt "@info"
+msgid "Ticked reports are added as new saved views."
+msgstr ""
+"Angekreuzte Berichte werden als neue gespeicherte Ansichten hinzugefügt."
+
+#, kde-format
+msgctxt "@title:group reports from KMyMoney"
+msgid "Different from the view you have"
+msgstr "Anders als Ihre Ansicht"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The report or its view changed since it was brought in. Your view stays as "
+"it is unless you tick it: then KMyMoney's version replaces it, under the "
+"same name and in the same place."
+msgstr ""
+"Der Bericht oder seine Ansicht hat sich geändert, seit er übernommen wurde. "
+"Ihre Ansicht bleibt, wie sie ist, außer Sie kreuzen sie an: Dann ersetzt die"
+" Fassung aus KMyMoney sie, unter demselben Namen und an derselben Stelle."
+
+#, kde-format
+msgctxt "@option:check %1 is the name of a saved view"
+msgid "Replace “%1” with KMyMoney's version"
+msgstr "„%1“ durch die Fassung aus KMyMoney ersetzen"
+
+#, kde-format
+msgctxt "@title:group reports from KMyMoney"
+msgid "Already here"
+msgstr "Schon da"
+
+#, kde-format
+msgctxt "@info"
+msgid "These views are what their reports give: nothing to do."
+msgstr "Diese Ansichten zeigen, was ihre Berichte ergeben: nichts zu tun."
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A saved view can't show these yet. A view brought in from one of them "
+"earlier stays."
+msgstr ""
+"Eine gespeicherte Ansicht kann diese noch nicht zeigen. Eine Ansicht, die "
+"früher aus einem von ihnen übernommen wurde, bleibt."
+
+#, kde-format
+msgctxt "@title:group saved views"
+msgid "No longer in the file"
+msgstr "Nicht mehr in der Datei"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These views were brought in from reports the file doesn't have any more. "
+"They stay; you can delete them under Statistics."
+msgstr ""
+"Diese Ansichten wurden aus Berichten übernommen, die die Datei nicht mehr "
+"hat. Sie bleiben; Sie können sie im Statistik-Baukasten löschen."
+
+#, kde-format
+msgctxt "@info a change to a report"
+msgid ""
+"an account this book has no account of that name for was left out of its "
+"filter"
+msgstr ""
+"ein Konto, zu dem dieses Haushaltsbuch kein Konto mit diesem Namen hat, "
+"wurde aus dem Filter weggelassen"
+
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "a category this book has no category of that name for was left out"
+msgstr ""
+"eine Kategorie, zu der dieses Haushaltsbuch keine Kategorie mit diesem Namen"
+" hat, wurde weggelassen"
+
+#, kde-format
+msgctxt "@info a change to a report"
+msgid ""
+"its filter lost every account or category it named, so it shows more than in"
+" KMyMoney"
+msgstr ""
+"sein Filter hat jedes Konto oder jede Kategorie verloren, die er nannte, "
+"darum zeigt er mehr als in KMyMoney"
+
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "another report in the file has the same ID, so neither is taken"
+msgstr ""
+"ein anderer Bericht in der Datei hat dieselbe Kennung, darum wird keiner von"
+" beiden übernommen"
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Add reports from a KMyMoney file…"
+msgstr "Berichte aus einer KMyMoney-Datei hinzufügen…"
+
+#, kde-format
+msgctxt "@title:window"
+msgid "Add reports from a KMyMoney file"
+msgstr "Berichte aus einer KMyMoney-Datei hinzufügen"
+
+#, kde-format
+msgctxt "@item:inlistbox a file type"
+msgid "KMyMoney files (*.kmy *.sqlite *.db)"
+msgstr "KMyMoney-Dateien (*.kmy *.sqlite *.db)"

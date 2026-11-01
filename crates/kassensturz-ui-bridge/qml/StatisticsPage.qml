@@ -9,6 +9,7 @@
 
 import QtQuick
 import QtQuick.Controls as Controls
+import QtQuick.Dialogs as Dialogs
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
@@ -40,6 +41,9 @@ Kirigami.ScrollablePage {
     // and opening a saved view give the page with every setting.
     property bool wizard: true
     readonly property alias workbench: workbench
+
+    // The user chose a KMyMoney file to add its reports from (M6d.6b).
+    signal kmyReportsFileChosen(url file)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -360,6 +364,15 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@title:group", "Saved views")
             }
 
+            Controls.Button {
+                text: page.i18nContext.i18nc("@action:button", "Add reports from a KMyMoney file…")
+                icon.name: "document-import"
+                onClicked: {
+                    ActionLog.taken("StatisticsPage_kmyReports")
+                    kmyReportsDialog.open()
+                }
+            }
+
             Controls.Label {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
@@ -473,6 +486,22 @@ Kirigami.ScrollablePage {
                     }
                 }
             }
+        }
+    }
+
+    Dialogs.FileDialog {
+        id: kmyReportsDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Add reports from a KMyMoney file")
+        fileMode: Dialogs.FileDialog.OpenFile
+        nameFilters: [
+            // First, because a KMyMoney database may have no ending at all.
+            page.i18nContext.i18nc("@item:inlistbox a file type", "All files (*)"),
+            page.i18nContext.i18nc("@item:inlistbox a file type", "KMyMoney files (*.kmy *.sqlite *.db)")
+        ]
+        onAccepted: {
+            ActionLog.taken("StatisticsPage_kmyReportsFileChosen")
+            page.kmyReportsFileChosen(selectedFile)
         }
     }
 }

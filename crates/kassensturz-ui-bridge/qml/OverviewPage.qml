@@ -620,7 +620,6 @@ Kirigami.ScrollablePage {
             id: grid
 
             Layout.fillWidth: true
-            visible: page.layoutEditing || !(page.view.empty ?? false)
             layout: page.dashboard
             monthKey: page.view.monthKey ?? ""
             pageView: page.view

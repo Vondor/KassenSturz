@@ -14850,11 +14850,11 @@ msgctxt "@item:inlistbox"
 msgid "As in your system"
 msgstr "Wie im System"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:568
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:572
 #, kde-format
 msgctxt "@info"
-msgid "The new language applies the next time you start KassenSturz."
-msgstr "Die neue Sprache gilt, wenn Sie KassenSturz das nächste Mal starten."
+msgid "Close KassenSturz and open it again to see it in the new language."
+msgstr "Schließen Sie KassenSturz und öffnen Sie es wieder, um es in der neuen Sprache zu sehen."
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:569
 #, kde-format

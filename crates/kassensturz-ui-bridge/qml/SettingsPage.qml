@@ -558,15 +558,24 @@ FormCard.FormCardPage {
                 page.languageNotSaved = !page.language.choose(currentValue)
             }
         }
+
+        // The screens can't switch language while the app runs (D-127), so
+        // a new choice says so right under the box, where it is seen, rather
+        // than in the small note below the card (M6-B4).
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            Layout.margins: Kirigami.Units.largeSpacing
+            visible: page.languageNotSaved || page.language.restartNeeded
+            type: page.languageNotSaved ? Kirigami.MessageType.Error : Kirigami.MessageType.Information
+            text: page.languageNotSaved
+                ? page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice. Check that your settings folder can be written to, then choose again.")
+                : page.i18nContext.i18nc("@info", "Close KassenSturz and open it again to see it in the new language.")
+        }
     }
 
     FormCard.FormSectionText {
         textFormat: Text.PlainText
-        text: page.languageNotSaved
-            ? page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice. Check that your settings folder can be written to, then choose again.")
-            : page.language.restartNeeded
-                ? page.i18nContext.i18nc("@info", "The new language applies the next time you start KassenSturz.")
-                : page.i18nContext.i18nc("@info", "Dates and amounts keep following your regional settings; change how amounts look below.")
+        text: page.i18nContext.i18nc("@info", "Dates and amounts keep following your regional settings; change how amounts look below.")
     }
 
     // ai-toggle-begin: the one place AI shows while it is off (D-013). A

@@ -106,8 +106,13 @@ impl qobject::BookBudgets {
         };
         let locale = app_locale();
         let view = match session::with_book(|book| {
-            let (bars, filter) =
-                budgets::bars_filtered(book, &locale, &request.period, &request.only, &request.scope)?;
+            let (bars, filter) = budgets::bars_filtered(
+                book,
+                &locale,
+                &request.period,
+                &request.only,
+                &request.scope,
+            )?;
             let count = budgets::count(book)?;
             Ok::<_, BudgetsError>((bars, count, filter))
         }) {

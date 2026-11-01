@@ -14,8 +14,8 @@
 
 use kassensturz_core::{AccountId, Budget, BudgetEvery, BudgetId, CurrencyCode, Date, Report};
 use kassensturz_report::{
-    BudgetGrouping, BudgetNote, BudgetPeriod, BudgetUtilization, ReportError, Source,
-    TextFormat, budget_utilization,
+    BudgetGrouping, BudgetNote, BudgetPeriod, BudgetUtilization, ReportError, Source, TextFormat,
+    budget_utilization,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -256,7 +256,6 @@ pub fn bars_filtered(
 }
 
 /// As [`bars_filtered`], with nothing narrowed by a filter bar.
-#[cfg(test)]
 pub fn bars(
     book: &Book,
     locale: &impl Locale,

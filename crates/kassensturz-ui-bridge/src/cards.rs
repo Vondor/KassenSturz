@@ -300,7 +300,10 @@ pub fn cards_filtered(
                 return Ok((Vec::new(), view));
             }
             let (_, changes) = compare_income_expense(&source, period, &filter, compare)?;
-            Ok((changes.iter().map(|change| set(change, &text)).collect(), view))
+            Ok((
+                changes.iter().map(|change| set(change, &text)).collect(),
+                view,
+            ))
         }
         ACCOUNT_BALANCES => {
             let source = session::cached_source(book, span, true, || {

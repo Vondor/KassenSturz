@@ -32,5 +32,9 @@ QtObject {
         ]}]};
     }
 
+    // The filters the next requests are narrowed by (M6c.7); kept to read.
+    property string scope: ""
+    function setScope(text) { scope = text; }
+
     function refresh() { }
 }

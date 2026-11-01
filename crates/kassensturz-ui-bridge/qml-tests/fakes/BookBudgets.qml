@@ -20,5 +20,9 @@ QtObject {
         view = {bars: [bar("Food", "150,00 €", "250,00 €", "37,5 %", 375, false), bar("Fun", "450,00 €", "0,00 €", "112,5 %", 1125, true)], count: 2};
     }
 
+    // The filters the next requests are narrowed by (M6c.7); kept to read.
+    property string scope: ""
+    function setScope(text) { scope = text; }
+
     function refresh() { }
 }

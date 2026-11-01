@@ -16,10 +16,10 @@ use std::collections::{HashSet, VecDeque};
 
 use kassensturz_core::ViewKind;
 
+use crate::filter::{Dimension, check_list};
 use crate::grid::{
     self, COLUMNS, LAST_ROW, MAX_ROWS, Size, first_free, is_box, push_down, refused,
 };
-use crate::filter::{Dimension, check_list};
 use crate::{
     Component, ComponentType, Document, Entry, Filters, Frame, Item, MAX_COMPONENTS, PERIODS,
     ReportError, read_range_word,

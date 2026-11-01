@@ -357,18 +357,14 @@ pub fn charts(
         overlap,
     };
     let models = match request.dataset.as_str() {
-        SPENDING_BY_CATEGORY => {
-            spending_dataset(&source, period, &filter, level, &shown)?
-                .iter()
-                .map(|data| spending_by_category(data, kind, &text))
-                .collect::<Result<Vec<_>, _>>()?
-        }
-        CATEGORY_OVER_TIME => {
-            over_time_dataset(&source, period, &filter, &series, overlap)?
-                .iter()
-                .map(|data| category_over_time(data, kind, &text))
-                .collect::<Result<Vec<_>, _>>()?
-        }
+        SPENDING_BY_CATEGORY => spending_dataset(&source, period, &filter, level, &shown)?
+            .iter()
+            .map(|data| spending_by_category(data, kind, &text))
+            .collect::<Result<Vec<_>, _>>()?,
+        CATEGORY_OVER_TIME => over_time_dataset(&source, period, &filter, &series, overlap)?
+            .iter()
+            .map(|data| category_over_time(data, kind, &text))
+            .collect::<Result<Vec<_>, _>>()?,
         INCOME_EXPENSE_BY_MONTH => monthly_dataset(&source, period, &filter)?
             .iter()
             .map(|data| income_expense_by_month(data, kind, &text))

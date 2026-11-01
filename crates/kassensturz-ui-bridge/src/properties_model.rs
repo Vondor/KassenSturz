@@ -363,7 +363,14 @@ mod tests {
         let order: Vec<String> = fields.iter().map(|f| text_of(f, "key")).collect();
         assert_eq!(
             order,
-            ["grouping", "categories", "accounts", "title", "legend", "show_hidden"]
+            [
+                "grouping",
+                "categories",
+                "accounts",
+                "title",
+                "legend",
+                "show_hidden"
+            ]
         );
         for field in &fields {
             assert_eq!(

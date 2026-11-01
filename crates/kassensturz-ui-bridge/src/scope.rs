@@ -244,7 +244,9 @@ impl FilterView {
                         .or_else(|| {
                             categories
                                 .iter()
-                                .find(|entry| entry.category.id.to_string().eq_ignore_ascii_case(id))
+                                .find(|entry| {
+                                    entry.category.id.to_string().eq_ignore_ascii_case(id)
+                                })
                                 .map(|entry| entry.path.join(" › "))
                         })
                 })
@@ -565,7 +567,9 @@ mod tests {
             accounts: vec![f.cash.to_string()],
             categories: Vec::new(),
         };
-        let income = document.asked("income", &bar).expect("the income card asks");
+        let income = document
+            .asked("income", &bar)
+            .expect("the income card asks");
         assert_eq!(income.period, "last-year");
         let scope = Scope::from_asked(&income);
         assert!(!scope.accounts_own && !scope.period_own);

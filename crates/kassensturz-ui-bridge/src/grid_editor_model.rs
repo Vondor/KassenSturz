@@ -773,7 +773,10 @@ mod tests {
         // Looked at, with nothing chosen: the layout's own (none).
         let view = view_object(Some(&layout), false, NumberForm::DecimalComma, None);
         let filters = object_of(&view, "filters");
-        assert_eq!(keys(&filters), ["accounts", "categories", "forNow", "period"]);
+        assert_eq!(
+            keys(&filters),
+            ["accounts", "categories", "forNow", "period"]
+        );
         assert_eq!(text_of(&filters, "period"), "");
         assert!(!flag_of(&filters, "forNow"));
         let income = list_of(&view, "items")

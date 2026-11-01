@@ -15484,7 +15484,22 @@ msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
 
-#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:115
+#, kde-format
+msgctxt "@action:inmenu add a dashboard that someone saved to a file"
+msgid "Add from a file…"
+msgstr "Aus Datei hinzufügen …"
+
+#, kde-format
+msgctxt "@title:window"
+msgid "Add a dashboard from a file"
+msgstr "Dashboard aus einer Datei hinzufügen"
+
+#, kde-format
+msgctxt "@item:inlistbox a file type"
+msgid "Dashboard files (*.json)"
+msgstr "Dashboard-Dateien (*.json)"
+
+#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:124
 #, kde-format
 msgctxt ""
 "@action:inmenu put the widgets and filters of the template the dashboard "
@@ -15498,7 +15513,7 @@ msgctxt "@info:tooltip what was done to the layout"
 msgid "Went back to the template"
 msgstr "Zur Vorlage zurückgekehrt"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:323
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:338
 #, kde-format
 msgctxt ""
 "@action:button put the widgets of the template this dashboard was made from "
@@ -15506,7 +15521,7 @@ msgctxt ""
 msgid "Back to the template…"
 msgstr "Zurück zur Vorlage …"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:467
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:499
 #, kde-format
 msgctxt "@info %1 is a number of widgets, %2 the name of a dashboard"
 msgid "%2 gets the %1 widget of its template. Undo takes it away again."
@@ -15515,7 +15530,7 @@ msgid_plural ""
 msgstr[0] "%2 bekommt %1 Widget seiner Vorlage. Rückgängig nimmt es wieder weg."
 msgstr[1] "%2 bekommt die %1 Widgets seiner Vorlage. Rückgängig nimmt sie wieder weg."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:469
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:501
 #, kde-format
 msgctxt "@info %1 is a number of widgets, %2 the name of a dashboard"
 msgid ""
@@ -15527,7 +15542,7 @@ msgid_plural ""
 msgstr[0] "%1 Widget von %2 wird entfernt, weil seine Vorlage leer ist. Rückgängig bringt es zurück."
 msgstr[1] "Die %1 Widgets von %2 werden entfernt, weil seine Vorlage leer ist. Rückgängig bringt sie zurück."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:471
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:503
 #, kde-format
 msgctxt "@info %1 and %3 are numbers of widgets, %2 the name of a dashboard"
 msgid ""
@@ -15539,19 +15554,19 @@ msgid_plural ""
 msgstr[0] "%1 Widget von %2 wird durch die %3 seiner Vorlage ersetzt. Rückgängig bringt es zurück."
 msgstr[1] "Die %1 Widgets von %2 werden durch die %3 seiner Vorlage ersetzt. Rückgängig bringt sie zurück."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:474
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:506
 #, kde-format
 msgctxt "@info"
 msgid "Its filters go back to the template's too."
 msgstr "Seine Filter kehren ebenfalls zu denen der Vorlage zurück."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:479
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:511
 #, kde-format
 msgctxt "@title:window"
 msgid "Go back to the template?"
 msgstr "Zur Vorlage zurückkehren?"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:484
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:516
 #, kde-format
 msgctxt "@action:button"
 msgid "Go back to the template"

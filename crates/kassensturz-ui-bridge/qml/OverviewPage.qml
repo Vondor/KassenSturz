@@ -21,6 +21,7 @@
 
 import QtQuick
 import QtQuick.Controls as Controls
+import QtQuick.Dialogs as Dialogs
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
@@ -46,6 +47,9 @@ Kirigami.ScrollablePage {
     signal addTransactionClicked()
     signal getTransactionsClicked(string accountId)
     signal setBudgetClicked()
+    // The user chose a dashboard file to add (M6d.4): the app shows what it
+    // holds before anything is added.
+    signal dashboardFileChosen(url file)
     signal transactionClicked(string accountId, string transactionId)
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -206,12 +210,23 @@ Kirigami.ScrollablePage {
                 newDashboardDialog.openNew()
             }
         },
+        Kirigami.Action {
+            visible: !page.layoutEditing && page.dashboardCount < 2
+            displayHint: Kirigami.DisplayHint.AlwaysHide
+            icon.name: "document-open"
+            text: page.i18nContext.i18nc("@action:inmenu add a dashboard that someone saved to a file", "Add from a file…")
+            onTriggered: {
+                ActionLog.taken("OverviewPage_addFromFile")
+                dashboardFileDialog.open()
+            }
+        },
         DashboardMenu {
             visible: !page.layoutEditing && page.dashboardCount > 1
             layout: page.dashboard
             onNewRequested: newDashboardDialog.openNew()
             onRenameRequested: newDashboardDialog.openRename()
             onDeleteRequested: deleteDashboardDialog.open()
+            onAddFromFileRequested: dashboardFileDialog.open()
             onTemplateRequested: templateDialog.ask(false)
             onFailed: result => layoutError.result = result
         },
@@ -378,6 +393,23 @@ Kirigami.ScrollablePage {
                 ActionLog.taken("OverviewPage_nameLayout")
                 saveLayoutDialog.accept()
             }
+        }
+    }
+
+    // A dashboard file is recognised by what it holds, not by its name, so
+    // the chooser also offers every file (section 4.1).
+    Dialogs.FileDialog {
+        id: dashboardFileDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Add a dashboard from a file")
+        fileMode: Dialogs.FileDialog.OpenFile
+        nameFilters: [
+            page.i18nContext.i18nc("@item:inlistbox a file type", "Dashboard files (*.json)"),
+            page.i18nContext.i18nc("@item:inlistbox a file type", "All files (*)")
+        ]
+        onAccepted: {
+            ActionLog.taken("OverviewPage_dashboardFileChosen")
+            page.dashboardFileChosen(selectedFile)
         }
     }
 

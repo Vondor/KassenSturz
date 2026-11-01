@@ -21,6 +21,7 @@
 
 import QtQuick
 import QtQuick.Controls as Controls
+import QtQuick.Dialogs as Dialogs
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
@@ -185,6 +186,10 @@ Kirigami.ScrollablePage {
     }
 
     readonly property int dashboardCount: (dashboard.view.dashboards ?? []).length
+    // Where the file chooser starts (the book's folder).
+    property url folderUrl
+    // The book's ID of the dashboard shown, empty for the built-in Overview.
+    readonly property string shownDashboardId: ((dashboard.view.dashboards ?? []).find(shown => shown.shown) ?? {}).id ?? ""
     readonly property string dashboardName: dashboard.view.name ?? i18nContext.i18nc("@title", "Overview")
 
     title: layoutEditing ? i18nContext.i18nc("@title %1 is the name of the dashboard shown", "Arrange %1", dashboardName) : dashboardName
@@ -212,7 +217,19 @@ Kirigami.ScrollablePage {
             onNewRequested: newDashboardDialog.openNew()
             onRenameRequested: newDashboardDialog.openRename()
             onDeleteRequested: deleteDashboardDialog.open()
+            onSaveRequested: saveDashboardDialog.open()
             onFailed: result => layoutError.result = result
+        },
+        // With one dashboard, saving it is here (D-443).
+        Kirigami.Action {
+            visible: !page.layoutEditing && page.dashboardCount < 2
+            displayHint: Kirigami.DisplayHint.AlwaysHide
+            icon.name: "document-save-as"
+            text: page.i18nContext.i18nc("@action:inmenu save the dashboard shown as a file", "Save to a file…")
+            onTriggered: {
+                ActionLog.taken("OverviewPage_saveToFile")
+                saveDashboardDialog.open()
+            }
         },
         Kirigami.Action {
             visible: !page.layoutEditing
@@ -387,6 +404,64 @@ Kirigami.ScrollablePage {
         // An empty dashboard opens with the Add menu, so the first widget
         // is one click away (section 2, `empty`).
         onMade: Qt.callLater(() => addMenu.popup())
+    }
+
+    // Saving a dashboard to a file (M6d.3, D-443, T-52): one line says what
+    // the file holds before the chooser opens; nothing in the book changes.
+    DataExport {
+        id: dashboardExport
+    }
+
+    Kirigami.PromptDialog {
+        id: saveDashboardDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Save this dashboard to a file")
+        subtitle: page.i18nContext.i18nc("@info", "The file holds this dashboard's layout and the names of the accounts, categories and groups it uses. It holds no amounts or transactions.")
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button", "Choose where to save…")
+                icon.name: "document-save-as"
+                onTriggered: {
+                    ActionLog.taken("OverviewPage_chooseDashboardFile")
+                    saveDashboardDialog.close();
+                    if (page.folderUrl.toString() !== "") {
+                        dashboardFileDialog.currentFolder = page.folderUrl;
+                        dashboardFileDialog.selectedFile = page.folderUrl + "/" + encodeURIComponent(dashboardExport.dashboardFileName(page.shownDashboardId));
+                    }
+                    dashboardFileDialog.open();
+                }
+            },
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button", "Cancel")
+                icon.name: "dialog-cancel"
+                onTriggered: {
+                    ActionLog.taken("OverviewPage_cancelSaveDashboard")
+                    saveDashboardDialog.close()
+                }
+            }
+        ]
+    }
+
+    Dialogs.FileDialog {
+        id: dashboardFileDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Save the dashboard to a file")
+        fileMode: Dialogs.FileDialog.SaveFile
+        defaultSuffix: "json"
+        nameFilters: [page.i18nContext.i18nc("@item:inlistbox a file type", "Dashboard files (*.json)")]
+        onAccepted: {
+            ActionLog.taken("OverviewPage_saveDashboardFile")
+            const result = dashboardExport.saveDashboard(selectedFile, page.shownDashboardId);
+            if (result.code !== undefined) {
+                layoutError.result = result;
+                return;
+            }
+            const saved = page.i18nContext.i18nc("@info %1 is a file name", "Saved in %1", result.fileName);
+            applicationWindow().showPassiveNotification(result.leftOut > 0
+                ? page.i18nContext.i18ncp("@info %1 is how many were left out, %2 a sentence saying where the file was saved", "%2. %1 account, category or group this book no longer has was left out.", "%2. %1 accounts, categories or groups this book no longer has were left out.", result.leftOut, saved)
+                : saved, 8000);
+        }
     }
 
     // Deleting says which dashboard opens instead when it is the default

@@ -29,6 +29,8 @@ Kirigami.Action {
     signal newRequested()
     signal renameRequested()
     signal deleteRequested()
+    // Save to a file… (M6d.3): the page says what the file holds first.
+    signal saveRequested()
     // An action was refused: the error object.
     signal failed(var result)
 
@@ -101,6 +103,17 @@ Kirigami.Action {
         onTriggered: {
             ActionLog.taken("DashboardMenu_makeDefault")
             menu.answered(menu.layout.makeDefault())
+        }
+    }
+    Kirigami.Action {
+        separator: true
+    }
+    Kirigami.Action {
+        icon.name: "document-save-as"
+        text: menu.i18nContext.i18nc("@action:inmenu save the dashboard shown as a file", "Save to a file…")
+        onTriggered: {
+            ActionLog.taken("DashboardMenu_saveToFile")
+            menu.saveRequested()
         }
     }
     Kirigami.Action {

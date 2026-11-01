@@ -1264,6 +1264,7 @@ Kirigami.ApplicationWindow {
             groupsSource: categoryGroups
             bank: bankConnection
             bankReady: root.bankUsable()
+            folderUrl: bookSession.folderUrl
             onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
             onAddAccountClicked: root.addAccount(false)
             onAddTransactionClicked: root.addTransaction(false, "")

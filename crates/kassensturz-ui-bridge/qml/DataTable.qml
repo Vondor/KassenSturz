@@ -53,6 +53,19 @@ ColumnLayout {
         return Math.ceil(Math.max(widest, metrics.advanceWidth(title) * 1.1)) + 2;
     }
 
+    // The names column takes what the figure columns leave (a layout shares
+    // the space in proportion to the preferred widths, so a figure column with
+    // a larger preferred width than the names took it all, M6-B32). It never
+    // gets narrower than a few letters, so a name wraps by words, not by
+    // letter.
+    function minimumColumnWidth(index: int): real {
+        return index === 0 ? Kirigami.Units.gridUnit * 6 : figureWidth(index);
+    }
+
+    function preferredColumnWidth(index: int): real {
+        return index === 0 ? Kirigami.Units.gridUnit * 6 : figureWidth(index);
+    }
+
     function columnTitle(key): string {
         return columnNames[key] !== undefined ? columnNames[key] : key;
     }
@@ -68,9 +81,9 @@ ColumnLayout {
                 required property int index
                 required property var modelData
 
-                Layout.fillWidth: true
-                Layout.preferredWidth: 1
-                Layout.minimumWidth: table.figureWidth(index)
+                Layout.fillWidth: index === 0
+                Layout.preferredWidth: table.preferredColumnWidth(index)
+                Layout.minimumWidth: table.minimumColumnWidth(index)
                 text: table.columnTitle(modelData)
                 font.bold: true
                 elide: Text.ElideRight
@@ -104,9 +117,9 @@ ColumnLayout {
                     required property int index
                     required property var modelData
 
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 1
-                    Layout.minimumWidth: table.figureWidth(index)
+                    Layout.fillWidth: index === 0
+                    Layout.preferredWidth: table.preferredColumnWidth(index)
+                    Layout.minimumWidth: table.minimumColumnWidth(index)
                     text: modelData
                     // A name wraps; it is never cut short (M6-B3).
                     wrapMode: index === 0 ? Text.Wrap : Text.NoWrap

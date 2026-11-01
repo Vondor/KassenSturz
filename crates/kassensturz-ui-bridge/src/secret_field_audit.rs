@@ -154,7 +154,9 @@ mod tests {
             assert!(field.contains(hint), "SecretField must set {hint}");
         }
         // The eye button toggles, it doesn't switch the text on for good.
-        assert!(field.contains("onTriggered: field.showPassword = !field.showPassword"));
+        assert!(field.contains(
+            "ActionLog.taken(\"SecretField_showPassword\")\n            field.showPassword = !field.showPassword"
+        ));
     }
 
     /// The PIN, the TAN and the registration dialogs and the bank setup

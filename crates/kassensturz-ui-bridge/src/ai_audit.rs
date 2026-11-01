@@ -276,8 +276,10 @@ mod tests {
             .filter(|line| line.contains("keep()") && !line.contains("function keep()"))
             .collect();
         assert_eq!(calls.len(), 1, "{calls:?}");
-        assert!(calls[0].contains("onClicked: card.keep()"), "{calls:?}");
-        let button = &card[..card.find("onClicked: card.keep()").unwrap()];
+        assert_eq!(calls[0].trim(), "card.keep()", "{calls:?}");
+        // The button's handler: the action's log line, then the call.
+        let call = "onClicked: {\n                    ActionLog.taken(\"AiChartCard_keep\")\n                    card.keep()";
+        let button = &card[..card.find(call).expect("the Keep handler")];
         assert!(
             button.rfind("Controls.Button {").unwrap() > button.rfind("RowLayout {").unwrap(),
             "the call sits in a button"

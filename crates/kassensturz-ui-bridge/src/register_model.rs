@@ -1027,6 +1027,8 @@ mod tests {
         assert!(page.contains(
             "onHeightChanged: {\n            if (height > 0) {\n                page.load();"
         ));
-        assert!(page.contains("onTriggered: page.load()"));
+        assert!(page.contains(
+            "onTriggered: {\n            ActionLog.taken(\"RegisterPage_load\")\n            page.load()"
+        ));
     }
 }

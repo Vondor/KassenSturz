@@ -61,7 +61,10 @@ Kirigami.ScrollablePage {
             position: Kirigami.InlineMessage.Position.Header
             type: Kirigami.MessageType.Information
             visible: page.bank.fake
-            text: page.i18nContext.i18nc("@info", "Trying it out: a made-up bank stands in for yours. Its PIN is 12345 and its TAN 123456; nothing reaches a real bank.")
+            // The fake bank's IBAN, PIN and TAN (`kassensturz-bank`'s
+            // fake.rs: CURRENT_ACCOUNT_IBAN, PIN, TAN; it takes any login
+            // name). The IBAN is what this page asks for first (M6-B81).
+            text: page.i18nContext.i18nc("@info %1 is an IBAN, %2 a PIN, %3 a TAN", "Trying it out: a made-up bank stands in for yours. Use the IBAN %1, any login name, the PIN %2 and the TAN %3; nothing reaches a real bank.", "DE89 3704 0044 0532 0130 00", "12345", "123456")
         }
 
         FormError {

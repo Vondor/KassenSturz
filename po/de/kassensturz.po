@@ -3862,6 +3862,16 @@ msgstr ""
 "Zum Ausprobieren: Eine erfundene Bank steht für Ihre. PIN: 12345, TAN: "
 "123456; nichts erreicht eine echte Bank."
 
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:67
+#, kde-format
+msgctxt "@info %1 is an IBAN, %2 a PIN, %3 a TAN"
+msgid ""
+"Trying it out: a made-up bank stands in for yours. Use the IBAN %1, any "
+"login name, the PIN %2 and the TAN %3; nothing reaches a real bank."
+msgstr ""
+"Zum Ausprobieren: Eine erfundene Bank steht für Ihre. IBAN: %1, "
+"Anmeldename: beliebig, PIN: %2, TAN: %3; nichts erreicht eine echte Bank."
+
 #: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:188
 #, kde-format
 msgctxt "@info"

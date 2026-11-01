@@ -15,14 +15,15 @@
 
 use kassensturz_core::{CurrencyCode, Report};
 use kassensturz_report::{
-    Counted, FUNCTIONS, Filter, Formula, FormulaValue, KnownName, NumberForm, Period, ReportError,
-    Source, TextFormat,
+    Counted, FUNCTIONS, Formula, FormulaValue, KnownName, NumberForm, Period, ReportError, Source,
+    TextFormat,
 };
 use kassensturz_store::Book;
 
 use crate::charts::{AppText, ChartsError, period};
 use crate::errors::{ErrorText, report_text};
 use crate::format::Locale;
+use crate::scope::{FilterView, Scope};
 
 /// The most characters of the formula shown before and after a mistake.
 const EXCERPT_CHARS: usize = 24;
@@ -48,6 +49,8 @@ pub struct Request {
     /// same form as `text`, or empty for none. `None` when the figure is
     /// not shown as a bar.
     pub target: Option<String>,
+    /// The filters the dashboard puts on the component (M6c.7, D-350).
+    pub scope: Scope,
 }
 
 /// One category or group a formula counted.
@@ -92,6 +95,8 @@ pub struct Shown {
     pub target: String,
     /// What it counted.
     pub counted: Vec<Line>,
+    /// The marks and notes about the filters.
+    pub filter: FilterView,
 }
 
 /// A formula that cannot be worked out, with the place marked.
@@ -115,6 +120,9 @@ pub enum Outcome {
     Empty,
     /// The figure and what it counted.
     Shown(Shown),
+    /// The filters choose nothing, so there is no figure: the component
+    /// says so instead of drawing zeros (D-350).
+    Nothing(FilterView),
     /// Why there is no figure.
     Mistake(Mistake),
 }
@@ -238,6 +246,7 @@ fn fallback_currency(book: &Book) -> CurrencyCode {
 struct Worked {
     value: FormulaValue,
     counted: Vec<Line>,
+    filter: FilterView,
 }
 
 fn parse(text: &str, typed: bool, locale: &impl Locale) -> Result<Formula, ReportError> {
@@ -253,9 +262,11 @@ fn work(
     locale: &impl Locale,
     formula: &Formula,
     figure: Period,
+    scope: &Scope,
 ) -> Result<Worked, ReportError> {
     let source = Source::read(book, formula.span(figure)?)?;
-    let result = formula.evaluate(&source, figure, &Filter::default(), fallback_currency(book))?;
+    let (filter, view) = scope.resolve(book, &source)?;
+    let result = formula.evaluate(&source, figure, &filter, fallback_currency(book))?;
     let text = AppText::new(book, locale);
     let counted = result
         .counted
@@ -265,6 +276,7 @@ fn work(
     Ok(Worked {
         value: result.value,
         counted,
+        filter: view,
     })
 }
 
@@ -278,6 +290,7 @@ fn shown(
 ) -> Shown {
     let text = AppText::new(book, locale);
     let counted = worked.counted;
+    let filter = worked.filter;
     match worked.value {
         FormulaValue::Amount(money) => Shown {
             kind: "amount",
@@ -288,6 +301,7 @@ fn shown(
             permille,
             target,
             counted,
+            filter,
         },
         FormulaValue::Percent(percent) => {
             let shown = text.percent(percent);
@@ -300,6 +314,7 @@ fn shown(
                 permille,
                 target,
                 counted,
+                filter,
             }
         }
         FormulaValue::Number { hundredths } => {
@@ -313,6 +328,7 @@ fn shown(
                 permille,
                 target,
                 counted,
+                filter,
             }
         }
     }
@@ -343,11 +359,14 @@ fn bar(
     figure: Period,
 ) -> Outcome {
     let worked = match parse(&request.text, request.typed, locale)
-        .and_then(|formula| work(book, locale, &formula, figure))
+        .and_then(|formula| work(book, locale, &formula, figure, &request.scope))
     {
         Ok(worked) => worked,
         Err(error) => return Outcome::Mistake(mistake(book, locale, &request.text, &error, false)),
     };
+    if worked.filter.nothing {
+        return Outcome::Nothing(worked.filter);
+    }
     if target.trim().is_empty() {
         // Without a target only a percent fills a bar.
         let fill = match worked.value {
@@ -357,7 +376,7 @@ fn bar(
         return Outcome::Shown(shown(book, locale, worked, fill, String::new()));
     }
     let measured = match parse(target, request.typed, locale)
-        .and_then(|formula| work(book, locale, &formula, figure))
+        .and_then(|formula| work(book, locale, &formula, figure, &request.scope))
     {
         Ok(measured) => measured,
         Err(error) => return Outcome::Mistake(mistake(book, locale, target, &error, true)),
@@ -390,8 +409,9 @@ pub fn show(book: &Book, locale: &impl Locale, request: &Request) -> Result<Outc
     }
     Ok(
         match parse(&request.text, request.typed, locale)
-            .and_then(|formula| work(book, locale, &formula, figure))
+            .and_then(|formula| work(book, locale, &formula, figure, &request.scope))
         {
+            Ok(worked) if worked.filter.nothing => Outcome::Nothing(worked.filter),
             Ok(worked) => Outcome::Shown(shown(book, locale, worked, None, String::new())),
             Err(error) => Outcome::Mistake(mistake(book, locale, &request.text, &error, false)),
         },
@@ -649,6 +669,7 @@ pub(crate) mod tests {
             text: text.into(),
             typed: true,
             target: None,
+            scope: Scope::default(),
         }
     }
 
@@ -833,6 +854,7 @@ pub(crate) mod tests {
         let bar = |text: &str, target: &str| Request {
             typed: false,
             target: Some(target.into()),
+            scope: Scope::default(),
             ..request(text)
         };
         // A percent fills the bar as it is: 4,0 % is 40 per-mille.
@@ -863,6 +885,7 @@ pub(crate) mod tests {
         let bar = |text: &str, target: &str| Request {
             typed: false,
             target: Some(target.into()),
+            scope: Scope::default(),
             ..request(text)
         };
         let kinds = mistake_of(&book, &TestLocale, &bar("=Pets", "=400"));

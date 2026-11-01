@@ -12,10 +12,12 @@
 //! (D-034). Titles are the user's own text and go back to QML as text.
 
 use kassensturz_report::{
-    ColumnSetting, Component, ComponentType, FORMULA_MEASURE, Kind, NumberForm, Setting,
+    Asked, ColumnSetting, Component, ComponentType, FORMULA_MEASURE, Filters, Kind, NumberForm,
+    Setting,
 };
 
 use crate::formulas::users_form;
+use crate::scope::Scope;
 
 /// One field of the panel.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -80,15 +82,18 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
             }
             // A list of IDs is offered only where it is used: the groups of a
             // chart that groups by My groups, the series of a chart over time.
-            if let (Kind::Ids, Setting::Ids(_)) = (&property.kind, setting) {
+            if let (Kind::Ids | Kind::Accounts, Setting::Ids(_)) = (&property.kind, setting) {
+                // The accounts and categories of a component are its own
+                // filters (M6c.7, D-350): offered where its dataset takes
+                // them, and empty means it follows the filter bar.
+                let takes = kassensturz_report::takes(component);
                 let wanted = match property.key {
                     "groups" => matches!(
                         component.get("grouping"),
                         Some(Setting::Word(word)) if word == kassensturz_report::GROUPS_GROUPING
                     ),
-                    "categories" => {
-                        component.dataset().id == kassensturz_report::SPENDING_BY_CATEGORY
-                    }
+                    "categories" => takes.categories,
+                    "accounts" => takes.accounts,
                     _ => component.dataset().id == kassensturz_report::CATEGORY_OVER_TIME,
                 };
                 if !wanted {
@@ -101,9 +106,8 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                 Kind::Formula => "formula",
                 Kind::Flag { .. } => "flag",
                 Kind::Choice(_) | Kind::Grouping if words.len() > 1 => "choice",
-                Kind::Ids => "ids",
-                // The accounts get their field with the filter bar (M6c.7).
-                Kind::Accounts | Kind::Columns | Kind::Choice(_) | Kind::Grouping => return None,
+                Kind::Ids | Kind::Accounts => "ids",
+                Kind::Columns | Kind::Choice(_) | Kind::Grouping => return None,
             };
             let (mut text, mut flag, mut word) = (String::new(), false, String::new());
             let mut chosen = Vec::new();
@@ -192,6 +196,10 @@ pub struct Preview {
     /// What a full progress bar stands for, a formula in the form the book
     /// stores; empty for none.
     pub target: String,
+    /// The filters the component asks for by its own settings, as the text
+    /// `BookCharts.setScope` and its siblings take (M6c.7); empty for a
+    /// component that shows no figures.
+    pub scope: String,
 }
 
 /// The columns of a chart or table as the document writes them: a JSON list
@@ -352,5 +360,10 @@ pub fn preview(component: &Component) -> Preview {
         uses_formula: uses_formula(component),
         formula: text_of(component, "formula"),
         target: text_of(component, "target"),
+        // Without a dashboard around it, only the component's own lists
+        // narrow it.
+        scope: Asked::new(component, None, &Filters::default())
+            .map(|asked| Scope::from_asked(&asked).to_text())
+            .unwrap_or_default(),
     }
 }

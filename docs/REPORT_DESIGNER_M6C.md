@@ -150,6 +150,8 @@ A dimension a dataset does not take is **not applied, and the component says so*
 
 **Built in M6c.6 (D-384 to D-386):** `filter.rs` in `kassensturz-report`. `Document::asked(id, bar)` gives what a component asks for (`Asked`: the period word and, per dimension, the IDs and where they come from) and `Asked::apply(&Source)` the `Filter`, the marks and the notes (`Applied`). `DatasetInfo::takes` lists the dimensions of each dataset; the dataset functions did not change, since each already took a `Filter`. `Document` has `accounts` and `categories` next to `period` (`Document::filters`), components have `params.accounts` (`Kind::Accounts`), and `VERSION` is 2. Tests on the real datasets: `filter_tests.rs`.
 
+**Built in M6c.7 (D-416 to D-418):** `FilterBar`, `FilterPicker` and `FilterNotes` (QML); `DashboardLayout.setFilter` and `resetFilters` (a choice for now while looked at, the layout's own while arranged, `Editor::set_filters`); `scope.rs` in `kassensturz-ui-bridge` (`Scope` is the text the layout gives QML and `FilterView` the marks and notes a model gives back); `setScope` on `BookCharts`, `BookCards`, `BookFormula` and `BookBudgets`. The properties panel gets *Only count these accounts* and the categories wherever the dataset takes them. The income-sources list is not narrowed yet (D-418).
+
 ## 4. The AI chart builder (D-352 to D-356)
 
 ### 4.1 One function, `propose_view` (D-352; M6c.8)

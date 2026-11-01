@@ -23,6 +23,10 @@ QtObject {
     }
 
     property var view: ({
+        accounts: [
+            {id: "a-checking", name: "Checking account", closed: false},
+            {id: "a-cash", name: "Cash box", closed: false}
+        ],
         groups: [
             {id: "g-fixed", name: "Fixed costs", income: false, members: [{id: "c-rent", name: "Rent", group: false}]},
             {id: "g-pay", name: "Pay", income: true, members: []}
@@ -30,7 +34,7 @@ QtObject {
         categories: categories()
     })
 
-    function refresh() { view = ({groups: view.groups, categories: categories()}); }
+    function refresh() { view = ({accounts: view.accounts, groups: view.groups, categories: categories()}); }
 
     function setHidden(ids) {
         calls.push("setHidden:" + ids);

@@ -267,13 +267,20 @@ Item {
             readonly property var sections: (balances.view?.sets ?? [])
                 .map(set => ({currency: set.currency, card: set.cards.find(card => card.measure === "net_worth")}))
                 .filter(section => section.card !== undefined)
-            readonly property string worthPeriod: cell.board.boxFor(cell.info)?.subject?.period?.word ?? "today"
+            // The box's, else the filter bar's period; else the end of today.
+            readonly property string worthPeriod: {
+                const word = cell.info?.asked?.period;
+                return word === undefined || word === "page" ? "today" : word;
+            }
+            readonly property string scope: cell.info?.asked?.scope ?? ""
 
             function ask() {
+                balances.setScope(scope);
                 balances.showDataset("account_balances", worthPeriod, "previous_period");
             }
 
             onWorthPeriodChanged: ask()
+            onScopeChanged: ask()
             Component.onCompleted: ask()
 
             BookCards {
@@ -288,6 +295,11 @@ Item {
 
                 width: parent.width
                 spacing: Kirigami.Units.smallSpacing
+
+                FilterNotes {
+                    Layout.fillWidth: true
+                    filter: balances.view?.filter
+                }
 
                 Repeater {
                     model: sections
@@ -359,6 +371,19 @@ Item {
                     text: names.i18nContext.i18nc("@info", "Where the month's money came from appears here once something came in.")
                 }
 
+                // This list is made from the month's totals of the page, not
+                // from a dataset of the report layer, so the filter bar does
+                // not narrow it yet: said, never silently (D-350, D-418).
+                Controls.Label {
+                    Layout.fillWidth: true
+                    visible: cell.info?.asked?.fromBar ?? false
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    font: Kirigami.Theme.smallFont
+                    color: Kirigami.Theme.disabledTextColor
+                    text: names.i18nContext.i18nc("@info", "This list shows the page's month and is not narrowed by the filters above yet.")
+                }
+
                 Repeater {
                     model: totals
 
@@ -406,16 +431,19 @@ Item {
             readonly property bool failed: feed.view?.error !== undefined
             readonly property string period: cell.board.periodFor(cell.info)
             readonly property string only: cell.subject?.preview?.only ?? ""
+            readonly property string scope: cell.info?.asked?.scope ?? ""
 
             function ask() {
+                feed.setScope(scope);
                 feed.show(period, only);
             }
 
             onPeriodChanged: ask()
             onOnlyChanged: ask()
+            onScopeChanged: ask()
             Component.onCompleted: ask()
 
-            contentHeight: bars.implicitHeight
+            contentHeight: bars.implicitHeight + budgetNotes.implicitHeight
             clip: true
 
             Controls.ScrollBar.vertical: Controls.ScrollBar {
@@ -424,6 +452,14 @@ Item {
 
             BookBudgets {
                 id: feed
+            }
+
+            FilterNotes {
+                id: budgetNotes
+
+                y: bars.implicitHeight
+                width: bars.width
+                filter: feed.view?.filter
             }
 
             BudgetBars {
@@ -560,6 +596,7 @@ Item {
                 width: scroller.availableWidth
                 subject: cell.subject
                 period: cell.board?.periodFor(cell.info) ?? ""
+                scope: cell.info?.asked?.scope
                 fallbackTitle: names.automaticTitle(cell.info)
             }
         }

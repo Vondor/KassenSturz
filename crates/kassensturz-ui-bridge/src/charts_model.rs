@@ -19,6 +19,7 @@ use kassensturz_core::ErrorParam;
 use crate::charts::{self, ChartSet, ChartsError, Request};
 use crate::number_format::app_locale;
 use crate::properties;
+use crate::scope::Scope;
 use crate::session;
 use crate::variant::{list, map, text};
 
@@ -77,6 +78,14 @@ pub mod qobject {
             show_hidden: bool,
         );
 
+        /// Sets the filters the next requests are narrowed by (M6c.7, D-350):
+        /// the `scope` text the dashboard's layout gives a component (empty
+        /// for none). Call it before `show` or `showWith`; it does not ask
+        /// again by itself.
+        #[qinvokable]
+        #[cxx_name = "setScope"]
+        fn set_scope(self: Pin<&mut BookCharts>, scope: &QString);
+
         /// Reads the open book again for the last request, e.g. after a
         /// screen changed the book or the number format changed.
         #[qinvokable]
@@ -89,6 +98,7 @@ pub mod qobject {
 pub struct BookChartsRust {
     view: QVariant,
     request: Option<Request>,
+    scope: Scope,
 }
 
 impl qobject::BookCharts {
@@ -99,11 +109,13 @@ impl qobject::BookCharts {
         period: &QString,
         grouping: &QString,
     ) {
+        let scope = self.rust().scope.clone();
         self.as_mut().rust_mut().request = Some(Request {
             dataset: dataset.to_string(),
             kind: kind.to_string(),
             period: period.to_string(),
             grouping: grouping.to_string(),
+            scope,
             ..Request::default()
         });
         self.refresh();
@@ -143,6 +155,7 @@ impl qobject::BookCharts {
                 .collect()
         };
         let ids = id_list(chosen);
+        let scope = self.rust().scope.clone();
         self.as_mut().rust_mut().request = Some(Request {
             dataset: dataset.to_string(),
             kind: kind.to_string(),
@@ -153,8 +166,13 @@ impl qobject::BookCharts {
             series: ids,
             show_hidden,
             columns,
+            scope,
         });
         self.refresh();
+    }
+
+    fn set_scope(mut self: Pin<&mut Self>, scope: &QString) {
+        self.as_mut().rust_mut().scope = Scope::from_text(&scope.to_string());
     }
 
     fn refresh(mut self: Pin<&mut Self>) {
@@ -385,6 +403,7 @@ fn view_object(result: &Result<ChartSet, ChartsError>) -> QVariant {
                         .map(|(model, prepared)| chart_object(model, prepared)),
                 ),
             ),
+            ("filter", set.filter.object()),
         ]),
         Err(error) => error_object(error),
     }
@@ -490,7 +509,7 @@ mod tests {
         let view = view_of(&request("spending_by_category", "pie"));
         assert_eq!(
             keys(&view),
-            ["charts", "empty", "missing", "shared", "totals"]
+            ["charts", "empty", "filter", "missing", "shared", "totals"]
         );
         assert_eq!(number_of(&view, "missing"), 0);
         assert!(!flag_of(&view, "empty"));

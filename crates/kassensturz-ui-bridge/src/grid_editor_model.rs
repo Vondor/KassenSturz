@@ -25,7 +25,7 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
 use kassensturz_core::Report;
-use kassensturz_report::{NumberForm, grid};
+use kassensturz_report::{Filters, NumberForm, Origin, grid};
 use kassensturz_store::Book;
 
 use crate::errors::{ErrorText, report_text};
@@ -34,6 +34,7 @@ use crate::grid_editor::{self, Layout, LayoutError, SavedLayout};
 use crate::locale::QtLocale;
 use crate::number_format::{UserLocale, app_locale};
 use crate::properties_model::view_object as component_view;
+use crate::scope::Scope;
 use crate::session;
 use crate::variant::{error_object, list, map, text};
 
@@ -182,6 +183,29 @@ pub mod qobject {
         #[qinvokable]
         fn reset(self: Pin<&mut DashboardLayout>) -> QVariant;
 
+        /// Sets one thing the filter bar narrows by (M6c.7, D-351):
+        /// `dimension` is `period` (`value` is a fixed period, a typed range
+        /// or empty for the page's own), `accounts` or `categories`
+        /// (`value` is the IDs separated by commas, empty for all). While
+        /// the layout is only looked at, the choice is for now: it changes
+        /// what the page shows and nothing is written. While it is
+        /// arranged, it becomes part of the layout and is saved with Done.
+        /// Gives an empty map or the error.
+        #[qinvokable]
+        #[cxx_name = "setFilter"]
+        fn set_filter(
+            self: Pin<&mut DashboardLayout>,
+            dimension: &QString,
+            value: &QString,
+        ) -> QVariant;
+
+        /// Goes back to the filters the layout itself carries, taking back
+        /// what was chosen for now. While the layout is arranged, takes the
+        /// layout's filters out. Gives an empty map or the error.
+        #[qinvokable]
+        #[cxx_name = "resetFilters"]
+        fn reset_filters(self: Pin<&mut DashboardLayout>) -> QVariant;
+
         /// The cell nearest to an offset in pixels, for cells of `cell`
         /// pixels.
         #[qinvokable]
@@ -206,10 +230,43 @@ pub struct DashboardLayoutRust {
     view: QVariant,
     layout: Option<Layout>,
     editing: bool,
+    /// What the filter bar holds for now (D-351): a choice made while the
+    /// layout is only looked at, never written to the book. `None` means
+    /// the layout's own filters.
+    bar: Option<Filters>,
 }
 
 fn number(value: u32) -> QVariant {
     QVariant::from(&i32::try_from(value).unwrap_or(i32::MAX))
+}
+
+/// What a component asks for, for QML: `period` is the word of the period
+/// (`page` for the page's own) and `scope` the text `setScope` takes.
+fn asked_object(row: &grid_editor::Row) -> QVariant {
+    row.asked.as_ref().map_or_else(
+        || {
+            map([
+                ("period", text("page")),
+                ("scope", text("")),
+                ("shown", QVariant::from(&false)),
+                ("fromBar", QVariant::from(&false)),
+            ])
+        },
+        |asked| {
+            // Whether any dimension comes from the filter bar.
+            let from_bar = asked.period_origin == Origin::FilterBar
+                || [&asked.accounts, &asked.categories]
+                    .into_iter()
+                    .flatten()
+                    .any(|chosen| chosen.origin == Origin::FilterBar);
+            map([
+                ("fromBar", QVariant::from(&from_bar)),
+                ("period", text(&asked.period)),
+                ("scope", text(&Scope::from_asked(asked).to_text())),
+                ("shown", QVariant::from(&true)),
+            ])
+        },
+    )
 }
 
 fn item_object(row: &grid_editor::Row, form: NumberForm) -> QVariant {
@@ -227,6 +284,7 @@ fn item_object(row: &grid_editor::Row, form: NumberForm) -> QVariant {
         ("rows", number(row.frame.rows)),
         ("minCols", number(row.least.cols)),
         ("minRows", number(row.least.rows)),
+        ("asked", asked_object(row)),
         (
             "subject",
             row.component.as_ref().map_or_else(
@@ -238,13 +296,22 @@ fn item_object(row: &grid_editor::Row, form: NumberForm) -> QVariant {
 }
 
 /// What QML gets for the layout; empty when no book is open.
-fn view_object(layout: Option<&Layout>, editing: bool, form: NumberForm) -> QVariant {
+fn view_object(
+    layout: Option<&Layout>,
+    editing: bool,
+    form: NumberForm,
+    bar: Option<&Filters>,
+) -> QVariant {
     let Some(layout) = layout else {
         return map([]);
     };
     let (columns, max_rows) = grid_editor::size();
     let editor = &layout.editor;
+    let own = editor.filters();
+    // While arranged, the bar is the layout's own filters.
+    let bar = if editing { None } else { bar }.unwrap_or(&own);
     map([
+        ("filters", filters_object(bar, bar != &own)),
         ("editing", QVariant::from(&editing)),
         ("damaged", QVariant::from(&layout.damaged)),
         ("hasChanges", QVariant::from(&editor.has_changes())),
@@ -267,11 +334,23 @@ fn view_object(layout: Option<&Layout>, editing: bool, form: NumberForm) -> QVar
         (
             "items",
             list(
-                grid_editor::rows(editor)
+                grid_editor::rows(editor, bar)
                     .iter()
                     .map(|row| item_object(row, form)),
             ),
         ),
+    ])
+}
+
+/// The filter bar as QML gets it: `period` (empty for the page's own),
+/// `accounts` and `categories` as lists of IDs, and whether it holds a
+/// choice made for now, which *Reset filters* takes back.
+fn filters_object(bar: &Filters, for_now: bool) -> QVariant {
+    map([
+        ("period", text(bar.period.as_deref().unwrap_or(""))),
+        ("accounts", list(bar.accounts.iter().map(|id| text(id)))),
+        ("categories", list(bar.categories.iter().map(|id| text(id)))),
+        ("forNow", QVariant::from(&for_now)),
     ])
 }
 
@@ -315,7 +394,12 @@ fn plain_error(error: &LayoutError) -> ErrorText {
 impl qobject::DashboardLayout {
     fn show(mut self: Pin<&mut Self>) {
         let form = formulas::form(&app_locale());
-        let view = view_object(self.rust().layout.as_ref(), self.rust().editing, form);
+        let view = view_object(
+            self.rust().layout.as_ref(),
+            self.rust().editing,
+            form,
+            self.rust().bar.as_ref(),
+        );
         self.as_mut().rust_mut().view = view;
         self.as_mut().view_changed();
     }
@@ -335,7 +419,10 @@ impl qobject::DashboardLayout {
         }
     }
 
-    fn edit(self: Pin<&mut Self>) {
+    fn edit(mut self: Pin<&mut Self>) {
+        // Arranging starts from the layout's own filters; what was chosen
+        // for now is let go.
+        self.as_mut().rust_mut().bar = None;
         self.load(true);
     }
 
@@ -349,6 +436,7 @@ impl qobject::DashboardLayout {
         };
         match change_book(|book| layout.save(book)) {
             Ok(saved) => {
+                self.as_mut().rust_mut().bar = None;
                 self.as_mut().load(false);
                 if saved != grid_editor::Saved::Nothing {
                     self.as_mut().changed();
@@ -558,6 +646,57 @@ impl qobject::DashboardLayout {
         )
     }
 
+    fn set_filter(mut self: Pin<&mut Self>, dimension: &QString, value: &QString) -> QVariant {
+        let (dimension, value) = (dimension.to_string(), value.to_string());
+        let editing = self.rust().editing;
+        let Some(layout) = self.rust().layout.as_ref() else {
+            return map([]);
+        };
+        let own = layout.editor.filters();
+        let mut next = if editing {
+            own.clone()
+        } else {
+            self.rust().bar.clone().unwrap_or_else(|| own.clone())
+        };
+        let ids = |text: &str| -> Vec<String> {
+            text.split(',')
+                .filter(|id| !id.is_empty())
+                .map(str::to_owned)
+                .collect()
+        };
+        match dimension.as_str() {
+            "period" => next.period = (!value.is_empty()).then_some(value),
+            "accounts" => next.accounts = ids(&value),
+            "categories" => next.categories = ids(&value),
+            _ => return map([]),
+        }
+        if editing {
+            return self.edited(
+                |layout| grid_editor::set_filters(&mut layout.editor, &next),
+                |_| map([]),
+            );
+        }
+        // For now only: checked as a layout's filters are, but kept apart.
+        if let Err(error) = grid_editor::set_filters(&mut layout.editor.clone(), &next) {
+            return error_object(&plain_error(&error));
+        }
+        self.as_mut().rust_mut().bar = (next != own).then_some(next);
+        self.show();
+        map([])
+    }
+
+    fn reset_filters(mut self: Pin<&mut Self>) -> QVariant {
+        if self.rust().editing {
+            return self.edited(
+                |layout| grid_editor::set_filters(&mut layout.editor, &Filters::default()),
+                |_| map([]),
+            );
+        }
+        self.as_mut().rust_mut().bar = None;
+        self.show();
+        map([])
+    }
+
     fn snap(&self, offset: i32, cell: i32) -> i32 {
         i32::try_from(grid::snap(offset.into(), cell.into())).unwrap_or(0)
     }
@@ -579,7 +718,7 @@ mod tests {
     #[test]
     fn the_layout_reads_back_the_way_qml_reads_it() {
         let layout = layout();
-        let view = view_object(Some(&layout), true, NumberForm::DecimalComma);
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None);
         assert_eq!(
             keys(&view),
             [
@@ -589,6 +728,7 @@ mod tests {
                 "columns",
                 "damaged",
                 "editing",
+                "filters",
                 "hasChanges",
                 "items",
                 "library",
@@ -608,8 +748,8 @@ mod tests {
         assert_eq!(
             keys(first),
             [
-                "col", "cols", "id", "minCols", "minRows", "row", "rows", "subject", "type",
-                "unknown"
+                "asked", "col", "cols", "id", "minCols", "minRows", "row", "rows", "subject",
+                "type", "unknown"
             ]
         );
         assert_eq!(text_of(first, "id"), "income");
@@ -624,6 +764,60 @@ mod tests {
         let library = list_of(&view, "library");
         assert_eq!(library.len(), 17);
         assert_eq!(keys(&library[0]), ["dataset", "type"]);
+    }
+
+    #[test]
+    fn the_filter_bar_reads_back_and_a_choice_for_now_reaches_every_component() {
+        let layout = layout();
+        let own = layout.editor.filters();
+        // Looked at, with nothing chosen: the layout's own (none).
+        let view = view_object(Some(&layout), false, NumberForm::DecimalComma, None);
+        let filters = object_of(&view, "filters");
+        assert_eq!(
+            keys(&filters),
+            ["accounts", "categories", "forNow", "period"]
+        );
+        assert_eq!(text_of(&filters, "period"), "");
+        assert!(!flag_of(&filters, "forNow"));
+        let income = list_of(&view, "items")
+            .into_iter()
+            .find(|item| text_of(item, "id") == "income")
+            .expect("the income card");
+        let asked = object_of(&income, "asked");
+        assert_eq!(keys(&asked), ["fromBar", "period", "scope", "shown"]);
+        assert_eq!(text_of(&asked, "period"), "page");
+        assert!(!flag_of(&asked, "fromBar"));
+        // A choice for now: the bar's period and accounts reach it.
+        let bar = Filters {
+            period: Some("last-year".into()),
+            accounts: vec!["a-1".into()],
+            categories: Vec::new(),
+        };
+        let view = view_object(Some(&layout), false, NumberForm::DecimalComma, Some(&bar));
+        let filters = object_of(&view, "filters");
+        assert_eq!(text_of(&filters, "period"), "last-year");
+        assert_eq!(list_of(&filters, "accounts").len(), 1);
+        assert!(flag_of(&filters, "forNow"));
+        let income = list_of(&view, "items")
+            .into_iter()
+            .find(|item| text_of(item, "id") == "income")
+            .expect("the income card");
+        let asked = object_of(&income, "asked");
+        assert_eq!(text_of(&asked, "period"), "last-year");
+        assert!(flag_of(&asked, "fromBar"));
+        let scope = Scope::from_text(&text_of(&asked, "scope"));
+        assert!(scope.to_text().contains("\"accounts\":[\"a-1\"]"));
+        // Nothing was written into the layout.
+        assert_eq!(layout.editor.filters(), own);
+        // While arranged, the bar is the layout's own, and a choice is kept
+        // with the layout and counts as a change.
+        let mut layout = layout;
+        layout.editor.set_filters(&bar).unwrap();
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None);
+        assert_eq!(text_of(&object_of(&view, "filters"), "period"), "last-year");
+        assert!(!flag_of(&object_of(&view, "filters"), "forNow"));
+        assert!(flag_of(&view, "hasChanges"));
+        assert!(!flag_of(&view, "builtIn"));
     }
 
     #[test]
@@ -644,7 +838,7 @@ mod tests {
     fn an_edit_shows_in_the_view_and_the_undo_words() {
         let mut layout = layout();
         layout.editor.nudge("trend", 0, 1).unwrap();
-        let view = view_object(Some(&layout), true, NumberForm::DecimalComma);
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None);
         assert!(flag_of(&view, "hasChanges"));
         assert!(flag_of(&view, "canUndo"));
         assert!(!flag_of(&view, "canRedo"));
@@ -656,7 +850,7 @@ mod tests {
     fn a_heading_is_an_item_with_no_data() {
         let mut layout = layout();
         let id = grid_editor::add(&mut layout.editor, "text.heading").unwrap();
-        let view = view_object(Some(&layout), true, NumberForm::DecimalComma);
+        let view = view_object(Some(&layout), true, NumberForm::DecimalComma, None);
         let items = list_of(&view, "items");
         let heading = items
             .iter()

@@ -16,6 +16,7 @@ QtObject {
         editing: false, damaged: false, hasChanges: false, canUndo: false, canRedo: false,
         undoEdit: "", redoEdit: "", builtIn: true, columns: 12, maxRows: 24, rows: 9,
         library: [],
+        filters: {period: "", accounts: [], categories: [], forNow: false},
         items: [
             item("income", "kpi.card", 0, 0, 3, 2),
             item("spending", "chart.donut", 3, 0, 6, 4),
@@ -44,6 +45,8 @@ QtObject {
         return {
             id: id, unknown: false, type: type, col: col, row: row, cols: cols, rows: rows,
             minCols: 2, minRows: 1,
+            // What the report layer works out for the component (M6c.7).
+            asked: {period: id === "inner" ? "this-year" : "page", scope: "", shown: true, fromBar: false},
             subject: {
                 type: type, dataset: heading ? "" : "spending_by_category", datasets: [],
                 json: JSON.stringify({type: type, id: id}),
@@ -52,6 +55,26 @@ QtObject {
                 preview: {shows: heading ? "heading" : type === "kpi.card" ? "card" : "chart", chart: "donut", grouping: "top-level", chosen: "", showHidden: false, compare: "previous_period", measure: "income"}
             }
         };
+    }
+
+    // The filter bar's calls (M6c.7): a choice while looked at is for now.
+    function setFilter(dimension, value) {
+        note("setFilter:" + dimension + ":" + value);
+        const next = Object.assign({}, view.filters);
+        if (dimension === "period") {
+            next.period = value;
+        } else {
+            next[dimension] = value === "" ? [] : value.split(",");
+        }
+        next.forNow = !view.editing;
+        view = Object.assign({}, view, {filters: next});
+        return ({});
+    }
+
+    function resetFilters() {
+        note("resetFilters");
+        view = Object.assign({}, view, {filters: {period: "", accounts: [], categories: [], forNow: false}});
+        return ({});
     }
 
     function note(call) {

@@ -15,6 +15,7 @@ use crate::cards::{self, Card, CardSet, Request};
 use crate::charts::ChartsError;
 use crate::charts_model::error_object;
 use crate::number_format::app_locale;
+use crate::scope::{FilterView, Scope};
 use crate::session;
 use crate::variant::{list, map, text};
 
@@ -58,6 +59,13 @@ pub mod qobject {
             compare: &QString,
         );
 
+        /// Sets the filters the next requests are narrowed by (M6c.7,
+        /// D-350): the `scope` text the dashboard's layout gives a component
+        /// (empty for none). Call it before `show` or `showDataset`.
+        #[qinvokable]
+        #[cxx_name = "setScope"]
+        fn set_scope(self: Pin<&mut BookCards>, scope: &QString);
+
         /// Reads the open book again for the last request, e.g. after a
         /// screen changed the book or the number format changed.
         #[qinvokable]
@@ -70,6 +78,7 @@ pub mod qobject {
 pub struct BookCardsRust {
     view: QVariant,
     request: Option<Request>,
+    scope: Scope,
 }
 
 impl qobject::BookCards {
@@ -83,12 +92,18 @@ impl qobject::BookCards {
         period: &QString,
         compare: &QString,
     ) {
+        let scope = self.rust().scope.clone();
         self.as_mut().rust_mut().request = Some(Request {
             dataset: dataset.to_string(),
             period: period.to_string(),
             compare: compare.to_string(),
+            scope,
         });
         self.refresh();
+    }
+
+    fn set_scope(mut self: Pin<&mut Self>, scope: &QString) {
+        self.as_mut().rust_mut().scope = Scope::from_text(&scope.to_string());
     }
 
     fn refresh(mut self: Pin<&mut Self>) {
@@ -96,7 +111,7 @@ impl qobject::BookCards {
             return;
         };
         let locale = app_locale();
-        let view = match session::with_book(|book| cards::cards(book, &locale, &request)) {
+        let view = match session::with_book(|book| cards::cards_filtered(book, &locale, &request)) {
             Some(result) => view_object(&result),
             None => QVariant::default(),
         };
@@ -134,11 +149,12 @@ fn set_object(set: &CardSet) -> QVariant {
     ])
 }
 
-fn view_object(result: &Result<Vec<CardSet>, ChartsError>) -> QVariant {
+fn view_object(result: &Result<(Vec<CardSet>, FilterView), ChartsError>) -> QVariant {
     match result {
-        Ok(sets) => map([
+        Ok((sets, filter)) => map([
             ("empty", QVariant::from(&sets.is_empty())),
             ("sets", list(sets.iter().map(set_object))),
+            ("filter", filter.object()),
         ]),
         Err(error) => error_object(error),
     }
@@ -218,11 +234,12 @@ mod tests {
             dataset: String::new(),
             period: period.into(),
             compare: "previous_period".into(),
+            ..Request::default()
         }
     }
 
     fn view_of(book: &Book, request: &Request) -> QVariant {
-        view_object(&cards::cards(book, &TestLocale, request))
+        view_object(&cards::cards_filtered(book, &TestLocale, request))
     }
 
     /// What the book's readings are kept for (M6-B30) must never show old
@@ -283,7 +300,7 @@ mod tests {
     #[test]
     fn the_cards_read_back_the_way_qml_reads_them() {
         let view = view_of(&book(true), &request("last-month"));
-        assert_eq!(keys(&view), ["empty", "sets"]);
+        assert_eq!(keys(&view), ["empty", "filter", "sets"]);
         let sets = list_of(&view, "sets");
         assert_eq!(sets.len(), 1);
         assert_eq!(keys(&sets[0]), ["cards", "currency"]);
@@ -438,7 +455,7 @@ mod tests {
     fn the_figures_of_the_balances_read_back_and_agree_with_the_dataset() {
         let book = book_with_card();
         let view = view_of(&book, &balances("last-month"));
-        assert_eq!(keys(&view), ["empty", "sets"]);
+        assert_eq!(keys(&view), ["empty", "filter", "sets"]);
         let sets = list_of(&view, "sets");
         assert_eq!(sets.len(), 1);
         let cards = list_of(&sets[0], "cards");

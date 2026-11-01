@@ -16,6 +16,7 @@ use crate::charts::ChartsError;
 use crate::charts_model::error_object as charts_error_object;
 use crate::formulas::{self, Completion, Line, Mistake, Outcome, Request, Shown};
 use crate::number_format::app_locale;
+use crate::scope::Scope;
 use crate::session;
 use crate::variant::{error_object, list, map, text};
 
@@ -60,6 +61,13 @@ pub mod qobject {
             target: &QString,
         );
 
+        /// Sets the filters the next requests are narrowed by (M6c.7,
+        /// D-350): the `scope` text the dashboard's layout gives a component
+        /// (empty for none). Call it before `show` or `showBar`.
+        #[qinvokable]
+        #[cxx_name = "setScope"]
+        fn set_scope(self: Pin<&mut BookFormula>, scope: &QString);
+
         /// Reads the open book again for the last request, e.g. after the
         /// book or the number format changed.
         #[qinvokable]
@@ -85,27 +93,36 @@ pub mod qobject {
 pub struct BookFormulaRust {
     view: QVariant,
     request: Option<Request>,
+    scope: Scope,
 }
 
 impl qobject::BookFormula {
     fn show(mut self: Pin<&mut Self>, period: &QString, formula: &QString, typed: bool) {
+        let scope = self.rust().scope.clone();
         self.as_mut().rust_mut().request = Some(Request {
             period: period.to_string(),
             text: formula.to_string(),
             typed,
             target: None,
+            scope,
         });
         self.refresh();
     }
 
     fn show_bar(mut self: Pin<&mut Self>, period: &QString, formula: &QString, target: &QString) {
+        let scope = self.rust().scope.clone();
         self.as_mut().rust_mut().request = Some(Request {
             period: period.to_string(),
             text: formula.to_string(),
             typed: false,
             target: Some(target.to_string()),
+            scope,
         });
         self.refresh();
+    }
+
+    fn set_scope(mut self: Pin<&mut Self>, scope: &QString) {
+        self.as_mut().rust_mut().scope = Scope::from_text(&scope.to_string());
     }
 
     fn refresh(mut self: Pin<&mut Self>) {
@@ -181,6 +198,12 @@ pub(crate) fn view_object(result: &Result<Outcome, ChartsError>) -> QVariant {
         Ok(Outcome::Shown(shown)) => map([
             ("empty", QVariant::from(&false)),
             ("result", shown_object(shown)),
+            ("filter", shown.filter.object()),
+        ]),
+        Ok(Outcome::Nothing(filter)) => map([
+            ("empty", QVariant::from(&false)),
+            ("nothing", QVariant::from(&true)),
+            ("filter", filter.object()),
         ]),
         Ok(Outcome::Mistake(mistake)) => map([
             ("empty", QVariant::from(&false)),
@@ -241,6 +264,7 @@ mod tests {
             text: text.into(),
             typed: false,
             target: target.map(str::to_owned),
+            scope: Scope::default(),
         }
     }
 
@@ -251,7 +275,7 @@ mod tests {
     #[test]
     fn a_result_reads_back_the_way_qml_reads_it() {
         let view = viewed(&request("=Pets", None));
-        assert_eq!(keys(&view), ["empty", "result"]);
+        assert_eq!(keys(&view), ["empty", "filter", "result"]);
         assert!(!flag_of(&view, "empty"));
         let result = object_of(&view, "result");
         assert_eq!(

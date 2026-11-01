@@ -142,19 +142,28 @@ Item {
         return items.find(inside) ?? null;
     }
 
-    // The period a component asks for: its own, else that of the period box
-    // it lies in, else the page's month.
+    // The period a component asks for. The report layer works it out (D-350):
+    // its own, else the period box it lies in, else the filter bar's, else the
+    // page's month. `info.asked.period` is `page` for the last one.
     function periodFor(info: var): string {
-        return periodOf(info?.subject?.period?.word, info);
+        const word = info?.asked?.period;
+        return word === undefined || word === "page" ? monthKey : word;
     }
 
-    // The same for a period word on its own; `info` is the widget it is for.
+    // The same for a period word on its own (the properties panel shows the
+    // component with the period it is being given); `info` is the widget it
+    // is for. A word of `page` follows the box, the bar and the page as the
+    // component would.
     function periodOf(word: var, info: var): string {
         if (word !== undefined && word !== "page") {
             return word;
         }
         const boxWord = boxFor(info)?.subject?.period?.word;
-        return boxWord === undefined || boxWord === "page" ? monthKey : boxWord;
+        if (boxWord !== undefined && boxWord !== "page") {
+            return boxWord;
+        }
+        const barWord = view.filters?.period ?? "";
+        return barWord !== "" ? barWord : monthKey;
     }
 
     function itemFor(id: string): var {

@@ -171,10 +171,35 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // The part of the grid that is on screen, for the grid to make only what
+    // is seen (M6-B30).
+    function updateGridView() {
+        const scroller = page.flickable;
+        if (!scroller || !grid) {
+            return;
+        }
+        const top = grid.mapToItem(scroller.contentItem, 0, 0).y;
+        grid.viewTop = scroller.contentY - top;
+        grid.viewBottom = grid.viewTop + scroller.height;
+    }
+
+    Connections {
+        target: page.flickable
+
+        function onContentYChanged() {
+            page.updateGridView();
+        }
+
+        function onHeightChanged() {
+            page.updateGridView();
+        }
+    }
+
     // Going to another screen and back starts from the current month again.
     Component.onCompleted: {
         overview.showThisMonth();
         dashboard.refresh();
+        updateGridView();
     }
 
     title: layoutEditing ? i18nContext.i18nc("@title", "Arrange the Overview") : i18nContext.i18nc("@title", "Overview")
@@ -603,6 +628,8 @@ Kirigami.ScrollablePage {
             onSetBudgetClicked: page.setBudgetClicked()
             onPropertiesRequested: id => page.openProperties(id)
             onFailed: result => layoutError.result = result
+            onYChanged: page.updateGridView()
+            onHeightChanged: page.updateGridView()
         }
     }
 }

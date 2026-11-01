@@ -57,6 +57,11 @@ ColumnLayout {
     readonly property bool filterNothing: filterView?.nothing ?? false
     readonly property bool nothing: !failed && !filterNothing && !usesFormula && !textOnly && !shownAsBudgets && (asked.shows === "card" || asked.shows === "progress"
         ? cardSets.length === 0 : charts.length === 0)
+    // Whether `FilterNotes` has anything to say (the same test as its own
+    // `quiet`), so it is only made when it has.
+    readonly property bool hasFilterNotes: (filterView?.own?.length ?? 0) > 0
+        || (filterView?.filtered ?? []).some(word => word !== "period")
+        || (filterView?.notes?.length ?? 0) > 0
     // What to call it when the user gave it no title (the grid editor's
     // built-in components have none, D-316).
     property string fallbackTitle: ""
@@ -152,33 +157,55 @@ ColumnLayout {
 
     spacing: Kirigami.Units.largeSpacing
 
-    Kirigami.InlineMessage {
+    // The messages are made only when there is something to say: a message
+    // that is made and hidden still costs its whole subtree every time a
+    // component is made, and the Overview makes one per widget (M6-B30).
+    Loader {
         Layout.fillWidth: true
-        visible: preview.failed
-        type: Kirigami.MessageType.Warning
-        text: preview.i18nContext.i18nc("@info", "This couldn't be shown right now. Try another period, or open the page again.")
+        active: preview.failed
+        visible: active
+
+        sourceComponent: Kirigami.InlineMessage {
+            visible: true
+            type: Kirigami.MessageType.Warning
+            text: preview.i18nContext.i18nc("@info", "This couldn't be shown right now. Try another period, or open the page again.")
+        }
     }
 
     // A category that is in more than one column counts in each of them
     // (D-339): said plainly, never refused.
-    Kirigami.InlineMessage {
+    Loader {
         Layout.fillWidth: true
-        visible: preview.shared.length > 0
-        type: Kirigami.MessageType.Information
-        text: preview.shared.length === 0 ? "" : preview.i18nContext.i18nc("@info %1 is the name of a category, %2 the names of the columns it is in", "“%1” is in more than one column (%2), so it is counted in each of them. Added together, the columns count it twice.", preview.shared[0].category, preview.shared[0].columns.join(", "))
+        active: preview.shared.length > 0
+        visible: active
+
+        sourceComponent: Kirigami.InlineMessage {
+            visible: true
+            type: Kirigami.MessageType.Information
+            text: preview.shared.length === 0 ? "" : preview.i18nContext.i18nc("@info %1 is the name of a category, %2 the names of the columns it is in", "“%1” is in more than one column (%2), so it is counted in each of them. Added together, the columns count it twice.", preview.shared[0].category, preview.shared[0].columns.join(", "))
+        }
     }
 
     // The marks and notes about the filters, under the figures' own notes
     // (D-350). Nothing is drawn when the component is not filtered.
-    FilterNotes {
+    Loader {
         Layout.fillWidth: true
-        filter: preview.filterView
+        active: preview.hasFilterNotes
+        visible: active
+
+        sourceComponent: FilterNotes {
+            filter: preview.filterView
+        }
     }
 
-    Kirigami.PlaceholderMessage {
+    Loader {
         Layout.fillWidth: true
-        visible: preview.nothing
-        text: preview.i18nContext.i18nc("@info", "There is nothing to show for this period yet. Add transactions, or choose another period.")
+        active: preview.nothing
+        visible: active
+
+        sourceComponent: Kirigami.PlaceholderMessage {
+            text: preview.i18nContext.i18nc("@info", "There is nothing to show for this period yet. Add transactions, or choose another period.")
+        }
     }
 
     Repeater {
@@ -228,12 +255,16 @@ ColumnLayout {
         textFormat: Text.PlainText
     }
 
-    BudgetBars {
+    Loader {
         Layout.fillWidth: true
-        visible: preview.shownAsBudgets
-        shown: preview.shownAsBudgets ? (budgetData.view?.bars ?? []) : []
-        budgetCount: budgetData.view?.count ?? 0
-        arranging: true
+        active: preview.shownAsBudgets
+        visible: active
+
+        sourceComponent: BudgetBars {
+            shown: budgetData.view?.bars ?? []
+            budgetCount: budgetData.view?.count ?? 0
+            arranging: true
+        }
     }
 
     Kirigami.Heading {
@@ -245,18 +276,25 @@ ColumnLayout {
         textFormat: Text.PlainText
     }
 
-    Kirigami.PlaceholderMessage {
+    Loader {
         Layout.fillWidth: true
-        visible: preview.usesFormula && preview.formulaView.empty === true
-        text: preview.i18nContext.i18nc("@info", "Write a formula in the properties to see its figure here.")
+        active: preview.usesFormula && preview.formulaView.empty === true
+        visible: active
+
+        sourceComponent: Kirigami.PlaceholderMessage {
+            text: preview.i18nContext.i18nc("@info", "Write a formula in the properties to see its figure here.")
+        }
     }
 
     // The mistake of a formula takes the place of its figure, in words.
-    FormError {
+    Loader {
         Layout.fillWidth: true
-        result: preview.usesFormula && preview.formulaView.mistake !== undefined
-            ? preview.formulaView.mistake.error
-            : preview.usesFormula && preview.formulaView.error !== undefined ? preview.formulaView.error : ({})
+        active: preview.usesFormula && (preview.formulaView.mistake !== undefined || preview.formulaView.error !== undefined)
+        visible: active
+
+        sourceComponent: FormError {
+            result: preview.formulaView.mistake !== undefined ? preview.formulaView.mistake.error : preview.formulaView.error
+        }
     }
 
     Repeater {

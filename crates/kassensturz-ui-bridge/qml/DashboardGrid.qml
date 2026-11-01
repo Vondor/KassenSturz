@@ -84,6 +84,25 @@ Item {
     // notice widgets (D-328).
     property var pageView: ({})
 
+    // The part of the grid the user can see, in the grid's own coordinates,
+    // told by the page that scrolls it (M6-B30). Without a page around it
+    // the whole grid counts as seen.
+    property real viewTop: 0
+    property real viewBottom: Number.MAX_VALUE
+    // How many components, in reading order, have been given their turn to
+    // make their content. A component's frame is drawn at once; its content
+    // follows one component at a time, so the page opens at once and fills
+    // in while the user already looks at it (M6-B30).
+    property int revealed: 0
+    // Each component's place in reading order, by ID.
+    readonly property var readingIndex: {
+        const found = ({});
+        items.map((entry, index) => ({id: entry.id, row: entry.row, col: entry.col, index: index}))
+            .sort((a, b) => a.row - b.row || a.col - b.col || a.index - b.index)
+            .forEach((entry, place) => { found[entry.id] = place; });
+        return found;
+    }
+
     signal propertiesRequested(string id)
     signal getTransactionsClicked(string accountId)
     signal setBudgetClicked()
@@ -164,6 +183,25 @@ Item {
         }
         const barWord = view.filters?.period ?? "";
         return barWord !== "" ? barWord : monthKey;
+    }
+
+    // Whether a component should have its content made now (M6-B30): the
+    // page is shown, its turn has come, and it is in or near the part of the
+    // grid the user sees. Arranging the layout makes all of them, so every
+    // problem is found. A component keeps its content once it has it.
+    function contentDue(info: var): bool {
+        if (!visible) {
+            return false;
+        }
+        if (revealed <= (readingIndex[info.id] ?? 0)) {
+            return false;
+        }
+        if (editing) {
+            return true;
+        }
+        const margin = rowHeight * 3;
+        const top = frameY(info);
+        return top + frameHeight(info.rows) >= viewTop - margin && top <= viewBottom + margin;
     }
 
     function itemFor(id: string): var {
@@ -360,6 +398,15 @@ Item {
         border.width: 2
         border.color: Kirigami.Theme.highlightColor
         radius: Kirigami.Units.smallSpacing
+    }
+
+    // One component's turn at a time, with the event loop free in between,
+    // so the first picture of the page is not held back by the figures.
+    Timer {
+        interval: 10
+        repeat: true
+        running: grid.visible && grid.revealed < grid.items.length
+        onTriggered: ++grid.revealed
     }
 
     Repeater {

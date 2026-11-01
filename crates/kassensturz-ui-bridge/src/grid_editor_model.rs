@@ -1150,13 +1150,14 @@ mod tests {
         assert!(list_of(&rows[0], "frames").is_empty());
         assert_eq!(number_of(&rows[0], "rows"), 0);
         let accounts = list_of(&rows[6], "frames");
-        assert_eq!(keys(&accounts[1]), ["col", "cols", "row", "rows", "type"]);
-        assert_eq!(text_of(&accounts[1], "type"), "bank.update_all");
-        assert_eq!(number_of(&accounts[1], "col"), 0);
-        assert_eq!(number_of(&accounts[1], "row"), 1);
-        assert_eq!(number_of(&accounts[1], "cols"), 6);
-        assert_eq!(number_of(&accounts[1], "rows"), 3);
-        assert_eq!(number_of(&rows[6], "rows"), 7);
+        assert_eq!(text_of(&accounts[0], "type"), "page.period");
+        assert_eq!(keys(&accounts[3]), ["col", "cols", "row", "rows", "type"]);
+        assert_eq!(text_of(&accounts[3], "type"), "bank.update_all");
+        assert_eq!(number_of(&accounts[3], "col"), 0);
+        assert_eq!(number_of(&accounts[3], "row"), 3);
+        assert_eq!(number_of(&accounts[3], "cols"), 6);
+        assert_eq!(number_of(&accounts[3], "rows"), 3);
+        assert_eq!(number_of(&rows[6], "rows"), 9);
     }
 
     #[test]

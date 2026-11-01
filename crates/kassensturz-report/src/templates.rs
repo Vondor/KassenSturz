@@ -12,10 +12,10 @@
 //! translated text in with [`fill_headings`], and the dashboard's name is
 //! given by that screen too (`docs/REPORT_DESIGNER_M6D.md`, section 2).
 //!
-//! The templates are written as version 2 documents, the version they were
-//! made for. A later version reads them the way it reads every older
-//! dashboard, so a template never has to be rewritten when the format
-//! grows; what is stored is always written in the current version.
+//! Every template except *Empty* starts with the period header and the
+//! filter bar (D-452, D-474), widgets like the others, and is written in
+//! the current [`crate::VERSION`]; a test makes sure a new version
+//! revisits them, as it does the built-in Overview.
 
 use kassensturz_core::ViewKind;
 
@@ -59,24 +59,28 @@ pub const HEADING_KEY: &str = "template-heading";
 /// what it shows, for the page's period; what went out, with the period
 /// before; the spending by category over the last 12 months as bars (Q-336).
 const SPENDING_TEXT: &str = r#"{
-  "format": "kassensturz-dashboard", "version": 2, "kind": "dashboard",
+  "format": "kassensturz-dashboard", "version": 3, "kind": "dashboard",
   "name": "spending",
   "components": [
-    {"id": "heading", "type": "text.heading", "props": {"text": "template-heading"},
+    {"id": "period-header", "type": "page.period",
      "frame": {"col": 0, "row": 0, "cols": 12, "rows": 1}},
+    {"id": "filter-bar", "type": "page.filters",
+     "frame": {"col": 0, "row": 1, "cols": 12, "rows": 1}},
+    {"id": "heading", "type": "text.heading", "props": {"text": "template-heading"},
+     "frame": {"col": 0, "row": 2, "cols": 12, "rows": 1}},
     {"id": "spending", "type": "chart.donut", "dataset": "spending_by_category",
      "params": {"grouping": "top_level_category"},
-     "frame": {"col": 0, "row": 1, "cols": 6, "rows": 5}},
+     "frame": {"col": 0, "row": 3, "cols": 6, "rows": 5}},
     {"id": "biggest", "type": "table.rows", "dataset": "spending_by_category",
      "params": {"grouping": "category"},
-     "frame": {"col": 6, "row": 1, "cols": 6, "rows": 5}},
+     "frame": {"col": 6, "row": 3, "cols": 6, "rows": 5}},
     {"id": "expenses", "type": "kpi.card", "dataset": "income_expense_by_month",
      "params": {"measure": "expenses", "compare": "previous_period"},
-     "frame": {"col": 0, "row": 6, "cols": 3, "rows": 2}},
+     "frame": {"col": 0, "row": 8, "cols": 3, "rows": 2}},
     {"id": "year", "type": "chart.bar", "dataset": "spending_by_category",
      "params": {"grouping": "top_level_category"},
      "props": {"period": "last-12-months"},
-     "frame": {"col": 3, "row": 6, "cols": 9, "rows": 4}}
+     "frame": {"col": 3, "row": 8, "cols": 9, "rows": 4}}
   ]
 }"#;
 
@@ -84,69 +88,81 @@ const SPENDING_TEXT: &str = r#"{
 /// and out of the accounts by month as bars, last 12 months; where the
 /// money came from; the same months as a table.
 const MONEY_IN_OUT_TEXT: &str = r#"{
-  "format": "kassensturz-dashboard", "version": 2, "kind": "dashboard",
+  "format": "kassensturz-dashboard", "version": 3, "kind": "dashboard",
   "name": "money-in-out",
   "components": [
+    {"id": "period-header", "type": "page.period",
+     "frame": {"col": 0, "row": 0, "cols": 12, "rows": 1}},
+    {"id": "filter-bar", "type": "page.filters",
+     "frame": {"col": 0, "row": 1, "cols": 12, "rows": 1}},
     {"id": "income", "type": "kpi.card", "dataset": "income_expense_by_month",
      "params": {"measure": "income", "compare": "previous_period"},
-     "frame": {"col": 0, "row": 0, "cols": 3, "rows": 2}},
+     "frame": {"col": 0, "row": 2, "cols": 3, "rows": 2}},
     {"id": "expenses", "type": "kpi.card", "dataset": "income_expense_by_month",
      "params": {"measure": "expenses", "compare": "previous_period"},
-     "frame": {"col": 3, "row": 0, "cols": 3, "rows": 2}},
+     "frame": {"col": 3, "row": 2, "cols": 3, "rows": 2}},
     {"id": "left", "type": "kpi.card", "dataset": "income_expense_by_month",
      "params": {"measure": "net", "compare": "previous_period"},
-     "frame": {"col": 6, "row": 0, "cols": 3, "rows": 2}},
+     "frame": {"col": 6, "row": 2, "cols": 3, "rows": 2}},
     {"id": "kept", "type": "kpi.card", "dataset": "income_expense_by_month",
      "params": {"measure": "savings-rate", "compare": "previous_period"},
-     "frame": {"col": 9, "row": 0, "cols": 3, "rows": 2}},
+     "frame": {"col": 9, "row": 2, "cols": 3, "rows": 2}},
     {"id": "months", "type": "chart.bar", "dataset": "cash_flow_by_month",
      "props": {"period": "last-12-months"},
-     "frame": {"col": 0, "row": 2, "cols": 12, "rows": 4}},
+     "frame": {"col": 0, "row": 4, "cols": 12, "rows": 4}},
     {"id": "sources", "type": "table.income_sources",
-     "frame": {"col": 0, "row": 6, "cols": 6, "rows": 4}},
+     "frame": {"col": 0, "row": 8, "cols": 6, "rows": 4}},
     {"id": "month-table", "type": "table.rows", "dataset": "cash_flow_by_month",
      "props": {"period": "last-12-months"},
-     "frame": {"col": 6, "row": 6, "cols": 6, "rows": 4}}
+     "frame": {"col": 6, "row": 8, "cols": 6, "rows": 4}}
   ]
 }"#;
 
 /// *What you own*: what you have, owe and are worth; what you were worth
 /// over the last 12 months; what each account holds.
 const WORTH_TEXT: &str = r#"{
-  "format": "kassensturz-dashboard", "version": 2, "kind": "dashboard",
+  "format": "kassensturz-dashboard", "version": 3, "kind": "dashboard",
   "name": "worth",
   "components": [
+    {"id": "period-header", "type": "page.period",
+     "frame": {"col": 0, "row": 0, "cols": 12, "rows": 1}},
+    {"id": "filter-bar", "type": "page.filters",
+     "frame": {"col": 0, "row": 1, "cols": 12, "rows": 1}},
     {"id": "have", "type": "kpi.card", "dataset": "account_balances",
      "params": {"measure": "assets"},
-     "frame": {"col": 0, "row": 0, "cols": 4, "rows": 2}},
+     "frame": {"col": 0, "row": 2, "cols": 4, "rows": 2}},
     {"id": "owe", "type": "kpi.card", "dataset": "account_balances",
      "params": {"measure": "liabilities"},
-     "frame": {"col": 4, "row": 0, "cols": 4, "rows": 2}},
+     "frame": {"col": 4, "row": 2, "cols": 4, "rows": 2}},
     {"id": "worth", "type": "kpi.card", "dataset": "account_balances",
      "params": {"measure": "net_worth"},
-     "frame": {"col": 8, "row": 0, "cols": 4, "rows": 2}},
+     "frame": {"col": 8, "row": 2, "cols": 4, "rows": 2}},
     {"id": "over-time", "type": "chart.line", "dataset": "net_worth_over_time",
      "props": {"period": "last-12-months"},
-     "frame": {"col": 0, "row": 2, "cols": 12, "rows": 4}},
+     "frame": {"col": 0, "row": 4, "cols": 12, "rows": 4}},
     {"id": "accounts", "type": "table.rows", "dataset": "account_balances",
      "params": {"grouping": "account"},
-     "frame": {"col": 0, "row": 6, "cols": 12, "rows": 5}}
+     "frame": {"col": 0, "row": 8, "cols": 12, "rows": 5}}
   ]
 }"#;
 
 /// *Budgets*: a heading; the bars of every budget, which take no room until
 /// the book has one (D-357); the spending ring for the page's period.
 const BUDGETS_TEXT: &str = r#"{
-  "format": "kassensturz-dashboard", "version": 2, "kind": "dashboard",
+  "format": "kassensturz-dashboard", "version": 3, "kind": "dashboard",
   "name": "budgets",
   "components": [
-    {"id": "heading", "type": "text.heading", "props": {"text": "template-heading"},
+    {"id": "period-header", "type": "page.period",
      "frame": {"col": 0, "row": 0, "cols": 12, "rows": 1}},
+    {"id": "filter-bar", "type": "page.filters",
+     "frame": {"col": 0, "row": 1, "cols": 12, "rows": 1}},
+    {"id": "heading", "type": "text.heading", "props": {"text": "template-heading"},
+     "frame": {"col": 0, "row": 2, "cols": 12, "rows": 1}},
     {"id": "budgets", "type": "budget.progress", "dataset": "budget_utilization",
-     "frame": {"col": 0, "row": 1, "cols": 12, "rows": 4}},
+     "frame": {"col": 0, "row": 3, "cols": 12, "rows": 4}},
     {"id": "spending", "type": "chart.donut", "dataset": "spending_by_category",
      "params": {"grouping": "top_level_category"},
-     "frame": {"col": 0, "row": 5, "cols": 6, "rows": 5}}
+     "frame": {"col": 0, "row": 7, "cols": 6, "rows": 5}}
   ]
 }"#;
 
@@ -154,16 +170,20 @@ const BUDGETS_TEXT: &str = r#"{
 /// the Update all accounts button (M6d.7, D-446, D-471); what each account
 /// holds.
 const ACCOUNTS_TEXT: &str = r#"{
-  "format": "kassensturz-dashboard", "version": 2, "kind": "dashboard",
+  "format": "kassensturz-dashboard", "version": 3, "kind": "dashboard",
   "name": "accounts",
   "components": [
-    {"id": "fetch-gaps", "type": "notice.fetch_gap",
+    {"id": "period-header", "type": "page.period",
      "frame": {"col": 0, "row": 0, "cols": 12, "rows": 1}},
+    {"id": "filter-bar", "type": "page.filters",
+     "frame": {"col": 0, "row": 1, "cols": 12, "rows": 1}},
+    {"id": "fetch-gaps", "type": "notice.fetch_gap",
+     "frame": {"col": 0, "row": 2, "cols": 12, "rows": 1}},
     {"id": "update-all", "type": "bank.update_all",
-     "frame": {"col": 0, "row": 1, "cols": 6, "rows": 3}},
+     "frame": {"col": 0, "row": 3, "cols": 6, "rows": 3}},
     {"id": "accounts", "type": "table.rows", "dataset": "account_balances",
      "params": {"grouping": "account"},
-     "frame": {"col": 6, "row": 1, "cols": 6, "rows": 6}}
+     "frame": {"col": 6, "row": 3, "cols": 6, "rows": 6}}
   ]
 }"#;
 
@@ -306,8 +326,18 @@ mod tests {
 
     #[test]
     fn the_templates_hold_what_section_2_lists() {
+        // Every template but Empty starts with the page's two widgets.
+        for word in WORDS {
+            let kinds = types(word);
+            if word == EMPTY {
+                assert!(kinds.is_empty());
+            } else {
+                assert_eq!(kinds[..2], ["page.period", "page.filters"], "{word}");
+            }
+        }
+        let rest = |word| types(word).split_off(2);
         assert_eq!(
-            types(SPENDING),
+            rest(SPENDING),
             [
                 "text.heading",
                 "chart.donut",
@@ -317,7 +347,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            types(MONEY_IN_OUT),
+            rest(MONEY_IN_OUT),
             [
                 "kpi.card",
                 "kpi.card",
@@ -329,7 +359,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            types(WORTH),
+            rest(WORTH),
             [
                 "kpi.card",
                 "kpi.card",
@@ -339,12 +369,12 @@ mod tests {
             ]
         );
         assert_eq!(
-            types(BUDGETS),
+            rest(BUDGETS),
             ["text.heading", "budget.progress", "chart.donut"]
         );
         // The Update all accounts widget of M6d.7 (D-440, D-471).
         assert_eq!(
-            types(ACCOUNTS),
+            rest(ACCOUNTS),
             ["notice.fetch_gap", "bank.update_all", "table.rows"]
         );
         assert!(
@@ -354,6 +384,22 @@ mod tests {
                 .iter()
                 .any(|entry| matches!(&entry.item, Item::Component(c) if c.kind() == ComponentType::BankUpdateAll))
         );
+    }
+
+    #[test]
+    fn every_template_text_is_written_in_the_current_version() {
+        // A new version revisits the templates, as it does the built-in
+        // Overview, instead of leaving them to the reading of older ones.
+        for text in [
+            SPENDING_TEXT,
+            MONEY_IN_OUT_TEXT,
+            WORTH_TEXT,
+            BUDGETS_TEXT,
+            ACCOUNTS_TEXT,
+        ] {
+            let value: serde_json::Value = serde_json::from_str(text).unwrap();
+            assert_eq!(value["version"], crate::VERSION);
+        }
     }
 
     #[test]

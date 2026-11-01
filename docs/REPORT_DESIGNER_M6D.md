@@ -58,7 +58,7 @@ A **template** is a built-in starter dashboard the user picks in *New dashboardâ
 |---|---|---|
 | `empty` | *Empty* | none; the page shows the arranging mode with the Add menu open |
 | `overview` | *Overview* | the built-in Overview (D-314) |
-| `spending` | *Where the money goes* | heading; spending ring by category, this month; spending table, this month; *Money out* card; spending by top-level category over the last 12 months as bars (built so by M6d.2, D-480: the stacked bars month by month need categories picked in the book, which a template cannot name) |
+| `spending` | *Where the money goes* | heading; spending ring by category, this month; spending table, this month; *Money out* card; spending by top-level category over the last 12 months as bars (D-480, Q-336: the stacked bars month by month need categories picked in the book, which a template cannot name). Every template but *Empty* also starts with the period header and the filter bar (D-479) |
 | `money-in-out` | *Money in and out* | the four key figure cards (M6a.5); money in and out by month as bars, last 12 months; *Where your money came from* table (D-336); in and out of your accounts table (`cash_flow_by_month`) |
 | `worth` | *What you own* | *What you have*, *What you owe*, *What you are worth* cards; net worth over time as a line, last 12 months; account balances table |
 | `budgets` | *Budgets* | heading; budget bars (`budget.progress`, all budgets); spending ring, this month. Offered always; the bars take no room until a budget exists (D-381, D-382), and the dialog says so under the picture while the book has none |

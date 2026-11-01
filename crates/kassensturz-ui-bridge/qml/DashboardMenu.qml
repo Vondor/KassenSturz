@@ -29,6 +29,7 @@ Kirigami.Action {
     signal newRequested()
     signal renameRequested()
     signal deleteRequested()
+    signal addFromFileRequested()
     // An action was refused: the error object.
     signal failed(var result)
 
@@ -105,6 +106,14 @@ Kirigami.Action {
     }
     Kirigami.Action {
         separator: true
+    }
+    Kirigami.Action {
+        icon.name: "document-open"
+        text: menu.i18nContext.i18nc("@action:inmenu add a dashboard that someone saved to a file", "Add from a file…")
+        onTriggered: {
+            ActionLog.taken("DashboardMenu_addFromFile")
+            menu.addFromFileRequested()
+        }
     }
     Kirigami.Action {
         icon.name: "edit-delete"

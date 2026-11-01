@@ -51,6 +51,7 @@ pub mod grid;
 mod groups;
 mod metrics;
 mod monthly;
+pub mod notices;
 mod over_time;
 mod period;
 mod schema;

@@ -59,6 +59,7 @@ fn main() {
                 "qml/BookFromFilePage.qml",
                 "qml/BookProblemPage.qml",
                 "qml/BudgetBars.qml",
+                "qml/UpdateAllWidget.qml",
                 "qml/BudgetWords.qml",
                 "qml/BudgetPage.qml",
                 "qml/BudgetsPage.qml",

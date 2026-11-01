@@ -237,6 +237,15 @@ Kirigami.ApplicationWindow {
         bank: bankConnection
     }
 
+    // What Update all accounts booked shows on every page (M6d.7, D-449).
+    Connections {
+        target: bankConnection
+
+        function onUpdateAllFinished() {
+            root.bookChanged();
+        }
+    }
+
     // The developer mode (D-227): on only when KassenSturz was started from
     // a terminal for it. It is told every screen that comes up, which the
     // chat's problem reports name too (D-228).
@@ -1253,6 +1262,9 @@ Kirigami.ApplicationWindow {
             dashboard: dashboardLayout
             savedSource: savedViews
             groupsSource: categoryGroups
+            bank: bankConnection
+            bankReady: root.bankUsable()
+            onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
             onAddAccountClicked: root.addAccount(false)
             onAddTransactionClicked: root.addTransaction(false, "")
             onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })

@@ -279,6 +279,12 @@ Kirigami.InlineMessage {
         case "report.document-invalid":
         case "report.document-too-big":
             return i18nContext.i18nc("@info", "This view couldn't be saved or opened because it isn't one KassenSturz can use. Nothing was changed. Make it again in the Statistic Builder, and choose a short name.");
+        case "report.dashboard-file-invalid":
+            return i18nContext.i18nc("@info %1 is a place in the file, as text from the file", "This dashboard file can't be read (at %1), so nothing of it was added. Use a file saved by KassenSturz with Save to a file, or ask the person who gave it to you to save it again.", result.path === "" ? "-" : result.path);
+        case "report.dashboard-file-too-big":
+            return i18nContext.i18nc("@info", "This file is too large to be a dashboard file, so it was not read. Check that you chose the right file.");
+        case "report.unsupported-dashboard-file-version":
+            return i18nContext.i18nc("@info %1 is a version number", "This dashboard file was made by a newer KassenSturz (file version %1), so this one can't read it. Update KassenSturz, or ask for a file saved by this version.", result.version);
         case "report.filter-invalid":
             if (result.reason === "too-many") {
                 return result.dimension === "accounts"

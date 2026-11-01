@@ -38,6 +38,8 @@ mod category_groups;
 mod category_groups_model;
 mod charts;
 mod charts_model;
+mod dashboard_file;
+mod dashboard_file_model;
 mod dashboards;
 mod developer_mode;
 mod errors;

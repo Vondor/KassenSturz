@@ -179,6 +179,8 @@ pub const ACTIONS: &[&str] = &[
     "CsvSettingsPage_readFile_2",
     "CsvSettingsPage_refreshRows",
     "CsvSettingsPage_refreshRows_2",
+    "DashboardFilePage_add",
+    "DashboardFilePage_cancel",
     "DashboardMenu_delete",
     "DashboardMenu_duplicate",
     "DashboardMenu_makeDefault",

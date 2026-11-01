@@ -57,6 +57,7 @@ mod period;
 mod schema;
 mod source;
 mod spending;
+pub mod templates;
 mod text;
 
 pub use balances::{

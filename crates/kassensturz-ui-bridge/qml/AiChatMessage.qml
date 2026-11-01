@@ -31,6 +31,8 @@ ColumnLayout {
 
     // The `AiChat`, for the chart cards.
     property var chat: null
+    // The name of the dashboard the Overview shows (M6d.1).
+    property string dashboardName: ""
 
     // The user wants to read the changes of the set with this ID.
     signal reviewClicked(string setId)
@@ -211,6 +213,7 @@ ColumnLayout {
         setId: item.message.kind === "chart" ? item.message.setId : ""
         unverified: item.message.kind === "chart" ? (item.message.unverified ?? []) : []
         outcome: item.message.kind === "chart" ? (item.message.outcome ?? "") : ""
+        dashboardName: item.dashboardName
         onChangeClicked: (title, component, period) => item.chartChangeClicked(title, component, period)
         onAddToOverviewClicked: (component, period) => item.chartAddToOverviewClicked(component, period)
         onHandled: outcome => item.chartHandled(outcome)

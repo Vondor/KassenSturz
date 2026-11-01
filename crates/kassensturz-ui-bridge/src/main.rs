@@ -56,6 +56,8 @@ mod grid_editor;
 mod grid_editor_model;
 mod history;
 mod history_model;
+mod kmy_reports_import;
+mod kmy_reports_import_model;
 mod language;
 mod language_model;
 mod locale;

@@ -104,6 +104,14 @@ ColumnLayout {
             return i18nContext.i18nc("@info %1 is a list of kinds of filters", "the filter by %1 was left out", line.filters.map(kind => filterName(kind)).join(", "));
         case "account-left-out":
             return i18nContext.i18nc("@info a change to a report", "an account KassenSturz doesn't hold was left out of its filter");
+        case "account-not-found":
+            return i18nContext.i18nc("@info a change to a report", "an account this book has no account of that name for was left out of its filter");
+        case "category-not-found":
+            return i18nContext.i18nc("@info a change to a report", "a category this book has no category of that name for was left out");
+        case "shows-more":
+            return i18nContext.i18nc("@info a change to a report", "its filter lost every account or category it named, so it shows more than in KMyMoney");
+        case "same-id":
+            return i18nContext.i18nc("@info why a report was not kept", "another report in the file has the same ID, so neither is taken");
         case "currency":
             return i18nContext.i18nc("@info a change to a report", "shown in the book's currency");
         case "options-left-out":

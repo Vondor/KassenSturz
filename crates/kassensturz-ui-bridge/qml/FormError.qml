@@ -88,6 +88,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This is a KassenSturz book already. To use it, open it in Settings with \"Open another book…\".");
         case "input.is-a-statement":
             return i18nContext.i18nc("@info", "This is a statement from a bank, not a book. To bring it in, open an account's list of transactions and choose \"Import from my bank\".");
+        case "input.not-kmymoney":
+            return i18nContext.i18nc("@info", "This isn't a KMyMoney file. Reports can be added from a KMyMoney book, saved as a .kmy file or as its SQLite database.");
         case "input.replacement-missing":
             return i18nContext.i18nc("@info %1 is a currency code", "Choose the currency that replaced %1.", result.currency);
         case "input.empty-rate":

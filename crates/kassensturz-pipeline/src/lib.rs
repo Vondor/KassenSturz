@@ -50,6 +50,7 @@ mod error;
 mod export;
 mod imported_book;
 mod kmy_reports;
+mod kmy_reports_into;
 mod report;
 
 use std::collections::HashSet;
@@ -74,6 +75,9 @@ pub use imported_book::{
 pub use kmy_reports::{
     FIXED_PERIODS, FixedPeriod, Found, MappedReport, Outcome, ReportBook, ReportLine, map_report,
     map_reports,
+};
+pub use kmy_reports_into::{
+    AddedReports, PlannedReport, ReportState, ReportsPlan, add_reports, plan_reports,
 };
 pub use report::{
     BalanceCheck, Duplicate, EntryOutcome, EntryRef, EntryResult, ImportReport, Summary,

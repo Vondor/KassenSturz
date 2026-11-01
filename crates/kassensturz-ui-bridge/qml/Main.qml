@@ -1295,6 +1295,19 @@ Kirigami.ApplicationWindow {
         StatisticsPage {
             saved: savedViews
             groupsSource: categoryGroups
+            onKmyReportsFileChosen: file => root.pushPage(kmyReportsImportPage, { file: file })
+        }
+    }
+
+    // Adding reports from a KMyMoney file to the open book (M6d.6b): the
+    // preview first; after "Add reports" the Statistics page lists them.
+    Component {
+        id: kmyReportsImportPage
+
+        KmyReportsImportPage {
+            onBookChanged: root.screenChangedBook()
+            onAdded: root.pageStack.pop()
+            onCancelled: root.pageStack.pop()
         }
     }
 

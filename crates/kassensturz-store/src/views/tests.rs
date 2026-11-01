@@ -297,3 +297,41 @@ fn documents_survive_closing_and_opening_the_book() {
     let book = Book::open(&path, &computer).expect("opened");
     assert_eq!(book.view(id).expect("read").name, "Overview");
 }
+
+#[test]
+fn removed_views_are_those_the_history_still_shows_removed() {
+    let mut book = sample().book;
+    let kept = book.add_view(&document("view", "Kept")).expect("added");
+    let gone = book.add_view(&document("view", "Gone")).expect("added");
+    let back = book.add_view(&document("view", "Back")).expect("added");
+    let board = book
+        .add_view(&document("dashboard", "Board"))
+        .expect("added");
+    assert_eq!(
+        book.removed_views(ViewKind::View).expect("read"),
+        Vec::<String>::new()
+    );
+
+    book.remove_view(gone).expect("removed");
+    book.remove_view(back).expect("removed");
+    book.remove_view(board).expect("removed");
+    // Undone: the view is in the book again, so it isn't one that was removed.
+    book.undo().expect("undone");
+    book.undo().expect("undone");
+    assert_eq!(
+        book.removed_views(ViewKind::View).expect("read"),
+        [document("view", "Gone")]
+    );
+    assert_eq!(
+        book.removed_views(ViewKind::Dashboard).expect("read"),
+        Vec::<String>::new()
+    );
+    book.view(kept).expect("still there");
+
+    // A history cleaned up shows nothing removed any more.
+    book.clean_up_history().expect("cleaned");
+    assert_eq!(
+        book.removed_views(ViewKind::View).expect("read"),
+        Vec::<String>::new()
+    );
+}

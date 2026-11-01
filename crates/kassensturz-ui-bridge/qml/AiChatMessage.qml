@@ -41,6 +41,8 @@ ColumnLayout {
     signal chartChangeClicked(string title, string component, string period)
     // The user dealt with the chart of a card: `kept`, `builder` or `left`.
     signal chartHandled(string outcome)
+    // The user wants the kept chart of a card on the Overview (D-428).
+    signal chartAddToOverviewClicked(string component, string period)
     // The user wants the Statistic Builder, starting from the dataset the AI
     // understood (empty for none), after it gave up on a chart.
     signal builderClicked(string dataset)
@@ -210,6 +212,7 @@ ColumnLayout {
         unverified: item.message.kind === "chart" ? (item.message.unverified ?? []) : []
         outcome: item.message.kind === "chart" ? (item.message.outcome ?? "") : ""
         onChangeClicked: (title, component, period) => item.chartChangeClicked(title, component, period)
+        onAddToOverviewClicked: (component, period) => item.chartAddToOverviewClicked(component, period)
         onHandled: outcome => item.chartHandled(outcome)
     }
 

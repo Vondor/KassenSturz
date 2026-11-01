@@ -26,6 +26,7 @@ Kirigami.ApplicationWindow {
     property bool failed: false
     property var handedOn: []
     property var outcomes: []
+    property var added: []
 
     AiSwitch {
         id: ai
@@ -47,6 +48,7 @@ Kirigami.ApplicationWindow {
                 chat: chat
                 setId: "7"
                 unverified: ["12345.67"]
+                onAddToOverviewClicked: (component, period) => window.added.push([component, period])
                 onHandled: outcome => window.outcomes.push("keep:" + outcome)
             }
 
@@ -147,6 +149,17 @@ Kirigami.ApplicationWindow {
             window.check(window.texts(keeping, []).some(text => text.startsWith("Kept.")), "in words");
             window.check(!window.texts(keeping, []).includes("Keep"), "the buttons are gone");
 
+            window.check(window.texts(keeping, []).includes("Add to Overview"), "after Keep the card offers Add to Overview");
+            window.check(window.added.length === 0, "and has put nothing on the Overview yet");
+            keeping.addToOverview();
+            window.check(window.added.length === 1 && window.added[0][1] === "this-year", "Add to Overview hands the period on");
+            window.check(JSON.parse(window.added[0][0]).dataset === "spending_by_category", "and the component");
+            window.check(keeping.outcome === "added" && window.texts(keeping, []).some(text => text.startsWith("Kept and added")), "and says so");
+            window.check(!window.texts(keeping, []).includes("Add to Overview"), "the button is gone");
+            keeping.addToOverview();
+            window.check(window.added.length === 1, "pressed again it does nothing");
+            window.check(!window.texts(changing, []).includes("Add to Overview") && !window.texts(leaving, []).includes("Add to Overview"), "a chart not kept has no such button");
+
             changing.change();
             window.check(chat.discarded.includes("8"), "Change… throws the AI's set away");
             window.check(chat.confirmed.length === 1, "and does not keep it");
@@ -156,7 +169,7 @@ Kirigami.ApplicationWindow {
             leaving.leaveOut();
             window.check(chat.discarded.includes("9") && window.handedOn.length === 1, "Leave out throws the set away and hands nothing on");
 
-            window.check(window.outcomes.join(",") === "keep:kept,change:builder,leave:left", "each card tells what became of its chart: " + window.outcomes.join(","));
+            window.check(window.outcomes.join(",") === "keep:kept,keep:added,change:builder,leave:left", "each card tells what became of its chart: " + window.outcomes.join(","));
             console.log(window.failed ? "chat chart: FAILED" : "chat chart: ok");
             Qt.exit(window.failed ? 1 : 0);
         }

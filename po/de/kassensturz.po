@@ -14951,3 +14951,17 @@ msgid ""
 "Nothing ticked: this follows the filters of the page. Tick some to count "
 "only those, whatever the page says."
 msgstr "Nichts angehakt: Es gilt der Filter der Seite. Haken Sie welche an, damit nur diese zählen, was die Seite auch sagt."
+
+#: crates/kassensturz-ui-bridge/qml/AiChartCard.qml:225
+#, kde-format
+msgctxt "@action:button put the chart the AI prepared on the Overview page"
+msgid "Add to Overview"
+msgstr "Zur Übersicht hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChartCard.qml:244
+#, kde-format
+msgctxt "@info"
+msgid "Kept and added to the Overview. You can take it back with Undo."
+msgstr ""
+"Behalten und zur Übersicht hinzugefügt. Sie können es mit „Rückgängig“ "
+"zurücknehmen."

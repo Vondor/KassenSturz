@@ -603,6 +603,29 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // Puts a chart the AI made and the user kept on the Overview, as a copy
+    // the way a saved view is added (D-326, D-428). When the layout is not
+    // being arranged, it is one session: arrange, add, Done, so Undo takes it
+    // back as one change; when it is, the chart joins that session.
+    function addChartToOverview(component: string, period: string) {
+        const wasEditing = dashboardLayout.view.editing ?? false;
+        if (!wasEditing) {
+            dashboardLayout.edit();
+        }
+        let result = dashboardLayout.addView(component, period);
+        if (result.code === undefined && !wasEditing) {
+            result = dashboardLayout.done();
+        }
+        if (result.code !== undefined) {
+            if (!wasEditing) {
+                dashboardLayout.cancel();
+            }
+            showPassiveNotification(errorTexts.messageFor(result), 12000);
+            return;
+        }
+        showPageForAi("overview", "");
+    }
+
     function showRegister(accountId: string) {
         pushPage(registerPage, { accountId: accountId });
     }
@@ -996,6 +1019,13 @@ Kirigami.ApplicationWindow {
                         chatDrawer.close();
                     }
                     root.showChangeReview(setId);
+                    root.raiseMainWindow();
+                }
+                onAddToOverviewRequested: (component, period) => {
+                    if (chatDrawer.modal) {
+                        chatDrawer.close();
+                    }
+                    root.addChartToOverview(component, period);
                     root.raiseMainWindow();
                 }
                 onStatisticBuilderRequested: (title, component, period, dataset) => {

@@ -33,6 +33,7 @@ mod data;
 mod decimal;
 mod error;
 mod exporter;
+mod replace;
 
 pub use book::{
     BookData, BookExport, BookedByRule, FORMAT, MAX_FILE_BYTES, MAX_RULE_DEPTH, VERSION, ViewData,
@@ -42,5 +43,6 @@ pub use csv::{CsvExport, CsvExportSettings, DecimalMark, Separator};
 pub use data::{AccountTransactions, Counterpart, ExportData, OriginalRow, TransactionRow};
 pub use error::{Expected, ExportError};
 pub use exporter::{ExportKind, Exporter, ExporterInfo, export, export_file};
+pub use replace::replace_file;
 
 use decimal::decimal_text;

@@ -47,6 +47,9 @@ Kirigami.ScrollablePage {
     signal addTransactionClicked()
     signal getTransactionsClicked(string accountId)
     signal setBudgetClicked()
+    // The user chose a dashboard file to add (M6d.4): the app shows what it
+    // holds before anything is added.
+    signal dashboardFileChosen(url file)
     signal transactionClicked(string accountId, string transactionId)
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -211,6 +214,16 @@ Kirigami.ScrollablePage {
                 newDashboardDialog.openNew()
             }
         },
+        Kirigami.Action {
+            visible: !page.layoutEditing && page.dashboardCount < 2
+            displayHint: Kirigami.DisplayHint.AlwaysHide
+            icon.name: "document-open"
+            text: page.i18nContext.i18nc("@action:inmenu add a dashboard that someone saved to a file", "Add from a file…")
+            onTriggered: {
+                ActionLog.taken("OverviewPage_addFromFile")
+                dashboardFileDialog.open()
+            }
+        },
         DashboardMenu {
             visible: !page.layoutEditing && page.dashboardCount > 1
             layout: page.dashboard
@@ -218,6 +231,7 @@ Kirigami.ScrollablePage {
             onRenameRequested: newDashboardDialog.openRename()
             onDeleteRequested: deleteDashboardDialog.open()
             onSaveRequested: saveDashboardDialog.open()
+            onAddFromFileRequested: dashboardFileDialog.open()
             onFailed: result => layoutError.result = result
         },
         // With one dashboard, saving it is here (D-443).
@@ -397,6 +411,23 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // A dashboard file is recognised by what it holds, not by its name, so
+    // the chooser also offers every file (section 4.1).
+    Dialogs.FileDialog {
+        id: dashboardFileDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Add a dashboard from a file")
+        fileMode: Dialogs.FileDialog.OpenFile
+        nameFilters: [
+            page.i18nContext.i18nc("@item:inlistbox a file type", "Dashboard files (*.json)"),
+            page.i18nContext.i18nc("@item:inlistbox a file type", "All files (*)")
+        ]
+        onAccepted: {
+            ActionLog.taken("OverviewPage_dashboardFileChosen")
+            page.dashboardFileChosen(selectedFile)
+        }
+    }
+
     NewDashboardDialog {
         id: newDashboardDialog
 
@@ -426,10 +457,10 @@ Kirigami.ScrollablePage {
                     ActionLog.taken("OverviewPage_chooseDashboardFile")
                     saveDashboardDialog.close();
                     if (page.folderUrl.toString() !== "") {
-                        dashboardFileDialog.currentFolder = page.folderUrl;
-                        dashboardFileDialog.selectedFile = page.folderUrl + "/" + encodeURIComponent(dashboardExport.dashboardFileName(page.shownDashboardId));
+                        saveDashboardFileDialog.currentFolder = page.folderUrl;
+                        saveDashboardFileDialog.selectedFile = page.folderUrl + "/" + encodeURIComponent(dashboardExport.dashboardFileName(page.shownDashboardId));
                     }
-                    dashboardFileDialog.open();
+                    saveDashboardFileDialog.open();
                 }
             },
             Kirigami.Action {
@@ -444,7 +475,7 @@ Kirigami.ScrollablePage {
     }
 
     Dialogs.FileDialog {
-        id: dashboardFileDialog
+        id: saveDashboardFileDialog
 
         title: page.i18nContext.i18nc("@title:window", "Save the dashboard to a file")
         fileMode: Dialogs.FileDialog.SaveFile

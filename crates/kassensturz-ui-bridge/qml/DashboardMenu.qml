@@ -31,6 +31,7 @@ Kirigami.Action {
     signal deleteRequested()
     // Save to a file… (M6d.3): the page says what the file holds first.
     signal saveRequested()
+    signal addFromFileRequested()
     // An action was refused: the error object.
     signal failed(var result)
 
@@ -114,6 +115,14 @@ Kirigami.Action {
         onTriggered: {
             ActionLog.taken("DashboardMenu_saveToFile")
             menu.saveRequested()
+        }
+    }
+    Kirigami.Action {
+        icon.name: "document-open"
+        text: menu.i18nContext.i18nc("@action:inmenu add a dashboard that someone saved to a file", "Add from a file…")
+        onTriggered: {
+            ActionLog.taken("DashboardMenu_addFromFile")
+            menu.addFromFileRequested()
         }
     }
     Kirigami.Action {

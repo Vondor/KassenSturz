@@ -1270,6 +1270,22 @@ Kirigami.ApplicationWindow {
             onAddTransactionClicked: root.addTransaction(false, "")
             onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })
             onSetBudgetClicked: root.pushPage(budgetPage, { categoryId: "" })
+            onDashboardFileChosen: file => root.pushPage(dashboardFilePage, { file: file })
+        }
+    }
+
+    // Adding a dashboard from a file (M6d.4): the summary first; after
+    // "Add dashboard" the Overview shows the new one.
+    Component {
+        id: dashboardFilePage
+
+        DashboardFilePage {
+            onBookChanged: root.screenChangedBook()
+            onAdded: id => {
+                root.pageStack.pop();
+                dashboardLayout.showDashboard(id);
+            }
+            onCancelled: root.pageStack.pop()
         }
     }
 

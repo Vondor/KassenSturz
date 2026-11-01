@@ -424,8 +424,10 @@ impl Bank for FakeBank {
         self.availability.require()?;
         let id = Self::login_id(self.next_login);
         // The PIN typed in the setup is kept as pending until the login
-        // has its ID, as with the real backend.
-        if pins.answer(&id)? == PinAnswer::Ask && pins.is_remembered(&LoginId::pending()) {
+        // has its ID, as with the real backend. A PIN typed now wins over
+        // one kept for the ID; the keychain is asked only when the PIN is
+        // to be saved there (M6-B82).
+        if pins.is_remembered(&LoginId::pending()) && !pins.is_remembered(&id) {
             pins.rename(&LoginId::pending(), &id)?;
         }
         if let Err(error) = self.connect(&id, pins) {
@@ -696,6 +698,27 @@ mod tests {
             bank.add_login(&FakeBank::setup(), &mut pins),
             Ok(FakeBank::login_id(3))
         );
+    }
+
+    /// M6-B82: with a PIN asked each time, setting up a login works while
+    /// the keychain (e.g. KeePassXC) can't be reached.
+    #[test]
+    fn a_login_whose_pin_is_not_saved_needs_no_keychain() {
+        let mut store = MemoryPinStore::new();
+        store.unavailable = true;
+        let mut pins = PinSession::new(Box::new(store));
+        let mut bank = FakeBank::new();
+        pins.provide(
+            &LoginId::pending(),
+            Pin::new(FakeBank::PIN.to_owned()),
+            PinMode::AskEachTime,
+        )
+        .expect("keeping in memory needs no keychain");
+        assert_eq!(
+            bank.add_login(&FakeBank::setup(), &mut pins),
+            Ok(FakeBank::login_id(1))
+        );
+        assert!(!pins.is_remembered(&LoginId::pending()));
     }
 
     #[test]

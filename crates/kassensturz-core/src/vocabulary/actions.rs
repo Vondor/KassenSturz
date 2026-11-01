@@ -179,6 +179,8 @@ pub const ACTIONS: &[&str] = &[
     "CsvSettingsPage_readFile_2",
     "CsvSettingsPage_refreshRows",
     "CsvSettingsPage_refreshRows_2",
+    "DashboardFilePage_add",
+    "DashboardFilePage_cancel",
     "ExportPage_columnsAreSeparated",
     "ExportPage_decimalsAreWritten",
     "ExportPage_firstLineNames",

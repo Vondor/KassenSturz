@@ -14965,3 +14965,197 @@ msgid "Kept and added to the Overview. You can take it back with Undo."
 msgstr ""
 "Behalten und zur Übersicht hinzugefügt. Sie können es mit „Rückgängig“ "
 "zurücknehmen."
+
+#, kde-format
+msgctxt "@title"
+msgid "Add a dashboard from a file"
+msgstr "Dashboard aus einer Datei hinzufügen"
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Add dashboard"
+msgstr "Dashboard hinzufügen"
+
+#, kde-format
+msgctxt "@item %1 is the title of a widget"
+msgid "\"%1\""
+msgstr "„%1“"
+
+#, kde-format
+msgctxt "@info %1 is the name of an account"
+msgid "Account %1"
+msgstr "Konto %1"
+
+#, kde-format
+msgctxt "@info %1 is the name of a group of categories"
+msgid "Group %1"
+msgstr "Gruppe %1"
+
+#, kde-format
+msgctxt "@info %1 is a category with the categories it sits inside"
+msgid "Category %1"
+msgstr "Kategorie %1"
+
+#, kde-format
+msgctxt ""
+"@info the bar above the widgets that narrows them by period, accounts and "
+"categories"
+msgid "the filter bar"
+msgstr "die Filterleiste"
+
+#, kde-format
+msgctxt "@info"
+msgid "matches more than one in this book, so none was taken"
+msgstr "passt in diesem Buch auf mehr als eines, deshalb wurde keines genommen"
+
+#, kde-format
+msgctxt "@info"
+msgid "is not in this book"
+msgstr "ist nicht in diesem Buch"
+
+#, kde-format
+msgctxt "@info %1 names what is missing, %2 why"
+msgid "%1 %2."
+msgstr "%1 %2."
+
+#, kde-format
+msgctxt "@info %1 names what is missing, %2 why, %3 the widgets that used it"
+msgid "%1 %2. Used by %3; left out there."
+msgstr "%1 %2. Verwendet von %3; dort weggelassen."
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The filter bar will count all accounts, because its account is not in this "
+"book."
+msgid_plural ""
+"The filter bar will count all accounts, because none of its %1 accounts are "
+"in this book."
+msgstr[0] "Die Filterleiste zählt alle Konten, weil ihr Konto nicht in diesem Buch ist."
+msgstr[1] "Die Filterleiste zählt alle Konten, weil keines ihrer %1 Konten in diesem Buch ist."
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The filter bar will count all categories, because its category is not in "
+"this book."
+msgid_plural ""
+"The filter bar will count all categories, because none of its %1 categories "
+"are in this book."
+msgstr[0] "Die Filterleiste zählt alle Kategorien, weil ihre Kategorie nicht in diesem Buch ist."
+msgstr[1] "Die Filterleiste zählt alle Kategorien, weil keine ihrer %1 Kategorien in diesem Buch ist."
+
+#, kde-format
+msgctxt "@info %2 names a widget"
+msgid "%2 will show all accounts, because its account is not in this book."
+msgid_plural ""
+"%2 will show all accounts, because none of its %1 accounts are in this book."
+msgstr[0] "%2 zeigt alle Konten, weil sein Konto nicht in diesem Buch ist."
+msgstr[1] "%2 zeigt alle Konten, weil keines seiner %1 Konten in diesem Buch ist."
+
+#, kde-format
+msgctxt "@info %2 names a widget"
+msgid "%2 will show all groups, because its group is not in this book."
+msgid_plural ""
+"%2 will show all groups, because none of its %1 groups are in this book."
+msgstr[0] "%2 zeigt alle Gruppen, weil seine Gruppe nicht in diesem Buch ist."
+msgstr[1] "%2 zeigt alle Gruppen, weil keine seiner %1 Gruppen in diesem Buch ist."
+
+#, kde-format
+msgctxt "@info %2 names a widget"
+msgid ""
+"%2 will show what its data shows by itself, because its category is not in "
+"this book."
+msgid_plural ""
+"%2 will show what its data shows by itself, because none of its %1 "
+"categories are in this book."
+msgstr[0] "%2 zeigt, was seine Daten von sich aus zeigen, weil seine Kategorie nicht in diesem Buch ist."
+msgstr[1] "%2 zeigt, was seine Daten von sich aus zeigen, weil keine seiner %1 Kategorien in diesem Buch ist."
+
+#, kde-format
+msgctxt "@info %2 names a widget"
+msgid "%2 will show all categories, because its category is not in this book."
+msgid_plural ""
+"%2 will show all categories, because none of its %1 categories are in this "
+"book."
+msgstr[0] "%2 zeigt alle Kategorien, weil seine Kategorie nicht in diesem Buch ist."
+msgstr[1] "%2 zeigt alle Kategorien, weil keine seiner %1 Kategorien in diesem Buch ist."
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Name of the new dashboard"
+msgstr "Name des neuen Dashboards"
+
+#, kde-format
+msgctxt "@info %2 is a file name"
+msgid "%2 holds a dashboard with %1 widget."
+msgid_plural "%2 holds a dashboard with %1 widgets."
+msgstr[0] "%2 enthält ein Dashboard mit %1 Widget."
+msgstr[1] "%2 enthält ein Dashboard mit %1 Widgets."
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Uses from this book"
+msgstr "Verwendet aus diesem Buch"
+
+#, kde-format
+msgctxt "@label names of accounts follow"
+msgid "Accounts"
+msgstr "Konten"
+
+#, kde-format
+msgctxt "@label names of categories follow"
+msgid "Categories"
+msgstr "Kategorien"
+
+#, kde-format
+msgctxt "@label names of groups of categories follow"
+msgid "Groups"
+msgstr "Gruppen"
+
+#, kde-format
+msgctxt "@info"
+msgid "Nothing: this dashboard names no accounts, categories or groups."
+msgstr "Nichts: Dieses Dashboard nennt keine Konten, Kategorien oder Gruppen."
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Not in this book"
+msgstr "Nicht in diesem Buch"
+
+#, kde-format
+msgctxt "@info %1 is a name in a formula, %2 names a widget"
+msgid ""
+"%2 uses %1 in its formula, which is not a category or group in this book. "
+"The widget will say so."
+msgstr "%2 verwendet %1 in seiner Formel; das ist keine Kategorie und keine Gruppe in diesem Buch. Das Widget zeigt das an."
+
+#, kde-format
+msgctxt "@info %1 names a widget"
+msgid ""
+"%1 is a kind of widget this version of KassenSturz doesn't know. It is kept "
+"and shown as an empty frame."
+msgstr "%1 ist eine Art Widget, die diese Version von KassenSturz nicht kennt. Es bleibt erhalten und wird als leerer Rahmen gezeigt."
+
+#, kde-format
+msgctxt "@info %1 is a place in the file, as text from the file"
+msgid ""
+"This dashboard file can't be read (at %1), so nothing of it was added. Use a "
+"file saved by KassenSturz with Save to a file, or ask the person who gave it "
+"to you to save it again."
+msgstr "Diese Dashboard-Datei kann nicht gelesen werden (bei %1), deshalb wurde nichts davon hinzugefügt. Nehmen Sie eine Datei, die KassenSturz mit „In Datei speichern“ gespeichert hat, oder bitten Sie die Person, die sie Ihnen gegeben hat, sie noch einmal zu speichern."
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This file is too large to be a dashboard file, so it was not read. Check "
+"that you chose the right file."
+msgstr "Diese Datei ist zu groß für eine Dashboard-Datei, deshalb wurde sie nicht gelesen. Prüfen Sie, ob Sie die richtige Datei gewählt haben."
+
+#, kde-format
+msgctxt "@info %1 is a version number"
+msgid ""
+"This dashboard file was made by a newer KassenSturz (file version %1), so "
+"this one can't read it. Update KassenSturz, or ask for a file saved by this "
+"version."
+msgstr "Diese Dashboard-Datei wurde von einem neueren KassenSturz erstellt (Dateiversion %1), deshalb kann diese Version sie nicht lesen. Aktualisieren Sie KassenSturz oder bitten Sie um eine Datei, die mit dieser Version gespeichert wurde."

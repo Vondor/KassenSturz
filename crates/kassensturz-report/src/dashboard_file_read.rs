@@ -7,14 +7,14 @@
 //! A dashboard file is untrusted input: someone else may have made it. It
 //! is read in two steps.
 //!
-//! 1. [`DashboardFile::read`] checks the whole file without the book, in
+//! 1. [`IncomingDashboardFile::read`] checks the whole file without the book, in
 //!    this order: its size, JSON with the depth limit and no key twice, the
 //!    header, `references`, every place that holds an ID in a book (it must
 //!    hold a listed reference key, never an ID, so a file can't point at
 //!    something in a book by chance), then the dashboard by
 //!    [`Document::read`]. A file that fails any check is refused whole, with
 //!    the reason; nothing is repaired.
-//! 2. [`DashboardFile::resolve`] looks each reference up by its names in the
+//! 2. [`IncomingDashboardFile::resolve`] looks each reference up by its names in the
 //!    open book ([`BookNames`]) and gives the document with the book's IDs,
 //!    plus what the summary page lists: the names found, the names not found
 //!    with the widgets that used them, every list that now shows more than
@@ -31,21 +31,16 @@ use kassensturz_core::ViewKind;
 use kassensturz_store::Book;
 use serde_json::{Map, Value};
 
-use crate::dashboard_file::{DASHBOARD_FILE_FORMAT, DASHBOARD_FILE_VERSION, Reference};
+use crate::dashboard_file::{
+    DASHBOARD_FILE_FORMAT, DASHBOARD_FILE_VERSION, MAX_APPLICATION_CHARS, MAX_DASHBOARD_FILE_BYTES,
+    MAX_PATH_NAMES, MAX_REFERENCE_NAME_CHARS, MAX_REFERENCES, Reference,
+};
 use crate::document::{Scanned, scan};
 use crate::{Document, Formula, Item, Kind, MAX_NAME_CHARS, ReportError, Setting};
 
-/// The largest dashboard file, in bytes (D-441).
-pub const MAX_FILE_BYTES: usize = 1 << 20;
 /// The deepest nesting of objects and arrays in a dashboard file; the
 /// dashboard inside it has the document's own limit (D-441).
-pub const MAX_FILE_DEPTH: usize = 10;
-/// The most references in one file (D-441).
-pub const MAX_REFERENCES: usize = 500;
-/// The most names in a category's path (D-441).
-pub const MAX_PATH_NAMES: usize = 16;
-/// The longest `application` text, in characters (D-441).
-pub const MAX_APPLICATION_CHARS: usize = 100;
+pub const MAX_DASHBOARD_FILE_DEPTH: usize = 10;
 
 const REFERENCE_PREFIX: &str = "ref:";
 /// The longest piece of the file's own text a refusal's path repeats, so a
@@ -100,7 +95,7 @@ fn check_name(name: &Value, path: &str) -> Result<String, ReportError> {
     if name.is_empty() || name != name.trim() || name.chars().any(char::is_control) {
         return Err(invalid("bad-text", path));
     }
-    if name.chars().count() > MAX_NAME_CHARS {
+    if name.chars().count() > MAX_REFERENCE_NAME_CHARS {
         return Err(invalid("too-long", path));
     }
     Ok(name.to_owned())
@@ -272,7 +267,7 @@ fn each_list(
 
 /// A dashboard file, read and checked, before its names are looked up.
 #[derive(Clone, Debug, PartialEq)]
-pub struct DashboardFile {
+pub struct IncomingDashboardFile {
     /// The program that wrote it, as the file says; information only, never
     /// used to decide anything.
     pub application: Option<String>,
@@ -284,16 +279,16 @@ pub struct DashboardFile {
     document: Document,
 }
 
-impl DashboardFile {
+impl IncomingDashboardFile {
     /// Reads and checks a dashboard file without the book.
     pub fn read(text: &str) -> Result<Self, ReportError> {
-        if text.len() > MAX_FILE_BYTES {
+        if text.len() > MAX_DASHBOARD_FILE_BYTES {
             return Err(ReportError::DashboardFileTooBig {
-                max_bytes: MAX_FILE_BYTES,
+                max_bytes: MAX_DASHBOARD_FILE_BYTES,
             });
         }
         let value: Value = serde_json::from_str(text).map_err(|_| invalid("not-json", ""))?;
-        scan(text, MAX_FILE_DEPTH).map_err(|found| match found {
+        scan(text, MAX_DASHBOARD_FILE_DEPTH).map_err(|found| match found {
             Scanned::TooDeep => invalid("too-deep", ""),
             Scanned::DuplicateKey(key) => invalid("duplicate-key", shown(&key)),
             Scanned::NotJson => invalid("not-json", ""),

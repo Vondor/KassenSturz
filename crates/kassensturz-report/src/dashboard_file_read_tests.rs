@@ -68,7 +68,7 @@ fn example() -> String {
 }
 
 fn refused(text: &str) -> (&'static str, String) {
-    match DashboardFile::read(text) {
+    match IncomingDashboardFile::read(text) {
         Err(ReportError::DashboardFileInvalid { reason, path }) => (reason, path),
         other => panic!("not refused as a dashboard file: {other:?}"),
     }
@@ -95,7 +95,7 @@ fn a_file_finds_its_names_in_the_book_and_gets_the_books_ids() {
             &[GroupMember::Category(sample.rent)],
         )
         .expect("group added");
-    let read = DashboardFile::read(&example()).expect("read");
+    let read = IncomingDashboardFile::read(&example()).expect("read");
     assert_eq!(read.name(), "Where the money goes");
     assert_eq!(read.application.as_deref(), Some("KassenSturz 0.261101.8"));
     let names = BookNames::read(&sample.book).expect("names");
@@ -145,7 +145,7 @@ fn names_the_book_lacks_are_left_out_and_listed_with_their_widgets() {
         ),
     );
     let names = BookNames::read(&sample.book).expect("names");
-    let resolved = DashboardFile::read(&text)
+    let resolved = IncomingDashboardFile::read(&text)
         .expect("read")
         .resolve(&names)
         .expect("resolved");
@@ -207,7 +207,7 @@ fn a_category_is_found_only_by_its_whole_path_ignoring_capitals() {
             json!({"ref:1": {"kind": "category", "path": path}}),
             dashboard(json!({}), json!([stacked("c1", "", &["ref:1"], 0)])),
         );
-        DashboardFile::read(&text)
+        IncomingDashboardFile::read(&text)
             .expect("read")
             .resolve(&names)
             .expect("resolved")
@@ -240,7 +240,7 @@ fn an_account_is_found_open_or_closed_and_two_names_for_one_thing_count_once() {
         }),
         dashboard(json!({"accounts": ["ref:1", "ref:2", "ref:3"]}), json!([])),
     );
-    let resolved = DashboardFile::read(&text)
+    let resolved = IncomingDashboardFile::read(&text)
         .expect("read")
         .resolve(&names)
         .expect("resolved");
@@ -274,7 +274,7 @@ fn formula_names_the_book_lacks_and_unknown_widgets_are_listed() {
             ]),
         ),
     );
-    let resolved = DashboardFile::read(&text)
+    let resolved = IncomingDashboardFile::read(&text)
         .expect("read")
         .resolve(&names)
         .expect("resolved");
@@ -302,7 +302,7 @@ fn formula_names_the_book_lacks_and_unknown_widgets_are_listed() {
 #[test]
 fn a_file_without_references_reads_and_the_built_in_overview_fits_in_one() {
     let overview: Value = serde_json::from_str(DEFAULT_OVERVIEW).expect("json");
-    let read = DashboardFile::read(&file(json!({}), overview)).expect("read");
+    let read = IncomingDashboardFile::read(&file(json!({}), overview)).expect("read");
     assert_eq!(read.name(), OVERVIEW_NAME);
     let mut text: Value = serde_json::from_str(&example()).expect("json");
     let object = text.as_object_mut().expect("object");
@@ -513,24 +513,24 @@ fn too_many_references_and_too_deep_files_are_refused() {
 fn the_dashboard_inside_is_checked_as_a_document_with_paths_from_the_top() {
     let wrong = changed(|v| v["dashboard"]["components"][0]["params"]["colour"] = json!("red"));
     assert!(matches!(
-        DashboardFile::read(&wrong),
+        IncomingDashboardFile::read(&wrong),
         Err(ReportError::DocumentInvalid { reason: "unknown-property", path })
             if path.starts_with("dashboard.") && path.ends_with("params.colour")
     ));
     let view = changed(|v| v["dashboard"]["kind"] = json!("view"));
     assert!(matches!(
-        DashboardFile::read(&view),
+        IncomingDashboardFile::read(&view),
         Err(ReportError::DocumentInvalid { path, .. }) if path.starts_with("dashboard")
     ));
 }
 
 #[test]
 fn a_file_too_big_or_from_a_newer_version_says_so() {
-    let big = format!("{}{}", " ".repeat(MAX_FILE_BYTES), example());
+    let big = format!("{}{}", " ".repeat(MAX_DASHBOARD_FILE_BYTES), example());
     assert!(matches!(
-        DashboardFile::read(&big),
+        IncomingDashboardFile::read(&big),
         Err(ReportError::DashboardFileTooBig {
-            max_bytes: MAX_FILE_BYTES
+            max_bytes: MAX_DASHBOARD_FILE_BYTES
         })
     ));
     // A newer file may have keys this one doesn't know: it says it's newer.
@@ -539,7 +539,7 @@ fn a_file_too_big_or_from_a_newer_version_says_so() {
         v["signature"] = json!("abc");
     });
     assert!(matches!(
-        DashboardFile::read(&newer),
+        IncomingDashboardFile::read(&newer),
         Err(ReportError::UnsupportedDashboardFileVersion { version: 2 })
     ));
 }
@@ -550,9 +550,9 @@ fn every_refusal_has_a_listed_error_code() {
     for text in [
         "x".to_owned(),
         changed(|v| v["version"] = json!(9)),
-        " ".repeat(MAX_FILE_BYTES + 1),
+        " ".repeat(MAX_DASHBOARD_FILE_BYTES + 1),
     ] {
-        let error = DashboardFile::read(&text).expect_err("refused");
+        let error = IncomingDashboardFile::read(&text).expect_err("refused");
         assert!(
             error.report().code.contains("dashboard-file"),
             "{}",
@@ -574,7 +574,7 @@ proptest! {
             bytes[at] = byte;
         }
         if let Ok(text) = String::from_utf8(bytes)
-            && let Ok(read) = DashboardFile::read(&text)
+            && let Ok(read) = IncomingDashboardFile::read(&text)
         {
             let resolved = read.resolve(&BookNames::default()).expect("resolved");
             prop_assert!(Document::read(&resolved.document.to_json()).is_ok());

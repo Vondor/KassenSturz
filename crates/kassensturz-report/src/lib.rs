@@ -73,10 +73,13 @@ pub use columns::{
     shared as shared_categories, unknown as unknown_column_members,
 };
 pub use component::Component;
-pub use dashboard_file::{DASHBOARD_FILE_FORMAT, DASHBOARD_FILE_VERSION, Reference};
+pub use dashboard_file::{
+    DASHBOARD_FILE_FORMAT, DASHBOARD_FILE_VERSION, MAX_APPLICATION_CHARS, MAX_DASHBOARD_FILE_BYTES,
+    MAX_PATH_NAMES, MAX_REFERENCE_NAME_CHARS, MAX_REFERENCES, Reference,
+};
 pub use dashboard_file_read::{
-    BookNames, DashboardFile, FormulaName, MAX_APPLICATION_CHARS, MAX_FILE_BYTES, MAX_FILE_DEPTH,
-    MAX_PATH_NAMES, MAX_REFERENCES, MissingName, Resolved, ShowsMore, Widget, free_dashboard_name,
+    BookNames, FormulaName, IncomingDashboardFile, MAX_DASHBOARD_FILE_DEPTH, MissingName, Resolved,
+    ShowsMore, Widget, free_dashboard_name,
 };
 pub use default_overview::{DEFAULT_OVERVIEW, OVERVIEW_NAME};
 pub use document::{

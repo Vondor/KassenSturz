@@ -97,6 +97,10 @@ Item {
     // overview's fetch-gap warnings and its count of transfers, for the
     // notice widgets (D-328).
     property var pageView: ({})
+    // The `BookOverview` the period header widget steps through months with,
+    // and the `CategoryGroups` the filter bar widget picks from (M6d.8).
+    property var overview: null
+    property var choices: null
 
     // The part of the grid the user can see, in the grid's own coordinates,
     // told by the page that scrolls it (M6-B30). Without a page around it

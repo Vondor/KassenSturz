@@ -287,6 +287,12 @@ impl Editor {
         if self.document.entries.len() >= MAX_COMPONENTS {
             return Err(refused("too-many-components"));
         }
+        // The period header and the filter bar belong to the whole page
+        // (D-474): a second one is refused before anything changes.
+        if component.kind().one_per_page() && grid::holds(&self.document.entries, component.kind())
+        {
+            return Err(refused("only-one"));
+        }
         let id = new_id(&self.document.entries);
         let new = id.clone();
         self.apply(Edit::Add, |entries| {
@@ -409,6 +415,11 @@ impl Editor {
     pub fn duplicate(&mut self, id: &str) -> Result<String, ReportError> {
         if self.document.entries.len() >= MAX_COMPONENTS {
             return Err(refused("too-many-components"));
+        }
+        if let Some(entry) = self.document.entries.iter().find(|entry| entry.id == id)
+            && matches!(&entry.item, Item::Component(component) if component.kind().one_per_page())
+        {
+            return Err(refused("only-one"));
         }
         let copy = new_id(&self.document.entries);
         let new = copy.clone();

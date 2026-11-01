@@ -85,8 +85,8 @@ pub use dashboard_file_read::{
 };
 pub use default_overview::{DEFAULT_OVERVIEW, OVERVIEW_NAME};
 pub use document::{
-    Document, Entry, FORMAT, Frame, Item, MAX_BYTES, MAX_COMPONENTS, MAX_DEPTH, MAX_NAME_CHARS,
-    PERIODS, VERSION,
+    Document, Entry, FILTER_BAR_ID, FORMAT, Frame, Item, MAX_BYTES, MAX_COMPONENTS, MAX_DEPTH,
+    MAX_NAME_CHARS, PERIOD_HEADER_ID, PERIODS, VERSION,
 };
 pub use editor::{Edit, Editor, MAX_UNDO};
 pub use error::ReportError;
@@ -144,5 +144,7 @@ mod formula_tests;
 mod grid_tests;
 #[cfg(test)]
 mod groups_tests;
+#[cfg(test)]
+mod page_widgets_tests;
 #[cfg(test)]
 mod tests;

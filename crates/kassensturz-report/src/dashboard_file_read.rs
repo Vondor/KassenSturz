@@ -375,6 +375,11 @@ impl IncomingDashboardFile {
                 format!("references.{REFERENCE_PREFIX}{unused}"),
             ));
         }
+        // Checked as the file has it, so a path names the file's own place;
+        // then an older dashboard gets the period header and the filter bar,
+        // so the widgets' places here and in the document agree (D-476).
+        let mut dashboard = dashboard.clone();
+        crate::document::add_page_widgets_to_json(&mut dashboard);
         let document =
             Document::read(&Value::Object(dashboard.clone()).to_string()).map_err(in_dashboard)?;
         if document.kind != ViewKind::Dashboard {

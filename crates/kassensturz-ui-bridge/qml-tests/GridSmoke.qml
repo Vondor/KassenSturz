@@ -190,7 +190,7 @@ Kirigami.ApplicationWindow {
             }
             default:
                 const groupNames = addMenu.groups.map(group => group.name);
-                window.check(groupNames.length === 5, "five groups with a saved view: " + groupNames);
+                window.check(groupNames.length === 6, "six groups with a saved view, Bank always among them (D-497): " + groupNames);
                 window.check(groupNames.join() === groupNames.slice().sort((x, y) => x.localeCompare(y)).join(), "the groups are in alphabetical order: " + groupNames);
                 for (const group of addMenu.groups) {
                     const rowNames = group.rows.map(row => row.name);
@@ -200,11 +200,12 @@ Kirigami.ApplicationWindow {
                 window.check(saved && saved.rows.map(row => row.id).join() === "a,b", "the saved views are sorted by name");
                 const kinds = addMenu.groups.filter(group => !group.rows[0].saved).reduce((all, group) => all.concat(group.rows), []).length;
                 // 17 kinds, the 5 that start with the data of the accounts (M6c.2),
-                // and the period header and the filter bar the page lacks (M6d.8).
-                window.check(kinds === 24, "every kind of widget is in a group: " + kinds);
+                // the period header and the filter bar the page lacks (M6d.8),
+                // and Update all accounts, always offered (D-497).
+                window.check(kinds === 25, "every kind of widget is in a group: " + kinds);
                 const withData = addMenu.groups.reduce((all, group) => all.concat(group.rows), []).filter(row => row.dataset !== undefined && row.dataset !== "").map(row => row.id).sort();
                 window.check(withData.join() === "chart.bar/cash_flow_by_month,chart.line/net_worth_over_time,kpi.card/account_balances,table.rows/account_balances,table.rows/cash_flow_by_month", "the widgets with data of their own: " + withData);
-                window.check(addMenu.count === 5, "one submenu for each group: " + addMenu.count);
+                window.check(addMenu.count === 6, "one submenu for each group: " + addMenu.count);
                 // Choosing an item of a submenu reaches the menu's signals (M6-B9:
                 // `menu` inside a MenuItem is the MenuItem's own property).
                 const before = window.asked.length;
@@ -212,7 +213,7 @@ Kirigami.ApplicationWindow {
                     addMenu.menuAt(g).itemAt(0).triggered();
                 }
                 const added = window.asked.slice(before);
-                window.check(added.length === 5 && added.filter(entry => entry.startsWith("add:")).length === 4 && added.filter(entry => entry === "saved:a").length === 1, "choosing the first item of every submenu says so: " + added);
+                window.check(added.length === 6 && added.filter(entry => entry.startsWith("add:")).length === 5 && added.filter(entry => entry === "saved:a").length === 1, "choosing the first item of every submenu says so: " + added);
                 // The period box is one of them (M6-B12).
                 const layoutGroup = addMenu.groups.findIndex(group => group.rows.some(row => row.id === "group.period"));
                 const boxRow = addMenu.groups[layoutGroup].rows.findIndex(row => row.id === "group.period");

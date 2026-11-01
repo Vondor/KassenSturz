@@ -52,6 +52,8 @@ Kirigami.ScrollablePage {
     // holds before anything is added.
     signal dashboardFileChosen(url file)
     signal transactionClicked(string accountId, string transactionId)
+    // The Update all accounts widget's *Connect a bank* (D-497).
+    signal connectBankClicked()
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -133,7 +135,6 @@ Kirigami.ScrollablePage {
         id: addMenu
 
         savedList: page.savedList
-        bankReady: page.bankReady
         pageKinds: (page.dashboard.view.items ?? []).map(item => item.type)
         onKindChosen: (kind, dataset) => grid.add(kind, dataset)
         onSavedChosen: id => page.addSaved(id)
@@ -748,6 +749,7 @@ Kirigami.ScrollablePage {
             bankReady: page.bankReady
             onGetTransactionsClicked: accountId => page.getTransactionsClicked(accountId)
             onTransactionClicked: (accountId, transactionId) => page.transactionClicked(accountId, transactionId)
+            onConnectBankClicked: page.connectBankClicked()
             onSetBudgetClicked: page.setBudgetClicked()
             onPropertiesRequested: id => page.openProperties(id)
             onFailed: result => layoutError.result = result

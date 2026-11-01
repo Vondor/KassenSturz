@@ -74,8 +74,13 @@ fn refused(text: &str) -> (&'static str, String) {
     }
 }
 
+/// The series of the first chart: a version 2 dashboard gets the period
+/// header and the filter bar in front of it when read (D-476).
 fn series_of(document: &Document) -> Vec<String> {
-    let Item::Component(component) = &document.entries[0].item else {
+    let Some(component) = document.entries.iter().find_map(|entry| match &entry.item {
+        Item::Component(component) if !component.kind().one_per_page() => Some(component),
+        _ => None,
+    }) else {
         panic!("a known component");
     };
     match component.get("series") {

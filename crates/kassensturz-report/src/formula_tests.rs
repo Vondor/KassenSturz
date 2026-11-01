@@ -1011,7 +1011,7 @@ mod saved {
             })
             .collect();
         serde_json::json!({
-            "format": "kassensturz-dashboard", "version": 1, "kind": "dashboard",
+            "format": "kassensturz-dashboard", "version": 3, "kind": "dashboard",
             "name": "Overview", "components": components
         })
         .to_string()

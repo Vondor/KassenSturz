@@ -11,9 +11,10 @@
 // months' line are report components (M6a.8, Q-215). Since M6b.3 they sit on
 // the dashboard grid (`DashboardGrid`), which the user can arrange: "Edit
 // layout" starts a session with its own undo, Done keeps it as one change in
-// the history. The parts that are not widgets (the net worth card and the month
-// switcher) stay fixed around the grid for now; the fetch-gap warnings, the note
-// about transfers and the separator are widgets on it (D-327, D-328, D-334).
+// the history. Nothing on it is fixed (D-452): since M6d.8 the month header
+// (`PeriodHeader`) and the filter bar (`FilterBar`) are widgets on the grid
+// too, like the fetch-gap warnings, the note about transfers and the
+// separator (D-327, D-328, D-334, D-474).
 // Since M6d.1 the page shows one of the book's dashboards (D-436): tabs once
 // there are two (`DashboardTabs`), the dashboard menu (`DashboardMenu`) and
 // *New dashboard…* (`NewDashboardDialog`); the book opens at its default
@@ -133,6 +134,7 @@ Kirigami.ScrollablePage {
 
         savedList: page.savedList
         bankReady: page.bankReady
+        pageKinds: (page.dashboard.view.items ?? []).map(item => item.type)
         onKindChosen: (kind, dataset) => grid.add(kind, dataset)
         onSavedChosen: id => page.addSaved(id)
     }
@@ -186,6 +188,15 @@ Kirigami.ScrollablePage {
         overview.showThisMonth();
         dashboard.refresh();
         updateGridView();
+    }
+
+    // A page without the period header shows this month (M6d.8, D-475):
+    // nothing on it could go back to this month otherwise.
+    readonly property bool hasPeriodHeader: (dashboard.view.items ?? []).some(item => item.type === "page.period")
+    onHasPeriodHeaderChanged: {
+        if (!hasPeriodHeader) {
+            overview.showThisMonth();
+        }
     }
 
     readonly property int dashboardCount: (dashboard.view.dashboards ?? []).length
@@ -569,72 +580,6 @@ Kirigami.ScrollablePage {
             layout: page.dashboard
         }
 
-        // The month, with the way to the ones before and after it.
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.topMargin: Kirigami.Units.largeSpacing
-            spacing: Kirigami.Units.smallSpacing
-
-            Controls.ToolButton {
-                id: earlierButton
-
-                icon.name: "go-previous"
-                text: page.i18nContext.i18nc("@action:button the month before", "Earlier month")
-                display: Controls.AbstractButton.IconOnly
-                enabled: page.view.hasEarlier ?? false
-                onClicked: {
-                    ActionLog.taken("OverviewPage_earlierMonth")
-                    page.overview.showEarlierMonth()
-                }
-
-                Controls.ToolTip.text: text
-                Controls.ToolTip.visible: hovered
-                Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
-            }
-
-            Kirigami.Heading {
-                textFormat: Text.PlainText
-                Layout.fillWidth: true
-                text: page.view.month ?? ""
-                level: 2
-                horizontalAlignment: Text.AlignHCenter
-                elide: Text.ElideRight
-            }
-
-            Controls.ToolButton {
-                icon.name: "go-next"
-                text: page.i18nContext.i18nc("@action:button the month after", "Later month")
-                display: Controls.AbstractButton.IconOnly
-                enabled: page.view.hasLater ?? false
-                onClicked: {
-                    ActionLog.taken("OverviewPage_laterMonth")
-                    page.overview.showLaterMonth()
-                }
-
-                Controls.ToolTip.text: text
-                Controls.ToolTip.visible: hovered
-                Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
-            }
-        }
-
-        Controls.Button {
-            Layout.alignment: Qt.AlignHCenter
-            visible: !(page.view.thisMonth ?? true)
-            icon.name: "go-jump-today"
-            text: page.i18nContext.i18nc("@action:button", "Back to this month")
-            onClicked: {
-                ActionLog.taken("OverviewPage_backMonth")
-                page.overview.showThisMonth()
-            }
-        }
-
-        Controls.Label {
-            Layout.fillWidth: true
-            visible: page.view.empty ?? false
-            text: page.i18nContext.i18nc("@info", "Nothing came in or went out this month yet. Add what you paid or received, and it shows up here.")
-            wrapMode: Text.Wrap
-        }
-
         Kirigami.InlineMessage {
             Layout.fillWidth: true
             visible: page.layoutEditing && !grid.preview
@@ -674,15 +619,6 @@ Kirigami.ScrollablePage {
             ]
         }
 
-        // Period, accounts and categories for the whole page (M6c.7, D-351).
-        FilterBar {
-            Layout.fillWidth: true
-            visible: grid.visible
-            layout: page.dashboard
-            choices: page.groupsSource
-            onFailed: result => layoutError.result = result
-        }
-
         // The month's key figures and where its money went, from the
         // report components (M6a.8) on the user's grid (M6b.3).
         DashboardGrid {
@@ -692,6 +628,8 @@ Kirigami.ScrollablePage {
             layout: page.dashboard
             monthKey: page.view.monthKey ?? ""
             pageView: page.view
+            overview: page.overview
+            choices: page.groupsSource
             bank: page.bank
             bankReady: page.bankReady
             onGetTransactionsClicked: accountId => page.getTransactionsClicked(accountId)

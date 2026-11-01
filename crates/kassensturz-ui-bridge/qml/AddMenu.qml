@@ -23,6 +23,9 @@ Controls.Menu {
     // Whether bank connections can be used (D-054): only then is there a
     // Bank group with the Update all accounts button (M6d.7).
     property bool bankReady: false
+    // The types of the widgets on the page: the period header and the filter
+    // bar are offered only while the page has none (M6d.8, D-474).
+    property var pageKinds: []
 
     // `dataset` is empty for a kind that starts with its first dataset.
     signal kindChosen(string kind, string dataset)
@@ -57,7 +60,8 @@ Controls.Menu {
             { name: ctx.i18nc("@title:menu a group of widgets: those that work with the user's banks", "Bank"),
               rows: widgetMenu.bankReady ? kindRows(["bank.update_all"]) : [] },
             { name: ctx.i18nc("@title:menu a group of widgets: those that arrange the page", "Layout"),
-              rows: kindRows(["text.heading", "text.separator", "group.period"]) },
+              rows: kindRows(["text.heading", "text.separator", "group.period"]
+                  .concat(["page.period", "page.filters"].filter(kind => !widgetMenu.pageKinds.includes(kind)))) },
             { name: ctx.i18nc("@title:menu a group of widgets: notes and warnings", "Notes"),
               rows: kindRows(["notice.fetch_gap", "notice.transfers"]) },
             { name: ctx.i18nc("@title:menu a group of widgets: views saved in the Statistic Builder", "Saved views"),

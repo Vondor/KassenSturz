@@ -18,7 +18,7 @@ fn card(id: &str, col: u32, row: u32) -> Value {
 }
 
 fn dashboard(components: Vec<Value>) -> String {
-    json!({"format": "kassensturz-dashboard", "version": 1, "kind": "dashboard",
+    json!({"format": "kassensturz-dashboard", "version": 3, "kind": "dashboard",
         "name": "Mine", "components": components})
     .to_string()
 }
@@ -326,7 +326,7 @@ fn the_default_overview_is_a_valid_dashboard_that_writes_back_the_same() {
     assert_eq!(document.kind, ViewKind::Dashboard);
     assert_eq!(document.name, OVERVIEW_NAME);
     assert_eq!(document.period, None);
-    assert_eq!(document.entries.len(), 12);
+    assert_eq!(document.entries.len(), 14);
     grid::check(&document.entries).unwrap();
     assert_eq!(Document::read(&document.to_json()).unwrap(), document);
     // Its reading order is the order the Overview shows things in.
@@ -334,6 +334,8 @@ fn the_default_overview_is_a_valid_dashboard_that_writes_back_the_same() {
     assert_eq!(
         editor.reading_order(),
         [
+            "period-header",
+            "filter-bar",
             "fetch-gaps",
             "worth",
             "income",
@@ -411,6 +413,8 @@ fn the_default_overview_asks_for_what_the_overview_page_asks_for() {
     assert_eq!(
         asked,
         [
+            notice("page.period"),
+            notice("page.filters"),
             notice("notice.fetch_gap"),
             notice("card.net_worth"),
             card("income"),
@@ -551,7 +555,7 @@ fn a_session_is_saved_in_the_book_and_read_back_to_the_same_layout() {
     book.edit_view(id, &second).unwrap();
     let reread = Document::read(&book.view(id).unwrap().document).unwrap();
     assert_eq!(reread, *editor.document());
-    assert_eq!(reread.entries.len(), 13);
+    assert_eq!(reread.entries.len(), 15);
     // A new session on the saved layout starts from it, and undo works in it.
     let mut again = Editor::new(reread).unwrap();
     assert!(!again.has_changes());

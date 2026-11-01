@@ -304,3 +304,59 @@ fn the_suggested_name_is_one_a_file_system_takes() {
     assert_eq!(dashboard_file_name(".."), "_.dashboard.json");
     assert_eq!(dashboard_file_name("a\tb"), "a_b.dashboard.json");
 }
+
+/// The round trip (D-442, the second of M6d.3 and M6d.4 to merge): M6d.3's
+/// real file, read by M6d.4's reader into the same book, gives the same
+/// dashboard with the same IDs, less the ID the book no longer had.
+#[test]
+fn a_saved_file_reads_back_into_the_same_book_as_the_same_dashboard() {
+    let (sample, document) = dashboard();
+    let file = write(&sample, &document);
+    let incoming = IncomingDashboardFile::read(&file.text).expect("the reader takes it");
+    assert_eq!(incoming.name(), "Where the money goes");
+    let names = BookNames::read(&sample.book).expect("names");
+    let resolved = incoming.resolve(&names).expect("resolved");
+    assert!(resolved.missing.is_empty(), "{:?}", resolved.missing);
+    assert!(resolved.shows_more.is_empty(), "{:?}", resolved.shows_more);
+    assert_eq!(resolved.found.len(), file.references);
+    // The gone ID is never first in its list.
+    let without_gone = document.to_json().replace(&format!(",\"{GONE}\""), "");
+    let expected = Document::read(&without_gone).expect("reads");
+    assert_eq!(resolved.document, expected);
+}
+
+/// The same file read into another book with the same names but other IDs,
+/// which lacks the group: the names find the new IDs, and the group is
+/// listed and left out, never guessed.
+#[test]
+fn a_saved_file_reads_into_another_book_by_name_and_lists_what_it_lacks() {
+    let (from, document) = dashboard();
+    let file = write(&from, &document);
+    let other = sample();
+    let incoming = IncomingDashboardFile::read(&file.text).expect("the reader takes it");
+    let resolved = incoming
+        .resolve(&BookNames::read(&other.book).expect("names"))
+        .expect("resolved");
+    let missing: Vec<&Reference> = resolved
+        .missing
+        .iter()
+        .map(|name| &name.reference)
+        .collect();
+    assert_eq!(missing, [&Reference::Group("Fixed costs".into())]);
+    let inner = &resolved.document;
+    assert_eq!(inner.accounts, [other.checking.to_string()]);
+    assert_eq!(inner.categories, [other.food.to_string()]);
+    let Item::Component(table) = &inner.entries[1].item else {
+        panic!("a table")
+    };
+    let Some(Setting::Columns(columns)) = table.get("columns") else {
+        panic!("columns")
+    };
+    assert_eq!(columns[0].members, [other.rent.to_string()]);
+    assert_eq!(columns[1].members, [other.food.to_string()]);
+    // No ID of the first book reached the second.
+    let text = inner.to_json();
+    for id in [from.checking, from.food, from.rent, from.groceries] {
+        assert!(!text.contains(&id.to_string()), "{id}");
+    }
+}

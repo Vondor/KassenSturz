@@ -111,9 +111,31 @@ fn invalid(reason: &'static str, path: &str) -> ReportError {
 }
 
 /// Refuses text in which an object has the same key twice or the nesting is
-/// deeper than [`MAX_DEPTH`]. The text is valid JSON already, so only the
-/// brackets, commas and strings need to be followed.
+/// deeper than [`MAX_DEPTH`].
 fn guard(text: &str) -> Result<(), ReportError> {
+    scan(text, MAX_DEPTH).map_err(|found| match found {
+        Scanned::TooDeep => invalid("too-deep", ""),
+        Scanned::DuplicateKey(key) => invalid("duplicate-key", &key),
+        Scanned::NotJson => invalid("not-json", ""),
+    })
+}
+
+/// What [`scan`] refused.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Scanned {
+    /// The nesting is deeper than allowed.
+    TooDeep,
+    /// An object has this key twice.
+    DuplicateKey(String),
+    /// A key could not be decoded.
+    NotJson,
+}
+
+/// Looks for an object with the same key twice and nesting deeper than
+/// `max_depth`, which `serde_json` would let through. The text is valid JSON
+/// already, so only the brackets, commas and strings need to be followed.
+/// Shared by documents and dashboard files (M6d.4).
+pub(crate) fn scan(text: &str, max_depth: usize) -> Result<(), Scanned> {
     // One entry per open bracket: the keys seen so far if it is an object.
     let mut open: Vec<Option<HashSet<String>>> = Vec::new();
     // Whether the next string is a key of the innermost object.
@@ -122,8 +144,8 @@ fn guard(text: &str) -> Result<(), ReportError> {
     while let Some((start, c)) = chars.next() {
         match c {
             '{' | '[' => {
-                if open.len() >= MAX_DEPTH {
-                    return Err(invalid("too-deep", ""));
+                if open.len() >= max_depth {
+                    return Err(Scanned::TooDeep);
                 }
                 key_next = c == '{';
                 open.push((c == '{').then(HashSet::new));
@@ -149,12 +171,12 @@ fn guard(text: &str) -> Result<(), ReportError> {
                 if key_next {
                     key_next = false;
                     // Decoded, so "a" and "a" are the same key.
-                    let key: String = serde_json::from_str(&text[start..=end])
-                        .map_err(|_| invalid("not-json", ""))?;
+                    let key: String =
+                        serde_json::from_str(&text[start..=end]).map_err(|_| Scanned::NotJson)?;
                     if let Some(Some(keys)) = open.last_mut()
                         && !keys.insert(key.clone())
                     {
-                        return Err(invalid("duplicate-key", &key));
+                        return Err(Scanned::DuplicateKey(key));
                     }
                 }
             }

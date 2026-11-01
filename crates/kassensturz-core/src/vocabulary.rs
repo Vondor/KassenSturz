@@ -45,6 +45,8 @@ pub const DETAILS: &[&str] = &[
     "group_period",
     "notice_fetch_gap",
     "notice_transfers",
+    "page_period",
+    "page_filters",
     "saved_view",
     // The screens, by the names of their QML files.
     "AccountDetailsPage",

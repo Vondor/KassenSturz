@@ -8,7 +8,7 @@ use serde_json::json;
 use crate::*;
 
 const DASHBOARD: &str = r#"{
-  "format": "kassensturz-dashboard", "version": 1, "kind": "dashboard",
+  "format": "kassensturz-dashboard", "version": 3, "kind": "dashboard",
   "name": "Overview", "filters": {"period": "last-12-months"},
   "components": [
     {"id": "c1", "type": "chart.line", "dataset": "income_expense_by_month",

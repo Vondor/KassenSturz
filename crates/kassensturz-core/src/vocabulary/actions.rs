@@ -247,6 +247,7 @@ pub const ACTIONS: &[&str] = &[
     "NewDashboardDialog_cancel",
     "NewDashboardDialog_keep",
     "NewDashboardDialog_nameAccepted",
+    "NewDashboardDialog_template",
     "OverviewPage_accepted",
     "OverviewPage_addAccount",
     "OverviewPage_addFromFile",

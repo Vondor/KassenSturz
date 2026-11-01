@@ -184,7 +184,10 @@ FormCard.FormCardPage {
             descriptionItem.textFormat: Text.PlainText
             Controls.ToolTip.visible: hovered
             Controls.ToolTip.text: page.i18nContext.i18nc("@info:tooltip", "Open this folder in the file manager")
-            onClicked: Qt.openUrlExternally(page.session.folderUrl)
+            onClicked: {
+                ActionLog.taken("SettingsPage_folder")
+                Qt.openUrlExternally(page.session.folderUrl)
+            }
         }
 
         FormCard.FormDelegateSeparator {}
@@ -193,7 +196,10 @@ FormCard.FormCardPage {
             icon.name: "document-open"
             text: page.i18nContext.i18nc("@action:button", "Open another book…")
             description: page.i18nContext.i18nc("@info", "KassenSturz opens the book you used last. Most households need only one.")
-            onClicked: page.openAnotherClicked()
+            onClicked: {
+                ActionLog.taken("SettingsPage_openAnotherBook")
+                page.openAnotherClicked()
+            }
         }
 
         FormCard.FormDelegateSeparator {}
@@ -202,7 +208,10 @@ FormCard.FormCardPage {
             icon.name: "document-new"
             text: page.i18nContext.i18nc("@action:button", "Start a new book…")
             description: page.i18nContext.i18nc("@info", "An empty book in a folder you choose, for example to try something out.")
-            onClicked: page.newBookClicked()
+            onClicked: {
+                ActionLog.taken("SettingsPage_startNewBook")
+                page.newBookClicked()
+            }
         }
     }
 
@@ -215,7 +224,10 @@ FormCard.FormCardPage {
             icon.name: "document-save-as"
             text: page.i18nContext.i18nc("@action:button", "Save a copy of my data…")
             description: page.i18nContext.i18nc("@info", "For a spreadsheet, or the whole book as a backup.")
-            onClicked: page.saveCopyClicked()
+            onClicked: {
+                ActionLog.taken("SettingsPage_saveCopyData")
+                page.saveCopyClicked()
+            }
         }
 
         FormCard.FormDelegateSeparator {}
@@ -224,7 +236,10 @@ FormCard.FormCardPage {
             icon.name: "document-import"
             text: page.i18nContext.i18nc("@action:button", "Start a book from a file…")
             description: page.i18nContext.i18nc("@info", "From a KMyMoney book, or a whole book you saved with KassenSturz.")
-            onClicked: page.bookFromFileClicked()
+            onClicked: {
+                ActionLog.taken("SettingsPage_startBookFile")
+                page.bookFromFileClicked()
+            }
         }
     }
 
@@ -264,20 +279,27 @@ FormCard.FormCardPage {
                     text: page.i18nContext.i18nc("@action:button", "Change this bank login…")
                     description: page.i18nContext.i18nc("@info", "Change the login name, the bank's address or how you log in. You type your login details and PIN again; your accounts stay linked.")
                     enabled: page.bankStatus.ready ?? false
-                    onClicked: page.changeBankClicked(login.modelData)
+                    onClicked: {
+                        ActionLog.taken("SettingsPage_changeBankLogin")
+                        page.changeBankClicked(login.modelData)
+                    }
                 }
 
                 FormCard.FormButtonDelegate {
                     icon.name: "edit-clear"
                     text: page.i18nContext.i18nc("@action:button", "Forget the PIN")
                     description: page.i18nContext.i18nc("@info", "Removes the PIN KassenSturz remembers or saved for this login. You type it at the next connection.")
-                    onClicked: page.bankResult = page.bank.forgetPin(login.modelData.id)
+                    onClicked: {
+                        ActionLog.taken("SettingsPage_forgetPin")
+                        page.bankResult = page.bank.forgetPin(login.modelData.id)
+                    }
                 }
 
                 FormCard.FormButtonDelegate {
                     icon.name: "edit-delete"
                     text: page.i18nContext.i18nc("@action:button", "Remove bank login and saved PIN…")
                     onClicked: {
+                        ActionLog.taken("SettingsPage_removeBankLogin")
                         page.pendingLogin = login.modelData;
                         removeLoginDialog.open();
                     }
@@ -297,7 +319,10 @@ FormCard.FormCardPage {
                 ? page.i18nContext.i18nc("@info", "Fetch your transactions from your bank instead of typing them. KassenSturz only reads; it never sends money.")
                 : ""
             enabled: page.bankStatus.ready ?? false
-            onClicked: page.connectBankClicked()
+            onClicked: {
+                ActionLog.taken("SettingsPage_connectBank")
+                page.connectBankClicked()
+            }
         }
     }
 
@@ -359,6 +384,7 @@ FormCard.FormCardPage {
                     }
                 }
                 onClicked: {
+                    ActionLog.taken("SettingsPage_clicked")
                     if (modelData.key !== page.bank.pinStorage)
                         page.choosePinStorage(modelData.key);
                 }
@@ -397,7 +423,10 @@ FormCard.FormCardPage {
             icon.name: "view-refresh"
             text: page.i18nContext.i18nc("@action:button", "Connect to KeePassXC again")
             visible: page.bank.pinStorage === "keepassxc" && page.pinStorageWaiting === ""
-            onClicked: page.choosePinStorage("keepassxc")
+            onClicked: {
+                ActionLog.taken("SettingsPage_connectKeepassxcAgain")
+                page.choosePinStorage("keepassxc")
+            }
         }
 
         FormCard.FormDelegateSeparator {}
@@ -408,7 +437,10 @@ FormCard.FormCardPage {
                 ? page.i18nContext.i18nc("@action:button", "Hide advanced choices")
                 : page.i18nContext.i18nc("@action:button", "Show advanced choices")
             visible: page.pinStorageChoices.some(choice => choice.advanced && choice.key !== page.bank.pinStorage)
-            onClicked: page.showAdvancedStorage = !page.showAdvancedStorage
+            onClicked: {
+                ActionLog.taken("SettingsPage_showAdvancedStorage")
+                page.showAdvancedStorage = !page.showAdvancedStorage
+            }
         }
     }
 
@@ -454,7 +486,10 @@ FormCard.FormCardPage {
                 { value: "off", text: page.i18nContext.i18nc("@item:inlistbox remind about fetching", "Never remind me") },
             ]
             Component.onCompleted: showChoice()
-            onActivated: page.fetchGapNotSaved = !page.fetchGap.choose(currentValue)
+            onActivated: {
+                ActionLog.taken("SettingsPage_remindMeAfter")
+                page.fetchGapNotSaved = !page.fetchGap.choose(currentValue)
+            }
         }
     }
 
@@ -476,6 +511,7 @@ FormCard.FormCardPage {
                 text: page.i18nContext.i18nc("@action:button", "Remove the login")
                 icon.name: "edit-delete"
                 onTriggered: {
+                    ActionLog.taken("SettingsPage_removeLogin")
                     page.bankResult = page.bank.removeLogin(page.pendingLogin.id);
                     removeLoginDialog.close();
                     page.refreshBanks();
@@ -484,7 +520,10 @@ FormCard.FormCardPage {
             Kirigami.Action {
                 text: page.i18nContext.i18nc("@action:button", "Keep it")
                 icon.name: "dialog-cancel"
-                onTriggered: removeLoginDialog.close()
+                onTriggered: {
+                    ActionLog.taken("SettingsPage_keep")
+                    removeLoginDialog.close()
+                }
             }
         ]
     }
@@ -514,7 +553,10 @@ FormCard.FormCardPage {
                 { value: "de", text: "Deutsch" },
             ]
             Component.onCompleted: showChoice()
-            onActivated: page.languageNotSaved = !page.language.choose(currentValue)
+            onActivated: {
+                ActionLog.taken("SettingsPage_language")
+                page.languageNotSaved = !page.language.choose(currentValue)
+            }
         }
     }
 
@@ -537,6 +579,7 @@ FormCard.FormCardPage {
             description: page.i18nContext.i18nc("@info", "Off unless you turn it on. While it is off, nothing about AI is shown or runs.")
             checked: page.ai.enabled
             onToggled: {
+                ActionLog.taken("SettingsPage_aiFeatures")
                 page.aiNotSaved = !page.ai.switchTo(checked);
                 checked = Qt.binding(() => page.ai.enabled);
             }
@@ -582,6 +625,7 @@ FormCard.FormCardPage {
         valueRole: "value"
         Component.onCompleted: showChoice()
         onActivated: {
+            ActionLog.taken("SettingsPage_activated")
             if (!numberFormat.choose(setting, currentValue)) {
                 notSaved();
             }
@@ -704,7 +748,10 @@ FormCard.FormCardPage {
             model: page.keepChoices
             Component.onCompleted: showChoice()
             onModelChanged: Qt.callLater(showChoice)
-            onActivated: page.chooseRetention(currentValue)
+            onActivated: {
+                ActionLog.taken("SettingsPage_keepHistory")
+                page.chooseRetention(currentValue)
+            }
         }
 
         FormCard.FormDelegateSeparator {}
@@ -714,7 +761,10 @@ FormCard.FormCardPage {
             icon.name: "view-history"
             text: page.i18nContext.i18nc("@action:button", "Show history")
             description: page.i18nContext.i18ncp("@info %1 is how many changes there are", "%1 change so far.", "%1 changes so far.", page.history.total)
-            onClicked: page.showHistoryClicked()
+            onClicked: {
+                ActionLog.taken("SettingsPage_showHistory")
+                page.showHistoryClicked()
+            }
         }
 
         FormCard.FormDelegateSeparator {}
@@ -724,7 +774,10 @@ FormCard.FormCardPage {
             text: page.i18nContext.i18nc("@action:button", "Clean up history…")
             description: page.i18nContext.i18nc("@info", "Deletes the whole history. Your accounts and transactions stay as they are.")
             enabled: page.history.total > 0
-            onClicked: cleanUpDialog.open()
+            onClicked: {
+                ActionLog.taken("SettingsPage_cleanUpHistory")
+                cleanUpDialog.open()
+            }
         }
     }
 
@@ -745,6 +798,7 @@ FormCard.FormCardPage {
                 text: page.i18nContext.i18nc("@action:button", "Delete them")
                 icon.name: "edit-delete"
                 onTriggered: {
+                    ActionLog.taken("SettingsPage_deleteThem")
                     page.saveRetention(page.pendingRetention);
                     shorterDialog.close();
                 }
@@ -752,7 +806,10 @@ FormCard.FormCardPage {
             Kirigami.Action {
                 text: page.i18nContext.i18nc("@action:button", "Keep the history as it is")
                 icon.name: "dialog-cancel"
-                onTriggered: shorterDialog.close()
+                onTriggered: {
+                    ActionLog.taken("SettingsPage_keepHistory_2")
+                    shorterDialog.close()
+                }
             }
         ]
         onClosed: keepFor.showChoice()
@@ -769,6 +826,7 @@ FormCard.FormCardPage {
                 text: page.i18nContext.i18nc("@action:button", "Delete the history")
                 icon.name: "edit-clear-history"
                 onTriggered: {
+                    ActionLog.taken("SettingsPage_deleteHistory")
                     page.historyResult = page.history.cleanUp();
                     cleanUpDialog.close();
                 }
@@ -776,7 +834,10 @@ FormCard.FormCardPage {
             Kirigami.Action {
                 text: page.i18nContext.i18nc("@action:button", "Keep the history")
                 icon.name: "dialog-cancel"
-                onTriggered: cleanUpDialog.close()
+                onTriggered: {
+                    ActionLog.taken("SettingsPage_keepHistory_3")
+                    cleanUpDialog.close()
+                }
             }
         ]
     }
@@ -814,7 +875,10 @@ FormCard.FormCardPage {
             text: page.i18nContext.i18nc("@action:button opens the project's web page in the browser", "Project page on GitHub")
             description: "https://github.com/Vondor/KassenSturz"
             descriptionItem.textFormat: Text.PlainText
-            onClicked: Qt.openUrlExternally("https://github.com/Vondor/KassenSturz")
+            onClicked: {
+                ActionLog.taken("SettingsPage_projectPageGithub")
+                Qt.openUrlExternally("https://github.com/Vondor/KassenSturz")
+            }
         }
     }
 }

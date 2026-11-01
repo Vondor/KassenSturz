@@ -103,14 +103,20 @@ Kirigami.ScrollablePage {
             Controls.Button {
                 text: page.i18nContext.i18nc("@action:button", "Add your first account")
                 icon.name: "list-add"
-                onClicked: page.start()
+                onClicked: {
+                    ActionLog.taken("WelcomePage_addFirstAccount")
+                    page.start()
+                }
             }
 
             Controls.Button {
                 text: page.i18nContext.i18nc("@action:button", "I have a KMyMoney book or a saved KassenSturz book")
                 icon.name: "document-import"
                 flat: true
-                onClicked: page.startFromFileClicked()
+                onClicked: {
+                    ActionLog.taken("WelcomePage_iHaveKmymoney")
+                    page.startFromFileClicked()
+                }
             }
         }
     }

@@ -115,12 +115,18 @@ Item {
                 text: dialogs.i18nContext.i18nc("@action:button send the TAN to the bank", "Send TAN")
                 icon.name: "dialog-ok"
                 enabled: tanField.text.trim().length > 0
-                onTriggered: tanDialog.send()
+                onTriggered: {
+                    ActionLog.taken("BankDialogs_sendTan")
+                    tanDialog.send()
+                }
             },
             Kirigami.Action {
                 text: dialogs.i18nContext.i18nc("@action:button", "Cancel")
                 icon.name: "dialog-cancel"
-                onTriggered: tanDialog.close()
+                onTriggered: {
+                    ActionLog.taken("BankDialogs_cancel")
+                    tanDialog.close()
+                }
             }
         ]
         onClosed: {
@@ -156,7 +162,10 @@ Item {
                 placeholderText: dialogs.i18nContext.i18nc("@info:placeholder", "TAN")
                 Accessible.name: dialogs.i18nContext.i18nc("@label:textbox", "TAN")
                 maximumLength: Math.max(1, tanDialog.request.maxLength ?? 64)
-                onAccepted: tanDialog.send()
+                onAccepted: {
+                    ActionLog.taken("BankDialogs_tan")
+                    tanDialog.send()
+                }
             }
 
             Controls.Label {
@@ -194,12 +203,18 @@ Item {
                 text: dialogs.i18nContext.i18nc("@action:button send the PIN to the bank", "Send PIN")
                 icon.name: "dialog-ok"
                 enabled: pinField.text.length > 0
-                onTriggered: pinDialog.send()
+                onTriggered: {
+                    ActionLog.taken("BankDialogs_sendPin")
+                    pinDialog.send()
+                }
             },
             Kirigami.Action {
                 text: dialogs.i18nContext.i18nc("@action:button", "Cancel")
                 icon.name: "dialog-cancel"
-                onTriggered: pinDialog.close()
+                onTriggered: {
+                    ActionLog.taken("BankDialogs_cancel_2")
+                    pinDialog.close()
+                }
             }
         ]
         onClosed: {
@@ -235,7 +250,10 @@ Item {
                 Layout.fillWidth: true
                 placeholderText: dialogs.i18nContext.i18nc("@info:placeholder", "PIN")
                 Accessible.name: dialogs.i18nContext.i18nc("@label:textbox", "PIN")
-                onAccepted: pinDialog.send()
+                onAccepted: {
+                    ActionLog.taken("BankDialogs_pin")
+                    pinDialog.send()
+                }
             }
 
             Controls.ComboBox {
@@ -297,12 +315,18 @@ Item {
                 text: dialogs.i18nContext.i18nc("@action:button use the registration number typed", "Use this number")
                 icon.name: "dialog-ok"
                 enabled: registrationField.text.trim().length > 0
-                onTriggered: registrationDialog.send()
+                onTriggered: {
+                    ActionLog.taken("BankDialogs_useNumber")
+                    registrationDialog.send()
+                }
             },
             Kirigami.Action {
                 text: dialogs.i18nContext.i18nc("@action:button", "Cancel")
                 icon.name: "dialog-cancel"
-                onTriggered: registrationDialog.close()
+                onTriggered: {
+                    ActionLog.taken("BankDialogs_cancel_3")
+                    registrationDialog.close()
+                }
             }
         ]
         onClosed: {
@@ -335,7 +359,10 @@ Item {
                 Layout.fillWidth: true
                 placeholderText: dialogs.i18nContext.i18nc("@info:placeholder", "Registration number")
                 Accessible.name: dialogs.i18nContext.i18nc("@label:textbox", "FinTS product registration number")
-                onAccepted: registrationDialog.send()
+                onAccepted: {
+                    ActionLog.taken("BankDialogs_fintsProductRegistration")
+                    registrationDialog.send()
+                }
             }
 
             Controls.Label {
@@ -414,7 +441,10 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
-                        onClicked: questionDialog.choose(index)
+                        onClicked: {
+                            ActionLog.taken("BankDialogs_choose")
+                            questionDialog.choose(index)
+                        }
                     }
                 }
             }

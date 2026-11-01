@@ -107,6 +107,7 @@ Kirigami.ApplicationWindow {
             window.check(stops.length === 1, "one Stop button, found " + stops.length);
             stops[0].clicked();
             window.check(fake.calls[0] === "stopBudget:b-food", "Stop sends the id, got " + fake.calls[0]);
+            window.check(ActionLog.mode.actions.includes("BudgetsPage_stop"), "Stop says it ran (M6c.D), got " + ActionLog.mode.actions);
             buttons.filter(button => button.text === "Change")[0].clicked();
             window.check(window.asked.includes("change:b-food"), "Change asks for the sheet");
 

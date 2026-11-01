@@ -156,34 +156,52 @@ Kirigami.Page {
                 visible: page.code === "store.locked"
                 icon.name: "unlock"
                 text: page.i18nContext.i18nc("@action:button", "Open anyway")
-                onClicked: page.session.openAnyway()
+                onClicked: {
+                    ActionLog.taken("BookProblemPage_openAnyway")
+                    page.session.openAnyway()
+                }
             }
             Controls.Button {
                 visible: ["store.locked", "book.missing", "store.io", "store.backup-failed", "store.database"].includes(page.code)
                 icon.name: "view-refresh"
                 text: page.i18nContext.i18nc("@action:button", "Try again")
-                onClicked: page.session.retry()
+                onClicked: {
+                    ActionLog.taken("BookProblemPage_tryAgain")
+                    page.session.retry()
+                }
             }
             Controls.Button {
                 icon.name: "document-open"
                 text: page.i18nContext.i18nc("@action:button", "Open another book…")
-                onClicked: page.openAnotherClicked()
+                onClicked: {
+                    ActionLog.taken("BookProblemPage_openAnotherBook")
+                    page.openAnotherClicked()
+                }
             }
             Controls.Button {
                 icon.name: "document-new"
                 text: page.i18nContext.i18nc("@action:button", "Start a new book…")
-                onClicked: page.newBookClicked()
+                onClicked: {
+                    ActionLog.taken("BookProblemPage_startNewBook")
+                    page.newBookClicked()
+                }
             }
             Controls.Button {
                 icon.name: "document-import"
                 text: page.i18nContext.i18nc("@action:button", "Start a book from a file…")
-                onClicked: page.startFromFileClicked()
+                onClicked: {
+                    ActionLog.taken("BookProblemPage_startBookFile")
+                    page.startFromFileClicked()
+                }
             }
             Controls.Button {
                 visible: page.session.open
                 icon.name: "go-previous"
                 text: page.i18nContext.i18nc("@action:button %1 is a file name", "Back to %1", page.session.fileName)
-                onClicked: page.backClicked()
+                onClicked: {
+                    ActionLog.taken("BookProblemPage_back")
+                    page.backClicked()
+                }
             }
         }
     }

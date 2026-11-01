@@ -212,7 +212,10 @@ FormCard.FormCardPage {
             icon.name: "transform-move"
             text: page.i18nContext.i18ncp("@action:button %1 is how many", "%1 pair of transactions may be money you moved between your accounts", "%1 pairs of transactions may be money you moved between your accounts", page.report.transfers ?? 0)
             description: page.i18nContext.i18nc("@info", "KassenSturz asks about each pair, one at a time. Nothing is joined without your click.")
-            onClicked: transferPrompt.ask(page.register.transferSuggestions(""))
+            onClicked: {
+                ActionLog.taken("BookFromFileDonePage_pairsTransactionsMoney")
+                transferPrompt.ask(page.register.transferSuggestions(""))
+            }
         }
     }
 
@@ -282,7 +285,10 @@ FormCard.FormCardPage {
         FormCard.FormButtonDelegate {
             icon.name: "go-next"
             text: page.i18nContext.i18nc("@action:button", "Go on with the book")
-            onClicked: page.doneClicked()
+            onClicked: {
+                ActionLog.taken("BookFromFileDonePage_goBook")
+                page.doneClicked()
+            }
         }
     }
 }

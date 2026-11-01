@@ -229,7 +229,10 @@ ColumnLayout {
             valueRole: "word"
             visible: panel.showDataset && panel.datasets.length > 1
             currentIndex: panel.datasets.indexOf(panel.view.dataset)
-            onActivated: index => panel.model.setDataset(panel.datasets[index])
+            onActivated: index => {
+                ActionLog.taken("PropertiesPanel_setDataset")
+                panel.model.setDataset(panel.datasets[index])
+            }
         }
 
         PeriodChoice {
@@ -237,7 +240,10 @@ ColumnLayout {
             options: panel.periodChoice !== undefined ? panel.wordOptions(panel.periodChoice.words) : []
             word: panel.periodChoice?.word ?? ""
             visible: panel.withPeriod && panel.periodChoice !== undefined
-            onChosen: word => panel.model.setWord("period", word)
+            onChosen: word => {
+                ActionLog.taken("PropertiesPanel_setWord")
+                panel.model.setWord("period", word)
+            }
         }
 
         Controls.Label {
@@ -317,6 +323,7 @@ ColumnLayout {
                                     Controls.ToolTip.visible: hovered
                                     Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
                                     onClicked: {
+                                        ActionLog.taken("PropertiesPanel_clicked")
                                         entry.insert(entry.cursorPosition, modelData.token);
                                         panel.model.setText(row.modelData.key, entry.text);
                                         entry.forceActiveFocus();
@@ -357,7 +364,10 @@ ColumnLayout {
                     Controls.CheckBox {
                         text: panel.fieldLabel(row.modelData.key)
                         checked: row.modelData.flag
-                        onToggled: panel.model.setFlag(row.modelData.key, checked)
+                        onToggled: {
+                            ActionLog.taken("PropertiesPanel_setFlag")
+                            panel.model.setFlag(row.modelData.key, checked)
+                        }
                     }
                 }
 
@@ -426,6 +436,7 @@ ColumnLayout {
                                     text: modelData.name
                                     checked: row.modelData.ids.includes(modelData.id)
                                     onToggled: {
+                                        ActionLog.taken("PropertiesPanel_toggled")
                                         const without = row.modelData.ids.filter(id => id !== modelData.id);
                                         panel.model.setIds(row.modelData.key, (checked ? without.concat([modelData.id]) : without).join(","));
                                     }
@@ -444,7 +455,10 @@ ColumnLayout {
                         valueRole: "word"
                         currentIndex: row.modelData.words.indexOf(row.modelData.word)
                         Accessible.name: panel.fieldLabel(row.modelData.key)
-                        onActivated: index => panel.model.setWord(row.modelData.key, row.modelData.words[index])
+                        onActivated: index => {
+                            ActionLog.taken("PropertiesPanel_setWord_2")
+                            panel.model.setWord(row.modelData.key, row.modelData.words[index])
+                        }
                     }
                 }
             }

@@ -28,6 +28,9 @@ FormCard.FormCard {
         icon.name: "configure"
         text: entry.i18nContext.i18nc("@action:button", "AI provider and privacy…")
         description: entry.i18nContext.i18nc("@info", "Choose which AI to use and where it runs, and read what KassenSturz may send to it.")
-        onClicked: entry.openClicked()
+        onClicked: {
+            ActionLog.taken("AiSettingsEntry_aiProviderPrivacy")
+            entry.openClicked()
+        }
     }
 }

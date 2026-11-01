@@ -56,7 +56,10 @@ Kirigami.Page {
         Kirigami.Action {
             icon.name: "list-add"
             text: page.i18nContext.i18nc("@action:button", "Add a Rule")
-            onTriggered: page.addRuleClicked()
+            onTriggered: {
+                ActionLog.taken("RulesPage_addRule")
+                page.addRuleClicked()
+            }
         }
     ]
 
@@ -107,7 +110,10 @@ Kirigami.Page {
                             text: page.suggestionsOpen
                                 ? page.i18nContext.i18nc("@action:button hide the list of suggested Rules", "Hide them")
                                 : page.i18nContext.i18nc("@action:button show the list of suggested Rules", "Show them")
-                            onTriggered: page.suggestionsOpen = !page.suggestionsOpen
+                            onTriggered: {
+                                ActionLog.taken("RulesPage_suggestionsOpen")
+                                page.suggestionsOpen = !page.suggestionsOpen
+                            }
                         }
                     ]
                 }
@@ -128,11 +134,17 @@ Kirigami.Page {
                             Kirigami.Action {
                                 icon.name: "list-add"
                                 text: page.i18nContext.i18nc("@action:button", "Create a Rule")
-                                onTriggered: page.createFromSuggestion(suggestion.modelData.payee, suggestion.modelData.category)
+                                onTriggered: {
+                                    ActionLog.taken("RulesPage_createRule")
+                                    page.createFromSuggestion(suggestion.modelData.payee, suggestion.modelData.category)
+                                }
                             },
                             Kirigami.Action {
                                 text: page.i18nContext.i18nc("@action:button", "No, thanks")
-                                onTriggered: page.rules.dismissSuggestion(suggestion.modelData.payee, suggestion.modelData.category)
+                                onTriggered: {
+                                    ActionLog.taken("RulesPage_noThanks")
+                                    page.rules.dismissSuggestion(suggestion.modelData.payee, suggestion.modelData.category)
+                                }
                             }
                         ]
                     }
@@ -146,7 +158,10 @@ Kirigami.Page {
                     helpfulAction: Kirigami.Action {
                         icon.name: "list-add"
                         text: page.i18nContext.i18nc("@action:button", "Add a Rule")
-                        onTriggered: page.addRuleClicked()
+                        onTriggered: {
+                            ActionLog.taken("RulesPage_addRule_2")
+                            page.addRuleClicked()
+                        }
                     }
                 }
 
@@ -197,14 +212,20 @@ Kirigami.Page {
                             Accessible.name: entry.modelData.name + ", " + page.doesText(entry.modelData)
                             // A click shows what the Rule matches; the pencil opens it.
                             highlighted: entry.modelData.id === page.selectedId
-                            onClicked: page.selectedId = entry.modelData.id
+                            onClicked: {
+                                ActionLog.taken("RulesPage_selectedId")
+                                page.selectedId = entry.modelData.id
+                            }
                         }
 
                         Controls.ToolButton {
                             icon.name: "document-edit"
                             text: page.i18nContext.i18nc("@action:button %1 is the name of a Rule", "Edit %1", entry.modelData.name)
                             display: Controls.AbstractButton.IconOnly
-                            onClicked: page.ruleClicked(entry.modelData.id)
+                            onClicked: {
+                                ActionLog.taken("RulesPage_edit")
+                                page.ruleClicked(entry.modelData.id)
+                            }
                             Controls.ToolTip.text: text
                             Controls.ToolTip.visible: hovered
                         }
@@ -214,7 +235,10 @@ Kirigami.Page {
                             enabled: entry.modelData.position > 0
                             text: page.i18nContext.i18nc("@action:button %1 is the name of a Rule", "Move %1 up", entry.modelData.name)
                             display: Controls.AbstractButton.IconOnly
-                            onClicked: page.rules.moveRule(entry.modelData.id, true)
+                            onClicked: {
+                                ActionLog.taken("RulesPage_moveUp")
+                                page.rules.moveRule(entry.modelData.id, true)
+                            }
                             Controls.ToolTip.text: text
                             Controls.ToolTip.visible: hovered
                         }
@@ -224,7 +248,10 @@ Kirigami.Page {
                             enabled: entry.modelData.position < entry.modelData.siblings - 1
                             text: page.i18nContext.i18nc("@action:button %1 is the name of a Rule", "Move %1 down", entry.modelData.name)
                             display: Controls.AbstractButton.IconOnly
-                            onClicked: page.rules.moveRule(entry.modelData.id, false)
+                            onClicked: {
+                                ActionLog.taken("RulesPage_moveDown")
+                                page.rules.moveRule(entry.modelData.id, false)
+                            }
                             Controls.ToolTip.text: text
                             Controls.ToolTip.visible: hovered
                         }
@@ -275,7 +302,10 @@ Kirigami.Page {
                 Controls.Button {
                     icon.name: "document-edit"
                     text: page.i18nContext.i18nc("@action:button", "Edit this Rule")
-                    onClicked: page.ruleClicked(page.selected.id)
+                    onClicked: {
+                        ActionLog.taken("RulesPage_editRule")
+                        page.ruleClicked(page.selected.id)
+                    }
                 }
             }
 
@@ -314,7 +344,10 @@ Kirigami.Page {
 
                     width: ListView.view.width
                     Accessible.name: transaction.Accessible.name
-                    onClicked: page.transactionClicked(modelData.accountId, modelData.id)
+                    onClicked: {
+                        ActionLog.taken("RulesPage_transactionClicked")
+                        page.transactionClicked(modelData.accountId, modelData.id)
+                    }
 
                     background: Rectangle {
                         readonly property bool lit: matchRow.down || matchRow.hovered || matchRow.visualFocus

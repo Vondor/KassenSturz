@@ -63,7 +63,10 @@ Kirigami.ScrollablePage {
         Kirigami.Action {
             icon.name: "list-add"
             text: page.i18nContext.i18nc("@action:button", "Add a budget")
-            onTriggered: page.addBudgetClicked()
+            onTriggered: {
+                ActionLog.taken("BudgetsPage_addBudget")
+                page.addBudgetClicked()
+            }
         }
     ]
 
@@ -81,6 +84,7 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Delete the budget")
                 icon.name: "edit-delete"
                 onTriggered: {
+                    ActionLog.taken("BudgetsPage_deleteBudget")
                     removeDialog.close();
                     error.result = page.budgets.removeBudget(removeDialog.budgetId);
                 }
@@ -88,7 +92,10 @@ Kirigami.ScrollablePage {
             Kirigami.Action {
                 text: page.i18nContext.i18nc("@action:button keep a budget", "Keep it")
                 icon.name: "go-previous"
-                onTriggered: removeDialog.close()
+                onTriggered: {
+                    ActionLog.taken("BudgetsPage_keep")
+                    removeDialog.close()
+                }
             }
         ]
     }
@@ -111,7 +118,10 @@ Kirigami.ScrollablePage {
             helpfulAction: Kirigami.Action {
                 icon.name: "list-add"
                 text: page.i18nContext.i18nc("@action:button", "Add a budget")
-                onTriggered: page.addBudgetClicked()
+                onTriggered: {
+                    ActionLog.taken("BudgetsPage_addBudget_2")
+                    page.addBudgetClicked()
+                }
             }
         }
 
@@ -167,7 +177,10 @@ Kirigami.ScrollablePage {
                             icon.name: "document-edit"
                             text: page.i18nContext.i18nc("@action:button change a budget", "Change")
                             Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of a category", "Change the budget for %1", card.modelData.name)
-                            onClicked: page.changeBudgetClicked(card.modelData.id)
+                            onClicked: {
+                                ActionLog.taken("BudgetsPage_change")
+                                page.changeBudgetClicked(card.modelData.id)
+                            }
                             Controls.ToolTip.text: text
                             Controls.ToolTip.visible: hovered
                             Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
@@ -178,7 +191,10 @@ Kirigami.ScrollablePage {
                             visible: card.modelData.canStop
                             text: page.i18nContext.i18nc("@action:button end a budget after the current period", "Stop")
                             Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of a category", "Stop the budget for %1", card.modelData.name)
-                            onClicked: error.result = page.budgets.stopBudget(card.modelData.id)
+                            onClicked: {
+                                ActionLog.taken("BudgetsPage_stop")
+                                error.result = page.budgets.stopBudget(card.modelData.id)
+                            }
                             Controls.ToolTip.text: page.i18nContext.i18nc("@info", "Ends the budget after the current period. Its past results stay.")
                             Controls.ToolTip.visible: hovered
                             Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
@@ -189,6 +205,7 @@ Kirigami.ScrollablePage {
                             text: page.i18nContext.i18nc("@action:button delete a budget", "Delete")
                             Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of a category", "Delete the budget for %1", card.modelData.name)
                             onClicked: {
+                                ActionLog.taken("BudgetsPage_delete")
                                 removeDialog.budgetId = card.modelData.id;
                                 removeDialog.budgetName = card.modelData.name;
                                 removeDialog.open();

@@ -213,37 +213,55 @@ Kirigami.ScrollablePage {
             visible: !page.layoutEditing
             icon.name: "view-grid"
             text: page.i18nContext.i18nc("@action:button change where things are on this page", "Edit layout")
-            onTriggered: page.dashboard.edit()
+            onTriggered: {
+                ActionLog.taken("OverviewPage_editLayout")
+                page.dashboard.edit()
+            }
         },
         Kirigami.Action {
             visible: !page.layoutEditing
             icon.name: "list-add"
             text: page.i18nContext.i18nc("@action:button", "Add transaction")
-            onTriggered: page.addTransactionClicked()
+            onTriggered: {
+                ActionLog.taken("OverviewPage_addTransaction")
+                page.addTransactionClicked()
+            }
         },
         Kirigami.Action {
             visible: !page.layoutEditing
             icon.name: "list-add"
             text: page.i18nContext.i18nc("@action:button", "Add account")
-            onTriggered: page.addAccountClicked()
+            onTriggered: {
+                ActionLog.taken("OverviewPage_addAccount")
+                page.addAccountClicked()
+            }
         },
         Kirigami.Action {
             visible: page.layoutEditing
             icon.name: "dialog-ok-apply"
             text: page.i18nContext.i18nc("@action:button keep the changes to the layout", "Done")
-            onTriggered: page.finishLayout()
+            onTriggered: {
+                ActionLog.taken("OverviewPage_done")
+                page.finishLayout()
+            }
         },
         Kirigami.Action {
             visible: page.layoutEditing
             icon.name: "dialog-cancel"
             text: page.i18nContext.i18nc("@action:button throw away the changes to the layout", "Cancel")
-            onTriggered: page.cancelLayout()
+            onTriggered: {
+                ActionLog.taken("OverviewPage_cancel")
+                page.cancelLayout()
+            }
         },
         Kirigami.Action {
             visible: page.layoutEditing
             icon.name: "list-add"
             text: page.i18nContext.i18nc("@action:button add a chart, table or figure to the layout", "Add to the page")
-            onTriggered: addMenu.popup()
+            onTriggered: {
+                ActionLog.taken("OverviewPage_addPage")
+                addMenu.popup()
+            }
         },
         Kirigami.Action {
             visible: page.layoutEditing
@@ -253,7 +271,10 @@ Kirigami.ScrollablePage {
                 ? page.i18nContext.i18nc("@action:button %1 is what was done to the layout", "Undo: %1", names.editName(page.undoLayoutWord))
                 : page.i18nContext.i18nc("@action:button there is nothing to undo", "Undo")
             tooltip: text
-            onTriggered: page.undoLayout()
+            onTriggered: {
+                ActionLog.taken("OverviewPage_undoLayout")
+                page.undoLayout()
+            }
         },
         Kirigami.Action {
             visible: page.layoutEditing
@@ -263,7 +284,10 @@ Kirigami.ScrollablePage {
                 ? page.i18nContext.i18nc("@action:button %1 is what was done to the layout", "Redo: %1", names.editName(page.redoLayoutWord))
                 : page.i18nContext.i18nc("@action:button there is nothing to make again", "Redo")
             tooltip: text
-            onTriggered: page.redoLayout()
+            onTriggered: {
+                ActionLog.taken("OverviewPage_redoLayout")
+                page.redoLayout()
+            }
         },
         Kirigami.Action {
             visible: page.layoutEditing
@@ -271,20 +295,29 @@ Kirigami.ScrollablePage {
             checkable: true
             checked: grid.preview
             text: page.i18nContext.i18nc("@action:button hide the grid lines and the toolbars", "Preview")
-            onTriggered: grid.preview = checked
+            onTriggered: {
+                ActionLog.taken("OverviewPage_preview")
+                grid.preview = checked
+            }
         },
         Kirigami.Action {
             visible: page.layoutEditing
             icon.name: "document-save-as"
             text: page.i18nContext.i18nc("@action:button save the arrangement under a name or load one saved earlier", "Saved layouts")
-            onTriggered: page.openLayouts()
+            onTriggered: {
+                ActionLog.taken("OverviewPage_savedLayouts")
+                page.openLayouts()
+            }
         },
         Kirigami.Action {
             visible: page.layoutEditing
             icon.name: "document-revert"
             enabled: !(page.dashboard.view.builtIn ?? true)
             text: page.i18nContext.i18nc("@action:button put the layout KassenSturz comes with back", "Back to the built-in layout")
-            onTriggered: resetDialog.open()
+            onTriggered: {
+                ActionLog.taken("OverviewPage_backBuiltLayout")
+                resetDialog.open()
+            }
         }
     ]
 
@@ -299,6 +332,7 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Throw away the changes")
                 icon.name: "edit-delete"
                 onTriggered: {
+                    ActionLog.taken("OverviewPage_throwAwayChanges")
                     discardDialog.close();
                     page.dashboard.cancel();
                 }
@@ -306,7 +340,10 @@ Kirigami.ScrollablePage {
             Kirigami.Action {
                 text: page.i18nContext.i18nc("@action:button keep arranging the layout", "Keep arranging")
                 icon.name: "go-previous"
-                onTriggered: discardDialog.close()
+                onTriggered: {
+                    ActionLog.taken("OverviewPage_keepArranging")
+                    discardDialog.close()
+                }
             }
         ]
     }
@@ -333,6 +370,7 @@ Kirigami.ScrollablePage {
                 icon.name: "document-save-as"
                 text: page.i18nContext.i18nc("@action:button", "Save this layout as…")
                 onClicked: {
+                    ActionLog.taken("OverviewPage_saveLayout")
                     layoutName.text = "";
                     saveLayoutDialog.open();
                 }
@@ -367,7 +405,10 @@ Kirigami.ScrollablePage {
                     Controls.Button {
                         text: page.i18nContext.i18nc("@action:button put a saved layout on the page", "Load")
                         Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of a saved layout", "Load %1", modelData.name)
-                        onClicked: page.loadLayout(modelData.id)
+                        onClicked: {
+                            ActionLog.taken("OverviewPage_load")
+                            page.loadLayout(modelData.id)
+                        }
                     }
 
                     Controls.Button {
@@ -377,6 +418,7 @@ Kirigami.ScrollablePage {
                         Controls.ToolTip.visible: hovered
                         Controls.ToolTip.text: text
                         onClicked: {
+                            ActionLog.taken("OverviewPage_delete")
                             page.chosenLayout = modelData;
                             deleteLayoutDialog.open();
                         }
@@ -392,6 +434,7 @@ Kirigami.ScrollablePage {
         title: page.i18nContext.i18nc("@title:window", "Save this layout as")
         standardButtons: Kirigami.Dialog.Save | Kirigami.Dialog.Cancel
         onAccepted: {
+            ActionLog.taken("OverviewPage_accepted")
             const result = page.dashboard.saveLayoutAs(layoutName.text);
             if (result.code !== undefined) {
                 layoutError.result = result;
@@ -404,7 +447,10 @@ Kirigami.ScrollablePage {
 
             maximumLength: 200
             Accessible.name: page.i18nContext.i18nc("@label:textbox", "Name of the layout")
-            onAccepted: saveLayoutDialog.accept()
+            onAccepted: {
+                ActionLog.taken("OverviewPage_nameLayout")
+                saveLayoutDialog.accept()
+            }
         }
     }
 
@@ -419,6 +465,7 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Delete the layout")
                 icon.name: "edit-delete"
                 onTriggered: {
+                    ActionLog.taken("OverviewPage_deleteLayout")
                     deleteLayoutDialog.close();
                     page.deleteLayout(page.chosenLayout.id);
                 }
@@ -426,7 +473,10 @@ Kirigami.ScrollablePage {
             Kirigami.Action {
                 text: page.i18nContext.i18nc("@action:button keep a saved layout", "Keep it")
                 icon.name: "go-previous"
-                onTriggered: deleteLayoutDialog.close()
+                onTriggered: {
+                    ActionLog.taken("OverviewPage_keep")
+                    deleteLayoutDialog.close()
+                }
             }
         ]
     }
@@ -442,6 +492,7 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Go back to the built-in layout")
                 icon.name: "document-revert"
                 onTriggered: {
+                    ActionLog.taken("OverviewPage_goBackBuilt")
                     resetDialog.close();
                     const result = page.dashboard.reset();
                     if (result.code !== undefined) {
@@ -452,7 +503,10 @@ Kirigami.ScrollablePage {
             Kirigami.Action {
                 text: page.i18nContext.i18nc("@action:button", "Keep my layout")
                 icon.name: "go-previous"
-                onTriggered: resetDialog.close()
+                onTriggered: {
+                    ActionLog.taken("OverviewPage_keepLayout")
+                    resetDialog.close()
+                }
             }
         ]
     }
@@ -525,7 +579,10 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button the month before", "Earlier month")
                 display: Controls.AbstractButton.IconOnly
                 enabled: page.view.hasEarlier ?? false
-                onClicked: page.overview.showEarlierMonth()
+                onClicked: {
+                    ActionLog.taken("OverviewPage_earlierMonth")
+                    page.overview.showEarlierMonth()
+                }
 
                 Controls.ToolTip.text: text
                 Controls.ToolTip.visible: hovered
@@ -546,7 +603,10 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button the month after", "Later month")
                 display: Controls.AbstractButton.IconOnly
                 enabled: page.view.hasLater ?? false
-                onClicked: page.overview.showLaterMonth()
+                onClicked: {
+                    ActionLog.taken("OverviewPage_laterMonth")
+                    page.overview.showLaterMonth()
+                }
 
                 Controls.ToolTip.text: text
                 Controls.ToolTip.visible: hovered
@@ -559,7 +619,10 @@ Kirigami.ScrollablePage {
             visible: !(page.view.thisMonth ?? true)
             icon.name: "go-jump-today"
             text: page.i18nContext.i18nc("@action:button", "Back to this month")
-            onClicked: page.overview.showThisMonth()
+            onClicked: {
+                ActionLog.taken("OverviewPage_backMonth")
+                page.overview.showThisMonth()
+            }
         }
 
         Controls.Label {
@@ -600,7 +663,10 @@ Kirigami.ScrollablePage {
             actions: [
                 Kirigami.Action {
                     text: page.i18nContext.i18nc("@action:button go to the first component with a problem", "Show")
-                    onTriggered: grid.showProblem()
+                    onTriggered: {
+                        ActionLog.taken("OverviewPage_show")
+                        grid.showProblem()
+                    }
                 }
             ]
         }

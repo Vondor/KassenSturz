@@ -67,7 +67,10 @@ ColumnLayout {
             model: [row.i18nContext.i18nc("@item:inlistbox the part gets no category yet", "Not sorted yet")]
                 .concat(row.choices.map(choice => row.choiceLabel(choice)))
             Accessible.name: row.i18nContext.i18nc("@label:listbox %1 is the number of the part", "What part %1 was for", row.number)
-            onActivated: index => row.categoryChosen(index <= 0 ? "" : row.choices[index - 1].id)
+            onActivated: index => {
+                ActionLog.taken("PartRow_whatPartWas")
+                row.categoryChosen(index <= 0 ? "" : row.choices[index - 1].id)
+            }
 
             // Shows the Part's category: again after the list changed,
             // since a new list resets the choice.
@@ -87,7 +90,10 @@ ColumnLayout {
             inputMethodHints: Qt.ImhFormattedNumbersOnly
             Accessible.name: row.i18nContext.i18nc("@label:textbox %1 is the number of the part", "How much of it part %1 was", row.number)
             onTextEdited: row.amountEdited(text)
-            onAccepted: row.accepted()
+            onAccepted: {
+                ActionLog.taken("PartRow_howMuchPart")
+                row.accepted()
+            }
         }
 
         Controls.ToolButton {
@@ -96,7 +102,10 @@ ColumnLayout {
             display: Controls.AbstractButton.IconOnly
             Controls.ToolTip.text: text
             Controls.ToolTip.visible: hovered
-            onClicked: row.removeClicked()
+            onClicked: {
+                ActionLog.taken("PartRow_removePart")
+                row.removeClicked()
+            }
         }
     }
 
@@ -127,7 +136,10 @@ ColumnLayout {
             inputMethodHints: Qt.ImhFormattedNumbersOnly
             Accessible.name: row.i18nContext.i18nc("@label:textbox %1 is the number of the part, %2 a currency code", "What part %1 was in %2", row.number, row.currency)
             onTextEdited: row.foreignAmountEdited(text)
-            onAccepted: row.accepted()
+            onAccepted: {
+                ActionLog.taken("PartRow_whatPartWas_2")
+                row.accepted()
+            }
         }
 
         Controls.Label {

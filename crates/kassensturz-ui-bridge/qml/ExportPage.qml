@@ -85,7 +85,10 @@ FormCard.FormCardPage {
         fileMode: Dialogs.FileDialog.SaveFile
         defaultSuffix: "csv"
         nameFilters: [page.i18nContext.i18nc("@item:inlistbox a file type", "Spreadsheet files (*.csv)")]
-        onAccepted: page.saveCsv(selectedFile)
+        onAccepted: {
+            ActionLog.taken("ExportPage_saveCsv")
+            page.saveCsv(selectedFile)
+        }
     }
 
     Dialogs.FileDialog {
@@ -95,7 +98,10 @@ FormCard.FormCardPage {
         fileMode: Dialogs.FileDialog.SaveFile
         defaultSuffix: "json"
         nameFilters: [page.i18nContext.i18nc("@item:inlistbox a file type", "KassenSturz book files (*.json)")]
-        onAccepted: page.saveBook(selectedFile)
+        onAccepted: {
+            ActionLog.taken("ExportPage_saveBook")
+            page.saveBook(selectedFile)
+        }
     }
 
     FormCard.FormCard {
@@ -134,6 +140,7 @@ FormCard.FormCardPage {
                     : modelData.currency
                 checked: page.ticked[modelData.id] === true
                 onToggled: {
+                    ActionLog.taken("ExportPage_toggled")
                     const next = Object.assign({}, page.ticked);
                     next[modelData.id] = checked;
                     page.ticked = next;
@@ -152,7 +159,10 @@ FormCard.FormCardPage {
             description: page.moreChoices
                 ? ""
                 : page.i18nContext.i18nc("@info", "How the columns are separated, how decimals are written, and more. The usual choices fit your region.")
-            onClicked: page.moreChoices = !page.moreChoices
+            onClicked: {
+                ActionLog.taken("ExportPage_moreChoices")
+                page.moreChoices = !page.moreChoices
+            }
         }
 
         FormCard.FormDelegateSeparator {
@@ -171,7 +181,10 @@ FormCard.FormCardPage {
                 { value: "semicolon", text: page.i18nContext.i18nc("@item:inlistbox", "A semicolon (usual where decimals have a comma)") },
                 { value: "tab", text: page.i18nContext.i18nc("@item:inlistbox", "A tab") },
             ]
-            onActivated: page.choices = Object.assign({}, page.choices, { separator: currentValue })
+            onActivated: {
+                ActionLog.taken("ExportPage_columnsAreSeparated")
+                page.choices = Object.assign({}, page.choices, { separator: currentValue })
+            }
         }
 
         FormCard.FormDelegateSeparator {
@@ -189,7 +202,10 @@ FormCard.FormCardPage {
                 { value: "point", text: page.i18nContext.i18nc("@item:inlistbox", "A point: 1234.50") },
                 { value: "comma", text: page.i18nContext.i18nc("@item:inlistbox", "A comma: 1234,50") },
             ]
-            onActivated: page.choices = Object.assign({}, page.choices, { decimalMark: currentValue })
+            onActivated: {
+                ActionLog.taken("ExportPage_decimalsAreWritten")
+                page.choices = Object.assign({}, page.choices, { decimalMark: currentValue })
+            }
         }
 
         FormCard.FormDelegateSeparator {
@@ -200,7 +216,10 @@ FormCard.FormCardPage {
             visible: page.moreChoices
             text: page.i18nContext.i18nc("@option:check", "The first line names the columns")
             checked: page.choices.header === true
-            onToggled: page.choices = Object.assign({}, page.choices, { header: checked })
+            onToggled: {
+                ActionLog.taken("ExportPage_firstLineNames")
+                page.choices = Object.assign({}, page.choices, { header: checked })
+            }
         }
 
         FormCard.FormDelegateSeparator {
@@ -212,7 +231,10 @@ FormCard.FormCardPage {
             text: page.i18nContext.i18nc("@option:check", "Help Excel show letters like ä and é")
             description: page.i18nContext.i18nc("@info", "Adds a small mark at the start of the file. Turn it on if Excel shows strange characters.")
             checked: page.choices.byteOrderMark === true
-            onToggled: page.choices = Object.assign({}, page.choices, { byteOrderMark: checked })
+            onToggled: {
+                ActionLog.taken("ExportPage_helpExcelShow")
+                page.choices = Object.assign({}, page.choices, { byteOrderMark: checked })
+            }
         }
 
         FormCard.FormDelegateSeparator {}
@@ -222,6 +244,7 @@ FormCard.FormCardPage {
             text: page.i18nContext.i18nc("@action:button", "Save as a spreadsheet file…")
             enabled: page.chosenIds().length > 0
             onClicked: {
+                ActionLog.taken("ExportPage_saveSpreadsheetFile")
                 csvDialog.currentFolder = page.folderUrl;
                 csvDialog.currentFile = page.startUrl("csv");
                 csvDialog.open();
@@ -242,6 +265,7 @@ FormCard.FormCardPage {
             icon.name: "document-save"
             text: page.i18nContext.i18nc("@action:button", "Save the whole book…")
             onClicked: {
+                ActionLog.taken("ExportPage_saveWholeBook")
                 bookDialog.currentFolder = page.folderUrl;
                 bookDialog.currentFile = page.startUrl("json");
                 bookDialog.open();

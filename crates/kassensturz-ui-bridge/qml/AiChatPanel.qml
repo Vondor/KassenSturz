@@ -304,7 +304,10 @@ ColumnLayout {
             Controls.ToolTip.visible: hovered
             Controls.ToolTip.text: text
             Accessible.name: text
-            onClicked: panel.startOver()
+            onClicked: {
+                ActionLog.taken("AiChatPanel_newConversation")
+                panel.startOver()
+            }
         }
 
         Controls.ToolButton {
@@ -316,7 +319,10 @@ ColumnLayout {
             Controls.ToolTip.visible: hovered
             Controls.ToolTip.text: text
             Accessible.name: text
-            onClicked: panel.detachClicked()
+            onClicked: {
+                ActionLog.taken("AiChatPanel_detachClicked")
+                panel.detachClicked()
+            }
         }
 
         Controls.ToolButton {
@@ -327,7 +333,10 @@ ColumnLayout {
             Controls.ToolTip.visible: hovered
             Controls.ToolTip.text: text
             Accessible.name: text
-            onClicked: panel.closeClicked()
+            onClicked: {
+                ActionLog.taken("AiChatPanel_closeChat")
+                panel.closeClicked()
+            }
         }
     }
 
@@ -347,7 +356,10 @@ ColumnLayout {
             Kirigami.Action {
                 text: panel.i18nContext.i18nc("@action:button", "AI provider and privacy…")
                 icon.name: "configure"
-                onTriggered: panel.settingsClicked()
+                onTriggered: {
+                    ActionLog.taken("AiChatPanel_aiProviderPrivacy")
+                    panel.settingsClicked()
+                }
             }
         ]
     }
@@ -525,6 +537,7 @@ ColumnLayout {
                 icon.name: "dialog-cancel"
                 text: panel.i18nContext.i18nc("@action:button cancel the question that takes long", "Cancel")
                 onTriggered: {
+                    ActionLog.taken("AiChatPanel_cancel")
                     panel.stopping = true;
                     panel.chat.stop();
                 }
@@ -562,7 +575,10 @@ ColumnLayout {
                 flat: true
                 enabled: !panel.chat.busy
                 text: panel.featureLabel(modelData)
-                onClicked: panel.askFeature(modelData, "")
+                onClicked: {
+                    ActionLog.taken("AiChatPanel_askFeature")
+                    panel.askFeature(modelData, "")
+                }
             }
         }
 
@@ -572,7 +588,10 @@ ColumnLayout {
             enabled: !panel.chat.busy
             icon.name: "view-statistics"
             text: panel.i18nContext.i18nc("@action:button puts an example of how to describe a chart into the question field", "Describe a chart")
-            onClicked: panel.describeChart()
+            onClicked: {
+                ActionLog.taken("AiChatPanel_describeChart")
+                panel.describeChart()
+            }
         }
     }
 
@@ -588,7 +607,10 @@ ColumnLayout {
             placeholderText: panel.i18nContext.i18nc("@info:placeholder", "Ask about your book…")
             inputMethodHints: Qt.ImhNoPredictiveText
             Accessible.name: panel.i18nContext.i18nc("@label:textbox", "Your question for the AI")
-            onAccepted: panel.ask()
+            onAccepted: {
+                ActionLog.taken("AiChatPanel_questionAi")
+                panel.ask()
+            }
         }
 
         Controls.Button {
@@ -596,7 +618,10 @@ ColumnLayout {
             enabled: questionField.text.trim() !== "" && panel.hasProvider
             icon.name: "mail-send"
             text: panel.i18nContext.i18nc("@action:button send the question", "Ask")
-            onClicked: panel.ask()
+            onClicked: {
+                ActionLog.taken("AiChatPanel_ask")
+                panel.ask()
+            }
         }
 
         Controls.Button {
@@ -605,6 +630,7 @@ ColumnLayout {
             icon.name: "process-stop"
             text: panel.i18nContext.i18nc("@action:button stop the question", "Stop")
             onClicked: {
+                ActionLog.taken("AiChatPanel_stop")
                 panel.stopping = true;
                 panel.chat.stop();
             }

@@ -51,7 +51,10 @@ Controls.Button {
     checked: popup.opened
     Accessible.name: text
     Accessible.description: i18nContext.i18nc("@info:tooltip", "Choose which ones this page counts")
-    onClicked: popup.opened ? popup.close() : popup.open()
+    onClicked: {
+        ActionLog.taken("FilterPicker_clicked")
+        popup.opened ? popup.close() : popup.open()
+    }
 
     Controls.Popup {
         id: popup
@@ -82,7 +85,10 @@ Controls.Button {
                 Controls.Button {
                     text: picker.i18nContext.i18nc("@action:button take away every choice, so all count", "Show all")
                     enabled: picker.chosen.length > 0
-                    onClicked: picker.picked("")
+                    onClicked: {
+                        ActionLog.taken("FilterPicker_showAll")
+                        picker.picked("")
+                    }
                 }
             }
 
@@ -114,7 +120,10 @@ Controls.Button {
                             ? picker.i18nContext.i18nc("@option:check a choice in a filter that was removed from the book", "Something that no longer exists")
                             : modelData.name
                         checked: picker.isChosen(modelData.id)
-                        onToggled: picker.toggle(modelData.id, checked)
+                        onToggled: {
+                            ActionLog.taken("FilterPicker_toggle")
+                            picker.toggle(modelData.id, checked)
+                        }
                     }
                 }
             }

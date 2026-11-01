@@ -73,6 +73,7 @@ ColumnLayout {
         textRole: "name"
         currentIndex: choice.indexOfWord()
         onActivated: index => {
+            ActionLog.taken("PeriodChoice_activated")
             choice.problem = ({});
             if (index < choice.options.length) {
                 choice.typing = false;

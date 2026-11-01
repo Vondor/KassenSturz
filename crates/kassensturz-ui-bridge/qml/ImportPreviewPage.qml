@@ -46,12 +46,16 @@ Kirigami.ScrollablePage {
             text: enabled
                 ? page.i18nContext.i18ncp("@action:button", "Import %1 transaction", "Import %1 transactions", page.toImport)
                 : page.i18nContext.i18nc("@action:button nothing to import", "Nothing new to import")
-            onTriggered: page.importNow()
+            onTriggered: {
+                ActionLog.taken("ImportPreviewPage_importNow")
+                page.importNow()
+            }
         },
         Kirigami.Action {
             icon.name: "dialog-cancel"
             text: page.i18nContext.i18nc("@action:button", "Don't import")
             onTriggered: {
+                ActionLog.taken("ImportPreviewPage_donTImport")
                 page.statementImport.cancel();
                 page.cancelled();
             }
@@ -337,7 +341,10 @@ Kirigami.ScrollablePage {
                         visible: entryRow.waiting
                         text: page.i18nContext.i18nc("@option:check import an entry that looks like one already in the book", "Import it anyway, it is a different transaction")
                         checked: entryRow.modelData.importAnyway
-                        onToggled: page.decide(entryRow.modelData.key, checked)
+                        onToggled: {
+                            ActionLog.taken("ImportPreviewPage_importAnywayDifferent")
+                            page.decide(entryRow.modelData.key, checked)
+                        }
                     }
                 }
             }

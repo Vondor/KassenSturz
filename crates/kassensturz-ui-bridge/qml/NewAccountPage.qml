@@ -80,7 +80,10 @@ Kirigami.ScrollablePage {
                 text: modelData.name
                 checked: index === page.typeIndex
                 Controls.ButtonGroup.group: typeGroup
-                onToggled: page.typeIndex = index
+                onToggled: {
+                    ActionLog.taken("NewAccountPage_typeIndex")
+                    page.typeIndex = index
+                }
             }
         }
 
@@ -101,7 +104,10 @@ Kirigami.ScrollablePage {
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Name:")
             // Left empty, the account is named after its kind.
             placeholderText: page.type.name
-            onAccepted: page.save()
+            onAccepted: {
+                ActionLog.taken("NewAccountPage_save")
+                page.save()
+            }
         }
 
         Controls.TextField {
@@ -111,14 +117,20 @@ Kirigami.ScrollablePage {
                 : page.i18nContext.i18nc("@label:textbox", "How much is in it?")
             placeholderText: page.i18nContext.i18nc("@info:placeholder %1 is an example amount", "For example %1", accounts.amountExample(page.currency))
             inputMethodHints: Qt.ImhFormattedNumbersOnly
-            onAccepted: page.save()
+            onAccepted: {
+                ActionLog.taken("NewAccountPage_save_2")
+                page.save()
+            }
         }
 
         Controls.TextField {
             id: dateField
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "On which day?")
             placeholderText: page.i18nContext.i18nc("@info:placeholder %1 is today's date", "Today, %1", accounts.today)
-            onAccepted: page.save()
+            onAccepted: {
+                ActionLog.taken("NewAccountPage_save_3")
+                page.save()
+            }
         }
 
         Controls.Label {
@@ -154,7 +166,10 @@ Kirigami.ScrollablePage {
         Controls.Button {
             text: page.i18nContext.i18nc("@action:button", "Add account")
             icon.name: "list-add"
-            onClicked: page.save()
+            onClicked: {
+                ActionLog.taken("NewAccountPage_addAccount")
+                page.save()
+            }
         }
     }
 }

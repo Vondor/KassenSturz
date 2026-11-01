@@ -62,7 +62,10 @@ ColumnLayout {
         helpfulAction: Kirigami.Action {
             icon.name: "list-add"
             text: list.i18nContext.i18nc("@action:button", "Set a budget")
-            onTriggered: list.setBudgetClicked()
+            onTriggered: {
+                ActionLog.taken("BudgetBars_setBudget")
+                list.setBudgetClicked()
+            }
         }
     }
 

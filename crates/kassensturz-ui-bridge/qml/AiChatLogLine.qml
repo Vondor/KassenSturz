@@ -74,7 +74,10 @@ ColumnLayout {
         icon.name: line.details === "" ? "" : (more.visible ? "arrow-down" : "arrow-right")
         enabled: line.details !== ""
         Accessible.name: text
-        onClicked: more.visible = !more.visible
+        onClicked: {
+            ActionLog.taken("AiChatLogLine_visible")
+            more.visible = !more.visible
+        }
     }
 
     Controls.TextArea {

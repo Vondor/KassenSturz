@@ -8,6 +8,7 @@
 
 mod accounts;
 mod accounts_model;
+mod action_log_audit;
 mod ai_audit;
 #[cfg(feature = "ai")]
 mod ai_chat;

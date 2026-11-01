@@ -36,7 +36,10 @@ Controls.ComboBox {
         return all;
     }
 
-    onActivated: value = currentValue
+    onActivated: {
+        ActionLog.taken("CsvColumnBox_value")
+        value = currentValue
+    }
     onModelChanged: sync()
     onValueChanged: sync()
     Component.onCompleted: sync()

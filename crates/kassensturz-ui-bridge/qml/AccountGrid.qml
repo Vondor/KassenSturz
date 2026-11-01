@@ -49,7 +49,10 @@ Item {
                 Layout.maximumWidth: grid.cellWidth
                 Layout.fillHeight: true
                 Layout.alignment: Qt.AlignTop
-                onClicked: grid.accountClicked(modelData.id)
+                onClicked: {
+                    ActionLog.taken("AccountGrid_accountClicked")
+                    grid.accountClicked(modelData.id)
+                }
             }
         }
     }

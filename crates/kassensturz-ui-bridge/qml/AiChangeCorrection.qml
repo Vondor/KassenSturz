@@ -150,20 +150,29 @@ ColumnLayout {
             visible: correction.change.edited
             icon.name: "edit-undo"
             text: correction.i18nContext.i18nc("@action:button undo the user's edit of a prepared change", "Back to the AI's version")
-            onClicked: correction.review.backToAi(correction.change.slot)
+            onClicked: {
+                ActionLog.taken("AiChangeCorrection_backAiS")
+                correction.review.backToAi(correction.change.slot)
+            }
         }
 
         Controls.Button {
             visible: correction.editable && !correction.editing
             icon.name: "document-edit"
             text: correction.i18nContext.i18nc("@action:button edit a prepared change", "Change")
-            onClicked: correction.start()
+            onClicked: {
+                ActionLog.taken("AiChangeCorrection_change")
+                correction.start()
+            }
         }
 
         Controls.Button {
             icon.name: "list-remove"
             text: correction.i18nContext.i18nc("@action:button leave a prepared change out of the set", "Leave out")
-            onClicked: correction.review.leaveOut(correction.change.slot)
+            onClicked: {
+                ActionLog.taken("AiChangeCorrection_leaveOut")
+                correction.review.leaveOut(correction.change.slot)
+            }
         }
     }
 
@@ -181,7 +190,10 @@ ColumnLayout {
             Accessible.name: correction.kind === "newView"
                 ? correction.i18nContext.i18nc("@label:textbox", "The chart's title")
                 : correction.i18nContext.i18nc("@label:textbox", "The name")
-            onAccepted: correction.save()
+            onAccepted: {
+                ActionLog.taken("AiChangeCorrection_newview")
+                correction.save()
+            }
         }
 
         Controls.ComboBox {
@@ -255,7 +267,10 @@ ColumnLayout {
                 model: correction.subjects.map(item => item.label)
                 currentIndex: correction.subjects.findIndex(item => item.key === conditionRow.subject)
                 Accessible.name: correction.i18nContext.i18nc("@label:listbox", "What the condition looks at")
-                onActivated: index => conditionModel.setProperty(conditionRow.index, "subject", correction.subjects[index].key)
+                onActivated: index => {
+                    ActionLog.taken("AiChangeCorrection_whatConditionLooks")
+                    conditionModel.setProperty(conditionRow.index, "subject", correction.subjects[index].key)
+                }
             }
 
             Controls.ComboBox {
@@ -263,7 +278,10 @@ ColumnLayout {
                 model: correction.tests.map(item => item.label)
                 currentIndex: Math.max(0, correction.tests.findIndex(item => item.key === conditionRow.test))
                 Accessible.name: correction.i18nContext.i18nc("@label:listbox", "How the text is compared")
-                onActivated: index => conditionModel.setProperty(conditionRow.index, "test", correction.tests[index].key)
+                onActivated: index => {
+                    ActionLog.taken("AiChangeCorrection_howTextCompared")
+                    conditionModel.setProperty(conditionRow.index, "test", correction.tests[index].key)
+                }
             }
 
             Controls.TextField {
@@ -286,7 +304,10 @@ ColumnLayout {
                 Accessible.name: text
                 Controls.ToolTip.text: text
                 Controls.ToolTip.visible: hovered
-                onClicked: conditionModel.remove(conditionRow.index)
+                onClicked: {
+                    ActionLog.taken("AiChangeCorrection_removeCondition")
+                    conditionModel.remove(conditionRow.index)
+                }
             }
         }
     }
@@ -299,7 +320,10 @@ ColumnLayout {
             visible: correction.kind === "newRule"
             icon.name: "list-add"
             text: correction.i18nContext.i18nc("@action:button", "Add a condition")
-            onClicked: conditionModel.append({ subject: "payee", test: "contains", text: "", caseSensitive: false })
+            onClicked: {
+                ActionLog.taken("AiChangeCorrection_addCondition")
+                conditionModel.append({ subject: "payee", test: "contains", text: "", caseSensitive: false })
+            }
         }
 
         Item {
@@ -309,14 +333,20 @@ ColumnLayout {
         Controls.Button {
             icon.name: "dialog-cancel"
             text: correction.i18nContext.i18nc("@action:button", "Cancel")
-            onClicked: correction.editing = false
+            onClicked: {
+                ActionLog.taken("AiChangeCorrection_cancel")
+                correction.editing = false
+            }
         }
 
         Controls.Button {
             highlighted: true
             icon.name: "dialog-ok"
             text: correction.i18nContext.i18nc("@action:button keep the user's edit of a prepared change", "Use my change")
-            onClicked: correction.save()
+            onClicked: {
+                ActionLog.taken("AiChangeCorrection_useChange")
+                correction.save()
+            }
         }
     }
 }

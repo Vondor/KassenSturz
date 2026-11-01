@@ -407,6 +407,10 @@ jobs:
       # click through on stand-ins for the Rust objects.
       - name: The properties panel and the Statistics page load and work
         run: tools/check-panel.sh
+      # Every handler of a user's action says that it ran in the developer
+      # mode's debug log (M6c.D, D-419); the same check runs as a unit test.
+      - name: Every action handler names its action in the debug log
+        run: tools/check-action-log.sh
       - name: Tests, with the system's SQLite
         run: cargo test --workspace --no-default-features --features ai --locked
         env:

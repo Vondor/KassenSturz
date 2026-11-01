@@ -54,7 +54,10 @@ Kirigami.ScrollablePage {
             // Only a category for money spent can have a budget (D-344).
             visible: !page.adding && !page.income
             text: page.i18nContext.i18nc("@action:button opens the page that sets a budget for this category", "Set a budget…")
-            onTriggered: page.setBudgetClicked(page.categoryId)
+            onTriggered: {
+                ActionLog.taken("CategoryPage_setBudget")
+                page.setBudgetClicked(page.categoryId)
+            }
         }
     ]
 
@@ -92,7 +95,10 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@option:radio", "What money is spent on")
             checked: !page.income
             Controls.ButtonGroup.group: kindGroup
-            onToggled: page.income = false
+            onToggled: {
+                ActionLog.taken("CategoryPage_whatMoneySpent")
+                page.income = false
+            }
         }
 
         Controls.RadioButton {
@@ -100,7 +106,10 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@option:radio", "Where money comes from")
             checked: page.income
             Controls.ButtonGroup.group: kindGroup
-            onToggled: page.income = true
+            onToggled: {
+                ActionLog.taken("CategoryPage_whereMoneyComes")
+                page.income = true
+            }
         }
 
         Controls.TextField {
@@ -110,7 +119,10 @@ Kirigami.ScrollablePage {
             placeholderText: page.income
                 ? page.i18nContext.i18nc("@info:placeholder", "For example Salary")
                 : page.i18nContext.i18nc("@info:placeholder", "For example Groceries")
-            onAccepted: page.save()
+            onAccepted: {
+                ActionLog.taken("CategoryPage_save")
+                page.save()
+            }
         }
 
         Controls.ComboBox {
@@ -141,7 +153,10 @@ Kirigami.ScrollablePage {
                 ? page.i18nContext.i18nc("@action:button", "Add category")
                 : page.i18nContext.i18nc("@action:button", "Save")
             icon.name: page.adding ? "list-add" : "document-save"
-            onClicked: page.save()
+            onClicked: {
+                ActionLog.taken("CategoryPage_save_2")
+                page.save()
+            }
         }
     }
 }

@@ -183,7 +183,10 @@ Kirigami.ScrollablePage {
                 placeholderText: "http://localhost:11434/v1"
                 inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoPredictiveText
                 onEditingFinished: page.addressCheck = text.trim() !== "" ? page.settings.check(text) : ({})
-                onAccepted: modelField.forceActiveFocus()
+                onAccepted: {
+                    ActionLog.taken("AiSettingsPage_forceActiveFocus")
+                    modelField.forceActiveFocus()
+                }
             }
 
             Controls.Label {
@@ -228,7 +231,10 @@ Kirigami.ScrollablePage {
                 Layout.fillWidth: true
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
                 placeholderText: page.i18nContext.i18nc("@info:placeholder", "Paste the key here")
-                onAccepted: page.save()
+                onAccepted: {
+                    ActionLog.taken("AiSettingsPage_save")
+                    page.save()
+                }
             }
 
             Controls.Label {
@@ -257,7 +263,10 @@ Kirigami.ScrollablePage {
                     icon.name: "document-save"
                     enabled: addressField.text.trim() !== ""
                         && (page.providerChanged || keyField.text !== "")
-                    onClicked: page.save()
+                    onClicked: {
+                        ActionLog.taken("AiSettingsPage_save_2")
+                        page.save()
+                    }
                 }
 
                 Controls.Button {
@@ -265,6 +274,7 @@ Kirigami.ScrollablePage {
                     icon.name: "network-connect"
                     enabled: page.hasServer && !page.providerChanged && !page.settings.testing
                     onClicked: {
+                        ActionLog.taken("AiSettingsPage_testConnection")
                         page.testResult = ({});
                         page.justSaved = false;
                         page.keyRemoved = false;
@@ -283,6 +293,7 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Use the built-in test model")
                 icon.name: "tools-wizard"
                 onClicked: {
+                    ActionLog.taken("AiSettingsPage_useBuiltTest")
                     addressField.text = page.form.testAddress ?? "";
                     modelField.text = page.form.testModel ?? "";
                     keyUseBox.currentIndex = keyUseBox.indexOfValue("none");
@@ -459,6 +470,7 @@ Kirigami.ScrollablePage {
             model: page.testResult.models ?? []
             displayText: page.i18nContext.i18nc("@item:inlistbox", "Use one of the provider's models…")
             onActivated: {
+                ActionLog.taken("AiSettingsPage_activated")
                 modelField.text = currentText;
                 page.testResult = ({});
             }
@@ -497,7 +509,10 @@ Kirigami.ScrollablePage {
                     ? page.i18nContext.i18nc("@action:button", "Read it again…")
                     : page.i18nContext.i18nc("@action:button", "Read what is sent and agree…")
                 icon.name: "view-readermode"
-                onClicked: consentDialog.show()
+                onClicked: {
+                    ActionLog.taken("AiSettingsPage_given")
+                    consentDialog.show()
+                }
             }
 
             Controls.Button {
@@ -505,6 +520,7 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Take my agreement back")
                 icon.name: "dialog-cancel"
                 onClicked: {
+                    ActionLog.taken("AiSettingsPage_takeAgreementBack")
                     page.notWritten = !page.settings.withdrawConsent();
                     page.reload();
                 }
@@ -517,7 +533,10 @@ Kirigami.ScrollablePage {
             visible: page.hasProvider && (page.form.keyUse ?? "none") !== "none" && (page.form.keyUse ?? "none") !== "ask"
             text: page.i18nContext.i18nc("@action:button", "Remove the key from this computer")
             icon.name: "edit-delete"
-            onClicked: page.removeKey()
+            onClicked: {
+                ActionLog.taken("AiSettingsPage_removeKeyComputer")
+                page.removeKey()
+            }
         }
 
         // What the AI may do (D-239, D-252): the grid of what it may read,
@@ -555,6 +574,7 @@ Kirigami.ScrollablePage {
             ]
             Component.onCompleted: currentIndex = Math.max(0, indexOfValue(page.settings.slowAnswer()))
             onActivated: {
+                ActionLog.taken("AiSettingsPage_whenAiTakes")
                 page.notWritten = !page.settings.setSlowAnswer(currentValue);
                 currentIndex = Math.max(0, indexOfValue(page.settings.slowAnswer()));
             }
@@ -596,6 +616,7 @@ Kirigami.ScrollablePage {
                 text: modelData.text
                 checked: page.settings.notice(modelData.word)
                 onToggled: {
+                    ActionLog.taken("AiSettingsPage_toggled")
                     page.notWritten = !page.settings.setNotice(modelData.word, checked);
                     checked = page.settings.notice(modelData.word);
                 }
@@ -622,6 +643,7 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@option:check", "Let my AI tools prepare changes")
             checked: page.settings.writeTools()
             onToggled: {
+                ActionLog.taken("AiSettingsPage_letAiTools")
                 page.notWritten = !page.settings.setWriteTools(checked);
                 checked = page.settings.writeTools();
             }
@@ -656,12 +678,18 @@ Kirigami.ScrollablePage {
             Kirigami.Action {
                 text: page.i18nContext.i18nc("@action:button", "I agree")
                 icon.name: "dialog-ok"
-                onTriggered: consentDialog.agree()
+                onTriggered: {
+                    ActionLog.taken("AiSettingsPage_iAgree")
+                    consentDialog.agree()
+                }
             },
             Kirigami.Action {
                 text: page.i18nContext.i18nc("@action:button", "Not now")
                 icon.name: "dialog-cancel"
-                onTriggered: consentDialog.close()
+                onTriggered: {
+                    ActionLog.taken("AiSettingsPage_notNow")
+                    consentDialog.close()
+                }
             }
         ]
 
@@ -718,6 +746,7 @@ Kirigami.ScrollablePage {
                 id: exampleShown
                 text: page.i18nContext.i18nc("@option:check", "Show an example of a request")
                 onToggled: {
+                    ActionLog.taken("AiSettingsPage_showExampleRequest")
                     if (checked) {
                         consentDialog.showSample();
                     }
@@ -756,13 +785,19 @@ Kirigami.ScrollablePage {
                         Layout.fillWidth: true
                         placeholderText: page.i18nContext.i18nc("@info:placeholder", "A word or phrase to leave out")
                         inputMethodHints: Qt.ImhNoPredictiveText
-                        onAccepted: consentDialog.showSample()
+                        onAccepted: {
+                            ActionLog.taken("AiSettingsPage_showSample")
+                            consentDialog.showSample()
+                        }
                     }
 
                     Controls.Button {
                         text: page.i18nContext.i18nc("@action:button", "Leave it out")
                         enabled: leaveOut.text.trim() !== ""
-                        onClicked: consentDialog.showSample()
+                        onClicked: {
+                            ActionLog.taken("AiSettingsPage_leaveOut")
+                            consentDialog.showSample()
+                        }
                     }
                 }
 

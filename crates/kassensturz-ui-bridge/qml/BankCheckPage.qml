@@ -139,7 +139,10 @@ Kirigami.ScrollablePage {
                     : page.i18nContext.i18nc("@label:textbox", "What does your bank say is in it?")
                 placeholderText: page.i18nContext.i18nc("@info:placeholder %1 is an example amount", "For example %1", page.accounts.amountExample(page.account.currency ?? ""))
                 inputMethodHints: Qt.ImhFormattedNumbersOnly
-                onAccepted: page.compare()
+                onAccepted: {
+                    ActionLog.taken("BankCheckPage_compare")
+                    page.compare()
+                }
             }
 
             Controls.TextField {
@@ -147,13 +150,19 @@ Kirigami.ScrollablePage {
                 text: page.initialDate
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "On which day?")
                 placeholderText: page.i18nContext.i18nc("@info:placeholder %1 is today's date", "Today, %1", page.accounts.today)
-                onAccepted: page.compare()
+                onAccepted: {
+                    ActionLog.taken("BankCheckPage_compare_2")
+                    page.compare()
+                }
             }
 
             Controls.Button {
                 text: page.i18nContext.i18nc("@action:button", "Compare")
                 icon.name: "view-refresh"
-                onClicked: page.compare()
+                onClicked: {
+                    ActionLog.taken("BankCheckPage_compare_3")
+                    page.compare()
+                }
             }
         }
 
@@ -231,7 +240,10 @@ Kirigami.ScrollablePage {
                         ? page.i18nContext.i18nc("@action:button %1 is an amount of money", "Add a starting balance of %1", page.money(page.correction.wouldBe, page.correction.owes))
                         : page.i18nContext.i18nc("@action:button %1 is an amount of money", "Set the starting balance to %1", page.money(page.correction.wouldBe, page.correction.owes))
                 icon.name: "dialog-ok-apply"
-                onClicked: page.correct()
+                onClicked: {
+                    ActionLog.taken("BankCheckPage_correct")
+                    page.correct()
+                }
             }
         }
     }

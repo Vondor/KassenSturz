@@ -114,6 +114,8 @@ fn main() {
             .qml_files([
                 QmlFile::from("qml/Plain.qml").singleton(true),
                 QmlFile::from("qml/ChartPalette.qml").singleton(true),
+                // `ActionLog.taken(name)` in every action handler (M6c.D).
+                QmlFile::from("qml/ActionLog.qml").singleton(true),
             ]),
     )
     .qt_module("Network")

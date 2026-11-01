@@ -302,7 +302,10 @@ Kirigami.ScrollablePage {
             Controls.Button {
                 icon.name: "edit-delete"
                 text: page.i18nContext.i18nc("@action:button throw the prepared changes away", "Throw away")
-                onClicked: page.throwAway()
+                onClicked: {
+                    ActionLog.taken("AiChangeReviewPage_throwAway")
+                    page.throwAway()
+                }
             }
 
             Controls.Button {
@@ -310,7 +313,10 @@ Kirigami.ScrollablePage {
                 enabled: page.kept.length > 0
                 icon.name: "dialog-ok-apply"
                 text: page.i18nContext.i18nc("@action:button make all the changes shown", "Confirm and make these changes")
-                onClicked: page.confirm()
+                onClicked: {
+                    ActionLog.taken("AiChangeReviewPage_confirmMakeThese")
+                    page.confirm()
+                }
             }
         }
     }
@@ -354,12 +360,18 @@ Kirigami.ScrollablePage {
                 Kirigami.Action {
                     icon.name: "edit-undo"
                     text: page.i18nContext.i18nc("@action:button take the last change back", "Undo")
-                    onTriggered: page.undoClicked()
+                    onTriggered: {
+                        ActionLog.taken("AiChangeReviewPage_undo")
+                        page.undoClicked()
+                    }
                 },
                 Kirigami.Action {
                     icon.name: "dialog-close"
                     text: page.i18nContext.i18nc("@action:button leave this page", "Close")
-                    onTriggered: page.doneClicked()
+                    onTriggered: {
+                        ActionLog.taken("AiChangeReviewPage_close")
+                        page.doneClicked()
+                    }
                 }
             ]
         }
@@ -1251,7 +1263,10 @@ Kirigami.ScrollablePage {
                     Controls.Button {
                         icon.name: "edit-undo"
                         text: page.i18nContext.i18nc("@action:button bring a prepared change the user left out back into the set", "Put it back")
-                        onClicked: page.backToAi(modelData.slot)
+                        onClicked: {
+                            ActionLog.taken("AiChangeReviewPage_putBack")
+                            page.backToAi(modelData.slot)
+                        }
                     }
                 }
             }

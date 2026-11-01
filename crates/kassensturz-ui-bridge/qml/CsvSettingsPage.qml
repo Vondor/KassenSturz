@@ -44,12 +44,16 @@ Kirigami.ScrollablePage {
         Kirigami.Action {
             icon.name: "document-import"
             text: page.i18nContext.i18nc("@action:button", "Read the file")
-            onTriggered: page.readFile()
+            onTriggered: {
+                ActionLog.taken("CsvSettingsPage_readFile")
+                page.readFile()
+            }
         },
         Kirigami.Action {
             icon.name: "dialog-cancel"
             text: page.i18nContext.i18nc("@action:button", "Don't import")
             onTriggered: {
+                ActionLog.taken("CsvSettingsPage_donTImport")
                 page.statementImport.cancel();
                 page.cancelled();
             }
@@ -183,7 +187,10 @@ Kirigami.ScrollablePage {
 
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox", "Bank:")
             editable: true
-            onActivated: page.apply(page.statementImport.csvForm(currentText))
+            onActivated: {
+                ActionLog.taken("CsvSettingsPage_apply")
+                page.apply(page.statementImport.csvForm(currentText))
+            }
             Controls.ToolTip.text: page.i18nContext.i18nc("@info:tooltip", "Type your bank's name to keep these choices for its next file, or pick a bank you saved before.")
             Controls.ToolTip.visible: hovered
             Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
@@ -206,7 +213,10 @@ Kirigami.ScrollablePage {
                 { text: page.i18nContext.i18nc("@item:inlistbox", "Windows-1252 (also ISO-8859-1)"), value: "windows-1252" },
                 { text: "ISO-8859-15", value: "iso-8859-15" },
             ]
-            onActivated: page.refreshRows()
+            onActivated: {
+                ActionLog.taken("CsvSettingsPage_refreshRows")
+                page.refreshRows()
+            }
         }
 
         Controls.ComboBox {
@@ -221,7 +231,10 @@ Kirigami.ScrollablePage {
                 { text: page.i18nContext.i18nc("@item:inlistbox", "Tab"), value: "tab" },
                 { text: page.i18nContext.i18nc("@item:inlistbox", "Vertical bar (|)"), value: "|" },
             ]
-            onActivated: page.refreshRows()
+            onActivated: {
+                ActionLog.taken("CsvSettingsPage_refreshRows_2")
+                page.refreshRows()
+            }
         }
 
         Controls.SpinBox {
@@ -467,7 +480,10 @@ Kirigami.ScrollablePage {
         Controls.Button {
             text: page.i18nContext.i18nc("@action:button", "Read the file")
             icon.name: "document-import"
-            onClicked: page.readFile()
+            onClicked: {
+                ActionLog.taken("CsvSettingsPage_readFile_2")
+                page.readFile()
+            }
         }
     }
 }

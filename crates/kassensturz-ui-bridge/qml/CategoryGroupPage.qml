@@ -98,6 +98,7 @@ Kirigami.ScrollablePage {
             checked: !page.income
             Controls.ButtonGroup.group: kindGroup
             onToggled: {
+                ActionLog.taken("CategoryGroupPage_moneySpent")
                 page.income = false;
                 page.ticked = ({});
             }
@@ -109,6 +110,7 @@ Kirigami.ScrollablePage {
             checked: page.income
             Controls.ButtonGroup.group: kindGroup
             onToggled: {
+                ActionLog.taken("CategoryGroupPage_moneyReceived")
                 page.income = true;
                 page.ticked = ({});
             }
@@ -120,7 +122,10 @@ Kirigami.ScrollablePage {
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Name:")
             text: page.groupName
             placeholderText: page.i18nContext.i18nc("@info:placeholder", "For example Fixed costs")
-            onAccepted: page.save()
+            onAccepted: {
+                ActionLog.taken("CategoryGroupPage_save")
+                page.save()
+            }
         }
 
         Controls.Label {
@@ -144,7 +149,10 @@ Kirigami.ScrollablePage {
                 text: modelData.name
                 checked: page.ticked[modelData.id] === true
                 Accessible.name: modelData.path
-                onToggled: page.tick(modelData.id, checked)
+                onToggled: {
+                    ActionLog.taken("CategoryGroupPage_tick")
+                    page.tick(modelData.id, checked)
+                }
             }
         }
 
@@ -158,7 +166,10 @@ Kirigami.ScrollablePage {
 
                 text: page.i18nContext.i18nc("@option:check %1 is the name of a group that goes inside this one", "The group %1", modelData.name)
                 checked: page.ticked[modelData.id] === true
-                onToggled: page.tick(modelData.id, checked)
+                onToggled: {
+                    ActionLog.taken("CategoryGroupPage_group")
+                    page.tick(modelData.id, checked)
+                }
             }
         }
 
@@ -175,7 +186,10 @@ Kirigami.ScrollablePage {
                 ? page.i18nContext.i18nc("@action:button", "Make the group")
                 : page.i18nContext.i18nc("@action:button", "Save")
             icon.name: page.adding ? "list-add" : "document-save"
-            onClicked: page.save()
+            onClicked: {
+                ActionLog.taken("CategoryGroupPage_save_2")
+                page.save()
+            }
         }
     }
 }

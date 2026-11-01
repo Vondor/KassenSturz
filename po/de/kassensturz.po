@@ -14715,3 +14715,239 @@ msgid "I have a KMyMoney book or a saved KassenSturz book"
 msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
+
+
+#: crates/kassensturz-ui-bridge/qml/FilterBar.qml:67
+#, kde-format
+msgctxt "@item the period the page itself shows"
+msgid "as the page"
+msgstr "wie die Seite"
+
+#: crates/kassensturz-ui-bridge/qml/FilterBar.qml:67
+#, kde-format
+msgctxt "@action:button %1 is a period like This year"
+msgid "Period: %1"
+msgstr "Zeitraum: %1"
+
+#: crates/kassensturz-ui-bridge/qml/FilterBar.qml:94
+#, kde-format
+msgctxt "@label what a filter narrows: the user's accounts"
+msgid "Accounts"
+msgstr "Konten"
+
+#: crates/kassensturz-ui-bridge/qml/FilterBar.qml:95
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:189
+#, kde-format
+msgctxt "@option:check %1 is the name of a closed account"
+msgid "%1 (closed)"
+msgstr "%1 (geschlossen)"
+
+#: crates/kassensturz-ui-bridge/qml/FilterBar.qml:97
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:382
+#, kde-format
+msgctxt "@info"
+msgid "There are no accounts to pick yet."
+msgstr "Es gibt noch keine Konten zum Auswählen."
+
+#: crates/kassensturz-ui-bridge/qml/FilterBar.qml:102
+#, kde-format
+msgctxt "@label what a filter narrows: categories"
+msgid "Categories"
+msgstr "Kategorien"
+
+#: crates/kassensturz-ui-bridge/qml/FilterBar.qml:113
+#, kde-format
+msgctxt "@action:button go back to the filters the layout has"
+msgid "Reset filters"
+msgstr "Filter zurücksetzen"
+
+#: crates/kassensturz-ui-bridge/qml/FilterBar.qml:125
+#, kde-format
+msgctxt "@info"
+msgid "These choices are kept with the layout when you press Done."
+msgstr "Diese Auswahl wird mit dem Layout gespeichert, wenn Sie auf „Fertig“ drücken."
+
+#: crates/kassensturz-ui-bridge/qml/FilterBar.qml:126
+#, kde-format
+msgctxt "@info"
+msgid "These choices are for now. They are not saved."
+msgstr "Diese Auswahl gilt nur für jetzt. Sie wird nicht gespeichert."
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:35
+#, kde-format
+msgctxt "@item what a filter narrows: the days"
+msgid "period"
+msgstr "Zeitraum"
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:37
+#, kde-format
+msgctxt "@item what a filter narrows: the accounts"
+msgid "accounts"
+msgstr "Konten"
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:39
+#, kde-format
+msgctxt "@item what a filter narrows: the categories"
+msgid "categories"
+msgstr "Kategorien"
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:46
+#, kde-format
+msgctxt "@info %1 is a list of names, %2 how many more there are"
+msgid "%1 and %2 more"
+msgstr "%1 und %2 weitere"
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:52
+#, kde-format
+msgctxt "@info"
+msgid "Not filtered by account: this counts every account."
+msgstr "Nicht nach Konto gefiltert: Hier zählen alle Konten."
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:53
+#, kde-format
+msgctxt "@info"
+msgid "Not filtered by category: this counts whole accounts."
+msgstr "Nicht nach Kategorie gefiltert: Hier zählen ganze Konten."
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:56
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The filter names something that no longer exists. Take it out of the filter."
+msgstr "Der Filter nennt etwas, das es nicht mehr gibt. Nehmen Sie es aus dem Filter heraus."
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:58
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The filter chooses nothing, so nothing is shown. Change the filter to see "
+"figures."
+msgstr "Der Filter wählt nichts aus, deshalb wird nichts angezeigt. Ändern Sie den Filter, um Zahlen zu sehen."
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:71
+#, kde-format
+msgctxt ""
+"@info %1 is a list of what the component chooses itself, like period, "
+"accounts"
+msgid "Own filter: %1"
+msgstr "Eigener Filter: %1"
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:84
+#, kde-format
+msgctxt "@info %1 is a list of account names"
+msgid "accounts: %1"
+msgstr "Konten: %1"
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:87
+#, kde-format
+msgctxt "@info %1 is a list of category names"
+msgid "categories: %1"
+msgstr "Kategorien: %1"
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:89
+#, kde-format
+msgctxt "@info %1 is what the filter keeps"
+msgid "Filtered to %1"
+msgstr "Gefiltert auf %1"
+
+#: crates/kassensturz-ui-bridge/qml/FilterPicker.qml:48
+#, kde-format
+msgctxt "@action:button %1 is what the list is about, like Accounts"
+msgid "%1: all"
+msgstr "%1: alle"
+
+#: crates/kassensturz-ui-bridge/qml/FilterPicker.qml:49
+#, kde-format
+msgctxt "@action:button %2 is what the list is about, like Accounts"
+msgid "%2: %1 chosen"
+msgid_plural "%2: %1 chosen"
+msgstr[0] "%2: %1 ausgewählt"
+msgstr[1] "%2: %1 ausgewählt"
+
+#: crates/kassensturz-ui-bridge/qml/FilterPicker.qml:53
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Choose which ones this page counts"
+msgstr "Wählen Sie aus, was diese Seite zählt"
+
+#: crates/kassensturz-ui-bridge/qml/FilterPicker.qml:83
+#, kde-format
+msgctxt "@action:button take away every choice, so all count"
+msgid "Show all"
+msgstr "Alle anzeigen"
+
+#: crates/kassensturz-ui-bridge/qml/FilterPicker.qml:114
+#, kde-format
+msgctxt "@option:check a choice in a filter that was removed from the book"
+msgid "Something that no longer exists"
+msgstr "Etwas, das es nicht mehr gibt"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:285
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A filter can name at most 200 accounts. Take some out of the filter, or "
+"choose none to count all of them."
+msgstr "Ein Filter kann höchstens 200 Konten nennen. Nehmen Sie einige aus dem Filter heraus, oder wählen Sie keine aus, damit alle zählen."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:286
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A filter can name at most 200 categories. Take some out of the filter, or "
+"choose none to count all of them."
+msgstr "Ein Filter kann höchstens 200 Kategorien nennen. Nehmen Sie einige aus dem Filter heraus, oder wählen Sie keine aus, damit alle zählen."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:290
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The filter names the same account twice. Take it out once, then try again."
+msgstr "Der Filter nennt dasselbe Konto zweimal. Nehmen Sie es einmal heraus und versuchen Sie es dann erneut."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:291
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The filter names the same category twice. Take it out once, then try again."
+msgstr "Der Filter nennt dieselbe Kategorie zweimal. Nehmen Sie sie einmal heraus und versuchen Sie es dann erneut."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:294
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The accounts in the filter include something that is not one of your "
+"accounts. Take it out of the filter, or choose the accounts again."
+msgstr "Unter den Konten im Filter ist etwas, das keines Ihrer Konten ist. Nehmen Sie es aus dem Filter heraus, oder wählen Sie die Konten neu aus."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:296
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The categories in the filter include something that is not a category or a "
+"group. Take it out of the filter, or choose the categories again."
+msgstr "Unter den Kategorien im Filter ist etwas, das weder eine Kategorie noch eine Gruppe ist. Nehmen Sie es aus dem Filter heraus, oder wählen Sie die Kategorien neu aus."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml:384
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This list shows the page's month and is not narrowed by the filters above "
+"yet."
+msgstr "Diese Liste zeigt den Monat der Seite und wird von den Filtern darüber noch nicht eingeschränkt."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:107
+#, kde-format
+msgctxt ""
+"@label which accounts a component counts, whatever the filters of the page "
+"say"
+msgid "Only count these accounts"
+msgstr "Nur diese Konten zählen"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:395
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Nothing ticked: this follows the filters of the page. Tick some to count "
+"only those, whatever the page says."
+msgstr "Nichts angehakt: Es gilt der Filter der Seite. Haken Sie welche an, damit nur diese zählen, was die Seite auch sagt."

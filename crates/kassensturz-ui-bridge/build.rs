@@ -97,6 +97,7 @@ fn main() {
                 "qml/DashboardTabs.qml",
                 "qml/DashboardMenu.qml",
                 "qml/NewDashboardDialog.qml",
+                "qml/TemplatePicture.qml",
                 "qml/PartRow.qml",
                 "qml/PartsPage.qml",
                 "qml/PropertiesPanel.qml",

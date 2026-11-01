@@ -58,11 +58,11 @@ A **template** is a built-in starter dashboard the user picks in *New dashboardâ
 |---|---|---|
 | `empty` | *Empty* | none; the page shows the arranging mode with the Add menu open |
 | `overview` | *Overview* | the built-in Overview (D-314) |
-| `spending` | *Where the money goes* | heading; spending ring by category, this month; categories over the last 12 months as stacked bars; spending table, this month; *Money out* card |
+| `spending` | *Where the money goes* | heading; spending ring by category, this month; spending table, this month; *Money out* card; spending by top-level category over the last 12 months as bars (built so by M6d.2, D-480: the stacked bars month by month need categories picked in the book, which a template cannot name) |
 | `money-in-out` | *Money in and out* | the four key figure cards (M6a.5); money in and out by month as bars, last 12 months; *Where your money came from* table (D-336); in and out of your accounts table (`cash_flow_by_month`) |
 | `worth` | *What you own* | *What you have*, *What you owe*, *What you are worth* cards; net worth over time as a line, last 12 months; account balances table |
 | `budgets` | *Budgets* | heading; budget bars (`budget.progress`, all budgets); spending ring, this month. Offered always; the bars take no room until a budget exists (D-381, D-382), and the dialog says so under the picture while the book has none |
-| `accounts` | *Your accounts* | account balances table; the fetch-gap note (`notice.fetch_gap`); the *Update all accounts* widget (M6d.7). Offered only while bank connections can be used (D-054); the widget is added to it by whichever of M6d.2 and M6d.7 merges second |
+| `accounts` | *Your accounts* | account balances table; the fetch-gap note (`notice.fetch_gap`); the *Update all accounts* widget (M6d.7). Offered only while bank connections can be used (D-054); M6d.7 merged first, so M6d.2 built it with the widget |
 
 The *New dashboard* dialog shows each template as a small picture of its grid (the frames as boxes with the component's icon), its name and one line of what it shows; *Empty* is first, *Overview* second. Every template fits the 12-column grid and passes `grid::check`.
 

@@ -384,9 +384,16 @@ Kirigami.ScrollablePage {
         id: newDashboardDialog
 
         layout: page.dashboard
+        bankReady: page.bankReady
+        budgetCount: page.view.budgets ?? 0
         // An empty dashboard opens with the Add menu, so the first widget
-        // is one click away (section 2, `empty`).
-        onMade: Qt.callLater(() => addMenu.popup())
+        // is one click away (section 2, `empty`); one from a template opens
+        // as made.
+        onMade: empty => {
+            if (empty) {
+                Qt.callLater(() => addMenu.popup());
+            }
+        }
     }
 
     // Deleting says which dashboard opens instead when it is the default

@@ -80,12 +80,18 @@ Kirigami.PromptDialog {
         Kirigami.Action {
             text: prompt.i18nContext.i18nc("@action:button", "Yes, join them")
             icon.name: "edit-link"
-            onTriggered: prompt.answer(true)
+            onTriggered: {
+                ActionLog.taken("TransferPrompt_yesJoinThem")
+                prompt.answer(true)
+            }
         },
         Kirigami.Action {
             text: prompt.i18nContext.i18nc("@action:button", "No, keep them apart")
             icon.name: "dialog-cancel"
-            onTriggered: prompt.answer(false)
+            onTriggered: {
+                ActionLog.taken("TransferPrompt_noKeepThem")
+                prompt.answer(false)
+            }
         }
     ]
 

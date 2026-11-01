@@ -724,7 +724,10 @@ ColumnLayout {
             ? i18nContext.i18nc("@action:button", "Show as chart")
             : i18nContext.i18nc("@action:button", "Show as table")
         icon.name: view.showTable ? "office-chart-bar" : "view-list-details"
-        onClicked: view.showTable = !view.showTable
+        onClicked: {
+            ActionLog.taken("ChartView_showTable")
+            view.showTable = !view.showTable
+        }
     }
 
     Item {

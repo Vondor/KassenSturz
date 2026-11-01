@@ -169,7 +169,10 @@ Kirigami.ScrollablePage {
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "IBAN:")
                 placeholderText: page.i18nContext.i18nc("@info:placeholder an example IBAN", "For example DE89 3704 0044 0532 0130 00")
                 inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhPreferUppercase
-                onAccepted: page.findBank()
+                onAccepted: {
+                    ActionLog.taken("BankSetupPage_findBank")
+                    page.findBank()
+                }
                 onTextEdited: page.lookup = ({})
             }
 
@@ -186,7 +189,10 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Find my bank")
                 icon.name: "go-next"
                 enabled: ibanField.text.trim().length > 0
-                onClicked: page.findBank()
+                onClicked: {
+                    ActionLog.taken("BankSetupPage_findBank_2")
+                    page.findBank()
+                }
             }
         }
 
@@ -245,7 +251,10 @@ Kirigami.ScrollablePage {
                 id: loginField
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Login name:")
                 inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
-                onAccepted: customerField.visible ? customerField.forceActiveFocus() : pinField.forceActiveFocus()
+                onAccepted: {
+                    ActionLog.taken("BankSetupPage_accepted")
+                    customerField.visible ? customerField.forceActiveFocus() : pinField.forceActiveFocus()
+                }
             }
 
             Controls.Label {
@@ -265,14 +274,20 @@ Kirigami.ScrollablePage {
                     ? ""
                     : page.i18nContext.i18nc("@info:placeholder", "Only if your bank gave you one")
                 inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
-                onAccepted: pinField.forceActiveFocus()
+                onAccepted: {
+                    ActionLog.taken("BankSetupPage_forceActiveFocus")
+                    pinField.forceActiveFocus()
+                }
             }
 
             SecretField {
                 id: pinField
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "PIN:")
                 placeholderText: page.i18nContext.i18nc("@info:placeholder", "PIN")
-                onAccepted: page.connect()
+                onAccepted: {
+                    ActionLog.taken("BankSetupPage_connect")
+                    page.connect()
+                }
             }
 
             Controls.ComboBox {
@@ -318,7 +333,10 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Connect")
                 icon.name: "network-connect"
                 enabled: page.step === "details"
-                onClicked: page.connect()
+                onClicked: {
+                    ActionLog.taken("BankSetupPage_connect_2")
+                    page.connect()
+                }
             }
         }
 
@@ -414,7 +432,10 @@ Kirigami.ScrollablePage {
             Controls.Button {
                 text: page.i18nContext.i18nc("@action:button", "Done")
                 icon.name: "dialog-ok"
-                onClicked: page.link()
+                onClicked: {
+                    ActionLog.taken("BankSetupPage_done")
+                    page.link()
+                }
             }
         }
     }

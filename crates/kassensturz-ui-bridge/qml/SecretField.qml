@@ -38,7 +38,10 @@ Kirigami.ActionTextField {
             ? field.i18nContext.i18nc("@action:button hide what was typed in a secret field", "Hide what you typed")
             : field.i18nContext.i18nc("@action:button show what was typed in a secret field", "Show what you typed")
         icon.name: field.showPassword ? "password-show-off" : "password-show-on"
-        onTriggered: field.showPassword = !field.showPassword
+        onTriggered: {
+            ActionLog.taken("SecretField_showPassword")
+            field.showPassword = !field.showPassword
+        }
     }
 
     // No undo: it would bring back what was typed (QTBUG-103934).

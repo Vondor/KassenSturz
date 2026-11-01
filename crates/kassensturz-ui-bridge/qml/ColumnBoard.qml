@@ -643,7 +643,10 @@ ColumnLayout {
                 required property var modelData
 
                 text: modelData.text
-                onTriggered: modelData.split ? board.splitCard(cardMenu.cardId, cardMenu.from) : modelData.create ? board.moveToNew(cardMenu.cardId, cardMenu.from, "") : modelData.move ? board.moveCard(cardMenu.cardId, cardMenu.from, modelData.to) : board.alsoPut(cardMenu.cardId, modelData.to)
+                onTriggered: {
+                    ActionLog.taken("ColumnBoard_triggered")
+                    modelData.split ? board.splitCard(cardMenu.cardId, cardMenu.from) : modelData.create ? board.moveToNew(cardMenu.cardId, cardMenu.from, "") : modelData.move ? board.moveCard(cardMenu.cardId, cardMenu.from, modelData.to) : board.alsoPut(cardMenu.cardId, modelData.to)
+                }
             }
 
             onObjectAdded: (index, object) => cardMenu.insertItem(index, object)
@@ -734,7 +737,10 @@ ColumnLayout {
                         display: Controls.AbstractButton.IconOnly
                         Controls.ToolTip.text: text
                         Controls.ToolTip.visible: hovered
-                        onClicked: board.saveAsGroup(slotColumn.modelData.index)
+                        onClicked: {
+                            ActionLog.taken("ColumnBoard_saveColumnGroup")
+                            board.saveAsGroup(slotColumn.modelData.index)
+                        }
                     }
 
                     Controls.ToolButton {
@@ -744,7 +750,10 @@ ColumnLayout {
                         display: Controls.AbstractButton.IconOnly
                         Controls.ToolTip.text: text
                         Controls.ToolTip.visible: hovered
-                        onClicked: board.removeColumn(slotColumn.modelData.index)
+                        onClicked: {
+                            ActionLog.taken("ColumnBoard_removeColumn")
+                            board.removeColumn(slotColumn.modelData.index)
+                        }
                     }
                 }
 
@@ -917,7 +926,10 @@ ColumnLayout {
                                 }
                             }
                             Accessible.name: modelData.label + ", " + modelData.detail
-                            onClicked: formulaHelp.put(modelData)
+                            onClicked: {
+                                ActionLog.taken("ColumnBoard_put")
+                                formulaHelp.put(modelData)
+                            }
                         }
                     }
 
@@ -960,6 +972,7 @@ ColumnLayout {
                             }
                             Accessible.name: modelData.text + ", " + modelData.detail
                             onClicked: {
+                                ActionLog.taken("ColumnBoard_clicked")
                                 formulaInput.text = modelData.text;
                                 board.setColumnFormula(slotColumn.modelData.index, modelData.text);
                             }
@@ -1061,7 +1074,10 @@ ColumnLayout {
                                     display: Controls.AbstractButton.IconOnly
                                     Controls.ToolTip.text: text
                                     Controls.ToolTip.visible: hovered
-                                    onClicked: board.openMenu(menuButton, slot.modelData, slot.from)
+                                    onClicked: {
+                                        ActionLog.taken("ColumnBoard_move")
+                                        board.openMenu(menuButton, slot.modelData, slot.from)
+                                    }
                                 }
                             }
                         }
@@ -1147,7 +1163,10 @@ ColumnLayout {
                     maximumLength: 200
                     placeholderText: board.i18nContext.i18nc("@info:placeholder an example of a column name", "For example: Fast food")
                     Accessible.name: board.i18nContext.i18nc("@label:textbox", "Name of the new column")
-                    onAccepted: addButton.clicked()
+                    onAccepted: {
+                        ActionLog.taken("ColumnBoard_nameNewColumn")
+                        addButton.clicked()
+                    }
                 }
 
                 Controls.Button {
@@ -1156,6 +1175,7 @@ ColumnLayout {
                     text: board.i18nContext.i18nc("@action:button", "Add column")
                     icon.name: "list-add"
                     onClicked: {
+                        ActionLog.taken("ColumnBoard_addColumn")
                         if (board.addColumn(newName.text)) {
                             newName.text = "";
                         }

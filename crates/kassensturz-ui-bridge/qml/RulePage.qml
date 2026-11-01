@@ -65,7 +65,10 @@ Kirigami.ScrollablePage {
         id: previewTimer
 
         interval: 300
-        onTriggered: page.refreshPreview()
+        onTriggered: {
+            ActionLog.taken("RulePage_refreshPreview")
+            page.refreshPreview()
+        }
     }
 
     Connections {
@@ -217,7 +220,10 @@ Kirigami.ScrollablePage {
                 page.i18nContext.i18nc("@item:inlistbox", "At least one of these conditions")
             ]
             currentIndex: page.matchAll ? 0 : 1
-            onActivated: index => page.matchAll = index === 0
+            onActivated: index => {
+                ActionLog.taken("RulePage_howManyConditions")
+                page.matchAll = index === 0
+            }
             Accessible.name: page.i18nContext.i18nc("@label:listbox", "How many conditions have to fit")
         }
 
@@ -245,7 +251,10 @@ Kirigami.ScrollablePage {
         Controls.Button {
             text: page.i18nContext.i18nc("@action:button", "Add a condition")
             icon.name: "list-add"
-            onClicked: page.addCondition()
+            onClicked: {
+                ActionLog.taken("RulePage_addCondition")
+                page.addCondition()
+            }
         }
 
         // What the conditions fit now, so a Rule can be checked before it is
@@ -306,6 +315,7 @@ Kirigami.ScrollablePage {
                 ]
                 currentIndex: page.bookToKind === "category" ? 1 : page.bookToKind === "transfer" ? 2 : 0
                 onActivated: index => {
+                    ActionLog.taken("RulePage_whatRuleDoes")
                     page.bookToKind = ["", "category", "transfer"][index];
                     page.bookTo = page.targets.length > 0 && page.bookToKind !== "" ? page.targets[0].id : "";
                 }
@@ -319,7 +329,10 @@ Kirigami.ScrollablePage {
                     : page.i18nContext.i18nc("@label:listbox", "Category:")
                 model: page.targets.map(target => target.name)
                 currentIndex: Math.max(0, page.targets.findIndex(target => target.id === page.bookTo))
-                onActivated: index => page.bookTo = page.targets[index].id
+                onActivated: index => {
+                    ActionLog.taken("RulePage_whereTransactionGoes")
+                    page.bookTo = page.targets[index].id
+                }
                 Accessible.name: page.i18nContext.i18nc("@label:listbox", "Where the transaction goes")
             }
 
@@ -347,6 +360,7 @@ Kirigami.ScrollablePage {
                 id: rebookBox
                 text: page.i18nContext.i18nc("@option:check", "Also sort again what this Rule sorted before")
                 onToggled: {
+                    ActionLog.taken("RulePage_alsoSortAgain")
                     page.rebookPreview = ({});
                     if (checked) {
                         page.showRebook();
@@ -378,7 +392,10 @@ Kirigami.ScrollablePage {
                 visible: rebookBox.checked
                 text: page.i18nContext.i18nc("@action:button", "Show what would change again")
                 flat: true
-                onClicked: page.showRebook()
+                onClicked: {
+                    ActionLog.taken("RulePage_showWhatWould")
+                    page.showRebook()
+                }
             }
         }
 
@@ -388,7 +405,10 @@ Kirigami.ScrollablePage {
                     ? page.i18nContext.i18nc("@action:button", "Add Rule")
                     : page.i18nContext.i18nc("@action:button", "Save")
                 icon.name: page.adding ? "list-add" : "document-save"
-                onClicked: page.save()
+                onClicked: {
+                    ActionLog.taken("RulePage_save")
+                    page.save()
+                }
             }
 
             Controls.Button {
@@ -396,14 +416,20 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Add a Rule inside this one…")
                 icon.name: "list-add"
                 flat: true
-                onClicked: page.addSubRuleClicked(page.ruleId)
+                onClicked: {
+                    ActionLog.taken("RulePage_addRuleInside")
+                    page.addSubRuleClicked(page.ruleId)
+                }
             }
 
             Controls.Button {
                 visible: !page.adding
                 text: page.i18nContext.i18nc("@action:button", "Remove")
                 icon.name: "edit-delete"
-                onClicked: page.remove()
+                onClicked: {
+                    ActionLog.taken("RulePage_remove")
+                    page.remove()
+                }
             }
         }
 

@@ -224,7 +224,10 @@ Kirigami.ScrollablePage {
                         enabled: page.usable && !page.fetching
                         checked: page.ticked[row.modelData.id] === true
                         Accessible.name: row.modelData.name
-                        onToggled: page.setTicked(row.modelData.id, checked)
+                        onToggled: {
+                            ActionLog.taken("BankFetchPage_setTicked")
+                            page.setTicked(row.modelData.id, checked)
+                        }
                     }
 
                     ColumnLayout {
@@ -268,7 +271,10 @@ Kirigami.ScrollablePage {
                         enabled: page.usable && !page.fetching
                         text: page.i18nContext.i18nc("@action:button", "Link to a bank account…")
                         icon.name: "link"
-                        onClicked: linkDialog.show(row.modelData)
+                        onClicked: {
+                            ActionLog.taken("BankFetchPage_linkBankAccount")
+                            linkDialog.show(row.modelData)
+                        }
                     }
 
                     // A link can be changed or removed later (Phase 2).
@@ -278,7 +284,10 @@ Kirigami.ScrollablePage {
                         icon.name: "link"
                         text: page.i18nContext.i18nc("@action:button", "Change…")
                         Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of an account", "Link %1 to another bank account", row.modelData.name)
-                        onClicked: linkDialog.show(row.modelData)
+                        onClicked: {
+                            ActionLog.taken("BankFetchPage_change")
+                            linkDialog.show(row.modelData)
+                        }
                     }
 
                     Controls.ToolButton {
@@ -287,7 +296,10 @@ Kirigami.ScrollablePage {
                         icon.name: "link-broken"
                         text: page.i18nContext.i18nc("@action:button", "Unlink")
                         Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of an account", "Unlink %1 from its bank account", row.modelData.name)
-                        onClicked: page.unlink(row.modelData)
+                        onClicked: {
+                            ActionLog.taken("BankFetchPage_unlink")
+                            page.unlink(row.modelData)
+                        }
                     }
                 }
 
@@ -314,7 +326,10 @@ Kirigami.ScrollablePage {
                         text: row.outcome && row.outcome.transactions > 0
                             ? page.i18nContext.i18ncp("@action:button", "Look at %1 transaction from your bank", "Look at %1 transactions from your bank", row.outcome.transactions)
                             : page.i18nContext.i18nc("@action:button", "Look at what your bank sent")
-                        onClicked: page.lookAt(row.modelData.id)
+                        onClicked: {
+                            ActionLog.taken("BankFetchPage_lookAt")
+                            page.lookAt(row.modelData.id)
+                        }
                     }
 
                     Controls.Label {
@@ -344,7 +359,10 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Get new transactions")
                 icon.name: "mail-receive"
                 enabled: page.usable && page.anyTicked && !page.fetching
-                onClicked: page.fetchTicked()
+                onClicked: {
+                    ActionLog.taken("BankFetchPage_getNewTransactions")
+                    page.fetchTicked()
+                }
             }
 
             Controls.Label {
@@ -362,7 +380,10 @@ Kirigami.ScrollablePage {
             visible: page.usable && page.rows.length > 0 && !Array.from(page.rows).some(row => row.linked)
             text: page.i18nContext.i18nc("@action:button", "Connect a bank…")
             icon.name: "network-connect"
-            onClicked: page.connectBankClicked()
+            onClicked: {
+                ActionLog.taken("BankFetchPage_connectBank")
+                page.connectBankClicked()
+            }
         }
     }
 
@@ -406,12 +427,18 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Link")
                 icon.name: "dialog-ok"
                 enabled: linkDialog.chosen !== ""
-                onTriggered: linkDialog.link()
+                onTriggered: {
+                    ActionLog.taken("BankFetchPage_link")
+                    linkDialog.link()
+                }
             },
             Kirigami.Action {
                 text: page.i18nContext.i18nc("@action:button", "Cancel")
                 icon.name: "dialog-cancel"
-                onTriggered: linkDialog.close()
+                onTriggered: {
+                    ActionLog.taken("BankFetchPage_cancel")
+                    linkDialog.close()
+                }
             }
         ]
 
@@ -449,6 +476,7 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Connect a bank…")
                 icon.name: "network-connect"
                 onClicked: {
+                    ActionLog.taken("BankFetchPage_connectBank_2")
                     linkDialog.close();
                     page.connectBankClicked();
                 }
@@ -475,7 +503,10 @@ Kirigami.ScrollablePage {
                         Controls.ButtonGroup.group: group
                         checked: choice.modelData.key === linkDialog.chosen
                         Accessible.name: accountNames.name(choice.modelData, page.bank.fake)
-                        onToggled: linkDialog.chosen = choice.modelData.key
+                        onToggled: {
+                            ActionLog.taken("BankFetchPage_chosen")
+                            linkDialog.chosen = choice.modelData.key
+                        }
                     }
 
                     ColumnLayout {

@@ -38,13 +38,19 @@ Kirigami.ScrollablePage {
         Kirigami.Action {
             icon.name: "list-add"
             text: page.i18nContext.i18nc("@action:button", "Add account")
-            onTriggered: page.addAccountClicked()
+            onTriggered: {
+                ActionLog.taken("AccountsPage_addAccount")
+                page.addAccountClicked()
+            }
         },
         Kirigami.Action {
             icon.name: "mail-receive"
             visible: page.bankReady && page.sections.length > 0
             text: page.i18nContext.i18nc("@action:button get the accounts' new transactions from the bank over the internet", "Get new transactions")
-            onTriggered: page.getTransactionsClicked()
+            onTriggered: {
+                ActionLog.taken("AccountsPage_getNewTransactions")
+                page.getTransactionsClicked()
+            }
         },
         Kirigami.Action {
             icon.name: "view-visible"
@@ -52,7 +58,10 @@ Kirigami.ScrollablePage {
             checkable: true
             checked: page.showClosed
             visible: page.closedAccounts.length > 0
-            onTriggered: page.showClosed = checked
+            onTriggered: {
+                ActionLog.taken("AccountsPage_showClosedAccounts")
+                page.showClosed = checked
+            }
         }
     ]
 
@@ -67,7 +76,10 @@ Kirigami.ScrollablePage {
             helpfulAction: Kirigami.Action {
                 icon.name: "list-add"
                 text: page.i18nContext.i18nc("@action:button", "Add account")
-                onTriggered: page.addAccountClicked()
+                onTriggered: {
+                    ActionLog.taken("AccountsPage_addAccount_2")
+                    page.addAccountClicked()
+                }
             }
         }
 

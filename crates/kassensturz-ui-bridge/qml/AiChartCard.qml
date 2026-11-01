@@ -187,19 +187,28 @@ Kirigami.AbstractCard {
             Controls.Button {
                 icon.name: "dialog-ok-apply"
                 text: card.i18nContext.i18nc("@action:button save the chart the AI prepared", "Keep")
-                onClicked: card.keep()
+                onClicked: {
+                    ActionLog.taken("AiChartCard_keep")
+                    card.keep()
+                }
             }
 
             Controls.Button {
                 icon.name: "document-edit"
                 text: card.i18nContext.i18nc("@action:button open the chart the AI prepared in the Statistic Builder to change it", "Change…")
-                onClicked: card.change()
+                onClicked: {
+                    ActionLog.taken("AiChartCard_change")
+                    card.change()
+                }
             }
 
             Controls.Button {
                 icon.name: "list-remove"
                 text: card.i18nContext.i18nc("@action:button throw the chart the AI prepared away", "Leave out")
-                onClicked: card.leaveOut()
+                onClicked: {
+                    ActionLog.taken("AiChartCard_leaveOut")
+                    card.leaveOut()
+                }
             }
         }
 

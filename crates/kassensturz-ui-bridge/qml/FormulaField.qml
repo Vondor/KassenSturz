@@ -155,7 +155,10 @@ ColumnLayout {
         id: checkTimer
 
         interval: 300
-        onTriggered: field.check()
+        onTriggered: {
+            ActionLog.taken("FormulaField_check")
+            field.check()
+        }
     }
 
     Controls.TextField {
@@ -248,7 +251,10 @@ ColumnLayout {
                 text: modelData.group
                     ? field.i18nContext.i18nc("@item a group of categories the user made, %1 is its name", "%1 (group)", modelData.label)
                     : modelData.label
-                onClicked: field.insertName(modelData)
+                onClicked: {
+                    ActionLog.taken("FormulaField_insertName")
+                    field.insertName(modelData)
+                }
             }
         }
     }
@@ -263,6 +269,7 @@ ColumnLayout {
         currentIndex: -1
         Accessible.name: displayText
         onActivated: index => {
+            ActionLog.taken("FormulaField_activated")
             field.insertFunction(field.writing.functions[index].name);
             currentIndex = -1;
         }

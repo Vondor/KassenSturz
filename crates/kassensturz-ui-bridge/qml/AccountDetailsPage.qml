@@ -134,7 +134,10 @@ Kirigami.ScrollablePage {
                     text: page.i18nContext.i18nc("@action:button", "Check against my bank…")
                     icon.name: "view-financial-account-checking"
                     enabled: !(page.account.closed ?? false)
-                    onTriggered: page.checkClicked(page.account.stated.exactBalance, page.account.stated.date)
+                    onTriggered: {
+                        ActionLog.taken("AccountDetailsPage_checkAgainstBank")
+                        page.checkClicked(page.account.stated.exactBalance, page.account.stated.date)
+                    }
                 }
             ]
         }
@@ -153,7 +156,10 @@ Kirigami.ScrollablePage {
 
                 Layout.fillWidth: true
                 text: page.account.name ?? ""
-                onAccepted: page.rename()
+                onAccepted: {
+                    ActionLog.taken("AccountDetailsPage_nameAccount")
+                    page.rename()
+                }
                 Accessible.name: page.i18nContext.i18nc("@label:textbox", "Name of the account")
             }
 
@@ -161,7 +167,10 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Rename")
                 icon.name: "edit-rename"
                 enabled: nameField.text.trim() !== (page.account.name ?? "")
-                onClicked: page.rename()
+                onClicked: {
+                    ActionLog.taken("AccountDetailsPage_rename")
+                    page.rename()
+                }
             }
         }
 
@@ -181,7 +190,10 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@action:button", "Check against my bank…")
             icon.name: "view-financial-account-checking"
             enabled: !(page.account.closed ?? false)
-            onClicked: page.checkClicked("", "")
+            onClicked: {
+                ActionLog.taken("AccountDetailsPage_checkAgainstBank_2")
+                page.checkClicked("", "")
+            }
         }
 
         Kirigami.Heading {
@@ -206,7 +218,10 @@ Kirigami.ScrollablePage {
             text: page.account.closed ? page.i18nContext.i18nc("@action:button", "Open account again") : page.i18nContext.i18nc("@action:button", "Close account")
             icon.name: page.account.closed ? "document-open" : "dialog-close"
             enabled: page.account.closed || (page.account.canClose ?? false)
-            onClicked: page.account.closed ? page.reopenAccount() : page.closeAccount()
+            onClicked: {
+                ActionLog.taken("AccountDetailsPage_closeAccount")
+                page.account.closed ? page.reopenAccount() : page.closeAccount()
+            }
         }
     }
 }

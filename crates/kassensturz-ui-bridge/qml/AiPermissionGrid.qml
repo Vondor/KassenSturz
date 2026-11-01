@@ -223,6 +223,7 @@ ColumnLayout {
                     checked: forced || grid.isOn(cell.modelData.key ?? "", grid.revision)
                     Accessible.name: cell.isName ? "" : grid.i18nContext.i18nc("@label:switch row and action, e.g. Rules, Delete", "%1: %2", cell.row.name, grid.columns[cell.modelData.column])
                     onToggled: {
+                        ActionLog.taken("AiPermissionGrid_toggled")
                         grid.choose(cell.modelData.key, checked);
                         checked = Qt.binding(() => forced || grid.isOn(cell.modelData.key ?? "", grid.revision));
                     }
@@ -294,6 +295,7 @@ ColumnLayout {
                         checked: grid.revision >= 0 && grid.settings.locked(fieldRow.modelData.key)
                         Accessible.name: grid.i18nContext.i18nc("@label:switch a field of a transaction the AI may not change", "%1 is locked against the AI", fieldRow.modelData.label)
                         onToggled: {
+                            ActionLog.taken("AiPermissionGrid_lockedAgainstAi")
                             grid.lock(fieldRow.modelData.key, checked);
                             checked = Qt.binding(() => grid.revision >= 0 && grid.settings.locked(fieldRow.modelData.key));
                         }

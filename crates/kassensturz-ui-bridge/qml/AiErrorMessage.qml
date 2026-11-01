@@ -132,13 +132,19 @@ ColumnLayout {
                 text: message.i18nContext.i18nc("@action:button", "Add /v1 to the address")
                 icon.name: "list-add"
                 visible: message.offerV1 && message.result.code === "ai.missing-v1"
-                onTriggered: message.useV1Clicked()
+                onTriggered: {
+                    ActionLog.taken("AiErrorMessage_addVAddress")
+                    message.useV1Clicked()
+                }
             },
             Kirigami.Action {
                 text: message.i18nContext.i18nc("@action:button", "Open the AI settings")
                 icon.name: "configure"
                 visible: message.offerSettings && message.settingsHelp
-                onTriggered: message.settingsClicked()
+                onTriggered: {
+                    ActionLog.taken("AiErrorMessage_openAiSettings")
+                    message.settingsClicked()
+                }
             }
         ]
         // An InlineMessage shows markup as markup: nothing from a provider

@@ -75,7 +75,10 @@ Controls.Menu {
                 delegate: Controls.MenuItem {
                     required property var modelData
                     text: modelData.name
-                    onTriggered: modelData.saved ? widgetMenu.savedChosen(modelData.id) : widgetMenu.kindChosen(modelData.kind, modelData.dataset)
+                    onTriggered: {
+                        ActionLog.taken("AddMenu_triggered")
+                        modelData.saved ? widgetMenu.savedChosen(modelData.id) : widgetMenu.kindChosen(modelData.kind, modelData.dataset)
+                    }
                 }
                 onObjectAdded: (index, object) => groupMenu.insertItem(index, object)
                 onObjectRemoved: (index, object) => groupMenu.removeItem(object)

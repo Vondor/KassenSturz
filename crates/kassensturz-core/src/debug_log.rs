@@ -40,7 +40,7 @@ use jiff::Timestamp;
 use regex::Regex;
 
 use crate::is_error_code;
-pub use crate::vocabulary::{DETAILS, known_detail, screen};
+pub use crate::vocabulary::{ACTIONS, DETAILS, action, known_detail, screen};
 
 /// The environment variable that starts the developer mode; only `1` is on.
 pub const ENV: &str = "KASSENSTURZ_DEBUG_LOG";
@@ -180,6 +180,11 @@ events! {
     /// The user added a widget to the Overview page (M6-B9); the code says
     /// why it failed, if it did.
     LayoutWidgetAdded = "layout.widget-added",
+    /// The user pressed a button, chose a menu entry, flipped a switch or
+    /// confirmed a dialog (M6c.D); the detail names the action, from
+    /// [`crate::vocabulary::ACTIONS`]. It says the click arrived, so a click
+    /// that "does nothing" shows whether the handler ran at all.
+    ActionTaken = "ui.action-taken",
 }
 
 impl Event {
@@ -228,7 +233,7 @@ impl Entry {
         static LINE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
         let pattern = LINE.get_or_init(|| {
             Regex::new(
-                r#"^\{"at":"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{3})?Z)","event":"([a-z.-]+)"(?:,"detail":"([A-Za-z_]+)")?(?:,"code":"([a-z0-9.-]+)")?\}$"#,
+                r#"^\{"at":"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{3})?Z)","event":"([a-z.-]+)"(?:,"detail":"([A-Za-z0-9_]+)")?(?:,"code":"([a-z0-9.-]+)")?\}$"#,
             )
             .expect("the line pattern is valid")
         });
@@ -722,6 +727,30 @@ mod tests {
         assert_eq!(entries.len(), 3, "{entries:?}");
         assert_eq!(entries[0].event, Event::ScreenRequested);
         assert_eq!(entries[1].detail, Some("RegisterPage"));
+    }
+
+    #[test]
+    fn an_action_is_written_and_read_back_by_its_fixed_name() {
+        let scratch = Scratch::new("actions");
+        let log = scratch.log(true, "");
+        let action = ACTIONS
+            .iter()
+            .copied()
+            .find(|name| name.chars().any(|c| c.is_ascii_digit()))
+            .expect("some action name has a number, like RulesPage_addRule_2");
+        log.record(Event::ActionTaken, Some(action), None);
+        log.record(Event::ActionTaken, Some("Moon Base Rent"), None);
+        let text = fs::read_to_string(scratch.0.join("debug-log/current.jsonl")).unwrap();
+        assert!(text.contains(&format!("\"detail\":\"{action}\"")), "{text}");
+        assert!(!text.contains("Moon"), "{text}");
+        let entries = log.read(10);
+        assert_eq!(entries.len(), 2, "{entries:?}");
+        assert_eq!(entries[0].event, Event::ActionTaken);
+        assert_eq!(entries[0].detail, Some(action));
+        assert_eq!(
+            entries[1].detail, None,
+            "a name outside the lists is left out"
+        );
     }
 
     #[test]

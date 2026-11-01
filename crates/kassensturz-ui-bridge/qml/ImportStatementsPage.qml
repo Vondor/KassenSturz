@@ -88,7 +88,10 @@ Kirigami.ScrollablePage {
                         // An account number from a file could contain anything.
                         textItem.textFormat: Text.PlainText
                         descriptionItem.textFormat: Text.PlainText
-                        onClicked: page.choose(row.modelData.index)
+                        onClicked: {
+                            ActionLog.taken("ImportStatementsPage_choose")
+                            page.choose(row.modelData.index)
+                        }
                     }
                 }
             }

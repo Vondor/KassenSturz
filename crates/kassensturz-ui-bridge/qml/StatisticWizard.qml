@@ -217,7 +217,10 @@ ColumnLayout {
         Controls.Button {
             flat: true
             text: wizard.i18nContext.i18nc("@action:button leave the wizard and see every setting on one page", "Show all settings at once")
-            onClicked: wizard.showAll()
+            onClicked: {
+                ActionLog.taken("StatisticWizard_showAllSettings")
+                wizard.showAll()
+            }
         }
     }
 
@@ -246,7 +249,10 @@ ColumnLayout {
                     enabled: wizard.usable(index)
                     text: wizard.i18nContext.i18nc("@item:inlistbox %1 is the number of a step, %2 its name", "%1. %2", index + 1, wizard.stepName(index))
                     Accessible.name: wizard.stepName(index)
-                    onClicked: wizard.goTo(index)
+                    onClicked: {
+                        ActionLog.taken("StatisticWizard_goTo")
+                        wizard.goTo(index)
+                    }
                 }
             }
         }
@@ -282,7 +288,10 @@ ColumnLayout {
                         Kirigami.FormData.label: wizard.i18nContext.i18nc("@label:listbox", "Period")
                         options: wizard.builder.periods.map(id => ({word: id, name: wizard.builder.periodName(id)}))
                         word: wizard.builder.period
-                        onChosen: word => wizard.builder.period = word
+                        onChosen: word => {
+                            ActionLog.taken("StatisticWizard_period")
+                            wizard.builder.period = word
+                        }
                     }
                 }
 
@@ -302,7 +311,10 @@ ColumnLayout {
                     visible: wizard.hasFields(wizard.advancedKeys)
                     icon.name: wizard.advanced ? "arrow-down" : "arrow-right"
                     text: wizard.i18nContext.i18nc("@action:button show or hide formulas and fine tuning", "Advanced: formulas and fine tuning")
-                    onClicked: wizard.advanced = !wizard.advanced
+                    onClicked: {
+                        ActionLog.taken("StatisticWizard_advancedFormulasFine")
+                        wizard.advanced = !wizard.advanced
+                    }
                 }
 
                 PropertiesPanel {
@@ -335,7 +347,10 @@ ColumnLayout {
                     visible: wizard.hasBoard && wizard.hasFields(wizard.seriesKeys)
                     icon.name: wizard.advanced ? "arrow-down" : "arrow-right"
                     text: wizard.i18nContext.i18nc("@action:button show or hide the lists of categories, groups and lines", "Advanced: pick from lists")
-                    onClicked: wizard.advanced = !wizard.advanced
+                    onClicked: {
+                        ActionLog.taken("StatisticWizard_advancedPickLists")
+                        wizard.advanced = !wizard.advanced
+                    }
                 }
 
                 PropertiesPanel {
@@ -377,6 +392,7 @@ ColumnLayout {
                                 text: wizard.kindName(modelData.id)
                                 highlighted: wizard.currentKind.id === modelData.id
                                 onClicked: {
+                                    ActionLog.taken("StatisticWizard_clicked")
                                     if (!modelData.types.includes(wizard.workbench.view.type)) {
                                         wizard.workbench.setType(modelData.types[0]);
                                     }
@@ -403,7 +419,10 @@ ColumnLayout {
                                 checkable: true
                                 checked: wizard.workbench.view.type === modelData
                                 Accessible.name: wizard.builder.typeName(modelData)
-                                onClicked: wizard.workbench.setType(modelData)
+                                onClicked: {
+                                    ActionLog.taken("StatisticWizard_setType")
+                                    wizard.workbench.setType(modelData)
+                                }
 
                                 background: Rectangle {
                                     radius: Kirigami.Units.cornerRadius
@@ -453,7 +472,10 @@ ColumnLayout {
                     maximumLength: 200
                     placeholderText: wizard.i18nContext.i18nc("@info:placeholder", "A name for this view")
                     Accessible.name: wizard.i18nContext.i18nc("@label:textbox", "Name of the view")
-                    onAccepted: wizard.finish()
+                    onAccepted: {
+                        ActionLog.taken("StatisticWizard_nameView")
+                        wizard.finish()
+                    }
                 }
 
                 Controls.Label {
@@ -494,7 +516,10 @@ ColumnLayout {
         Controls.Button {
             text: wizard.i18nContext.i18nc("@action:button leave the wizard without a change of the saved view", "Cancel")
             icon.name: "dialog-cancel"
-            onClicked: wizard.cancelled()
+            onClicked: {
+                ActionLog.taken("StatisticWizard_cancel")
+                wizard.cancelled()
+            }
         }
 
         Item {
@@ -505,21 +530,30 @@ ColumnLayout {
             text: wizard.i18nContext.i18nc("@action:button go to the step before", "Back")
             icon.name: "go-previous"
             enabled: wizard.step > 0
-            onClicked: wizard.back()
+            onClicked: {
+                ActionLog.taken("StatisticWizard_back")
+                wizard.back()
+            }
         }
 
         Controls.Button {
             text: wizard.i18nContext.i18nc("@action:button go to the next step", "Next")
             icon.name: "go-next"
             enabled: wizard.step < wizard.steps - 1
-            onClicked: wizard.next()
+            onClicked: {
+                ActionLog.taken("StatisticWizard_next")
+                wizard.next()
+            }
         }
 
         Controls.Button {
             text: wizard.i18nContext.i18nc("@action:button keep the view the wizard made", "Finish")
             icon.name: "dialog-ok-apply"
             highlighted: true
-            onClicked: wizard.finish()
+            onClicked: {
+                ActionLog.taken("StatisticWizard_finish")
+                wizard.finish()
+            }
         }
     }
 }

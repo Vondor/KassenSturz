@@ -93,7 +93,10 @@ FormCard.FormCard {
         description: visible
             ? card.i18nContext.i18nc("@info %1 and %2 are currency codes, %3 is how many, %4 a date", "The file's own rates say 1 %1 was worth %3 %2 from %4. Another program's rates can be wrong, so check this before you use it.", card.info.suggestion.successor, card.info.currency, card.info.suggestion.rate, card.info.suggestion.date)
             : ""
-        onClicked: card.useSuggestion()
+        onClicked: {
+            ActionLog.taken("ReplacedCurrency_useWhatFile")
+            card.useSuggestion()
+        }
     }
 
     FormCard.FormDelegateSeparator {}

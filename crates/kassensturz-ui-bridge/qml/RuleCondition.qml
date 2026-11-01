@@ -85,7 +85,10 @@ Kirigami.AbstractCard {
                 Kirigami.FormData.label: card.i18nContext.i18nc("@label:listbox", "Look at:")
                 model: card.subjects.map(subject => subject.label)
                 currentIndex: card.subjectIndex()
-                onActivated: index => card.edited(card.starting(card.subjects[index]))
+                onActivated: index => {
+                    ActionLog.taken("RuleCondition_whatConditionLooks")
+                    card.edited(card.starting(card.subjects[index]))
+                }
                 Accessible.name: card.i18nContext.i18nc("@label:listbox", "What the condition looks at")
             }
 
@@ -95,7 +98,10 @@ Kirigami.AbstractCard {
                 Kirigami.FormData.label: card.i18nContext.i18nc("@label:listbox", "It")
                 model: card.operators.map(operator => operator.label)
                 currentIndex: Math.max(0, card.operators.findIndex(operator => operator.key === card.condition.operator))
-                onActivated: index => card.edited({ operator: card.operators[index].key })
+                onActivated: index => {
+                    ActionLog.taken("RuleCondition_howTextCompared")
+                    card.edited({ operator: card.operators[index].key })
+                }
                 Accessible.name: card.i18nContext.i18nc("@label:listbox", "How the text is compared")
             }
 
@@ -113,7 +119,10 @@ Kirigami.AbstractCard {
                 visible: card.isText && !card.isPattern
                 text: card.i18nContext.i18nc("@option:check", "Capital letters must match")
                 checked: card.condition.caseSensitive
-                onToggled: card.edited({ caseSensitive: checked })
+                onToggled: {
+                    ActionLog.taken("RuleCondition_capitalLettersMust")
+                    card.edited({ caseSensitive: checked })
+                }
             }
 
             // Advanced: a regular expression instead of plain text.
@@ -121,7 +130,10 @@ Kirigami.AbstractCard {
                 visible: card.isText
                 text: card.i18nContext.i18nc("@option:check an advanced choice", "Use a pattern (advanced)")
                 checked: card.isPattern
-                onToggled: card.edited({ operator: checked ? "pattern" : "contains" })
+                onToggled: {
+                    ActionLog.taken("RuleCondition_usePatternAdvanced")
+                    card.edited({ operator: checked ? "pattern" : "contains" })
+                }
             }
 
             Controls.Label {
@@ -141,7 +153,10 @@ Kirigami.AbstractCard {
                     ? [card.i18nContext.i18nc("@item:inlistbox", "paid"), card.i18nContext.i18nc("@item:inlistbox", "received"), card.i18nContext.i18nc("@item:inlistbox a range across zero, typed with minus signs for money paid", "paid or received (use minus signs)")]
                     : [card.i18nContext.i18nc("@item:inlistbox", "paid"), card.i18nContext.i18nc("@item:inlistbox", "received")]
                 currentIndex: card.condition.direction === "in" ? 1 : card.condition.direction === "signed" ? 2 : 0
-                onActivated: index => card.edited({ direction: index === 1 ? "in" : index === 2 ? "signed" : "out" })
+                onActivated: index => {
+                    ActionLog.taken("RuleCondition_whichWayMoney")
+                    card.edited({ direction: index === 1 ? "in" : index === 2 ? "signed" : "out" })
+                }
                 Accessible.name: card.i18nContext.i18nc("@label:listbox", "Which way the money moved")
             }
 
@@ -154,7 +169,10 @@ Kirigami.AbstractCard {
                     card.i18nContext.i18nc("@item:inlistbox an amount in a range", "Between")
                 ]
                 currentIndex: card.condition.amountTest === "exactly" ? 1 : card.condition.amountTest === "between" ? 2 : 0
-                onActivated: index => card.edited({ amountTest: ["any", "exactly", "between"][index] })
+                onActivated: index => {
+                    ActionLog.taken("RuleCondition_howMuchMoney")
+                    card.edited({ amountTest: ["any", "exactly", "between"][index] })
+                }
                 Accessible.name: card.i18nContext.i18nc("@label:listbox", "How much money")
             }
 
@@ -218,7 +236,10 @@ Kirigami.AbstractCard {
                 Kirigami.FormData.label: card.i18nContext.i18nc("@label:listbox", "Account:")
                 model: card.choices.accounts.map(account => account.name)
                 currentIndex: Math.max(0, card.choices.accounts.findIndex(account => account.id === card.condition.account))
-                onActivated: index => card.edited({ account: card.choices.accounts[index].id })
+                onActivated: index => {
+                    ActionLog.taken("RuleCondition_account")
+                    card.edited({ account: card.choices.accounts[index].id })
+                }
                 Accessible.name: card.i18nContext.i18nc("@label:listbox", "The account")
             }
         }
@@ -228,7 +249,10 @@ Kirigami.AbstractCard {
             icon.name: "edit-delete"
             text: card.i18nContext.i18nc("@action:button", "Remove this condition")
             display: Controls.AbstractButton.IconOnly
-            onClicked: card.removeClicked()
+            onClicked: {
+                ActionLog.taken("RuleCondition_removeCondition")
+                card.removeClicked()
+            }
             Controls.ToolTip.text: text
             Controls.ToolTip.visible: hovered
         }

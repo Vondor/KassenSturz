@@ -40,7 +40,10 @@ Kirigami.ScrollablePage {
     actions: Kirigami.Action {
         icon.name: "dialog-ok"
         text: page.i18nContext.i18nc("@action:button", "Done")
-        onTriggered: page.done()
+        onTriggered: {
+            ActionLog.taken("ImportDonePage_done")
+            page.done()
+        }
     }
 
     // The Transfers the new entries suggest are asked about once the page
@@ -49,7 +52,10 @@ Kirigami.ScrollablePage {
         interval: 300
         running: true
         repeat: false
-        onTriggered: transferPrompt.ask(page.statementImport.transferSuggestions())
+        onTriggered: {
+            ActionLog.taken("ImportDonePage_ask")
+            transferPrompt.ask(page.statementImport.transferSuggestions())
+        }
     }
 
     TransferPrompt {
@@ -185,7 +191,10 @@ Kirigami.ScrollablePage {
                         icon.name: "view-financial-account"
                         text: page.i18nContext.i18nc("@action:button", "Check against my bank")
                         description: page.i18nContext.i18nc("@info", "Compares the two for that day and explains the difference. The starting balance is corrected only if you say so.")
-                        onClicked: page.checkAgainstBankClicked(page.accountId, balanceRow.modelData.checkAmount, balanceRow.modelData.checkDate)
+                        onClicked: {
+                            ActionLog.taken("ImportDonePage_checkAgainstBank")
+                            page.checkAgainstBankClicked(page.accountId, balanceRow.modelData.checkAmount, balanceRow.modelData.checkDate)
+                        }
                     }
                 }
             }

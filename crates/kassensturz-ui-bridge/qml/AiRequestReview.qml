@@ -75,6 +75,7 @@ Item {
                 text: review.i18nContext.i18nc("@action:button send the request that is shown", "Send")
                 icon.name: "mail-send"
                 onTriggered: {
+                    ActionLog.taken("AiRequestReview_send")
                     review.decided = true;
                     dialog.close();
                     review.chat.reviewSend();
@@ -83,7 +84,10 @@ Item {
             Kirigami.Action {
                 text: review.i18nContext.i18nc("@action:button end the question without sending the request", "Don't send")
                 icon.name: "dialog-cancel"
-                onTriggered: dialog.close()
+                onTriggered: {
+                    ActionLog.taken("AiRequestReview_donTSend")
+                    dialog.close()
+                }
             }
         ]
         onClosed: {
@@ -125,13 +129,19 @@ Item {
                     placeholderText: review.i18nContext.i18nc("@info:placeholder", "A word or phrase to leave out")
                     inputMethodHints: Qt.ImhNoPredictiveText
                     Accessible.name: review.i18nContext.i18nc("@label:textbox", "A word or phrase to leave out of the request")
-                    onAccepted: review.leaveOutPhrase()
+                    onAccepted: {
+                        ActionLog.taken("AiRequestReview_wordPhraseLeave")
+                        review.leaveOutPhrase()
+                    }
                 }
 
                 Controls.Button {
                     text: review.i18nContext.i18nc("@action:button", "Leave it out")
                     enabled: leaveOut.text.trim() !== ""
-                    onClicked: review.leaveOutPhrase()
+                    onClicked: {
+                        ActionLog.taken("AiRequestReview_leaveOut")
+                        review.leaveOutPhrase()
+                    }
                 }
             }
 

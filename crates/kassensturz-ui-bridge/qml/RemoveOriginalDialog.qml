@@ -54,6 +54,7 @@ Kirigami.PromptDialog {
             text: dialog.i18nContext.i18nc("@action:button", "Remove it with the original")
             icon.name: "edit-delete"
             onTriggered: {
+                ActionLog.taken("RemoveOriginalDialog_removeOriginal")
                 dialog.close();
                 dialog.removeConfirmed();
             }
@@ -61,7 +62,10 @@ Kirigami.PromptDialog {
         Kirigami.Action {
             text: dialog.i18nContext.i18nc("@action:button keep a transaction", "Keep it")
             icon.name: "go-previous"
-            onTriggered: dialog.close()
+            onTriggered: {
+                ActionLog.taken("RemoveOriginalDialog_keep")
+                dialog.close()
+            }
         }
     ]
 }

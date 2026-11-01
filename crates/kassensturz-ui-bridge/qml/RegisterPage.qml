@@ -133,36 +133,54 @@ Kirigami.ScrollablePage {
     Timer {
         interval: 500
         running: !page.loaded
-        onTriggered: page.load()
+        onTriggered: {
+            ActionLog.taken("RegisterPage_load")
+            page.load()
+        }
     }
 
     actions: [
         Kirigami.Action {
             icon.name: "list-add"
             text: page.i18nContext.i18nc("@action:button", "Add transaction")
-            onTriggered: page.addTransactionClicked(page.accountId)
+            onTriggered: {
+                ActionLog.taken("RegisterPage_addTransaction")
+                page.addTransactionClicked(page.accountId)
+            }
         },
         Kirigami.Action {
             icon.name: "mail-receive"
             visible: page.bankReady
             text: page.i18nContext.i18nc("@action:button get this account's new transactions from the bank over the internet", "Get new transactions")
-            onTriggered: page.getTransactionsClicked(page.accountId)
+            onTriggered: {
+                ActionLog.taken("RegisterPage_getNewTransactions")
+                page.getTransactionsClicked(page.accountId)
+            }
         },
         Kirigami.Action {
             icon.name: "document-import"
             text: page.i18nContext.i18nc("@action:button", "Import from my bank")
-            onTriggered: page.importClicked(page.accountId)
+            onTriggered: {
+                ActionLog.taken("RegisterPage_importBank")
+                page.importClicked(page.accountId)
+            }
         },
         Kirigami.Action {
             icon.name: "tag-new"
             visible: page.suggestionsShown
             text: page.i18nContext.i18nc("@action:button asks for a category for each transaction of this account that has none; the answer is shown for you to check", "Suggest categories")
-            onTriggered: page.suggestCategoriesClicked(page.accountId)
+            onTriggered: {
+                ActionLog.taken("RegisterPage_suggestCategories")
+                page.suggestCategoriesClicked(page.accountId)
+            }
         },
         Kirigami.Action {
             icon.name: "configure"
             text: page.i18nContext.i18nc("@action:button settings of one account: its name, closing it, checking it against the bank", "About this account")
-            onTriggered: page.detailsClicked(page.accountId)
+            onTriggered: {
+                ActionLog.taken("RegisterPage_aboutAccount")
+                page.detailsClicked(page.accountId)
+            }
         },
         Kirigami.Action {
             icon.name: "view-sort"
@@ -172,25 +190,37 @@ Kirigami.ScrollablePage {
                 text: page.sortName("date")
                 checkable: true
                 checked: page.register.sortKey === "date"
-                onTriggered: page.register.sortBy("date", true)
+                onTriggered: {
+                    ActionLog.taken("RegisterPage_date")
+                    page.register.sortBy("date", true)
+                }
             }
             Kirigami.Action {
                 text: page.sortName("amount")
                 checkable: true
                 checked: page.register.sortKey === "amount"
-                onTriggered: page.register.sortBy("amount", true)
+                onTriggered: {
+                    ActionLog.taken("RegisterPage_amount")
+                    page.register.sortBy("amount", true)
+                }
             }
             Kirigami.Action {
                 text: page.sortName("other-party")
                 checkable: true
                 checked: page.register.sortKey === "other-party"
-                onTriggered: page.register.sortBy("other-party", false)
+                onTriggered: {
+                    ActionLog.taken("RegisterPage_otherParty")
+                    page.register.sortBy("other-party", false)
+                }
             }
             Kirigami.Action {
                 text: page.sortName("category")
                 checkable: true
                 checked: page.register.sortKey === "category"
-                onTriggered: page.register.sortBy("category", false)
+                onTriggered: {
+                    ActionLog.taken("RegisterPage_category")
+                    page.register.sortBy("category", false)
+                }
             }
             Kirigami.Action {
                 separator: true
@@ -205,7 +235,10 @@ Kirigami.ScrollablePage {
                 checked: page.register.sortKey === "date" || page.register.sortKey === "amount"
                     ? !page.register.descending
                     : page.register.descending
-                onTriggered: page.register.sortBy(page.register.sortKey, !page.register.descending)
+                onTriggered: {
+                    ActionLog.taken("RegisterPage_date_2")
+                    page.register.sortBy(page.register.sortKey, !page.register.descending)
+                }
             }
         }
     ]
@@ -254,11 +287,17 @@ Kirigami.ScrollablePage {
                 Kirigami.Action {
                     icon.name: "view-filter"
                     text: page.i18nContext.i18nc("@action:button", "Create a Rule")
-                    onTriggered: page.createRuleFromSuggestion(page.suggestion.payee, page.suggestion.category)
+                    onTriggered: {
+                        ActionLog.taken("RegisterPage_createRule")
+                        page.createRuleFromSuggestion(page.suggestion.payee, page.suggestion.category)
+                    }
                 },
                 Kirigami.Action {
                     text: page.i18nContext.i18nc("@action:button", "No, thanks")
-                    onTriggered: page.rules.dismissSuggestion(page.suggestion.payee, page.suggestion.category)
+                    onTriggered: {
+                        ActionLog.taken("RegisterPage_noThanks")
+                        page.rules.dismissSuggestion(page.suggestion.payee, page.suggestion.category)
+                    }
                 }
             ]
         }
@@ -329,7 +368,10 @@ Kirigami.ScrollablePage {
             property Kirigami.Action addAction: Kirigami.Action {
                 icon.name: "list-add"
                 text: page.i18nContext.i18nc("@action:button", "Add transaction")
-                onTriggered: page.addTransactionClicked(page.accountId)
+                onTriggered: {
+                    ActionLog.taken("RegisterPage_addTransaction_2")
+                    page.addTransactionClicked(page.accountId)
+                }
             }
         }
 
@@ -351,7 +393,10 @@ Kirigami.ScrollablePage {
 
             width: ListView.view.width
             Accessible.name: transaction.Accessible.name
-            onClicked: page.transactionClicked(page.accountId, transactionId)
+            onClicked: {
+                ActionLog.taken("RegisterPage_transactionClicked")
+                page.transactionClicked(page.accountId, transactionId)
+            }
             // Every second line shaded, to follow it across the columns.
             background: Rectangle {
                 // The line under the pointer or the keyboard focus is lit.

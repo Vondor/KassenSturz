@@ -69,6 +69,14 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "screenReady"]
         fn screen_ready(self: &DeveloperMode, name: &QString);
+
+        /// The user did what the action QML names (a button, menu entry,
+        /// switch, choice or confirmation, e.g. `RulesPage_addRule`): logged
+        /// in the developer mode. A name outside the fixed list of
+        /// `kassensturz_core::vocabulary::ACTIONS` is not logged.
+        #[qinvokable]
+        #[cxx_name = "actionTaken"]
+        fn action_taken(self: &DeveloperMode, name: &QString);
     }
 
     impl cxx_qt::Initialize for DeveloperMode {}
@@ -114,6 +122,14 @@ impl qobject::DeveloperMode {
 impl qobject::DeveloperMode {
     fn screen_requested(&self) {
         crate::note!(ScreenRequested);
+    }
+
+    fn action_taken(&self, name: &QString) {
+        // The list is long: look the name up only when something is written.
+        if is_on() {
+            let action = kassensturz_core::vocabulary::action(&name.to_string());
+            crate::note!(ActionTaken, action, None);
+        }
     }
 
     fn screen_ready(&self, name: &QString) {

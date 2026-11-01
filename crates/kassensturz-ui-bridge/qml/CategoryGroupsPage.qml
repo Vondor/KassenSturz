@@ -60,7 +60,10 @@ Kirigami.ScrollablePage {
         Kirigami.Action {
             icon.name: "list-add"
             text: page.i18nContext.i18nc("@action:button", "New group")
-            onTriggered: page.addGroupClicked()
+            onTriggered: {
+                ActionLog.taken("CategoryGroupsPage_newGroup")
+                page.addGroupClicked()
+            }
         }
     ]
 
@@ -87,7 +90,10 @@ Kirigami.ScrollablePage {
             helpfulAction: Kirigami.Action {
                 icon.name: "list-add"
                 text: page.i18nContext.i18nc("@action:button", "New group")
-                onTriggered: page.addGroupClicked()
+                onTriggered: {
+                    ActionLog.taken("CategoryGroupsPage_newGroup_2")
+                    page.addGroupClicked()
+                }
             }
         }
 
@@ -104,7 +110,10 @@ Kirigami.ScrollablePage {
                 // A name could contain anything.
                 text: modelData.name
                 Accessible.name: page.i18nContext.i18nc("@info %1 is the name of a group, %2 what it holds", "%1: %2", modelData.name, page.summary(modelData))
-                onClicked: page.groupClicked(modelData.id)
+                onClicked: {
+                    ActionLog.taken("CategoryGroupsPage_groupClicked")
+                    page.groupClicked(modelData.id)
+                }
 
                 contentItem: RowLayout {
                     spacing: Kirigami.Units.smallSpacing
@@ -139,7 +148,10 @@ Kirigami.ScrollablePage {
                         display: Controls.AbstractButton.IconOnly
                         text: page.i18nContext.i18nc("@action:button move a group up in the list", "Move up")
                         enabled: entry.index > 0
-                        onClicked: error.result = page.groups.moveGroup(entry.modelData.id, entry.index - 1)
+                        onClicked: {
+                            ActionLog.taken("CategoryGroupsPage_moveUp")
+                            error.result = page.groups.moveGroup(entry.modelData.id, entry.index - 1)
+                        }
                         Controls.ToolTip.text: text
                         Controls.ToolTip.visible: hovered
                         Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
@@ -150,7 +162,10 @@ Kirigami.ScrollablePage {
                         display: Controls.AbstractButton.IconOnly
                         text: page.i18nContext.i18nc("@action:button move a group down in the list", "Move down")
                         enabled: entry.index < page.groupList.length - 1
-                        onClicked: error.result = page.groups.moveGroup(entry.modelData.id, entry.index + 1)
+                        onClicked: {
+                            ActionLog.taken("CategoryGroupsPage_moveDown")
+                            error.result = page.groups.moveGroup(entry.modelData.id, entry.index + 1)
+                        }
                         Controls.ToolTip.text: text
                         Controls.ToolTip.visible: hovered
                         Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
@@ -160,7 +175,10 @@ Kirigami.ScrollablePage {
                         icon.name: "edit-delete"
                         display: Controls.AbstractButton.IconOnly
                         text: page.i18nContext.i18nc("@action:button remove a group; its categories stay", "Remove the group")
-                        onClicked: error.result = page.groups.removeGroup(entry.modelData.id)
+                        onClicked: {
+                            ActionLog.taken("CategoryGroupsPage_removeGroup")
+                            error.result = page.groups.removeGroup(entry.modelData.id)
+                        }
                         Controls.ToolTip.text: page.i18nContext.i18nc("@info", "Removes only the group. Its categories stay as they are, and Undo brings the group back.")
                         Controls.ToolTip.visible: hovered
                         Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
@@ -201,6 +219,7 @@ Kirigami.ScrollablePage {
                 checked: modelData.hidden
                 Accessible.name: page.i18nContext.i18nc("@option:check %1 is the path of a category", "Hide %1 in charts", modelData.path)
                 onToggled: {
+                    ActionLog.taken("CategoryGroupsPage_hideCharts")
                     error.result = page.groups.setHidden(page.hiddenWith(box.modelData.id, checked));
                     // The list is read again; show what the book says.
                     checked = Qt.binding(() => box.modelData.hidden);

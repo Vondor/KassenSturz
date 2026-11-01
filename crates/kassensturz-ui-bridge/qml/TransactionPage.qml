@@ -188,14 +188,20 @@ Kirigami.ScrollablePage {
             visible: page.kind === "starting-balance"
             text: page.i18nContext.i18nc("@action:button", "Check against my bank…")
             icon.name: "view-financial-account-checking"
-            onClicked: page.checkAgainstBankClicked(page.chosenAccount)
+            onClicked: {
+                ActionLog.taken("TransactionPage_checkAgainstBank")
+                page.checkAgainstBankClicked(page.chosenAccount)
+            }
         }
 
         Controls.Button {
             visible: page.kind === "parts"
             text: page.i18nContext.i18nc("@action:button", "Change the parts…")
             icon.name: "view-list-details"
-            onClicked: page.breakDownClicked(page.chosenAccount, page.transactionId)
+            onClicked: {
+                ActionLog.taken("TransactionPage_changeParts")
+                page.breakDownClicked(page.chosenAccount, page.transactionId)
+            }
         }
 
         Controls.Label {
@@ -225,7 +231,10 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@option:radio", "I paid money")
             checked: !page.moneyIn
             Controls.ButtonGroup.group: directionGroup
-            onToggled: page.moneyIn = false
+            onToggled: {
+                ActionLog.taken("TransactionPage_iPaidMoney")
+                page.moneyIn = false
+            }
         }
 
         Controls.RadioButton {
@@ -233,7 +242,10 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@option:radio", "I received money")
             checked: page.moneyIn
             Controls.ButtonGroup.group: directionGroup
-            onToggled: page.moneyIn = true
+            onToggled: {
+                ActionLog.taken("TransactionPage_iReceivedMoney")
+                page.moneyIn = true
+            }
         }
 
         Controls.TextField {
@@ -243,7 +255,10 @@ Kirigami.ScrollablePage {
             placeholderText: page.i18nContext.i18nc("@info:placeholder %1 is an example amount", "For example %1", page.amountExample)
             inputMethodHints: Qt.ImhFormattedNumbersOnly
             readOnly: page.entry.imported ?? false
-            onAccepted: page.save()
+            onAccepted: {
+                ActionLog.taken("TransactionPage_save")
+                page.save()
+            }
         }
 
         Controls.TextField {
@@ -255,7 +270,10 @@ Kirigami.ScrollablePage {
             placeholderText: page.moneyIn
                 ? page.i18nContext.i18nc("@info:placeholder", "For example your employer")
                 : page.i18nContext.i18nc("@info:placeholder", "For example the shop")
-            onAccepted: page.save()
+            onAccepted: {
+                ActionLog.taken("TransactionPage_save_2")
+                page.save()
+            }
         }
 
         // The name as the bank or file delivered it, when the transaction
@@ -287,7 +305,10 @@ Kirigami.ScrollablePage {
             visible: page.editable
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Date:")
             text: page.register.today
-            onAccepted: page.save()
+            onAccepted: {
+                ActionLog.taken("TransactionPage_save_3")
+                page.save()
+            }
         }
 
         RowLayout {
@@ -297,21 +318,30 @@ Kirigami.ScrollablePage {
                     ? page.i18nContext.i18nc("@action:button", "Add transaction")
                     : page.i18nContext.i18nc("@action:button", "Save")
                 icon.name: page.adding ? "list-add" : "document-save"
-                onClicked: page.save()
+                onClicked: {
+                    ActionLog.taken("TransactionPage_save_4")
+                    page.save()
+                }
             }
 
             Controls.Button {
                 visible: !page.adding && page.kind !== "starting-balance"
                 text: page.i18nContext.i18nc("@action:button", "Remove")
                 icon.name: "edit-delete"
-                onClicked: page.remove()
+                onClicked: {
+                    ActionLog.taken("TransactionPage_remove")
+                    page.remove()
+                }
             }
 
             Controls.Button {
                 visible: page.firstRun
                 text: page.i18nContext.i18nc("@action:button", "Skip for now")
                 flat: true
-                onClicked: page.done()
+                onClicked: {
+                    ActionLog.taken("TransactionPage_skipNow")
+                    page.done()
+                }
             }
         }
 
@@ -323,7 +353,10 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@action:button", "Break down this transaction…")
             icon.name: "view-list-details"
             flat: true
-            onClicked: page.breakDownClicked(page.chosenAccount, page.transactionId)
+            onClicked: {
+                ActionLog.taken("TransactionPage_breakDownTransaction")
+                page.breakDownClicked(page.chosenAccount, page.transactionId)
+            }
         }
 
         // Likewise a Rule: sorting the next transactions like this one
@@ -333,7 +366,10 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@action:button", "Create a Rule from this transaction…")
             icon.name: "view-filter"
             flat: true
-            onClicked: page.createRuleClicked(page.chosenAccount, page.transactionId)
+            onClicked: {
+                ActionLog.taken("TransactionPage_createRuleTransaction")
+                page.createRuleClicked(page.chosenAccount, page.transactionId)
+            }
         }
 
         Controls.Label {

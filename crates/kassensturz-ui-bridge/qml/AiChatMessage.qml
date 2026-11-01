@@ -179,13 +179,19 @@ ColumnLayout {
                 Controls.Button {
                     icon.name: "document-edit"
                     text: item.i18nContext.i18nc("@action:button", "Read and confirm…")
-                    onClicked: item.reviewClicked(item.message.setId)
+                    onClicked: {
+                        ActionLog.taken("AiChatMessage_readConfirm")
+                        item.reviewClicked(item.message.setId)
+                    }
                 }
 
                 Controls.Button {
                     icon.name: "edit-delete"
                     text: item.i18nContext.i18nc("@action:button throw the prepared changes away", "Throw away")
-                    onClicked: item.discardClicked(item.message.setId)
+                    onClicked: {
+                        ActionLog.taken("AiChatMessage_throwAway")
+                        item.discardClicked(item.message.setId)
+                    }
                 }
             }
         }
@@ -226,7 +232,10 @@ ColumnLayout {
             Controls.Button {
                 icon.name: "view-statistics"
                 text: item.i18nContext.i18nc("@action:button open the Statistic Builder to make a chart yourself", "Open the Statistic Builder")
-                onClicked: item.builderClicked(item.message.kind === "chartFailed" ? (item.message.dataset ?? "") : "")
+                onClicked: {
+                    ActionLog.taken("AiChatMessage_openStatisticBuilder")
+                    item.builderClicked(item.message.kind === "chartFailed" ? (item.message.dataset ?? "") : "")
+                }
             }
         }
     }
@@ -332,6 +341,7 @@ ColumnLayout {
                     icon.name: "internet-services"
                     text: item.i18nContext.i18nc("@action:button opens the problem report page in the browser", "Open the report page")
                     onClicked: {
+                        ActionLog.taken("AiChatMessage_openReportPage")
                         Qt.openUrlExternally(item.message.link);
                         item.issueUsed("opened");
                     }
@@ -341,6 +351,7 @@ ColumnLayout {
                     icon.name: "edit-copy"
                     text: item.i18nContext.i18nc("@action:button copies the report's text", "Copy the text")
                     onClicked: {
+                        ActionLog.taken("AiChatMessage_copyText")
                         issueBody.selectAll();
                         issueBody.copy();
                         issueBody.deselect();

@@ -163,14 +163,20 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@option:radio", "I paid money")
             checked: !page.moneyIn
             Controls.ButtonGroup.group: directionGroup
-            onToggled: page.moneyIn = false
+            onToggled: {
+                ActionLog.taken("PartsPage_iPaidMoney")
+                page.moneyIn = false
+            }
         }
 
         Controls.RadioButton {
             text: page.i18nContext.i18nc("@option:radio", "I received money")
             checked: page.moneyIn
             Controls.ButtonGroup.group: directionGroup
-            onToggled: page.moneyIn = true
+            onToggled: {
+                ActionLog.taken("PartsPage_iReceivedMoney")
+                page.moneyIn = true
+            }
         }
 
         Controls.TextField {
@@ -180,7 +186,10 @@ Kirigami.ScrollablePage {
             inputMethodHints: Qt.ImhFormattedNumbersOnly
             readOnly: page.entry.totalFixed ?? false
             onTextEdited: page.refresh()
-            onAccepted: page.save()
+            onAccepted: {
+                ActionLog.taken("PartsPage_save")
+                page.save()
+            }
         }
 
         Controls.Label {
@@ -196,14 +205,20 @@ Kirigami.ScrollablePage {
             Kirigami.FormData.label: page.moneyIn
                 ? page.i18nContext.i18nc("@label:textbox who the money came from", "From:")
                 : page.i18nContext.i18nc("@label:textbox who the money went to", "To:")
-            onAccepted: page.save()
+            onAccepted: {
+                ActionLog.taken("PartsPage_save_2")
+                page.save()
+            }
         }
 
         Controls.TextField {
             id: dateField
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Date:")
             onTextEdited: page.refresh()
-            onAccepted: page.save()
+            onAccepted: {
+                ActionLog.taken("PartsPage_save_3")
+                page.save()
+            }
         }
 
         Kirigami.Separator {
@@ -264,7 +279,10 @@ Kirigami.ScrollablePage {
                         page.partsModel.remove(index);
                         page.refresh();
                     }
-                    onAccepted: page.save()
+                    onAccepted: {
+                        ActionLog.taken("PartsPage_save_4")
+                        page.save()
+                    }
                 }
             }
         }
@@ -272,7 +290,10 @@ Kirigami.ScrollablePage {
         Controls.Button {
             text: page.i18nContext.i18nc("@action:button", "Add a part")
             icon.name: "list-add"
-            onClicked: page.addPart()
+            onClicked: {
+                ActionLog.taken("PartsPage_addPart")
+                page.addPart()
+            }
         }
 
         // Whether it all adds up, from the exact amounts (D-065).
@@ -293,14 +314,20 @@ Kirigami.ScrollablePage {
                 text: page.i18nContext.i18nc("@action:button", "Save")
                 icon.name: "document-save"
                 enabled: page.entry.id !== undefined
-                onClicked: page.save()
+                onClicked: {
+                    ActionLog.taken("PartsPage_save_5")
+                    page.save()
+                }
             }
 
             Controls.Button {
                 text: page.i18nContext.i18nc("@action:button", "Remove")
                 icon.name: "edit-delete"
                 enabled: page.entry.id !== undefined
-                onClicked: page.remove()
+                onClicked: {
+                    ActionLog.taken("PartsPage_remove")
+                    page.remove()
+                }
             }
         }
 

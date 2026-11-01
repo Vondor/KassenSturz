@@ -66,7 +66,10 @@ Flow {
         checked: periodPopup.opened
         text: bar.i18nContext.i18nc("@action:button %1 is a period like This year", "Period: %1", bar.filters.period === "" ? bar.i18nContext.i18nc("@item the period the page itself shows", "as the page") : names.periodName(bar.filters.period))
         Accessible.name: text
-        onClicked: periodPopup.opened ? periodPopup.close() : periodPopup.open()
+        onClicked: {
+            ActionLog.taken("FilterBar_page")
+            periodPopup.opened ? periodPopup.close() : periodPopup.open()
+        }
 
         Controls.Popup {
             id: periodPopup
@@ -81,6 +84,7 @@ Flow {
                 options: bar.periodWords.map(word => ({word: word, name: names.periodName(word)}))
                 word: bar.filters.period === "" ? "page" : bar.filters.period
                 onChosen: word => {
+                    ActionLog.taken("FilterBar_chosen")
                     bar.set("period", word === "page" ? "" : word);
                     if (word !== "" && word !== undefined) {
                         periodPopup.close();
@@ -111,7 +115,10 @@ Flow {
         visible: bar.editing ? bar.anyChoice : bar.filters.forNow
         icon.name: "edit-undo"
         text: bar.i18nContext.i18nc("@action:button go back to the filters the layout has", "Reset filters")
-        onClicked: bar.reset()
+        onClicked: {
+            ActionLog.taken("FilterBar_resetFilters")
+            bar.reset()
+        }
     }
 
     Controls.Label {

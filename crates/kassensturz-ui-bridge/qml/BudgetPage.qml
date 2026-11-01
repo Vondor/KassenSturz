@@ -166,7 +166,10 @@ Kirigami.ScrollablePage {
             visible: page.adding && !page.repeats
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox the first day of a budget for some days", "First day:")
             placeholderText: page.i18nContext.i18nc("@info:placeholder", "For example 1 Nov 2026, in your regional format")
-            onAccepted: page.save()
+            onAccepted: {
+                ActionLog.taken("BudgetPage_save")
+                page.save()
+            }
         }
 
         Controls.TextField {
@@ -175,7 +178,10 @@ Kirigami.ScrollablePage {
             visible: page.adding && !page.repeats
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox the last day of a budget for some days", "Last day:")
             placeholderText: page.i18nContext.i18nc("@info:placeholder", "For example 30 Nov 2026, in your regional format")
-            onAccepted: page.save()
+            onAccepted: {
+                ActionLog.taken("BudgetPage_save_2")
+                page.save()
+            }
         }
 
         RowLayout {
@@ -187,7 +193,10 @@ Kirigami.ScrollablePage {
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 10
                 inputMethodHints: Qt.ImhFormattedNumbersOnly
                 placeholderText: page.i18nContext.i18nc("@info:placeholder", "What you plan to spend")
-                onAccepted: page.save()
+                onAccepted: {
+                    ActionLog.taken("BudgetPage_save_3")
+                    page.save()
+                }
             }
 
             Controls.Label {
@@ -239,7 +248,10 @@ Kirigami.ScrollablePage {
                 : page.i18nContext.i18nc("@action:button", "Save the change")
             icon.name: page.adding ? "list-add" : "document-save"
             enabled: !page.adding || page.categoryChoices.length > 0
-            onClicked: page.save()
+            onClicked: {
+                ActionLog.taken("BudgetPage_save_4")
+                page.save()
+            }
         }
     }
 }

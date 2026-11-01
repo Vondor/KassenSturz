@@ -216,6 +216,7 @@ Kirigami.ScrollablePage {
         title: page.i18nContext.i18nc("@title:window", "Rename this view")
         standardButtons: Kirigami.Dialog.Save | Kirigami.Dialog.Cancel
         onAccepted: {
+            ActionLog.taken("StatisticsPage_accepted")
             error.result = page.saved.rename(page.renamed.id, renameField.text);
             if (error.result.code === undefined && page.openId === page.renamed.id) {
                 page.openName = renameField.text.trim();
@@ -228,7 +229,10 @@ Kirigami.ScrollablePage {
             text: page.renamed.name ?? ""
             maximumLength: 200
             Accessible.name: page.i18nContext.i18nc("@label:textbox", "Name of the view")
-            onAccepted: renameDialog.accept()
+            onAccepted: {
+                ActionLog.taken("StatisticsPage_nameView")
+                renameDialog.accept()
+            }
         }
     }
 
@@ -258,17 +262,26 @@ Kirigami.ScrollablePage {
 
             Controls.Button {
                 text: page.i18nContext.i18nc("@action:button opens the wizard at the step for the period", "Period…")
-                onClicked: page.changeStep(0)
+                onClicked: {
+                    ActionLog.taken("StatisticsPage_period")
+                    page.changeStep(0)
+                }
             }
 
             Controls.Button {
                 text: page.i18nContext.i18nc("@action:button opens the wizard at the step for the categories", "Categories…")
-                onClicked: page.changeStep(1)
+                onClicked: {
+                    ActionLog.taken("StatisticsPage_categories")
+                    page.changeStep(1)
+                }
             }
 
             Controls.Button {
                 text: page.i18nContext.i18nc("@action:button opens the wizard at the step for the look and the title", "Look and title…")
-                onClicked: page.changeStep(2)
+                onClicked: {
+                    ActionLog.taken("StatisticsPage_lookTitle")
+                    page.changeStep(2)
+                }
             }
         }
 
@@ -277,6 +290,7 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@action:button make a new view step by step", "Guide me step by step")
             icon.name: "tools-wizard"
             onClicked: {
+                ActionLog.taken("StatisticsPage_guideMeStep")
                 page.wizard = true;
                 wizardView.restart();
             }
@@ -295,7 +309,10 @@ Kirigami.ScrollablePage {
                 textRole: "name"
                 valueRole: "id"
                 currentIndex: page.types.indexOf(workbench.view?.type)
-                onActivated: index => workbench.setType(page.types[index])
+                onActivated: index => {
+                    ActionLog.taken("StatisticsPage_setType")
+                    workbench.setType(page.types[index])
+                }
             }
 
             PeriodChoice {
@@ -304,7 +321,10 @@ Kirigami.ScrollablePage {
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox", "Period")
                 options: page.periods.map(id => ({word: id, name: page.periodName(id)}))
                 word: page.period
-                onChosen: word => page.period = word
+                onChosen: word => {
+                    ActionLog.taken("StatisticsPage_period_2")
+                    page.period = word
+                }
             }
         }
 
@@ -356,13 +376,19 @@ Kirigami.ScrollablePage {
                 Controls.Button {
                     text: page.i18nContext.i18nc("@action:button", "Save changes to this view")
                     icon.name: "document-save"
-                    onClicked: page.saveChanges()
+                    onClicked: {
+                        ActionLog.taken("StatisticsPage_saveChangesView")
+                        page.saveChanges()
+                    }
                 }
 
                 Controls.Button {
                     text: page.i18nContext.i18nc("@action:button start from a clean page", "Start a new one")
                     icon.name: "document-new"
-                    onClicked: page.startNew()
+                    onClicked: {
+                        ActionLog.taken("StatisticsPage_startNewOne")
+                        page.startNew()
+                    }
                 }
             }
 
@@ -376,14 +402,20 @@ Kirigami.ScrollablePage {
                     maximumLength: 200
                     placeholderText: page.i18nContext.i18nc("@info:placeholder", "A name for this view")
                     Accessible.name: page.i18nContext.i18nc("@label:textbox", "Name of the view")
-                    onAccepted: page.saveNew()
+                    onAccepted: {
+                        ActionLog.taken("StatisticsPage_nameView_2")
+                        page.saveNew()
+                    }
                 }
 
                 Controls.Button {
                     text: page.i18nContext.i18nc("@action:button", "Save as a new view")
                     icon.name: "document-save-as"
                     enabled: nameField.text.trim() !== ""
-                    onClicked: page.saveNew()
+                    onClicked: {
+                        ActionLog.taken("StatisticsPage_saveNewView")
+                        page.saveNew()
+                    }
                 }
             }
 
@@ -404,7 +436,10 @@ Kirigami.ScrollablePage {
                         text: row.modelData.usable
                             ? row.modelData.name
                             : page.i18nContext.i18nc("@action:button %1 is the name of a saved view", "%1 (can't be opened by this version)", row.modelData.name)
-                        onClicked: page.openView(row.modelData.id)
+                        onClicked: {
+                            ActionLog.taken("StatisticsPage_openView")
+                            page.openView(row.modelData.id)
+                        }
                     }
 
                     Controls.ToolButton {
@@ -414,6 +449,7 @@ Kirigami.ScrollablePage {
                         Controls.ToolTip.text: text
                         Controls.ToolTip.visible: hovered
                         onClicked: {
+                            ActionLog.taken("StatisticsPage_rename")
                             page.renamed = row.modelData;
                             renameField.text = row.modelData.name;
                             renameDialog.open();
@@ -427,6 +463,7 @@ Kirigami.ScrollablePage {
                         Controls.ToolTip.text: text
                         Controls.ToolTip.visible: hovered
                         onClicked: {
+                            ActionLog.taken("StatisticsPage_delete")
                             error.result = page.saved.remove(row.modelData.id);
                             if (page.openId === row.modelData.id) {
                                 page.openId = "";

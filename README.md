@@ -126,6 +126,8 @@ While it runs, the window title ends in "developer mode" and a banner above ever
 
 **Timing a screen:** `screen.requested` is written when the app starts making a screen (after a click on a menu entry, an account or a button), `screen.shown` when it is there, and for the register `screen.ready` when its lines were read and drawn. The difference between the times is how long each step took; no names or amounts are logged.
 
+**What the user did:** `ui.action-taken` is written when a handler of a button, menu entry, switch, choice or confirmation runs, and its detail names the action (`RulesPage_addRule`; the names are in `crates/kassensturz-core/src/vocabulary/actions.rs`). A click that is logged here but changes nothing failed after the handler started; a click that is not logged never reached its handler. Every such handler in the QML must say so (`ActionLog.taken("<File>_<what>")` on its first line); `tools/check-action-log.sh` and the test `action_log_audit` fail on one that doesn't.
+
 Distributions can leave the log code out with the CMake option `-DKASSENSTURZ_DEBUG_LOG=OFF` (Cargo feature `debug-log`).
 
 ### Typing the FinTS registration number

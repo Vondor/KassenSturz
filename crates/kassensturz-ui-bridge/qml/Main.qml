@@ -315,6 +315,7 @@ Kirigami.ApplicationWindow {
         id: geometryTimer
         interval: 300
         onTriggered: {
+            ActionLog.taken("Main_triggered")
             if (root.visibility === Window.Windowed) {
                 root.normalGeometry = Qt.rect(root.x, root.y, root.width, root.height);
             }
@@ -701,12 +702,18 @@ Kirigami.ApplicationWindow {
                     Kirigami.Action {
                         icon.name: "folder-open"
                         text: root.i18nContext.i18nc("@action:button opens the folder of the developer mode's log", "Show the log")
-                        onTriggered: Qt.openUrlExternally(developerMode.folderUrl())
+                        onTriggered: {
+                            ActionLog.taken("Main_showLog")
+                            Qt.openUrlExternally(developerMode.folderUrl())
+                        }
                     },
                     Kirigami.Action {
                         icon.name: "edit-delete"
                         text: root.i18nContext.i18nc("@action:button deletes the developer mode's log", "Delete the log")
-                        onTriggered: developerMode.clearLog()
+                        onTriggered: {
+                            ActionLog.taken("Main_deleteLog")
+                            developerMode.clearLog()
+                        }
                     }
                 ]
             }
@@ -739,37 +746,58 @@ Kirigami.ApplicationWindow {
             Kirigami.Action {
                 icon.name: "go-home"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Overview")
-                onTriggered: root.showScreen("overview")
+                onTriggered: {
+                    ActionLog.taken("Main_overview")
+                    root.showScreen("overview")
+                }
             },
             Kirigami.Action {
                 icon.name: "view-financial-account"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Accounts")
-                onTriggered: root.showScreen("accounts")
+                onTriggered: {
+                    ActionLog.taken("Main_accounts")
+                    root.showScreen("accounts")
+                }
             },
             Kirigami.Action {
                 icon.name: "view-financial-categories"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Categories")
-                onTriggered: root.showScreen("categories")
+                onTriggered: {
+                    ActionLog.taken("Main_categories")
+                    root.showScreen("categories")
+                }
             },
             Kirigami.Action {
                 icon.name: "wallet-open"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Budgets")
-                onTriggered: root.showScreen("budgets")
+                onTriggered: {
+                    ActionLog.taken("Main_budgets")
+                    root.showScreen("budgets")
+                }
             },
             Kirigami.Action {
                 icon.name: "view-filter"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Rules")
-                onTriggered: root.showScreen("rules")
+                onTriggered: {
+                    ActionLog.taken("Main_rules")
+                    root.showScreen("rules")
+                }
             },
             Kirigami.Action {
                 icon.name: "office-chart-bar"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Statistic Builder")
-                onTriggered: root.showScreen("statistics")
+                onTriggered: {
+                    ActionLog.taken("Main_statisticBuilder")
+                    root.showScreen("statistics")
+                }
             },
             Kirigami.Action {
                 icon.name: "settings-configure"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Settings")
-                onTriggered: root.showScreen("settings")
+                onTriggered: {
+                    ActionLog.taken("Main_settings")
+                    root.showScreen("settings")
+                }
             },
             Kirigami.Action {
                 separator: true
@@ -783,7 +811,10 @@ Kirigami.ApplicationWindow {
                 // The menu cuts a long text, so the tooltip has all of it (#205).
                 tooltip: text
                 shortcut: StandardKey.Undo
-                onTriggered: root.undoLast()
+                onTriggered: {
+                    ActionLog.taken("Main_undoLast")
+                    root.undoLast()
+                }
             },
             Kirigami.Action {
                 icon.name: "edit-redo"
@@ -793,7 +824,10 @@ Kirigami.ApplicationWindow {
                     : root.i18nContext.i18nc("@action:inmenu there is nothing to redo", "Redo")
                 tooltip: text
                 shortcut: StandardKey.Redo
-                onTriggered: root.redoLast()
+                onTriggered: {
+                    ActionLog.taken("Main_redoLast")
+                    root.redoLast()
+                }
             }
         ]
     }
@@ -806,7 +840,10 @@ Kirigami.ApplicationWindow {
 
         sequence: "Ctrl+Shift+A"
         enabled: aiSwitch.enabled && root.started
-        onActivated: chatDrawer.drawerOpen = !chatDrawer.drawerOpen
+        onActivated: {
+            ActionLog.taken("Main_drawerOpen")
+            chatDrawer.drawerOpen = !chatDrawer.drawerOpen
+        }
     }
 
     // The edge of the open menu, which the user drags to change its width
@@ -1018,7 +1055,10 @@ Kirigami.ApplicationWindow {
         fileMode: Dialogs.FileDialog.OpenFile
         currentFolder: bookSession.folderUrl
         nameFilters: [root.i18nContext.i18nc("@item:inlistbox a file type", "KassenSturz books (*.ksz)")]
-        onAccepted: bookSession.openFile(selectedFile)
+        onAccepted: {
+            ActionLog.taken("Main_openFile")
+            bookSession.openFile(selectedFile)
+        }
     }
 
     Dialogs.FileDialog {
@@ -1029,7 +1069,10 @@ Kirigami.ApplicationWindow {
         currentFolder: bookSession.folderUrl
         defaultSuffix: "ksz"
         nameFilters: [root.i18nContext.i18nc("@item:inlistbox a file type", "KassenSturz books (*.ksz)")]
-        onAccepted: bookSession.createFile(selectedFile)
+        onAccepted: {
+            ActionLog.taken("Main_createFile")
+            bookSession.createFile(selectedFile)
+        }
     }
 
     Dialogs.FileDialog {
@@ -1044,7 +1087,10 @@ Kirigami.ApplicationWindow {
             root.i18nContext.i18nc("@item:inlistbox a file type", "All files (*)"),
             root.i18nContext.i18nc("@item:inlistbox a file type", "Books (*.kmy *.sqlite *.db *.json)")
         ]
-        onAccepted: root.startBookFromFile(selectedFile)
+        onAccepted: {
+            ActionLog.taken("Main_startBookFromFile")
+            root.startBookFromFile(selectedFile)
+        }
     }
 
     Dialogs.FileDialog {
@@ -1059,7 +1105,10 @@ Kirigami.ApplicationWindow {
             root.i18nContext.i18nc("@item:inlistbox a file type", "Bank files (*.xml *.sta *.ofx *.csv *.txt)"),
             root.i18nContext.i18nc("@item:inlistbox a file type", "All files (*)")
         ]
-        onAccepted: root.startImport(accountId, selectedFile)
+        onAccepted: {
+            ActionLog.taken("Main_startImport")
+            root.startImport(accountId, selectedFile)
+        }
     }
 
     Component {
@@ -1067,7 +1116,10 @@ Kirigami.ApplicationWindow {
 
         ImportStatementsPage {
             statementImport: statementImporter
-            onChosen: root.replacePage(root.importStep())
+            onChosen: {
+                ActionLog.taken("Main_replacePage")
+                root.replacePage(root.importStep())
+            }
         }
     }
 

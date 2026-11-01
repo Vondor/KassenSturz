@@ -81,10 +81,24 @@ pub const DETAILS: &[&str] = &[
     "WelcomePage",
 ];
 
-/// The entry of [`DETAILS`] that is `detail`, e.g. for a function a model
-/// named.
+mod actions;
+
+pub use actions::ACTIONS;
+
+/// The entry of [`DETAILS`] or [`ACTIONS`] that is `detail`, e.g. for a
+/// function a model named.
 pub fn known_detail(detail: &str) -> Option<&'static str> {
-    DETAILS.iter().copied().find(|known| *known == detail)
+    DETAILS
+        .iter()
+        .chain(ACTIONS)
+        .copied()
+        .find(|known| *known == detail)
+}
+
+/// The action of the name `name` from [`ACTIONS`], for a button, menu entry
+/// or choice that names itself.
+pub fn action(name: &str) -> Option<&'static str> {
+    ACTIONS.iter().copied().find(|known| *known == name)
 }
 
 /// The screen of the name `name` from [`DETAILS`], for a screen that names
@@ -107,5 +121,27 @@ mod tests {
         assert_eq!(screen("list_accounts"), None, "only pages are screens");
         assert_eq!(known_detail("draft_issue"), Some("draft_issue"));
         assert_eq!(known_detail("Groceries"), None);
+    }
+
+    #[test]
+    fn actions_are_known_details() {
+        let first = ACTIONS[0];
+        assert_eq!(action(first), Some(first));
+        assert_eq!(known_detail(first), Some(first));
+        assert_eq!(action("Groceries"), None);
+        assert_eq!(action("list_accounts"), None);
+        for action in ACTIONS {
+            assert!(
+                action
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_'),
+                "{action}"
+            );
+            assert!(!DETAILS.contains(action), "{action} is in DETAILS too");
+        }
+        let mut sorted = ACTIONS.to_vec();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(sorted, ACTIONS, "ACTIONS is sorted and without doubles");
     }
 }

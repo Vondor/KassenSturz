@@ -72,7 +72,10 @@ FormCard.FormCardPage {
         fileMode: Dialogs.FileDialog.SaveFile
         defaultSuffix: "ksz"
         nameFilters: [page.i18nContext.i18nc("@item:inlistbox a file type", "KassenSturz books (*.ksz)")]
-        onAccepted: error.result = page.bookFromFile.createAt(page.answers(), page.rulesOnlyWithText, selectedFile)
+        onAccepted: {
+            ActionLog.taken("BookFromFilePage_result")
+            error.result = page.bookFromFile.createAt(page.answers(), page.rulesOnlyWithText, selectedFile)
+        }
     }
 
     FormCard.FormHeader {
@@ -178,7 +181,10 @@ FormCard.FormCardPage {
             description: page.advanced
                 ? ""
                 : page.i18nContext.i18nc("@info", "Which of your KMyMoney names get a Rule.")
-            onClicked: page.advanced = !page.advanced
+            onClicked: {
+                ActionLog.taken("BookFromFilePage_advanced")
+                page.advanced = !page.advanced
+            }
         }
 
         FormCard.FormDelegateSeparator {
@@ -190,7 +196,10 @@ FormCard.FormCardPage {
             text: page.i18nContext.i18nc("@option:check", "Make Rules only for names with a matching text")
             description: page.i18nContext.i18ncp("@info %1 is how many", "Your file has %1 name with a default category but no matching text. Usually KassenSturz makes a Rule for it too, which recognizes it by its name. Turn this on to leave it out.", "Your file has %1 names with a default category but no matching text. Usually KassenSturz makes a Rule for each, which recognizes it by its name. Turn this on to leave them out.", page.file.rulesByNameOnly ?? 0)
             checked: page.rulesOnlyWithText
-            onToggled: page.rulesOnlyWithText = checked
+            onToggled: {
+                ActionLog.taken("BookFromFilePage_makeRulesOnly")
+                page.rulesOnlyWithText = checked
+            }
         }
     }
 
@@ -200,7 +209,10 @@ FormCard.FormCardPage {
             text: page.file.canChoosePlace
                 ? page.i18nContext.i18nc("@action:button", "Choose where to keep it…")
                 : page.i18nContext.i18nc("@action:button", "Make the book")
-            onClicked: page.make()
+            onClicked: {
+                ActionLog.taken("BookFromFilePage_make")
+                page.make()
+            }
         }
 
         FormCard.FormDelegateSeparator {}
@@ -209,7 +221,10 @@ FormCard.FormCardPage {
             icon.name: "dialog-cancel"
             text: page.i18nContext.i18nc("@action:button", "Don't make a book")
             description: page.i18nContext.i18nc("@info", "The file stays as it is.")
-            onClicked: page.cancelled()
+            onClicked: {
+                ActionLog.taken("BookFromFilePage_donTMake")
+                page.cancelled()
+            }
         }
     }
 }

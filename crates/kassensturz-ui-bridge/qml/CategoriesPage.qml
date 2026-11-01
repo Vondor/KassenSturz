@@ -98,12 +98,18 @@ Kirigami.ScrollablePage {
         Kirigami.Action {
             icon.name: "list-add"
             text: page.i18nContext.i18nc("@action:button", "Add category")
-            onTriggered: page.addCategoryClicked()
+            onTriggered: {
+                ActionLog.taken("CategoriesPage_addCategory")
+                page.addCategoryClicked()
+            }
         },
         Kirigami.Action {
             icon.name: "folder-symbolic"
             text: page.i18nContext.i18nc("@action:button opens the page for groups of categories and hidden ones", "My groups and hidden categories")
-            onTriggered: page.groupsClicked()
+            onTriggered: {
+                ActionLog.taken("CategoriesPage_groupsHiddenCategories")
+                page.groupsClicked()
+            }
         }
     ]
 
@@ -118,7 +124,10 @@ Kirigami.ScrollablePage {
             helpfulAction: Kirigami.Action {
                 icon.name: "list-add"
                 text: page.i18nContext.i18nc("@action:button", "Add category")
-                onTriggered: page.addCategoryClicked()
+                onTriggered: {
+                    ActionLog.taken("CategoriesPage_addCategory_2")
+                    page.addCategoryClicked()
+                }
             }
         }
 
@@ -143,7 +152,10 @@ Kirigami.ScrollablePage {
                 text: modelData.name
                 Accessible.name: isGroup ? modelData.name : modelData.path
                 // A heading opens and closes; a category opens to be changed.
-                onClicked: isGroup ? page.toggle(modelData.key) : page.categoryClicked(modelData.id)
+                onClicked: {
+                    ActionLog.taken("CategoriesPage_clicked")
+                    isGroup ? page.toggle(modelData.key) : page.categoryClicked(modelData.id)
+                }
                 Keys.onLeftPressed: if (modelData.hasChildren && modelData.expanded) page.toggle(modelData.key)
                 Keys.onRightPressed: if (modelData.hasChildren && !modelData.expanded) page.toggle(modelData.key)
 
@@ -192,7 +204,10 @@ Kirigami.ScrollablePage {
                         text: entry.modelData.expanded
                             ? page.i18nContext.i18nc("@action:button hide what is inside a category", "Collapse")
                             : page.i18nContext.i18nc("@action:button show what is inside a category", "Expand")
-                        onClicked: page.toggle(entry.modelData.key)
+                        onClicked: {
+                            ActionLog.taken("CategoriesPage_toggle")
+                            page.toggle(entry.modelData.key)
+                        }
 
                         Controls.ToolTip.text: text
                         Controls.ToolTip.visible: hovered

@@ -539,7 +539,10 @@ Item {
                             Kirigami.Action {
                                 icon.name: "view-refresh"
                                 text: names.i18nContext.i18nc("@action:button", "Get new transactions")
-                                onTriggered: cell.board.getTransactionsClicked(gap.modelData.accountId)
+                                onTriggered: {
+                                    ActionLog.taken("GridItem_getNewTransactions")
+                                    cell.board.getTransactionsClicked(gap.modelData.accountId)
+                                }
                             }
                         ]
                     }
@@ -723,33 +726,48 @@ Item {
                             icon.name: "go-up"
                             text: names.i18nContext.i18nc("@action:button move the component up the list", "Move earlier")
                             displayHint: Kirigami.DisplayHint.IconOnly
-                            onTriggered: cell.board.edit(cell.board.layout.moveEarlier(cell.itemId))
+                            onTriggered: {
+                                ActionLog.taken("GridItem_moveEarlier")
+                                cell.board.edit(cell.board.layout.moveEarlier(cell.itemId))
+                            }
                         },
                         Kirigami.Action {
                             visible: cell.narrow
                             icon.name: "go-down"
                             text: names.i18nContext.i18nc("@action:button move the component down the list", "Move later")
                             displayHint: Kirigami.DisplayHint.IconOnly
-                            onTriggered: cell.board.edit(cell.board.layout.moveLater(cell.itemId))
+                            onTriggered: {
+                                ActionLog.taken("GridItem_moveLater")
+                                cell.board.edit(cell.board.layout.moveLater(cell.itemId))
+                            }
                         },
                         Kirigami.Action {
                             icon.name: "edit-copy"
                             text: names.i18nContext.i18nc("@action:button copy the component", "Duplicate")
                             displayHint: Kirigami.DisplayHint.IconOnly
-                            onTriggered: cell.board.duplicate(cell.itemId)
+                            onTriggered: {
+                                ActionLog.taken("GridItem_duplicate")
+                                cell.board.duplicate(cell.itemId)
+                            }
                         },
                         Kirigami.Action {
                             icon.name: "configure"
                             text: names.i18nContext.i18nc("@action:button change what the component shows", "Properties")
                             displayHint: Kirigami.DisplayHint.IconOnly
                             enabled: !cell.unknown
-                            onTriggered: cell.board.propertiesRequested(cell.itemId)
+                            onTriggered: {
+                                ActionLog.taken("GridItem_properties")
+                                cell.board.propertiesRequested(cell.itemId)
+                            }
                         },
                         Kirigami.Action {
                             icon.name: "edit-delete"
                             text: names.i18nContext.i18nc("@action:button take the component out of the layout", "Remove")
                             displayHint: Kirigami.DisplayHint.IconOnly
-                            onTriggered: cell.board.remove(cell.itemId)
+                            onTriggered: {
+                                ActionLog.taken("GridItem_remove")
+                                cell.board.remove(cell.itemId)
+                            }
                         }
                     ]
                 }

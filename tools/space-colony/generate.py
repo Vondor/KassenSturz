@@ -7,9 +7,9 @@
 The book is a KMyMoney SQLite file (layout 15) that KassenSturz imports like
 any other. It keeps the accounts, categories, institutions and securities of
 the older `space-colony-v15.sqlite`, keeps that book's entries up to
-2026-10-28 as realistic examples (with a payee that fits each entry's
+2026-11-01 as realistic examples (with a payee that fits each entry's
 category; the ones dated later are left out), and fills the five years around
-them with made-up, believable life from 2021-11-01 to 2026-10-28: pay slips split into several parts,
+them with made-up, believable life from 2021-11-01 to 2026-11-01: pay slips split into several parts,
 rent and utility bills, seasonal food and energy costs, insurance and tax
 installments, saving, a loan being paid off, summer and winter trips paid in
 US dollars from a dollar account, and the last weeks as lines the bank
@@ -50,7 +50,7 @@ OUT = os.path.join(
 )
 
 START = date(2021, 11, 1)
-END = date(2026, 10, 28)
+END = date(2026, 11, 1)
 LAST_RECONCILED = date(2026, 8, 31)
 LAST_CLEARED = date(2026, 10, 14)
 UNSORTED_FROM = date(2026, 9, 1)
@@ -243,7 +243,7 @@ def usd_per_eur(year, month):
     anchors = [
         ((2021, 11), 11560), ((2022, 9), 9900), ((2023, 6), 10900),
         ((2024, 6), 10700), ((2025, 6), 11500), ((2026, 6), 11700),
-        ((2026, 10), 11600),
+        ((2026, 10), 11600), ((2026, 11), 11600),
     ]
     at = year * 12 + month
     for (a, ar), (b, br) in zip(anchors, anchors[1:]):
@@ -574,6 +574,13 @@ def one_offs(year, month):
         pay(date(2025, 2, 13), CHECKING, "Zero-G Dentist", 42000, "Zero-G Dental Clinic", "Crown")
     if (year, month) == (2026, 10):
         pay(END, CHECKING, "Rover and Vehicles", 3980, "Titan Fuel Station", "Fuel", unsorted_ok=True)
+    if (year, month) == (2026, 11):
+        # The first Sunday of the month, so "this month" has a little life
+        # on the day the book was refreshed (the generator's own events
+        # fall on working days or later).
+        pay(END, CHECKING, "Dome 3 Cinema", 1450, "Aurora Dome Cinema", "Sunday matinee")
+        pay(END, CHECKING, "Holodeck", 2850, None, "Holodeck evening")
+        pay(END, CHECKING, "Observatory Visits", 1650, "Tycho Observatory", "Observatory visit")
     if (year, month) == (2026, 5):
         pay(date(2026, 5, 12), CHECKING, "Zero-G Dentist", 62000, "Zero-G Dental Clinic", "Dental work")
     if (year, month) == (2026, 2):

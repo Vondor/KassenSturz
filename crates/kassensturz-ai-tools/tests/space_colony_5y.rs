@@ -119,14 +119,14 @@ fn refusal(book: &Book, transaction: &Value, category: &str) -> String {
 #[test]
 fn the_file_imports_whole_and_balanced() {
     let (book, report) = five_years();
-    assert_eq!(report.transactions, 3791);
+    assert_eq!(report.transactions, 3798);
     assert_eq!(
         report.completed, 0,
         "every entry balances as the file has it"
     );
     assert!(report.converted.is_empty() && report.renamed.is_empty());
     assert_eq!(report.categories, 70);
-    assert_eq!(report.rates, 60, "one dollar rate a month");
+    assert_eq!(report.rates, 61, "one dollar rate a month");
     assert_eq!(report.rules, 33);
     assert_eq!(
         report.uncategorized, 16,
@@ -134,7 +134,7 @@ fn the_file_imports_whole_and_balanced() {
     );
     assert_eq!(
         book.booking_date_range().expect("dates"),
-        Some((Date::constant(2021, 11, 1), Date::constant(2026, 10, 28)))
+        Some((Date::constant(2021, 11, 1), Date::constant(2026, 11, 1)))
     );
 }
 
@@ -187,7 +187,7 @@ fn the_balances_are_the_generators() {
     let expected = [
         ("Dome Petty Cash", "1814.40", "EUR"),
         ("Earth Trip Wallet", "915.90", "USD"),
-        ("Everyday Checking", "9703.92", "EUR"),
+        ("Everyday Checking", "9509.07", "EUR"),
         ("Mars Rainy-Day Savings", "23375.01", "EUR"),
         ("Shipyard Loan", "-4200.00", "EUR"),
         ("Shuttle Travel Fund", "3300.49", "EUR"),
@@ -201,7 +201,7 @@ fn the_balances_are_the_generators() {
     assert_eq!(
         found["together"],
         json!([
-            {"currency": "EUR", "together": "33993.82"},
+            {"currency": "EUR", "together": "33798.97"},
             {"currency": "USD", "together": "915.90"},
         ])
     );
@@ -221,20 +221,20 @@ fn the_questionnaire_answers_of_this_book() {
     let to_today = run(
         &book,
         "category_totals",
-        json!({"from": "2026-01-01", "to": "2026-10-28"}),
+        json!({"from": "2026-01-01", "to": "2026-11-01"}),
     );
     assert_eq!(year["currencies"], to_today["currencies"]);
     let euro = &year["currencies"][0];
     assert_eq!(euro["currency"], "EUR");
-    assert_eq!(euro["money_out"], "45627.06");
+    assert_eq!(euro["money_out"], "45821.91");
     assert_eq!(euro["money_in"], "51691.11");
     assert_eq!(
         amounts(&euro["spending"], "category")[..5],
         [
             ("Taxes and Fees › Colony Income Tax", "10230.00"),
             ("Habitat › Rent", "7350.00"),
+            ("Food › Hydroponic Greens", "2822.01"),
             ("Travel › Earth-Mars Flights", "2779.43"),
-            ("Food › Hydroponic Greens", "2735.80"),
             ("Taxes and Fees › Colony Pension Fund", "2325.00"),
         ]
         .map(|(category, amount)| (category.to_owned(), amount.to_owned()))
@@ -255,7 +255,7 @@ fn the_questionnaire_answers_of_this_book() {
     assert_eq!(
         food,
         [
-            ("Food › Hydroponic Greens", "2735.80"),
+            ("Food › Hydroponic Greens", "2822.01"),
             ("Food", "1786.37"),
             ("Food › Algae Bars and Nutrient Paste", "705.43"),
         ]
@@ -299,7 +299,7 @@ fn the_questionnaire_answers_of_this_book() {
         rows[10]["amount"], "-821.04",
         "the eleventh is lower, not equal"
     );
-    assert_eq!(biggest["matches"], 844);
+    assert_eq!(biggest["matches"], 851);
 }
 
 #[test]
@@ -361,7 +361,7 @@ fn the_older_entries_are_kept_with_payees_that_fit() {
     let later = run(
         &book,
         "search_transactions",
-        json!({"from": "2026-10-29", "to": "2027-12-31"}),
+        json!({"from": "2026-11-02", "to": "2027-12-31"}),
     );
     assert_eq!(later["matches"], 0);
     // A payee never sits on a category that contradicts it: its own
@@ -443,7 +443,7 @@ fn what_the_ai_must_leave_alone_is_in_the_book() {
     // A line from the bank nobody sorted yet can be given a category.
     let unsorted = row_where(
         &book,
-        json!({"from": "2026-09-01", "to": "2026-10-28", "limit": 50}),
+        json!({"from": "2026-09-01", "to": "2026-11-01", "limit": 50}),
         |row| row["unsorted"] == true,
     );
     assert_eq!(unsorted["account"], "Everyday Checking");

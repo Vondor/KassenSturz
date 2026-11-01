@@ -22,7 +22,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-use kassensturz_core::{GroupKind, GroupMember};
+use kassensturz_core::{BudgetEvery, Date, GroupKind, GroupMember, Money};
 use kassensturz_export::{BookExport, ExportData, export, read_book};
 use kassensturz_import::{Imported, KmySqlite, Limits, import};
 use kassensturz_pipeline::{export_book, fill_book, fill_book_from};
@@ -86,6 +86,62 @@ const HIDDEN: [&str; 4] = [
     "Souvenirs",
 ];
 
+/// The monthly budgets of the sample book: a spending category (with
+/// everything inside it) and what is planned for each month, in whole
+/// euro cents, from January 2026 on. They give the Overview's budget bars
+/// something to show, some comfortably inside and some close to or over.
+const BUDGETS: [(&str, i64); 5] = [
+    ("Food", 65_000),
+    ("Fusion Power", 6_000),
+    ("Health", 4_000),
+    ("Rover and Vehicles", 48_000),
+    ("Leisure Pursuits", 6_000),
+];
+
+/// The Overview the sample book is saved with: a first look for someone who
+/// has never seen the app. A welcome line, what the money is worth, last
+/// month's four key figures, the budgets, where the money went and the last
+/// twelve months. The filter bar starts on last month, because the book is
+/// refreshed at the start of a month, when "this month" has hardly begun.
+const STARTER_OVERVIEW: &str = r#"{
+  "format": "kassensturz-dashboard", "version": 1, "kind": "dashboard",
+  "name": "Overview",
+  "filters": {"period": "last-month"},
+  "components": [
+    {"id": "welcome", "type": "text.heading",
+     "props": {"text": "Welcome aboard! Here is where your money stands."},
+     "frame": {"col": 0, "row": 0, "cols": 12, "rows": 1}},
+    {"id": "worth", "type": "card.net_worth",
+     "frame": {"col": 0, "row": 1, "cols": 12, "rows": 2}},
+    {"id": "income", "type": "kpi.card", "dataset": "income_expense_by_month",
+     "params": {"measure": "income", "compare": "previous_period"},
+     "frame": {"col": 0, "row": 3, "cols": 3, "rows": 2}},
+    {"id": "expenses", "type": "kpi.card", "dataset": "income_expense_by_month",
+     "params": {"measure": "expenses", "compare": "previous_period"},
+     "frame": {"col": 3, "row": 3, "cols": 3, "rows": 2}},
+    {"id": "left", "type": "kpi.card", "dataset": "income_expense_by_month",
+     "params": {"measure": "net", "compare": "previous_period"},
+     "frame": {"col": 6, "row": 3, "cols": 3, "rows": 2}},
+    {"id": "kept", "type": "kpi.card", "dataset": "income_expense_by_month",
+     "params": {"measure": "savings-rate", "compare": "previous_period"},
+     "frame": {"col": 9, "row": 3, "cols": 3, "rows": 2}},
+    {"id": "budgets", "type": "budget.progress", "dataset": "budget_utilization",
+     "props": {"title": "Your budgets"},
+     "frame": {"col": 0, "row": 5, "cols": 12, "rows": 4}},
+    {"id": "spending", "type": "chart.donut", "dataset": "spending_by_category",
+     "params": {"grouping": "top_level_category"},
+     "props": {"title": "Where the money went"},
+     "frame": {"col": 0, "row": 9, "cols": 6, "rows": 5}},
+    {"id": "biggest", "type": "table.rows", "dataset": "spending_by_category",
+     "params": {"grouping": "top_level_category"},
+     "props": {"title": "The biggest spending"},
+     "frame": {"col": 6, "row": 9, "cols": 6, "rows": 5}},
+    {"id": "trend", "type": "chart.line", "dataset": "income_expense_by_month",
+     "props": {"period": "last-12-months", "title": "Income and spending, month by month"},
+     "frame": {"col": 0, "row": 14, "cols": 12, "rows": 4}}
+  ]
+}"#;
+
 fn the_book() -> Book {
     let bytes = fs::read(books().join("space-colony-5y-v15.sqlite")).expect("the KMyMoney book");
     let Imported::Book(imported) =
@@ -122,6 +178,21 @@ fn the_book() -> Book {
     }
     let hidden: Vec<_> = HIDDEN.iter().map(|name| categories[*name]).collect();
     book.set_hidden_categories(&hidden).expect("hidden");
+    for (name, minor) in BUDGETS {
+        let category = categories[name];
+        let currency = book.account(category).expect("the category").currency;
+        book.add_budget(
+            category,
+            BudgetEvery::Month,
+            Date::constant(2026, 1, 1),
+            None,
+            Money::from_minor_units(minor, currency),
+            false,
+        )
+        .unwrap_or_else(|error| panic!("{name}: {error:?}"));
+    }
+    book.add_view(STARTER_OVERVIEW)
+        .expect("the starter Overview");
     book
 }
 
@@ -256,5 +327,55 @@ fn the_register_outlines_agree_with_the_whole_transactions_in_every_account() {
     }
     // Every transaction has at least two parts, so it is counted in at
     // least two accounts or categories.
-    assert!(lines >= 2 * 3791, "{lines}");
+    assert!(lines >= 2 * 3798, "{lines}");
+}
+
+/// The saved Overview reads as a dashboard, starts on last month, and the
+/// budgets give last month's bars something to show: some inside the plan
+/// and some past it, so a first look has a story (October 2026).
+#[test]
+fn the_starter_overview_reads_and_its_budgets_have_figures_for_last_month() {
+    use kassensturz_report::{
+        BudgetGrouping, Document, Filter, Period, Source, budget_utilization,
+    };
+
+    let text = fs::read_to_string(books().join("space-colony-5y.json")).expect("the export");
+    let data = read_book(text.as_bytes()).expect("a version 8 book");
+    let mut book = Book::create_in_memory().expect("a book in memory");
+    fill_book(&mut book, &data).expect("filled");
+
+    let views = book.views(None).expect("views");
+    assert_eq!(views.len(), 1);
+    let document = Document::read(&views[0].document).expect("a valid dashboard");
+    assert_eq!(document.name, "Overview");
+    assert_eq!(document.filters().period.as_deref(), Some("last-month"));
+
+    let period = Period::new(Date::constant(2026, 10, 1), Date::constant(2026, 10, 31)).unwrap();
+    let today = Date::constant(2026, 11, 1);
+    let source = Source::read_with_budgets(&book, period, today).expect("read");
+    let rows = budget_utilization(
+        &source,
+        period,
+        today,
+        BudgetGrouping::Period,
+        &Filter::default(),
+    )
+    .expect("figures");
+    assert_eq!(rows.len(), BUDGETS.len());
+    let mut over = 0;
+    let mut inside = 0;
+    for row in &rows {
+        let shown = &row.periods[0];
+        assert!(
+            shown.spent.minor_units() > 0,
+            "{:?} spent nothing",
+            row.path
+        );
+        if shown.left.minor_units() < 0 {
+            over += 1;
+        } else {
+            inside += 1;
+        }
+    }
+    assert!(over >= 1 && inside >= 2, "over {over}, inside {inside}");
 }

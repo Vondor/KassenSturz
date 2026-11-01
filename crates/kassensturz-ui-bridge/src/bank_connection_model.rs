@@ -13,6 +13,7 @@
 
 use core::pin::Pin;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QList, QMap, QMapPair_QString_QVariant, QString, QVariant};
@@ -32,6 +33,7 @@ use crate::platform;
 use crate::register_model::field;
 use crate::session;
 use crate::settings::Settings;
+use crate::update_all::{self, AccountLine, NoticeLine, State, Summary};
 use crate::variant::{error_object, list, map, text};
 
 #[cxx_qt::bridge]
@@ -54,6 +56,19 @@ pub mod qobject {
         /// `keepassxc` (D-164) or `nowhere` (D-163). The PIN dialogs offer saving only when it
         /// isn't `nowhere`.
         #[qproperty(QString, pin_storage, cxx_name = "pinStorage", READ, WRITE, NOTIFY)]
+        /// Whether *Update all accounts* runs (M6d.7).
+        #[qproperty(bool, updating, READ, WRITE, NOTIFY)]
+        /// The summary of the last *Update all accounts* of this session, as
+        /// `updateAllFinished` brings it, until the user presses *Seen*,
+        /// which sets it to an empty object. Never stored (D-446).
+        #[qproperty(
+            QVariant,
+            update_summary,
+            cxx_name = "updateSummary",
+            READ,
+            WRITE,
+            NOTIFY
+        )]
         type BankConnection = super::BankConnectionRust;
     }
 
@@ -200,6 +215,32 @@ pub mod qobject {
         #[qinvokable]
         fn fetch(self: Pin<&mut BankConnection>, accounts: &QVariant) -> QVariant;
 
+        /// What the *Update all accounts* widget shows before it is pressed
+        /// (M6d.7): an object with `linked` (how many open accounts are
+        /// linked to a bank account), `lastUpdated` (the oldest day one was
+        /// last fetched, or empty) and `never` (one was never fetched); an
+        /// error object without a book.
+        #[qinvokable]
+        #[cxx_name = "updateAllState"]
+        fn update_all_state(self: &BankConnection) -> QVariant;
+
+        /// Starts *Update all accounts* (M6d.7, D-446): every linked open
+        /// account is fetched, bank by bank, and booked when the fetch has
+        /// ended. Only the user's click calls this. An object with
+        /// `accounts` (a list of objects with `id` and `name`) when it
+        /// started, or an error object (`bank.busy` while any fetch runs).
+        /// `fetchStarted` says which account is fetched; `updateAllFinished`
+        /// brings the summary.
+        #[qinvokable]
+        #[cxx_name = "updateAll"]
+        fn update_all(self: Pin<&mut BankConnection>) -> QVariant;
+
+        /// *Stop*: the accounts not begun yet are skipped; the one being
+        /// fetched is finished and booked.
+        #[qinvokable]
+        #[cxx_name = "stopUpdateAll"]
+        fn stop_update_all(self: &BankConnection);
+
         /// Sends the PIN the user typed, to be kept as `mode` says (`ask`,
         /// `remember`, `save`).
         #[qinvokable]
@@ -263,6 +304,17 @@ pub mod qobject {
         #[cxx_name = "fetchFinished"]
         fn fetch_finished(self: Pin<&mut BankConnection>, result: QVariant);
 
+        /// *Update all accounts* ended and what it fetched is booked: an
+        /// object with `updated`, `booked`, `toCheck`, `accounts` (a list
+        /// of objects with `account`, `name`, `state`, `booked`, `skipped`,
+        /// `error` and `balanceOff`) and `notices` (a list of objects with
+        /// `transaction`, `account`, `accountName`, `date`, `payee`,
+        /// `amount`, `reason`, `category`, `usual` and `size`); or an error
+        /// object when no account was tried.
+        #[qsignal]
+        #[cxx_name = "updateAllFinished"]
+        fn update_all_finished(self: Pin<&mut BankConnection>, result: QVariant);
+
         /// Setting up a login ended: an object with `login` and `accounts`,
         /// or an error object.
         #[qsignal]
@@ -290,10 +342,14 @@ pub struct BankConnectionRust {
     busy: bool,
     fake: bool,
     pin_storage: QString,
+    updating: bool,
+    update_summary: QVariant,
     /// The worker, started when a screen first needs it.
     worker: Option<Worker>,
     /// What the last setup found, for linking.
     found: Vec<FoundAccount>,
+    /// Set by *Stop* while *Update all accounts* runs.
+    stop: Arc<AtomicBool>,
 }
 
 impl cxx_qt::Initialize for qobject::BankConnection {
@@ -513,6 +569,53 @@ impl qobject::BankConnection {
         }
     }
 
+    fn update_all_state(&self) -> QVariant {
+        let locale = app_locale();
+        match session::with_book(|book| {
+            update_all::state(book, &locale)
+                .map_err(|error| crate::errors::report_text(book, &error.report(), &locale))
+        }) {
+            Some(Ok(state)) => state_object(&state),
+            Some(Err(error)) => error_object(&error),
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        }
+    }
+
+    fn update_all(mut self: Pin<&mut Self>) -> QVariant {
+        let locale = app_locale();
+        let requests = match session::with_book(|book| update_all::requests(book, &locale)) {
+            Some(Ok(requests)) if !requests.is_empty() => requests,
+            Some(Ok(_)) | None => return error_object(&ErrorText::plain("input.no-such-entry")),
+            Some(Err(error)) => return error_object(&error),
+        };
+        let accounts = list(requests.iter().map(|request| {
+            map([
+                ("id", text(&request.account.to_string())),
+                ("name", text(&request.name)),
+            ])
+        }));
+        let stop = Arc::clone(&self.rust().stop);
+        stop.store(false, Ordering::SeqCst);
+        let today = locale.today();
+        let started = self.as_mut().worker().spawn(move |connection, notify| {
+            let result = bank_connection::update_all(connection, requests, today, &stop);
+            notify(Event::UpdateAllDone(result));
+        });
+        match started {
+            Ok(()) => {
+                self.as_mut().set_busy(true);
+                self.as_mut().set_updating(true);
+                self.as_mut().set_update_summary(map([]));
+                map([("accounts", accounts)])
+            }
+            Err(error) => error_object(&bank_connection::error_text(&error)),
+        }
+    }
+
+    fn stop_update_all(&self) {
+        self.stop.store(true, Ordering::SeqCst);
+    }
+
     fn answer_pin(&self, pin: &QString, mode: &QString) {
         if let Some(worker) = &self.worker {
             let pin = BankPin::new(pin.to_string());
@@ -642,6 +745,23 @@ fn deliver(mut qobject: Pin<&mut qobject::BankConnection>, event: Event) {
         Event::FetchDone(result) => {
             qobject.as_mut().set_busy(false);
             qobject.fetch_finished(fetch_object(&result));
+        }
+        Event::UpdateAllDone(result) => {
+            qobject.as_mut().set_busy(false);
+            // Booked on the GUI thread, which holds the book (D-449).
+            let object = match result {
+                Ok(fetched) => session::with_book_mut(|book| {
+                    update_all::book_all(book, fetched, &app_locale())
+                })
+                .map_or_else(
+                    || error_object(&ErrorText::plain("input.no-such-entry")),
+                    |summary| summary_object(&summary),
+                ),
+                Err(error) => error_object(&error),
+            };
+            qobject.as_mut().set_update_summary(object.clone());
+            qobject.as_mut().set_updating(false);
+            qobject.update_all_finished(object);
         }
         Event::PinStorageDone { storage, result } => {
             qobject.as_mut().set_busy(false);
@@ -889,6 +1009,80 @@ fn fetch_object(result: &Result<Vec<FetchOutcome>, ErrorText>) -> QVariant {
         Ok(outcomes) => map([("outcomes", list(outcomes.iter().map(outcome_object)))]),
         Err(error) => error_object(error),
     }
+}
+
+fn state_object(state: &State) -> QVariant {
+    map([
+        (
+            "linked",
+            QVariant::from(&i32::try_from(state.linked).unwrap_or(i32::MAX)),
+        ),
+        ("lastUpdated", text(&state.last_updated)),
+        ("never", QVariant::from(&state.never)),
+    ])
+}
+
+fn count(value: usize) -> QVariant {
+    QVariant::from(&i32::try_from(value).unwrap_or(i32::MAX))
+}
+
+fn shown_object(shown: &crate::register::Shown) -> QVariant {
+    map([("text", text(&shown.text)), ("exact", text(&shown.exact))])
+}
+
+fn account_line_object(line: &AccountLine) -> QVariant {
+    map([
+        ("account", text(&line.account)),
+        ("name", text(&line.name)),
+        ("state", text(line.state)),
+        ("booked", count(line.booked)),
+        ("skipped", text(line.skipped)),
+        (
+            "error",
+            line.error.as_ref().map_or_else(|| map([]), error_object),
+        ),
+        (
+            "balanceOff",
+            line.balance_off.as_ref().map_or_else(
+                || map([]),
+                |off| {
+                    map([
+                        ("date", text(&off.date)),
+                        ("bank", shown_object(&off.bank)),
+                        ("difference", shown_object(&off.difference)),
+                    ])
+                },
+            ),
+        ),
+    ])
+}
+
+fn notice_object(line: &NoticeLine) -> QVariant {
+    map([
+        ("transaction", text(&line.transaction)),
+        ("account", text(&line.account)),
+        ("accountName", text(&line.account_name)),
+        ("date", text(&line.date)),
+        ("payee", text(&line.payee)),
+        ("amount", shown_object(&line.amount)),
+        ("reason", text(line.reason)),
+        ("category", text(&line.category)),
+        ("usual", shown_object(&line.usual)),
+        ("size", shown_object(&line.size)),
+    ])
+}
+
+fn summary_object(summary: &Summary) -> QVariant {
+    map([
+        ("updated", count(summary.updated)),
+        ("booked", count(summary.booked)),
+        ("toCheck", count(summary.notices.len())),
+        (
+            "accounts",
+            list(summary.accounts.iter().map(account_line_object)),
+        ),
+        ("notices", list(summary.notices.iter().map(notice_object))),
+    ])
 }
 
 /// The places for saved PINs to choose from (D-163).
@@ -1312,5 +1506,111 @@ mod tests {
 
         let refused = fetch_object(&Err(ErrorText::plain("bank.not-registered")));
         assert_eq!(text_of(&refused, "code"), "bank.not-registered");
+    }
+
+    fn number_of(value: &QVariant, key: &str) -> i32 {
+        object(value)
+            .get(&QString::from(key))
+            .and_then(|value| value.value::<i32>())
+            .unwrap_or_else(|| panic!("no number `{key}`"))
+    }
+
+    fn shown(text: &str) -> crate::register::Shown {
+        crate::register::Shown {
+            text: text.to_owned(),
+            exact: text.to_owned(),
+        }
+    }
+
+    #[test]
+    fn the_update_all_state_and_summary_read_back_as_qml_reads_them() {
+        let state = state_object(&State {
+            linked: 2,
+            last_updated: "2026-10-09".to_owned(),
+            never: false,
+        });
+        assert_eq!(number_of(&state, "linked"), 2);
+        assert_eq!(text_of(&state, "lastUpdated"), "2026-10-09");
+        assert!(!flag_of(&state, "never"));
+
+        let summary = summary_object(&Summary {
+            updated: 1,
+            booked: 3,
+            accounts: vec![
+                AccountLine {
+                    account: "a1".to_owned(),
+                    name: "Current account".to_owned(),
+                    state: "updated",
+                    booked: 3,
+                    error: None,
+                    skipped: "",
+                    balance_off: Some(update_all::BalanceOff {
+                        date: "2026-10-09".to_owned(),
+                        bank: shown("10.00 EUR"),
+                        difference: shown("1.00 EUR"),
+                    }),
+                },
+                AccountLine {
+                    account: "a2".to_owned(),
+                    name: "Card".to_owned(),
+                    state: "failed",
+                    booked: 0,
+                    error: Some(ErrorText::plain("bank.unreachable")),
+                    skipped: "",
+                    balance_off: None,
+                },
+            ],
+            notices: vec![NoticeLine {
+                transaction: "t1".to_owned(),
+                account: "a1".to_owned(),
+                account_name: "Current account".to_owned(),
+                date: "2026-10-02".to_owned(),
+                payee: "Example Grocer".to_owned(),
+                amount: shown("-45.23 EUR"),
+                reason: "unusual",
+                category: "Groceries".to_owned(),
+                usual: shown("4.50 EUR"),
+                size: shown("45.23 EUR"),
+            }],
+        });
+        assert_eq!(number_of(&summary, "updated"), 1);
+        assert_eq!(number_of(&summary, "booked"), 3);
+        assert_eq!(number_of(&summary, "toCheck"), 1);
+        let accounts = list_of(&summary, "accounts");
+        assert_eq!(accounts.len(), 2);
+        assert_eq!(text_of(&accounts[0], "name"), "Current account");
+        assert_eq!(text_of(&accounts[0], "state"), "updated");
+        assert_eq!(number_of(&accounts[0], "booked"), 3);
+        assert_eq!(text_of(&accounts[0], "skipped"), "");
+        let off = object(&accounts[0])
+            .get(&QString::from("balanceOff"))
+            .expect("balanceOff");
+        assert_eq!(text_of(&off, "date"), "2026-10-09");
+        let difference = object(&off)
+            .get(&QString::from("difference"))
+            .expect("difference");
+        assert_eq!(text_of(&difference, "text"), "1.00 EUR");
+        let error = object(&accounts[1])
+            .get(&QString::from("error"))
+            .expect("error");
+        assert_eq!(text_of(&error, "code"), "bank.unreachable");
+        let notices = list_of(&summary, "notices");
+        assert_eq!(notices.len(), 1);
+        for key in [
+            "transaction",
+            "account",
+            "accountName",
+            "date",
+            "payee",
+            "reason",
+            "category",
+        ] {
+            assert!(!text_of(&notices[0], key).is_empty(), "{key}");
+        }
+        for key in ["amount", "usual", "size"] {
+            let shown = object(&notices[0]).get(&QString::from(key)).expect(key);
+            assert!(!text_of(&shown, "text").is_empty(), "{key}");
+            assert!(!text_of(&shown, "exact").is_empty(), "{key}");
+        }
     }
 }

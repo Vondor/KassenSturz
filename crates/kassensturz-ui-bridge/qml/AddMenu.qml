@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // The menu that adds a widget to the Overview (M6b, D-337): the kinds are in
-// groups (Charts, Figures and tables, Layout, Notes, Saved views), the
+// groups (Bank, Charts, Figures and tables, Layout, Notes, Saved views), the
 // groups are in alphabetical order and so is each group's list. The order
 // is made here from the words on screen, so it is right in every language.
 
@@ -20,6 +20,12 @@ Controls.Menu {
 
     // Rows with `id` and `name` of the usable saved views.
     property var savedList: []
+    // Whether bank connections can be used (D-054): only then is there a
+    // Bank group with the Update all accounts button (M6d.7).
+    property bool bankReady: false
+    // The types of the widgets on the page: the period header and the filter
+    // bar are offered only while the page has none (M6d.8, D-474).
+    property var pageKinds: []
 
     // `dataset` is empty for a kind that starts with its first dataset.
     signal kindChosen(string kind, string dataset)
@@ -51,8 +57,11 @@ Controls.Menu {
             { name: ctx.i18nc("@title:menu a group of widgets: single figures and tables", "Figures and tables"),
               rows: kindRows(["kpi.card", "progress.bar", "table.rows", "table.income_sources", "card.net_worth", "budget.progress"])
                   .concat(dataRows([{ kind: "kpi.card", dataset: "account_balances" }, { kind: "table.rows", dataset: "account_balances" }, { kind: "table.rows", dataset: "cash_flow_by_month" }])).sort((a, b) => a.name.localeCompare(b.name)) },
+            { name: ctx.i18nc("@title:menu a group of widgets: those that work with the user's banks", "Bank"),
+              rows: widgetMenu.bankReady ? kindRows(["bank.update_all"]) : [] },
             { name: ctx.i18nc("@title:menu a group of widgets: those that arrange the page", "Layout"),
-              rows: kindRows(["text.heading", "text.separator", "group.period"]) },
+              rows: kindRows(["text.heading", "text.separator", "group.period"]
+                  .concat(["page.period", "page.filters"].filter(kind => !widgetMenu.pageKinds.includes(kind)))) },
             { name: ctx.i18nc("@title:menu a group of widgets: notes and warnings", "Notes"),
               rows: kindRows(["notice.fetch_gap", "notice.transfers"]) },
             { name: ctx.i18nc("@title:menu a group of widgets: views saved in the Statistic Builder", "Saved views"),

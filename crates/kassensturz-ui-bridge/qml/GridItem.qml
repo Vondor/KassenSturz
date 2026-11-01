@@ -40,7 +40,14 @@ Item {
     // The separator and the notices have no card around them while the page
     // is only looked at: a line and a message (D-328, D-334).
     readonly property bool isBox: present && info.type === "group.period"
-    readonly property bool bare: present && (info.type === "text.separator" || info.type === "notice.fetch_gap" || info.type === "notice.transfers" || info.type === "card.net_worth")
+    // The period header and the filter bar (M6d.8): drawn without a frame,
+    // like the bar and the month row they were.
+    readonly property bool isPageWidget: present && (info.type === "page.period" || info.type === "page.filters")
+    // While arranging, a selected filter bar takes the pointer itself, so its
+    // choices can be kept with the layout (D-416); it moves with the keys
+    // and its toolbar then.
+    readonly property bool takesPointer: selected && present && info.type === "page.filters"
+    readonly property bool bare: present && (info.type === "text.separator" || info.type === "notice.fetch_gap" || info.type === "notice.transfers" || info.type === "card.net_worth" || isPageWidget)
     readonly property bool showsFrame: !bare || (board.editing && !board.preview)
     // What a period box says: its title and the period it gives its widgets.
     readonly property string boxPeriod: isBox ? names.periodName(info.subject?.period?.word ?? "") : ""
@@ -212,6 +219,9 @@ Item {
                 : cell.info?.type === "budget.progress" ? budgetBox
                 : cell.info?.type === "text.separator" ? separatorBox
                 : cell.info?.type === "notice.fetch_gap" ? fetchGapBox
+                : cell.info?.type === "bank.update_all" ? updateAllBox
+                : cell.info?.type === "page.period" ? periodHeaderBox
+                : cell.info?.type === "page.filters" ? filterBarBox
                 : cell.info?.type === "notice.transfers" ? transfersBox : figuresBox
         }
     }
@@ -581,6 +591,47 @@ Item {
         }
     }
 
+    // The Update all accounts button (M6d.7, D-446). Its title is the
+    // button's own words, so it has no heading of its own.
+    Component {
+        id: updateAllBox
+
+        UpdateAllWidget {
+            bank: cell.board.bank
+            state: cell.board.updateAll
+            title: cell.heading
+            arranging: cell.board.editing
+            onTransactionClicked: (accountId, transactionId) => cell.board.transactionClicked(accountId, transactionId)
+        }
+    }
+
+    // The month and the way through the months (M6d.8, D-474).
+    Component {
+        id: periodHeaderBox
+
+        PeriodHeader {
+            overview: cell.board.overview
+            arranging: cell.board.editing
+        }
+    }
+
+    // The page's filters (M6c.7, D-351; a widget since M6d.8, D-474).
+    Component {
+        id: filterBarBox
+
+        Item {
+            readonly property bool failed: false
+
+            FilterBar {
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width
+                layout: cell.board.layout
+                choices: cell.board.choices
+                onFailed: result => cell.board.failed(result)
+            }
+        }
+    }
+
     Component {
         id: unknownBox
 
@@ -625,7 +676,7 @@ Item {
         id: overlay
 
         anchors.fill: parent
-        active: cell.board.editing
+        active: cell.board.editing && !cell.takesPointer
         visible: active && !cell.board.preview
 
         // Edit mode: the pointer selects and drags a component.

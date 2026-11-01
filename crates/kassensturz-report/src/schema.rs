@@ -83,6 +83,22 @@ pub enum ComponentType {
     /// in [`ComponentType::ALL`]: the AI sees budgets only with the Budgets
     /// row of the permission grid (D-358).
     BudgetProgress,
+    /// `bank.update_all`: one button that fetches every linked account from
+    /// its bank and books what came (D-446, D-449). It is in
+    /// [`ComponentType::LIBRARY`], never in [`ComponentType::ALL`]: only the
+    /// user places and starts it, never the AI (T-55). It shows no data.
+    BankUpdateAll,
+    /// `page.period`: the period header, the month the page shows with the
+    /// way to the months before and after it and back to this one (D-452,
+    /// D-474). It shows no data and has no settings; the page fills it. A
+    /// dashboard holds at most one.
+    PeriodHeader,
+    /// `page.filters`: the filter bar, the page's period, accounts and
+    /// categories (D-351, D-452, D-474). Its choices stay the document's
+    /// `filters`; they apply only while the dashboard holds the bar, so
+    /// nothing narrows a page without showing it (D-475). It shows no data
+    /// and has no settings. A dashboard holds at most one.
+    FilterBar,
 }
 
 impl ComponentType {
@@ -102,7 +118,7 @@ impl ComponentType {
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
     /// the heading (D-312).
-    pub const LIBRARY: [Self; 17] = [
+    pub const LIBRARY: [Self; 20] = [
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -120,6 +136,9 @@ impl ComponentType {
         Self::NetWorth,
         Self::IncomeSources,
         Self::BudgetProgress,
+        Self::BankUpdateAll,
+        Self::PeriodHeader,
+        Self::FilterBar,
     ];
 
     /// Whether the component shows no figures of the book: its document names
@@ -134,7 +153,17 @@ impl ComponentType {
                 | Self::PeriodBox
                 | Self::NetWorth
                 | Self::IncomeSources
+                | Self::BankUpdateAll
+                | Self::PeriodHeader
+                | Self::FilterBar
         )
+    }
+
+    /// Whether a dashboard holds at most one of this type (D-474): the
+    /// period header and the filter bar belong to the whole page, so a
+    /// second one would only repeat the first.
+    pub const fn one_per_page(self) -> bool {
+        matches!(self, Self::PeriodHeader | Self::FilterBar)
     }
 
     /// The id documents and the AI use.
@@ -157,6 +186,9 @@ impl ComponentType {
             Self::NetWorth => "card.net_worth",
             Self::IncomeSources => "table.income_sources",
             Self::BudgetProgress => "budget.progress",
+            Self::BankUpdateAll => "bank.update_all",
+            Self::PeriodHeader => "page.period",
+            Self::FilterBar => "page.filters",
         }
     }
 
@@ -186,7 +218,10 @@ impl ComponentType {
             | Self::TransfersNote
             | Self::PeriodBox
             | Self::NetWorth
-            | Self::IncomeSources => "text",
+            | Self::IncomeSources
+            | Self::BankUpdateAll
+            | Self::PeriodHeader
+            | Self::FilterBar => "text",
         }
     }
 
@@ -214,9 +249,12 @@ impl ComponentType {
             | Self::FetchNotice
             | Self::TransfersNote
             | Self::NetWorth
-            | Self::IncomeSources => &[],
+            | Self::IncomeSources
+            | Self::PeriodHeader
+            | Self::FilterBar => &[],
             Self::PeriodBox => &PERIOD_BOX,
             Self::BudgetProgress => &BUDGET_PROGRESS,
+            Self::BankUpdateAll => &UPDATE_ALL,
         }
     }
 }
@@ -451,6 +489,9 @@ const TABLE: [Property; 8] = [
     PERIOD,
 ];
 const HEADING: [Property; 1] = [TEXT];
+/// The Update all accounts button (D-446): its title only; empty shows
+/// *Update all accounts*.
+const UPDATE_ALL: [Property; 1] = [TITLE];
 const PERIOD_BOX: [Property; 2] = [TITLE, BOX_PERIOD];
 /// The budget bars (D-357): which categories' budgets (empty: every
 /// budget), a title and the period whose last day (or today, if earlier)

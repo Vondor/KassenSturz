@@ -179,6 +179,12 @@ impl Formula {
         convert(text, Form::CANONICAL, Form::of(form))
     }
 
+    /// The names the formula writes, as they are written, without quotes
+    /// (M6d.4: the summary of a dashboard file lists those its book lacks).
+    pub(crate) fn name_texts(&self) -> impl Iterator<Item = &str> {
+        self.tree.names.iter().map(|name| name.text.as_str())
+    }
+
     /// The categories and groups of `source`, each written the way a
     /// formula names it, for completing a name while it is typed.
     pub fn known_names(source: &Source) -> Vec<KnownName> {

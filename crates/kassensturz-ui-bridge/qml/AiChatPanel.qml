@@ -50,6 +50,9 @@ ColumnLayout {
 
     // The panel sits in a window of its own, not in the sidebar (D-250).
     property bool detached: false
+    // The name of the dashboard the Overview shows, which a kept chart is
+    // added to (M6d.1, D-438).
+    property string dashboardName: ""
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -445,6 +448,7 @@ ColumnLayout {
                 ai: panel.ai
                 chat: panel.chat
                 settings: panel.settings
+                dashboardName: panel.dashboardName
                 onChartChangeClicked: (title, component, period) => panel.statisticBuilderRequested(title, component, period, "")
                 onBuilderClicked: dataset => panel.statisticBuilderRequested("", "", "", dataset)
                 onChartAddToOverviewClicked: (component, period) => panel.addToOverviewRequested(component, period)

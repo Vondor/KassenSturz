@@ -43,10 +43,13 @@ impl ComponentType {
             Self::KpiCard => Size { cols: 2, rows: 2 },
             Self::ProgressBar | Self::Heading => Size { cols: 3, rows: 1 },
             Self::Separator => Size { cols: 1, rows: 1 },
-            Self::PeriodBox | Self::NetWorth | Self::IncomeSources | Self::BudgetProgress => {
-                Size { cols: 3, rows: 2 }
-            }
-            Self::FetchNotice | Self::TransfersNote => Size { cols: 4, rows: 1 },
+            Self::PeriodBox
+            | Self::NetWorth
+            | Self::IncomeSources
+            | Self::BudgetProgress
+            | Self::BankUpdateAll => Size { cols: 3, rows: 2 },
+            Self::FetchNotice | Self::TransfersNote | Self::FilterBar => Size { cols: 4, rows: 1 },
+            Self::PeriodHeader => Size { cols: 3, rows: 1 },
             Self::TableRows => Size { cols: 4, rows: 3 },
             Self::ChartLine
             | Self::ChartBar
@@ -65,11 +68,15 @@ impl ComponentType {
             Self::KpiCard => Size { cols: 3, rows: 2 },
             Self::ProgressBar => Size { cols: 6, rows: 1 },
             Self::Heading => Size { cols: 4, rows: 1 },
-            Self::Separator | Self::FetchNotice | Self::TransfersNote => Size { cols: 12, rows: 1 },
+            Self::Separator
+            | Self::FetchNotice
+            | Self::TransfersNote
+            | Self::PeriodHeader
+            | Self::FilterBar => Size { cols: 12, rows: 1 },
             Self::PeriodBox => Size { cols: 12, rows: 5 },
             Self::NetWorth => Size { cols: 6, rows: 2 },
             Self::IncomeSources => Size { cols: 6, rows: 4 },
-            Self::BudgetProgress => Size { cols: 6, rows: 3 },
+            Self::BudgetProgress | Self::BankUpdateAll => Size { cols: 6, rows: 3 },
             Self::TableRows
             | Self::ChartLine
             | Self::ChartBar
@@ -125,6 +132,21 @@ pub const fn is_box(item: &Item) -> bool {
     matches!(item, Item::Component(component) if matches!(component.kind(), ComponentType::PeriodBox))
 }
 
+/// The type of `item` if a dashboard holds at most one of it (D-474).
+fn one_per_page(item: &Item) -> Option<ComponentType> {
+    match item {
+        Item::Component(component) if component.kind().one_per_page() => Some(component.kind()),
+        _ => None,
+    }
+}
+
+/// Whether `entries` already hold a component of type `kind`.
+pub fn holds(entries: &[Entry], kind: ComponentType) -> bool {
+    entries
+        .iter()
+        .any(|entry| matches!(&entry.item, Item::Component(component) if component.kind() == kind))
+}
+
 fn invalid(reason: &'static str, index: usize) -> ReportError {
     ReportError::DocumentInvalid {
         reason,
@@ -135,10 +157,21 @@ fn invalid(reason: &'static str, index: usize) -> ReportError {
 /// Checks the frames of a dashboard's components: each has one, inside the
 /// 12 columns, at most 24 rows high, starting at most at [`LAST_ROW`] and not
 /// smaller than its type allows, and no two of the same layer overlap (a
-/// period box may lie under widgets, D-333). The path names the component;
-/// for an overlap, the later of the two.
+/// period box may lie under widgets, D-333), and no type that belongs to
+/// the whole page is there twice (`only-one`, D-474). The path names the
+/// component; for an overlap or a second one, the later of the two.
 pub fn check(entries: &[Entry]) -> Result<(), ReportError> {
     for (index, entry) in entries.iter().enumerate() {
+        if let Some(kind) = one_per_page(&entry.item)
+            && entries[..index]
+                .iter()
+                .any(|earlier| one_per_page(&earlier.item) == Some(kind))
+        {
+            return Err(ReportError::DocumentInvalid {
+                reason: "only-one",
+                path: format!("components.{index}.type"),
+            });
+        }
         let frame = entry.frame.ok_or_else(|| invalid("bad-frame", index))?;
         if frame.cols > COLUMNS
             || frame.right() > COLUMNS

@@ -109,6 +109,13 @@ Kirigami.ApplicationWindow {
     // The Overview's dashboard and its grid editor (M6b.3).
     DashboardLayout {
         id: dashboardLayout
+
+        // The built-in Overview's name in the user's language, which the
+        // tabs show and an action stores it under (M6d.1).
+        Component.onCompleted: setBuiltInName(root.i18nContext.i18nc("@title the name of the built-in dashboard", "Overview"))
+        // A dashboard action changed the book: every screen reads it again
+        // and the notice offers Undo.
+        onChanged: root.screenChangedBook()
     }
 
     GridNames {
@@ -228,6 +235,15 @@ Kirigami.ApplicationWindow {
 
     BankDialogs {
         bank: bankConnection
+    }
+
+    // What Update all accounts booked shows on every page (M6d.7, D-449).
+    Connections {
+        target: bankConnection
+
+        function onUpdateAllFinished() {
+            root.bookChanged();
+        }
     }
 
     // The developer mode (D-227): on only when KassenSturz was started from
@@ -356,8 +372,9 @@ Kirigami.ApplicationWindow {
     function showBook() {
         // A conversation is about one book.
         chatPanel.startOver();
-        // A layout session belongs to the book it was started on.
-        dashboardLayout.cancel();
+        // A layout session belongs to the book it was started on, and a book
+        // opens at its own default dashboard (D-448).
+        dashboardLayout.reopen();
         bookChanged();
         if (!firstStartState.hasAccount) {
             pageStack.clear();
@@ -1007,6 +1024,7 @@ Kirigami.ApplicationWindow {
                 chat: aiChat
                 settings: aiSettings
                 detached: root.chatDetached
+                dashboardName: dashboardLayout.view.name ?? ""
                 onSettingsClicked: {
                     if (chatDrawer.modal) {
                         chatDrawer.close();
@@ -1244,10 +1262,29 @@ Kirigami.ApplicationWindow {
             dashboard: dashboardLayout
             savedSource: savedViews
             groupsSource: categoryGroups
+            bank: bankConnection
+            bankReady: root.bankUsable()
+            onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
             onAddAccountClicked: root.addAccount(false)
             onAddTransactionClicked: root.addTransaction(false, "")
             onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })
             onSetBudgetClicked: root.pushPage(budgetPage, { categoryId: "" })
+            onDashboardFileChosen: file => root.pushPage(dashboardFilePage, { file: file })
+        }
+    }
+
+    // Adding a dashboard from a file (M6d.4): the summary first; after
+    // "Add dashboard" the Overview shows the new one.
+    Component {
+        id: dashboardFilePage
+
+        DashboardFilePage {
+            onBookChanged: root.screenChangedBook()
+            onAdded: id => {
+                root.pageStack.pop();
+                dashboardLayout.showDashboard(id);
+            }
+            onCancelled: root.pageStack.pop()
         }
     }
 

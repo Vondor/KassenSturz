@@ -49,6 +49,12 @@ QtObject {
             return i18nContext.i18nc("@item:inlistbox a part of the layout: how much of each budget is spent and left", "Budgets");
         case "group.period":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a framed area with a period of its own for the widgets inside it", "Period box");
+        case "bank.update_all":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: one button that gets the new transactions of every account linked to a bank", "Update all accounts");
+        case "page.period":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: the month the page shows, with buttons for the months before and after it", "Month and its buttons");
+        case "page.filters":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: the bar that chooses the period, accounts and categories for the whole page", "Filter bar");
         case "notice.transfers":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a note that money moved between the user's own accounts is not counted", "Note about moved money");
         }

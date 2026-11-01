@@ -11,12 +11,18 @@
 // months' line are report components (M6a.8, Q-215). Since M6b.3 they sit on
 // the dashboard grid (`DashboardGrid`), which the user can arrange: "Edit
 // layout" starts a session with its own undo, Done keeps it as one change in
-// the history. The parts that are not widgets (the net worth card and the month
-// switcher) stay fixed around the grid for now; the fetch-gap warnings, the note
-// about transfers and the separator are widgets on it (D-327, D-328, D-334).
+// the history. Nothing on it is fixed (D-452): since M6d.8 the month header
+// (`PeriodHeader`) and the filter bar (`FilterBar`) are widgets on the grid
+// too, like the fetch-gap warnings, the note about transfers and the
+// separator (D-327, D-328, D-334, D-474).
+// Since M6d.1 the page shows one of the book's dashboards (D-436): tabs once
+// there are two (`DashboardTabs`), the dashboard menu (`DashboardMenu`) and
+// *New dashboard…* (`NewDashboardDialog`); the book opens at its default
+// dashboard (D-448).
 
 import QtQuick
 import QtQuick.Controls as Controls
+import QtQuick.Dialogs as Dialogs
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
@@ -32,12 +38,20 @@ Kirigami.ScrollablePage {
     readonly property var savedList: ((savedSource?.view ?? ({})).views ?? []).filter(row => row.usable)
     // A `CategoryGroups`, for picking My groups and categories in the panel.
     property var groupsSource: null
+    // The app's `BankConnection` and whether bank connections can be used,
+    // for the Update all accounts widget (M6d.7).
+    property var bank: null
+    property bool bankReady: false
     readonly property var view: overview.view ?? ({})
 
     signal addAccountClicked()
     signal addTransactionClicked()
     signal getTransactionsClicked(string accountId)
     signal setBudgetClicked()
+    // The user chose a dashboard file to add (M6d.4): the app shows what it
+    // holds before anything is added.
+    signal dashboardFileChosen(url file)
+    signal transactionClicked(string accountId, string transactionId)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -115,38 +129,12 @@ Kirigami.ScrollablePage {
         }
     }
 
-    // The layouts the user saved under a name (D-330). Saving one is its own
-    // step in the change history; loading one is an edit in the session that
-    // Undo takes back.
-    property var savedLayouts: []
-    property var chosenLayout: ({})
-
-    function openLayouts() {
-        savedLayouts = dashboard.savedLayouts();
-        layoutsDialog.open();
-    }
-
-    function loadLayout(id: string) {
-        const result = dashboard.loadLayout(id);
-        if (result.code !== undefined) {
-            layoutError.result = result;
-        } else {
-            layoutsDialog.close();
-        }
-    }
-
-    function deleteLayout(id: string) {
-        const result = dashboard.deleteLayout(id);
-        if (result.code !== undefined) {
-            layoutError.result = result;
-        }
-        savedLayouts = dashboard.savedLayouts();
-    }
-
     AddMenu {
         id: addMenu
 
         savedList: page.savedList
+        bankReady: page.bankReady
+        pageKinds: (page.dashboard.view.items ?? []).map(item => item.type)
         onKindChosen: (kind, dataset) => grid.add(kind, dataset)
         onSavedChosen: id => page.addSaved(id)
     }
@@ -202,13 +190,56 @@ Kirigami.ScrollablePage {
         updateGridView();
     }
 
-    title: layoutEditing ? i18nContext.i18nc("@title", "Arrange the Overview") : i18nContext.i18nc("@title", "Overview")
+    // A page without the period header shows this month (M6d.8, D-475):
+    // nothing on it could go back to this month otherwise.
+    readonly property bool hasPeriodHeader: (dashboard.view.items ?? []).some(item => item.type === "page.period")
+    onHasPeriodHeaderChanged: {
+        if (!hasPeriodHeader) {
+            overview.showThisMonth();
+        }
+    }
+
+    readonly property int dashboardCount: (dashboard.view.dashboards ?? []).length
+    readonly property string dashboardName: dashboard.view.name ?? i18nContext.i18nc("@title", "Overview")
+
+    title: layoutEditing ? i18nContext.i18nc("@title %1 is the name of the dashboard shown", "Arrange %1", dashboardName) : dashboardName
 
     header: FormError {
         id: layoutError
     }
 
     actions: [
+        // With one dashboard the page looks as before, with this one entry
+        // more; with two or more it is in the dashboard menu (D-438).
+        Kirigami.Action {
+            visible: !page.layoutEditing && page.dashboardCount < 2
+            displayHint: Kirigami.DisplayHint.AlwaysHide
+            icon.name: "list-add"
+            text: page.i18nContext.i18nc("@action:inmenu", "New dashboard…")
+            onTriggered: {
+                ActionLog.taken("OverviewPage_newDashboard")
+                newDashboardDialog.openNew()
+            }
+        },
+        Kirigami.Action {
+            visible: !page.layoutEditing && page.dashboardCount < 2
+            displayHint: Kirigami.DisplayHint.AlwaysHide
+            icon.name: "document-open"
+            text: page.i18nContext.i18nc("@action:inmenu add a dashboard that someone saved to a file", "Add from a file…")
+            onTriggered: {
+                ActionLog.taken("OverviewPage_addFromFile")
+                dashboardFileDialog.open()
+            }
+        },
+        DashboardMenu {
+            visible: !page.layoutEditing && page.dashboardCount > 1
+            layout: page.dashboard
+            onNewRequested: newDashboardDialog.openNew()
+            onRenameRequested: newDashboardDialog.openRename()
+            onDeleteRequested: deleteDashboardDialog.open()
+            onAddFromFileRequested: dashboardFileDialog.open()
+            onFailed: result => layoutError.result = result
+        },
         Kirigami.Action {
             visible: !page.layoutEditing
             icon.name: "view-grid"
@@ -303,10 +334,11 @@ Kirigami.ScrollablePage {
         Kirigami.Action {
             visible: page.layoutEditing
             icon.name: "document-save-as"
-            text: page.i18nContext.i18nc("@action:button save the arrangement under a name or load one saved earlier", "Saved layouts")
+            text: page.i18nContext.i18nc("@action:button keep what is on the page now as another dashboard", "Save as a new dashboard…")
             onTriggered: {
-                ActionLog.taken("OverviewPage_savedLayouts")
-                page.openLayouts()
+                ActionLog.taken("OverviewPage_saveNewDashboard")
+                layoutName.text = "";
+                saveLayoutDialog.open()
             }
         },
         Kirigami.Action {
@@ -348,90 +380,11 @@ Kirigami.ScrollablePage {
         ]
     }
 
-    Kirigami.Dialog {
-        id: layoutsDialog
-
-        title: page.i18nContext.i18nc("@title:window", "Saved layouts")
-        standardButtons: Kirigami.Dialog.Close
-        preferredWidth: Kirigami.Units.gridUnit * 24
-
-        ColumnLayout {
-            spacing: Kirigami.Units.largeSpacing
-
-            Controls.Label {
-                Layout.fillWidth: true
-                Layout.margins: Kirigami.Units.largeSpacing
-                wrapMode: Text.Wrap
-                text: page.i18nContext.i18nc("@info", "Keep the way the Overview looks now under a name, and come back to it later. Loading a saved layout replaces what is on the page; you can take that back with Undo until you press Done.")
-            }
-
-            Controls.Button {
-                Layout.alignment: Qt.AlignHCenter
-                icon.name: "document-save-as"
-                text: page.i18nContext.i18nc("@action:button", "Save this layout as…")
-                onClicked: {
-                    ActionLog.taken("OverviewPage_saveLayout")
-                    layoutName.text = "";
-                    saveLayoutDialog.open();
-                }
-            }
-
-            Controls.Label {
-                visible: page.savedLayouts.length === 0
-                Layout.fillWidth: true
-                Layout.margins: Kirigami.Units.largeSpacing
-                wrapMode: Text.Wrap
-                horizontalAlignment: Text.AlignHCenter
-                text: page.i18nContext.i18nc("@info", "No layouts saved yet.")
-            }
-
-            Repeater {
-                model: page.savedLayouts
-
-                delegate: RowLayout {
-                    required property var modelData
-
-                    Layout.fillWidth: true
-                    Layout.leftMargin: Kirigami.Units.largeSpacing
-                    Layout.rightMargin: Kirigami.Units.largeSpacing
-
-                    Controls.Label {
-                        Layout.fillWidth: true
-                        elide: Text.ElideRight
-                        textFormat: Text.PlainText
-                        text: modelData.name
-                    }
-
-                    Controls.Button {
-                        text: page.i18nContext.i18nc("@action:button put a saved layout on the page", "Load")
-                        Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of a saved layout", "Load %1", modelData.name)
-                        onClicked: {
-                            ActionLog.taken("OverviewPage_load")
-                            page.loadLayout(modelData.id)
-                        }
-                    }
-
-                    Controls.Button {
-                        icon.name: "edit-delete"
-                        display: Controls.AbstractButton.IconOnly
-                        text: page.i18nContext.i18nc("@action:button %1 is the name of a saved layout", "Delete %1", modelData.name)
-                        Controls.ToolTip.visible: hovered
-                        Controls.ToolTip.text: text
-                        onClicked: {
-                            ActionLog.taken("OverviewPage_delete")
-                            page.chosenLayout = modelData;
-                            deleteLayoutDialog.open();
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     Kirigami.PromptDialog {
         id: saveLayoutDialog
 
-        title: page.i18nContext.i18nc("@title:window", "Save this layout as")
+        title: page.i18nContext.i18nc("@title:window", "Save as a new dashboard")
+        subtitle: page.i18nContext.i18nc("@info", "What is on the page now becomes a new dashboard with this name, at the end of the tabs. You go on arranging this one.")
         standardButtons: Kirigami.Dialog.Save | Kirigami.Dialog.Cancel
         onAccepted: {
             ActionLog.taken("OverviewPage_accepted")
@@ -439,14 +392,13 @@ Kirigami.ScrollablePage {
             if (result.code !== undefined) {
                 layoutError.result = result;
             }
-            page.savedLayouts = page.dashboard.savedLayouts();
         }
 
         Controls.TextField {
             id: layoutName
 
             maximumLength: 200
-            Accessible.name: page.i18nContext.i18nc("@label:textbox", "Name of the layout")
+            Accessible.name: page.i18nContext.i18nc("@label:textbox", "Name of the dashboard")
             onAccepted: {
                 ActionLog.taken("OverviewPage_nameLayout")
                 saveLayoutDialog.accept()
@@ -454,31 +406,84 @@ Kirigami.ScrollablePage {
         }
     }
 
-    Kirigami.PromptDialog {
-        id: deleteLayoutDialog
+    // A dashboard file is recognised by what it holds, not by its name, so
+    // the chooser also offers every file (section 4.1).
+    Dialogs.FileDialog {
+        id: dashboardFileDialog
 
-        title: page.i18nContext.i18nc("@title:window", "Delete this saved layout?")
-        subtitle: page.i18nContext.i18nc("@info %1 is the name of a saved layout", "“%1” is removed from your saved layouts. The Overview itself doesn't change. You can take this back with Undo in the menu.", page.chosenLayout.name ?? "")
+        title: page.i18nContext.i18nc("@title:window", "Add a dashboard from a file")
+        fileMode: Dialogs.FileDialog.OpenFile
+        nameFilters: [
+            page.i18nContext.i18nc("@item:inlistbox a file type", "Dashboard files (*.json)"),
+            page.i18nContext.i18nc("@item:inlistbox a file type", "All files (*)")
+        ]
+        onAccepted: {
+            ActionLog.taken("OverviewPage_dashboardFileChosen")
+            page.dashboardFileChosen(selectedFile)
+        }
+    }
+
+    NewDashboardDialog {
+        id: newDashboardDialog
+
+        layout: page.dashboard
+        // An empty dashboard opens with the Add menu, so the first widget
+        // is one click away (section 2, `empty`).
+        onMade: Qt.callLater(() => addMenu.popup())
+    }
+
+    // Deleting says which dashboard opens instead when it is the default
+    // one (D-448), and that Undo brings it back.
+    Kirigami.PromptDialog {
+        id: deleteDashboardDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Delete this dashboard?")
+        subtitle: Plain.plain(page.dashboard.view.isDefault ?? false
+            ? page.i18nContext.i18nc("@info %1 is the name of the dashboard shown, %2 the one the book opens at instead", "“%1” and its widgets are removed. Your book opens at “%2” from now on. Nothing in your accounts changes, and Undo in the menu brings the dashboard back.", page.dashboardName, page.dashboard.view.instead ?? "")
+            : page.i18nContext.i18nc("@info %1 is the name of the dashboard shown", "“%1” and its widgets are removed. Nothing in your accounts changes, and Undo in the menu brings the dashboard back.", page.dashboardName))
         standardButtons: Kirigami.Dialog.NoButton
         customFooterActions: [
             Kirigami.Action {
-                text: page.i18nContext.i18nc("@action:button", "Delete the layout")
+                text: page.i18nContext.i18nc("@action:button", "Delete the dashboard")
                 icon.name: "edit-delete"
                 onTriggered: {
-                    ActionLog.taken("OverviewPage_deleteLayout")
-                    deleteLayoutDialog.close();
-                    page.deleteLayout(page.chosenLayout.id);
+                    ActionLog.taken("OverviewPage_deleteDashboard")
+                    deleteDashboardDialog.close();
+                    const result = page.dashboard.deleteDashboard();
+                    if (result.code !== undefined) {
+                        layoutError.result = result;
+                    }
                 }
             },
             Kirigami.Action {
-                text: page.i18nContext.i18nc("@action:button keep a saved layout", "Keep it")
+                text: page.i18nContext.i18nc("@action:button keep a dashboard", "Keep it")
                 icon.name: "go-previous"
                 onTriggered: {
                     ActionLog.taken("OverviewPage_keep")
-                    deleteLayoutDialog.close()
+                    deleteDashboardDialog.close()
                 }
             }
         ]
+    }
+
+    // Ctrl+Page Down and Ctrl+Page Up go to the next and the previous
+    // dashboard (D-438).
+    Shortcut {
+        sequence: "Ctrl+PgDown"
+        enabled: page.isCurrentPage && page.dashboardCount > 1 && !page.layoutEditing
+        onActivated: {
+            ActionLog.taken("OverviewPage_nextDashboard")
+            dashboardTabs.step(1)
+        }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+PgUp"
+        enabled: page.isCurrentPage && page.dashboardCount > 1 && !page.layoutEditing
+        onActivated: {
+            ActionLog.taken("OverviewPage_previousDashboard")
+            dashboardTabs.step(-1)
+        }
     }
 
     Kirigami.PromptDialog {
@@ -566,70 +571,13 @@ Kirigami.ScrollablePage {
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
 
-        // The month, with the way to the ones before and after it.
-        RowLayout {
+        // One tab per dashboard once there are two (M6d.1, D-438).
+        DashboardTabs {
+            id: dashboardTabs
+
             Layout.fillWidth: true
             Layout.topMargin: Kirigami.Units.largeSpacing
-            spacing: Kirigami.Units.smallSpacing
-
-            Controls.ToolButton {
-                id: earlierButton
-
-                icon.name: "go-previous"
-                text: page.i18nContext.i18nc("@action:button the month before", "Earlier month")
-                display: Controls.AbstractButton.IconOnly
-                enabled: page.view.hasEarlier ?? false
-                onClicked: {
-                    ActionLog.taken("OverviewPage_earlierMonth")
-                    page.overview.showEarlierMonth()
-                }
-
-                Controls.ToolTip.text: text
-                Controls.ToolTip.visible: hovered
-                Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
-            }
-
-            Kirigami.Heading {
-                textFormat: Text.PlainText
-                Layout.fillWidth: true
-                text: page.view.month ?? ""
-                level: 2
-                horizontalAlignment: Text.AlignHCenter
-                elide: Text.ElideRight
-            }
-
-            Controls.ToolButton {
-                icon.name: "go-next"
-                text: page.i18nContext.i18nc("@action:button the month after", "Later month")
-                display: Controls.AbstractButton.IconOnly
-                enabled: page.view.hasLater ?? false
-                onClicked: {
-                    ActionLog.taken("OverviewPage_laterMonth")
-                    page.overview.showLaterMonth()
-                }
-
-                Controls.ToolTip.text: text
-                Controls.ToolTip.visible: hovered
-                Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
-            }
-        }
-
-        Controls.Button {
-            Layout.alignment: Qt.AlignHCenter
-            visible: !(page.view.thisMonth ?? true)
-            icon.name: "go-jump-today"
-            text: page.i18nContext.i18nc("@action:button", "Back to this month")
-            onClicked: {
-                ActionLog.taken("OverviewPage_backMonth")
-                page.overview.showThisMonth()
-            }
-        }
-
-        Controls.Label {
-            Layout.fillWidth: true
-            visible: page.view.empty ?? false
-            text: page.i18nContext.i18nc("@info", "Nothing came in or went out this month yet. Add what you paid or received, and it shows up here.")
-            wrapMode: Text.Wrap
+            layout: page.dashboard
         }
 
         Kirigami.InlineMessage {
@@ -671,15 +619,6 @@ Kirigami.ScrollablePage {
             ]
         }
 
-        // Period, accounts and categories for the whole page (M6c.7, D-351).
-        FilterBar {
-            Layout.fillWidth: true
-            visible: grid.visible
-            layout: page.dashboard
-            choices: page.groupsSource
-            onFailed: result => layoutError.result = result
-        }
-
         // The month's key figures and where its money went, from the
         // report components (M6a.8) on the user's grid (M6b.3).
         DashboardGrid {
@@ -689,7 +628,12 @@ Kirigami.ScrollablePage {
             layout: page.dashboard
             monthKey: page.view.monthKey ?? ""
             pageView: page.view
+            overview: page.overview
+            choices: page.groupsSource
+            bank: page.bank
+            bankReady: page.bankReady
             onGetTransactionsClicked: accountId => page.getTransactionsClicked(accountId)
+            onTransactionClicked: (accountId, transactionId) => page.transactionClicked(accountId, transactionId)
             onSetBudgetClicked: page.setBudgetClicked()
             onPropertiesRequested: id => page.openProperties(id)
             onFailed: result => layoutError.result = result

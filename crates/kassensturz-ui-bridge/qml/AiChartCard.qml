@@ -29,6 +29,9 @@ Kirigami.AbstractCard {
     property string setId: ""
     // The numbers in the title that no function produced.
     property var unverified: []
+    // The name of the dashboard the Overview shows, which *Add to* puts the
+    // chart on (M6d.1, D-438); empty says the Overview.
+    property string dashboardName: ""
 
     // The user wants to make the chart in the Statistic Builder, starting
     // from this one.
@@ -230,7 +233,9 @@ Kirigami.AbstractCard {
         Controls.Button {
             visible: card.chart !== null && card.outcome === "kept"
             icon.name: "view-grid"
-            text: card.i18nContext.i18nc("@action:button put the chart the AI prepared on the Overview page", "Add to Overview")
+            text: card.dashboardName === ""
+                ? card.i18nContext.i18nc("@action:button put the chart the AI prepared on the Overview page", "Add to Overview")
+                : card.i18nContext.i18nc("@action:button put the chart the AI prepared on a dashboard, %1 is its name", "Add to %1", card.dashboardName)
             onClicked: {
                 ActionLog.taken("AiChartCard_addToOverview")
                 card.addToOverview()

@@ -89,6 +89,13 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - The accounts and their transactions are on **Accounts**, not on the overview.
 - **Messages:** "Nothing came in or went out this month yet. Add what you paid or received, and it shows up here."
 
+## Several dashboards (M6d.1)
+
+- **New dashboard…** in the Overview's menu makes a second page of your own next to the Overview. It starts empty, with the Add menu open, so you can put charts, tables and figures on it; Done keeps it.
+- **Tabs** appear at the top of the Overview once you have two dashboards; with one, the page looks as before. Ctrl+Page Down and Ctrl+Page Up go to the next and the previous one.
+- **The Dashboard menu** (once you have two) renames, copies, moves or deletes the dashboard you are looking at, and **Make this the default** chooses the one your book opens at; its tab shows a small house. Until you choose one, the book opens at the Overview. Every one of these is one step that Undo takes back, and Undo shows you the dashboard it changed.
+- **Save as a new dashboard…** while you arrange a page keeps what is on it now as another dashboard. The layouts saved under a name in earlier versions are now dashboards of their own.
+
 ## Importing a file from your bank (M3.10)
 
 - **Import from my bank** is on an account's list of transactions. Download a file from your online banking first: CAMT.053 (.xml), MT940 (.sta), OFX (.ofx) or CSV (.csv or .txt). KassenSturz recognizes the first three by their content; a file it doesn't know gets the message "KassenSturz doesn't recognize this file. It reads statements as CAMT.053 (.xml), MT940 (.sta), OFX (.ofx) or CSV (.csv, .txt) files; download one of these from your online banking." A KMyMoney file isn't a statement: "This file holds a whole book … A new book can be started from it instead."

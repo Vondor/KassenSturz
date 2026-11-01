@@ -51,11 +51,13 @@ pub mod grid;
 mod groups;
 mod metrics;
 mod monthly;
+pub mod notices;
 mod over_time;
 mod period;
 mod schema;
 mod source;
 mod spending;
+pub mod templates;
 mod text;
 
 pub use balances::{

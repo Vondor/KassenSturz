@@ -65,10 +65,7 @@ Kirigami.ScrollablePage {
         id: previewTimer
 
         interval: 300
-        onTriggered: {
-            ActionLog.taken("RulePage_refreshPreview")
-            page.refreshPreview()
-        }
+        onTriggered: page.refreshPreview()
     }
 
     Connections {

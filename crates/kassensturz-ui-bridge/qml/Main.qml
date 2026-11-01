@@ -315,7 +315,6 @@ Kirigami.ApplicationWindow {
         id: geometryTimer
         interval: 300
         onTriggered: {
-            ActionLog.taken("Main_triggered")
             if (root.visibility === Window.Windowed) {
                 root.normalGeometry = Qt.rect(root.x, root.y, root.width, root.height);
             }

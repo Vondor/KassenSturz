@@ -31,6 +31,18 @@ mod tests {
     /// handler that is not a user's action is not one of [`HANDLERS`].
     const EXCEPTIONS: &[&str] = &[];
 
+    /// Whether the handler on line `number` belongs to a `Timer`, which
+    /// ticks by itself: it is not a user's action and logs nothing.
+    fn in_a_timer(lines: &[&str], number: usize) -> bool {
+        let indent = |line: &str| line.len() - line.trim_start().len();
+        let own = indent(lines[number]);
+        lines[..number]
+            .iter()
+            .rev()
+            .find(|line| !line.trim().is_empty() && own >= 4 && indent(line) == own - 4)
+            .is_some_and(|line| line.trim() == "Timer {")
+    }
+
     fn qml_files() -> Vec<PathBuf> {
         let mut files: Vec<PathBuf> =
             fs::read_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("qml"))
@@ -88,6 +100,9 @@ mod tests {
                     continue;
                 };
                 found += 1;
+                if in_a_timer(&lines, number) {
+                    continue;
+                }
                 handlers += 1;
                 let opens_block = body.ends_with('{');
                 let first = lines.get(number + 1).copied().unwrap_or_default();

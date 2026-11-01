@@ -55,6 +55,19 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // A grid whose user sees only the top (M6-B30): what lies far below is not
+    // made until the view reaches it, and what was made stays.
+    DashboardGrid {
+        id: lazyGrid
+
+        parent: page
+        y: 4000
+        width: page.width - 2 * Kirigami.Units.largeSpacing
+        layout: dashboard
+        monthKey: "2026-09"
+        viewBottom: 1
+    }
+
     function check(ok, what) {
         if (!ok) {
             console.log("FAIL: " + what);
@@ -110,10 +123,19 @@ Kirigami.ApplicationWindow {
                 window.check(grid.itemFor("zone").isBox && grid.itemFor("zone").z < grid.itemFor("inner").z, "the box lies under its widgets");
                 window.check(!grid.itemFor("gaps").hasProblem && !grid.itemFor("moved").hasProblem && !grid.itemFor("line").hasProblem, "the notices are not problems");
                 window.check(grid.periodFor(grid.items[0]) === "2026-09", "a component on the page's period asks for the page's month: " + grid.periodFor(grid.items[0]));
+                // The content of each widget is made one after the other once the
+                // page is shown, and only for what is in or near the view (M6-B30).
+                window.check(grid.revealed === 12 && grid.items.every(entry => grid.itemFor(entry.id).contentMade), "every widget has its content, one after the other: " + grid.revealed);
+                const made = lazyGrid.items.filter(entry => lazyGrid.itemFor(entry.id).contentMade).length;
+                window.check(made > 0 && made < lazyGrid.items.length, "only the widgets near the view are made: " + made + " of " + lazyGrid.items.length);
+                const lowest = lazyGrid.items.reduce((low, entry) => entry.row > low.row ? entry : low);
+                window.check(lazyGrid.itemFor("income").contentMade && !lazyGrid.itemFor(lowest.id).contentMade, "a widget at the top is made and the lowest one is not: " + lowest.id);
+                lazyGrid.viewBottom = 100000;
                 dashboard.edit();
                 break;
             }
             case 1: {
+                window.check(lazyGrid.items.every(entry => lazyGrid.itemFor(entry.id).contentMade), "scrolling to the rest makes it");
                 window.check(grid.editing, "edit mode follows the layout");
                 window.check(grid.implicitHeight > grid.frameHeight(9), "edit mode leaves rows below the lowest component");
                 grid.select("spending");

@@ -52,10 +52,7 @@ Kirigami.ScrollablePage {
         interval: 300
         running: true
         repeat: false
-        onTriggered: {
-            ActionLog.taken("ImportDonePage_ask")
-            transferPrompt.ask(page.statementImport.transferSuggestions())
-        }
+        onTriggered: transferPrompt.ask(page.statementImport.transferSuggestions())
     }
 
     TransferPrompt {

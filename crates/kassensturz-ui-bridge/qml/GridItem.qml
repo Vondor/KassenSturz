@@ -45,6 +45,14 @@ Item {
     // What a period box says: its title and the period it gives its widgets.
     readonly property string boxPeriod: isBox ? names.periodName(info.subject?.period?.word ?? "") : ""
     property bool settled: false
+    // The content is made once it is due and stays (M6-B30).
+    property bool contentMade: false
+    readonly property bool contentDue: present && board.contentDue(info)
+    onContentDueChanged: {
+        if (contentDue) {
+            contentMade = true;
+        }
+    }
     // Dragging and resizing by hand: the pointer sets the pixels, and the
     // editor snaps them to cells when the pointer is let go.
     property bool moving: false
@@ -166,13 +174,13 @@ Item {
         board.edit(board.layout.resizeTo(itemId, cols, rows));
     }
 
+    // Turned off and on again, which ends a drag or a resize that is going on
+    // (Escape).
+    property bool handlersOn: true
+
     function stopDragging() {
-        moveBody.enabled = false;
-        moveBody.enabled = true;
-        moveByHandle.enabled = false;
-        moveByHandle.enabled = true;
-        grow.enabled = false;
-        grow.enabled = true;
+        handlersOn = false;
+        handlersOn = true;
     }
 
     Rectangle {
@@ -195,7 +203,7 @@ Item {
             anchors.margins: Kirigami.Units.smallSpacing
             // In edit mode the component is a picture of itself: the overlay
             // above takes the pointer, which selects and drags it.
-            active: cell.present
+            active: cell.present && cell.contentMade
             sourceComponent: cell.unknown ? unknownBox
                 : cell.info?.type === "text.heading" ? headingBox
                 : cell.info?.type === "group.period" ? boxLabel
@@ -590,6 +598,10 @@ Item {
 
             readonly property bool failed: figures.failed
 
+            // The frame sets this widget's size, so its content does not ask
+            // for one; made after the grid has its width, the figures' own
+            // width would loop back into it (M6-B30).
+            implicitWidth: 0
             contentWidth: availableWidth
             Accessible.name: names.i18nContext.i18nc("@info the figures of a component, which may need scrolling", "%1, scrolls if it does not fit", cell.present ? names.name(cell.info) : "")
 
@@ -605,25 +617,30 @@ Item {
         }
     }
 
-    // Edit mode: the pointer selects and drags a component.
-    Item {
+    // What only arranging the layout needs (the overlay that takes the pointer,
+    // a period box's tab, the toolbar and the resize corner) is made when
+    // arranging starts, not for every component each time the page opens
+    // (M6-B30).
+    Loader {
         id: overlay
 
         anchors.fill: parent
-        visible: cell.board.editing && !cell.board.preview
+        active: cell.board.editing
+        visible: active && !cell.board.preview
 
-        TapHandler {
-            onTapped: cell.board.select(cell.itemId)
-        }
+        // Edit mode: the pointer selects and drags a component.
+        sourceComponent: Item {
+            TapHandler {
+                onTapped: cell.board.select(cell.itemId)
+            }
 
-        DragHandler {
-            id: moveBody
-
-            target: null
-            enabled: !cell.narrow
-            cursorShape: Qt.SizeAllCursor
-            onActiveChanged: active ? cell.dragStarted() : cell.dragEnded()
-            onActiveTranslationChanged: if (active) cell.dragMoved(activeTranslation)
+            DragHandler {
+                target: null
+                enabled: !cell.narrow && cell.handlersOn
+                cursorShape: Qt.SizeAllCursor
+                onActiveChanged: active ? cell.dragStarted() : cell.dragEnded()
+                onActiveTranslationChanged: if (active) cell.dragMoved(activeTranslation)
+            }
         }
     }
 
@@ -640,173 +657,182 @@ Item {
         height: cell.height
         visible: cell.present
 
-        Rectangle {
-            id: boxTab
+        Loader {
+            anchors.fill: parent
+            active: cell.board.editing
 
-            visible: cell.isBox && cell.board.editing && !cell.board.preview && !cell.selected
-            anchors.top: parent.top
-            anchors.left: parent.left
-            anchors.margins: Kirigami.Units.smallSpacing
-            width: Math.min(tabLabel.implicitWidth + Kirigami.Units.largeSpacing * 2, parent.width - Kirigami.Units.smallSpacing * 2)
-            height: tabLabel.implicitHeight + Kirigami.Units.smallSpacing * 2
-            radius: Kirigami.Units.smallSpacing
-            color: Kirigami.Theme.backgroundColor
-            border.width: 1
-            border.color: Kirigami.Theme.highlightColor
+            sourceComponent: Item {
+                Rectangle {
+                    id: boxTab
 
-            Controls.Label {
-                id: tabLabel
+                    visible: cell.isBox && cell.board.editing && !cell.board.preview && !cell.selected
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.margins: Kirigami.Units.smallSpacing
+                    width: Math.min(tabLabel.implicitWidth + Kirigami.Units.largeSpacing * 2, parent.width - Kirigami.Units.smallSpacing * 2)
+                    height: tabLabel.implicitHeight + Kirigami.Units.smallSpacing * 2
+                    radius: Kirigami.Units.smallSpacing
+                    color: Kirigami.Theme.backgroundColor
+                    border.width: 1
+                    border.color: Kirigami.Theme.highlightColor
 
-                anchors.centerIn: parent
-                width: parent.width - Kirigami.Units.largeSpacing
-                text: names.i18nContext.i18nc("@action:button select the period box, to change or move it", "Period box")
-                textFormat: Text.PlainText
-                elide: Text.ElideRight
-                horizontalAlignment: Text.AlignHCenter
-            }
+                    Controls.Label {
+                        id: tabLabel
 
-            Accessible.role: Accessible.Button
-            Accessible.name: names.i18nContext.i18nc("@action:button select the period box, to change or move it", "Period box")
-            Accessible.onPressAction: cell.board.select(cell.itemId)
+                        anchors.centerIn: parent
+                        width: parent.width - Kirigami.Units.largeSpacing
+                        text: names.i18nContext.i18nc("@action:button select the period box, to change or move it", "Period box")
+                        textFormat: Text.PlainText
+                        elide: Text.ElideRight
+                        horizontalAlignment: Text.AlignHCenter
+                    }
 
-            TapHandler {
-                onTapped: cell.board.select(cell.itemId)
-            }
-        }
+                    Accessible.role: Accessible.Button
+                    Accessible.name: names.i18nContext.i18nc("@action:button select the period box, to change or move it", "Period box")
+                    Accessible.onPressAction: cell.board.select(cell.itemId)
 
-        Rectangle {
-            id: bar
-
-            visible: cell.selected && !cell.board.preview && !cell.moving && !cell.resizing
-            anchors.top: parent.top
-            anchors.right: parent.right
-            anchors.margins: Kirigami.Units.smallSpacing
-            width: Math.min(barRow.implicitWidth + Kirigami.Units.smallSpacing * 2, parent.width - Kirigami.Units.smallSpacing * 2)
-            height: barRow.implicitHeight + Kirigami.Units.smallSpacing
-            radius: Kirigami.Units.smallSpacing
-            color: Kirigami.Theme.backgroundColor
-            border.width: 1
-            border.color: Kirigami.Theme.highlightColor
-
-            RowLayout {
-                id: barRow
-
-                anchors.fill: parent
-                anchors.leftMargin: Kirigami.Units.smallSpacing / 2
-                anchors.rightMargin: Kirigami.Units.smallSpacing / 2
-                spacing: 0
-
-                Controls.ToolButton {
-                    id: moveHandle
-
-                    visible: !cell.narrow
-                    icon.name: "transform-move"
-                    text: names.i18nContext.i18nc("@action:button drag this to move the component", "Move")
-                    display: Controls.AbstractButton.IconOnly
-                    Controls.ToolTip.text: names.i18nContext.i18nc("@info:tooltip", "Drag to move. Or use the arrow keys.")
-                    Controls.ToolTip.visible: hovered
-                    Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
-
-                    DragHandler {
-                        id: moveByHandle
-
-                        target: null
-                        cursorShape: Qt.SizeAllCursor
-                        onActiveChanged: active ? cell.dragStarted() : cell.dragEnded()
-                        onActiveTranslationChanged: if (active) cell.dragMoved(activeTranslation)
+                    TapHandler {
+                        onTapped: cell.board.select(cell.itemId)
                     }
                 }
 
-                Kirigami.ActionToolBar {
-                    Layout.fillWidth: true
-                    alignment: Qt.AlignRight
-                    actions: [
-                        Kirigami.Action {
-                            visible: cell.narrow
-                            icon.name: "go-up"
-                            text: names.i18nContext.i18nc("@action:button move the component up the list", "Move earlier")
-                            displayHint: Kirigami.DisplayHint.IconOnly
-                            onTriggered: {
-                                ActionLog.taken("GridItem_moveEarlier")
-                                cell.board.edit(cell.board.layout.moveEarlier(cell.itemId))
-                            }
-                        },
-                        Kirigami.Action {
-                            visible: cell.narrow
-                            icon.name: "go-down"
-                            text: names.i18nContext.i18nc("@action:button move the component down the list", "Move later")
-                            displayHint: Kirigami.DisplayHint.IconOnly
-                            onTriggered: {
-                                ActionLog.taken("GridItem_moveLater")
-                                cell.board.edit(cell.board.layout.moveLater(cell.itemId))
-                            }
-                        },
-                        Kirigami.Action {
-                            icon.name: "edit-copy"
-                            text: names.i18nContext.i18nc("@action:button copy the component", "Duplicate")
-                            displayHint: Kirigami.DisplayHint.IconOnly
-                            onTriggered: {
-                                ActionLog.taken("GridItem_duplicate")
-                                cell.board.duplicate(cell.itemId)
-                            }
-                        },
-                        Kirigami.Action {
-                            icon.name: "configure"
-                            text: names.i18nContext.i18nc("@action:button change what the component shows", "Properties")
-                            displayHint: Kirigami.DisplayHint.IconOnly
-                            enabled: !cell.unknown
-                            onTriggered: {
-                                ActionLog.taken("GridItem_properties")
-                                cell.board.propertiesRequested(cell.itemId)
-                            }
-                        },
-                        Kirigami.Action {
-                            icon.name: "edit-delete"
-                            text: names.i18nContext.i18nc("@action:button take the component out of the layout", "Remove")
-                            displayHint: Kirigami.DisplayHint.IconOnly
-                            onTriggered: {
-                                ActionLog.taken("GridItem_remove")
-                                cell.board.remove(cell.itemId)
+                Rectangle {
+                    id: bar
+
+                    visible: cell.selected && !cell.board.preview && !cell.moving && !cell.resizing
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.margins: Kirigami.Units.smallSpacing
+                    width: Math.min(barRow.implicitWidth + Kirigami.Units.smallSpacing * 2, parent.width - Kirigami.Units.smallSpacing * 2)
+                    height: barRow.implicitHeight + Kirigami.Units.smallSpacing
+                    radius: Kirigami.Units.smallSpacing
+                    color: Kirigami.Theme.backgroundColor
+                    border.width: 1
+                    border.color: Kirigami.Theme.highlightColor
+
+                    RowLayout {
+                        id: barRow
+
+                        anchors.fill: parent
+                        anchors.leftMargin: Kirigami.Units.smallSpacing / 2
+                        anchors.rightMargin: Kirigami.Units.smallSpacing / 2
+                        spacing: 0
+
+                        Controls.ToolButton {
+                            id: moveHandle
+
+                            visible: !cell.narrow
+                            icon.name: "transform-move"
+                            text: names.i18nContext.i18nc("@action:button drag this to move the component", "Move")
+                            display: Controls.AbstractButton.IconOnly
+                            Controls.ToolTip.text: names.i18nContext.i18nc("@info:tooltip", "Drag to move. Or use the arrow keys.")
+                            Controls.ToolTip.visible: hovered
+                            Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
+
+                            DragHandler {
+                                target: null
+                                enabled: cell.handlersOn
+                                cursorShape: Qt.SizeAllCursor
+                                onActiveChanged: active ? cell.dragStarted() : cell.dragEnded()
+                                onActiveTranslationChanged: if (active) cell.dragMoved(activeTranslation)
                             }
                         }
-                    ]
+
+                        Kirigami.ActionToolBar {
+                            Layout.fillWidth: true
+                            alignment: Qt.AlignRight
+                            actions: [
+                                Kirigami.Action {
+                                    visible: cell.narrow
+                                    icon.name: "go-up"
+                                    text: names.i18nContext.i18nc("@action:button move the component up the list", "Move earlier")
+                                    displayHint: Kirigami.DisplayHint.IconOnly
+                                    onTriggered: {
+                                        ActionLog.taken("GridItem_moveEarlier")
+                                        cell.board.edit(cell.board.layout.moveEarlier(cell.itemId))
+                                    }
+                                },
+                                Kirigami.Action {
+                                    visible: cell.narrow
+                                    icon.name: "go-down"
+                                    text: names.i18nContext.i18nc("@action:button move the component down the list", "Move later")
+                                    displayHint: Kirigami.DisplayHint.IconOnly
+                                    onTriggered: {
+                                        ActionLog.taken("GridItem_moveLater")
+                                        cell.board.edit(cell.board.layout.moveLater(cell.itemId))
+                                    }
+                                },
+                                Kirigami.Action {
+                                    icon.name: "edit-copy"
+                                    text: names.i18nContext.i18nc("@action:button copy the component", "Duplicate")
+                                    displayHint: Kirigami.DisplayHint.IconOnly
+                                    onTriggered: {
+                                        ActionLog.taken("GridItem_duplicate")
+                                        cell.board.duplicate(cell.itemId)
+                                    }
+                                },
+                                Kirigami.Action {
+                                    icon.name: "configure"
+                                    text: names.i18nContext.i18nc("@action:button change what the component shows", "Properties")
+                                    displayHint: Kirigami.DisplayHint.IconOnly
+                                    enabled: !cell.unknown
+                                    onTriggered: {
+                                        ActionLog.taken("GridItem_properties")
+                                        cell.board.propertiesRequested(cell.itemId)
+                                    }
+                                },
+                                Kirigami.Action {
+                                    icon.name: "edit-delete"
+                                    text: names.i18nContext.i18nc("@action:button take the component out of the layout", "Remove")
+                                    displayHint: Kirigami.DisplayHint.IconOnly
+                                    onTriggered: {
+                                        ActionLog.taken("GridItem_remove")
+                                        cell.board.remove(cell.itemId)
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 }
             }
         }
     }
 
     // The corner a selected component is resized by.
-    Rectangle {
-        id: corner
-
-        visible: cell.selected && !cell.board.preview && !cell.narrow
+    Loader {
+        active: cell.board.editing
+        visible: active && cell.selected && !cell.board.preview && !cell.narrow
+        x: cell.width - Kirigami.Units.gridUnit
+        y: cell.height - Kirigami.Units.gridUnit
         width: Kirigami.Units.gridUnit
         height: Kirigami.Units.gridUnit
-        x: cell.width - width
-        y: cell.height - height
-        color: Kirigami.Theme.highlightColor
-        radius: Kirigami.Units.smallSpacing
-        opacity: grow.active ? 1 : 0.8
 
-        Kirigami.Icon {
-            anchors.centerIn: parent
-            width: parent.width - Kirigami.Units.smallSpacing
-            height: width
-            source: "transform-scale"
-            color: Kirigami.Theme.highlightedTextColor
-            isMask: true
-        }
+        sourceComponent: Rectangle {
+            color: Kirigami.Theme.highlightColor
+            radius: Kirigami.Units.smallSpacing
+            opacity: grow.active ? 1 : 0.8
 
-        Accessible.role: Accessible.Button
-        Accessible.name: names.i18nContext.i18nc("@action:button drag this to make the component larger or smaller", "Resize")
+            Kirigami.Icon {
+                anchors.centerIn: parent
+                width: parent.width - Kirigami.Units.smallSpacing
+                height: width
+                source: "transform-scale"
+                color: Kirigami.Theme.highlightedTextColor
+                isMask: true
+            }
 
-        DragHandler {
-            id: grow
+            Accessible.role: Accessible.Button
+            Accessible.name: names.i18nContext.i18nc("@action:button drag this to make the component larger or smaller", "Resize")
 
-            target: null
-            cursorShape: Qt.SizeFDiagCursor
-            onActiveChanged: active ? cell.growStarted() : cell.growEnded()
-            onActiveTranslationChanged: if (active) cell.growMoved(activeTranslation)
+            DragHandler {
+                id: grow
+
+                target: null
+                enabled: cell.handlersOn
+                cursorShape: Qt.SizeFDiagCursor
+                onActiveChanged: active ? cell.growStarted() : cell.growEnded()
+                onActiveTranslationChanged: if (active) cell.growMoved(activeTranslation)
+            }
         }
     }
 }

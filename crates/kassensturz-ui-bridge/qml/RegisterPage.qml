@@ -133,10 +133,7 @@ Kirigami.ScrollablePage {
     Timer {
         interval: 500
         running: !page.loaded
-        onTriggered: {
-            ActionLog.taken("RegisterPage_load")
-            page.load()
-        }
+        onTriggered: page.load()
     }
 
     actions: [

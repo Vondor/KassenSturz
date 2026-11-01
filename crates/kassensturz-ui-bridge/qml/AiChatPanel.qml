@@ -215,10 +215,7 @@ ColumnLayout {
         interval: 1000
         repeat: true
         running: panel.ai.enabled && panel.chat.available
-        onTriggered: {
-            ActionLog.taken("AiChatPanel_checkRequests")
-            panel.chat.checkRequests()
-        }
+        onTriggered: panel.chat.checkRequests()
     }
 
     Connections {
@@ -523,10 +520,7 @@ ColumnLayout {
             panel.waitedSeconds = 0;
             panel.keepsWaiting = running && panel.settings.slowAnswer() === "warn";
         }
-        onTriggered: {
-            ActionLog.taken("AiChatPanel_triggered")
-            panel.waitedSeconds += 1
-        }
+        onTriggered: panel.waitedSeconds += 1
     }
 
     Kirigami.InlineMessage {

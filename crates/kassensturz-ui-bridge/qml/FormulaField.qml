@@ -155,10 +155,7 @@ ColumnLayout {
         id: checkTimer
 
         interval: 300
-        onTriggered: {
-            ActionLog.taken("FormulaField_check")
-            field.check()
-        }
+        onTriggered: field.check()
     }
 
     Controls.TextField {

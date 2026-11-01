@@ -16,7 +16,7 @@
 # with a name from `kassensturz_core::vocabulary::ACTIONS`
 # (crates/kassensturz-core/src/vocabulary/actions.rs) that starts with the
 # file's name and that no other handler uses. Every name in the list must be
-# used. `cargo test -p kassensturz-ui-bridge action_log_audit` checks the
+# used. A handler inside a Timer is left out: it ticks by itself. `cargo test -p kassensturz-ui-bridge action_log_audit` checks the
 # same in CI; this script is the fast local run.
 
 set -eu
@@ -37,10 +37,21 @@ sed -n 's/^    "\([A-Za-z0-9_]*\)",$/\1/p' "$list" | sort > "$work/listed"
 # Each handler: file, line, and the name its first line gives (or nothing).
 for file in "$qml"/*.qml; do
     awk -v file="$(basename "$file" .qml)" '
-        /^[ \t]*(onClicked|onTriggered|onAccepted|onToggled|onActivated|onChosen)[ \t]*:/ {
-            handler = FNR
+        # The last line seen at each indent, to tell the element a handler is
+        # in: a Timer ticks by itself, it is not a user'"'"'s action.
+        {
             line = $0
             sub(/^[ \t]*/, "", line)
+            indent = length($0) - length(line)
+        }
+        /^[ \t]*(onClicked|onTriggered|onAccepted|onToggled|onActivated|onChosen)[ \t]*:/ {
+            if (indent >= 4 && (indent - 4) in last && last[indent - 4] ~ /^Timer[ \t]*\{[ \t]*$/) {
+                print file "\t" FNR "\ttimer"
+                last[indent] = line
+                next
+            }
+            last[indent] = line
+            handler = FNR
             if (line !~ /\{[ \t]*$/) {
                 print file "\t" FNR "\tnot-a-block"
                 next
@@ -53,14 +64,17 @@ for file in "$qml"/*.qml; do
                 print file "\t" handler "\tnone"
             }
         }
+        !/^[ \t]*$/ { last[indent] = line }
     ' "$file"
 done > "$work/handlers"
 
 failed=0
 total=$(wc -l < "$work/handlers")
+timers=$(grep -c "	timer$" "$work/handlers" || true)
 
 while IFS="	" read -r file line name; do
     case "$name" in
+        timer) ;;
         not-a-block) echo "$file.qml:$line: the handler must be a block that starts with ActionLog.taken(\"${file}_...\")" >&2; failed=1 ;;
         none) echo "$file.qml:$((line + 1)): the handler must start with ActionLog.taken(\"${file}_...\")" >&2; failed=1 ;;
         "${file}_"*)
@@ -69,7 +83,7 @@ while IFS="	" read -r file line name; do
     esac
 done < "$work/handlers"
 
-cut -f3 "$work/handlers" | sort > "$work/used"
+grep -v "	timer$" "$work/handlers" | cut -f3 | sort > "$work/used"
 dups=$(uniq -d < "$work/used" || true)
 [ -z "$dups" ] || { echo "names used by two handlers: $dups" >&2; failed=1; }
 unused=$(comm -23 "$work/listed" "$work/used" || true)
@@ -79,9 +93,9 @@ unused=$(comm -23 "$work/listed" "$work/used" || true)
 inline=$(grep -hoE '(^|[^A-Za-z])(onClicked|onTriggered|onAccepted|onToggled|onActivated|onChosen)[ \t]*:' "$qml"/*.qml | wc -l)
 [ "$inline" -eq "$total" ] || { echo "check-action-log: $inline handlers mentioned, $total at the start of a line; give each its own line" >&2; failed=1; }
 
-[ "$total" -gt 300 ] || { echo "check-action-log: only $total handlers found" >&2; failed=1; }
+[ "$((total - timers))" -gt 300 ] || { echo "check-action-log: only $total handlers found" >&2; failed=1; }
 
 if [ "$failed" -eq 0 ]; then
-    echo "check-action-log: ok ($total handlers)"
+    echo "check-action-log: ok ($((total - timers)) handlers, $timers timers left out)"
 fi
 exit "$failed"

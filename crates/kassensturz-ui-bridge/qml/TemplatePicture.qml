@@ -19,9 +19,10 @@ Rectangle {
     property int rows: 0
 
     readonly property real cell: width / 12
-    // Grid cells are wider than high, as on the page.
-    readonly property real rowHeight: cell * 0.6
-    readonly property int shownRows: Math.max(rows, 10)
+    // Every picture has the same size, so the choices line up; a long
+    // template gets lower rows.
+    readonly property int shownRows: Math.max(rows, 8)
+    readonly property real rowHeight: height / shownRows
 
     function iconOf(type: string): string {
         switch (type) {
@@ -57,7 +58,7 @@ Rectangle {
         return "view-grid";
     }
 
-    implicitHeight: shownRows * rowHeight
+    implicitHeight: width * 0.55
     radius: Kirigami.Units.cornerRadius
     color: Kirigami.Theme.backgroundColor
     border.width: 1
@@ -79,9 +80,9 @@ Rectangle {
             width: box.modelData.cols * picture.cell - 2
             height: box.modelData.rows * picture.rowHeight - 2
             radius: 2
-            color: Kirigami.ColorUtils.linearInterpolation(Kirigami.Theme.backgroundColor, Kirigami.Theme.highlightColor, 0.15)
+            color: Kirigami.ColorUtils.linearInterpolation(Kirigami.Theme.backgroundColor, Kirigami.Theme.highlightColor, 0.3)
             border.width: 1
-            border.color: Kirigami.ColorUtils.linearInterpolation(Kirigami.Theme.backgroundColor, Kirigami.Theme.highlightColor, 0.5)
+            border.color: Kirigami.ColorUtils.linearInterpolation(Kirigami.Theme.backgroundColor, Kirigami.Theme.highlightColor, 0.8)
 
             Kirigami.Icon {
                 anchors.centerIn: parent

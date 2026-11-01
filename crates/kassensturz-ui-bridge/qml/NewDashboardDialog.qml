@@ -156,7 +156,7 @@ Kirigami.Dialog {
         ? i18nContext.i18nc("@title:window", "Rename this dashboard")
         : i18nContext.i18nc("@title:window", "New dashboard")
     standardButtons: Kirigami.Dialog.NoButton
-    preferredWidth: Kirigami.Units.gridUnit * (renaming ? 22 : 34)
+    preferredWidth: Kirigami.Units.gridUnit * (renaming ? 22 : 30)
     padding: Kirigami.Units.largeSpacing
 
     customFooterActions: [
@@ -186,6 +186,9 @@ Kirigami.Dialog {
 
         Controls.Label {
             Layout.fillWidth: true
+            // The sentence wraps to the width of the choices instead of
+            // widening the dialog.
+            Layout.preferredWidth: choices.implicitWidth
             visible: !dialog.renaming
             wrapMode: Text.Wrap
             text: dialog.i18nContext.i18nc("@info", "Pick what the new dashboard starts with. You can change everything on it later, and switch between your dashboards with the tabs at the top of the Overview.")
@@ -209,7 +212,7 @@ Kirigami.Dialog {
                     required property var modelData
 
                     Layout.fillWidth: true
-                    Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 9
                     Layout.alignment: Qt.AlignTop
                     checkable: true
                     checked: dialog.word === choice.modelData.word

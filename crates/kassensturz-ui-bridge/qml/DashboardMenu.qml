@@ -5,7 +5,7 @@
 // two or more dashboards; with one, the page offers only *New dashboard…*.
 // Each entry works on the dashboard shown and is one change in the history
 // (D-436). The page asks the questions (new name, new name for Rename,
-// Delete): this menu tells it with a signal. Later steps add one entry each
+// Back to the template, Delete): this menu tells it with a signal. Later steps add one entry each
 // below the line before Delete: *Save to a file…* (M6d.3), *Add from a
 // file…* (M6d.4), *Back to the template…* (M6d.5); M6d.2 adds the templates
 // to `NewDashboardDialog`.
@@ -29,6 +29,7 @@ Kirigami.Action {
     signal newRequested()
     signal renameRequested()
     signal deleteRequested()
+    signal templateRequested()
     // An action was refused: the error object.
     signal failed(var result)
 
@@ -105,6 +106,17 @@ Kirigami.Action {
     }
     Kirigami.Action {
         separator: true
+    }
+    Kirigami.Action {
+        icon.name: "document-revert"
+        // Only a dashboard that knows its template offers it (D-439).
+        visible: (menu.view.template ?? "") !== ""
+        enabled: !(menu.view.atTemplate ?? true)
+        text: menu.i18nContext.i18nc("@action:inmenu put the widgets and filters of the template the dashboard shown was made from back on it", "Back to the template…")
+        onTriggered: {
+            ActionLog.taken("DashboardMenu_backToTemplate")
+            menu.templateRequested()
+        }
     }
     Kirigami.Action {
         icon.name: "edit-delete"

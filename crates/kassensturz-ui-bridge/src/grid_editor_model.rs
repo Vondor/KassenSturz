@@ -31,7 +31,9 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
 use kassensturz_core::Report;
 use kassensturz_core::{ViewId, ViewKind};
-use kassensturz_report::{Filters, NumberForm, OVERVIEW_NAME, Origin, grid};
+use kassensturz_report::{
+    Filters, NumberForm, OVERVIEW_NAME, Origin, ReportError, grid, templates,
+};
 use kassensturz_store::Book;
 
 use crate::dashboards::{self, Dashboard};
@@ -167,6 +169,13 @@ pub mod qobject {
         #[cxx_name = "moveDashboard"]
         fn move_dashboard(self: Pin<&mut DashboardLayout>, by: i32) -> QVariant;
 
+        /// Puts the template's components and filters back on the dashboard
+        /// shown (*Back to the template…*, D-439). Gives the error, or an
+        /// empty object.
+        #[qinvokable]
+        #[cxx_name = "backToTemplate"]
+        fn back_to_template(self: Pin<&mut DashboardLayout>) -> QVariant;
+
         /// Deletes the dashboard shown and shows the one the book opens at
         /// (*Delete…*). Gives the error, or an empty object.
         #[qinvokable]
@@ -230,7 +239,9 @@ pub mod qobject {
         #[qinvokable]
         fn redo(self: Pin<&mut DashboardLayout>) -> QString;
 
-        /// Puts the built-in layout back, as an edit Undo takes back.
+        /// Puts the components of the template the dashboard shown was made
+        /// from back while it is arranged, as an edit Undo takes back
+        /// (D-439); its filters stay (D-483).
         #[qinvokable]
         fn reset(self: Pin<&mut DashboardLayout>) -> QVariant;
 
@@ -349,6 +360,10 @@ fn number(value: u32) -> QVariant {
     QVariant::from(&i32::try_from(value).unwrap_or(i32::MAX))
 }
 
+fn count(value: usize) -> QVariant {
+    QVariant::from(&i32::try_from(value).unwrap_or(i32::MAX))
+}
+
 /// What a component asks for, for QML: `period` is the word of the period
 /// (`page` for the page's own) and `scope` the text `setScope` takes.
 fn asked_object(row: &grid_editor::Row) -> QVariant {
@@ -424,8 +439,12 @@ fn dashboards_object(dashboards: &[Dashboard], shown: Option<ViewId>) -> QVarian
 /// What QML gets for the layout; empty when no book is open. Besides the
 /// grid: `dashboards` (see [`dashboards_object`]), `name` of the one shown,
 /// `stored` (whether it is in the book, so it can be moved and deleted),
-/// `isDefault` and `instead`, the name of the one the book would open at if
-/// it were deleted.
+/// `isDefault`, `instead`, the name of the one the book would open at if
+/// it were deleted, and for *Back to the template* (D-439): `template`, its
+/// word (empty when it has none), `atTemplate` (it shows the template's
+/// components and, unless it is arranged, filters), `widgets` and
+/// `templateWidgets`, how many components it and the template have, and
+/// `templateFilters`, whether the template's filters differ from its own.
 fn view_object(
     layout: Option<&Layout>,
     editing: bool,
@@ -446,12 +465,41 @@ fn view_object(
     let own = editor.filters();
     // While arranged, the bar is the layout's own filters.
     let bar = if editing { None } else { bar }.unwrap_or(&own);
+    let word = dashboards::template_word(dashboards, layout.stored);
+    let template = word.and_then(|word| templates::document(word).ok());
+    let at_template = !layout.damaged
+        && word.is_some_and(|word| {
+            if editing {
+                dashboards::has_template_components(editor.document(), word)
+            } else {
+                dashboards::is_template(editor.document(), word)
+            }
+        });
     map([
         ("dashboards", dashboards_object(dashboards, layout.stored)),
         ("name", text(&layout.name)),
         ("stored", QVariant::from(&layout.stored.is_some())),
         ("isDefault", QVariant::from(&shown_default)),
         ("instead", text(instead)),
+        ("template", text(word.unwrap_or(""))),
+        ("atTemplate", QVariant::from(&at_template)),
+        ("widgets", count(editor.document().entries.len())),
+        (
+            "templateWidgets",
+            count(
+                template
+                    .as_ref()
+                    .map_or(0, |template| template.entries.len()),
+            ),
+        ),
+        (
+            "templateFilters",
+            QVariant::from(
+                &template
+                    .as_ref()
+                    .is_some_and(|template| template.filters() != own),
+            ),
+        ),
         ("filters", filters_object(bar, bar != &own)),
         ("editing", QVariant::from(&editing)),
         ("damaged", QVariant::from(&layout.damaged)),
@@ -709,6 +757,11 @@ impl qobject::DashboardLayout {
         )
     }
 
+    fn back_to_template(self: Pin<&mut Self>) -> QVariant {
+        // The built-in Overview is shown if the last one was removed.
+        self.dashboard_action(dashboards::back_to_template, false)
+    }
+
     fn delete_dashboard(self: Pin<&mut Self>) -> QVariant {
         // Then the one the book opens at is shown.
         self.dashboard_action(
@@ -943,8 +996,19 @@ impl qobject::DashboardLayout {
     }
 
     fn reset(self: Pin<&mut Self>) -> QVariant {
+        let word = dashboards::template_word(
+            &self.rust().dashboards,
+            self.rust().layout.as_ref().and_then(|layout| layout.stored),
+        )
+        .map(str::to_owned);
         self.edited(
-            |layout| Ok(layout.editor.reset(&grid_editor::built_in()?)?),
+            |layout| {
+                let word = word.ok_or(LayoutError::Report(ReportError::DocumentInvalid {
+                    reason: "bad-choice",
+                    path: "template".to_owned(),
+                }))?;
+                Ok(layout.editor.reset(&templates::document(&word)?.entries)?)
+            },
             |_| map([]),
         )
     }
@@ -1012,7 +1076,8 @@ impl qobject::DashboardLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::variant::read_back::{flag_of, keys, list_of, object_of, text_of};
+    use crate::variant::read_back::{flag_of, keys, list_of, number_of, object_of, text_of};
+    use kassensturz_report::Document;
 
     fn layout() -> Layout {
         Layout::open(&Book::create_in_memory().unwrap(), None, OVERVIEW_NAME).unwrap()
@@ -1025,6 +1090,7 @@ mod tests {
         assert_eq!(
             keys(&view),
             [
+                "atTemplate",
                 "builtIn",
                 "canRedo",
                 "canUndo",
@@ -1043,7 +1109,11 @@ mod tests {
                 "redoEdit",
                 "rows",
                 "stored",
-                "undoEdit"
+                "template",
+                "templateFilters",
+                "templateWidgets",
+                "undoEdit",
+                "widgets"
             ]
         );
         assert!(flag_of(&view, "editing"));
@@ -1189,6 +1259,63 @@ mod tests {
         assert!(flag_of(&view, "isDefault"));
         assert!(!flag_of(&view, "stored"));
         assert_eq!(text_of(&view, "name"), "Übersicht");
+    }
+
+    #[test]
+    fn back_to_the_template_reads_back_with_the_counts_the_question_names() {
+        let mut book = Book::create_in_memory().unwrap();
+        let empty = dashboards::add(&mut book, "empty", "Plans", "Übersicht").unwrap();
+        let mut arranged = templates::document("overview").unwrap();
+        arranged.name = "Home".to_owned();
+        arranged.entries.pop();
+        arranged.accounts = vec!["account-1".to_owned()];
+        let home = book.add_view(&arranged.to_json()).unwrap();
+        let read = |book: &Book, id, editing| {
+            let list = dashboards::list(book, "Übersicht").unwrap();
+            let layout = Layout::open(book, Some(id), "Übersicht").unwrap();
+            view_object(
+                Some(&layout),
+                editing,
+                NumberForm::DecimalComma,
+                None,
+                &list,
+                "",
+            )
+        };
+        let overview = Document::default_overview().unwrap().entries.len();
+        let view = read(&book, home, false);
+        assert_eq!(text_of(&view, "template"), "overview");
+        assert!(!flag_of(&view, "atTemplate"));
+        assert_eq!(
+            number_of(&view, "widgets"),
+            i32::try_from(overview - 1).unwrap()
+        );
+        assert_eq!(
+            number_of(&view, "templateWidgets"),
+            i32::try_from(overview).unwrap()
+        );
+        assert!(flag_of(&view, "templateFilters"));
+        dashboards::back_to_template(&mut book, Some(home), "Übersicht").unwrap();
+        let view = read(&book, home, false);
+        assert!(flag_of(&view, "atTemplate"));
+        assert!(!flag_of(&view, "templateFilters"));
+        assert_eq!(
+            number_of(&view, "widgets"),
+            i32::try_from(overview).unwrap()
+        );
+        // An empty one is at its template, which has no widgets.
+        let view = read(&book, empty, true);
+        assert_eq!(text_of(&view, "template"), "empty");
+        assert!(flag_of(&view, "atTemplate"));
+        assert_eq!(number_of(&view, "templateWidgets"), 0);
+        // One stored before templates, not the M6c Overview, has none.
+        let mut old = Document::default_overview().unwrap();
+        old.name = "Month review".to_owned();
+        old.template = None;
+        let old = book.add_view(&old.to_json()).unwrap();
+        let view = read(&book, old, false);
+        assert_eq!(text_of(&view, "template"), "");
+        assert!(!flag_of(&view, "atTemplate"));
     }
 
     #[test]

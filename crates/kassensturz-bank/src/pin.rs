@@ -249,20 +249,37 @@ impl PinSession {
 
     /// Moves what is kept for `from` to `to`: the PIN a login got while
     /// it was [`LoginId::pending`] becomes the new login's. A PIN saved in
-    /// the store is saved again under `to` and deleted under `from`.
+    /// the store is saved again under `to` and deleted under `from`. A PIN
+    /// the user typed and chose not to save stays in memory only: the store
+    /// isn't asked at all, so a keychain that can't be reached doesn't stop
+    /// a login whose PIN is asked each time or kept until the app closes
+    /// (M6-B82).
     pub fn rename(&mut self, from: &LoginId, to: &LoginId) -> Result<(), BankError> {
-        if let Some((pin, mode)) = self.remembered.remove(from) {
-            if mode == PinMode::SaveInKeychain {
-                self.store.save(to, &pin)?;
+        let saved = match self.remembered.remove(from) {
+            Some((pin, mode)) => {
+                let saved = mode == PinMode::SaveInKeychain;
+                if saved {
+                    self.store.save(to, &pin)?;
+                }
+                self.remembered.insert(to.clone(), (pin, mode));
+                saved
             }
-            self.remembered.insert(to.clone(), (pin, mode));
-        } else if let Some(pin) = self.store.load(from)? {
-            self.store.save(to, &pin)?;
-        }
+            None => match self.store.load(from)? {
+                Some(pin) => {
+                    self.store.save(to, &pin)?;
+                    true
+                }
+                None => false,
+            },
+        };
         if self.rejected.remove(from) {
             self.rejected.insert(to.clone());
         }
-        self.store.delete(from)
+        if saved {
+            self.store.delete(from)
+        } else {
+            Ok(())
+        }
     }
 
     /// Forgets everything about `login`'s PIN: remembered and saved. For
@@ -442,6 +459,35 @@ mod tests {
         assert!(!session.is_remembered(&login()));
         // Blocked, even though the keychain still has the old PIN.
         assert_eq!(session.answer(&login()), Ok(PinAnswer::Ask));
+    }
+
+    #[test]
+    fn a_pin_kept_in_memory_moves_to_the_new_login_without_the_keychain() {
+        let mut store = MemoryPinStore::new();
+        store.unavailable = true;
+        let mut session = PinSession::new(Box::new(store));
+        let pending = LoginId::pending();
+        for mode in [PinMode::AskEachTime, PinMode::RememberUntilClose] {
+            session
+                .provide(&pending, pin("0000"), mode)
+                .expect("keeping in memory needs no keychain");
+            assert_eq!(session.rename(&pending, &login()), Ok(()));
+            assert!(!session.is_remembered(&pending));
+            assert_eq!(session.answer(&login()), Ok(PinAnswer::Known(pin("0000"))));
+            session.remembered.clear();
+        }
+    }
+
+    #[test]
+    fn a_saved_pin_moves_to_the_new_login_in_the_store() {
+        let mut session = session();
+        let pending = LoginId::pending();
+        session
+            .provide(&pending, pin("0000"), PinMode::SaveInKeychain)
+            .expect("provided");
+        assert_eq!(session.rename(&pending, &login()), Ok(()));
+        assert_eq!(session.is_saved(&pending), Ok(false));
+        assert_eq!(session.is_saved(&login()), Ok(true));
     }
 
     #[test]

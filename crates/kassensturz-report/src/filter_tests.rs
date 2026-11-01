@@ -30,8 +30,9 @@ fn text(id: AccountId) -> String {
 /// A dashboard with a period box over the first two rows and, inside it, a
 /// pie without settings of its own, a pie with its own period and
 /// categories, and a key figure card with its own accounts; below the box a
-/// line of the balances, a heading, and a component of a type this version
-/// doesn't know.
+/// line of the balances, a heading, a component of a type this version
+/// doesn't know, and the filter bar, without which the page's filters don't
+/// apply (D-475).
 fn dashboard(filters: &Value) -> Document {
     let text = json!({
         "format": FORMAT, "version": VERSION, "kind": "dashboard", "name": "Overview",
@@ -52,11 +53,13 @@ fn dashboard(filters: &Value) -> Document {
             {"id": "title", "type": "text.heading", "props": {"text": "Money"},
              "frame": {"col": 0, "row": 12, "cols": 4, "rows": 1}},
             {"id": "later", "type": "chart.sankey", "dataset": "spending_by_category",
-             "frame": {"col": 4, "row": 12, "cols": 4, "rows": 1}}
+             "frame": {"col": 4, "row": 12, "cols": 4, "rows": 1}},
+            {"id": "bar", "type": "page.filters",
+             "frame": {"col": 0, "row": 13, "cols": 12, "rows": 1}}
         ]
     })
     .to_string();
-    Document::read(&text).expect("a valid version 2 dashboard")
+    Document::read(&text).expect("a valid dashboard")
 }
 
 fn chosen(ids: &[&str], origin: Origin) -> Option<Chosen> {
@@ -142,7 +145,7 @@ fn version_2_keeps_the_filters_and_version_1_is_still_read() {
     let page = dashboard(&json!({"accounts": ["a-1"], "categories": ["c-1", "c-2"]}));
     let written = page.to_json();
     let value: Value = serde_json::from_str(&written).unwrap();
-    assert_eq!(value["version"], 2);
+    assert_eq!(value["version"], VERSION);
     assert_eq!(
         value["filters"],
         json!({"accounts": ["a-1"], "categories": ["c-1", "c-2"]})
@@ -164,18 +167,25 @@ fn version_2_keeps_the_filters_and_version_1_is_still_read() {
     assert_eq!(value.get("filters"), None);
 
     // A version 1 document of an earlier build opens, with no filters, and
-    // is written back as version 2.
-    let old = Document::read(crate::DEFAULT_OVERVIEW).expect("the built-in overview");
-    assert!(crate::DEFAULT_OVERVIEW.contains("\"version\": 1"));
+    // is written back as the current version.
+    let old = Document::read(
+        &json!({"format": FORMAT, "version": 1, "kind": "dashboard", "name": "Old",
+            "components": []})
+        .to_string(),
+    )
+    .expect("a version 1 dashboard");
     assert_eq!(old.filters(), Filters::default());
     let value: Value = serde_json::from_str(&old.to_json()).unwrap();
-    assert_eq!(value["version"], 2);
+    assert_eq!(value["version"], VERSION);
 
     // A newer one is refused by its version, not as a reading error.
-    let newer = written.replace("\"version\":2", "\"version\":3");
+    let newer = written.replace(
+        &format!("\"version\":{VERSION}"),
+        &format!("\"version\":{}", VERSION + 1),
+    );
     assert!(matches!(
         Document::read(&newer),
-        Err(ReportError::UnsupportedDocumentVersion { version: 3 })
+        Err(ReportError::UnsupportedDocumentVersion { version }) if version == i64::from(VERSION + 1)
     ));
 }
 
@@ -592,6 +602,8 @@ fn every_dataset_says_what_it_takes() {
         ComponentType::PeriodBox,
         ComponentType::FetchNotice,
         ComponentType::TransfersNote,
+        ComponentType::PeriodHeader,
+        ComponentType::FilterBar,
     ] {
         assert_eq!(of(kind), Takes::NOTHING, "{kind:?}");
     }

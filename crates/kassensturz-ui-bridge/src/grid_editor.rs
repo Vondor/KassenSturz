@@ -349,14 +349,16 @@ mod tests {
         assert!(!layout.damaged);
         assert!(!layout.editor.has_changes());
         let shown = rows(&layout.editor, &Filters::default());
-        assert_eq!(shown.len(), 12);
-        // Reading order: the bank warnings, the four cards, the budget bars,
+        assert_eq!(shown.len(), 14);
+        // Reading order: the period header and the filter bar, the bank warnings, the four cards, the budget bars,
         // then the donut and the table, the line, and the note about
         // transfers.
         let ids: Vec<&str> = shown.iter().map(|row| row.id.as_str()).collect();
         assert_eq!(
             ids,
             [
+                "period-header",
+                "filter-bar",
                 "fetch-gaps",
                 "worth",
                 "income",
@@ -371,7 +373,7 @@ mod tests {
                 "transfers"
             ]
         );
-        assert_eq!(total_rows(&layout.editor), 23);
+        assert_eq!(total_rows(&layout.editor), 25);
     }
 
     #[test]
@@ -485,12 +487,20 @@ mod tests {
     }"#;
 
     #[test]
-    fn the_library_offers_the_eighteen_components_and_adds_each_with_its_defaults() {
+    fn the_library_offers_the_twenty_components_and_adds_each_with_its_defaults() {
         let offered = library();
-        assert_eq!(offered.len(), 18);
+        assert_eq!(offered.len(), 20);
         assert!(offered.contains(&("text.heading", "")));
+        assert!(offered.contains(&("page.period", "")));
+        assert!(offered.contains(&("page.filters", "")));
         let mut layout = Layout::open(&book(), None, OVERVIEW_NAME).unwrap();
         for (kind, _) in offered {
+            // The built-in Overview has the period header and the filter
+            // bar already, and a page holds one of each (D-474).
+            if matches!(kind, "page.period" | "page.filters") {
+                assert!(add(&mut layout.editor, kind).is_err());
+                continue;
+            }
             let id = add(&mut layout.editor, kind).unwrap();
             let row = rows(&layout.editor, &Filters::default())
                 .into_iter()
@@ -498,7 +508,7 @@ mod tests {
                 .unwrap();
             assert_eq!(row.component.unwrap().kind().id(), kind);
         }
-        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 30);
+        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 32);
         assert!(add(&mut layout.editor, "chart.radar").is_err());
     }
 

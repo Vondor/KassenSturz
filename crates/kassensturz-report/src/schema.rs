@@ -88,6 +88,17 @@ pub enum ComponentType {
     /// [`ComponentType::LIBRARY`], never in [`ComponentType::ALL`]: only the
     /// user places and starts it, never the AI (T-55). It shows no data.
     BankUpdateAll,
+    /// `page.period`: the period header, the month the page shows with the
+    /// way to the months before and after it and back to this one (D-452,
+    /// D-474). It shows no data and has no settings; the page fills it. A
+    /// dashboard holds at most one.
+    PeriodHeader,
+    /// `page.filters`: the filter bar, the page's period, accounts and
+    /// categories (D-351, D-452, D-474). Its choices stay the document's
+    /// `filters`; they apply only while the dashboard holds the bar, so
+    /// nothing narrows a page without showing it (D-475). It shows no data
+    /// and has no settings. A dashboard holds at most one.
+    FilterBar,
 }
 
 impl ComponentType {
@@ -107,7 +118,7 @@ impl ComponentType {
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
     /// the heading (D-312).
-    pub const LIBRARY: [Self; 18] = [
+    pub const LIBRARY: [Self; 20] = [
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -126,6 +137,8 @@ impl ComponentType {
         Self::IncomeSources,
         Self::BudgetProgress,
         Self::BankUpdateAll,
+        Self::PeriodHeader,
+        Self::FilterBar,
     ];
 
     /// Whether the component shows no figures of the book: its document names
@@ -141,7 +154,16 @@ impl ComponentType {
                 | Self::NetWorth
                 | Self::IncomeSources
                 | Self::BankUpdateAll
+                | Self::PeriodHeader
+                | Self::FilterBar
         )
+    }
+
+    /// Whether a dashboard holds at most one of this type (D-474): the
+    /// period header and the filter bar belong to the whole page, so a
+    /// second one would only repeat the first.
+    pub const fn one_per_page(self) -> bool {
+        matches!(self, Self::PeriodHeader | Self::FilterBar)
     }
 
     /// The id documents and the AI use.
@@ -165,6 +187,8 @@ impl ComponentType {
             Self::IncomeSources => "table.income_sources",
             Self::BudgetProgress => "budget.progress",
             Self::BankUpdateAll => "bank.update_all",
+            Self::PeriodHeader => "page.period",
+            Self::FilterBar => "page.filters",
         }
     }
 
@@ -195,7 +219,9 @@ impl ComponentType {
             | Self::PeriodBox
             | Self::NetWorth
             | Self::IncomeSources
-            | Self::BankUpdateAll => "text",
+            | Self::BankUpdateAll
+            | Self::PeriodHeader
+            | Self::FilterBar => "text",
         }
     }
 
@@ -223,7 +249,9 @@ impl ComponentType {
             | Self::FetchNotice
             | Self::TransfersNote
             | Self::NetWorth
-            | Self::IncomeSources => &[],
+            | Self::IncomeSources
+            | Self::PeriodHeader
+            | Self::FilterBar => &[],
             Self::PeriodBox => &PERIOD_BOX,
             Self::BudgetProgress => &BUDGET_PROGRESS,
             Self::BankUpdateAll => &UPDATE_ALL,

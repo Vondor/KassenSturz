@@ -22,5 +22,8 @@ kassensturz-export.workspace = true
 kassensturz-import.workspace = true
 kassensturz-store.workspace = true
 
+[dev-dependencies]
+kassensturz-report.workspace = true
+
 [lints]
 workspace = true

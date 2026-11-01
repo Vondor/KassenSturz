@@ -1,8 +1,8 @@
 # The five-year Space Colony book
 
 `crates/kassensturz-import/tests/books/space-colony-5y-v15.sqlite` is a
-made-up KMyMoney book (SQLite, layout 15) with 3,791 entries from
-2021-11-01 to 2026-10-28, for the last local-model test round and the first
+made-up KMyMoney book (SQLite, layout 15) with 3,798 entries from
+2021-11-01 to 2026-11-01, for the last local-model test round and the first
 user tests (D-270). Open it in KassenSturz with *Settings › Start a book from a file…*;
 the importer reads it like any KMyMoney book. 3,460 are made up by the script; 331 are the older Space Colony book's
 entries up to today, kept as realistic examples (the maintainer's choice,
@@ -30,6 +30,14 @@ Hidden from charts: Small Expenses, Rover Parking, Refund Radiation
 Shielding, Souvenirs. Souvenirs is also in *Not needed spendings*: hiding
 leaves a group's figure alone (Q-225).
 
+The export also holds five monthly budgets (Food, Fusion Power, Health,
+Rover and Vehicles, Dome 3 Cinema; from January 2026) and a saved Overview:
+a welcome line, net worth, four key figures, the budget bars, the spending
+donut and table, and the 12-month line, with the filter bar on *Last month*
+(the book is refreshed early in a month, when *This month* has hardly
+begun). A fresh book has none of this; it is the first look for someone who
+opens the file.
+
 Made again from the KMyMoney file, never edited by hand:
 
 ```sh
@@ -47,7 +55,7 @@ tools/space-colony/generate.py --check    # fails if the committed book differs
 
 Python 3.9 or newer, standard library only. The script reads the older
 `space-colony-v15.sqlite` for its accounts, categories, institutions,
-securities, payees and entries (those dated after 2026-10-28 are left out),
+securities, payees and entries (those dated after 2026-11-01 are left out),
 adds the new payees, a US dollar account and the dollar prices, and writes
 all entries. The same
 call always writes the same content. Money is whole cents everywhere; there is
@@ -69,7 +77,7 @@ questions) in the local-model questionnaire.
 
 Prices rise a few percent a year, energy costs follow the seasons, and
 December is dearer. Salary has a raise every January. The book ends today
-(2026-10-28), so "all of 2026" and "up to today" give the same answer.
+(2026-11-01), so "all of 2026" and "up to today" give the same answer.
 
 ## Questionnaire answers that differ from the older book
 
@@ -78,7 +86,7 @@ written against the older book. Its answers for this book are pinned in
 `crates/kassensturz-ai-tools/tests/space_colony_5y.rs`
 (`the_questionnaire_answers_of_this_book`, `the_balances_are_the_generators`),
 so a change to the generator that moves one fails there. App's today is
-2026-10-28 or later.
+2026-11-01 or later.
 
 | Question | Older book | Five-year book |
 |---|---|---|

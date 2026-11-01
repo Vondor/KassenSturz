@@ -101,6 +101,13 @@ pub struct Document {
     pub categories: Vec<String>,
     /// The components, in the order of the document.
     pub entries: Vec<Entry>,
+    /// The word of the template a dashboard was made from (`template`,
+    /// D-439): one of [`crate::templates::WORDS`]. `None` for a view and
+    /// for a dashboard stored before M6d.
+    pub template: Option<String>,
+    /// Whether the user marked this dashboard as the one a book opens at
+    /// (`"default": true`, D-448). Written only when it is set.
+    pub default: bool,
 }
 
 fn invalid(reason: &'static str, path: &str) -> ReportError {
@@ -304,6 +311,8 @@ impl Document {
                 item: Item::Component(component),
                 frame: None,
             }],
+            template: None,
+            default: false,
         }
     }
 
@@ -322,7 +331,14 @@ impl Document {
         if let Some(key) = object.keys().find(|key| {
             !matches!(
                 key.as_str(),
-                "format" | "version" | "kind" | "name" | "filters" | "components"
+                "format"
+                    | "version"
+                    | "kind"
+                    | "name"
+                    | "filters"
+                    | "components"
+                    | "template"
+                    | "default"
             )
         }) {
             return Err(invalid("unknown-property", key));
@@ -355,6 +371,25 @@ impl Document {
             None => Filters::default(),
             Some(filters) => read_filters(filters)?,
         };
+        let template = match object.get("template") {
+            None => None,
+            Some(Value::String(word)) if crate::templates::WORDS.contains(&word.as_str()) => {
+                Some(word.clone())
+            }
+            Some(Value::String(_)) => return Err(invalid("bad-choice", "template")),
+            Some(_) => return Err(invalid("wrong-type", "template")),
+        };
+        let default = match object.get("default") {
+            None => false,
+            Some(Value::Bool(marked)) => *marked,
+            Some(_) => return Err(invalid("wrong-type", "default")),
+        };
+        if kind == ViewKind::View && (template.is_some() || default) {
+            return Err(invalid(
+                "unknown-property",
+                if default { "default" } else { "template" },
+            ));
+        }
         let components = match object.get("components") {
             None => &Vec::new(),
             Some(Value::Array(components)) => components,
@@ -393,6 +428,8 @@ impl Document {
             accounts,
             categories,
             entries,
+            template,
+            default,
         })
     }
 
@@ -449,6 +486,12 @@ impl Document {
             .into(),
         );
         object.insert("name".into(), self.name.clone().into());
+        if let Some(template) = &self.template {
+            object.insert("template".into(), template.clone().into());
+        }
+        if self.default {
+            object.insert("default".into(), true.into());
+        }
         let mut filters = Map::new();
         if let Some(period) = &self.period {
             filters.insert("period".into(), period.clone().into());

@@ -14,6 +14,10 @@
 // the history. The parts that are not widgets (the net worth card and the month
 // switcher) stay fixed around the grid for now; the fetch-gap warnings, the note
 // about transfers and the separator are widgets on it (D-327, D-328, D-334).
+// Since M6d.1 the page shows one of the book's dashboards (D-436): tabs once
+// there are two (`DashboardTabs`), the dashboard menu (`DashboardMenu`) and
+// *New dashboard…* (`NewDashboardDialog`); the book opens at its default
+// dashboard (D-448).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -115,34 +119,6 @@ Kirigami.ScrollablePage {
         }
     }
 
-    // The layouts the user saved under a name (D-330). Saving one is its own
-    // step in the change history; loading one is an edit in the session that
-    // Undo takes back.
-    property var savedLayouts: []
-    property var chosenLayout: ({})
-
-    function openLayouts() {
-        savedLayouts = dashboard.savedLayouts();
-        layoutsDialog.open();
-    }
-
-    function loadLayout(id: string) {
-        const result = dashboard.loadLayout(id);
-        if (result.code !== undefined) {
-            layoutError.result = result;
-        } else {
-            layoutsDialog.close();
-        }
-    }
-
-    function deleteLayout(id: string) {
-        const result = dashboard.deleteLayout(id);
-        if (result.code !== undefined) {
-            layoutError.result = result;
-        }
-        savedLayouts = dashboard.savedLayouts();
-    }
-
     AddMenu {
         id: addMenu
 
@@ -202,13 +178,36 @@ Kirigami.ScrollablePage {
         updateGridView();
     }
 
-    title: layoutEditing ? i18nContext.i18nc("@title", "Arrange the Overview") : i18nContext.i18nc("@title", "Overview")
+    readonly property int dashboardCount: (dashboard.view.dashboards ?? []).length
+    readonly property string dashboardName: dashboard.view.name ?? i18nContext.i18nc("@title", "Overview")
+
+    title: layoutEditing ? i18nContext.i18nc("@title %1 is the name of the dashboard shown", "Arrange %1", dashboardName) : dashboardName
 
     header: FormError {
         id: layoutError
     }
 
     actions: [
+        // With one dashboard the page looks as before, with this one entry
+        // more; with two or more it is in the dashboard menu (D-438).
+        Kirigami.Action {
+            visible: !page.layoutEditing && page.dashboardCount < 2
+            displayHint: Kirigami.DisplayHint.AlwaysHide
+            icon.name: "list-add"
+            text: page.i18nContext.i18nc("@action:inmenu", "New dashboard…")
+            onTriggered: {
+                ActionLog.taken("OverviewPage_newDashboard")
+                newDashboardDialog.openNew()
+            }
+        },
+        DashboardMenu {
+            visible: !page.layoutEditing && page.dashboardCount > 1
+            layout: page.dashboard
+            onNewRequested: newDashboardDialog.openNew()
+            onRenameRequested: newDashboardDialog.openRename()
+            onDeleteRequested: deleteDashboardDialog.open()
+            onFailed: result => layoutError.result = result
+        },
         Kirigami.Action {
             visible: !page.layoutEditing
             icon.name: "view-grid"
@@ -303,10 +302,11 @@ Kirigami.ScrollablePage {
         Kirigami.Action {
             visible: page.layoutEditing
             icon.name: "document-save-as"
-            text: page.i18nContext.i18nc("@action:button save the arrangement under a name or load one saved earlier", "Saved layouts")
+            text: page.i18nContext.i18nc("@action:button keep what is on the page now as another dashboard", "Save as a new dashboard…")
             onTriggered: {
-                ActionLog.taken("OverviewPage_savedLayouts")
-                page.openLayouts()
+                ActionLog.taken("OverviewPage_saveNewDashboard")
+                layoutName.text = "";
+                saveLayoutDialog.open()
             }
         },
         Kirigami.Action {
@@ -348,90 +348,11 @@ Kirigami.ScrollablePage {
         ]
     }
 
-    Kirigami.Dialog {
-        id: layoutsDialog
-
-        title: page.i18nContext.i18nc("@title:window", "Saved layouts")
-        standardButtons: Kirigami.Dialog.Close
-        preferredWidth: Kirigami.Units.gridUnit * 24
-
-        ColumnLayout {
-            spacing: Kirigami.Units.largeSpacing
-
-            Controls.Label {
-                Layout.fillWidth: true
-                Layout.margins: Kirigami.Units.largeSpacing
-                wrapMode: Text.Wrap
-                text: page.i18nContext.i18nc("@info", "Keep the way the Overview looks now under a name, and come back to it later. Loading a saved layout replaces what is on the page; you can take that back with Undo until you press Done.")
-            }
-
-            Controls.Button {
-                Layout.alignment: Qt.AlignHCenter
-                icon.name: "document-save-as"
-                text: page.i18nContext.i18nc("@action:button", "Save this layout as…")
-                onClicked: {
-                    ActionLog.taken("OverviewPage_saveLayout")
-                    layoutName.text = "";
-                    saveLayoutDialog.open();
-                }
-            }
-
-            Controls.Label {
-                visible: page.savedLayouts.length === 0
-                Layout.fillWidth: true
-                Layout.margins: Kirigami.Units.largeSpacing
-                wrapMode: Text.Wrap
-                horizontalAlignment: Text.AlignHCenter
-                text: page.i18nContext.i18nc("@info", "No layouts saved yet.")
-            }
-
-            Repeater {
-                model: page.savedLayouts
-
-                delegate: RowLayout {
-                    required property var modelData
-
-                    Layout.fillWidth: true
-                    Layout.leftMargin: Kirigami.Units.largeSpacing
-                    Layout.rightMargin: Kirigami.Units.largeSpacing
-
-                    Controls.Label {
-                        Layout.fillWidth: true
-                        elide: Text.ElideRight
-                        textFormat: Text.PlainText
-                        text: modelData.name
-                    }
-
-                    Controls.Button {
-                        text: page.i18nContext.i18nc("@action:button put a saved layout on the page", "Load")
-                        Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of a saved layout", "Load %1", modelData.name)
-                        onClicked: {
-                            ActionLog.taken("OverviewPage_load")
-                            page.loadLayout(modelData.id)
-                        }
-                    }
-
-                    Controls.Button {
-                        icon.name: "edit-delete"
-                        display: Controls.AbstractButton.IconOnly
-                        text: page.i18nContext.i18nc("@action:button %1 is the name of a saved layout", "Delete %1", modelData.name)
-                        Controls.ToolTip.visible: hovered
-                        Controls.ToolTip.text: text
-                        onClicked: {
-                            ActionLog.taken("OverviewPage_delete")
-                            page.chosenLayout = modelData;
-                            deleteLayoutDialog.open();
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     Kirigami.PromptDialog {
         id: saveLayoutDialog
 
-        title: page.i18nContext.i18nc("@title:window", "Save this layout as")
+        title: page.i18nContext.i18nc("@title:window", "Save as a new dashboard")
+        subtitle: page.i18nContext.i18nc("@info", "What is on the page now becomes a new dashboard with this name, at the end of the tabs. You go on arranging this one.")
         standardButtons: Kirigami.Dialog.Save | Kirigami.Dialog.Cancel
         onAccepted: {
             ActionLog.taken("OverviewPage_accepted")
@@ -439,14 +360,13 @@ Kirigami.ScrollablePage {
             if (result.code !== undefined) {
                 layoutError.result = result;
             }
-            page.savedLayouts = page.dashboard.savedLayouts();
         }
 
         Controls.TextField {
             id: layoutName
 
             maximumLength: 200
-            Accessible.name: page.i18nContext.i18nc("@label:textbox", "Name of the layout")
+            Accessible.name: page.i18nContext.i18nc("@label:textbox", "Name of the dashboard")
             onAccepted: {
                 ActionLog.taken("OverviewPage_nameLayout")
                 saveLayoutDialog.accept()
@@ -454,31 +374,67 @@ Kirigami.ScrollablePage {
         }
     }
 
-    Kirigami.PromptDialog {
-        id: deleteLayoutDialog
+    NewDashboardDialog {
+        id: newDashboardDialog
 
-        title: page.i18nContext.i18nc("@title:window", "Delete this saved layout?")
-        subtitle: page.i18nContext.i18nc("@info %1 is the name of a saved layout", "“%1” is removed from your saved layouts. The Overview itself doesn't change. You can take this back with Undo in the menu.", page.chosenLayout.name ?? "")
+        layout: page.dashboard
+        // An empty dashboard opens with the Add menu, so the first widget
+        // is one click away (section 2, `empty`).
+        onMade: Qt.callLater(() => addMenu.popup())
+    }
+
+    // Deleting says which dashboard opens instead when it is the default
+    // one (D-448), and that Undo brings it back.
+    Kirigami.PromptDialog {
+        id: deleteDashboardDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Delete this dashboard?")
+        subtitle: Plain.plain(page.dashboard.view.isDefault ?? false
+            ? page.i18nContext.i18nc("@info %1 is the name of the dashboard shown, %2 the one the book opens at instead", "“%1” and its widgets are removed. Your book opens at “%2” from now on. Nothing in your accounts changes, and Undo in the menu brings the dashboard back.", page.dashboardName, page.dashboard.view.instead ?? "")
+            : page.i18nContext.i18nc("@info %1 is the name of the dashboard shown", "“%1” and its widgets are removed. Nothing in your accounts changes, and Undo in the menu brings the dashboard back.", page.dashboardName))
         standardButtons: Kirigami.Dialog.NoButton
         customFooterActions: [
             Kirigami.Action {
-                text: page.i18nContext.i18nc("@action:button", "Delete the layout")
+                text: page.i18nContext.i18nc("@action:button", "Delete the dashboard")
                 icon.name: "edit-delete"
                 onTriggered: {
-                    ActionLog.taken("OverviewPage_deleteLayout")
-                    deleteLayoutDialog.close();
-                    page.deleteLayout(page.chosenLayout.id);
+                    ActionLog.taken("OverviewPage_deleteDashboard")
+                    deleteDashboardDialog.close();
+                    const result = page.dashboard.deleteDashboard();
+                    if (result.code !== undefined) {
+                        layoutError.result = result;
+                    }
                 }
             },
             Kirigami.Action {
-                text: page.i18nContext.i18nc("@action:button keep a saved layout", "Keep it")
+                text: page.i18nContext.i18nc("@action:button keep a dashboard", "Keep it")
                 icon.name: "go-previous"
                 onTriggered: {
                     ActionLog.taken("OverviewPage_keep")
-                    deleteLayoutDialog.close()
+                    deleteDashboardDialog.close()
                 }
             }
         ]
+    }
+
+    // Ctrl+Page Down and Ctrl+Page Up go to the next and the previous
+    // dashboard (D-438).
+    Shortcut {
+        sequence: "Ctrl+PgDown"
+        enabled: page.isCurrentPage && page.dashboardCount > 1 && !page.layoutEditing
+        onActivated: {
+            ActionLog.taken("OverviewPage_nextDashboard")
+            dashboardTabs.step(1)
+        }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+PgUp"
+        enabled: page.isCurrentPage && page.dashboardCount > 1 && !page.layoutEditing
+        onActivated: {
+            ActionLog.taken("OverviewPage_previousDashboard")
+            dashboardTabs.step(-1)
+        }
     }
 
     Kirigami.PromptDialog {
@@ -565,6 +521,15 @@ Kirigami.ScrollablePage {
 
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
+
+        // One tab per dashboard once there are two (M6d.1, D-438).
+        DashboardTabs {
+            id: dashboardTabs
+
+            Layout.fillWidth: true
+            Layout.topMargin: Kirigami.Units.largeSpacing
+            layout: page.dashboard
+        }
 
         // The month, with the way to the ones before and after it.
         RowLayout {

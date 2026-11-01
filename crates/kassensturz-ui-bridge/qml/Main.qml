@@ -109,6 +109,13 @@ Kirigami.ApplicationWindow {
     // The Overview's dashboard and its grid editor (M6b.3).
     DashboardLayout {
         id: dashboardLayout
+
+        // The built-in Overview's name in the user's language, which the
+        // tabs show and an action stores it under (M6d.1).
+        Component.onCompleted: setBuiltInName(root.i18nContext.i18nc("@title the name of the built-in dashboard", "Overview"))
+        // A dashboard action changed the book: every screen reads it again
+        // and the notice offers Undo.
+        onChanged: root.screenChangedBook()
     }
 
     GridNames {
@@ -356,8 +363,9 @@ Kirigami.ApplicationWindow {
     function showBook() {
         // A conversation is about one book.
         chatPanel.startOver();
-        // A layout session belongs to the book it was started on.
-        dashboardLayout.cancel();
+        // A layout session belongs to the book it was started on, and a book
+        // opens at its own default dashboard (D-448).
+        dashboardLayout.reopen();
         bookChanged();
         if (!firstStartState.hasAccount) {
             pageStack.clear();
@@ -1007,6 +1015,7 @@ Kirigami.ApplicationWindow {
                 chat: aiChat
                 settings: aiSettings
                 detached: root.chatDetached
+                dashboardName: dashboardLayout.view.name ?? ""
                 onSettingsClicked: {
                     if (chatDrawer.modal) {
                         chatDrawer.close();

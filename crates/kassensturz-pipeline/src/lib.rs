@@ -49,6 +49,7 @@ mod entries;
 mod error;
 mod export;
 mod imported_book;
+mod kmy_reports;
 mod report;
 
 use std::collections::HashSet;
@@ -67,7 +68,12 @@ pub use book::{export_book, fill_book};
 pub use error::PipelineError;
 pub use export::export_transactions;
 pub use imported_book::{
-    BookImportReport, PatternLeftOut, RuleScope, fill_book_from, fill_book_from_with,
+    BookImportReport, PatternLeftOut, RuleScope, fill_book_from, fill_book_from_on,
+    fill_book_from_with,
+};
+pub use kmy_reports::{
+    FIXED_PERIODS, FixedPeriod, Found, MappedReport, Outcome, ReportBook, ReportLine, map_report,
+    map_reports,
 };
 pub use report::{
     BalanceCheck, Duplicate, EntryOutcome, EntryRef, EntryResult, ImportReport, Summary,

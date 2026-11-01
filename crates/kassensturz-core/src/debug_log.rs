@@ -185,6 +185,10 @@ events! {
     /// [`crate::vocabulary::ACTIONS`]. It says the click arrived, so a click
     /// that "does nothing" shows whether the handler ran at all.
     ActionTaken = "ui.action-taken",
+    /// A KMyMoney report's relative period became fixed days on the day of
+    /// the import (M6d.6a, Q-319 = A); the detail is KMyMoney's word for
+    /// the period, [`Entry::days`] the import day and the two days.
+    ImportPeriodFixed = "import.period-fixed",
 }
 
 impl Event {
@@ -205,6 +209,49 @@ pub struct Entry {
     pub detail: Option<&'static str>,
     /// The error code, if something failed.
     pub code: Option<String>,
+    /// The days an [`Event::ImportPeriodFixed`] is about.
+    pub days: Option<Days>,
+}
+
+/// The days of a period that became fixed on an import day (M6d.6a): dates
+/// only, no amount, name or text.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Days {
+    /// The day of the import.
+    pub imported: crate::Date,
+    /// The first day of the period, if it has one.
+    pub first: Option<crate::Date>,
+    /// The last day of the period, if it has one.
+    pub last: Option<crate::Date>,
+}
+
+impl Days {
+    /// As written in a line: `IMPORTED:FIRST..LAST`, each end may be empty.
+    fn text(&self) -> String {
+        let day = |day: Option<crate::Date>| day.map(|day| day.to_string()).unwrap_or_default();
+        format!("{}:{}..{}", self.imported, day(self.first), day(self.last))
+    }
+
+    /// The days `text` writes, if every one of them is an ISO date.
+    fn from_text(imported: &str, first: &str, last: &str) -> Option<Self> {
+        let day = |text: &str| -> Option<Option<crate::Date>> {
+            if text.is_empty() {
+                Some(None)
+            } else {
+                (text.len() == 10)
+                    .then(|| text.parse().ok())
+                    .flatten()
+                    .map(Some)
+            }
+        };
+        Some(Self {
+            imported: (imported.len() == 10)
+                .then(|| imported.parse().ok())
+                .flatten()?,
+            first: day(first)?,
+            last: day(last)?,
+        })
+    }
 }
 
 impl Entry {
@@ -220,6 +267,9 @@ impl Entry {
         if let Some(detail) = self.detail {
             line.push_str(&format!(",\"detail\":\"{detail}\""));
         }
+        if let Some(days) = &self.days {
+            line.push_str(&format!(",\"days\":\"{}\"", days.text()));
+        }
         if let Some(code) = &self.code {
             line.push_str(&format!(",\"code\":\"{code}\""));
         }
@@ -233,7 +283,7 @@ impl Entry {
         static LINE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
         let pattern = LINE.get_or_init(|| {
             Regex::new(
-                r#"^\{"at":"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{3})?Z)","event":"([a-z.-]+)"(?:,"detail":"([A-Za-z0-9_]+)")?(?:,"code":"([a-z0-9.-]+)")?\}$"#,
+                r#"^\{"at":"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{3})?Z)","event":"([a-z.-]+)"(?:,"detail":"([A-Za-z0-9_]+)")?(?:,"days":"([0-9-]{10}):([0-9-]{0,10})\.\.([0-9-]{0,10})")?(?:,"code":"([a-z0-9.-]+)")?\}$"#,
             )
             .expect("the line pattern is valid")
         });
@@ -244,7 +294,15 @@ impl Entry {
             Some(detail) => Some(known_detail(detail.as_str())?),
             None => None,
         };
-        let code = match found.get(4) {
+        let days = match found.get(4) {
+            Some(imported) => Some(Days::from_text(
+                imported.as_str(),
+                found.get(5).map_or("", |day| day.as_str()),
+                found.get(6).map_or("", |day| day.as_str()),
+            )?),
+            None => None,
+        };
+        let code = match found.get(7) {
             Some(code) if is_error_code(code.as_str()) => Some(code.as_str().to_owned()),
             Some(_) => return None,
             None => None,
@@ -254,6 +312,7 @@ impl Entry {
             event,
             detail,
             code,
+            days,
         })
     }
 }
@@ -333,7 +392,17 @@ impl DebugLog {
     /// is passed over.
     pub fn record(&self, event: Event, detail: Option<&'static str>, code: Option<&'static str>) {
         if self.is_on() {
-            let _ = self.write(event, detail, code);
+            let _ = self.write(event, detail, code, None);
+        }
+    }
+
+    /// Notes that a KMyMoney report's relative period `period` (its word in
+    /// the file, which must be in [`DETAILS`]) became fixed `days` on the
+    /// import day (M6d.6a, Q-319 = A), while the log is on. Nothing else of
+    /// the report is written: no name, account or category.
+    pub fn record_fixed_period(&self, period: &'static str, days: Days) {
+        if self.is_on() {
+            let _ = self.write(Event::ImportPeriodFixed, Some(period), None, Some(days));
         }
     }
 
@@ -342,6 +411,7 @@ impl DebugLog {
         event: Event,
         detail: Option<&'static str>,
         code: Option<&'static str>,
+        days: Option<Days>,
     ) -> io::Result<()> {
         let Some(folder) = &self.folder else {
             return Ok(());
@@ -351,6 +421,7 @@ impl DebugLog {
             event,
             detail: detail.and_then(known_detail),
             code: code.filter(|code| is_error_code(code)).map(str::to_owned),
+            days,
         };
         append(
             folder,
@@ -663,6 +734,68 @@ mod tests {
         log.record(Event::AppStarted, None, None);
         assert!(!scratch.0.join("debug-log").exists());
         assert!(log.read(10).is_empty());
+    }
+
+    #[test]
+    fn a_fixed_period_keeps_only_its_word_and_its_days() {
+        let scratch = Scratch::new("fixed-period");
+        let log = scratch.log(true, "[AI]\nEnabled=true\n");
+        let day = |text: &str| -> crate::Date { text.parse().unwrap() };
+        log.record_fixed_period(
+            "last30days",
+            Days {
+                imported: day("2026-11-01"),
+                first: Some(day("2026-10-02")),
+                last: Some(day("2026-11-01")),
+            },
+        );
+        log.record_fixed_period(
+            "untiltoday",
+            Days {
+                imported: day("2026-11-01"),
+                first: None,
+                last: Some(day("2026-11-01")),
+            },
+        );
+        // A word not in the list is left out, as every detail is.
+        log.record_fixed_period(
+            "My secret report",
+            Days {
+                imported: day("2026-11-01"),
+                first: None,
+                last: None,
+            },
+        );
+        let text = fs::read_to_string(scratch.0.join("debug-log").join(CURRENT)).unwrap();
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines.len(), 3, "{text}");
+        assert!(
+            lines[0].ends_with(
+                r#""event":"import.period-fixed","detail":"last30days","days":"2026-11-01:2026-10-02..2026-11-01"}"#
+            ),
+            "{text}"
+        );
+        assert!(
+            lines[1].ends_with(r#""detail":"untiltoday","days":"2026-11-01:..2026-11-01"}"#),
+            "{text}"
+        );
+        assert!(!text.contains("secret"), "{text}");
+        let entries = log.read(10);
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].event, Event::ImportPeriodFixed);
+        assert_eq!(entries[0].detail, Some("last30days"));
+        assert_eq!(
+            entries[0].days,
+            Some(Days {
+                imported: day("2026-11-01"),
+                first: Some(day("2026-10-02")),
+                last: Some(day("2026-11-01")),
+            })
+        );
+        assert_eq!(entries[1].days.and_then(|days| days.first), None);
+        // Days that aren't dates make the whole line unreadable.
+        let bad = lines[0].replace("2026-10-02", "2026-13-02");
+        assert_eq!(Entry::from_line(&bad), None);
     }
 
     #[test]

@@ -310,6 +310,24 @@ fn render_book(out: &mut String, book: &ImportedBook) {
             unlisted.currency.minor_digits(),
         );
     }
+    for report in &book.reports {
+        let _ = writeln!(out, "  report {:?}: {:?}", report.key, report.name);
+        let settings = |settings: &[(String, String)]| {
+            settings
+                .iter()
+                .filter(|(key, _)| key != "id" && key != "name")
+                .map(|(key, value)| format!("{key}={value:?}"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
+        let line = settings(&report.settings);
+        if !line.is_empty() {
+            let _ = writeln!(out, "    {line}");
+        }
+        for part in &report.parts {
+            let _ = writeln!(out, "    {} {}", part.name, settings(&part.settings));
+        }
+    }
     for skipped in &book.skipped {
         let _ = writeln!(
             out,

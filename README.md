@@ -128,6 +128,8 @@ While it runs, the window title ends in "developer mode" and a banner above ever
 
 **What the user did:** `ui.action-taken` is written when a handler of a button, menu entry, switch, choice or confirmation runs, and its detail names the action (`RulesPage_addRule`; the names are in `crates/kassensturz-core/src/vocabulary/actions.rs`). A click that is logged here but changes nothing failed after the handler started; a click that is not logged never reached its handler. Every such handler in the QML must say so (`ActionLog.taken("<File>_<what>")` on its first line); `tools/check-action-log.sh` and the test `action_log_audit` fail on one that doesn't.
 
+**A KMyMoney report's period:** `import.period-fixed` is written once for each report whose relative period became fixed days when a book was made from a KMyMoney file (M6d.6a). Its detail is KMyMoney's word for the period (`last30days`) and `days` holds the day of the import, then the first and the last day (`2026-11-01:2026-10-02..2026-11-01`), so the days can be compared with what KMyMoney shows; nothing else of the report is written.
+
 Distributions can leave the log code out with the CMake option `-DKASSENSTURZ_DEBUG_LOG=OFF` (Cargo feature `debug-log`).
 
 ### Typing the FinTS registration number

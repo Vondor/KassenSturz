@@ -27,7 +27,7 @@ use super::records::{
     RawAccount, RawAddress, RawCurrency, RawInstitution, RawPayee, RawPrice, RawSplit, RawTag,
     RawTransaction, Records,
 };
-use super::{find, mapping};
+use super::{find, mapping, reports};
 use crate::book::SkippedData;
 use crate::error::ImportError;
 use crate::importer::{
@@ -80,7 +80,7 @@ impl Importer for KmySqlite {
     fn read(&self, input: &[u8], limits: &Limits) -> Result<Imported, ImportError> {
         let connection = open(input)?;
         let records = Reader::new(&connection, limits).records()?;
-        Ok(Imported::Book(mapping::book(records)?))
+        Ok(Imported::Book(Box::new(mapping::book(records)?)))
     }
 }
 
@@ -129,15 +129,23 @@ const READ: [&str; 9] = [
 
 /// Tables whose rows are only counted, as what the book leaves out. A file
 /// may lack one.
-const COUNTED: [(&str, SkippedData); 6] = [
+const COUNTED: [(&str, SkippedData); 5] = [
     ("kmmCostCenter", SkippedData::Other),
     ("kmmSchedules", SkippedData::Schedules),
     ("kmmBudgetConfig", SkippedData::Budgets),
-    ("kmmReportConfig", SkippedData::Reports),
     ("kmmOnlineJobs", SkippedData::OnlineBanking),
     // The IBANs and other identifiers kept with the user's accounts.
     ("kmmAccountsPayeeIdentifier", SkippedData::Other),
 ];
+
+/// The table of saved reports, read if the file has it (D-444): each row
+/// keeps one report's record as XML text, as a `.kmy` file writes it.
+const REPORTS: &str = "kmmReportConfig";
+
+/// The longest XML text of one report the importer reads. A report's
+/// record is a few hundred bytes plus one line per account it names; a
+/// longer one is left out and counted, and the book still comes in.
+const MAX_REPORT_BYTES: usize = 256 * 1024;
 
 /// Tables the importer reads if the file has them: the currency list, for
 /// currencies KassenSturz's tables don't list (D-106).
@@ -195,6 +203,9 @@ impl<'a> Reader<'a> {
         })?;
 
         let tables = self.tables()?;
+        if tables.contains(REPORTS) {
+            self.reports(&mut records)?;
+        }
         for (table, what) in COUNTED {
             if tables.contains(table) {
                 let rows = self.count(table)?;
@@ -207,6 +218,7 @@ impl<'a> Reader<'a> {
                 || table == CURRENCIES
                 || table == TAGS
                 || table == TAG_SPLITS
+                || table == REPORTS
                 || IGNORED.contains(&table)
                 || COUNTED.iter().any(|(counted, _)| *counted == table)
                 || table == "kmmPayeesPayeeIdentifier"
@@ -321,6 +333,26 @@ impl<'a> Reader<'a> {
     /// The text in a column that may be empty; NULL is empty.
     fn optional(&self, row: &Row<'_>, index: usize) -> Result<String, ImportError> {
         Ok(self.column(row, index)?.unwrap_or_default())
+    }
+
+    /// Reads the saved reports (D-444), in the order of their IDs, which is
+    /// the order KMyMoney gave them. A row whose XML text is too long or
+    /// isn't one report's record is left out and counted, so a damaged
+    /// report never keeps the book out.
+    fn reports(&self, records: &mut Records) -> Result<(), ImportError> {
+        self.query(&format!("SELECT XML FROM {REPORTS} ORDER BY id"), |row| {
+            let read = match row.get_ref(0).map_err(sql)? {
+                ValueRef::Text(xml) if xml.len() <= MAX_REPORT_BYTES => {
+                    reports::from_row(xml, self.limits).ok()
+                }
+                _ => None,
+            };
+            match read {
+                Some(mut reports) if reports.len() == 1 => records.reports.append(&mut reports),
+                _ => records.skipped.add(SkippedData::Reports),
+            }
+            Ok(())
+        })
     }
 
     /// Reads the payees, with what KMyMoney keeps about them (D-132).

@@ -1,0 +1,1099 @@
+recognized: yes
+book
+  account "A000001": "Hab Bank Checking", asset, type checking, EUR with 2 decimal places, inside -
+  account "A000002": "Oxygen Reserve Savings", asset, type savings, EUR with 2 decimal places, inside -
+  account "A000003": "Starline Credit Card", liability, type -, EUR with 2 decimal places, inside -
+  account "A000004": "Mining Salary", income, type -, EUR with 2 decimal places, inside -
+  account "A000005": "Oxygen", expense, type -, EUR with 2 decimal places, inside -
+  account "A000006": "Hydroponic Food", expense, type -, EUR with 2 decimal places, inside -
+  account "A000007": "Hab Rent", expense, type -, EUR with 2 decimal places, inside -
+  account "A000008": "Shuttle Fares", expense, type -, EUR with 2 decimal places, inside -
+  account "A000009": "Opening Balances", equity, type -, EUR with 2 decimal places, inside -
+  account "A000010": "Pressurised Rover", asset, type -, EUR with 2 decimal places, inside -
+  account "A000011": "Dome Credit Union", asset, type checking, EUR with 2 decimal places, inside "A000010"
+  payee "P000001": "Orbital Grocers", address -, email -, phone -, reference -, recognized never
+  payee "P000002": "Dome Utilities", address -, email -, phone -, reference -, recognized never
+  payee "P000003": "Shuttle Transit Authority", address -, email -, phone -, reference -, recognized never
+  payee "P000004": "Colony Mining Co", address -, email -, phone -, reference -, recognized never
+  tag "G000001": "Mission"
+  tag "G000002": "Shared hab"
+  transaction 1 on 2023-01-01, payee -, note "Opening balance", entered 2023-01-01
+    part "A000001": 504.73 EUR, in the account -
+    part "A000009": -504.73 EUR, in the account -
+  transaction 2 on 2023-01-01, payee -, note "Opening balance", entered 2023-01-01
+    part "A000002": 2026.49 EUR, in the account -
+    part "A000009": -2026.49 EUR, in the account -
+  transaction 3 on 2023-01-01, payee -, note "Opening balance", entered 2023-01-01
+    part "A000003": -745.02 EUR, in the account -
+    part "A000009": 745.02 EUR, in the account -
+  transaction 4 on 2023-01-01, payee -, note "Opening balance", entered 2023-01-01
+    part "A000010": 6649.73 EUR, in the account -
+    part "A000009": -6649.73 EUR, in the account -
+  transaction 5 on 2023-01-01, payee -, note "Opening balance", entered 2023-01-01
+    part "A000011": 5430.97 EUR, in the account -
+    part "A000009": -5430.97 EUR, in the account -
+  transaction 6 on 2023-01-24, payee "Orbital Grocers", entered 2023-01-24
+    part "A000001": 2715.63 EUR, in the account -
+    part "A000004": -2715.63 EUR, in the account -
+  transaction 7 on 2023-01-09, payee "Dome Utilities", entered 2023-01-09
+    part "A000001": -140.79 EUR, in the account -
+    part "A000005": 140.79 EUR, in the account -, tags ["G000001"]
+  transaction 8 on 2023-01-26, payee "Shuttle Transit Authority", note "colony supply run", entered 2023-01-26
+    part "A000002": -217.30 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000005": 217.30 EUR, in the account -, note "colony supply run"
+  transaction 9 on 2023-01-18, payee "Colony Mining Co", entered 2023-01-18
+    part "A000003": -41.03 EUR, in the account -
+    part "A000006": 41.03 EUR, in the account -
+  transaction 10 on 2023-01-07, payee "Orbital Grocers", note "monthly", entered 2023-01-07
+    part "A000010": -27.93 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000006": 27.93 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 11 on 2023-01-22, payee "Dome Utilities", entered 2023-01-22
+    part "A000011": -160.35 EUR, in the account -
+    part "A000007": 160.35 EUR, in the account -
+  transaction 12 on 2023-01-03, payee "Shuttle Transit Authority", entered 2023-01-03
+    part "A000001": -121.77 EUR, in the account -
+    part "A000008": 121.77 EUR, in the account -
+  transaction 13 on 2023-01-11, payee -, entered 2023-01-11
+    part "A000001": -378.33 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 378.33 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 14 on 2023-02-12, payee "Colony Mining Co", entered 2023-02-12
+    part "A000001": 2497.20 EUR, in the account -
+    part "A000004": -2497.20 EUR, in the account -
+  transaction 15 on 2023-02-15, payee "Orbital Grocers", entered 2023-02-15
+    part "A000002": -178.24 EUR, in the account -
+    part "A000005": 178.24 EUR, in the account -, tags ["G000001"]
+  transaction 16 on 2023-02-23, payee "Dome Utilities", note "colony supply run", entered 2023-02-23
+    part "A000003": -32.15 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000006": 32.15 EUR, in the account -, note "colony supply run"
+  transaction 17 on 2023-02-04, payee "Shuttle Transit Authority", entered 2023-02-04
+    part "A000010": -164.55 EUR, in the account -
+    part "A000007": 164.55 EUR, in the account -
+  transaction 18 on 2023-02-07, payee "Colony Mining Co", note "monthly", entered 2023-02-07
+    part "A000011": -113.81 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000008": 113.81 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 19 on 2023-02-12, payee -, entered 2023-02-12
+    part "A000001": -529.52 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 529.52 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 20 on 2023-03-27, payee "Orbital Grocers", entered 2023-03-27
+    part "A000001": 2626.17 EUR, in the account -
+    part "A000004": -2626.17 EUR, in the account -
+  transaction 21 on 2023-03-19, payee "Dome Utilities", entered 2023-03-19
+    part "A000001": -221.53 EUR, in the account -
+    part "A000005": 221.53 EUR, in the account -
+  transaction 22 on 2023-03-01, payee "Shuttle Transit Authority", entered 2023-03-01
+    part "A000002": -44.71 EUR, in the account -
+    part "A000006": 44.71 EUR, in the account -
+  transaction 23 on 2023-03-20, payee "Colony Mining Co", entered 2023-03-20
+    part "A000003": -156.97 EUR, in the account -
+    part "A000007": 156.97 EUR, in the account -, tags ["G000001"]
+  transaction 24 on 2023-03-19, payee "Orbital Grocers", note "colony supply run", entered 2023-03-19
+    part "A000010": -94.87 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000008": 94.87 EUR, in the account -, note "colony supply run"
+  transaction 25 on 2023-03-03, payee -, entered 2023-03-03
+    part "A000001": -178.37 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 178.37 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 26 on 2023-04-22, payee "Dome Utilities", entered 2023-04-22
+    part "A000001": 2630.58 EUR, in the account -
+    part "A000004": -2630.58 EUR, in the account -
+  transaction 27 on 2023-04-20, payee "Shuttle Transit Authority", entered 2023-04-20
+    part "A000011": -156.35 EUR, in the account -
+    part "A000005": 156.35 EUR, in the account -
+  transaction 28 on 2023-04-24, payee "Colony Mining Co", note "monthly", entered 2023-04-24
+    part "A000001": -36.87 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000006": 36.87 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 29 on 2023-04-08, payee "Orbital Grocers", entered 2023-04-08
+    part "A000002": -196.10 EUR, in the account -
+    part "A000007": 196.10 EUR, in the account -
+  transaction 30 on 2023-04-20, payee "Dome Utilities", entered 2023-04-20
+    part "A000003": -139.47 EUR, in the account -
+    part "A000007": 139.47 EUR, in the account -
+  transaction 31 on 2023-04-01, payee "Shuttle Transit Authority", entered 2023-04-01
+    part "A000010": -108.37 EUR, in the account -
+    part "A000008": 108.37 EUR, in the account -, tags ["G000001"]
+  transaction 32 on 2023-04-25, payee "Colony Mining Co", note "colony supply run", entered 2023-04-25
+    part "A000011": -81.06 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000008": 81.06 EUR, in the account -, note "colony supply run"
+  transaction 33 on 2023-04-01, payee -, entered 2023-04-01
+    part "A000001": -210.84 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 210.84 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 34 on 2023-05-11, payee "Orbital Grocers", entered 2023-05-11
+    part "A000001": 2679.02 EUR, in the account -
+    part "A000004": -2679.02 EUR, in the account -
+  transaction 35 on 2023-05-20, payee "Dome Utilities", entered 2023-05-20
+    part "A000001": -247.20 EUR, in the account -
+    part "A000005": 247.20 EUR, in the account -
+  transaction 36 on 2023-05-13, payee "Shuttle Transit Authority", note "monthly", entered 2023-05-13
+    part "A000002": -39.42 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000006": 39.42 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 37 on 2023-05-05, payee "Colony Mining Co", entered 2023-05-05
+    part "A000003": -164.22 EUR, in the account -
+    part "A000007": 164.22 EUR, in the account -
+  transaction 38 on 2023-05-02, payee "Orbital Grocers", entered 2023-05-02
+    part "A000010": -105.63 EUR, in the account -
+    part "A000008": 105.63 EUR, in the account -
+  transaction 39 on 2023-05-14, payee -, entered 2023-05-14
+    part "A000001": -221.47 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 221.47 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 40 on 2023-06-24, payee "Dome Utilities", entered 2023-06-24
+    part "A000001": 2661.30 EUR, in the account -
+    part "A000004": -2661.30 EUR, in the account -
+  transaction 41 on 2023-06-15, payee "Shuttle Transit Authority", entered 2023-06-15
+    part "A000011": -152.93 EUR, in the account -
+    part "A000005": 152.93 EUR, in the account -, tags ["G000001"]
+  transaction 42 on 2023-06-20, payee "Colony Mining Co", note "colony supply run", entered 2023-06-20
+    part "A000001": -27.72 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000006": 27.72 EUR, in the account -, note "colony supply run"
+  transaction 43 on 2023-06-15, payee "Orbital Grocers", entered 2023-06-15
+    part "A000002": -42.35 EUR, in the account -
+    part "A000006": 42.35 EUR, in the account -
+  transaction 44 on 2023-06-26, payee "Dome Utilities", note "monthly", entered 2023-06-26
+    part "A000003": -179.11 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000007": 179.11 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 45 on 2023-06-16, payee "Shuttle Transit Authority", entered 2023-06-16
+    part "A000010": -100.53 EUR, in the account -
+    part "A000008": 100.53 EUR, in the account -
+  transaction 46 on 2023-06-23, payee "Colony Mining Co", entered 2023-06-23
+    part "A000011": -90.45 EUR, in the account -
+    part "A000008": 90.45 EUR, in the account -
+  transaction 47 on 2023-06-03, payee -, entered 2023-06-03
+    part "A000001": -368.08 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 368.08 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 48 on 2023-07-24, payee "Orbital Grocers", entered 2023-07-24
+    part "A000001": 2529.65 EUR, in the account -
+    part "A000004": -2529.65 EUR, in the account -
+  transaction 49 on 2023-07-16, payee "Dome Utilities", entered 2023-07-16
+    part "A000001": -211.16 EUR, in the account -
+    part "A000005": 211.16 EUR, in the account -, tags ["G000001"]
+  transaction 50 on 2023-07-01, payee "Shuttle Transit Authority", note "colony supply run", entered 2023-07-01
+    part "A000002": -31.13 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000006": 31.13 EUR, in the account -, note "colony supply run"
+  transaction 51 on 2023-07-09, payee "Colony Mining Co", entered 2023-07-09
+    part "A000003": -137.08 EUR, in the account -
+    part "A000007": 137.08 EUR, in the account -
+  transaction 52 on 2023-07-26, payee "Orbital Grocers", note "monthly", entered 2023-07-26
+    part "A000010": -213.41 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000007": 213.41 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 53 on 2023-07-17, payee "Dome Utilities", entered 2023-07-17
+    part "A000011": -86.59 EUR, in the account -
+    part "A000008": 86.59 EUR, in the account -
+  transaction 54 on 2023-07-11, payee "Shuttle Transit Authority", entered 2023-07-11
+    part "A000001": -102.58 EUR, in the account -
+    part "A000008": 102.58 EUR, in the account -
+  transaction 55 on 2023-07-09, payee -, entered 2023-07-09
+    part "A000001": -438.73 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 438.73 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 56 on 2023-08-14, payee "Colony Mining Co", entered 2023-08-14
+    part "A000001": 2601.22 EUR, in the account -
+    part "A000004": -2601.22 EUR, in the account -
+  transaction 57 on 2023-08-20, payee "Orbital Grocers", entered 2023-08-20
+    part "A000002": -181.10 EUR, in the account -
+    part "A000005": 181.10 EUR, in the account -, tags ["G000001"]
+  transaction 58 on 2023-08-16, payee "Dome Utilities", note "colony supply run", entered 2023-08-16
+    part "A000003": -43.68 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000006": 43.68 EUR, in the account -, note "colony supply run"
+  transaction 59 on 2023-08-16, payee "Shuttle Transit Authority", entered 2023-08-16
+    part "A000010": -178.69 EUR, in the account -
+    part "A000007": 178.69 EUR, in the account -
+  transaction 60 on 2023-08-21, payee "Colony Mining Co", note "monthly", entered 2023-08-21
+    part "A000011": -166.93 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000007": 166.93 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 61 on 2023-08-12, payee "Orbital Grocers", entered 2023-08-12
+    part "A000001": -92.09 EUR, in the account -
+    part "A000008": 92.09 EUR, in the account -
+  transaction 62 on 2023-08-06, payee -, entered 2023-08-06
+    part "A000001": -532.04 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 532.04 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 63 on 2023-09-13, payee "Dome Utilities", entered 2023-09-13
+    part "A000001": 2669.66 EUR, in the account -
+    part "A000004": -2669.66 EUR, in the account -
+  transaction 64 on 2023-09-11, payee "Shuttle Transit Authority", entered 2023-09-11
+    part "A000002": -180.75 EUR, in the account -
+    part "A000005": 180.75 EUR, in the account -
+  transaction 65 on 2023-09-24, payee "Colony Mining Co", entered 2023-09-24
+    part "A000003": -44.06 EUR, in the account -
+    part "A000006": 44.06 EUR, in the account -, tags ["G000001"]
+  transaction 66 on 2023-09-18, payee "Orbital Grocers", note "colony supply run", entered 2023-09-18
+    part "A000010": -164.49 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000007": 164.49 EUR, in the account -, note "colony supply run"
+  transaction 67 on 2023-09-02, payee "Dome Utilities", entered 2023-09-02
+    part "A000011": -102.41 EUR, in the account -
+    part "A000008": 102.41 EUR, in the account -
+  transaction 68 on 2023-09-01, payee "Shuttle Transit Authority", note "monthly", entered 2023-09-01
+    part "A000001": -80.55 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000008": 80.55 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 69 on 2023-09-25, payee -, entered 2023-09-25
+    part "A000001": -499.74 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 499.74 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 70 on 2023-10-04, payee "Colony Mining Co", entered 2023-10-04
+    part "A000001": 2653.39 EUR, in the account -
+    part "A000004": -2653.39 EUR, in the account -
+  transaction 71 on 2023-10-12, payee "Orbital Grocers", entered 2023-10-12
+    part "A000002": -197.97 EUR, in the account -
+    part "A000005": 197.97 EUR, in the account -
+  transaction 72 on 2023-10-28, payee "Dome Utilities", entered 2023-10-28
+    part "A000003": -44.45 EUR, in the account -
+    part "A000006": 44.45 EUR, in the account -
+  transaction 73 on 2023-10-05, payee "Shuttle Transit Authority", entered 2023-10-05
+    part "A000010": -148.41 EUR, in the account -
+    part "A000007": 148.41 EUR, in the account -, tags ["G000001"]
+  transaction 74 on 2023-10-01, payee "Colony Mining Co", note "colony supply run", entered 2023-10-01
+    part "A000011": -115.85 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000008": 115.85 EUR, in the account -, note "colony supply run"
+  transaction 75 on 2023-10-26, payee -, entered 2023-10-26
+    part "A000001": -376.63 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 376.63 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 76 on 2023-11-26, payee "Orbital Grocers", entered 2023-11-26
+    part "A000001": 2723.03 EUR, in the account -
+    part "A000004": -2723.03 EUR, in the account -
+  transaction 77 on 2023-11-03, payee "Dome Utilities", entered 2023-11-03
+    part "A000001": -217.76 EUR, in the account -
+    part "A000005": 217.76 EUR, in the account -
+  transaction 78 on 2023-11-12, payee "Shuttle Transit Authority", note "monthly", entered 2023-11-12
+    part "A000002": -28.18 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000006": 28.18 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 79 on 2023-11-22, payee "Colony Mining Co", entered 2023-11-22
+    part "A000003": -140.60 EUR, in the account -
+    part "A000007": 140.60 EUR, in the account -
+  transaction 80 on 2023-11-20, payee "Orbital Grocers", entered 2023-11-20
+    part "A000010": -156.72 EUR, in the account -
+    part "A000007": 156.72 EUR, in the account -
+  transaction 81 on 2023-11-21, payee "Dome Utilities", entered 2023-11-21
+    part "A000011": -68.68 EUR, in the account -
+    part "A000008": 68.68 EUR, in the account -, tags ["G000001"]
+  transaction 82 on 2023-11-04, payee "Shuttle Transit Authority", note "colony supply run", entered 2023-11-04
+    part "A000001": -120.33 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000008": 120.33 EUR, in the account -, note "colony supply run"
+  transaction 83 on 2023-11-04, payee -, entered 2023-11-04
+    part "A000001": -567.88 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 567.88 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 84 on 2023-12-21, payee "Colony Mining Co", entered 2023-12-21
+    part "A000001": 2481.52 EUR, in the account -
+    part "A000004": -2481.52 EUR, in the account -
+  transaction 85 on 2023-12-21, payee "Orbital Grocers", entered 2023-12-21
+    part "A000002": -148.51 EUR, in the account -
+    part "A000005": 148.51 EUR, in the account -
+  transaction 86 on 2023-12-20, payee "Dome Utilities", note "monthly", entered 2023-12-20
+    part "A000003": -29.28 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000006": 29.28 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 87 on 2023-12-06, payee "Shuttle Transit Authority", entered 2023-12-06
+    part "A000010": -27.50 EUR, in the account -
+    part "A000006": 27.50 EUR, in the account -
+  transaction 88 on 2023-12-27, payee "Colony Mining Co", entered 2023-12-27
+    part "A000011": -160.29 EUR, in the account -
+    part "A000007": 160.29 EUR, in the account -
+  transaction 89 on 2023-12-16, payee "Orbital Grocers", entered 2023-12-16
+    part "A000001": -102.62 EUR, in the account -
+    part "A000008": 102.62 EUR, in the account -, tags ["G000001"]
+  transaction 90 on 2023-12-01, payee -, entered 2023-12-01
+    part "A000001": -554.68 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 554.68 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 91 on 2024-01-21, payee "Dome Utilities", entered 2024-01-21
+    part "A000001": 2725.99 EUR, in the account -
+    part "A000004": -2725.99 EUR, in the account -
+  transaction 92 on 2024-01-15, payee "Shuttle Transit Authority", note "colony supply run", entered 2024-01-15
+    part "A000002": -168.14 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000005": 168.14 EUR, in the account -, note "colony supply run"
+  transaction 93 on 2024-01-25, payee "Colony Mining Co", entered 2024-01-25
+    part "A000003": -215.71 EUR, in the account -
+    part "A000005": 215.71 EUR, in the account -
+  transaction 94 on 2024-01-16, payee "Orbital Grocers", note "monthly", entered 2024-01-16
+    part "A000010": -35.40 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000006": 35.40 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 95 on 2024-01-27, payee "Dome Utilities", entered 2024-01-27
+    part "A000011": -127.28 EUR, in the account -
+    part "A000007": 127.28 EUR, in the account -
+  transaction 96 on 2024-01-10, payee "Shuttle Transit Authority", entered 2024-01-10
+    part "A000001": -95.37 EUR, in the account -
+    part "A000008": 95.37 EUR, in the account -
+  transaction 97 on 2024-01-02, payee -, entered 2024-01-02
+    part "A000001": -336.02 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 336.02 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 98 on 2024-02-17, payee "Colony Mining Co", entered 2024-02-17
+    part "A000001": 2494.11 EUR, in the account -
+    part "A000004": -2494.11 EUR, in the account -
+  transaction 99 on 2024-02-09, payee "Orbital Grocers", entered 2024-02-09
+    part "A000002": -183.05 EUR, in the account -
+    part "A000005": 183.05 EUR, in the account -, tags ["G000001"]
+  transaction 100 on 2024-02-15, payee "Dome Utilities", note "colony supply run", entered 2024-02-15
+    part "A000003": -41.72 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000006": 41.72 EUR, in the account -, note "colony supply run"
+  transaction 101 on 2024-02-23, payee "Shuttle Transit Authority", entered 2024-02-23
+    part "A000010": -122.07 EUR, in the account -
+    part "A000007": 122.07 EUR, in the account -
+  transaction 102 on 2024-02-21, payee "Colony Mining Co", note "monthly", entered 2024-02-21
+    part "A000011": -115.13 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000008": 115.13 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 103 on 2024-02-18, payee "Orbital Grocers", entered 2024-02-18
+    part "A000001": -85.13 EUR, in the account -
+    part "A000008": 85.13 EUR, in the account -
+  transaction 104 on 2024-02-02, payee -, entered 2024-02-02
+    part "A000001": -588.55 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 588.55 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 105 on 2024-03-06, payee "Dome Utilities", entered 2024-03-06
+    part "A000001": 2708.86 EUR, in the account -
+    part "A000004": -2708.86 EUR, in the account -
+  transaction 106 on 2024-03-02, payee "Shuttle Transit Authority", entered 2024-03-02
+    part "A000002": -142.44 EUR, in the account -
+    part "A000005": 142.44 EUR, in the account -
+  transaction 107 on 2024-03-23, payee "Colony Mining Co", entered 2024-03-23
+    part "A000003": -171.48 EUR, in the account -
+    part "A000005": 171.48 EUR, in the account -, tags ["G000001"]
+  transaction 108 on 2024-03-06, payee "Orbital Grocers", note "colony supply run", entered 2024-03-06
+    part "A000010": -27.25 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000006": 27.25 EUR, in the account -, note "colony supply run"
+  transaction 109 on 2024-03-13, payee "Dome Utilities", entered 2024-03-13
+    part "A000011": -135.53 EUR, in the account -
+    part "A000007": 135.53 EUR, in the account -
+  transaction 110 on 2024-03-24, payee "Shuttle Transit Authority", note "monthly", entered 2024-03-24
+    part "A000001": -103.61 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000008": 103.61 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 111 on 2024-03-21, payee -, entered 2024-03-21
+    part "A000001": -424.09 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 424.09 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 112 on 2024-04-05, payee "Colony Mining Co", entered 2024-04-05
+    part "A000001": 2491.32 EUR, in the account -
+    part "A000004": -2491.32 EUR, in the account -
+  transaction 113 on 2024-04-01, payee "Orbital Grocers", entered 2024-04-01
+    part "A000002": -222.45 EUR, in the account -
+    part "A000005": 222.45 EUR, in the account -
+  transaction 114 on 2024-04-17, payee "Dome Utilities", entered 2024-04-17
+    part "A000003": -167.63 EUR, in the account -
+    part "A000005": 167.63 EUR, in the account -
+  transaction 115 on 2024-04-10, payee "Shuttle Transit Authority", entered 2024-04-10
+    part "A000010": -31.60 EUR, in the account -
+    part "A000006": 31.60 EUR, in the account -, tags ["G000001"]
+  transaction 116 on 2024-04-19, payee "Colony Mining Co", note "colony supply run", entered 2024-04-19
+    part "A000011": -199.96 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000007": 199.96 EUR, in the account -, note "colony supply run"
+  transaction 117 on 2024-04-08, payee "Orbital Grocers", entered 2024-04-08
+    part "A000001": -83.87 EUR, in the account -
+    part "A000008": 83.87 EUR, in the account -
+  transaction 118 on 2024-04-19, payee -, entered 2024-04-19
+    part "A000001": -555.84 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 555.84 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 119 on 2024-05-05, payee "Dome Utilities", entered 2024-05-05
+    part "A000001": 2701.05 EUR, in the account -
+    part "A000004": -2701.05 EUR, in the account -
+  transaction 120 on 2024-05-25, payee "Shuttle Transit Authority", note "monthly", entered 2024-05-25
+    part "A000002": -163.94 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000005": 163.94 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 121 on 2024-05-18, payee "Colony Mining Co", entered 2024-05-18
+    part "A000003": -33.92 EUR, in the account -
+    part "A000006": 33.92 EUR, in the account -
+  transaction 122 on 2024-05-26, payee "Orbital Grocers", entered 2024-05-26
+    part "A000010": -24.27 EUR, in the account -
+    part "A000006": 24.27 EUR, in the account -
+  transaction 123 on 2024-05-07, payee "Dome Utilities", entered 2024-05-07
+    part "A000011": -180.20 EUR, in the account -
+    part "A000007": 180.20 EUR, in the account -, tags ["G000001"]
+  transaction 124 on 2024-05-17, payee "Shuttle Transit Authority", note "colony supply run", entered 2024-05-17
+    part "A000001": -96.81 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000008": 96.81 EUR, in the account -, note "colony supply run"
+  transaction 125 on 2024-05-01, payee -, entered 2024-05-01
+    part "A000001": -388.97 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 388.97 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 126 on 2024-06-28, payee "Colony Mining Co", entered 2024-06-28
+    part "A000001": 2596.94 EUR, in the account -
+    part "A000004": -2596.94 EUR, in the account -
+  transaction 127 on 2024-06-28, payee "Orbital Grocers", entered 2024-06-28
+    part "A000002": -227.49 EUR, in the account -
+    part "A000005": 227.49 EUR, in the account -
+  transaction 128 on 2024-06-21, payee "Dome Utilities", note "monthly", entered 2024-06-21
+    part "A000003": -33.65 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000006": 33.65 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 129 on 2024-06-09, payee "Shuttle Transit Authority", entered 2024-06-09
+    part "A000010": -177.83 EUR, in the account -
+    part "A000007": 177.83 EUR, in the account -
+  transaction 130 on 2024-06-06, payee "Colony Mining Co", entered 2024-06-06
+    part "A000011": -77.83 EUR, in the account -
+    part "A000008": 77.83 EUR, in the account -
+  transaction 131 on 2024-06-21, payee -, entered 2024-06-21
+    part "A000001": -552.35 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 552.35 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 132 on 2024-07-13, payee "Orbital Grocers", entered 2024-07-13
+    part "A000001": 2510.70 EUR, in the account -
+    part "A000004": -2510.70 EUR, in the account -
+  transaction 133 on 2024-07-02, payee "Dome Utilities", entered 2024-07-02
+    part "A000001": -139.21 EUR, in the account -
+    part "A000005": 139.21 EUR, in the account -, tags ["G000001"]
+  transaction 134 on 2024-07-25, payee "Shuttle Transit Authority", note "colony supply run", entered 2024-07-25
+    part "A000002": -214.57 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000005": 214.57 EUR, in the account -, note "colony supply run"
+  transaction 135 on 2024-07-22, payee "Colony Mining Co", entered 2024-07-22
+    part "A000003": -28.18 EUR, in the account -
+    part "A000006": 28.18 EUR, in the account -
+  transaction 136 on 2024-07-20, payee "Orbital Grocers", note "monthly", entered 2024-07-20
+    part "A000010": -39.13 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000006": 39.13 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 137 on 2024-07-08, payee "Dome Utilities", entered 2024-07-08
+    part "A000011": -205.77 EUR, in the account -
+    part "A000007": 205.77 EUR, in the account -
+  transaction 138 on 2024-07-08, payee "Shuttle Transit Authority", entered 2024-07-08
+    part "A000001": -183.50 EUR, in the account -
+    part "A000007": 183.50 EUR, in the account -
+  transaction 139 on 2024-07-03, payee "Colony Mining Co", entered 2024-07-03
+    part "A000002": -89.64 EUR, in the account -
+    part "A000008": 89.64 EUR, in the account -, tags ["G000001"]
+  transaction 140 on 2024-07-03, payee -, entered 2024-07-03
+    part "A000001": -408.70 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 408.70 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 141 on 2024-08-19, payee "Orbital Grocers", entered 2024-08-19
+    part "A000001": 2703.97 EUR, in the account -
+    part "A000004": -2703.97 EUR, in the account -
+  transaction 142 on 2024-08-22, payee "Dome Utilities", note "colony supply run", entered 2024-08-22
+    part "A000003": -164.83 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000005": 164.83 EUR, in the account -, note "colony supply run"
+  transaction 143 on 2024-08-23, payee "Shuttle Transit Authority", entered 2024-08-23
+    part "A000010": -28.67 EUR, in the account -
+    part "A000006": 28.67 EUR, in the account -
+  transaction 144 on 2024-08-22, payee "Colony Mining Co", note "monthly", entered 2024-08-22
+    part "A000011": -125.04 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000007": 125.04 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 145 on 2024-08-24, payee "Orbital Grocers", entered 2024-08-24
+    part "A000001": -120.97 EUR, in the account -
+    part "A000008": 120.97 EUR, in the account -
+  transaction 146 on 2024-08-21, payee -, entered 2024-08-21
+    part "A000001": -378.74 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 378.74 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 147 on 2024-09-10, payee "Dome Utilities", entered 2024-09-10
+    part "A000001": 2698.79 EUR, in the account -
+    part "A000004": -2698.79 EUR, in the account -
+  transaction 148 on 2024-09-07, payee "Shuttle Transit Authority", entered 2024-09-07
+    part "A000002": -175.21 EUR, in the account -
+    part "A000005": 175.21 EUR, in the account -
+  transaction 149 on 2024-09-25, payee "Colony Mining Co", entered 2024-09-25
+    part "A000003": -244.40 EUR, in the account -
+    part "A000005": 244.40 EUR, in the account -, tags ["G000001"]
+  transaction 150 on 2024-09-09, payee "Orbital Grocers", note "colony supply run", entered 2024-09-09
+    part "A000010": -32.84 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000006": 32.84 EUR, in the account -, note "colony supply run"
+  transaction 151 on 2024-09-17, payee "Dome Utilities", entered 2024-09-17
+    part "A000011": -158.61 EUR, in the account -
+    part "A000007": 158.61 EUR, in the account -
+  transaction 152 on 2024-09-11, payee "Shuttle Transit Authority", note "monthly", entered 2024-09-11
+    part "A000001": -121.62 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000008": 121.62 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 153 on 2024-09-03, payee -, entered 2024-09-03
+    part "A000001": -439.09 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 439.09 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 154 on 2024-10-20, payee "Colony Mining Co", entered 2024-10-20
+    part "A000001": 2658.34 EUR, in the account -
+    part "A000004": -2658.34 EUR, in the account -
+  transaction 155 on 2024-10-12, payee "Orbital Grocers", entered 2024-10-12
+    part "A000002": -196.52 EUR, in the account -
+    part "A000005": 196.52 EUR, in the account -
+  transaction 156 on 2024-10-25, payee "Dome Utilities", entered 2024-10-25
+    part "A000003": -33.34 EUR, in the account -
+    part "A000006": 33.34 EUR, in the account -
+  transaction 157 on 2024-10-14, payee "Shuttle Transit Authority", entered 2024-10-14
+    part "A000010": -172.65 EUR, in the account -
+    part "A000007": 172.65 EUR, in the account -, tags ["G000001"]
+  transaction 158 on 2024-10-12, payee "Colony Mining Co", note "colony supply run", entered 2024-10-12
+    part "A000011": -125.32 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000007": 125.32 EUR, in the account -, note "colony supply run"
+  transaction 159 on 2024-10-11, payee "Orbital Grocers", entered 2024-10-11
+    part "A000001": -66.40 EUR, in the account -
+    part "A000008": 66.40 EUR, in the account -
+  transaction 160 on 2024-10-16, payee "Dome Utilities", note "monthly", entered 2024-10-16
+    part "A000002": -71.17 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000008": 71.17 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 161 on 2024-10-15, payee -, entered 2024-10-15
+    part "A000001": -101.69 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 101.69 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 162 on 2024-11-03, payee "Shuttle Transit Authority", entered 2024-11-03
+    part "A000001": 2553.09 EUR, in the account -
+    part "A000004": -2553.09 EUR, in the account -
+  transaction 163 on 2024-11-09, payee "Colony Mining Co", entered 2024-11-09
+    part "A000003": -238.16 EUR, in the account -
+    part "A000005": 238.16 EUR, in the account -
+  transaction 164 on 2024-11-14, payee "Orbital Grocers", entered 2024-11-14
+    part "A000010": -29.23 EUR, in the account -
+    part "A000006": 29.23 EUR, in the account -
+  transaction 165 on 2024-11-08, payee "Dome Utilities", entered 2024-11-08
+    part "A000011": -31.52 EUR, in the account -
+    part "A000006": 31.52 EUR, in the account -, tags ["G000001"]
+  transaction 166 on 2024-11-20, payee "Shuttle Transit Authority", note "colony supply run", entered 2024-11-20
+    part "A000001": -179.74 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000007": 179.74 EUR, in the account -, note "colony supply run"
+  transaction 167 on 2024-11-21, payee "Colony Mining Co", entered 2024-11-21
+    part "A000002": -107.99 EUR, in the account -
+    part "A000008": 107.99 EUR, in the account -
+  transaction 168 on 2024-11-09, payee -, entered 2024-11-09
+    part "A000001": -414.85 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 414.85 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 169 on 2024-12-05, payee "Orbital Grocers", entered 2024-12-05
+    part "A000001": 2549.64 EUR, in the account -
+    part "A000004": -2549.64 EUR, in the account -
+  transaction 170 on 2024-12-07, payee "Dome Utilities", note "monthly", entered 2024-12-07
+    part "A000003": -142.59 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000005": 142.59 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 171 on 2024-12-04, payee "Shuttle Transit Authority", entered 2024-12-04
+    part "A000010": -210.67 EUR, in the account -
+    part "A000005": 210.67 EUR, in the account -
+  transaction 172 on 2024-12-26, payee "Colony Mining Co", entered 2024-12-26
+    part "A000011": -28.52 EUR, in the account -
+    part "A000006": 28.52 EUR, in the account -
+  transaction 173 on 2024-12-04, payee "Orbital Grocers", entered 2024-12-04
+    part "A000001": -143.14 EUR, in the account -
+    part "A000007": 143.14 EUR, in the account -, tags ["G000001"]
+  transaction 174 on 2024-12-19, payee "Dome Utilities", note "colony supply run", entered 2024-12-19
+    part "A000002": -141.75 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000007": 141.75 EUR, in the account -, note "colony supply run"
+  transaction 175 on 2024-12-28, payee "Shuttle Transit Authority", entered 2024-12-28
+    part "A000003": -105.43 EUR, in the account -
+    part "A000008": 105.43 EUR, in the account -
+  transaction 176 on 2024-12-25, payee "Colony Mining Co", note "monthly", entered 2024-12-25
+    part "A000010": -109.08 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000008": 109.08 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 177 on 2024-12-18, payee -, entered 2024-12-18
+    part "A000001": -554.99 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 554.99 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 178 on 2025-01-07, payee "Orbital Grocers", entered 2025-01-07
+    part "A000001": 2620.84 EUR, in the account -
+    part "A000004": -2620.84 EUR, in the account -
+  transaction 179 on 2025-01-05, payee "Dome Utilities", entered 2025-01-05
+    part "A000011": -200.83 EUR, in the account -
+    part "A000005": 200.83 EUR, in the account -
+  transaction 180 on 2025-01-28, payee "Shuttle Transit Authority", entered 2025-01-28
+    part "A000001": -42.84 EUR, in the account -
+    part "A000006": 42.84 EUR, in the account -
+  transaction 181 on 2025-01-11, payee "Colony Mining Co", entered 2025-01-11
+    part "A000002": -118.59 EUR, in the account -
+    part "A000007": 118.59 EUR, in the account -, tags ["G000001"]
+  transaction 182 on 2025-01-05, payee "Orbital Grocers", note "colony supply run", entered 2025-01-05
+    part "A000003": -91.76 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000008": 91.76 EUR, in the account -, note "colony supply run"
+  transaction 183 on 2025-01-12, payee -, entered 2025-01-12
+    part "A000001": -287.29 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 287.29 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 184 on 2025-02-28, payee "Dome Utilities", entered 2025-02-28
+    part "A000001": 2659.48 EUR, in the account -
+    part "A000004": -2659.48 EUR, in the account -
+  transaction 185 on 2025-02-01, payee "Shuttle Transit Authority", entered 2025-02-01
+    part "A000010": -173.79 EUR, in the account -
+    part "A000005": 173.79 EUR, in the account -
+  transaction 186 on 2025-02-03, payee "Colony Mining Co", note "monthly", entered 2025-02-03
+    part "A000011": -31.31 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000006": 31.31 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 187 on 2025-02-21, payee "Orbital Grocers", entered 2025-02-21
+    part "A000001": -154.78 EUR, in the account -
+    part "A000007": 154.78 EUR, in the account -
+  transaction 188 on 2025-02-14, payee "Dome Utilities", entered 2025-02-14
+    part "A000002": -96.76 EUR, in the account -
+    part "A000008": 96.76 EUR, in the account -
+  transaction 189 on 2025-02-25, payee "Shuttle Transit Authority", entered 2025-02-25
+    part "A000003": -75.91 EUR, in the account -
+    part "A000008": 75.91 EUR, in the account -, tags ["G000001"]
+  transaction 190 on 2025-02-17, payee -, entered 2025-02-17
+    part "A000001": -196.69 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 196.69 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 191 on 2025-03-17, payee "Colony Mining Co", entered 2025-03-17
+    part "A000001": 2483.18 EUR, in the account -
+    part "A000004": -2483.18 EUR, in the account -
+  transaction 192 on 2025-03-12, payee "Orbital Grocers", note "colony supply run", entered 2025-03-12
+    part "A000010": -217.17 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000005": 217.17 EUR, in the account -, note "colony supply run"
+  transaction 193 on 2025-03-27, payee "Dome Utilities", entered 2025-03-27
+    part "A000011": -37.54 EUR, in the account -
+    part "A000006": 37.54 EUR, in the account -
+  transaction 194 on 2025-03-28, payee "Shuttle Transit Authority", note "monthly", entered 2025-03-28
+    part "A000001": -180.69 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000007": 180.69 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 195 on 2025-03-26, payee "Colony Mining Co", entered 2025-03-26
+    part "A000002": -119.97 EUR, in the account -
+    part "A000008": 119.97 EUR, in the account -
+  transaction 196 on 2025-03-09, payee "Orbital Grocers", entered 2025-03-09
+    part "A000003": -71.06 EUR, in the account -
+    part "A000008": 71.06 EUR, in the account -
+  transaction 197 on 2025-03-02, payee -, entered 2025-03-02
+    part "A000001": -186.17 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 186.17 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 198 on 2025-04-19, payee "Dome Utilities", entered 2025-04-19
+    part "A000001": 2502.54 EUR, in the account -
+    part "A000004": -2502.54 EUR, in the account -
+  transaction 199 on 2025-04-27, payee "Shuttle Transit Authority", entered 2025-04-27
+    part "A000010": -162.62 EUR, in the account -
+    part "A000005": 162.62 EUR, in the account -, tags ["G000001"]
+  transaction 200 on 2025-04-26, payee "Colony Mining Co", note "colony supply run", entered 2025-04-26
+    part "A000011": -28.73 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000006": 28.73 EUR, in the account -, note "colony supply run"
+  transaction 201 on 2025-04-03, payee "Orbital Grocers", entered 2025-04-03
+    part "A000001": -131.04 EUR, in the account -
+    part "A000007": 131.04 EUR, in the account -
+  transaction 202 on 2025-04-25, payee "Dome Utilities", note "monthly", entered 2025-04-25
+    part "A000002": -120.06 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000008": 120.06 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 203 on 2025-04-07, payee -, entered 2025-04-07
+    part "A000001": -181.84 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 181.84 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 204 on 2025-05-11, payee "Shuttle Transit Authority", entered 2025-05-11
+    part "A000001": 2581.71 EUR, in the account -
+    part "A000004": -2581.71 EUR, in the account -
+  transaction 205 on 2025-05-06, payee "Colony Mining Co", entered 2025-05-06
+    part "A000003": -177.22 EUR, in the account -
+    part "A000005": 177.22 EUR, in the account -
+  transaction 206 on 2025-05-08, payee "Orbital Grocers", entered 2025-05-08
+    part "A000010": -167.36 EUR, in the account -
+    part "A000005": 167.36 EUR, in the account -
+  transaction 207 on 2025-05-24, payee "Dome Utilities", entered 2025-05-24
+    part "A000011": -43.70 EUR, in the account -
+    part "A000006": 43.70 EUR, in the account -, tags ["G000001"]
+  transaction 208 on 2025-05-24, payee "Shuttle Transit Authority", note "colony supply run", entered 2025-05-24
+    part "A000001": -134.95 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000007": 134.95 EUR, in the account -, note "colony supply run"
+  transaction 209 on 2025-05-26, payee "Colony Mining Co", entered 2025-05-26
+    part "A000002": -102.91 EUR, in the account -
+    part "A000008": 102.91 EUR, in the account -
+  transaction 210 on 2025-05-19, payee -, entered 2025-05-19
+    part "A000001": -228.65 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 228.65 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 211 on 2025-06-24, payee "Orbital Grocers", entered 2025-06-24
+    part "A000001": 2588.29 EUR, in the account -
+    part "A000004": -2588.29 EUR, in the account -
+  transaction 212 on 2025-06-21, payee "Dome Utilities", note "monthly", entered 2025-06-21
+    part "A000003": -191.64 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000005": 191.64 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 213 on 2025-06-03, payee "Shuttle Transit Authority", entered 2025-06-03
+    part "A000010": -180.40 EUR, in the account -
+    part "A000005": 180.40 EUR, in the account -
+  transaction 214 on 2025-06-02, payee "Colony Mining Co", entered 2025-06-02
+    part "A000011": -24.14 EUR, in the account -
+    part "A000006": 24.14 EUR, in the account -
+  transaction 215 on 2025-06-16, payee "Orbital Grocers", entered 2025-06-16
+    part "A000001": -25.30 EUR, in the account -
+    part "A000006": 25.30 EUR, in the account -, tags ["G000001"]
+  transaction 216 on 2025-06-11, payee "Dome Utilities", note "colony supply run", entered 2025-06-11
+    part "A000002": -191.51 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000007": 191.51 EUR, in the account -, note "colony supply run"
+  transaction 217 on 2025-06-24, payee "Shuttle Transit Authority", entered 2025-06-24
+    part "A000003": -88.09 EUR, in the account -
+    part "A000008": 88.09 EUR, in the account -
+  transaction 218 on 2025-06-13, payee "Colony Mining Co", note "monthly", entered 2025-06-13
+    part "A000010": -73.90 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000008": 73.90 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 219 on 2025-06-11, payee -, entered 2025-06-11
+    part "A000001": -508.83 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 508.83 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 220 on 2025-07-24, payee "Orbital Grocers", entered 2025-07-24
+    part "A000001": 2500.09 EUR, in the account -
+    part "A000004": -2500.09 EUR, in the account -
+  transaction 221 on 2025-07-05, payee "Dome Utilities", entered 2025-07-05
+    part "A000011": -198.34 EUR, in the account -
+    part "A000005": 198.34 EUR, in the account -
+  transaction 222 on 2025-07-12, payee "Shuttle Transit Authority", entered 2025-07-12
+    part "A000001": -30.11 EUR, in the account -
+    part "A000006": 30.11 EUR, in the account -
+  transaction 223 on 2025-07-24, payee "Colony Mining Co", entered 2025-07-24
+    part "A000002": -193.69 EUR, in the account -
+    part "A000007": 193.69 EUR, in the account -, tags ["G000001"]
+  transaction 224 on 2025-07-18, payee "Orbital Grocers", note "colony supply run", entered 2025-07-18
+    part "A000003": -67.18 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000008": 67.18 EUR, in the account -, note "colony supply run"
+  transaction 225 on 2025-07-04, payee -, entered 2025-07-04
+    part "A000001": -198.86 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 198.86 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 226 on 2025-08-12, payee "Dome Utilities", entered 2025-08-12
+    part "A000001": 2612.75 EUR, in the account -
+    part "A000004": -2612.75 EUR, in the account -
+  transaction 227 on 2025-08-22, payee "Shuttle Transit Authority", entered 2025-08-22
+    part "A000010": -158.10 EUR, in the account -
+    part "A000005": 158.10 EUR, in the account -
+  transaction 228 on 2025-08-16, payee "Colony Mining Co", note "monthly", entered 2025-08-16
+    part "A000011": -227.53 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000005": 227.53 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 229 on 2025-08-04, payee "Orbital Grocers", entered 2025-08-04
+    part "A000001": -43.66 EUR, in the account -
+    part "A000006": 43.66 EUR, in the account -
+  transaction 230 on 2025-08-23, payee "Dome Utilities", entered 2025-08-23
+    part "A000002": -40.43 EUR, in the account -
+    part "A000006": 40.43 EUR, in the account -
+  transaction 231 on 2025-08-28, payee "Shuttle Transit Authority", entered 2025-08-28
+    part "A000003": -205.86 EUR, in the account -
+    part "A000007": 205.86 EUR, in the account -, tags ["G000001"]
+  transaction 232 on 2025-08-15, payee "Colony Mining Co", note "colony supply run", entered 2025-08-15
+    part "A000010": -144.69 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000007": 144.69 EUR, in the account -, note "colony supply run"
+  transaction 233 on 2025-08-25, payee "Orbital Grocers", entered 2025-08-25
+    part "A000011": -109.98 EUR, in the account -
+    part "A000008": 109.98 EUR, in the account -
+  transaction 234 on 2025-08-10, payee "Dome Utilities", note "monthly", entered 2025-08-10
+    part "A000001": -93.93 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000008": 93.93 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 235 on 2025-08-23, payee -, entered 2025-08-23
+    part "A000001": -457.04 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 457.04 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 236 on 2025-09-15, payee "Shuttle Transit Authority", entered 2025-09-15
+    part "A000001": 2556.24 EUR, in the account -
+    part "A000004": -2556.24 EUR, in the account -
+  transaction 237 on 2025-09-17, payee "Colony Mining Co", entered 2025-09-17
+    part "A000002": -144.70 EUR, in the account -
+    part "A000005": 144.70 EUR, in the account -
+  transaction 238 on 2025-09-17, payee "Orbital Grocers", entered 2025-09-17
+    part "A000003": -24.21 EUR, in the account -
+    part "A000006": 24.21 EUR, in the account -
+  transaction 239 on 2025-09-18, payee "Dome Utilities", entered 2025-09-18
+    part "A000010": -198.00 EUR, in the account -
+    part "A000007": 198.00 EUR, in the account -, tags ["G000001"]
+  transaction 240 on 2025-09-28, payee "Shuttle Transit Authority", note "colony supply run", entered 2025-09-28
+    part "A000011": -79.54 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000008": 79.54 EUR, in the account -, note "colony supply run"
+  transaction 241 on 2025-09-11, payee -, entered 2025-09-11
+    part "A000001": -123.22 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 123.22 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 242 on 2025-10-28, payee "Colony Mining Co", entered 2025-10-28
+    part "A000001": 2471.25 EUR, in the account -
+    part "A000004": -2471.25 EUR, in the account -
+  transaction 243 on 2025-10-07, payee "Orbital Grocers", entered 2025-10-07
+    part "A000001": -187.04 EUR, in the account -
+    part "A000005": 187.04 EUR, in the account -
+  transaction 244 on 2025-10-09, payee "Dome Utilities", note "monthly", entered 2025-10-09
+    part "A000002": -162.44 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000005": 162.44 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 245 on 2025-10-23, payee "Shuttle Transit Authority", entered 2025-10-23
+    part "A000003": -36.47 EUR, in the account -
+    part "A000006": 36.47 EUR, in the account -
+  transaction 246 on 2025-10-07, payee "Colony Mining Co", entered 2025-10-07
+    part "A000010": -39.40 EUR, in the account -
+    part "A000006": 39.40 EUR, in the account -
+  transaction 247 on 2025-10-20, payee "Orbital Grocers", entered 2025-10-20
+    part "A000011": -144.96 EUR, in the account -
+    part "A000007": 144.96 EUR, in the account -, tags ["G000001"]
+  transaction 248 on 2025-10-19, payee "Dome Utilities", note "colony supply run", entered 2025-10-19
+    part "A000001": -94.86 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000008": 94.86 EUR, in the account -, note "colony supply run"
+  transaction 249 on 2025-10-12, payee "Shuttle Transit Authority", entered 2025-10-12
+    part "A000002": -80.74 EUR, in the account -
+    part "A000008": 80.74 EUR, in the account -
+  transaction 250 on 2025-10-16, payee -, entered 2025-10-16
+    part "A000001": -220.11 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 220.11 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 251 on 2025-11-08, payee "Colony Mining Co", entered 2025-11-08
+    part "A000001": 2676.16 EUR, in the account -
+    part "A000004": -2676.16 EUR, in the account -
+  transaction 252 on 2025-11-20, payee "Orbital Grocers", note "monthly", entered 2025-11-20
+    part "A000003": -226.82 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000005": 226.82 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 253 on 2025-11-14, payee "Dome Utilities", entered 2025-11-14
+    part "A000010": -27.67 EUR, in the account -
+    part "A000006": 27.67 EUR, in the account -
+  transaction 254 on 2025-11-19, payee "Shuttle Transit Authority", entered 2025-11-19
+    part "A000011": -26.31 EUR, in the account -
+    part "A000006": 26.31 EUR, in the account -
+  transaction 255 on 2025-11-20, payee "Colony Mining Co", entered 2025-11-20
+    part "A000001": -150.23 EUR, in the account -
+    part "A000007": 150.23 EUR, in the account -, tags ["G000001"]
+  transaction 256 on 2025-11-21, payee "Orbital Grocers", note "colony supply run", entered 2025-11-21
+    part "A000002": -83.53 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000008": 83.53 EUR, in the account -, note "colony supply run"
+  transaction 257 on 2025-11-16, payee -, entered 2025-11-16
+    part "A000001": -136.96 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 136.96 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 258 on 2025-12-21, payee "Dome Utilities", entered 2025-12-21
+    part "A000001": 2683.77 EUR, in the account -
+    part "A000004": -2683.77 EUR, in the account -
+  transaction 259 on 2025-12-09, payee "Shuttle Transit Authority", entered 2025-12-09
+    part "A000003": -223.58 EUR, in the account -
+    part "A000005": 223.58 EUR, in the account -
+  transaction 260 on 2025-12-10, payee "Colony Mining Co", note "monthly", entered 2025-12-10
+    part "A000010": -38.87 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000006": 38.87 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 261 on 2025-12-04, payee "Orbital Grocers", entered 2025-12-04
+    part "A000011": -177.62 EUR, in the account -
+    part "A000007": 177.62 EUR, in the account -
+  transaction 262 on 2025-12-14, payee "Dome Utilities", entered 2025-12-14
+    part "A000001": -110.25 EUR, in the account -
+    part "A000008": 110.25 EUR, in the account -
+  transaction 263 on 2025-12-06, payee -, entered 2025-12-06
+    part "A000001": -521.17 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 521.17 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 264 on 2026-01-02, payee "Shuttle Transit Authority", entered 2026-01-02
+    part "A000001": 2557.66 EUR, in the account -
+    part "A000004": -2557.66 EUR, in the account -
+  transaction 265 on 2026-01-27, payee "Colony Mining Co", entered 2026-01-27
+    part "A000002": -189.35 EUR, in the account -
+    part "A000005": 189.35 EUR, in the account -, tags ["G000001"]
+  transaction 266 on 2026-01-03, payee "Orbital Grocers", note "colony supply run", entered 2026-01-03
+    part "A000003": -26.43 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000006": 26.43 EUR, in the account -, note "colony supply run"
+  transaction 267 on 2026-01-15, payee "Dome Utilities", entered 2026-01-15
+    part "A000010": -126.80 EUR, in the account -
+    part "A000007": 126.80 EUR, in the account -
+  transaction 268 on 2026-01-06, payee "Shuttle Transit Authority", note "monthly", entered 2026-01-06
+    part "A000011": -73.02 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000008": 73.02 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 269 on 2026-01-09, payee -, entered 2026-01-09
+    part "A000001": -549.65 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 549.65 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 270 on 2026-02-01, payee "Colony Mining Co", entered 2026-02-01
+    part "A000001": 2581.91 EUR, in the account -
+    part "A000004": -2581.91 EUR, in the account -
+  transaction 271 on 2026-02-10, payee "Orbital Grocers", entered 2026-02-10
+    part "A000001": -254.34 EUR, in the account -
+    part "A000005": 254.34 EUR, in the account -
+  transaction 272 on 2026-02-13, payee "Dome Utilities", entered 2026-02-13
+    part "A000002": -193.86 EUR, in the account -
+    part "A000005": 193.86 EUR, in the account -
+  transaction 273 on 2026-02-24, payee "Shuttle Transit Authority", entered 2026-02-24
+    part "A000003": -27.27 EUR, in the account -
+    part "A000006": 27.27 EUR, in the account -, tags ["G000001"]
+  transaction 274 on 2026-02-15, payee "Colony Mining Co", note "colony supply run", entered 2026-02-15
+    part "A000010": -198.04 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000007": 198.04 EUR, in the account -, note "colony supply run"
+  transaction 275 on 2026-02-10, payee "Orbital Grocers", entered 2026-02-10
+    part "A000011": -158.96 EUR, in the account -
+    part "A000007": 158.96 EUR, in the account -
+  transaction 276 on 2026-02-02, payee "Dome Utilities", note "monthly", entered 2026-02-02
+    part "A000001": -66.83 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000008": 66.83 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 277 on 2026-02-18, payee "Shuttle Transit Authority", entered 2026-02-18
+    part "A000002": -107.81 EUR, in the account -
+    part "A000008": 107.81 EUR, in the account -
+  transaction 278 on 2026-02-05, payee -, entered 2026-02-05
+    part "A000001": -349.47 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 349.47 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 279 on 2026-03-26, payee "Colony Mining Co", entered 2026-03-26
+    part "A000001": 2538.66 EUR, in the account -
+    part "A000004": -2538.66 EUR, in the account -
+  transaction 280 on 2026-03-28, payee "Orbital Grocers", entered 2026-03-28
+    part "A000003": -243.96 EUR, in the account -
+    part "A000005": 243.96 EUR, in the account -
+  transaction 281 on 2026-03-04, payee "Dome Utilities", entered 2026-03-04
+    part "A000010": -139.21 EUR, in the account -
+    part "A000005": 139.21 EUR, in the account -, tags ["G000001"]
+  transaction 282 on 2026-03-18, payee "Shuttle Transit Authority", note "colony supply run", entered 2026-03-18
+    part "A000011": -29.62 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000006": 29.62 EUR, in the account -, note "colony supply run"
+  transaction 283 on 2026-03-01, payee "Colony Mining Co", entered 2026-03-01
+    part "A000001": -28.94 EUR, in the account -
+    part "A000006": 28.94 EUR, in the account -
+  transaction 284 on 2026-03-07, payee "Orbital Grocers", note "monthly", entered 2026-03-07
+    part "A000002": -196.93 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000007": 196.93 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 285 on 2026-03-24, payee "Dome Utilities", entered 2026-03-24
+    part "A000003": -128.27 EUR, in the account -
+    part "A000007": 128.27 EUR, in the account -
+  transaction 286 on 2026-03-05, payee "Shuttle Transit Authority", entered 2026-03-05
+    part "A000010": -79.97 EUR, in the account -
+    part "A000008": 79.97 EUR, in the account -
+  transaction 287 on 2026-03-04, payee "Colony Mining Co", entered 2026-03-04
+    part "A000011": -78.19 EUR, in the account -
+    part "A000008": 78.19 EUR, in the account -, tags ["G000001"]
+  transaction 288 on 2026-03-26, payee -, entered 2026-03-26
+    part "A000001": -115.57 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 115.57 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 289 on 2026-04-20, payee "Orbital Grocers", entered 2026-04-20
+    part "A000001": 2537.97 EUR, in the account -
+    part "A000004": -2537.97 EUR, in the account -
+  transaction 290 on 2026-04-23, payee "Dome Utilities", note "colony supply run", entered 2026-04-23
+    part "A000001": -206.00 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000005": 206.00 EUR, in the account -, note "colony supply run"
+  transaction 291 on 2026-04-20, payee "Shuttle Transit Authority", entered 2026-04-20
+    part "A000002": -215.10 EUR, in the account -
+    part "A000005": 215.10 EUR, in the account -
+  transaction 292 on 2026-04-11, payee "Colony Mining Co", note "monthly", entered 2026-04-11
+    part "A000003": -42.56 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000006": 42.56 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 293 on 2026-04-07, payee "Orbital Grocers", entered 2026-04-07
+    part "A000010": -191.24 EUR, in the account -
+    part "A000007": 191.24 EUR, in the account -
+  transaction 294 on 2026-04-04, payee "Dome Utilities", entered 2026-04-04
+    part "A000011": -109.17 EUR, in the account -
+    part "A000008": 109.17 EUR, in the account -
+  transaction 295 on 2026-04-22, payee -, entered 2026-04-22
+    part "A000001": -244.85 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 244.85 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 296 on 2026-05-13, payee "Shuttle Transit Authority", entered 2026-05-13
+    part "A000001": 2512.32 EUR, in the account -
+    part "A000004": -2512.32 EUR, in the account -
+  transaction 297 on 2026-05-15, payee "Colony Mining Co", entered 2026-05-15
+    part "A000001": -194.81 EUR, in the account -
+    part "A000005": 194.81 EUR, in the account -, tags ["G000001"]
+  transaction 298 on 2026-05-25, payee "Orbital Grocers", note "colony supply run", entered 2026-05-25
+    part "A000002": -229.60 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000005": 229.60 EUR, in the account -, note "colony supply run"
+  transaction 299 on 2026-05-19, payee "Dome Utilities", entered 2026-05-19
+    part "A000003": -31.97 EUR, in the account -
+    part "A000006": 31.97 EUR, in the account -
+  transaction 300 on 2026-05-14, payee "Shuttle Transit Authority", note "monthly", entered 2026-05-14
+    part "A000010": -121.28 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000007": 121.28 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 301 on 2026-05-24, payee "Colony Mining Co", entered 2026-05-24
+    part "A000011": -112.86 EUR, in the account -
+    part "A000008": 112.86 EUR, in the account -
+  transaction 302 on 2026-05-21, payee "Orbital Grocers", entered 2026-05-21
+    part "A000001": -75.38 EUR, in the account -
+    part "A000008": 75.38 EUR, in the account -
+  transaction 303 on 2026-05-11, payee -, entered 2026-05-11
+    part "A000001": -122.47 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 122.47 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 304 on 2026-06-26, payee "Dome Utilities", entered 2026-06-26
+    part "A000001": 2585.94 EUR, in the account -
+    part "A000004": -2585.94 EUR, in the account -
+  transaction 305 on 2026-06-14, payee "Shuttle Transit Authority", entered 2026-06-14
+    part "A000002": -178.67 EUR, in the account -
+    part "A000005": 178.67 EUR, in the account -, tags ["G000001"]
+  transaction 306 on 2026-06-17, payee "Colony Mining Co", note "colony supply run", entered 2026-06-17
+    part "A000003": -38.85 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000006": 38.85 EUR, in the account -, note "colony supply run"
+  transaction 307 on 2026-06-19, payee "Orbital Grocers", entered 2026-06-19
+    part "A000010": -39.33 EUR, in the account -
+    part "A000006": 39.33 EUR, in the account -
+  transaction 308 on 2026-06-21, payee "Dome Utilities", note "monthly", entered 2026-06-21
+    part "A000011": -184.22 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000007": 184.22 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 309 on 2026-06-10, payee "Shuttle Transit Authority", entered 2026-06-10
+    part "A000001": -90.57 EUR, in the account -
+    part "A000008": 90.57 EUR, in the account -
+  transaction 310 on 2026-06-22, payee -, entered 2026-06-22
+    part "A000001": -486.27 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 486.27 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 311 on 2026-07-08, payee "Colony Mining Co", entered 2026-07-08
+    part "A000001": 2621.42 EUR, in the account -
+    part "A000004": -2621.42 EUR, in the account -
+  transaction 312 on 2026-07-06, payee "Orbital Grocers", entered 2026-07-06
+    part "A000002": -231.59 EUR, in the account -
+    part "A000005": 231.59 EUR, in the account -
+  transaction 313 on 2026-07-19, payee "Dome Utilities", entered 2026-07-19
+    part "A000003": -197.24 EUR, in the account -
+    part "A000005": 197.24 EUR, in the account -, tags ["G000001"]
+  transaction 314 on 2026-07-26, payee "Shuttle Transit Authority", note "colony supply run", entered 2026-07-26
+    part "A000010": -43.27 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000006": 43.27 EUR, in the account -, note "colony supply run"
+  transaction 315 on 2026-07-14, payee "Colony Mining Co", entered 2026-07-14
+    part "A000011": -191.17 EUR, in the account -
+    part "A000007": 191.17 EUR, in the account -
+  transaction 316 on 2026-07-01, payee "Orbital Grocers", note "monthly", entered 2026-07-01
+    part "A000001": -196.37 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000007": 196.37 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 317 on 2026-07-20, payee "Dome Utilities", entered 2026-07-20
+    part "A000002": -74.48 EUR, in the account -
+    part "A000008": 74.48 EUR, in the account -
+  transaction 318 on 2026-07-16, payee -, entered 2026-07-16
+    part "A000001": -142.43 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 142.43 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 319 on 2026-08-21, payee "Shuttle Transit Authority", entered 2026-08-21
+    part "A000001": 2608.91 EUR, in the account -
+    part "A000004": -2608.91 EUR, in the account -
+  transaction 320 on 2026-08-27, payee "Colony Mining Co", entered 2026-08-27
+    part "A000003": -141.45 EUR, in the account -
+    part "A000005": 141.45 EUR, in the account -
+  transaction 321 on 2026-08-17, payee "Orbital Grocers", entered 2026-08-17
+    part "A000010": -221.60 EUR, in the account -
+    part "A000005": 221.60 EUR, in the account -, tags ["G000001"]
+  transaction 322 on 2026-08-06, payee "Dome Utilities", note "colony supply run", entered 2026-08-06
+    part "A000011": -38.92 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000006": 38.92 EUR, in the account -, note "colony supply run"
+  transaction 323 on 2026-08-16, payee "Shuttle Transit Authority", entered 2026-08-16
+    part "A000001": -31.43 EUR, in the account -
+    part "A000006": 31.43 EUR, in the account -
+  transaction 324 on 2026-08-19, payee "Colony Mining Co", note "monthly", entered 2026-08-19
+    part "A000002": -183.38 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000007": 183.38 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 325 on 2026-08-12, payee "Orbital Grocers", entered 2026-08-12
+    part "A000003": -68.03 EUR, in the account -
+    part "A000008": 68.03 EUR, in the account -
+  transaction 326 on 2026-08-08, payee -, entered 2026-08-08
+    part "A000001": -526.50 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 526.50 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 327 on 2026-09-24, payee "Dome Utilities", entered 2026-09-24
+    part "A000001": 2667.40 EUR, in the account -
+    part "A000004": -2667.40 EUR, in the account -
+  transaction 328 on 2026-09-17, payee "Shuttle Transit Authority", entered 2026-09-17
+    part "A000010": -236.89 EUR, in the account -
+    part "A000005": 236.89 EUR, in the account -
+  transaction 329 on 2026-09-27, payee "Colony Mining Co", entered 2026-09-27
+    part "A000011": -34.90 EUR, in the account -
+    part "A000006": 34.90 EUR, in the account -, tags ["G000001"]
+  transaction 330 on 2026-09-23, payee "Orbital Grocers", note "colony supply run", entered 2026-09-23
+    part "A000001": -175.99 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000007": 175.99 EUR, in the account -, note "colony supply run"
+  transaction 331 on 2026-09-12, payee "Dome Utilities", entered 2026-09-12
+    part "A000002": -116.32 EUR, in the account -
+    part "A000008": 116.32 EUR, in the account -
+  transaction 332 on 2026-09-10, payee -, entered 2026-09-10
+    part "A000001": -374.02 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 374.02 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 333 on 2026-10-16, payee "Shuttle Transit Authority", entered 2026-10-16
+    part "A000001": 2524.03 EUR, in the account -
+    part "A000004": -2524.03 EUR, in the account -
+  transaction 334 on 2026-10-02, payee "Colony Mining Co", note "monthly", entered 2026-10-02
+    part "A000003": -194.99 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000005": 194.99 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 335 on 2026-10-01, payee "Orbital Grocers", entered 2026-10-01
+    part "A000010": -32.46 EUR, in the account -
+    part "A000006": 32.46 EUR, in the account -
+  transaction 336 on 2026-10-27, payee "Dome Utilities", entered 2026-10-27
+    part "A000011": -25.91 EUR, in the account -
+    part "A000006": 25.91 EUR, in the account -
+  transaction 337 on 2026-10-18, payee "Shuttle Transit Authority", entered 2026-10-18
+    part "A000001": -133.69 EUR, in the account -
+    part "A000007": 133.69 EUR, in the account -, tags ["G000001"]
+  transaction 338 on 2026-10-16, payee "Colony Mining Co", note "colony supply run", entered 2026-10-16
+    part "A000002": -184.91 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000007": 184.91 EUR, in the account -, note "colony supply run"
+  transaction 339 on 2026-10-07, payee "Orbital Grocers", entered 2026-10-07
+    part "A000003": -104.14 EUR, in the account -
+    part "A000008": 104.14 EUR, in the account -
+  transaction 340 on 2026-10-12, payee "Dome Utilities", note "monthly", entered 2026-10-12
+    part "A000010": -82.45 EUR, in the account -, bank id -, other party - -, text "monthly"
+    part "A000008": 82.45 EUR, in the account -, note "monthly", tags ["G000002"]
+  transaction 341 on 2026-10-04, payee -, entered 2026-10-04
+    part "A000001": -194.32 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 194.32 EUR, in the account -, bank id -, other party - -, text "to savings"
+  transaction 342 on 2026-11-01, payee "Shuttle Transit Authority", entered 2026-11-01
+    part "A000001": 2536.03 EUR, in the account -
+    part "A000004": -2536.03 EUR, in the account -
+  transaction 343 on 2026-11-01, payee "Colony Mining Co", entered 2026-11-01
+    part "A000011": -181.35 EUR, in the account -
+    part "A000005": 181.35 EUR, in the account -
+  transaction 344 on 2026-11-01, payee "Orbital Grocers", entered 2026-11-01
+    part "A000001": -43.54 EUR, in the account -
+    part "A000006": 43.54 EUR, in the account -
+  transaction 345 on 2026-11-01, payee "Dome Utilities", entered 2026-11-01
+    part "A000002": -30.22 EUR, in the account -
+    part "A000006": 30.22 EUR, in the account -, tags ["G000001"]
+  transaction 346 on 2026-11-01, payee "Shuttle Transit Authority", note "colony supply run", entered 2026-11-01
+    part "A000003": -162.62 EUR, in the account -, bank id -, other party - -, text "colony supply run"
+    part "A000007": 162.62 EUR, in the account -, note "colony supply run"
+  transaction 347 on 2026-11-01, payee "Colony Mining Co", entered 2026-11-01
+    part "A000010": -111.60 EUR, in the account -
+    part "A000008": 111.60 EUR, in the account -
+  transaction 348 on 2026-11-01, payee -, entered 2026-11-01
+    part "A000001": -428.80 EUR, in the account -, bank id -, other party - -, text "to savings"
+    part "A000002": 428.80 EUR, in the account -, bank id -, other party - -, text "to savings"
+  report "R000001": "Report 1"
+    type="pivottable 1.16" group="Income and Expenses" comment="" convertcurrency="1" favorite="0" skipZero="0" datelock="last30days" rowtype="expenseincome" includesactuals="0" includesforecast="0" includesprice="0" includesaverageprice="0" mixedtime="0" investments="0" showrowtotals="0" showcolumntotals="1" detail="top" includesmovingaverage="0" includeschedules="0" includestransfers="0" includeunused="0" columnsaredays="0" charttype="pie" chartpalette="application" chartchgridlines="1" chartsvgridlines="1" chartdatalabels="1" chartbydefault="1" logYaxis="0" negexpenses="0" chartlinewidth="2" columntype="months" datalock="automatic" dataRangeStart="0" dataRangeEnd="0" dataMajorTick="0" dataMinorTick="0" yLabelsPrecision="2"
+    ACCOUNTGROUP group="expense"
+    ACCOUNTGROUP group="income"
+    ACCOUNT 
+    ACCOUNT 
+  report "R000002": "Report 2"
+    type="pivottable 1.16" group="Income and Expenses" comment="" convertcurrency="1" favorite="0" skipZero="0" datelock="last3tonext3months" rowtype="expenseincome" includesactuals="0" includesforecast="0" includesprice="0" includesaverageprice="0" mixedtime="0" investments="0" showrowtotals="1" showcolumntotals="1" detail="top" includesmovingaverage="0" includeschedules="0" includestransfers="0" includeunused="0" columnsaredays="0" charttype="stackedbar" chartpalette="application" chartchgridlines="1" chartsvgridlines="1" chartdatalabels="0" chartbydefault="1" logYaxis="0" negexpenses="1" chartlinewidth="2" columntype="months" datalock="automatic" dataRangeStart="1" dataRangeEnd="10" dataMajorTick="1" dataMinorTick="0" yLabelsPrecision="2"
+    ACCOUNTGROUP group="expense"
+    ACCOUNTGROUP group="income"
+  report "R000003": "Report 3"
+    type="pivottable 1.16" group="Income and Expenses" comment="" convertcurrency="1" favorite="0" skipZero="0" datelock="last3tonext3months" rowtype="expenseincome" includesactuals="0" includesforecast="0" includesprice="0" includesaverageprice="0" mixedtime="0" investments="0" showrowtotals="1" showcolumntotals="1" detail="top" includesmovingaverage="0" includeschedules="0" includestransfers="0" includeunused="0" columnsaredays="0" charttype="stackedbar" chartpalette="application" chartchgridlines="1" chartsvgridlines="1" chartdatalabels="0" chartbydefault="1" logYaxis="0" negexpenses="1" chartlinewidth="2" columntype="months" datalock="automatic" dataRangeStart="1" dataRangeEnd="10" dataMajorTick="1" dataMinorTick="0" yLabelsPrecision="2"
+    ACCOUNTGROUP group="expense"
+    ACCOUNTGROUP group="income"
+  report "R000004": "Report 4"
+    type="pivottable 1.16" group="Income and Expenses" comment="" convertcurrency="1" favorite="0" skipZero="0" datelock="next30days" rowtype="expenseincome" includesactuals="0" includesforecast="0" includesprice="0" includesaverageprice="0" mixedtime="0" investments="0" showrowtotals="1" showcolumntotals="1" detail="top" includesmovingaverage="0" includeschedules="0" includestransfers="0" includeunused="0" columnsaredays="0" charttype="line" chartpalette="application" chartchgridlines="1" chartsvgridlines="1" chartdatalabels="0" chartbydefault="1" logYaxis="0" negexpenses="0" chartlinewidth="2" columntype="months" datalock="automatic" dataRangeStart="1" dataRangeEnd="10" dataMajorTick="1" dataMinorTick="0" yLabelsPrecision="2"
+    ACCOUNTGROUP group="expense"
+    ACCOUNTGROUP group="income"
+  report "R000005": "Report 5"
+    type="pivottable 1.16" group="Income and Expenses" comment="" convertcurrency="1" favorite="0" skipZero="0" datelock="next30days" rowtype="expenseincome" includesactuals="0" includesforecast="0" includesprice="0" includesaverageprice="0" mixedtime="0" investments="0" showrowtotals="1" showcolumntotals="1" detail="top" includesmovingaverage="0" includeschedules="0" includestransfers="0" includeunused="0" columnsaredays="0" charttype="line" chartpalette="application" chartchgridlines="1" chartsvgridlines="1" chartdatalabels="0" chartbydefault="1" logYaxis="0" negexpenses="0" chartlinewidth="2" columntype="months" datalock="automatic" dataRangeStart="1" dataRangeEnd="10" dataMajorTick="1" dataMinorTick="0" yLabelsPrecision="2"
+    ACCOUNTGROUP group="expense"
+    ACCOUNTGROUP group="income"
+  report "R000006": "Report 6"
+    type="querytable 1.15" group="Group 1" comment="" convertcurrency="1" favorite="0" skipZero="0" datelock="currentyear" rowtype="cashflow" querycolumns="number,payee,account" tax="0" propBudgetDiff="0" investments="0" loans="0" hidetransactions="0" showcolumntotals="1" detail="all" includestransfers="0"
+    ACCOUNTGROUP group="expense"
+    ACCOUNTGROUP group="income"
+    ACCOUNTGROUP group="asset"
+    ACCOUNTGROUP group="liability"
+  report "R000007": "Report 7"
+    type="querytable 1.15" group="Group 1" comment="" convertcurrency="1" favorite="0" skipZero="0" datelock="currentyear" rowtype="cashflow" querycolumns="number,payee,account" tax="0" propBudgetDiff="0" investments="0" loans="0" hidetransactions="0" showcolumntotals="1" detail="all" includestransfers="0"
+    ACCOUNTGROUP group="expense"
+    ACCOUNTGROUP group="income"
+    ACCOUNTGROUP group="asset"
+    ACCOUNTGROUP group="liability"
+  skipped budgets: 1
+  skipped owner: 1

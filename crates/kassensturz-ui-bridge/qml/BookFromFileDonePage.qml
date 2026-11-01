@@ -256,6 +256,10 @@ FormCard.FormCardPage {
         text: page.i18nContext.i18nc("@info", "KassenSturz understands most, but not every, way of writing a matching text. Your file still has them: it was not changed.")
     }
 
+    KmyReportsSummary {
+        reports: page.report.reports ?? []
+    }
+
     FormCard.FormHeader {
         visible: (page.report.skipped ?? []).length > 0
         title: page.i18nContext.i18nc("@title:group", "Left out")

@@ -19,7 +19,8 @@ use super::records::{
 use crate::amount;
 use crate::book::{
     BookAccount, BookCondition, BookInstitution, BookPart, BookPayee, BookRate, BookRule, BookTag,
-    BookTransaction, ImportedBook, Replacement, Skipped, SkippedData, UnlistedCurrency,
+    BookTransaction, ImportedBook, MAX_REPORTS, Replacement, Skipped, SkippedData,
+    UnlistedCurrency,
 };
 use crate::error::ImportError;
 
@@ -126,6 +127,12 @@ pub(super) fn book(records: Records) -> Result<ImportedBook, ImportError> {
         }
     }
 
+    let mut reports = records.reports;
+    if reports.len() > MAX_REPORTS {
+        skipped.add_many(SkippedData::Reports, reports.len() - MAX_REPORTS);
+        reports.truncate(MAX_REPORTS);
+    }
+
     let mut suggestions = suggestions(&records.prices, &currencies.unlisted);
     Ok(ImportedBook {
         institutions,
@@ -143,6 +150,7 @@ pub(super) fn book(records: Records) -> Result<ImportedBook, ImportError> {
                 suggestion: suggestions.remove(&currency.code()),
             })
             .collect(),
+        reports,
         skipped: skipped
             .into_counts()
             .into_iter()

@@ -13,6 +13,7 @@ mod fraction;
 mod gzip;
 mod mapping;
 mod records;
+mod reports;
 mod sqlite;
 mod xml;
 
@@ -52,7 +53,7 @@ impl Importer for Kmy {
     fn read(&self, input: &[u8], limits: &Limits) -> Result<Imported, ImportError> {
         let xml = gzip::uncompressed(input, limits)?;
         let records = records::read(&xml, limits)?;
-        Ok(Imported::Book(mapping::book(records)?))
+        Ok(Imported::Book(Box::new(mapping::book(records)?)))
     }
 }
 

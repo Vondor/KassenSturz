@@ -57,6 +57,21 @@ pub const DETAILS: &[&str] = &[
     "BookFromFileDonePage",
     "BookFromFilePage",
     "BookProblemPage",
+    // KMyMoney's words for the relative periods a report import turns into
+    // fixed days (M6d.6a, Q-319 = A); `kassensturz-pipeline` checks that
+    // each of its words is here.
+    "today",
+    "last7days",
+    "last30days",
+    "last3months",
+    "last6months",
+    "last11months",
+    "last3tonext3months",
+    "monthtodate",
+    "untiltoday",
+    "alldates",
+    "currentquarter",
+    "lastquarter",
     "BudgetPage",
     "BudgetsPage",
     "CategoriesPage",

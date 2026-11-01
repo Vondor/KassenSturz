@@ -195,6 +195,7 @@ fn book() -> ImportedBook {
             rate: "1.1".parse().expect("a rate"),
         }],
         unlisted: Vec::new(),
+        reports: Vec::new(),
         skipped: Vec::new(),
         institutions: Vec::new(),
         payees: Vec::new(),
@@ -204,7 +205,7 @@ fn book() -> ImportedBook {
 }
 
 fn book_checked(book: ImportedBook, limits: &Limits) -> Result<(), ImportError> {
-    check(&Imported::Book(book), limits)
+    check(&Imported::Book(Box::new(book)), limits)
 }
 
 const MALFORMED: Result<(), ImportError> = Err(ImportError::Malformed { line: None });
@@ -217,6 +218,7 @@ fn a_consistent_book_passes() {
         transactions: Vec::new(),
         rates: Vec::new(),
         unlisted: Vec::new(),
+        reports: Vec::new(),
         skipped: Vec::new(),
         institutions: Vec::new(),
         payees: Vec::new(),

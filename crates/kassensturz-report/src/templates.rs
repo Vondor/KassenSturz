@@ -19,7 +19,7 @@
 
 use kassensturz_core::ViewKind;
 
-use crate::{Document, Item, OVERVIEW_NAME, ReportError, Setting};
+use crate::{Document, Entry, Item, OVERVIEW_NAME, ReportError, Setting};
 
 /// The template of the built-in Overview.
 pub const OVERVIEW: &str = "overview";
@@ -240,6 +240,39 @@ pub fn fill_headings(document: &mut Document, text: &str) {
     });
 }
 
+/// Whether `entries` are the components of the template `word`, in the
+/// same places, as [`fill_headings`] made them: a heading that holds
+/// [`HEADING_KEY`] in the template matches a heading with the same ID and
+/// frame whatever its words, since those are the user's (D-479). A word that
+/// is not a template matches nothing.
+pub fn holds_components_of(word: &str, entries: &[Entry]) -> bool {
+    let Ok(template) = document(word) else {
+        return false;
+    };
+    template.entries.len() == entries.len()
+        && template.entries.iter().zip(entries).all(|(wanted, held)| {
+            wanted == held
+                || (is_heading_key(wanted)
+                    && wanted.id == held.id
+                    && wanted.frame == held.frame
+                    && matches!(&held.item, Item::Component(component) if component.kind() == wanted_kind(wanted)))
+        })
+}
+
+/// Whether `entry` is a template heading still holding [`HEADING_KEY`].
+fn is_heading_key(entry: &Entry) -> bool {
+    matches!(&entry.item, Item::Component(component)
+        if matches!(component.get("text"), Some(Setting::Text(held)) if held == HEADING_KEY))
+}
+
+/// The type of a known component (only called for one).
+fn wanted_kind(entry: &Entry) -> crate::ComponentType {
+    match &entry.item {
+        Item::Component(component) => component.kind(),
+        Item::Unknown(_) => crate::ComponentType::Heading,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -434,6 +467,30 @@ mod tests {
             assert_eq!(bare.entries.len(), types(word).len() - headings, "{word}");
             assert!(!bare.to_json().contains(HEADING_KEY), "{word}");
         }
+    }
+
+    #[test]
+    fn a_made_template_still_holds_its_components_whatever_the_heading_says() {
+        for word in WORDS {
+            let mut made = document(word).unwrap();
+            fill_headings(&mut made, "Meins");
+            assert!(holds_components_of(word, &made.entries), "{word}");
+            let mut moved = made.clone();
+            if let Some(frame) = moved
+                .entries
+                .last_mut()
+                .and_then(|entry| entry.frame.as_mut())
+            {
+                frame.row += 1;
+                assert!(!holds_components_of(word, &moved.entries), "{word}");
+            }
+        }
+        // Without its heading, Where the money goes is not its template.
+        let mut bare = document(SPENDING).unwrap();
+        fill_headings(&mut bare, "");
+        assert!(!holds_components_of(SPENDING, &bare.entries));
+        assert!(!holds_components_of("radar", &[]));
+        assert!(holds_components_of(EMPTY, &[]));
     }
 
     #[test]

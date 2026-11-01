@@ -20,7 +20,7 @@
 //! in, never written here in English (D-034).
 
 use kassensturz_core::{StoredView, ViewId, ViewKind};
-use kassensturz_report::{Document, Editor, Frame, Item, OVERVIEW_NAME, templates};
+use kassensturz_report::{Document, Editor, Frame, Item, OVERVIEW_NAME, ReportError, templates};
 use kassensturz_store::{Action, Book};
 
 use crate::grid_editor::LayoutError;
@@ -350,6 +350,92 @@ pub fn move_by(book: &mut Book, id: ViewId, by: i32) -> Result<bool, LayoutError
     Ok(true)
 }
 
+/// The template of the dashboard `shown` in `dashboards` (D-439): the
+/// built-in Overview's for `None`, nothing for a dashboard without one
+/// (stored before M6d and not the M6c Overview), which offers no *Back to
+/// the template*.
+pub fn template_word(dashboards: &[Dashboard], shown: Option<ViewId>) -> Option<&str> {
+    dashboards
+        .iter()
+        .find(|dashboard| dashboard.id == shown)
+        .and_then(|dashboard| dashboard.template.as_deref())
+}
+
+/// Whether `document` has the components of the template `word`, in the
+/// same places; a heading's words are the user's (D-479).
+pub fn has_template_components(document: &Document, word: &str) -> bool {
+    templates::holds_components_of(word, &document.entries)
+}
+
+/// Whether `document` shows what the template `word` gives: its components
+/// and its filters (D-439).
+pub fn is_template(document: &Document, word: &str) -> bool {
+    templates::document(word).is_ok_and(|template| {
+        templates::holds_components_of(word, &document.entries)
+            && template.filters() == document.filters()
+    })
+}
+
+/// Whether a dashboard named `name` is the built-in Overview again, so the
+/// last stored one may be removed (D-315, kept for a list of one, D-436):
+/// unmarked, made from the Overview (or stored before templates), still
+/// named like it and showing just what it shows, so nothing the user gave
+/// it is lost.
+pub fn is_plain_overview(document: &Document, name: &str, built_in_name: &str) -> bool {
+    !document.default
+        && matches!(
+            document.template.as_deref(),
+            None | Some(templates::OVERVIEW)
+        )
+        && is_template(document, templates::OVERVIEW)
+        && is_overview_name(name, built_in_name)
+}
+
+/// Puts the template back on the dashboard the page shows (*Back to the
+/// template…*, D-439): its components and filters become the template's,
+/// while its name, place, ID and default mark stay. One `edit_view`, so one
+/// Undo brings the old ones back; nothing is written when it already shows
+/// the template. As the last stored dashboard it is removed instead when it
+/// is then the plain built-in Overview (section 1.2's rule for a list of
+/// one). A dashboard that can't be read gets its template too, which repairs
+/// it. Gives the dashboard to show: `id`, or `None` once it is removed. The
+/// built-in Overview (`shown` is `None`) is its template already. `heading`
+/// is the template's heading in the user's language, as for [`add`].
+pub fn back_to_template(
+    book: &mut Book,
+    shown: Option<ViewId>,
+    heading: &str,
+    built_in_name: &str,
+) -> Result<Option<ViewId>, LayoutError> {
+    let Some(id) = shown else {
+        return Ok(None);
+    };
+    let dashboards = list(book, built_in_name)?;
+    let word = template_word(&dashboards, Some(id))
+        .ok_or(LayoutError::Report(ReportError::DocumentInvalid {
+            reason: "bad-choice",
+            path: "template".to_owned(),
+        }))?
+        .to_owned();
+    let marked = dashboards
+        .iter()
+        .any(|dashboard| dashboard.id == Some(id) && dashboard.marked);
+    let view = book.view(id)?;
+    let mut document = templates::document(&word)?;
+    templates::fill_headings(&mut document, heading);
+    view.name.clone_into(&mut document.name);
+    document.default = marked;
+    if dashboards.len() == 1 && is_plain_overview(&document, &view.name, built_in_name) {
+        book.remove_view(id)?;
+        return Ok(None);
+    }
+    if Document::read(&view.document).is_ok_and(|stored| is_template(&stored, &word)) {
+        return Ok(Some(id));
+    }
+    book.edit_view(id, &checked(&document)?)?;
+    Ok(Some(id))
+}
+
 /// Deletes the stored dashboard `id` (*Delete…*). Deleting the last one
 /// leaves the built-in Overview, so the page is never empty. One entry.
 pub fn delete(book: &mut Book, id: ViewId) -> Result<(), LayoutError> {
@@ -589,6 +675,136 @@ mod tests {
         assert_eq!(stored.entries, layout.editor.document().entries);
     }
 
+    /// A stored copy of the Overview with its last component taken off and
+    /// the filters narrowed to one account, as an arranged one would be.
+    fn arranged_overview(book: &mut Book, name: &str) -> ViewId {
+        let mut document = templates::document(templates::OVERVIEW).unwrap();
+        name.clone_into(&mut document.name);
+        document.entries.pop();
+        document.accounts = vec!["account-1".to_owned()];
+        book.add_view(&checked(&document).unwrap()).unwrap()
+    }
+
+    fn stored_document(book: &Book, id: ViewId) -> Document {
+        Document::read(&book.view(id).unwrap().document).unwrap()
+    }
+
+    #[test]
+    fn back_to_the_template_replaces_components_and_filters_in_one_entry() {
+        let mut book = book();
+        let first = add(&mut book, "empty", "First", "", BUILT_IN).unwrap();
+        let home = arranged_overview(&mut book, "Home");
+        make_default(&mut book, Some(home), BUILT_IN).unwrap();
+        let before = book.history().unwrap().len();
+        let order = names(&book);
+        assert_eq!(
+            back_to_template(&mut book, Some(home), "", BUILT_IN).unwrap(),
+            Some(home)
+        );
+        assert_eq!(book.history().unwrap().len(), before + 1);
+        let stored = stored_document(&book, home);
+        assert!(is_template(&stored, templates::OVERVIEW));
+        // Name, place, ID and the default mark stay.
+        assert_eq!(stored.name, "Home");
+        assert!(stored.default);
+        assert_eq!(names(&book), order);
+        assert_eq!(default_name(&book), "Home");
+        // Already the template: nothing is written.
+        back_to_template(&mut book, Some(home), "", BUILT_IN).unwrap();
+        assert_eq!(book.history().unwrap().len(), before + 1);
+        // One Undo brings the arranged one back.
+        book.undo().unwrap();
+        let stored = stored_document(&book, home);
+        assert!(!has_template_components(&stored, templates::OVERVIEW));
+        assert_eq!(stored.accounts, ["account-1"]);
+        // An empty dashboard is its template already: nothing is written.
+        let after_undo = book.history().unwrap().len();
+        back_to_template(&mut book, Some(first), "", BUILT_IN).unwrap();
+        assert_eq!(book.history().unwrap().len(), after_undo);
+    }
+
+    #[test]
+    fn back_to_the_template_empties_a_dashboard_made_empty() {
+        let mut book = book();
+        let id = add(&mut book, "empty", "Plans", "", BUILT_IN).unwrap();
+        let mut layout = Layout::open(&book, Some(id), BUILT_IN).unwrap();
+        let overview = Document::default_overview().unwrap();
+        let Some(kassensturz_report::Item::Component(component)) =
+            overview.entries.first().map(|entry| entry.item.clone())
+        else {
+            panic!("the Overview starts with a component");
+        };
+        layout.editor.add(component).unwrap();
+        layout.save(&mut book).unwrap();
+        assert_eq!(stored_document(&book, id).entries.len(), 1);
+        back_to_template(&mut book, Some(id), "", BUILT_IN).unwrap();
+        let stored = stored_document(&book, id);
+        assert!(stored.entries.is_empty());
+        assert_eq!(stored.template.as_deref(), Some("empty"));
+    }
+
+    #[test]
+    fn the_last_dashboard_back_at_the_plain_overview_is_removed() {
+        let mut book = book();
+        let id = arranged_overview(&mut book, OVERVIEW_NAME);
+        assert_eq!(
+            back_to_template(&mut book, Some(id), "", BUILT_IN).unwrap(),
+            None
+        );
+        assert!(book.views(Some(ViewKind::Dashboard)).unwrap().is_empty());
+        assert_eq!(names(&book), [BUILT_IN]);
+        book.undo().unwrap();
+        assert!(!is_template(
+            &stored_document(&book, id),
+            templates::OVERVIEW
+        ));
+        // Renamed, it keeps its name, so it is kept.
+        book.rename_view(id, "Home").unwrap();
+        assert_eq!(
+            back_to_template(&mut book, Some(id), "", BUILT_IN).unwrap(),
+            Some(id)
+        );
+        assert!(is_template(
+            &stored_document(&book, id),
+            templates::OVERVIEW
+        ));
+        // The built-in Overview is its template already.
+        let mut fresh = Book::create_in_memory().unwrap();
+        let before = fresh.history().unwrap().len();
+        assert_eq!(
+            back_to_template(&mut fresh, None, "", BUILT_IN).unwrap(),
+            None
+        );
+        assert_eq!(fresh.history().unwrap().len(), before);
+    }
+
+    #[test]
+    fn an_m6c_overview_goes_back_to_the_overview_and_one_without_a_template_is_refused() {
+        let mut book = book();
+        // As M6c stored them: no template key, the Overview first.
+        let mut overview = Document::default_overview().unwrap();
+        overview.entries.pop();
+        let first = book.add_view(&overview.to_json()).unwrap();
+        let mut saved = Document::default_overview().unwrap();
+        saved.name = "Month review".to_owned();
+        saved.entries.pop();
+        let second = book.add_view(&saved.to_json()).unwrap();
+        back_to_template(&mut book, Some(first), "", BUILT_IN).unwrap();
+        let stored = stored_document(&book, first);
+        assert!(is_template(&stored, templates::OVERVIEW));
+        assert_eq!(stored.template.as_deref(), Some("overview"));
+        let before = book.history().unwrap().len();
+        assert!(matches!(
+            back_to_template(&mut book, Some(second), "", BUILT_IN),
+            Err(LayoutError::Report(ReportError::DocumentInvalid {
+                reason: "bad-choice",
+                ..
+            }))
+        ));
+        assert_eq!(book.history().unwrap().len(), before);
+        assert_eq!(stored_document(&book, second).entries, saved.entries);
+    }
+
     #[test]
     fn free_names_count_up_ignoring_capitals() {
         let taken = ["A (copy)".to_owned(), "a (COPY 2)".to_owned()];
@@ -636,5 +852,34 @@ mod tests {
         assert!(kinds.contains(&"bank.update_all"), "{kinds:?}");
         assert!(picture(templates::EMPTY).is_empty());
         assert!(picture("radar").is_empty());
+    }
+
+    #[test]
+    fn back_to_the_template_puts_the_heading_back_in_the_users_words() {
+        let mut book = book();
+        let id = add(
+            &mut book,
+            templates::SPENDING,
+            "Geld",
+            "Wohin das Geld geht",
+            BUILT_IN,
+        )
+        .unwrap();
+        let stored = Document::read(&book.view(id).unwrap().document).unwrap();
+        // As made, it is its template, whatever the heading says.
+        assert!(is_template(&stored, templates::SPENDING));
+        let mut changed = stored.clone();
+        changed.entries.pop();
+        book.edit_view(id, &checked(&changed).unwrap()).unwrap();
+        let stored = Document::read(&book.view(id).unwrap().document).unwrap();
+        assert!(!is_template(&stored, templates::SPENDING));
+        back_to_template(&mut book, Some(id), "Wohin das Geld geht", BUILT_IN).unwrap();
+        let text = book.view(id).unwrap().document;
+        assert!(is_template(
+            &Document::read(&text).unwrap(),
+            templates::SPENDING
+        ));
+        assert!(text.contains("Wohin das Geld geht"));
+        assert!(!text.contains(templates::HEADING_KEY));
     }
 }

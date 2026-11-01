@@ -17,7 +17,7 @@ use kassensturz_core::{ViewId, ViewKind};
 use kassensturz_report::grid::{self, COLUMNS, MAX_ROWS};
 use kassensturz_report::{
     Asked, Component, ComponentType, Document, Edit, Editor, Entry, Filters, Frame, Item,
-    OVERVIEW_NAME, ReportError, Setting, templates,
+    ReportError, Setting, templates,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -135,19 +135,10 @@ impl Layout {
     }
 
     /// Whether Done may remove the stored copy because it is the built-in
-    /// Overview again (D-315, kept for a list of one, D-436): unmarked,
-    /// made from the Overview (or stored before templates) and still named
-    /// like it, so nothing the user gave it is lost.
+    /// Overview again (D-315, kept for a list of one, D-436); the rule is
+    /// [`dashboards::is_plain_overview`].
     fn is_plain_overview(&self) -> bool {
-        let document = self.editor.document();
-        let name = self.name.to_lowercase();
-        self.is_built_in()
-            && !document.default
-            && matches!(
-                document.template.as_deref(),
-                None | Some(templates::OVERVIEW)
-            )
-            && (name == OVERVIEW_NAME.to_lowercase() || name == self.built_in_name.to_lowercase())
+        dashboards::is_plain_overview(self.editor.document(), &self.name, &self.built_in_name)
     }
 
     /// Writes the session to the book as one entry of its change history.
@@ -328,6 +319,7 @@ pub const fn edit_word(edit: Option<Edit>) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kassensturz_report::OVERVIEW_NAME;
 
     fn book() -> Book {
         Book::create_in_memory().unwrap()

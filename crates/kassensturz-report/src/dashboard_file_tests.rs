@@ -106,7 +106,7 @@ fn the_file_names_what_the_dashboard_uses_and_holds_no_id() {
   },
   "dashboard": {
     "format": "kassensturz-dashboard",
-    "version": 2,
+    "version": DOCUMENT_VERSION,
     "kind": "dashboard",
     "name": "Where the money goes",
     "filters": {
@@ -203,6 +203,8 @@ fn the_file_names_what_the_dashboard_uses_and_holds_no_id() {
   }
 }
 "#;
+    // The document's own version, whatever it is now (D-351, M6d.8).
+    let expected = expected.replace("DOCUMENT_VERSION", &VERSION.to_string());
     assert_eq!(file.text, expected, "{}", file.text);
     assert_eq!(file.references, 6);
     // The ID in the filter bar and the one in the column.

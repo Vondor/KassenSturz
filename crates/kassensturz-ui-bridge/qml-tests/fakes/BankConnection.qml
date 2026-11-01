@@ -19,6 +19,12 @@ QtObject {
     signal fetchStarted(string account)
     signal updateAllFinished(var result)
 
+    // What `status()` says when bank connections can't be used (D-497).
+    function status() {
+        calls.push("status");
+        return {ready: false, code: "bank.not-registered"};
+    }
+
     function updateAllState() {
         return {linked: fake.linked, lastUpdated: "2026-10-09", never: false};
     }

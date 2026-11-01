@@ -20,8 +20,12 @@ import io.github.vondor.kassensturz
 Flickable {
     id: widget
 
-    // A `BankConnection`, or null where there is none (the widget is hidden).
+    // A `BankConnection`, or null where there is none.
     property var bank: null
+    // Whether bank connections can be used (D-054); when not, `bankStatus`
+    // is what `BankConnection.status()` said, with the error's `code`.
+    property bool bankReady: false
+    property var bankStatus: ({})
     // What `BankConnection.updateAllState()` said: `linked`, `lastUpdated`,
     // `never`.
     property var state: ({})
@@ -32,6 +36,10 @@ Flickable {
 
     readonly property bool failed: false
     readonly property int linked: state.linked ?? 0
+    // Nothing to update: no account is linked to a bank, or bank connections
+    // can't be used here. The widget then says how to connect a bank, or
+    // why that can't be done (D-497), instead of taking no room.
+    readonly property bool cannotUpdate: !bankReady || linked === 0
     readonly property bool running: bank?.updating ?? false
     readonly property var summary: bank?.updateSummary ?? ({})
     readonly property bool hasSummary: !running && summary.accounts !== undefined
@@ -44,6 +52,8 @@ Flickable {
 
     // A notice was clicked: open that transaction in the register.
     signal transactionClicked(string accountId, string transactionId)
+    // *Connect a bank* was pressed: open the bank setup.
+    signal connectBankClicked()
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -101,19 +111,37 @@ Flickable {
         width: parent.width
         spacing: Kirigami.Units.smallSpacing
 
+        // Nothing linked yet, or no bank connections here (D-497).
         Controls.Label {
             Layout.fillWidth: true
-            visible: widget.arranging && widget.linked === 0
+            visible: widget.cannotUpdate && !widget.running && !widget.hasSummary
             wrapMode: Text.Wrap
-            color: Kirigami.Theme.disabledTextColor
-            text: widget.i18nContext.i18nc("@info", "Shows a button once an account is linked to a bank.")
+            text: widget.i18nContext.i18nc("@info", "Connect a bank to update your accounts here.")
+        }
+
+        Controls.Button {
+            visible: widget.cannotUpdate && widget.bankReady && !widget.running && !widget.hasSummary
+            enabled: !widget.arranging
+            icon.name: "list-add"
+            text: widget.i18nContext.i18nc("@action:button", "Connect a bank")
+            Accessible.description: widget.i18nContext.i18nc("@info", "Sets up your bank's login, so your accounts can be updated from it.")
+            onClicked: {
+                ActionLog.taken("UpdateAllWidget_connectBank")
+                widget.connectBankClicked()
+            }
+        }
+
+        // Why bank connections can't be used here, and what to do instead.
+        FormError {
+            Layout.fillWidth: true
+            result: widget.cannotUpdate && !widget.bankReady && !widget.running ? widget.bankStatus : ({})
         }
 
         Controls.Button {
             id: button
 
-            visible: !widget.running && !(widget.arranging && widget.linked === 0)
-            enabled: !widget.arranging && widget.linked > 0 && !(widget.bank?.busy ?? true)
+            visible: !widget.running && !widget.cannotUpdate
+            enabled: !widget.arranging && !(widget.bank?.busy ?? true)
             icon.name: "view-refresh"
             text: widget.title !== "" ? widget.title : widget.i18nContext.i18nc("@action:button", "Update all accounts")
             Accessible.description: widget.i18nContext.i18nc("@info", "Asks your banks for the new transactions of every linked account and books them.")

@@ -3862,6 +3862,16 @@ msgstr ""
 "Zum Ausprobieren: Eine erfundene Bank steht für Ihre. PIN: 12345, TAN: "
 "123456; nichts erreicht eine echte Bank."
 
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:67
+#, kde-format
+msgctxt "@info %1 is an IBAN, %2 a PIN, %3 a TAN"
+msgid ""
+"Trying it out: a made-up bank stands in for yours. Use the IBAN %1, any "
+"login name, the PIN %2 and the TAN %3; nothing reaches a real bank."
+msgstr ""
+"Zum Ausprobieren: Eine erfundene Bank steht für Ihre. IBAN: %1, "
+"Anmeldename: beliebig, PIN: %2, TAN: %3; nichts erreicht eine echte Bank."
+
 #: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:188
 #, kde-format
 msgctxt "@info"
@@ -15879,11 +15889,23 @@ msgstr ""
 "Übersprungen, weil das vorige fehlgeschlagen ist. Versuchen Sie es noch "
 "einmal."
 
-#: crates/kassensturz-ui-bridge/qml/UpdateAllWidget.qml:109
+#: crates/kassensturz-ui-bridge/qml/UpdateAllWidget.qml:119
 #, kde-format
 msgctxt "@info"
-msgid "Shows a button once an account is linked to a bank."
-msgstr ""
+msgid "Connect a bank to update your accounts here."
+msgstr "Verbinden Sie eine Bank, um Ihre Konten hier zu aktualisieren."
+
+#: crates/kassensturz-ui-bridge/qml/UpdateAllWidget.qml:126
+#, kde-format
+msgctxt "@action:button"
+msgid "Connect a bank"
+msgstr "Eine Bank verbinden"
+
+#: crates/kassensturz-ui-bridge/qml/UpdateAllWidget.qml:127
+#, kde-format
+msgctxt "@info"
+msgid "Sets up your bank's login, so your accounts can be updated from it."
+msgstr "Richtet den Zugang zu Ihrer Bank ein, damit Ihre Konten von dort aktualisiert werden können."
 "Zeigt eine Schaltfläche, sobald ein Konto mit einer Bank verbunden ist."
 
 #: crates/kassensturz-ui-bridge/qml/UpdateAllWidget.qml:118

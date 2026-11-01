@@ -598,10 +598,14 @@ Item {
 
         UpdateAllWidget {
             bank: cell.board.bank
+            bankReady: cell.board.bankReady
+            // Why bank connections can't be used, asked only for this widget.
+            bankStatus: cell.board.bankReady || !cell.board.bank ? ({}) : cell.board.bank.status()
             state: cell.board.updateAll
             title: cell.heading
             arranging: cell.board.editing
             onTransactionClicked: (accountId, transactionId) => cell.board.transactionClicked(accountId, transactionId)
+            onConnectBankClicked: cell.board.connectBankClicked()
         }
     }
 

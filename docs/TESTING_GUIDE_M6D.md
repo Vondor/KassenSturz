@@ -89,7 +89,7 @@ The acceptance test of `proposals/kmymoney-reports-acceptance.md` part A, from s
 Started with `KASSENSTURZ_FAKE_BANK=1` (setup step 2).
 
 1. Without a linked account the widget takes no room on the page. In Edit layout it shows a note: *Shows a button once an account is linked to a bank.*
-2. Link two accounts to the fake bank: Accounts › **Connect a bank…** (fake bank code `37040044`, PIN `12345`, TAN `123456`), then link accounts with **Link to a bank account…**. Use a second login if you want to see two banks one after another.
+2. Link two accounts to the fake bank: Accounts › **Connect a bank…** (the fake bank's IBAN `DE89 3704 0044 0532 0130 00`, any login name such as `test`, PIN `12345`, TAN `123456`; the page shows them in its blue bar), then link accounts with **Link to a bank account…**. Use a second login if you want to see two banks one after another.
 3. Add the *Your accounts* template (or the widget from the Add menu, group *Bank*). Press **Update all accounts**. Nothing may start by itself on opening the book or the app.
 4. While it runs the button is a progress line (*Updating 2 of 5: …*) with **Stop**. Enter the PIN and TAN when asked; cancel one once to see that bank skipped and the next one continue.
 5. The summary reads like *4 accounts updated, 23 transactions booked. 2 to check.* Notices appear only for a transaction no Rule sorted or one with an unusual amount for its category; each line opens the transaction. **Seen** closes the summary.

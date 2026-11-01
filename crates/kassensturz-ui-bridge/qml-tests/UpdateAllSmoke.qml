@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Opens the Update all accounts widget (M6d.7, D-446) on a stand-in for
-// BankConnection (fakes/) and checks that the grid takes no room for it
-// while no account is linked or bank connections can't be used, that only
-// the button starts it, what it says while it runs, the summary after a fake
+// BankConnection (fakes/) and checks that it always shows and is always in
+// the Add menu (D-497): without a linked account it offers *Connect a bank*,
+// without bank connections it says why; then that only the button starts it, what it says while it runs, the summary after a fake
 // run with its notices and its failed account, and that Seen clears it.
 // `tools/check-panel.sh` runs it.
 
@@ -30,8 +30,8 @@ Kirigami.ApplicationWindow {
         id: dashboard
     }
 
-    // A grid without a bank, and one whose bank can't be used: no room for
-    // the button in either.
+    // A grid without a bank, and one whose bank can be used: the widget
+    // takes its room in both (D-497).
     DashboardGrid {
         id: noBank
 
@@ -49,13 +49,19 @@ Kirigami.ApplicationWindow {
     }
 
     AddMenu {
-        id: withoutBank
+        id: addMenu
     }
 
-    AddMenu {
-        id: withBank
+    // Bank connections can't be used here: it says why, and offers nothing
+    // that can't work.
+    UpdateAllWidget {
+        id: unusable
 
-        bankReady: true
+        width: 400
+        height: 200
+        bank: bank
+        bankReady: false
+        bankStatus: bank.status()
     }
 
     pageStack.initialPage: Kirigami.Page {
@@ -66,7 +72,9 @@ Kirigami.ApplicationWindow {
 
             anchors.fill: parent
             bank: bank
+            bankReady: true
             state: bank.updateAllState()
+            onConnectBankClicked: window.opened.push("connect")
             onTransactionClicked: (accountId, transactionId) => window.opened.push(accountId + "/" + transactionId)
         }
     }
@@ -102,12 +110,12 @@ Kirigami.ApplicationWindow {
         return out;
     }
 
-    function button(text) {
-        return buttons(widget, []).find(found => found.text === text);
+    function button(text, item) {
+        return buttons(item ?? widget, []).find(found => found.text === text);
     }
 
-    function hasText(part) {
-        return texts(widget, []).some(text => text.includes(part));
+    function hasText(part, item) {
+        return texts(item ?? widget, []).some(text => text.includes(part));
     }
 
     Timer {
@@ -115,25 +123,38 @@ Kirigami.ApplicationWindow {
         running: true
         onTriggered: {
             const item = {type: "bank.update_all", col: 0, row: 0, cols: 12, rows: 3};
-            // Hidden in view mode without a bank, or without a linked account.
-            window.check(noBank.isCollapsed(item), "no bank: the widget takes no room");
-            window.check(grid.isCollapsed(item), "nothing linked: the widget takes no room");
-            window.check(!grid.isCollapsed({type: "kpi.card"}), "other widgets stay");
-            // The Bank group is in the Add menu only while banks can be used.
-            window.check(!withoutBank.groups.some(group => group.name === "Bank"), "no Bank group without bank support");
-            const group = withBank.groups.find(group => group.name === "Bank");
+            // Always shown and always offered (D-497, M6-B80).
+            window.check(!noBank.isCollapsed(item), "no bank: the widget still takes its room");
+            window.check(!grid.isCollapsed(item), "nothing linked: the widget still takes its room");
+            const group = addMenu.groups.find(group => group.name === "Bank");
             window.check(group !== undefined && group.rows.length === 1 && group.rows[0].kind === "bank.update_all", "the Bank group offers the button");
 
+            // Nothing linked yet: it says how, and Connect a bank asks for the setup.
+            window.check(hasText("Connect a bank to update your accounts here."), "nothing linked: the note: " + texts(widget, []));
+            window.check(window.button("Update all accounts") === undefined, "nothing linked: no Update all accounts button");
+            const connect = window.button("Connect a bank");
+            window.check(connect !== undefined && connect.enabled, "nothing linked: Connect a bank can be pressed");
+            connect?.clicked();
+            window.check(window.opened[0] === "connect", "Connect a bank asks for the bank setup, got " + window.opened);
+            window.check(ActionLog.mode.actions.includes("UpdateAllWidget_connectBank"), "Connect a bank says it ran");
+            window.opened = [];
+
+            // No bank connections here: the note and why, no button that can't work.
+            window.check(hasText("Connect a bank to update your accounts here.", unusable), "no banks: the note: " + texts(unusable, []));
+            window.check(hasText("isn't registered", unusable), "no banks: it says why: " + texts(unusable, []));
+            window.check(window.button("Connect a bank", unusable) === undefined && window.button("Update all accounts", unusable) === undefined, "no banks: no button");
+
             bank.linked = 2;
-            window.check(!grid.isCollapsed(item), "a linked account: the widget shows, linked " + grid.updateAll.linked);
+            window.check((grid.updateAll.linked ?? 0) === 2, "a linked account reaches the grid, linked " + grid.updateAll.linked);
             widget.state = bank.updateAllState();
-            window.check(bank.calls.length === 0, "nothing starts by itself, calls: " + bank.calls);
+            window.check(!hasText("Connect a bank to update your accounts here."), "a linked account: no note");
+            window.check(!bank.calls.includes("updateAll"), "nothing starts by itself, calls: " + bank.calls);
             window.check(hasText("Last updated: 2026-10-09"), "it says when the accounts were last updated: " + texts(widget, []));
 
             const start = window.button("Update all accounts");
             window.check(start !== undefined && start.enabled, "the button is there and can be pressed");
             start.clicked();
-            window.check(bank.calls[0] === "updateAll", "the button starts it");
+            window.check(bank.calls[bank.calls.length - 1] === "updateAll", "the button starts it, calls: " + bank.calls);
             window.check(ActionLog.mode.actions.includes("UpdateAllWidget_update"), "the button says it ran");
             bank.fetchStarted("a2");
             window.check(hasText("Updating 1 of 2: Card"), "it says which account: " + texts(widget, []));

@@ -20,9 +20,6 @@ Controls.Menu {
 
     // Rows with `id` and `name` of the usable saved views.
     property var savedList: []
-    // Whether bank connections can be used (D-054): only then is there a
-    // Bank group with the Update all accounts button (M6d.7).
-    property bool bankReady: false
     // The types of the widgets on the page: the period header and the filter
     // bar are offered only while the page has none (M6d.8, D-474).
     property var pageKinds: []
@@ -58,7 +55,9 @@ Controls.Menu {
               rows: kindRows(["kpi.card", "progress.bar", "table.rows", "table.income_sources", "card.net_worth", "budget.progress"])
                   .concat(dataRows([{ kind: "kpi.card", dataset: "account_balances" }, { kind: "table.rows", dataset: "account_balances" }, { kind: "table.rows", dataset: "cash_flow_by_month" }])).sort((a, b) => a.name.localeCompare(b.name)) },
             { name: ctx.i18nc("@title:menu a group of widgets: those that work with the user's banks", "Bank"),
-              rows: widgetMenu.bankReady ? kindRows(["bank.update_all"]) : [] },
+              // Always offered (M6-B80): without a linked account the widget
+              // says how to connect a bank, or why that can't be done here.
+              rows: kindRows(["bank.update_all"]) },
             { name: ctx.i18nc("@title:menu a group of widgets: those that arrange the page", "Layout"),
               rows: kindRows(["text.heading", "text.separator", "group.period"]
                   .concat(["page.period", "page.filters"].filter(kind => !widgetMenu.pageKinds.includes(kind)))) },

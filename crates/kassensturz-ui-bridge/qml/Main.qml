@@ -1271,6 +1271,7 @@ Kirigami.ApplicationWindow {
             onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })
             onSetBudgetClicked: root.pushPage(budgetPage, { categoryId: "" })
             onDashboardFileChosen: file => root.pushPage(dashboardFilePage, { file: file })
+            onConnectBankClicked: root.pushPage(bankSetupPage)
         }
     }
 

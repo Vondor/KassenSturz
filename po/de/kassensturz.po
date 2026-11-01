@@ -15159,3 +15159,130 @@ msgid ""
 "this one can't read it. Update KassenSturz, or ask for a file saved by this "
 "version."
 msgstr "Diese Dashboard-Datei wurde von einem neueren KassenSturz erstellt (Dateiversion %1), deshalb kann diese Version sie nicht lesen. Aktualisieren Sie KassenSturz oder bitten Sie um eine Datei, die mit dieser Version gespeichert wurde."
+
+#, kde-format
+msgctxt "@title:menu a group of widgets: those that work with the user's banks"
+msgid "Bank"
+msgstr "Bank"
+
+#, kde-format
+msgctxt ""
+"@item:inlistbox a part of the layout: one button that gets the new "
+"transactions of every account linked to a bank"
+msgid "Update all accounts"
+msgstr "Alle Konten aktualisieren"
+
+#, kde-format
+msgctxt "@info %1 is a category, %2 and %3 amounts"
+msgid "Unusual for %1: %2, usually about %3. Do you know this payment?"
+msgstr "Ungewöhnlich für %1: %2, sonst etwa %3. Kennen Sie diese Zahlung?"
+
+#, kde-format
+msgctxt "@info"
+msgid "No Rule sorted this payment. Do you know it?"
+msgstr "Keine Regel hat diese Zahlung einsortiert. Kennen Sie sie?"
+
+#, kde-format
+msgctxt "@info"
+msgid "Skipped: you cancelled the PIN or TAN for its bank."
+msgstr "Übersprungen: Sie haben die PIN oder TAN für seine Bank abgebrochen."
+
+#, kde-format
+msgctxt "@info"
+msgid "Skipped: its bank failed for an account before it. Try again later."
+msgstr "Übersprungen: Seine Bank hat bei einem Konto davor einen Fehler gemeldet. Versuchen Sie es später noch einmal."
+
+#, kde-format
+msgctxt "@info"
+msgid "Skipped: you pressed Stop."
+msgstr "Übersprungen: Sie haben auf Anhalten gedrückt."
+
+#, kde-format
+msgctxt "@info"
+msgid "Skipped, because the one before failed. Try again."
+msgstr "Übersprungen, weil das vorige fehlgeschlagen ist. Versuchen Sie es noch einmal."
+
+#, kde-format
+msgctxt "@info"
+msgid "Shows a button once an account is linked to a bank."
+msgstr "Zeigt eine Schaltfläche, sobald ein Konto mit einer Bank verbunden ist."
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Update all accounts"
+msgstr "Alle Konten aktualisieren"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Asks your banks for the new transactions of every linked account and books "
+"them."
+msgstr "Fragt Ihre Banken nach den neuen Buchungen jedes verbundenen Kontos und bucht sie."
+
+#, kde-format
+msgctxt "@info"
+msgid "Not every account has been updated yet."
+msgstr "Noch nicht jedes Konto wurde aktualisiert."
+
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid "Last updated: %1"
+msgstr "Zuletzt aktualisiert: %1"
+
+#, kde-format
+msgctxt "@info %1 and %2 are counts, %3 the name of an account"
+msgid "Updating %1 of %2: %3"
+msgstr "Aktualisiere %1 von %2: %3"
+
+#, kde-format
+msgctxt "@info"
+msgid "Asking your banks…"
+msgstr "Frage Ihre Banken…"
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Stop"
+msgstr "Anhalten"
+
+#, kde-format
+msgctxt "@info"
+msgid "Stops after the account being updated now."
+msgstr "Hält nach dem Konto an, das gerade aktualisiert wird."
+
+#, kde-format
+msgctxt "@info"
+msgid "%1 account updated"
+msgid_plural "%1 accounts updated"
+msgstr[0] "%1 Konto aktualisiert"
+msgstr[1] "%1 Konten aktualisiert"
+
+#, kde-format
+msgctxt "@info"
+msgid "%1 transaction booked."
+msgid_plural "%1 transactions booked."
+msgstr[0] "%1 Buchung übernommen."
+msgstr[1] "%1 Buchungen übernommen."
+
+#, kde-format
+msgctxt "@info"
+msgid "%1 to check."
+msgid_plural "%1 to check."
+msgstr[0] "%1 zu prüfen."
+msgstr[1] "%1 zu prüfen."
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Show all"
+msgstr "Alle zeigen"
+
+#, kde-format
+msgctxt "@info %1 is an amount, %2 a date, %3 the difference"
+msgid ""
+"Your bank says %1 on %2; KassenSturz differs by %3. Check the account "
+"against your bank."
+msgstr "Ihre Bank nennt %1 am %2; KassenSturz weicht um %3 ab. Gleichen Sie das Konto mit Ihrer Bank ab."
+
+#, kde-format
+msgctxt "@action:button the user has read the summary"
+msgid "Seen"
+msgstr "Gesehen"

@@ -32,12 +32,17 @@ Kirigami.ScrollablePage {
     readonly property var savedList: ((savedSource?.view ?? ({})).views ?? []).filter(row => row.usable)
     // A `CategoryGroups`, for picking My groups and categories in the panel.
     property var groupsSource: null
+    // The app's `BankConnection` and whether bank connections can be used,
+    // for the Update all accounts widget (M6d.7).
+    property var bank: null
+    property bool bankReady: false
     readonly property var view: overview.view ?? ({})
 
     signal addAccountClicked()
     signal addTransactionClicked()
     signal getTransactionsClicked(string accountId)
     signal setBudgetClicked()
+    signal transactionClicked(string accountId, string transactionId)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -147,6 +152,7 @@ Kirigami.ScrollablePage {
         id: addMenu
 
         savedList: page.savedList
+        bankReady: page.bankReady
         onKindChosen: (kind, dataset) => grid.add(kind, dataset)
         onSavedChosen: id => page.addSaved(id)
     }
@@ -689,7 +695,10 @@ Kirigami.ScrollablePage {
             layout: page.dashboard
             monthKey: page.view.monthKey ?? ""
             pageView: page.view
+            bank: page.bank
+            bankReady: page.bankReady
             onGetTransactionsClicked: accountId => page.getTransactionsClicked(accountId)
+            onTransactionClicked: (accountId, transactionId) => page.transactionClicked(accountId, transactionId)
             onSetBudgetClicked: page.setBudgetClicked()
             onPropertiesRequested: id => page.openProperties(id)
             onFailed: result => layoutError.result = result

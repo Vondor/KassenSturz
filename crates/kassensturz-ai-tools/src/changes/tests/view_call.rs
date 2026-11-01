@@ -615,3 +615,21 @@ fn a_chart_can_count_only_some_accounts_where_its_dataset_takes_them() {
         }
     }
 }
+
+#[test]
+fn the_update_all_button_is_never_the_ais_to_place() {
+    // Only the user places and starts *Update all accounts* (D-446, T-55):
+    // it is not among the kinds the AI may choose, nor among the words of
+    // `show_as`, and a call that names it is refused.
+    assert!(!ComponentType::ALL.contains(&ComponentType::BankUpdateAll));
+    assert!(ComponentType::LIBRARY.contains(&ComponentType::BankUpdateAll));
+    let spec = propose_view_spec(Permissions::all()).expect("offered");
+    let shown = format!("{spec:?}");
+    assert!(!shown.contains("update_all"), "{shown}");
+    let book = Book::create_in_memory().expect("book");
+    for show_as in ["bank.update_all", "update_all"] {
+        let text =
+            json!({"title": "A", "data": "spending_by_category", "show_as": show_as}).to_string();
+        assert_eq!(view_code(call(&book, &text)), "bad-argument show_as");
+    }
+}

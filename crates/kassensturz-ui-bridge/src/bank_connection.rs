@@ -50,10 +50,10 @@ use kassensturz_bank::{
     BankError, BankQuestion, CustomerId, FINTS_REGISTRATION_KEY, FakeBank, Iban, KeychainPinStore,
     Login, LoginId, LoginKind, LoginSetup, MemoryPinStore, NoPinStore, Pin, PinAsker, PinMode,
     PinSession, PinStore, QuestionLevel, RegistrationKey, SecondFactor, Setup, Tan, TanRequest,
-    fetch_linked, names_account, remove_login, setup_for,
+    fetch_linked, find_bank_account, names_account, remove_login, setup_for,
 };
 use kassensturz_core::{AccountId, BankLink, Date, ErrorParam, Report};
-use kassensturz_import::{EntryStatus, Limits};
+use kassensturz_import::{EntryStatus, Limits, Statement};
 use kassensturz_platform::{APP_ID, Keychain, KeychainPlace, SecretStorage};
 use kassensturz_store::Book;
 
@@ -309,6 +309,9 @@ pub enum Event {
     FetchStarted(String),
     /// A fetch ended: what came of each account, or why none was tried.
     FetchDone(Result<Vec<FetchOutcome>, ErrorText>),
+    /// *Update all accounts* ended its fetch (M6d.7): each account's
+    /// statement or why it has none, for the GUI thread to book.
+    UpdateAllDone(Result<Vec<UpdateFetch>, ErrorText>),
     /// Choosing the place `storage` for saved PINs, or getting it ready
     /// again, ended (D-167): what it did, or why nothing changed.
     PinStorageDone {
@@ -1341,6 +1344,163 @@ pub fn fetch(
         outcomes.push(outcome);
     }
     Ok(outcomes)
+}
+
+/// What came of one account in *Update all accounts* (M6d.7, D-446).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Updated {
+    /// The bank's statement, converted, for the GUI thread to book.
+    Fetched(Statement),
+    /// Why fetching it failed.
+    Failed(ErrorText),
+    /// Why it was not tried: `cancelled` (the user cancelled the PIN or the
+    /// TAN of its bank), `bank-failed` (an earlier account of its bank
+    /// failed in a way this one would too), `earlier-failure` (an earlier
+    /// account failed in a way every bank would) or `stopped` (the user
+    /// pressed *Stop*).
+    Skipped(&'static str),
+}
+
+/// One account's part of *Update all accounts*.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UpdateFetch {
+    /// The account in the book.
+    pub account: AccountId,
+    /// Its name, for the summary.
+    pub name: String,
+    /// The day it was fetched, which the import notes on its link.
+    pub day: Date,
+    /// What came of it.
+    pub result: Updated,
+}
+
+/// Whether an error ends the fetch of one bank login only, so *Update all
+/// accounts* goes on with the next bank (D-470): the user cancelled its PIN
+/// or TAN, the bank called the PIN wrong (trying again risks a blocked
+/// login, T-05), or the bank's second factor or server cannot be used.
+/// Every other error of [`ends_the_fetch`] would happen with every bank.
+fn ends_the_login(error: &BankError) -> bool {
+    matches!(
+        error,
+        BankError::Aborted
+            | BankError::PinRejected
+            | BankError::TanNeeded
+            | BankError::TanMethodUnsupported
+            | BankError::UntrustedServer
+    )
+}
+
+/// `requests` in the order *Update all accounts* fetches them (D-446): one
+/// bank login after another, in the order of each login's first account in
+/// `requests`, and within a login in the order of `requests`, so each bank
+/// asks for its PIN once. `login_of` gives an account's login; one whose
+/// login is not known stays a group of its own, where it fails.
+pub fn by_login<K: PartialEq>(
+    requests: Vec<FetchRequest>,
+    login_of: impl Fn(&FetchRequest) -> Option<K>,
+) -> Vec<(Option<K>, Vec<FetchRequest>)> {
+    let mut groups: Vec<(Option<K>, Vec<FetchRequest>)> = Vec::new();
+    for request in requests {
+        let login = login_of(&request);
+        match groups
+            .iter_mut()
+            .find(|(key, _)| login.is_some() && *key == login)
+        {
+            Some((_, group)) => group.push(request),
+            None => groups.push((login, vec![request])),
+        }
+    }
+    groups
+}
+
+/// Fetches every account of `requests` for *Update all accounts* (M6d.7,
+/// D-446), one bank login after another ([`by_login`]), and hands the
+/// statements back instead of keeping them for the import screens: the GUI
+/// thread books them at once (D-449). Nothing in the book changes here.
+///
+/// Like [`fetch`] it may ask for PINs and TANs, so it runs with
+/// [`Worker::spawn`], and an account that fails doesn't stop the others.
+/// An error that would end the whole fetch ends only its login when it
+/// belongs to that bank ([`ends_the_login`]); then the next bank is asked.
+/// `stop` is read before each account: once set, the accounts not begun
+/// are `stopped`, and the one being fetched is finished first.
+pub fn update_all(
+    connection: &mut Connection,
+    requests: Vec<FetchRequest>,
+    today: Date,
+    stop: &AtomicBool,
+) -> Result<Vec<UpdateFetch>, ErrorText> {
+    if let Status::Unusable(error) = connection.status() {
+        return Err(error_text(&error));
+    }
+    ensure_registered(connection).map_err(|error| error_text(&error))?;
+    let rows = logins(connection).map_err(|error| error_text(&error))?;
+    let Connection {
+        bank,
+        pins,
+        screens,
+        ..
+    } = connection;
+    let bank = match bank {
+        Ok(bank) => bank.as_mut(),
+        Err(error) => return Err(error_text(error)),
+    };
+    let groups = by_login(requests, |request| {
+        find_bank_account(&*bank, &request.link)
+            .ok()
+            .map(|(login, _)| login.id)
+    });
+    let mut asker = AskForPins {
+        screens: screens.as_ref(),
+        logins: &rows,
+    };
+    let mut done = Vec::new();
+    let mut ended: Option<&'static str> = None;
+    for (_, group) in groups {
+        let mut login_ended: Option<&'static str> = None;
+        for request in group {
+            let skipped = if stop.load(Ordering::SeqCst) {
+                Some("stopped")
+            } else {
+                ended.or(login_ended)
+            };
+            let result = match skipped {
+                Some(reason) => Updated::Skipped(reason),
+                None => {
+                    // A statement the *Get new transactions* page fetched
+                    // earlier is stale once this one is booked.
+                    let _ = bank_fetch::take(request.account);
+                    if let Some(screens) = screens.as_ref() {
+                        screens.tell(Event::FetchStarted(request.account.to_string()));
+                    }
+                    match fetch_linked(bank, pins, &mut asker, &request.link, &Limits::default()) {
+                        Ok(statement) => Updated::Fetched(statement),
+                        // Cancelling a PIN or TAN skips the bank's
+                        // accounts, this one too (D-446).
+                        Err(BankError::Aborted) => {
+                            login_ended = Some("cancelled");
+                            Updated::Skipped("cancelled")
+                        }
+                        Err(error) => {
+                            if ends_the_login(&error) {
+                                login_ended = Some("bank-failed");
+                            } else if ends_the_fetch(&error) {
+                                ended = Some("earlier-failure");
+                            }
+                            Updated::Failed(error_text(&error))
+                        }
+                    }
+                }
+            };
+            done.push(UpdateFetch {
+                account: request.account,
+                name: request.name,
+                day: today,
+                result,
+            });
+        }
+    }
+    Ok(done)
 }
 
 /// A bank account some login lists, to link an account of the book to.
@@ -2607,5 +2767,158 @@ mod tests {
                 .map_err(|e| e.code),
             Err("bank.keychain")
         );
+    }
+
+    // --- Update all accounts (M6d.7, D-446, D-470) ---
+
+    /// What came of each account, as words.
+    fn results(done: &[UpdateFetch]) -> Vec<String> {
+        done.iter()
+            .map(|fetch| match &fetch.result {
+                Updated::Fetched(statement) => format!("fetched {}", statement.entries.len()),
+                Updated::Failed(error) => format!("failed {}", error.code),
+                Updated::Skipped(reason) => format!("skipped {reason}"),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn update_all_goes_bank_by_bank_in_the_order_of_each_banks_first_account() {
+        let mut book = Book::create_in_memory().expect("book");
+        let names = [
+            "A at bank 1",
+            "B at bank 2",
+            "C unknown",
+            "D at bank 1",
+            "E at bank 2",
+        ];
+        let ids: Vec<_> = names
+            .iter()
+            .map(|name| account(&mut book, name, None))
+            .collect();
+        for (n, &id) in ids.iter().enumerate() {
+            link_to(&mut book, id, None, Some(&format!("4000 0000 0000 000{n}")));
+        }
+        let login = |request: &FetchRequest| match request.name.as_bytes()[0] {
+            b'A' | b'D' => Some(1),
+            b'B' | b'E' => Some(2),
+            _ => None,
+        };
+        let groups = by_login(requests(&book, &ids), login);
+        let order: Vec<Vec<&str>> = groups
+            .iter()
+            .map(|(_, group)| group.iter().map(|request| &request.name[..1]).collect())
+            .collect();
+        assert_eq!(order, vec![vec!["A", "D"], vec!["B", "E"], vec!["C"]]);
+    }
+
+    #[test]
+    fn update_all_hands_the_statements_back_and_a_failed_account_does_not_stop_the_rest() {
+        let mut book = Book::create_in_memory().expect("book");
+        let unknown = account(&mut book, "Closed at the bank", None);
+        let card = account(&mut book, "Card", None);
+        let current = account(&mut book, "Current account", None);
+        link_to(&mut book, unknown, Some("BE68539007547034"), None);
+        link_to(&mut book, card, None, Some(CARD_NUMBER));
+        link_to(&mut book, current, Some("DE89370400440532013000"), None);
+        // A statement the fetch page fetched earlier is stale once updated.
+        bank_fetch::put(bank_fetch::Fetch {
+            account: current,
+            statement: bank_statement(&mut fetch_connection(|_| {})),
+            day: today(),
+        });
+        let all = [unknown, card, current];
+        let stop = AtomicBool::new(false);
+        let mut connection = fetch_connection(|_| {});
+        let done =
+            update_all(&mut connection, requests(&book, &all), today(), &stop).expect("fetched");
+        assert_eq!(
+            results(&done),
+            vec!["failed bank.no-bank-account", "fetched 2", "fetched 4"]
+        );
+        assert!(done.iter().all(|fetch| fetch.day == today()));
+        assert_eq!(done[1].name, "Card");
+        assert!(
+            bank_fetch::take(current).is_none(),
+            "nothing kept for the page"
+        );
+
+        // The bank can't be reached: every bank would fail the same way.
+        let mut connection = fetch_connection(|bank| bank.fail_next(Failure::Unreachable));
+        let done = update_all(
+            &mut connection,
+            requests(&book, &[card, current]),
+            today(),
+            &stop,
+        )
+        .expect("fetched");
+        assert_eq!(
+            results(&done),
+            vec!["failed bank.unreachable", "skipped earlier-failure"]
+        );
+    }
+
+    #[test]
+    fn a_cancelled_pin_skips_its_banks_accounts_and_stop_skips_the_rest() {
+        let mut book = Book::create_in_memory().expect("book");
+        let current = account(&mut book, "Current account", None);
+        let card = account(&mut book, "Card", None);
+        link_to(&mut book, current, Some("DE89370400440532013000"), None);
+        link_to(&mut book, card, None, Some(CARD_NUMBER));
+        // No screens to answer: the PIN dialog counts as cancelled.
+        let mut connection = fetch_connection(|_| {});
+        connection
+            .pins
+            .forget(&LoginId::new("fake-login-1"))
+            .expect("forgotten");
+        let stop = AtomicBool::new(false);
+        let done = update_all(
+            &mut connection,
+            requests(&book, &[current, card]),
+            today(),
+            &stop,
+        )
+        .expect("ran");
+        assert_eq!(
+            results(&done),
+            vec!["skipped cancelled", "skipped cancelled"]
+        );
+
+        let stop = AtomicBool::new(true);
+        let mut connection = fetch_connection(|_| {});
+        let done = update_all(
+            &mut connection,
+            requests(&book, &[current, card]),
+            today(),
+            &stop,
+        )
+        .expect("ran");
+        assert_eq!(results(&done), vec!["skipped stopped", "skipped stopped"]);
+    }
+
+    #[test]
+    fn only_errors_of_one_bank_end_only_that_bank() {
+        for error in [
+            BankError::Aborted,
+            BankError::PinRejected,
+            BankError::TanNeeded,
+            BankError::TanMethodUnsupported,
+            BankError::UntrustedServer,
+        ] {
+            assert!(
+                ends_the_login(&error) && ends_the_fetch(&error),
+                "{error:?}"
+            );
+        }
+        for error in [
+            BankError::Unreachable,
+            BankError::NotRegistered,
+            BankError::Keychain,
+        ] {
+            assert!(
+                !ends_the_login(&error) && ends_the_fetch(&error),
+                "{error:?}"
+            );
+        }
     }
 }

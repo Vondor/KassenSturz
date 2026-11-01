@@ -392,6 +392,11 @@ pub const ACTIONS: &[&str] = &[
     "TransactionPage_skipNow",
     "TransferPrompt_noKeepThem",
     "TransferPrompt_yesJoinThem",
+    "UpdateAllWidget_openTransaction",
+    "UpdateAllWidget_seen",
+    "UpdateAllWidget_showAll",
+    "UpdateAllWidget_stop",
+    "UpdateAllWidget_update",
     "WelcomePage_addFirstAccount",
     "WelcomePage_iHaveKmymoney",
 ];

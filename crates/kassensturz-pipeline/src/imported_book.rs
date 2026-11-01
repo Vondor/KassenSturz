@@ -9,11 +9,12 @@ use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, Actions, BookTo, Changeover, Condition, ConvertedPart,
-    Currency, CurrencyCode, DatedRate, DatedRateId, ForeignAmount, Institution, InstitutionId,
-    MatchMode, Money, MoneyError, OriginalAmount, Payee, PayeeId, RateSource, RoundingMode, Rule,
-    RuleId, RuleNode, Split, Tag, TagId, Transaction, TransactionId, TransferMatch, Withdrawn,
+    Currency, CurrencyCode, Date, DatedRate, DatedRateId, ForeignAmount, Institution,
+    InstitutionId, MatchMode, Money, MoneyError, OriginalAmount, Payee, PayeeId, RateSource,
+    RoundingMode, Rule, RuleId, RuleNode, Split, Tag, TagId, Transaction, TransactionId,
+    TransferMatch, ViewId, Withdrawn,
 };
-use kassensturz_export::BookData;
+use kassensturz_export::{BookData, ViewData};
 use kassensturz_import::{
     BookAccount, BookCondition, BookInstitution, BookPart, BookPayee, BookRule, BookTag,
     BookTransaction, ImportError, ImportedBook, Replacement, Skipped, SkippedData, currency,
@@ -22,6 +23,7 @@ use kassensturz_store::{Book, StoreError};
 
 use crate::book::fill_book;
 use crate::error::PipelineError;
+use crate::kmy_reports::{Found, ReportBook, ReportLine, map_reports};
 
 /// What [`fill_book_from`] put into the new book, and what it couldn't.
 #[derive(Debug)]
@@ -69,6 +71,10 @@ pub struct BookImportReport {
     /// What the file held that the book can't, as the importer counted it
     /// (D-029).
     pub skipped: Vec<Skipped>,
+    /// What became of each saved report of the file, in the file's order
+    /// (D-445): empty unless the import was given its day
+    /// ([`fill_book_from_on`]).
+    pub reports: Vec<ReportLine>,
 }
 
 /// A matching text of a payee that KassenSturz can't use (D-160).
@@ -149,11 +155,39 @@ pub enum RuleScope {
 }
 
 /// [`fill_book_from`] with the choice of which payees get a Rule (D-160).
+/// The file's saved reports are left out and counted.
 pub fn fill_book_from_with(
     book: &mut Book,
     imported: &ImportedBook,
     replaced: &HashMap<CurrencyCode, Replacement>,
     scope: RuleScope,
+) -> Result<BookImportReport, PipelineError> {
+    fill(book, imported, replaced, scope, None)
+}
+
+/// [`fill_book_from_with`] on the import day `today`, which also turns the
+/// file's saved reports into saved views (M6d.6a, D-444): each report that
+/// can be one becomes a view under Statistics, in the file's order, with
+/// the accounts and categories this import made of the file's; relative
+/// periods become the days they cover on `today` (Q-319 = A).
+/// [`BookImportReport::reports`] says what became of each, and
+/// [`SkippedData::Reports`] counts only the reports not kept.
+pub fn fill_book_from_on(
+    book: &mut Book,
+    imported: &ImportedBook,
+    replaced: &HashMap<CurrencyCode, Replacement>,
+    scope: RuleScope,
+    today: Date,
+) -> Result<BookImportReport, PipelineError> {
+    fill(book, imported, replaced, scope, Some(today))
+}
+
+fn fill(
+    book: &mut Book,
+    imported: &ImportedBook,
+    replaced: &HashMap<CurrencyCode, Replacement>,
+    scope: RuleScope,
+    today: Option<Date>,
 ) -> Result<BookImportReport, PipelineError> {
     let rounding = book.rounding_mode()?;
     let mut mapper = Mapper {
@@ -215,6 +249,27 @@ pub fn fill_book_from_with(
         });
     }
     let left_open = Mapper::keep_open_with_money(&mut accounts, &transactions);
+    let (views, reports, reports_left_out) = match today {
+        Some(today) => {
+            let mapped = map_reports(&imported.reports, &mapper, today, &mut HashSet::new());
+            let left_out = mapped
+                .iter()
+                .filter(|mapped| mapped.document.is_none())
+                .count();
+            let (views, lines): (Vec<_>, Vec<_>) = mapped
+                .into_iter()
+                .map(|mapped| {
+                    let view = mapped.document.map(|document| ViewData {
+                        id: ViewId::generate(),
+                        document: document.to_json(),
+                    });
+                    (view, mapped.line)
+                })
+                .unzip();
+            (views.into_iter().flatten().collect(), lines, left_out)
+        }
+        None => (Vec::new(), Vec::new(), imported.reports.len()),
+    };
     let data = BookData {
         rounding_mode: book.rounding_mode()?,
         history_keep_days: match book.history_retention()? {
@@ -231,7 +286,7 @@ pub fn fill_book_from_with(
         payees,
         tags,
         bank_links: Vec::new(),
-        views: Vec::new(),
+        views,
         groups: Vec::new(),
         hidden_categories: Vec::new(),
         budgets: Vec::new(),
@@ -257,7 +312,12 @@ pub fn fill_book_from_with(
         transfers: book.transfer_suggestions()?,
         rules: data.rules.len(),
         patterns_left_out,
-        skipped: with_counted(&imported.skipped, SkippedData::PayeeRules, without_text),
+        skipped: with_counted(
+            &with_counted(&imported.skipped, SkippedData::PayeeRules, without_text),
+            SkippedData::Reports,
+            reports_left_out,
+        ),
+        reports,
     })
 }
 
@@ -315,6 +375,9 @@ struct Mapper {
     /// what the user said replaced them (D-106).
     replaced: HashMap<CurrencyCode, Withdrawn>,
     ids: HashMap<String, AccountId>,
+    /// The file's accounts and categories in its order: key, kind and
+    /// whether it is a top-level one, for the series of a report (D-444).
+    order: Vec<(String, AccountKind, bool)>,
     institutions: HashMap<String, InstitutionId>,
     tags: HashMap<String, TagId>,
     /// Whether the account with the key is one of the user's accounts, as
@@ -327,6 +390,20 @@ struct Mapper {
 }
 
 impl Mapper {
+    /// The categories of the file of one kind, in the file's order.
+    fn categories_of(&self, income: bool, top_only: bool) -> Vec<AccountId> {
+        let kind = if income {
+            AccountKind::Income
+        } else {
+            AccountKind::Expense
+        };
+        self.order
+            .iter()
+            .filter(|(_, of, top)| *of == kind && (*top || !top_only))
+            .filter_map(|(key, ..)| self.ids.get(key).copied())
+            .collect()
+    }
+
     /// The ID the account with `key` gets.
     fn id(&self, key: &str) -> Result<AccountId, ImportError> {
         self.ids
@@ -590,6 +667,8 @@ impl Mapper {
             self.ids.insert(account.key.clone(), AccountId::generate());
             self.user_accounts
                 .insert(account.key.clone(), account.kind.is_account());
+            self.order
+                .push((account.key.clone(), account.kind, account.parent.is_none()));
             current.insert(account.key.as_str(), self.current(account.currency)?);
             if let Some(withdrawn) = self.withdrawn(account.currency.code())? {
                 self.note_converted(withdrawn, 1, 0)?;
@@ -911,5 +990,26 @@ fn money_error(error: MoneyError) -> PipelineError {
     match error {
         MoneyError::CurrencyMismatch { .. } => ImportError::Malformed { line: None }.into(),
         _ => StoreError::AmountOverflow.into(),
+    }
+}
+
+impl ReportBook for Mapper {
+    fn find(&self, key: &str) -> Found {
+        match (self.ids.get(key), self.user_accounts.get(key)) {
+            (Some(&id), Some(true)) => Found::Account(id),
+            (Some(&id), Some(false))
+                if self
+                    .order
+                    .iter()
+                    .any(|(of, kind, _)| of == key && kind.is_category()) =>
+            {
+                Found::Category(id)
+            }
+            _ => Found::Nothing,
+        }
+    }
+
+    fn categories(&self, income: bool, top_only: bool) -> Vec<AccountId> {
+        self.categories_of(income, top_only)
     }
 }

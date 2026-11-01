@@ -22,7 +22,7 @@ use kassensturz_import::{
     RECOGNITION_BYTES, Recognition, Replacement, UnlistedCurrency, import, read_file,
 };
 use kassensturz_pipeline::{
-    BookImportReport, PipelineError, RuleScope, fill_book, fill_book_from_with,
+    BookImportReport, PipelineError, ReportLine, RuleScope, fill_book, fill_book_from_on,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -407,7 +407,7 @@ pub fn read(path: &Path) -> Result<Prepared, FromFileError> {
         let Imported::Book(book) = import(importer, &input, &limits)? else {
             unreachable!("the KMyMoney importers read a book")
         };
-        Source::Other(Box::new(book))
+        Source::Other(book)
     } else if STATEMENTS
         .iter()
         .any(|importer| importer.recognize(&start) == Recognition::Yes)
@@ -541,6 +541,32 @@ pub struct Created {
     pub rules: usize,
     /// Matching texts KassenSturz can't use (D-160).
     pub patterns_left_out: Vec<PatternText>,
+    /// What became of each saved report of the file, in its order (D-445).
+    pub reports: Vec<ReportText>,
+}
+
+/// One saved report of the file and what became of it (D-445), for the done
+/// page's *Reports* section: keywords the page words (D-034), and the days
+/// a relative period became, in the user's format (Q-319 = A).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ReportText {
+    /// The view's name, or the report's if it wasn't kept.
+    pub name: String,
+    /// `kept`, `changed` or `not-kept`.
+    pub outcome: &'static str,
+    /// Why it changed or wasn't kept, as keywords.
+    pub reasons: Vec<&'static str>,
+    /// The kinds of the filters left out, as keywords.
+    pub filters: Vec<&'static str>,
+    /// KMyMoney's word for a relative period that became fixed days, or
+    /// empty.
+    pub period: &'static str,
+    /// The first day it became, or empty.
+    pub first: String,
+    /// The last day it became, or empty.
+    pub last: String,
+    /// The day of the import, if a period became fixed days.
+    pub imported: String,
 }
 
 /// A matching text of a payee that couldn't become part of a Rule (D-160).
@@ -595,10 +621,47 @@ pub fn fill(
             })
         }
         Source::Other(imported) => {
-            let report = fill_book_from_with(book, imported, replaced, scope)?;
+            let report = fill_book_from_on(book, imported, replaced, scope, locale.today())?;
+            note_fixed_periods(&report.reports);
             created_text(book, &report, locale)
         }
     }
+}
+
+/// Writes one debug-log entry for each report period that became fixed
+/// days (Q-319 = A): its KMyMoney word and the three days, nothing else.
+fn note_fixed_periods(lines: &[ReportLine]) {
+    #[cfg(feature = "debug-log")]
+    for period in lines.iter().filter_map(|line| line.period) {
+        crate::developer_mode::log().record_fixed_period(
+            period.kmymoney,
+            kassensturz_core::debug_log::Days {
+                imported: period.imported,
+                first: period.first,
+                last: period.last,
+            },
+        );
+    }
+    #[cfg(not(feature = "debug-log"))]
+    let _ = lines;
+}
+
+/// The summary lines of the reports, in the user's date format.
+fn report_texts(lines: &[ReportLine], locale: &impl Locale) -> Vec<ReportText> {
+    let day = |day: Option<Date>| day.map(|day| locale.short_date(day)).unwrap_or_default();
+    lines
+        .iter()
+        .map(|line| ReportText {
+            name: line.name.clone(),
+            outcome: line.outcome.keyword(),
+            reasons: line.reasons.clone(),
+            filters: line.filters.clone(),
+            period: line.period.map_or("", |period| period.kmymoney),
+            first: day(line.period.and_then(|period| period.first)),
+            last: day(line.period.and_then(|period| period.last)),
+            imported: day(line.period.map(|period| period.imported)),
+        })
+        .collect()
 }
 
 fn created_text(
@@ -657,6 +720,7 @@ fn created_text(
                 rule_made: left_out.rule_made,
             })
             .collect(),
+        reports: report_texts(&report.reports, locale),
     })
 }
 
@@ -692,6 +756,69 @@ mod tests {
             successor: successor.into(),
             rate: rate.into(),
             date: date.into(),
+        }
+    }
+
+    #[test]
+    fn the_reports_of_a_kmymoney_file_become_saved_views_with_their_lines() {
+        let prepared = read(&golden("kmy", "reports-anon.kmy")).expect("read");
+        let mut book = empty();
+        let created = fill(
+            &mut book,
+            &prepared,
+            &HashMap::new(),
+            RuleScope::default(),
+            &TestLocale,
+        )
+        .expect("filled");
+        let lines: Vec<(&str, &str, Vec<&str>)> = created
+            .reports
+            .iter()
+            .map(|line| (line.name.as_str(), line.outcome, line.reasons.clone()))
+            .collect();
+        assert_eq!(
+            lines,
+            [
+                (
+                    "Report 1",
+                    "changed",
+                    vec!["range-fixed", "income-left-out"]
+                ),
+                ("Report 2", "changed", vec!["range-fixed"]),
+                ("Report 3", "changed", vec!["range-fixed"]),
+                ("Report 4", "not-kept", vec!["range-future"]),
+                ("Report 5", "not-kept", vec!["range-future"]),
+                ("Report 6", "not-kept", vec!["transactions-list"]),
+                ("Report 7", "not-kept", vec!["transactions-list"]),
+            ]
+        );
+        // The test locale's today and its dates as ISO text.
+        let first = &created.reports[0];
+        assert_eq!(
+            (
+                first.period,
+                first.first.as_str(),
+                first.last.as_str(),
+                first.imported.as_str()
+            ),
+            ("last30days", "2026-09-19", "2026-10-19", "2026-10-19")
+        );
+        assert_eq!(created.reports[3].period, "");
+        assert_eq!(created.reports[3].first, "");
+        assert!(created.skipped.contains(&("reports", 4)));
+        assert_eq!(book.views(None).expect("views").len(), 3);
+    }
+
+    /// Every word a fixed period can have is one the debug log writes.
+    #[cfg(feature = "debug-log")]
+    #[test]
+    fn every_fixed_period_is_a_known_detail_of_the_log() {
+        for word in kassensturz_pipeline::FIXED_PERIODS {
+            assert_eq!(
+                kassensturz_core::debug_log::known_detail(word),
+                Some(word),
+                "{word}"
+            );
         }
     }
 

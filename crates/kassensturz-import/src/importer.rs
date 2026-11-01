@@ -104,7 +104,8 @@ pub enum Imported {
     Statements(Vec<Statement>),
     /// A whole book another program kept, such as KMyMoney's: its accounts,
     /// categories, transactions and rates, and what was left out (D-029).
-    Book(ImportedBook),
+    /// Boxed, since it is far larger than a list of statements.
+    Book(Box<ImportedBook>),
 }
 
 /// Reads `input` with `importer`, within `limits`, and checks what the

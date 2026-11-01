@@ -374,6 +374,22 @@ fn created_object(
                 ])
             })),
         ),
+        (
+            "reports",
+            list(created.reports.iter().map(|report| {
+                let words = |words: &[&str]| list(words.iter().map(|word| text(word)));
+                map([
+                    ("name", text(&report.name)),
+                    ("outcome", text(report.outcome)),
+                    ("reasons", words(&report.reasons)),
+                    ("filters", words(&report.filters)),
+                    ("period", text(report.period)),
+                    ("first", text(&report.first)),
+                    ("last", text(&report.last)),
+                    ("imported", text(&report.imported)),
+                ])
+            })),
+        ),
     ])
 }
 
@@ -401,7 +417,7 @@ fn read_answers(answers: &QVariant) -> Vec<Answer> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::book_from_file::PatternText;
+    use crate::book_from_file::{PatternText, ReportText};
     use crate::variant::read_back::{flag_of, keys, list_of, number_of, text_of};
 
     #[test]
@@ -451,6 +467,24 @@ mod tests {
                 },
             ],
             skipped: vec![("payee-rules", 3)],
+            reports: vec![
+                ReportText {
+                    name: "Spending".into(),
+                    outcome: "changed",
+                    reasons: vec!["range-fixed", "filter-left-out"],
+                    filters: vec!["payee"],
+                    period: "last30days",
+                    first: "2.10.26".into(),
+                    last: "1.11.26".into(),
+                    imported: "1.11.26".into(),
+                },
+                ReportText {
+                    name: "Every transaction".into(),
+                    outcome: "not-kept",
+                    reasons: vec!["transactions-list"],
+                    ..ReportText::default()
+                },
+            ],
             ..Created::default()
         };
         let object = created_object(&created, true, None);
@@ -470,6 +504,7 @@ mod tests {
                 "previousFileName",
                 "rates",
                 "renamed",
+                "reports",
                 "rules",
                 "skipped",
                 "transactions",
@@ -488,5 +523,34 @@ mod tests {
         let skipped = list_of(&object, "skipped");
         assert_eq!(text_of(&skipped[0], "what"), "payee-rules");
         assert_eq!(number_of(&skipped[0], "count"), 3);
+        let reports = list_of(&object, "reports");
+        assert_eq!(reports.len(), 2);
+        assert_eq!(
+            keys(&reports[0]),
+            [
+                "filters", "first", "imported", "last", "name", "outcome", "period", "reasons",
+            ]
+        );
+        assert_eq!(text_of(&reports[0], "name"), "Spending");
+        assert_eq!(text_of(&reports[0], "outcome"), "changed");
+        assert_eq!(text_of(&reports[0], "period"), "last30days");
+        assert_eq!(text_of(&reports[0], "first"), "2.10.26");
+        assert_eq!(text_of(&reports[0], "last"), "1.11.26");
+        assert_eq!(text_of(&reports[0], "imported"), "1.11.26");
+        let words = |key: &str| -> Vec<String> {
+            list_of(&reports[0], key)
+                .iter()
+                .map(|word| {
+                    word.value::<QString>()
+                        .map(String::from)
+                        .unwrap_or_default()
+                })
+                .collect()
+        };
+        assert_eq!(words("reasons"), ["range-fixed", "filter-left-out"]);
+        assert_eq!(words("filters"), ["payee"]);
+        assert_eq!(text_of(&reports[1], "outcome"), "not-kept");
+        assert_eq!(text_of(&reports[1], "period"), "");
+        assert_eq!(list_of(&reports[1], "reasons").len(), 1);
     }
 }

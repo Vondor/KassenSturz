@@ -12,8 +12,9 @@
 
 use std::collections::HashSet;
 
+use super::reports::{self, REPORT};
 use super::xml::{self, Element};
-use crate::book::SkippedData;
+use crate::book::{BookReport, SkippedData};
 use crate::error::ImportError;
 use crate::limits::Limits;
 
@@ -39,6 +40,8 @@ pub(super) struct Records {
     /// The IDs of the file's securities, which investment accounts count
     /// in instead of a currency.
     pub securities: HashSet<String>,
+    /// The saved reports, in the file's order (D-444).
+    pub reports: Vec<BookReport>,
     /// How many of each kind of data the importer leaves out, as far as
     /// the records alone tell; `mapping` adds what the book can't hold.
     pub skipped: Skips,
@@ -352,6 +355,14 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
             // inside an entry doesn't matter, since it is left out whole.
             [ROOT, "SCHEDULES"] => records.skipped.add(SkippedData::Schedules),
             [ROOT, "BUDGETS"] => records.skipped.add(SkippedData::Budgets),
+            [ROOT, "REPORTS"] if name == REPORT => records.reports.push(reports::report(element)?),
+            // The filters of a report, and anything inside them.
+            [ROOT, "REPORTS", REPORT, ..] => {
+                let report = records.reports.last_mut().ok_or_else(malformed)?;
+                report.parts.push(reports::part(element));
+            }
+            // Something else in the list of reports is not a report the
+            // samples show: counted as left out, never misread.
             [ROOT, "REPORTS"] => records.skipped.add(SkippedData::Reports),
             [ROOT, "ONLINEJOBS"] => records.skipped.add(SkippedData::OnlineBanking),
             [ROOT, "SECURITIES"] => {

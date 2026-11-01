@@ -203,6 +203,7 @@ pub fn document(word: &str) -> Result<Document, ReportError> {
             entries: Vec::new(),
             template: None,
             default: false,
+            origin: None,
         },
         SPENDING => Document::read(SPENDING_TEXT)?,
         MONEY_IN_OUT => Document::read(MONEY_IN_OUT_TEXT)?,

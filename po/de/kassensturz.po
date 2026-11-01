@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-11-01 19:08+0000\n"
+"POT-Creation-Date: 2026-11-01 19:36+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -4693,13 +4693,13 @@ msgstr ""
 "KassenSturz versteht die meisten, aber nicht alle Schreibweisen eines "
 "Suchtexts. Ihre Datei hat sie noch: Sie wurde nicht verändert."
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:261
+#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:265
 #, kde-format
 msgctxt "@title:group"
 msgid "Left out"
 msgstr "Weggelassen"
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:281
+#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:285
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -4710,7 +4710,7 @@ msgstr ""
 "Haushaltsbuch übernommen. Ihre KMyMoney-Datei hat es weiterhin: Sie wurde "
 "nicht verändert."
 
-#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:287
+#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:291
 #, kde-format
 msgctxt "@action:button"
 msgid "Go on with the book"
@@ -11731,6 +11731,281 @@ msgstr ""
 msgctxt "@item a statement whose file names no account"
 msgid "Statement %1, without an account number"
 msgstr "Kontoauszug %1, ohne Kontonummer"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:37
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Today"
+msgstr "Heute"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:39
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Last 7 days"
+msgstr "Letzte 7 Tage"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:41
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Last 30 days"
+msgstr "Letzte 30 Tage"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:43
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Last 3 months"
+msgstr "Letzte 3 Monate"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:45
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Last 6 months"
+msgstr "Letzte 6 Monate"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:47
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Last 11 months"
+msgstr "Letzte 11 Monate"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:49
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Last 3 months to next 3 months"
+msgstr "Letzte 3 bis nächste 3 Monate"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:51
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Month to date"
+msgstr "Monat bis heute"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:53
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Until today"
+msgstr "Bis heute"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:55
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "All dates"
+msgstr "Alle Daten"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:57
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Current quarter"
+msgstr "Aktuelles Quartal"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:59
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Last quarter"
+msgstr "Letztes Quartal"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:69
+#, kde-format
+msgctxt "@item a kind of filter in a KMyMoney report"
+msgid "who was paid"
+msgstr "Empfänger"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:71
+#, kde-format
+msgctxt "@item a kind of filter in a KMyMoney report"
+msgid "tag"
+msgstr "Stichwort"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:73
+#, kde-format
+msgctxt "@item a kind of filter in a KMyMoney report"
+msgid "text"
+msgstr "Text"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:75
+#, kde-format
+msgctxt "@item a kind of filter in a KMyMoney report"
+msgid "amount"
+msgstr "Betrag"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:77
+#, kde-format
+msgctxt "@item a kind of filter in a KMyMoney report"
+msgid "status"
+msgstr "Status"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:79
+#, kde-format
+msgctxt "@item a kind of filter in a KMyMoney report"
+msgid "kind of transaction"
+msgstr "Art der Buchung"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:81
+#, kde-format
+msgctxt "@item a kind of filter in a KMyMoney report"
+msgid "number"
+msgstr "Nummer"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:91
+#, kde-format
+msgctxt "@info %1 is a period, %2 and %3 are days"
+msgid "\"%1\" became the days up to %2 (as on %3, the day of the import)"
+msgstr "„%1“ wurde zu den Tagen bis %2 (Stand %3, der Tag des Imports)"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:92
+#, kde-format
+msgctxt "@info %1 is a period, %2, %3 and %4 are days"
+msgid "\"%1\" became %2 to %3 (as on %4, the day of the import)"
+msgstr "„%1“ wurde zu %2 bis %3 (Stand %4, der Tag des Imports)"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:94
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "shown by month"
+msgstr "nach Monaten gezeigt"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:96
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "shows the totals of money in and out"
+msgstr "zeigt die Summen von Geld rein und raus"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:98
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "shows only the top categories"
+msgstr "zeigt nur die obersten Kategorien"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:100
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "shown as another kind of chart"
+msgstr "als andere Art von Diagramm gezeigt"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:102
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "shows only money out: the money in was left out"
+msgstr "zeigt nur Geld raus: das Geld rein wurde weggelassen"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:104
+#, kde-format
+msgctxt "@info %1 is a list of kinds of filters"
+msgid "the filter by %1 was left out"
+msgstr "der Filter nach %1 wurde weggelassen"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:106
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "an account KassenSturz doesn't hold was left out of its filter"
+msgstr ""
+"ein Konto, das KassenSturz nicht führt, wurde aus dem Filter weggelassen"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:108
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "shown in the book's currency"
+msgstr "in der Währung des Haushaltsbuchs gezeigt"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:110
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "some of its settings were left out"
+msgstr "einige seiner Einstellungen wurden weggelassen"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:112
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "it shows only days to come"
+msgstr "er zeigt nur kommende Tage"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:114
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "it shows only money in, which a saved view can't show by category yet"
+msgstr ""
+"er zeigt nur Geld rein, das eine gespeicherte Ansicht noch nicht nach "
+"Kategorien zeigen kann"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:116
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "a list of transactions"
+msgstr "eine Liste von Buchungen"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:118
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "an investment report"
+msgstr "ein Bericht über Wertpapiere"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:120
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "a tax report"
+msgstr "ein Steuerbericht"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:122
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "a budget report"
+msgstr "ein Budgetbericht"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:124
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "a forecast"
+msgstr "eine Vorschau"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:126
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "an account or loan information report"
+msgstr "ein Bericht mit Angaben zu Konten oder Krediten"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:128
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "its settings can't be shown the same way"
+msgstr "seine Einstellungen lassen sich nicht genauso zeigen"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:137
+#, kde-format
+msgctxt "@title:group"
+msgid "Reports"
+msgstr "Berichte"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:143
+#, kde-format
+msgctxt ""
+"@info %1 is how many reports the file has, %2 how many became saved views"
+msgid "%2 of your %1 report is now a saved view in the Statistic Builder."
+msgid_plural ""
+"%2 of your %1 reports are now saved views in the Statistic Builder."
+msgstr[0] ""
+"%2 von Ihrem %1 Bericht ist jetzt eine gespeicherte Ansicht im Statistik-"
+"Baukasten."
+msgstr[1] ""
+"%2 von Ihren %1 Berichten sind jetzt gespeicherte Ansichten im Statistik-"
+"Baukasten."
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:149
+#, kde-format
+msgctxt "@title:group reports"
+msgid "Kept as they were"
+msgstr "Unverändert übernommen"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:150
+#, kde-format
+msgctxt "@title:group reports"
+msgid "Kept with changes"
+msgstr "Mit Änderungen übernommen"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsSummary.qml:151
+#, kde-format
+msgctxt "@title:group reports"
+msgid "Not kept"
+msgstr "Nicht übernommen"
 
 #: crates/kassensturz-ui-bridge/qml/KpiNames.qml:18
 #, kde-format

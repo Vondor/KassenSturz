@@ -56,6 +56,7 @@ fn main() {
                 "qml/BankFetchPage.qml",
                 "qml/BankSetupPage.qml",
                 "qml/BookFromFileDonePage.qml",
+                "qml/KmyReportsSummary.qml",
                 "qml/BookFromFilePage.qml",
                 "qml/BookProblemPage.qml",
                 "qml/BudgetBars.qml",

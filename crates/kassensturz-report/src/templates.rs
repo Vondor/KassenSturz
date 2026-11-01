@@ -39,6 +39,7 @@ pub fn document(word: &str) -> Result<Document, ReportError> {
             entries: Vec::new(),
             template: None,
             default: false,
+            origin: None,
         },
         _ => {
             return Err(ReportError::DocumentInvalid {

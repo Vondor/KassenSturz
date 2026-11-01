@@ -15,7 +15,7 @@
 
 use std::collections::HashSet;
 
-use kassensturz_core::ViewKind;
+use kassensturz_core::{Date, ViewKind};
 use serde_json::{Map, Value};
 
 use crate::filter::{Dimension, check_list};
@@ -116,6 +116,65 @@ pub struct Document {
     /// Whether the user marked this dashboard as the one a book opens at
     /// (`"default": true`, D-448). Written only when it is set.
     pub default: bool,
+    /// Where a view came from, if another program's report made it
+    /// (`origin`, D-450; M6d.6a). Only a view has one.
+    pub origin: Option<ViewOrigin>,
+}
+
+/// Where a view came from (`origin`, D-450): a KMyMoney report, by its ID in
+/// the file, and the day it was imported. A later import of the same file
+/// recognises its views by it (M6d.6b). It is plain text and never copied:
+/// not onto a dashboard and not into a dashboard file.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ViewOrigin {
+    /// The program, `kmymoney` ([`ViewOrigin::KMYMONEY`]), the only one so far.
+    pub from: String,
+    /// The report's ID in the file: on one line, at most 64 characters.
+    pub report: String,
+    /// The day it was imported.
+    pub imported: Date,
+}
+
+impl ViewOrigin {
+    /// The `from` of a view made from a KMyMoney report.
+    pub const KMYMONEY: &'static str = "kmymoney";
+
+    /// The origin of a view made from the KMyMoney report `report` on the
+    /// day `imported`.
+    pub fn kmymoney(report: &str, imported: Date) -> Self {
+        Self {
+            from: Self::KMYMONEY.to_owned(),
+            report: report.to_owned(),
+            imported,
+        }
+    }
+}
+
+/// The document's `origin` (D-450): exactly `from`, `report` and
+/// `imported`, the program one this version knows, the ID short and on one
+/// line, the day an ISO date.
+fn read_origin(value: &Value) -> Result<ViewOrigin, ReportError> {
+    let bad = || invalid("bad-origin", "origin");
+    let object = value.as_object().ok_or_else(bad)?;
+    if object.len() != 3 {
+        return Err(bad());
+    }
+    let from = text_of(object, "from").map_err(|_| bad())?;
+    let report = text_of(object, "report").map_err(|_| bad())?;
+    let imported = text_of(object, "imported").map_err(|_| bad())?;
+    if from != ViewOrigin::KMYMONEY
+        || report.is_empty()
+        || report.chars().count() > MAX_ID_CHARS
+        || report.chars().any(char::is_control)
+        || imported.len() != 10
+    {
+        return Err(bad());
+    }
+    Ok(ViewOrigin {
+        from: from.to_owned(),
+        report: report.to_owned(),
+        imported: imported.parse().map_err(|_| bad())?,
+    })
 }
 
 fn invalid(reason: &'static str, path: &str) -> ReportError {
@@ -461,6 +520,7 @@ impl Document {
             }],
             template: None,
             default: false,
+            origin: None,
         }
     }
 
@@ -487,6 +547,7 @@ impl Document {
                     | "components"
                     | "template"
                     | "default"
+                    | "origin"
             )
         }) {
             return Err(invalid("unknown-property", key));
@@ -564,6 +625,11 @@ impl Document {
         if kind == ViewKind::Dashboard {
             crate::grid::check(&entries)?;
         }
+        let origin = match object.get("origin") {
+            None => None,
+            Some(_) if kind != ViewKind::View => return Err(invalid("bad-origin", "origin")),
+            Some(value) => Some(read_origin(value)?),
+        };
         if kind == ViewKind::View {
             if entries.len() != 1 {
                 return Err(invalid("view-needs-one-component", "components"));
@@ -581,6 +647,7 @@ impl Document {
             entries,
             template,
             default,
+            origin,
         })
     }
 
@@ -699,6 +766,13 @@ impl Document {
             value
         });
         object.insert("components".into(), Value::Array(entries.collect()));
+        if let Some(origin) = &self.origin {
+            let mut from = Map::new();
+            from.insert("from".into(), origin.from.clone().into());
+            from.insert("report".into(), origin.report.clone().into());
+            from.insert("imported".into(), origin.imported.to_string().into());
+            object.insert("origin".into(), Value::Object(from));
+        }
         Value::Object(object).to_string()
     }
 }

@@ -42,10 +42,10 @@ book
     part -: 500.00 EUR, in the account -, note "Bought shares"
   rate on 2020-02-11: 1 EUR = 1.0811 USD
   rate on 2020-02-11: 1 USD = 0.925 EUR
+  report "R000001": "Spending by month"
   skipped investments: 1
   skipped schedules: 1
   skipped budgets: 1
-  skipped reports: 1
   skipped rates: 3
   skipped owner: 1
   skipped payee-rules: 2

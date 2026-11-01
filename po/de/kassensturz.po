@@ -15646,3 +15646,225 @@ msgstr "Zur Vorlage zurückkehren?"
 msgctxt "@action:button"
 msgid "Go back to the template"
 msgstr "Zur Vorlage zurückkehren"
+
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Today"
+msgstr "Heute"
+
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Last 7 days"
+msgstr "Letzte 7 Tage"
+
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Last 30 days"
+msgstr "Letzte 30 Tage"
+
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Last 3 months"
+msgstr "Letzte 3 Monate"
+
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Last 6 months"
+msgstr "Letzte 6 Monate"
+
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Last 11 months"
+msgstr "Letzte 11 Monate"
+
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Last 3 months to next 3 months"
+msgstr "Letzte 3 bis nächste 3 Monate"
+
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Month to date"
+msgstr "Monat bis heute"
+
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Until today"
+msgstr "Bis heute"
+
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "All dates"
+msgstr "Alle Daten"
+
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Current quarter"
+msgstr "Aktuelles Quartal"
+
+#, kde-format
+msgctxt "@item a period in KMyMoney's report settings"
+msgid "Last quarter"
+msgstr "Letztes Quartal"
+
+#, kde-format
+msgctxt "@item a kind of filter in a KMyMoney report"
+msgid "who was paid"
+msgstr "Empfänger"
+
+#, kde-format
+msgctxt "@item a kind of filter in a KMyMoney report"
+msgid "tag"
+msgstr "Stichwort"
+
+#, kde-format
+msgctxt "@item a kind of filter in a KMyMoney report"
+msgid "text"
+msgstr "Text"
+
+#, kde-format
+msgctxt "@item a kind of filter in a KMyMoney report"
+msgid "amount"
+msgstr "Betrag"
+
+#, kde-format
+msgctxt "@item a kind of filter in a KMyMoney report"
+msgid "status"
+msgstr "Status"
+
+#, kde-format
+msgctxt "@item a kind of filter in a KMyMoney report"
+msgid "kind of transaction"
+msgstr "Art der Buchung"
+
+#, kde-format
+msgctxt "@item a kind of filter in a KMyMoney report"
+msgid "number"
+msgstr "Nummer"
+
+#, kde-format
+msgctxt "@info %1 is a period, %2 and %3 are days"
+msgid "\"%1\" became the days up to %2 (as on %3, the day of the import)"
+msgstr "„%1“ wurde zu den Tagen bis %2 (Stand %3, der Tag des Imports)"
+
+#, kde-format
+msgctxt "@info %1 is a period, %2, %3 and %4 are days"
+msgid "\"%1\" became %2 to %3 (as on %4, the day of the import)"
+msgstr "„%1“ wurde zu %2 bis %3 (Stand %4, der Tag des Imports)"
+
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "shown by month"
+msgstr "nach Monaten gezeigt"
+
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "shows the totals of money in and out"
+msgstr "zeigt die Summen von Geld rein und raus"
+
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "shows only the top categories"
+msgstr "zeigt nur die obersten Kategorien"
+
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "shown as another kind of chart"
+msgstr "als andere Art von Diagramm gezeigt"
+
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "shows only money out: the money in was left out"
+msgstr "zeigt nur Geld raus: das Geld rein wurde weggelassen"
+
+#, kde-format
+msgctxt "@info %1 is a list of kinds of filters"
+msgid "the filter by %1 was left out"
+msgstr "der Filter nach %1 wurde weggelassen"
+
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "an account KassenSturz doesn't hold was left out of its filter"
+msgstr "ein Konto, das KassenSturz nicht führt, wurde aus dem Filter weggelassen"
+
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "shown in the book's currency"
+msgstr "in der Währung des Haushaltsbuchs gezeigt"
+
+#, kde-format
+msgctxt "@info a change to a report"
+msgid "some of its settings were left out"
+msgstr "einige seiner Einstellungen wurden weggelassen"
+
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "it shows only days to come"
+msgstr "er zeigt nur kommende Tage"
+
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "it shows only money in, which a saved view can't show by category yet"
+msgstr "er zeigt nur Geld rein, das eine gespeicherte Ansicht noch nicht nach Kategorien zeigen kann"
+
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "a list of transactions"
+msgstr "eine Liste von Buchungen"
+
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "an investment report"
+msgstr "ein Bericht über Wertpapiere"
+
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "a tax report"
+msgstr "ein Steuerbericht"
+
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "a budget report"
+msgstr "ein Budgetbericht"
+
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "a forecast"
+msgstr "eine Vorschau"
+
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "an account or loan information report"
+msgstr "ein Bericht mit Angaben zu Konten oder Krediten"
+
+#, kde-format
+msgctxt "@info why a report was not kept"
+msgid "its settings can't be shown the same way"
+msgstr "seine Einstellungen lassen sich nicht genauso zeigen"
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Reports"
+msgstr "Berichte"
+
+#, kde-format
+msgctxt "@title:group reports"
+msgid "Kept as they were"
+msgstr "Unverändert übernommen"
+
+#, kde-format
+msgctxt "@title:group reports"
+msgid "Kept with changes"
+msgstr "Mit Änderungen übernommen"
+
+#, kde-format
+msgctxt "@title:group reports"
+msgid "Not kept"
+msgstr "Nicht übernommen"
+
+#, kde-format
+msgctxt "@info %1 is how many reports the file has, %2 how many became saved views"
+msgid "%2 of your %1 report is now a saved view in the Statistic Builder."
+msgid_plural "%2 of your %1 reports are now saved views in the Statistic Builder."
+msgstr[0] "%2 von Ihrem %1 Bericht ist jetzt eine gespeicherte Ansicht im Statistik-Baukasten."
+msgstr[1] "%2 von Ihren %1 Berichten sind jetzt gespeicherte Ansichten im Statistik-Baukasten."

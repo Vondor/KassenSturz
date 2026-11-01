@@ -52,9 +52,68 @@ pub struct ImportedBook {
     /// KassenSturz's ISO 4217 table nor its table of withdrawn currencies
     /// lists, sorted by code (D-106).
     pub unlisted: Vec<UnlistedCurrency>,
+    /// The saved reports, in the order of the file, as the file writes
+    /// them (M6d.6a, D-444): `kassensturz-pipeline` turns each into a saved
+    /// view or lists why it can't. At most [`MAX_REPORTS`]; the others are
+    /// counted as [`SkippedData::Reports`].
+    pub reports: Vec<BookReport>,
     /// What the file held that isn't in the book, each kind once with how
     /// many there were, in the order of [`SkippedData`].
     pub skipped: Vec<Skipped>,
+}
+
+/// The most saved reports an imported book brings along (D-444); a file
+/// with more leaves the others out and counts them.
+pub const MAX_REPORTS: usize = 500;
+
+/// A saved report of an imported book, as the file writes it (M6d.6a,
+/// D-444): its settings by the file's own names and values, and the
+/// elements inside it (its filters), each with its settings. Nothing is
+/// interpreted here; the mapping onto a saved view decides what each
+/// setting means and lists what it can't keep, so nothing is guessed at
+/// two places. Every value is untrusted text from the file.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct BookReport {
+    /// The file's own ID for it, e.g. `R000001`.
+    pub key: String,
+    /// Its name, as the file gives it.
+    pub name: String,
+    /// Its settings (the attributes of KMyMoney's `REPORT` record), in the
+    /// file's order.
+    pub settings: Vec<(String, String)>,
+    /// The elements inside it, such as an `ACCOUNT` or `ACCOUNTGROUP` it is
+    /// limited to, in the file's order.
+    pub parts: Vec<BookReportPart>,
+}
+
+impl BookReport {
+    /// The value of the setting `name`, if the file gives it.
+    pub fn setting(&self, name: &str) -> Option<&str> {
+        setting_of(&self.settings, name)
+    }
+}
+
+/// An element inside a saved report: one of its filters (D-444).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct BookReportPart {
+    /// The element's name, e.g. `ACCOUNT`.
+    pub name: String,
+    /// Its settings, in the file's order.
+    pub settings: Vec<(String, String)>,
+}
+
+impl BookReportPart {
+    /// The value of the setting `name`, if the file gives it.
+    pub fn setting(&self, name: &str) -> Option<&str> {
+        setting_of(&self.settings, name)
+    }
+}
+
+fn setting_of<'a>(settings: &'a [(String, String)], name: &str) -> Option<&'a str> {
+    settings
+        .iter()
+        .find(|(key, _)| key == name)
+        .map(|(_, value)| value.as_str())
 }
 
 /// An account, a category or an internal account of an imported book.
@@ -298,7 +357,8 @@ pub enum SkippedData {
     Schedules,
     /// Budgets.
     Budgets,
-    /// Saved reports.
+    /// Saved reports that couldn't become a saved view (D-445), and those
+    /// beyond [`MAX_REPORTS`].
     Reports,
     /// Tags on parts that the reader couldn't match to the file's list of
     /// tags, counted as tags; the list itself comes in (D-132).

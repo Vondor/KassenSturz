@@ -220,7 +220,7 @@ Someone who is not sure yet whether to switch keeps using KMyMoney for a while a
 
 ## 7. Shared QML components (the M6a retro rule)
 
-Planned names and their owners, carried in every M6d brief: M6d.1 `DashboardTabs`, `DashboardMenu`, `NewDashboardDialog`; M6d.2 `TemplatePicture` (inside `NewDashboardDialog`); M6d.3 none (the file chooser of `ExportPage` is reused); M6d.4 `DashboardFilePage` (the summary of 4.3); M6d.6a `KmyReportsSummary` (inside `BookFromFileDonePage`); M6d.6b `KmyReportsImportPage` (the preview of 5.3, using `KmyReportsSummary` for its lines); M6d.7 `UpdateAllWidget`. M6d.4 and M6d.6 do not share a summary component: the first is a preview before adding, the second a report after a finished import.
+Planned names and their owners, carried in every M6d brief: M6d.1 `DashboardTabs`, `DashboardMenu`, `NewDashboardDialog`; M6d.2 `TemplatePicture` (inside `NewDashboardDialog`); M6d.3 none (the file chooser of `ExportPage` is reused); M6d.4 `DashboardFilePage` (the summary of 4.3); M6d.6a `KmyReportsSummary` (inside `BookFromFileDonePage`); M6d.6b `KmyReportsImportPage` (the preview of 5.3, using `KmyReportsSummary` for its lines); M6d.7 `UpdateAllWidget`. M6d.4 and M6d.6a/b do not share a summary component: dashboard files and KMyMoney reports list different things, and M6d.6b reuses M6d.6a's lines.
 
 ## 8. Risks and their rows in the threat model
 

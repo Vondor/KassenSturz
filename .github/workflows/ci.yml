@@ -613,6 +613,23 @@ jobs:
           name: KassenSturz-x86_64.flatpak
           path: reused/KassenSturz.flatpak
           if-no-files-found: error
+      # What Settings → About shows for the bundle just published, one line
+      # such as `0.261101.6 (addd5d3)`: the build number and the commit the
+      # bundle was built from, which for a reused bundle is the pull request's
+      # last commit, not main's merge commit (D-427). In the run's summary for
+      # people and as the small artifact `flatpak-about` for scripts.
+      - name: What About shows
+        if: steps.reuse.outputs.reused == 'true'
+        run: |
+          about=$(cat reused/about.txt)
+          echo "About shows: $about"
+          echo "**About shows:** \`$about\` (reused from the merged pull request)" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.reuse.outputs.reused == 'true'
+        with:
+          name: flatpak-about
+          path: reused/about.txt
+          if-no-files-found: error
 
   # Builds the Flatpak offline from the manifest and uploads it, so every build
   # can be installed (D-068).
@@ -675,6 +692,20 @@ jobs:
         with:
           name: flatpak-build-info
           path: flatpak-build-info
+          if-no-files-found: error
+      # The same line as in the job that reuses a bundle (D-427).
+      - name: What About shows
+        if: github.event_name == 'push'
+        run: |
+          about="$(cat build-version) ($(cat build-commit))"
+          echo "About shows: $about"
+          echo "**About shows:** \`$about\` (built on main)" >> "$GITHUB_STEP_SUMMARY"
+          echo "$about" > about.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name == 'push'
+        with:
+          name: flatpak-about
+          path: about.txt
           if-no-files-found: error
       # Saved even when a later check fails, so the next push doesn't start cold.
       - name: Save the builder's cache

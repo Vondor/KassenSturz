@@ -11,7 +11,8 @@
 # If that build was made from exactly the files now on main and carries the
 # number main's build gets, the bundle is downloaded to `folder` (default
 # `reused`) instead of being built a second time. Writes `reused=true` or
-# `reused=false` to $GITHUB_OUTPUT and always succeeds: when anything is
+# `reused=false` to $GITHUB_OUTPUT (and, when reusing, the text About shows to
+# `folder/about.txt`) and always succeeds: when anything is
 # unclear, the answer is `false` and the Flatpak job builds as before.
 
 set -eu
@@ -60,5 +61,8 @@ mkdir -p "$dir"
 unzip -q -o "$work/bundle.zip" -d "$dir" || no "bundle not readable"
 [ -s "$dir/KassenSturz.flatpak" ] || no "the bundle is empty"
 
+# What Settings → About shows for this bundle: the number and the pull
+# request's last commit, not main's merge commit (D-427).
+echo "$number ($(printf %s "$head" | cut -c1-7))" > "$dir/about.txt"
 echo "reused=true" >> "$out"
 echo "Flatpak $number reused from run $run (pull request head $head, same files as main)."

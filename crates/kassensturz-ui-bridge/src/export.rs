@@ -4,7 +4,8 @@
 //! Saving a copy of the user's data in a file, as the screens see it
 //! (M3.12, D-099, D-100, D-125): the transactions of chosen accounts as CSV
 //! for a spreadsheet, or the whole book as a complete export that a new book
-//! can be made from.
+//! can be made from; and one dashboard as a dashboard file (M6d.3, D-441,
+//! D-443), which holds no money.
 //!
 //! The work is in `kassensturz-export` and `kassensturz-pipeline`; this file
 //! turns what the user chose into their settings, and what they report into
@@ -12,12 +13,13 @@
 
 use std::path::Path;
 
-use kassensturz_core::{AccountId, Report};
+use kassensturz_core::{AccountId, Report, ViewKind};
 use kassensturz_export::{
     BookExport, CsvExport, CsvExportSettings, DecimalMark, ExportData, ExportError, Separator,
-    export_file,
+    export_file, replace_file,
 };
 use kassensturz_pipeline::{export_book, export_transactions};
+use kassensturz_report::{Document, ReportError, dashboard_file_name, write_dashboard_file};
 use kassensturz_store::{Book, StoreError};
 
 use crate::errors::{ErrorText, report_text};
@@ -37,6 +39,14 @@ pub enum SaveError {
     Store(StoreError),
     /// The file couldn't be written.
     Export(ExportError),
+    /// The dashboard couldn't be read or written as a file.
+    Report(ReportError),
+}
+
+impl From<ReportError> for SaveError {
+    fn from(error: ReportError) -> Self {
+        Self::Report(error)
+    }
 }
 
 impl From<StoreError> for SaveError {
@@ -63,6 +73,7 @@ pub fn error_text(book: &Book, error: &SaveError, locale: &impl Locale) -> Error
         SaveError::BadSettings => ErrorText::plain("export.bad-settings"),
         SaveError::Store(error) => report_text(book, &error.report(), locale),
         SaveError::Export(error) => report_text(book, &error.report(), locale),
+        SaveError::Report(error) => report_text(book, &error.report(), locale),
     }
 }
 
@@ -207,6 +218,58 @@ pub fn save_book(book: &Book, path: &Path) -> Result<Saved, SaveError> {
     })
 }
 
+/// What saving a dashboard file did.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SavedDashboard {
+    /// The name of the file written, without its folder.
+    pub file_name: String,
+    /// How many accounts, categories and groups the file names.
+    pub references: usize,
+    /// How many of the dashboard's accounts, categories and groups were left
+    /// out, because the book no longer has them (D-458).
+    pub left_out: usize,
+}
+
+/// The dashboard `id` names (the book's ID as text), or the built-in
+/// Overview for an empty `id`.
+fn dashboard(book: &Book, id: &str) -> Result<Document, SaveError> {
+    if id.is_empty() {
+        return Ok(Document::default_overview()?);
+    }
+    let stored = book
+        .views(Some(ViewKind::Dashboard))?
+        .into_iter()
+        .find(|view| view.id.to_string() == id)
+        .ok_or(SaveError::NoSuchEntry)?;
+    Ok(Document::read(&stored.document)?)
+}
+
+/// The file name suggested for the dashboard `id` names (empty: the
+/// built-in Overview): its name with `.dashboard.json`.
+pub fn dashboard_file_suggestion(book: &Book, id: &str) -> Result<String, SaveError> {
+    Ok(dashboard_file_name(&dashboard(book, id)?.name))
+}
+
+/// Writes the dashboard `id` names (empty: the built-in Overview) as a
+/// dashboard file at `path` (D-441), replacing a file there, since the file
+/// chooser has asked already (D-443). `application` is the program and
+/// build, which the file names for information only. Nothing in the book
+/// changes.
+pub fn save_dashboard(
+    book: &Book,
+    id: &str,
+    application: &str,
+    path: &Path,
+) -> Result<SavedDashboard, SaveError> {
+    let file = write_dashboard_file(book, &dashboard(book, id)?, application)?;
+    replace_file(path, file.text.as_bytes())?;
+    Ok(SavedDashboard {
+        file_name: file_name(path),
+        references: file.references,
+        left_out: file.left_out,
+    })
+}
+
 fn file_name(path: &Path) -> String {
     path.file_name()
         .map(|name| name.to_string_lossy().into_owned())
@@ -297,6 +360,70 @@ mod tests {
         let path = folder.join("transactions.csv");
         let saved = save_csv(book, ids, form, &path).expect("saved");
         (saved, std::fs::read_to_string(path).expect("file written"))
+    }
+
+    /// A started book with a stored dashboard whose filter bar names an
+    /// account the book has and one it doesn't.
+    fn book_with_dashboard() -> (Book, String, AccountId) {
+        let mut book = started();
+        let checking = account(&mut book, "Colony Checking", AccountType::Checking, "0");
+        let text = format!(
+            r#"{{"format": "kassensturz-dashboard", "version": 2, "kind": "dashboard",
+                "name": "Rent / Food", "components": [],
+                "filters": {{"accounts": ["{checking}", "01890000-0000-7000-8000-000000000000"]}}}}"#
+        );
+        let id = book.add_view(&text).expect("stored").to_string();
+        (book, id, checking)
+    }
+
+    #[test]
+    fn a_dashboard_file_names_the_account_and_replaces_the_chosen_file() {
+        let (book, id, checking) = book_with_dashboard();
+        assert_eq!(
+            dashboard_file_suggestion(&book, &id).expect("named"),
+            "Rent _ Food.dashboard.json"
+        );
+        let folder = TestFolder::new();
+        let path = folder.join("Rent _ Food.dashboard.json");
+        // The chooser asked already, so an old file is replaced.
+        std::fs::write(&path, "old").expect("written");
+        let saved = save_dashboard(&book, &id, "KassenSturz test", &path).expect("saved");
+        assert_eq!(
+            saved,
+            SavedDashboard {
+                file_name: "Rent _ Food.dashboard.json".into(),
+                references: 1,
+                left_out: 1,
+            }
+        );
+        let text = std::fs::read_to_string(&path).expect("read");
+        assert!(text.contains(r#""name": "Colony Checking""#), "{text}");
+        assert!(!text.contains(&checking.to_string()), "{text}");
+        // The same file again, byte for byte.
+        save_dashboard(&book, &id, "KassenSturz test", &path).expect("saved");
+        assert_eq!(std::fs::read_to_string(&path).expect("read"), text);
+    }
+
+    #[test]
+    fn the_built_in_overview_is_saved_for_an_empty_id_and_a_wrong_id_is_refused() {
+        let book = started();
+        assert_eq!(
+            dashboard_file_suggestion(&book, "").expect("named"),
+            "Overview.dashboard.json"
+        );
+        let folder = TestFolder::new();
+        let path = folder.join("Overview.dashboard.json");
+        let saved = save_dashboard(&book, "", "KassenSturz test", &path).expect("saved");
+        assert_eq!((saved.references, saved.left_out), (0, 0));
+        let wrong = save_dashboard(&book, "not-an-id", "KassenSturz test", &path);
+        assert!(matches!(wrong, Err(SaveError::NoSuchEntry)), "{wrong:?}");
+        let gone = folder.join("missing").join("a.dashboard.json");
+        let error = save_dashboard(&book, "", "KassenSturz test", &gone).expect_err("no folder");
+        assert_eq!(
+            error_text(&book, &error, &TestLocale).code,
+            "export.io",
+            "{error:?}"
+        );
     }
 
     #[test]

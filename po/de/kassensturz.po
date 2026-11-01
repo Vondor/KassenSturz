@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-11-01 17:45+0000\n"
+"POT-Creation-Date: 2026-11-01 18:18+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -208,7 +208,7 @@ msgstr "Konten"
 #: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:40
 #: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:78
 #: crates/kassensturz-ui-bridge/qml/NewAccountPage.qml:167
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:249
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:280
 #, kde-format
 msgctxt "@action:button"
 msgid "Add account"
@@ -666,6 +666,7 @@ msgstr "Bedingung hinzufügen"
 #: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:436
 #: crates/kassensturz-ui-bridge/qml/DashboardFilePage.qml:60
 #: crates/kassensturz-ui-bridge/qml/NewDashboardDialog.qml:92
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:478
 #, kde-format
 msgctxt "@action:button"
 msgid "Cancel"
@@ -7534,45 +7535,45 @@ msgstr ""
 "%1 ist eine Art Widget, die diese Version von KassenSturz nicht kennt. Es "
 "bleibt erhalten und wird als leerer Rahmen gezeigt."
 
-#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:46
+#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:49
 #, kde-format
 msgctxt "@action:button the menu of the dashboard shown"
 msgid "Dashboard"
 msgstr "Dashboard"
 
-#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:50
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:214
+#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:53
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:222
 #, kde-format
 msgctxt "@action:inmenu"
 msgid "New dashboard…"
 msgstr "Neues Dashboard …"
 
-#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:61
+#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:64
 #, kde-format
 msgctxt "@action:inmenu give the dashboard shown another name"
 msgid "Rename…"
 msgstr "Umbenennen …"
 
-#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:69
+#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:72
 #, kde-format
 msgctxt "@action:inmenu make a copy of the dashboard shown"
 msgid "Duplicate"
 msgstr "Duplizieren"
 
-#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:74
+#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:77
 #, kde-format
 msgctxt "@item the name of a copy of a dashboard, %1 is its name"
 msgid "%1 (copy)"
 msgstr "%1 (Kopie)"
 
-#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:76
+#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:79
 #, kde-format
 msgctxt ""
 "@item the name of a further copy of a dashboard, %1 is its name, %2 a number"
 msgid "%1 (copy %2)"
 msgstr "%1 (Kopie %2)"
 
-#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:82
+#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:85
 #, kde-format
 msgctxt ""
 "@action:inmenu move the dashboard shown one place towards the start of the "
@@ -7580,20 +7581,34 @@ msgctxt ""
 msgid "Move earlier"
 msgstr "Nach vorne"
 
-#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:91
+#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:94
 #, kde-format
 msgctxt ""
 "@action:inmenu move the dashboard shown one place towards the end of the list"
 msgid "Move later"
 msgstr "Nach hinten"
 
-#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:100
+#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:103
 #, kde-format
 msgctxt "@action:inmenu the book opens at the dashboard shown from now on"
 msgid "Make this the default"
 msgstr "Als Standard festlegen"
 
-#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:112
+#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:114
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:253
+#, kde-format
+msgctxt "@action:inmenu save the dashboard shown as a file"
+msgid "Save to a file…"
+msgstr "In Datei speichern…"
+
+#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:122
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:232
+#, kde-format
+msgctxt "@action:inmenu add a dashboard that someone saved to a file"
+msgid "Add from a file…"
+msgstr "Aus Datei hinzufügen …"
+
+#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:134
 #, kde-format
 msgctxt "@action:inmenu"
 msgid "Delete…"
@@ -7900,6 +7915,7 @@ msgid "KassenSturz book files (*.json)"
 msgstr "KassenSturz-Haushaltsbücher (*.json)"
 
 #: crates/kassensturz-ui-bridge/qml/ExportPage.qml:112
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:502
 #, kde-format
 msgctxt "@info %1 is a file name"
 msgid "Saved in %1"
@@ -8867,12 +8883,12 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid ""
-"KassenSturz doesn't recognize this file. It reads statements as CAMT.053 "
-"(.xml), MT940 (.sta), OFX (.ofx) or CSV (.csv, .txt) files; download one of "
+"KassenSturz doesn't recognize this file. It reads statements as CAMT.053 (."
+"xml), MT940 (.sta), OFX (.ofx) or CSV (.csv, .txt) files; download one of "
 "these from your online banking."
 msgstr ""
-"KassenSturz erkennt diese Datei nicht. Es liest Kontoauszüge als CAMT.053- "
-"(.xml), MT940- (.sta), OFX- (.ofx) oder CSV-Dateien (.csv, .txt); laden Sie "
+"KassenSturz erkennt diese Datei nicht. Es liest Kontoauszüge als CAMT.053- (."
+"xml), MT940- (.sta), OFX- (.ofx) oder CSV-Dateien (.csv, .txt); laden Sie "
 "eine davon in Ihrem Online-Banking herunter."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:222
@@ -11968,6 +11984,7 @@ msgstr "Haushaltsbuch aus einer Datei anlegen"
 
 #: crates/kassensturz-ui-bridge/qml/Main.qml:1134
 #: crates/kassensturz-ui-bridge/qml/Main.qml:1153
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:434
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "All files (*)"
@@ -12109,31 +12126,31 @@ msgstr ""
 "Dashboards."
 
 #: crates/kassensturz-ui-bridge/qml/NewDashboardDialog.qml:115
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:386
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:417
 #, kde-format
 msgctxt "@label:textbox"
 msgid "Name of the dashboard"
 msgstr "Name des Dashboards"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:199
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:207
 #, kde-format
 msgctxt "@title"
 msgid "Overview"
 msgstr "Übersicht"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:201
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:209
 #, kde-format
 msgctxt "@title %1 is the name of the dashboard shown"
 msgid "Arrange %1"
 msgstr "%1 anordnen"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:231
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:262
 #, kde-format
 msgctxt "@action:button change where things are on this page"
 msgid "Edit layout"
 msgstr "Anordnung bearbeiten"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:240
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:271
 #: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:142
 #: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:367
 #: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:318
@@ -12142,67 +12159,67 @@ msgctxt "@action:button"
 msgid "Add transaction"
 msgstr "Buchung hinzufügen"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:258
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:289
 #, kde-format
 msgctxt "@action:button keep the changes to the layout"
 msgid "Done"
 msgstr "Fertig"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:267
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:298
 #, kde-format
 msgctxt "@action:button throw away the changes to the layout"
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:276
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:307
 #, kde-format
 msgctxt "@action:button add a chart, table or figure to the layout"
 msgid "Add to the page"
 msgstr "Zur Seite hinzufügen"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:287
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:318
 #, kde-format
 msgctxt "@action:button %1 is what was done to the layout"
 msgid "Undo: %1"
 msgstr "Rückgängig: %1"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:288
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:319
 #, kde-format
 msgctxt "@action:button there is nothing to undo"
 msgid "Undo"
 msgstr "Rückgängig"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:300
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:331
 #, kde-format
 msgctxt "@action:button %1 is what was done to the layout"
 msgid "Redo: %1"
 msgstr "Wiederholen: %1"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:301
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:332
 #, kde-format
 msgctxt "@action:button there is nothing to make again"
 msgid "Redo"
 msgstr "Wiederholen"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:313
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:344
 #, kde-format
 msgctxt "@action:button hide the grid lines and the toolbars"
 msgid "Preview"
 msgstr "Vorschau"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:322
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:353
 #, kde-format
 msgctxt "@action:button keep what is on the page now as another dashboard"
 msgid "Save as a new dashboard…"
 msgstr "Als neues Dashboard speichern …"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:344
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:375
 #, kde-format
 msgctxt "@title:window"
 msgid "Throw away your changes to the layout?"
 msgstr "Änderungen an der Anordnung verwerfen?"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:345
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:376
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -12211,25 +12228,25 @@ msgid ""
 msgstr ""
 "Die Übersicht ist wieder so wie vor Ihrem Beginn. Sonst ändert sich nichts."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:349
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:380
 #, kde-format
 msgctxt "@action:button"
 msgid "Throw away the changes"
 msgstr "Änderungen verwerfen"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:358
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:389
 #, kde-format
 msgctxt "@action:button keep arranging the layout"
 msgid "Keep arranging"
 msgstr "Weiter anordnen"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:371
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:402
 #, kde-format
 msgctxt "@title:window"
 msgid "Save as a new dashboard"
 msgstr "Als neues Dashboard speichern"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:372
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:403
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -12239,13 +12256,70 @@ msgstr ""
 "Was jetzt auf der Seite ist, wird ein neues Dashboard mit diesem Namen, am "
 "Ende der Reiter. Du ordnest dieses hier weiter an."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:408
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:430
+#, kde-format
+msgctxt "@title:window"
+msgid "Add a dashboard from a file"
+msgstr "Dashboard aus einer Datei hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:433
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:494
+#, kde-format
+msgctxt "@item:inlistbox a file type"
+msgid "Dashboard files (*.json)"
+msgstr "Dashboard-Dateien (*.json)"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:460
+#, kde-format
+msgctxt "@title:window"
+msgid "Save this dashboard to a file"
+msgstr "Dieses Dashboard in einer Datei speichern"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:461
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The file holds this dashboard's layout and the names of the accounts, "
+"categories and groups it uses. It holds no amounts or transactions."
+msgstr ""
+"Die Datei enthält den Aufbau dieses Dashboards und die Namen der Konten, "
+"Kategorien und Gruppen, die es verwendet. Sie enthält keine Beträge und "
+"keine Buchungen."
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:465
+#, kde-format
+msgctxt "@action:button"
+msgid "Choose where to save…"
+msgstr "Speicherort wählen…"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:491
+#, kde-format
+msgctxt "@title:window"
+msgid "Save the dashboard to a file"
+msgstr "Dashboard in einer Datei speichern"
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:504
+#, kde-format
+msgctxt ""
+"@info %1 is how many were left out, %2 a sentence saying where the file was "
+"saved"
+msgid "%2. %1 account, category or group this book no longer has was left out."
+msgid_plural ""
+"%2. %1 accounts, categories or groups this book no longer has were left out."
+msgstr[0] ""
+"%2. %1 Konto, Kategorie oder Gruppe, die es in diesem Buch nicht mehr gibt, "
+"wurde weggelassen."
+msgstr[1] ""
+"%2. %1 Konten, Kategorien oder Gruppen, die es in diesem Buch nicht mehr "
+"gibt, wurden weggelassen."
+
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:514
 #, kde-format
 msgctxt "@title:window"
 msgid "Delete this dashboard?"
 msgstr "Dieses Dashboard löschen?"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:410
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:516
 #, kde-format
 msgctxt ""
 "@info %1 is the name of the dashboard shown, %2 the one the book opens at "
@@ -12259,7 +12333,7 @@ msgstr ""
 "An deinen Konten ändert sich nichts, und „Rückgängig“ im Menü holt das "
 "Dashboard zurück."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:411
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:517
 #, kde-format
 msgctxt "@info %1 is the name of the dashboard shown"
 msgid ""
@@ -12269,31 +12343,31 @@ msgstr ""
 "„%1“ und seine Widgets werden entfernt. An deinen Konten ändert sich nichts, "
 "und „Rückgängig“ im Menü holt das Dashboard zurück."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:415
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:521
 #, kde-format
 msgctxt "@action:button"
 msgid "Delete the dashboard"
 msgstr "Dashboard löschen"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:427
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:533
 #, kde-format
 msgctxt "@action:button keep a dashboard"
 msgid "Keep it"
 msgstr "Behalten"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:477
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:583
 #, kde-format
 msgctxt "@action:button"
 msgid "Keep my layout"
 msgstr "Meine Anordnung behalten"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:496
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:602
 #, kde-format
 msgctxt "@title:window"
 msgid "Properties"
 msgstr "Eigenschaften"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:555
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:661
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -12307,7 +12381,7 @@ msgstr ""
 "Sie die Knöpfe, die am gewählten Widget erscheinen. „Fertig“ behält die "
 "Änderungen, „Abbrechen“ lässt alles, wie es war."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:562
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:668
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -12318,7 +12392,7 @@ msgstr ""
 "deshalb wird die mitgelieferte gezeigt. Wenn Sie sie ändern und auf „Fertig“ "
 "drücken, wird die gespeicherte ersetzt."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:569
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:675
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -12330,7 +12404,7 @@ msgstr ""
 "Widgets untereinander. Sie können sie weiter nach vorn oder hinten schieben. "
 "Machen Sie das Fenster breiter, um sie nebeneinander anzuordnen."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:578
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:684
 #, kde-format
 msgctxt "@info %1 is how many widgets"
 msgid "%1 widget on this page has a problem. It says what is wrong."
@@ -12340,7 +12414,7 @@ msgstr[0] ""
 msgstr[1] ""
 "%1 Widgets auf dieser Seite haben ein Problem. Jedes sagt, was nicht stimmt."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:581
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:687
 #, kde-format
 msgctxt "@action:button go to the first component with a problem"
 msgid "Show"
@@ -15500,22 +15574,7 @@ msgstr ""
 "Ich habe ein KMyMoney-Haushaltsbuch oder ein gespeichertes KassenSturz-"
 "Haushaltsbuch"
 
-#, kde-format
-msgctxt "@action:inmenu add a dashboard that someone saved to a file"
-msgid "Add from a file…"
-msgstr "Aus Datei hinzufügen …"
-
-#, kde-format
-msgctxt "@title:window"
-msgid "Add a dashboard from a file"
-msgstr "Dashboard aus einer Datei hinzufügen"
-
-#, kde-format
-msgctxt "@item:inlistbox a file type"
-msgid "Dashboard files (*.json)"
-msgstr "Dashboard-Dateien (*.json)"
-
-#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:124
+#: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:134
 #, kde-format
 msgctxt ""
 "@action:inmenu put the widgets and filters of the template the dashboard "
@@ -15529,7 +15588,7 @@ msgctxt "@info:tooltip what was done to the layout"
 msgid "Went back to the template"
 msgstr "Zur Vorlage zurückgekehrt"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:349
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:365
 #, kde-format
 msgctxt ""
 "@action:button put the widgets of the template this dashboard was made from "
@@ -15537,7 +15596,7 @@ msgctxt ""
 msgid "Back to the template…"
 msgstr "Zurück zur Vorlage …"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:510
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:584
 #, kde-format
 msgctxt "@info %1 is a number of widgets, %2 the name of a dashboard"
 msgid "%2 gets the %1 widget of its template. Undo takes it away again."
@@ -15546,7 +15605,7 @@ msgid_plural ""
 msgstr[0] "%2 bekommt %1 Widget seiner Vorlage. Rückgängig nimmt es wieder weg."
 msgstr[1] "%2 bekommt die %1 Widgets seiner Vorlage. Rückgängig nimmt sie wieder weg."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:512
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:586
 #, kde-format
 msgctxt "@info %1 is a number of widgets, %2 the name of a dashboard"
 msgid ""
@@ -15558,7 +15617,7 @@ msgid_plural ""
 msgstr[0] "%1 Widget von %2 wird entfernt, weil seine Vorlage leer ist. Rückgängig bringt es zurück."
 msgstr[1] "Die %1 Widgets von %2 werden entfernt, weil seine Vorlage leer ist. Rückgängig bringt sie zurück."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:514
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:588
 #, kde-format
 msgctxt "@info %1 and %3 are numbers of widgets, %2 the name of a dashboard"
 msgid ""
@@ -15570,19 +15629,19 @@ msgid_plural ""
 msgstr[0] "%1 Widget von %2 wird durch die %3 seiner Vorlage ersetzt. Rückgängig bringt es zurück."
 msgstr[1] "Die %1 Widgets von %2 werden durch die %3 seiner Vorlage ersetzt. Rückgängig bringt sie zurück."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:517
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:591
 #, kde-format
 msgctxt "@info"
 msgid "Its filters go back to the template's too."
 msgstr "Seine Filter kehren ebenfalls zu denen der Vorlage zurück."
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:522
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:596
 #, kde-format
 msgctxt "@title:window"
 msgid "Go back to the template?"
 msgstr "Zur Vorlage zurückkehren?"
 
-#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:527
+#: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:601
 #, kde-format
 msgctxt "@action:button"
 msgid "Go back to the template"

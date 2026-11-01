@@ -76,8 +76,9 @@ pub use columns::{
 };
 pub use component::Component;
 pub use dashboard_file::{
-    DASHBOARD_FILE_FORMAT, DASHBOARD_FILE_VERSION, MAX_APPLICATION_CHARS, MAX_DASHBOARD_FILE_BYTES,
-    MAX_PATH_NAMES, MAX_REFERENCE_NAME_CHARS, MAX_REFERENCES, Reference,
+    DASHBOARD_FILE_EXTENSION, DASHBOARD_FILE_FORMAT, DASHBOARD_FILE_VERSION, DashboardFile,
+    MAX_APPLICATION_CHARS, MAX_DASHBOARD_FILE_BYTES, MAX_PATH_NAMES, MAX_REFERENCE_NAME_CHARS,
+    MAX_REFERENCES, Reference, dashboard_file_name, write_dashboard_file,
 };
 pub use dashboard_file_read::{
     BookNames, FormulaName, IncomingDashboardFile, MAX_DASHBOARD_FILE_DEPTH, MissingName, Resolved,
@@ -130,6 +131,8 @@ mod columns_tests;
 mod component_tests;
 #[cfg(test)]
 mod dashboard_file_read_tests;
+#[cfg(test)]
+mod dashboard_file_tests;
 #[cfg(test)]
 mod dashboard_tests;
 #[cfg(test)]

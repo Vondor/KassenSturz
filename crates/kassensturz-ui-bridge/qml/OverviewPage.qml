@@ -444,9 +444,16 @@ Kirigami.ScrollablePage {
         id: newDashboardDialog
 
         layout: page.dashboard
+        bankReady: page.bankReady
+        budgetCount: page.view.budgets ?? 0
         // An empty dashboard opens with the Add menu, so the first widget
-        // is one click away (section 2, `empty`).
-        onMade: Qt.callLater(() => addMenu.popup())
+        // is one click away (section 2, `empty`); one from a template opens
+        // as made.
+        onMade: empty => {
+            if (empty) {
+                Qt.callLater(() => addMenu.popup());
+            }
+        }
     }
 
     // Saving a dashboard to a file (M6d.3, D-443, T-52): one line says what
@@ -603,7 +610,10 @@ Kirigami.ScrollablePage {
                 onTriggered: {
                     ActionLog.taken("OverviewPage_goBackTemplate")
                     templateDialog.close();
-                    const result = templateDialog.arranging ? page.dashboard.reset() : page.dashboard.backToTemplate();
+                    // A template's heading is its name in the user's
+                    // language, as when the dashboard was made (D-479).
+                    const heading = newDashboardDialog.templateName(page.dashboard.view.template ?? "");
+                    const result = templateDialog.arranging ? page.dashboard.reset(heading) : page.dashboard.backToTemplate(heading);
                     if (result.code !== undefined) {
                         layoutError.result = result;
                     }

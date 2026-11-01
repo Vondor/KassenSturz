@@ -161,6 +161,7 @@ Kirigami.ScrollablePage {
                 FormCard.FormCard {
                     FormCard.FormTextDelegate {
                         text: choices.modelData.note
+                        textItem.textFormat: Text.PlainText
                         textItem.wrapMode: Text.Wrap
                     }
 
@@ -219,6 +220,7 @@ Kirigami.ScrollablePage {
                 FormCard.FormCard {
                     FormCard.FormTextDelegate {
                         text: group.modelData.note
+                        textItem.textFormat: Text.PlainText
                         textItem.wrapMode: Text.Wrap
                     }
 

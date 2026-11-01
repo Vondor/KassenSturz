@@ -88,6 +88,7 @@ pub const DETAILS: &[&str] = &[
     "ImportDonePage",
     "ImportPreviewPage",
     "ImportStatementsPage",
+    "KmyReportsImportPage",
     "NewAccountPage",
     "OverviewPage",
     "PartsPage",

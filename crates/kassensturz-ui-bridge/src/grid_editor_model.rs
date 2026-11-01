@@ -132,12 +132,24 @@ pub mod qobject {
         #[cxx_name = "showDashboard"]
         fn show_dashboard(self: Pin<&mut DashboardLayout>, id: &QString);
 
-        /// Makes a new empty dashboard with this name at the end of the list
-        /// and shows it, being arranged (*New dashboard…*). Gives the error,
-        /// or an empty object.
+        /// Makes a new dashboard from the template `word` with this name at
+        /// the end of the list and shows it (*New dashboard…*, D-440): an
+        /// empty one being arranged, the others as made. `heading` is the
+        /// template's heading in the user's language. Gives the error, or an
+        /// empty object.
         #[qinvokable]
         #[cxx_name = "newDashboard"]
-        fn new_dashboard(self: Pin<&mut DashboardLayout>, name: &QString) -> QVariant;
+        fn new_dashboard(
+            self: Pin<&mut DashboardLayout>,
+            word: &QString,
+            name: &QString,
+            heading: &QString,
+        ) -> QVariant;
+
+        /// The templates the *New dashboard* dialog offers, in their order:
+        /// see [`templates_object`].
+        #[qinvokable]
+        fn templates(self: &DashboardLayout) -> QVariant;
 
         /// Gives the dashboard shown this name (*Rename…*). Gives the error,
         /// or an empty object.
@@ -170,11 +182,12 @@ pub mod qobject {
         fn move_dashboard(self: Pin<&mut DashboardLayout>, by: i32) -> QVariant;
 
         /// Puts the template's components and filters back on the dashboard
-        /// shown (*Back to the template…*, D-439). Gives the error, or an
-        /// empty object.
+        /// shown (*Back to the template…*, D-439); `heading` is the
+        /// template's heading in the user's language (D-479). Gives the
+        /// error, or an empty object.
         #[qinvokable]
         #[cxx_name = "backToTemplate"]
-        fn back_to_template(self: Pin<&mut DashboardLayout>) -> QVariant;
+        fn back_to_template(self: Pin<&mut DashboardLayout>, heading: &QString) -> QVariant;
 
         /// Deletes the dashboard shown and shows the one the book opens at
         /// (*Delete…*). Gives the error, or an empty object.
@@ -241,9 +254,10 @@ pub mod qobject {
 
         /// Puts the components of the template the dashboard shown was made
         /// from back while it is arranged, as an edit Undo takes back
-        /// (D-439); its filters stay (D-483).
+        /// (D-439); its filters stay (D-483). `heading` is the template's
+        /// heading in the user's language (D-479).
         #[qinvokable]
-        fn reset(self: Pin<&mut DashboardLayout>) -> QVariant;
+        fn reset(self: Pin<&mut DashboardLayout>, heading: &QString) -> QVariant;
 
         /// Sets one thing the filter bar narrows by (M6c.7, D-351):
         /// `dimension` is `period` (`value` is a fixed period, a typed range
@@ -417,6 +431,38 @@ fn item_object(row: &grid_editor::Row, form: NumberForm) -> QVariant {
             ),
         ),
     ])
+}
+
+/// The templates as the *New dashboard* dialog gets them (D-440), in the
+/// order of [`templates::WORDS`]: objects with `word`, `rows` (how many grid
+/// rows the picture spans) and `frames`, each with the component's `type`
+/// and its `col`, `row`, `cols` and `rows`. Which ones are offered and
+/// their names are the dialog's.
+fn templates_object() -> QVariant {
+    list(templates::WORDS.iter().map(|word| {
+        let picture = dashboards::picture(word);
+        let rows = picture
+            .iter()
+            .map(|(_, frame)| frame.bottom())
+            .max()
+            .unwrap_or(0);
+        map([
+            ("word", text(word)),
+            ("rows", number(rows)),
+            (
+                "frames",
+                list(picture.iter().map(|(kind, frame)| {
+                    map([
+                        ("type", text(kind)),
+                        ("col", number(frame.col)),
+                        ("row", number(frame.row)),
+                        ("cols", number(frame.cols)),
+                        ("rows", number(frame.rows)),
+                    ])
+                })),
+            ),
+        ])
+    }))
 }
 
 /// The dashboards as QML gets them: objects with `id` (empty for the
@@ -708,17 +754,24 @@ impl qobject::DashboardLayout {
         self.load(false);
     }
 
-    fn new_dashboard(self: Pin<&mut Self>, name: &QString) -> QVariant {
-        let name = name.to_string();
+    fn new_dashboard(
+        self: Pin<&mut Self>,
+        word: &QString,
+        name: &QString,
+        heading: &QString,
+    ) -> QVariant {
+        let (word, name, heading) = (word.to_string(), name.to_string(), heading.to_string());
         // An empty dashboard opens being arranged, so the user can add to
-        // it at once (section 2, `empty`).
+        // it at once (section 2, `empty`); a template opens as made.
+        let editing = word == templates::EMPTY;
         self.dashboard_action(
-            |book, _, built_in| {
-                dashboards::add(book, kassensturz_report::templates::EMPTY, &name, built_in)
-                    .map(Some)
-            },
-            true,
+            |book, _, built_in| dashboards::add(book, &word, &name, &heading, built_in).map(Some),
+            editing,
         )
+    }
+
+    fn templates(&self) -> QVariant {
+        templates_object()
     }
 
     fn rename_dashboard(self: Pin<&mut Self>, name: &QString) -> QVariant {
@@ -757,9 +810,13 @@ impl qobject::DashboardLayout {
         )
     }
 
-    fn back_to_template(self: Pin<&mut Self>) -> QVariant {
+    fn back_to_template(self: Pin<&mut Self>, heading: &QString) -> QVariant {
+        let heading = heading.to_string();
         // The built-in Overview is shown if the last one was removed.
-        self.dashboard_action(dashboards::back_to_template, false)
+        self.dashboard_action(
+            |book, shown, built_in| dashboards::back_to_template(book, shown, &heading, built_in),
+            false,
+        )
     }
 
     fn delete_dashboard(self: Pin<&mut Self>) -> QVariant {
@@ -995,7 +1052,8 @@ impl qobject::DashboardLayout {
         QString::from(grid_editor::edit_word(word))
     }
 
-    fn reset(self: Pin<&mut Self>) -> QVariant {
+    fn reset(self: Pin<&mut Self>, heading: &QString) -> QVariant {
+        let heading = heading.to_string();
         let word = dashboards::template_word(
             &self.rust().dashboards,
             self.rust().layout.as_ref().and_then(|layout| layout.stored),
@@ -1007,7 +1065,9 @@ impl qobject::DashboardLayout {
                     reason: "bad-choice",
                     path: "template".to_owned(),
                 }))?;
-                Ok(layout.editor.reset(&templates::document(&word)?.entries)?)
+                let mut template = templates::document(&word)?;
+                templates::fill_headings(&mut template, &heading);
+                Ok(layout.editor.reset(&template.entries)?)
             },
             |_| map([]),
         )
@@ -1147,6 +1207,39 @@ mod tests {
     }
 
     #[test]
+    fn the_templates_read_back_the_way_the_new_dashboard_dialog_reads_them() {
+        let templates = templates_object();
+        let rows = crate::variant::read_back::elements(&templates).expect("a list");
+        let words: Vec<String> = rows.iter().map(|row| text_of(row, "word")).collect();
+        assert_eq!(
+            words,
+            [
+                "empty",
+                "overview",
+                "spending",
+                "money-in-out",
+                "worth",
+                "budgets",
+                "accounts"
+            ]
+        );
+        for row in &rows {
+            assert_eq!(keys(row), ["frames", "rows", "word"]);
+        }
+        assert!(list_of(&rows[0], "frames").is_empty());
+        assert_eq!(number_of(&rows[0], "rows"), 0);
+        let accounts = list_of(&rows[6], "frames");
+        assert_eq!(text_of(&accounts[0], "type"), "page.period");
+        assert_eq!(keys(&accounts[3]), ["col", "cols", "row", "rows", "type"]);
+        assert_eq!(text_of(&accounts[3], "type"), "bank.update_all");
+        assert_eq!(number_of(&accounts[3], "col"), 0);
+        assert_eq!(number_of(&accounts[3], "row"), 3);
+        assert_eq!(number_of(&accounts[3], "cols"), 6);
+        assert_eq!(number_of(&accounts[3], "rows"), 3);
+        assert_eq!(number_of(&rows[6], "rows"), 9);
+    }
+
+    #[test]
     fn the_filter_bar_reads_back_and_a_choice_for_now_reaches_every_component() {
         let layout = layout();
         let own = layout.editor.filters();
@@ -1217,7 +1310,7 @@ mod tests {
     #[test]
     fn the_dashboards_read_back_with_the_one_shown_and_the_default_from_a_real_book() {
         let mut book = Book::create_in_memory().unwrap();
-        let holidays = dashboards::add(&mut book, "empty", "Holidays", "Übersicht").unwrap();
+        let holidays = dashboards::add(&mut book, "empty", "Holidays", "", "Übersicht").unwrap();
         let list = dashboards::list(&book, "Übersicht").unwrap();
         let layout = Layout::open(&book, Some(holidays), "Übersicht").unwrap();
         let instead = dashboards::default_without(&book, holidays, "Übersicht").unwrap();
@@ -1266,7 +1359,7 @@ mod tests {
     #[test]
     fn back_to_the_template_reads_back_with_the_counts_the_question_names() {
         let mut book = Book::create_in_memory().unwrap();
-        let empty = dashboards::add(&mut book, "empty", "Plans", "Übersicht").unwrap();
+        let empty = dashboards::add(&mut book, "empty", "Plans", "", "Übersicht").unwrap();
         let mut arranged = templates::document("overview").unwrap();
         arranged.name = "Home".to_owned();
         arranged.entries.pop();
@@ -1297,7 +1390,7 @@ mod tests {
             i32::try_from(overview).unwrap()
         );
         assert!(flag_of(&view, "templateFilters"));
-        dashboards::back_to_template(&mut book, Some(home), "Übersicht").unwrap();
+        dashboards::back_to_template(&mut book, Some(home), "", "Übersicht").unwrap();
         let view = read(&book, home, false);
         assert!(flag_of(&view, "atTemplate"));
         assert!(!flag_of(&view, "templateFilters"));

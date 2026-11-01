@@ -319,6 +319,9 @@ pub fn preview(component: &Component) -> Preview {
         ComponentType::IncomeSources => ("income-sources", ""),
         // Not in the library before M6c.5 draws it (D-378).
         ComponentType::BudgetProgress => ("budget-progress", ""),
+        // The page fills them (D-474): the month and the page's filters.
+        ComponentType::PeriodHeader => ("period-header", ""),
+        ComponentType::FilterBar => ("filter-bar", ""),
         // A button, drawn by the page (M6d.7).
         ComponentType::BankUpdateAll => ("update-all", ""),
     };

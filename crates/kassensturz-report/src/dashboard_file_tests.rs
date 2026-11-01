@@ -29,7 +29,7 @@ fn dashboard() -> (Sample, Document) {
         .expect("group added");
     let text = format!(
         r#"{{
-  "format": "kassensturz-dashboard", "version": 2, "kind": "dashboard",
+  "format": "kassensturz-dashboard", "version": {VERSION}, "kind": "dashboard",
   "name": "Where the money goes",
   "filters": {{"period": "last-12-months", "accounts": ["{checking}", "{gone}"],
                "categories": ["{food}"]}},
@@ -253,7 +253,7 @@ fn the_files_dashboard_passes_the_documents_own_checks() {
 fn a_list_of_only_gone_ids_is_left_out_of_the_filter_bar() {
     let sample = sample();
     let text = format!(
-        r#"{{"format": "kassensturz-dashboard", "version": 2, "kind": "dashboard",
+        r#"{{"format": "kassensturz-dashboard", "version": {VERSION}, "kind": "dashboard",
             "name": "Gone", "filters": {{"accounts": ["{GONE}"]}}, "components": []}}"#
     );
     let document = Document::read(&text).expect("reads");

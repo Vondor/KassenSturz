@@ -30,7 +30,7 @@ A dashboard file holds **one dashboard**, so it can be given to another book: th
   },
   "dashboard": {
     "format": "kassensturz-dashboard",
-    "version": 2,
+    "version": 3,
     "kind": "dashboard",
     "name": "Where the money goes",
     "template": "spending",
@@ -97,7 +97,7 @@ Every name is 1 to 200 characters of plain text, without control characters and 
 
 ## `dashboard`
 
-The dashboard document exactly as the book keeps it (`docs/REPORT_DESIGNER.md`, D-278, D-289, D-351; version 2), with these differences:
+The dashboard document exactly as the book keeps it (`docs/REPORT_DESIGNER.md`, D-278, D-289, D-351; version 3 since M6d.8, D-452), with these differences:
 
 - **Every place that holds an ID of the book holds a reference key instead.** These places are the schema's ID lists (`params.groups`, `params.categories`, `params.accounts`, `params.series`), the `members` of each column in `params.columns` (D-339), and `filters.accounts` and `filters.categories`. A UUID or any other text in these places is refused (`id-in-file`), so a file can never point into a book by ID, not even by chance.
 - **The default mark (`"default": true`, D-448) is never written**, and a reader refuses a file that has it (`unknown-property`, path `dashboard.default`), so a file can't change which dashboard opens. A view's `origin` (D-450) is never written either.

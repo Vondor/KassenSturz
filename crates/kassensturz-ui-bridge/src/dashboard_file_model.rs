@@ -281,7 +281,9 @@ mod tests {
                 "format": "kassensturz-dashboard-file",
                 "version": 1,
                 "dashboard": {
-                    "format": "kassensturz-dashboard", "version": 2,
+                    // The current version: an older one would get the
+                    // period header and the filter bar (D-476).
+                    "format": "kassensturz-dashboard", "version": kassensturz_report::VERSION,
                     "kind": "dashboard", "name": "Spending", "components": [],
                 },
             })

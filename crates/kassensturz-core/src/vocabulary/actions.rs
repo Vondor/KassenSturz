@@ -418,6 +418,7 @@ pub const ACTIONS: &[&str] = &[
     "TransactionPage_skipNow",
     "TransferPrompt_noKeepThem",
     "TransferPrompt_yesJoinThem",
+    "UpdateAllWidget_connectBank",
     "UpdateAllWidget_openTransaction",
     "UpdateAllWidget_seen",
     "UpdateAllWidget_showAll",

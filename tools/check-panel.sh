@@ -37,7 +37,8 @@
 #   what the buttons say, what a choice sends and the words of every note.
 #
 # - UpdateAllSmoke.qml opens the Update all accounts widget (M6d.7) on a
-#   stand-in for BankConnection and checks when the grid hides it, that only
+#   stand-in for BankConnection and checks that it always shows (D-497), that
+#   Connect a bank and the reason banks cannot be used appear, that only
 #   its button starts it, what it says while it runs and the summary.
 #
 # Needs `qml6` and the QML modules the pages import (Kirigami, KI18n,

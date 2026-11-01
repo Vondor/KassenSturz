@@ -212,6 +212,7 @@ Item {
                 : cell.info?.type === "budget.progress" ? budgetBox
                 : cell.info?.type === "text.separator" ? separatorBox
                 : cell.info?.type === "notice.fetch_gap" ? fetchGapBox
+                : cell.info?.type === "bank.update_all" ? updateAllBox
                 : cell.info?.type === "notice.transfers" ? transfersBox : figuresBox
         }
     }
@@ -578,6 +579,20 @@ Item {
             text: count > 0
                 ? names.i18nContext.i18ncp("@info", "Money you moved between your accounts (once this month) isn't counted as money in or out.", "Money you moved between your accounts (%1 times this month) isn't counted as money in or out.", count)
                 : names.i18nContext.i18nc("@info", "A note appears here when you moved money between your own accounts this month. There is none right now.")
+        }
+    }
+
+    // The Update all accounts button (M6d.7, D-446). Its title is the
+    // button's own words, so it has no heading of its own.
+    Component {
+        id: updateAllBox
+
+        UpdateAllWidget {
+            bank: cell.board.bank
+            state: cell.board.updateAll
+            title: cell.heading
+            arranging: cell.board.editing
+            onTransactionClicked: (accountId, transactionId) => cell.board.transactionClicked(accountId, transactionId)
         }
     }
 

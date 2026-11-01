@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! The QML object behind the export screens (M3.12): a copy of the
-//! transactions as CSV, or of the whole book. The work is in `export.rs`;
+//! transactions as CSV, or of the whole book; and a dashboard file (M6d.3). The work is in `export.rs`;
 //! this file only moves text between it and QML (D-065).
 
 use core::pin::Pin;
 
 use cxx_qt_lib::{QList, QMap, QMapPair_QString_QVariant, QString, QUrl, QVariant};
 
-use crate::book_session::local_path;
+use crate::book_session::{app_version, local_path};
 use crate::errors::ErrorText;
 use crate::export::{self, CsvForm, Saved};
 use crate::format::Locale;
@@ -70,6 +70,22 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "saveBook"]
         fn save_book(self: &DataExport, file: &QUrl) -> QVariant;
+
+        /// The file name suggested for the dashboard `id` names (the book's
+        /// ID as text; empty for the built-in Overview): its name with
+        /// `.dashboard.json`. Empty if there is no such dashboard.
+        #[qinvokable]
+        #[cxx_name = "dashboardFileName"]
+        fn dashboard_file_name(self: &DataExport, id: &QString) -> QString;
+
+        /// Writes the dashboard `id` names (empty: the built-in Overview)
+        /// to `file` as a dashboard file, replacing a file there (the
+        /// chooser asked already, D-443). An error object, or an object with
+        /// `fileName`, `references` and `leftOut` (how many accounts,
+        /// categories and groups the book no longer has, D-458).
+        #[qinvokable]
+        #[cxx_name = "saveDashboard"]
+        fn save_dashboard(self: &DataExport, file: &QUrl, id: &QString) -> QVariant;
     }
 
     impl cxx_qt::Initialize for DataExport {}
@@ -152,6 +168,31 @@ impl qobject::DataExport {
         self.saved(|book| export::save_book(book, &path))
     }
 
+    fn dashboard_file_name(&self, id: &QString) -> QString {
+        let id = id.to_string();
+        session::with_book(|book| export::dashboard_file_suggestion(book, &id).ok())
+            .flatten()
+            .map(|name| QString::from(&name))
+            .unwrap_or_default()
+    }
+
+    fn save_dashboard(&self, file: &QUrl, id: &QString) -> QVariant {
+        let Some(path) = local_path(file) else {
+            return error_object(&ErrorText::plain("input.not-a-local-file"));
+        };
+        let id = id.to_string();
+        let application = format!("KassenSturz {}", app_version());
+        let done = session::with_book(|book| {
+            export::save_dashboard(book, &id, &application, &path)
+                .map_err(|error| export::error_text(book, &error, &app_locale()))
+        })
+        .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")));
+        match done {
+            Ok(saved) => saved_dashboard_object(&saved),
+            Err(error) => error_object(&error),
+        }
+    }
+
     /// Runs `save` on the open book and turns what it did into what QML gets.
     fn saved(
         &self,
@@ -175,5 +216,35 @@ impl qobject::DataExport {
             ]),
             Err(error) => error_object(&error),
         }
+    }
+}
+
+/// What QML gets after a dashboard file was saved.
+fn saved_dashboard_object(saved: &export::SavedDashboard) -> QVariant {
+    let count = |number: usize| QVariant::from(&i32::try_from(number).unwrap_or(i32::MAX));
+    map([
+        ("fileName", text(&saved.file_name)),
+        ("references", count(saved.references)),
+        ("leftOut", count(saved.left_out)),
+    ])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::variant::read_back::{keys, number_of, text_of};
+
+    /// The object reads back the way QML reads it (AGENTS.md §9.4).
+    #[test]
+    fn the_saved_dashboard_object_has_the_fields_qml_reads() {
+        let object = saved_dashboard_object(&export::SavedDashboard {
+            file_name: "Overview.dashboard.json".into(),
+            references: 3,
+            left_out: 1,
+        });
+        assert_eq!(keys(&object), ["fileName", "leftOut", "references"]);
+        assert_eq!(text_of(&object, "fileName"), "Overview.dashboard.json");
+        assert_eq!(number_of(&object, "references"), 3);
+        assert_eq!(number_of(&object, "leftOut"), 1);
     }
 }

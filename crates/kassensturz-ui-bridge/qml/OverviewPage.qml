@@ -243,6 +243,7 @@ Kirigami.ScrollablePage {
             onDeleteRequested: deleteDashboardDialog.open()
             onSaveRequested: saveDashboardDialog.open()
             onAddFromFileRequested: dashboardFileDialog.open()
+            onTemplateRequested: templateDialog.ask(false)
             onFailed: result => layoutError.result = result
         },
         // With one dashboard, saving it is here (D-443).
@@ -358,13 +359,13 @@ Kirigami.ScrollablePage {
             }
         },
         Kirigami.Action {
-            visible: page.layoutEditing
+            visible: page.layoutEditing && (page.dashboard.view.template ?? "") !== ""
             icon.name: "document-revert"
-            enabled: !(page.dashboard.view.builtIn ?? true)
-            text: page.i18nContext.i18nc("@action:button put the layout KassenSturz comes with back", "Back to the built-in layout")
+            enabled: !(page.dashboard.view.atTemplate ?? true)
+            text: page.i18nContext.i18nc("@action:button put the widgets of the template this dashboard was made from back", "Back to the template…")
             onTriggered: {
-                ActionLog.taken("OverviewPage_backBuiltLayout")
-                resetDialog.open()
+                ActionLog.taken("OverviewPage_backTemplate")
+                templateDialog.ask(true)
             }
         }
     ]
@@ -560,20 +561,49 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // Back to the template (D-439): from the dashboard menu it changes the
+    // book at once (one entry, Undo in the menu brings it back); while
+    // arranging it is an edit of the session and leaves the filters (D-483).
     Kirigami.PromptDialog {
-        id: resetDialog
+        id: templateDialog
 
-        title: page.i18nContext.i18nc("@title:window", "Go back to the built-in layout?")
-        subtitle: page.i18nContext.i18nc("@info", "Your arrangement is replaced by the one KassenSturz comes with. You can take that back with Undo until you press Done, and with Undo in the menu after that.")
+        property bool arranging: false
+
+        function ask(whileArranging: bool) {
+            arranging = whileArranging;
+            open();
+        }
+
+        function question(): string {
+            const view = page.dashboard.view;
+            const name = view.name ?? "";
+            const now = view.widgets ?? 0;
+            const then = view.templateWidgets ?? 0;
+            let words;
+            if (now === 0) {
+                words = page.i18nContext.i18ncp("@info %1 is a number of widgets, %2 the name of a dashboard", "%2 gets the %1 widget of its template. Undo takes it away again.", "%2 gets the %1 widgets of its template. Undo takes them away again.", then, name);
+            } else if (then === 0) {
+                words = page.i18nContext.i18ncp("@info %1 is a number of widgets, %2 the name of a dashboard", "The %1 widget of %2 is removed, because its template is empty. Undo brings it back.", "The %1 widgets of %2 are removed, because its template is empty. Undo brings them back.", now, name);
+            } else {
+                words = page.i18nContext.i18ncp("@info %1 and %3 are numbers of widgets, %2 the name of a dashboard", "The %1 widget of %2 is replaced by the %3 of its template. Undo brings it back.", "The %1 widgets of %2 are replaced by the %3 of its template. Undo brings them back.", now, name, then);
+            }
+            if (!arranging && (view.templateFilters ?? false)) {
+                words += " " + page.i18nContext.i18nc("@info", "Its filters go back to the template's too.");
+            }
+            return words;
+        }
+
+        title: page.i18nContext.i18nc("@title:window", "Go back to the template?")
+        subtitle: visible ? question() : ""
         standardButtons: Kirigami.Dialog.NoButton
         customFooterActions: [
             Kirigami.Action {
-                text: page.i18nContext.i18nc("@action:button", "Go back to the built-in layout")
+                text: page.i18nContext.i18nc("@action:button", "Go back to the template")
                 icon.name: "document-revert"
                 onTriggered: {
-                    ActionLog.taken("OverviewPage_goBackBuilt")
-                    resetDialog.close();
-                    const result = page.dashboard.reset();
+                    ActionLog.taken("OverviewPage_goBackTemplate")
+                    templateDialog.close();
+                    const result = templateDialog.arranging ? page.dashboard.reset() : page.dashboard.backToTemplate();
                     if (result.code !== undefined) {
                         layoutError.result = result;
                     }
@@ -584,7 +614,7 @@ Kirigami.ScrollablePage {
                 icon.name: "go-previous"
                 onTriggered: {
                     ActionLog.taken("OverviewPage_keepLayout")
-                    resetDialog.close()
+                    templateDialog.close()
                 }
             }
         ]

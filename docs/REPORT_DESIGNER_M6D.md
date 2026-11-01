@@ -72,6 +72,7 @@ The *New dashboard* dialog shows each template as a small picture of its grid (t
 - **Back to the template…** replaces the shown dashboard's components and filters with the template's, after a question that says what will change (*The 9 widgets of {name} are replaced by the template's 6. Undo brings them back.*). It is `edit_view` (one entry); the name, place and ID stay. For `overview` it is the built-in Overview, for `empty` an empty page. In a list of one, the rule of 1.2 applies: the stored copy is removed, since it equals the built-in one.
 - A dashboard without the key (stored before M6d) offers *Back to the template* only when it is the first dashboard and was the M6c Overview (its name is *Overview*); it is treated as `overview`. Otherwise the entry is not shown.
 - This replaces the M6b.3 button *Back to the built-in layout* in the arranging mode by the same function for the shown dashboard.
+- **As built (M6d.5, D-483):** the dashboard menu's entry changes the book at once after the question; the arranging mode's button (needed because a book with one dashboard has no dashboard menu) is an edit of the session and replaces only the widgets, since the session's Undo does not cover the filters. The bridge gives the page `template`, `atTemplate`, `widgets`, `templateWidgets` and `templateFilters` for the question; the rule is `dashboards::back_to_template`.
 
 ## 4. The dashboard file (D-441 to D-443; human gate: the format; export in M6d.3, import in M6d.4)
 

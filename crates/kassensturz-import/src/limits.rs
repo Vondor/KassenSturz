@@ -4,7 +4,7 @@
 //! Limits for reading untrusted files (AGENTS.md §8, D-091).
 
 use std::fs::File;
-use std::io::Read;
+use std::io::{ErrorKind, Read};
 use std::path::Path;
 
 use crate::error::ImportError;
@@ -97,9 +97,23 @@ impl Limits {
 }
 
 /// Reads the file at `path`, refusing one larger than
-/// `limits.max_file_bytes` without reading more than one byte beyond it.
+/// `limits.max_file_bytes` without reading more than one byte beyond it, and
+/// anything that is not a regular file, such as a named pipe.
 pub fn read_file(path: &Path, limits: &Limits) -> Result<Vec<u8>, ImportError> {
+    // Only a regular file is read. A named pipe or a device could block or
+    // never end, and opening a named pipe already waits for a writer, which
+    // would hang the window, so this is asked before the file is opened
+    // (M6-B93, as M6-B92 for chart descriptions). It is asked again of the
+    // opened file, in case the name was pointed elsewhere in between.
+    let not_a_file = || ImportError::Io(ErrorKind::InvalidInput);
+    let meta = std::fs::metadata(path).map_err(|error| ImportError::Io(error.kind()))?;
+    if !meta.is_file() {
+        return Err(not_a_file());
+    }
     let file = File::open(path).map_err(|error| ImportError::Io(error.kind()))?;
+    if !file.metadata().is_ok_and(|meta| meta.is_file()) {
+        return Err(not_a_file());
+    }
     let mut content = Vec::new();
     file.take(limits.max_file_bytes.saturating_add(1))
         .read_to_end(&mut content)

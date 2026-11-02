@@ -24,10 +24,10 @@ cd "$(dirname "$0")/.."
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 qml=crates/kassensturz-ui-bridge/qml
-cp "$qml"/ChartView.qml "$qml"/ChartTable.qml "$qml"/ChartPalette.qml \
+cp "$qml"/ChartView.qml "$qml"/ChartOverlays.qml "$qml"/ChartTable.qml "$qml"/ChartPalette.qml \
     "$qml"/DataTable.qml "$qml"/AmountLabel.qml \
     crates/kassensturz-ui-bridge/qml-tests/ChartsSmoke.qml "$work"
-printf 'singleton ChartPalette 1.0 ChartPalette.qml\nChartView 1.0 ChartView.qml\nChartTable 1.0 ChartTable.qml\nDataTable 1.0 DataTable.qml\nAmountLabel 1.0 AmountLabel.qml\n' \
+printf 'singleton ChartPalette 1.0 ChartPalette.qml\nChartView 1.0 ChartView.qml\nChartOverlays 1.0 ChartOverlays.qml\nChartTable 1.0 ChartTable.qml\nDataTable 1.0 DataTable.qml\nAmountLabel 1.0 AmountLabel.qml\n' \
     > "$work/qmldir"
 mkdir "$work/out"
 
@@ -105,6 +105,15 @@ def count(picture, color):
 
 # The Okabe-Ito colors of ChartPalette.qml: the first two series.
 blue, orange = (0x00, 0x72, 0xB2), (0xD5, 0x5E, 0x00)
+green, pink = (0x00, 0x9E, 0x73), (0xCC, 0x79, 0xA7)
+# Thin marks (a line, a level, a few dots) have fewer pixels than bars.
+thin = {"0-line", "1-area", "11-line", "16-stacked-area"}
+custom_thin = {
+    ("15-bar", orange): 300,
+    ("15-bar", green): 100,
+    ("17-bar", blue): 300,
+    ("17-bar", pink): 300,
+}
 expected = {
     "0-line": [blue, orange],
     "1-area": [blue, orange],
@@ -115,6 +124,11 @@ expected = {
     "6-donut": [blue, orange],
     "11-line": [blue],
     "12-bar": [blue, orange],
+    # Custom charts (M6e.2): bars with a level, dots and texts over them;
+    # stacked areas; overlays alone on an empty chart.
+    "15-bar": [blue, orange, green],
+    "16-stacked-area": [blue, orange],
+    "17-bar": [blue, green, pink],
 }
 failed = False
 for name, colors in expected.items():
@@ -129,7 +143,8 @@ for name, colors in expected.items():
         print(f"{name}: {found} pixels of #{color[0]:02X}{color[1]:02X}{color[2]:02X}")
         # A line is thin, and an area's fill is see-through; bars and slices
         # are solid.
-        if found < (300 if name in ("0-line", "1-area", "11-line") else 3000):
+        least = custom_thin.get((name, color), 300 if name in thin else 3000)
+        if found < least:
             print("  too few: the chart was not drawn")
             failed = True
 sys.exit(1 if failed else 0)

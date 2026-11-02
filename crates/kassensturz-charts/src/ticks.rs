@@ -35,6 +35,19 @@ pub(crate) fn ticks(
     currency: CurrencyCode,
     format: &impl TextFormat,
 ) -> Result<Vec<Tick>, ChartError> {
+    ticks_with(low, high, minimum_step, |at| {
+        format.amount(Money::from_minor_units(at, currency))
+    })
+}
+
+/// [`ticks`] with the label of a mark written by `label`, for an axis of
+/// counts or percentages.
+pub(crate) fn ticks_with(
+    low: i64,
+    high: i64,
+    minimum_step: i64,
+    label: impl Fn(i64) -> String,
+) -> Result<Vec<Tick>, ChartError> {
     let low = low.min(0);
     let high = high.max(0);
     let span = high.checked_sub(low).ok_or(ChartError::Overflow)?;
@@ -61,7 +74,7 @@ pub(crate) fn ticks(
     loop {
         ticks.push(Tick {
             minor_units: at,
-            label: format.amount(Money::from_minor_units(at, currency)),
+            label: label(at),
         });
         if at >= last {
             break;

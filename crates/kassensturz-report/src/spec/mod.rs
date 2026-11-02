@@ -13,11 +13,14 @@
 
 mod fields;
 mod model;
+mod rows;
 
 #[cfg(test)]
 mod fields_tests;
 #[cfg(test)]
 mod model_tests;
+#[cfg(test)]
+mod rows_tests;
 
 pub use fields::{FieldValue, SPEC_DATASETS, SpecDataset, SpecField, spec_dataset};
 pub use model::{
@@ -26,3 +29,4 @@ pub use model::{
     MIN_SIZE, Mark, MarkKind, ModelError, PaletteName, Sort, SpecNumber, SpecText, SpecValue,
     TimeUnit, VL_SUBSET,
 };
+pub use rows::{Cell, FlatTable, RowsError, budget_tables};

@@ -21,6 +21,8 @@ pub enum ChartKind {
     StackedBar,
     /// Lines with the area below them filled.
     Area,
+    /// Areas of the series on top of each other (a custom chart, M6e.2).
+    StackedArea,
     /// Slices of a circle.
     Pie,
     /// A pie with a hole.
@@ -35,6 +37,7 @@ impl ChartKind {
             Self::Bar => "bar",
             Self::StackedBar => "stacked-bar",
             Self::Area => "area",
+            Self::StackedArea => "stacked-area",
             Self::Pie => "pie",
             Self::Donut => "donut",
         }
@@ -47,6 +50,7 @@ impl ChartKind {
             Self::Bar,
             Self::StackedBar,
             Self::Area,
+            Self::StackedArea,
             Self::Pie,
             Self::Donut,
         ]
@@ -140,6 +144,84 @@ pub struct Slices {
     pub undrawn: Vec<bool>,
 }
 
+/// What a layer of a custom chart draws on top of the chart's own marks
+/// (M6e.2, D-503). The first line, bar or area layer of a description is the
+/// chart itself; every other layer is an overlay.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum OverlayMark {
+    /// A line through the items of a series.
+    Line,
+    /// The area below such a line.
+    Area,
+    /// A bar from zero to each item.
+    Bar,
+    /// A dot at each item.
+    Point,
+    /// A text at each item.
+    Text,
+    /// A level line across the chart at each item's amount.
+    LevelRule,
+    /// A line from bottom to top at each item's category.
+    CategoryRule,
+}
+
+impl OverlayMark {
+    /// The mark's fixed name, as QML spells it.
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::Line => "line",
+            Self::Area => "area",
+            Self::Bar => "bar",
+            Self::Point => "point",
+            Self::Text => "text",
+            Self::LevelRule => "rule-level",
+            Self::CategoryRule => "rule-category",
+        }
+    }
+}
+
+/// One mark of an overlay.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OverlayItem {
+    /// The place in [`ChartModel::categories`], or `None` for a mark that
+    /// runs across the chart.
+    pub category: Option<usize>,
+    /// The exact amount (or count, or tenths of a percent) on the value
+    /// axis, or `None` for a mark that runs from bottom to top.
+    pub minor_units: Option<i64>,
+    /// The value written for the user's locale; what a screen reader says.
+    pub label: String,
+    /// The text of a text mark, from the description's data; empty for the
+    /// other marks.
+    pub text: String,
+    /// How big a dot is, 1 (smallest) to [`MAX_DOT_SIZE`].
+    pub size: u8,
+}
+
+/// The biggest size of a dot.
+pub const MAX_DOT_SIZE: u8 = 4;
+
+/// The items of one series of an overlay.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OverlaySeries {
+    /// The series' name, from the description (a value of its `color`
+    /// field or a title): the user's own text, shown as plain text.
+    pub name: String,
+    /// The palette index, as for [`Series::color`].
+    pub color: u8,
+    /// The marks, in the order of the categories.
+    pub items: Vec<OverlayItem>,
+}
+
+/// A layer drawn on top of the chart.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Overlay {
+    /// What it draws.
+    pub mark: OverlayMark,
+    /// Its series.
+    pub series: Vec<OverlaySeries>,
+}
+
 /// A chart: what to draw and what to say about it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChartModel {
@@ -172,6 +254,9 @@ pub struct ChartModel {
     /// Hidden categories this chart leaves out, if any. The note belongs to
     /// the chart and to its table alike.
     pub hidden: Option<HiddenNote>,
+    /// Layers drawn on top of the chart on the same axes; empty for every
+    /// built-in chart. Only a custom chart has them (M6e.2).
+    pub overlays: Vec<Overlay>,
 }
 
 impl ChartModel {

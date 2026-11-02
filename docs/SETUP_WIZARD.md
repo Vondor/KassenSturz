@@ -19,7 +19,7 @@ The wizard is what a new person sees the first time KassenSturz opens a book tha
 1 Welcome: language and currency
         │
 2 How would you like to start?
-   ├── Try an example book ─────────► 3a Example book chooser (M7a.2) ─► overview of the example copy
+   ├── Try an example book ─────────► 3a Example book chooser (M7a.2) ─► overview of the example book
    ├── My own accounts ─────────────► 3b Your accounts ─► 4 How do new entries get in? ─► 5 overview, first look
    │                                                         ├── I'll type them myself
    │                                                         ├── Import a file from my bank ─► existing import pages
@@ -49,7 +49,7 @@ Three large choices of equal weight, each with one line under it:
 | Choice | Line under it |
 |---|---|
 | **My own accounts** | Type how much is in each account today. Takes about two minutes. |
-| **Try an example book** | Look around in a made-up household. Nothing you do there touches your own book. |
+| **Try an example book** | Look around in a made-up household. |
 | **Bring my data from another program** | A KMyMoney book, or a copy you saved from KassenSturz. |
 
 Below them a small link, **Open a KassenSturz book I already have…**, for someone whose book is on another drive or came from another computer. The footer says "You can change everything later." Which choice comes first is open question Q-396.
@@ -61,8 +61,7 @@ Below them a small link, **Open a KassenSturz book I already have…**, for some
 This page *is* M7a.2's chooser component, placed by the wizard; M7a.2 owns the component and its bridge call, the wizard owns the page around it and what happens after.
 
 - The four books, each with a one-line description in the UI language: **Suburban Family** (marked "Good to start with" and preselected), **Flower Utopia**, **Space Colony**, **UdSSR Government Agent**. Their German names come from M7a.8.
-- **Open example** builds a new, clearly named copy (for example `Beispiel – Vorstadtfamilie.ksz` next to the user's own book) through the existing importer and opens it; the bundled originals and the user's own empty book stay untouched.
-- **An example book always says it is one:** a banner on its overview reads "This is an example household with made-up figures." with the button **Start my own book**, which opens the user's own book, still empty, so the wizard starts there at page 1. That is the way back from trying to real use (open question Q-399).
+- **Open example** fills the open, still empty book with the chosen example through the existing importer, in one go, and shows its overview. The bundled originals stay untouched. There is no separate copy and no "your own book" next to it: in a test, the example *is* the book (Q-399).
 
 ### Page 3b: Your accounts (`3b-accounts.png`)
 
@@ -122,7 +121,7 @@ The real overview, with one dismissible message at the top, shown only in the se
 | Moment | What is saved |
 |---|---|
 | Page 1, a different language | Only the existing app setting `Language` (D-127), then the restart. The book is untouched. |
-| Page 3a, *Open example* | A new example file; the user's own book is untouched and stays empty. |
+| Page 3a, *Open example* | The chosen example, written into the open empty book in one go, as the existing "Start a book from a file" pages do. |
 | Page 3b, *Create my household book* | In **one user action** (`Book::as_one_action`): the currency, the default categories, every account and its starting balance. Either all of it is in the book or none of it. One undo takes the whole first setup back, and the wizard shows again. |
 | Path 3c | What the existing "Start a book from a file" pages save today, all at once, and only after the user confirms. |
 | Page 4 choices | What the existing import and bank pages save, each after its own confirmation. |
@@ -132,7 +131,6 @@ The real overview, with one dismissible message at the top, shown only in the se
 **Skipping.** There is no "skip" that leaves the user on an empty overview: an empty overview tells a new person nothing. The shortest way through is the three-click path in section 1. Page 4 and the first-look message are the only optional parts, and each is one click away from the overview.
 
 **Coming back.**
-- From an example book: **Start my own book** in its banner (page 3a).
 - A second household: Settings › **Start a new book…** makes a new, empty book, and every empty book opens with the wizard.
 - A book started in the wizard can always be extended later from the normal screens (accounts, import, bank); nothing the wizard does is only possible there.
 
@@ -162,10 +160,10 @@ No new table, column, user action or app setting:
 
 ## 8. Open questions for the maintainer
 
-Asked one at a time in the project chat. Answers so far: **Q-395, Q-396 and Q-397 as recommended (R); Q-398 as recommended plus a gate** (the wizard's bank offer stays switched off until the maintainer has tested the bank flow in the finished app himself). Until a question is answered, the build follows its recommended option.
+Asked one at a time in the project chat. Answers so far: **Q-395, Q-396 and Q-397 as recommended (R); Q-398 as recommended plus a gate** (the wizard's bank offer stays switched off until the maintainer has tested the bank flow in the finished app himself); **Q-399 option B** (the example becomes the book). All five are answered.
 
 - **Q-395 Language change on page 1.** R: restart KassenSturz by itself on *Continue*, since nothing has been typed yet. B: keep D-127's behaviour ("applies the next time you start"), which leaves the rest of the wizard in the old language. C: no language choice in the wizard; Settings only.
 - **Q-396 Order on page 2.** R: "My own accounts" first, the example book second, all three of equal size. B: the example book first, since every tester starts there. C: the example book as the one large button, the others smaller.
 - **Q-397 The first transaction page.** R: drop it from the first start; the first look points to +. B: keep it as an optional page after page 4.
 - **Q-398 Bank in the wizard.** R: offer *Connect to my bank* only after the accounts exist (page 4), reusing the bank setup page unchanged, so this step touches no bank code and stays free of a human gate. B: let a bank connection create the accounts and take their balances from the bank, which saves typing but is new bank code (a human gate, later than M7a).
-- **Q-399 Example books and the user's own book.** R: an example opens as its own copy, the user's own book stays empty, and the example's banner offers *Start my own book*. B: fill the user's own book with the example (one file, but then real use starts from made-up data that has to be cleared first).
+- **Q-399 Example books and the user's own book.** Answered: the example simply becomes the book (option B); a test has no separate "own" data, so there is no copy and no banner.

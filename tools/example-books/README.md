@@ -11,7 +11,7 @@ are named at the top of the script.
 | Suburban Family (suggested start) | `suburban-family-v15.sqlite` | The everyday German household: Girokonto, Sparkonto, Kreditkarte, Bargeld, the default German categories, one Umbuchung (the credit card paid off). |
 | Flower Utopia | `flower-utopia-v15.sqlite`, `flower-utopia.json` | A small garden cooperative with a shared cash box (Gemeinschaftskasse), a Transfer from the cash box to the club account, and a food category. The `.json` is the complete export with five monthly budgets and a saved Overview with charts (a KMyMoney file cannot hold them). |
 | UdSSR Government Agent | `udssr-agent-v15.sqlite` | A fictional 1980s agent of the made-up "Hauptverwaltung für Windstille": rubles, dollars, pounds and francs with agency rates, and a Transfer to the savings book. Only current currency codes are used (D-077). The dates are recent. |
-| Space Colony | `../space-colony-5y-v15.sqlite` | The older five-year book. It is read, never changed; only its bank files are made here. Its amounts were checked against public figures and left as they are (D-563). |
+| Space Colony | `../space-colony-5y-v15.sqlite` | The older five-year book. It is read, never changed; only its bank files are made here. Its amounts were compared with the few public analogue figures found and left as they are (D-563). |
 
 All files are in `crates/kassensturz-import/tests/books/examples/`:
 

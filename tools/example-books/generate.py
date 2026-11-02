@@ -62,11 +62,22 @@ copied; the amounts here are made up inside these ranges):
   200 rubles, rents of a few rubles, bread at 0.20 rubles) and the official
   exchange rates of the State Bank. The agency's pay, the per-diems and the
   agency rates between the currencies are invented.
-* Space Colony: checked against public figures for real analogues, the ISS
-  (NASA's food system and crew stipend pages), Mars-500 (IBMP and ESA) and
-  HI-SEAS (University of Hawaii, NASA). What is bought there (food, clothing,
-  a suit, a small stipend, a rover) is in the euro price ranges of the
-  everyday book, so its inputs were left as they are.
+* Space Colony: the book is not changed here. Public figures for the real
+  analogues were looked up through a web search on 2026-11-02; only the
+  search-result text was read, because the pages themselves could not be
+  opened from the build session. What it showed: launching cargo to the ISS
+  costs tens of thousands of US dollars per kilogram (NASA Technical Reports
+  Server, document 20180007067: Space Shuttle about 54,500 USD/kg to low Earth
+  orbit, Falcon 9 list price about 2,720 USD/kg); the Mars-500 isolation study
+  (6 crew, 520 days) was reported to cost about 15 million USD in total
+  (space.com, 2008 report); HI-SEAS crews were paid 25 USD per day plus a
+  bonus (University of Hawaii at Manoa news, "Six-member crew selected for
+  Mars food mission"). None of these gives household prices, so they only
+  bound what the book must not pretend: they are costs of launching or
+  running a mission, not what a colonist pays in a shop. The book's amounts
+  (pay, rent, food, tax) stay in everyday euro ranges and were not changed.
+  Food and household prices of the German books come from the Destatis
+  figures above.
 """
 
 import argparse

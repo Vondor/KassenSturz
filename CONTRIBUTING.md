@@ -16,6 +16,7 @@ GitHub-specific checklist; it doesn't duplicate AGENTS.md's rules.
    commits, it won't sign them off for you: review them, then sign them off with the `git rebase --signoff`
    command that the failing check prints.
 5. Add tests for anything in `kassensturz-core` or other logic crates (AGENTS.md §9.4).
+   Adding a new kind of Overview widget? Follow [docs/ADDING_A_WIDGET.md](docs/ADDING_A_WIDGET.md) (D-534).
 6. Run formatting, lint and tests locally before opening the pull request, in the same
    environment CI uses (see "Building" in [README.md](README.md)):
    `tools/sdk.sh cargo fmt --all`, `tools/sdk.sh cargo clippy --workspace --all-targets -- -D warnings`

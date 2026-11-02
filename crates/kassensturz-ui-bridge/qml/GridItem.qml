@@ -640,24 +640,30 @@ Item {
 
     // The tabs of the book's dashboards (M6d.9, D-529): nothing to show
     // while the book has one dashboard, except a hint while arranging, so the
-    // widget can still be found, moved and taken off.
+    // widget can still be found, moved and taken off. The tab bar is made
+    // only while there are two or more: the desktop style's TabBar reads the
+    // height of its first tab and complains when it has none (M6-B101).
     Component {
         id: dashboardTabsBox
 
         Item {
             readonly property bool failed: false
+            readonly property int dashboardCount: (cell.board.layout?.view?.dashboards ?? []).length
 
-            DashboardTabs {
-                id: tabs
-
+            Loader {
                 anchors.verticalCenter: parent.verticalCenter
                 width: parent.width
-                layout: cell.board.layout
+                active: parent.dashboardCount > 1
+                sourceComponent: Component {
+                    DashboardTabs {
+                        layout: cell.board.layout
+                    }
+                }
             }
 
             Controls.Label {
                 anchors.fill: parent
-                visible: cell.board.editing && tabs.dashboards.length < 2
+                visible: cell.board.editing && parent.dashboardCount < 2
                 text: names.i18nContext.i18nc("@info shown in the place of the dashboard tabs while the page is arranged", "The tabs of your dashboards show here once you have two or more.")
                 font: Kirigami.Theme.smallFont
                 verticalAlignment: Text.AlignVCenter

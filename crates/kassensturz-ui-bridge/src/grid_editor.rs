@@ -490,12 +490,7 @@ mod tests {
         let mut layout = Layout::open(&book(), None, OVERVIEW_NAME).unwrap();
         for (kind, _) in offered {
             // The built-in Overview has the tabs, the period header and the
-            // filter bar already, and a page holds one of each (D-474,
-            // D-529).
-            if matches!(kind, "page.period" | "page.filters" | "page.tabs") {
-                assert!(add(&mut layout.editor, kind).is_err());
-                continue;
-            }
+            // filter bar already; a page may hold more of each (D-532).
             let id = add(&mut layout.editor, kind).unwrap();
             let row = rows(&layout.editor, &Filters::default())
                 .into_iter()
@@ -503,7 +498,7 @@ mod tests {
                 .unwrap();
             assert_eq!(row.component.unwrap().kind().id(), kind);
         }
-        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 34);
+        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 37);
         assert!(add(&mut layout.editor, "chart.radar").is_err());
     }
 

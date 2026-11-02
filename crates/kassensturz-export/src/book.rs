@@ -5,7 +5,8 @@
 //! `docs/EXPORT_FORMAT.md`, and reading it back (D-029, D-046, Q-049).
 //!
 //! It is the stable way to move a book's data: to a new book, to another
-//! program, or from a development build to 0.1 (D-045). Everything the book
+//! program, or from a development build of the Alpha to the
+//! Beta (D-045). Everything the book
 //! holds is in it, with its IDs, exactly as stored, except the change
 //! history, which belongs to the book file and not to its data (D-066).
 

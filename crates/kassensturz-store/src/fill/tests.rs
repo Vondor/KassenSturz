@@ -296,8 +296,17 @@ fn filling_a_book_costs_the_same_per_transaction_however_big_it_gets() {
         assert_eq!(book.transactions().expect("read").len(), count as usize);
         started.elapsed().as_secs_f64()
     }
-    let small = (0..3).map(|_| time_to_fill(250)).fold(f64::MAX, f64::min);
-    let big = (0..3).map(|_| time_to_fill(1000)).fold(f64::MAX, f64::min);
+    // The fastest of several runs is the cost without the noise of a busy
+    // machine: other tests run beside this one, and a shared CI runner may
+    // pause it at any time. The small and the big fill take turns, so a
+    // stretch of load slows both alike instead of only the ones run during
+    // it (M6-B102: three small fills first and three big ones after gave a
+    // ratio of 9.7 once on a macOS runner, against about 4 when run alone).
+    let (mut small, mut big) = (f64::MAX, f64::MAX);
+    for _ in 0..7 {
+        small = small.min(time_to_fill(250));
+        big = big.min(time_to_fill(1000));
+    }
     // Four times the transactions; more than eight times the time would be
     // the start of a growth of its own.
     assert!(

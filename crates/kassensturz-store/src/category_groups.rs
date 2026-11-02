@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Category groups ("My groups") and hidden categories (D-290; layout 21).
+//! Category groups ("My groups") and hidden categories (D-290).
 //!
 //! Both are kept in the book apart from the transactions and the category
 //! tree (Q-221): they refer to categories by ID, and nothing here ever writes

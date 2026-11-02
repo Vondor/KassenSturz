@@ -21,7 +21,7 @@ use rusqlite::{Connection, params};
 use crate::cached::Cached;
 use crate::error::StoreError;
 
-/// Runs `change` with layout 23's guard open, so the originals it deletes
+/// Runs `change` with the triggers' guard open, so the originals it deletes
 /// may go. Only for the user removing whole transactions and for undo and
 /// redo, which write back what the history kept.
 pub(crate) fn unlocked<T>(
@@ -37,7 +37,7 @@ pub(crate) fn unlocked<T>(
 }
 
 /// Runs `change`, which deletes and writes again the parts of
-/// `transactions`, with layout 23's guard open, then checks that every
+/// `transactions`, with the triggers' guard open, then checks that every
 /// original those transactions held is back exactly as it was: the same
 /// delivered details, on a part with the same ID, account and amount in the
 /// account's currency, in whichever transaction (a joined Transfer moves

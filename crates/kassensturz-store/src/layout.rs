@@ -6,8 +6,11 @@
 //!
 //! Every book is built by the same migrations, starting from an empty
 //! database: a new book runs all of them, an older one the ones it lacks
-//! (D-045). Until 0.1 these are development migrations that may change
-//! freely; before 0.1 they are merged into one starting layout.
+//! (D-045). The development migrations of the Alpha were merged into one
+//! starting layout for the first Beta (D-536); from then on every change to
+//! the layout is a migration of its own, run after a backup, with a test
+//! that updates a book from every earlier layout since that one (AGENTS.md
+//! §3.1 rule 8, §9).
 
 use rusqlite::Connection;
 
@@ -32,15 +35,13 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 8] = [
-    LAYOUT_16, LAYOUT_17, LAYOUT_18, LAYOUT_19, LAYOUT_20, LAYOUT_21, LAYOUT_22, LAYOUT_23,
-];
+pub(crate) const MIGRATIONS: [&str; 1] = [LAYOUT_24];
 
-/// The layout version the first migration creates. Layouts 1 to 15 were the
-/// development layouts from before 0.1, merged into layout 16 (D-045,
-/// D-135); a book with one of them is a [development
-/// book](StoreError::DevelopmentLayout), which 0.1 turns away.
-pub(crate) const FIRST_VERSION: i32 = 16;
+/// The layout version the first migration creates. Layouts 1 to 23 were the
+/// development layouts of the Alpha, merged into layout 24 (D-045, D-135,
+/// D-536); a book with one of them is a [development
+/// book](StoreError::DevelopmentLayout), which the Beta turns away.
+pub(crate) const FIRST_VERSION: i32 = 24;
 
 /// The first development layout. Every version from here up to
 /// [`FIRST_VERSION`] belongs to a book a development build wrote.
@@ -50,10 +51,11 @@ pub(crate) const FIRST_DEVELOPMENT_VERSION: i32 = 1;
 /// of migrations is far too short for the conversion to lose anything.
 pub(crate) const VERSION: i32 = FIRST_VERSION + MIGRATIONS.len() as i32 - 1;
 
-/// Layout 16, the starting layout of 0.1 (D-045, D-135): the 15 development
-/// layouts of M0 to M3 merged into one, table for table what they built
-/// together, which the test `development_layouts` in this crate's `tests`
-/// folder proves.
+/// Layout 24, the starting layout of the first Beta (D-045, D-536): the 23
+/// development layouts of the Alpha merged into one, table for table what
+/// they built together, which the test in `layout/development_layouts.rs`
+/// proves. Layouts 1 to 15 (M0 to M3) had been merged into layout 16 before
+/// (D-135); layouts 17 to 23 (M4 to M6) added to it.
 ///
 /// Every table is `STRICT`, so SQLite refuses values of the wrong type
 /// instead of converting them. Amounts are INTEGER minor units, never REAL
@@ -89,7 +91,38 @@ pub(crate) const VERSION: i32 = FIRST_VERSION + MIGRATIONS.len() as i32 - 1;
 ///   after it; a row it added has no values before, one it removed none
 ///   after. The copies have the same columns as the table, without its
 ///   checks, which apply when the values are written back.
-const LAYOUT_16: &str = "
+/// - `bank_links` says which bank account an account is filled from, by
+///   IBAN or by bank code and account number, and the day it was last
+///   fetched; it holds no login data (D-139, D-148).
+/// - `views` keeps each saved view and dashboard as JSON text, with the few
+///   things a list needs copied out of it: its kind, name, place and
+///   version. The book does not look inside the document any further (the
+///   reporting layer does, D-278, D-281).
+/// - `report_groups`, `report_group_members` and `report_hidden` are the
+///   category groups and the categories hidden from charts, kept apart from
+///   the transactions and the category tree: nothing in them is ever written
+///   onto a transaction or a category, and they refer to categories by ID
+///   only (D-290). Removing a category or a group removes the rows that name
+///   it in the same change (ON DELETE CASCADE), so its Undo brings them back.
+/// - `budgets` and `budget_amounts` are the budgets: an amount the user
+///   plans to spend on one spending category in each of a budget's periods,
+///   kept from one of its periods on, so a change never rewrites an earlier
+///   period (D-344, D-345). A category that has a budget can't be removed
+///   (the foreign key has no cascade); removing a budget removes its amounts
+///   in the same change.
+/// - `originals_unlocked` and five triggers keep what a bank or file
+///   delivered as it was delivered, also against a slip in KassenSturz or
+///   another program writing to the book (D-375). A row of `split_imports`
+///   never changes. It, or a part that has one, is deleted only while
+///   `originals_unlocked` holds its one row, which KassenSturz writes and
+///   deletes again in the same database transaction (`originals.rs`); it
+///   never stays in a saved book. Such a part keeps its account and its
+///   amount in the account's currency, and its transaction keeps its
+///   currency while the part has no amount of its own in another currency.
+///   A later migration that rebuilds `splits`, `split_imports` or
+///   `transactions` drops these triggers with the table and makes them
+///   again.
+const LAYOUT_24: &str = "
 CREATE TABLE currencies (
     code TEXT PRIMARY KEY NOT NULL
         CHECK (length(code) = 3 AND code NOT GLOB '*[^A-Z]*'),
@@ -286,6 +319,126 @@ CREATE TABLE split_rules (
 ) STRICT;
 CREATE INDEX split_rules_by_rule ON split_rules (rule_id);
 
+CREATE TABLE bank_links (
+    account_id BLOB PRIMARY KEY NOT NULL REFERENCES accounts (id) ON DELETE CASCADE
+        CHECK (length(account_id) = 16),
+    iban TEXT CHECK (iban IS NULL OR (iban <> '' AND iban NOT GLOB '*[^A-Z0-9]*')),
+    bank_code TEXT CHECK (bank_code IS NULL OR bank_code <> ''),
+    number TEXT CHECK (number IS NULL OR number <> ''),
+    last_fetched_on TEXT
+        CHECK (last_fetched_on IS NULL
+               OR last_fetched_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    CHECK (iban IS NOT NULL OR (bank_code IS NOT NULL AND number IS NOT NULL))
+) STRICT;
+CREATE UNIQUE INDEX bank_links_by_iban ON bank_links (iban) WHERE iban IS NOT NULL;
+CREATE UNIQUE INDEX bank_links_by_number ON bank_links (bank_code, number)
+    WHERE number IS NOT NULL;
+
+CREATE TABLE views (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    kind TEXT NOT NULL CHECK (kind IN ('view', 'dashboard')),
+    name TEXT NOT NULL CHECK (name <> '' AND name = trim(name) AND length(name) <= 200),
+    position INTEGER NOT NULL CHECK (position >= 0),
+    format_version INTEGER NOT NULL CHECK (format_version >= 1),
+    document TEXT NOT NULL
+        CHECK (json_valid(document) AND length(CAST(document AS BLOB)) <= 1048576)
+) STRICT;
+CREATE UNIQUE INDEX views_by_name ON views (kind, lower(name));
+
+CREATE TABLE report_groups (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    name TEXT NOT NULL CHECK (name <> '' AND name = trim(name) AND length(name) <= 200),
+    kind TEXT NOT NULL CHECK (kind IN ('expense', 'income')),
+    position INTEGER NOT NULL CHECK (position >= 0)
+) STRICT;
+CREATE UNIQUE INDEX report_groups_by_name ON report_groups (lower(name));
+
+CREATE TABLE report_group_members (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    group_id BLOB NOT NULL REFERENCES report_groups (id) ON DELETE CASCADE,
+    category_id BLOB REFERENCES accounts (id) ON DELETE CASCADE,
+    member_group_id BLOB REFERENCES report_groups (id) ON DELETE CASCADE
+        CHECK (member_group_id IS NULL OR member_group_id <> group_id),
+    position INTEGER NOT NULL CHECK (position >= 0),
+    CHECK ((category_id IS NULL) <> (member_group_id IS NULL))
+) STRICT;
+CREATE INDEX report_group_members_in_group ON report_group_members (group_id, position);
+CREATE UNIQUE INDEX report_group_members_by_category
+    ON report_group_members (category_id, group_id);
+CREATE UNIQUE INDEX report_group_members_by_group
+    ON report_group_members (member_group_id, group_id);
+
+CREATE TABLE report_hidden (
+    category_id BLOB PRIMARY KEY NOT NULL CHECK (length(category_id) = 16)
+        REFERENCES accounts (id) ON DELETE CASCADE
+) STRICT;
+
+CREATE TABLE budgets (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    category_id BLOB NOT NULL REFERENCES accounts (id),
+    every TEXT NOT NULL CHECK (every IN ('month', 'quarter', 'year', 'range')),
+    first_day TEXT NOT NULL
+        CHECK (first_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    last_day TEXT
+        CHECK (last_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    CHECK (last_day IS NULL OR last_day >= first_day),
+    CHECK (every <> 'range' OR last_day IS NOT NULL)
+) STRICT;
+CREATE INDEX budgets_by_category ON budgets (category_id, first_day);
+
+CREATE TABLE budget_amounts (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    budget_id BLOB NOT NULL REFERENCES budgets (id) ON DELETE CASCADE,
+    from_day TEXT NOT NULL
+        CHECK (from_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    amount INTEGER NOT NULL CHECK (amount > 0),
+    carry_over INTEGER NOT NULL CHECK (carry_over IN (0, 1))
+) STRICT;
+CREATE UNIQUE INDEX budget_amounts_by_day ON budget_amounts (budget_id, from_day);
+
+CREATE TABLE originals_unlocked (
+    id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1)
+) STRICT;
+
+CREATE TRIGGER original_never_changes BEFORE UPDATE ON split_imports
+BEGIN
+    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original changed');
+END;
+
+CREATE TRIGGER original_kept BEFORE DELETE ON split_imports
+WHEN NOT EXISTS (SELECT 1 FROM originals_unlocked)
+BEGIN
+    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original removed');
+END;
+
+CREATE TRIGGER original_part_kept BEFORE DELETE ON splits
+WHEN EXISTS (SELECT 1 FROM split_imports WHERE split_id = OLD.id)
+    AND NOT EXISTS (SELECT 1 FROM originals_unlocked)
+BEGIN
+    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original removed');
+END;
+
+CREATE TRIGGER original_part_unchanged
+BEFORE UPDATE OF account_id, amount, foreign_amount, foreign_currency ON splits
+WHEN EXISTS (SELECT 1 FROM split_imports WHERE split_id = OLD.id)
+    AND (NEW.account_id IS NOT OLD.account_id
+        OR coalesce(NEW.foreign_amount, NEW.amount) IS NOT coalesce(OLD.foreign_amount, OLD.amount)
+        OR NEW.foreign_currency IS NOT OLD.foreign_currency)
+BEGIN
+    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original changed');
+END;
+
+CREATE TRIGGER original_currency_kept BEFORE UPDATE OF currency ON transactions
+WHEN NEW.currency IS NOT OLD.currency
+    AND EXISTS (
+        SELECT 1 FROM splits AS s JOIN split_imports AS i ON i.split_id = s.id
+        WHERE s.transaction_id = OLD.id AND s.foreign_amount IS NULL
+    )
+    AND NOT EXISTS (SELECT 1 FROM originals_unlocked)
+BEGIN
+    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original changed');
+END;
+
 CREATE TABLE settings (
     id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
     rounding_mode TEXT NOT NULL CHECK (rounding_mode IN (
@@ -313,7 +466,13 @@ CREATE TABLE changes (
         'edit_transaction', 'remove_transaction', 'join_transfer',
         'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
         'import_statement', 'correct_starting_balance',
-        'add_institution', 'add_payee', 'add_tag'
+        'add_institution', 'add_payee', 'add_tag',
+        'link_bank_account', 'unlink_bank_account', 'fetch_statement',
+        'apply_ai_changes', 'remove_category',
+        'add_view', 'edit_view', 'rename_view', 'move_view', 'remove_view',
+        'add_group', 'edit_group', 'move_group', 'remove_group',
+        'set_hidden_categories',
+        'add_budget', 'edit_budget', 'remove_budget'
     )),
     made_at TEXT NOT NULL
         CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
@@ -523,30 +682,7 @@ CREATE TABLE changed_split_rules (
     rule_id BLOB,
     PRIMARY KEY (change_id, split_id, side)
 ) STRICT;
-";
 
-/// Layout 17 (M4.4a): bank links (Q-086, D-148). `bank_links` says which
-/// bank account an account is filled from, by IBAN or by bank code and
-/// account number, and the day it was last fetched; it holds no login data
-/// (D-139). Linking, unlinking and fetching are user actions of their own,
-/// so `changes` is rebuilt with `link_bank_account`, `unlink_bank_account`
-/// and `fetch_statement` in its list of actions; its rows stay as they were,
-/// and the `changed_` tables refer to it by name and keep their rows too.
-const LAYOUT_17: &str = "
-CREATE TABLE bank_links (
-    account_id BLOB PRIMARY KEY NOT NULL REFERENCES accounts (id) ON DELETE CASCADE
-        CHECK (length(account_id) = 16),
-    iban TEXT CHECK (iban IS NULL OR (iban <> '' AND iban NOT GLOB '*[^A-Z0-9]*')),
-    bank_code TEXT CHECK (bank_code IS NULL OR bank_code <> ''),
-    number TEXT CHECK (number IS NULL OR number <> ''),
-    last_fetched_on TEXT
-        CHECK (last_fetched_on IS NULL
-               OR last_fetched_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-    CHECK (iban IS NOT NULL OR (bank_code IS NOT NULL AND number IS NOT NULL))
-) STRICT;
-CREATE UNIQUE INDEX bank_links_by_iban ON bank_links (iban) WHERE iban IS NOT NULL;
-CREATE UNIQUE INDEX bank_links_by_number ON bank_links (bank_code, number)
-    WHERE number IS NOT NULL;
 CREATE TABLE changed_bank_links (
     change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
     side TEXT NOT NULL CHECK (side IN ('before', 'after')),
@@ -557,110 +693,7 @@ CREATE TABLE changed_bank_links (
     last_fetched_on TEXT,
     PRIMARY KEY (change_id, account_id, side)
 ) STRICT;
-CREATE TABLE new_changes (
-    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
-    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
-    action TEXT NOT NULL CHECK (action IN (
-        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
-        'close_account', 'reopen_account', 'add_category', 'rename_category',
-        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
-        'edit_transaction', 'remove_transaction', 'join_transfer',
-        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
-        'import_statement', 'correct_starting_balance',
-        'add_institution', 'add_payee', 'add_tag',
-        'link_bank_account', 'unlink_bank_account', 'fetch_statement'
-    )),
-    made_at TEXT NOT NULL
-        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
-    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
-    file_name TEXT
-) STRICT;
-INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
-    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
-DROP TABLE changes;
-ALTER TABLE new_changes RENAME TO changes;
-";
 
-/// Layout 18 (M5.5a): changes an AI prepared are labelled in the history
-/// (D-198). A change set the user confirmed is applied as one user action of
-/// its own, so `changes` is rebuilt with `apply_ai_changes` in its list of
-/// actions, as layout 17 did; its rows stay as they were, and the
-/// `changed_` tables refer to it by name and keep their rows too.
-const LAYOUT_18: &str = "
-CREATE TABLE new_changes (
-    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
-    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
-    action TEXT NOT NULL CHECK (action IN (
-        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
-        'close_account', 'reopen_account', 'add_category', 'rename_category',
-        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
-        'edit_transaction', 'remove_transaction', 'join_transfer',
-        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
-        'import_statement', 'correct_starting_balance',
-        'add_institution', 'add_payee', 'add_tag',
-        'link_bank_account', 'unlink_bank_account', 'fetch_statement',
-        'apply_ai_changes'
-    )),
-    made_at TEXT NOT NULL
-        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
-    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
-    file_name TEXT
-) STRICT;
-INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
-    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
-DROP TABLE changes;
-ALTER TABLE new_changes RENAME TO changes;
-";
-
-/// Layout 19 (grid step 4, D-253): an AI may delete a category that nothing
-/// uses once the user confirms it, so `changes` is rebuilt with
-/// `remove_category` in its list of actions, as layouts 17 and 18 did; its
-/// rows stay as they were, and the `changed_` tables keep theirs too.
-const LAYOUT_19: &str = "
-CREATE TABLE new_changes (
-    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
-    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
-    action TEXT NOT NULL CHECK (action IN (
-        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
-        'close_account', 'reopen_account', 'add_category', 'rename_category',
-        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
-        'edit_transaction', 'remove_transaction', 'join_transfer',
-        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
-        'import_statement', 'correct_starting_balance',
-        'add_institution', 'add_payee', 'add_tag',
-        'link_bank_account', 'unlink_bank_account', 'fetch_statement',
-        'apply_ai_changes', 'remove_category'
-    )),
-    made_at TEXT NOT NULL
-        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
-    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
-    file_name TEXT
-) STRICT;
-INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
-    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
-DROP TABLE changes;
-ALTER TABLE new_changes RENAME TO changes;
-";
-
-/// Layout 20 (M6a.L, D-278): saved views and dashboards. `views` keeps each
-/// document as JSON text with the few things a list needs copied out of it:
-/// its kind, name, place and version. The book does not look inside the
-/// document any further (the reporting layer does, D-281). Adding, editing,
-/// renaming, moving and removing one are user actions of their own, so
-/// `changes` is rebuilt with `add_view`, `edit_view`, `rename_view`,
-/// `move_view` and `remove_view` in its list of actions, as layouts 17 to 19
-/// did; its rows stay as they were, and the `changed_` tables keep theirs.
-const LAYOUT_20: &str = "
-CREATE TABLE views (
-    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
-    kind TEXT NOT NULL CHECK (kind IN ('view', 'dashboard')),
-    name TEXT NOT NULL CHECK (name <> '' AND name = trim(name) AND length(name) <= 200),
-    position INTEGER NOT NULL CHECK (position >= 0),
-    format_version INTEGER NOT NULL CHECK (format_version >= 1),
-    document TEXT NOT NULL
-        CHECK (json_valid(document) AND length(CAST(document AS BLOB)) <= 1048576)
-) STRICT;
-CREATE UNIQUE INDEX views_by_name ON views (kind, lower(name));
 CREATE TABLE changed_views (
     change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
     side TEXT NOT NULL CHECK (side IN ('before', 'after')),
@@ -672,68 +705,7 @@ CREATE TABLE changed_views (
     document TEXT,
     PRIMARY KEY (change_id, id, side)
 ) STRICT;
-CREATE TABLE new_changes (
-    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
-    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
-    action TEXT NOT NULL CHECK (action IN (
-        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
-        'close_account', 'reopen_account', 'add_category', 'rename_category',
-        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
-        'edit_transaction', 'remove_transaction', 'join_transfer',
-        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
-        'import_statement', 'correct_starting_balance',
-        'add_institution', 'add_payee', 'add_tag',
-        'link_bank_account', 'unlink_bank_account', 'fetch_statement',
-        'apply_ai_changes', 'remove_category',
-        'add_view', 'edit_view', 'rename_view', 'move_view', 'remove_view'
-    )),
-    made_at TEXT NOT NULL
-        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
-    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
-    file_name TEXT
-) STRICT;
-INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
-    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
-DROP TABLE changes;
-ALTER TABLE new_changes RENAME TO changes;
-";
 
-/// Layout 21 (M6b.L, D-290): category groups and hidden categories, kept
-/// apart from the transactions and the category tree (Q-221). Nothing in
-/// these tables is ever written onto a transaction or a category; they only
-/// refer to categories by ID. `report_groups` holds each group with its name,
-/// kind and place in the list; `report_group_members` its members, each a
-/// category or another group; `report_hidden` the categories the user hid
-/// from charts. Removing a category or a group removes the rows that name it
-/// in the same change (ON DELETE CASCADE), so its Undo brings them back. The
-/// five new user actions rebuild `changes` as layouts 17 to 20 did; its rows
-/// stay as they were.
-const LAYOUT_21: &str = "
-CREATE TABLE report_groups (
-    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
-    name TEXT NOT NULL CHECK (name <> '' AND name = trim(name) AND length(name) <= 200),
-    kind TEXT NOT NULL CHECK (kind IN ('expense', 'income')),
-    position INTEGER NOT NULL CHECK (position >= 0)
-) STRICT;
-CREATE UNIQUE INDEX report_groups_by_name ON report_groups (lower(name));
-CREATE TABLE report_group_members (
-    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
-    group_id BLOB NOT NULL REFERENCES report_groups (id) ON DELETE CASCADE,
-    category_id BLOB REFERENCES accounts (id) ON DELETE CASCADE,
-    member_group_id BLOB REFERENCES report_groups (id) ON DELETE CASCADE
-        CHECK (member_group_id IS NULL OR member_group_id <> group_id),
-    position INTEGER NOT NULL CHECK (position >= 0),
-    CHECK ((category_id IS NULL) <> (member_group_id IS NULL))
-) STRICT;
-CREATE INDEX report_group_members_in_group ON report_group_members (group_id, position);
-CREATE UNIQUE INDEX report_group_members_by_category
-    ON report_group_members (category_id, group_id);
-CREATE UNIQUE INDEX report_group_members_by_group
-    ON report_group_members (member_group_id, group_id);
-CREATE TABLE report_hidden (
-    category_id BLOB PRIMARY KEY NOT NULL CHECK (length(category_id) = 16)
-        REFERENCES accounts (id) ON DELETE CASCADE
-) STRICT;
 CREATE TABLE changed_report_groups (
     change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
     side TEXT NOT NULL CHECK (side IN ('before', 'after')),
@@ -743,6 +715,7 @@ CREATE TABLE changed_report_groups (
     position INTEGER,
     PRIMARY KEY (change_id, id, side)
 ) STRICT;
+
 CREATE TABLE changed_report_group_members (
     change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
     side TEXT NOT NULL CHECK (side IN ('before', 'after')),
@@ -753,73 +726,14 @@ CREATE TABLE changed_report_group_members (
     position INTEGER,
     PRIMARY KEY (change_id, id, side)
 ) STRICT;
+
 CREATE TABLE changed_report_hidden (
     change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
     side TEXT NOT NULL CHECK (side IN ('before', 'after')),
     category_id BLOB NOT NULL,
     PRIMARY KEY (change_id, category_id, side)
 ) STRICT;
-CREATE TABLE new_changes (
-    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
-    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
-    action TEXT NOT NULL CHECK (action IN (
-        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
-        'close_account', 'reopen_account', 'add_category', 'rename_category',
-        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
-        'edit_transaction', 'remove_transaction', 'join_transfer',
-        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
-        'import_statement', 'correct_starting_balance',
-        'add_institution', 'add_payee', 'add_tag',
-        'link_bank_account', 'unlink_bank_account', 'fetch_statement',
-        'apply_ai_changes', 'remove_category',
-        'add_view', 'edit_view', 'rename_view', 'move_view', 'remove_view',
-        'add_group', 'edit_group', 'move_group', 'remove_group',
-        'set_hidden_categories'
-    )),
-    made_at TEXT NOT NULL
-        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
-    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
-    file_name TEXT
-) STRICT;
-INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
-    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
-DROP TABLE changes;
-ALTER TABLE new_changes RENAME TO changes;
-";
 
-/// Layout 22 (M6c.L, D-344, D-345): budgets, an amount the user plans to
-/// spend on one spending category in each of a budget's periods. Nothing in
-/// these tables is ever written onto a transaction or a category. `budgets`
-/// holds each budget with its category, its kind of period and its days;
-/// `budget_amounts` what it plans from one of its periods on, so a change
-/// never rewrites an earlier period (D-345). A category that has a budget
-/// can't be removed (the foreign key has no cascade, and the store says so
-/// first with `store.category-in-use`); removing a budget removes its
-/// amounts in the same change (ON DELETE CASCADE), so its Undo brings them
-/// back. The three new user actions rebuild `changes` as layouts 17 to 21
-/// did; its rows stay as they were.
-const LAYOUT_22: &str = "
-CREATE TABLE budgets (
-    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
-    category_id BLOB NOT NULL REFERENCES accounts (id),
-    every TEXT NOT NULL CHECK (every IN ('month', 'quarter', 'year', 'range')),
-    first_day TEXT NOT NULL
-        CHECK (first_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-    last_day TEXT
-        CHECK (last_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-    CHECK (last_day IS NULL OR last_day >= first_day),
-    CHECK (every <> 'range' OR last_day IS NOT NULL)
-) STRICT;
-CREATE INDEX budgets_by_category ON budgets (category_id, first_day);
-CREATE TABLE budget_amounts (
-    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
-    budget_id BLOB NOT NULL REFERENCES budgets (id) ON DELETE CASCADE,
-    from_day TEXT NOT NULL
-        CHECK (from_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-    amount INTEGER NOT NULL CHECK (amount > 0),
-    carry_over INTEGER NOT NULL CHECK (carry_over IN (0, 1))
-) STRICT;
-CREATE UNIQUE INDEX budget_amounts_by_day ON budget_amounts (budget_id, from_day);
 CREATE TABLE changed_budgets (
     change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
     side TEXT NOT NULL CHECK (side IN ('before', 'after')),
@@ -830,6 +744,7 @@ CREATE TABLE changed_budgets (
     last_day TEXT,
     PRIMARY KEY (change_id, id, side)
 ) STRICT;
+
 CREATE TABLE changed_budget_amounts (
     change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
     side TEXT NOT NULL CHECK (side IN ('before', 'after')),
@@ -840,91 +755,6 @@ CREATE TABLE changed_budget_amounts (
     carry_over INTEGER,
     PRIMARY KEY (change_id, id, side)
 ) STRICT;
-CREATE TABLE new_changes (
-    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
-    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
-    action TEXT NOT NULL CHECK (action IN (
-        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
-        'close_account', 'reopen_account', 'add_category', 'rename_category',
-        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
-        'edit_transaction', 'remove_transaction', 'join_transfer',
-        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
-        'import_statement', 'correct_starting_balance',
-        'add_institution', 'add_payee', 'add_tag',
-        'link_bank_account', 'unlink_bank_account', 'fetch_statement',
-        'apply_ai_changes', 'remove_category',
-        'add_view', 'edit_view', 'rename_view', 'move_view', 'remove_view',
-        'add_group', 'edit_group', 'move_group', 'remove_group',
-        'set_hidden_categories',
-        'add_budget', 'edit_budget', 'remove_budget'
-    )),
-    made_at TEXT NOT NULL
-        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
-    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
-    file_name TEXT
-) STRICT;
-INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
-    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
-DROP TABLE changes;
-ALTER TABLE new_changes RENAME TO changes;
-";
-
-/// Layout 23 (M6c.B, D-375): what a bank or file delivered stays as it was
-/// delivered, also against a slip in KassenSturz or another program writing
-/// to the book. The user's own changes (payee, date, note, category) live
-/// in other columns, on top of the original, as before (D-067).
-///
-/// The triggers refuse four things. A row of `split_imports` never changes.
-/// It, or a part that has one, is deleted only while `originals_unlocked`
-/// holds its one row, which KassenSturz writes and deletes again in the same
-/// database transaction, only around removing whole transactions the user
-/// removes, undo and redo, and the edits that write a transaction's parts
-/// again unchanged (`originals.rs`); it never stays in a saved book. Such a
-/// part keeps its account and its amount in the account's currency, and its
-/// transaction keeps its currency while the part has no amount of its own in
-/// another currency. A program that writes the guard row itself can still
-/// delete originals: the triggers stop mistakes, not someone set on it.
-///
-/// A later migration that rebuilds `splits`, `split_imports` or
-/// `transactions` drops these triggers with the table and makes them again.
-const LAYOUT_23: &str = "
-CREATE TABLE originals_unlocked (
-    id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1)
-) STRICT;
-CREATE TRIGGER original_never_changes BEFORE UPDATE ON split_imports
-BEGIN
-    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original changed');
-END;
-CREATE TRIGGER original_kept BEFORE DELETE ON split_imports
-WHEN NOT EXISTS (SELECT 1 FROM originals_unlocked)
-BEGIN
-    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original removed');
-END;
-CREATE TRIGGER original_part_kept BEFORE DELETE ON splits
-WHEN EXISTS (SELECT 1 FROM split_imports WHERE split_id = OLD.id)
-    AND NOT EXISTS (SELECT 1 FROM originals_unlocked)
-BEGIN
-    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original removed');
-END;
-CREATE TRIGGER original_part_unchanged
-BEFORE UPDATE OF account_id, amount, foreign_amount, foreign_currency ON splits
-WHEN EXISTS (SELECT 1 FROM split_imports WHERE split_id = OLD.id)
-    AND (NEW.account_id IS NOT OLD.account_id
-        OR coalesce(NEW.foreign_amount, NEW.amount) IS NOT coalesce(OLD.foreign_amount, OLD.amount)
-        OR NEW.foreign_currency IS NOT OLD.foreign_currency)
-BEGIN
-    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original changed');
-END;
-CREATE TRIGGER original_currency_kept BEFORE UPDATE OF currency ON transactions
-WHEN NEW.currency IS NOT OLD.currency
-    AND EXISTS (
-        SELECT 1 FROM splits AS s JOIN split_imports AS i ON i.split_id = s.id
-        WHERE s.transaction_id = OLD.id AND s.foreign_amount IS NULL
-    )
-    AND NOT EXISTS (SELECT 1 FROM originals_unlocked)
-BEGIN
-    SELECT RAISE(ABORT, 'KassenSturz keeps what a bank or file delivered: original changed');
-END;
 ";
 
 /// Brings a book from layout `from` to the current one, or a new, empty
@@ -1138,17 +968,26 @@ mod tests {
     }
 
     #[test]
-    // Every layout since 0.1 (AGENTS.md §9).
+    // Every layout since the first Beta (AGENTS.md §9), as the KassenSturz
+    // with the next layout will update it: until the first Beta has a
+    // successor, that is the starting layout alone (D-135, D-536).
     fn books_with_every_earlier_layout_are_updated_after_a_backup() {
-        let current = schema(&Book::create_in_memory().expect("book created").conn);
-        for version in FIRST_VERSION..VERSION {
+        let later = Book::create_in_memory().expect("book created");
+        later
+            .conn
+            .execute_batch(WITH_A_LATER_LAYOUT[MIGRATIONS.len()])
+            .expect("later layout");
+        let current = schema(&later.conn);
+        drop(later);
+        for version in FIRST_VERSION..=VERSION {
             let folder = TempFolder::new();
             let path = folder.join("Household.ksz");
-            let checking = old_book(&path, version);
+            let checking = book_at(&path, &WITH_A_LATER_LAYOUT, version);
             recorded_rename(&path, checking);
             let computer = computer(&folder);
 
-            let book = Book::open(&path, &computer).expect("book updated");
+            let book = Book::open_updated_by(&path, &computer, &WITH_A_LATER_LAYOUT, FIRST_VERSION)
+                .expect("book updated");
             check_update(book, checking, &current, version);
 
             let backups = files_in(&computer.backup_folder);
@@ -1157,7 +996,9 @@ mod tests {
             assert_eq!(pragma(&backup, "user_version"), version);
 
             // Once updated, the book opens without another backup.
-            drop(Book::open(&path, &computer).expect("book opened again"));
+            let again =
+                Book::open_updated_by(&path, &computer, &WITH_A_LATER_LAYOUT, FIRST_VERSION);
+            drop(again.expect("book opened again"));
             assert_eq!(files_in(&computer.backup_folder).len(), 1);
         }
     }
@@ -1250,7 +1091,7 @@ mod tests {
         assert_eq!(book.stated_balance(checking).expect("read"), Some(stated));
         book.undo().expect("undone");
         assert_eq!(book.stated_balance(checking).expect("read"), None);
-        // So does a table a later layout added (layout 17).
+        // So does a table that came with M4 (bank links).
         let link = kassensturz_core::BankLink {
             account: checking,
             iban: Some("DE89370400440532013000".into()),
@@ -1262,7 +1103,7 @@ mod tests {
         assert_eq!(book.bank_link(checking).expect("read"), Some(link));
         book.undo().expect("undone");
         assert_eq!(book.bank_link(checking).expect("read"), None);
-        // And an action a later layout added (layout 18): AI changes the
+        // And an action that came with M5: AI changes the
         // user confirmed are recorded and undone as one change.
         book.as_one_action(crate::Action::ApplyAiChanges, |book| {
             book.rename_account(checking, "Household account")
@@ -1279,7 +1120,7 @@ mod tests {
             book.account(checking).expect("account").name,
             "Main account"
         );
-        // And one layout 19 added: a category nothing uses can be removed,
+        // And one that came with the AI grid: a category nothing uses can be removed,
         // and the removal undone.
         let unused = AccountId::generate();
         book.add_account(&kassensturz_core::Account {

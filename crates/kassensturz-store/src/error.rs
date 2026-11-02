@@ -47,8 +47,8 @@ pub enum StoreError {
         /// The layout version stored in the file.
         found: i32,
     },
-    /// The book was made by a development build from before 0.1, whose
-    /// layouts 0.1 merged into its starting layout (D-045, D-135). It wasn't
+    /// The book was made by a development build of the Alpha, whose layouts
+    /// the first Beta merged into its starting layout (D-045, D-536). It wasn't
     /// changed; the way over is the complete export made with that build,
     /// read into a new book.
     DevelopmentLayout {
@@ -309,7 +309,7 @@ pub enum StoreError {
     /// change to one in the same currency.
     OriginalChanged(SplitId),
     /// The book refused to change or remove what a bank or file delivered
-    /// (layout 23's triggers, D-375). Only a mistake in a program writing to
+    /// (the book's triggers, D-375). Only a mistake in a program writing to
     /// the book gets here; nothing was changed.
     DeliveredKept,
     /// The two transactions can't be joined into a Transfer (D-087).
@@ -477,10 +477,11 @@ impl From<rusqlite::Error> for StoreError {
     }
 }
 
-/// The text that starts each refusal of layout 23's triggers.
+/// The text that starts each refusal of the book's triggers on
+/// what a bank or file delivered (D-375).
 const DELIVERED_KEPT: &str = "KassenSturz keeps what a bank or file delivered";
 
-/// Whether `error` is one of layout 23's triggers refusing a change to what
+/// Whether `error` is one of the book's triggers refusing a change to what
 /// a bank or file delivered.
 fn refused_by_layout_23(error: &rusqlite::Error) -> bool {
     matches!(

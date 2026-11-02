@@ -1,6 +1,6 @@
 # Complete export format
 
-The complete export holds a whole KassenSturz book in one JSON file (D-029, D-100). It is the stable way to move a book's data: into a new book, to another program, or from a development build to 0.1 (D-045, D-046). Unlike the book file itself (`docs/BOOK_FORMAT.md`), this format is meant to be read and written by other programs, so it changes only with a new [version](#versions).
+The complete export holds a whole KassenSturz book in one JSON file (D-029, D-100). It is the stable way to move a book's data: into a new book, to another program, or from a development build of the Alpha to the Beta (D-045, D-046, D-536). Unlike the book file itself (`docs/BOOK_FORMAT.md`), this format is meant to be read and written by other programs, so it changes only with a new [version](#versions).
 
 **Status: version 8** (M6c.L, D-345). Versions 1 to 7 are read as [described below](#versions).
 

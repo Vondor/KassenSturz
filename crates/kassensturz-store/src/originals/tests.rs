@@ -50,7 +50,7 @@ fn count(book: &Book, table: &str) -> i64 {
 }
 
 /// Whether `sql`, run by a program other than KassenSturz, was refused by
-/// one of layout 23's triggers.
+/// one of the book's triggers on originals.
 fn refused(book: &Book, sql: &str, id: [u8; 16]) -> bool {
     let error = book
         .as_another_program()

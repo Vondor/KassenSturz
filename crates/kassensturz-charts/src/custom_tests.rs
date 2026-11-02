@@ -1152,3 +1152,77 @@ proptest! {
         prop_assert_eq!(seen.len(), chart.categories.len());
     }
 }
+
+/// A yes/no field on an axis or a color is written as marks, never as an
+/// English word, and the screen's words go in their place everywhere the
+/// chart holds a name (D-525); numbers are untouched.
+#[test]
+fn a_yes_no_field_is_marked_and_the_screens_words_go_in_its_place() {
+    let ds = "account_balances";
+    let dataset = spec_dataset(ds).expect("dataset");
+    let row = |name: &str, owed: bool, minor: i64| {
+        vec![
+            Cell::Text(name.into()),
+            Cell::YesNo(owed),
+            Cell::YesNo(false),
+            Cell::Amount(money(minor)),
+            Cell::Text("EUR".into()),
+        ]
+    };
+    let table = FlatTable::new(
+        dataset,
+        EUR,
+        vec![
+            row("Card", true, 300),
+            row("Bank", false, 900),
+            row("Cash", false, 100),
+        ],
+    )
+    .expect("table");
+    let by_answer = spec_with(
+        ds,
+        Vec::new(),
+        vec![layer(
+            MarkKind::Bar,
+            vec![
+                plain(ds, Channel::X, "owed", FieldType::Nominal),
+                plain(ds, Channel::Y, "balance", FieldType::Quantitative),
+                plain(ds, Channel::Color, "owed", FieldType::Nominal),
+            ],
+        )],
+    );
+    let mut chart = draw(&by_answer, &table).chart;
+    assert_eq!(
+        chart.categories,
+        [ANSWER_YES.to_string(), ANSWER_NO.to_string()]
+    );
+    assert!(chart.series.iter().all(|s| {
+        s.name
+            .as_deref()
+            .is_some_and(|n| n.contains([ANSWER_YES, ANSWER_NO]))
+    }));
+    let first_column: Vec<String> = chart.table.rows.iter().map(|r| r[0].clone()).collect();
+    assert!(
+        first_column
+            .iter()
+            .all(|c| c.contains([ANSWER_YES, ANSWER_NO]))
+    );
+    let amounts_before: Vec<Vec<i64>> = chart.series.iter().map(amounts).collect();
+    chart.write_answers("ja", "nein");
+    assert_eq!(chart.categories, ["ja", "nein"]);
+    assert!(
+        chart
+            .series
+            .iter()
+            .all(|s| matches!(s.name.as_deref(), Some("ja" | "nein")))
+    );
+    assert!(
+        chart
+            .table
+            .rows
+            .iter()
+            .all(|r| matches!(r[0].as_str(), "ja" | "nein"))
+    );
+    let amounts_after: Vec<Vec<i64>> = chart.series.iter().map(amounts).collect();
+    assert_eq!(amounts_before, amounts_after);
+}

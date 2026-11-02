@@ -10,6 +10,15 @@ use kassensturz_report::TextTable;
 /// eighth starts again at the first.
 pub const PALETTE_SIZE: u8 = 8;
 
+/// The mark a custom chart writes for the answer "yes" of a yes/no field,
+/// wherever a name of the chart holds one: a category, a series, a slice, a
+/// table cell, a tooltip (D-525). Rust cannot translate (D-034), so the
+/// screen's word for it goes in its place with [`ChartModel::write_answers`].
+pub const ANSWER_YES: char = '\u{E000}';
+
+/// The mark for the answer "no" (see [`ANSWER_YES`]).
+pub const ANSWER_NO: char = '\u{E001}';
+
 /// The kinds of chart M6a draws.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ChartKind {
@@ -260,6 +269,39 @@ pub struct ChartModel {
 }
 
 impl ChartModel {
+    /// Writes `yes` and `no`, the screen's words in the user's language, in
+    /// place of the marks [`ANSWER_YES`] and [`ANSWER_NO`] in every text of
+    /// the chart that can hold a name: the categories, the series, the table,
+    /// the slices, the hidden note and the layers (D-525). A chart without
+    /// marks is unchanged, and so is every number.
+    pub fn write_answers(&mut self, yes: &str, no: &str) {
+        let write = |text: &mut String| {
+            if text.contains([ANSWER_YES, ANSWER_NO]) {
+                *text = text.replace(ANSWER_YES, yes).replace(ANSWER_NO, no);
+            }
+        };
+        self.categories.iter_mut().for_each(write);
+        for series in &mut self.series {
+            series.name.iter_mut().for_each(write);
+            series.points.iter_mut().for_each(|p| write(&mut p.label));
+        }
+        self.table.rows.iter_mut().flatten().for_each(write);
+        for (name, label) in &mut self.slices.holds {
+            write(name);
+            write(label);
+        }
+        if let Some(hidden) = &mut self.hidden {
+            write(&mut hidden.first);
+        }
+        for series in self.overlays.iter_mut().flat_map(|o| &mut o.series) {
+            write(&mut series.name);
+            for item in &mut series.items {
+                write(&mut item.label);
+                write(&mut item.text);
+            }
+        }
+    }
+
     /// The palette index of slice or series `index`.
     pub const fn color_of(index: usize) -> u8 {
         // The remainder is below 8, so it fits.

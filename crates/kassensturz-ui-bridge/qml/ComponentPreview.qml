@@ -140,6 +140,10 @@ ColumnLayout {
             // A custom chart is drawn from its own description (M6e.3); the
             // choices of the dataset it names are the series and the
             // categories of its budgets.
+            // A yes/no answer is marked in the chart's names; these are the
+            // words for it in the user's language (D-525).
+            chartData.setAnswerWords(preview.i18nContext.i18nc("@label the answer yes of a yes/no field, in a chart's names", "yes"),
+                                     preview.i18nContext.i18nc("@label the answer no of a yes/no field, in a chart's names", "no"));
             chartData.showCustom(want.spec, want.partial === true, period, want.chosen + ";" + want.only);
         } else if (want.shows === "progress" && want.usesFormula === true) {
             formulaData.showBar(period, want.formula, want.target);

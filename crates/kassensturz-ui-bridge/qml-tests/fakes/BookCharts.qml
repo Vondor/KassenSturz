@@ -19,6 +19,13 @@ QtObject {
         asked.push("with " + chosen + " " + showHidden);
     }
 
+    // The words for a yes/no answer in a custom chart (D-525).
+    property var answerWords: []
+
+    function setAnswerWords(yes, no) {
+        answerWords = [yes, no];
+    }
+
     // A custom chart (M6e.3): the same chart object, with the title the
     // description gives.
     function showCustom(spec, partial, period, chosen) {

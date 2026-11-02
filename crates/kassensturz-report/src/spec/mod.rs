@@ -16,8 +16,8 @@
 mod fields;
 mod limits;
 mod model;
-mod rows;
 mod parse;
+mod rows;
 mod unsupported;
 
 #[cfg(test)]
@@ -25,8 +25,9 @@ mod fields_tests;
 #[cfg(test)]
 mod model_tests;
 #[cfg(test)]
-mod rows_tests;
 mod parse_tests;
+#[cfg(test)]
+mod rows_tests;
 
 pub use fields::{FieldValue, SPEC_DATASETS, SpecDataset, SpecField, spec_dataset};
 pub use limits::{MAX_SPEC_BYTES, MAX_SPEC_DEPTH};
@@ -36,6 +37,6 @@ pub use model::{
     MIN_SIZE, Mark, MarkKind, ModelError, PaletteName, Sort, SpecNumber, SpecText, SpecValue,
     TimeUnit, VL_SUBSET,
 };
-pub use rows::{Cell, FlatTable, RowsError, budget_tables};
 pub use parse::{Read, SCHEMA_PREFIX, read};
+pub use rows::{Cell, FlatTable, RowsError, budget_tables};
 pub use unsupported::{REASONS, Unsupported};

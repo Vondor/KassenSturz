@@ -6,7 +6,7 @@
 //! tables are made from the real output of the datasets on a book, so every
 //! chart can be compared with the built-in chart of the same dataset.
 
-use kassensturz_core::{GroupMember, Money, RoundingMode};
+use kassensturz_core::{GroupMember, Money, Report, RoundingMode};
 use kassensturz_report::spec::{
     Aggregate, Cell, Channel, ChartSpec, Encoding, FieldFilter, FieldType, FilterTest, FlatTable,
     Layer, Mark, MarkKind, PaletteName, Sort, SpecNumber, SpecText, SpecValue, TimeUnit,
@@ -939,6 +939,191 @@ fn the_cash_flow_months_are_labeled_as_months() {
     let end: Vec<i64> = flows[0].rows.iter().map(|r| r.end.minor_units()).collect();
     assert_eq!(amounts(&chart.series[0]), end);
     let _ = Money::zero(EUR);
+}
+
+// ---- Where the parser and the renderer meet (M6e.2) -----------------------
+//
+// The descriptions below are JSON written by hand for these tests (D-280),
+// read by the real parser (`spec::read`), and drawn from the tables of a real
+// book, so a field the parser leaves out or a shape the renderer doesn't
+// expect shows up here and not on the screen.
+
+/// What the parser makes of `text`, with nothing left out.
+fn parsed(text: &str) -> ChartSpec {
+    let read = kassensturz_report::spec::read(text).expect("read");
+    assert!(read.unsupported().is_empty(), "{:?}", read.unsupported());
+    read.chart().cloned().expect("a chart")
+}
+
+#[test]
+fn a_description_read_by_the_parser_draws_the_same_chart_as_the_one_built_by_hand() {
+    let book = book();
+    let data = monthly(&book);
+    let table = FlatTable::from_monthly(&data);
+    let ds = "income_expense_by_month";
+    let by_hand = spec(
+        ds,
+        vec![layer(
+            MarkKind::Bar,
+            vec![
+                with(
+                    ds,
+                    Channel::X,
+                    "month",
+                    FieldType::Temporal,
+                    None,
+                    Some(TimeUnit::YearMonth),
+                    None,
+                ),
+                plain(ds, Channel::Y, "net", FieldType::Quantitative),
+            ],
+        )],
+    );
+    let read = parsed(
+        r#"{
+          "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+          "data": {"name": "income_expense_by_month"},
+          "title": "Net by month",
+          "mark": "bar",
+          "encoding": {
+            "x": {"field": "month", "type": "temporal", "timeUnit": "yearmonth"},
+            "y": {"field": "net", "type": "quantitative"}
+          }
+        }"#,
+    );
+    let drawn = draw(&read, &table);
+    assert_eq!(drawn.chart, draw(&by_hand, &table).chart);
+    assert_eq!(drawn.title.as_deref(), Some("Net by month"));
+}
+
+#[test]
+fn layers_a_filter_and_a_sort_from_the_parser_reach_the_chart() {
+    let book = book();
+    let data = monthly(&book);
+    let table = FlatTable::from_monthly(&data);
+    let read = parsed(
+        r#"{
+          "data": {"name": "income_expense_by_month"},
+          "transform": [{"filter": {"field": "currency", "equal": "EUR"}}],
+          "layer": [
+            {"mark": "bar", "encoding": {
+              "x": {"field": "month", "type": "temporal", "timeUnit": "yearmonth"},
+              "y": {"field": "net", "type": "quantitative"}}},
+            {"mark": "rule", "encoding": {
+              "y": {"field": "net", "type": "quantitative", "aggregate": "mean"}}},
+            {"mark": "point", "encoding": {
+              "x": {"field": "month", "type": "temporal", "timeUnit": "yearmonth"},
+              "y": {"field": "income", "type": "quantitative"}}}
+          ]
+        }"#,
+    );
+    let chart = draw(&read, &table).chart;
+    assert_eq!(chart.kind, ChartKind::Bar);
+    assert_eq!(chart.series.len(), 1);
+    assert_eq!(chart.overlays.len(), 2);
+    let net: Vec<i64> = data.rows.iter().map(|row| row.net.minor_units()).collect();
+    assert_eq!(amounts(&chart.series[0]), net);
+    // The mean is the rounded exact mean of the net amounts, at the level the
+    // rule sits.
+    let sum: i64 = net.iter().sum();
+    let count = i64::try_from(net.len()).expect("small");
+    let level = chart
+        .overlays
+        .iter()
+        .find(|overlay| overlay.mark == OverlayMark::LevelRule)
+        .expect("a level");
+    let drawn_level = level.series[0].items[0].minor_units.expect("an amount");
+    assert!((drawn_level * count - sum).abs() <= count, "{drawn_level}");
+}
+
+#[test]
+fn a_filter_range_read_by_the_parser_includes_both_ends_exactly() {
+    let table = spending_table(&[("a", 1_000), ("b", 1_250), ("c", 2_000), ("d", 2_001)]);
+    let read = parsed(
+        r#"{
+          "data": {"name": "spending_by_category"},
+          "transform": [{"filter": {"field": "total", "range": ["12.5", "20.00"]}}],
+          "mark": "bar",
+          "encoding": {"x": {"field": "category", "type": "nominal"},
+                       "y": {"field": "total", "type": "quantitative"}}
+        }"#,
+    );
+    let chart = draw(&read, &table).chart;
+    assert_eq!(chart.categories, ["b", "c"]);
+    assert_eq!(amounts(&chart.series[0]), [1_250, 2_000]);
+}
+
+#[test]
+fn a_pie_of_the_parser_has_the_slices_of_the_built_in_one() {
+    let book = book();
+    let data = spending(&book);
+    let table = FlatTable::from_spending(&data);
+    let read = parsed(
+        r#"{
+          "data": {"name": "spending_by_category"},
+          "mark": {"type": "arc", "innerRadius": 50},
+          "encoding": {"theta": {"field": "total", "type": "quantitative"},
+                       "color": {"field": "category", "type": "nominal"}}
+        }"#,
+    );
+    let chart = draw(&read, &table).chart;
+    assert_eq!(chart.kind, ChartKind::Donut);
+    let built_in = spending_by_category(&data, ChartKind::Donut, &Words).expect("chart");
+    assert_eq!(chart.categories, built_in.categories);
+    assert_eq!(chart.slices, built_in.slices);
+}
+
+#[test]
+fn what_the_parser_leaves_out_does_not_stop_a_chart_from_being_drawn() {
+    let table = spending_table(&[("a", 1_000), ("b", 500)]);
+    let text = r#"{
+      "data": {"name": "spending_by_category"},
+      "mark": {"type": "bar", "tooltip": true, "cornerRadius": 3},
+      "encoding": {"x": {"field": "category", "type": "nominal"},
+                   "y": {"field": "total", "type": "quantitative"}}
+    }"#;
+    let read = kassensturz_report::spec::read(text).expect("read");
+    assert!(!read.unsupported().is_empty());
+    let spec = read.chart().cloned().expect("still a chart");
+    let chart = draw(&spec, &table).chart;
+    assert_eq!(amounts(&chart.series[0]), [1_000, 500]);
+}
+
+#[test]
+fn the_errors_of_the_renderer_are_the_reports_the_parser_uses() {
+    let names: Vec<String> = (0..51).map(|n| format!("c{n:02}")).collect();
+    let rows: Vec<(&str, i64)> = names.iter().map(|name| (name.as_str(), 100)).collect();
+    let read = parsed(
+        r#"{
+          "data": {"name": "spending_by_category"},
+          "mark": "arc",
+          "encoding": {"theta": {"field": "total", "type": "quantitative"},
+                       "color": {"field": "category", "type": "nominal"}}
+        }"#,
+    );
+    let error = custom_chart(&read, &spending_table(&rows), &Words).expect_err("too many");
+    let report = error.report();
+    assert_eq!(report.code, "report.spec-too-big");
+    assert_eq!(
+        report.code,
+        kassensturz_report::ReportError::SpecTooBig { limit: "series" }
+            .report()
+            .code
+    );
+    assert!(
+        report
+            .params
+            .iter()
+            .any(|(_, value)| format!("{value:?}").contains("series"))
+    );
+
+    let wrong = parsed(
+        r#"{"data": {"name": "income_expense_by_month"}, "mark": "bar",
+            "encoding": {"x": {"field": "month", "type": "temporal"},
+                         "y": {"field": "net", "type": "quantitative"}}}"#,
+    );
+    let error = custom_chart(&wrong, &spending_table(&[("a", 100)]), &Words).expect_err("wrong");
+    assert_eq!(error.report().code, "report.spec-invalid");
 }
 
 proptest! {

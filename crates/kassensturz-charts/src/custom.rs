@@ -25,12 +25,12 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
-use kassensturz_core::{Date, Money, RoundingMode};
+use kassensturz_core::{Date, ErrorReport, Money, Report, RoundingMode};
 use kassensturz_report::spec::{
     Aggregate, Cell, Channel, ChartSpec, Encoding, FieldFilter, FieldType, FieldValue, FilterTest,
     FlatTable, Layer, MarkKind, Sort, SpecField, SpecValue, TimeUnit,
 };
-use kassensturz_report::{Percent, TextFormat, TextTable};
+use kassensturz_report::{Percent, ReportError, TextFormat, TextTable};
 
 use crate::datasets::{ShownRow, extent, major_unit, round_slices};
 use crate::ticks::{ticks, ticks_with};
@@ -81,6 +81,24 @@ pub enum CustomError {
 impl From<ChartError> for CustomError {
     fn from(error: ChartError) -> Self {
         Self::Chart(error)
+    }
+}
+
+impl Report for CustomError {
+    /// The error a screen shows: the two report codes of a description that
+    /// is too big or can't be drawn (the same ones the parser uses, with no
+    /// path because the renderer reads a model, not text), or the chart
+    /// code of an amount that doesn't fit.
+    fn report(&self) -> ErrorReport {
+        match self {
+            Self::TooBig(limit) => ReportError::SpecTooBig { limit }.report(),
+            Self::Invalid(reason) => ReportError::SpecInvalid {
+                reason,
+                path: String::new(),
+            }
+            .report(),
+            Self::Chart(error) => error.report(),
+        }
     }
 }
 

@@ -183,7 +183,10 @@ fn path_of(open: &[Open]) -> String {
 }
 
 /// Adds a key to a path: `a.b` for a plain key, `a["x.y"]` (JSON-quoted, so
-/// control characters are escaped) for any other.
+/// control characters are escaped) for any other. Characters that are
+/// invisible or change the direction of the text around them are escaped
+/// too (`\u202e`), so a hostile key can't hide or reorder what the "not
+/// supported here" list shows next to it (M6e.4, D-522, T-38).
 pub(super) fn push_key(path: &mut String, key: &str) {
     let plain = !key.is_empty()
         && key
@@ -196,9 +199,30 @@ pub(super) fn push_key(path: &mut String, key: &str) {
         path.push_str(key);
     } else {
         path.push('[');
-        path.push_str(&serde_json::Value::from(key).to_string());
+        for c in serde_json::Value::from(key).to_string().chars() {
+            if hidden(c) {
+                path.push_str(&format!("\\u{:04x}", u32::from(c)));
+            } else {
+                path.push(c);
+            }
+        }
         path.push(']');
     }
+}
+
+/// Whether `c` is invisible or sets the direction of the text around it:
+/// the marks and overrides of the Unicode bidirectional algorithm, the
+/// zero-width characters and the byte-order mark.
+fn hidden(c: char) -> bool {
+    matches!(
+        c,
+        '\u{061c}'
+            | '\u{200b}'..='\u{200f}'
+            | '\u{202a}'..='\u{202e}'
+            | '\u{2060}'..='\u{2064}'
+            | '\u{2066}'..='\u{2069}'
+            | '\u{feff}'
+    )
 }
 
 /// Adds an array index to a path: `a[3]`.

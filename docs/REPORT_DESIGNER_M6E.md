@@ -192,7 +192,7 @@ The file is not remembered. Only its text is kept, in `props.spec`. Nothing is f
 | `report.spec-invalid` | `reason`, `path` | `not-json`, `not-utf8`, `not-an-object`, `duplicate-key`, `bad-schema`, `missing`, `wrong-type`, `bad-choice`, `unknown-dataset`, `unknown-field`, `type-mismatch`, `bad-channel-for-mark`, `layers-differ`, `bad-aggregate`, `fraction-number`, `bad-number`, `bad-date`, `bad-text`, `nothing-to-draw` | M6e.1; `not-utf8` M6e.3 |
 | `report.spec-unsupported` | `count` | | M6e.3: shown when a stored spec has unsupported parts and `partial` is `false` |
 
-`depth` uses the existing scan's `too-deep` as `report.spec-too-big` (`depth`), so a deep spec gives one clear code. The `document-invalid` reasons `bad-spec` and `spec-dataset` (section 3) are new keywords of an existing code. `path` is JSON-path text from the spec, shown as plain text and never part of a message (D-034).
+`depth` uses the existing scan's `too-deep` as `report.spec-too-big` (`depth`), so a deep spec gives one clear code. The `document-invalid` reasons `bad-spec` and `spec-dataset` (section 3) are new keywords of an existing code. `path` is JSON-path text from the spec, shown as plain text and never part of a message (D-034). Characters that hide or turn text (bidirectional marks, zero-width characters) are written as `\uXXXX` in it (D-522).
 
 **The unsupported list.** `Unsupported.reason` is one of these words. Each has its own sentence in the UI, and the path is shown in front of it, for example *`transform[1].calculate`: calculations aren't supported here*:
 

@@ -81,7 +81,13 @@ pub fn read_file(path: &Path) -> Result<String, ReportError> {
         path: String::new(),
     };
     // A pipe or a device could block or never end; only a regular file is
-    // read.
+    // read. It is asked before the file is opened, because opening a named
+    // pipe already waits for a writer, which would hang the window (M6e.4,
+    // M6-B92). It is asked again of the opened file, in case the name was
+    // pointed elsewhere in between.
+    if !std::fs::metadata(path).is_ok_and(|meta| meta.is_file()) {
+        return Err(unreadable());
+    }
     let file = File::open(path).map_err(|_| unreadable())?;
     if !file.metadata().is_ok_and(|meta| meta.is_file()) {
         return Err(unreadable());

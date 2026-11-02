@@ -122,7 +122,19 @@ jobs:
       # The KDE Flatpak runtime and SDK 6.11, pinned (D-025).
       image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11@sha256:b0a8a2acb9e420dd0e3e083ff552bea5a817e17e41532f1d2287ff49ef9aae0e
       options: --privileged
+      # The runner's own copies of Android, .NET and its tool cache, which no
+      # step here uses, so the first step can delete them: the debug build for
+      # the tests ran out of disk on the runner in runs #851, #854 and #860.
+      volumes:
+        - /usr/local/lib/android:/host/android
+        - /usr/share/dotnet:/host/dotnet
+        - /opt/hostedtoolcache:/host/toolcache
     steps:
+      - name: Make room on the runner's disk
+        run: |
+          df -h /
+          rm -rf /host/android/* /host/dotnet/* /host/toolcache/*
+          df -h /
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install the Rust SDK extension
         run: flatpak install -y --noninteractive flathub org.freedesktop.Sdk.Extension.rust-stable//25.08
@@ -193,7 +205,19 @@ jobs:
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11@sha256:b0a8a2acb9e420dd0e3e083ff552bea5a817e17e41532f1d2287ff49ef9aae0e
       options: --privileged
+      # The runner's own copies of Android, .NET and its tool cache, which no
+      # step here uses, so the first step can delete them: the debug build for
+      # the tests ran out of disk on the runner in runs #851, #854 and #860.
+      volumes:
+        - /usr/local/lib/android:/host/android
+        - /usr/share/dotnet:/host/dotnet
+        - /opt/hostedtoolcache:/host/toolcache
     steps:
+      - name: Make room on the runner's disk
+        run: |
+          df -h /
+          rm -rf /host/android/* /host/dotnet/* /host/toolcache/*
+          df -h /
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install the Rust SDK extension
         run: flatpak install -y --noninteractive flathub org.freedesktop.Sdk.Extension.rust-stable//25.08
@@ -313,11 +337,23 @@ jobs:
     if: needs.changes.outputs.code == 'true'
     container:
       image: ubuntu:26.10@sha256:93e29beff5257b2cdf1c024d831f6d2997e53655a653ff76a811fc9e6564a719
+      # The runner's own copies of Android, .NET and its tool cache, which no
+      # step here uses, so the first step can delete them: the debug build for
+      # the tests ran out of disk on the runner in runs #851, #854 and #860.
+      volumes:
+        - /usr/local/lib/android:/host/android
+        - /usr/share/dotnet:/host/dotnet
+        - /opt/hostedtoolcache:/host/toolcache
     env:
       DEBIAN_FRONTEND: noninteractive
       QT_QPA_PLATFORM: offscreen
       CARGO_INCREMENTAL: "0"
     steps:
+      - name: Make room on the runner's disk
+        run: |
+          df -h /
+          rm -rf /host/android/* /host/dotnet/* /host/toolcache/*
+          df -h /
       # zstd lets the cache action pack Cargo's folder in seconds, not minutes.
       - name: Install the distribution's build tools, Qt, KDE Frameworks and SQLite
         run: |
@@ -450,10 +486,22 @@ jobs:
     if: needs.changes.outputs.code == 'true'
     container:
       image: fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
+      # The runner's own copies of Android, .NET and its tool cache, which no
+      # step here uses, so the first step can delete them: the debug build for
+      # the tests ran out of disk on the runner in runs #851, #854 and #860.
+      volumes:
+        - /usr/local/lib/android:/host/android
+        - /usr/share/dotnet:/host/dotnet
+        - /opt/hostedtoolcache:/host/toolcache
     env:
       QT_QPA_PLATFORM: offscreen
       CARGO_INCREMENTAL: "0"
     steps:
+      - name: Make room on the runner's disk
+        run: |
+          df -h /
+          rm -rf /host/android/* /host/dotnet/* /host/toolcache/*
+          df -h /
       # Kirigami Addons is named by the file it installs: Fedora 44 has no
       # package called kirigami-addons, and its name couldn't be checked
       # beforehand (D-112). KQuickCharts, which the Overview's chart imports at

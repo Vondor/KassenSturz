@@ -93,7 +93,7 @@ Shown once, right after page 3b created the book; the book is already complete, 
 |---|---|
 | **I'll type them myself** (preselected) | Goes to the overview. |
 | **Import a file from my bank** | Asks which account the file is for (only when there is more than one), then the existing import pages (M3.10) unchanged. |
-| **Connect to my bank** ("For banks in Germany. KassenSturz only reads, it never sends money.") | The existing bank setup page (M4.6) unchanged; it links the bank's accounts to the ones just created. Hidden where the build has no bank support. |
+| **Connect to my bank** ("For banks in Germany. KassenSturz only reads, it never sends money.") | The existing bank setup page (M4.6) unchanged; it links the bank's accounts to the ones just created. Hidden where the build has no bank support, and **hidden in every build until the maintainer has tested the bank flow in the finished app himself (Q-398)**: a build option, off by default, switches it on (section 7). |
 
 ### Page 5: The first look at the overview (`5-overview.png`)
 
@@ -156,13 +156,13 @@ The wizard reuses the existing translated strings where they fit (account kinds 
 No new table, column, user action or app setting:
 
 - **Core and store:** unchanged. Writing the first setup uses `Book::as_one_action` with the existing `AddAccount` action, nesting the existing calls for the currency, the categories (as `FirstStart.start` does now), each account and its starting balance (as `NewAccountPage` does now). The change history therefore names the first setup by its first account; the entries inside it are the same ones the M3.4 flow writes.
-- **Bridge (`kassensturz-ui-bridge`):** one new invokable on `FirstStart` that takes the currency, the category set from `DefaultCategories.qml` and the list of account rows as text, checks every row first (the existing amount and date parsing, D-065) and returns per-row error codes or writes it all. One invokable that restarts the app in the chosen language (`QProcess::startDetached` on the app's own executable, then quit; to be checked inside the Flatpak and on Windows). The bank option reads the existing bank `Status`.
+- **Bridge (`kassensturz-ui-bridge`):** one new invokable on `FirstStart` that takes the currency, the category set from `DefaultCategories.qml` and the list of account rows as text, checks every row first (the existing amount and date parsing, D-065) and returns per-row error codes or writes it all. One invokable that restarts the app in the chosen language (`QProcess::startDetached` on the app's own executable, then quit; to be checked inside the Flatpak and on Windows). The bank option reads the existing bank `Status`, and it appears only in a build made with a new CMake option (for example `KASSENSTURZ_WIZARD_BANK`, **off by default**; Q-398). The option is a build switch, not an app setting, so it changes no settings layout. It is switched on only in a pull request after the maintainer has tested the bank flow in the finished app on his own machine and signed it off. Bank connections stay reachable from Settings as today; only the wizard's offer is gated.
 - **QML:** new pages in `qml/` (one file per page, owned by M7a.9), `WelcomePage.qml` rewritten, `Main.qml`'s first-run routing pointed at the wizard. M7a.2's chooser is placed as page 3a.
 - **Tests (part 2):** the new bridge call read back the way QML reads it; the all-or-nothing write (a row with an error writes nothing); seams with real output: page 3c runs the real importer on a synthetic KMyMoney sample, page 3a the real chooser on a bundled example book, page 4 a synthetic CAMT file through the real import; an Xvfb screenshot of every real page on the PR, and the click path in the testing guide.
 
 ## 8. Open questions for the maintainer
 
-Asked one at a time. Until answered, the build follows the recommended option (R).
+Asked one at a time in the project chat. Answers so far: **Q-395, Q-396 and Q-397 as recommended (R); Q-398 as recommended plus a gate** (the wizard's bank offer stays switched off until the maintainer has tested the bank flow in the finished app himself). Until a question is answered, the build follows its recommended option.
 
 - **Q-395 Language change on page 1.** R: restart KassenSturz by itself on *Continue*, since nothing has been typed yet. B: keep D-127's behaviour ("applies the next time you start"), which leaves the rest of the wizard in the old language. C: no language choice in the wizard; Settings only.
 - **Q-396 Order on page 2.** R: "My own accounts" first, the example book second, all three of equal size. B: the example book first, since every tester starts there. C: the example book as the one large button, the others smaller.

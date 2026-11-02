@@ -565,6 +565,8 @@ pub enum SpecValue {
     Day(Date),
     /// A number.
     Number(SpecNumber),
+    /// Yes or no (JSON `true` or `false`, Q-358).
+    YesNo(bool),
 }
 
 /// What a filter tests.
@@ -592,8 +594,8 @@ pub struct FieldFilter {
 
 impl FieldFilter {
     /// Checks the values against the field: text for a text field, days for a
-    /// day field, numbers for an amount or percent; a yes/no field takes no
-    /// filter in this version. A `OneOf` has 1 to 50 values and a range has
+    /// day field, numbers for an amount or percent; a yes/no field takes
+    /// `true` or `false` (Q-358), by equal or one-of only. A `OneOf` has 1 to 50 values and a range has
     /// at least one end, both of one kind and in order.
     ///
     /// # Errors
@@ -606,6 +608,7 @@ impl FieldFilter {
                 (field.value(), value),
                 (FieldValue::Text, SpecValue::Text(_))
                     | (FieldValue::Day, SpecValue::Day(_))
+                    | (FieldValue::YesNo, SpecValue::YesNo(_))
                     | (
                         FieldValue::Amount | FieldValue::Percent,
                         SpecValue::Number(_)
@@ -635,6 +638,9 @@ impl FieldFilter {
                     return Err(ModelError::Invalid("missing"));
                 }
                 if !from.iter().chain(to.iter()).all(suits) {
+                    return Err(mismatch);
+                }
+                if matches!(field.value(), FieldValue::YesNo) {
                     return Err(mismatch);
                 }
                 let backwards = match (from, to) {

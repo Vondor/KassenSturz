@@ -307,9 +307,21 @@ fn filters_check_their_values() {
         FieldFilter::new(category, many(51)),
         Err(ModelError::TooBig("values"))
     );
-    // Yes/no fields take no filter in this version.
+    // Yes/no fields take true or false (Q-358), not text, and no range.
     let owed = field("account_balances", "owed");
+    assert!(FieldFilter::new(owed, FilterTest::Equal(SpecValue::YesNo(true))).is_ok());
     assert!(FieldFilter::new(owed, FilterTest::Equal(text("yes"))).is_err());
+    assert!(FieldFilter::new(category, FilterTest::Equal(SpecValue::YesNo(true))).is_err());
+    assert!(
+        FieldFilter::new(
+            owed,
+            FilterTest::Range {
+                from: Some(SpecValue::YesNo(false)),
+                to: None
+            }
+        )
+        .is_err()
+    );
 }
 
 #[test]

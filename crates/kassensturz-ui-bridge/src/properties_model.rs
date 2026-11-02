@@ -561,6 +561,7 @@ mod tests {
                         custom: (!preview.spec.is_empty()).then(|| charts::Custom {
                             spec: preview.spec.clone(),
                             partial: preview.partial,
+                            ..charts::Custom::default()
                         }),
                     };
                     charts::charts(&book, &locale, &request)

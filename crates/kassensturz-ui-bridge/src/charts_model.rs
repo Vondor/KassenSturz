@@ -96,6 +96,14 @@ pub mod qobject {
             chosen: &QString,
         );
 
+        /// Gives the words the screen writes for the answers "yes" and "no"
+        /// in the user's language (D-525). A custom chart marks those
+        /// answers in the names it holds; the next `showCustom` writes the
+        /// words in their place. Empty text means the English words.
+        #[qinvokable]
+        #[cxx_name = "setAnswerWords"]
+        fn set_answer_words(self: Pin<&mut BookCharts>, yes: &QString, no: &QString);
+
         /// Sets the filters the next requests are narrowed by (M6c.7, D-350):
         /// the `scope` text the dashboard's layout gives a component (empty
         /// for none). Call it before `show` or `showWith`; it does not ask
@@ -117,6 +125,7 @@ pub struct BookChartsRust {
     view: QVariant,
     request: Option<Request>,
     scope: Scope,
+    answer_words: (String, String),
 }
 
 impl qobject::BookCharts {
@@ -190,6 +199,10 @@ impl qobject::BookCharts {
         self.refresh();
     }
 
+    fn set_answer_words(mut self: Pin<&mut Self>, yes: &QString, no: &QString) {
+        self.as_mut().rust_mut().answer_words = (yes.to_string(), no.to_string());
+    }
+
     fn show_custom(
         mut self: Pin<&mut Self>,
         spec: &QString,
@@ -206,6 +219,7 @@ impl qobject::BookCharts {
                 .collect()
         };
         let scope = self.rust().scope.clone();
+        let words = self.rust().answer_words.clone();
         self.as_mut().rust_mut().request = Some(Request {
             period: period.to_string(),
             series: id_list(series),
@@ -214,6 +228,8 @@ impl qobject::BookCharts {
             custom: Some(charts::Custom {
                 spec: spec.to_string(),
                 partial,
+                yes: words.0,
+                no: words.1,
             }),
             ..Request::default()
         });
@@ -1277,6 +1293,7 @@ mod tests {
             custom: Some(charts::Custom {
                 spec: spec.into(),
                 partial,
+                ..charts::Custom::default()
             }),
             ..Request::default()
         }
@@ -1308,6 +1325,49 @@ mod tests {
             .collect();
         assert_eq!(paid, ["250000", "250000"]);
         assert_eq!(list_of(chart, "overlays").len(), 1);
+    }
+
+    /// The answers of a yes/no field are written with the screen's words
+    /// (D-525): in the categories, the legend and the table, read back the
+    /// way QML reads the chart; the English words stand until it gives some.
+    #[test]
+    fn the_answers_of_a_yes_no_field_are_written_in_the_screens_words() {
+        const BY_ANSWER: &str = r#"{
+          "data": {"name": "account_balances"},
+          "mark": "bar",
+          "encoding": {
+            "x": {"field": "owed", "type": "nominal"},
+            "y": {"field": "balance", "type": "quantitative"},
+            "color": {"field": "owed", "type": "nominal"}}}"#;
+        let with = |yes: &str, no: &str| {
+            let mut asked = custom(BY_ANSWER, false);
+            if let Some(custom) = asked.custom.as_mut() {
+                custom.yes = yes.into();
+                custom.no = no.into();
+            }
+            view_of(&asked)
+        };
+        let german = with("ja", "nein");
+        let shown = list_of(&german, "charts");
+        let chart = &shown[0];
+        let word = |value: &QVariant| value.value::<QString>().expect("text").to_string();
+        let categories: Vec<String> = list_of(chart, "categories").iter().map(word).collect();
+        assert_eq!(categories, ["nein"]);
+        let series = list_of(chart, "series");
+        assert_eq!(text_of(&series[0], "name"), "nein");
+        let table = object_of(chart, "table");
+        let rows = list_of(&table, "rows");
+        let cells = elements(&rows[0]).expect("a row");
+        assert_eq!(word(&cells[0]), "nein");
+        // Until the screen gives words, they are the English ones.
+        let english = with("", "");
+        let chart = &list_of(&english, "charts")[0];
+        assert_eq!(word(&list_of(chart, "categories")[0]), "no");
+        // No mark is left in what the screen reads.
+        let marks = ['\u{E000}', '\u{E001}'];
+        assert!(!word(&cells[0]).contains(marks));
+        assert!(!word(&list_of(chart, "categories")[0]).contains(marks));
+        assert!(!text_of(&series[0], "name").contains(marks));
     }
 
     /// Parts that are not supported draw nothing until the user chose to

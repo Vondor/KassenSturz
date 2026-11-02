@@ -35,8 +35,8 @@ use kassensturz_report::{Percent, ReportError, TextFormat, TextTable};
 use crate::datasets::{ShownRow, extent, major_unit, round_slices};
 use crate::ticks::{ticks, ticks_with};
 use crate::{
-    ChartError, ChartKind, ChartModel, MAX_DOT_SIZE, Overlay, OverlayItem, OverlayMark,
-    OverlaySeries, Point, Series, Slices, Tick,
+    ANSWER_NO, ANSWER_YES, ChartError, ChartKind, ChartModel, MAX_DOT_SIZE, Overlay, OverlayItem,
+    OverlayMark, OverlaySeries, Point, Series, Slices, Tick,
 };
 
 /// Most rows a chart may use after its filters (D-281), and most points it
@@ -359,7 +359,8 @@ impl<F: TextFormat> Renderer<'_, F> {
                 Some(TimeUnit::YearMonth) => self.format.month(*day),
                 Some(TimeUnit::YearMonthDate) | None => self.format.day(*day),
             },
-            Key::Bool(value) => (if *value { "yes" } else { "no" }).to_owned(),
+            // The screen writes the word in the user's language (D-525).
+            Key::Bool(value) => (if *value { ANSWER_YES } else { ANSWER_NO }).to_string(),
         }
     }
 

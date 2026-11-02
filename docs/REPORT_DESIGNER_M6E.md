@@ -160,7 +160,7 @@ pub struct Unsupported { path: String, reason: &'static str }
 ```
 
 1. **Size:** more than 32 KiB of text gives `report.spec-too-big` with `limit` = `bytes`, before anything is parsed.
-2. **Shape:** the existing raw scan of the document reader (`document::scan`, which finds `too-deep`, `duplicate-key` and `not-json` without building anything) runs with depth 10. A duplicate key is refused because `serde_json` would keep only the last one, so the checks and the drawing could see different specs.
+2. **Shape:** a raw scan finds `too-deep`, `duplicate-key` and `not-json` without building anything, with depth 10. M6e.1 gave it its own copy in `spec/limits.rs` instead of the document reader's `document::scan`, because here it runs before `serde_json` and so must be safe on any text, and because it also records the order of the keys, which `serde_json`'s map sorts, so that the unsupported list follows the text (D-515). A duplicate key is refused because `serde_json` would keep only the last one, so the checks and the drawing could see different specs.
 3. **Parse:** `serde_json::from_str` into a `Value`. Its own recursion limit is never what stops a deep spec; step 2 has already stopped it.
 4. **Walk:** the tree is walked key by key against the subset. A key the subset does not have becomes an `Unsupported` entry, never dropped silently. A key the subset has, but with a wrong value, is `report.spec-invalid` with its reason and path. The counts (layers 4, encodings 8, filters 8, `oneOf` 50, labels 200 characters) are `report.spec-too-big` with their `limit` word. They are checked when each one is reached, so a huge array costs one pass.
 

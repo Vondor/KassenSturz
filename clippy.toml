@@ -4,8 +4,8 @@
 # Hard rule 1 (AGENTS.md §3.1): no floating point for money, prices, exchange
 # rates or quantities. These are the floating-point methods of the libraries
 # KassenSturz uses (jiff: D-061, checked against jiff 0.2.38; rust_decimal:
-# D-051, checked against rust_decimal 1.43.0). The workspace lints make every
-# use an error.
+# D-051, checked against rust_decimal 1.43.0; serde_json: D-506, checked
+# against serde_json 1.0.154). The workspace lints make every use an error.
 #
 # rust_decimal's `TryFrom<f32>`/`TryFrom<f64>` conversions can't be listed
 # here, since `TryFrom::try_from` is shared by every type. They are covered by
@@ -31,6 +31,11 @@ disallowed-methods = [
     { path = "rust_decimal::Decimal::from_f32_retain", reason = "floating point (AGENTS.md §3.1 rule 1)" },
     { path = "rust_decimal::Decimal::from_f64_retain", reason = "floating point (AGENTS.md §3.1 rule 1)" },
     { path = "rust_decimal::Decimal::as_f64", reason = "floating point (AGENTS.md §3.1 rule 1)" },
+    # serde_json keeps a JSON number with a fraction as f64; chart descriptions
+    # read numbers only as whole numbers or from text (D-506).
+    { path = "serde_json::Value::as_f64", reason = "floating point (AGENTS.md §3.1 rule 1, D-506)" },
+    { path = "serde_json::Number::as_f64", reason = "floating point (AGENTS.md §3.1 rule 1, D-506)" },
+    { path = "serde_json::Number::from_f64", reason = "floating point (AGENTS.md §3.1 rule 1, D-506)" },
     # rust_decimal implements these num-traits conversions for Decimal; listed
     # through rust_decimal's re-export, they're blocked for every type.
     { path = "rust_decimal::prelude::FromPrimitive::from_f32", reason = "floating point (AGENTS.md §3.1 rule 1)" },

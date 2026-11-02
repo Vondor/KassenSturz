@@ -236,4 +236,37 @@ mod tests {
             );
         }
     }
+
+    /// A Kirigami `FormLayout` logs "Cannot read property 'isSection' of
+    /// null", "'Accessible' of null" and "Unable to assign [undefined] to
+    /// int" for every row taken out of it (KF 6.x). The properties panel's
+    /// rows came from a Repeater on `fields`, a new array after every change,
+    /// so each change rebuilt them all (M6-B99). Its rows come from a
+    /// `ListModel` that is only ever added to.
+    #[test]
+    fn the_properties_panel_keeps_its_rows() {
+        let panel = qml("PropertiesPanel.qml");
+        assert!(panel.contains("ListModel {\n        id: fieldRows\n"));
+        assert!(panel.contains("model: fieldRows\n"));
+        assert!(!panel.contains("model: panel.fields"));
+        assert!(
+            !panel.contains("fieldRows.remove") && !panel.contains("fieldRows.clear"),
+            "a row taken out of the FormLayout logs errors"
+        );
+    }
+
+    /// `bankUsable()` writes its own cache the first time it is asked, so a
+    /// binding on it read and wrote the same property: "Binding loop
+    /// detected for property bankReady" when the Overview opened (M6-B99).
+    /// Pages set `bankReady` once instead.
+    #[test]
+    fn bank_ready_is_set_once_not_bound() {
+        let main = qml("Main.qml");
+        assert!(!main.contains("bankReady: root.bankUsable()"));
+        assert_eq!(
+            main.matches("Component.onCompleted: bankReady = root.bankUsable()")
+                .count(),
+            3
+        );
+    }
 }

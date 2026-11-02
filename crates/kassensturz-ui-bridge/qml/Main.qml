@@ -1263,7 +1263,6 @@ Kirigami.ApplicationWindow {
             savedSource: savedViews
             groupsSource: categoryGroups
             bank: bankConnection
-            bankReady: root.bankUsable()
             folderUrl: bookSession.folderUrl
             onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
             onAddAccountClicked: root.addAccount(false)
@@ -1272,6 +1271,9 @@ Kirigami.ApplicationWindow {
             onSetBudgetClicked: root.pushPage(budgetPage, { categoryId: "" })
             onDashboardFileChosen: file => root.pushPage(dashboardFilePage, { file: file })
             onConnectBankClicked: root.pushPage(bankSetupPage)
+            // Set once, not bound: bankUsable() writes its own cache, so a
+            // binding read and wrote the same property (M6-B99).
+            Component.onCompleted: bankReady = root.bankUsable()
         }
     }
 

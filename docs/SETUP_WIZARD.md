@@ -134,6 +134,18 @@ The real overview, with one dismissible message at the top, shown only in the se
 - A second household: Settings › **Start a new book…** makes a new, empty book, and every empty book opens with the wizard.
 - A book started in the wizard can always be extended later from the normal screens (accounts, import, bank); nothing the wizard does is only possible there.
 
+### A test never touches the real setup (Q-399)
+
+In a test the example is the book. A test must still never touch the setup of whoever runs it on their own computer, so a test runs in a **test profile** of its own.
+
+- **When:** the app starts in the test profile when `KASSENSTURZ_FAKE_BANK` is set, as in the command the maintainer starts tests with (with `KASSENSTURZ_DEBUG_LOG=1`). A fake bank has no business in a real book. It also starts in the test profile with a new, explicit `KASSENSTURZ_TEST=1`, for a test without the fake bank. `KASSENSTURZ_DEBUG_LOG` alone doesn't switch the profile, because it is also used to look into a problem with a real book.
+- **What is separate:** the app's own book and every book it makes there (the example included), its backups and lock files, the settings file (`kassensturzrc`: language, last book, number format, AI switch), and the list of recent books. All of these are found through Qt's standard folders (`platform::app_folder()`, and KConfig's `Settings::user()`). So the profile switches them in one place, before anything reads them: `main` turns on Qt's own test locations (`QStandardPaths::setTestModeEnabled`, which works the same on Linux, inside the Flatpak and on Windows). Examples follow automatically, because M7a.2's `ExampleBooks.make` finds its folder only through those two.
+- **Keychain and bank:** in the test profile no PIN or key is ever saved to the system keychain or KeePassXC. PINs stay in memory, as the fake bank already does with `KASSENSTURZ_FAKE_BANK=1`. Real AqBanking logins are not offered.
+- **Visible:** every page in the test profile shows a banner saying this is a test with its own folder, and that the user's own books and settings are not touched. The banner names the folder.
+- **Starting fresh:** deleting the test folder resets every test. No real file is ever involved.
+
+The build part adds a test that starts the bridge in the test profile and checks that the book folder and the settings file both resolve inside the test location.
+
 ## 5. Words
 
 The wizard reuses the existing translated strings where they fit (account kinds and hints, the currency question, the balance hint) and adds about 30 new ones, all through KI18n with German entries. New terms checked against `docs/GLOSSARY.md`: "household book" (*Haushaltsbuch*, as the app already calls a book in German) and "example book" (*Beispiel-Haushaltsbuch*). The German form is "Sie", as in the rest of the app.
@@ -160,7 +172,7 @@ No new table, column, user action or app setting:
 
 ## 8. Open questions for the maintainer
 
-Asked one at a time in the project chat. Answers so far: **Q-395, Q-396 and Q-397 as recommended (R); Q-398 as recommended plus a gate** (the wizard's bank offer stays switched off until the maintainer has tested the bank flow in the finished app himself); **Q-399 option B** (the example becomes the book). All five are answered.
+Asked one at a time in the project chat. Answers so far: **Q-395, Q-396 and Q-397 as recommended (R); Q-398 as recommended plus a gate** (the wizard's bank offer stays switched off until the maintainer has tested the bank flow in the finished app himself); **Q-399 option B** (in a test the example becomes the book), in a test profile kept apart from the real setup (section 4). All five are answered.
 
 - **Q-395 Language change on page 1.** R: restart KassenSturz by itself on *Continue*, since nothing has been typed yet. B: keep D-127's behaviour ("applies the next time you start"), which leaves the rest of the wizard in the old language. C: no language choice in the wizard; Settings only.
 - **Q-396 Order on page 2.** R: "My own accounts" first, the example book second, all three of equal size. B: the example book first, since every tester starts there. C: the example book as the one large button, the others smaller.

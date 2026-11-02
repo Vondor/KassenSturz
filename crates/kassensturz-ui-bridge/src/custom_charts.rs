@@ -55,6 +55,11 @@ fn describe(custom: &Custom) -> Result<Described, ReportError> {
     }
 }
 
+/// The screen's word, or the English one while the screen has given none.
+fn word<'a>(given: &'a str, english: &'a str) -> &'a str {
+    if given.is_empty() { english } else { given }
+}
+
 /// The tables of the dataset the description names, one per currency, in
 /// the order of the currency codes, made with the filters of the request.
 fn tables(
@@ -154,6 +159,7 @@ pub fn custom_charts(
     let spec = &described.chart;
     let (tables, filter, missing) = tables(book, locale, request, spec.dataset().id())?;
     let text = AppText::new(book, locale);
+    let (yes, no) = (word(&custom.yes, "yes"), word(&custom.no, "no"));
     let mut charts = Vec::new();
     let (mut title, mut description) = (String::new(), String::new());
     for table in &tables {
@@ -164,8 +170,11 @@ pub fn custom_charts(
             title = drawn.title.clone().unwrap_or_default();
             description = drawn.description.clone().unwrap_or_default();
         }
-        let prepared = QuickCharts.prepare(&drawn.chart)?;
-        charts.push((drawn.chart, prepared));
+        // The marks of the yes/no answers become the screen's words (D-525).
+        let mut chart = drawn.chart;
+        chart.write_answers(yes, no);
+        let prepared = QuickCharts.prepare(&chart)?;
+        charts.push((chart, prepared));
     }
     Ok(ChartSet {
         charts,

@@ -16742,3 +16742,15 @@ msgstr "Ohne diese zeichnen"
 msgctxt "@action:button stop leaving out the parts that are not supported"
 msgid "Don't leave them out"
 msgstr "Nicht weglassen"
+
+#: crates/kassensturz-ui-bridge/qml/ComponentPreview.qml:144
+#, kde-format
+msgctxt "@label the answer yes of a yes/no field, in a chart's names"
+msgid "yes"
+msgstr "ja"
+
+#: crates/kassensturz-ui-bridge/qml/ComponentPreview.qml:145
+#, kde-format
+msgctxt "@label the answer no of a yes/no field, in a chart's names"
+msgid "no"
+msgstr "nein"

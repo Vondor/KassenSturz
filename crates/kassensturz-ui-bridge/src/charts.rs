@@ -82,6 +82,11 @@ pub struct Custom {
     pub spec: String,
     /// `props.partial`.
     pub partial: bool,
+    /// The screen's words for the answers "yes" and "no" in the user's
+    /// language (D-525); empty for the English words.
+    pub yes: String,
+    /// See `yes`.
+    pub no: String,
 }
 
 /// What a request gave: the charts, and how many of the IDs it named the

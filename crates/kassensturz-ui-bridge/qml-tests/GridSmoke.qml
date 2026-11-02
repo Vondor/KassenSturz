@@ -201,8 +201,9 @@ Kirigami.ApplicationWindow {
                 const kinds = addMenu.groups.filter(group => !group.rows[0].saved).reduce((all, group) => all.concat(group.rows), []).length;
                 // 17 kinds, the 5 that start with the data of the accounts (M6c.2),
                 // the period header and the filter bar the page lacks (M6d.8),
-                // and Update all accounts, always offered (D-497).
-                window.check(kinds === 25, "every kind of widget is in a group: " + kinds);
+                // Update all accounts, always offered (D-497), and the custom
+                // chart (M6e.3).
+                window.check(kinds === 26, "every kind of widget is in a group: " + kinds);
                 const withData = addMenu.groups.reduce((all, group) => all.concat(group.rows), []).filter(row => row.dataset !== undefined && row.dataset !== "").map(row => row.id).sort();
                 window.check(withData.join() === "chart.bar/cash_flow_by_month,chart.line/net_worth_over_time,kpi.card/account_balances,table.rows/account_balances,table.rows/cash_flow_by_month", "the widgets with data of their own: " + withData);
                 window.check(addMenu.count === 6, "one submenu for each group: " + addMenu.count);

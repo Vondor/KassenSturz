@@ -184,6 +184,13 @@ pub enum ReportError {
         /// Where in the description.
         path: String,
     },
+    /// A custom chart has parts that are not supported here and its owner
+    /// has not chosen to draw it without them (D-508); nothing is drawn
+    /// until they do.
+    SpecUnsupported {
+        /// How many parts are not supported.
+        count: usize,
+    },
     /// The book couldn't be read, or a total doesn't fit.
     Store(StoreError),
 }
@@ -306,6 +313,9 @@ impl Report for ReportError {
             Self::SpecInvalid { reason, path } => ErrorReport::new("report.spec-invalid")
                 .with("reason", ErrorParam::Keyword(reason))
                 .with("path", ErrorParam::Text(path.clone())),
+            Self::SpecUnsupported { count } => {
+                ErrorReport::new("report.spec-unsupported").with("count", ErrorParam::count(*count))
+            }
             Self::Store(error) => {
                 ErrorReport::new("report.book-unreadable").caused_by(error.report())
             }
@@ -401,6 +411,7 @@ mod tests {
                 reason: "fraction-number",
                 path: "transform[0].filter.equal".into(),
             },
+            ReportError::SpecUnsupported { count: 2 },
             ReportError::Store(StoreError::AmountOverflow),
         ] {
             let report = error.report();

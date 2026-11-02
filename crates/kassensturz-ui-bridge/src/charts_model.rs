@@ -78,6 +78,24 @@ pub mod qobject {
             show_hidden: bool,
         );
 
+        /// Shows a custom chart (M6e.3): `spec` is the description exactly as
+        /// the user wrote it, `partial` whether to leave out the parts that
+        /// are not supported here (D-508), `period` as for `show`. `chosen`
+        /// holds the choices of the dataset the description names (Q-353):
+        /// the IDs of the series of a chart over time, then `;` and the IDs
+        /// of the categories whose budgets are shown, each list separated by
+        /// commas. The description is read again on every call, so the
+        /// result is never older than the text.
+        #[qinvokable]
+        #[cxx_name = "showCustom"]
+        fn show_custom(
+            self: Pin<&mut BookCharts>,
+            spec: &QString,
+            partial: bool,
+            period: &QString,
+            chosen: &QString,
+        );
+
         /// Sets the filters the next requests are narrowed by (M6c.7, D-350):
         /// the `scope` text the dashboard's layout gives a component (empty
         /// for none). Call it before `show` or `showWith`; it does not ask
@@ -167,6 +185,37 @@ impl qobject::BookCharts {
             show_hidden,
             columns,
             scope,
+            custom: None,
+        });
+        self.refresh();
+    }
+
+    fn show_custom(
+        mut self: Pin<&mut Self>,
+        spec: &QString,
+        partial: bool,
+        period: &QString,
+        chosen: &QString,
+    ) {
+        let chosen = chosen.to_string();
+        let (series, categories) = chosen.split_once(';').unwrap_or((&chosen, ""));
+        let id_list = |text: &str| -> Vec<String> {
+            text.split(',')
+                .filter(|id| !id.is_empty())
+                .map(str::to_owned)
+                .collect()
+        };
+        let scope = self.rust().scope.clone();
+        self.as_mut().rust_mut().request = Some(Request {
+            period: period.to_string(),
+            series: id_list(series),
+            categories: id_list(categories),
+            scope,
+            custom: Some(charts::Custom {
+                spec: spec.to_string(),
+                partial,
+            }),
+            ..Request::default()
         });
         self.refresh();
     }
@@ -397,6 +446,11 @@ pub(crate) fn error_object(error: &ChartsError) -> QVariant {
     let params = report.params.iter().map(|(name, value)| {
         let shown = match value {
             ErrorParam::Keyword(word) => (*word).to_owned(),
+            // How many parts of a description are not supported (M6e.3).
+            ErrorParam::Number(number) => number.to_string(),
+            // Where in a description something is wrong: the user's own
+            // words, shown as plain text and never as a message (D-034).
+            ErrorParam::Text(path) if *name == "path" => path.clone(),
             _ => String::new(),
         };
         (*name, text(&shown))
@@ -445,6 +499,10 @@ fn view_object(result: &Result<ChartSet, ChartsError>) -> QVariant {
                 ),
             ),
             ("filter", set.filter.object()),
+            // What a custom chart's description calls itself (M6e.3): the
+            // user's own text, empty for a built-in chart.
+            ("title", text(&set.title)),
+            ("description", text(&set.description)),
         ]),
         Err(error) => error_object(error),
     }
@@ -550,10 +608,21 @@ mod tests {
         let view = view_of(&request("spending_by_category", "pie"));
         assert_eq!(
             keys(&view),
-            ["charts", "empty", "filter", "missing", "shared", "totals"]
+            [
+                "charts",
+                "description",
+                "empty",
+                "filter",
+                "missing",
+                "shared",
+                "title",
+                "totals"
+            ]
         );
         assert_eq!(number_of(&view, "missing"), 0);
         assert!(!flag_of(&view, "empty"));
+        // A built-in chart has no description of its own.
+        assert_eq!(text_of(&view, "title"), "");
         let shown = list_of(&view, "charts");
         assert_eq!(shown.len(), 1);
         let chart = &shown[0];
@@ -1186,5 +1255,128 @@ mod tests {
         // A built-in chart has an empty list, not a missing key.
         let built_in = view_of(&request("spending_by_category", "bar"));
         assert!(list_of(&list_of(&built_in, "charts")[0], "overlays").is_empty());
+    }
+
+    /// A hand-written description of the monthly dataset: bars of what came
+    /// in, a title and a line at the mean.
+    const MONTHLY: &str = r#"{
+      "title": "Money in",
+      "description": "What came in each month",
+      "data": {"name": "income_expense_by_month"},
+      "layer": [
+        {"mark": "bar", "encoding": {
+          "x": {"field": "month", "type": "temporal", "timeUnit": "yearmonth"},
+          "y": {"field": "income", "type": "quantitative"}}},
+        {"mark": "rule", "encoding": {
+          "y": {"field": "income", "type": "quantitative", "aggregate": "mean"}}}
+      ]}"#;
+
+    fn custom(spec: &str, partial: bool) -> Request {
+        Request {
+            period: "last-12-months".into(),
+            custom: Some(charts::Custom {
+                spec: spec.into(),
+                partial,
+            }),
+            ..Request::default()
+        }
+    }
+
+    /// The description is read by the real parser, the dataset is the real
+    /// one made from the book, and the renderer draws it: the chart reads
+    /// back the way QML reads it, with the title of the description.
+    #[test]
+    fn a_custom_chart_is_drawn_from_its_description_and_the_books_real_data() {
+        let view = view_of(&custom(MONTHLY, false));
+        assert!(!flag_of(&view, "empty"));
+        assert_eq!(text_of(&view, "title"), "Money in");
+        assert_eq!(text_of(&view, "description"), "What came in each month");
+        let shown = list_of(&view, "charts");
+        assert_eq!(shown.len(), 1);
+        let chart = &shown[0];
+        assert_eq!(text_of(chart, "dataset"), "income_expense_by_month");
+        assert_eq!(text_of(chart, "currency"), "EUR");
+        // The two months with a salary: 2 x 2,500.00.
+        let series = list_of(chart, "series");
+        let points = list_of(&series[0], "points");
+        // Every month of the period is a point; two of them hold the salary.
+        assert_eq!(points.len(), 12);
+        let paid: Vec<String> = points
+            .iter()
+            .map(|point| text_of(point, "minorUnits"))
+            .filter(|units| units != "0")
+            .collect();
+        assert_eq!(paid, ["250000", "250000"]);
+        assert_eq!(list_of(chart, "overlays").len(), 1);
+    }
+
+    /// Parts that are not supported draw nothing until the user chose to
+    /// leave them out (D-508), and the placeholder has the count.
+    #[test]
+    fn parts_that_are_not_supported_are_drawn_only_when_chosen() {
+        let with_expression = MONTHLY.replacen(
+            r#""data":"#,
+            r#""transform": [{"calculate": "datum.income * 2", "as": "double"}], "data":"#,
+            1,
+        );
+        let view = view_of(&custom(&with_expression, false));
+        let error = object_of(&view, "error");
+        assert_eq!(text_of(&error, "code"), "report.spec-unsupported");
+        assert_eq!(text_of(&error, "count"), "1");
+        let drawn = view_of(&custom(&with_expression, true));
+        assert_eq!(list_of(&drawn, "charts").len(), 1);
+        assert_eq!(text_of(&drawn, "title"), "Money in");
+    }
+
+    /// A description that is refused, or that can't be drawn, gives its code
+    /// and the place, never a message (D-034).
+    #[test]
+    fn a_description_that_is_refused_gives_its_code_and_place() {
+        let view = view_of(&custom("{\"data\": ", false));
+        let error = object_of(&view, "error");
+        assert_eq!(keys(&error), ["code", "path", "reason"]);
+        assert_eq!(text_of(&error, "code"), "report.spec-invalid");
+        assert_eq!(text_of(&error, "reason"), "not-json");
+        let view = view_of(&custom(
+            &MONTHLY.replace(
+                "\"income\", \"type\": \"quantitative\"}}}",
+                "\"nope\", \"type\": \"quantitative\"}}}",
+            ),
+            false,
+        ));
+        let error = object_of(&view, "error");
+        assert_eq!(text_of(&error, "reason"), "unknown-field");
+        assert!(
+            text_of(&error, "path").contains("layer[0]"),
+            "{}",
+            text_of(&error, "path")
+        );
+        // Too many rows are refused with the code of the limit.
+        let big = format!("{{\"title\": \"{}\"}}", "x".repeat(40_000));
+        let view = view_of(&custom(&big, false));
+        let error = object_of(&view, "error");
+        assert_eq!(text_of(&error, "code"), "report.spec-too-big");
+        assert_eq!(text_of(&error, "limit"), "bytes");
+    }
+
+    /// The series of a chart over time reach the description's dataset, and
+    /// an id the book does not know is counted (Q-353).
+    #[test]
+    fn the_series_a_user_picked_reach_a_chart_over_time() {
+        let over_time = r#"{"data": {"name": "category_over_time"}, "mark": "line",
+          "encoding": {"x": {"field": "month", "type": "temporal", "timeUnit": "yearmonth"},
+          "y": {"field": "total", "type": "quantitative"},
+          "color": {"field": "series", "type": "nominal"}}}"#;
+        let book = book();
+        let rent = category_id(&book, "Rent");
+        let mut request = custom(over_time, false);
+        request.series = vec![rent.to_string(), "not-an-id".into()];
+        let view = view_object(&charts::charts(&book, &TestLocale, &request));
+        assert_eq!(number_of(&view, "missing"), 1);
+        let chart = &list_of(&view, "charts")[0];
+        assert_eq!(text_of(chart, "dataset"), "category_over_time");
+        let series = list_of(chart, "series");
+        assert_eq!(series.len(), 1);
+        assert_eq!(text_of(&series[0], "name"), "Rent");
     }
 }

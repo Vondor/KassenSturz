@@ -99,6 +99,8 @@ ColumnLayout {
             return i18nContext.i18nc("@label:textbox a title above a chart", "Title");
         case "text":
             return i18nContext.i18nc("@label:textbox the words of a heading in the layout", "Text");
+        case "spec":
+            return i18nContext.i18nc("@label:textbox the text that describes a custom chart", "Chart description");
         case "groups":
             return i18nContext.i18nc("@label which of My groups a chart shows", "Groups to show");
         case "categories":
@@ -189,7 +191,7 @@ ColumnLayout {
             return (book.accounts ?? []).map(account => ({id: account.id, name: account.closed ? i18nContext.i18nc("@option:check %1 is the name of a closed account", "%1 (closed)", account.name) : account.name}));
         }
         // A budget belongs to a category, not to a group (D-357).
-        const forBudgets = view.preview?.shows === "budget-progress";
+        const forBudgets = view.preview?.shows === "budget-progress" || view.dataset === "budget_utilization";
         const groups = (forBudgets ? [] : book.groups ?? [])
             .filter(group => (key !== "groups" && key !== "categories") || !group.income)
             .map(group => ({id: group.id, name: i18nContext.i18nc("@option:check %1 is the name of a group", "%1 (group)", group.name)}));
@@ -267,11 +269,12 @@ ColumnLayout {
                     && !(panel.hasColumns && ["categories", "series", "groups"].includes(modelData.key))
                 active: visible
                 Kirigami.FormData.label: modelData.kind === "flag" ? "" : panel.fieldLabel(modelData.key)
-                Kirigami.FormData.labelAlignment: modelData.kind === "ids" || modelData.kind === "formula" ? Qt.AlignTop : Qt.AlignVCenter
+                Kirigami.FormData.labelAlignment: modelData.kind === "ids" || modelData.kind === "formula" || modelData.kind === "spec" ? Qt.AlignTop : Qt.AlignVCenter
                 Layout.fillWidth: true
                 sourceComponent: modelData.kind === "text" ? textField
                     : modelData.kind === "flag" ? flagBox
                     : modelData.kind === "formula" ? formulaBox
+                    : modelData.kind === "spec" ? specBox
                     : modelData.kind === "ids" ? idsBox : choiceBox
 
                 Component {
@@ -342,6 +345,16 @@ ColumnLayout {
                             opacity: 0.75
                             text: panel.i18nContext.i18nc("@info %1 is the title as it is shown", "Shown as: %1", panel.titleWords.resolve(entry.text, panel.period))
                         }
+                    }
+                }
+
+                Component {
+                    id: specBox
+
+                    SpecPage {
+                        model: panel.model
+                        stored: row.modelData.text
+                        partial: panel.view.preview?.partial ?? false
                     }
                 }
 

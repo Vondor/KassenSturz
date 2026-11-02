@@ -39,6 +39,56 @@ Kirigami.InlineMessage {
             : i18nContext.i18nc("@info %1 is the number of a part of a transaction, %2 a message about it", "Part %1: %2", result.part, message);
     }
 
+    // Why a chart description can't be read, at the place it names. The
+    // place is the user's own text and is shown as it is (D-034).
+    function specInvalid(result: var): string {
+        const at = result.path ?? "";
+        const place = at === "" ? "" : " " + i18nContext.i18nc("@info %1 is a place in a chart description, as text from it", "(at %1)", at);
+        switch (result.reason) {
+        case "not-json":
+            return i18nContext.i18nc("@info", "This isn't a chart description: it isn't valid JSON text. Check the brackets, quotes and commas.") + place;
+        case "not-utf8":
+            return i18nContext.i18nc("@info", "This file isn't plain UTF-8 text, so it can't be read. Save it as UTF-8 and open it again.");
+        case "unreadable":
+            return i18nContext.i18nc("@info", "This file can't be read. Check that it is an ordinary file you may open.");
+        case "not-an-object":
+            return i18nContext.i18nc("@info", "A chart description is one object: it starts with { and ends with }.");
+        case "duplicate-key":
+            return i18nContext.i18nc("@info", "The same name is written twice in one place, so it is not clear which one counts. Keep only one of them.") + place;
+        case "bad-schema":
+            return i18nContext.i18nc("@info", "The $schema line must be an address that starts with https://vega.github.io/schema/vega-lite/. It is only checked, never opened.") + place;
+        case "missing":
+            return i18nContext.i18nc("@info", "Something this chart needs is missing. Add it.") + place;
+        case "wrong-type":
+            return i18nContext.i18nc("@info", "A value here is of the wrong kind, for example text where a number is needed. Change it.") + place;
+        case "bad-choice":
+            return i18nContext.i18nc("@info", "This word is not one KassenSturz knows here. Use one of the words the Vega-Lite documentation lists for it.") + place;
+        case "unknown-dataset":
+            return i18nContext.i18nc("@info", "The data name is not one of the data a chart of your book can show. Use one of the names in the description's help.") + place;
+        case "unknown-field":
+            return i18nContext.i18nc("@info", "The data you named has no such field. Use one of its fields.") + place;
+        case "type-mismatch":
+            return i18nContext.i18nc("@info", "The type does not fit this field: amounts and percents are quantitative, days are temporal, names and yes or no are nominal. Change the type.") + place;
+        case "bad-channel-for-mark":
+            return i18nContext.i18nc("@info", "This mark does not take this encoding. Take it out or use another mark.") + place;
+        case "layers-differ":
+            return i18nContext.i18nc("@info", "The layers of this chart do not fit together: they must use the same kind of axis. Change one of them.") + place;
+        case "bad-aggregate":
+            return i18nContext.i18nc("@info", "This way of adding up does not fit the field: percents can only be counted, or the smallest or largest taken. Change it.") + place;
+        case "fraction-number":
+            return i18nContext.i18nc("@info", "A number with decimals must be written in quotes, such as \"12.50\", so it is read exactly. Put it in quotes.") + place;
+        case "bad-number":
+            return i18nContext.i18nc("@info", "This is not a number KassenSturz can read here. Change it.") + place;
+        case "bad-date":
+            return i18nContext.i18nc("@info", "A date is written like \"2026-01-31\" (year, month, day). Change it.") + place;
+        case "bad-text":
+            return i18nContext.i18nc("@info", "This text has characters that can't be used here. Change it.") + place;
+        case "nothing-to-draw":
+            return i18nContext.i18nc("@info", "There is nothing to draw: a chart needs data from your book, a mark and what the mark shows. Add what is missing.") + place;
+        }
+        return i18nContext.i18nc("@info", "This chart description can't be used. Check it against the Vega-Lite documentation.") + place;
+    }
+
     // A message about the target of a progress bar says so (M6b.7).
     function withTarget(result: var, message: string): string {
         return result.target === undefined
@@ -364,6 +414,32 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "The target and the formula must be the same kind of figure: amounts in one currency, percents or plain numbers. Change the target.");
         case "report.formula-too-big":
             return i18nContext.i18nc("@info", "This formula is bigger than KassenSturz works out: at most 1,000 characters, 500 parts, 16 brackets or calls inside each other, 30 parts in a call, 64 names and 8 different periods. Make it smaller.");
+        case "report.spec-unsupported":
+            return i18nContext.i18ncp("@info %1 is how many parts", "%1 part of this chart description isn't supported here, so the chart isn't drawn. Select the chart and open its properties to see which part, then choose to draw it without it, or change the description.", "%1 parts of this chart description aren't supported here, so the chart isn't drawn. Select the chart and open its properties to see which parts, then choose to draw it without them, or change the description.", Number(result.count));
+        case "report.spec-too-big":
+            switch (result.limit) {
+            case "bytes":
+                return i18nContext.i18nc("@info", "This chart description is longer than 32 KiB, so it can't be used. Make it shorter.");
+            case "depth":
+                return i18nContext.i18nc("@info", "This chart description has more than 10 brackets inside each other, so it can't be used. Flatten it.");
+            case "layers":
+                return i18nContext.i18nc("@info", "This chart description has more than 4 layers, so it can't be used. Take some layers out.");
+            case "encodings":
+                return i18nContext.i18nc("@info", "A layer of this chart description shows more than 8 things (x, y, color and so on), so it can't be used. Take some out.");
+            case "filters":
+                return i18nContext.i18nc("@info", "This chart description has more than 8 filters, so it can't be used. Take some out.");
+            case "values":
+                return i18nContext.i18nc("@info", "A list in this chart description has more than 50 values, or more than 8 colors, so it can't be used. Make the list shorter.");
+            case "label":
+                return i18nContext.i18nc("@info", "A text in this chart description is longer than 200 characters, so it can't be used. Make it shorter.");
+            case "rows":
+                return i18nContext.i18nc("@info", "This chart would use more than 10,000 rows of your book. Narrow it down with a filter in the description or choose a shorter period.");
+            case "series":
+                return i18nContext.i18nc("@info", "This chart would have more than 50 series or slices. Narrow it down with a filter in the description.");
+            }
+            return i18nContext.i18nc("@info", "This chart description is bigger than KassenSturz reads, so it can't be used. Make it smaller.");
+        case "report.spec-invalid":
+            return specInvalid(result);
         case "store.empty-rule-name":
             return i18nContext.i18nc("@info", "Give the Rule a name.");
         case "store.duplicate-rule-name":

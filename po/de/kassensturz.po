@@ -16238,3 +16238,507 @@ msgstr "Wert"
 msgctxt "@label %1 is a series of a custom chart, %2 its value or text there"
 msgid "%1: %2"
 msgstr "%1: %2"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:46
+#, kde-format
+msgctxt "@info %1 is a place in a chart description, as text from it"
+msgid "(at %1)"
+msgstr "(bei %1)"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:49
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This isn't a chart description: it isn't valid JSON text. Check the "
+"brackets, quotes and commas."
+msgstr ""
+"Das ist keine Diagrammbeschreibung: Es ist kein gültiger JSON-Text. Prüfen "
+"Sie Klammern, Anführungszeichen und Kommas."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:51
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This file isn't plain UTF-8 text, so it can't be read. Save it as UTF-8 and "
+"open it again."
+msgstr ""
+"Diese Datei ist kein einfacher UTF-8-Text und kann deshalb nicht gelesen "
+"werden. Speichern Sie sie als UTF-8 und öffnen Sie sie erneut."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:53
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This file can't be read. Check that it is an ordinary file you may open."
+msgstr ""
+"Diese Datei kann nicht gelesen werden. Prüfen Sie, ob es eine gewöhnliche "
+"Datei ist, die Sie öffnen dürfen."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:55
+#, kde-format
+msgctxt "@info"
+msgid "A chart description is one object: it starts with { and ends with }."
+msgstr ""
+"Eine Diagrammbeschreibung ist ein einziges Objekt: Sie beginnt mit { und "
+"endet mit }."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:57
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The same name is written twice in one place, so it is not clear which one "
+"counts. Keep only one of them."
+msgstr ""
+"Derselbe Name steht an einer Stelle zweimal, daher ist nicht klar, welcher "
+"gilt. Behalten Sie nur einen davon."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:59
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The $schema line must be an address that starts with "
+"https://vega.github.io/schema/vega-lite/. It is only checked, never opened."
+msgstr ""
+"Die Zeile $schema muss eine Adresse sein, die mit "
+"https://vega.github.io/schema/vega-lite/ beginnt. Sie wird nur geprüft und "
+"nie geöffnet."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:61
+#, kde-format
+msgctxt "@info"
+msgid "Something this chart needs is missing. Add it."
+msgstr "Etwas, das dieses Diagramm braucht, fehlt. Fügen Sie es hinzu."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:63
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A value here is of the wrong kind, for example text where a number is "
+"needed. Change it."
+msgstr ""
+"Ein Wert hier hat die falsche Art, zum Beispiel Text, wo eine Zahl nötig "
+"ist. Ändern Sie ihn."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:65
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This word is not one KassenSturz knows here. Use one of the words the Vega-"
+"Lite documentation lists for it."
+msgstr ""
+"Dieses Wort kennt KassenSturz hier nicht. Verwenden Sie eines der Wörter, "
+"die die Vega-Lite-Dokumentation dafür nennt."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:67
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The data name is not one of the data a chart of your book can show. Use one "
+"of the names in the description's help."
+msgstr ""
+"Der Datenname gehört nicht zu den Daten, die ein Diagramm Ihres Buchs zeigen"
+" kann. Verwenden Sie einen der Namen aus der Hilfe zur Beschreibung."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:69
+#, kde-format
+msgctxt "@info"
+msgid "The data you named has no such field. Use one of its fields."
+msgstr ""
+"Die genannten Daten haben kein solches Feld. Verwenden Sie eines ihrer "
+"Felder."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:71
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The type does not fit this field: amounts and percents are quantitative, "
+"days are temporal, names and yes or no are nominal. Change the type."
+msgstr ""
+"Die Art passt nicht zu diesem Feld: Beträge und Prozente sind "
+"„quantitative“, Tage „temporal“, Namen und Ja oder Nein „nominal“. Ändern "
+"Sie die Art."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:73
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This mark does not take this encoding. Take it out or use another mark."
+msgstr ""
+"Diese Markierung nimmt diese Zuordnung nicht an. Nehmen Sie sie heraus oder "
+"verwenden Sie eine andere Markierung."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:75
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The layers of this chart do not fit together: they must use the same kind of"
+" axis. Change one of them."
+msgstr ""
+"Die Ebenen dieses Diagramms passen nicht zusammen: Sie müssen dieselbe Art "
+"von Achse verwenden. Ändern Sie eine davon."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:77
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This way of adding up does not fit the field: percents can only be counted, "
+"or the smallest or largest taken. Change it."
+msgstr ""
+"Diese Art der Summe passt nicht zum Feld: Prozente können nur gezählt "
+"werden, oder man nimmt den kleinsten oder größten Wert. Ändern Sie sie."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:79
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A number with decimals must be written in quotes, such as \"12.50\", so it "
+"is read exactly. Put it in quotes."
+msgstr ""
+"Eine Zahl mit Nachkommastellen muss in Anführungszeichen stehen, etwa "
+"\"12.50\", damit sie genau gelesen wird. Setzen Sie sie in "
+"Anführungszeichen."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:81
+#, kde-format
+msgctxt "@info"
+msgid "This is not a number KassenSturz can read here. Change it."
+msgstr "Das ist keine Zahl, die KassenSturz hier lesen kann. Ändern Sie sie."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:83
+#, kde-format
+msgctxt "@info"
+msgid "A date is written like \"2026-01-31\" (year, month, day). Change it."
+msgstr ""
+"Ein Datum wird so geschrieben: \"2026-01-31\" (Jahr, Monat, Tag). Ändern Sie"
+" es."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:85
+#, kde-format
+msgctxt "@info"
+msgid "This text has characters that can't be used here. Change it."
+msgstr ""
+"Dieser Text enthält Zeichen, die hier nicht verwendet werden können. Ändern "
+"Sie ihn."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:87
+#, kde-format
+msgctxt "@info"
+msgid ""
+"There is nothing to draw: a chart needs data from your book, a mark and what"
+" the mark shows. Add what is missing."
+msgstr ""
+"Es gibt nichts zu zeichnen: Ein Diagramm braucht Daten aus Ihrem Buch, eine "
+"Markierung und das, was die Markierung zeigt. Fügen Sie hinzu, was fehlt."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:89
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This chart description can't be used. Check it against the Vega-Lite "
+"documentation."
+msgstr ""
+"Diese Diagrammbeschreibung kann nicht verwendet werden. Prüfen Sie sie "
+"anhand der Vega-Lite-Dokumentation."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:418
+#, kde-format
+msgctxt "@info %1 is how many parts"
+msgid ""
+"%1 part of this chart description isn't supported here, so the chart isn't "
+"drawn. Select the chart and open its properties to see which part, then "
+"choose to draw it without it, or change the description."
+msgid_plural ""
+"%1 parts of this chart description aren't supported here, so the chart isn't"
+" drawn. Select the chart and open its properties to see which parts, then "
+"choose to draw it without them, or change the description."
+msgstr[0] ""
+"%1 Teil dieser Diagrammbeschreibung wird hier nicht unterstützt, daher wird "
+"das Diagramm nicht gezeichnet. Wählen Sie das Diagramm aus und öffnen Sie "
+"seine Eigenschaften, um zu sehen, welcher Teil es ist. Dann können Sie es "
+"ohne ihn zeichnen lassen oder die Beschreibung ändern."
+msgstr[1] ""
+"%1 Teile dieser Diagrammbeschreibung werden hier nicht unterstützt, daher "
+"wird das Diagramm nicht gezeichnet. Wählen Sie das Diagramm aus und öffnen "
+"Sie seine Eigenschaften, um zu sehen, welche Teile es sind. Dann können Sie "
+"es ohne sie zeichnen lassen oder die Beschreibung ändern."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:422
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This chart description is longer than 32 KiB, so it can't be used. Make it "
+"shorter."
+msgstr ""
+"Diese Diagrammbeschreibung ist länger als 32 KiB und kann deshalb nicht "
+"verwendet werden. Kürzen Sie sie."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:424
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This chart description has more than 10 brackets inside each other, so it "
+"can't be used. Flatten it."
+msgstr ""
+"Diese Diagrammbeschreibung hat mehr als 10 ineinander verschachtelte "
+"Klammern und kann deshalb nicht verwendet werden. Verschachteln Sie weniger "
+"tief."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:426
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This chart description has more than 4 layers, so it can't be used. Take "
+"some layers out."
+msgstr ""
+"Diese Diagrammbeschreibung hat mehr als 4 Ebenen und kann deshalb nicht "
+"verwendet werden. Nehmen Sie einige Ebenen heraus."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:428
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A layer of this chart description shows more than 8 things (x, y, color and "
+"so on), so it can't be used. Take some out."
+msgstr ""
+"Eine Ebene dieser Diagrammbeschreibung zeigt mehr als 8 Dinge (x, y, Farbe "
+"und so weiter) und kann deshalb nicht verwendet werden. Nehmen Sie einige "
+"heraus."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:430
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This chart description has more than 8 filters, so it can't be used. Take "
+"some out."
+msgstr ""
+"Diese Diagrammbeschreibung hat mehr als 8 Filter und kann deshalb nicht "
+"verwendet werden. Nehmen Sie einige heraus."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:432
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A list in this chart description has more than 50 values, or more than 8 "
+"colors, so it can't be used. Make the list shorter."
+msgstr ""
+"Eine Liste in dieser Diagrammbeschreibung hat mehr als 50 Werte oder mehr "
+"als 8 Farben und kann deshalb nicht verwendet werden. Kürzen Sie die Liste."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:434
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A text in this chart description is longer than 200 characters, so it can't "
+"be used. Make it shorter."
+msgstr ""
+"Ein Text in dieser Diagrammbeschreibung ist länger als 200 Zeichen und kann "
+"deshalb nicht verwendet werden. Kürzen Sie ihn."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:436
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This chart would use more than 10,000 rows of your book. Narrow it down with"
+" a filter in the description or choose a shorter period."
+msgstr ""
+"Dieses Diagramm würde mehr als 10.000 Zeilen Ihres Buchs verwenden. Grenzen "
+"Sie es mit einem Filter in der Beschreibung ein oder wählen Sie einen "
+"kürzeren Zeitraum."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:438
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This chart would have more than 50 series or slices. Narrow it down with a "
+"filter in the description."
+msgstr ""
+"Dieses Diagramm hätte mehr als 50 Reihen oder Stücke. Grenzen Sie es mit "
+"einem Filter in der Beschreibung ein."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:440
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This chart description is bigger than KassenSturz reads, so it can't be "
+"used. Make it smaller."
+msgstr ""
+"Diese Diagrammbeschreibung ist größer, als KassenSturz sie liest, und kann "
+"deshalb nicht verwendet werden. Verkleinern Sie sie."
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:33
+#, kde-format
+msgctxt ""
+"@item:inlistbox a part of the layout: a chart the user describes in a short "
+"text"
+msgid "Custom chart"
+msgstr "Eigenes Diagramm"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:103
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:116
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:127
+#, kde-format
+msgctxt "@label:textbox the text that describes a custom chart"
+msgid "Chart description"
+msgstr "Diagrammbeschreibung"
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:47
+#, kde-format
+msgctxt "@info a part of a chart description that is not supported"
+msgid ""
+"Data comes only from your book, so data from a web address or typed in here "
+"isn't used."
+msgstr ""
+"Daten kommen nur aus Ihrem Buch, daher werden Daten von einer Webadresse "
+"oder hier eingetippte Daten nicht verwendet."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:49
+#, kde-format
+msgctxt "@info a part of a chart description that is not supported"
+msgid "Calculations and expression texts aren't supported here."
+msgstr "Berechnungen und Ausdruckstexte werden hier nicht unterstützt."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:51
+#, kde-format
+msgctxt "@info a part of a chart description that is not supported"
+msgid "This kind of data step isn't supported here."
+msgstr "Diese Art von Datenschritt wird hier nicht unterstützt."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:53
+#, kde-format
+msgctxt "@info a part of a chart description that is not supported"
+msgid "This kind of mark isn't supported here."
+msgstr "Diese Art von Markierung wird hier nicht unterstützt."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:55
+#, kde-format
+msgctxt "@info a part of a chart description that is not supported"
+msgid ""
+"Putting several charts together in one description isn't supported here."
+msgstr ""
+"Mehrere Diagramme in einer Beschreibung zusammenzustellen wird hier nicht "
+"unterstützt."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:57
+#, kde-format
+msgctxt "@info a part of a chart description that is not supported"
+msgid "This way of showing data isn't supported here, or not for this mark."
+msgstr ""
+"Diese Art, Daten zu zeigen, wird hier nicht unterstützt, oder nicht für "
+"diese Markierung."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:59
+#, kde-format
+msgctxt "@info a part of a chart description that is not supported"
+msgid "Bars that run sideways aren't supported here."
+msgstr "Waagerechte Balken werden hier nicht unterstützt."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:61
+#, kde-format
+msgctxt "@info a part of a chart description that is not supported"
+msgid "This option isn't supported here."
+msgstr "Diese Option wird hier nicht unterstützt."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:63
+#, kde-format
+msgctxt "@info a part of a chart description that is not supported"
+msgid "This value isn't supported here."
+msgstr "Dieser Wert wird hier nicht unterstützt."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:65
+#, kde-format
+msgctxt "@info a part of a chart description that is not supported"
+msgid "This part isn't supported here."
+msgstr "Dieser Teil wird hier nicht unterstützt."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:101
+#, kde-format
+msgctxt "@title:window"
+msgid "Open a chart description"
+msgstr "Diagrammbeschreibung öffnen"
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:104
+#, kde-format
+msgctxt "@item:inlistbox a file type"
+msgid "Chart descriptions (*.vl.json *.json)"
+msgstr "Diagrammbeschreibungen (*.vl.json *.json)"
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:126
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Paste a chart description here, or open a file."
+msgstr ""
+"Fügen Sie hier eine Diagrammbeschreibung ein oder öffnen Sie eine Datei."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:143
+#, kde-format
+msgctxt "@action:button"
+msgid "Use this description"
+msgstr "Diese Beschreibung verwenden"
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:153
+#, kde-format
+msgctxt "@action:button opens a file with a chart description"
+msgid "Open a chart description…"
+msgstr "Diagrammbeschreibung öffnen …"
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:168
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The chart still shows the earlier description. Choose “Use this description”"
+" to change it."
+msgstr ""
+"Das Diagramm zeigt noch die frühere Beschreibung. Wählen Sie „Diese "
+"Beschreibung verwenden“, um es zu ändern."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:177
+#, kde-format
+msgctxt "@info"
+msgid "Everything in this description is supported here."
+msgstr "Alles in dieser Beschreibung wird hier unterstützt."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:190
+#, kde-format
+msgctxt ""
+"@title the parts of a chart description that KassenSturz does not read"
+msgid "Not supported here"
+msgstr "Hier nicht unterstützt"
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:226
+#, kde-format
+msgctxt "@info"
+msgid "The chart is not drawn until you choose what to do with these parts."
+msgstr ""
+"Das Diagramm wird erst gezeichnet, wenn Sie entscheiden, was mit diesen "
+"Teilen geschehen soll."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:233
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Without these parts nothing is left to draw. Change the description so that "
+"it names data from your book, a mark and what the mark needs."
+msgstr ""
+"Ohne diese Teile bleibt nichts zu zeichnen. Ändern Sie die Beschreibung so, "
+"dass sie Daten aus Ihrem Buch, eine Markierung und das, was die Markierung "
+"braucht, nennt."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:240
+#, kde-format
+msgctxt "@info"
+msgid "The chart is drawn without these parts."
+msgstr "Das Diagramm wird ohne diese Teile gezeichnet."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:245
+#, kde-format
+msgctxt ""
+"@action:button draw a chart without the parts of its description that are "
+"not supported"
+msgid "Draw it without these"
+msgstr "Ohne diese zeichnen"
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:254
+#, kde-format
+msgctxt "@action:button stop leaving out the parts that are not supported"
+msgid "Don't leave them out"
+msgstr "Nicht weglassen"

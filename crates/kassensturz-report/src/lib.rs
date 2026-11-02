@@ -131,6 +131,8 @@ mod columns_tests;
 #[cfg(test)]
 mod component_tests;
 #[cfg(test)]
+mod custom_chart_tests;
+#[cfg(test)]
 mod dashboard_file_read_tests;
 #[cfg(test)]
 mod dashboard_file_tests;

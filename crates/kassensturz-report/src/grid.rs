@@ -56,7 +56,8 @@ impl ComponentType {
             | Self::ChartStackedBar
             | Self::ChartArea
             | Self::ChartPie
-            | Self::ChartDonut => Size { cols: 3, rows: 3 },
+            | Self::ChartDonut
+            | Self::CustomChart => Size { cols: 3, rows: 3 },
         }
     }
 
@@ -83,7 +84,8 @@ impl ComponentType {
             | Self::ChartStackedBar
             | Self::ChartArea
             | Self::ChartPie
-            | Self::ChartDonut => Size { cols: 6, rows: 4 },
+            | Self::ChartDonut
+            | Self::CustomChart => Size { cols: 6, rows: 4 },
         }
     }
 }

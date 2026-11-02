@@ -67,7 +67,7 @@ impl From<ChartsError> for BudgetsError {
             ChartsError::UnknownName(name) => Self::UnknownName(name),
             ChartsError::Report(error) => Self::Report(error),
             // A period is the only thing asked of the charts crate here.
-            ChartsError::Chart(_) => Self::UnknownName("period"),
+            ChartsError::Chart(_) | ChartsError::Custom(_) => Self::UnknownName("period"),
         }
     }
 }

@@ -10,7 +10,7 @@
 //! and are never read back.
 
 use kassensturz_charts::{
-    BalancesBy, ChartError, ChartKind, ChartModel, ChartProvider, Prepared,
+    BalancesBy, ChartError, ChartKind, ChartModel, ChartProvider, CustomError, Prepared,
     account_balances as balances_chart, cash_flow_by_month as cash_flow_chart, category_over_time,
     income_expense_by_month, net_worth_over_time as net_worth_chart, spending_by_category,
 };
@@ -67,6 +67,21 @@ pub struct Request {
     /// The filters the dashboard puts on the component: its own, else the
     /// filter bar's (M6c.7, D-350). The default narrows nothing.
     pub scope: Scope,
+    /// A custom chart (M6e.3): the description the chart is drawn from. Then
+    /// `dataset` is the one it names, `kind` and `grouping` are not used,
+    /// and `series` and `categories` are the choices of the dataset it
+    /// names (Q-353).
+    pub custom: Option<Custom>,
+}
+
+/// The description of a custom chart and whether to draw it without the
+/// parts that are not supported here (D-508).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Custom {
+    /// `props.spec`, exactly as the user wrote it.
+    pub spec: String,
+    /// `props.partial`.
+    pub partial: bool,
 }
 
 /// What a request gave: the charts, and how many of the IDs it named the
@@ -86,6 +101,12 @@ pub struct ChartSet {
     pub totals: Vec<(String, Vec<String>)>,
     /// The marks and notes about the filters (D-350).
     pub filter: FilterView,
+    /// The `title` of a custom chart's description, the user's own text;
+    /// empty for a built-in chart and a description without one.
+    pub title: String,
+    /// The `description` of a custom chart's description, for a screen
+    /// reader; empty otherwise.
+    pub description: String,
 }
 
 /// Why a request couldn't be answered.
@@ -99,6 +120,8 @@ pub enum ChartsError {
     Report(ReportError),
     /// The chart couldn't be made.
     Chart(ChartError),
+    /// A custom chart couldn't be drawn from its description (M6e.3).
+    Custom(CustomError),
 }
 
 impl ChartsError {
@@ -108,6 +131,7 @@ impl ChartsError {
             Self::UnknownName(_) => None,
             Self::Report(error) => Some(error.report()),
             Self::Chart(error) => Some(error.report()),
+            Self::Custom(error) => Some(error.report()),
         }
     }
 }
@@ -115,6 +139,12 @@ impl ChartsError {
 impl From<ReportError> for ChartsError {
     fn from(error: ReportError) -> Self {
         Self::Report(error)
+    }
+}
+
+impl From<CustomError> for ChartsError {
+    fn from(error: CustomError) -> Self {
+        Self::Custom(error)
     }
 }
 
@@ -265,6 +295,9 @@ pub fn charts(
     locale: &impl Locale,
     request: &Request,
 ) -> Result<ChartSet, ChartsError> {
+    if let Some(custom) = &request.custom {
+        return crate::custom_charts::custom_charts(book, locale, request, custom);
+    }
     let kind = ChartKind::from_key(&request.kind).ok_or(ChartsError::UnknownName("kind"))?;
     let period = period(book, &request.period, locale.today())?;
     let level = match request.grouping.as_str() {
@@ -293,6 +326,8 @@ pub fn charts(
             shared: Vec::new(),
             totals: Vec::new(),
             filter: filter_view,
+            title: String::new(),
+            description: String::new(),
         });
     }
     if !request.columns.is_empty() {
@@ -405,6 +440,8 @@ pub fn charts(
         shared: Vec::new(),
         totals: Vec::new(),
         filter: filter_view,
+        title: String::new(),
+        description: String::new(),
     })
 }
 
@@ -512,5 +549,7 @@ fn columns_charts(
         shared: shared_categories(source, &columns),
         totals: column_totals(source, text, period, &columns, filter, fallback)?,
         filter: FilterView::default(),
+        title: String::new(),
+        description: String::new(),
     })
 }

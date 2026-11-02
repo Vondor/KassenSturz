@@ -191,6 +191,8 @@ pub(crate) fn view_object(
                 ("usesFormula", QVariant::from(&preview.uses_formula)),
                 ("formula", text(&preview.formula)),
                 ("target", text(&preview.target)),
+                ("spec", text(&preview.spec)),
+                ("partial", QVariant::from(&preview.partial)),
                 ("scope", text(&preview.scope)),
             ]),
         ));
@@ -408,9 +410,11 @@ mod tests {
                 "grouping",
                 "measure",
                 "only",
+                "partial",
                 "scope",
                 "showHidden",
                 "shows",
+                "spec",
                 "target",
                 "usesFormula"
             ]
@@ -553,6 +557,11 @@ mod tests {
                         show_hidden: preview.show_hidden,
                         columns: Vec::new(),
                         scope: crate::scope::Scope::from_text(&preview.scope),
+                        // A custom chart is drawn from its own description.
+                        custom: (!preview.spec.is_empty()).then(|| charts::Custom {
+                            spec: preview.spec.clone(),
+                            partial: preview.partial,
+                        }),
                     };
                     charts::charts(&book, &locale, &request)
                         .unwrap_or_else(|e| panic!("{} on {}: {e:?}", kind.id(), dataset.id));

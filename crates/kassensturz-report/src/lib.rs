@@ -56,6 +56,7 @@ mod over_time;
 mod period;
 mod schema;
 mod source;
+pub mod spec;
 mod spending;
 pub mod templates;
 mod text;

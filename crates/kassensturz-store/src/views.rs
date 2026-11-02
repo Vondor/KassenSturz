@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Saved views and dashboards: JSON documents the book keeps (D-278, D-279;
-//! layout 20). The book checks only what its columns copy out of a document
+//! Saved views and dashboards: JSON documents the book keeps (D-278,
+//! D-279). The book checks only what its columns copy out of a document
 //! (format, version, kind and name) and its size; reading the components and
 //! checking them against their property schema is the reporting layer's job
 //! (D-281). A document is data: it is stored and returned as text and never

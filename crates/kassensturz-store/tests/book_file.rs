@@ -377,12 +377,13 @@ fn books_with_another_layout_version_are_turned_away() {
 
 #[test]
 fn books_from_development_builds_are_turned_away() {
-    // Layouts 1 to 15 were merged into the starting layout (D-045, D-135).
+    // Layouts 1 to 23 were merged into the starting layout (D-045, D-536):
+    // the first and last of M0 to M3 (D-135) and of M4 to M6.
     let folder = TempFolder::new();
     let path = folder.join("Old.ksz");
     let laptop = folder.computer("Laptop");
     drop(Book::create(&path, &laptop).expect("book created"));
-    for found in [1, 15] {
+    for found in [1, 15, 16, 23] {
         rusqlite::Connection::open(&path)
             .and_then(|conn| conn.pragma_update(None, "user_version", found))
             .expect("layout version changed");

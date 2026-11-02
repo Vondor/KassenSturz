@@ -124,8 +124,8 @@ impl Book {
     /// Fails with [`StoreError::Locked`] if the book is open somewhere else
     /// (D-038). A book with an older layout is updated to the current one,
     /// after a backup into `computer`'s backup folder (D-033); one a
-    /// development build from before 0.1 wrote is turned away with
-    /// [`StoreError::DevelopmentLayout`] (D-045).
+    /// development build of the Alpha wrote is turned away with
+    /// [`StoreError::DevelopmentLayout`] (D-045, D-536).
     pub fn open(path: &Path, computer: &Computer) -> Result<Self, StoreError> {
         Self::open_with(path, computer, |book| {
             HeldLock::acquire(book, &computer.name)
@@ -163,8 +163,8 @@ impl Book {
     /// `lock`, with `migrations` as the layouts KassenSturz knows, the first
     /// of which builds layout `first_version`. That is [`layout::MIGRATIONS`]
     /// in every case but the tests of an update, which pass a list with one
-    /// more layout, since all books have the current one until 0.1 has a
-    /// successor (D-135).
+    /// more layout, since all books have the current one until the first
+    /// Beta has a successor (D-135, D-536).
     fn open_updating(
         path: &Path,
         computer: &Computer,
@@ -193,7 +193,7 @@ impl Book {
                     .map_err(|error| StoreError::BackupFailed(Box::new(error)))?;
                 layout::migrate_with(&mut conn, migrations, first_version, older)?;
             }
-            // A development build from before 0.1 wrote it (D-045, D-135).
+            // A development build of the Alpha wrote it (D-045, D-135, D-536).
             found if (layout::FIRST_DEVELOPMENT_VERSION..first_version).contains(&found) => {
                 return Err(StoreError::DevelopmentLayout { found });
             }

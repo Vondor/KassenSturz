@@ -2,13 +2,13 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029), whose format is described in `docs/EXPORT_FORMAT.md` (D-100). Every change to the layout updates this document.
 
-**Status: layout 23** (M6c.B, D-375): layout 16, the starting layout of 0.1 (D-045, D-135), plus the bank links (layout 17, M4.4a, D-148) the history's action for changes an AI prepared (layout 18), the history's action for removing a category (layout 19), the saved views and dashboards (layout 20, M6a.L, D-278), the category groups and hidden categories (layout 21, M6b.L, D-290), the budgets (layout 22, M6c.L, D-344, D-345), and the triggers that keep what a bank or file delivered unchanged (layout 23, M6c.B, D-375). Layout 23 is a development layout of the Alpha (D-274): books are synthetic, and the development migrations are merged into one starting layout at the end of Alpha (D-045). The 15 development layouts of M0 to M3 were merged into layout 16: every table a 0.1 book has is built in one go, and a book one of the development builds wrote (layouts 1 to 15) isn't opened by 0.1 but turned away with `store.development-layout`; its data moves over through the complete export made with that build. From 0.1 on, every change to the layout is a migration of its own, run after a backup (see [Migrations](#migrations)), and this document is updated with each.
+**Status: layout 24, the starting layout of the first Beta** (M6e.M, D-045, D-536). The 23 development layouts of the Alpha were merged into it: every table a book has is built in one go, table for table what layouts 1 to 23 built together. A book a development build wrote (layouts 1 to 23) isn't opened by the Beta but turned away with `store.development-layout` and left unchanged; its data moves over through the complete export made with that build (`docs/EXPORT_FORMAT.md`), read into a new book. From the first Beta on, every change to the layout is a migration of its own, run after a backup, with a test that updates a book from every earlier layout since layout 24 (see [Migrations](#migrations), AGENTS.md §3.1 rule 8), and this document is updated with each.
 
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).
 - `PRAGMA application_id` is `0x4B535A42` (1263753794), the letters `KSZB` for KassenSturz book (D-037, D-080). KassenSturz reads it, and SQLite's header, from the file's first bytes before SQLite opens the file. Only a file with both is opened, so another program's SQLite file is never changed, not even its journal mode.
-- `PRAGMA user_version` holds the layout version: currently `22`. Versions 1 to 15 belong to books from development builds before 0.1, which KassenSturz turns away (D-045).
+- `PRAGMA user_version` holds the layout version: currently `24`. Versions 1 to 23 belong to books from development builds of the Alpha, which KassenSturz turns away (D-045, D-536).
 - The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033). While the book is open, its [lock file](#the-lock-file) sits next to it.
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
 - Deleted content is overwritten (`PRAGMA secure_delete = ON` on every connection), so what KassenSturz deletes, such as a change history the user cleans up, is gone from the file too, though not from copies of it such as backups (D-066, D-086).
@@ -86,7 +86,7 @@ Account names are never empty. No two accounts (kind `asset` or `liability`) sha
 
 ### `bank_links`
 
-Which bank account an account is filled from, and the day it was last fetched (Q-086, D-148; layout 17). A link names the bank account so that KassenSturz finds it again in whatever bank login lists it, on this computer or another: by IBAN, or by the bank's code and the number the bank gives when there is no IBAN, as for a credit card. The book holds **no login data**: not the login name, not the PIN, nothing from the keychain. The bank login lives in AqBanking's folder on each computer (D-139), so a book opened on another computer only needs the login set up again there.
+Which bank account an account is filled from, and the day it was last fetched (Q-086, D-148). A link names the bank account so that KassenSturz finds it again in whatever bank login lists it, on this computer or another: by IBAN, or by the bank's code and the number the bank gives when there is no IBAN, as for a credit card. The book holds **no login data**: not the login name, not the PIN, nothing from the keychain. The bank login lives in AqBanking's folder on each computer (D-139), so a book opened on another computer only needs the login set up again there.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -100,7 +100,7 @@ A row has an `iban`, or a `bank_code` with a `number`, or all three; the databas
 
 ### `views`
 
-The saved views and dashboards (D-278, D-279; layout 20): JSON documents the user made in the Statistics workbench or on a dashboard. A *view* is one saved chart or table; a *dashboard* is several components on a grid. The built-in default dashboard is not stored here until the user edits it or makes a second dashboard; every stored dashboard is one of the dashboards the Overview switches between, in the order of `position` (D-436). A dashboard's document may also carry `template`, the word of the template it was made from (D-439), and `"default": true` on the one the book opens at (D-448); both are additive document keys, so no column changes. The book keeps the document as text and copies out the few things a list needs; it does not look inside the document any further, which the reporting layer does (D-281). A document is data: it holds no program, and nothing in it is run.
+The saved views and dashboards (D-278, D-279): JSON documents the user made in the Statistics workbench or on a dashboard. A *view* is one saved chart or table; a *dashboard* is several components on a grid. The built-in default dashboard is not stored here until the user edits it or makes a second dashboard; every stored dashboard is one of the dashboards the Overview switches between, in the order of `position` (D-436). A dashboard's document may also carry `template`, the word of the template it was made from (D-439), and `"default": true` on the one the book opens at (D-448); both are additive document keys, so no column changes. The book keeps the document as text and copies out the few things a list needs; it does not look inside the document any further, which the reporting layer does (D-281). A document is data: it holds no program, and nothing in it is run.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -115,7 +115,7 @@ The saved views and dashboards (D-278, D-279; layout 20): JSON documents the use
 
 ### `report_groups`
 
-The user's category groups, "My groups" (D-290; layout 21): categories put together under a name of the user's own, e.g. "Fixed costs", so a chart can show them as one slice, bar or line. A group is a way of looking at the figures and nothing else: it is kept apart from the transactions and the category tree (Q-221), refers to categories only by ID, and is never written onto a transaction or a category. How a group counts is the reports' business (D-291): a category with everything inside it, each category once.
+The user's category groups, "My groups" (D-290): categories put together under a name of the user's own, e.g. "Fixed costs", so a chart can show them as one slice, bar or line. A group is a way of looking at the figures and nothing else: it is kept apart from the transactions and the category tree (Q-221), refers to categories only by ID, and is never written onto a transaction or a category. How a group counts is the reports' business (D-291): a category with everything inside it, each category once.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -128,7 +128,7 @@ KassenSturz also checks when it writes that no group ends up inside itself, dire
 
 ### `report_group_members`
 
-The members of each group, in their order (D-290; layout 21).
+The members of each group, in their order (D-290).
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -142,7 +142,7 @@ Exactly one of `category_id` and `member_group_id` is set (a CHECK). A category 
 
 ### `report_hidden`
 
-The categories the user hid from charts (D-290, D-291; layout 21), e.g. Rent in a spending pie. A hidden category leaves only the places where it would be shown on its own; it stays in its groups and formulas still count it (Q-225), and the key figures never change.
+The categories the user hid from charts (D-290, D-291), e.g. Rent in a spending pie. A hidden category leaves only the places where it would be shown on its own; it stays in its groups and formulas still count it (Q-225), and the key figures never change.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -150,7 +150,7 @@ The categories the user hid from charts (D-290, D-291; layout 21), e.g. Rent in 
 
 ### `budgets`
 
-The user's budgets (D-344, D-345; layout 22): an amount the user plans to spend on one spending category in each of a budget's periods. A budget is a way of looking at the spending and nothing else: it refers to its category by ID and is never written onto a transaction or a category. How a budget counts is the reports' business (D-346, D-347): the category with everything inside it, each category once.
+The user's budgets (D-344, D-345): an amount the user plans to spend on one spending category in each of a budget's periods. A budget is a way of looking at the spending and nothing else: it refers to its category by ID and is never written onto a transaction or a category. How a budget counts is the reports' business (D-346, D-347): the category with everything inside it, each category once.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -164,7 +164,7 @@ The user's budgets (D-344, D-345; layout 22): an amount the user plans to spend 
 
 ### `budget_amounts`
 
-What each budget plans, dated so a change never rewrites an earlier period (D-345; layout 22). A row applies from its period on, until the budget's next row.
+What each budget plans, dated so a change never rewrites an earlier period (D-345). A row applies from its period on, until the budget's next row.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -388,7 +388,7 @@ How long the book keeps its [change history](#the-change-history): exactly one r
 
 ### `originals_unlocked`
 
-The guard of the triggers on [`split_imports`](#split_imports) (D-375; layout 23). Empty in every saved book. KassenSturz writes its one row, and deletes it again in the same database transaction, only around removing whole transactions the user chose to remove (after a warning that the original goes too), around undo and redo, and around editing a transaction or joining a Transfer, which write a transaction's parts again and are checked afterwards to have given every original back unchanged, on the same part. The history doesn't record it. A program writing the row itself can delete originals: the triggers stop mistakes, not someone set on it.
+The guard of the triggers on [`split_imports`](#split_imports) (D-375). Empty in every saved book. KassenSturz writes its one row, and deletes it again in the same database transaction, only around removing whole transactions the user chose to remove (after a warning that the original goes too), around undo and redo, and around editing a transaction or joining a Transfer, which write a transaction's parts again and are checked afterwards to have given every original back unchanged, on the same part. The history doesn't record it. A program writing the row itself can delete originals: the triggers stop mistakes, not someone set on it.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -437,7 +437,7 @@ Every change KassenSturz makes to a book's data is a user action, recorded as on
 
 ## Migrations
 
-Every book is built by the same migrations, oldest first: a new book runs all of them on an empty database, and a book with an older layout runs the ones it lacks (D-045). The first migration builds layout 16, the starting layout of 0.1, in which the 15 development layouts from before 0.1 were merged (D-135); KassenSturz's own tests prove that it builds, table for table, what those 15 built together. The second builds layout 17: the `bank_links` table with its `changed_` table, and `changes` rebuilt with the three actions around bank links in its list (M4.4a, D-148). The third builds layout 18: `changes` rebuilt again with `apply_ai_changes` in its list (M5.5a, D-198). The fourth builds layout 19: `changes` rebuilt once more with `remove_category` in its list (grid step 4, D-253). The fifth builds layout 20: the `views` table with its `changed_` table, and `changes` rebuilt with the five view actions in its list (M6a.L, D-278). The sixth builds layout 21: the `report_groups`, `report_group_members` and `report_hidden` tables with their `changed_` tables, and `changes` rebuilt with the four group actions and `set_hidden_categories` in its list (M6b.L, D-290). The seventh builds layout 22: the `budgets` and `budget_amounts` tables with their `changed_` tables, and `changes` rebuilt with `add_budget`, `edit_budget` and `remove_budget` in its list (M6c.L, D-344, D-345). The eighth builds layout 23: the `originals_unlocked` table and the five triggers on `split_imports`, `splits` and `transactions` that keep what a bank or file delivered unchanged (M6c.B, D-375); a later migration that rebuilds one of those three tables makes its triggers again. They run in one transaction, which also sets the application ID and `user_version`, so an update either finishes or leaves the book exactly as it was. Foreign keys are off while they run, so a migration can rebuild a table without deleting the rows that refer to it; every reference is checked before the transaction is committed. A book is updated only after a [backup](#backups) of it was made (AGENTS.md §3.1 rule 8). A book with a newer layout is turned away (`store.unsupported-layout`), and so is a book a development build wrote, with layout 1 to 15 (`store.development-layout`): KassenSturz doesn't update it, since the development migrations are gone; the way over is the complete export made with that build, read into a new book. A migration isn't a change in the [change history](#the-change-history): the backup made before it is the way back.
+Every book is built by the same migrations, oldest first: a new book runs all of them on an empty database, and a book with an older layout runs the ones it lacks (D-045). The first migration builds layout 24, the starting layout of the first Beta, in which the 23 development layouts of the Alpha were merged (D-536); KassenSturz's own tests prove that it builds, table for table, what those layouts built together, both in a book that started with layout 1 and in one that started with layout 16, the earlier merge of layouts 1 to 15 (D-135). There is no migration after it yet. Each later one gets its own number, runs after a [backup](#backups) of the book (AGENTS.md §3.1 rule 8) and comes with a test that updates a book from every earlier layout since layout 24. The migrations run in one transaction, which also sets the application ID and `user_version`, so an update either finishes or leaves the book exactly as it was. Foreign keys are off while they run, so a migration can rebuild a table without deleting the rows that refer to it; every reference is checked before the transaction is committed. A migration that rebuilds `splits`, `split_imports` or `transactions` makes the triggers on them again. A book with a newer layout is turned away (`store.unsupported-layout`), and so is a book a development build wrote, with layout 1 to 23 (`store.development-layout`): KassenSturz doesn't update it, since the development migrations are gone; the way over is the complete export made with that build, read into a new book. A migration isn't a change in the [change history](#the-change-history): the backup made before it is the way back.
 
 ## Backups
 

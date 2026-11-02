@@ -33,6 +33,14 @@ impl Book {
     /// must update first, and like [`Book::open`] for a file that isn't a
     /// book or a layout this version can't read.
     pub fn open_to_read(path: &Path) -> Result<Self, StoreError> {
+        Self::open_to_read_at(path, layout::VERSION)
+    }
+
+    /// [`Book::open_to_read`] for a KassenSturz whose current layout is
+    /// `current`. That is [`layout::VERSION`] in every case but the test of
+    /// an older layout, which passes a later one, since every book has the
+    /// current layout until the first Beta has a successor (D-135, D-536).
+    fn open_to_read_at(path: &Path, current: i32) -> Result<Self, StoreError> {
         let path = std::path::absolute(path)?;
         let metadata = std::fs::metadata(&path).map_err(|error| match error.kind() {
             std::io::ErrorKind::NotFound => StoreError::NotFound,
@@ -50,8 +58,8 @@ impl Book {
         conn.pragma_update(None, "query_only", true)?;
         let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
         match version {
-            layout::VERSION => {}
-            older if (layout::FIRST_VERSION..layout::VERSION).contains(&older) => {
+            same if same == current => {}
+            older if (layout::FIRST_VERSION..current).contains(&older) => {
                 return Err(StoreError::OlderLayout { found: older });
             }
             found
@@ -221,9 +229,9 @@ mod tests {
         conn.pragma_update(None, "user_version", layout::FIRST_VERSION)
             .expect("set");
         drop(conn);
-        const { assert!(layout::FIRST_VERSION < layout::VERSION) };
+        // As the KassenSturz with the next layout will see it.
         assert!(matches!(
-            Book::open_to_read(&path),
+            Book::open_to_read_at(&path, layout::VERSION + 1),
             Err(StoreError::OlderLayout { found }) if found == layout::FIRST_VERSION
         ));
         // Nothing was backed up or updated.

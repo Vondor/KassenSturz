@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Budgets (D-344, D-345; layout 22): an amount the user plans to spend on
+//! Budgets (D-344, D-345): an amount the user plans to spend on
 //! one spending category in each of a budget's periods.
 //!
 //! A budget refers to its category by ID, and nothing here ever writes to a

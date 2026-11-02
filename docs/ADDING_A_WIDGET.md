@@ -95,7 +95,7 @@ tools/check-panel.sh            # QML smoke tests, in the Qt container
 tools/check-translations.sh
 ```
 
-The tests that already guard every type will tell you what you missed: the Add-menu test adds every `LIBRARY` kind to the Overview, the vocabulary test checks `DETAILS`, and the document tests read every kind back.
+Tests that already cover every type tell you what you missed: in `crates/kassensturz-ui-bridge/src/grid_editor.rs`, `every_library_kind_has_a_debug_log_detail` checks `DETAILS`, and `the_library_offers_the_twenty_two_components_and_adds_each_with_its_defaults` adds every `LIBRARY` kind (update its count and name, and the length of the `LIBRARY` array, when you add one).
 
 ## 5. Human gates to check
 

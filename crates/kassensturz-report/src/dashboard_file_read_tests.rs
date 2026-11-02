@@ -78,7 +78,7 @@ fn refused(text: &str) -> (&'static str, String) {
 /// period header and the filter bar in front of it when read (D-476, D-530).
 fn series_of(document: &Document) -> Vec<String> {
     let Some(component) = document.entries.iter().find_map(|entry| match &entry.item {
-        Item::Component(component) if !component.kind().one_per_page() => Some(component),
+        Item::Component(component) if !component.kind().shows_no_data() => Some(component),
         _ => None,
     }) else {
         panic!("a known component");

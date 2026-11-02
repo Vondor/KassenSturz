@@ -8,7 +8,8 @@
 // the header shows the month and its buttons reach the overview, that the
 // bar's buttons are there, that the tabs switch the dashboard, take no room
 // while there is one dashboard and say so while arranging, and that the Add
-// menu offers each only while the page has none.
+// menu always offers each (D-532: a page may hold more than one; a second set
+// of tabs works like the first).
 // `tools/check-panel.sh` runs it and fails on the first FAIL line or on any
 // QML warning about a binding or a type.
 
@@ -42,7 +43,8 @@ Kirigami.ApplicationWindow {
                 dashboard.item("tabs", "page.tabs", 0, 0, 12, 1),
                 dashboard.item("month", "page.period", 0, 1, 12, 1),
                 dashboard.item("bar", "page.filters", 0, 2, 12, 1),
-                dashboard.item("income", "kpi.card", 0, 3, 3, 2)
+                dashboard.item("income", "kpi.card", 0, 3, 3, 2),
+                dashboard.item("tabs2", "page.tabs", 0, 5, 12, 1)
             ]
         })
     }
@@ -73,8 +75,6 @@ Kirigami.ApplicationWindow {
 
     AddMenu {
         id: addMenu
-
-        pageKinds: ["page.period", "kpi.card"]
     }
 
     pageStack.initialPage: Kirigami.Page {
@@ -146,9 +146,8 @@ Kirigami.ApplicationWindow {
             case 2: {
                 const layoutGroup = addMenu.groups.find(group => group.rows.some(row => row.kind === "text.heading"));
                 const kinds = layoutGroup.rows.map(row => row.kind);
-                window.check(kinds.includes("page.filters"), "the menu offers the filter bar the page lacks: " + kinds);
-                window.check(!kinds.includes("page.period"), "and not a second period header: " + kinds);
-                window.check(kinds.includes("page.tabs"), "the menu offers the tabs the page lacks: " + kinds);
+                // The page already has each of the three; the user may add more (D-532).
+                window.check(kinds.includes("page.filters") && kinds.includes("page.period") && kinds.includes("page.tabs"), "the menu always offers the tabs, the header and the bar: " + kinds);
                 window.check(layoutGroup.rows.every(row => row.name !== "Unknown"), "each has a name");
                 break;
             }
@@ -162,6 +161,9 @@ Kirigami.ApplicationWindow {
                 const second = window.findAll(tabs, item => item.checked !== undefined && item.text === "Holidays", [])[0];
                 second.clicked();
                 window.check(dashboard.calls.includes("showDashboard:d2"), "a tab switches the dashboard: " + dashboard.calls);
+                const again = grid.itemFor("tabs2");
+                const buttonsAgain = window.findAll(again, item => item.checked !== undefined && item.text !== undefined && item.visible, []).map(button => button.text);
+                window.check(buttonsAgain.length === 2, "a second set of tabs shows the dashboards too: " + JSON.stringify(buttonsAgain));
                 break;
             }
             case 4: {
@@ -169,7 +171,7 @@ Kirigami.ApplicationWindow {
                 const one = [{id: "d1", name: "Overview", isDefault: true, shown: true}];
                 dashboard.view = Object.assign({}, dashboard.view, {dashboards: one});
                 const tabs = grid.itemFor("tabs");
-                window.check(grid.isCollapsed(tabs.info), "with one dashboard the tabs take no room");
+                window.check(grid.isCollapsed(tabs.info) && grid.isCollapsed(grid.itemFor("tabs2").info), "with one dashboard every set of tabs takes no room");
                 window.check(!tabs.visible, "and are not drawn");
                 const shown = window.findAll(tabs, item => item.checked !== undefined && item.text !== undefined && item.visible, []);
                 window.check(shown.length === 0, "no tab button is visible: " + shown.length);

@@ -135,7 +135,6 @@ Kirigami.ScrollablePage {
         id: addMenu
 
         savedList: page.savedList
-        pageKinds: (page.dashboard.view.items ?? []).map(item => item.type)
         onKindChosen: (kind, dataset) => grid.add(kind, dataset)
         onSavedChosen: id => page.addSaved(id)
     }

@@ -39,7 +39,7 @@ For the person who installs the newest `main` and tries the M6d features by clic
 3. In the dashboard menu try **Rename…**, **Duplicate** (the copy is named *… (copy)*), **Move earlier**, **Move later**.
 4. **Make this the default**: a small home icon appears on that tab. Close and reopen the book: it opens at that dashboard.
 5. **Delete…** one dashboard: the question names it, and Undo (Settings › History) brings it back.
-6. Edit layout on one dashboard: the period header and the filter bar are widgets. Move, resize, remove and add them again from the Add menu; at most one of each per dashboard. With the filter bar removed, the page's filters no longer apply to that dashboard.
+6. Edit layout on one dashboard: the period header and the filter bar are widgets. Move, resize, remove and add them again from the Add menu; as many of each as you like (D-532). With the filter bar removed, the page's filters no longer apply to that dashboard.
 7. Add a saved view from the Statistics page: it lands on the dashboard that is shown.
 
 **Expect:** each action is one History entry and one Undo takes it back. No dashboard ever changes a balance or a total. Nothing overlaps.

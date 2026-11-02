@@ -2,6 +2,14 @@
 
 A free, open-source personal finance app for the desktop, **simpler than KMyMoney and GnuCash**, made for everyday people who have never taken an economics class.
 
+## Try it
+
+KassenSturz is in testing. If you would like to try it, you need no GitHub account and no programming knowledge:
+
+1. Download the test build from the project's [releases page](https://github.com/Vondor/KassenSturz/releases) (the newest entry marked *Pre-release*).
+2. Follow the install sheet for your system, with every click: [Windows](docs/testing/INSTALL_WINDOWS.en.md) or [Ubuntu](docs/testing/INSTALL_UBUNTU.en.md) (German: [Windows](docs/testing/INSTALL_WINDOWS.de.md), [Ubuntu](docs/testing/INSTALL_UBUNTU.de.md)).
+3. Use made-up numbers or an example book, never your own data. The [tester guide](docs/testing/TESTER_GUIDE.en.md) explains what a test session is; the [user guide](docs/user/USER_GUIDE.de.md) (German) explains how to use KassenSturz.
+
 ## Goals
 
 - Simple, plain-language interface with progressive disclosure

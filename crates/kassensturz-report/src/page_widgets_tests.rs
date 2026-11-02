@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! The period header and the filter bar as widgets (M6d.8, D-452, D-474 to
-//! D-476): one of each per dashboard, older dashboards get them on top, and
-//! the page's filters apply only while the bar is on it.
+//! The tabs, the period header and the filter bar as widgets (M6d.8, D-452,
+//! D-474 to D-476; the tabs D-529, D-530): one of each per dashboard, older
+//! dashboards get what they lack on top, and the page's filters apply only
+//! while the bar is on it.
 
 use serde_json::{Value, json};
 
@@ -45,6 +46,7 @@ fn the_two_widgets_show_no_data_have_no_settings_and_are_in_the_library() {
     for (id, kind) in [
         ("page.period", ComponentType::PeriodHeader),
         ("page.filters", ComponentType::FilterBar),
+        ("page.tabs", ComponentType::DashboardTabs),
     ] {
         assert_eq!(ComponentType::from_id(id), Some(kind));
         assert_eq!(kind.id(), id);
@@ -72,7 +74,11 @@ fn the_two_widgets_show_no_data_have_no_settings_and_are_in_the_library() {
         .collect();
     assert_eq!(
         only_page_wide,
-        [ComponentType::PeriodHeader, ComponentType::FilterBar]
+        [
+            ComponentType::PeriodHeader,
+            ComponentType::FilterBar,
+            ComponentType::DashboardTabs
+        ]
     );
 }
 
@@ -134,8 +140,17 @@ fn a_dashboard_holds_at_most_one_of_each() {
     assert_eq!(saved, *editor.document());
 }
 
+fn full_width(row: u32) -> Frame {
+    Frame {
+        col: 0,
+        row,
+        cols: 12,
+        rows: 1,
+    }
+}
+
 #[test]
-fn an_older_dashboard_gets_the_header_and_the_bar_on_top() {
+fn an_older_dashboard_gets_the_tabs_the_header_and_the_bar_on_top() {
     for version in [1, 2] {
         let old = dashboard(
             version,
@@ -147,40 +162,64 @@ fn an_older_dashboard_gets_the_header_and_the_bar_on_top() {
         assert_eq!(
             kinds,
             [
+                Some(ComponentType::DashboardTabs),
                 Some(ComponentType::PeriodHeader),
                 Some(ComponentType::FilterBar),
                 Some(ComponentType::ChartPie),
                 Some(ComponentType::ChartPie)
             ]
         );
-        assert_eq!(
-            frame_of(&document, PERIOD_HEADER_ID),
-            Frame {
-                col: 0,
-                row: 0,
-                cols: 12,
-                rows: 1
-            }
-        );
-        assert_eq!(
-            frame_of(&document, FILTER_BAR_ID),
-            Frame {
-                col: 0,
-                row: 1,
-                cols: 12,
-                rows: 1
-            }
-        );
-        // Everything else moved down two rows, and nothing else changed.
-        assert_eq!(frame_of(&document, "chart").row, 2);
-        assert_eq!(frame_of(&document, "other").row, 6);
+        assert_eq!(frame_of(&document, DASHBOARD_TABS_ID), full_width(0));
+        assert_eq!(frame_of(&document, PERIOD_HEADER_ID), full_width(1));
+        assert_eq!(frame_of(&document, FILTER_BAR_ID), full_width(2));
+        // Everything else moved down three rows, and nothing else changed.
+        assert_eq!(frame_of(&document, "chart").row, 3);
+        assert_eq!(frame_of(&document, "other").row, 7);
         assert_eq!(document.categories, ["c-1"]);
         // Written as the current version, it reads back the same, with no
-        // second pair.
+        // second set.
         let written = document.to_json();
         assert!(written.contains(&format!("\"version\":{VERSION}")));
         assert_eq!(Document::read(&written).unwrap(), document);
     }
+
+    // A dashboard of version 3 has the header and the bar (or not, if the
+    // user took them off) and gets only the tabs, on row 0 (D-530).
+    let with_both = Document::read(&dashboard(
+        3,
+        &json!({}),
+        vec![
+            widget(PERIOD_HEADER_ID, "page.period", 0),
+            widget(FILTER_BAR_ID, "page.filters", 1),
+            pie("chart", 2),
+        ],
+    ))
+    .unwrap();
+    let kinds: Vec<_> = with_both.entries.iter().map(kind_of).collect();
+    assert_eq!(
+        kinds,
+        [
+            Some(ComponentType::DashboardTabs),
+            Some(ComponentType::PeriodHeader),
+            Some(ComponentType::FilterBar),
+            Some(ComponentType::ChartPie)
+        ]
+    );
+    assert_eq!(frame_of(&with_both, DASHBOARD_TABS_ID), full_width(0));
+    assert_eq!(frame_of(&with_both, PERIOD_HEADER_ID).row, 1);
+    assert_eq!(frame_of(&with_both, FILTER_BAR_ID).row, 2);
+    assert_eq!(frame_of(&with_both, "chart").row, 3);
+
+    let no_bar = Document::read(&dashboard(
+        3,
+        &json!({}),
+        vec![widget(PERIOD_HEADER_ID, "page.period", 0), pie("chart", 1)],
+    ))
+    .unwrap();
+    assert!(no_bar.holds(ComponentType::DashboardTabs));
+    assert!(no_bar.holds(ComponentType::PeriodHeader));
+    assert!(!no_bar.holds(ComponentType::FilterBar));
+    assert_eq!(frame_of(&no_bar, "chart").row, 2);
 
     // A current dashboard without them stays without them: the user took
     // them off.
@@ -188,17 +227,20 @@ fn an_older_dashboard_gets_the_header_and_the_bar_on_top() {
     assert_eq!(bare.entries.len(), 1);
     assert_eq!(frame_of(&bare, "chart").row, 0);
 
-    // A component that already uses the ID keeps it; the widget takes the next.
+    // A component that already uses an ID keeps it; the widget takes the next.
     let taken = Document::read(&dashboard(2, &json!({}), vec![pie(PERIOD_HEADER_ID, 0)])).unwrap();
     assert_eq!(
-        kind_of(&taken.entries[0]),
+        kind_of(&taken.entries[1]),
         Some(ComponentType::PeriodHeader)
     );
-    assert_eq!(taken.entries[0].id, format!("{PERIOD_HEADER_ID}-2"));
-    assert_eq!(kind_of(&taken.entries[2]), Some(ComponentType::ChartPie));
-    assert_eq!(taken.entries[2].id, PERIOD_HEADER_ID);
+    assert_eq!(taken.entries[1].id, format!("{PERIOD_HEADER_ID}-2"));
+    assert_eq!(kind_of(&taken.entries[3]), Some(ComponentType::ChartPie));
+    assert_eq!(taken.entries[3].id, PERIOD_HEADER_ID);
+    let taken = Document::read(&dashboard(3, &json!({}), vec![pie(DASHBOARD_TABS_ID, 0)])).unwrap();
+    assert_eq!(taken.entries[0].id, format!("{DASHBOARD_TABS_ID}-2"));
+    assert_eq!(taken.entries[1].id, DASHBOARD_TABS_ID);
 
-    // A full dashboard has no room for two more and stays as it was.
+    // A full dashboard has no room for more and stays as it was.
     let full: Vec<Value> = (0..MAX_COMPONENTS)
         .map(|n| {
             let row = u32::try_from(n).unwrap();
@@ -206,9 +248,18 @@ fn an_older_dashboard_gets_the_header_and_the_bar_on_top() {
                 "frame": {"col": 0, "row": row, "cols": 4, "rows": 1}})
         })
         .collect();
-    let full = Document::read(&dashboard(2, &json!({}), full)).unwrap();
-    assert_eq!(full.entries.len(), MAX_COMPONENTS);
-    assert!(!full.holds(ComponentType::FilterBar));
+    for version in [2, 3] {
+        let full = Document::read(&dashboard(version, &json!({}), full.clone())).unwrap();
+        assert_eq!(full.entries.len(), MAX_COMPONENTS);
+        assert!(!full.holds(ComponentType::DashboardTabs));
+        assert_eq!(frame_of(&full, "h0").row, 0);
+    }
+
+    // So does one with a component on the grid's last row: moving it down
+    // would make the dashboard unreadable.
+    let low = Document::read(&dashboard(3, &json!({}), vec![pie("low", grid::LAST_ROW)])).unwrap();
+    assert!(!low.holds(ComponentType::DashboardTabs));
+    assert_eq!(frame_of(&low, "low").row, grid::LAST_ROW);
 
     // A view is one component and gets nothing.
     let view = json!({"format": FORMAT, "version": 1, "kind": "view", "name": "V",
@@ -219,24 +270,30 @@ fn an_older_dashboard_gets_the_header_and_the_bar_on_top() {
 
 #[test]
 fn the_built_in_overview_of_an_earlier_build_reads_as_todays() {
-    // The built-in Overview as an earlier build wrote it into a book: no
-    // header and no bar, everything two rows higher, version 1.
-    let mut old: Value = serde_json::from_str(DEFAULT_OVERVIEW).unwrap();
-    old["version"] = 1.into();
-    let components = old["components"].as_array_mut().unwrap();
-    components.retain(|component| {
-        !matches!(
-            component["type"].as_str(),
-            Some("page.period" | "page.filters")
-        )
-    });
-    assert_eq!(components.len(), 12);
-    for component in components.iter_mut() {
-        let row = component["frame"]["row"].as_u64().unwrap();
-        component["frame"]["row"] = (row - 2).into();
+    // The built-in Overview as an earlier build wrote it into a book: the
+    // first without tabs, header and bar (version 1, everything three rows
+    // higher), the second with header and bar but no tabs (version 3,
+    // everything one row higher).
+    for (version, removed, up) in [
+        (1, &["page.tabs", "page.period", "page.filters"][..], 3),
+        (3, &["page.tabs"][..], 1),
+    ] {
+        let mut old: Value = serde_json::from_str(DEFAULT_OVERVIEW).unwrap();
+        old["version"] = version.into();
+        let components = old["components"].as_array_mut().unwrap();
+        components.retain(|component| !removed.contains(&component["type"].as_str().unwrap()));
+        assert_eq!(components.len(), 15 - removed.len());
+        for component in components.iter_mut() {
+            let row = component["frame"]["row"].as_u64().unwrap();
+            component["frame"]["row"] = (row - up).into();
+        }
+        let read = Document::read(&old.to_string()).unwrap();
+        assert_eq!(
+            read,
+            Document::default_overview().unwrap(),
+            "version {version}"
+        );
     }
-    let read = Document::read(&old.to_string()).unwrap();
-    assert_eq!(read, Document::default_overview().unwrap());
 }
 
 #[test]

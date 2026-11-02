@@ -87,8 +87,8 @@ pub use dashboard_file_read::{
 };
 pub use default_overview::{DEFAULT_OVERVIEW, OVERVIEW_NAME};
 pub use document::{
-    Document, Entry, FILTER_BAR_ID, FORMAT, Frame, Item, MAX_BYTES, MAX_COMPONENTS, MAX_DEPTH,
-    MAX_NAME_CHARS, PERIOD_HEADER_ID, PERIODS, VERSION, ViewOrigin,
+    DASHBOARD_TABS_ID, Document, Entry, FILTER_BAR_ID, FORMAT, Frame, Item, MAX_BYTES,
+    MAX_COMPONENTS, MAX_DEPTH, MAX_NAME_CHARS, PERIOD_HEADER_ID, PERIODS, VERSION, ViewOrigin,
 };
 pub use editor::{Edit, Editor, MAX_UNDO};
 pub use error::ReportError;

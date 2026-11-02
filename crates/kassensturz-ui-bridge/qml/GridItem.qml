@@ -40,9 +40,10 @@ Item {
     // The separator and the notices have no card around them while the page
     // is only looked at: a line and a message (D-328, D-334).
     readonly property bool isBox: present && info.type === "group.period"
-    // The period header and the filter bar (M6d.8): drawn without a frame,
-    // like the bar and the month row they were.
-    readonly property bool isPageWidget: present && (info.type === "page.period" || info.type === "page.filters")
+    // The period header, the filter bar (M6d.8) and the dashboard tabs
+    // (M6d.9): drawn without a frame, like the bar, the month row and the
+    // tabs they were.
+    readonly property bool isPageWidget: present && (info.type === "page.period" || info.type === "page.filters" || info.type === "page.tabs")
     // While arranging, a selected filter bar takes the pointer itself, so its
     // choices can be kept with the layout (D-416); it moves with the keys
     // and its toolbar then.
@@ -222,6 +223,7 @@ Item {
                 : cell.info?.type === "bank.update_all" ? updateAllBox
                 : cell.info?.type === "page.period" ? periodHeaderBox
                 : cell.info?.type === "page.filters" ? filterBarBox
+                : cell.info?.type === "page.tabs" ? dashboardTabsBox
                 : cell.info?.type === "notice.transfers" ? transfersBox : figuresBox
         }
     }
@@ -632,6 +634,34 @@ Item {
                 layout: cell.board.layout
                 choices: cell.board.choices
                 onFailed: result => cell.board.failed(result)
+            }
+        }
+    }
+
+    // The tabs of the book's dashboards (M6d.9, D-529): nothing to show
+    // while the book has one dashboard, except a hint while arranging, so the
+    // widget can still be found, moved and taken off.
+    Component {
+        id: dashboardTabsBox
+
+        Item {
+            readonly property bool failed: false
+
+            DashboardTabs {
+                id: tabs
+
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width
+                layout: cell.board.layout
+            }
+
+            Controls.Label {
+                anchors.fill: parent
+                visible: cell.board.editing && tabs.dashboards.length < 2
+                text: names.i18nContext.i18nc("@info shown in the place of the dashboard tabs while the page is arranged", "The tabs of your dashboards show here once you have two or more.")
+                font: Kirigami.Theme.smallFont
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
             }
         }
     }

@@ -16754,3 +16754,19 @@ msgstr "ja"
 msgctxt "@label the answer no of a yes/no field, in a chart's names"
 msgid "no"
 msgstr "nein"
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml:661
+#, kde-format
+msgctxt ""
+"@info shown in the place of the dashboard tabs while the page is arranged"
+msgid "The tabs of your dashboards show here once you have two or more."
+msgstr ""
+"Hier erscheinen die Reiter Ihrer Dashboards, sobald Sie zwei oder mehr haben."
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:59
+#, kde-format
+msgctxt ""
+"@item:inlistbox a part of the layout: the tabs that switch between the "
+"user's dashboards"
+msgid "Dashboard tabs"
+msgstr "Dashboard-Reiter"

@@ -140,12 +140,14 @@ Item {
     }
 
     // A component that shows nothing and takes no room: the budget bars of
-    // a book with no budget, while the page is only looked at. Arranging the
+    // a book with no budget, and the tabs of a book with one dashboard, while
+    // the page is only looked at (D-357, D-529). Arranging the
     // layout shows them, so they can still be moved and removed. The Update
     // all accounts widget always shows (D-497, replacing this part of D-446):
     // without a linked account it says how to connect a bank.
     function isCollapsed(info: var): bool {
-        return !editing && info.type === "budget.progress" && budgetCount === 0;
+        return !editing && ((info.type === "budget.progress" && budgetCount === 0)
+            || (info.type === "page.tabs" && (view.dashboards ?? []).length < 2));
     }
 
     // The height of the full-width components that take no room and lie

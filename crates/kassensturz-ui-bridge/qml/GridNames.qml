@@ -55,6 +55,8 @@ QtObject {
             return i18nContext.i18nc("@item:inlistbox a part of the layout: one button that gets the new transactions of every account linked to a bank", "Update all accounts");
         case "page.period":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: the month the page shows, with buttons for the months before and after it", "Month and its buttons");
+        case "page.tabs":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: the tabs that switch between the user's dashboards", "Dashboard tabs");
         case "page.filters":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: the bar that chooses the period, accounts and categories for the whole page", "Filter bar");
         case "notice.transfers":

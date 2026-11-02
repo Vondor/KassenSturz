@@ -341,14 +341,15 @@ mod tests {
         assert!(!layout.damaged);
         assert!(!layout.editor.has_changes());
         let shown = rows(&layout.editor, &Filters::default());
-        assert_eq!(shown.len(), 14);
-        // Reading order: the period header and the filter bar, the bank warnings, the four cards, the budget bars,
+        assert_eq!(shown.len(), 15);
+        // Reading order: the tabs, the period header and the filter bar, the bank warnings, the four cards, the budget bars,
         // then the donut and the table, the line, and the note about
         // transfers.
         let ids: Vec<&str> = shown.iter().map(|row| row.id.as_str()).collect();
         assert_eq!(
             ids,
             [
+                "dashboard-tabs",
                 "period-header",
                 "filter-bar",
                 "fetch-gaps",
@@ -365,7 +366,7 @@ mod tests {
                 "transfers"
             ]
         );
-        assert_eq!(total_rows(&layout.editor), 25);
+        assert_eq!(total_rows(&layout.editor), 26);
     }
 
     #[test]
@@ -479,17 +480,19 @@ mod tests {
     }"#;
 
     #[test]
-    fn the_library_offers_the_twenty_one_components_and_adds_each_with_its_defaults() {
+    fn the_library_offers_the_twenty_two_components_and_adds_each_with_its_defaults() {
         let offered = library();
-        assert_eq!(offered.len(), 21);
+        assert_eq!(offered.len(), 22);
         assert!(offered.contains(&("text.heading", "")));
         assert!(offered.contains(&("page.period", "")));
         assert!(offered.contains(&("page.filters", "")));
+        assert!(offered.contains(&("page.tabs", "")));
         let mut layout = Layout::open(&book(), None, OVERVIEW_NAME).unwrap();
         for (kind, _) in offered {
-            // The built-in Overview has the period header and the filter
-            // bar already, and a page holds one of each (D-474).
-            if matches!(kind, "page.period" | "page.filters") {
+            // The built-in Overview has the tabs, the period header and the
+            // filter bar already, and a page holds one of each (D-474,
+            // D-529).
+            if matches!(kind, "page.period" | "page.filters" | "page.tabs") {
                 assert!(add(&mut layout.editor, kind).is_err());
                 continue;
             }
@@ -500,7 +503,7 @@ mod tests {
                 .unwrap();
             assert_eq!(row.component.unwrap().kind().id(), kind);
         }
-        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 33);
+        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 34);
         assert!(add(&mut layout.editor, "chart.radar").is_err());
     }
 

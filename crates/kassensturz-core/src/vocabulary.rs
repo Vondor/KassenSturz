@@ -48,6 +48,7 @@ pub const DETAILS: &[&str] = &[
     "notice_transfers",
     "page_period",
     "page_filters",
+    "page_tabs",
     "bank_update_all",
     "saved_view",
     // The screens, by the names of their QML files.

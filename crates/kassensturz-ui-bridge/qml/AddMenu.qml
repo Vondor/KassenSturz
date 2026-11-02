@@ -20,8 +20,9 @@ Controls.Menu {
 
     // Rows with `id` and `name` of the usable saved views.
     property var savedList: []
-    // The types of the widgets on the page: the period header and the filter
-    // bar are offered only while the page has none (M6d.8, D-474).
+    // The types of the widgets on the page: the period header, the filter bar
+    // and the dashboard tabs are offered only while the page has none (M6d.8,
+    // D-474, D-529).
     property var pageKinds: []
 
     // `dataset` is empty for a kind that starts with its first dataset.
@@ -60,7 +61,7 @@ Controls.Menu {
               rows: kindRows(["bank.update_all"]) },
             { name: ctx.i18nc("@title:menu a group of widgets: those that arrange the page", "Layout"),
               rows: kindRows(["text.heading", "text.separator", "group.period"]
-                  .concat(["page.period", "page.filters"].filter(kind => !widgetMenu.pageKinds.includes(kind)))) },
+                  .concat(["page.tabs", "page.period", "page.filters"].filter(kind => !widgetMenu.pageKinds.includes(kind)))) },
             { name: ctx.i18nc("@title:menu a group of widgets: notes and warnings", "Notes"),
               rows: kindRows(["notice.fetch_gap", "notice.transfers"]) },
             { name: ctx.i18nc("@title:menu a group of widgets: views saved in the Statistic Builder", "Saved views"),

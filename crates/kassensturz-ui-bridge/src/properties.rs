@@ -345,6 +345,7 @@ pub fn preview(component: &Component) -> Preview {
         // The page fills them (D-474): the month and the page's filters.
         ComponentType::PeriodHeader => ("period-header", ""),
         ComponentType::FilterBar => ("filter-bar", ""),
+        ComponentType::DashboardTabs => ("dashboard-tabs", ""),
         // A button, drawn by the page (M6d.7).
         ComponentType::BankUpdateAll => ("update-all", ""),
         // Drawn from its own description (M6e.3): `shows` is `chart`, and

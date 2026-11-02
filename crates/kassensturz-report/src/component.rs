@@ -102,8 +102,74 @@ impl Component {
             .position(|property| property.key == key)
             .ok_or_else(|| invalid("unknown-property", key))?;
         self.kind.properties()[index].check(self.dataset, &setting)?;
+        if self.kind == ComponentType::CustomChart
+            && matches!(key, "series" | "categories")
+            && matches!(&setting, Setting::Ids(ids) if !ids.is_empty())
+            && !self.takes_choice(key)
+        {
+            // The choice belongs to a dataset the description doesn't name.
+            return Err(invalid("bad-choice", &format!("params.{key}")));
+        }
+        let changed = self.settings[index] != setting;
         self.settings[index] = setting;
+        if self.kind == ComponentType::CustomChart && key == "spec" {
+            // A new description starts drawing only what it fully says: the
+            // choice to leave parts out was made for the old one (D-508).
+            if changed && let Some(at) = self.position("partial") {
+                self.settings[at] = Setting::Flag(false);
+            }
+            self.follow_spec();
+        }
         Ok(())
+    }
+
+    fn position(&self, key: &str) -> Option<usize> {
+        self.kind
+            .properties()
+            .iter()
+            .position(|property| property.key == key)
+    }
+
+    /// Whether a custom chart's `series` or `categories` means something for
+    /// the dataset it shows: the series of `category_over_time` and the
+    /// categories of `budget_utilization` (Q-353).
+    fn takes_choice(&self, key: &str) -> bool {
+        match key {
+            "series" => self.dataset.id == crate::CATEGORY_OVER_TIME,
+            "categories" => self.dataset.id == crate::BUDGET_UTILIZATION,
+            _ => true,
+        }
+    }
+
+    /// Makes a custom chart show the dataset its description names, and drops
+    /// the choices the new dataset doesn't take, in the same edit (D-504).
+    /// A description that names no dataset (it was refused or has only
+    /// `data.url`) leaves the dataset as it was.
+    fn follow_spec(&mut self) {
+        if let Some(Setting::Text(text)) = self.get("spec")
+            && let Ok(read) = crate::spec::read(text)
+            && let Some(chart) = read.chart()
+            && let Some(dataset) = crate::dataset(chart.dataset().id())
+        {
+            self.dataset = dataset;
+        }
+        self.drop_unused_choices();
+    }
+
+    /// Empties the `series` and `categories` of a custom chart whose dataset
+    /// doesn't take them, so nothing unused is stored.
+    fn drop_unused_choices(&mut self) {
+        if self.kind != ComponentType::CustomChart {
+            return;
+        }
+        for key in ["series", "categories"] {
+            if self.takes_choice(key) {
+                continue;
+            }
+            if let Some(index) = self.position(key) {
+                self.settings[index] = Setting::Ids(Vec::new());
+            }
+        }
     }
 
     /// Shows another dataset. The properties that depend on the dataset go
@@ -111,6 +177,11 @@ impl Component {
     /// one (a grouping the new dataset doesn't have); the others stay.
     pub fn use_dataset(&mut self, dataset_id: &str) -> Result<(), ReportError> {
         let dataset = dataset_for(self.kind, dataset_id)?;
+        // A custom chart shows the dataset its description names (D-504):
+        // another one comes only by changing the description.
+        if self.kind == ComponentType::CustomChart && dataset.id != self.dataset.id {
+            return Err(invalid("dataset-not-suited", "dataset"));
+        }
         for (property, setting) in self.kind.properties().iter().zip(&mut self.settings) {
             if property.check(dataset, setting).is_err() {
                 *setting = property.default_setting(dataset);
@@ -147,6 +218,7 @@ impl Component {
         self.kind = kind;
         self.dataset = dataset;
         self.settings = settings;
+        self.drop_unused_choices();
         Ok(())
     }
 
@@ -207,7 +279,7 @@ impl Component {
                     .ok_or_else(|| invalid("unknown-property", &path))?;
                 let property = &kind.properties()[index];
                 let setting = match (property.kind, value) {
-                    (Kind::Text | Kind::Formula, Value::String(text)) => {
+                    (Kind::Text | Kind::Formula | Kind::Spec, Value::String(text)) => {
                         Setting::Text(text.clone())
                     }
                     (Kind::Flag { .. }, Value::Bool(flag)) => Setting::Flag(*flag),
@@ -233,11 +305,36 @@ impl Component {
                 component.settings[index] = setting;
             }
         }
+        if kind == ComponentType::CustomChart {
+            component.check_custom()?;
+        }
         Ok(component)
     }
 
+    /// What a document must also keep for a custom chart: its `dataset` is
+    /// the one the description names (`spec-dataset`), and `series` and
+    /// `categories` are there only for the dataset that takes them (D-504).
+    fn check_custom(&self) -> Result<(), ReportError> {
+        if let Some(Setting::Text(text)) = self.get("spec")
+            && let Ok(read) = crate::spec::read(text)
+            && let Some(chart) = read.chart()
+            && chart.dataset().id() != self.dataset.id
+        {
+            return Err(invalid("spec-dataset", "dataset"));
+        }
+        for key in ["series", "categories"] {
+            if !self.takes_choice(key)
+                && matches!(self.get(key), Some(Setting::Ids(ids)) if !ids.is_empty())
+            {
+                return Err(invalid("unknown-property", &format!("params.{key}")));
+            }
+        }
+        Ok(())
+    }
+
     /// The component as a document writes it: `type`, `dataset`, `params`
-    /// and `props` with every property.
+    /// and `props` with every property. A custom chart writes the `series` and
+    /// `categories` of its dataset only (D-504).
     pub fn to_value(&self) -> Value {
         let mut params = Map::new();
         let mut props = Map::new();
@@ -266,6 +363,12 @@ impl Component {
                         .collect(),
                 ),
             };
+            if self.kind == ComponentType::CustomChart
+                && property.place == Place::Params
+                && !self.takes_choice(property.key)
+            {
+                continue;
+            }
             match property.place {
                 Place::Params => params.insert(property.key.to_owned(), value),
                 Place::Props => props.insert(property.key.to_owned(), value),

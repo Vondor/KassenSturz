@@ -19,6 +19,14 @@ QtObject {
         asked.push("with " + chosen + " " + showHidden);
     }
 
+    // A custom chart (M6e.3): the same chart object, with the title the
+    // description gives.
+    function showCustom(spec, partial, period, chosen) {
+        show("income_expense_by_month", "bar", period, "each");
+        asked.push("custom " + partial + " " + chosen);
+        view = {empty: false, title: "From the description", description: "", charts: view.charts};
+    }
+
     function show(dataset, kind, period, grouping) {
         asked.push([dataset, kind, period, grouping].join(" "));
         const names = ["Rent", "Groceries", ""];

@@ -656,9 +656,11 @@ fn the_dataset_and_its_component_are_offered_since_the_app_draws_them() {
     assert_eq!(keys, vec!["categories", "title", "period"]);
     let offered: Vec<&str> = kind.datasets().map(|dataset| dataset.id).collect();
     assert_eq!(offered, vec![BUDGET_UTILIZATION]);
-    // No other component takes it: a budget has bars, not a chart yet.
+    // No other component takes it: a budget has bars, not a chart yet. The
+    // one exception is a custom chart, whose description can name every
+    // dataset (M6e, Q-353).
     for other in ComponentType::LIBRARY {
-        if other != kind {
+        if other != kind && other != ComponentType::CustomChart {
             assert!(
                 other
                     .datasets()

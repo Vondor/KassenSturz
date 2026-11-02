@@ -29,6 +29,8 @@ QtObject {
             return i18nContext.i18nc("@item:inlistbox a part of the layout", "Filled line");
         case "chart.stacked_bar":
             return i18nContext.i18nc("@item:inlistbox a part of the layout", "Stacked bars");
+        case "chart.custom":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: a chart the user describes in a short text", "Custom chart");
         case "kpi.card":
             return i18nContext.i18nc("@item:inlistbox a part of the layout", "One figure");
         case "progress.bar":
@@ -101,6 +103,10 @@ QtObject {
     // What a component is called when its user gave it no title: the
     // built-in Overview has none, so its chart and table say what they show.
     function automaticTitle(item: var): string {
+        // A chart the user described names itself, or has no title.
+        if (item?.type === "chart.custom") {
+            return "";
+        }
         const dataset = item?.subject?.dataset;
         const shows = item?.subject?.preview?.shows;
         if (dataset === "spending_by_category" && shows === "chart") {

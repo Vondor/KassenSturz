@@ -479,9 +479,9 @@ mod tests {
     }"#;
 
     #[test]
-    fn the_library_offers_the_twenty_components_and_adds_each_with_its_defaults() {
+    fn the_library_offers_the_twenty_one_components_and_adds_each_with_its_defaults() {
         let offered = library();
-        assert_eq!(offered.len(), 20);
+        assert_eq!(offered.len(), 21);
         assert!(offered.contains(&("text.heading", "")));
         assert!(offered.contains(&("page.period", "")));
         assert!(offered.contains(&("page.filters", "")));
@@ -500,7 +500,7 @@ mod tests {
                 .unwrap();
             assert_eq!(row.component.unwrap().kind().id(), kind);
         }
-        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 32);
+        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 33);
         assert!(add(&mut layout.editor, "chart.radar").is_err());
     }
 

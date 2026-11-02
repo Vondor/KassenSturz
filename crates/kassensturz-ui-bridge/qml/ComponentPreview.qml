@@ -49,6 +49,8 @@ ColumnLayout {
         : shownAsBudgets ? budgetData.view?.error !== undefined
         : asked.shows === "card" || asked.shows === "progress"
         ? cardData.view?.error !== undefined : chartData.view?.error !== undefined
+    // Whether the failure is about a custom chart's description.
+    readonly property bool customError: (chartData.view?.error?.code ?? "").startsWith("report.spec-")
     // What the object that drew the component says about its filters.
     readonly property var filterView: shownAsBudgets ? budgetData.view?.filter
         : usesFormula ? formulaView.filter
@@ -134,7 +136,12 @@ ColumnLayout {
         if (want === undefined || period === "" || !["chart", "table", "card", "progress"].includes(want.shows)) {
             return;
         }
-        if (want.shows === "progress" && want.usesFormula === true) {
+        if (want.spec !== undefined && want.spec !== "") {
+            // A custom chart is drawn from its own description (M6e.3); the
+            // choices of the dataset it names are the series and the
+            // categories of its budgets.
+            chartData.showCustom(want.spec, want.partial === true, period, want.chosen + ";" + want.only);
+        } else if (want.shows === "progress" && want.usesFormula === true) {
             formulaData.showBar(period, want.formula, want.target);
         } else if (want.shows === "card" && want.usesFormula === true) {
             formulaData.show(period, want.formula, false);
@@ -162,13 +169,28 @@ ColumnLayout {
     // component is made, and the Overview makes one per widget (M6-B30).
     Loader {
         Layout.fillWidth: true
-        active: preview.failed
+        active: preview.failed && !preview.customError
         visible: active
 
         sourceComponent: Kirigami.InlineMessage {
             visible: true
             type: Kirigami.MessageType.Warning
             text: preview.i18nContext.i18nc("@info", "This couldn't be shown right now. Try another period, or open the page again.")
+        }
+    }
+
+    // A custom chart that can't be drawn says why in the words of its
+    // description (M6e.3, D-508): parts that are not supported, a text that
+    // is too big or can't be read.
+    Loader {
+        Layout.fillWidth: true
+        active: preview.failed && preview.customError
+        visible: active
+
+        sourceComponent: FormError {
+            result: chartData.view?.error ?? ({})
+            // Nothing from the description's text may look like markup.
+            visible: result.code !== undefined
         }
     }
 
@@ -216,7 +238,8 @@ ColumnLayout {
 
             Layout.fillWidth: true
             chart: modelData
-            title: preview.title
+            // A custom chart's description may carry a title of its own.
+            title: (chartData.view?.title ?? "") !== "" ? chartData.view.title : preview.title
         }
     }
 

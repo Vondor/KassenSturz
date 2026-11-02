@@ -26,10 +26,11 @@ pub struct Field {
     pub key: &'static str,
     /// `params` or `props`.
     pub place: &'static str,
-    /// `text`, `formula`, `flag`, `choice` or `ids`.
+    /// `text`, `spec`, `formula`, `flag`, `choice` or `ids`.
     pub kind: &'static str,
     /// The value of a text, or a formula as the user's number format writes
-    /// it; empty for the other kinds.
+    /// it, or the description of a custom chart exactly as it was written;
+    /// empty for the other kinds.
     pub text: String,
     /// The value of a flag; false for the other kinds.
     pub flag: bool,
@@ -56,6 +57,12 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
             if property.key == "show_hidden"
                 && component.dataset().id != kassensturz_report::SPENDING_BY_CATEGORY
             {
+                return None;
+            }
+            // Whether a custom chart is drawn without the parts that are not
+            // supported belongs to its description's field (D-508), which
+            // offers it where the parts are listed.
+            if property.key == "partial" {
                 return None;
             }
             // The columns have a board of their own, not a field (D-340);
@@ -92,6 +99,11 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                         component.get("grouping"),
                         Some(Setting::Word(word)) if word == kassensturz_report::GROUPS_GROUPING
                     ),
+                    // A custom chart takes the categories of the budgets only
+                    // (Q-353); the other datasets follow the page's filters.
+                    "categories" if component.kind() == ComponentType::CustomChart => {
+                        component.dataset().id == kassensturz_report::BUDGET_UTILIZATION
+                    }
                     "categories" => takes.categories,
                     "accounts" => takes.accounts,
                     _ => component.dataset().id == kassensturz_report::CATEGORY_OVER_TIME,
@@ -103,6 +115,7 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
             let words: Vec<&'static str> = property.words(component.dataset()).to_vec();
             let kind = match property.kind {
                 Kind::Text => "text",
+                Kind::Spec => "spec",
                 Kind::Formula => "formula",
                 Kind::Flag { .. } => "flag",
                 Kind::Choice(_) | Kind::Grouping if words.len() > 1 => "choice",
@@ -149,8 +162,12 @@ pub fn period(component: &Component) -> Option<(String, Vec<&'static str>)> {
     Some((word.clone(), property.words(component.dataset()).to_vec()))
 }
 
-/// The ids of the datasets the component's type can show.
+/// The ids of the datasets the component's type can show. A custom chart
+/// offers none to choose from: it shows the one its description names (D-504).
 pub fn dataset_ids(kind: ComponentType) -> Vec<&'static str> {
+    if kind == ComponentType::CustomChart {
+        return Vec::new();
+    }
     kind.datasets().map(|dataset| dataset.id).collect()
 }
 
@@ -196,6 +213,12 @@ pub struct Preview {
     /// What a full progress bar stands for, a formula in the form the book
     /// stores; empty for none.
     pub target: String,
+    /// The description of a custom chart exactly as the user wrote it
+    /// (M6e.3); empty for every other component.
+    pub spec: String,
+    /// Whether a custom chart is drawn without the parts of its description
+    /// that are not supported here (D-508).
+    pub partial: bool,
     /// The filters the component asks for by its own settings, as the text
     /// `BookCharts.setScope` and its siblings take (M6c.7); empty for a
     /// component that shows no figures.
@@ -324,6 +347,9 @@ pub fn preview(component: &Component) -> Preview {
         ComponentType::FilterBar => ("filter-bar", ""),
         // A button, drawn by the page (M6d.7).
         ComponentType::BankUpdateAll => ("update-all", ""),
+        // Drawn from its own description (M6e.3): `shows` is `chart`, and
+        // `spec` is what tells the screen to ask for a custom chart.
+        ComponentType::CustomChart => ("chart", "bar"),
     };
     let compare = word(component, "compare");
     let measure = match component.kind() {
@@ -365,6 +391,11 @@ pub fn preview(component: &Component) -> Preview {
         uses_formula: uses_formula(component),
         formula: text_of(component, "formula"),
         target: text_of(component, "target"),
+        spec: match component.get("spec") {
+            Some(Setting::Text(spec)) => spec.clone(),
+            _ => String::new(),
+        },
+        partial: matches!(component.get("partial"), Some(Setting::Flag(true))),
         // Without a dashboard around it, only the component's own lists
         // narrow it.
         scope: Asked::new(component, None, &Filters::default())

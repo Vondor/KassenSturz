@@ -99,6 +99,13 @@ pub enum ComponentType {
     /// nothing narrows a page without showing it (D-475). It shows no data
     /// and has no settings. A dashboard holds at most one.
     FilterBar,
+    /// `chart.custom`: a chart the user describes in a short text, a subset
+    /// of the Vega-Lite language (M6e, D-504). The text is `props.spec`; the
+    /// dataset it shows is the one it names, written to `dataset` whenever
+    /// the text is saved. It is in [`ComponentType::LIBRARY`] and never in
+    /// [`ComponentType::ALL`]: the AI does not write or see descriptions
+    /// (Q-352).
+    CustomChart,
 }
 
 impl ComponentType {
@@ -118,7 +125,7 @@ impl ComponentType {
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
     /// the heading (D-312).
-    pub const LIBRARY: [Self; 20] = [
+    pub const LIBRARY: [Self; 21] = [
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -139,6 +146,7 @@ impl ComponentType {
         Self::BankUpdateAll,
         Self::PeriodHeader,
         Self::FilterBar,
+        Self::CustomChart,
     ];
 
     /// Whether the component shows no figures of the book: its document names
@@ -189,6 +197,7 @@ impl ComponentType {
             Self::BankUpdateAll => "bank.update_all",
             Self::PeriodHeader => "page.period",
             Self::FilterBar => "page.filters",
+            Self::CustomChart => "chart.custom",
         }
     }
 
@@ -212,6 +221,9 @@ impl ComponentType {
             Self::ProgressBar => "progress",
             Self::TableRows => "table",
             Self::BudgetProgress => "budget",
+            // A custom chart can show every dataset of the spec (see
+            // `ComponentType::datasets`), so no dataset lists this fit.
+            Self::CustomChart => "custom",
             Self::Heading
             | Self::Separator
             | Self::FetchNotice
@@ -227,9 +239,18 @@ impl ComponentType {
 
     /// The datasets this component can show, in the catalog's order.
     pub fn datasets(self) -> impl Iterator<Item = &'static DatasetInfo> {
-        CATALOG
-            .iter()
-            .filter(move |dataset| dataset.suits.contains(&self.suit()))
+        CATALOG.iter().filter(move |dataset| self.shows(dataset))
+    }
+
+    /// Whether this component can show `dataset`: the dataset lists its
+    /// [`ComponentType::suit`], or, for a custom chart, a description can name it
+    /// (`spec::SPEC_DATASETS`).
+    pub fn shows(self, dataset: &DatasetInfo) -> bool {
+        if self == Self::CustomChart {
+            crate::spec::spec_dataset(dataset.id).is_some()
+        } else {
+            dataset.suits.contains(&self.suit())
+        }
     }
 
     /// The properties of this component, in the order the panel lists them.
@@ -255,6 +276,7 @@ impl ComponentType {
             Self::PeriodBox => &PERIOD_BOX,
             Self::BudgetProgress => &BUDGET_PROGRESS,
             Self::BankUpdateAll => &UPDATE_ALL,
+            Self::CustomChart => &CUSTOM_CHART,
         }
     }
 }
@@ -313,6 +335,11 @@ pub enum Kind {
     /// each column. Names are not empty and differ from each other, ignoring
     /// case, so a formula can use them.
     Columns,
+    /// A chart description (M6e.3, D-504): the text of a custom chart, at
+    /// most [`crate::spec::MAX_SPEC_BYTES`] bytes on any number of lines, which
+    /// [`crate::spec::read`] must accept. What it holds is the user's own
+    /// text; nothing of it is changed.
+    Spec,
 }
 
 /// One column of a chart or table: what it is called and what is under it.
@@ -392,6 +419,20 @@ const COLUMNS: Property = Property {
     key: "columns",
     place: Place::Params,
     kind: Kind::Columns,
+};
+/// `props.spec` (D-504): the description of a custom chart, exactly as the
+/// user wrote it.
+const SPEC: Property = Property {
+    key: "spec",
+    place: Place::Props,
+    kind: Kind::Spec,
+};
+/// `props.partial` (D-508): draw the supported part of a description that
+/// has parts which are not supported here.
+const PARTIAL: Property = Property {
+    key: "partial",
+    place: Place::Props,
+    kind: Kind::Flag { default: false },
 };
 const SHOW_HIDDEN: Property = Property {
     key: "show_hidden",
@@ -498,6 +539,12 @@ const PERIOD_BOX: [Property; 2] = [TITLE, BOX_PERIOD];
 /// the bars are asked for (D-346).
 const BUDGET_PROGRESS: [Property; 3] = [CATEGORIES, TITLE, PERIOD];
 
+/// A custom chart (D-504): its description, whether to draw it without the
+/// parts that are not supported, the series of a chart over time and the
+/// categories of the budgets (Q-353), which count only while the description
+/// names that dataset, and the period.
+const CUSTOM_CHART: [Property; 5] = [SPEC, PARTIAL, SERIES, CATEGORIES, PERIOD];
+
 fn invalid(reason: &'static str, path: String) -> ReportError {
     ReportError::DocumentInvalid { reason, path }
 }
@@ -523,7 +570,8 @@ impl Property {
             | Kind::Ids
             | Kind::Accounts
             | Kind::Formula
-            | Kind::Columns => &[],
+            | Kind::Columns
+            | Kind::Spec => &[],
         }
     }
 
@@ -531,6 +579,7 @@ impl Property {
     pub fn default_setting(&self, dataset: &DatasetInfo) -> Setting {
         match self.kind {
             Kind::Text | Kind::Formula => Setting::Text(String::new()),
+            Kind::Spec => Setting::Text(starter_spec(dataset.id)),
             Kind::Flag { default } => Setting::Flag(default),
             Kind::Ids | Kind::Accounts => Setting::Ids(Vec::new()),
             Kind::Columns => Setting::Columns(Vec::new()),
@@ -576,6 +625,13 @@ impl Property {
                 } else {
                     Ok(())
                 }
+            }
+            (Kind::Spec, Setting::Text(text)) => {
+                // The description is checked as a whole, the way a pasted
+                // one is: a refused one is not kept (D-505).
+                crate::spec::read(text)
+                    .map(|_| ())
+                    .map_err(|_| invalid("bad-spec", self.path()))
             }
             (Kind::Flag { .. }, Setting::Flag(_)) => Ok(()),
             (Kind::Ids, Setting::Ids(ids)) => self.check_ids(ids, MAX_IDS),
@@ -642,9 +698,36 @@ pub fn dataset_for(
         };
     }
     let dataset = crate::dataset(id).ok_or_else(|| invalid("unknown-dataset", "dataset".into()))?;
-    if dataset.suits.contains(&component.suit()) {
+    if component.shows(dataset) {
         Ok(dataset)
     } else {
         Err(invalid("dataset-not-suited", "dataset".into()))
     }
+}
+
+/// The description a new custom chart starts with (D-504): bars of the
+/// dataset's most telling figure, so the chart is something to change, not an
+/// empty box. Written by hand for each dataset; every one is read by
+/// [`crate::spec::read`] in the tests.
+fn starter_spec(dataset: &str) -> String {
+    let (mark, x, over_time, y, color) = match dataset {
+        crate::SPENDING_BY_CATEGORY => ("bar", "category", false, "total", None),
+        crate::INCOME_EXPENSE_BY_MONTH => ("bar", "month", true, "net", None),
+        crate::ACCOUNT_BALANCES => ("bar", "account", false, "balance", None),
+        crate::NET_WORTH_OVER_TIME => ("line", "month", true, "net_worth", None),
+        crate::CASH_FLOW_BY_MONTH => ("bar", "month", true, "net_change", None),
+        crate::CATEGORY_OVER_TIME => ("line", "month", true, "total", Some("series")),
+        _ => ("bar", "category", false, "spent", None),
+    };
+    let x_type = if over_time {
+        "\"type\": \"temporal\", \"timeUnit\": \"yearmonth\""
+    } else {
+        "\"type\": \"nominal\""
+    };
+    let color = color.map_or_else(String::new, |field| {
+        format!(",\n    \"color\": {{\"field\": \"{field}\", \"type\": \"nominal\"}}")
+    });
+    format!(
+        "{{\n  \"data\": {{\"name\": \"{dataset}\"}},\n  \"mark\": \"{mark}\",\n  \"encoding\": {{\n    \"x\": {{\"field\": \"{x}\", {x_type}}},\n    \"y\": {{\"field\": \"{y}\", \"type\": \"quantitative\"}}{color}\n  }}\n}}\n"
+    )
 }

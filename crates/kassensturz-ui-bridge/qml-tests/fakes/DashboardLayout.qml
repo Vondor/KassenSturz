@@ -86,6 +86,7 @@ QtObject {
         view = Object.assign({}, view, {editing: editing});
     }
 
+    function showDashboard(id) { return note("showDashboard:" + id); }
     function refresh() { }
     function edit() { setEditing(true); }
     function cancel() { setEditing(false); }

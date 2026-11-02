@@ -26,15 +26,17 @@ pub const FORMAT: &str = "kassensturz-dashboard";
 /// The version this program writes and the newest it reads. Version 2
 /// (D-351) added `filters.accounts`, `filters.categories` and the
 /// components' `params.accounts`; version 3 (D-476) added the period header
-/// and the filter bar as widgets. Older documents are still read; an older
-/// dashboard gets the two widgets on top when it is read (see
-/// [`Document::read`]).
-pub const VERSION: u32 = 3;
+/// and the filter bar as widgets; version 4 (D-530) added the dashboard tabs.
+/// Older documents are still read; an older dashboard gets the widgets it
+/// lacks on top when it is read (see [`Document::read`]).
+pub const VERSION: u32 = 4;
 /// The ID the period header gets in an older dashboard (D-476), unless the
 /// document uses it already.
 pub const PERIOD_HEADER_ID: &str = "period-header";
 /// The ID the filter bar gets in an older dashboard (D-476).
 pub const FILTER_BAR_ID: &str = "filter-bar";
+/// The ID the tabs get in an older dashboard (D-530).
+pub const DASHBOARD_TABS_ID: &str = "dashboard-tabs";
 /// The largest document, in bytes (D-281).
 pub const MAX_BYTES: usize = 1 << 20;
 /// The deepest nesting of objects and arrays (D-281).
@@ -184,44 +186,77 @@ fn invalid(reason: &'static str, path: &str) -> ReportError {
     }
 }
 
-/// Puts the period header and the filter bar on top of a dashboard written
-/// before version 3 (D-476), where the page drew them as fixed rows above
-/// the grid: everything moves two rows down, the header takes row 0 and the
-/// bar row 1, both the full width. A dashboard that holds one of them
-/// already (as a type an older version didn't know, so it can't be from
-/// before version 3) or has no room for two more components is left as it
-/// is; [`crate::grid::check`] then judges it as written.
-fn add_page_widgets(entries: &mut Vec<Entry>) {
-    let page_widget = |entry: &Entry| matches!(&entry.item, Item::Component(component) if component.kind().one_per_page());
-    if entries.len() + 2 > MAX_COMPONENTS || entries.iter().any(page_widget) {
+/// The page widgets a dashboard of `version` lacks and gets on top when it
+/// is read (D-476, D-530), in the order they take from row 0, each with the
+/// ID it gets unless the document uses it already: before version 3 the page
+/// drew the period header and the filter bar as fixed rows, and before
+/// version 4 the tabs of the book's dashboards; none of them was a widget.
+fn page_widgets_missing(version: i64) -> Vec<(ComponentType, &'static str)> {
+    let mut missing = Vec::new();
+    if version < 4 {
+        missing.push((ComponentType::DashboardTabs, DASHBOARD_TABS_ID));
+    }
+    if version < 3 {
+        missing.push((ComponentType::PeriodHeader, PERIOD_HEADER_ID));
+        missing.push((ComponentType::FilterBar, FILTER_BAR_ID));
+    }
+    missing
+}
+
+/// The first ID of `base`, `base-2`, `base-3` and so on that `taken` says is
+/// free.
+fn free_id(base: &str, taken: impl Fn(&str) -> bool) -> String {
+    (1..)
+        .map(|n| {
+            if n == 1 {
+                base.to_owned()
+            } else {
+                format!("{base}-{n}")
+            }
+        })
+        .find(|id| !taken(id))
+        .unwrap_or_default()
+}
+
+/// Puts the page widgets on top of a dashboard written before version 4
+/// (D-476, D-530; [`page_widgets_missing`] says which), where the page drew
+/// them as fixed rows above the grid: everything moves down by as many rows
+/// as there are widgets, and each takes a row from row 0, the full width. A
+/// dashboard that holds one of them already (as a type an older version
+/// didn't know, so it can't be that old), has no room for them or would
+/// need a row below the grid's last is left as it is;
+/// [`crate::grid::check`] then judges it as written.
+fn add_page_widgets(entries: &mut Vec<Entry>, version: i64) {
+    let missing = page_widgets_missing(version);
+    let count = missing.len();
+    let shift = u32::try_from(count).unwrap_or_default();
+    let holds_one = |entry: &Entry| {
+        matches!(&entry.item, Item::Component(component)
+            if missing.iter().any(|(kind, _)| *kind == component.kind()))
+    };
+    let too_low = |entry: &Entry| {
+        entry
+            .frame
+            .is_some_and(|frame| frame.row.saturating_add(shift) > crate::grid::LAST_ROW)
+    };
+    if count == 0
+        || entries.len() + count > MAX_COMPONENTS
+        || entries.iter().any(holds_one)
+        || entries.iter().any(too_low)
+    {
         return;
     }
     for entry in entries.iter_mut() {
         if let Some(frame) = &mut entry.frame {
-            frame.row = frame.row.saturating_add(2);
+            frame.row = frame.row.saturating_add(shift);
         }
     }
-    let free_id = |entries: &[Entry], base: &str| {
-        (1..)
-            .map(|n| {
-                if n == 1 {
-                    base.to_owned()
-                } else {
-                    format!("{base}-{n}")
-                }
-            })
-            .find(|id| entries.iter().all(|entry| &entry.id != id))
-            .unwrap_or_default()
-    };
-    for (row, kind, base) in [
-        (0, ComponentType::PeriodHeader, PERIOD_HEADER_ID),
-        (1, ComponentType::FilterBar, FILTER_BAR_ID),
-    ] {
+    for (row, (kind, base)) in (0..).zip(missing) {
         let Ok(component) = Component::new(kind, "") else {
             return;
         };
         let size = kind.default_size();
-        let id = free_id(entries, base);
+        let id = free_id(base, |id| entries.iter().any(|entry| entry.id == id));
         entries.insert(
             usize::try_from(row).unwrap_or_default(),
             Entry {
@@ -241,57 +276,60 @@ fn add_page_widgets(entries: &mut Vec<Entry>) {
 /// [`add_page_widgets`] for a dashboard as JSON, before it is read: for a
 /// reader that also follows the components by their place in the JSON (the
 /// dashboard file of M6d.4), so its places and the document's agree. A
-/// dashboard of version 1 or 2 gets the two components in front, the others'
-/// `frame.row` two higher, and `version` [`VERSION`]; anything that doesn't
-/// look like such a dashboard is left for [`Document::read`] to judge.
+/// dashboard of version 1 to 3 gets the components in front, the others'
+/// `frame.row` higher by as many, and `version` [`VERSION`]; anything that
+/// doesn't look like such a dashboard is left for [`Document::read`] to
+/// judge.
 pub(crate) fn add_page_widgets_to_json(dashboard: &mut Map<String, Value>) {
-    let old = dashboard
+    let Some(version) = dashboard
         .get("version")
         .and_then(Value::as_i64)
-        .is_some_and(|version| (1..3).contains(&version));
-    if !old || dashboard.get("kind").and_then(Value::as_str) != Some("dashboard") {
+        .filter(|version| (1..i64::from(VERSION)).contains(version))
+    else {
+        return;
+    };
+    if dashboard.get("kind").and_then(Value::as_str) != Some("dashboard") {
         return;
     }
     let Some(Value::Array(components)) = dashboard.get_mut("components") else {
         return;
     };
-    let page_widget = |component: &Value| {
+    let missing = page_widgets_missing(version);
+    let count = missing.len();
+    let shift = u64::try_from(count).unwrap_or_default();
+    let is_missing_kind = |component: &Value| {
         component
             .get("type")
             .and_then(Value::as_str)
             .and_then(ComponentType::from_id)
-            .is_some_and(ComponentType::one_per_page)
+            .is_some_and(|kind| missing.iter().any(|(wanted, _)| *wanted == kind))
     };
-    if components.len() + 2 > MAX_COMPONENTS || components.iter().any(page_widget) {
+    let too_low = |component: &Value| {
+        component
+            .pointer("/frame/row")
+            .and_then(Value::as_u64)
+            .is_some_and(|row| row.saturating_add(shift) > u64::from(crate::grid::LAST_ROW))
+    };
+    if components.len() + count > MAX_COMPONENTS
+        || components.iter().any(is_missing_kind)
+        || components.iter().any(too_low)
+    {
         return;
     }
     for component in components.iter_mut() {
         if let Some(row) = component.pointer_mut("/frame/row")
             && let Some(old_row) = row.as_u64()
         {
-            *row = old_row.saturating_add(2).into();
+            *row = old_row.saturating_add(shift).into();
         }
     }
-    let taken = |id: &str| {
-        components
-            .iter()
-            .any(|component| component.get("id").and_then(Value::as_str) == Some(id))
-    };
     let mut added = Vec::new();
-    for (row, kind, base) in [
-        (0, ComponentType::PeriodHeader, PERIOD_HEADER_ID),
-        (1, ComponentType::FilterBar, FILTER_BAR_ID),
-    ] {
-        let id = (1..)
-            .map(|n| {
-                if n == 1 {
-                    base.to_owned()
-                } else {
-                    format!("{base}-{n}")
-                }
-            })
-            .find(|id| !taken(id))
-            .unwrap_or_default();
+    for (row, (kind, base)) in (0..).zip(missing) {
+        let id = free_id(base, |id| {
+            components
+                .iter()
+                .any(|component| component.get("id").and_then(Value::as_str) == Some(id))
+        });
         let size = kind.default_size();
         added.push(serde_json::json!({
             "id": id, "type": kind.id(),
@@ -625,8 +663,8 @@ impl Document {
                 &format!("components.{position}.id"),
             ));
         }
-        if kind == ViewKind::Dashboard && version < 3 {
-            add_page_widgets(&mut entries);
+        if kind == ViewKind::Dashboard && version < i64::from(VERSION) {
+            add_page_widgets(&mut entries, version);
         }
         if kind == ViewKind::Dashboard {
             crate::grid::check(&entries)?;

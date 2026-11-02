@@ -16,9 +16,9 @@
 // too, like the fetch-gap warnings, the note about transfers and the
 // separator (D-327, D-328, D-334, D-474).
 // Since M6d.1 the page shows one of the book's dashboards (D-436): tabs once
-// there are two (`DashboardTabs`), the dashboard menu (`DashboardMenu`) and
-// *New dashboard…* (`NewDashboardDialog`); the book opens at its default
-// dashboard (D-448).
+// there are two (`DashboardTabs`, a widget since M6d.9, D-529), the dashboard
+// menu (`DashboardMenu`) and *New dashboard…* (`NewDashboardDialog`); the
+// book opens at its default dashboard (D-448).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -201,6 +201,18 @@ Kirigami.ScrollablePage {
     }
 
     readonly property int dashboardCount: (dashboard.view.dashboards ?? []).length
+
+    // Shows the dashboard `by` places on (Ctrl+Page Down is 1, Ctrl+Page Up
+    // -1), wrapping around at the ends. The tabs are a widget a dashboard may
+    // lack, so the keys don't depend on it.
+    function stepDashboard(by: int) {
+        const list = dashboard.view.dashboards ?? [];
+        if (list.length < 2 || layoutEditing) {
+            return;
+        }
+        const shown = list.findIndex(entry => entry.shown);
+        dashboard.showDashboard(list[(shown + by + list.length) % list.length].id);
+    }
     // Where the file chooser starts (the book's folder).
     property url folderUrl
     // The book's ID of the dashboard shown, empty for the built-in Overview.
@@ -556,7 +568,7 @@ Kirigami.ScrollablePage {
         enabled: page.isCurrentPage && page.dashboardCount > 1 && !page.layoutEditing
         onActivated: {
             ActionLog.taken("OverviewPage_nextDashboard")
-            dashboardTabs.step(1)
+            page.stepDashboard(1)
         }
     }
 
@@ -565,7 +577,7 @@ Kirigami.ScrollablePage {
         enabled: page.isCurrentPage && page.dashboardCount > 1 && !page.layoutEditing
         onActivated: {
             ActionLog.taken("OverviewPage_previousDashboard")
-            dashboardTabs.step(-1)
+            page.stepDashboard(-1)
         }
     }
 
@@ -685,15 +697,6 @@ Kirigami.ScrollablePage {
 
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
-
-        // One tab per dashboard once there are two (M6d.1, D-438).
-        DashboardTabs {
-            id: dashboardTabs
-
-            Layout.fillWidth: true
-            Layout.topMargin: Kirigami.Units.largeSpacing
-            layout: page.dashboard
-        }
 
         Kirigami.InlineMessage {
             Layout.fillWidth: true

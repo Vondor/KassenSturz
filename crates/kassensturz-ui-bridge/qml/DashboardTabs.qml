@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// The row of tabs on the Overview once a book has two or more dashboards
-// (M6d.1, D-438): one tab per dashboard in the book's order, its name as
+// The row of tabs of a dashboard (M6d.1, D-438), the widget `page.tabs`
+// since M6d.9 (D-529): one tab per dashboard in the book's order, its name as
 // plain text, a small home icon on the one the book opens at (D-448). A
-// narrow window scrolls the row. With one dashboard there is no row, so the
-// page looks as before. While a dashboard is arranged the tabs can't be
-// used: Done or Cancel comes first. The list and the switch are Rust's
-// (`DashboardLayout`); this file only shows them.
+// narrow window scrolls the row. With one dashboard there is no row to show.
+// While a dashboard is arranged the tabs can't be used: Done or Cancel comes
+// first. The list and the switch are Rust's (`DashboardLayout`); this file
+// only shows them. The keys that go to the next and the previous dashboard
+// are the page's, so they work on a dashboard without the widget too.
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -26,16 +27,6 @@ Controls.TabBar {
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
-    }
-
-    // Shows the dashboard `by` places on (Ctrl+Page Down is 1, Ctrl+Page Up
-    // -1), wrapping around at the ends.
-    function step(by: int) {
-        if (dashboards.length < 2 || !enabled) {
-            return;
-        }
-        const next = (shownIndex + by + dashboards.length) % dashboards.length;
-        layout.showDashboard(dashboards[next].id);
     }
 
     visible: dashboards.length > 1

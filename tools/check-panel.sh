@@ -67,7 +67,7 @@ mkdir -p "$module"
 for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiChartCard ComponentPreview PropertiesPanel ChartView ChartOverlays ChartTable DataTable \
     CategoryGroupsPage CategoryGroupPage AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter ChartPalette FormError Plain ActionLog \
     DashboardGrid GridItem GridNames TitleWords AddMenu FormulaField PeriodChoice StatisticWizard ColumnBoard \
-    BudgetBars BudgetWords BudgetsPage BudgetPage FilterBar FilterPicker FilterNotes UpdateAllWidget PeriodHeader SpecPage; do
+    BudgetBars BudgetWords BudgetsPage BudgetPage FilterBar FilterPicker FilterNotes UpdateAllWidget PeriodHeader DashboardTabs SpecPage; do
     cp "$bridge/qml/$file.qml" "$module"
 done
 cp "$bridge"/qml-tests/fakes/*.qml "$module"
@@ -81,7 +81,7 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
         ComponentProperties BookCharts BookCards AiSwitch AiChat AccountTypes AiErrorMessage \
         CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames TitleWords DashboardLayout \
         FormulaField BookFormula PeriodChoice PeriodRange StatisticWizard ColumnBoard AddMenu \
-        BudgetBars BudgetWords BudgetsPage BudgetPage BudgetBook BookBudgets FilterBar FilterPicker FilterNotes DeveloperMode UpdateAllWidget PeriodHeader BankConnection SpecPage ChartDescription; do
+        BudgetBars BudgetWords BudgetsPage BudgetPage BudgetBook BookBudgets FilterBar FilterPicker FilterNotes DeveloperMode UpdateAllWidget PeriodHeader DashboardTabs BankConnection SpecPage ChartDescription; do
         echo "$file 1.0 $file.qml"
     done
 } > "$module/qmldir"
@@ -120,6 +120,6 @@ echo "filter bar: ok"
 run_smoke UpdateAllSmoke
 echo "update all accounts: ok"
 run_smoke PageWidgetsSmoke
-echo "period header and filter bar widgets: ok"
+echo "period header, filter bar and tabs widgets: ok"
 run_smoke SpecSmoke
 echo "custom chart description: ok"

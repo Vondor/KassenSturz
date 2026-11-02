@@ -1181,10 +1181,10 @@ mod tests {
         assert!(!flag_of(&view, "hasChanges"));
         assert_eq!(text_of(&view, "undoEdit"), "");
         let items = list_of(&view, "items");
-        assert_eq!(items.len(), 14);
-        // The first card, after the period header, the filter bar, the bank
-        // warnings and the net worth card.
-        let first = &items[4];
+        assert_eq!(items.len(), 15);
+        // The first card, after the tabs, the period header, the filter bar,
+        // the bank warnings and the net worth card.
+        let first = &items[5];
         assert_eq!(
             keys(first),
             [
@@ -1202,7 +1202,7 @@ mod tests {
         assert_eq!(text_of(&preview, "shows"), "card");
         assert_eq!(text_of(&preview, "measure"), "income");
         let library = list_of(&view, "library");
-        assert_eq!(library.len(), 21);
+        assert_eq!(library.len(), 22);
         assert_eq!(keys(&library[0]), ["dataset", "type"]);
     }
 
@@ -1229,14 +1229,15 @@ mod tests {
         assert!(list_of(&rows[0], "frames").is_empty());
         assert_eq!(number_of(&rows[0], "rows"), 0);
         let accounts = list_of(&rows[6], "frames");
-        assert_eq!(text_of(&accounts[0], "type"), "page.period");
-        assert_eq!(keys(&accounts[3]), ["col", "cols", "row", "rows", "type"]);
-        assert_eq!(text_of(&accounts[3], "type"), "bank.update_all");
-        assert_eq!(number_of(&accounts[3], "col"), 0);
-        assert_eq!(number_of(&accounts[3], "row"), 3);
-        assert_eq!(number_of(&accounts[3], "cols"), 6);
-        assert_eq!(number_of(&accounts[3], "rows"), 3);
-        assert_eq!(number_of(&rows[6], "rows"), 9);
+        assert_eq!(text_of(&accounts[0], "type"), "page.tabs");
+        assert_eq!(text_of(&accounts[1], "type"), "page.period");
+        assert_eq!(keys(&accounts[4]), ["col", "cols", "row", "rows", "type"]);
+        assert_eq!(text_of(&accounts[4], "type"), "bank.update_all");
+        assert_eq!(number_of(&accounts[4], "col"), 0);
+        assert_eq!(number_of(&accounts[4], "row"), 4);
+        assert_eq!(number_of(&accounts[4], "cols"), 6);
+        assert_eq!(number_of(&accounts[4], "rows"), 3);
+        assert_eq!(number_of(&rows[6], "rows"), 10);
     }
 
     #[test]

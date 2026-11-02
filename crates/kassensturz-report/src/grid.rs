@@ -48,10 +48,10 @@ impl ComponentType {
             | Self::IncomeSources
             | Self::BudgetProgress
             | Self::BankUpdateAll => Size { cols: 3, rows: 2 },
-            Self::FetchNotice | Self::TransfersNote | Self::FilterBar | Self::DashboardTabs => {
-                Size { cols: 4, rows: 1 }
-            }
-            Self::PeriodHeader => Size { cols: 3, rows: 1 },
+            Self::FetchNotice | Self::TransfersNote => Size { cols: 4, rows: 1 },
+            // The tabs, the month header and the filter bar may be as narrow
+            // as one column: the user decides (D-533).
+            Self::FilterBar | Self::DashboardTabs | Self::PeriodHeader => Size { cols: 1, rows: 1 },
             Self::TableRows => Size { cols: 4, rows: 3 },
             Self::ChartLine
             | Self::ChartBar

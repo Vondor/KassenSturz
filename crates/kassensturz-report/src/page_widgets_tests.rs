@@ -62,10 +62,11 @@ fn the_two_widgets_show_no_data_have_no_settings_and_are_in_the_library() {
             Component::from_value(&component.to_value()).unwrap(),
             component
         );
-        // The full width, one row high; narrower is fine, down to the smallest.
+        // The full width, one row high; narrower is fine, down to one column.
         assert_eq!(kind.default_size(), grid::Size { cols: 12, rows: 1 });
         assert_eq!(kind.smallest_size().rows, 1);
-        assert!(kind.smallest_size().cols <= 4);
+        // As narrow as one column: the user decides (D-533).
+        assert_eq!(kind.smallest_size().cols, 1);
     }
 }
 

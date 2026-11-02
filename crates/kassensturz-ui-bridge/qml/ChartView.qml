@@ -39,7 +39,22 @@ ColumnLayout {
     readonly property bool round: chart.round
     readonly property int count: chart.count
     readonly property var ticks: chart.ticks
-    readonly property bool lines: chart.kind === "line" || chart.kind === "area"
+    readonly property bool lines: chart.kind === "line" || chart.kind === "area" || chart.kind === "stacked-area"
+    // The layers a custom chart puts over its own marks (M6e.2); built-in
+    // charts have none.
+    readonly property var overlays: chart.overlays ?? []
+    // Every series the picture has, for the legend: the chart's own, then
+    // those of its overlays. The names of overlay series are the user's own
+    // text from the chart description.
+    readonly property var legendEntries: {
+        const found = chart.series.map(series => ({color: series.color, marker: series.marker, name: seriesName(series.key)}));
+        for (const overlay of overlays) {
+            for (const series of overlay.series) {
+                found.push({color: series.color, marker: series.marker, name: series.name});
+            }
+        }
+        return found;
+    }
     readonly property real low: ticks.length > 0 ? ticks[0].value : 0
     readonly property real high: ticks.length > 0 ? ticks[ticks.length - 1].value : 1
 
@@ -47,7 +62,7 @@ ColumnLayout {
     // under their bars is drawn as rows instead: the whole name on the left,
     // the bar to its right (M6-B3). The width is an estimate (the chart's own
     // width less the value axis), so the choice never depends on the picture.
-    readonly property bool horizontal: chart.kind === "bar" && chart.series.length === 1 && count > 0
+    readonly property bool horizontal: chart.kind === "bar" && chart.series.length === 1 && count > 0 && overlays.length === 0
         && longestName.advanceWidth > 2 * (view.width - Kirigami.Units.gridUnit * 4) / count
 
     TextMetrics {
@@ -163,6 +178,16 @@ ColumnLayout {
             parts.push(chart.series.length > 1
                 ? i18nContext.i18nc("@label %1 is a series like Money in, %2 an amount", "%1: %2", seriesName(series.key), series.points[index].label)
                 : series.points[index].label);
+        }
+        // What the overlays of a custom chart have at this place.
+        for (const overlay of overlays) {
+            for (const series of overlay.series) {
+                for (const item of series.items) {
+                    if (item.category === index) {
+                        parts.push(i18nContext.i18nc("@label %1 is a series of a custom chart, %2 its value or text there", "%1: %2", series.name, item.text.length > 0 ? item.text : item.label));
+                    }
+                }
+            }
         }
         return i18nContext.i18nc("@label %1 is a category or month, %2 the values there", "%1: %2", categoryName(index), parts.join(", "));
     }
@@ -407,6 +432,17 @@ ColumnLayout {
                     }
                 }
 
+                // The layers of a custom chart over the picture (M6e.2).
+                ChartOverlays {
+                    anchors.fill: parent
+                    visible: view.overlays.length > 0
+                    chart: view.chart
+                    low: view.low
+                    high: view.high
+                    count: view.count
+                    lineAligned: view.lines
+                }
+
                 // The second mark of each bar's series, in the bar (D-283),
                 // where there is more than one series to tell apart.
                 Repeater {
@@ -613,13 +649,13 @@ ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
 
         Repeater {
-            model: view.round ? view.count : view.chart.series.length
+            model: view.round ? view.count : view.legendEntries.length
 
             delegate: RowLayout {
                 id: entry
 
                 required property int index
-                readonly property var series: view.round ? null : view.chart.series[index]
+                readonly property var series: view.round ? null : view.legendEntries[index]
                 readonly property int color: view.round
                     ? view.chart.series[0].points[index].color : series.color
                 readonly property int marker: view.round
@@ -652,7 +688,7 @@ ColumnLayout {
                 }
 
                 Controls.Label {
-                    text: view.round ? view.legendText(entry.index) : view.seriesName(entry.series.key)
+                    text: view.round ? view.legendText(entry.index) : entry.series.name
                     textFormat: Text.PlainText
                     wrapMode: view.round ? Text.Wrap : Text.NoWrap
                     elide: view.round ? Text.ElideNone : Text.ElideRight
@@ -682,7 +718,8 @@ ColumnLayout {
 
     Controls.Label {
         Layout.fillWidth: true
-        visible: !view.showTable
+        // A custom chart has no fixed meaning for a total and gives none.
+        visible: !view.showTable && view.chart.total !== ""
         text: view.chart.kind === "pie" || view.chart.kind === "donut" || view.chart.dataset === "spending_by_category"
             ? i18nContext.i18nc("@label %1 is an amount of money", "Total spent: %1", view.chart.total)
             : view.chart.dataset === "net_worth_over_time"
@@ -743,9 +780,9 @@ ColumnLayout {
 
             yRange { from: view.low; to: view.high; automatic: false }
             lineWidth: 3
-            fillOpacity: view.chart.kind === "area" ? 0.35 : 0
+            fillOpacity: view.chart.kind === "area" || view.chart.kind === "stacked-area" ? 0.35 : 0
             interpolate: false
-            stacked: false
+            stacked: view.chart.kind === "stacked-area"
             indexingMode: Charts.Chart.IndexEachSource
             // The second mark of a series, on each of its points (D-283).
             nameSource: Charts.ArraySource {

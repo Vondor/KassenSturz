@@ -18,21 +18,21 @@ use proptest::prelude::*;
 
 use super::*;
 
-const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
+pub(crate) const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
     Err(_) => panic!("EUR is a valid code"),
 };
 
-fn date(year: i16, month: i8, day: i8) -> Date {
+pub(crate) fn date(year: i16, month: i8, day: i8) -> Date {
     Date::new(year, month, day).expect("valid date")
 }
 
-fn money(minor_units: i64) -> Money {
+pub(crate) fn money(minor_units: i64) -> Money {
     Money::from_minor_units(minor_units, EUR)
 }
 
 /// Words for the tests, so the output shows what the chart was given.
-struct Words;
+pub(crate) struct Words;
 
 impl TextFormat for Words {
     fn amount(&self, money: Money) -> String {
@@ -92,7 +92,7 @@ fn add(book: &mut Book, day: Date, parts: &[(Option<AccountId>, i64)]) {
 }
 
 /// Two months of salary, rent, groceries inside Food, and money not sorted.
-fn book() -> Book {
+pub(crate) fn book() -> Book {
     let mut book = Book::create_in_memory().expect("book created");
     book.use_currency(EUR).expect("currency used");
     let checking = account(&mut book, "Checking account", AccountKind::Asset, None);
@@ -125,18 +125,18 @@ fn book() -> Book {
     book
 }
 
-fn autumn() -> Period {
+pub(crate) fn autumn() -> Period {
     Period::new(date(2026, 9, 1), date(2026, 10, 31)).expect("a period")
 }
 
-fn spending(book: &Book) -> kassensturz_report::SpendingByCategory {
+pub(crate) fn spending(book: &Book) -> kassensturz_report::SpendingByCategory {
     let source = Source::read(book, autumn()).expect("source");
     spending_dataset(&source, autumn(), &Filter::default(), Level::Each)
         .expect("dataset")
         .remove(0)
 }
 
-fn monthly(book: &Book) -> kassensturz_report::IncomeExpenseByMonth {
+pub(crate) fn monthly(book: &Book) -> kassensturz_report::IncomeExpenseByMonth {
     let source = Source::read(book, autumn()).expect("source");
     monthly_dataset(&source, autumn(), &Filter::default())
         .expect("dataset")
@@ -275,7 +275,7 @@ fn an_empty_dataset_gives_an_empty_chart() {
 }
 
 /// A provider that draws nothing, to run the default `prepare`.
-struct Silent;
+pub(crate) struct Silent;
 
 impl ChartProvider for Silent {
     fn name(&self) -> &'static str {

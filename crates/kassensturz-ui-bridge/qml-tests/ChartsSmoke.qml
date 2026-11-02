@@ -156,10 +156,63 @@ Window {
         return chart;
     }
 
+    function item(category, value, label, text, size) {
+        return {category: category, hasValue: value !== null, value: value === null ? 0 : value * 100, label: label, text: text ?? "", size: size ?? 2};
+    }
+
+    function customTable(rows) {
+        return {currency: "EUR", columns: ["category", "series", "value"], rows: rows};
+    }
+
+    // A custom chart (M6e.2): bars of the net, a level at the mean, dots at the
+    // income with their size, and texts.
+    function customLayers() {
+        const net = [700, 300, 750, -250];
+        const income = [2500, 2500, 2650, 2500];
+        const chart = monthly("bar");
+        chart.dataset = "income_expense_by_month";
+        chart.total = "";
+        chart.series = [{key: "series-0", name: "Net", color: 0, marker: 0, points: net.map(v => point(v + ",00 €", v, 0))}];
+        chart.ticks = [-1000, 0, 1000, 2000, 3000].map(v => ({label: v + " €", minorUnits: String(v * 100), value: v * 100}));
+        chart.overlays = [
+            {mark: "rule-level", series: [{name: "Mean net", color: 1, marker: 1, items: [item(-1, 375, "375,00 €")]}]},
+            {mark: "point", series: [{name: "Income", color: 2, marker: 2, items: income.map((v, i) => item(i, v, v + ",00 €", "", 1 + i))}]},
+            {mark: "text", series: [{name: "Notes", color: 3, marker: 3, items: [item(0, 2500, "2.500,00 €", "Best month")]}]}
+        ];
+        chart.table = customTable(months().map((m, i) => [m, "Net", net[i] + ",00 €"]));
+        return chart;
+    }
+
+    // Stacked areas of two colored series.
+    function stackedArea() {
+        const chart = overTime();
+        chart.kind = "stacked-area";
+        chart.dataset = "category_over_time";
+        chart.total = "";
+        chart.ticks = [0, 500, 1000, 1500].map(v => ({label: v + " €", minorUnits: String(v * 100), value: v * 100}));
+        return chart;
+    }
+
+    // Only dots, a line and a rule at one month: an empty chart carries them.
+    function marksOnly() {
+        const chart = monthly("bar");
+        chart.total = "";
+        chart.series = [];
+        chart.overlays = [
+            {mark: "line", series: [{name: "Income", color: 0, marker: 0, items: [2500, 2500, 2650, 2500].map((v, i) => item(i, v, v + ",00 €"))}]},
+            {mark: "area", series: [{name: "Floor", color: 1, marker: 1, items: [500, 600, 700, 800].map((v, i) => item(i, v, v + ",00 €"))}]},
+            {mark: "bar", series: [{name: "Spent", color: 2, marker: 2, items: [1800, 2200, 1900, 2750].map((v, i) => item(i, v, v + ",00 €"))}]},
+            {mark: "rule-category", series: [{name: "Move", color: 3, marker: 3, items: [{category: 2, hasValue: false, value: 0, label: "March 2026", text: "", size: 1}]}]}
+        ];
+        chart.table = customTable([["March 2026", "Move", ""]]);
+        return chart;
+    }
+
     readonly property var charts: [
         monthly("line"), monthly("area"), monthly("bar"), monthly("stacked-bar"),
         spending("bar"), spending("pie"), spending("donut"), spendingWithHidden("pie"), spendingWithOther("pie"), spendingWithOther("donut"), overTime(), netWorth(), cashFlow(),
-        spendingCrowded("pie"), spendingCrowded("donut")
+        spendingCrowded("pie"), spendingCrowded("donut"),
+        customLayers(), stackedArea(), marksOnly()
     ]
     property int shown: 0
 

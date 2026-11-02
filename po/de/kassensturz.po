@@ -16218,3 +16218,23 @@ msgstr "Berichte aus einer KMyMoney-Datei hinzufügen"
 msgctxt "@item:inlistbox a file type"
 msgid "KMyMoney files (*.kmy *.sqlite *.db)"
 msgstr "KMyMoney-Dateien (*.kmy *.sqlite *.db)"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:77
+#, kde-format
+msgctxt ""
+"@title:column the table of a custom chart: which line, bars or dots the "
+"value is of"
+msgid "Series"
+msgstr "Serie"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:78
+#, kde-format
+msgctxt "@title:column the table of a custom chart"
+msgid "Value"
+msgstr "Wert"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:187
+#, kde-format
+msgctxt "@label %1 is a series of a custom chart, %2 its value or text there"
+msgid "%1: %2"
+msgstr "%1: %2"

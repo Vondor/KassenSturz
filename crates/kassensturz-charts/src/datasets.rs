@@ -89,7 +89,7 @@ pub fn spending_by_category(
         rows: shown
             .rows
             .iter()
-            .map(|row| vec![row.name.clone(), format.amount(row.total)])
+            .map(|row| vec![row.name.clone(), row.label.clone()])
             .collect(),
     };
     let categories = shown.rows.iter().map(|row| row.name.clone()).collect();
@@ -101,7 +101,10 @@ pub fn spending_by_category(
         points: shown
             .rows
             .iter()
-            .map(|row| point(row.total, format))
+            .map(|row| Point {
+                minor_units: row.minor_units,
+                label: row.label.clone(),
+            })
             .collect(),
     }];
     let ticks = if kind.is_round() {
@@ -122,22 +125,25 @@ pub fn spending_by_category(
         table,
         slices: shown.slices,
         hidden: hidden_note(data, format),
+        overlays: Vec::new(),
     })
 }
 
 /// A row of a spending chart as shown: its name (empty for money not sorted
-/// yet), its total and whether it is that money.
-struct ShownRow {
-    name: String,
-    total: Money,
-    unsorted: bool,
+/// yet), its amount in minor units with the text it is shown as, and whether
+/// it is the money not sorted yet.
+pub(crate) struct ShownRow {
+    pub(crate) name: String,
+    pub(crate) minor_units: i64,
+    pub(crate) label: String,
+    pub(crate) unsorted: bool,
 }
 
 /// The rows of a spending chart and, for a round one, what it says about
 /// its slices.
-struct Shown {
-    rows: Vec<ShownRow>,
-    slices: Slices,
+pub(crate) struct Shown {
+    pub(crate) rows: Vec<ShownRow>,
+    pub(crate) slices: Slices,
 }
 
 impl Shown {
@@ -152,7 +158,8 @@ impl Shown {
                 } else {
                     row.path.join(" › ")
                 },
-                total: row.total,
+                minor_units: row.total.minor_units(),
+                label: format.amount(row.total),
                 unsorted: row.is_unsorted(),
             })
             .collect();
@@ -163,19 +170,27 @@ impl Shown {
     }
 }
 
+/// The rows of a pie, donut or ring of a spending result (D-291).
+fn round_rows(data: &SpendingByCategory, format: &impl TextFormat) -> Result<Shown, ChartError> {
+    let plain = Shown::plain(data, format);
+    round_slices(plain.rows, format, |minor_units| {
+        format.amount(Money::from_minor_units(minor_units, data.currency))
+    })
+}
+
 /// The rows of a pie, donut or ring (D-291): at most [`MAX_SLICES`] slices,
 /// the seven largest and "Other" when there would be more, each with its
 /// share; then the rows that cannot be drawn (a refund larger than the
 /// spending, or nothing), listed with a note and never as slices. The
-/// dataset orders its rows largest first, so the first seven are the
-/// largest.
-fn round_rows(data: &SpendingByCategory, format: &impl TextFormat) -> Result<Shown, ChartError> {
-    let overflow = |_| ChartError::Overflow;
-    let plain = Shown::plain(data, format);
-    let (drawn, undrawn): (Vec<ShownRow>, Vec<ShownRow>) = plain
-        .rows
-        .into_iter()
-        .partition(|row| row.total.minor_units() > 0);
+/// rows come largest first, so the first seven are the largest. `label`
+/// writes the amount of "Other".
+pub(crate) fn round_slices(
+    plain: Vec<ShownRow>,
+    format: &impl TextFormat,
+    label: impl Fn(i64) -> String,
+) -> Result<Shown, ChartError> {
+    let (drawn, undrawn): (Vec<ShownRow>, Vec<ShownRow>) =
+        plain.into_iter().partition(|row| row.minor_units > 0);
     let mut rows = Vec::new();
     let mut holds = Vec::new();
     let mut other = None;
@@ -183,23 +198,28 @@ fn round_rows(data: &SpendingByCategory, format: &impl TextFormat) -> Result<Sho
         let mut rest = drawn;
         let kept: Vec<ShownRow> = rest.drain(..MAX_SLICES - 1).collect();
         rows.extend(kept);
-        let sum = Money::checked_sum(data.currency, rest.iter().map(|row| row.total))
-            .map_err(overflow)?;
+        let sum = rest
+            .iter()
+            .try_fold(0_i64, |sum, row| sum.checked_add(row.minor_units))
+            .ok_or(ChartError::Overflow)?;
         holds = rest
             .iter()
-            .map(|row| (row.name.clone(), format.amount(row.total)))
+            .map(|row| (row.name.clone(), row.label.clone()))
             .collect();
         other = Some(rows.len());
         rows.push(ShownRow {
             name: String::new(),
-            total: sum,
+            minor_units: sum,
+            label: label(sum),
             unsorted: false,
         });
     } else {
         rows.extend(drawn);
     }
-    let whole =
-        Money::checked_sum(data.currency, rows.iter().map(|row| row.total)).map_err(overflow)?;
+    let whole = rows
+        .iter()
+        .try_fold(0_i64, |sum, row| sum.checked_add(row.minor_units))
+        .ok_or(ChartError::Overflow)?;
     let drawn_count = rows.len();
     rows.extend(undrawn);
     let mut shares = Vec::with_capacity(rows.len());
@@ -212,7 +232,7 @@ fn round_rows(data: &SpendingByCategory, format: &impl TextFormat) -> Result<Sho
             flags.push(true);
             continue;
         }
-        let tenths = share_tenths(row.total.minor_units(), whole.minor_units());
+        let tenths = share_tenths(row.minor_units, whole);
         shares.push(format.percent(Percent::from_tenths(tenths)));
         named.push(tenths >= NAMED_FROM_TENTHS);
         flags.push(false);
@@ -289,6 +309,7 @@ pub fn income_expense_by_month(
         table,
         slices: Slices::default(),
         hidden: None,
+        overlays: Vec::new(),
     })
 }
 
@@ -345,5 +366,6 @@ pub fn category_over_time(
         table,
         slices: Slices::default(),
         hidden: None,
+        overlays: Vec::new(),
     })
 }

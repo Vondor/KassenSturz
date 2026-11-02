@@ -14,6 +14,7 @@
 //! they place marks and are never read back. The provider draws; it formats
 //! no number, and it answers pointer events with indices, never values.
 
+mod custom;
 mod datasets;
 mod error;
 mod financial;
@@ -21,14 +22,17 @@ mod model;
 mod provider;
 mod ticks;
 
+pub use custom::{CustomChart, CustomError, MAX_ROWS, MAX_SERIES, custom_chart};
 pub use datasets::{category_over_time, income_expense_by_month, spending_by_category};
 pub use error::ChartError;
 pub use financial::{BalancesBy, account_balances, cash_flow_by_month, net_worth_over_time};
 pub use model::{
-    ChartKind, ChartModel, HiddenNote, MAX_SLICES, NAMED_FROM_TENTHS, PALETTE_SIZE, Point, Series,
-    Slices, Tick,
+    ChartKind, ChartModel, HiddenNote, MAX_DOT_SIZE, MAX_SLICES, NAMED_FROM_TENTHS, Overlay,
+    OverlayItem, OverlayMark, OverlaySeries, PALETTE_SIZE, Point, Series, Slices, Tick,
 };
 pub use provider::{ChartProvider, Prepared, PreparedSeries, drawing_value};
 
+#[cfg(test)]
+mod custom_tests;
 #[cfg(test)]
 mod tests;

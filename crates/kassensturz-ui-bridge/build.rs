@@ -72,6 +72,7 @@ fn main() {
                 "qml/CategoryPage.qml",
                 "qml/ChangeNames.qml",
                 "qml/FormulaField.qml",
+                "qml/ChartOverlays.qml",
                 "qml/ChartTable.qml",
                 "qml/ChartView.qml",
                 "qml/ComponentPreview.qml",

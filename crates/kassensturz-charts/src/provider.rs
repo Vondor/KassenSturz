@@ -42,6 +42,10 @@ pub struct Prepared {
     pub series: Vec<PreparedSeries>,
     /// The ticks of the value axis as drawing values.
     pub ticks: Vec<f64>,
+    /// For every overlay of the model, for every series, one drawing value
+    /// per item; `None` for an item with no amount (a rule across the
+    /// chart's height).
+    pub overlays: Vec<Vec<Vec<Option<f64>>>>,
 }
 
 /// A library that draws charts: KQuickCharts in the app (D-275), a fake in
@@ -80,6 +84,27 @@ pub trait ChartProvider {
             .iter()
             .map(|tick| drawing_value(tick.minor_units))
             .collect::<Result<_, _>>()?;
-        Ok(Prepared { series, ticks })
+        let overlays = model
+            .overlays
+            .iter()
+            .map(|overlay| {
+                overlay
+                    .series
+                    .iter()
+                    .map(|series| {
+                        series
+                            .items
+                            .iter()
+                            .map(|item| item.minor_units.map(drawing_value).transpose())
+                            .collect::<Result<_, _>>()
+                    })
+                    .collect::<Result<_, _>>()
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(Prepared {
+            series,
+            ticks,
+            overlays,
+        })
     }
 }

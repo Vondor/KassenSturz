@@ -46,6 +46,13 @@ DataTable {
         if (chart.dataset === "account_balances") {
             return rows.map(row => row.map((cell, column) => words[column] ? haveOrOwe(cell) : cell));
         }
+        // The table of a custom chart has a row for each value, not for each
+        // place: money with no category yet has an empty first cell.
+        if (chart.table.columns.length === 3 && chart.table.columns[1] === "series") {
+            return rows.map(row => row[0] === "" && chart.unsortedIndex >= 0
+                ? [i18nContext.i18nc("@label money with no category yet", "Not sorted yet"), ...row.slice(1)]
+                : row);
+        }
         return rows.map((row, index) => (chart.unsortedIndex === index)
             ? [i18nContext.i18nc("@label money with no category yet", "Not sorted yet"), ...row.slice(1)]
             : (chart.round && chart.slices.other === index)
@@ -67,6 +74,8 @@ DataTable {
         "income": i18nContext.i18nc("@title:column a table of a chart", "Money in"),
         "expenses": i18nContext.i18nc("@title:column a table of a chart", "Money out"),
         "net": i18nContext.i18nc("@title:column a table of a chart", "Left over"),
+        "series": i18nContext.i18nc("@title:column the table of a custom chart: which line, bars or dots the value is of", "Series"),
+        "value": i18nContext.i18nc("@title:column the table of a custom chart", "Value"),
         "account": i18nContext.i18nc("@title:column a table of a chart", "Account"),
         "kind": i18nContext.i18nc("@title:column a table of a chart: whether the user has the money or owes it", "Have or owe"),
         "figure": i18nContext.i18nc("@title:column a table of a chart: what has been added up", "Figure"),

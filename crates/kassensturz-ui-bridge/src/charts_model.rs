@@ -322,6 +322,7 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
     let unsorted = model
         .unsorted
         .map_or(-1, |index| i32::try_from(index).unwrap_or(-1));
+    let overlays = overlays_object(model, prepared);
     map([
         ("kind", text(model.kind.key())),
         ("dataset", text(model.dataset)),
@@ -338,9 +339,49 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
             list(model.categories.iter().map(|name| text(name))),
         ),
         ("series", list(series)),
+        ("overlays", overlays),
         ("ticks", list(ticks)),
         ("table", table),
     ])
+}
+
+/// The layers a custom chart puts over its own marks, as QML reads them
+/// (M6e.2): for each its mark word and series, and for each series its name,
+/// color and items. An item has its `category` (-1 for a mark that runs across
+/// the chart), whether it has a value (`hasValue`, false for a mark that runs
+/// from bottom to top), the drawing `value`, its `label`, its `text` and its
+/// dot `size`. A built-in chart has none.
+fn overlays_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
+    list(
+        model
+            .overlays
+            .iter()
+            .zip(&prepared.overlays)
+            .map(|(overlay, drawn)| {
+                let series = overlay.series.iter().zip(drawn).map(|(series, values)| {
+                    let items = series.items.iter().zip(values).map(|(item, value)| {
+                        let category = item
+                            .category
+                            .map_or(-1, |at| i32::try_from(at).unwrap_or(-1));
+                        map([
+                            ("category", QVariant::from(&category)),
+                            ("hasValue", QVariant::from(&value.is_some())),
+                            ("value", drawing(value.unwrap_or(0.0))),
+                            ("label", text(&item.label)),
+                            ("text", text(&item.text)),
+                            ("size", QVariant::from(&i32::from(item.size))),
+                        ])
+                    });
+                    map([
+                        ("name", text(&series.name)),
+                        ("color", QVariant::from(&i32::from(series.color))),
+                        ("marker", QVariant::from(&marker(series.color))),
+                        ("items", list(items)),
+                    ])
+                });
+                map([("mark", text(overlay.mark.key())), ("series", list(series))])
+            }),
+    )
 }
 
 /// The error of a request as QML gets it: its code, and for an unsupported
@@ -525,6 +566,7 @@ mod tests {
                 "dataset",
                 "hidden",
                 "kind",
+                "overlays",
                 "paletteSize",
                 "round",
                 "series",
@@ -1038,5 +1080,111 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// A custom chart with a level and dots over its bars, made from the real
+    /// output of the monthly dataset on the book, read back as QML reads it
+    /// (M6e.2).
+    #[test]
+    fn the_layers_of_a_custom_chart_read_back_the_way_qml_reads_them() {
+        use crate::charts::QuickCharts;
+        use crate::format::Locale;
+        use kassensturz_charts::{ChartProvider, custom_chart};
+        use kassensturz_report::spec::{
+            Aggregate, Channel, ChartSpec, Encoding, FieldType, FlatTable, Layer, Mark, MarkKind,
+            TimeUnit, spec_dataset,
+        };
+        use kassensturz_report::{Filter, Source};
+
+        let book = book();
+        let locale = TestLocale;
+        let text = charts::AppText::new(&book, &locale);
+        let period = charts::period(&book, "last-12-months", locale.today()).expect("period");
+        let source = Source::read(&book, period).expect("source");
+        let results =
+            kassensturz_report::income_expense_by_month(&source, period, &Filter::default())
+                .expect("dataset");
+        let table = FlatTable::from_monthly(&results[0]);
+        let ds = spec_dataset("income_expense_by_month").expect("dataset");
+        let field = |name: &str| ds.field(name).expect("field");
+        let month = || {
+            Encoding::new(
+                Channel::X,
+                field("month"),
+                FieldType::Temporal,
+                None,
+                None,
+                Some(TimeUnit::YearMonth),
+                None,
+            )
+            .expect("encoding")
+        };
+        let y = |name: &str, aggregate| {
+            Encoding::new(
+                Channel::Y,
+                field(name),
+                FieldType::Quantitative,
+                None,
+                aggregate,
+                None,
+                None,
+            )
+            .expect("encoding")
+        };
+        let layer =
+            |kind, encodings| Layer::new(Mark::plain(kind), encodings, Vec::new()).expect("layer");
+        let spec = ChartSpec::new(
+            ds,
+            None,
+            None,
+            None,
+            Vec::new(),
+            Vec::new(),
+            vec![
+                layer(MarkKind::Bar, vec![month(), y("net", None)]),
+                layer(MarkKind::Rule, vec![y("net", Some(Aggregate::Mean))]),
+                layer(MarkKind::Point, vec![month(), y("income", None)]),
+            ],
+        )
+        .expect("spec");
+        let custom = custom_chart(&spec, &table, &text)
+            .expect("drawn")
+            .expect("something to show");
+        let prepared = QuickCharts.prepare(&custom.chart).expect("prepared");
+        let chart = chart_object(&custom.chart, &prepared);
+        let overlays = list_of(&chart, "overlays");
+        assert_eq!(overlays.len(), 2);
+        assert_eq!(text_of(&overlays[0], "mark"), "rule-level");
+        assert_eq!(text_of(&overlays[1], "mark"), "point");
+        let level_series = list_of(&overlays[0], "series");
+        assert_eq!(keys(&level_series[0]), ["color", "items", "marker", "name"]);
+        let level = list_of(&level_series[0], "items");
+        assert_eq!(
+            keys(&level[0]),
+            ["category", "hasValue", "label", "size", "text", "value"]
+        );
+        // A level runs across the chart: no category, but a value.
+        assert_eq!(number_of(&level[0], "category"), -1);
+        assert!(flag_of(&level[0], "hasValue"));
+        assert!(!text_of(&level[0], "label").is_empty());
+        let dots = list_of(&list_of(&overlays[1], "series")[0], "items");
+        assert_eq!(dots.len(), custom.chart.categories.len());
+        assert_eq!(number_of(&dots[1], "category"), 1);
+        // The overlay's series have palette colors after the chart's own.
+        let own = list_of(&chart, "series");
+        assert_eq!(number_of(&own[0], "color"), 0);
+        assert_eq!(number_of(&level_series[0], "color"), 1);
+        // Every column of its table has a title on screen.
+        let titles = include_str!("../qml/ChartTable.qml");
+        for column in list_of(&object_of(&chart, "table"), "columns") {
+            let name = column.value::<QString>().expect("text").to_string();
+            assert!(
+                titles.contains(&format!("\"{name}\":")),
+                "{name} needs a title in ChartTable.qml"
+            );
+        }
+        // A built-in chart has an empty list, not a missing key.
+        let built_in = view_of(&request("spending_by_category", "bar"));
+        assert!(list_of(&list_of(&built_in, "charts")[0], "overlays").is_empty());
     }
 }

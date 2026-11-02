@@ -38,7 +38,7 @@ Every page has **Back** (top left, and Alt+Left). Only the marked buttons write 
 - **Language:** "As in your system (Deutsch)", "English", "Deutsch", each named in itself (D-127). The system's language is preselected, so a German Windows user only confirms.
 - **Currency:** "Which currency do you use?", the regional settings' currency first, otherwise the euro (D-111), with the existing hint "Most people only need to confirm this. You can add an account in another currency later." Hidden when the book already has categories (D-116's rule stays).
 - One button: **Continue**.
-- **Changing the language** saves the existing `Language` setting (D-127) and, on *Continue*, restarts KassenSturz in the new language straight into this page. D-127 avoids a restart because of unsaved typing; here nothing has been typed yet, so the restart loses nothing. The page says so before the click: "KassenSturz starts again in English. Nothing is lost." (open question Q-a).
+- **Changing the language** saves the existing `Language` setting (D-127) and, on *Continue*, restarts KassenSturz in the new language straight into this page. D-127 avoids a restart because of unsaved typing; here nothing has been typed yet, so the restart loses nothing. The page says so before the click: "KassenSturz starts again in English. Nothing is lost." (open question Q-395).
 
 ### Page 2: How would you like to start? (`2-start.png`)
 
@@ -52,7 +52,7 @@ Three large choices of equal weight, each with one line under it:
 | **Try an example book** | Look around in a made-up household. Nothing you do there touches your own book. |
 | **Bring my data from another program** | A KMyMoney book, or a copy you saved from KassenSturz. |
 
-Below them a small link, **Open a KassenSturz book I already have…**, for someone whose book is on another drive or came from another computer. The footer says "You can change everything later." Which choice comes first is open question Q-b.
+Below them a small link, **Open a KassenSturz book I already have…**, for someone whose book is on another drive or came from another computer. The footer says "You can change everything later." Which choice comes first is open question Q-396.
 
 ### Page 3a: Example book (`3a-examples.png`)
 
@@ -62,7 +62,7 @@ This page *is* M7a.2's chooser component, placed by the wizard; M7a.2 owns the c
 
 - The four books, each with a one-line description in the UI language: **Suburban Family** (marked "Good to start with" and preselected), **Flower Utopia**, **Space Colony**, **UdSSR Government Agent**. Their German names come from M7a.8.
 - **Open example** builds a new, clearly named copy (for example `Beispiel – Vorstadtfamilie.ksz` next to the user's own book) through the existing importer and opens it; the bundled originals and the user's own empty book stay untouched.
-- **An example book always says it is one:** a banner on its overview reads "This is an example household with made-up figures." with the button **Start my own book**, which opens the user's own book, still empty, so the wizard starts there at page 1. That is the way back from trying to real use (open question Q-e).
+- **An example book always says it is one:** a banner on its overview reads "This is an example household with made-up figures." with the button **Start my own book**, which opens the user's own book, still empty, so the wizard starts there at page 1. That is the way back from trying to real use (open question Q-399).
 
 ### Page 3b: Your accounts (`3b-accounts.png`)
 
@@ -109,7 +109,7 @@ The real overview, with one dismissible message at the top, shown only in the se
 | `DefaultCategories.qml` and the default set (D-116) | Reused unchanged; written on *Create my household book* (or when another start path needs them, as today). |
 | `FirstStart` bridge object (`needsCurrency`, `currencies`, `hasAccount`) | Reused. `start()` is replaced by one call that writes categories and accounts together (section 4). |
 | `NewAccountPage.qml` in first-run mode ("Your first account") | Its fields and checks become the row of page 3b. The page stays for "Add an account" from the screens; its `firstRun` mode goes. |
-| The first transaction page (D-089, D-116: optional, skippable) | **Dropped from the first start** (open question Q-c). The first look points to +. |
+| The first transaction page (D-089, D-116: optional, skippable) | **Dropped from the first start** (open question Q-397). The first look points to +. |
 | `BookFromFilePage.qml`, `BookFromFileDonePage.qml` | Reused unchanged as path 3c. |
 | Import pages (M3.10), `BankSetupPage.qml` (M4.6) | Reused unchanged from page 4. |
 | `MockNotice.qml` (the test-version banner) | Kept on every wizard page while KassenSturz is in test versions. |
@@ -162,10 +162,10 @@ No new table, column, user action or app setting:
 
 ## 8. Open questions for the maintainer
 
-Sent to the coordinator to be numbered and asked one at a time. Until answered, the build follows the recommended option (R).
+Asked one at a time. Until answered, the build follows the recommended option (R).
 
-- **Q-a Language change on page 1.** R: restart KassenSturz by itself on *Continue*, since nothing has been typed yet. B: keep D-127's behaviour ("applies the next time you start"), which leaves the rest of the wizard in the old language. C: no language choice in the wizard; Settings only.
-- **Q-b Order on page 2.** R: "My own accounts" first, the example book second, all three of equal size. B: the example book first, since every tester starts there. C: the example book as the one large button, the others smaller.
-- **Q-c The first transaction page.** R: drop it from the first start; the first look points to +. B: keep it as an optional page after page 4.
-- **Q-d Bank in the wizard.** R: offer *Connect to my bank* only after the accounts exist (page 4), reusing the bank setup page unchanged, so this step touches no bank code and stays free of a human gate. B: let a bank connection create the accounts and take their balances from the bank, which saves typing but is new bank code (a human gate, later than M7a).
-- **Q-e Example books and the user's own book.** R: an example opens as its own copy, the user's own book stays empty, and the example's banner offers *Start my own book*. B: fill the user's own book with the example (one file, but then real use starts from made-up data that has to be cleared first).
+- **Q-395 Language change on page 1.** R: restart KassenSturz by itself on *Continue*, since nothing has been typed yet. B: keep D-127's behaviour ("applies the next time you start"), which leaves the rest of the wizard in the old language. C: no language choice in the wizard; Settings only.
+- **Q-396 Order on page 2.** R: "My own accounts" first, the example book second, all three of equal size. B: the example book first, since every tester starts there. C: the example book as the one large button, the others smaller.
+- **Q-397 The first transaction page.** R: drop it from the first start; the first look points to +. B: keep it as an optional page after page 4.
+- **Q-398 Bank in the wizard.** R: offer *Connect to my bank* only after the accounts exist (page 4), reusing the bank setup page unchanged, so this step touches no bank code and stays free of a human gate. B: let a bank connection create the accounts and take their balances from the bank, which saves typing but is new bank code (a human gate, later than M7a).
+- **Q-399 Example books and the user's own book.** R: an example opens as its own copy, the user's own book stays empty, and the example's banner offers *Start my own book*. B: fill the user's own book with the example (one file, but then real use starts from made-up data that has to be cleared first).

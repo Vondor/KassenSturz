@@ -1,0 +1,1545 @@
+{
+  "format": "kassensturz-book",
+  "version": 8,
+  "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
+  "currencies": [
+    {"code": "EUR", "minor_digits": 2}
+  ],
+  "institutions": [
+    {"id": "019a0000-0000-7000-8000-000000000001", "name": "Gartenbank Sonnenau", "bank_code": null, "contact": null, "address": null, "phone": null}
+  ],
+  "accounts": [
+    {"id": "019a0000-0000-7000-8000-000000000002", "name": "Gemeinschaftskasse", "kind": "asset", "currency": "EUR", "type": "cash", "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000003", "name": "Rücklage", "kind": "asset", "currency": "EUR", "type": "savings", "closed": false, "parent": null, "number": null, "notes": null, "institution": "019a0000-0000-7000-8000-000000000001"},
+    {"id": "019a0000-0000-7000-8000-000000000004", "name": "Vereinskonto", "kind": "asset", "currency": "EUR", "type": "checking", "closed": false, "parent": null, "number": null, "notes": null, "institution": "019a0000-0000-7000-8000-000000000001"},
+    {"id": "019a0000-0000-7000-8000-000000000005", "name": "Anfangsbestand", "kind": "equity", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000006", "name": "Mitgliedsbeiträge", "kind": "income", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000007", "name": "Spenden", "kind": "income", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000008", "name": "Verkauf Markttag", "kind": "income", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000009", "name": "Zinsen", "kind": "income", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-00000000000a", "name": "Zuschüsse", "kind": "income", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-00000000000b", "name": "Erde und Dünger", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-00000000000c", "name": "Essen und Trinken", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-00000000000d", "name": "Kaffee und Kuchen", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": "019a0000-0000-7000-8000-00000000000c", "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-00000000000e", "name": "Sommerfest", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": "019a0000-0000-7000-8000-00000000000c", "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-00000000000f", "name": "Gebühren", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000010", "name": "Geräte und Werkzeug", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000011", "name": "Pacht", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000012", "name": "Reparaturen", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000013", "name": "Saatgut und Pflanzen", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000014", "name": "Versicherung", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000015", "name": "Wasser", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null},
+    {"id": "019a0000-0000-7000-8000-000000000016", "name": "Werbung und Druck", "kind": "expense", "currency": "EUR", "type": null, "closed": false, "parent": null, "number": null, "notes": null, "institution": null}
+  ],
+  "bank_links": [],
+  "views": [
+    {"id": "019a0000-0000-7000-8000-000000000017", "document": "{\n  \"format\": \"kassensturz-dashboard\", \"version\": 1, \"kind\": \"dashboard\",\n  \"name\": \"Übersicht\",\n  \"filters\": {\"period\": \"last-month\"},\n  \"components\": [\n    {\"id\": \"welcome\", \"type\": \"text.heading\",\n     \"props\": {\"text\": \"Willkommen in der Blumenwiese! So steht es um die Gemeinschaftskasse.\"},\n     \"frame\": {\"col\": 0, \"row\": 0, \"cols\": 12, \"rows\": 1}},\n    {\"id\": \"worth\", \"type\": \"card.net_worth\",\n     \"frame\": {\"col\": 0, \"row\": 1, \"cols\": 12, \"rows\": 2}},\n    {\"id\": \"income\", \"type\": \"kpi.card\", \"dataset\": \"income_expense_by_month\",\n     \"params\": {\"measure\": \"income\", \"compare\": \"previous_period\"},\n     \"frame\": {\"col\": 0, \"row\": 3, \"cols\": 3, \"rows\": 2}},\n    {\"id\": \"expenses\", \"type\": \"kpi.card\", \"dataset\": \"income_expense_by_month\",\n     \"params\": {\"measure\": \"expenses\", \"compare\": \"previous_period\"},\n     \"frame\": {\"col\": 3, \"row\": 3, \"cols\": 3, \"rows\": 2}},\n    {\"id\": \"left\", \"type\": \"kpi.card\", \"dataset\": \"income_expense_by_month\",\n     \"params\": {\"measure\": \"net\", \"compare\": \"previous_period\"},\n     \"frame\": {\"col\": 6, \"row\": 3, \"cols\": 3, \"rows\": 2}},\n    {\"id\": \"kept\", \"type\": \"kpi.card\", \"dataset\": \"income_expense_by_month\",\n     \"params\": {\"measure\": \"savings-rate\", \"compare\": \"previous_period\"},\n     \"frame\": {\"col\": 9, \"row\": 3, \"cols\": 3, \"rows\": 2}},\n    {\"id\": \"budgets\", \"type\": \"budget.progress\", \"dataset\": \"budget_utilization\",\n     \"props\": {\"title\": \"Ihre Budgets\"},\n     \"frame\": {\"col\": 0, \"row\": 5, \"cols\": 12, \"rows\": 4}},\n    {\"id\": \"spending\", \"type\": \"chart.donut\", \"dataset\": \"spending_by_category\",\n     \"params\": {\"grouping\": \"top_level_category\"},\n     \"props\": {\"title\": \"Wofür das Geld ausgegeben wurde\"},\n     \"frame\": {\"col\": 0, \"row\": 9, \"cols\": 6, \"rows\": 5}},\n    {\"id\": \"biggest\", \"type\": \"table.rows\", \"dataset\": \"spending_by_category\",\n     \"params\": {\"grouping\": \"top_level_category\"},\n     \"props\": {\"title\": \"Die größten Ausgaben\"},\n     \"frame\": {\"col\": 6, \"row\": 9, \"cols\": 6, \"rows\": 5}},\n    {\"id\": \"trend\", \"type\": \"chart.line\", \"dataset\": \"income_expense_by_month\",\n     \"props\": {\"period\": \"last-12-months\", \"title\": \"Einnahmen und Ausgaben, Monat für Monat\"},\n     \"frame\": {\"col\": 0, \"row\": 14, \"cols\": 12, \"rows\": 4}}\n  ]\n}"}
+  ],
+  "groups": [],
+  "hidden_categories": [],
+  "budgets": [
+    {
+      "id": "019a0000-0000-7000-8000-000000000018",
+      "category": "019a0000-0000-7000-8000-00000000000c",
+      "every": "month",
+      "first_day": "2026-08-01",
+      "last_day": null,
+      "amounts": [
+        {"from_day": "2026-08-01", "amount": "80.00", "currency": "EUR", "carry_over": false}
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000019",
+      "category": "019a0000-0000-7000-8000-000000000013",
+      "every": "month",
+      "first_day": "2026-08-01",
+      "last_day": null,
+      "amounts": [
+        {"from_day": "2026-08-01", "amount": "60.00", "currency": "EUR", "carry_over": false}
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000001a",
+      "category": "019a0000-0000-7000-8000-000000000015",
+      "every": "month",
+      "first_day": "2026-08-01",
+      "last_day": null,
+      "amounts": [
+        {"from_day": "2026-08-01", "amount": "40.00", "currency": "EUR", "carry_over": false}
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000001b",
+      "category": "019a0000-0000-7000-8000-00000000000b",
+      "every": "month",
+      "first_day": "2026-08-01",
+      "last_day": null,
+      "amounts": [
+        {"from_day": "2026-08-01", "amount": "50.00", "currency": "EUR", "carry_over": false}
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000001c",
+      "category": "019a0000-0000-7000-8000-000000000010",
+      "every": "month",
+      "first_day": "2026-08-01",
+      "last_day": null,
+      "amounts": [
+        {"from_day": "2026-08-01", "amount": "35.00", "currency": "EUR", "carry_over": false}
+      ]
+    }
+  ],
+  "payees": [
+    {
+      "id": "019a0000-0000-7000-8000-00000000001d",
+      "name": "Baumarkt Eisenkraut",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Baumarkt\\ Eisenkraut$"],
+      "ignore_case": true
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000001e",
+      "name": "Bäckerei Kornblume",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Bäckerei\\ Kornblume$"],
+      "ignore_case": true
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000001f",
+      "name": "Druckerei Tintenfass",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Druckerei\\ Tintenfass$"],
+      "ignore_case": true
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000020",
+      "name": "Erdenwerk Moorkamp",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Erdenwerk\\ Moorkamp$"],
+      "ignore_case": true
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000021",
+      "name": "Gartenbank Sonnenau",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Gartenbank\\ Sonnenau$"],
+      "ignore_case": true
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000022",
+      "name": "Getränke Quellwiese",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Getränke\\ Quellwiese$"],
+      "ignore_case": true
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000023",
+      "name": "Gärtnerei Hohlweg",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Gärtnerei\\ Hohlweg$"],
+      "ignore_case": true
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000024",
+      "name": "Marktbesucher",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Marktbesucher$"],
+      "ignore_case": true
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000025",
+      "name": "Mitglieder Sammelbeitrag",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Mitglieder\\ Sammelbeitrag$"],
+      "ignore_case": true
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000026",
+      "name": "Samenhaus Löwenzahn",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Samenhaus\\ Löwenzahn$"],
+      "ignore_case": true
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000027",
+      "name": "Schreinerei Holzwurm",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Schreinerei\\ Holzwurm$"],
+      "ignore_case": true
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000028",
+      "name": "Stadt Sonnenau Grünflächenamt",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Stadt\\ Sonnenau\\ Grünflächenamt$"],
+      "ignore_case": true
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000029",
+      "name": "Stiftung Grünes Band",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Stiftung\\ Grünes\\ Band$"],
+      "ignore_case": true
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000002a",
+      "name": "Versicherung Sternschnuppe",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Versicherung\\ Sternschnuppe$"],
+      "ignore_case": true
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000002b",
+      "name": "Wasserwerk Sonnenau",
+      "address": null,
+      "email": null,
+      "phone": null,
+      "reference": null,
+      "recognition": "key_words",
+      "key_words": ["^Wasserwerk\\ Sonnenau$"],
+      "ignore_case": true
+    }
+  ],
+  "tags": [],
+  "rates": [],
+  "rules": [
+    {
+      "id": "019a0000-0000-7000-8000-00000000002c",
+      "name": "Baumarkt Eisenkraut",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Baumarkt\\ Eisenkraut$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Baumarkt Eisenkraut", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Baumarkt Eisenkraut", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-000000000010",
+      "transfer_account": null,
+      "payee": "Baumarkt Eisenkraut",
+      "sub_rules": []
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000002d",
+      "name": "Bäckerei Kornblume",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Bäckerei\\ Kornblume$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Bäckerei Kornblume", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Bäckerei Kornblume", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-00000000000d",
+      "transfer_account": null,
+      "payee": "Bäckerei Kornblume",
+      "sub_rules": []
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000002e",
+      "name": "Druckerei Tintenfass",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Druckerei\\ Tintenfass$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Druckerei Tintenfass", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Druckerei Tintenfass", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-000000000016",
+      "transfer_account": null,
+      "payee": "Druckerei Tintenfass",
+      "sub_rules": []
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000002f",
+      "name": "Erdenwerk Moorkamp",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Erdenwerk\\ Moorkamp$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Erdenwerk Moorkamp", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Erdenwerk Moorkamp", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-00000000000b",
+      "transfer_account": null,
+      "payee": "Erdenwerk Moorkamp",
+      "sub_rules": []
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000030",
+      "name": "Gartenbank Sonnenau",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Gartenbank\\ Sonnenau$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Gartenbank Sonnenau", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Gartenbank Sonnenau", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-00000000000f",
+      "transfer_account": null,
+      "payee": "Gartenbank Sonnenau",
+      "sub_rules": []
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000031",
+      "name": "Getränke Quellwiese",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Getränke\\ Quellwiese$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Getränke Quellwiese", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Getränke Quellwiese", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-00000000000e",
+      "transfer_account": null,
+      "payee": "Getränke Quellwiese",
+      "sub_rules": []
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000032",
+      "name": "Gärtnerei Hohlweg",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Gärtnerei\\ Hohlweg$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Gärtnerei Hohlweg", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Gärtnerei Hohlweg", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-000000000013",
+      "transfer_account": null,
+      "payee": "Gärtnerei Hohlweg",
+      "sub_rules": []
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000033",
+      "name": "Marktbesucher",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Marktbesucher$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Marktbesucher", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Marktbesucher", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-000000000008",
+      "transfer_account": null,
+      "payee": "Marktbesucher",
+      "sub_rules": []
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000034",
+      "name": "Mitglieder Sammelbeitrag",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Mitglieder\\ Sammelbeitrag$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Mitglieder Sammelbeitrag", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Mitglieder Sammelbeitrag", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-000000000006",
+      "transfer_account": null,
+      "payee": "Mitglieder Sammelbeitrag",
+      "sub_rules": []
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000035",
+      "name": "Samenhaus Löwenzahn",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Samenhaus\\ Löwenzahn$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Samenhaus Löwenzahn", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Samenhaus Löwenzahn", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-000000000013",
+      "transfer_account": null,
+      "payee": "Samenhaus Löwenzahn",
+      "sub_rules": []
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000036",
+      "name": "Schreinerei Holzwurm",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Schreinerei\\ Holzwurm$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Schreinerei Holzwurm", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Schreinerei Holzwurm", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-000000000012",
+      "transfer_account": null,
+      "payee": "Schreinerei Holzwurm",
+      "sub_rules": []
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000037",
+      "name": "Stadt Sonnenau Grünflächenamt",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Stadt\\ Sonnenau\\ Grünflächenamt$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Stadt Sonnenau Grünflächenamt", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Stadt Sonnenau Grünflächenamt", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-000000000011",
+      "transfer_account": null,
+      "payee": "Stadt Sonnenau Grünflächenamt",
+      "sub_rules": []
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000038",
+      "name": "Stiftung Grünes Band",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Stiftung\\ Grünes\\ Band$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Stiftung Grünes Band", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Stiftung Grünes Band", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-00000000000a",
+      "transfer_account": null,
+      "payee": "Stiftung Grünes Band",
+      "sub_rules": []
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000039",
+      "name": "Versicherung Sternschnuppe",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Versicherung\\ Sternschnuppe$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Versicherung Sternschnuppe", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Versicherung Sternschnuppe", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-000000000014",
+      "transfer_account": null,
+      "payee": "Versicherung Sternschnuppe",
+      "sub_rules": []
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000003a",
+      "name": "Wasserwerk Sonnenau",
+      "match": "any",
+      "conditions": [
+        {"field": "other_party_name", "operator": "matches", "text": "^Wasserwerk\\ Sonnenau$", "case_sensitive": false},
+        {"field": "payee", "operator": "equals", "text": "Wasserwerk Sonnenau", "case_sensitive": false},
+        {"field": "other_party_name", "operator": "equals", "text": "Wasserwerk Sonnenau", "case_sensitive": false}
+      ],
+      "category": "019a0000-0000-7000-8000-000000000015",
+      "transfer_account": null,
+      "payee": "Wasserwerk Sonnenau",
+      "sub_rules": []
+    }
+  ],
+  "transactions": [
+    {
+      "id": "019a0000-0000-7000-8000-00000000003b",
+      "date": "2026-07-31",
+      "payee": "Mitglieder Sammelbeitrag",
+      "currency": "EUR",
+      "note": "Beiträge 24 Mitglieder × 6 €",
+      "entered": "2026-07-31",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-00000000003c", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-00000000003d",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "144.00",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0001", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Beiträge 24 Mitglieder × 6 €"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000003e",
+      "date": "2026-07-31",
+      "payee": "Stadt Sonnenau Grünflächenamt",
+      "currency": "EUR",
+      "note": "Pacht Gartenfläche",
+      "entered": "2026-07-31",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-00000000003f", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000040",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-52.00",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0002", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Pacht Gartenfläche"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000041",
+      "date": "2026-08-01",
+      "payee": null,
+      "currency": "EUR",
+      "note": "Anfangsbestand",
+      "entered": "2026-08-01",
+      "attachments": [],
+      "parts": [
+        {
+          "id": "019a0000-0000-7000-8000-000000000042",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "1420.00",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0003", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Anfangsbestand"},
+          "booked_by_rule": null
+        },
+        {
+          "id": "019a0000-0000-7000-8000-000000000043",
+          "account": "019a0000-0000-7000-8000-000000000002",
+          "amount": "272.55",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": null, "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Anfangsbestand"},
+          "booked_by_rule": null
+        },
+        {
+          "id": "019a0000-0000-7000-8000-000000000044",
+          "account": "019a0000-0000-7000-8000-000000000003",
+          "amount": "2000.00",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0001", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Anfangsbestand"},
+          "booked_by_rule": null
+        },
+        {"id": "019a0000-0000-7000-8000-000000000045", "account": "019a0000-0000-7000-8000-000000000005", "amount": "-3692.55", "foreign": null, "original": null, "date": null, "payee": null, "note": "Anfangsbestand", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null}
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000046",
+      "date": "2026-08-08",
+      "payee": "Getränke Quellwiese",
+      "currency": "EUR",
+      "note": "Getränke Sommerfest",
+      "entered": "2026-08-08",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000047", "account": "019a0000-0000-7000-8000-00000000000e", "amount": "148.60", "foreign": null, "original": null, "date": null, "payee": null, "note": "Getränke Sommerfest", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000048",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-148.60",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0004", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Getränke Sommerfest"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000049",
+      "date": "2026-08-08",
+      "payee": null,
+      "currency": "EUR",
+      "note": "Eis und Luftballons",
+      "entered": "2026-08-08",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-00000000004a", "account": "019a0000-0000-7000-8000-00000000000e", "amount": "32.40", "foreign": null, "original": null, "date": null, "payee": null, "note": "Eis und Luftballons", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-00000000004b",
+          "account": "019a0000-0000-7000-8000-000000000002",
+          "amount": "-32.40",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": null, "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Eis und Luftballons"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000004c",
+      "date": "2026-08-08",
+      "payee": "Marktbesucher",
+      "currency": "EUR",
+      "note": "Markttag August: Sträuße und Setzlinge",
+      "entered": "2026-08-08",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-00000000004d", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-122.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Markttag August: Sträuße und Setzlinge", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-00000000004e",
+          "account": "019a0000-0000-7000-8000-000000000002",
+          "amount": "122.00",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": null, "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Markttag August: Sträuße und Setzlinge"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000004f",
+      "date": "2026-08-10",
+      "payee": "Bäckerei Kornblume",
+      "currency": "EUR",
+      "note": "Kaffee, Tee und Kekse",
+      "entered": "2026-08-10",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000050", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "10.15", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000051",
+          "account": "019a0000-0000-7000-8000-000000000002",
+          "amount": "-10.15",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": null, "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Kaffee, Tee und Kekse"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000052",
+      "date": "2026-08-14",
+      "payee": "Versicherung Sternschnuppe",
+      "currency": "EUR",
+      "note": "Haftpflicht Gartengemeinschaft",
+      "entered": "2026-08-14",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000053", "account": "019a0000-0000-7000-8000-000000000014", "amount": "96.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Haftpflicht Gartengemeinschaft", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000054",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-96.00",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0005", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Haftpflicht Gartengemeinschaft"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000055",
+      "date": "2026-08-18",
+      "payee": "Baumarkt Eisenkraut",
+      "currency": "EUR",
+      "note": "Gießkannen und Handschaufeln",
+      "entered": "2026-08-18",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000056", "account": "019a0000-0000-7000-8000-000000000010", "amount": "38.90", "foreign": null, "original": null, "date": null, "payee": null, "note": "Gießkannen und Handschaufeln", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000057",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-38.90",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0006", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Gießkannen und Handschaufeln"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000058",
+      "date": "2026-08-20",
+      "payee": "Wasserwerk Sonnenau",
+      "currency": "EUR",
+      "note": "Wasser Gießen",
+      "entered": "2026-08-20",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000059", "account": "019a0000-0000-7000-8000-000000000015", "amount": "41.80", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-00000000005a",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-41.80",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0007", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Wasser Gießen"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000005b",
+      "date": "2026-08-24",
+      "payee": "Bäckerei Kornblume",
+      "currency": "EUR",
+      "note": "Kuchen Arbeitseinsatz",
+      "entered": "2026-08-24",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-00000000005c", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "19.76", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-00000000005d",
+          "account": "019a0000-0000-7000-8000-000000000002",
+          "amount": "-19.76",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": null, "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Kuchen Arbeitseinsatz"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000005e",
+      "date": "2026-08-28",
+      "payee": "Gartenbank Sonnenau",
+      "currency": "EUR",
+      "note": "Kontoführung",
+      "entered": "2026-08-28",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-00000000005f", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000060",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-3.50",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0008", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Kontoführung"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000061",
+      "date": "2026-08-28",
+      "payee": "Gartenbank Sonnenau",
+      "currency": "EUR",
+      "note": "Zinsen Rücklage",
+      "entered": "2026-08-28",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000062", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000063",
+          "account": "019a0000-0000-7000-8000-000000000003",
+          "amount": "4.10",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0002", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Zinsen Rücklage"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000064",
+      "date": "2026-09-01",
+      "payee": "Stadt Sonnenau Grünflächenamt",
+      "currency": "EUR",
+      "note": "Pacht Gartenfläche",
+      "entered": "2026-09-01",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000065", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000066",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-52.00",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0009", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Pacht Gartenfläche"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000067",
+      "date": "2026-09-02",
+      "payee": "Mitglieder Sammelbeitrag",
+      "currency": "EUR",
+      "note": "Beiträge 24 Mitglieder × 6 €",
+      "entered": "2026-09-02",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000068", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000069",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "144.00",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0010", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Beiträge 24 Mitglieder × 6 €"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000006a",
+      "date": "2026-09-05",
+      "payee": "Samenhaus Löwenzahn",
+      "currency": "EUR",
+      "note": "Blumenzwiebeln für das Frühjahr",
+      "entered": "2026-09-05",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-00000000006b", "account": "019a0000-0000-7000-8000-000000000013", "amount": "143.20", "foreign": null, "original": null, "date": null, "payee": null, "note": "Blumenzwiebeln für das Frühjahr", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-00000000006c",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-143.20",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0011", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Blumenzwiebeln für das Frühjahr"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000006d",
+      "date": "2026-09-10",
+      "payee": "Bäckerei Kornblume",
+      "currency": "EUR",
+      "note": "Kaffee, Tee und Kekse",
+      "entered": "2026-09-10",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-00000000006e", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "10.73", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-00000000006f",
+          "account": "019a0000-0000-7000-8000-000000000002",
+          "amount": "-10.73",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": null, "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Kaffee, Tee und Kekse"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000070",
+      "date": "2026-09-14",
+      "payee": "Marktbesucher",
+      "currency": "EUR",
+      "note": "Markttag September: Herbststräuße",
+      "entered": "2026-09-14",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000071", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-186.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Markttag September: Herbststräuße", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000072",
+          "account": "019a0000-0000-7000-8000-000000000002",
+          "amount": "186.50",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": null, "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Markttag September: Herbststräuße"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000073",
+      "date": "2026-09-16",
+      "payee": "Stiftung Grünes Band",
+      "currency": "EUR",
+      "note": "Förderung Gemeinschaftsgärten",
+      "entered": "2026-09-16",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000074", "account": "019a0000-0000-7000-8000-00000000000a", "amount": "-250.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Förderung Gemeinschaftsgärten", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000075",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "250.00",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0012", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Förderung Gemeinschaftsgärten"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000076",
+      "date": "2026-09-18",
+      "payee": "Wasserwerk Sonnenau",
+      "currency": "EUR",
+      "note": "Wasser Gießen",
+      "entered": "2026-09-18",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000077", "account": "019a0000-0000-7000-8000-000000000015", "amount": "36.40", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000078",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-36.40",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0013", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Wasser Gießen"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000079",
+      "date": "2026-09-22",
+      "payee": "Druckerei Tintenfass",
+      "currency": "EUR",
+      "note": "Flyer Herbstmarkt",
+      "entered": "2026-09-22",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-00000000007a", "account": "019a0000-0000-7000-8000-000000000016", "amount": "24.90", "foreign": null, "original": null, "date": null, "payee": null, "note": "Flyer Herbstmarkt", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-00000000007b",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-24.90",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0014", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Flyer Herbstmarkt"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000007c",
+      "date": "2026-09-24",
+      "payee": "Bäckerei Kornblume",
+      "currency": "EUR",
+      "note": "Kuchen Arbeitseinsatz",
+      "entered": "2026-09-24",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-00000000007d", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "15.23", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-00000000007e",
+          "account": "019a0000-0000-7000-8000-000000000002",
+          "amount": "-15.23",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": null, "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Kuchen Arbeitseinsatz"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000007f",
+      "date": "2026-09-28",
+      "payee": "Gartenbank Sonnenau",
+      "currency": "EUR",
+      "note": "Kontoführung",
+      "entered": "2026-09-28",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000080", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000081",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-3.50",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0015", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Kontoführung"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000082",
+      "date": "2026-09-29",
+      "payee": "Gartenbank Sonnenau",
+      "currency": "EUR",
+      "note": "Zinsen Rücklage",
+      "entered": "2026-09-29",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000083", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000084",
+          "account": "019a0000-0000-7000-8000-000000000003",
+          "amount": "4.10",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0003", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Zinsen Rücklage"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000085",
+      "date": "2026-10-01",
+      "payee": "Stadt Sonnenau Grünflächenamt",
+      "currency": "EUR",
+      "note": "Pacht Gartenfläche",
+      "entered": "2026-10-01",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000086", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000087",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-52.00",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0016", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Pacht Gartenfläche"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000088",
+      "date": "2026-10-02",
+      "payee": "Mitglieder Sammelbeitrag",
+      "currency": "EUR",
+      "note": "Beiträge 24 Mitglieder × 6 €",
+      "entered": "2026-10-02",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000089", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-00000000008a",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "144.00",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0017", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Beiträge 24 Mitglieder × 6 €"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000008b",
+      "date": "2026-10-04",
+      "payee": "Erdenwerk Moorkamp",
+      "currency": "EUR",
+      "note": "Blumenerde, 4 Säcke",
+      "entered": "2026-10-04",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-00000000008c", "account": "019a0000-0000-7000-8000-00000000000b", "amount": "64.80", "foreign": null, "original": null, "date": null, "payee": null, "note": "Blumenerde, 4 Säcke", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-00000000008d",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-64.80",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0018", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Blumenerde, 4 Säcke"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000008e",
+      "date": "2026-10-06",
+      "payee": "Gärtnerei Hohlweg",
+      "currency": "EUR",
+      "note": "Herbstastern",
+      "entered": "2026-10-06",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-00000000008f", "account": "019a0000-0000-7000-8000-000000000013", "amount": "31.80", "foreign": null, "original": null, "date": null, "payee": null, "note": "Herbstastern", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000090",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-31.80",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0019", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Herbstastern"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000091",
+      "date": "2026-10-10",
+      "payee": "Bäckerei Kornblume",
+      "currency": "EUR",
+      "note": "Kaffee, Tee und Kekse",
+      "entered": "2026-10-10",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000092", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "10.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000093",
+          "account": "019a0000-0000-7000-8000-000000000002",
+          "amount": "-10.50",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": null, "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Kaffee, Tee und Kekse"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000094",
+      "date": "2026-10-11",
+      "payee": "Marktbesucher",
+      "currency": "EUR",
+      "note": "Herbstmarkt Oktober",
+      "entered": "2026-10-11",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000095", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-95.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Herbstmarkt Oktober", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000096",
+          "account": "019a0000-0000-7000-8000-000000000002",
+          "amount": "95.50",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": null, "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Herbstmarkt Oktober"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-000000000097",
+      "date": "2026-10-12",
+      "payee": "Schreinerei Holzwurm",
+      "currency": "EUR",
+      "note": "Gewächshaustür repariert",
+      "entered": "2026-10-12",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-000000000098", "account": "019a0000-0000-7000-8000-000000000012", "amount": "71.30", "foreign": null, "original": null, "date": null, "payee": null, "note": "Gewächshaustür repariert", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-000000000099",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-71.30",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0020", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Gewächshaustür repariert"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000009a",
+      "date": "2026-10-13",
+      "payee": null,
+      "currency": "EUR",
+      "note": "Einzahlung Kasse",
+      "entered": "2026-10-13",
+      "attachments": [],
+      "parts": [
+        {
+          "id": "019a0000-0000-7000-8000-00000000009b",
+          "account": "019a0000-0000-7000-8000-000000000002",
+          "amount": "-150.00",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": null, "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Einzahlung Kasse"},
+          "booked_by_rule": null
+        },
+        {
+          "id": "019a0000-0000-7000-8000-00000000009c",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "150.00",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0021", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Einzahlung Kasse"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-00000000009d",
+      "date": "2026-10-20",
+      "payee": "Wasserwerk Sonnenau",
+      "currency": "EUR",
+      "note": "Wasser Gießen",
+      "entered": "2026-10-20",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-00000000009e", "account": "019a0000-0000-7000-8000-000000000015", "amount": "29.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-00000000009f",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-29.10",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0022", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Wasser Gießen"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-0000000000a0",
+      "date": "2026-10-20",
+      "payee": null,
+      "currency": "EUR",
+      "note": "Spende eines Nachbarn",
+      "entered": "2026-10-20",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-0000000000a1", "account": "019a0000-0000-7000-8000-000000000007", "amount": "-50.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Spende eines Nachbarn", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-0000000000a2",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "50.00",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0023", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Spende eines Nachbarn"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-0000000000a3",
+      "date": "2026-10-24",
+      "payee": "Bäckerei Kornblume",
+      "currency": "EUR",
+      "note": "Kuchen Arbeitseinsatz",
+      "entered": "2026-10-24",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-0000000000a4", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "23.78", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-0000000000a5",
+          "account": "019a0000-0000-7000-8000-000000000002",
+          "amount": "-23.78",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": null, "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Kuchen Arbeitseinsatz"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-0000000000a6",
+      "date": "2026-10-28",
+      "payee": "Gartenbank Sonnenau",
+      "currency": "EUR",
+      "note": "Kontoführung",
+      "entered": "2026-10-28",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-0000000000a7", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-0000000000a8",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-3.50",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0024", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Kontoführung"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-0000000000a9",
+      "date": "2026-10-29",
+      "payee": "Gartenbank Sonnenau",
+      "currency": "EUR",
+      "note": "Zinsen Rücklage",
+      "entered": "2026-10-29",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-0000000000aa", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-0000000000ab",
+          "account": "019a0000-0000-7000-8000-000000000003",
+          "amount": "4.10",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0004", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Zinsen Rücklage"},
+          "booked_by_rule": null
+        }
+      ]
+    },
+    {
+      "id": "019a0000-0000-7000-8000-0000000000ac",
+      "date": "2026-10-30",
+      "payee": "Wasserwerk Sonnenau",
+      "currency": "EUR",
+      "note": "Wasser Gießen",
+      "entered": "2026-10-30",
+      "attachments": [],
+      "parts": [
+        {"id": "019a0000-0000-7000-8000-0000000000ad", "account": "019a0000-0000-7000-8000-000000000015", "amount": "29.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
+        {
+          "id": "019a0000-0000-7000-8000-0000000000ae",
+          "account": "019a0000-0000-7000-8000-000000000004",
+          "amount": "-29.10",
+          "foreign": null,
+          "original": null,
+          "date": null,
+          "payee": null,
+          "note": null,
+          "number": null,
+          "status": null,
+          "tags": [],
+          "delivered": {"bank_id": "FL2610-0025", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Wasser Gießen"},
+          "booked_by_rule": null
+        }
+      ]
+    }
+  ]
+}

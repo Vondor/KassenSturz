@@ -53,6 +53,53 @@ ColumnLayout {
     // How far each list of ticks was scrolled, by field key.
     property var scrolledTo: ({})
 
+    // The fields by their key, for the rows below.
+    readonly property var fieldByKey: {
+        // `fields` is undefined while the panel is still being made.
+        const list = fields ?? [];
+        const byKey = {};
+        for (let i = 0; i < list.length; ++i) {
+            byKey[list[i].key] = list[i];
+        }
+        return byKey;
+    }
+
+    // One row for each field key the panel has shown, kept while the panel
+    // lives. Every change gives `fields` as a new list, and a Repeater on it
+    // rebuilt every row; Kirigami's FormLayout logs errors for each row that
+    // is taken away ("Cannot read property 'isSection' of null", M6-B99). So
+    // a row is only ever added, in the order of the fields, and a key that is
+    // no longer among the fields is hidden.
+    ListModel {
+        id: fieldRows
+    }
+
+    function placeFieldRows(): void {
+        const list = fields ?? [];
+        let at = 0;
+        for (let n = 0; n < list.length; ++n) {
+            const field = list[n];
+            let found = -1;
+            for (let i = 0; i < fieldRows.count; ++i) {
+                if (fieldRows.get(i).key === field.key) {
+                    found = i;
+                    break;
+                }
+            }
+            if (found === -1) {
+                fieldRows.insert(at, {key: field.key});
+                at += 1;
+            } else if (found >= at) {
+                at = found + 1;
+            } else {
+                fieldRows.move(found, at - 1, 1);
+            }
+        }
+    }
+
+    onFieldsChanged: placeFieldRows()
+    Component.onCompleted: placeFieldRows()
+
     function datasetName(id: string): string {
         switch (id) {
         case "spending_by_category":
@@ -258,14 +305,16 @@ ColumnLayout {
         }
 
         Repeater {
-            model: panel.fields
+            model: fieldRows
 
             delegate: Loader {
                 id: row
 
-                required property var modelData
+                required property string key
+                readonly property bool shown: panel.fieldByKey[key] !== undefined
+                readonly property var modelData: panel.fieldByKey[key] ?? ({key: key, kind: ""})
 
-                visible: (panel.only.length === 0 || panel.only.includes(modelData.key))
+                visible: shown && (panel.only.length === 0 || panel.only.includes(modelData.key))
                     && !(panel.hasColumns && ["categories", "series", "groups"].includes(modelData.key))
                 active: visible
                 Kirigami.FormData.label: modelData.kind === "flag" ? "" : panel.fieldLabel(modelData.key)
@@ -390,7 +439,11 @@ ColumnLayout {
                     ColumnLayout {
                         id: picker
 
-                        readonly property var options: panel.idOptions(row.modelData.key)
+                        // Built again only when what is offered changes, so
+                        // a tick doesn't give the list a new model and send
+                        // it back to the top.
+                        readonly property string optionsText: JSON.stringify(panel.idOptions(row.modelData.key))
+                        readonly property var options: JSON.parse(optionsText)
 
                         spacing: 0
 
@@ -427,8 +480,9 @@ ColumnLayout {
                             ListView {
                                 id: optionList
 
-                                // A tick changes the view, which builds the
-                                // panel's fields again: the place in the list
+                                // A row is kept between changes (M6-B99), but
+                                // it is built again when its field comes back
+                                // after another type: the place in the list
                                 // is kept in the panel and put back (M6-B21).
                                 property bool settledAt: false
 

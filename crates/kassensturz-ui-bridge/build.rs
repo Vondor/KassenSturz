@@ -19,6 +19,14 @@ fn main() {
         build_commit()
     );
     let kconfig = KConfigCore::find();
+    // The Windows app brings its own icons (D-555); Cargo builds this script
+    // for the computer it runs on, so the target comes from Cargo's variable.
+    let windows = std::env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "windows");
+    let breeze_icons_include = if windows {
+        qmake_query("QT_INSTALL_HEADERS").join("KF6/BreezeIcons")
+    } else {
+        PathBuf::new()
+    };
     let mut builder = CxxQtBuilder::new_qml_module(
         QmlModule::new("io.github.vondor.kassensturz")
             .qml_files([
@@ -182,6 +190,9 @@ fn main() {
             for dir in &kconfig.include_dirs {
                 cc.include(dir);
             }
+            if windows {
+                cc.include(&breeze_icons_include);
+            }
         })
     };
     builder.build();
@@ -191,6 +202,10 @@ fn main() {
         kconfig.library_dir.display()
     );
     println!("cargo:rustc-link-lib=KF6ConfigCore");
+    if windows {
+        // Breeze's icons, built into a library (D-555); it sits with KConfig.
+        println!("cargo:rustc-link-lib=KF6BreezeIcons");
+    }
 }
 
 /// The short id of the commit this build is made from, so a tester can tell

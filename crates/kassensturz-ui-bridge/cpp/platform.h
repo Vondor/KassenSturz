@@ -29,4 +29,10 @@ QString fileSystemType(const QString &path);
 // Call it on the main thread before the first QML file loads. If the library
 // can't be found, nothing happens: Qt loads it later, as before.
 void loadKI18nQml();
+
+// On Windows, which has no icon theme, makes Breeze's icons (built into
+// KF6BreezeIcons) the theme and lets Qt find the app's own icon next to the
+// program, in data/icons (D-555). Does nothing elsewhere, where the desktop's
+// icon theme is used. Call it before the first window is shown.
+void useBundledIcons();
 }

@@ -1,0 +1,20 @@
+# Files Craft leaves out of the Windows packages (regular expressions on the
+# path inside the package). Only what a user never needs: build and
+# development files. Translations (bin/data/locale) and QML stay in.
+manifest/.*
+.*\.exp
+.*\.pdb
+.*\.lib
+.*\.la
+.*\.prl
+.*\.cmake
+include/.*
+lib/cmake/.*
+lib/pkgconfig/.*
+share/pkgconfig/.*
+mkspecs/.*
+doc/.*
+share/man/.*
+share/doc/.*
+dev-utils/.*
+phrasebooks/.*

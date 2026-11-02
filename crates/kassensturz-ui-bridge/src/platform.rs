@@ -36,6 +36,9 @@ mod ffi {
 
         #[cxx_name = "loadKI18nQml"]
         fn load_ki18n_qml();
+
+        #[cxx_name = "useBundledIcons"]
+        fn use_bundled_icons();
     }
 }
 
@@ -48,6 +51,12 @@ pub const APP_ID: &str = "io.github.vondor.KassenSturz";
 /// Wayland compositor that doesn't read it) (D-165).
 pub fn set_window_icon() {
     ffi::set_window_icon(&QString::from(APP_ID));
+}
+
+/// On Windows, Breeze's icons from the program's own folder, because Windows
+/// has no icon theme (D-555); elsewhere the desktop's theme, so nothing here.
+pub fn use_bundled_icons() {
+    ffi::use_bundled_icons();
 }
 
 /// Loads KI18n's QML library here, on the main thread, before the first QML

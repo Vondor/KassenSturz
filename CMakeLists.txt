@@ -96,9 +96,10 @@ add_custom_target(kassensturz ALL
     VERBATIM
 )
 
-install(PROGRAMS "${cargo_target_dir}/${cargo_profile_dir}/kassensturz" DESTINATION ${KDE_INSTALL_BINDIR})
+# Cargo names the programs with ".exe" on Windows (M7a.7).
+install(PROGRAMS "${cargo_target_dir}/${cargo_profile_dir}/kassensturz${CMAKE_EXECUTABLE_SUFFIX}" DESTINATION ${KDE_INSTALL_BINDIR})
 if(KASSENSTURZ_AI)
-    install(PROGRAMS "${cargo_target_dir}/${cargo_profile_dir}/kassensturz-mcp" DESTINATION ${KDE_INSTALL_BINDIR})
+    install(PROGRAMS "${cargo_target_dir}/${cargo_profile_dir}/kassensturz-mcp${CMAKE_EXECUTABLE_SUFFIX}" DESTINATION ${KDE_INSTALL_BINDIR})
 endif()
 
 # Gwenhywfar's Qt 6 dialogs, wrapped in a small C++ library that the app

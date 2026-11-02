@@ -1,0 +1,169 @@
+name: Windows app
+
+# The Qt app for Windows (M7a.7, D-554). KDE Craft brings Qt 6 and KDE
+# Frameworks from its binary cache for Visual Studio 2022, builds KassenSturz
+# with the project's CMake (which drives Cargo, D-063) and packs it as a
+# portable zip and an installer, both unsigned until signing comes (D-048).
+# This file is separate from ci.yml on purpose: the run is long, and only
+# changes that can affect the Windows app start it. The release workflow
+# calls it for a pre-release.
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/windows-app.yml"
+      - "packaging/windows/**"
+      - "crates/**"
+      - "po/**"
+      - "data/**"
+      - "CMakeLists.txt"
+      - "Cargo.toml"
+      - "Cargo.lock"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/windows-app.yml"
+      - "packaging/windows/**"
+      - "crates/**"
+      - "po/**"
+      - "data/**"
+      - "CMakeLists.txt"
+      - "Cargo.toml"
+      - "Cargo.lock"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-app-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CRAFT_ROOT: C:\CraftRoot
+  # Craft's bootstrap script, pinned; the bootstrap itself fetches Craft's
+  # current code, which matches its binary cache.
+  CRAFT_BOOTSTRAP_COMMIT: 911cb3f55b2ce0cb95c6a0013678028190a34a66
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  windows-app:
+    name: Windows app with KDE Craft (D-554)
+    # Craft's binary cache is built for Visual Studio 2022; windows-latest has
+    # only Visual Studio 2026, which Craft's cache doesn't cover (D-214).
+    runs-on: windows-2022
+    timeout-minutes: 330
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # tools/build-version.sh counts the day's commits (D-226).
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          rustup default 1.98.1
+      # Craft's own folder with Qt and KDE Frameworks, kept between runs so
+      # only the first run downloads them. Craft's downloads and build folders
+      # are left out: they are big and rebuilt anyway.
+      - name: Restore Craft
+        id: craft-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            C:\CraftRoot
+            !C:\CraftRoot\build
+            !C:\CraftRoot\download
+            !C:\CraftRoot\tmp
+          key: craft-msvc2022-v1-${{ hashFiles('packaging/windows/craft/**/*.py') }}
+          restore-keys: craft-msvc2022-v1-
+      - name: Set up Craft
+        if: steps.craft-cache.outputs.cache-matched-key == ''
+        run: |
+          $boot = "$env:RUNNER_TEMP\CraftBootstrap.py"
+          Invoke-WebRequest "https://raw.githubusercontent.com/KDE/craft/$env:CRAFT_BOOTSTRAP_COMMIT/setup/CraftBootstrap.py" -OutFile $boot
+          python $boot --prefix $env:CRAFT_ROOT --use-defaults
+      - name: Point Craft at KassenSturz's blueprint
+        run: |
+          $ini = "$env:CRAFT_ROOT\etc\CraftSettings.ini"
+          $blueprints = "$env:GITHUB_WORKSPACE\packaging\windows\craft"
+          $text = Get-Content $ini -Raw
+          $text = $text -replace '(?m)^#?Locations = .*$', "Locations = $blueprints"
+          Set-Content $ini $text
+          Select-String -Path $ini -Pattern '^(ABI|Locations|UseCache|BuildType) ='
+      - name: Install Qt and KDE Frameworks
+        run: python "$env:CRAFT_ROOT\craft\bin\craft.py" --ci-mode --install-deps kassensturz
+      - name: Save Craft
+        if: ${{ !cancelled() && steps.craft-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            C:\CraftRoot
+            !C:\CraftRoot\build
+            !C:\CraftRoot\download
+            !C:\CraftRoot\tmp
+          key: craft-msvc2022-v1-${{ hashFiles('packaging/windows/craft/**/*.py') }}
+      - name: Name the build
+        id: version
+        shell: bash
+        run: |
+          version=$(tools/build-version.sh)
+          echo "$version" > build-version
+          git rev-parse --short=7 HEAD > build-commit
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building $version ($(cat build-commit))"
+      - name: Build KassenSturz
+        run: python "$env:CRAFT_ROOT\craft\bin\craft.py" --ci-mode --src-dir "$env:GITHUB_WORKSPACE" kassensturz
+      - name: Pack the portable zip
+        run: python "$env:CRAFT_ROOT\craft\bin\craft.py" --ci-mode --src-dir "$env:GITHUB_WORKSPACE" --options "[Packager]PackageType=PortablePackager" --options "[Packager]7ZipArchiveType=zip" --package kassensturz
+      - name: Pack the installer
+        run: python "$env:CRAFT_ROOT\craft\bin\craft.py" --ci-mode --src-dir "$env:GITHUB_WORKSPACE" --options "[Packager]PackageType=NullsoftInstallerPackager" --package kassensturz
+      - name: Collect the packages
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $out = New-Item -ItemType Directory -Force "$env:GITHUB_WORKSPACE\out"
+          Get-ChildItem "$env:CRAFT_ROOT\tmp" -File | Format-Table Name, Length
+          $zip = Get-ChildItem "$env:CRAFT_ROOT\tmp\kassensturz-*.zip" | Where-Object Name -NotMatch '-dbg' | Select-Object -First 1
+          $exe = Get-ChildItem "$env:CRAFT_ROOT\tmp\kassensturz-*.exe" | Select-Object -First 1
+          Copy-Item $zip.FullName "$out\KassenSturz-$version-windows-x64.zip"
+          Copy-Item $exe.FullName "$out\KassenSturz-$version-windows-x64-setup.exe"
+          Get-ChildItem $out | Format-Table Name, Length
+      # The program from the zip, not from Craft's folder, so a library or QML
+      # module the package lacks shows up here. Without a book it opens the
+      # welcome screen; a QML error ends it at once (main.rs).
+      - name: Start the app from the zip
+        run: |
+          $dir = "$env:RUNNER_TEMP\ks-zip"
+          Expand-Archive (Get-ChildItem "$env:GITHUB_WORKSPACE\out\*.zip").FullName $dir
+          $exe = Get-ChildItem $dir -Recurse -Filter kassensturz.exe | Select-Object -First 1
+          Write-Output "Starting $($exe.FullName)"
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:APPDATA = "$env:RUNNER_TEMP\ks-appdata"
+          $env:LOCALAPPDATA = "$env:RUNNER_TEMP\ks-localappdata"
+          $p = Start-Process $exe.FullName -PassThru -RedirectStandardError "$env:RUNNER_TEMP\ks-err.txt" -RedirectStandardOutput "$env:RUNNER_TEMP\ks-out.txt"
+          Start-Sleep -Seconds 30
+          $running = -not $p.HasExited
+          if ($running) { Stop-Process -Id $p.Id -Force }
+          Write-Output "--- stderr"; Get-Content "$env:RUNNER_TEMP\ks-err.txt" -ErrorAction SilentlyContinue | Select-Object -First 80
+          if (-not $running) { Write-Output "The app ended with code $($p.ExitCode)"; exit 1 }
+          Write-Output "The app was still running after 30 seconds."
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kassensturz-windows-${{ steps.version.outputs.version }}
+          path: out/*
+          if-no-files-found: error
+      # Craft prints very long lines; the tail of its log is what explains a
+      # failure, so the last lines of each log come at the very end.
+      - name: Craft's logs
+        if: failure()
+        run: |
+          Get-ChildItem "$env:CRAFT_ROOT\logs" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 3 | ForEach-Object {
+            Write-Output "=== $($_.Name)"
+            Get-Content $_.FullName -Tail 60 | ForEach-Object { if ($_.Length -gt 300) { $_.Substring(0, 300) } else { $_ } }
+          }

@@ -10,6 +10,13 @@
 #include <QtGui/QGuiApplication>
 #include <QtGui/QIcon>
 
+#ifdef Q_OS_WIN
+#include <QtCore/QCoreApplication>
+#include <QtCore/QDir>
+
+#include <breezeicons.h>
+#endif
+
 namespace kassensturz::platform
 {
 QString dataFolder()
@@ -41,5 +48,16 @@ QString fileSystemType(const QString &path)
 {
     const QStorageInfo storage(path);
     return storage.isValid() ? QString::fromUtf8(storage.fileSystemType()) : QString();
+}
+
+void useBundledIcons()
+{
+#ifdef Q_OS_WIN
+    QStringList paths = QIcon::themeSearchPaths();
+    paths.append(QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("data/icons")));
+    QIcon::setThemeSearchPaths(paths);
+    BreezeIcons::initIcons();
+    QIcon::setThemeName(QStringLiteral("breeze"));
+#endif
 }
 }

@@ -25,10 +25,11 @@ path = [
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"
 
-# The app icon's PNG sizes, drawn from its SVG by tools/render-icons.sh. The
+# The app icon's PNG sizes, drawn from its SVG by tools/render-icons.sh, and
+# the Windows .ico made from those PNGs (M7a.7). The
 # SVG carries its own header (D-165).
 [[annotations]]
-path = ["data/icons/hicolor/**/*.png"]
+path = ["data/icons/hicolor/**/*.png", "packaging/windows/kassensturz.ico"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC-BY-SA-4.0"
 
@@ -94,5 +95,12 @@ path = [
   "crates/kassensturz-ai/tests/dialect/fixtures/**/*.json",
   "crates/kassensturz-ai/tests/dialect/fixtures/*.txt",
 ]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Craft's list of files left out of the Windows packages (M7a.7): a small
+# configuration file.
+[[annotations]]
+path = ["packaging/windows/craft/**/blacklist.txt"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"

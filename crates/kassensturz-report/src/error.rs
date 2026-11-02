@@ -169,6 +169,21 @@ pub enum ReportError {
         /// Which rule, by a fixed word.
         reason: &'static str,
     },
+    /// A chart description is over one of its limits (D-281, D-505); nothing
+    /// is drawn.
+    SpecTooBig {
+        /// Which limit, by a fixed word.
+        limit: &'static str,
+    },
+    /// A chart description can't be read (D-505 to D-507). `path` is where,
+    /// as JSON-path text from the description; it is data, never part of a
+    /// message.
+    SpecInvalid {
+        /// What is wrong, by a fixed word.
+        reason: &'static str,
+        /// Where in the description.
+        path: String,
+    },
     /// The book couldn't be read, or a total doesn't fit.
     Store(StoreError),
 }
@@ -285,6 +300,12 @@ impl Report for ReportError {
             }
             Self::FormulaTarget { reason } => ErrorReport::new("report.formula-target")
                 .with("reason", ErrorParam::Keyword(reason)),
+            Self::SpecTooBig { limit } => {
+                ErrorReport::new("report.spec-too-big").with("limit", ErrorParam::Keyword(limit))
+            }
+            Self::SpecInvalid { reason, path } => ErrorReport::new("report.spec-invalid")
+                .with("reason", ErrorParam::Keyword(reason))
+                .with("path", ErrorParam::Text(path.clone())),
             Self::Store(error) => {
                 ErrorReport::new("report.book-unreadable").caused_by(error.report())
             }
@@ -375,6 +396,11 @@ mod tests {
             },
             ReportError::FormulaTooBig { limit: "depth" },
             ReportError::FormulaTarget { reason: "zero" },
+            ReportError::SpecTooBig { limit: "depth" },
+            ReportError::SpecInvalid {
+                reason: "fraction-number",
+                path: "transform[0].filter.equal".into(),
+            },
             ReportError::Store(StoreError::AmountOverflow),
         ] {
             let report = error.report();

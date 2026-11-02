@@ -91,19 +91,19 @@ pub enum ComponentType {
     /// `page.period`: the period header, the month the page shows with the
     /// way to the months before and after it and back to this one (D-452,
     /// D-474). It shows no data and has no settings; the page fills it. A
-    /// dashboard holds at most one.
+    /// dashboard may hold any number (D-532).
     PeriodHeader,
     /// `page.filters`: the filter bar, the page's period, accounts and
     /// categories (D-351, D-452, D-474). Its choices stay the document's
     /// `filters`; they apply only while the dashboard holds the bar, so
     /// nothing narrows a page without showing it (D-475). It shows no data
-    /// and has no settings. A dashboard holds at most one.
+    /// and has no settings. A dashboard may hold any number (D-532).
     FilterBar,
     /// `page.tabs`: the tabs of the book's dashboards, one per dashboard in
     /// the book's order, to switch between them (D-436, D-438, D-529). It
     /// shows no data and has no settings; the page fills it, and it shows
-    /// nothing while the book has one dashboard. A dashboard holds at most
-    /// one.
+    /// nothing while the book has one dashboard. A dashboard may hold any
+    /// number (D-532).
     DashboardTabs,
     /// `chart.custom`: a chart the user describes in a short text, a subset
     /// of the Vega-Lite language (M6e, D-504). The text is `props.spec`; the
@@ -172,16 +172,6 @@ impl ComponentType {
                 | Self::PeriodHeader
                 | Self::FilterBar
                 | Self::DashboardTabs
-        )
-    }
-
-    /// Whether a dashboard holds at most one of this type (D-474, D-529): the
-    /// period header, the filter bar and the tabs belong to the whole page,
-    /// so a second one would only repeat the first.
-    pub const fn one_per_page(self) -> bool {
-        matches!(
-            self,
-            Self::PeriodHeader | Self::FilterBar | Self::DashboardTabs
         )
     }
 

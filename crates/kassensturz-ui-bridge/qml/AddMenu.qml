@@ -20,11 +20,6 @@ Controls.Menu {
 
     // Rows with `id` and `name` of the usable saved views.
     property var savedList: []
-    // The types of the widgets on the page: the period header, the filter bar
-    // and the dashboard tabs are offered only while the page has none (M6d.8,
-    // D-474, D-529).
-    property var pageKinds: []
-
     // `dataset` is empty for a kind that starts with its first dataset.
     signal kindChosen(string kind, string dataset)
     signal savedChosen(string id)
@@ -60,8 +55,9 @@ Controls.Menu {
               // says how to connect a bank, or why that can't be done here.
               rows: kindRows(["bank.update_all"]) },
             { name: ctx.i18nc("@title:menu a group of widgets: those that arrange the page", "Layout"),
-              rows: kindRows(["text.heading", "text.separator", "group.period"]
-                  .concat(["page.tabs", "page.period", "page.filters"].filter(kind => !widgetMenu.pageKinds.includes(kind)))) },
+              // The tabs, the month header and the filter bar are always
+              // offered: a page may hold as many as the user wants (D-532).
+              rows: kindRows(["text.heading", "text.separator", "group.period", "page.tabs", "page.period", "page.filters"]) },
             { name: ctx.i18nc("@title:menu a group of widgets: notes and warnings", "Notes"),
               rows: kindRows(["notice.fetch_gap", "notice.transfers"]) },
             { name: ctx.i18nc("@title:menu a group of widgets: views saved in the Statistic Builder", "Saved views"),

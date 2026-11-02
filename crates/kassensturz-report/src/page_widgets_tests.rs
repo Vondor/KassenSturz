@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! The tabs, the period header and the filter bar as widgets (M6d.8, D-452,
-//! D-474 to D-476; the tabs D-529, D-530): one of each per dashboard, older
-//! dashboards get what they lack on top, and the page's filters apply only
-//! while the bar is on it.
+//! D-474 to D-476; the tabs D-529, D-530): any number of each per dashboard
+//! (D-532), older dashboards get what they lack on top, and the page's
+//! filters apply only while a bar is on it.
 
 use serde_json::{Value, json};
 
@@ -54,7 +54,6 @@ fn the_two_widgets_show_no_data_have_no_settings_and_are_in_the_library() {
         // The AI is not offered them (D-282): they show no figures.
         assert!(!ComponentType::ALL.contains(&kind));
         assert!(kind.shows_no_data());
-        assert!(kind.one_per_page());
         assert!(kind.properties().is_empty());
         let component = Component::new(kind, "").unwrap();
         assert_eq!(takes(&component), Takes::NOTHING);
@@ -63,28 +62,18 @@ fn the_two_widgets_show_no_data_have_no_settings_and_are_in_the_library() {
             Component::from_value(&component.to_value()).unwrap(),
             component
         );
-        // The full width, one row high; narrower is fine, down to the smallest.
+        // The full width, one row high; narrower is fine, down to one column.
         assert_eq!(kind.default_size(), grid::Size { cols: 12, rows: 1 });
         assert_eq!(kind.smallest_size().rows, 1);
-        assert!(kind.smallest_size().cols <= 4);
+        // As narrow as one column: the user decides (D-533).
+        assert_eq!(kind.smallest_size().cols, 1);
     }
-    let only_page_wide: Vec<_> = ComponentType::LIBRARY
-        .into_iter()
-        .filter(|kind| kind.one_per_page())
-        .collect();
-    assert_eq!(
-        only_page_wide,
-        [
-            ComponentType::PeriodHeader,
-            ComponentType::FilterBar,
-            ComponentType::DashboardTabs
-        ]
-    );
 }
 
 #[test]
-fn a_dashboard_holds_at_most_one_of_each() {
-    // Read: the second one is refused and named.
+fn a_dashboard_may_hold_as_many_of_each_as_the_user_wants() {
+    // Read: a dashboard with two of each is fine (D-532; before it, a second
+    // one was refused with `only-one`).
     let twice = dashboard(
         VERSION,
         &json!({}),
@@ -92,17 +81,17 @@ fn a_dashboard_holds_at_most_one_of_each() {
             widget("a", "page.filters", 0),
             widget("b", "page.period", 1),
             widget("c", "page.filters", 2),
+            widget("d", "page.tabs", 3),
+            widget("e", "page.tabs", 4),
+            widget("f", "page.period", 5),
         ],
     );
-    match Document::read(&twice) {
-        Err(ReportError::DocumentInvalid { reason, path }) => {
-            assert_eq!((reason, path.as_str()), ("only-one", "components.2.type"));
-        }
-        other => panic!("refused, not {other:?}"),
-    }
+    let document = Document::read(&twice).unwrap();
+    assert_eq!(document.entries.len(), 6);
+    assert_eq!(Document::read(&document.to_json()).unwrap(), document);
 
-    // Arranging: a second one is refused before anything changes, as is a
-    // copy; after the first is removed, one can be added again.
+    // Arranging: each can be added again and copied, whatever the page
+    // already has, and each copy is a widget of its own.
     let page = Document::read(&dashboard(
         VERSION,
         &json!({}),
@@ -110,34 +99,37 @@ fn a_dashboard_holds_at_most_one_of_each() {
     ))
     .unwrap();
     let mut editor = Editor::new(page).unwrap();
-    let before = editor.document().clone();
-    let refused = editor.add(Component::new(ComponentType::FilterBar, "").unwrap());
-    let only_one = |result| {
-        matches!(
-            result,
-            Err(ReportError::GridEditRefused { reason: "only-one" })
-        )
-    };
-    assert!(only_one(refused));
-    assert!(only_one(editor.duplicate("bar")));
-    assert_eq!(*editor.document(), before);
-    assert!(!editor.has_changes());
-
-    // The other one is still welcome, at the first free place.
-    let header = editor
-        .add(Component::new(ComponentType::PeriodHeader, "").unwrap())
-        .unwrap();
-    assert_eq!(frame_of(editor.document(), &header).rows, 1);
-    assert!(editor.delete("bar").unwrap());
-    let again = editor
-        .add(Component::new(ComponentType::FilterBar, "").unwrap())
-        .unwrap();
-    assert!(editor.document().holds(ComponentType::FilterBar));
+    for kind in [
+        ComponentType::FilterBar,
+        ComponentType::PeriodHeader,
+        ComponentType::DashboardTabs,
+    ] {
+        let first = editor.add(Component::new(kind, "").unwrap()).unwrap();
+        let second = editor.add(Component::new(kind, "").unwrap()).unwrap();
+        assert_ne!(first, second);
+        assert_eq!(frame_of(editor.document(), &second).rows, 1);
+    }
+    let copy = editor.duplicate("bar").unwrap();
+    assert_eq!(
+        kind_of(
+            editor
+                .document()
+                .entries
+                .iter()
+                .find(|entry| entry.id == copy)
+                .unwrap()
+        ),
+        Some(ComponentType::FilterBar)
+    );
     // Each can be moved and made narrower like any widget.
-    assert!(editor.resize_to(&again, 6, 1).unwrap());
-    assert!(editor.move_to(&again, 6, 0).is_ok());
+    assert!(editor.resize_to(&copy, 6, 1).unwrap());
+    assert!(editor.move_to(&copy, 6, 0).is_ok());
     let saved = Document::read(&editor.document().to_json()).unwrap();
     assert_eq!(saved, *editor.document());
+    // Taking all of one kind off leaves the page without it, nothing else.
+    assert!(editor.delete("bar").unwrap());
+    assert!(editor.delete(&copy).unwrap());
+    assert!(editor.document().holds(ComponentType::FilterBar));
 }
 
 fn full_width(row: u32) -> Frame {

@@ -121,5 +121,12 @@ run_smoke UpdateAllSmoke
 echo "update all accounts: ok"
 run_smoke PageWidgetsSmoke
 echo "period header, filter bar and tabs widgets: ok"
+# Again with the desktop style the app uses: its TabBar complained about a
+# bar with no tab (M6-B101), which the plain style never shows.
+(
+    export QT_QUICK_CONTROLS_STYLE=org.kde.desktop
+    run_smoke PageWidgetsSmoke
+)
+echo "the same with the desktop style: ok"
 run_smoke SpecSmoke
 echo "custom chart description: ok"

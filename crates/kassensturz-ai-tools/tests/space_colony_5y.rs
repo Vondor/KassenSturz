@@ -262,6 +262,17 @@ fn the_questionnaire_answers_of_this_book() {
         .map(|(category, amount)| (category.to_owned(), amount.to_owned()))
     );
 
+    // M5-B40: the Food row itself carries the total with its subcategories,
+    // the answer Q9 expects (1786.37 + 2822.01 + 705.43).
+    let food_row = euro["spending"]
+        .as_array()
+        .expect("a list")
+        .iter()
+        .find(|row| row["category"] == "Food")
+        .expect("the Food row");
+    assert_eq!(food_row["amount"], "1786.37");
+    assert_eq!(food_row["amount_with_subcategories"], "5313.81");
+
     // Q2: the ice deliveries come once a month for five years.
     let ice = run(
         &book,

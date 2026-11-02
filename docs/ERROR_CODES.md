@@ -461,6 +461,16 @@ Not rows yet: each code gets its row in the table above in the pull request that
 - **KMyMoney reports (M6d.6a and M6d.6b, D-445, D-450):** no new code (the file's own errors are the importer's `import.` codes); what is not kept or kept with changes are the done page's keywords of section 5.2 of `docs/REPORT_DESIGNER_M6D.md`. A report record the reader cannot read is counted in `SkippedData::Reports`.
 - **Update all (M6d.7, D-446):** no new code; the existing `bank.` codes and their words (`bank_connection::error_text`), `bank.busy` while a fetch runs.
 
+### Planned for M6e (D-502 to D-508)
+
+Not rows yet: each code gets its row in the table above in the pull request that raises it, since the test compares the table with the code. Parameters are data, shown as plain text. Design: `docs/REPORT_DESIGNER_M6E.md` section 5.
+
+- **`report.spec-too-big`** (`limit`: `bytes`, `depth`, `layers`, `encodings`, `filters`, `values`, `label` from M6e.1; `rows`, `series` from M6e.2): a chart description over a limit of D-281; nothing is drawn.
+- **`report.spec-invalid`** (`reason`, `path`; M6e.1, `not-utf8` from M6e.3): a chart description that can't be read; the reasons are listed in the design, section 5. A number with a fraction (`fraction-number`) is written in quotes instead, so it is read exactly.
+- **`report.spec-unsupported`** (`count`; M6e.3): a stored custom chart with unsupported parts the user has not chosen to leave out; the placeholder shows it.
+- **`report.document-invalid`** gets the keywords `bad-spec` and `spec-dataset` (M6e.3) for a custom chart whose spec is refused, or whose `dataset` differs from the spec's `data.name`.
+- The **"not supported here" list** is not an error: its entries carry the words `data-source`, `expression`, `transform`, `mark`, `composition`, `channel`, `horizontal`, `option` and `value`, each with its sentence in the spec panel.
+
 ## Charts (`kassensturz-charts`)
 
 Why a chart model couldn't be made (M6a.3, D-276).

@@ -786,6 +786,21 @@ fn keys_that_are_not_plain_words_are_quoted_in_paths() {
             (r#"[""]"#, "option"),
         ]
     );
+    // Marks that turn or hide the text are escaped, so the list shows them
+    // (M6e.4, D-522).
+    let read = ok(&with(
+        ", \"\u{202e}gnp.\": 1, \"a\u{200b}b\": 2, \"\u{2067}x\": 3",
+    ));
+    assert_eq!(
+        listed(&read),
+        [
+            (r#"["\u202egnp."]"#, "option"),
+            (r#"["a\u200bb"]"#, "option"),
+            (r#"["\u2067x"]"#, "option"),
+        ]
+    );
+    let (reason, path) = invalid(&with(", \"\u{202e}\": 1, \"\u{202e}\": 2"));
+    assert_eq!((reason, path.as_str()), ("duplicate-key", r#"["\u202e"]"#));
 }
 
 #[test]

@@ -307,3 +307,45 @@ fn a_template_word_or_mark_that_is_not_known_is_refused() {
         ("unknown-property", "default".to_owned())
     );
 }
+
+/// The raw scan of documents and dashboard files runs after `serde_json`, so
+/// it only ever sees JSON today. It must not panic on other text all the same
+/// (M6e.4, T-38): an unclosed key that ends inside a character of more than
+/// one byte used to slice that character in two.
+#[test]
+fn the_raw_scan_refuses_text_that_is_not_json_without_panicking() {
+    use crate::document::{Scanned, scan};
+    for text in [
+        "{\"é",
+        "{\"key\":1,\"€",
+        "{\"😀",
+        "{\"a\\",
+        "{\"",
+        "[{\"x\":[{\"ü",
+    ] {
+        assert_eq!(scan(text, MAX_DEPTH), Err(Scanned::NotJson), "{text:?}");
+    }
+    // A string that is not a key may stay open: there is nothing to decode.
+    assert_eq!(scan("[\"é", MAX_DEPTH), Err(Scanned::NotJson));
+    // Closed keys are read as before.
+    assert_eq!(scan("{\"é\":1,\"€\":2}", MAX_DEPTH), Ok(()));
+    assert_eq!(
+        scan("{\"é\":1,\"\\u00e9\":2}", MAX_DEPTH),
+        Err(Scanned::DuplicateKey("é".into()))
+    );
+}
+
+proptest::proptest! {
+    /// Any text at all is scanned or refused, never a panic.
+    #[test]
+    fn the_raw_scan_never_panics(text in proptest::prelude::any::<String>()) {
+        let _ = crate::document::scan(&text, MAX_DEPTH);
+    }
+
+    /// Text made of JSON's own characters, where unclosed strings and
+    /// brackets are common.
+    #[test]
+    fn the_raw_scan_never_panics_on_jsonish_text(text in "[{}\\[\\]\":,\\\\aé€😀 ]{0,64}") {
+        let _ = crate::document::scan(&text, MAX_DEPTH);
+    }
+}

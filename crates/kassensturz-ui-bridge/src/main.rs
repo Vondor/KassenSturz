@@ -37,6 +37,8 @@ mod categories_model;
 mod category_groups;
 mod category_groups_model;
 mod chart_spec;
+#[cfg(test)]
+mod chart_spec_hostile_tests;
 mod chart_spec_model;
 mod charts;
 mod charts_model;

@@ -319,13 +319,15 @@ pub(crate) enum Scanned {
     TooDeep,
     /// An object has this key twice.
     DuplicateKey(String),
-    /// A key could not be decoded.
+    /// A key could not be decoded, or a string is not closed.
     NotJson,
 }
 
 /// Looks for an object with the same key twice and nesting deeper than
-/// `max_depth`, which `serde_json` would let through. The text is valid JSON
-/// already, so only the brackets, commas and strings need to be followed.
+/// `max_depth`, which `serde_json` would let through. Its callers parse the
+/// text with `serde_json` first, so only the brackets, commas and strings need
+/// to be followed. It must not panic on text that is not JSON all the same
+/// (M6e.4, T-38): a string that is never closed is [`Scanned::NotJson`].
 /// Shared by documents and dashboard files (M6d.4).
 pub(crate) fn scan(text: &str, max_depth: usize) -> Result<(), Scanned> {
     // One entry per open bracket: the keys seen so far if it is an object.
@@ -349,22 +351,26 @@ pub(crate) fn scan(text: &str, max_depth: usize) -> Result<(), Scanned> {
             ',' => key_next = matches!(open.last(), Some(Some(_))),
             '"' => {
                 let mut escaped = false;
-                let mut end = start;
+                // The byte just after the closing quote; `None` until it is
+                // found, so an unclosed string never slices inside a
+                // character.
+                let mut end = None;
                 for (at, c) in chars.by_ref() {
-                    end = at;
                     if escaped {
                         escaped = false;
                     } else if c == '\\' {
                         escaped = true;
                     } else if c == '"' {
+                        end = Some(at + 1);
                         break;
                     }
                 }
+                let end = end.ok_or(Scanned::NotJson)?;
                 if key_next {
                     key_next = false;
                     // Decoded, so "a" and "a" are the same key.
                     let key: String =
-                        serde_json::from_str(&text[start..=end]).map_err(|_| Scanned::NotJson)?;
+                        serde_json::from_str(&text[start..end]).map_err(|_| Scanned::NotJson)?;
                     if let Some(Some(keys)) = open.last_mut()
                         && !keys.insert(key.clone())
                     {

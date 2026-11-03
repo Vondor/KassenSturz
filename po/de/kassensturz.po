@@ -17384,3 +17384,9 @@ msgctxt ""
 "@action:button opens Settings, where the colors of the charts are changed"
 msgid "Edit palette…"
 msgstr "Palette bearbeiten …"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:75
+#, kde-format
+msgctxt "@label name of a chart color a person changed"
+msgid "Own color"
+msgstr "Eigene Farbe"

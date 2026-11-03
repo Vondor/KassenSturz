@@ -33,7 +33,7 @@ Window {
         id: card
 
         width: parent.width
-        palette: fake
+        chartColors: fake
     }
 
     function check(ok, what) {
@@ -95,6 +95,7 @@ Window {
                 window.check(window.fields()[0].text === "#1A2B3C", "the field shows the color as the object wrote it");
                 window.check(window.button("Back to standard for all").enabled === true, "a changed palette can be put back");
                 window.check(window.button("Standard", 0).enabled === true, "a changed color can be put back");
+                window.check(window.shown().includes("1. Own color") && !window.shown().includes("1. Blue"), "a changed color is no longer called by the standard name: " + window.shown());
                 // Three numbers.
                 window.type(window.fields()[1], "0, 114, 178");
                 break;
@@ -137,6 +138,7 @@ Window {
             }
             case 8: {
                 window.check(fake.colors[0] === "#0072B2" && fake.calls.includes("reset:0"), "Standard puts one color back: " + fake.colors[0]);
+                window.check(window.shown().includes("1. Blue"), "the standard name is back with the standard color: " + window.shown());
                 window.button("Back to standard for all").clicked();
                 break;
             }

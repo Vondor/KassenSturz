@@ -239,7 +239,7 @@ fn into_open_book() -> bool {
 }
 
 /// Says why a file couldn't be used.
-fn fail(error: &FromFileError) -> QVariant {
+pub(crate) fn fail(error: &FromFileError) -> QVariant {
     let locale = app_locale();
     let shown =
         session::with_book(|book| book_from_file::error_text_in(Some(book), error, &locale))
@@ -248,7 +248,7 @@ fn fail(error: &FromFileError) -> QVariant {
 }
 
 /// A problem making the new book, as the book screens get it.
-fn problem_object(problem: &crate::books::ProblemText) -> QVariant {
+pub(crate) fn problem_object(problem: &crate::books::ProblemText) -> QVariant {
     let mut entries = vec![("code".to_owned(), text(&problem.code))];
     entries.extend(
         problem

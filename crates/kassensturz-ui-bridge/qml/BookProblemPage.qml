@@ -3,7 +3,8 @@
 
 // Says why a book didn't open, and what the user can do (AGENTS.md §6: no
 // dead ends): try again, open it anyway if it's locked (D-038, D-080), open
-// another book, start a new one or start one from a file, or go back to the
+// another book, start a new one or start one from a file, try an example
+// book (M6-B157: the wizard only runs on the first start), or go back to the
 // book that is open.
 
 import QtQuick
@@ -26,6 +27,7 @@ Kirigami.Page {
     signal openAnotherClicked()
     signal newBookClicked()
     signal startFromFileClicked()
+    signal exampleBookClicked()
     signal backClicked()
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -222,6 +224,14 @@ Kirigami.Page {
                 onClicked: {
                     ActionLog.taken("BookProblemPage_startBookFile")
                     page.startFromFileClicked()
+                }
+            }
+            Controls.Button {
+                icon.name: "folder-open"
+                text: page.i18nContext.i18nc("@action:button", "Try an example book…")
+                onClicked: {
+                    ActionLog.taken("BookProblemPage_tryExampleBook")
+                    page.exampleBookClicked()
                 }
             }
             Controls.Button {

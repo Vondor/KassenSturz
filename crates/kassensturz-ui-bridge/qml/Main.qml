@@ -271,6 +271,10 @@ Kirigami.ApplicationWindow {
         id: developerMode
     }
 
+    TestProfile {
+        id: testProfile
+    }
+
     Connections {
         target: root.pageStack
 
@@ -770,6 +774,26 @@ Kirigami.ApplicationWindow {
                 ]
             }
 
+            // The test profile shows this on every screen, and it can't be
+            // closed (Q-399).
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                position: Kirigami.InlineMessage.Position.Header
+                type: Kirigami.MessageType.Information
+                visible: testProfile.on
+                text: Plain.plain(root.i18nContext.i18nc("@info %1 is a folder", "Test mode: KassenSturz keeps its books and settings for this test in %1. Your own books and settings are not used or changed. To end the test mode, close KassenSturz and start it the usual way.", testProfile.folder))
+                actions: [
+                    Kirigami.Action {
+                        icon.name: "folder-open"
+                        text: root.i18nContext.i18nc("@action:button opens the test mode's folder", "Show the folder")
+                        onTriggered: {
+                            ActionLog.taken("Main_showTestFolder")
+                            Qt.openUrlExternally(testProfile.folderUrl)
+                        }
+                    }
+                ]
+            }
+
             // A book on a network drive opens, with this warning on every
             // screen (D-038).
             Kirigami.InlineMessage {
@@ -1224,7 +1248,13 @@ Kirigami.ApplicationWindow {
             firstStart: firstStartState
             onContinued: currency => {
                 root.wizardCurrency = currency;
-                root.pushPage(wizardStartPage, {});
+                // A test uses a made-up book only, so it goes straight to the
+                // examples (Q-399).
+                if (testProfile.on) {
+                    root.chooseExampleBook();
+                } else {
+                    root.pushPage(wizardStartPage, {});
+                }
             }
         }
     }

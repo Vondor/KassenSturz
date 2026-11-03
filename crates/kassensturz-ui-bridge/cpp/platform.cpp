@@ -17,6 +17,11 @@ QString dataFolder()
     return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
 }
 
+void useTestLocations()
+{
+    QStandardPaths::setTestModeEnabled(true);
+}
+
 QString computerName()
 {
     return QSysInfo::machineHostName();

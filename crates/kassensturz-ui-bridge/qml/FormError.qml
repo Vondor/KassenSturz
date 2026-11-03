@@ -138,6 +138,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This is a KassenSturz book already. To use it, open it in Settings with \"Open another book…\".");
         case "input.is-a-statement":
             return i18nContext.i18nc("@info", "This is a statement from a bank, not a book. To bring it in, open an account's list of transactions and choose \"Import from my bank\".");
+        case "input.outside-test":
+            return i18nContext.i18nc("@info", "KassenSturz runs in test mode, which never reads your own books. Choose a file in the test folder, or try an example book. The file wasn't read.");
         case "input.not-kmymoney":
             return i18nContext.i18nc("@info", "This isn't a KMyMoney file. Reports can be added from a KMyMoney book, saved as a .kmy file or as its SQLite database.");
         case "input.replacement-missing":

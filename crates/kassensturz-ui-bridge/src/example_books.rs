@@ -33,13 +33,33 @@ pub struct Example {
 pub const SUGGESTED: &str = "suburban-family";
 
 /// The bundled books, in the order the chooser shows them: the suggested
-/// start first. The other three join when M7a.8 merges them: add a line
-/// here, the name and description in `ExampleBookChooser.qml`, and the
-/// ids to the test below.
-static EXAMPLES: &[Example] = &[Example {
-    id: "space-colony",
-    bytes: include_bytes!("../../kassensturz-import/tests/books/space-colony-5y-v15.sqlite"),
-}];
+/// start first. The ids are the ones `ExampleBookChooser.qml` and the test
+/// below know. The bank files that go with them are in the same folder
+/// (`examples/statements/`, M7a.8).
+static EXAMPLES: &[Example] = &[
+    Example {
+        id: "suburban-family",
+        bytes: include_bytes!(
+            "../../kassensturz-import/tests/books/examples/suburban-family-v15.sqlite"
+        ),
+    },
+    Example {
+        id: "flower-utopia",
+        bytes: include_bytes!(
+            "../../kassensturz-import/tests/books/examples/flower-utopia-v15.sqlite"
+        ),
+    },
+    Example {
+        id: "space-colony",
+        bytes: include_bytes!("../../kassensturz-import/tests/books/space-colony-5y-v15.sqlite"),
+    },
+    Example {
+        id: "udssr-agent",
+        bytes: include_bytes!(
+            "../../kassensturz-import/tests/books/examples/udssr-agent-v15.sqlite"
+        ),
+    },
+];
 
 /// The bundled books.
 pub fn all() -> &'static [Example] {
@@ -157,7 +177,27 @@ mod tests {
             again.path,
             folder.join("data/Example – Space Colony (2).ksz")
         );
-        assert_eq!(before.as_slice(), all()[0].bytes);
+        let bundled = all()
+            .iter()
+            .find(|example| example.id == "space-colony")
+            .expect("bundled");
+        assert_eq!(before.as_slice(), bundled.bytes);
+    }
+
+    /// The seam with M7a.8: every bundled book, as the generator wrote it,
+    /// goes through the real importer and fill into a book with accounts,
+    /// and transactions.
+    #[test]
+    fn every_bundled_book_makes_a_book() {
+        for example in all() {
+            let folder = TestFolder::new();
+            let books = Books::in_folder(folder.path(), "Desk");
+            let (open, created) = create(&books, example.id, "Example", &TestLocale)
+                .unwrap_or_else(|_| panic!("{} did not make a book", example.id));
+            assert!(created.accounts > 0, "{}", example.id);
+            assert!(created.transactions > 30, "{}", example.id);
+            drop(open);
+        }
     }
 
     #[test]

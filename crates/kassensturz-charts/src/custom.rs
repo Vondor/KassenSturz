@@ -35,8 +35,8 @@ use kassensturz_report::{Percent, ReportError, TextFormat, TextTable};
 use crate::datasets::{ShownRow, extent, major_unit, round_slices};
 use crate::ticks::{ticks, ticks_with};
 use crate::{
-    ANSWER_NO, ANSWER_YES, ChartError, ChartKind, ChartModel, MAX_DOT_SIZE, Overlay, OverlayItem,
-    OverlayMark, OverlaySeries, PALETTE_SIZE, Point, Series, Slices, Tick,
+    ANSWER_NO, ANSWER_YES, ChartError, ChartKind, ChartModel, EXTRA_COLOR_BASE, MAX_DOT_SIZE,
+    Overlay, OverlayItem, OverlayMark, OverlaySeries, Point, Series, Slices, Tick,
 };
 
 /// Most rows a chart may use after its filters (D-281), and most points it
@@ -209,13 +209,13 @@ type Groups<'r> = HashMap<(usize, usize), Vec<&'r [Cell]>>;
 
 /// A series of rules across the chart: its name, color, and the amount and
 /// words of each level.
-type Levels = (String, u8, Vec<(i64, String)>);
+type Levels = (String, u16, Vec<(i64, String)>);
 
 /// One series of an aligned layer: a value (and the words around it) for
 /// every place of the axis, or none.
 struct Aligned {
     name: String,
-    color: u8,
+    color: u16,
     values: Vec<Option<i64>>,
     labels: Vec<String>,
     texts: Vec<String>,
@@ -759,7 +759,7 @@ impl<F: TextFormat> Renderer<'_, F> {
         places: &HashMap<Key, usize>,
         first_color: &mut usize,
         paint: &Paint<'_>,
-    ) -> Result<Vec<(String, u8, Vec<usize>)>, CustomError> {
+    ) -> Result<Vec<(String, u16, Vec<usize>)>, CustomError> {
         let series = self.series_keys(channels, rows)?;
         let groups = self.groups(channels, rows, &series, places)?;
         let mut built = Vec::with_capacity(series.len());
@@ -1122,7 +1122,7 @@ impl<F: TextFormat> Renderer<'_, F> {
         let shown = round_slices(slices, self.format, |value| self.label(quantity, value))?;
         // The slices take the chart's own colors in order, else the palette's.
         let palette = Palette::of(spec);
-        let slice_colors: Vec<u8> = (0..shown.rows.len()).map(|at| palette.color(at)).collect();
+        let slice_colors: Vec<u16> = (0..shown.rows.len()).map(|at| palette.color(at)).collect();
         let inner = layer.mark().inner_radius().is_some();
         let currency = self.table.currency().to_string();
         let points: Vec<Point> = shown
@@ -1230,12 +1230,12 @@ fn scaled(left: i128, left_places: u8, right: i128, right_places: u8) -> Orderin
 
 /// The colors of a chart as palette indices: the description's own colors in
 /// order, else the standard ones (D-283). A color the description names as
-/// `#rrggbb` has no place in the app's palette: it gets an index after the
-/// eight places, which `extras` explains (`ChartModel::extra_colors`).
+/// `#rrggbb` has no place in the app's palette: it gets an index from
+/// `EXTRA_COLOR_BASE` on, which `extras` explains (`ChartModel::extra_colors`).
 struct Palette {
     /// The index of each color of `config.range.category`, in order.
-    chosen: Vec<u8>,
-    /// The free colors, in order of first use; extra `n` has index 8 + `n`.
+    chosen: Vec<u16>,
+    /// The free colors, in order of first use; extra `n` has index `EXTRA_COLOR_BASE` + `n`.
     extras: Vec<Rgb>,
 }
 
@@ -1245,7 +1245,7 @@ impl Palette {
             chosen: Vec::new(),
             extras: Vec::new(),
         };
-        let listed: Vec<u8> = spec
+        let listed: Vec<u16> = spec
             .palette()
             .iter()
             .map(|color| palette.add(*color))
@@ -1261,7 +1261,7 @@ impl Palette {
     }
 
     /// Adds a free color once, and returns the index of `color`.
-    fn add(&mut self, color: SpecColor) -> u8 {
+    fn add(&mut self, color: SpecColor) -> u16 {
         if let SpecColor::Rgb(rgb) = color
             && !self.extras.contains(&rgb)
         {
@@ -1272,20 +1272,20 @@ impl Palette {
 
     /// The index of a color that [`add`](Self::add) has seen. A free color
     /// that was not added reads as the first place.
-    fn index_of(&self, color: SpecColor) -> u8 {
+    fn index_of(&self, color: SpecColor) -> u16 {
         match color {
-            SpecColor::Slot(name) => u8::try_from(name.index()).unwrap_or(0),
+            SpecColor::Slot(name) => u16::try_from(name.index()).unwrap_or(0),
             SpecColor::Rgb(rgb) => self
                 .extras
                 .iter()
                 .position(|known| *known == rgb)
-                .and_then(|at| u8::try_from(at).ok())
-                .map_or(0, |at| PALETTE_SIZE.saturating_add(at)),
+                .and_then(|at| u16::try_from(at).ok())
+                .map_or(0, |at| EXTRA_COLOR_BASE.saturating_add(at)),
         }
     }
 
     /// The color of series number `series` of the chart.
-    fn color(&self, series: usize) -> u8 {
+    fn color(&self, series: usize) -> u16 {
         if self.chosen.is_empty() {
             ChartModel::color_of(series)
         } else {
@@ -1298,13 +1298,13 @@ impl Palette {
 /// color its mark names, if it names one and has no `color` channel.
 struct Paint<'a> {
     palette: &'a Palette,
-    own: Option<u8>,
+    own: Option<u16>,
 }
 
 impl Paint<'_> {
     /// The color of a series: the layer's own if it has one, else the next
     /// of the chart's.
-    fn pick(&self, series: usize) -> u8 {
+    fn pick(&self, series: usize) -> u16 {
         self.own.unwrap_or_else(|| self.palette.color(series))
     }
 }

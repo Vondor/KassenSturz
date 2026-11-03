@@ -28,11 +28,14 @@ pub use datasets::{category_over_time, income_expense_by_month, spending_by_cate
 pub use error::ChartError;
 pub use financial::{BalancesBy, account_balances, cash_flow_by_month, net_worth_over_time};
 pub use model::{
-    ANSWER_NO, ANSWER_YES, ChartKind, ChartModel, HiddenNote, MAX_DOT_SIZE, MAX_SLICES,
-    NAMED_FROM_TENTHS, Overlay, OverlayItem, OverlayMark, OverlaySeries, PALETTE_SIZE, Point,
-    Series, Slices, Tick,
+    ANSWER_NO, ANSWER_YES, ChartKind, ChartModel, EXTRA_COLOR_BASE, HiddenNote, MAX_DOT_SIZE,
+    MAX_SLICES, NAMED_FROM_TENTHS, Overlay, OverlayItem, OverlayMark, OverlaySeries, Point, Series,
+    Slices, Tick,
 };
-pub use palette::{Palette, PaletteWarning, STANDARD_COLORS, contrast_is_enough, too_alike};
+pub use palette::{
+    DEFAULT_COLORS, MAX_COLORS, MIN_COLORS, Palette, PaletteWarning, STANDARD_COLORS,
+    contrast_is_enough, too_alike,
+};
 pub use provider::{ChartProvider, Prepared, PreparedSeries, drawing_value};
 
 #[cfg(test)]

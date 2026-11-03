@@ -1373,6 +1373,7 @@ Kirigami.ApplicationWindow {
             onOpenAnotherClicked: root.chooseBookToOpen()
             onNewBookClicked: root.chooseNewBook()
             onStartFromFileClicked: root.chooseFileForNewBook()
+            onExampleBookClicked: root.chooseExampleBook()
             onBackClicked: {
                 bookSession.dismissProblem();
                 root.pageStack.pop();

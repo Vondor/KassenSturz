@@ -28,7 +28,7 @@ ColumnLayout {
 
     // A `ChartPaletteSettings`: the colors in use, the standard ones, and
     // the warnings.
-    required property var palette
+    required property var chartColors
 
     // Whether a change couldn't be saved for the next start.
     property bool notSaved: false
@@ -40,10 +40,10 @@ ColumnLayout {
     // The window's background as `#rrggbb`, which the contrast is checked
     // against, and the warnings for it. Reading `colors` makes the list
     // follow every change.
-    readonly property string background: Kirigami.Theme.backgroundColor.toString()
+    readonly property string windowColor: Kirigami.Theme.backgroundColor.toString()
     readonly property var warnings: {
-        card.palette.colors;
-        return card.palette.warnings(card.background);
+        card.chartColors.colors;
+        return card.chartColors.warnings(card.windowColor);
     }
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -66,6 +66,23 @@ ColumnLayout {
         ][slot] ?? "";
     }
 
+    // What place `slot` is called on screen: its standard name while it has
+    // its standard color, and "Own color" once a person changed it, because
+    // the standard name would then say the wrong color.
+    function nameOf(slot: int): string {
+        const changed = (chartColors.colors[slot] ?? "") !== (chartColors.standard[slot] ?? "");
+        return changed
+            ? i18nContext.i18nc("@label name of a chart color a person changed", "Own color")
+            : placeName(slot);
+    }
+
+    // Opens the system's color dialog for place `slot`.
+    function choose(slot: int) {
+        editing = slot;
+        dialog.selectedColor = chartColors.colors[slot] ?? "";
+        dialog.open();
+    }
+
     // The sentences for place `slot`: what is wrong with the text typed
     // for it, and the warnings about its color.
     function notesFor(slot: int): var {
@@ -79,9 +96,9 @@ ColumnLayout {
             if (warning.slot === slot && warning.kind === "contrast") {
                 notes.push({problem: false, text: i18nContext.i18nc("@info", "This color is hard to see against the background. A darker or a lighter color is easier to read.")});
             } else if (warning.slot === slot && warning.kind === "alike") {
-                notes.push({problem: false, text: i18nContext.i18nc("@info %1 is the name of a color", "This color looks very much like the next one (%1), so the two are hard to tell apart in a chart.", placeName(warning.other))});
+                notes.push({problem: false, text: i18nContext.i18nc("@info %1 is the name of a color", "This color looks very much like the next one (%1), so the two are hard to tell apart in a chart.", nameOf(warning.other))});
             } else if (warning.other === slot && warning.kind === "alike") {
-                notes.push({problem: false, text: i18nContext.i18nc("@info %1 is the name of a color", "This color looks very much like the one before it (%1), so the two are hard to tell apart in a chart.", placeName(warning.slot))});
+                notes.push({problem: false, text: i18nContext.i18nc("@info %1 is the name of a color", "This color looks very much like the one before it (%1), so the two are hard to tell apart in a chart.", nameOf(warning.slot))});
             }
         }
         return notes;
@@ -90,7 +107,7 @@ ColumnLayout {
     // Gives place `slot` the color written in `entry` and keeps what went
     // wrong, so the row says it.
     function apply(slot: int, entry: string) {
-        const answer = palette.setColor(slot, entry);
+        const answer = chartColors.setColor(slot, entry);
         const next = Object.assign({}, problems);
         if (answer === "format" || answer === "part") {
             next[slot] = answer;
@@ -105,26 +122,26 @@ ColumnLayout {
         const next = Object.assign({}, problems);
         delete next[slot];
         problems = next;
-        notSaved = palette.reset(slot) === "not-saved";
+        notSaved = chartColors.reset(slot) === "not-saved";
     }
 
     function resetAll() {
         problems = ({});
-        notSaved = palette.resetAll() === "not-saved";
+        notSaved = chartColors.resetAll() === "not-saved";
     }
 
     FormCard.FormCard {
         Layout.fillWidth: true
 
         Repeater {
-            model: card.palette.colors.length
+            model: card.chartColors.colors.length
 
             delegate: ColumnLayout {
                 id: place
 
                 required property int index
-                readonly property string current: card.palette.colors[index] ?? ""
-                readonly property bool changed: current !== (card.palette.standard[index] ?? "")
+                readonly property string current: card.chartColors.colors[index] ?? ""
+                readonly property bool changed: current !== (card.chartColors.standard[index] ?? "")
                 readonly property var notes: card.notesFor(index)
 
                 Layout.fillWidth: true
@@ -143,11 +160,22 @@ ColumnLayout {
                         border.width: 1
                         border.color: Kirigami.Theme.textColor
                         Accessible.ignored: true
+
+                        // A swatch is what a person clicks first, so it opens
+                        // the dialog like the button does (which stays for
+                        // the keyboard).
+                        TapHandler {
+                            cursorShape: Qt.PointingHandCursor
+                            onTapped: {
+                                ActionLog.taken("ChartColorsCard_choose")
+                                card.choose(place.index);
+                            }
+                        }
                     }
 
                     Controls.Label {
                         Layout.fillWidth: true
-                        text: card.i18nContext.i18nc("@label %1 is the number of a chart color, %2 its name", "%1. %2", place.index + 1, card.placeName(place.index))
+                        text: card.i18nContext.i18nc("@label %1 is the number of a chart color, %2 its name", "%1. %2", place.index + 1, card.nameOf(place.index))
                         textFormat: Text.PlainText
                         elide: Text.ElideRight
                     }
@@ -160,7 +188,7 @@ ColumnLayout {
                         font: Kirigami.Theme.fixedWidthFont
                         maximumLength: 40
                         inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
-                        Accessible.name: card.i18nContext.i18nc("@label accessible name of a field for the color of a chart; %1 is its number, %2 its name", "Color %1, %2: red, green and blue", place.index + 1, card.placeName(place.index))
+                        Accessible.name: card.i18nContext.i18nc("@label accessible name of a field for the color of a chart; %1 is its number, %2 its name", "Color %1, %2: red, green and blue", place.index + 1, card.nameOf(place.index))
                         onEditingFinished: {
                             // Not for a text that is already the color.
                             if (text.trim() !== place.current) {
@@ -174,19 +202,17 @@ ColumnLayout {
 
                     Controls.Button {
                         text: card.i18nContext.i18nc("@action:button opens the system's dialog for choosing a color", "Choose…")
-                        Accessible.name: card.i18nContext.i18nc("@action:button accessible name; %1 is the number of a chart color, %2 its name", "Choose color %1, %2", place.index + 1, card.placeName(place.index))
+                        Accessible.name: card.i18nContext.i18nc("@action:button accessible name; %1 is the number of a chart color, %2 its name", "Choose color %1, %2", place.index + 1, card.nameOf(place.index))
                         onClicked: {
                             ActionLog.taken("ChartColorsCard_choose")
-                            card.editing = place.index;
-                            dialog.selectedColor = place.current;
-                            dialog.open();
+                            card.choose(place.index);
                         }
                     }
 
                     Controls.Button {
                         enabled: place.changed
                         text: card.i18nContext.i18nc("@action:button puts one chart color back to the one KassenSturz comes with", "Standard")
-                        Accessible.name: card.i18nContext.i18nc("@action:button accessible name; %1 is the number of a chart color, %2 its name", "Back to the standard color %1, %2", place.index + 1, card.placeName(place.index))
+                        Accessible.name: card.i18nContext.i18nc("@action:button accessible name; %1 is the number of a chart color, %2 its name", "Back to the standard color %1, %2", place.index + 1, card.nameOf(place.index))
                         onClicked: {
                             ActionLog.taken("ChartColorsCard_reset")
                             card.resetPlace(place.index);
@@ -222,7 +248,7 @@ ColumnLayout {
                 }
 
                 FormCard.FormDelegateSeparator {
-                    visible: place.index < card.palette.colors.length - 1
+                    visible: place.index < card.chartColors.colors.length - 1
                 }
             }
         }
@@ -230,7 +256,7 @@ ColumnLayout {
         FormCard.FormDelegateSeparator {}
 
         FormCard.FormButtonDelegate {
-            enabled: card.palette.changed
+            enabled: card.chartColors.changed
             text: card.i18nContext.i18nc("@action:button puts every chart color back to the ones KassenSturz comes with", "Back to standard for all")
             onClicked: {
                 ActionLog.taken("ChartColorsCard_resetAll")

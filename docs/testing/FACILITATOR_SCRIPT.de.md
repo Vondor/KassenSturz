@@ -127,12 +127,14 @@ Hier steht, **woran die Testleitung erkennt, ob eine Karte geschafft ist**. Pro 
 | 2 Alltagsausgaben | alle drei Buchungen mit richtigem Betrag, Datum und Richtung (Ausgabe/Einnahme) im Konto stehen; Supermarkt und Kaffee in einer passenden Kategorie | 5 Min. | Kontostand = Anfangsstand − 42,50 − 3,20 + 1.800 |
 | 3 Korrigieren und umbuchen | Kaffee steht auf 2,30; 200 € sind als Umbuchung zwischen zwei eigenen Konten gebucht (nicht als Ausgabe); der letzte Schritt ist rückgängig gemacht | 7 Min. | Zählt die Übersicht die Umbuchung **nicht** als Geld rein/raus? Weiß der Tester, welcher Schritt rückgängig gemacht wurde? |
 | 4 Wo ist mein Geld hin? | die genannte Summe für Lebensmittel und die Antwort „mehr rein/mehr raus“ stimmen mit dem Lösungsblatt des Beispielbuchs überein | 3 Min. | Antwort mit dem Lösungsblatt vergleichen |
-| 5 Kontoauszug einlesen | die Datei ist im richtigen Konto, die doppelte Buchung wurde **nicht** zweimal übernommen, der Tester hat die Vorschau gelesen, bevor er bestätigt | 7 Min. | Anzahl neuer Buchungen = Lösungsblatt; Kontostand = Endsaldo der Datei |
+| 5 Kontoauszug einlesen | die Datei ist im richtigen Konto, die doppelte Buchung wurde **nicht** zweimal übernommen, der Tester hat die Vorschau gelesen, bevor er bestätigt | 7 Min. | Anzahl neuer Buchungen = Lösungsblatt; Kontostand = Endsaldo der Datei (siehe Hinweis unten) |
 | 6 Aktualisieren | neue Version installiert, das Buch öffnet ohne Fehlermeldung, die Buchungen aus Karte 2 sind da | 5 Min. | Versionsnummer unter „Über“ ist die neue |
 | 7 Sprache und Wörter | (keine Lösung; jede Fundstelle zählt) | 3 Min. | Liste der Wörter übernehmen |
 | 8 Tiefer einsteigen (freiwillig) | eine Regel sortiert Kaffee-Käufe von selbst; ein neues Diagramm ist auf der Übersicht | 7 Min. | Neue Kaffee-Buchung eintragen: landet sie in der Kategorie? |
 
 **Lösungsblätter (nur für die Testleitung, nie dem Tester zeigen):** Zu jedem Beispielbuch gibt es ein Lösungsblatt, das das Team aus dem echten Import- und Berichtscode erzeugt, nie von Hand (Schritt M7a.8): für Karte 4 die Lebensmittel-Summe des Vormonats und ob mehr rein- oder rausging, für Karte 5 die Anzahl der Zeilen, der neuen und der doppelten Buchungen und den Endsaldo. Die Pfade stehen in [README.md](README.md); das Lösungsblatt für Karte 4 und 5 ist je Buch eine Datei.
+
+**Hinweis zu Karte 5 mit der Vorstadtfamilie:** Liegt der Tag, an dem der Tester testet, vor dem 6. November 2026, zeigt das Konto „Girokonto“ nach dem Einlesen der CAMT-Datei „Darin Buchungen nach heute: −201,15 €“. Das ist gewollt: Ein Teil der Zeilen der Datei trägt ein Datum, das für den Rechner des Testers noch in der Zukunft liegt. Sagen Sie dem Tester dazu nichts vorab; fragt er danach, gilt die neutrale Rückfrage („Was würden Sie vermuten?“). Der Schlusssaldo laut Datei bleibt trotzdem der Vergleichswert. Ab dem 6. November 2026 erscheint der Hinweis nicht mehr.
 
 ### Wann ist die Runde bestanden?
 

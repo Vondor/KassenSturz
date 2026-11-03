@@ -8,6 +8,8 @@
 # project's own CMake (which drives Cargo, D-063) and collects everything the
 # program loads into one folder for the packages.
 
+from pathlib import Path
+
 import info
 from CraftCore import CraftCore
 from Package.CMakePackageBase import CMakePackageBase
@@ -52,6 +54,16 @@ class Package(CMakePackageBase):
         ]
 
     def createPackage(self):
+        # KassenSturz's own installer: for the person who runs it, without
+        # administrator rights, in German or English (installer.nsi, Q-406).
+        # Craft's portable zip ignores it.
+        self.scriptname = self.blueprintDir() / "installer.nsi"
+        # The build number (D-152, D-226) that the workflow wrote next to the
+        # sources; without it Craft would name the version after the Git
+        # target ("HEAD").
+        number = Path(self.sourceDir()) / "build-version"
+        if number.is_file():
+            self.defines["version"] = number.read_text(encoding="utf-8").strip()
         self.defines["appname"] = "kassensturz"
         self.defines["company"] = "KassenSturz contributors"
         self.defines["executable"] = r"bin\kassensturz.exe"

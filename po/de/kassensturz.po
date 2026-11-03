@@ -16278,11 +16278,47 @@ msgstr "Name der Ansicht"
 #, kde-format
 msgctxt "@info"
 msgid ""
-"To put it on the Overview, choose Edit layout there, then Add to the page "
-"and Saved views."
+"Finish keeps it under this name, or as “Statistic 1” and so on if you leave "
+"the name empty. It then stays in the list of saved views below, and “Put it "
+"on the Overview” shows it there."
 msgstr ""
-"Um sie auf die Übersicht zu legen, wählen Sie dort „Layout bearbeiten“, dann "
-"„Zur Seite hinzufügen“ und „Gespeicherte Ansichten“."
+"„Fertig“ behält sie unter diesem Namen, oder als „Auswertung 1“ usw., wenn "
+"Sie den Namen leer lassen. Danach steht sie unten in der Liste der "
+"gespeicherten Ansichten, und „Auf die Übersicht legen“ zeigt sie dort."
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Change the chart on the Overview"
+msgstr "Diagramm auf der Übersicht ändern"
+
+#, kde-format
+msgctxt "@item the name a new saved statistic gets when the user gave none, %1 is a number"
+msgid "Statistic %1"
+msgstr "Auswertung %1"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This is the statistic you left before Finish. Finish keeps it; Cancel starts "
+"a new one."
+msgstr ""
+"Das ist die Auswertung, die Sie vor „Fertig“ verlassen haben. „Fertig“ behält "
+"sie; „Abbrechen“ beginnt eine neue."
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Put it on the Overview"
+msgstr "Auf die Übersicht legen"
+
+#, kde-format
+msgctxt "@action:button change a saved view in the wizard"
+msgid "Change step by step"
+msgstr "Schritt für Schritt ändern"
+
+#, kde-format
+msgctxt "@action:button opens the Statistic Builder on this chart"
+msgid "Change step by step in the Statistic Builder"
+msgstr "Im Statistik-Baukasten Schritt für Schritt ändern"
 
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:517
 #, kde-format

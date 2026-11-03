@@ -14,7 +14,7 @@
 4. **Install:** open the file, language German, **Next**, **Install**, **Finish**. If Windows asks for an administrator password, cancel and tell the facilitator.
 5. *Only if the facilitator tells you Windows developer mode is needed (normally it isn't):* ⚠️ it lets Windows run unchecked programs. Install only this file, then switch it off again. Settings › System › For developers (Windows 10: Update & Security › For developers).
 6. **Start in KassenSturz developer mode:** Windows key, type PowerShell, Enter, then paste `$env:KASSENSTURZ_DEBUG_LOG = "1"; & "<install folder>\kassensturz.exe"` (folder added after the VM run). "Entwicklermodus" should show in the window title.
-7. **First start:** follow the first screens; choose an example book if offered (recommended: *Suburban Family*), otherwise create an account with an **invented** balance. Done when you see the **overview**. Note the minutes: that is the result of card 1.
+7. **First start:** follow the first screens; choose "Try an example book" (German: "Ein Beispielbuch ausprobieren …", recommended: Suburban Family), otherwise create an account with an **invented** balance. Done when you see the **overview**. Note the minutes: that is the result of card 1.
 
 **Remove:** Settings › Apps › Installed apps › KassenSturz › Uninstall. Your books stay as files.
 

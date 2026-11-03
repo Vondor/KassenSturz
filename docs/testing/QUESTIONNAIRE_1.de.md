@@ -54,13 +54,13 @@ Gestockt bei: ____  Leicht: _ / 5
 
 ### Karte 4: Wo ist mein Geld hin?
 
-Öffnen Sie eines der Beispielbücher, die KassenSturz beim Start anbietet (Space Colony, Flower Utopia, Suburban Family oder das Buch des Regierungsagenten; für den Einstieg empfehlen wir Suburban Family). Finden Sie heraus, wie viel letzten Monat für Lebensmittel ausgegeben wurde und ob mehr hereinkam als hinausging.
+Öffnen Sie eines der Beispielbücher, die KassenSturz beim Start anbietet (Vorstadtfamilie, Blumen-Utopia, Weltraumkolonie oder UdSSR-Agent; für den Einstieg empfehlen wir die Vorstadtfamilie). Finden Sie heraus, wie viel letzten Monat für Lebensmittel ausgegeben wurde und ob mehr hereinkam als hinausging.
 
 Antwort: ____  Gestockt bei: ____  Leicht: _ / 5
 
 ### Karte 5: Einen Kontoauszug einlesen
 
-Lesen Sie die Test-Kontoauszugsdatei, die zu Ihrem Beispielbuch gehört, in das passende Konto ein. Prüfen Sie, dass nichts doppelt gezählt wird.
+Lesen Sie die Test-Kontoauszugsdatei, die zu Ihrem Beispielbuch gehört (die Testleitung legt sie bereit; sie heißt wie das Buch), in das passende Konto ein. Prüfen Sie, dass nichts doppelt gezählt wird.
 
 Gestockt bei: ____  Leicht: _ / 5
 

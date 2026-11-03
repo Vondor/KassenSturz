@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+  <BkToCstmrStmt>
+    <GrpHdr>
+      <MsgId>EXAMPLE-SPACE-COLONY-20261106</MsgId>
+      <CreDtTm>2026-11-06T20:00:00+01:00</CreDtTm>
+    </GrpHdr>
+    <Stmt>
+      <Id>space-colony-2026-11</Id>
+      <Acct>
+        <Id><IBAN>DE89370400440532013000</IBAN></Id>
+        <Ccy>EUR</Ccy>
+      </Acct>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="EUR">9536.97</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-11-01</Dt></Dt>
+      </Bal>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="EUR">13131.74</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-11-06</Dt></Dt>
+      </Bal>
+      <Ntry>
+        <Amt Ccy="EUR">27.90</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-01</Dt></BookgDt>
+        <ValDt><Dt>2026-11-01</Dt></ValDt>
+        <AcctSvcrRef>ID-2795</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Colony Pay Office</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>NL91ABNA0417164300</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Card payment</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">4650.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-02</Dt></BookgDt>
+        <ValDt><Dt>2026-11-02</Dt></ValDt>
+        <AcctSvcrRef>SC2611-N001</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Dbtr><Nm>Hydroponics Cooperative</Nm></Dbtr>
+              <DbtrAcct><Id><IBAN>FR1420041010050500013M02606</IBAN></Id></DbtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Pay slip, hydroponics shift</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">735.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-02</Dt></BookgDt>
+        <ValDt><Dt>2026-11-02</Dt></ValDt>
+        <AcctSvcrRef>SC2611-N002</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Dome Management Co.</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>GB29NWBK60161331926819</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Dome rent</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">66.01</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-02</Dt></BookgDt>
+        <ValDt><Dt>2026-11-02</Dt></ValDt>
+        <AcctSvcrRef>SC2611-N003</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Fusion Grid Utility</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>FR1420041010050500013M02606</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Power</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">98.12</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-03</Dt></BookgDt>
+        <ValDt><Dt>2026-11-03</Dt></ValDt>
+        <AcctSvcrRef>SC2611-N004</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Olympus Mons Market</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>NL91ABNA0417164300</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Weekly groceries</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">24.75</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-03</Dt></BookgDt>
+        <ValDt><Dt>2026-11-03</Dt></ValDt>
+        <AcctSvcrRef>SC2611-N005</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Ceres Greengrocer</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>NL91ABNA0417164300</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Fresh herbs</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">41.15</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-04</Dt></BookgDt>
+        <ValDt><Dt>2026-11-04</Dt></ValDt>
+        <AcctSvcrRef>SC2611-N006</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Titan Fuel Station</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>CH9300762011623852957</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Fuel</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">49.90</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-05</Dt></BookgDt>
+        <ValDt><Dt>2026-11-05</Dt></ValDt>
+        <AcctSvcrRef>SC2611-N007</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Subspace Telecom</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>FR1420041010050500013M02606</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Subspace link</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">12.40</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-06</Dt></BookgDt>
+        <ValDt><Dt>2026-11-06</Dt></ValDt>
+        <AcctSvcrRef>SC2611-N008</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Crater Bakery</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>GB29NWBK60161331926819</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Algae bread</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

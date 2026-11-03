@@ -19,7 +19,7 @@ use super::*;
 use crate::Computer;
 use crate::lock::lock_path;
 use crate::test_folder::TempFolder;
-use crate::tests::{EUR, Sample, USD, account, date, eur, sample, transaction};
+use crate::tests::{EUR, Sample, USD, account, date, eur, sample, transaction, vm_steps};
 
 /// Everything the book holds: every row of every table the history records,
 /// each value as SQL text, so two moments of a book can be compared exactly.
@@ -1448,34 +1448,35 @@ fn a_book_without_its_history_setting_is_reported_when_opened() {
     assert!(!lock_path(&path).exists());
 }
 
-/// How long `count` more transactions take to add, each as an action of its
-/// own.
-fn time_to_add(book: &mut Book, checking: AccountId, food: AccountId, count: u32) -> f64 {
-    let started = std::time::Instant::now();
-    for index in 0..count {
-        let day = i8::try_from(index % 28 + 1).expect("a day");
-        let amount = 100 + i64::from(day);
-        book.add_transaction(&transaction(
-            date(2026, 1, day),
-            "Shop",
-            &[(checking, eur(-amount)), (food, eur(amount))],
-        ))
-        .expect("added");
-    }
-    started.elapsed().as_secs_f64()
+/// How much work `count` more transactions are to add, each as an action of
+/// its own, in SQLite's steps (`vm_steps`).
+fn steps_to_add(book: &mut Book, checking: AccountId, food: AccountId, count: u32) -> u64 {
+    let (_, steps) = vm_steps(book, |book| {
+        for index in 0..count {
+            let day = i8::try_from(index % 28 + 1).expect("a day");
+            let amount = 100 + i64::from(day);
+            book.add_transaction(&transaction(
+                date(2026, 1, day),
+                "Shop",
+                &[(checking, eur(-amount)), (food, eur(amount))],
+            ))
+            .expect("added");
+        }
+    });
+    steps
 }
 
 #[test]
 fn an_action_costs_the_same_however_long_the_history_is() {
     // #84: every action looked through the whole history for undone changes,
     // so a book filled one action at a time slowed down with every action.
+    // Counted in SQLite's steps, not clock time (D-576): the count doesn't
+    // depend on how busy the machine is.
     let mut book = Book::create_in_memory().expect("book created");
     book.use_currency(EUR).expect("currency");
     let checking = account(&mut book, "Checking", AccountKind::Asset, EUR);
     let food = account(&mut book, "Food", AccountKind::Expense, EUR);
-    let short = (0..3)
-        .map(|_| time_to_add(&mut book, checking, food, 40))
-        .fold(f64::MAX, f64::min);
+    let short = steps_to_add(&mut book, checking, food, 40);
     // A long history, made directly: as if 20,000 actions had come before.
     book.conn
         .execute(
@@ -1485,12 +1486,11 @@ fn an_action_costs_the_same_however_long_the_history_is() {
             [whole_seconds(Timestamp::now()).to_string()],
         )
         .expect("history made");
-    let long = (0..3)
-        .map(|_| time_to_add(&mut book, checking, food, 40))
-        .fold(f64::MAX, f64::min);
-    // Before the fix, it was ten times as long; noise doesn't reach three.
+    let long = steps_to_add(&mut book, checking, food, 40);
+    // Before the fix each action stepped through the whole history, which
+    // would be hundreds of times the work here; now it is the same.
     assert!(
-        long < short * 3.0,
-        "40 actions took {short:.3} s with a short history and {long:.3} s with a long one"
+        long < short * 2,
+        "40 actions took {short} steps with a short history and {long} with a long one"
     );
 }

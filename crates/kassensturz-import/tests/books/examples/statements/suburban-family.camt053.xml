@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+  <BkToCstmrStmt>
+    <GrpHdr>
+      <MsgId>EXAMPLE-SUBURBAN-FAMILY-20261106</MsgId>
+      <CreDtTm>2026-11-06T20:00:00+01:00</CreDtTm>
+    </GrpHdr>
+    <Stmt>
+      <Id>suburban-family-2026-11</Id>
+      <Acct>
+        <Id><IBAN>DE89370400440532013000</IBAN></Id>
+        <Ccy>EUR</Ccy>
+      </Acct>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="EUR">5862.39</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-10-30</Dt></Dt>
+      </Bal>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="EUR">6725.71</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-11-06</Dt></Dt>
+      </Bal>
+      <Ntry>
+        <Amt Ccy="EUR">63.18</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-10-30</Dt></BookgDt>
+        <ValDt><Dt>2026-10-30</Dt></ValDt>
+        <AcctSvcrRef>SU2610-0117</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Supermarkt Sonnental</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>AT611904300234573201</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Wocheneinkauf</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">2468.40</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-02</Dt></BookgDt>
+        <ValDt><Dt>2026-11-02</Dt></ValDt>
+        <AcctSvcrRef>SU2611-N001</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Dbtr><Nm>Gartenbau Nordhang GmbH</Nm></Dbtr>
+              <DbtrAcct><Id><IBAN>GB29NWBK60161331926819</IBAN></Id></DbtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Gehalt</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">1185.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-02</Dt></BookgDt>
+        <ValDt><Dt>2026-11-02</Dt></ValDt>
+        <AcctSvcrRef>SU2611-N002</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Wohnbau Sonnenau eG</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>NL91ABNA0417164300</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Miete inkl. Nebenkosten</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">63.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-02</Dt></BookgDt>
+        <ValDt><Dt>2026-11-02</Dt></ValDt>
+        <AcctSvcrRef>SU2611-N003</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Verkehrsverbund Nordland</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>CH9300762011623852957</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Deutschlandticket</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">92.75</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-03</Dt></BookgDt>
+        <ValDt><Dt>2026-11-03</Dt></ValDt>
+        <AcctSvcrRef>SU2611-N004</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Supermarkt Sonnental</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>CH9300762011623852957</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Wocheneinkauf</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">71.30</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-04</Dt></BookgDt>
+        <ValDt><Dt>2026-11-04</Dt></ValDt>
+        <AcctSvcrRef>SU2611-N005</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Versicherung Sternschnuppe</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>AT611904300234573201</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Kfz-Versicherung</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">44.95</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-04</Dt></BookgDt>
+        <ValDt><Dt>2026-11-04</Dt></ValDt>
+        <AcctSvcrRef>SU2611-N006</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Nordlicht Internet</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>CH9300762011623852957</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Internet</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">61.04</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-05</Dt></BookgDt>
+        <ValDt><Dt>2026-11-05</Dt></ValDt>
+        <AcctSvcrRef>SU2611-N007</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Tankstelle Waldweg</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>NL91ABNA0417164300</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Tanken</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="EUR">23.86</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-06</Dt></BookgDt>
+        <ValDt><Dt>2026-11-06</Dt></ValDt>
+        <AcctSvcrRef>SU2611-N008</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Hofgut Linde Wochenmarkt</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>NL91ABNA0417164300</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Obst und Gemüse</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

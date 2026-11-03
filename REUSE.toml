@@ -33,6 +33,13 @@ path = ["data/icons/hicolor/**/*.png", "packaging/windows/kassensturz.ico"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC-BY-SA-4.0"
 
+# Mock screenshots of the setup wizard's design (docs/SETUP_WIZARD.md), made
+# from throwaway QML mocks with made-up figures.
+[[annotations]]
+path = ["docs/setup-wizard/*.png"]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
 # The publisher's logo (SerpentSoftware, the maintainer's publisher name). It
 # is a brand mark, not an app icon, and outside the project's licenses: it may
 # be copied unmodified with the project and shown to name the publisher. The

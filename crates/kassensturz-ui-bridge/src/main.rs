@@ -48,6 +48,8 @@ mod dashboard_file_model;
 mod dashboards;
 mod developer_mode;
 mod errors;
+mod example_books;
+mod example_books_model;
 mod export;
 mod export_model;
 mod fetch_gap;

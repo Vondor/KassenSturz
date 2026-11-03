@@ -6983,7 +6983,7 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid "Write a formula in the properties to see its figure here."
-msgstr "Schreibe in den Eigenschaften eine Formel, um hier ihre Zahl zu sehen."
+msgstr "Schreiben Sie in den Eigenschaften eine Formel, um hier ihre Zahl zu sehen."
 
 #: crates/kassensturz-ui-bridge/qml/ComponentPreview.qml:320
 #, kde-format
@@ -8497,7 +8497,7 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid "The formula is empty. Type one, for example =Pets - Travel."
-msgstr "Die Formel ist leer. Schreibe eine, zum Beispiel =Haustiere - Reisen."
+msgstr "Die Formel ist leer. Schreiben Sie eine, zum Beispiel =Haustiere - Reisen."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:116
 #, kde-format
@@ -8506,7 +8506,7 @@ msgid ""
 "A value is missing at character %1. Put a number, the name of a category or "
 "a function there."
 msgstr ""
-"An Zeichen %1 fehlt ein Wert. Setze dort eine Zahl, den Namen einer "
+"An Zeichen %1 fehlt ein Wert. Setzen Sie dort eine Zahl, den Namen einer "
 "Kategorie oder eine Funktion ein."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:118
@@ -8526,8 +8526,8 @@ msgid ""
 "There is a closing bracket ) at character %1 without a ( before it. Take it "
 "out, or add the ( that belongs to it."
 msgstr ""
-"An Zeichen %1 steht eine schließende Klammer ) ohne ( davor. Nimm sie heraus "
-"oder füge die passende ( hinzu."
+"An Zeichen %1 steht eine schließende Klammer ) ohne ( davor. Nehmen Sie sie "
+"heraus oder fügen Sie die passende ( hinzu."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:122
 #, kde-format
@@ -8536,8 +8536,8 @@ msgid ""
 "Something is out of place at character %1. Take it out, or put + - * or / "
 "before it."
 msgstr ""
-"An Zeichen %1 steht etwas am falschen Platz. Nimm es heraus oder setze + - * "
-"oder / davor."
+"An Zeichen %1 steht etwas am falschen Platz. Nehmen Sie es heraus oder "
+"setzen Sie + - * oder / davor."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:124
 #, kde-format
@@ -8546,8 +8546,8 @@ msgid ""
 "A formula can compare only once, and there is a second comparison at "
 "character %1. Use AND or OR to put tests together."
 msgstr ""
-"Eine Formel kann nur einmal vergleichen, und an Zeichen %1 steht ein zweiter "
-"Vergleich. Verbinde Tests mit AND oder OR."
+"Eine Formel kann nur einmal vergleichen, und an Zeichen %1 steht ein "
+"zweiter Vergleich. Verbinden Sie Tests mit AND oder OR."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:126
 #, kde-format
@@ -8556,7 +8556,7 @@ msgid ""
 "Put %2 between the parts of a call, at character %1, as in SUM(Pets%2 "
 "Travel)."
 msgstr ""
-"Setze %2 zwischen die Teile eines Aufrufs, an Zeichen %1, wie in "
+"Setzen Sie %2 zwischen die Teile eines Aufrufs, an Zeichen %1, wie in "
 "SUM(Haustiere%2 Reisen)."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:128
@@ -8566,9 +8566,9 @@ msgid ""
 "The number at character %1 isn't written the way numbers are here. Use "
 "digits and one decimal mark (%2), and no separators between thousands."
 msgstr ""
-"Die Zahl an Zeichen %1 ist nicht so geschrieben, wie Zahlen hier geschrieben "
-"werden. Nimm Ziffern und ein Dezimalzeichen (%2), keine Trennzeichen für "
-"Tausender."
+"Die Zahl an Zeichen %1 ist nicht so geschrieben, wie Zahlen hier "
+"geschrieben werden. Nehmen Sie Ziffern und ein Dezimalzeichen (%2), keine "
+"Trennzeichen für Tausender."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:130
 #, kde-format
@@ -8577,16 +8577,16 @@ msgid ""
 "Character %1 isn't one formulas use. Take it out, or put a name with spaces "
 "or special characters in single quotes: 'Eating out'."
 msgstr ""
-"Zeichen %1 kommt in Formeln nicht vor. Nimm es heraus, oder setze einen "
-"Namen mit Leerzeichen oder Sonderzeichen in einfache Anführungszeichen: "
-"'Essen gehen'."
+"Zeichen %1 kommt in Formeln nicht vor. Nehmen Sie es heraus, oder setzen "
+"Sie einen Namen mit Leerzeichen oder Sonderzeichen in einfache "
+"Anführungszeichen: 'Essen gehen'."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:132
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid "A quote at character %1 is never closed. Add the quote that closes it."
 msgstr ""
-"Ein Anführungszeichen an Zeichen %1 wird nie geschlossen. Füge das "
+"Ein Anführungszeichen an Zeichen %1 wird nie geschlossen. Fügen Sie das "
 "schließende Anführungszeichen hinzu."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:134
@@ -8598,8 +8598,8 @@ msgid ""
 "@2026-01..2026-03."
 msgstr ""
 "Der Zeitraum an Zeichen %1 ist nicht so geschrieben, wie Zeiträume "
-"geschrieben werden. Nimm Wörter in doppelten Anführungszeichen, etwa @\"last "
-"month\", oder Daten, etwa @2026-03 oder @2026-01..2026-03."
+"geschrieben werden. Nehmen Sie Wörter in doppelten Anführungszeichen, etwa "
+"@\"last month\", oder Daten, etwa @2026-03 oder @2026-01..2026-03."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:136
 #, kde-format
@@ -8609,21 +8609,20 @@ msgid ""
 "place."
 msgstr ""
 "Das ist an Zeichen %1 nicht so geschrieben, wie Formeln geschrieben werden. "
-"Ändere es an dieser Stelle."
+"Ändern Sie es an dieser Stelle."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:142
 #, kde-format
 msgctxt "@info %1 is a function name, %2 a character position"
 msgid ""
 "%1 was given too few parts (character %2). Add the ones that are missing."
-msgstr ""
-"%1 hat zu wenige Teile bekommen (Zeichen %2). Füge die fehlenden hinzu."
+msgstr "%1 hat zu wenige Teile bekommen (Zeichen %2). Fügen Sie die fehlenden hinzu."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:144
 #, kde-format
 msgctxt "@info %1 is a function name, %2 a character position"
 msgid "%1 was given too many parts (character %2). Take some out."
-msgstr "%1 hat zu viele Teile bekommen (Zeichen %2). Nimm einige heraus."
+msgstr "%1 hat zu viele Teile bekommen (Zeichen %2). Nehmen Sie einige heraus."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:146
 #, kde-format
@@ -8632,8 +8631,8 @@ msgid ""
 "%1 counts only categories and groups (character %2). Give it their names, "
 "not figures."
 msgstr ""
-"%1 zählt nur Kategorien und Gruppen (Zeichen %2). Gib ihre Namen an, keine "
-"Zahlen."
+"%1 zählt nur Kategorien und Gruppen (Zeichen %2). Geben Sie ihre Namen an, "
+"keine Zahlen."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:148
 #, kde-format
@@ -8648,7 +8647,7 @@ msgstr ""
 #, kde-format
 msgctxt "@info %1 is a function name, %2 a character position"
 msgid "%1 was given the wrong parts (character %2). Check them."
-msgstr "%1 hat die falschen Teile bekommen (Zeichen %2). Prüfe sie."
+msgstr "%1 hat die falschen Teile bekommen (Zeichen %2). Prüfen Sie sie."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:156
 #, kde-format
@@ -8667,8 +8666,9 @@ msgid ""
 "A number can't be divided by an amount (character %1). Divide the amount by "
 "the number, or use PERCENT_OF(part; whole) for a share."
 msgstr ""
-"Eine Zahl lässt sich nicht durch einen Betrag teilen (Zeichen %1). Teile den "
-"Betrag durch die Zahl, oder nimm PERCENT_OF(Teil; Ganzes) für einen Anteil."
+"Eine Zahl lässt sich nicht durch einen Betrag teilen (Zeichen %1). Teilen "
+"Sie den Betrag durch die Zahl, oder nehmen Sie PERCENT_OF(Teil; Ganzes) für "
+"einen Anteil."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:160
 #, kde-format
@@ -8677,8 +8677,8 @@ msgid ""
 "A yes-or-no test can't be calculated with (character %1). Put it inside "
 "IF(test; yes; no)."
 msgstr ""
-"Mit einem Ja-oder-Nein-Test lässt sich nicht rechnen (Zeichen %1). Setze ihn "
-"in IF(Test; ja; nein)."
+"Mit einem Ja-oder-Nein-Test lässt sich nicht rechnen (Zeichen %1). Setzen "
+"Sie ihn in IF(Test; ja; nein)."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:162
 #, kde-format
@@ -8688,7 +8688,7 @@ msgid ""
 "inside IF(test; yes; no)."
 msgstr ""
 "Die Formel endet in einem Ja-oder-Nein-Test, nicht in einer Zahl (Zeichen "
-"%1). Setze ihn in IF(Test; ja; nein)."
+"%1). Setzen Sie ihn in IF(Test; ja; nein)."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:164
 #, kde-format
@@ -8726,7 +8726,7 @@ msgid ""
 "These parts of the formula don't go together (character %1). Change it at "
 "that place."
 msgstr ""
-"Diese Teile der Formel passen nicht zusammen (Zeichen %1). Ändere es an "
+"Diese Teile der Formel passen nicht zusammen (Zeichen %1). Ändern Sie es an "
 "dieser Stelle."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:182
@@ -9462,8 +9462,8 @@ msgid ""
 "%1 is not a category or one of My groups (character %2). Check the spelling, "
 "or put a name with spaces in single quotes: 'Eating out'."
 msgstr ""
-"%1 ist keine Kategorie und keine deiner Gruppen (Zeichen %2). Prüfe die "
-"Schreibweise, oder setze einen Namen mit Leerzeichen in einfache "
+"%1 ist keine Kategorie und keine Ihrer Gruppen (Zeichen %2). Prüfen Sie die "
+"Schreibweise, oder setzen Sie einen Namen mit Leerzeichen in einfache "
 "Anführungszeichen: 'Essen gehen'."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:342
@@ -9473,8 +9473,9 @@ msgid ""
 "%1 fits more than one: %2. Write the one you mean with its path, as listed, "
 "or rename a group or category of the same name."
 msgstr ""
-"%1 passt auf mehrere: %2. Schreibe die gemeinte mit ihrem Pfad, wie "
-"aufgelistet, oder benenne eine Gruppe oder Kategorie mit demselben Namen um."
+"%1 passt auf mehrere: %2. Schreiben Sie die gemeinte mit ihrem Pfad, wie "
+"aufgelistet, oder benennen Sie eine Gruppe oder Kategorie mit demselben "
+"Namen um."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:344
 #, kde-format
@@ -9493,8 +9494,8 @@ msgid ""
 "%1 is in %2 and %3 in %4; a formula works in one currency. Leave one of them "
 "out."
 msgstr ""
-"%1 ist in %2 und %3 in %4; eine Formel rechnet in einer Währung. Lass eines "
-"von beiden weg."
+"%1 ist in %2 und %3 in %4; eine Formel rechnet in einer Währung. Lassen Sie "
+"eines von beiden weg."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:352
 #, kde-format
@@ -9503,7 +9504,7 @@ msgid ""
 "This divides by zero at character %1, so it has no value. Use IFERROR to "
 "show something else then."
 msgstr ""
-"Das teilt an Zeichen %1 durch null und hat deshalb keinen Wert. Nimm "
+"Das teilt an Zeichen %1 durch null und hat deshalb keinen Wert. Nehmen Sie "
 "IFERROR, um dann etwas anderes zu zeigen."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:354
@@ -9514,7 +9515,7 @@ msgid ""
 "worked out exactly. Use smaller numbers."
 msgstr ""
 "Eine Zahl in dieser Formel ist zu groß oder hat zu viele Nachkommastellen, "
-"um genau gerechnet zu werden. Nimm kleinere Zahlen."
+"um genau gerechnet zu werden. Nehmen Sie kleinere Zahlen."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:358
 #, kde-format
@@ -9524,7 +9525,7 @@ msgid ""
 "the target."
 msgstr ""
 "Das Ziel ist null, also gibt es nichts, woran der Balken gemessen werden "
-"kann. Ändere das Ziel."
+"kann. Ändern Sie das Ziel."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:360
 #, kde-format
@@ -9534,7 +9535,7 @@ msgid ""
 "nearer to the formula."
 msgstr ""
 "Aus so großen oder kleinen Zahlen lässt sich der Balken nicht berechnen. "
-"Nimm ein Ziel, das näher an der Formel liegt."
+"Nehmen Sie ein Ziel, das näher an der Formel liegt."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:362
 #, kde-format
@@ -9543,8 +9544,8 @@ msgid ""
 "The target and the formula must be the same kind of figure: amounts in one "
 "currency, percents or plain numbers. Change the target."
 msgstr ""
-"Ziel und Formel müssen dieselbe Art von Zahl sein: Beträge in einer Währung, "
-"Prozente oder einfache Zahlen. Ändere das Ziel."
+"Ziel und Formel müssen dieselbe Art von Zahl sein: Beträge in einer "
+"Währung, Prozente oder einfache Zahlen. Ändern Sie das Ziel."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:364
 #, kde-format
@@ -9556,7 +9557,8 @@ msgid ""
 msgstr ""
 "Diese Formel ist größer, als KassenSturz sie berechnet: höchstens 1.000 "
 "Zeichen, 500 Teile, 16 ineinander liegende Klammern oder Aufrufe, 30 Teile "
-"in einem Aufruf, 64 Namen und 8 verschiedene Zeiträume. Mach sie kleiner."
+"in einem Aufruf, 64 Namen und 8 verschiedene Zeiträume. Machen Sie sie "
+"kleiner."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:366
 #, kde-format
@@ -10668,15 +10670,17 @@ msgid ""
 "Use the names of your categories and groups. Add a time range to a name with "
 "@, for example Pets@\"last month\" or Pets@2026-03."
 msgstr ""
-"Nimm die Namen deiner Kategorien und Gruppen. Hänge mit @ einen Zeitraum an "
-"einen Namen, zum Beispiel Haustiere@\"last month\" oder Haustiere@2026-03."
+"Nehmen Sie die Namen Ihrer Kategorien und Gruppen. Hängen Sie mit @ einen "
+"Zeitraum an einen Namen, zum Beispiel Haustiere@\"last month\" oder "
+"Haustiere@2026-03."
 
 #: crates/kassensturz-ui-bridge/qml/FormulaField.qml:232
 #, kde-format
 msgctxt "@info above a list of names that fit what is typed"
 msgid "Names that fit. Choose one with the arrow keys and Tab, or click it:"
 msgstr ""
-"Passende Namen. Wähle einen mit den Pfeiltasten und Tab, oder klicke ihn an:"
+"Passende Namen. Wählen Sie einen mit den Pfeiltasten und Tab, oder klicken "
+"Sie ihn an:"
 
 #: crates/kassensturz-ui-bridge/qml/FormulaField.qml:249
 #, kde-format
@@ -10699,8 +10703,8 @@ msgid ""
 "when the formula gives a percent."
 msgstr ""
 "Wofür ein voller Balken steht, dieselbe Art von Zahl wie die Formel: ein "
-"Betrag in derselben Währung, ein Prozentsatz oder eine einfache Zahl. Lass "
-"es leer, wenn die Formel ein Prozent ergibt."
+"Betrag in derselben Währung, ein Prozentsatz oder eine einfache Zahl. "
+"Lassen Sie es leer, wenn die Formel ein Prozent ergibt."
 
 #: crates/kassensturz-ui-bridge/qml/FormulaField.qml:305
 #, kde-format
@@ -10709,9 +10713,9 @@ msgid ""
 "The bar shows your formula instead of the share you kept. Set a target to "
 "measure it against, or clear the formula to go back."
 msgstr ""
-"Der Balken zeigt deine Formel statt des Anteils, den du behalten hast. Lege "
-"ein Ziel fest, an dem sie gemessen wird, oder lösche die Formel, um "
-"zurückzugehen."
+"Der Balken zeigt Ihre Formel statt des Anteils, den Sie behalten haben. "
+"Legen Sie ein Ziel fest, an dem sie gemessen wird, oder löschen Sie die "
+"Formel, um zurückzugehen."
 
 #: crates/kassensturz-ui-bridge/qml/FormulaField.qml:320
 #, kde-format
@@ -10732,8 +10736,8 @@ msgid ""
 "Without a target, a progress bar fills only for a percent. Set a target, or "
 "use PERCENT_OF(part; whole)."
 msgstr ""
-"Ohne Ziel füllt sich ein Fortschrittsbalken nur bei einem Prozentsatz. Lege "
-"ein Ziel fest, oder nimm PERCENT_OF(Teil; Ganzes)."
+"Ohne Ziel füllt sich ein Fortschrittsbalken nur bei einem Prozentsatz. "
+"Legen Sie ein Ziel fest, oder nehmen Sie PERCENT_OF(Teil; Ganzes)."
 
 #: crates/kassensturz-ui-bridge/qml/GridItem.qml:389
 #, kde-format
@@ -12065,7 +12069,7 @@ msgstr "Anteil, den Sie behalten haben"
 #, kde-format
 msgctxt "@title:card a key figure the user wrote a formula for"
 msgid "Your formula"
-msgstr "Deine Formel"
+msgstr "Ihre Formel"
 
 #: crates/kassensturz-ui-bridge/qml/KpiNames.qml:43
 #, kde-format
@@ -12667,7 +12671,7 @@ msgid ""
 "of the tabs. You go on arranging this one."
 msgstr ""
 "Was jetzt auf der Seite ist, wird ein neues Dashboard mit diesem Namen, am "
-"Ende der Reiter. Du ordnest dieses hier weiter an."
+"Ende der Reiter. Sie ordnen dieses hier weiter an."
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:431
 #, kde-format
@@ -12742,8 +12746,8 @@ msgid ""
 "Nothing in your accounts changes, and Undo in the menu brings the dashboard "
 "back."
 msgstr ""
-"„%1“ und seine Widgets werden entfernt. Dein Buch öffnet ab jetzt mit „%2“. "
-"An deinen Konten ändert sich nichts, und „Rückgängig“ im Menü holt das "
+"„%1“ und seine Widgets werden entfernt. Ihr Buch öffnet ab jetzt mit „%2“. "
+"An Ihren Konten ändert sich nichts, und „Rückgängig“ im Menü holt das "
 "Dashboard zurück."
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:525
@@ -12753,7 +12757,7 @@ msgid ""
 "“%1” and its widgets are removed. Nothing in your accounts changes, and Undo "
 "in the menu brings the dashboard back."
 msgstr ""
-"„%1“ und seine Widgets werden entfernt. An deinen Konten ändert sich nichts, "
+"„%1“ und seine Widgets werden entfernt. An Ihren Konten ändert sich nichts, "
 "und „Rückgängig“ im Menü holt das Dashboard zurück."
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:529
@@ -16770,3 +16774,112 @@ msgctxt ""
 "user's dashboards"
 msgid "Dashboard tabs"
 msgstr "Dashboard-Reiter"
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:42
+#, kde-format
+msgctxt "@item the name of an example book"
+msgid "Suburban Family"
+msgstr "Vorstadtfamilie"
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:44
+#, kde-format
+msgctxt "@item the name of an example book"
+msgid "Flower Utopia"
+msgstr "Blumen-Utopia"
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:46
+#, kde-format
+msgctxt "@item the name of an example book"
+msgid "Space Colony"
+msgstr "Weltraumkolonie"
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:48
+#, kde-format
+msgctxt "@item the name of an example book"
+msgid "USSR Government Agent"
+msgstr "UdSSR-Agent"
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:57
+#, kde-format
+msgctxt "@info one line about an example book"
+msgid ""
+"An everyday household with a checking account, savings, a credit card and "
+"cash. The easiest place to start."
+msgstr ""
+"Ein ganz normaler Haushalt mit Girokonto, Sparkonto, Kreditkarte und "
+"Bargeld. Der einfachste Einstieg."
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:59
+#, kde-format
+msgctxt "@info one line about an example book"
+msgid "A small garden cooperative with a shared cash box, budgets and charts."
+msgstr ""
+"Eine kleine Gartengenossenschaft mit gemeinsamer Kasse, Budgets und "
+"Diagrammen."
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:61
+#, kde-format
+msgctxt "@info one line about an example book"
+msgid ""
+"Five years of life in a colony on Mars, with thousands of transactions to "
+"try reports and charts on."
+msgstr ""
+"Fünf Jahre Leben in einer Marskolonie, mit Tausenden von Buchungen zum"
+" Ausprobieren von Auswertungen und Diagrammen."
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:63
+#, kde-format
+msgctxt "@info one line about an example book"
+msgid ""
+"A made-up government agent in the 1980s, with several currencies and "
+"exchange rates."
+msgstr ""
+"Ein ausgedachter Regierungsagent der 1980er Jahre, mit mehreren "
+"Währungen und Wechselkursen."
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:71
+#, kde-format
+msgctxt ""
+"@item %1 is the name of an example book; the name of the new book made from "
+"it"
+msgid "Example – %1"
+msgstr "Beispiel – %1"
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:82
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These households are made up. Pick one to look around and try things out. "
+"KassenSturz makes a new book from it, so your own books are never changed."
+msgstr ""
+"Diese Haushalte sind ausgedacht. Wählen Sie einen, um sich umzusehen und "
+"Dinge auszuprobieren. KassenSturz legt daraus ein neues Buch an, Ihre "
+"eigenen Bücher werden nie verändert."
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:103
+#, kde-format
+msgctxt "@action:button %1 is the name of an example book"
+msgid "%1 (suggested start)"
+msgstr "%1 (empfohlener Einstieg)"
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBooksPage.qml:25
+#, kde-format
+msgctxt "@title"
+msgid "Try an example book"
+msgstr "Ein Beispielbuch ausprobieren"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:226
+#, kde-format
+msgctxt "@action:button"
+msgid "Try an example book…"
+msgstr "Ein Beispielbuch ausprobieren …"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:227
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Look around in a made-up household. KassenSturz makes a new book for it, so "
+"your own books are never changed."
+msgstr ""
+"Sehen Sie sich in einem ausgedachten Haushalt um. KassenSturz legt dafür "
+"ein neues Buch an, Ihre eigenen Bücher werden nie verändert."

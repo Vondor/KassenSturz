@@ -1,0 +1,10 @@
+delimiter = ";"
+decimal-mark = comma
+date-order = day-month-year
+booking-date = "Buchungstag"
+value-date = "Valuta"
+amount = "Betrag"
+other-party-name = "Name Zahlungsbeteiligter"
+other-party-iban = "IBAN Zahlungsbeteiligter"
+remittance-information = "Verwendungszweck"
+currency = "Währung"

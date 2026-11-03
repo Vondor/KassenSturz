@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+  <BkToCstmrStmt>
+    <GrpHdr>
+      <MsgId>EXAMPLE-UDSSR-AGENT-20261106</MsgId>
+      <CreDtTm>2026-11-06T20:00:00+01:00</CreDtTm>
+    </GrpHdr>
+    <Stmt>
+      <Id>udssr-agent-2026-11</Id>
+      <Acct>
+        <Id><Othr><Id>40817-810-0-0000-0001</Id></Othr></Id>
+        <Ccy>RUB</Ccy>
+      </Acct>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="RUB">1149.81</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-10-30</Dt></Dt>
+      </Bal>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="RUB">1201.56</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-11-06</Dt></Dt>
+      </Bal>
+      <Ntry>
+        <Amt Ccy="RUB">14.75</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-10-30</Dt></BookgDt>
+        <ValDt><Dt>2026-10-30</Dt></ValDt>
+        <AcctSvcrRef>UD2610-0056</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Gastronom Nr. 7</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>AT611904300234573201</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Einkauf Lebensmittel</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="RUB">125.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-02</Dt></BookgDt>
+        <ValDt><Dt>2026-11-02</Dt></ValDt>
+        <AcctSvcrRef>UD2611-N001</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Dbtr><Nm>Hauptverwaltung für Windstille</Nm></Dbtr>
+              <DbtrAcct><Id><IBAN>CH9300762011623852957</IBAN></Id></DbtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Quartalsbericht Windstille, Zuschlag</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="RUB">18.60</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-02</Dt></BookgDt>
+        <ValDt><Dt>2026-11-02</Dt></ValDt>
+        <AcctSvcrRef>UD2611-N002</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Hausverwaltung Nr. 12</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>FR1420041010050500013M02606</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Miete Kommunalwohnung</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="RUB">6.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-02</Dt></BookgDt>
+        <ValDt><Dt>2026-11-02</Dt></ValDt>
+        <AcctSvcrRef>UD2611-N003</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Metro Nordstadt</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>AT611904300234573201</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Metro-Monatskarte</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="RUB">12.80</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-03</Dt></BookgDt>
+        <ValDt><Dt>2026-11-03</Dt></ValDt>
+        <AcctSvcrRef>UD2611-N004</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Gastronom Nr. 7</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>AT611904300234573201</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Einkauf Lebensmittel</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="RUB">4.55</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-03</Dt></BookgDt>
+        <ValDt><Dt>2026-11-03</Dt></ValDt>
+        <AcctSvcrRef>UD2611-N005</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Elektrizitätswerk Nordstadt</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>AT611904300234573201</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Strom und Gas</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="RUB">6.40</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-04</Dt></BookgDt>
+        <ValDt><Dt>2026-11-04</Dt></ValDt>
+        <AcctSvcrRef>UD2611-N006</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Kantine der Hauptverwaltung</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>NL91ABNA0417164300</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Mittagessen Kantine (Woche)</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="RUB">1.50</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-05</Dt></BookgDt>
+        <ValDt><Dt>2026-11-05</Dt></ValDt>
+        <AcctSvcrRef>UD2611-N007</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Zeitungsvertrieb Nordstadt</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>AT611904300234573201</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Zeitungsabo</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="RUB">8.65</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-11-06</Dt></BookgDt>
+        <ValDt><Dt>2026-11-06</Dt></ValDt>
+        <AcctSvcrRef>UD2611-N008</AcctSvcrRef>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Cdtr><Nm>Gastronom Nr. 7</Nm></Cdtr>
+              <CdtrAcct><Id><IBAN>GB29NWBK60161331926819</IBAN></Id></CdtrAcct>
+            </RltdPties>
+            <RmtInf><Ustrd>Einkauf Lebensmittel</Ustrd></RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

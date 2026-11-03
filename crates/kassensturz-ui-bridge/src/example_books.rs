@@ -26,6 +26,10 @@ pub struct Example {
     pub id: &'static str,
     /// The KMyMoney SQLite book.
     bytes: &'static [u8],
+    /// The book as a complete export, if it has one: it holds what a
+    /// KMyMoney file cannot, such as budgets and a saved Overview, and is
+    /// then used instead of `bytes` (M6-B138).
+    export: Option<&'static [u8]>,
 }
 
 /// The id of the book suggested to start with (D-540 plan, M7a.2): a
@@ -42,22 +46,28 @@ static EXAMPLES: &[Example] = &[
         bytes: include_bytes!(
             "../../kassensturz-import/tests/books/examples/suburban-family-v15.sqlite"
         ),
+        export: None,
     },
     Example {
         id: "flower-utopia",
         bytes: include_bytes!(
             "../../kassensturz-import/tests/books/examples/flower-utopia-v15.sqlite"
         ),
+        export: Some(include_bytes!(
+            "../../kassensturz-import/tests/books/examples/flower-utopia.json"
+        )),
     },
     Example {
         id: "space-colony",
         bytes: include_bytes!("../../kassensturz-import/tests/books/space-colony-5y-v15.sqlite"),
+        export: None,
     },
     Example {
         id: "udssr-agent",
         bytes: include_bytes!(
             "../../kassensturz-import/tests/books/examples/udssr-agent-v15.sqlite"
         ),
+        export: None,
     },
 ];
 
@@ -83,7 +93,11 @@ fn prepare(id: &str, stem: &str) -> Result<book_from_file::Prepared, ExampleErro
         .iter()
         .find(|example| example.id == id)
         .ok_or(ExampleError::Unknown)?;
-    book_from_file::read_bundled_kmy_sqlite(stem, example.bytes).map_err(ExampleError::Fill)
+    match example.export {
+        Some(export) => book_from_file::read_bundled_export(stem, export),
+        None => book_from_file::read_bundled_kmy_sqlite(stem, example.bytes),
+    }
+    .map_err(ExampleError::Fill)
 }
 
 /// Makes a new book called `name` in the data folder from the example
@@ -198,6 +212,25 @@ mod tests {
             assert!(created.transactions > 30, "{}", example.id);
             drop(open);
         }
+    }
+
+    /// M6-B138: Flower Utopia comes with its budgets and its saved
+    /// Overview, which only its complete export holds.
+    #[test]
+    fn flower_utopia_comes_with_its_budgets_and_overview() {
+        let folder = TestFolder::new();
+        let books = Books::in_folder(folder.path(), "Desk");
+        let (open, created) =
+            create(&books, "flower-utopia", "Example", &TestLocale).expect("made");
+        assert!(created.transactions > 30);
+        assert!(open.book.budgets().expect("budgets").len() >= 5);
+        assert_eq!(open.book.views(None).expect("views").len(), 1);
+        // The other books are plain KMyMoney books: no budgets, no views.
+        drop(open);
+        let folder = TestFolder::new();
+        let books = Books::in_folder(folder.path(), "Desk");
+        let (plain, _) = create(&books, "suburban-family", "Example", &TestLocale).expect("made");
+        assert!(plain.book.budgets().expect("budgets").is_empty());
     }
 
     #[test]

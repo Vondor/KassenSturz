@@ -321,11 +321,13 @@ pub(crate) fn category_totals(
         let money_out = Money::checked_sum(currency, spending.iter().map(|(_, own, _)| *own))
             .map_err(overflow)?;
         let left = money_in.checked_sub(money_out).map_err(overflow)?;
-        // Largest first by what is booked to the category itself, so the
-        // order of the single categories stays what it was; a tie keeps the
-        // tree order. A parent with nothing of its own comes last.
-        income.sort_by_key(|(_, own, _)| core::cmp::Reverse(own.minor_units()));
-        spending.sort_by_key(|(_, own, _)| core::cmp::Reverse(own.minor_units()));
+        // Largest first by what the category holds with everything below it
+        // (M6-B131), so a parent with nothing booked to itself is not cut
+        // off by the limit while its children are listed; a tie keeps the
+        // tree order.
+        let size = |row: &Row| row.2.unwrap_or(row.1).minor_units();
+        income.sort_by_key(|row| core::cmp::Reverse(size(row)));
+        spending.sort_by_key(|row| core::cmp::Reverse(size(row)));
 
         let mut entry = Map::new();
         entry.insert("currency".into(), Value::from(currency.as_str()));

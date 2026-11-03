@@ -84,7 +84,7 @@ flatpak run --env=KASSENSTURZ_DEBUG_LOG=1 io.github.vondor.KassenSturz
 
 ## Schritt 6: Das erste Mal öffnen
 
-1. Folgen Sie dem ersten Start. Bietet Ihre Version Beispielbücher an, wählen Sie eines (empfohlen: *Suburban Family*). Sonst legen Sie ein eigenes Testbuch an.
+1. Wählen Sie beim ersten Start **Ein Beispielbuch ausprobieren …** und dann **Vorstadtfamilie** (empfohlener Einstieg). Das Beispielbuch ist eine ausgedachte Familie. KassenSturz legt daraus ein neues Buch an. Sie können auch ein eigenes Testbuch anlegen.
 2. Legen Sie ein Konto an und **denken Sie sich einen Kontostand aus**. Tragen Sie keine echten Zahlen ein.
 3. Sie sind fertig, wenn Sie die **Übersicht** sehen. Notieren Sie, wie viele Minuten Sie gebraucht haben. Das ist das Ergebnis von Karte 1.
 

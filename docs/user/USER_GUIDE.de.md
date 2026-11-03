@@ -44,7 +44,7 @@ Beim ersten Start fragt KassenSturz nur das Nötigste:
 
 KassenSturz legt für Sie **Kategorien** an (Einnahmen wie Gehalt, Ausgaben wie Wohnen, Essen, Gesundheit). Sie gehören Ihnen: umbenennen, verschieben und ergänzen dürfen Sie alles.
 
-**Lieber erst mit einem Beispielbuch üben?** Wenn Ihre Version Beispielbücher anbietet, wählen Sie eines (zum Einstieg empfehlen wir *Suburban Family*, eine ausgedachte deutsche Familie). Es entsteht eine eigene Kopie; das mitgelieferte Buch bleibt unverändert.
+**Lieber erst mit einem Beispielbuch üben?** Wählen Sie **Ein Beispielbuch ausprobieren …** (beim ersten Start oder später unter **Anderes Haushaltsbuch öffnen…**). Zur Auswahl stehen *Vorstadtfamilie* (empfohlener Einstieg, ein ganz normaler Haushalt), *Blumen-Utopia* (eine kleine Gartengenossenschaft), *Weltraumkolonie* (fünf Jahre in einer Marskolonie) und *UdSSR-Agent* (ein ausgedachter Agent der 1980er mit mehreren Währungen). Es entsteht eine eigene Kopie; das mitgelieferte Buch bleibt unverändert.
 
 **Ihr Haushaltsbuch** legt KassenSturz selbst in einem eigenen Ordner an und öffnet es bei jedem Start wieder. Sie müssen keine Datei auswählen. Unter *Einstellungen* können Sie ein anderes Buch öffnen (**Anderes Haushaltsbuch öffnen…**) oder ein neues anlegen (**Neues Haushaltsbuch anlegen…**), zum Beispiel zum Ausprobieren. Ein Buch ist immer nur an einem Ort geöffnet; Bücher auf Netzlaufwerken meldet KassenSturz mit einer Warnung.
 

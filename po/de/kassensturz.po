@@ -16770,3 +16770,114 @@ msgctxt ""
 "user's dashboards"
 msgid "Dashboard tabs"
 msgstr "Dashboard-Reiter"
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:42
+#, kde-format
+msgctxt "@item the name of an example book"
+msgid "Suburban Family"
+msgstr "Vorstadtfamilie"
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:44
+#, kde-format
+msgctxt "@item the name of an example book"
+msgid "Flower Utopia"
+msgstr "Blumen-Utopia"
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:46
+#, kde-format
+msgctxt "@item the name of an example book"
+msgid "Space Colony"
+msgstr "Weltraumkolonie"
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:48
+#, kde-format
+msgctxt "@item the name of an example book"
+msgid "USSR Government Agent"
+msgstr "UdSSR-Agent"
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:57
+#, kde-format
+msgctxt "@info one line about an example book"
+msgid ""
+"An everyday household with a checking account, savings, a credit card and "
+"cash. The easiest place to start."
+msgstr ""
+"Ein ganz normaler Haushalt mit Girokonto, Sparkonto, Kreditkarte und "
+"Bargeld. Der einfachste Einstieg."
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:59
+#, kde-format
+msgctxt "@info one line about an example book"
+msgid "A small garden cooperative with a shared cash box, budgets and charts."
+msgstr ""
+"Eine kleine Gartengenossenschaft mit gemeinsamer Kasse, Budgets und "
+"Diagrammen."
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:61
+#, kde-format
+msgctxt "@info one line about an example book"
+msgid ""
+"Five years of life in a colony on Mars, with thousands of transactions to "
+"try reports and charts on."
+msgstr ""
+"Fünf Jahre Leben in einer Marskolonie, mit Tausenden von Buchungen zum"
+" Ausprobieren von Auswertungen und Diagrammen."
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:63
+#, kde-format
+msgctxt "@info one line about an example book"
+msgid ""
+"A made-up government agent in the 1980s, with several currencies and "
+"exchange rates."
+msgstr ""
+"Ein ausgedachter Regierungsagent der 1980er Jahre, mit mehreren "
+"Währungen und Wechselkursen."
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:71
+#, kde-format
+msgctxt ""
+"@item %1 is the name of an example book; the name of the new book made from "
+"it"
+msgid "Example – %1"
+msgstr "Beispiel – %1"
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:82
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These households are made up. Pick one to look around and try things out. If "
+"your book is still empty, the example goes into it. A book that already has "
+"something in it is never changed: KassenSturz makes a new book instead."
+msgstr ""
+"Diese Haushalte sind ausgedacht. Wähle einen, um dich umzusehen und "
+"Dinge auszuprobieren. Ist dein Buch noch leer, kommt das Beispiel "
+"hinein. Ein Buch, in dem schon etwas steht, wird nie verändert: "
+"KassenSturz legt dann ein neues Buch an."
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:103
+#, kde-format
+msgctxt "@action:button %1 is the name of an example book"
+msgid "%1 (suggested start)"
+msgstr "%1 (empfohlener Einstieg)"
+
+#: crates/kassensturz-ui-bridge/qml/ExampleBooksPage.qml:25
+#, kde-format
+msgctxt "@title"
+msgid "Try an example book"
+msgstr "Ein Beispielbuch ausprobieren"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:226
+#, kde-format
+msgctxt "@action:button"
+msgid "Try an example book…"
+msgstr "Ein Beispielbuch ausprobieren …"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:227
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Look around in a made-up household. A book that already has something in it "
+"is never changed."
+msgstr ""
+"Sieh dich in einem ausgedachten Haushalt um. Ein Buch, in dem schon etwas "
+"steht, wird nie verändert."

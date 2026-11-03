@@ -37,6 +37,7 @@ FormCard.FormCardPage {
     property bool aiNotSaved: false
 
     signal openAnotherClicked()
+    signal exampleBookClicked()
     signal newBookClicked()
     signal saveCopyClicked()
     signal bookFromFileClicked()
@@ -215,6 +216,18 @@ FormCard.FormCardPage {
             onClicked: {
                 ActionLog.taken("SettingsPage_openAnotherBook")
                 page.openAnotherClicked()
+            }
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            icon.name: "folder-open"
+            text: page.i18nContext.i18nc("@action:button", "Try an example book…")
+            description: page.i18nContext.i18nc("@info", "Look around in a made-up household. A book that already has something in it is never changed.")
+            onClicked: {
+                ActionLog.taken("SettingsPage_tryExampleBook")
+                page.exampleBookClicked()
             }
         }
 

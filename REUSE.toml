@@ -41,6 +41,13 @@ path = ["docs/setup-wizard/**/*.png"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC-BY-SA-4.0"
 
+# Screenshots of the Windows 11 install and test run (M7a.7, D-542), taken
+# from a virtual machine with a synthetic example book.
+[[annotations]]
+path = ["docs/testing/screenshots/**/*.png"]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
 # The publisher's logo (SerpentSoftware, the maintainer's publisher name). It
 # is a brand mark, not an app icon, and outside the project's licenses: it may
 # be copied unmodified with the project and shown to name the publisher. The

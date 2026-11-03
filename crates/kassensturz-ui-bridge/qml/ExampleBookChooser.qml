@@ -99,9 +99,9 @@ ColumnLayout {
                 required property var modelData
 
                 icon.name: "document-open"
-                text: modelData.suggested
+                text: Plain.plain(modelData.suggested
                     ? chooser.i18nContext.i18nc("@action:button %1 is the name of an example book", "%1 (suggested start)", chooser.bookName(modelData.id))
-                    : chooser.bookName(modelData.id)
+                    : chooser.bookName(modelData.id))
                 description: chooser.description(modelData.id)
                 // Written here, but shown as text, never as markup (D-143).
                 descriptionItem.textFormat: Text.PlainText

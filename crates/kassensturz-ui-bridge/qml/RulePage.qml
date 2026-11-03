@@ -48,9 +48,9 @@ Kirigami.ScrollablePage {
         translationDomain: "kassensturz"
     }
 
-    title: adding
+    title: Plain.plain(adding
         ? i18nContext.i18nc("@title", "Add a Rule")
-        : i18nContext.i18nc("@title %1 is the name of a Rule", "Change %1", nameField.text)
+        : i18nContext.i18nc("@title %1 is the name of a Rule", "Change %1", nameField.text))
     header: FormError {
         id: error
     }
@@ -398,9 +398,9 @@ Kirigami.ScrollablePage {
 
         RowLayout {
             Controls.Button {
-                text: page.adding
+                text: Plain.plain(page.adding
                     ? page.i18nContext.i18nc("@action:button", "Add Rule")
-                    : page.i18nContext.i18nc("@action:button", "Save")
+                    : page.i18nContext.i18nc("@action:button", "Save"))
                 icon.name: page.adding ? "list-add" : "document-save"
                 onClicked: {
                     ActionLog.taken("RulePage_save")

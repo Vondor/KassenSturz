@@ -88,7 +88,10 @@ pub const FUNCTIONS: &[Function] = &[
             out, \"left\" as money in minus money out, and how many transactions moved money \
             between the user's own accounts. Such moves and starting balances count as \
             neither income nor spending. Money not sorted into a category yet has \
-            \"unsorted\": true.",
+            \"unsorted\": true. A row's \"amount\" is what is booked to that category itself, so \
+            the rows add up to the totals. A category with subcategories also has \
+            \"amount_with_subcategories\": that category and everything below it; for \
+            \"how much on Food\" use that figure, never the sum of the rows.",
         parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."}},"required":["from","to"],"additionalProperties":false}"#,
     },
     Function {

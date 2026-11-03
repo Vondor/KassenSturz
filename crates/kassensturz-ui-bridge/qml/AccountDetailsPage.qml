@@ -36,7 +36,7 @@ Kirigami.ScrollablePage {
         id: types
     }
 
-    title: account.name ?? ""
+    title: Plain.plain(account.name ?? "")
     header: FormError {
         id: error
     }
@@ -215,7 +215,7 @@ Kirigami.ScrollablePage {
         }
 
         Controls.Button {
-            text: page.account.closed ? page.i18nContext.i18nc("@action:button", "Open account again") : page.i18nContext.i18nc("@action:button", "Close account")
+            text: Plain.plain(page.account.closed ? page.i18nContext.i18nc("@action:button", "Open account again") : page.i18nContext.i18nc("@action:button", "Close account"))
             icon.name: page.account.closed ? "document-open" : "dialog-close"
             enabled: page.account.closed || (page.account.canClose ?? false)
             onClicked: {

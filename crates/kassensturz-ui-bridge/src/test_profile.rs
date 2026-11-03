@@ -378,8 +378,9 @@ mod path_audit {
     const READS: &[(&str, usize)] = &[
         // Follows XDG_CONFIG_HOME, checked above.
         ("kassensturz-core/src/ai_switch.rs", 2),
-        // Follows XDG_DATA_HOME, checked above.
-        ("kassensturz-core/src/debug_log.rs", 2),
+        // Follows XDG_DATA_HOME, or on Windows LOCALAPPDATA (D-556), both
+        // moved by the profile, checked above; 5 of the 8 are its tests.
+        ("kassensturz-core/src/debug_log.rs", 8),
         // Follows XDG_DATA_HOME, checked above.
         ("kassensturz-ai-tools/src/requests.rs", 2),
         // The MCP server's `$HOME` in a `LastBook` it reads from the

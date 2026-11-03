@@ -73,6 +73,13 @@ Kirigami.ApplicationWindow {
     property int chatWidth: windowState.chatWidth > 0 ? windowState.chatWidth : chatStandardWidth
     // Whether the first-run steps are done, so the side menu is offered.
     readonly property bool started: bookSession.open && firstStartState.hasAccount
+    // The household's currency, chosen on the setup wizard's first page and
+    // written only when the book is created (M7a.9).
+    property string wizardCurrency: ""
+    // The book was just created in the setup wizard, in this session: the
+    // overview shows its first-look message. Kept in memory only, so it needs
+    // no stored setting.
+    property bool freshBook: false
 
     // The app's name, which isn't translated, and in the developer mode a
     // marker that stays as long as it runs (D-227).
@@ -378,8 +385,8 @@ Kirigami.ApplicationWindow {
         bookSession.openLast(i18nContext.i18nc("@item the file name of the app's own book, without its extension", "Household"))
     }
 
-    // Shows the book that was just opened: its first-run steps if it has no
-    // account yet, otherwise the overview.
+    // Shows the book that was just opened: the setup wizard if it has no
+    // account yet (M7a.9), otherwise the overview.
     function showBook() {
         // A conversation is about one book.
         chatPanel.startOver();
@@ -600,24 +607,14 @@ Kirigami.ApplicationWindow {
         pushPage(bookFromFilePage);
     }
 
-    function addAccount(firstRun: bool) {
-        pushPage(newAccountPage, { firstRun: firstRun });
+    function addAccount() {
+        pushPage(newAccountPage, {});
     }
 
     // Adds a transaction to the account with `accountId`, or lets the user
     // choose one if it is empty.
-    function addTransaction(firstRun: bool, accountId: string) {
-        if (firstRun) {
-            // The account is there now: going back to add it again would
-            // only add a second one, so the first-run steps are replaced.
-            // The first account is the only one.
-            const accounts = accountRegister.accountChoices();
-            const first = accounts.length > 0 ? accounts[accounts.length - 1].id : "";
-            pageStack.pop(pageStack.get(0));
-            replacePage(transactionPage, { firstRun: true, accountId: first });
-        } else {
-            pushPage(transactionPage, { firstRun: false, accountId: accountId });
-        }
+    function addTransaction(accountId: string) {
+        pushPage(transactionPage, { accountId: accountId });
     }
 
     // Shows the page the AI asked to open (D-265): on top of the page that is
@@ -1225,8 +1222,38 @@ Kirigami.ApplicationWindow {
 
         WelcomePage {
             firstStart: firstStartState
-            onAddAccountClicked: root.addAccount(true)
-            onStartFromFileClicked: root.chooseFileForNewBook()
+            onContinued: currency => {
+                root.wizardCurrency = currency;
+                root.pushPage(wizardStartPage, {});
+            }
+        }
+    }
+
+    // The setup wizard's page 2 (M7a.9): how the user wants to start.
+    Component {
+        id: wizardStartPage
+
+        WizardStartPage {
+            onOwnAccountsClicked: root.pushPage(wizardAccountsPage, { currency: root.wizardCurrency })
+            onExampleClicked: root.chooseExampleBook()
+            onFromProgramClicked: root.chooseFileForNewBook()
+            onOpenBookClicked: root.chooseBookToOpen()
+        }
+    }
+
+    // The setup wizard's page 3b: the user's accounts, written all at once.
+    Component {
+        id: wizardAccountsPage
+
+        WizardAccountsPage {
+            firstStart: firstStartState
+            accounts: accountList
+            onExampleClicked: root.chooseExampleBook()
+            onFinished: {
+                root.bookChanged();
+                root.freshBook = true;
+                root.showScreen("overview");
+            }
         }
     }
 
@@ -1258,7 +1285,7 @@ Kirigami.ApplicationWindow {
 
         TransactionPage {
             register: accountRegister
-            onDone: firstRun ? root.showScreen("overview") : root.pageStack.pop()
+            onDone: root.pageStack.pop()
             onCheckAgainstBankClicked: accountId => root.pushPage(bankCheckPage, { accountId: accountId, initialBank: "", initialDate: "" })
             // The Parts page takes this page's place, so saving goes back
             // to the list.
@@ -1288,9 +1315,11 @@ Kirigami.ApplicationWindow {
             groupsSource: categoryGroups
             bank: bankConnection
             folderUrl: bookSession.folderUrl
+            justSetUp: root.freshBook
+            onFirstLookClosed: root.freshBook = false
             onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)
-            onAddAccountClicked: root.addAccount(false)
-            onAddTransactionClicked: root.addTransaction(false, "")
+            onAddAccountClicked: root.addAccount()
+            onAddTransactionClicked: root.addTransaction("")
             onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })
             onSetBudgetClicked: root.pushPage(budgetPage, { categoryId: "" })
             onDashboardFileChosen: file => root.pushPage(dashboardFilePage, { file: file })
@@ -1349,7 +1378,7 @@ Kirigami.ApplicationWindow {
                 chatDrawer.open();
                 chatPanel.askFeature("categories", accountId);
             }
-            onAddTransactionClicked: accountId => root.addTransaction(false, accountId)
+            onAddTransactionClicked: accountId => root.addTransaction(accountId)
             onDetailsClicked: accountId => root.pushPage(accountDetailsPage, { accountId: accountId })
             onCreateRuleFromSuggestion: (payee, category) => root.pushPage(rulePage, { initialForm: ruleBook.formFromSuggestion(payee, category) })
             onImportClicked: accountId => root.importStatement(accountId)
@@ -1365,7 +1394,7 @@ Kirigami.ApplicationWindow {
 
         AccountsPage {
             accounts: accountList
-            onAddAccountClicked: root.addAccount(false)
+            onAddAccountClicked: root.addAccount()
             onAccountClicked: accountId => root.showRegister(accountId)
             onGetTransactionsClicked: root.pushPage(bankFetchPage, { initialAccountId: "" })
             Component.onCompleted: bankReady = root.bankUsable()
@@ -1377,7 +1406,7 @@ Kirigami.ApplicationWindow {
 
         NewAccountPage {
             accounts: accountList
-            onAdded: firstRun ? root.addTransaction(true, "") : root.pageStack.pop()
+            onAdded: root.pageStack.pop()
         }
     }
 

@@ -34,9 +34,10 @@ SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC-BY-SA-4.0"
 
 # Mock screenshots of the setup wizard's design (docs/SETUP_WIZARD.md), made
-# from throwaway QML mocks with made-up figures.
+# from throwaway QML mocks with made-up figures, and the real app's screenshots
+# in built/, made from synthetic figures.
 [[annotations]]
-path = ["docs/setup-wizard/*.png"]
+path = ["docs/setup-wizard/**/*.png"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC-BY-SA-4.0"
 

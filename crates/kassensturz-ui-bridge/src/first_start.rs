@@ -13,7 +13,7 @@
 use kassensturz_core::{Account, AccountId, AccountKind, CurrencyCode, Report};
 use kassensturz_store::{Action, Book, StoreError};
 
-use crate::accounts;
+use crate::accounts::{self, AccountsError, NewAccount};
 use crate::errors::{ErrorText, report_text};
 use crate::format::Locale;
 
@@ -143,6 +143,93 @@ pub fn start(
         Ok(())
     })?;
     Ok(())
+}
+
+/// Why the setup wizard couldn't write the book (M7a.9): which account row
+/// it was, if any, and what was wrong.
+#[derive(Debug)]
+pub struct FinishError {
+    /// The account row (from 0) the error is about; `None` for the currency
+    /// or the categories.
+    pub row: Option<usize>,
+    /// What was wrong.
+    pub kind: FinishErrorKind,
+}
+
+/// What was wrong when the setup wizard wrote the book.
+#[derive(Debug)]
+pub enum FinishErrorKind {
+    /// The currency or the default categories.
+    Start(FirstStartError),
+    /// One of the accounts.
+    Account(AccountsError),
+    /// There was no account to add; the wizard always has at least one.
+    NoAccount,
+}
+
+impl From<StoreError> for FinishError {
+    fn from(error: StoreError) -> Self {
+        Self {
+            row: None,
+            kind: FinishErrorKind::Start(FirstStartError::Store(error)),
+        }
+    }
+}
+
+/// The setup wizard's "Create my household book" (M7a.9,
+/// `docs/SETUP_WIZARD.md`): the household's `currency`, the default
+/// `categories` (as [`start`] writes them) and every account in `accounts`
+/// with its starting balance (as [`accounts::add_account`] writes it), all
+/// in **one user action**. Either all of it is in the book or none of it, so
+/// leaving the wizard halfway never leaves a half-made book, and one undo
+/// takes the whole first setup back. It uses the existing `AddAccount`
+/// action, so the book's layout doesn't change: the history names the first
+/// setup like the adding of an account.
+pub fn finish(
+    book: &mut Book,
+    currency: &str,
+    categories: &[DefaultCategory<'_>],
+    accounts: &[NewAccount<'_>],
+    locale: &impl Locale,
+) -> Result<(), FinishError> {
+    if accounts.is_empty() {
+        return Err(FinishError {
+            row: None,
+            kind: FinishErrorKind::NoAccount,
+        });
+    }
+    book.as_one_action(Action::AddAccount, |book| -> Result<(), FinishError> {
+        start(book, currency, categories).map_err(|error| FinishError {
+            row: None,
+            kind: FinishErrorKind::Start(error),
+        })?;
+        for (row, new) in accounts.iter().enumerate() {
+            accounts::add_account(book, new, locale).map_err(|error| FinishError {
+                row: Some(row),
+                kind: FinishErrorKind::Account(error),
+            })?;
+        }
+        Ok(())
+    })
+}
+
+/// Checks one account row of the setup wizard as it is typed, without
+/// writing anything: what [`accounts::add_account`] would refuse.
+pub fn check_account(
+    book: &mut Book,
+    new: &NewAccount<'_>,
+    locale: &impl Locale,
+) -> Result<(), AccountsError> {
+    book.dry_run(|book| accounts::add_account(book, new, locale).map(|_| ()))
+}
+
+/// `error` as the UI shows it, with every parameter as text.
+pub fn finish_error_text(book: &Book, error: &FinishError, locale: &impl Locale) -> ErrorText {
+    match &error.kind {
+        FinishErrorKind::Start(error) => error_text(book, error, locale),
+        FinishErrorKind::Account(error) => accounts::error_text(book, error, locale),
+        FinishErrorKind::NoAccount => ErrorText::plain("input.no-such-entry"),
+    }
 }
 
 /// `error` as the UI shows it, with every parameter as text.
@@ -293,6 +380,115 @@ pub(crate) mod tests {
         assert!(state.has_account);
         assert!(!state.needs_currency);
         assert_eq!(state.currencies[0], EUR);
+    }
+
+    fn row<'a>(account_type: AccountType, name: &'a str, balance: &'a str) -> NewAccount<'a> {
+        NewAccount {
+            name,
+            account_type,
+            currency: "EUR",
+            balance,
+            date: "",
+        }
+    }
+
+    #[test]
+    fn the_wizard_writes_currency_categories_and_accounts_as_one_action() {
+        let mut book = Book::create_in_memory().expect("book in memory");
+        let rows = [
+            row(AccountType::Checking, "Girokonto", "2.340,17"),
+            row(AccountType::Savings, "Sparkonto", "8.500,00"),
+            row(AccountType::Cash, "Bargeld", ""),
+            row(AccountType::CreditCard, "Kreditkarte", "412,30"),
+        ];
+        finish(&mut book, "EUR", &defaults(), &rows, &TestLocale).expect("finished");
+
+        let after = state(&book, EUR).expect("state");
+        assert!(after.has_account);
+        assert_eq!(paths(&book).len(), 7);
+        // The figures the overview shows come from the real accounts code.
+        let view = accounts::view(&book, &TestLocale).expect("accounts");
+        let section = &view.sections[0];
+        let names: Vec<&str> = section
+            .accounts
+            .iter()
+            .map(|account| account.name.as_str())
+            .collect();
+        assert_eq!(names, ["Girokonto", "Sparkonto", "Bargeld", "Kreditkarte"]);
+        // 2.340,17 + 8.500,00 + 0 - 412,30 = 10.427,87, from the exact amounts.
+        assert_eq!(section.together.exact, "10427,87 €");
+        assert!(section.accounts[3].owes);
+        // One user action: one undo takes the whole first setup back, and the
+        // wizard shows again.
+        assert_eq!(book.history().expect("history").len(), 1);
+        book.undo().expect("undone");
+        let undone = state(&book, EUR).expect("state");
+        assert!(!undone.has_account);
+        assert!(undone.needs_currency);
+        assert!(paths(&book).is_empty());
+    }
+
+    #[test]
+    fn a_wrong_row_writes_nothing_and_names_the_row() {
+        let mut book = Book::create_in_memory().expect("book in memory");
+        let rows = [
+            row(AccountType::Checking, "Girokonto", "2.340,17"),
+            // A point groups thousands in German: refused, never read as 1250.
+            row(AccountType::Savings, "Sparkonto", "12.50"),
+        ];
+        let error = finish(&mut book, "EUR", &defaults(), &rows, &TestLocale)
+            .expect_err("wrong amount refused");
+        assert_eq!(error.row, Some(1));
+        // The message shows how to type it, although the book doesn't use
+        // the currency yet (M6-B105).
+        assert_eq!(
+            finish_error_text(&book, &error, &TestLocale),
+            ErrorText {
+                code: "input.malformed-amount",
+                params: vec![("example", "1234,56".into())],
+            }
+        );
+        // Nothing at all was written: no currency, no categories, no account.
+        assert!(state(&book, EUR).expect("state").needs_currency);
+        assert!(paths(&book).is_empty());
+        assert!(book.history().expect("history").is_empty());
+
+        // Two accounts with one name: the second row is named.
+        let rows = [
+            row(AccountType::Checking, "Konto", ""),
+            row(AccountType::Savings, "Konto", ""),
+        ];
+        let error =
+            finish(&mut book, "EUR", &defaults(), &rows, &TestLocale).expect_err("name taken");
+        assert_eq!(error.row, Some(1));
+        assert!(book.history().expect("history").is_empty());
+
+        let error =
+            finish(&mut book, "EUR", &defaults(), &[], &TestLocale).expect_err("no account");
+        assert_eq!(error.row, None);
+    }
+
+    #[test]
+    fn checking_a_row_writes_nothing() {
+        let mut book = Book::create_in_memory().expect("book in memory");
+        check_account(
+            &mut book,
+            &row(AccountType::Checking, "Girokonto", "2.340,17"),
+            &TestLocale,
+        )
+        .expect("a good row");
+        let error = check_account(
+            &mut book,
+            &row(AccountType::CreditCard, "Karte", "-5,00"),
+            &TestLocale,
+        )
+        .expect_err("negative debt refused");
+        assert_eq!(
+            accounts::error_text(&book, &error, &TestLocale).code,
+            "input.negative-debt"
+        );
+        assert!(book.history().expect("history").is_empty());
+        assert!(state(&book, EUR).expect("state").needs_currency);
     }
 
     #[test]

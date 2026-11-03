@@ -585,6 +585,43 @@ fn the_model_list_says_the_context_size_where_the_server_does() {
 }
 
 #[test]
+fn the_model_list_needs_consent_for_another_computer() {
+    // M6-B132, D-573: the list of models is fetched with the key, and the
+    // key is on the consent statement, so it is not sent before the user
+    // agreed. TEST-NET-1 (RFC 5737): never reached, the check comes first.
+    let home = "https://192.0.2.10:11434/v1";
+    let settings = Settings::new();
+    settings.write(true, home, KeyUse::Saved);
+    let client = settings.client();
+    assert_eq!(
+        client.list_model_infos(Some(&key())),
+        Err(AiError::NoConsent)
+    );
+    assert_eq!(client.list_models(Some(&key())), Err(AiError::NoConsent));
+    settings.add_consent("https://192.0.2.11:11434/v1");
+    assert_eq!(
+        client.list_model_infos(Some(&key())),
+        Err(AiError::NoConsent),
+        "a consent for another address doesn't count"
+    );
+}
+
+#[test]
+fn the_model_list_on_this_computer_needs_no_consent() {
+    let fake = FakeProvider::start(vec![Answer::Json(
+        200,
+        json!({"data": [{"id": "test-model"}]}).to_string(),
+    )]);
+    let settings = Settings::new();
+    settings.write(true, &fake.address(), KeyUse::Saved);
+    assert_eq!(
+        settings.client().list_models(Some(&key())),
+        Ok(vec!["test-model".to_owned()])
+    );
+    assert_eq!(fake.received().len(), 1);
+}
+
+#[test]
 fn the_function_test_sends_the_fixed_request_and_nothing_else() {
     let fake = FakeProvider::start(vec![calls_answer(
         kassensturz_ai::PROBE_FUNCTION,

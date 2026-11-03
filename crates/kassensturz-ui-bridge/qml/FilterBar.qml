@@ -64,7 +64,7 @@ Flow {
 
         icon.name: "view-calendar"
         checked: periodPopup.opened
-        text: bar.i18nContext.i18nc("@action:button %1 is a period like This year", "Period: %1", bar.filters.period === "" ? bar.i18nContext.i18nc("@item the period the page itself shows", "as the page") : names.periodName(bar.filters.period))
+        text: Plain.plain(bar.i18nContext.i18nc("@action:button %1 is a period like This year", "Period: %1", bar.filters.period === "" ? bar.i18nContext.i18nc("@item the period the page itself shows", "as the page") : names.periodName(bar.filters.period)))
         Accessible.name: text
         onClicked: {
             ActionLog.taken("FilterBar_page")

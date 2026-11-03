@@ -146,6 +146,20 @@ impl Books {
         }
     }
 
+    /// Books that live in `folder` only: its own settings file and data
+    /// folder, so a test never touches the user's.
+    #[cfg(test)]
+    pub(crate) fn in_folder(folder: &Path, computer_name: &str) -> Self {
+        Self {
+            settings: Settings::at(&folder.join("kassensturzrc")),
+            app_folder: Some(folder.join("data")),
+            computer: Computer {
+                name: computer_name.to_owned(),
+                backup_folder: folder.join("data/backups"),
+            },
+        }
+    }
+
     /// Where automatic backups go (D-033).
     pub fn backup_folder(&self) -> &Path {
         &self.computer.backup_folder

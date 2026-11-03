@@ -93,9 +93,9 @@ Kirigami.ScrollablePage {
         }
     }
 
-    title: adding
+    title: Plain.plain(adding
         ? i18nContext.i18nc("@title", "Set a budget")
-        : i18nContext.i18nc("@title %1 is the name of a category", "Change the budget for %1", existing?.name ?? "")
+        : i18nContext.i18nc("@title %1 is the name of a category", "Change the budget for %1", existing?.name ?? ""))
     header: FormError {
         id: error
     }
@@ -243,9 +243,9 @@ Kirigami.ScrollablePage {
         }
 
         Controls.Button {
-            text: page.adding
+            text: Plain.plain(page.adding
                 ? page.i18nContext.i18nc("@action:button", "Set the budget")
-                : page.i18nContext.i18nc("@action:button", "Save the change")
+                : page.i18nContext.i18nc("@action:button", "Save the change"))
             icon.name: page.adding ? "list-add" : "document-save"
             enabled: !page.adding || page.categoryChoices.length > 0
             onClicked: {

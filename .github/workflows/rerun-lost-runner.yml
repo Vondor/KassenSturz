@@ -1,0 +1,76 @@
+name: Re-run a job that got no runner
+
+# GitHub's macOS arm64 runners are short of capacity at times: a job waits a
+# quarter of an hour, then GitHub gives it up as "cancelled" with the
+# annotation "The job was not acquired by Runner of type hosted even after
+# multiple attempts", and no step of it ever ran (D-576; seen on main runs
+# 856 and 860 and a pull request's runs on 2026-11-02). The run then ends red
+# or stays unmergeable although nothing was checked, and someone has to
+# notice and press re-run.
+#
+# This workflow presses it instead: when a CI run ends without success, it
+# looks for jobs that were cancelled that way and re-runs exactly those (a
+# re-run of one job repeats the jobs that depend on it too). Nothing is
+# weakened: the check still has to pass, it only gets the runner it never
+# had. A job that started and failed, or a run cancelled because a newer
+# push superseded it (D-220), is left alone. At most two re-runs follow one
+# run, so a lasting outage can't loop.
+#
+# `workflow_run` fires only for the version of this file on the default
+# branch, so a change here takes effect once it is merged.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  rerun:
+    name: Re-run the jobs no runner picked up
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.workflow_run.conclusion != 'success'
+      && github.event.workflow_run.conclusion != 'skipped'
+      && github.event.workflow_run.run_attempt < 3
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+    steps:
+      - name: Re-run the jobs whose runner never came
+        run: |
+          set -euo pipefail
+          # The jobs of this attempt that GitHub cancelled before any step
+          # ran: a job cancelled by a newer push has its steps, a job that
+          # never got a runner has none.
+          jobs=$(gh api --paginate \
+            "repos/$GH_REPO/actions/runs/$RUN_ID/attempts/$ATTEMPT/jobs" \
+            --jq '.jobs[] | select(.conclusion == "cancelled" and (.steps | length) == 0) | "\(.id) \(.name)"')
+          if [ -z "$jobs" ]; then
+            echo "Every job of run $RUN_ID (attempt $ATTEMPT) had a runner; nothing to re-run."
+            exit 0
+          fi
+          rerun=0
+          while read -r id name; do
+            # Only a job GitHub itself gave up on, which it says in an
+            # annotation on the job.
+            if gh api --paginate "repos/$GH_REPO/check-runs/$id/annotations" \
+                --jq '.[].message' | grep -q "was not acquired by Runner"; then
+              echo "Re-running '$name' (job $id): no runner picked it up."
+              gh run rerun "$RUN_ID" --job "$id"
+              rerun=1
+              # One re-run restarts the whole attempt for every re-run job;
+              # a second call on the same run would be refused.
+              break
+            else
+              echo "'$name' (job $id) was cancelled for another reason; left alone."
+            fi
+          done <<< "$jobs"
+          if [ "$rerun" = 0 ]; then
+            echo "No job of run $RUN_ID (attempt $ATTEMPT) was lost to a missing runner."
+          fi

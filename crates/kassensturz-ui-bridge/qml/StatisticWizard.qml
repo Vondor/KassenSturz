@@ -247,7 +247,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     highlighted: wizard.step === index
                     enabled: wizard.usable(index)
-                    text: wizard.i18nContext.i18nc("@item:inlistbox %1 is the number of a step, %2 its name", "%1. %2", index + 1, wizard.stepName(index))
+                    text: Plain.plain(wizard.i18nContext.i18nc("@item:inlistbox %1 is the number of a step, %2 its name", "%1. %2", index + 1, wizard.stepName(index)))
                     Accessible.name: wizard.stepName(index)
                     onClicked: {
                         ActionLog.taken("StatisticWizard_goTo")
@@ -389,7 +389,7 @@ ColumnLayout {
 
                                 Layout.fillWidth: true
                                 icon.name: wizard.iconOf(modelData.id)
-                                text: wizard.kindName(modelData.id)
+                                text: Plain.plain(wizard.kindName(modelData.id))
                                 highlighted: wizard.currentKind.id === modelData.id
                                 onClicked: {
                                     ActionLog.taken("StatisticWizard_clicked")

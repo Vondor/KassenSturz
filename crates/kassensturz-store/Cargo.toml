@@ -24,5 +24,10 @@ kassensturz-core.workspace = true
 rusqlite = { workspace = true, features = ["cache"] }
 uuid.workspace = true
 
+[dev-dependencies]
+# `trace` lets a test count the work a change costs in SQLite's own steps
+# instead of clock time (D-576); it adds no crate.
+rusqlite = { workspace = true, features = ["trace"] }
+
 [lints]
 workspace = true

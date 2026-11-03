@@ -698,6 +698,12 @@ mod tests {
             .prepare(vec![kassensturz_ai::Message::user("Hi")], Vec::new())
             .expect("a request");
         assert_eq!(client.send(&request, None), Err(AiError::NoConsent));
+        // "Test connection" too: the model list carries the key (M6-B132,
+        // D-573), so it is refused before any connection.
+        assert_eq!(
+            store.test_connection(Some(secret("test-key-ui-b132")), None),
+            Err(AiError::NoConsent)
+        );
 
         assert!(store.give_consent(TODAY));
         assert_eq!(store.form().consent, Consent::Given(TODAY));
@@ -1053,8 +1059,9 @@ mod tests {
 
     #[test]
     fn nothing_is_asked_before_a_model_is_chosen_or_the_user_agreed() {
-        // The list needs no consent (D-182); the function test does for a
-        // provider on another computer (D-035), so `ask` must not even run.
+        // For a provider on another computer the list is refused without
+        // consent already (D-573); the function test checks again (D-035),
+        // so `ask` must not even run.
         let never = || -> Result<FunctionCalling, AiError> { panic!("nothing may be sent") };
         assert_eq!(ask_functions(false, false, never), Functions::NoModel);
         assert_eq!(ask_functions(false, true, never), Functions::NoModel);

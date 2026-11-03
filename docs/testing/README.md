@@ -19,6 +19,10 @@ The example books, their matching bank statements and the facilitator's answer s
 - **Bank files for card 5** (the facilitator puts the matching ones on the tester's computer): `statements/<book>.csv` with its column settings `statements/<book>.csv.settings`, and `statements/<book>.camt053.xml`. `<book>` is `suburban-family`, `flower-utopia`, `space-colony` or `udssr-agent`.
 - **Answer sheets for cards 4 and 5** (German, facilitator only, never shown to the tester): `answers/<book>.md`. They are written by a test from the real import and report code. The CSV and the CAMT file give different counts on purpose (the CSV has no bank number, so the line already in the book is shown as "looks the same", not as a duplicate).
 
+## Before every round: match the statements to the month
+
+The bank statements and answer sheets in the repository belong to the reference month 2026-11 (`reference-month.txt`). A new example book gets its dates shifted to the running month (D-584), so the statements match it only in November 2026. Before a later round, run `tools/example-books/generate.py --reference-month YYYY-MM` for the month of the session, let the `example_books` pipeline test write the answer sheets again, and play cards 4 and 5 through once yourself.
+
 ## Still to be filled in
 
 These need things that do not exist yet; each is marked "Bildschirmfoto folgt" or "wird nachgetragen" in the sheets.

@@ -277,8 +277,9 @@ impl AiClient {
     }
 
     /// The models the provider offers, for choosing one and to test the
-    /// connection. Sends nothing from the book, only the key, so it needs
-    /// no consent.
+    /// connection. Sends nothing from the book, only the key; the key is
+    /// on the consent statement (`SentData::Key`), so a provider on another
+    /// computer needs the user's consent first, like every request (D-573).
     pub fn list_models(&self, key: Option<&Secret>) -> Result<Vec<String>, AiError> {
         Ok(self
             .list_model_infos(key)?
@@ -296,6 +297,9 @@ impl AiClient {
         }
         // The model needn't be chosen yet: this is how the user finds it.
         let provider = config.connection()?;
+        if consent_missing(&provider.address, config.consent()) {
+            return Err(AiError::NoConsent);
+        }
         let key = key_to_send(provider, key)?;
         self.models_at(&provider.address, key)
             .map_err(|error| self.missing_v1(&provider.address, key, error))

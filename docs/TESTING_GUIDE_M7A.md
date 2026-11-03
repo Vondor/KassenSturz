@@ -20,3 +20,12 @@ Click paths for the M7a steps, added by each step as it merges. Everything here 
 **Real-app screenshots** (Xvfb, a fresh settings folder): see the pull request for M7a.2.
 
 **Not in this step.** The first-start entry (the wizard owns it, M7a.9), the three other example books (M7a.8), the matching bank statement files (M7a.3, M7a.8).
+
+## M7a.4 A downloadable build
+
+For the maintainer; the steps and the reasons are in `docs/RELEASING.md` (D-579).
+
+1. Open a pull request that changes `.github/workflows/release.yml` (or look at the one that added it): the **Release** workflow runs its build and its install check without making a release. The install check's step *Start the app* shows the app's output and the debug log's folder.
+2. To make a real build: tag the newest green commit on `main` as `v<number>` (`tools/build-version.sh` prints the number), push the tag, wait for the **Release** workflow, look at the draft on the Releases page, press *Publish release*.
+3. A tag whose name is not the commit's number, or a tag on a commit outside `main`, must stop the first job with an error that says what to do.
+4. Download the file from the published release without being logged in to GitHub (a private window), and install it with the Ubuntu sheet.

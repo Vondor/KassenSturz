@@ -23,9 +23,8 @@ The example books, their matching bank statements and the facilitator's answer s
 
 These need things that do not exist yet; each is marked "Bildschirmfoto folgt" or "wird nachgetragen" in the sheets.
 
-- **Screenshots** from a clean machine for every click. Windows: from the M7a.7 virtual machine run. Ubuntu: from a clean Ubuntu once the first pre-release exists (M7a.4). Save them next to the sheets as `img/windows-NN-*.png` and `img/ubuntu-NN-*.png`, one per marked spot.
+- **Screenshots** from a clean machine for every click. Windows: from the M7a.7 virtual machine run. Ubuntu: from a clean Ubuntu with the first pre-release installed. Save them next to the sheets as `img/windows-NN-*.png` and `img/ubuntu-NN-*.png`, one per marked spot.
 - **Windows file name and install folder** (the PowerShell start line) from M7a.7.
-- **Ubuntu release file name** from M7a.4; the commands match the README's "Trying a build from CI".
 - **First-start wording** once the setup wizard (M7a.9) has merged: the sheets and the user guide currently describe the example book chooser (M7a.2), whose button reads "Ein Beispielbuch ausprobieren …".
 
 ## Rules for this folder

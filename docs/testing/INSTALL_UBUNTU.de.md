@@ -2,7 +2,7 @@
 
 *Dieses Blatt führt Sie Schritt für Schritt durch die Installation. Sie brauchen dafür keine Hilfe. Ihr Computer-Passwort wird einmal gebraucht. Dauer: etwa 15 Minuten. Englische Fassung: [INSTALL_UBUNTU.en.md](INSTALL_UBUNTU.en.md).*
 
-> **Stand für das Team.** Der Ablauf unten ist mit den Befehlen aus der [README](../../README.md) (Abschnitt „Trying a build from CI“) abgeglichen. Dateiname der Testversion und Bildschirmfotos von einem frischen Ubuntu werden nachgetragen, sobald es die erste Testversion gibt (M7a.4); die Stellen sind mit „Bildschirmfoto folgt“ gekennzeichnet (Liste in [README.md](README.md)).
+> **Stand für das Team.** Der Ablauf unten ist mit den Befehlen aus der [README](../../README.md) (Abschnitt „Trying a build from CI“) abgeglichen, und bei jeder Testversion führt die Veröffentlichung (`.github/workflows/release.yml`, [RELEASING.md](../RELEASING.md)) die Schritte 2 bis 5 sowie „Später“ und „Wieder entfernen“ auf einem frischen Ubuntu aus, bevor die Version entsteht. Bildschirmfotos von einem frischen Ubuntu werden nachgetragen; die Stellen sind mit „Bildschirmfoto folgt“ gekennzeichnet (Liste in [README.md](README.md)).
 
 **Kommen Sie nicht weiter?** Sagen Sie es der Testleitung. Sie installiert nicht für Sie, aber sie notiert die Stelle, und Sie bekommen einen Hinweis, damit der Test weitergeht.
 
@@ -24,7 +24,7 @@
    **https://github.com/Vondor/KassenSturz/releases**
 
 2. Die oberste Karte ist die neueste Version. Oben steht **Pre-release** (Testversion). Das ist richtig so. Ein GitHub-Konto brauchen Sie nicht.
-3. Scrollen Sie zu **Assets** (Dateien) und laden Sie die Datei herunter, die auf **.flatpak** endet; die Testleitung hat Ihnen den genauen Namen vorher gesagt. **Nicht** *Source code (zip)* und nicht die Windows-Datei.
+3. Scrollen Sie zu **Assets** (Dateien) und laden Sie die Datei herunter, die auf **.flatpak** endet. Sie heißt zum Beispiel `KassenSturz-0.261103.0-x86_64.flatpak`; die Zahl in der Mitte ist die Versionsnummer, und die Testleitung hat Ihnen die richtige vorher gesagt. **Nicht** *Source code (zip)* und nicht die Windows-Datei.
 4. Die Datei liegt danach im Ordner **Downloads**.
 
 *(Bildschirmfoto folgt: Download-Seite mit der richtigen Datei.)*
@@ -59,11 +59,11 @@ Beim zweiten Befehl fragt Flatpak ein- oder zweimal nach einer Bestätigung. Tip
 
 ## Schritt 4: KassenSturz installieren
 
-Wechseln Sie in den Ordner mit der Datei und installieren Sie sie (Dateiname wie heruntergeladen; mit der Tab-Taste vervollständigt das Terminal ihn):
+Wechseln Sie in den Ordner mit der Datei und installieren Sie sie (Tippen Sie `flatpak install --user KassenSturz-` und drücken Sie die **Tab-Taste**: das Terminal ergänzt den Rest des Dateinamens. Liegen mehrere Dateien im Ordner, nehmen Sie die mit der Versionsnummer, die die Testleitung genannt hat):
 
 ```sh
 cd ~/Downloads
-flatpak install --user KassenSturz.flatpak
+flatpak install --user KassenSturz-0.261103.0-x86_64.flatpak
 ```
 
 Bestätigen Sie mit **J**. Danach finden Sie KassenSturz auch im **Anwendungsmenü**. Erscheint es dort nicht gleich, melden Sie sich einmal ab und wieder an oder starten Sie es wie in Schritt 5.
@@ -96,7 +96,7 @@ Laden Sie die neuere Datei wie in Schritt 1 herunter und installieren Sie sie ü
 
 ```sh
 cd ~/Downloads
-flatpak install --user --reinstall KassenSturz.flatpak
+flatpak install --user --reinstall KassenSturz-0.261103.0-x86_64.flatpak
 ```
 
 Ihre Bücher bleiben erhalten.

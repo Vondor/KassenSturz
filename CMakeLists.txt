@@ -43,12 +43,29 @@ ecm_find_qmlmodule(QtQuick.Dialogs REQUIRED)
 # Windows has no icon theme, so the app links Breeze's icons, which
 # breeze-icons builds into a library (D-555); Cargo gets its paths below.
 set(breeze_icons_env "")
+set(windows_resource_env "")
+set(windows_resource_depends "")
 if(WIN32)
     find_package(KF6BreezeIcons ${KF_MIN_VERSION} REQUIRED)
     set(breeze_icons_env
         "KASSENSTURZ_BREEZEICONS_INCLUDE_DIRS=$<TARGET_PROPERTY:KF6::BreezeIcons,INTERFACE_INCLUDE_DIRECTORIES>"
         KASSENSTURZ_BREEZEICONS_LIBRARY_DIR=$<TARGET_LINKER_FILE_DIR:KF6::BreezeIcons>
     )
+    # The program's icon (M6-B143): the resource compiler turns the .rc into
+    # a .res, which Cargo's linker adds to kassensturz.exe (build.rs).
+    enable_language(RC)
+    set(windows_resource "${CMAKE_CURRENT_BINARY_DIR}/kassensturz.res")
+    add_custom_command(
+        OUTPUT "${windows_resource}"
+        COMMAND ${CMAKE_RC_COMPILER} /nologo /fo "${windows_resource}" kassensturz.rc
+        DEPENDS packaging/windows/kassensturz.rc packaging/windows/kassensturz.ico
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows"
+        COMMENT "Compiling the Windows icon resource"
+        VERBATIM
+    )
+    add_custom_target(kassensturz-windows-resource DEPENDS "${windows_resource}")
+    set(windows_resource_env "KASSENSTURZ_WINDOWS_RESOURCE=${windows_resource}")
+    set(windows_resource_depends kassensturz-windows-resource)
 endif()
 
 find_program(CARGO_EXECUTABLE cargo REQUIRED)
@@ -100,6 +117,7 @@ add_custom_target(kassensturz ALL
         "KASSENSTURZ_KCONFIG_INCLUDE_DIRS=$<TARGET_PROPERTY:KF6::ConfigCore,INTERFACE_INCLUDE_DIRECTORIES>"
         KASSENSTURZ_KCONFIG_LIBRARY_DIR=$<TARGET_LINKER_FILE_DIR:KF6::ConfigCore>
         ${breeze_icons_env}
+        ${windows_resource_env}
         CARGO_TARGET_DIR=${cargo_target_dir}
         ${CARGO_EXECUTABLE} ${cargo_args}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -107,6 +125,9 @@ add_custom_target(kassensturz ALL
     COMMENT "Building KassenSturz with Cargo"
     VERBATIM
 )
+if(windows_resource_depends)
+    add_dependencies(kassensturz ${windows_resource_depends})
+endif()
 
 # Cargo names the programs with ".exe" on Windows (M7a.7).
 install(PROGRAMS "${cargo_target_dir}/${cargo_profile_dir}/kassensturz${CMAKE_EXECUTABLE_SUFFIX}" DESTINATION ${KDE_INSTALL_BINDIR})

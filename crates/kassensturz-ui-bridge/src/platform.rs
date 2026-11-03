@@ -39,6 +39,12 @@ mod ffi {
 
         #[cxx_name = "useBundledIcons"]
         fn use_bundled_icons();
+
+        #[cxx_name = "useReadableWidgetStyle"]
+        fn use_readable_widget_style();
+
+        #[cxx_name = "startInUserFolder"]
+        fn start_in_user_folder();
     }
 }
 
@@ -57,6 +63,20 @@ pub fn set_window_icon() {
 /// has no icon theme (D-555); elsewhere the desktop's theme, so nothing here.
 pub fn use_bundled_icons() {
     ffi::use_bundled_icons();
+}
+
+/// On Windows, Qt's Fusion style under Plasma's QML style, because Windows'
+/// own style drew a chosen radio button empty (M6-B142); the user's own
+/// choice of style wins. Elsewhere nothing changes.
+pub fn use_readable_widget_style() {
+    ffi::use_readable_widget_style();
+}
+
+/// On Windows, the user's Downloads folder as the working folder when the
+/// app started in the system's folder or its own, so that file dialogs don't
+/// open there (M6-B147). Elsewhere nothing changes.
+pub fn start_in_user_folder() {
+    ffi::start_in_user_folder();
 }
 
 /// Loads KI18n's QML library here, on the main thread, before the first QML

@@ -184,10 +184,18 @@ fn main() {
         "cpp/platform.cpp",
         "cpp/settings.cpp",
     ]);
-    // SAFETY: only adds include folders for KConfig's headers, which
-    // cxx-qt-build's own settings for the compiler don't depend on.
+    // Visual Studio reads a source file in the system's code page unless told
+    // otherwise, and the C++ that qmlcachegen writes from the QML keeps its
+    // string literals as they are, so "↑" came out as "â†‘" (M6-B141).
+    let msvc = std::env::var("CARGO_CFG_TARGET_ENV").is_ok_and(|env| env == "msvc");
+    // SAFETY: only adds include folders for KConfig's and Breeze's headers
+    // and, for Visual Studio, the flag that reads sources as UTF-8; cxx-qt-build's
+    // own settings for the compiler don't depend on either.
     builder = unsafe {
         builder.cc_builder(|cc| {
+            if msvc {
+                cc.flag("/utf-8");
+            }
             for dir in &kconfig.include_dirs {
                 cc.include(dir);
             }
@@ -205,6 +213,20 @@ fn main() {
         kconfig.library_dir.display()
     );
     println!("cargo:rustc-link-lib=KF6ConfigCore");
+    // The program's icon on Windows (M6-B143): CMake compiles
+    // packaging/windows/kassensturz.rc, and the linker of Visual Studio
+    // takes the .res as it is. A plain `cargo build` has no icon.
+    println!("cargo:rerun-if-env-changed=KASSENSTURZ_WINDOWS_RESOURCE");
+    if let Some(resource) = std::env::var_os("KASSENSTURZ_WINDOWS_RESOURCE").filter(|_| windows) {
+        println!(
+            "cargo:rerun-if-changed={}",
+            PathBuf::from(&resource).display()
+        );
+        println!(
+            "cargo:rustc-link-arg-bin=kassensturz={}",
+            PathBuf::from(resource).display()
+        );
+    }
     if let Some(breeze_icons) = &breeze_icons {
         // Breeze's icons, built into a library (D-555).
         println!(

@@ -340,6 +340,16 @@ impl Books {
     }
 }
 
+/// Whether `previous`, the book open before `next`, is the app's own book
+/// in `app_folder` with nothing ever put in it (no currency, account or
+/// change in its history), so closing it can remove its file without losing
+/// anything (M6-B148).
+pub fn unused_own_book(previous: &OpenBook, next: &Path, app_folder: Option<&Path>) -> bool {
+    app_folder.is_some_and(|folder| previous.path.parent() == Some(folder))
+        && previous.path != next
+        && previous.book.is_empty().unwrap_or(false)
+}
+
 /// Why a book made from a file wasn't made: the book couldn't be made, or
 /// what was to go into it was refused.
 #[derive(Debug)]
@@ -421,6 +431,34 @@ mod tests {
                 test_root: Some(root),
             }
         }
+    }
+
+    #[test]
+    fn only_an_empty_book_of_the_apps_own_counts_as_unused() {
+        let setup = Setup::new();
+        let books = setup.books("here");
+        let app_folder = setup.folder.join("data");
+        std::fs::create_dir_all(&app_folder).expect("folder made");
+        let own = books.open_last("Haushalt").expect("own book made");
+        assert_eq!(own.path.parent(), Some(app_folder.as_path()));
+        let next = app_folder.join("Example.ksz");
+        assert!(unused_own_book(&own, &next, Some(&app_folder)));
+        // Not when it is the book that opens next, nor outside the app's
+        // folder.
+        assert!(!unused_own_book(&own, &own.path, Some(&app_folder)));
+        assert!(!unused_own_book(
+            &own,
+            &next,
+            Some(&setup.folder.join("other"))
+        ));
+        assert!(!unused_own_book(&own, &next, None));
+        drop(own);
+        // Once anything is in it, it stays.
+        let mut used = books.open_last("Haushalt").expect("own book again");
+        used.book
+            .use_currency(kassensturz_core::CurrencyCode::new("EUR").expect("a code"))
+            .expect("currency set");
+        assert!(!unused_own_book(&used, &next, Some(&app_folder)));
     }
 
     #[test]

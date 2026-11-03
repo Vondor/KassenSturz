@@ -32,6 +32,9 @@ Kirigami.Page {
         translationDomain: "kassensturz"
     }
 
+    // Whether the user asked to see the folder (M6-B148).
+    property bool folderShown: false
+
     // Where the file is, e.g. "Household.ksz in /home/alex/Documents".
     readonly property string where: problem.folder
         ? i18nContext.i18nc("@info %1 is a file name, %2 the folder it is in", "%1 in %2", problem.file || "", problem.folder)
@@ -70,7 +73,7 @@ Kirigami.Page {
             return since ? since + " " + what : what;
         }
         case "book.missing":
-            return i18nContext.i18nc("@info %1 is where the book was", "It was %1. It may have been moved or renamed, or it is on a drive that isn't connected. Connect the drive and try again, or open the book where it is now. Nothing was changed.", page.where);
+            return i18nContext.i18nc("@info %1 is the book's file name", "It was %1. It may have been moved or renamed, or it is on a drive that isn't connected. Connect the drive and try again, or open the book where it is now. Nothing was changed.", problem.file || "");
         case "book.sandboxed":
             return i18nContext.i18nc("@info", "While a book is open, KassenSturz keeps a small file next to it, and this version of KassenSturz isn't allowed to make files in that folder. Choose a book in KassenSturz's own folder instead.");
         case "book.outside-test":
@@ -141,12 +144,35 @@ Kirigami.Page {
             text: page.explanation()
         }
 
+        // The file's name; its folder only on request, since a folder can
+        // name the user's account and end up in a screenshot (M6-B148).
         Controls.Label {
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
             visible: page.code === "store.locked" && page.where !== ""
+            opacity: 0.7
+            text: page.folderShown ? page.where : (problem.file || "")
+        }
+
+        Controls.Button {
+            Layout.alignment: Qt.AlignHCenter
+            flat: true
+            visible: ["store.locked", "book.missing"].includes(page.code) && !page.folderShown && (problem.folder || "") !== ""
+            text: page.i18nContext.i18nc("@action:button shows the folder a book is in", "Show where it is")
+            onClicked: {
+                ActionLog.taken("BookProblemPage_showFolder")
+                page.folderShown = true
+            }
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            visible: page.code === "book.missing" && page.folderShown
             opacity: 0.7
             text: page.where
         }

@@ -30,6 +30,7 @@ Kirigami.ApplicationWindow {
     property var overviewPage: null
     property var handedBack: ({})
     property bool overviewCancelled: false
+    readonly property var store: saved
 
     SavedViews {
         id: saved
@@ -51,7 +52,8 @@ Kirigami.ApplicationWindow {
         id: overviewBuilder
 
         StatisticsPage {
-            saved: saved
+            // Not `saved: saved`: inside the page that names its own property.
+            saved: window.store
             groupsSource: groups
             overviewComponentId: "w7"
             initialComponent: JSON.stringify({type: "chart.line", dataset: "spending_by_category", params: {}, props: {title: "On the page"}})
@@ -66,7 +68,8 @@ Kirigami.ApplicationWindow {
         id: draftBuilder
 
         StatisticsPage {
-            saved: saved
+            // Not `saved: saved`: inside the page that names its own property.
+            saved: window.store
             groupsSource: groups
             draft: ({
                 component: JSON.stringify({type: "chart.donut", dataset: "spending_by_category", params: {}, props: {title: "Half done"}}),

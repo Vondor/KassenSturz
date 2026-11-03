@@ -1444,7 +1444,10 @@ mod tests {
             .collect();
         assert_eq!(extra, ["#00FF7F"]);
         let own = list_of(chart, "series");
-        assert_eq!(number_of(&own[0], "color"), 8);
+        assert_eq!(
+            number_of(&own[0], "color"),
+            i32::from(kassensturz_charts::EXTRA_COLOR_BASE)
+        );
         assert_eq!(number_of(&own[0], "marker"), -1);
         // A description without free colors has an empty list, not a missing key.
         let plain = view_of(&custom(MONTHLY, false));

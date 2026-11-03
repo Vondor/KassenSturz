@@ -26,7 +26,7 @@ Click paths for the M7a steps, added by each step as it merges. Everything here 
 For the maintainer; the steps and the reasons are in `docs/RELEASING.md` (D-579).
 
 1. Open a pull request that changes `.github/workflows/release.yml` (or look at the one that added it): the **Release** workflow runs its build and its install check without making a release. The install check's step *Start the app* shows the app's output and the debug log's folder.
-2. To make a real build: tag the newest green commit on `main` as `v<number>` (`tools/build-version.sh` prints the number), push the tag, wait for the **Release** workflow, look at the draft on the Releases page, press *Publish release*.
+2. To make a real build: tag the newest green commit on `main` as `v<number>` (`tools/build-version.sh` prints the number), push the tag, wait for the **Release** workflow; the pre-release is on the Releases page when it ends.
 3. A tag whose name is not the commit's number, or a tag on a commit outside `main`, must stop the first job with an error that says what to do.
 4. Download the file from the published release without being logged in to GitHub (a private window), and install it with the Ubuntu sheet.
 
@@ -49,7 +49,7 @@ For the maintainer; the steps and the reasons are in `docs/RELEASING.md` (D-579)
 
 **Language on page 1** (Q-395). Choose *English* on the German welcome page: a line says *KassenSturz startet neu auf English. Es geht nichts verloren.* Press **Continue**: KassenSturz closes and starts again by itself, in English, on the welcome page. *Settings* shows the same choice. In the Flatpak the new KassenSturz starts in a sandbox of its own through `flatpak-spawn`, with the `KASSENSTURZ_*` variables it was started with; check there that it comes back, and in test mode that the banner is still there.
 
-**Not in this step yet.** Page 4 (bank file and bank).
+**Page 4, how new entries get in.** After **Create my household book** the overview opens with *How do new entries get in?* on top. **I'll type them myself** goes back to the overview. **Import a file from my bank** asks *Which account is the file for?* (only with more than one account), then opens the usual file dialog and import pages; try a synthetic CAMT or CSV file from the tester kit. Going back from page 4 is the overview. **Connect to my bank** is not there in normal builds (Q-398); only a build with `-DKASSENSTURZ_WIZARD_BANK=ON` (cargo feature `wizard-bank`) shows it, and only where bank connections work.
 
 ## M7a.9 Test mode kept apart from the real setup
 

@@ -104,6 +104,7 @@ pub const DETAILS: &[&str] = &[
     "TransactionPage",
     "WelcomePage",
     "WizardAccountsPage",
+    "WizardEntriesPage",
     "WizardStartPage",
 ];
 

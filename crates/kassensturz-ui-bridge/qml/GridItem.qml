@@ -303,6 +303,14 @@ Item {
             onScopeChanged: ask()
             Component.onCompleted: ask()
 
+            Connections {
+                target: cell.board
+
+                function onBookChangesChanged() {
+                    worth.ask();
+                }
+            }
+
             BookCards {
                 id: balances
             }
@@ -462,6 +470,14 @@ Item {
             onOnlyChanged: ask()
             onScopeChanged: ask()
             Component.onCompleted: ask()
+
+            Connections {
+                target: cell.board
+
+                function onBookChangesChanged() {
+                    budgets.ask();
+                }
+            }
 
             contentHeight: bars.implicitHeight + budgetNotes.implicitHeight
             clip: true
@@ -704,6 +720,14 @@ Item {
                 period: cell.board?.periodFor(cell.info) ?? ""
                 scope: cell.info?.asked?.scope
                 fallbackTitle: names.automaticTitle(cell.info)
+
+                Connections {
+                    target: cell.board
+
+                    function onBookChangesChanged() {
+                        figures.refresh();
+                    }
+                }
             }
         }
     }

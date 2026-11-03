@@ -93,7 +93,7 @@ impl qobject::BookOverview {
             Ok((view, gaps))
         });
         let view = match read {
-            Some(Ok((view, gaps))) => view_object(&view, &gaps),
+            Some(Ok((view, gaps))) => view_object(&view, &gaps, session::changes()),
             Some(Err(error)) => {
                 eprintln!("kassensturz: couldn't read the overview: {error:?}");
                 return;
@@ -159,7 +159,11 @@ fn fetch_gap_object(gap: &FetchGap) -> QVariant {
     ])
 }
 
-fn view_object(view: &OverviewView, gaps: &[FetchGap]) -> QVariant {
+/// The overview as QML reads it. `changes` is [`session::changes`] when it
+/// was read: the Overview's widgets read the book again when it differs from
+/// the one they were made under, and not when only the month changes
+/// (M6-B145).
+fn view_object(view: &OverviewView, gaps: &[FetchGap], changes: u64) -> QVariant {
     let totals = view.totals.iter().map(|totals| {
         let categories = |list_of: &[overview::CategoryTotal]| {
             list(list_of.iter().map(|total| {
@@ -200,6 +204,7 @@ fn view_object(view: &OverviewView, gaps: &[FetchGap]) -> QVariant {
         ("budgets", QVariant::from(&budgets)),
         ("latest", list(latest)),
         ("fetchGaps", list(gaps.iter().map(fetch_gap_object))),
+        ("bookChanges", text(&changes.to_string())),
     ])
 }
 
@@ -246,7 +251,7 @@ mod tests {
         let month = overview::Month::of(today);
         let view = overview::view(&book, month, &TestLocale).expect("overview");
         let gaps = fetch_gap::gaps(&book, today, Some(60), &TestLocale).expect("gaps");
-        let object = view_object(&view, &gaps);
+        let object = view_object(&view, &gaps, 0);
 
         // The charts and cards take the month shown by this key.
         assert_eq!(text_of(&object, "monthKey"), "2026-10");
@@ -266,7 +271,7 @@ mod tests {
         );
 
         // With the warning off, the list is there and empty.
-        let off = view_object(&view, &[]);
+        let off = view_object(&view, &[], 0);
         assert!(list_of(&off, "fetchGaps").is_empty());
     }
 
@@ -283,7 +288,7 @@ mod tests {
         let month = overview::Month::of(Date::new(2026, 10, 25).expect("a date"));
         let shown = |book: &Book| {
             let view = overview::view(book, month, &TestLocale).expect("overview");
-            view_object(&view, &[])
+            view_object(&view, &[], 0)
         };
         assert_eq!(number_of(&shown(&book), "budgets"), 0);
         let new = NewCategory {
@@ -303,5 +308,20 @@ mod tests {
         )
         .expect("budget");
         assert_eq!(number_of(&shown(&book), "budgets"), 1);
+    }
+
+    /// The count the Overview's widgets read the book again by, read back
+    /// as QML reads it (M6-B145): the same for another month, another after
+    /// the book changed.
+    #[test]
+    fn the_count_of_book_changes_reads_back_for_the_widgets() {
+        let book = Book::create_in_memory().expect("book in memory");
+        let month = overview::Month::of(Date::new(2026, 10, 25).expect("a date"));
+        let view = overview::view(&book, month, &TestLocale).expect("overview");
+        assert_eq!(text_of(&view_object(&view, &[], 7), "bookChanges"), "7");
+        let earlier = month.earlier().expect("a month");
+        let view = overview::view(&book, earlier, &TestLocale).expect("overview");
+        assert_eq!(text_of(&view_object(&view, &[], 7), "bookChanges"), "7");
+        assert_eq!(text_of(&view_object(&view, &[], 8), "bookChanges"), "8");
     }
 }

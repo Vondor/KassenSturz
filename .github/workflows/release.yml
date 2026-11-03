@@ -1,11 +1,11 @@
 name: Release
 
-# Builds the Flatpak bundle that testers download and puts it on a draft
-# pre-release of the public repository (D-551, D-579). It runs when the
+# Builds the Flatpak bundle that testers download and puts it on a pre-release
+# of the public repository (D-551, D-579, D-585). It runs when the
 # maintainer pushes a tag `v<build number>`, e.g. `v0.261103.0`; docs/RELEASING.md
 # has the steps. Tagging and publishing stay with the maintainer (AGENTS.md 3.2):
-# the workflow never creates a tag, and the release it makes is a draft until he
-# publishes it.
+# the workflow never creates a tag, and the tag he pushes is his decision to
+# publish (D-585: no draft step; a release he does not want is deleted).
 on:
   push:
     tags: ["v0.*"]
@@ -176,19 +176,19 @@ jobs:
   # The Windows app (M7a.7, D-554): the same workflow that checks Windows in
   # pull requests, here asked to hand its portable zip and installer to the
   # release job. It numbers the build with tools/build-version.sh, as the job
-  # above does, so both files carry the tag's number. Its own run starts the
-  # app from the zip; installing it by the Windows sheet is proven by hand on
-  # a Windows 11 virtual machine (D-542).
+  # above does, so both files carry the tag's number. Its own run installs and
+  # removes the installer and starts the app from the zip; the install sheet
+  # is proven by hand on a Windows 11 virtual machine (D-542).
   windows:
     name: Windows app
     uses: ./.github/workflows/windows-app.yml
     with:
       release: true
 
-  # Only for a tag. A draft pre-release (D-579): nothing is public until the
-  # maintainer has looked at it and presses Publish.
+  # Only for a tag. A published pre-release at once (D-585): the maintainer's
+  # tag is the whole gate.
   release:
-    name: Draft pre-release on GitHub
+    name: Pre-release on GitHub
     needs: [build, install-check, windows]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
@@ -203,7 +203,7 @@ jobs:
           pattern: release-asset-*
           merge-multiple: true
           path: assets
-      - name: Make the draft
+      - name: Make the pre-release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -234,6 +234,6 @@ jobs:
             gh release create "$TAG" assets/* \
               --title "KassenSturz $VERSION (pre-release)" \
               --notes-file notes.md \
-              --prerelease --draft --verify-tag
+              --prerelease --verify-tag
           fi
-          echo "Draft pre-release for $TAG: open the repository's Releases page to publish it." | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Pre-release for $TAG is published: https://github.com/$GH_REPO/releases/tag/$TAG" | tee -a "$GITHUB_STEP_SUMMARY"

@@ -97,6 +97,11 @@ Item {
     // overview's fetch-gap warnings and its count of transfers, for the
     // notice widgets (D-328).
     property var pageView: ({})
+    // Changes when the book changed since the page's figures were read, not
+    // when only the month does: every widget then asks for its figures again,
+    // so the page never keeps the totals from before an added account or
+    // entry, an import or an undo (M6-B145).
+    readonly property string bookChanges: pageView.bookChanges ?? ""
     // The `BookOverview` the period header widget steps through months with,
     // and the `CategoryGroups` the filter bar widget picks from (M6d.8).
     property var overview: null

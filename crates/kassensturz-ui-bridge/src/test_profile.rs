@@ -332,10 +332,12 @@ mod path_audit {
         inside("app folder", app_folder);
         inside("backups", Some(crate::platform::computer().backup_folder));
         inside("settings file", super::settings_file());
+        #[cfg(feature = "ai")]
         inside(
             "AI switch's settings file",
             kassensturz_core::ai_switch::settings_file(),
         );
+        #[cfg(feature = "debug-log")]
         inside(
             "debug log",
             kassensturz_core::debug_log::DebugLog::user()

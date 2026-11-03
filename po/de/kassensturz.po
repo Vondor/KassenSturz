@@ -16,6 +16,13 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 
+#: crates/kassensturz-ui-bridge/qml/AccountCard.qml:65
+#: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:138
+#, kde-format
+msgctxt "@label %1 is an amount of money, with its sign"
+msgid "Includes entries after today: %1"
+msgstr "Darin Buchungen nach heute: %1"
+
 #: crates/kassensturz-ui-bridge/qml/AccountDetailsPage.qml:60
 #: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:66
 #, kde-format

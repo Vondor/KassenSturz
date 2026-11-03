@@ -127,6 +127,17 @@ Kirigami.ScrollablePage {
                             : page.i18nContext.i18nc("@label %1 is an amount of money", "All together: %1", amount);
                     }
                 }
+
+                // The accounts' balances count entries dated after today too,
+                // the Overview's figure for this month only those up to today;
+                // this says how much of the total is still to come (D-587).
+                AmountLabel {
+                    Layout.fillWidth: true
+                    visible: together.visible && (section.modelData.later ?? "") !== ""
+                    text: page.i18nContext.i18nc("@label %1 is an amount of money, with its sign", "Includes entries after today: %1", section.modelData.later ?? "")
+                    exactText: page.i18nContext.i18nc("@label %1 is an amount of money, with its sign", "Includes entries after today: %1", section.modelData.exactLater ?? "")
+                    wrapMode: Text.Wrap
+                }
             }
         }
 

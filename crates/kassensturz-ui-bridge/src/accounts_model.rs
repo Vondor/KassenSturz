@@ -339,6 +339,14 @@ pub(crate) fn sections_object(sections: &[CurrencySection]) -> QVariant {
             ("together", text(&section.together.text)),
             ("exactTogether", text(&section.together.exact)),
             ("togetherOwes", QVariant::from(&section.together_owes)),
+            (
+                "later",
+                text(section.later.as_ref().map_or("", |later| &later.text)),
+            ),
+            (
+                "exactLater",
+                text(section.later.as_ref().map_or("", |later| &later.exact)),
+            ),
         ])
     }))
 }
@@ -351,6 +359,14 @@ fn card_object(card: &AccountCard) -> QVariant {
         ("balance", text(&card.balance.text)),
         ("exactBalance", text(&card.balance.exact)),
         ("owes", QVariant::from(&card.owes)),
+        (
+            "later",
+            text(card.later.as_ref().map_or("", |later| &later.text)),
+        ),
+        (
+            "exactLater",
+            text(card.later.as_ref().map_or("", |later| &later.exact)),
+        ),
     ])
 }
 
@@ -479,7 +495,9 @@ mod tests {
             [
                 "accounts",
                 "currency",
+                "exactLater",
                 "exactTogether",
+                "later",
                 "together",
                 "togetherOwes"
             ]
@@ -494,8 +512,20 @@ mod tests {
         assert_eq!(cards.len(), 2);
         assert_eq!(
             keys(&cards[0]),
-            ["balance", "exactBalance", "id", "name", "owes", "type"]
+            [
+                "balance",
+                "exactBalance",
+                "exactLater",
+                "id",
+                "later",
+                "name",
+                "owes",
+                "type"
+            ]
         );
+        // Nothing is dated after today.
+        assert_eq!(text_of(euros, "later"), "");
+        assert_eq!(text_of(&cards[0], "later"), "");
         for (key, expected) in [
             ("id", giro.as_str()),
             ("name", "Giro"),
@@ -654,5 +684,117 @@ mod tests {
         assert_eq!(text_of(&correction, "wouldBe"), "800,00 €");
         assert_eq!(text_of(&correction, "date"), "2026-10-01");
         assert!(!flag_of(&correction, "adds") && !flag_of(&correction, "owes"));
+    }
+
+    /// The example book Suburban Family with its CAMT file imported, as the
+    /// importer, the pipeline and the store make them (AGENTS.md §9.4). On
+    /// 3 Nov 2026 four of the imported entries (4 to 6 Nov, -201,15 €) are
+    /// still to come: the accounts screen counts them and says so, and the
+    /// Overview's figure for today is the total without them (M6-B144,
+    /// D-587).
+    #[test]
+    fn entries_after_today_are_named_on_the_accounts_screen() {
+        use std::collections::HashMap;
+
+        use kassensturz_core::{CurrencyCode, Date};
+        use kassensturz_import::{Camt053, Imported, KmySqlite, Limits, import};
+        use kassensturz_pipeline::{Choices, fill_book_from, import_statements};
+        use kassensturz_report::{Filter, Period, Source, account_balances};
+
+        use crate::format::{AmountFormat, Locale};
+
+        struct OnTheThird;
+        impl Locale for OnTheThird {
+            fn amount_format(&self, currency: CurrencyCode) -> AmountFormat {
+                TestLocale.amount_format(currency)
+            }
+            fn decimal_point(&self) -> String {
+                TestLocale.decimal_point()
+            }
+            fn group_digits(&self, value: u64) -> String {
+                TestLocale.group_digits(value)
+            }
+            fn group_separator(&self) -> String {
+                TestLocale.group_separator()
+            }
+            fn short_date(&self, date: Date) -> String {
+                TestLocale.short_date(date)
+            }
+            fn month_and_year(&self, date: Date) -> String {
+                TestLocale.month_and_year(date)
+            }
+            fn read_date(&self, text: &str) -> Option<Date> {
+                TestLocale.read_date(text)
+            }
+            fn today(&self) -> Date {
+                Date::constant(2026, 11, 3)
+            }
+        }
+
+        let examples = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../kassensturz-import/tests/books/examples");
+        let bytes = std::fs::read(examples.join("suburban-family-v15.sqlite"))
+            .expect("the example book is in the repository");
+        let Imported::Book(imported) =
+            import(&KmySqlite, &bytes, &Limits::default()).expect("the book reads")
+        else {
+            panic!("a book");
+        };
+        let mut book = Book::create_in_memory().expect("a book in memory");
+        fill_book_from(&mut book, &imported, &HashMap::new()).expect("filled");
+        let checking = book
+            .accounts(false)
+            .expect("accounts")
+            .into_iter()
+            .find(|account| account.name == "Girokonto")
+            .expect("Girokonto");
+        let input = std::fs::read(examples.join("statements/suburban-family.camt053.xml"))
+            .expect("the statement is in the repository");
+        let Imported::Statements(statements) =
+            import(&Camt053, &input, &Limits::default()).expect("the statement reads")
+        else {
+            panic!("a statement");
+        };
+        import_statements(
+            &mut book,
+            checking.id,
+            &statements,
+            &Choices::default(),
+            None,
+        )
+        .expect("imported");
+
+        let view = view_object(&accounts::view(&book, &OnTheThird).expect("view"));
+        let euros = &list_of(&view, "sections")[0];
+        assert_eq!(text_of(euros, "together"), "16263,31 €");
+        assert_eq!(text_of(euros, "later"), "-201,15 €");
+        assert_eq!(text_of(euros, "exactLater"), "-201,15 €");
+        for card in list_of(euros, "accounts") {
+            let later = if text_of(&card, "name") == "Girokonto" {
+                "-201,15 €"
+            } else {
+                ""
+            };
+            assert_eq!(text_of(&card, "later"), later);
+        }
+
+        // What the Overview shows for today is the total less what is to
+        // come, from the report layer's own balances.
+        let today = OnTheThird.today();
+        let period = Period::new(today, today).expect("a day");
+        let source = Source::read_with_balances(&book, period).expect("read");
+        let worth = account_balances(&source, period, &Filter::default(), None)
+            .expect("balances")
+            .results[0]
+            .worth;
+        assert_eq!(worth.net_worth.minor_units(), 1_626_331 + 20_115);
+        // At the end of the month it is the accounts screen's total.
+        let november = Period::this_month(today).expect("a month");
+        let source = Source::read_with_balances(&book, november).expect("read");
+        let worth = account_balances(&source, november, &Filter::default(), None)
+            .expect("balances")
+            .results[0]
+            .worth;
+        assert_eq!(worth.net_worth.minor_units(), 1_626_331);
     }
 }

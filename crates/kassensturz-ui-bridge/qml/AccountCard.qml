@@ -8,13 +8,19 @@ import QtQuick
 import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.kde.ki18n
 
 Kirigami.AbstractCard {
     id: card
 
     // The account from the Rust side: id, name, type, balance and
-    // exactBalance (both text) and owes.
+    // exactBalance (both text), owes, and later and exactLater: what the
+    // entries dated after today add to the balance, empty if none (D-587).
     required property var modelData
+
+    readonly property KI18nContext i18nContext: KI18nContext {
+        translationDomain: "kassensturz"
+    }
 
     AccountTypes {
         id: types
@@ -55,6 +61,18 @@ Kirigami.AbstractCard {
             owes: card.modelData.owes
             horizontalAlignment: Text.AlignRight
             font.bold: true
+        }
+
+        // The balance counts entries dated after today too; the Overview's
+        // figure for this month only those up to today (D-587).
+        AmountLabel {
+            Layout.fillWidth: true
+            visible: (card.modelData.later ?? "") !== ""
+            text: card.i18nContext.i18nc("@label %1 is an amount of money, with its sign", "Includes entries after today: %1", card.modelData.later ?? "")
+            exactText: card.i18nContext.i18nc("@label %1 is an amount of money, with its sign", "Includes entries after today: %1", card.modelData.exactLater ?? "")
+            horizontalAlignment: Text.AlignRight
+            wrapMode: Text.Wrap
+            font: Kirigami.Theme.smallFont
         }
     }
 }

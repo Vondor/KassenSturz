@@ -29,9 +29,14 @@
 //! it is the same fake bank, but a PIN the user saves goes into the real
 //! system keychain, filed under [`FAKE_BANK_SERVICE`], so saving, reading
 //! back and removing a PIN can be tried with the desktop's own keychain
-//! before KassenSturz may talk to a real bank (D-159). With `1`, a PIN goes
-//! to a KeePassXC database when the user chose one in Settings, so that
-//! choice can be tried with the fake bank too (D-167).
+//! before KassenSturz may talk to a real bank (D-159). Any value of that
+//! variable, and `KASSENSTURZ_TEST=1`, starts the test profile (D-547), in
+//! which the worker always holds the fake bank and keeps its PINs in
+//! memory, whatever place the settings name: a test never offers a real
+//! bank login and never saves a PIN to KeePassXC or the system keychain.
+//! Only `keychain`, which asks for the keychain by name, still files PINs
+//! there under [`FAKE_BANK_SERVICE`] ([`Backend::for_run`]). Trying
+//! KeePassXC with the fake bank (D-167) is no longer possible.
 //!
 //! A build without a FinTS registration of its own refuses to contact a
 //! bank (D-058). Started with `KASSENSTURZ_FINTS_ASK=1`, it asks the person
@@ -103,7 +108,7 @@ pub fn keychain_stores(
     })
 }
 
-/// The fake bank's PINs saved in memory only (`KASSENSTURZ_FAKE_BANK=1`),
+/// The fake bank's PINs saved in memory only (the test profile, D-547),
 /// or none for "nowhere".
 fn memory_stores() -> PinStores {
     Box::new(|storage| match storage {
@@ -112,20 +117,39 @@ fn memory_stores() -> PinStores {
     })
 }
 
-/// The fake bank's PINs with `KASSENSTURZ_FAKE_BANK=1`: in a KeePassXC
-/// database when the user chose one, filed under [`FAKE_BANK_SERVICE`]
-/// (D-167), else as [`memory_stores`] keeps them; the system keychain only
-/// with [`FAKE_BANK_WITH_KEYCHAIN`] (D-159). `keychain` gives the
-/// KeePassXC keychain: in the app [`SecretStorage::keychain`].
-fn fake_stores(
-    keychain: impl Fn(SecretStorage) -> Option<Box<dyn Keychain>> + Send + 'static,
-) -> PinStores {
-    let keychains = keychain_stores(keychain);
-    let memory = memory_stores();
-    Box::new(move |storage| match storage {
-        SecretStorage::KeePassXc => keychains(storage),
-        _ => memory(storage),
-    })
+/// Which bank backend a run of the app gets, and where the fake bank's PINs go.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Backend {
+    /// AqBanking, with PINs where the user chose (D-163).
+    Real,
+    /// The fake bank, its PINs in the system keychain under
+    /// [`FAKE_BANK_SERVICE`] (`KASSENSTURZ_FAKE_BANK=keychain`, D-159).
+    FakeWithKeychain,
+    /// The fake bank, its PINs in memory only, whatever the settings say:
+    /// the test profile (D-547).
+    FakeInMemory,
+}
+
+impl Backend {
+    /// The backend for a run started with `fake_bank` as
+    /// [`FAKE_BANK_VARIABLE`], in the test profile (`in_test`) or not.
+    ///
+    /// The test profile never offers a real bank login and never saves a
+    /// PIN to KeePassXC or the system keychain (D-547): it gets the fake
+    /// bank with its PINs in memory. The one exception is
+    /// `KASSENSTURZ_FAKE_BANK=keychain`, which is asked for by name to try
+    /// the system keychain with the fake bank and files its PINs under
+    /// [`FAKE_BANK_SERVICE`], apart from real ones (D-159).
+    pub fn for_run(fake_bank: Option<&std::ffi::OsString>, in_test: bool) -> Self {
+        match fake_bank {
+            Some(value) if value == FAKE_BANK_WITH_KEYCHAIN => Self::FakeWithKeychain,
+            // Any other value of the variable switches the test profile
+            // on too (`test_profile::wanted`).
+            Some(_) => Self::FakeInMemory,
+            None if in_test => Self::FakeInMemory,
+            _ => Self::Real,
+        }
+    }
 }
 
 /// What the worker holds: the backend, or why it couldn't be opened, and
@@ -210,35 +234,36 @@ impl Connection {
 
     /// The connection the app uses: the fake bank when asked for, else
     /// AqBanking in KassenSturz's data folder, or `bank.folder` without
-    /// one. Saved PINs go to `storage`, the user's choice (D-163).
+    /// one. Saved PINs go to `storage`, the user's choice (D-163). In the
+    /// test profile (D-547) it is always the fake bank (see [`Backend::for_run`]).
     pub fn for_app(folder: Option<PathBuf>, storage: SecretStorage) -> Self {
-        let fake = std::env::var_os(FAKE_BANK_VARIABLE);
-        let wants_fake = fake.as_ref().is_some_and(|value| value == "1");
-        let wants_keychain = fake
-            .as_ref()
-            .is_some_and(|value| value == FAKE_BANK_WITH_KEYCHAIN);
-        match folder {
-            _ if wants_fake => {
-                let pin_stores = fake_stores(|storage| storage.keychain(FAKE_BANK_SERVICE));
-                let pins = PinSession::new(pin_stores(storage));
-                Self {
-                    pin_stores,
-                    ..Self::fake(FakeBank::new().with_second_factor(SecondFactor::Tan), pins)
-                }
+        let backend = Backend::for_run(
+            std::env::var_os(FAKE_BANK_VARIABLE).as_ref(),
+            crate::test_profile::on(),
+        );
+        Self::for_backend(backend, folder, storage)
+    }
+
+    /// The connection for `backend`, as [`Connection::for_app`] makes it.
+    pub fn for_backend(backend: Backend, folder: Option<PathBuf>, storage: SecretStorage) -> Self {
+        match (backend, folder) {
+            (Backend::FakeInMemory, _) => {
+                let pins = PinSession::new(memory_stores()(storage));
+                Self::fake(FakeBank::new().with_second_factor(SecondFactor::Tan), pins)
             }
-            _ if wants_keychain => Self::fake_with_keychain(
+            (Backend::FakeWithKeychain, _) => Self::fake_with_keychain(
                 FakeBank::new().with_second_factor(SecondFactor::Tan),
                 keychain_stores(|storage| storage.keychain(FAKE_BANK_SERVICE)),
                 storage,
             ),
-            Some(folder) => Self {
+            (Backend::Real, Some(folder)) => Self {
                 ask_registration: std::env::var_os(ASK_REGISTRATION_VARIABLE)
                     .is_some_and(|value| value == "1"),
                 ..Self::real(&folder.join("aqbanking"), storage)
             },
             // Without a data folder AqBanking has nowhere to keep its
             // settings: the screens say so.
-            None => Self {
+            (Backend::Real, None) => Self {
                 bank: Err(BankError::Folder),
                 pins: PinSession::new(memory_stores()(storage)),
                 pin_stores: memory_stores(),
@@ -1612,6 +1637,54 @@ mod tests {
         Connection::fake(bank, PinSession::new(Box::new(MemoryPinStore::new())))
     }
 
+    #[test]
+    fn the_test_profile_always_gets_the_fake_bank_with_pins_in_memory() {
+        let os = std::ffi::OsString::from;
+        // Outside the test profile, as before.
+        assert_eq!(Backend::for_run(None, false), Backend::Real);
+        assert_eq!(
+            Backend::for_run(Some(&os("1")), false),
+            Backend::FakeInMemory
+        );
+        assert_eq!(
+            Backend::for_run(Some(&os(FAKE_BANK_WITH_KEYCHAIN)), false),
+            Backend::FakeWithKeychain
+        );
+        // In it, never a real bank and never KeePassXC (D-547) ...
+        assert_eq!(Backend::for_run(None, true), Backend::FakeInMemory);
+        assert_eq!(
+            Backend::for_run(Some(&os("1")), true),
+            Backend::FakeInMemory
+        );
+        assert_eq!(
+            Backend::for_run(Some(&os("yes")), true),
+            Backend::FakeInMemory
+        );
+        // ... except the keychain asked for by name (D-159).
+        assert_eq!(
+            Backend::for_run(Some(&os(FAKE_BANK_WITH_KEYCHAIN)), true),
+            Backend::FakeWithKeychain
+        );
+    }
+
+    #[test]
+    fn in_the_test_profile_a_pin_never_goes_to_keepassxc() {
+        let mut connection = Connection::for_backend(
+            Backend::FakeInMemory,
+            Some(PathBuf::from("/nonexistent/test-folder")),
+            SecretStorage::KeePassXc,
+        );
+        assert!(connection.fake);
+        assert!(connection.bank().is_ok());
+        // Choosing KeePassXC keeps the PINs in memory: the store opens
+        // without KeePassXC and names no database, and PINs can still be
+        // saved for this run of the app.
+        let change = choose_pin_storage(&mut connection, SecretStorage::KeePassXc, || Ok(()))
+            .expect("memory store");
+        assert_eq!(change.place, None);
+        assert!(connection.pins.saves());
+    }
+
     fn form(pin: &str) -> SetupForm {
         SetupForm {
             iban: IBAN.to_owned(),
@@ -2592,34 +2665,6 @@ mod tests {
             kassensturz_platform::KeychainError::KeePassXcUnavailable,
         ));
         assert_eq!(open_pin_storage(&mut connection), Err(BankError::KeePassXc));
-    }
-
-    #[test]
-    fn the_fake_bank_in_memory_saves_in_keepassxc_when_chosen() {
-        let keepassxc = shared();
-        keepassxc.0.place(Some(household()));
-        let shared_keepassxc = keepassxc.clone();
-        let pin_stores = fake_stores(move |storage| {
-            (storage == SecretStorage::KeePassXc)
-                .then(|| Box::new(shared_keepassxc.clone()) as Box<dyn Keychain>)
-        });
-        let pins = PinSession::new(pin_stores(SecretStorage::System));
-        let mut connection = Connection {
-            pin_stores,
-            ..Connection::fake(FakeBank::new(), pins)
-        };
-        // The system keychain stays out of it: in memory (D-159).
-        let mut setup = form(FakeBank::PIN);
-        setup.pin_mode = PinMode::SaveInKeychain;
-        set_up(&mut connection, setup).expect("set up");
-        assert!(keepassxc.0.is_empty());
-
-        let chosen = choose_pin_storage(&mut connection, SecretStorage::KeePassXc, || Ok(()));
-        assert_eq!(chosen.map(|change| change.place), Ok(Some(household())));
-        let mut setup = form(FakeBank::PIN);
-        setup.pin_mode = PinMode::SaveInKeychain;
-        set_up(&mut connection, setup).expect("set up");
-        assert_eq!(keepassxc.0.len(), 1);
     }
 
     #[test]

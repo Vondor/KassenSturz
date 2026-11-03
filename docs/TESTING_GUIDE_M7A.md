@@ -29,3 +29,22 @@ For the maintainer; the steps and the reasons are in `docs/RELEASING.md` (D-579)
 2. To make a real build: tag the newest green commit on `main` as `v<number>` (`tools/build-version.sh` prints the number), push the tag, wait for the **Release** workflow, look at the draft on the Releases page, press *Publish release*.
 3. A tag whose name is not the commit's number, or a tag on a commit outside `main`, must stop the first job with an error that says what to do.
 4. Download the file from the published release without being logged in to GitHub (a private window), and install it with the Ubuntu sheet.
+
+## M7a.9 First setup wizard, pages 1 to 3
+
+**What it is.** A book without accounts opens the setup wizard (`docs/SETUP_WIZARD.md`) in place of the old first-run pages. Nothing is written until **Create my household book**, which writes the currency, the default categories and all accounts in one step. One undo takes the whole setup back, and the wizard shows again.
+
+**Click path** (a fresh settings folder, so the app starts with its own empty book):
+1. Page *Welcome*: check that the currency is preselected (the regional one, otherwise EUR), then press **Continue**.
+2. Page *How would you like to start?*: three choices of equal size, *My own accounts* first, plus the small link *Open a KassenSturz book I already have…*. Press **My own accounts**.
+3. Page *Your accounts*: one row, *Checking account*. Type `2.340,17` in the German UI (`2,340.17` in English). Press **Add another account** three times: the rows come as *Savings account*, *Cash*, *Credit card*. Give them `8.500,00`, nothing, and `412,30`; the credit card row says *You owe:*.
+4. In the German UI, type `12.50` into one amount and leave the field (a point groups thousands there): the row shows that the amount isn't one. Correct it.
+5. Press **Create my household book**. The overview opens with the message *Your household book is ready…* and the four accounts; together they come to 10.427,87 €.
+6. Press **Got it**: the message goes. Press Ctrl+Z: the whole setup is taken back, and the wizard shows again.
+
+**Also check.**
+- Close the window on page 3 after typing: at the next start the wizard shows again, and the book has no categories.
+- Page 2 › **Try an example book** opens the M7a.2 chooser; page 2 › **Bring my data from another program** opens the existing *Start a book from a file* dialog.
+- *Add an account* from the overview no longer says *Your first account*, and adding a transaction has no *Skip for now*.
+
+**Not in this step yet.** The language choice on page 1, page 4 (bank file and bank), and the test mode kept apart from the real setup.

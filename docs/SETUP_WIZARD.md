@@ -61,7 +61,7 @@ Below them a small link, **Open a KassenSturz book I already have…**, for some
 This page *is* M7a.2's chooser component, placed by the wizard; M7a.2 owns the component and its bridge call, the wizard owns the page around it and what happens after.
 
 - The four books, each with a one-line description in the UI language: **Suburban Family** (marked "Good to start with" and preselected), **Flower Utopia**, **Space Colony**, **UdSSR Government Agent**. Their German names come from M7a.8.
-- **Open example** fills the open, still empty book with the chosen example through the existing importer, in one go, and shows its overview. The bundled originals stay untouched. There is no separate copy and no "your own book" next to it: in a test, the example *is* the book (Q-399).
+- **Open example** makes a new book from the chosen example, named "Example – <name>", through M7a.2's `ExampleBooks.make` and the existing importer. It opens that book and shows its overview. The open book and the bundled originals are never touched. In the test profile the new book is made in the test folder, and in a test the example *is* the book the tester works in (Q-399); there is no banner pointing to another book.
 
 ### Page 3b: Your accounts (`3b-accounts.png`)
 
@@ -121,7 +121,7 @@ The real overview, with one dismissible message at the top, shown only in the se
 | Moment | What is saved |
 |---|---|
 | Page 1, a different language | Only the existing app setting `Language` (D-127), then the restart. The book is untouched. |
-| Page 3a, *Open example* | The chosen example, written into the open empty book in one go, as the existing "Start a book from a file" pages do. |
+| Page 3a, *Open example* | A new example book ("Example – <name>"), made in one go; the open book is never touched. In the test profile it goes into the test folder. |
 | Page 3b, *Create my household book* | In **one user action** (`Book::as_one_action`): the currency, the default categories, every account and its starting balance. Either all of it is in the book or none of it. One undo takes the whole first setup back, and the wizard shows again. |
 | Path 3c | What the existing "Start a book from a file" pages save today, all at once, and only after the user confirms. |
 | Page 4 choices | What the existing import and bank pages save, each after its own confirmation. |

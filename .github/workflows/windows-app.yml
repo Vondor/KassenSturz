@@ -83,10 +83,13 @@ jobs:
                       print(url, "ERR", e)
                       continue
                   print(url, "date", m.get("date"))
-                  for comp, pkgs in m["packages"].items():
+                  for comp, entries in m["packages"].items():
+                      pkgs = {e["name"]: e for e in entries}
+                      print(" ", comp, len(pkgs), "packages")
                       for name in names:
                           if name in pkgs:
-                              print(" ", comp, name, [b.get("version") for b in pkgs[name]["build"]][:4])
+                              builds = pkgs[name]["build"]
+                              print("   ", name, [b.get("version") for b in builds][:4], builds[0].get("config"))
           '@ | Set-Content "$env:RUNNER_TEMP\diag.py"
           python "$env:RUNNER_TEMP\diag.py"
           exit 1

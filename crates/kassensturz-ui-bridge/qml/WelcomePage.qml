@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// The first thing a new user sees: what KassenSturz does, which currency the
-// household uses (D-111), and one button to start (M3.4, D-116). Starting
-// writes the default categories in the user's language (D-029, D-067) and
-// leads to the first account.
+// Page 1 of the setup wizard (M7a.9, docs/SETUP_WIZARD.md): what
+// KassenSturz does and which currency the household uses (D-111). Nothing is
+// written here: the currency goes along to the page that creates the book,
+// so leaving the wizard halfway leaves the book as it was.
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -18,42 +18,15 @@ Kirigami.ScrollablePage {
 
     required property FirstStart firstStart
 
-    signal addAccountClicked()
-    signal startFromFileClicked()
+    // The household's currency, as an ISO 4217 code.
+    signal continued(string currency)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
     }
 
-    DefaultCategories {
-        id: defaults
-    }
-
     title: i18nContext.i18nc("@title", "Welcome")
-    header: ColumnLayout {
-        spacing: 0
-
-        MockNotice {
-            Layout.fillWidth: true
-        }
-
-        FormError {
-            id: error
-            Layout.fillWidth: true
-        }
-    }
-
-    function start() {
-        if (firstStart.needsCurrency) {
-            const result = firstStart.start(currencyBox.currentText, defaults.incomeNames,
-                defaults.incomeParents, defaults.spendingNames, defaults.spendingParents);
-            error.result = result;
-            if (result.code !== undefined) {
-                return;
-            }
-        }
-        addAccountClicked();
-    }
+    header: MockNotice {}
 
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
@@ -75,7 +48,7 @@ Kirigami.ScrollablePage {
             Layout.alignment: Qt.AlignHCenter
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24
             horizontalAlignment: Text.AlignHCenter
-            text: page.i18nContext.i18nc("@info", "KassenSturz shows you how much money you have and where it goes. Start with one account, such as your checking account or the cash in your wallet. Everything stays on this computer.")
+            text: page.i18nContext.i18nc("@info", "KassenSturz shows you how much money you have and where it goes. Everything stays on this computer.")
             wrapMode: Text.Wrap
         }
 
@@ -101,21 +74,13 @@ Kirigami.ScrollablePage {
             }
 
             Controls.Button {
-                text: page.i18nContext.i18nc("@action:button", "Add your first account")
-                icon.name: "list-add"
+                text: page.i18nContext.i18nc("@action:button", "Continue")
+                icon.name: "go-next"
+                highlighted: true
                 onClicked: {
-                    ActionLog.taken("WelcomePage_addFirstAccount")
-                    page.start()
-                }
-            }
-
-            Controls.Button {
-                text: page.i18nContext.i18nc("@action:button", "I have a KMyMoney book or a saved KassenSturz book")
-                icon.name: "document-import"
-                flat: true
-                onClicked: {
-                    ActionLog.taken("WelcomePage_iHaveKmymoney")
-                    page.startFromFileClicked()
+                    ActionLog.taken("WelcomePage_continue")
+                    // A book that has categories already keeps its currency.
+                    page.continued(page.firstStart.needsCurrency ? currencyBox.currentText : page.firstStart.currencies[0])
                 }
             }
         }

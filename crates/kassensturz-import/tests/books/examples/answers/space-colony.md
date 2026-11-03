@@ -1,8 +1,3 @@
-<!--
-SPDX-FileCopyrightText: 2026 KassenSturz contributors
-SPDX-License-Identifier: GPL-3.0-or-later
--->
-
 # Antwortbogen: Space Colony
 
 Dieses Blatt schreibt der Test `example_books` (`crates/kassensturz-pipeline/tests/example_books.rs`) aus dem echten Import- und Berichtscode, nicht von Hand. Das Buch und die Kontoauszüge macht `tools/example-books/generate.py`; nichts darin gehört zu einer echten Person.

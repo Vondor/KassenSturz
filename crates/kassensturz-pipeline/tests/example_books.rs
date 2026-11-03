@@ -308,9 +308,7 @@ fn answer_sheet(example: &Example) -> String {
     let mut sheet = String::new();
     let _ = write!(
         sheet,
-        "<!--\nSPDX-FileCopyrightText: 2026 KassenSturz contributors\n\
-SPDX-License-Identifier: GPL-3.0-or-later\n-->\n\n\
-# Antwortbogen: {title}\n\n\
+        "# Antwortbogen: {title}\n\n\
 Dieses Blatt schreibt der Test `example_books` (`crates/kassensturz-pipeline/tests/example_books.rs`) \
 aus dem echten Import- und Berichtscode, nicht von Hand. Das Buch und die \
 Kontoauszüge macht `tools/example-books/generate.py`; nichts darin gehört zu \

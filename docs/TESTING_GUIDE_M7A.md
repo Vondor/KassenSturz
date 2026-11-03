@@ -4,7 +4,7 @@ Click paths for the M7a steps, added by each step as it merges. Everything here 
 
 ## M7a.2 Try an example book
 
-**What it is.** Example books are made-up households that come with the app. Picking one always makes a new book called *Example – <name>* and opens it; a book you already have is never changed (D-570, D-571). Only *Space Colony* is bundled until M7a.8 merges the other three.
+**What it is.** Example books are made-up households that come with the app. Picking one always makes a new book called *Example – <name>* and opens it; a book you already have is never changed (D-570, D-571). The four examples are *Suburban Family* (the suggested start), *Flower Utopia*, *Space Colony* and *USSR Government Agent*. *Flower Utopia* also comes with its five budgets and a saved Overview with charts (M6-B138); the other three are plain books.
 
 **Click path.**
 1. Open *Settings* (the gear in the side bar).

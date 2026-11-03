@@ -383,7 +383,10 @@ pub struct SimilarText {
 /// A balance the bank reports against the account's own figure (D-029,
 /// D-111, D-123): each at the end of its day, the closing balance after the
 /// import. Banks date an opening balance with the day the statement before
-/// ended, so that day's end is what it is held against (Q-053).
+/// ended, so that day's end is what it is held against (Q-053); a bank that
+/// dates it with the day of the statement's first entries has those entries
+/// taken out of the book's figure, since its balance comes before them
+/// (M6-B146).
 #[derive(Debug, PartialEq, Eq)]
 pub struct BalanceText {
     /// `opening` or `closing`.
@@ -591,11 +594,41 @@ fn describe(
         if let Some(opening) = statement.opening_balance
             && statement.currency.code() == account.currency
         {
-            let held = book.balance_on(account.id, opening.date)?;
+            // Some banks date the opening balance with the day of the
+            // statement's first entries instead of the day before (M6-B146).
+            // The bank's figure comes before every entry of its statement,
+            // so the entries of this statement that are in the book now and
+            // count on or before that day are taken out of the book's figure,
+            // and "Check against my bank" gets the bank's figure at the end
+            // of that day, the one it compares with.
+            let own = Money::checked_sum(
+                account.currency,
+                report
+                    .entries
+                    .iter()
+                    .filter(|result| result.entry.statement == index)
+                    .filter(|result| {
+                        matches!(
+                            result.outcome,
+                            EntryOutcome::Imported { .. }
+                                | EntryOutcome::Duplicate(Duplicate::InBook(_))
+                        )
+                    })
+                    .map(|result| &statement.entries[result.entry.entry])
+                    .filter(|entry| entry.booking_date <= opening.date)
+                    .map(|entry| entry.amount),
+            )
+            .map_err(|_| StoreError::AmountOverflow)?;
+            let overflow = |_| StoreError::AmountOverflow;
+            let held = book
+                .balance_on(account.id, opening.date)?
+                .checked_sub(own)
+                .map_err(overflow)?;
+            let bank_at_end = opening.amount.checked_add(own).map_err(overflow)?;
             balances.push(balance_text(
                 "opening",
                 opening.date,
-                opening.amount,
+                (opening.amount, bank_at_end),
                 held,
                 false,
                 account.kind,
@@ -612,7 +645,7 @@ fn describe(
             balances.push(balance_text(
                 "closing",
                 check.date,
-                check.bank,
+                (check.bank, check.bank),
                 check.book,
                 kept,
                 account.kind,
@@ -651,7 +684,7 @@ fn describe(
 fn balance_text(
     which: &'static str,
     date: Date,
-    bank: Money,
+    (bank, check): (Money, Money),
     held: Money,
     stated: bool,
     kind: AccountKind,
@@ -674,7 +707,7 @@ fn balance_text(
     Ok(BalanceText {
         which,
         date: locale.short_date(date),
-        check_amount: bank_shown.exact.clone(),
+        check_amount: writer.balance(check, kind).0.exact,
         bank: bank_shown,
         bank_owes,
         book: book_shown,
@@ -1679,5 +1712,66 @@ mod tests {
         // Read back by another Settings on the same file, as the next start does.
         let again = Settings::at(&folder.join("kassensturzrc"));
         assert_eq!(csv_bank(&again, "Second Bank"), Some(simple));
+    }
+
+    /// The example book Suburban Family and its CAMT file, as the importer,
+    /// the pipeline and the store make them (AGENTS.md §9.4). The bank dates
+    /// the opening balance with the day of the statement's first entry,
+    /// which is in the book already; the book agrees with the bank on both
+    /// balances, so neither may warn (M6-B146).
+    #[test]
+    fn an_opening_balance_dated_on_its_first_entry_matches() {
+        use kassensturz_import::{Imported, KmySqlite, Limits, import as read_book};
+        let examples = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../kassensturz-import/tests/books/examples");
+        let bytes = std::fs::read(examples.join("suburban-family-v15.sqlite"))
+            .expect("the example book is in the repository");
+        let Imported::Book(imported) =
+            read_book(&KmySqlite, &bytes, &Limits::default()).expect("the file reads")
+        else {
+            panic!("a book");
+        };
+        let mut book = Book::create_in_memory().expect("a book in memory");
+        kassensturz_pipeline::fill_book_from(&mut book, &imported, &HashMap::new())
+            .expect("filled");
+        let checking = book
+            .accounts(false)
+            .expect("accounts")
+            .into_iter()
+            .find(|account| account.name == "Girokonto")
+            .expect("Girokonto")
+            .id;
+        let input = std::fs::read(examples.join("statements/suburban-family.camt053.xml"))
+            .expect("the statement is in the repository");
+        let statements = read_statements(&Camt053, &input).expect("statements");
+        let loaded = Loaded::new(
+            checking,
+            PathBuf::from("suburban-family.camt053.xml"),
+            statements,
+        );
+
+        for shown in [
+            preview(&mut book, &loaded, &TestLocale).expect("preview"),
+            import(&mut book, &loaded, &TestLocale).expect("imported"),
+        ] {
+            assert_eq!((shown.imported, shown.duplicates), (8, 1));
+            let opening = &shown.balances[0];
+            assert_eq!(opening.which, "opening");
+            assert_eq!(opening.date, "2026-10-30");
+            assert_eq!(
+                (opening.bank.exact.as_str(), opening.book.exact.as_str()),
+                ("5862,39 €", "5862,39 €")
+            );
+            assert!(opening.matches, "{opening:?}");
+            // "Check against my bank" compares at the end of the day, so it
+            // gets the bank's figure after that day's entry of 63,18 €.
+            assert_eq!(opening.check_amount, "5799,21 €");
+            assert_eq!(opening.check_date, "2026-10-30");
+            let closing = &shown.balances[1];
+            assert_eq!(closing.which, "closing");
+            assert_eq!(closing.book.exact, "6725,71 €");
+            assert!(closing.matches);
+            assert_eq!(closing.check_amount, "6725,71 €");
+        }
     }
 }

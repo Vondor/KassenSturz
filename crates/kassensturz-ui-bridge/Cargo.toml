@@ -39,6 +39,11 @@ debug-log = [
     "kassensturz-ai-chat?/debug-log",
     "kassensturz-ai-tools?/debug-log",
 ]
+# The setup wizard offers to connect to a bank (M7a.9, Q-398). Off by
+# default, and in every official build, until the maintainer has tested the
+# bank flow in the finished app and signed it off; bank connections stay
+# reachable from Settings either way.
+wizard-bank = []
 
 [dependencies]
 cxx.workspace = true

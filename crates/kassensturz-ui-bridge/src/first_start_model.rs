@@ -43,6 +43,9 @@ pub mod qobject {
         #[qproperty(bool, has_account, cxx_name = "hasAccount", READ, NOTIFY)]
         #[qproperty(bool, needs_currency, cxx_name = "needsCurrency", READ, NOTIFY)]
         #[qproperty(QStringList, currencies, READ, NOTIFY)]
+        // Whether this build lets the wizard offer a bank connection
+        // (the feature `wizard-bank`, Q-398).
+        #[qproperty(bool, bank_offered, cxx_name = "bankOffered", READ, CONSTANT)]
         type FirstStart = super::FirstStartRust;
     }
 
@@ -110,10 +113,12 @@ pub struct FirstStartRust {
     has_account: bool,
     needs_currency: bool,
     currencies: QStringList,
+    bank_offered: bool,
 }
 
 impl cxx_qt::Initialize for qobject::FirstStart {
-    fn initialize(self: Pin<&mut Self>) {
+    fn initialize(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().bank_offered = cfg!(feature = "wizard-bank");
         self.refresh();
     }
 }

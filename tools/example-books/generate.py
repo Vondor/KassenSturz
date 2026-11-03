@@ -9,9 +9,11 @@ KassenSturz imports like any other KMyMoney book, and for each of the four
 example books (these three and the older Space Colony book) one CSV and one
 CAMT.053 statement:
 
-* Suburban Family  (`suburban-family`): the everyday German household, the
-  suggested start. Girokonto, Sparkonto, Kreditkarte and Bargeld, the default
-  German categories, two years and monthly Umbuchungen.
+* Suburban Family  (`suburban-family`, Vorstadtfamilie): the suggested start.
+  A family of five in North Rhine-Westphalia: he a nurse at a public
+  hospital, she a teacher at a Gymnasium, both 40, three children.
+  Girokonto, Sparkonto, Kreditkarte and Bargeld, the default German
+  categories, two years and monthly Umbuchungen.
 * Flower Utopia    (`flower-utopia`): a small garden cooperative with a shared
   cash box. Its budgets and charts are added by the pipeline test
   `example_books`, which writes `flower-utopia.json`.
@@ -48,7 +50,30 @@ pence, kopecks), never a floating point number (AGENTS.md section 3.1 rule 1).
 Sources for the amounts (public figures consulted for plausibility, no data
 copied; the amounts here are made up inside these ranges):
 
-* Suburban Family: the Federal Statistical Office of Germany (Destatis),
+* Suburban Family: pay from the public tables, looked up through a web
+  search on 2026-11-03 (only the search-result text was read): TVöD-P (VKA),
+  P 8 step 5, 4,247.92 euros gross a month from 1 May 2026 (an increase of
+  2.8 percent; tarifvertrag-online.de, lohntastik.de, ordio.com, a German
+  hospital's pay-transparency sheet), about 2,740 euros net in tax class I;
+  NRW's A 13 step 8 at about 5,600 to 5,800 euros gross in 2026 plus the
+  family allowance for married civil servants with three children of about
+  1,400 to 2,400 euros, by rent level (Familienzuschlag, § 43 LBesG NRW;
+  besoldung tables on oeffentlicher-dienst-news.de and gew-nrw.de);
+  Kindergeld of 259 euros per child and month in 2026, 255 in 2025
+  (Bundesagentur für Arbeit, press release of 10 December 2025). The net
+  amounts in the book (about 6,150 euros for her in tax class III, about
+  2,500 euros plus shift supplements for him in tax class V, where tables
+  give about 2,410 euros at 4,500 and 2,630 at 5,000 euros gross) are
+  estimates inside these ranges, not a payroll calculation. Beihilfe in NRW
+  pays 70 percent for a civil servant with two or more children and 80
+  percent for each child, so she and the children have 30 and 20 percent
+  private insurance (beamtenprimus.com, beamten-starter.de). The all-day
+  care (OGS) fee is the top bracket of a typical NRW town statute (about 180
+  to 220 euros a month), lunch billed apart (about 65 euros on average,
+  Landtag NRW). Spending of couples with children: about 4,660 euros a
+  month in 2024, about 700 of them for food (Destatis, Laufende
+  Wirtschaftsrechnungen). For spending also: the Federal Statistical Office
+  of Germany (Destatis),
   "Einkommens- und Verbrauchsstichprobe" and "Konsumausgaben privater
   Haushalte" (about 14 percent of a household's spending goes to food and
   drink; a family of four spends roughly 600 to 800 euros a month on it);
@@ -554,7 +579,43 @@ def book_statement(book, name, account_id, account_is_iban, existing_index, new_
 
 # ======================================================== Suburban Family
 
+def in_effect(when, steps):
+    """The value of `steps` [(first month (y, m), value), ...] in force in
+    the month of `when`; the steps are oldest first."""
+    value = steps[0][1]
+    for (y, m), step in steps:
+        if (when.year, when.month) >= (y, m):
+            value = step
+    return value
+
+
+# Net pay per month in cents, by the month it changes (see the docstring).
+NURSE_NET = [((2024, 1), 238000), ((2025, 4), 244500), ((2026, 5), 251000)]
+TEACHER_NET = [((2024, 1), 589000), ((2025, 4), 603500), ((2026, 2), 614800)]
+KINDERGELD_PER_CHILD = [((2024, 1), 25000), ((2025, 1), 25500), ((2026, 1), 25900)]
+
+
 def suburban_family(reference):
+    """Familie Sommerfeld in a suburb of a city in North Rhine-Westphalia
+    (NRW): both 40, three children (14, 11 and 7).
+
+    * He is a nurse (Pflegefachmann) at the city's public hospital, paid under
+      TVöD-P, P 8 step 5: about 4,250 euros gross a month from May 2026, plus
+      shift allowances that change every month; tax class V, statutory health
+      insurance. About 2,600 euros net, paid on the last working day of the
+      month, plus the annual bonus (Jahressonderzahlung) in November.
+    * She teaches at a Gymnasium as a civil servant (Beamtin), A 13 step 8 of
+      NRW's pay table, with the family allowance for three children: about
+      7,300 euros gross; tax class III, no social insurance. About 6,000
+      euros net, paid at the start of the month. She and the children have
+      private health insurance for the part the state's aid (Beihilfe) does
+      not pay: doctors' bills are paid first and come back from the
+      Beihilfestelle and the insurer.
+    * Kindergeld for three children: 250 euros each in 2024, 255 in 2025,
+      259 in 2026.
+    * A terraced house bought with a mortgage, two cars, the eldest at the
+      Gymnasium, the youngest in the primary school's all-day care (OGS).
+    """
     months = earlier_months(reference)
     ry, rm = reference
     book = Book("suburban-family", "Suburban Family", "EUR", "Familie Sommerfeld", months,
@@ -570,133 +631,216 @@ def suburban_family(reference):
                "Erstattungen", "Sonstige Einnahmen"], INCOME)
     book.tree([
         ("Wohnen", ["Miete oder Hauskredit", "Strom und Heizung", "Wasser und Müll",
-                    "Internet und Telefon", "Haushaltswaren", "Reparaturen"]),
+                    "Internet und Telefon", "Haushaltswaren", "Reparaturen", "Grundsteuer"]),
         ("Essen", ["Lebensmittel", "Auswärts essen"]),
         ("Unterwegs", ["Bus und Bahn", "Auto", "Fahrrad"]),
         ("Gesundheit", ["Arzt und Apotheke", "Krankenversicherung"]),
         "Versicherungen", "Kleidung",
-        ("Kinder", ["Schule und Kinderbetreuung"]), "Haustiere",
+        ("Kinder", ["Schule und Kinderbetreuung", "Taschengeld", "Musik und Sport"]), "Haustiere",
         ("Freizeit", ["Hobbys und Sport", "Urlaub", "Abos und Streaming", "Bücher und Medien"]),
         "Bildung", "Geschenke und Spenden", "Gebühren", "Sonstige Ausgaben",
     ], EXPENSE)
 
-    employer_a, employer_b = "Gartenbau Nordhang GmbH", "Stadtbibliothek Sonnenau"
+    hospital = "Städtisches Klinikum Sonnenau"
+    state = "Besoldungsstelle des Landes"
     for name, category in {
-        employer_a: "Gehalt", employer_b: "Gehalt", "Kindergeldstelle Sonnenau": "Sozialleistungen",
-        "Wohnbau Sonnenau eG": "Miete oder Hauskredit", "Stadtwerke Sonnenau": "Strom und Heizung",
+        hospital: "Gehalt", state: "Gehalt", "Familienkasse": "Sozialleistungen",
+        "Beihilfestelle des Landes": "Erstattungen",
+        "Sternschnuppe Krankenversicherung": "Krankenversicherung",
+        "Sonnenauer Bank Baufinanzierung": "Miete oder Hauskredit",
+        "Stadtwerke Sonnenau": "Strom und Heizung", "Stadtkasse Sonnenau": "Grundsteuer",
         "Zweckverband Wasser Sonnenau": "Wasser und Müll",
         "Nordlicht Internet": "Internet und Telefon", "Funkstern Mobilfunk": "Internet und Telefon",
         "Drogerie Regenbogen": "Haushaltswaren", "Supermarkt Sonnental": "Lebensmittel",
+        "Discounter Pfennigfuchs": "Lebensmittel",
         "Bäckerei Kornblume": "Lebensmittel", "Hofgut Linde Wochenmarkt": "Lebensmittel",
         "Gasthaus Eichenhain": "Auswärts essen", "Eisdiele Zuckerhut": "Auswärts essen",
+        "Pizzeria Vesuvio Sonnenau": "Auswärts essen",
         "Verkehrsverbund Nordland": "Bus und Bahn", "Tankstelle Waldweg": "Auto",
         "Autohaus Kalkberg": "Auto", "Apotheke am Markt": "Arzt und Apotheke",
+        "Praxis Dr. Ahornblatt": "Arzt und Apotheke", "Zahnarztpraxis Lächelwerk": "Arzt und Apotheke",
         "Versicherung Sternschnuppe": "Versicherungen", "Modehaus Pfau": "Kleidung",
-        "Grundschule Sonnenau Förderverein": "Schule und Kinderbetreuung",
-        "Turnverein Sonnenau 1892": "Hobbys und Sport", "Ferienhof Seeblick": "Urlaub",
-        "Streamfabrik": "Abos und Streaming", "Zeitungsverlag Sonnenau": "Bücher und Medien",
+        "Schuhhaus Fersengeld": "Kleidung",
+        "Gymnasium am Lindenhof Förderverein": "Schule und Kinderbetreuung",
+        "Offene Ganztagsschule Sonnenau": "Schule und Kinderbetreuung",
+        "Musikschule Sonnenau": "Musik und Sport", "Turnverein Sonnenau 1892": "Musik und Sport",
+        "Ferienhof Seeblick": "Urlaub", "Streamfabrik": "Abos und Streaming",
+        "Beitragsservice Rundfunk": "Abos und Streaming",
+        "Zeitungsverlag Sonnenau": "Bücher und Medien",
         "Buchhandlung Lesezeichen": "Bücher und Medien", "Sonnenauer Bank": "Gebühren",
         "Blumen Lindenhof": "Geschenke und Spenden", "Tierarzt Dr. Weidenfeld": "Haustiere",
-        "Spielwaren Kreisel": "Geschenke und Spenden",
+        "Spielwaren Kreisel": "Geschenke und Spenden", "Zoohandlung Pfötchen": "Haustiere",
     }.items():
         book.payee(name, category)
 
-    rng_food, rng_day, rng_misc = s("food"), s("days"), s("misc")
+    rng_food, rng_day, rng_misc, rng_pay = s("food"), s("days"), s("misc"), s("pay")
     for index, (y, m) in enumerate(months):
         first = workday(day(y, m, 1))
-        # Pay and benefits
-        book.earn(workday(day(y, m, 1)), G, "Gehalt", 246840, "Gehalt", employer_a)
-        book.earn(workday(day(y, m, 2)), G, "Gehalt", 138675, "Gehalt", employer_b)
-        book.earn(workday(day(y, m, 3)), G, "Sozialleistungen", 51000, "Kindergeld", "Kindergeldstelle Sonnenau")
-        book.spend(first, G, "Miete oder Hauskredit", 118500, "Miete inkl. Nebenkosten", "Wohnbau Sonnenau eG")
-        book.spend(workday(day(y, m, 3)), G, "Strom und Heizung", 14800, "Abschlag Strom und Gas", "Stadtwerke Sonnenau")
-        book.spend(workday(day(y, m, 15)), G, "Wasser und Müll", 5800, "Abschlag Wasser und Müll", "Zweckverband Wasser Sonnenau")
+        # Pay and benefits: hers at the start of the month, his at its end.
+        # Civil servants are paid in advance: on the month's first working day.
+        payday = next_workday(day(y, m, 1))
+        book.earn(payday, G, "Gehalt", in_effect(payday, TEACHER_NET), "Bezüge", state)
+        book.earn(workday(day(y, m, 31)), G, "Gehalt",
+                  in_effect(first, NURSE_NET) + rng_pay.between(0, 18000),
+                  "Gehalt inkl. Schicht- und Zeitzuschläge", hospital)
+        book.earn(workday(day(y, m, 5)), G, "Sozialleistungen",
+                  3 * in_effect(first, KINDERGELD_PER_CHILD), "Kindergeld 3 Kinder", "Familienkasse")
+        # The house.
+        book.spend(workday(day(y, m, 30)), G, "Miete oder Hauskredit", 164000,
+                   "Rate Baufinanzierung", "Sonnenauer Bank Baufinanzierung")
+        book.spend(workday(day(y, m, 2)), G, "Strom und Heizung", 9800, "Abschlag Strom", "Stadtwerke Sonnenau")
+        book.spend(workday(day(y, m, 2)), G, "Strom und Heizung", 16500, "Abschlag Gas", "Stadtwerke Sonnenau")
+        book.spend(workday(day(y, m, 15)), G, "Wasser und Müll", 7200, "Abschlag Wasser und Abwasser",
+                   "Zweckverband Wasser Sonnenau")
+        if m in (2, 5, 8, 11):
+            book.spend(workday(day(y, m, 15)), G, "Grundsteuer", 14260, "Grundsteuer und Müllgebühr",
+                       "Stadtkasse Sonnenau")
         book.spend(workday(day(y, m, 5)), G, "Internet und Telefon", 4495, "Internet", "Nordlicht Internet")
-        book.spend(workday(day(y, m, 7)), G, "Internet und Telefon", 2999, "Handyvertrag", "Funkstern Mobilfunk")
-        book.spend(first, G, "Bus und Bahn", 6300, "Deutschlandticket", "Verkehrsverbund Nordland")
-        book.spend(workday(day(y, m, 4)), G, "Versicherungen", 7130, "Kfz-Versicherung", "Versicherung Sternschnuppe")
-        book.spend(workday(day(y, m, 4)), G, "Versicherungen", 1790, "Haftpflicht und Hausrat", "Versicherung Sternschnuppe")
-        book.spend(workday(day(y, m, 6)), G, "Schule und Kinderbetreuung", 4200, "Mittagsverpflegung Grundschule", "Grundschule Sonnenau Förderverein")
-        book.spend(workday(day(y, m, 6)), G, "Schule und Kinderbetreuung", 9500, "Hortbeitrag", "Grundschule Sonnenau Förderverein")
-        book.spend(workday(day(y, m, 10)), G, "Hobbys und Sport", 2250, "Mitgliedsbeitrag Turnen", "Turnverein Sonnenau 1892")
-        book.spend(workday(day(y, m, 28)), G, "Gebühren", 490, "Kontoführung", "Sonnenauer Bank")
-        book.earn(workday(day(y, m, 29)), S, "Zinsen", 940, "Zinsen Sparkonto", "Sonnenauer Bank")
-        book.move(workday(day(y, m, 8)), G, B, 5000, "Bargeld abgehoben")
-        book.move(workday(day(y, m, 26)), G, S, 60000, "Sparrate")
-        book.spend(day(y, m, 12), K, "Abos und Streaming", 1299, "Streaming", "Streamfabrik")
+        book.spend(workday(day(y, m, 7)), G, "Internet und Telefon", 6497, "Handyverträge Familie",
+                   "Funkstern Mobilfunk")
+        # Health and insurance: her and the children's private insurance for
+        # the part Beihilfe does not pay.
+        book.spend(workday(day(y, m, 1)), G, "Krankenversicherung", 34860,
+                   "Beitrag Krankenversicherung Mutter und 3 Kinder", "Sternschnuppe Krankenversicherung")
+        book.spend(workday(day(y, m, 4)), G, "Versicherungen", 13260, "Kfz-Versicherung 2 Autos",
+                   "Versicherung Sternschnuppe")
+        book.spend(workday(day(y, m, 4)), G, "Versicherungen", 2390, "Haftpflicht und Hausrat",
+                   "Versicherung Sternschnuppe")
+        book.spend(workday(day(y, m, 4)), G, "Versicherungen", 4800, "Risikolebensversicherung",
+                   "Versicherung Sternschnuppe")
+        # The children.
+        # The all-day care's fee in the town's top income bracket, and its
+        # lunch, which the provider bills on its own.
+        book.spend(workday(day(y, m, 6)), G, "Schule und Kinderbetreuung", 20500,
+                   "OGS-Elternbeitrag", "Stadtkasse Sonnenau")
+        book.spend(workday(day(y, m, 10)), G, "Schule und Kinderbetreuung", 6800,
+                   "Mittagessen OGS", "Offene Ganztagsschule Sonnenau")
+        book.spend(workday(day(y, m, 10)), G, "Musik und Sport", 6800, "Klavierunterricht",
+                   "Musikschule Sonnenau")
+        book.spend(workday(day(y, m, 10)), G, "Musik und Sport", 3900, "Vereinsbeiträge Kinder",
+                   "Turnverein Sonnenau 1892")
+        book.spend(day(y, m, 1), B, "Taschengeld", 9500, "Taschengeld für die drei Kinder", None)
+        # Savings, fees, subscriptions.
+        book.move(workday(day(y, m, 8)), G, B, 30000, "Bargeld abgehoben")
+        book.move(workday(day(y, m, 26)), G, S, 300000, "Sparrate")
+        book.spend(workday(day(y, m, 28)), G, "Gebühren", 690, "Kontoführung", "Sonnenauer Bank")
+        book.earn(workday(day(y, m, 29)), S, "Zinsen", 1500 + index * 180, "Zinsen Sparkonto",
+                  "Sonnenauer Bank")
+        book.spend(day(y, m, 12), K, "Abos und Streaming", 1799, "Streaming Familienabo", "Streamfabrik")
         book.spend(day(y, m, 12), K, "Gebühren", 290, "Kartenentgelt", "Sonnenauer Bank")
+        if m in (1, 4, 7, 10):
+            book.spend(workday(day(y, m, 15)), G, "Abos und Streaming", 5508, "Rundfunkbeitrag Quartal",
+                       "Beitragsservice Rundfunk")
+        # Doctors' bills she pays first; Beihilfe pays most of them back two
+        # to three weeks later, the insurer the rest.
+        if m in (1, 3, 5, 6, 9, 11):
+            bill = rng_misc.between(9500, 38000)
+            book.spend(day(y, m, 6), G, "Arzt und Apotheke", bill, "Arztrechnung", "Praxis Dr. Ahornblatt")
+            book.earn(workday(day(y, m, 24)), G, "Erstattungen", bill * 7 // 10, "Beihilfe zur Arztrechnung",
+                      "Beihilfestelle des Landes")
+            book.earn(workday(day(y, m, 27)), G, "Erstattungen", bill - bill * 7 // 10,
+                      "Erstattung Krankenversicherung", "Sternschnuppe Krankenversicherung")
         # What comes once a year, by the season.
         if m == 11:
-            book.earn(workday(day(y, m, 27)), G, "Gehalt", 123420, "Weihnachtsgeld", employer_a)
+            book.earn(workday(day(y, m, 30)), G, "Gehalt", 168000 + (index // 12) * 4200,
+                      "Jahressonderzahlung", hospital)
+            book.spend(day(y, m, 23), K, "Geschenke und Spenden", rng_misc.between(4000, 7500),
+                       "Adventskalender und Nikolaus", "Spielwaren Kreisel")
         if m == 12:
-            book.spend(day(y, m, 9), K, "Geschenke und Spenden", rng_misc.between(16000, 24000),
+            book.spend(day(y, m, 9), K, "Geschenke und Spenden", rng_misc.between(42000, 61000),
                        "Weihnachtsgeschenke Kinder", "Spielwaren Kreisel")
-            book.spend(day(y, m, 14), B, "Sonstige Ausgaben", 3900, "Weihnachtsbaum", None)
-            book.spend(day(y, m, 18), G, "Geschenke und Spenden", 5000, "Spende Tafel Sonnenau", None)
+            book.spend(day(y, m, 14), B, "Sonstige Ausgaben", 4900, "Weihnachtsbaum", None)
+            book.spend(day(y, m, 18), G, "Geschenke und Spenden", 10000, "Spende Tafel Sonnenau", None)
+            book.spend(day(y, m, 22), G, "Lebensmittel", rng_food.between(18000, 26000),
+                       "Weihnachtseinkauf", "Supermarkt Sonnental")
         if m == 1:
+            book.spend(workday(day(y, m, 15)), G, "Versicherungen", 46800, "Wohngebäudeversicherung Jahresbeitrag",
+                       "Versicherung Sternschnuppe")
             book.spend(day(y, m, 17), G, "Haushaltswaren", rng_misc.between(4500, 9800),
                        "Winterschlussverkauf Bettwäsche", None)
+        if m == 2:
+            book.spend(day(y, m, 11), G, "Auto", 32000, "Kfz-Steuer beide Autos", None)
+            book.spend(day(y, m, 20), K, "Kleidung", rng_misc.between(4900, 9800), "Karnevalskostüme", None)
         if m == 3:
             book.earn(workday(day(y, m, 20)), G, "Erstattungen", rng_misc.between(9000, 21000),
-                      "Nebenkostenabrechnung Guthaben", "Wohnbau Sonnenau eG")
+                      "Gutschrift Jahresabrechnung Strom", "Stadtwerke Sonnenau")
+            book.spend(day(y, m, 26), G, "Schule und Kinderbetreuung", rng_misc.between(28000, 39000),
+                       "Klassenfahrt", "Gymnasium am Lindenhof Förderverein")
         if m == 4:
-            book.spend(day(y, m, 14), G, "Arzt und Apotheke", 4500, "Zahnarzt Zuzahlung", None)
-            book.spend(day(y, m, 21), G, "Fahrrad", rng_misc.between(6500, 14500),
-                       "Fahrradinspektion", None)
+            book.spend(day(y, m, 14), G, "Arzt und Apotheke", rng_misc.between(9000, 16000),
+                       "Kieferorthopädie Eigenanteil", "Zahnarztpraxis Lächelwerk")
+            book.spend(day(y, m, 21), G, "Fahrrad", rng_misc.between(6500, 14500), "Fahrradinspektion", None)
+            book.spend(day(y, m, 24), K, "Kleidung", rng_misc.between(8000, 16000), "Frühjahrsschuhe Kinder",
+                       "Schuhhaus Fersengeld")
         if m == 5:
-            book.spend(day(y, m, 2), G, "Urlaub", 64000, "Anzahlung Ferienwohnung", "Ferienhof Seeblick")
-            book.spend(day(y, m, 9), B, "Geschenke und Spenden", 1250, "Blumen zum Muttertag", "Blumen Lindenhof")
+            book.spend(day(y, m, 2), G, "Urlaub", 95000, "Anzahlung Ferienhaus Nordsee", "Ferienhof Seeblick")
+            book.spend(day(y, m, 9), B, "Geschenke und Spenden", 2450, "Blumen zum Muttertag", "Blumen Lindenhof")
         if m == 6:
-            book.spend(day(y, m, 21), G, "Geschenke und Spenden", 3500, "Geburtstagsgeschenk", None)
+            book.spend(day(y, m, 21), G, "Geschenke und Spenden", 6000, "Geburtstagsgeschenk", None)
+            book.spend(day(y, m, 13), G, "Reparaturen", rng_misc.between(18000, 42000), "Dachrinne und Fallrohr",
+                       None)
         if m == 7:
-            book.spend(day(y, m, 3), G, "Urlaub", 96000, "Restzahlung Ferienwohnung", "Ferienhof Seeblick")
+            book.spend(day(y, m, 3), G, "Urlaub", 142000, "Restzahlung Ferienhaus Nordsee", "Ferienhof Seeblick")
+            book.spend(day(y, m, 20), K, "Urlaub", rng_misc.between(28000, 41000), "Ausflüge und Essen im Urlaub",
+                       None)
         if m == 8:
-            book.spend(day(y, m, 20), K, "Urlaub", 11850, "Fähre Ostsee", None)
-            book.spend(day(y, m, 22), K, "Urlaub", rng_misc.between(9000, 16000), "Ausflüge im Urlaub", None)
-            book.spend(day(y, m, 9), G, "Hobbys und Sport", 3600, "Schwimmkurs Kinder", "Turnverein Sonnenau 1892")
+            book.spend(day(y, m, 9), G, "Musik und Sport", 4800, "Schwimmkurs Jüngste", "Turnverein Sonnenau 1892")
+            book.spend(day(y, m, 14), G, "Auto", rng_misc.between(24000, 52000), "Inspektion und Reifen",
+                       "Autohaus Kalkberg")
         if m == 9:
-            book.spend(day(y, m, 8), K, "Kleidung", rng_misc.between(3800, 5200), "Schulkleidung", "Modehaus Pfau")
-            book.spend(day(y, m, 10), G, "Schule und Kinderbetreuung", 3520, "Schulbedarf Schuljahresbeginn", None)
-            book.spend(day(y, m, 17), G, "Auto", 18640, "Inspektion", "Autohaus Kalkberg")
+            book.spend(day(y, m, 2), K, "Kleidung", rng_misc.between(9000, 16000), "Schulkleidung", "Modehaus Pfau")
+            book.spend(day(y, m, 3), G, "Schule und Kinderbetreuung", rng_misc.between(14000, 22000),
+                       "Schulbücher Eigenanteil und Hefte", "Buchhandlung Lesezeichen")
             book.spend(day(y, m, 24), G, "Bücher und Medien", 3890, "Zeitungsabo", "Zeitungsverlag Sonnenau")
+            book.spend(day(y, m, 12), G, "Geschenke und Spenden", 6000, "Geburtstagsgeschenk", None)
         if m == 10:
-            book.spend(day(y, m, 9), K, "Kleidung", rng_misc.between(5500, 8900), "Winterjacke Kind", "Modehaus Pfau")
-            book.spend(day(y, m, 14), G, "Arzt und Apotheke", 4500, "Zahnarzt Zuzahlung", None)
-            book.spend(day(y, m, 6), G, "Haustiere", 5240, "Tierarzt Impfung", "Tierarzt Dr. Weidenfeld")
+            book.spend(day(y, m, 9), K, "Kleidung", rng_misc.between(15500, 24900), "Winterjacken Kinder",
+                       "Modehaus Pfau")
+            book.spend(day(y, m, 14), G, "Arzt und Apotheke", 4500, "Zahnarzt Zuzahlung", "Zahnarztpraxis Lächelwerk")
+            book.spend(day(y, m, 6), G, "Haustiere", 6840, "Tierarzt Impfung Katze", "Tierarzt Dr. Weidenfeld")
             book.spend(day(y, m, 22), K, "Bücher und Medien", 2495, "Kinderbuch", "Buchhandlung Lesezeichen")
-            book.spend(day(y, m, 16), B, "Geschenke und Spenden", 1250, "Blumen", "Blumen Lindenhof")
-            book.spend(day(y, m, 21), G, "Geschenke und Spenden", 3500, "Geburtstagsgeschenk", None)
+            book.spend(day(y, m, 21), G, "Geschenke und Spenden", 6000, "Geburtstagsgeschenk", None)
+        if m == 3 or m == 12:
+            book.spend(day(y, m, 19), G, "Geschenke und Spenden", 5000, "Geburtstagsgeschenk", None)
         if index == len(months) - 1:
             book.spend(day(y, m, 19), G, "Reparaturen", 7490, "Wasserhahn Küche", None)
-        # Food and household: the biggest part of daily life.
-        for number in range(rng_food.between(6, 7)):
-            when = workday(day(y, m, 2 + number * 4 + rng_day.between(0, 2)))
-            book.spend(when, G, "Lebensmittel", rng_food.between(2860, 11840),
+        if index == 8:
+            book.spend(day(y, m, 11), G, "Haushaltswaren", 64900, "Neue Waschmaschine", None)
+        # Food and household for five: the biggest part of daily life.
+        for number in range(rng_food.between(5, 6)):
+            when = workday(day(y, m, 2 + number * 5 + rng_day.between(0, 2)))
+            book.spend(when, G, "Lebensmittel", rng_food.between(8800, 16800),
                        "Wocheneinkauf", "Supermarkt Sonnental")
-        for number in range(rng_food.between(3, 4)):
-            when = day(y, m, 3 + number * 8 + rng_day.between(0, 3))
-            book.spend(when, B, "Lebensmittel", rng_food.between(620, 1580), "Brötchen", "Bäckerei Kornblume")
-        for number in range(2):
-            book.spend(workday(day(y, m, 9 + number * 14)), G, "Lebensmittel",
-                       rng_food.between(1840, 4220), "Obst und Gemüse", "Hofgut Linde Wochenmarkt")
         for number in range(4):
-            who = ["Gasthaus Eichenhain", "Eisdiele Zuckerhut", "Gasthaus Eichenhain", "Eisdiele Zuckerhut"][number]
-            book.spend(workday(day(y, m, 5 + number * 7 + rng_day.between(0, 3))),
-                       K if number == 0 else G, "Auswärts essen", rng_food.between(1250, 6840),
-                       "Essen gehen" if number != 1 else "Eis", who)
-        for number in range(3):
-            book.spend(workday(day(y, m, 8 + number * 9)), G, "Haushaltswaren",
-                       rng_misc.between(1450, 6880), "Drogerie", "Drogerie Regenbogen")
-        book.spend(day(y, m, 14), K, "Kleidung", rng_misc.between(6500, 19800),
-                   "Kleidung Kinder und Erwachsene", "Modehaus Pfau")
-        book.spend(workday(day(y, m, 16)), G, "Hobbys und Sport", rng_misc.between(4500, 11000),
-                   "Ausflug mit den Kindern", None)
-        book.spend(workday(day(y, m, 25)), G, "Sonstige Ausgaben", rng_misc.between(2500, 9000),
-                   "Sonstiges", None)
+            when = workday(day(y, m, 4 + number * 7 + rng_day.between(0, 2)))
+            book.spend(when, K, "Lebensmittel", rng_food.between(3500, 8900),
+                       "Einkauf", "Discounter Pfennigfuchs")
+        for number in range(rng_food.between(4, 5)):
+            when = day(y, m, 3 + number * 6 + rng_day.between(0, 3))
+            book.spend(when, B, "Lebensmittel", rng_food.between(980, 2280), "Brötchen", "Bäckerei Kornblume")
         for number in range(2):
-            book.spend(workday(day(y, m, 11 + number * 12)), G, "Auto",
-                       rng_misc.between(5260, 7810), "Tanken", "Tankstelle Waldweg")
-        book.spend(workday(day(y, m, 18)), G, "Arzt und Apotheke", rng_misc.between(845, 2490),
+            book.spend(workday(day(y, m, 9 + number * 14)), B, "Lebensmittel",
+                       rng_food.between(2840, 5220), "Obst und Gemüse", "Hofgut Linde Wochenmarkt")
+        for number in range(3):
+            who = ["Pizzeria Vesuvio Sonnenau", "Eisdiele Zuckerhut", "Gasthaus Eichenhain"][number]
+            book.spend(workday(day(y, m, 5 + number * 8 + rng_day.between(0, 3))),
+                       K if number != 1 else B, "Auswärts essen", rng_food.between(2850, 9840),
+                       ["Pizza für alle", "Eis", "Essen gehen"][number], who)
+        for number in range(3):
+            book.spend(workday(day(y, m, 8 + number * 9)), K, "Haushaltswaren",
+                       rng_misc.between(2450, 7880), "Drogerie", "Drogerie Regenbogen")
+        book.spend(day(y, m, 14), K, "Kleidung", rng_misc.between(8500, 24800),
+                   "Kleidung Kinder und Erwachsene", "Modehaus Pfau")
+        book.spend(day(y, m, 18), K, "Haustiere", rng_misc.between(2400, 3900), "Katzenfutter und Streu",
+                   "Zoohandlung Pfötchen")
+        book.spend(workday(day(y, m, 16)), K, "Hobbys und Sport", rng_misc.between(4500, 14000),
+                   "Ausflug mit den Kindern", None)
+        book.spend(workday(day(y, m, 25)), G, "Sonstige Ausgaben", rng_misc.between(2500, 12000),
+                   "Sonstiges", None)
+        for number in range(4):
+            book.spend(workday(day(y, m, 4 + number * 7)), K, "Auto",
+                       rng_misc.between(5260, 8810), "Tanken", "Tankstelle Waldweg")
+        book.spend(workday(day(y, m, 18)), B, "Arzt und Apotheke", rng_misc.between(845, 3490),
                    "Apotheke", "Apotheke am Markt")
     # The running month (the reference month): paid by card and in cash only,
     # because the Girokonto's lines of this month come from the statement.
@@ -704,21 +848,26 @@ def suburban_family(reference):
     # (D-584), so the first day always has something.
     rng_now = s("reference-month")
     for offset, account, category, memo, who, low, high in [
-        (1, B, "Lebensmittel", "Brötchen", "Bäckerei Kornblume", 620, 1580),
-        (1, K, "Lebensmittel", "Einkauf", "Supermarkt Sonnental", 2860, 6840),
-        (2, K, "Auto", "Tanken", "Tankstelle Waldweg", 5260, 7810),
-        (4, B, "Lebensmittel", "Brötchen", "Bäckerei Kornblume", 620, 1580),
-        (6, K, "Auswärts essen", "Essen gehen", "Gasthaus Eichenhain", 2450, 6840),
-        (8, K, "Haushaltswaren", "Drogerie", "Drogerie Regenbogen", 1450, 4880),
-        (10, B, "Lebensmittel", "Obst und Gemüse", "Hofgut Linde Wochenmarkt", 1840, 4220),
-        (12, K, "Abos und Streaming", "Streaming", "Streamfabrik", 1299, 1299),
+        (1, B, "Taschengeld", "Taschengeld für die drei Kinder", None, 9500, 9500),
+        (1, B, "Lebensmittel", "Brötchen", "Bäckerei Kornblume", 980, 2280),
+        (1, K, "Lebensmittel", "Einkauf", "Discounter Pfennigfuchs", 3500, 8900),
+        (2, K, "Auto", "Tanken", "Tankstelle Waldweg", 5260, 8810),
+        (4, B, "Lebensmittel", "Brötchen", "Bäckerei Kornblume", 980, 2280),
+        (5, K, "Auswärts essen", "Pizza für alle", "Pizzeria Vesuvio Sonnenau", 3850, 7840),
+        (8, K, "Haushaltswaren", "Drogerie", "Drogerie Regenbogen", 2450, 6880),
+        (9, K, "Lebensmittel", "Einkauf", "Discounter Pfennigfuchs", 3500, 8900),
+        (10, B, "Lebensmittel", "Obst und Gemüse", "Hofgut Linde Wochenmarkt", 2840, 5220),
+        (11, K, "Auto", "Tanken", "Tankstelle Waldweg", 5260, 8810),
+        (12, K, "Abos und Streaming", "Streaming Familienabo", "Streamfabrik", 1799, 1799),
         (12, K, "Gebühren", "Kartenentgelt", "Sonnenauer Bank", 290, 290),
-        (14, K, "Kleidung", "Kleidung Kinder und Erwachsene", "Modehaus Pfau", 6500, 14800),
-        (17, B, "Lebensmittel", "Brötchen", "Bäckerei Kornblume", 620, 1580),
-        (19, K, "Lebensmittel", "Einkauf", "Supermarkt Sonnental", 2860, 9840),
-        (23, K, "Auto", "Tanken", "Tankstelle Waldweg", 5260, 7810),
-        (25, B, "Auswärts essen", "Eis", "Eisdiele Zuckerhut", 850, 1650),
-        (28, K, "Lebensmittel", "Einkauf", "Supermarkt Sonnental", 2860, 9840),
+        (14, K, "Kleidung", "Kleidung Kinder und Erwachsene", "Modehaus Pfau", 8500, 19800),
+        (16, K, "Lebensmittel", "Einkauf", "Discounter Pfennigfuchs", 3500, 8900),
+        (17, B, "Lebensmittel", "Brötchen", "Bäckerei Kornblume", 980, 2280),
+        (18, K, "Haustiere", "Katzenfutter und Streu", "Zoohandlung Pfötchen", 2400, 3900),
+        (20, K, "Auto", "Tanken", "Tankstelle Waldweg", 5260, 8810),
+        (23, K, "Lebensmittel", "Einkauf", "Discounter Pfennigfuchs", 3500, 8900),
+        (25, B, "Auswärts essen", "Eis", "Eisdiele Zuckerhut", 1450, 2650),
+        (28, K, "Auto", "Tanken", "Tankstelle Waldweg", 5260, 8810),
     ]:
         book.spend(day(ry, rm, offset), account, category, rng_now.between(low, high), memo, who)
     # The credit card is paid off from the Girokonto early each month: the
@@ -728,21 +877,24 @@ def suburban_family(reference):
         owed = -sum(sh for tx in book.tx if tx["date"] < pay_day
                     for n, _, sh in tx["parts"] if n == K) + (31240 if index == 0 else 0)
         book.move(pay_day, G, K, owed, "Kreditkarte beglichen")
-    # The last line of the Girokonto is the one the statement repeats.
-    book.spend(day(*months[-1], 30), G, "Lebensmittel", 6318, "Wocheneinkauf", "Supermarkt Sonnental")
-    opening(book, {G: 325000, S: 960000, B: 14000, K: -31240})
+    # The last line of the Girokonto is the one the statement repeats: on the
+    # day of the last month's last Girokonto line, added last.
+    last_day = max(tx["date"] for tx in book.tx
+                   if any(p[0] == G for p in tx["parts"]) and tx["date"] <= book.last)
+    book.spend(last_day, G, "Lebensmittel", 16318, "Wocheneinkauf", "Supermarkt Sonnental")
+    opening(book, {G: 425000, S: 1860000, B: 14000, K: -31240})
     book.finish()
     totals, _ = book.totals()
     assert totals[G] > 0 and totals[B] >= 0, totals
     new = [
-        (2, "Gartenbau Nordhang GmbH", "Gehalt", 246840),
-        (2, "Wohnbau Sonnenau eG", "Miete inkl. Nebenkosten", -118500),
-        (2, "Verkehrsverbund Nordland", "Deutschlandticket", -6300),
-        (3, "Supermarkt Sonnental", "Wocheneinkauf", -9275),
-        (4, "Versicherung Sternschnuppe", "Kfz-Versicherung", -7130),
-        (4, "Nordlicht Internet", "Internet", -4495),
-        (5, "Tankstelle Waldweg", "Tanken", -6104),
-        (6, "Hofgut Linde Wochenmarkt", "Obst und Gemüse", -2386),
+        (2, state, "Bezüge", in_effect(date(ry, rm, 1), TEACHER_NET)),
+        (2, "Sternschnuppe Krankenversicherung", "Beitrag Krankenversicherung Mutter und 3 Kinder", -34860),
+        (3, "Stadtwerke Sonnenau", "Abschlag Gas", -16500),
+        (3, "Supermarkt Sonnental", "Wocheneinkauf", -14275),
+        (4, "Versicherung Sternschnuppe", "Kfz-Versicherung 2 Autos", -13260),
+        (5, "Familienkasse", "Kindergeld 3 Kinder", 3 * in_effect(date(ry, rm, 1), KINDERGELD_PER_CHILD)),
+        (5, "Nordlicht Internet", "Internet", -4495),
+        (6, "Stadtkasse Sonnenau", "OGS-Elternbeitrag", -20500),
     ]
     files = book_statement(book, G, IBAN_DE, True, 1, new, reference)
     return book, files

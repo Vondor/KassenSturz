@@ -6,8 +6,8 @@ Referenzmonat: 2026-11 (der letzte Monat ist Oktober 2026). Das Buch reicht etwa
 
 ## Karte 4: Übersicht
 
-- Ausgaben für „Essen“ im Oktober 2026: **795,43 EUR**
-- Eingenommen im Oktober 2026: 4.374,55 EUR; ausgegeben: 3.412,23 EUR; Unterschied: 962,32 EUR
+- Ausgaben für „Essen“ im Oktober 2026: **1.352,35 EUR**
+- Eingenommen im Oktober 2026: 9.586,40 EUR; ausgegeben: 5.833,62 EUR; Unterschied: 3.752,78 EUR
 - Ist mehr hereingekommen als hinausgegangen? **Ja**
 
 ## Karte 5: Kontoauszug einlesen (Konto „Girokonto“)
@@ -16,7 +16,7 @@ Beide Dateien liegen in `crates/kassensturz-import/tests/books/examples/statemen
 
 | Datei | Zeilen | neu | schon im Buch (doppelt) | sieht gleich aus (Sie entscheiden) | Schlusssaldo laut Bank | Kontostand nach dem Einlesen |
 |---|---|---|---|---|---|---|
-| `suburban-family.camt053.xml` | 9 | 8 | 1 | 0 | 17.925,47 EUR | 17.925,47 EUR |
+| `suburban-family.camt053.xml` | 9 | 8 | 1 | 0 | 27.037,90 EUR | 27.037,90 EUR |
 | `suburban-family.csv` | 9 | 8 | 0 | 1 | (eine CSV-Datei hat keinen) | – |
 
 Eine CAMT-Datei trägt für jede Zeile die Nummer der Bank; deshalb erkennt KassenSturz die vorhandene Zeile sicher als doppelt. Eine CSV-Datei hat keine solche Nummer; die vorhandene Zeile hat denselben Betrag und fast dasselbe Datum wie eine Buchung im Buch und wird deshalb nur als „sieht gleich aus“ gezeigt, und Sie entscheiden, ob sie trotzdem eingelesen wird. Die übrigen 8 Zeilen sind neu. Liest man zuerst die CAMT-Datei und danach die CSV-Datei, sieht KassenSturz alle Zeilen schon im Buch.

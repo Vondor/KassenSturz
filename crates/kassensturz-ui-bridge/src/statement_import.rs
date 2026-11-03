@@ -1760,18 +1760,18 @@ mod tests {
             assert_eq!(opening.date, "2026-10-30");
             assert_eq!(
                 (opening.bank.exact.as_str(), opening.book.exact.as_str()),
-                ("17062,15 €", "17062,15 €")
+                ("21314,98 €", "21314,98 €")
             );
             assert!(opening.matches, "{opening:?}");
             // "Check against my bank" compares at the end of the day, so it
-            // gets the bank's figure after that day's entry of 63,18 €.
-            assert_eq!(opening.check_amount, "16998,97 €");
+            // gets the bank's figure after that day's entry of 163,18 €.
+            assert_eq!(opening.check_amount, "21151,80 €");
             assert_eq!(opening.check_date, "2026-10-30");
             let closing = &shown.balances[1];
             assert_eq!(closing.which, "closing");
-            assert_eq!(closing.book.exact, "17925,47 €");
+            assert_eq!(closing.book.exact, "27037,90 €");
             assert!(closing.matches);
-            assert_eq!(closing.check_amount, "17925,47 €");
+            assert_eq!(closing.check_amount, "27037,90 €");
         }
     }
 }

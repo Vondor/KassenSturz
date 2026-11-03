@@ -135,7 +135,7 @@ Hier steht, **woran die Testleitung erkennt, ob eine Karte geschafft ist**. Pro 
 
 **Lösungsblätter (nur für die Testleitung, nie dem Tester zeigen):** Zu jedem Beispielbuch gibt es ein Lösungsblatt, das das Team aus dem echten Import- und Berichtscode erzeugt, nie von Hand (Schritt M7a.8): für Karte 4 die Lebensmittel-Summe des Vormonats und ob mehr rein- oder rausging, für Karte 5 die Anzahl der Zeilen, der neuen und der doppelten Buchungen und den Endsaldo. Die Pfade stehen in [README.md](README.md); das Lösungsblatt für Karte 4 und 5 ist je Buch eine Datei.
 
-**Hinweis zu Karte 5 mit der Vorstadtfamilie:** Liegt der Tag, an dem der Tester testet, vor dem 6. November 2026, zeigt das Konto „Girokonto“ nach dem Einlesen der CAMT-Datei „Darin Buchungen nach heute: −201,15 €“. Das ist gewollt: Ein Teil der Zeilen der Datei trägt ein Datum, das für den Rechner des Testers noch in der Zukunft liegt. Sagen Sie dem Tester dazu nichts vorab; fragt er danach, gilt die neutrale Rückfrage („Was würden Sie vermuten?“). Der Schlusssaldo laut Datei bleibt trotzdem der Vergleichswert. Ab dem 6. November 2026 erscheint der Hinweis nicht mehr.
+**Hinweis zu Karte 5 mit der Vorstadtfamilie:** Liegt der Tag, an dem der Tester testet, vor dem 6. November 2026, zeigt das Konto „Girokonto“ nach dem Einlesen der CAMT-Datei „Darin Buchungen nach heute: 394,45 €“. Das ist gewollt: Ein Teil der Zeilen der Datei trägt ein Datum, das für den Rechner des Testers noch in der Zukunft liegt. Sagen Sie dem Tester dazu nichts vorab; fragt er danach, gilt die neutrale Rückfrage („Was würden Sie vermuten?“). Der Schlusssaldo laut Datei bleibt trotzdem der Vergleichswert. Ab dem 6. November 2026 erscheint der Hinweis nicht mehr.
 
 ### Wann ist die Runde bestanden?
 

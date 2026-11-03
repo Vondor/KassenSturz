@@ -224,7 +224,7 @@ FormCard.FormCardPage {
         FormCard.FormButtonDelegate {
             icon.name: "folder-open"
             text: page.i18nContext.i18nc("@action:button", "Try an example book…")
-            description: page.i18nContext.i18nc("@info", "Look around in a made-up household. A book that already has something in it is never changed.")
+            description: page.i18nContext.i18nc("@info", "Look around in a made-up household. KassenSturz makes a new book for it, so your own books are never changed.")
             onClicked: {
                 ActionLog.taken("SettingsPage_tryExampleBook")
                 page.exampleBookClicked()

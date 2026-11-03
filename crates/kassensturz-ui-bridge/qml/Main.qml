@@ -209,7 +209,6 @@ Kirigami.ApplicationWindow {
     ExampleBooks {
         id: exampleBooksState
 
-        onChanged: root.showBook()
         onCreated: {
             bookSession.adoptOpenBook();
             root.showBook();

@@ -6,17 +6,15 @@
 //!
 //! The bundled files are KMyMoney SQLite books, made from synthetic data
 //! only, and are read through the importer like any other file (D-101). A
-//! pick never opens a bundled file: it fills the open book if that is still
-//! empty (the way a book started from a file is filled, M3.12), and otherwise
-//! makes a new, clearly named book in the data folder, so a book with data is
-//! never added to and the originals stay as they are.
+//! pick never opens a bundled file and never touches a book that is open: it
+//! always makes a new, clearly named book in the data folder, so the user's
+//! own book stays as it is and the originals stay as they are (D-571).
 //! Names and descriptions are written in QML, where
 //! KI18n finds them (D-034); this file knows only the ids.
 
 use std::collections::HashMap;
 
 use kassensturz_pipeline::RuleScope;
-use kassensturz_store::Book;
 
 use crate::book_from_file::{self, Created, FromFileError};
 use crate::books::{Books, Filled, OpenBook, ProblemText};
@@ -66,25 +64,6 @@ fn prepare(id: &str, stem: &str) -> Result<book_from_file::Prepared, ExampleErro
         .find(|example| example.id == id)
         .ok_or(ExampleError::Unknown)?;
     book_from_file::read_bundled_kmy_sqlite(stem, example.bytes).map_err(ExampleError::Fill)
-}
-
-/// Fills `book`, which must be empty, with the example `id`, the way a book
-/// started from a file is filled in place (M3.12). If the book refuses, it
-/// stays empty. A book with something in it is refused, never added to.
-pub fn fill_empty(
-    book: &mut Book,
-    id: &str,
-    locale: &impl Locale,
-) -> Result<Created, ExampleError> {
-    let prepared = prepare(id, id)?;
-    book_from_file::fill(
-        book,
-        &prepared,
-        &HashMap::new(),
-        RuleScope::default(),
-        locale,
-    )
-    .map_err(ExampleError::Fill)
 }
 
 /// Makes a new book called `name` in the data folder from the example
@@ -179,22 +158,6 @@ mod tests {
             folder.join("data/Example – Space Colony (2).ksz")
         );
         assert_eq!(before.as_slice(), all()[0].bytes);
-    }
-
-    #[test]
-    fn an_empty_book_is_filled_in_place_and_a_full_one_is_refused() {
-        let mut book = Book::create_in_memory().expect("a book");
-        let created = fill_empty(&mut book, "space-colony", &TestLocale).expect("filled");
-        assert!(created.transactions > 100);
-        assert!(!book.is_empty().expect("asked"));
-        let again = fill_empty(&mut book, "space-colony", &TestLocale);
-        assert!(again.is_err());
-        let mut other = Book::create_in_memory().expect("a book");
-        assert!(matches!(
-            fill_empty(&mut other, "no-such-book", &TestLocale),
-            Err(ExampleError::Unknown)
-        ));
-        assert!(other.is_empty().expect("asked"));
     }
 
     #[test]

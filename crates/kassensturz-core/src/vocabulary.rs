@@ -85,6 +85,7 @@ pub const DETAILS: &[&str] = &[
     "CategoryPage",
     "CsvSettingsPage",
     "DashboardFilePage",
+    "ExampleBooksPage",
     "ExportPage",
     "HistoryPage",
     "ImportDonePage",

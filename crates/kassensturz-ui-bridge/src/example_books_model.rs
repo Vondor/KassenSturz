@@ -9,7 +9,6 @@ use core::pin::Pin;
 
 use cxx_qt_lib::{QString, QVariant};
 
-use crate::book_from_file::FromFileError;
 use crate::book_from_file_model::{fail, problem_object};
 use crate::books::Books;
 use crate::errors::ErrorText;
@@ -42,12 +41,11 @@ pub mod qobject {
         #[qinvokable]
         fn books(self: &ExampleBooks) -> QVariant;
 
-        /// Fills the open book with the example `id` if nothing is in it yet
-        /// (`changed` follows); otherwise makes a new book called `name`
-        /// from it and opens it (`created` follows), so a book with data is
-        /// never added to. The bundled book is never opened itself. An error
-        /// object says why it didn't work, and nothing was made; otherwise
-        /// the object is empty.
+        /// Makes a new book called `name` from the example `id` and opens
+        /// it (`created` follows). Any book that is open is left as it is,
+        /// and the bundled book is never opened itself. An error object says
+        /// why it didn't work, and nothing was made; otherwise the object is
+        /// empty.
         #[qinvokable]
         fn make(self: Pin<&mut ExampleBooks>, id: &QString, name: &QString) -> QVariant;
     }
@@ -57,10 +55,6 @@ pub mod qobject {
         #[qsignal]
         fn created(self: Pin<&mut ExampleBooks>);
 
-        /// The open book was empty and is filled: every screen reads it
-        /// again.
-        #[qsignal]
-        fn changed(self: Pin<&mut ExampleBooks>);
     }
 }
 
@@ -76,19 +70,6 @@ impl qobject::ExampleBooks {
 
     fn make(self: Pin<&mut Self>, id: &QString, name: &QString) -> QVariant {
         let locale = app_locale();
-        if session::with_book(|book| book.is_empty().unwrap_or(false)).unwrap_or(false) {
-            let id = id.to_string();
-            let filled =
-                session::with_book_mut(|book| example_books::fill_empty(book, &id, &locale))
-                    .unwrap_or(Err(ExampleError::Fill(FromFileError::NoSuchEntry)));
-            return match filled {
-                Ok(_) => {
-                    self.changed();
-                    map([])
-                }
-                Err(error) => failure(&error),
-            };
-        }
         match example_books::create(
             &Books::for_user(),
             &id.to_string(),
@@ -130,6 +111,7 @@ fn failure(error: &ExampleError) -> QVariant {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::book_from_file::FromFileError;
     use crate::variant::read_back::{elements, flag_of, keys, text_of};
 
     #[test]

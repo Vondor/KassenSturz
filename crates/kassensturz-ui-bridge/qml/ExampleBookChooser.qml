@@ -3,15 +3,15 @@
 
 // Lets a person try KassenSturz with a made-up household (M7a.2). One row
 // for each example book that comes with the app, each with a one-line
-// description; the suggested start is marked. A pick fills the open book if
-// it is still empty, otherwise it makes a new, clearly named book, so a book
-// with data is never added to and the bundled original stays as it is. The
+// description; the suggested start is marked. A pick always makes a new,
+// clearly named book, so the user's own book is never touched and the
+// bundled original stays as it is. The
 // names and descriptions are written here, where KI18n finds them (D-034);
 // Rust only knows the ids.
 //
 // This is a component, not a page: the setup wizard places it as one of its
 // pages (M7a.9), and Settings places it in `ExampleBooksPage`. What follows
-// a pick is up to the place: `bookMade()` says the book is ready.
+// a pick is up to the place: `bookMade()` says the new book is open.
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -79,7 +79,7 @@ ColumnLayout {
     Controls.Label {
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
-        text: chooser.i18nContext.i18nc("@info", "These households are made up. Pick one to look around and try things out. If your book is still empty, the example goes into it. A book that already has something in it is never changed: KassenSturz makes a new book instead.")
+        text: chooser.i18nContext.i18nc("@info", "These households are made up. Pick one to look around and try things out. KassenSturz makes a new book from it, so your own books are never changed.")
     }
 
     FormError {
@@ -103,6 +103,9 @@ ColumnLayout {
                     ? chooser.i18nContext.i18nc("@action:button %1 is the name of an example book", "%1 (suggested start)", chooser.bookName(modelData.id))
                     : chooser.bookName(modelData.id)
                 description: chooser.description(modelData.id)
+                // Written here, but shown as text, never as markup (D-143).
+                textItem.textFormat: Text.PlainText
+                descriptionItem.textFormat: Text.PlainText
                 onClicked: {
                     ActionLog.taken("ExampleBookChooser_chooseBook")
                     chooser.choose(modelData.id)

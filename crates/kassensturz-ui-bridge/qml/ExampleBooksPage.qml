@@ -15,7 +15,7 @@ Kirigami.ScrollablePage {
 
     required property ExampleBooks examples
 
-    // The example is in the open book, or in a new book that is open.
+    // The new book is made and open.
     signal bookMade(string id)
 
     readonly property KI18nContext i18nContext: KI18nContext {

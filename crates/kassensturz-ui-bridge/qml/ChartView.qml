@@ -626,10 +626,13 @@ ColumnLayout {
         }
     }
 
-    // The text of the point in focus, also for those who see it.
+    // The text of the point in focus, also for those who see it. Not while
+    // the pointer rests on the legend: the tooltip says the same there, and
+    // this line, above the legend, would push the entry away from the pointer,
+    // lose the hover and flicker (M6-B163, like M6-B18).
     Controls.Label {
         Layout.fillWidth: true
-        visible: !view.showTable && view.current >= 0
+        visible: !view.showTable && view.current >= 0 && view.legendTip < 0
         text: view.pointText(view.current)
         textFormat: Text.PlainText
         wrapMode: Text.Wrap

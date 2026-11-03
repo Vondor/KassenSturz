@@ -1001,10 +1001,13 @@ ColumnLayout {
                                 board.dragFrom = slot.from;
                                 tile.Drag.start();
                             } else {
+                                // The drop can rebuild this column's cards and
+                                // destroy this one, after which the board is out
+                                // of its reach: reset the board first (M6-B163).
+                                board.dragFrom = -2;
                                 tile.Drag.drop();
                                 tile.x = 0;
                                 tile.y = 0;
-                                board.dragFrom = -2;
                             }
                         }
 

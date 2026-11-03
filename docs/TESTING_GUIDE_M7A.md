@@ -49,7 +49,7 @@ For the maintainer; the steps and the reasons are in `docs/RELEASING.md` (D-579)
 
 **Language on page 1** (Q-395). Choose *English* on the German welcome page: a line says *KassenSturz startet neu auf English. Es geht nichts verloren.* Press **Continue**: KassenSturz closes and starts again by itself, in English, on the welcome page. *Settings* shows the same choice. In the Flatpak the new KassenSturz starts in a sandbox of its own through `flatpak-spawn`, with the `KASSENSTURZ_*` variables it was started with; check there that it comes back, and in test mode that the banner is still there.
 
-**Not in this step yet.** Page 4 (bank file and bank).
+**Page 4, how new entries get in.** After **Create my household book** the overview opens with *How do new entries get in?* on top. **I'll type them myself** goes back to the overview. **Import a file from my bank** asks *Which account is the file for?* (only with more than one account), then opens the usual file dialog and import pages; try a synthetic CAMT or CSV file from the tester kit. Going back from page 4 is the overview. **Connect to my bank** is not there in normal builds (Q-398); only a build with `-DKASSENSTURZ_WIZARD_BANK=ON` (cargo feature `wizard-bank`) shows it, and only where bank connections work.
 
 ## M7a.9 Test mode kept apart from the real setup
 

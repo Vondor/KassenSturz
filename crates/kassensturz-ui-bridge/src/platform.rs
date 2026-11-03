@@ -16,6 +16,9 @@ mod ffi {
         include!("cxx-qt-lib/qstring.h");
         /// Qt's string type.
         type QString = cxx_qt_lib::QString;
+        include!("cxx-qt-lib/qstringlist.h");
+        /// Qt's list of strings.
+        type QStringList = cxx_qt_lib::QStringList;
     }
 
     #[namespace = "kassensturz::platform"]
@@ -39,6 +42,19 @@ mod ffi {
 
         #[cxx_name = "useTestLocations"]
         fn use_test_locations();
+
+        #[cxx_name = "appFilePath"]
+        fn app_file_path() -> QString;
+
+        #[cxx_name = "startDetached"]
+        fn start_detached(
+            program: &QString,
+            arguments: &QStringList,
+            environment: &QStringList,
+        ) -> bool;
+
+        #[cxx_name = "quitApp"]
+        fn quit_app();
     }
 }
 
@@ -78,6 +94,37 @@ pub fn app_folder() -> Option<PathBuf> {
     }
     let folder = ffi::data_folder().to_string();
     (!folder.is_empty()).then(|| PathBuf::from(folder).join(APP_ID))
+}
+
+/// The app's own executable file.
+pub fn app_file_path() -> String {
+    ffi::app_file_path().to_string()
+}
+
+/// Starts what `plan` says on its own, outliving this process (see
+/// `restart`). Returns whether it started.
+pub fn start_detached(plan: &crate::restart::Plan) -> bool {
+    let list = |items: &[String]| {
+        items
+            .iter()
+            .map(|item| QString::from(item.as_str()))
+            .collect::<cxx_qt_lib::QStringList>()
+    };
+    ffi::start_detached(
+        &QString::from(plan.program.as_str()),
+        &list(&plan.arguments),
+        &list(plan.environment.as_deref().unwrap_or_default()),
+    )
+}
+
+/// Ends the event loop, so the app ends.
+pub fn quit() {
+    ffi::quit_app();
+}
+
+/// Whether the app runs in a Flatpak sandbox.
+pub fn in_flatpak_sandbox() -> bool {
+    in_flatpak(Path::new("/.flatpak-info"))
 }
 
 /// Qt's own folder for apps' data, for the test profile's path audit.

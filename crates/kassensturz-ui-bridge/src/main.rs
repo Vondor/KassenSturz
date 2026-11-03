@@ -84,6 +84,7 @@ mod properties;
 mod properties_model;
 mod register;
 mod register_model;
+mod restart;
 mod rules;
 mod rules_model;
 mod saved_views;
@@ -110,7 +111,10 @@ use cxx_qt_lib_extras::QApplication;
 const MAIN_QML: &str = "qrc:/qt/qml/io/github/vondor/kassensturz/qml/Main.qml";
 
 fn main() {
-    // First of all: in a test, every folder the app uses moves to the test
+    // Before anything changes the environment: a restart in another language
+    // starts the app the way it was started (Q-395).
+    restart::remember_at_start();
+    // Then: in a test, every folder the app uses moves to the test
     // folder before anything reads one (Q-399).
     if test_profile::apply_at_start() && cfg!(windows) {
         platform::use_test_locations();

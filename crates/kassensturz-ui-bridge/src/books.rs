@@ -16,6 +16,7 @@ use kassensturz_store::{Book, Computer, Lock, StoreError};
 
 use crate::platform::{self, Drive};
 use crate::settings::Settings;
+use crate::test_profile::{self, allows_in};
 
 /// The extension of book files (D-037).
 pub const EXTENSION: &str = "ksz";
@@ -58,6 +59,12 @@ pub enum Problem {
         /// The file.
         path: PathBuf,
     },
+    /// The app runs in the test profile, and the book is outside its test
+    /// folder, so it isn't opened or made there (Q-399).
+    OutsideTest {
+        /// The file.
+        path: PathBuf,
+    },
     /// KassenSturz found no data folder to keep its book in.
     NoAppFolder,
     /// The book refused to open, e.g. because the file isn't a book.
@@ -85,6 +92,7 @@ impl Problem {
             Self::Locked { path, .. }
             | Self::Missing { path }
             | Self::Sandboxed { path }
+            | Self::OutsideTest { path }
             | Self::Store { path, .. } => Some(path),
             Self::NoAppFolder => None,
         }
@@ -101,6 +109,7 @@ impl Problem {
             Self::Locked { .. } => ("store.locked".to_owned(), Vec::new()),
             Self::Missing { .. } => ("book.missing".to_owned(), Vec::new()),
             Self::Sandboxed { .. } => ("book.sandboxed".to_owned(), Vec::new()),
+            Self::OutsideTest { .. } => ("book.outside-test".to_owned(), Vec::new()),
             Self::NoAppFolder => ("book.no-app-folder".to_owned(), Vec::new()),
             Self::Store { error, .. } => {
                 let report = error.report();
@@ -134,6 +143,8 @@ pub struct Books {
     settings: Settings,
     app_folder: Option<PathBuf>,
     computer: Computer,
+    /// The test profile's folder: no book outside it opens (Q-399).
+    test_root: Option<PathBuf>,
 }
 
 impl Books {
@@ -143,6 +154,7 @@ impl Books {
             settings: Settings::user(),
             app_folder: platform::app_folder(),
             computer: platform::computer(),
+            test_root: test_profile::root().map(Path::to_owned),
         }
     }
 
@@ -157,6 +169,7 @@ impl Books {
                 name: computer_name.to_owned(),
                 backup_folder: folder.join("data/backups"),
             },
+            test_root: None,
         }
     }
 
@@ -175,7 +188,13 @@ impl Books {
     /// data folder, and makes it if it isn't there. `name` comes from the
     /// UI, in the user's language.
     pub fn open_last(&self, name: &str) -> Result<OpenBook, Problem> {
-        if let Some(path) = self.settings.last_book() {
+        // In the test profile a book outside the test folder is never
+        // opened, not even the one named last (Q-399).
+        if let Some(path) = self
+            .settings
+            .last_book()
+            .filter(|path| allows_in(self.test_root.as_deref(), path))
+        {
             return self.open(&path);
         }
         let folder = self.app_folder.as_deref().ok_or(Problem::NoAppFolder)?;
@@ -295,6 +314,9 @@ impl Books {
         open: impl FnOnce(&Path) -> Result<Book, StoreError>,
     ) -> Result<OpenBook, Problem> {
         let path = std::path::absolute(path).unwrap_or_else(|_| path.to_owned());
+        if !allows_in(self.test_root.as_deref(), &path) {
+            return Err(Problem::OutsideTest { path });
+        }
         let drive = platform::drive(&path);
         if drive == Drive::Sandboxed {
             return Err(Problem::Sandboxed { path });
@@ -381,8 +403,63 @@ mod tests {
                     name: name.to_owned(),
                     backup_folder: self.folder.join("data/backups"),
                 },
+                test_root: None,
             }
         }
+
+        /// KassenSturz in the test profile, with its test folder in this
+        /// setup's folder (Q-399).
+        fn test_books(&self) -> Books {
+            let root = self.folder.join("kassensturz-test");
+            Books {
+                settings: Settings::at(&root.join("config/kassensturzrc")),
+                app_folder: Some(root.join("data/app")),
+                computer: Computer {
+                    name: "test".to_owned(),
+                    backup_folder: root.join("data/app/backups"),
+                },
+                test_root: Some(root),
+            }
+        }
+    }
+
+    #[test]
+    fn the_test_profile_never_opens_or_makes_a_book_outside_its_folder() {
+        let setup = Setup::new();
+        // The real book, as a user's own setup has it.
+        let real = setup.folder.join("Household.ksz");
+        let opened = setup.books("here").create(&real).expect("real book made");
+        drop(opened);
+        let before = std::fs::read(&real).expect("real book read");
+        let books = setup.test_books();
+        // Named last in the test settings, it is passed over: the test
+        // profile opens its own book instead (Q-399).
+        assert!(books.settings.set_last_book(&real));
+        let own = books.open_last("Haushaltsbuch").expect("own book opens");
+        assert!(own.path.starts_with(setup.folder.join("kassensturz-test")));
+        drop(own);
+        assert_eq!(
+            code(books.open(&real).err().expect("refused")),
+            "book.outside-test"
+        );
+        assert_eq!(
+            code(
+                books
+                    .create(&setup.folder.join("Other.ksz"))
+                    .err()
+                    .expect("refused")
+            ),
+            "book.outside-test"
+        );
+        assert!(!setup.folder.join("Other.ksz").exists());
+        // The real book is unchanged and has no lock file beside it.
+        assert_eq!(std::fs::read(&real).expect("real book read"), before);
+        let lock_files = std::fs::read_dir(setup.folder.path())
+            .expect("folder listed")
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().contains("lock"))
+            .count();
+        assert_eq!(lock_files, 0);
     }
 
     fn code(problem: Problem) -> String {

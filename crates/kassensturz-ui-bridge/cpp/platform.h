@@ -13,6 +13,10 @@ namespace kassensturz::platform
 // The folder for apps' data, e.g. ~/.local/share; empty if Qt found none.
 QString dataFolder();
 
+// Switches QStandardPaths to Qt's test locations, apart from the user's real
+// ones: the test profile on Windows (M7a.9).
+void useTestLocations();
+
 QString computerName();
 
 // Gives every window the icon the icon theme has under `name`. Without one

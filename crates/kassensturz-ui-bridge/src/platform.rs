@@ -36,6 +36,9 @@ mod ffi {
 
         #[cxx_name = "loadKI18nQml"]
         fn load_ki18n_qml();
+
+        #[cxx_name = "useTestLocations"]
+        fn use_test_locations();
     }
 }
 
@@ -58,11 +61,29 @@ pub fn load_ki18n_qml() {
     ffi::load_ki18n_qml();
 }
 
+/// Switches Qt to its own test locations (`QStandardPaths::setTestModeEnabled`),
+/// apart from the user's real ones, for the test profile on Windows, where
+/// Qt doesn't read the variables the profile moves (Q-399). Call it before
+/// Qt starts.
+pub fn use_test_locations() {
+    ffi::use_test_locations();
+}
+
 /// KassenSturz's own data folder, e.g. `~/.local/share/io.github.vondor.KassenSturz`
 /// on Linux, where the app keeps its book and the backups (D-033).
 pub fn app_folder() -> Option<PathBuf> {
+    // In the test profile, the test folder's own (Q-399).
+    if let Some(folder) = crate::test_profile::data_folder() {
+        return Some(folder.join(APP_ID));
+    }
     let folder = ffi::data_folder().to_string();
     (!folder.is_empty()).then(|| PathBuf::from(folder).join(APP_ID))
+}
+
+/// Qt's own folder for apps' data, for the test profile's path audit.
+#[cfg(test)]
+pub fn qt_data_folder() -> PathBuf {
+    PathBuf::from(ffi::data_folder().to_string())
 }
 
 /// This computer, as a book's lock file and backups need it (D-038, D-080).

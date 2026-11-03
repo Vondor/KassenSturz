@@ -239,6 +239,7 @@ pub const ACTIONS: &[&str] = &[
     "Main_rules",
     "Main_settings",
     "Main_showLog",
+    "Main_showTestFolder",
     "Main_startBookFromFile",
     "Main_startImport",
     "Main_statisticBuilder",

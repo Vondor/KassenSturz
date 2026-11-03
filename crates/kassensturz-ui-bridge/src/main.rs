@@ -96,6 +96,8 @@ mod statement_import;
 mod statement_import_model;
 #[cfg(test)]
 mod test_folder;
+mod test_profile;
+mod test_profile_model;
 mod transaction_entry;
 mod transfer_prompt;
 mod update_all;
@@ -108,6 +110,11 @@ use cxx_qt_lib_extras::QApplication;
 const MAIN_QML: &str = "qrc:/qt/qml/io/github/vondor/kassensturz/qml/Main.qml";
 
 fn main() {
+    // First of all: in a test, every folder the app uses moves to the test
+    // folder before anything reads one (Q-399).
+    if test_profile::apply_at_start() && cfg!(windows) {
+        platform::use_test_locations();
+    }
     // Before Qt starts: KI18n reads the language when it first translates.
     language::apply_at_start();
     // A QApplication rather than a QGuiApplication: Plasma's style and, from

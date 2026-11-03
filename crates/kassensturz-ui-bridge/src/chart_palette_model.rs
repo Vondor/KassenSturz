@@ -248,6 +248,8 @@ impl qobject::ChartPaletteSettings {
 
 #[cfg(test)]
 mod tests {
+    use kassensturz_charts::STANDARD_COLORS;
+
     use super::*;
     use crate::variant::read_back::{elements, number_of, text_of};
 

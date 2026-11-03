@@ -33,6 +33,8 @@ Per card: **done** (no help, right result, in target time), **with effort** (ove
 
 Answer sheets come from the real import and report code for each example book (step M7a.8), never by hand; facilitator only.
 
+**Card 5 note (Suburban Family):** if the tester's date is before 6 Nov 2026, the checking account shows "Darin Buchungen nach heute: −201,15 €" after the CAMT import. This is expected: some lines in the file are dated in the future for the tester's computer. Say nothing in advance; if asked, use the neutral prompt. The statement's closing balance stays the comparison value. It disappears from 6 Nov 2026.
+
 **A round passes** when, over all testers: no wrong result is believed (cards 2 to 5); cards 1 to 6 are done by at least 4 of 5 and none by more than one only "with effort"; average ease at least 4, no card under 3; nobody answers "no" to trust (3.1); at least half "yes" or "maybe" to continue (3.6); no crash or data loss. Any spot where two or more testers stall is a finding. With a single tester (the maintainer), 1, 4 and 6 count fully.
 
 ## Notes table

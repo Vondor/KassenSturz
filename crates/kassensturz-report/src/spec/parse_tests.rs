@@ -715,7 +715,10 @@ fn size_palette_and_our_own_key() {
     assert_eq!((size.width(), size.height()), (Some(600), Some(300)));
     assert_eq!(
         spec.palette(),
-        [PaletteName::Vermillion, PaletteName::SkyBlue]
+        [
+            SpecColor::Slot(PaletteName::Vermillion),
+            SpecColor::Slot(PaletteName::SkyBlue)
+        ]
     );
     assert_eq!(spec.title().map(SpecText::as_str), Some("Net by month"));
     assert_eq!(
@@ -729,7 +732,7 @@ fn size_palette_and_our_own_key() {
     );
     assert_eq!(
         listed(&ok(&with(
-            r##", "config": {"range": {"category": ["blue", "#ff0000"]}, "view": {}}"##
+            r##", "config": {"range": {"category": ["blue", "#fff"]}, "view": {}}"##
         ))),
         [
             ("config.range.category[1]", "value"),
@@ -739,6 +742,148 @@ fn size_palette_and_our_own_key() {
     assert_eq!(
         invalid(&with(r#", "kassensturz": {"vl_subset": 2}"#)),
         ("bad-choice", "kassensturz.vl_subset".to_owned())
+    );
+}
+
+#[test]
+fn colors_by_palette_word_or_code_in_the_palette_and_in_a_mark() {
+    let spec = chart(&with(
+        r##", "config": {"range": {"category": ["vermillion", "#00FF7f", "#0072b2"]}}"##,
+    ));
+    assert_eq!(
+        spec.palette(),
+        [
+            SpecColor::Slot(PaletteName::Vermillion),
+            SpecColor::Rgb(Rgb::new(0x00, 0xFF, 0x7F)),
+            SpecColor::Rgb(Rgb::new(0x00, 0x72, 0xB2)),
+        ]
+    );
+    // A mark's own color, by word or by code.
+    let coded = chart(&BAR.replace(r#""bar""#, r##"{"type": "bar", "color": "#D55E00"}"##));
+    assert_eq!(
+        coded.layers()[0].mark().color(),
+        Some(SpecColor::Rgb(Rgb::new(0xD5, 0x5E, 0x00)))
+    );
+    let worded = chart(&BAR.replace(r#""bar""#, r#"{"type": "line", "color": "sky-blue"}"#));
+    assert_eq!(
+        worded.layers()[0].mark().color(),
+        Some(SpecColor::Slot(PaletteName::SkyBlue))
+    );
+    // No color is no color.
+    assert_eq!(chart(BAR).layers()[0].mark().color(), None);
+    // A pie is colored by its channel, so a color on its mark is not used.
+    let pie = r##"{"data": {"name": "spending_by_category"},
+        "mark": {"type": "arc", "color": "#ff0000"},
+        "encoding": {"theta": {"field": "total", "type": "quantitative"},
+                     "color": {"field": "top_level", "type": "nominal"}}}"##;
+    assert_eq!(chart(pie).layers()[0].mark().color(), None);
+}
+
+#[test]
+fn every_other_way_to_write_a_color_is_listed_with_its_place_only() {
+    // The hostile cases of T-38 for colors: too short, too long, other
+    // notations, CSS names, text that looks like code or markup.
+    let hostile = [
+        "#fff",
+        "#ffff",
+        "#fffffff",
+        "#ggg000",
+        "ff0000",
+        "# ff0000",
+        "#ff0000 ",
+        "#ff00004d",
+        "rgb(255, 0, 0)",
+        "hsl(0, 100%, 50%)",
+        "red",
+        "RebeccaPurple",
+        "currentColor",
+        "transparent",
+        "url(https://example.org/x.png)",
+        "var(--accent)",
+        "#ff0000; background: url(x)",
+        "</style><script>alert(1)</script>",
+        "'; DROP TABLE book; --",
+        "{{ 7 * 7 }}",
+        "$(touch /tmp/x)",
+        "#\\u0066\\u0066\\u0066",
+        "\\u0000",
+        "#ff00\\u00e9",
+        "#éé00ff",
+        "",
+    ];
+    for text in hostile {
+        let palette = with(&format!(
+            r#", "config": {{"range": {{"category": ["blue", "{text}"]}}}}"#
+        ));
+        let read = ok(&palette);
+        assert_eq!(
+            listed(&read),
+            [("config.range.category[1]", "value")],
+            "{text:?}"
+        );
+        // The chart is still drawn, with the color that was understood.
+        let spec = read.chart().expect("a chart");
+        assert_eq!(spec.palette(), [SpecColor::Slot(PaletteName::Blue)]);
+        for entry in read.unsupported() {
+            assert!(!entry.path().contains(text) || text.is_empty());
+        }
+        let mark = BAR.replace(
+            r#""bar""#,
+            &format!(r#"{{"type": "bar", "color": "{text}"}}"#),
+        );
+        let read = ok(&mark);
+        assert_eq!(listed(&read), [("mark.color", "value")], "{text:?}");
+        assert_eq!(
+            read.chart().expect("a chart").layers()[0].mark().color(),
+            None
+        );
+    }
+}
+
+#[test]
+fn a_color_that_is_not_text_is_listed_and_too_long_text_is_cut_by_the_size_limit() {
+    // A list or an object (a scheme, a gradient) or null is not supported
+    // here; a number or yes/no where a color should be is the wrong type.
+    for value in ["[255, 0, 0]", r#"{"r": 255}"#, "null"] {
+        let read = ok(&with(&format!(
+            r#", "config": {{"range": {{"category": [{value}]}}}}"#
+        )));
+        assert_eq!(
+            listed(&read),
+            [("config.range.category[0]", "value")],
+            "{value}"
+        );
+        assert!(read.chart().is_some(), "{value}");
+    }
+    for value in ["12", "true"] {
+        assert_eq!(
+            invalid(&with(&format!(
+                r#", "config": {{"range": {{"category": [{value}]}}}}"#
+            ))),
+            ("wrong-type", "config.range.category[0]".to_owned()),
+            "{value}"
+        );
+    }
+    // A color of 40 000 characters is one more text in a description that is
+    // over the size limit, which is refused before anything is read (T-38).
+    let long = "#".to_owned() + &"f".repeat(40_000);
+    let text = with(&format!(
+        r#", "config": {{"range": {{"category": ["{long}"]}}}}"#
+    ));
+    assert_eq!(too_big(&text), "bytes");
+    // Just under the limit it is one unsupported color, not a crash.
+    let fits = "#".to_owned() + &"f".repeat(20_000);
+    let read = ok(&with(&format!(
+        r#", "config": {{"range": {{"category": ["{fits}"]}}}}"#
+    )));
+    assert_eq!(listed(&read), [("config.range.category[0]", "value")]);
+    // More than eight colors stay refused, coded or not.
+    let nine = r##""#000000", "#111111", "#222222", "#333333", "#444444", "#555555", "#666666", "#777777", "#888888""##;
+    assert_eq!(
+        too_big(&with(&format!(
+            r#", "config": {{"range": {{"category": [{nine}]}}}}"#
+        ))),
+        "values"
     );
 }
 

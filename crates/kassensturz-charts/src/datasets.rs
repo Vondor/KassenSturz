@@ -126,6 +126,8 @@ pub fn spending_by_category(
         slices: shown.slices,
         hidden: hidden_note(data, format),
         overlays: Vec::new(),
+        extra_colors: Vec::new(),
+        slice_colors: Vec::new(),
     })
 }
 
@@ -310,6 +312,8 @@ pub fn income_expense_by_month(
         slices: Slices::default(),
         hidden: None,
         overlays: Vec::new(),
+        extra_colors: Vec::new(),
+        slice_colors: Vec::new(),
     })
 }
 
@@ -367,5 +371,7 @@ pub fn category_over_time(
         slices: Slices::default(),
         hidden: None,
         overlays: Vec::new(),
+        extra_colors: Vec::new(),
+        slice_colors: Vec::new(),
     })
 }

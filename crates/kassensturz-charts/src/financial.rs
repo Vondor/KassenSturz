@@ -64,6 +64,8 @@ pub fn net_worth_over_time(
         slices: Slices::default(),
         hidden: None,
         overlays: Vec::new(),
+        extra_colors: Vec::new(),
+        slice_colors: Vec::new(),
     })
 }
 
@@ -122,6 +124,8 @@ pub fn cash_flow_by_month(
         slices: Slices::default(),
         hidden: None,
         overlays: Vec::new(),
+        extra_colors: Vec::new(),
+        slice_colors: Vec::new(),
     })
 }
 
@@ -223,5 +227,7 @@ pub fn account_balances(
         slices: Slices::default(),
         hidden: None,
         overlays: Vec::new(),
+        extra_colors: Vec::new(),
+        slice_colors: Vec::new(),
     })
 }

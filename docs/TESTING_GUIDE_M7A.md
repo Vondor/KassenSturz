@@ -70,3 +70,25 @@ For the maintainer; the steps and the reasons are in `docs/RELEASING.md` (D-579)
 7. Start with `KASSENSTURZ_TEST=1` only (no fake bank variable). *Bank connections* show the made-up bank, marked as such, and no real bank can be set up.
 8. In *Settings*, choose KeePassXC as the place for saved PINs, then save a PIN for the made-up bank. KeePassXC is not asked and gets no entry; after a restart in test mode the PIN is asked again.
 9. With `KASSENSTURZ_FAKE_BANK=keychain` the PIN goes to the system keychain under `io.github.vondor.KassenSturz.FakeBank`, as before (D-159): that variable asks for the keychain by name.
+
+## M7a.10 Adjustable chart colors
+
+**What it is.** The eight chart colors can be changed in *Settings*, for this computer only (like how amounts look): they are not saved in a book, so every book's charts use them (D-589). The standard colors are the colorblind-safe set of D-283. A power user can also name colors in a custom chart's description.
+
+**Click path (Settings).**
+1. Open *Settings* and scroll to *Chart colors*. There are eight rows: a swatch, the number and name (1. Blue … 8. Grey), a field with the color, **Choose…** and **Standard**. **Back to standard for all** is greyed out.
+2. In row 1, select the field, type `#1a2b3c` and press Enter. The swatch changes and the field shows `#1A2B3C`. **Standard** in that row and **Back to standard for all** can now be pressed.
+3. In row 2 type `0, 114, 178` and press Enter: it becomes `#0072B2`.
+4. In row 3 type `nonsense`: the row says *That is not a color…* and nothing changes. Type `256, 0, 0` in row 4: it says red, green and blue each go from 0 to 255. Type a good color: the sentence goes away.
+5. In row 5 press **Choose…**. The system's own color dialog opens (on Plasma, the one every KDE program uses). Pick a color and press OK: the swatch and field change.
+6. Open the *Overview* or a *Statistics* chart: the first series uses color 1, the second color 2, and so on. The new colors are used at once; there is no restart.
+7. In row 6 enter a color almost like row 5's: the row says *This color looks very much like the next one…*, and row 5 says it looks like the one before. Enter near-white in any row on a light theme: it says *hard to see against the background*. A warning never stops you; keep the color if you want.
+8. **Standard** puts one color back, **Back to standard for all** all of them. Close and start KassenSturz: your colors are still there.
+
+**Click path (Report designer).** Open *Statistics*, choose a *Custom chart* and select it. Under the description field, *Colors you can name in a description* shows the eight places with their words (blue, vermillion, …) as they are set now. There is no color field; **Edit palette…** opens *Settings*.
+
+**For power users, in the description.** `"config": {"range": {"category": ["#cc3300", "sky-blue"]}}` colors the first series with exactly #CC3300 and the second with the palette's sky blue; `"mark": {"type": "bar", "color": "#336699"}` colors a layer that has no `color` channel. Anything else (`#fff`, `rgb(…)`, a name such as `red`) is listed under *Not supported here* with its place, and the rest of the chart is still drawn if you choose that.
+
+**Expected.** Colors are text everywhere between Rust and the screen (`#RRGGBB`); no color is a number in QML. A hand-edited settings file with a bad color shows the standard color for that place. Charts in the AI chat use the same palette.
+
+**Real-app screenshots** (Xvfb): see the pull request for M7a.10.

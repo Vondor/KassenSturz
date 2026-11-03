@@ -7,6 +7,7 @@
 
 use kassensturz_core::Date;
 
+use super::color::SpecColor;
 use super::fields::{FieldValue, SpecDataset, SpecField};
 
 /// The version of the subset this program reads (`"kassensturz":
@@ -290,6 +291,7 @@ pub struct Mark {
     tooltip: bool,
     point: bool,
     inner_radius: Option<u16>,
+    color: Option<SpecColor>,
 }
 
 impl Mark {
@@ -320,7 +322,16 @@ impl Mark {
             tooltip,
             point,
             inner_radius,
+            color: None,
         })
+    }
+
+    /// The same mark drawn in `color` (M7a.10). It is used by a layer that
+    /// has no `color` channel; with one, the channel's colors are used.
+    #[must_use]
+    pub const fn with_color(mut self, color: SpecColor) -> Self {
+        self.color = Some(color);
+        self
     }
 
     /// A mark without options.
@@ -331,6 +342,7 @@ impl Mark {
             tooltip: false,
             point: false,
             inner_radius: None,
+            color: None,
         }
     }
 
@@ -356,6 +368,12 @@ impl Mark {
     #[must_use]
     pub const fn inner_radius(self) -> Option<u16> {
         self.inner_radius
+    }
+
+    /// The color the mark itself names, if it does (M7a.10).
+    #[must_use]
+    pub const fn color(self) -> Option<SpecColor> {
+        self.color
     }
 }
 
@@ -778,14 +796,14 @@ pub struct ChartSpec {
     title: Option<SpecText>,
     description: Option<SpecText>,
     size: Option<ChartSize>,
-    palette: Vec<PaletteName>,
+    palette: Vec<SpecColor>,
     filters: Vec<FieldFilter>,
     layers: Vec<Layer>,
 }
 
 impl ChartSpec {
     /// Checks the whole: 1 to 4 layers, at most 8 encodings and 8 filters
-    /// together, at most 8 palette colors, every field a field of `dataset`,
+    /// together, at most 8 palette colors (words or `#rrggbb`), every field a field of `dataset`,
     /// an arc layer alone, and the other layers on one shared category axis
     /// (every layer with an `x` names the same field, type and time unit).
     ///
@@ -798,7 +816,7 @@ impl ChartSpec {
         title: Option<SpecText>,
         description: Option<SpecText>,
         size: Option<ChartSize>,
-        palette: Vec<PaletteName>,
+        palette: Vec<SpecColor>,
         filters: Vec<FieldFilter>,
         layers: Vec<Layer>,
     ) -> Result<Self, ModelError> {
@@ -885,7 +903,7 @@ impl ChartSpec {
 
     /// The palette colors, empty for the default.
     #[must_use]
-    pub fn palette(&self) -> &[PaletteName] {
+    pub fn palette(&self) -> &[SpecColor] {
         &self.palette
     }
 

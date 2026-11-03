@@ -335,7 +335,7 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
                         // A slice takes the palette color of its place, a bar or line
                         // the color of its series.
                         let color = if round {
-                            ChartModel::color_of(index)
+                            model.slice_color(index)
                         } else {
                             series.color
                         };
@@ -397,6 +397,12 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
         ("hidden", hidden_object(model.hidden.as_ref())),
         ("slices", slices_object(&model.slices)),
         ("paletteSize", QVariant::from(&i32::from(PALETTE_SIZE))),
+        // The free colors of a custom chart, as `#RRGGBB` text: a color
+        // index from `paletteSize` on is one of these (M7a.10).
+        (
+            "extraColors",
+            list(model.extra_colors.iter().map(|color| text(&color.to_hex()))),
+        ),
         ("count", count(model.categories.len())),
         ("unsortedIndex", QVariant::from(&unsorted)),
         (
@@ -649,6 +655,7 @@ mod tests {
                 "count",
                 "currency",
                 "dataset",
+                "extraColors",
                 "hidden",
                 "kind",
                 "overlays",
@@ -677,6 +684,8 @@ mod tests {
         assert_eq!(names, ["Rent", "Groceries", ""]);
         assert_eq!(number_of(chart, "unsortedIndex"), 2);
         assert!(list_of(chart, "ticks").is_empty());
+        // A built-in chart has no free colors, and the key is there.
+        assert!(list_of(chart, "extraColors").is_empty());
 
         let series = list_of(chart, "series");
         assert_eq!(series.len(), 1);
@@ -1417,6 +1426,31 @@ mod tests {
         let error = object_of(&view, "error");
         assert_eq!(text_of(&error, "code"), "report.spec-too-big");
         assert_eq!(text_of(&error, "limit"), "bytes");
+    }
+
+    /// A free color of a description (`#rrggbb`) reaches QML as text in the
+    /// chart's `extraColors`, and a series in it has a color index from
+    /// `paletteSize` on and no marker (M7a.10).
+    #[test]
+    fn free_colors_of_a_description_reach_qml_as_text() {
+        let coloured = MONTHLY.replacen(
+            "\"data\"",
+            "\"config\": {\"range\": {\"category\": [\"#00ff7f\", \"grey\"]}}, \"data\"",
+            1,
+        );
+        let view = view_of(&custom(&coloured, false));
+        let chart = &list_of(&view, "charts")[0];
+        let extra: Vec<String> = list_of(chart, "extraColors")
+            .iter()
+            .map(|color| color.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(extra, ["#00FF7F"]);
+        let own = list_of(chart, "series");
+        assert_eq!(number_of(&own[0], "color"), 8);
+        assert_eq!(number_of(&own[0], "marker"), -1);
+        // A description without free colors has an empty list, not a missing key.
+        let plain = view_of(&custom(MONTHLY, false));
+        assert!(list_of(&list_of(&plain, "charts")[0], "extraColors").is_empty());
     }
 
     /// The series of a chart over time reach the description's dataset, and

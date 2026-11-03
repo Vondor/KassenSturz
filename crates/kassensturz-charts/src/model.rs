@@ -5,6 +5,7 @@
 //! with its label already written as text.
 
 use kassensturz_report::TextTable;
+use kassensturz_report::spec::Rgb;
 
 /// How many colors the palette has (D-283). A series or slice beyond the
 /// eighth starts again at the first.
@@ -266,6 +267,14 @@ pub struct ChartModel {
     /// Layers drawn on top of the chart on the same axes; empty for every
     /// built-in chart. Only a custom chart has them (M6e.2).
     pub overlays: Vec<Overlay>,
+    /// Free colors that a custom chart names as `#rrggbb` (M7a.10, Q-410).
+    /// A color index from [`PALETTE_SIZE`] on is one of these: index 8 is
+    /// the first, 9 the second. Empty for every built-in chart.
+    pub extra_colors: Vec<Rgb>,
+    /// A round chart's color index for each slice, in the order of
+    /// [`categories`](Self::categories). Empty when the slices take the
+    /// palette's colors by place, as the built-in round charts do.
+    pub slice_colors: Vec<u8>,
 }
 
 impl ChartModel {
@@ -300,6 +309,15 @@ impl ChartModel {
                 write(&mut item.text);
             }
         }
+    }
+
+    /// The color index of slice `index` of a round chart.
+    #[must_use]
+    pub fn slice_color(&self, index: usize) -> u8 {
+        self.slice_colors
+            .get(index)
+            .copied()
+            .unwrap_or_else(|| Self::color_of(index))
     }
 
     /// The palette index of slice or series `index`.

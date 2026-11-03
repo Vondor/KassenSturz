@@ -19,6 +19,7 @@ mod datasets;
 mod error;
 mod financial;
 mod model;
+mod palette;
 mod provider;
 mod ticks;
 
@@ -31,9 +32,12 @@ pub use model::{
     NAMED_FROM_TENTHS, Overlay, OverlayItem, OverlayMark, OverlaySeries, PALETTE_SIZE, Point,
     Series, Slices, Tick,
 };
+pub use palette::{Palette, PaletteWarning, STANDARD_COLORS, contrast_is_enough, too_alike};
 pub use provider::{ChartProvider, Prepared, PreparedSeries, drawing_value};
 
 #[cfg(test)]
 mod custom_tests;
+#[cfg(test)]
+mod palette_tests;
 #[cfg(test)]
 mod tests;

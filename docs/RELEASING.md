@@ -9,7 +9,7 @@ A release tag is `v` plus the build number of the commit it points to, for examp
 - the tag equals `v<number of its commit>`, so the name of the release tells a tester which build it is;
 - the commit is on `main`, so only merged code that passed CI is released.
 
-No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the AppStream `<release>` entry for a pre-release (D-226).
+No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the AppStream `<release>` entry for a pre-release (D-226). The build stamps its own number and date into the newest `<release>` of the AppStream file it installs (`cmake/StampMetainfo.cmake`, M6-B156), so `flatpak info` and software centres show the real number; the file in the repository keeps its last hand-set entry.
 
 ## Steps for the maintainer
 

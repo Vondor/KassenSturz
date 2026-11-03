@@ -23,7 +23,7 @@ fn the_standard_palette_is_okabe_ito_with_grey_in_place_of_black() {
         ]
     );
     assert_eq!(palette.len(), DEFAULT_COLORS);
-    assert_eq!(STANDARD_COLORS.len(), MAX_COLORS);
+    assert_eq!(STANDARD_COLORS.len(), 16);
     assert!(palette.all_standard());
     // The standard colors raise no warning on either theme: they were chosen
     // on purpose (D-283), and nothing is checked until the user changes one.
@@ -33,21 +33,45 @@ fn the_standard_palette_is_okabe_ito_with_grey_in_place_of_black() {
 
 #[test]
 fn the_standard_neighbours_are_far_apart() {
-    // All sixteen, so a palette that grows never starts with a warning, and
-    // the places after the last one (where a palette of 16 starts again).
-    for pair in STANDARD_COLORS.windows(2) {
-        assert!(!too_alike(pair[0], pair[1]), "{pair:?}");
+    // Every place that can exist, so a palette that grows never starts with
+    // a warning, and the last place against the first (where a chart that
+    // needs more colors starts again).
+    for slot in 0..MAX_COLORS - 1 {
+        let (one, other) = (
+            Palette::standard_color(slot),
+            Palette::standard_color(slot + 1),
+        );
+        assert!(
+            !too_alike(one, other),
+            "places {slot} and {}: {one:?} {other:?}",
+            slot + 1
+        );
     }
-    assert!(!too_alike(STANDARD_COLORS[15], STANDARD_COLORS[0]));
+    assert!(!too_alike(
+        Palette::standard_color(MAX_COLORS - 1),
+        Palette::standard_color(0)
+    ));
 }
 
 #[test]
-fn the_added_standard_colors_are_all_different() {
-    for (at, one) in STANDARD_COLORS.iter().enumerate() {
-        for other in &STANDARD_COLORS[at + 1..] {
-            assert_ne!(one, other);
+fn the_standard_colors_of_all_the_places_are_different() {
+    let all: Vec<Rgb> = (0..MAX_COLORS).map(Palette::standard_color).collect();
+    for (at, one) in all.iter().enumerate() {
+        for (later, other) in all.iter().enumerate().skip(at + 1) {
+            assert_ne!(one, other, "places {at} and {later}");
         }
     }
+}
+
+/// The whole-number HSL conversion gives the known colors.
+#[test]
+fn the_generated_colors_follow_the_hsl_conversion() {
+    // Place 16 is hue 30, saturation 65, lightness 45: HSL(30, 65%, 45%) is
+    // #BD7328 by the usual formula (checked against Python's colorsys).
+    let color = Palette::standard_color(16);
+    assert_eq!(color.to_hex(), "#BD7328");
+    // Place 17: hue 167, lightness 62 (HSL(167, 65%, 62%), #5FDDC2 by the same check).
+    assert_eq!(Palette::standard_color(17).to_hex(), "#5FDDC2");
 }
 
 #[test]
@@ -75,7 +99,7 @@ fn a_place_is_changed_and_put_back_alone_or_with_the_rest() {
 }
 
 #[test]
-fn colors_are_added_and_removed_within_two_to_sixteen() {
+fn colors_are_added_and_removed_within_two_and_the_most() {
     let mut palette = Palette::standard();
     // Adding gives the standard color of the new place.
     assert!(palette.add());
@@ -88,19 +112,20 @@ fn colors_are_added_and_removed_within_two_to_sixteen() {
     );
     while palette.add() {}
     assert_eq!(palette.len(), MAX_COLORS);
-    assert!(!palette.add(), "sixteen is the most");
-    // A chart with 17 parts starts again at the first color.
-    assert_eq!(palette.color(16), palette.color(0));
+    assert!(!palette.add(), "the most is the most");
+    // A chart with one part more than the palette has starts again at the
+    // first color.
+    assert_eq!(palette.color(MAX_COLORS), palette.color(0));
     // Removing a place moves the later ones up.
     palette.set(4, Rgb::new(1, 2, 3));
     assert!(palette.remove(2));
-    assert_eq!(palette.len(), 15);
+    assert_eq!(palette.len(), MAX_COLORS - 1);
     assert_eq!(palette.color(3), Rgb::new(1, 2, 3));
     assert!(
         !palette.is_standard(3),
         "the moved color is not the standard of its new place"
     );
-    assert!(!palette.remove(15), "no such place");
+    assert!(!palette.remove(MAX_COLORS - 1), "no such place");
     while palette.remove(0) {}
     assert_eq!(palette.len(), MIN_COLORS, "two is the fewest");
     assert!(!palette.remove(0));
@@ -132,10 +157,10 @@ fn what_the_settings_file_holds_is_read_leniently() {
     assert_eq!(long.color(7), Rgb::new(0, 0, 1));
     let none: [&str; 0] = [];
     assert!(Palette::from_texts(8, &none).all_standard());
-    // The number of places is kept between two and sixteen, and the places
+    // The number of places is kept between two and the most, and the places
     // above eight start with their own standard colors.
     assert_eq!(Palette::from_texts(0, &none).len(), MIN_COLORS);
-    assert_eq!(Palette::from_texts(99, &none).len(), MAX_COLORS);
+    assert_eq!(Palette::from_texts(9999, &none).len(), MAX_COLORS);
     assert_eq!(Palette::from_texts(10, &none).color(9), STANDARD_COLORS[9]);
     // A file of the first version, eight colors and no count, reads as before.
     assert_eq!(

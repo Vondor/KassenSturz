@@ -8,7 +8,7 @@
 //! (D-002): it is kept per computer, never in a book, and it changes only how
 //! charts look. It starts with eight colors, the Okabe-Ito set (D-283), and a
 //! power user can add colors up to [`MAX_COLORS`] or remove them down to
-//! [`MIN_COLORS`]. Every color is three whole numbers from 0 to 255
+//! [`MIN_COLORS`] (D-588). Every color is three whole numbers from 0 to 255
 //! ([`Rgb`]); outside Rust a color is the text `#rrggbb` (D-065).
 //!
 //! A changed color gets a warning in plain words when it would be hard to see
@@ -17,18 +17,31 @@
 //! (D-283), so only colors the user changed are checked, and a warning never
 //! stops anyone from keeping a color.
 
-use kassensturz_report::spec::Rgb;
+use kassensturz_report::spec::{MAX_LAYERS, Rgb};
 
 /// How many colors the palette has at the start (D-283).
 pub const DEFAULT_COLORS: usize = 8;
 
 /// The fewest colors a palette may have: with one, no chart could tell its
-/// parts apart.
+/// parts apart, and below that the wrapping would have nothing to wrap to.
 pub const MIN_COLORS: usize = 2;
 
-/// The most colors a palette may have. More are hard to tell apart in a
-/// chart, and a chart that needs more starts again at the first.
-pub const MAX_COLORS: usize = 16;
+/// The most colors a palette may have, a technical limit and no opinion on
+/// what a person can tell apart: no chart has more than 200 colored parts
+/// (4 layers of at most 50 series), so a place above 200 could never be used,
+/// and each place is a row on the Settings page, which a measurement showed
+/// takes seconds to rebuild at 1000 rows.
+pub const MAX_COLORS: usize = 200;
+
+// The most colors is the most colored parts a chart can have, and every one
+// of those places is below where free colors start.
+const _: () = {
+    assert!(MAX_COLORS == MAX_LAYERS * crate::custom::MAX_SERIES);
+    assert!(MAX_COLORS < crate::model::EXTRA_COLOR_BASE as usize);
+};
+
+/// How many of the places have a hand-picked standard color.
+const PICKED: usize = 16;
 
 /// The standard colors in palette order: the eight of the Okabe-Ito set
 /// (blue, vermillion, bluish green, reddish purple, orange, sky blue, yellow
@@ -36,7 +49,7 @@ pub const MAX_COLORS: usize = 16;
 /// then eight more for a person who adds colors (wine red, green, teal,
 /// purple, sand, indigo, rose and dark red). Only the first eight are the
 /// color-blind-safe set (D-283).
-pub const STANDARD_COLORS: [Rgb; MAX_COLORS] = [
+pub const STANDARD_COLORS: [Rgb; PICKED] = [
     Rgb::new(0x00, 0x72, 0xB2),
     Rgb::new(0xD5, 0x5E, 0x00),
     Rgb::new(0x00, 0x9E, 0x73),
@@ -95,11 +108,22 @@ impl Palette {
     }
 
     /// The standard color of place `slot`, which is also the one an added
-    /// place starts with. A place above 15 has the standard color of its
-    /// place in the next round.
+    /// place starts with: the picked color of the first sixteen places, and
+    /// for a place above that a color whose hue is a golden angle (137
+    /// degrees) further round the color wheel than the place before it, in
+    /// two shades, so each added place starts different from the ones near
+    /// it.
     #[must_use]
     pub fn standard_color(slot: usize) -> Rgb {
-        STANDARD_COLORS[slot % MAX_COLORS]
+        match STANDARD_COLORS.get(slot) {
+            Some(color) => *color,
+            None => {
+                let turn = slot - PICKED;
+                let hue = (turn * 137 + 30) % 360;
+                let lightness = if turn.is_multiple_of(2) { 45 } else { 62 };
+                hsl(hue, 65, lightness)
+            }
+        }
     }
 
     /// The palette of `count` places (kept between [`MIN_COLORS`] and
@@ -231,7 +255,29 @@ impl Palette {
     }
 }
 
-/// A place as the small number it is (below 16).
+/// A color from hue (0 to 359 degrees), saturation and lightness (0 to 100
+/// percent), in whole numbers (the workspace denies floating point). It is
+/// the usual conversion with every part in ten-thousandths: the chroma
+/// `(1 - |2L - 1|) * S`, the second largest part `chroma * (1 - |(H / 60) mod
+/// 2 - 1|)` and the smallest `L - chroma / 2`.
+fn hsl(hue: usize, saturation: usize, lightness: usize) -> Rgb {
+    let chroma = (100 - (2 * lightness).abs_diff(100)) * saturation;
+    let toward = 60_usize.abs_diff(hue % 120);
+    let second = chroma * (60 - toward) / 60;
+    let floor = lightness * 100 - chroma / 2;
+    let (red, green, blue) = match hue / 60 {
+        0 => (chroma, second, 0),
+        1 => (second, chroma, 0),
+        2 => (0, chroma, second),
+        3 => (0, second, chroma),
+        4 => (second, 0, chroma),
+        _ => (chroma, 0, second),
+    };
+    let part = |value: usize| u8::try_from(((value + floor) * 255 + 5_000) / 10_000).unwrap_or(255);
+    Rgb::new(part(red), part(green), part(blue))
+}
+
+/// A place as the small number it is (below 256).
 fn slot_u8(slot: usize) -> u8 {
     u8::try_from(slot).unwrap_or(u8::MAX)
 }

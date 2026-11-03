@@ -72,7 +72,7 @@ ColumnLayout {
             i18nContext.i18nc("@label name of a chart color", "Indigo"),
             i18nContext.i18nc("@label name of a chart color", "Rose"),
             i18nContext.i18nc("@label name of a chart color", "Dark red"),
-        ][slot] ?? "";
+        ][slot] ?? i18nContext.i18nc("@label name of a chart color you added beyond the sixteen with a name", "Added color");
     }
 
     // What place `slot` is called on screen: its standard name while it has
@@ -311,7 +311,7 @@ ColumnLayout {
         textFormat: Text.PlainText
         text: card.notSaved
             ? card.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice, so it applies only until you close KassenSturz. Check that your settings folder can be written to, then choose again.")
-            : card.i18nContext.i18nc("@info", "These colors are used for every chart in KassenSturz: the first part of a chart gets color 1, the next color 2, and so on, and a chart with more parts than colors starts again at color 1. You can have from 2 to 16 colors. They change only how charts look on this computer, not your numbers. A warning means a color may be hard to see or to tell from its neighbour. You can keep it anyway. The first eight standard colors were chosen to work for people who see colors differently; the colors you add are not checked that way.")
+            : card.i18nContext.i18nc("@info", "These colors are used for every chart in KassenSturz: the first part of a chart gets color 1, the next color 2, and so on, and a chart with more parts than colors starts again at color 1. You can have from 2 to 200 colors. They change only how charts look on this computer, not your numbers. A warning means a color may be hard to see or to tell from its neighbour. You can keep it anyway. The first eight standard colors were chosen to work for people who see colors differently; the colors you add are not checked that way.")
     }
 
     // The system's own color dialog, where there is one.

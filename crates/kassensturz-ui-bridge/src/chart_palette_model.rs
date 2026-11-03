@@ -14,7 +14,7 @@ use core::pin::Pin;
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
-use kassensturz_charts::{MAX_COLORS, MIN_COLORS, Palette, PaletteWarning, STANDARD_COLORS};
+use kassensturz_charts::{MAX_COLORS, MIN_COLORS, Palette, PaletteWarning};
 use kassensturz_report::spec::{ColorError, Rgb};
 
 use crate::chart_palette;
@@ -33,11 +33,11 @@ pub mod qobject {
     }
 
     extern "RustQt" {
-        /// The app's chart colors: eight at the start, 2 to 16 once changed.
+        /// The app's chart colors: eight at the start, 2 to 200 once changed.
         #[qobject]
         #[qml_element]
         #[qproperty(QVariant, colors, READ, NOTIFY)]
-        // The standard color of every place that can exist (16), not only of
+        // The standard color of every place that can exist (200), not only of
         // the places there are now.
         #[qproperty(QVariant, standard, READ, CONSTANT)]
         #[qproperty(i32, min_colors, READ, CONSTANT)]
@@ -47,7 +47,7 @@ pub mod qobject {
     }
 
     extern "RustQt" {
-        /// Gives place `slot` (0 to 15) the color in `entry`, written as
+        /// Gives place `slot` (0 to 199) the color in `entry`, written as
         /// `#rrggbb` or as red, green and blue from 0 to 255, for the app
         /// from now on and at the next start. Returns "ok", "not-saved"
         /// (used until the app closes), "format" or "part" (the text is not
@@ -68,7 +68,7 @@ pub mod qobject {
         fn reset_all(self: Pin<&mut ChartPaletteSettings>) -> QString;
 
         /// Adds a place at the end with its standard color. Returns "ok",
-        /// "not-saved" or "limit" (there are 16 already).
+        /// "not-saved" or "limit" (there are 200 already).
         #[qinvokable]
         #[cxx_name = "addColor"]
         fn add_color(self: Pin<&mut ChartPaletteSettings>) -> QString;
@@ -106,7 +106,7 @@ impl cxx_qt::Initialize for qobject::ChartPaletteSettings {
     fn initialize(mut self: Pin<&mut Self>) {
         {
             let mut model = self.as_mut().rust_mut();
-            model.standard = list(STANDARD_COLORS.iter().map(|color| text(&color.to_hex())));
+            model.standard = standard_texts_object();
             model.min_colors = count_of(MIN_COLORS);
             model.max_colors = count_of(MAX_COLORS);
         }
@@ -114,7 +114,13 @@ impl cxx_qt::Initialize for qobject::ChartPaletteSettings {
     }
 }
 
-/// A number of places as the `i32` QML reads (it is at most 16).
+/// The standard color of every place that can exist, as `#RRGGBB` texts:
+/// QML compares a place's color with it to tell a changed one.
+fn standard_texts_object() -> QVariant {
+    list((0..MAX_COLORS).map(|slot| text(&Palette::standard_color(slot).to_hex())))
+}
+
+/// A number of places as the `i32` QML reads (it is at most 200).
 fn count_of(count: usize) -> i32 {
     i32::try_from(count).unwrap_or(i32::MAX)
 }
@@ -156,7 +162,7 @@ fn saved_word(saved: bool) -> &'static str {
     if saved { "ok" } else { "not-saved" }
 }
 
-/// The place `slot` of QML, if it is one of the sixteen that can exist
+/// The place `slot` of QML, if it is one of the places that can exist
 /// (whether it exists now is for the palette to say).
 fn slot_of(slot: i32) -> Option<usize> {
     usize::try_from(slot).ok().filter(|slot| *slot < MAX_COLORS)
@@ -275,11 +281,11 @@ mod tests {
     }
 
     #[test]
-    fn a_place_is_one_of_the_sixteen_that_can_exist() {
+    fn a_place_is_one_of_the_ones_that_can_exist() {
         assert_eq!(slot_of(0), Some(0));
         assert_eq!(slot_of(7), Some(7));
-        assert_eq!(slot_of(15), Some(15));
-        assert_eq!(slot_of(16), None);
+        assert_eq!(slot_of(199), Some(199));
+        assert_eq!(slot_of(200), None);
         assert_eq!(slot_of(-1), None);
         assert_eq!(slot_of(i32::MAX), None);
     }
@@ -316,6 +322,17 @@ mod tests {
                 color.to_hex()
             );
         }
+    }
+
+    /// QML can tell a changed color from the standard one for every place,
+    /// also for the ones above the first sixteen.
+    #[test]
+    fn the_standard_color_of_every_place_reaches_qml() {
+        let standard = texts_of(&standard_texts_object());
+        assert_eq!(standard.len(), MAX_COLORS);
+        assert_eq!(standard[..8], standard_texts()[..]);
+        assert_eq!(standard[16], Palette::standard_color(16).to_hex());
+        assert!(standard.iter().all(|text| Rgb::parse(text).is_some()));
     }
 
     /// Where a chart's free colors start is a number both sides know.

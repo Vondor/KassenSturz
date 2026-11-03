@@ -256,7 +256,7 @@ impl qobject::BookCharts {
 
 /// The marker (a second mark besides the color) of palette index `color`:
 /// the first four series get one, the others none, as -1 (D-283).
-fn marker(color: u8) -> i32 {
+fn marker(color: u16) -> i32 {
     if color < 4 { i32::from(color) } else { -1 }
 }
 

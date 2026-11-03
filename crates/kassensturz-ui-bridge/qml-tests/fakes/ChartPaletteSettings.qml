@@ -10,10 +10,19 @@ import QtQuick
 QtObject {
     id: fake
 
-    readonly property var standard: ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#F0E442", "#999999",
-        "#882255", "#117733", "#44AA99", "#AA4499", "#DDCC77", "#332288", "#CC6677", "#661100"]
+    // 200 places like the real object; the places above the sixteenth are
+    // made up here, only the first eight and the ninth matter to the tests.
+    readonly property var standard: {
+        const picked = ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#F0E442", "#999999",
+            "#882255", "#117733", "#44AA99", "#AA4499", "#DDCC77", "#332288", "#CC6677", "#661100"];
+        const all = picked.slice();
+        for (let i = picked.length; i < 200; i++) {
+            all.push("#" + ("000000" + (0x100000 + i * 4099).toString(16)).slice(-6).toUpperCase());
+        }
+        return all;
+    }
     readonly property int minColors: 2
-    readonly property int maxColors: 16
+    readonly property int maxColors: 200
     property var colors: standard.slice(0, 8)
     property bool changed: false
     property var calls: []

@@ -172,19 +172,24 @@ Window {
             case 12: {
                 window.check(fake.colors.length === 2 && window.fields().length === 2, "two is the fewest: " + fake.colors.length);
                 window.check(window.button("Remove", 0).enabled === false, "the last two cannot be removed");
-                // Up to the most, then no more.
-                while (window.button("Add a color").enabled) {
-                    window.button("Add a color").clicked();
-                }
+                // Up to the most, then no more: the object is filled up to one
+                // place short of it, and one click adds the last place (the
+                // rows of 200 places take seconds to build, once is enough).
+                fake.show(fake.standard.slice(0, fake.maxColors - 1));
                 break;
             }
             case 13: {
-                window.check(fake.colors.length === 16 && window.fields().length === 16, "sixteen is the most: " + fake.colors.length);
+                window.check(window.fields().length === fake.maxColors - 1, "the rows follow the object: " + window.fields().length);
+                window.button("Add a color").clicked();
+                break;
+            }
+            case 14: {
+                window.check(fake.colors.length === 200 && window.fields().length === 200, "200 is the most: " + fake.colors.length);
                 window.check(window.button("Add a color").enabled === false, "no more can be added");
                 window.button("Back to standard for all").clicked();
                 break;
             }
-            case 14: {
+            case 15: {
                 window.check(fake.colors.length === 8 && window.fields().length === 8, "Back to standard for all brings back the eight: " + fake.colors.length);
                 Qt.exit(window.failed ? 1 : 0);
                 break;

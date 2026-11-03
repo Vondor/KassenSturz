@@ -15,7 +15,7 @@ import QtQuick
 // `ChartPaletteSettings` object, which holds `#RRGGBB` text that Rust has
 // checked (D-065). Until then, and wherever a screen runs without the app
 // (the smoke tests), they are the standard ones below. A person can have 2 to
-// 16 colors (D-588); a chart gives its series and slices the number of their
+// 200 colors (D-588); a chart gives its series and slices the number of their
 // place, and the colors wrap it, so a chart never needs to know how many
 // colors there are.
 QtObject {
@@ -33,7 +33,7 @@ QtObject {
 
     // Where a chart's free colors start in its color indices (Rust:
     // EXTRA_COLOR_BASE; a test of the bridge reads it back).
-    readonly property int extraColorBase: 128
+    readonly property int extraColorBase: 1000
 
     // A screen asks for the place where the colors are changed (a link such
     // as "Edit palette…"); Main.qml opens Settings.

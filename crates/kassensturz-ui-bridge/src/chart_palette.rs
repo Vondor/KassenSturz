@@ -8,7 +8,7 @@
 //! palette the app uses now.
 //!
 //! The settings file keeps a place's color as `#RRGGBB` text under `Color1`
-//! to `Color16` in the group `Charts`, and nothing for a place that has its
+//! to `Color200` in the group `Charts`, and nothing for a place that has its
 //! standard color, so a later change of the standard colors reaches everyone
 //! who never changed them. A text that is not exactly `#rrggbb` reads as the
 //! standard color, so a file edited by hand never breaks a chart.
@@ -30,7 +30,7 @@ const CHARTS: &str = "Charts";
 /// The key of the number of places.
 const COUNT: &str = "ColorCount";
 
-/// The key of place `slot` (0 to 15): `Color1` to `Color16`.
+/// The key of place `slot` (0 to 199): `Color1` to `Color200`.
 fn key(slot: usize) -> String {
     format!("Color{}", slot + 1)
 }
@@ -59,16 +59,23 @@ pub fn write(settings: &Settings, palette: &Palette) -> bool {
     } else {
         palette.len().to_string()
     };
-    let mut saved = settings.set_text(CHARTS, COUNT, &count);
+    let mut saved = keep(settings, COUNT, &count);
     let texts = palette.texts();
     for slot in 0..MAX_COLORS {
         let value = match texts.get(slot) {
             Some(text) if !palette.is_standard(slot) => text.as_str(),
             _ => "",
         };
-        saved &= settings.set_text(CHARTS, &key(slot), value);
+        saved &= keep(settings, &key(slot), value);
     }
     saved
+}
+
+/// Keeps `value` under `key`, unless it is what the file holds already:
+/// every write of a settings entry goes to the file, and a palette of 200
+/// places changes one or a few of them at a time.
+fn keep(settings: &Settings, key: &str, value: &str) -> bool {
+    settings.text(CHARTS, key) == value || settings.set_text(CHARTS, key, value)
 }
 
 thread_local! {
@@ -170,7 +177,7 @@ mod tests {
         // A count that is no number, or out of range, is made sensible.
         assert!(settings.set_text(CHARTS, COUNT, "many"));
         assert_eq!(read(&settings).len(), DEFAULT_COLORS);
-        assert!(settings.set_text(CHARTS, COUNT, "99"));
+        assert!(settings.set_text(CHARTS, COUNT, "9999"));
         assert_eq!(read(&settings).len(), MAX_COLORS);
         assert!(settings.set_text(CHARTS, COUNT, "0"));
         assert_eq!(read(&settings).len(), kassensturz_charts::MIN_COLORS);

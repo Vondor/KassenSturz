@@ -823,7 +823,7 @@ fn the_palette_of_the_description_colors_the_series() {
     .expect("spec");
     let custom = draw(&spec, &table);
     assert_eq!(custom.title.as_deref(), Some("Title"));
-    let colors: Vec<u8> = custom.chart.series.iter().map(|s| s.color).collect();
+    let colors: Vec<u16> = custom.chart.series.iter().map(|s| s.color).collect();
     assert_eq!(colors, [5, 2]);
 }
 
@@ -1255,13 +1255,13 @@ fn a_free_color_in_the_palette_gets_an_index_from_the_extra_base_on() {
     // an extra, and a code used twice is one extra.
     let spec = colored(r##"["sky-blue", "#00FF7f", "#00ff7F"]"##, r#""bar""#);
     let chart = draw(&spec, &table).chart;
-    let colors: Vec<u8> = chart.series.iter().map(|s| s.color).collect();
+    let colors: Vec<u16> = chart.series.iter().map(|s| s.color).collect();
     assert_eq!(colors, [5, EXTRA_COLOR_BASE, EXTRA_COLOR_BASE]);
     assert_eq!(chart.extra_colors, [Rgb::new(0x00, 0xFF, 0x7F)]);
     // Two different codes are two extras, in order of the list.
     let two = colored(r##"["#010203", "#040506", "#010203"]"##, r#""bar""#);
     let chart = draw(&two, &table).chart;
-    let colors: Vec<u8> = chart.series.iter().map(|s| s.color).collect();
+    let colors: Vec<u16> = chart.series.iter().map(|s| s.color).collect();
     assert_eq!(
         colors,
         [EXTRA_COLOR_BASE, EXTRA_COLOR_BASE + 1, EXTRA_COLOR_BASE]
@@ -1269,7 +1269,7 @@ fn a_free_color_in_the_palette_gets_an_index_from_the_extra_base_on() {
     assert_eq!(chart.extra_colors, [Rgb::new(1, 2, 3), Rgb::new(4, 5, 6)]);
     // Without a palette the colors are the app's, and there are no extras.
     let plain = draw(&colored("[]", r#""bar""#), &table).chart;
-    let colors: Vec<u8> = plain.series.iter().map(|s| s.color).collect();
+    let colors: Vec<u16> = plain.series.iter().map(|s| s.color).collect();
     assert_eq!(colors, [0, 1, 2]);
     assert!(plain.extra_colors.is_empty());
 }
@@ -1300,7 +1300,7 @@ fn a_mark_in_its_own_color_colors_a_layer_without_a_color_channel() {
     // With a color channel, the channel's series take the colors.
     let with_channel = colored("[]", r##"{"type": "bar", "color": "#123456"}"##);
     let chart = draw(&with_channel, &table).chart;
-    let colors: Vec<u8> = chart.series.iter().map(|s| s.color).collect();
+    let colors: Vec<u16> = chart.series.iter().map(|s| s.color).collect();
     assert_eq!(colors, [0, 1]);
 }
 
@@ -1353,12 +1353,12 @@ fn a_pie_takes_the_descriptions_colors_for_its_slices_in_order() {
     };
     let chart = draw(&pie(r##"["#102030", "grey"]"##), &table).chart;
     assert_eq!(chart.kind, ChartKind::Pie);
-    let colors: Vec<u8> = (0..3).map(|at| chart.slice_color(at)).collect();
+    let colors: Vec<u16> = (0..3).map(|at| chart.slice_color(at)).collect();
     assert_eq!(colors, [EXTRA_COLOR_BASE, 7, EXTRA_COLOR_BASE]);
     assert_eq!(chart.extra_colors, [Rgb::new(0x10, 0x20, 0x30)]);
     // Without a palette the slices take the app's colors by place, as the
     // built-in pie does.
     let plain = draw(&pie("[]"), &table).chart;
-    let colors: Vec<u8> = (0..3).map(|at| plain.slice_color(at)).collect();
+    let colors: Vec<u16> = (0..3).map(|at| plain.slice_color(at)).collect();
     assert_eq!(colors, [0, 1, 2]);
 }

@@ -233,9 +233,9 @@ Kirigami.AbstractCard {
         Controls.Button {
             visible: card.chart !== null && card.outcome === "kept"
             icon.name: "view-grid"
-            text: card.dashboardName === ""
+            text: Plain.plain(card.dashboardName === ""
                 ? card.i18nContext.i18nc("@action:button put the chart the AI prepared on the Overview page", "Add to Overview")
-                : card.i18nContext.i18nc("@action:button put the chart the AI prepared on a dashboard, %1 is its name", "Add to %1", card.dashboardName)
+                : card.i18nContext.i18nc("@action:button put the chart the AI prepared on a dashboard, %1 is its name", "Add to %1", card.dashboardName))
             onClicked: {
                 ActionLog.taken("AiChartCard_addToOverview")
                 card.addToOverview()

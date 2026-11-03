@@ -149,7 +149,7 @@ Kirigami.ScrollablePage {
                 bottomPadding: Kirigami.Units.smallSpacing / 2
                 leftPadding: Kirigami.Units.smallSpacing
                 // A name could contain anything.
-                text: modelData.name
+                text: Plain.plain(modelData.name)
                 Accessible.name: isGroup ? modelData.name : modelData.path
                 // A heading opens and closes; a category opens to be changed.
                 onClicked: {
@@ -201,9 +201,9 @@ Kirigami.ScrollablePage {
                         display: Controls.AbstractButton.IconOnly
                         flat: true
                         focusPolicy: Qt.NoFocus
-                        text: entry.modelData.expanded
+                        text: Plain.plain(entry.modelData.expanded
                             ? page.i18nContext.i18nc("@action:button hide what is inside a category", "Collapse")
-                            : page.i18nContext.i18nc("@action:button show what is inside a category", "Expand")
+                            : page.i18nContext.i18nc("@action:button show what is inside a category", "Expand"))
                         onClicked: {
                             ActionLog.taken("CategoriesPage_toggle")
                             page.toggle(entry.modelData.key)

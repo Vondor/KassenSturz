@@ -50,9 +50,9 @@ Kirigami.ScrollablePage {
 
     readonly property bool canContinue: ["ready", "unknown-bank", "no-server", "guessed-server", "unknown-login-kind"].includes(lookup.state ?? "")
 
-    title: replacesLogin !== ""
+    title: Plain.plain(replacesLogin !== ""
         ? i18nContext.i18nc("@title", "Change a bank login")
-        : i18nContext.i18nc("@title", "Connect a bank")
+        : i18nContext.i18nc("@title", "Connect a bank"))
     header: ColumnLayout {
         spacing: 0
 

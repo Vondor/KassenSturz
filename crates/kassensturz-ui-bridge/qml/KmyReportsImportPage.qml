@@ -155,7 +155,7 @@ Kirigami.ScrollablePage {
                 visible: lines.length > 0
 
                 FormCard.FormHeader {
-                    title: choices.modelData.title
+                    title: Plain.plain(choices.modelData.title)
                 }
 
                 FormCard.FormCard {
@@ -176,7 +176,7 @@ Kirigami.ScrollablePage {
                             text: Plain.plain(modelData.line.state === "kept-yours"
                                 ? page.i18nContext.i18nc("@option:check %1 is the name of a saved view", "Replace “%1” with KMyMoney's version", modelData.line.name)
                                 : modelData.line.name)
-                            description: page.reasonsOf(modelData.line)
+                            description: Plain.plain(page.reasonsOf(modelData.line))
                             descriptionItem.textFormat: Text.PlainText
                             checked: modelData.line.chosen
                             onToggled: {
@@ -214,7 +214,7 @@ Kirigami.ScrollablePage {
                 visible: lines.length > 0
 
                 FormCard.FormHeader {
-                    title: group.modelData.title
+                    title: Plain.plain(group.modelData.title)
                 }
 
                 FormCard.FormCard {

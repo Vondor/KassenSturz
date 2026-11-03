@@ -210,7 +210,7 @@ FormCard.FormCardPage {
         FormCard.FormButtonDelegate {
             visible: (page.report.transfers ?? 0) > 0
             icon.name: "transform-move"
-            text: page.i18nContext.i18ncp("@action:button %1 is how many", "%1 pair of transactions may be money you moved between your accounts", "%1 pairs of transactions may be money you moved between your accounts", page.report.transfers ?? 0)
+            text: Plain.plain(page.i18nContext.i18ncp("@action:button %1 is how many", "%1 pair of transactions may be money you moved between your accounts", "%1 pairs of transactions may be money you moved between your accounts", page.report.transfers ?? 0))
             description: page.i18nContext.i18nc("@info", "KassenSturz asks about each pair, one at a time. Nothing is joined without your click.")
             onClicked: {
                 ActionLog.taken("BookFromFileDonePage_pairsTransactionsMoney")

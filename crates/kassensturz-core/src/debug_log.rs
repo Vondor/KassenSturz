@@ -540,13 +540,24 @@ fn settings_file() -> Option<PathBuf> {
 }
 
 fn default_folder() -> Option<PathBuf> {
-    if cfg!(not(target_os = "linux")) {
-        return None;
-    }
-    let nonempty = |name| std::env::var_os(name).filter(|value| !value.is_empty());
-    let data = nonempty("XDG_DATA_HOME")
-        .map(PathBuf::from)
-        .or_else(|| nonempty("HOME").map(|home| PathBuf::from(home).join(".local/share")))?;
+    folder_for(std::env::consts::OS, |name| {
+        std::env::var_os(name).filter(|value| !value.is_empty())
+    })
+}
+
+/// The log's folder on the system `os` (as `std::env::consts::OS` names
+/// it), with the environment read through `var`: next to the app's book in
+/// the data folder Qt gives the app, `~/.local/share` (or `XDG_DATA_HOME`)
+/// on Linux and `%LOCALAPPDATA%` on Windows (M7a.7, D-556). None on other
+/// systems, which have no app build yet.
+fn folder_for(os: &str, var: impl Fn(&str) -> Option<std::ffi::OsString>) -> Option<PathBuf> {
+    let data = match os {
+        "linux" => var("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| var("HOME").map(|home| PathBuf::from(home).join(".local/share")))?,
+        "windows" => PathBuf::from(var("LOCALAPPDATA")?),
+        _ => return None,
+    };
     Some(data.join(APP_FOLDER).join(FOLDER_NAME))
 }
 
@@ -654,6 +665,47 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.0);
         }
+    }
+
+    #[test]
+    fn the_folder_is_next_to_the_book_on_linux_and_windows() {
+        let env = |pairs: &'static [(&'static str, &'static str)]| {
+            move |name: &str| {
+                pairs
+                    .iter()
+                    .find(|(key, _)| *key == name)
+                    .map(|(_, value)| std::ffi::OsString::from(value))
+            }
+        };
+        let windows = folder_for(
+            "windows",
+            env(&[("LOCALAPPDATA", r"C:\Users\Tester\AppData\Local")]),
+        );
+        assert_eq!(
+            windows,
+            Some(
+                PathBuf::from(r"C:\Users\Tester\AppData\Local")
+                    .join(APP_FOLDER)
+                    .join(FOLDER_NAME)
+            )
+        );
+        assert_eq!(folder_for("windows", env(&[])), None);
+        assert_eq!(
+            folder_for("linux", env(&[("HOME", "/home/tester")])),
+            Some(
+                PathBuf::from("/home/tester/.local/share")
+                    .join(APP_FOLDER)
+                    .join(FOLDER_NAME)
+            )
+        );
+        assert_eq!(
+            folder_for(
+                "linux",
+                env(&[("XDG_DATA_HOME", "/data"), ("HOME", "/home/tester")])
+            ),
+            Some(PathBuf::from("/data").join(APP_FOLDER).join(FOLDER_NAME))
+        );
+        assert_eq!(folder_for("macos", env(&[("HOME", "/Users/tester")])), None);
     }
 
     #[test]

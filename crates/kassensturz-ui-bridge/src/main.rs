@@ -127,6 +127,9 @@ fn main() {
     // Naming the desktop file after the app ID (D-049) gives the window the
     // right name and icon, also on Wayland.
     QGuiApplication::set_desktop_file_name(&QString::from(platform::APP_ID));
+    platform::use_bundled_icons();
+    platform::use_readable_widget_style();
+    platform::start_in_user_folder();
     platform::set_window_icon();
     platform::load_ki18n_qml();
     crate::note!(AppStarted);

@@ -35,12 +35,14 @@ No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the App
 - A published release has a wrong file: delete the release on GitHub, delete the tag as above, and tag again. Testers who already downloaded the file are told through the facilitator.
 - The same tag may be re-run (re-run the workflow in the Actions tab): files of an existing release are replaced and its text is kept.
 
-## What else goes in a release (slots in `release.yml`)
+## What goes in a release
 
-- **Windows installer (M7a.7).** A job of this workflow builds it (for example by calling `windows-app.yml` as a reusable workflow) and uploads the installer as an artifact whose name starts with `release-asset-`; adding that job to the `needs` list of the release job attaches the file next to the Flatpak bundle.
+- **The Flatpak bundle**, built and installed by the Ubuntu sheet in the same run.
+- **The Windows app (M7a.7, D-554):** `KassenSturz-<number>-windows-x64.zip` (portable, no installation and no administrator rights) and `KassenSturz-<number>-windows-x64-setup.exe` (installer). The `windows` job calls `windows-app.yml` with `release: true`, which uploads both as `release-asset-windows`; the release waits for it. With Craft's cache warm it takes about 20 to 35 minutes, cold about 45. Both files are unsigned (D-048), so SmartScreen warns.
+
+What is still to come, marked `SLOT` in the workflow file:
+
 - **Example books for the build month (M7a.8).** A step before the Flatpak build runs the example book generator with the build month as its reference month, so "this month" and "last month" are never empty in a tester's copy.
-
-Both are marked `SLOT` in the workflow file.
 
 ## Trying the workflow without a tag
 

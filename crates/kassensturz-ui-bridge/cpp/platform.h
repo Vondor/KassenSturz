@@ -45,4 +45,25 @@ QString fileSystemType(const QString &path);
 // Call it on the main thread before the first QML file loads. If the library
 // can't be found, nothing happens: Qt loads it later, as before.
 void loadKI18nQml();
+
+// On Windows, which has no icon theme, makes Breeze's icons (built into
+// KF6BreezeIcons) the theme and lets Qt find the app's own icon next to the
+// program, in data/icons (D-555). Does nothing elsewhere, where the desktop's
+// icon theme is used. Call it before the first window is shown.
+void useBundledIcons();
+
+// On Windows, Qt's Fusion style for the widgets that Plasma's QML style
+// (org.kde.desktop) draws its controls with, unless the user chose a style
+// with -style or QT_STYLE_OVERRIDE. Windows' own style drew a chosen radio
+// button as an empty white circle there (M6-B142). Does nothing elsewhere.
+// Call it after the QApplication exists and before the first window.
+void useReadableWidgetStyle();
+
+// On Windows, makes the user's Downloads folder (or else their home folder)
+// the working folder when the app was started in the system's folder or in
+// its own program folder: Windows' file dialogs open in the working folder
+// when a dialog is given none, and from PowerShell that was
+// C:\Windows\System32 (M6-B147). The app opens no file by a relative path,
+// so nothing else depends on it. Does nothing elsewhere.
+void startInUserFolder();
 }

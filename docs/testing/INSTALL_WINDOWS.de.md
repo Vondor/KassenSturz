@@ -2,7 +2,7 @@
 
 *Dieses Blatt führt Sie Klick für Klick durch die Installation. Sie brauchen dafür keine Hilfe und normalerweise keine Administrator-Rechte. Dauer: etwa 10 Minuten. Englische Fassung: [INSTALL_WINDOWS.en.md](INSTALL_WINDOWS.en.md).*
 
-> **Stand für das Team.** Die Windows-Version entsteht in Schritt M7a.7 und gilt erst als fertig, wenn sie auf einem frischen Windows 11 nach diesem Blatt installiert wurde (D-542). Dieses Blatt beschreibt den vorgesehenen Ablauf. Die Dateinamen, der Installationsordner und die Bildschirmfotos werden aus dem Lauf auf der virtuellen Maschine nachgetragen; die Stellen sind unten mit „Bildschirmfoto folgt“ gekennzeichnet (Liste in [README.md](README.md)). Bis dahin dürfen keine Tester mit Windows eingeladen werden.
+> **Stand für das Team.** Am 3. November 2026 wurde dieses Blatt auf einer Windows-11-VM mit Build 0.261103.18 abgearbeitet (D-542, D-557). Die Bildschirmfotos dieses Laufs liegen in [screenshots/windows/](screenshots/windows/). Dateinamen, Ordner und Abläufe unten stammen aus diesem Lauf. Ausnahme ist der Installer: Er installiert inzwischen ohne Administrator-Rechte und auf Deutsch (D-583). Seine Bildschirmfotos und die Korrekturen aus dem Lauf (M6-B141 bis B143, B147, B149) werden in einem zweiten Lauf geprüft. Erst danach dürfen Tester mit Windows eingeladen werden.
 
 **Kommen Sie nicht weiter?** Sagen Sie es der Testleitung. Sie installiert nicht für Sie, aber sie notiert die Stelle, und Sie bekommen einen Hinweis, damit der Test weitergeht.
 
@@ -12,7 +12,7 @@
 
 - Windows 11 (oder Windows 10), ein normales Benutzerkonto reicht.
 - Eine Internetverbindung für den Download.
-- Etwa 500 MB freien Platz.
+- Etwa 600 MB freien Platz.
 
 ## Schritt 1: Die Download-Seite öffnen
 
@@ -29,7 +29,8 @@
 ## Schritt 2: Die richtige Datei wählen
 
 1. Scrollen Sie auf der Karte zu **Assets** (Dateien) und klappen Sie die Liste auf, falls nötig.
-2. Wählen Sie die Datei für Windows. Sie hat in ihrem Namen **windows** und endet auf **.exe** oder **.zip**; die Testleitung hat Ihnen den genauen Namen vorher gesagt.
+2. Wählen Sie die Datei, deren Name mit **-windows-x64-setup.exe** endet, zum Beispiel `KassenSturz-0.261103.18-windows-x64-setup.exe`. Die Zahl in der Mitte ist die Nummer der Testversion; die Testleitung hat sie Ihnen vorher gesagt.
+   Die Datei, die auf **-windows-x64.zip** endet, ist dasselbe Programm zum Entpacken ohne Installation. Nehmen Sie sie nur, wenn die Testleitung es sagt.
 3. **Nicht** diese Dateien: *Source code (zip)*, *Source code (tar.gz)* und die Datei, die auf **.flatpak** endet. Die sind für andere Systeme oder für Entwickler.
 4. Klicken Sie auf den Namen der Datei. Der Download startet.
 
@@ -57,9 +58,9 @@ Diese Warnung kommt, weil das Programm noch nicht signiert ist. Das ändert sich
 ## Schritt 4: Installieren
 
 1. Öffnen Sie die heruntergeladene Datei per Doppelklick (im Browser über „Datei öffnen“ oder im Ordner **Downloads**).
-2. Folgen Sie dem Installationsfenster: Sprache **Deutsch**, dann **Weiter** und **Installieren**. Sie müssen nichts umstellen.
-3. Fragt Windows nach einem **Administrator-Kennwort**, wählen Sie **Abbrechen** und sagen Sie es der Testleitung. Die Installation soll ohne laufen.
-4. Am Ende klicken Sie **Fertig**.
+2. Folgen Sie dem Installationsfenster: **Weiter**, dann **Installieren**. Sie müssen nichts umstellen. KassenSturz kommt in Ihren eigenen Ordner (`%LOCALAPPDATA%\Programs\KassenSturz`), deshalb braucht die Installation keine Administrator-Rechte.
+3. Fragt Windows trotzdem nach einem **Administrator-Kennwort** oder ob die App Änderungen vornehmen darf, wählen Sie **Abbrechen** bzw. **Nein** und sagen Sie es der Testleitung.
+4. Am Ende klicken Sie **Fertig stellen**. Im Startmenü gibt es jetzt den Eintrag **KassenSturz**.
 
 *(Bildschirmfoto folgt: Installationsfenster, Schritte.)*
 
@@ -81,12 +82,11 @@ Für den Test soll KassenSturz ein Protokoll mitschreiben (siehe [Tester-Guide](
 2. Kopieren Sie diese Zeile in das Fenster und drücken Sie die Eingabetaste:
 
    ```powershell
-   $env:KASSENSTURZ_DEBUG_LOG = "1"; & "<Installationsordner>\kassensturz.exe"
+   $env:KASSENSTURZ_DEBUG_LOG = "1"; & "$env:LOCALAPPDATA\Programs\KassenSturz\bin\kassensturz.exe"
    ```
 
-   *(Der Installationsordner wird nach dem Lauf auf der virtuellen Maschine eingetragen.)*
-
-3. KassenSturz öffnet sich. **Prüfen:** Steht oben im Fenster „Entwicklermodus“? Dann läuft er.
+3. **Beim allerersten Start brauchen Sie Geduld: Es kann bis zu 7 Minuten dauern, bis sich das Fenster öffnet.** Windows prüft dabei jede Datei des neuen Programms einmal. Starten Sie KassenSturz in dieser Zeit nicht noch einmal. Ab dem zweiten Start dauert es nur wenige Sekunden.
+4. KassenSturz öffnet sich. **Prüfen:** Steht oben im Fenster „KassenSturz – Entwicklermodus“ und darunter ein roter Hinweis? Dann läuft er.
 
 Lassen Sie das PowerShell-Fenster offen, bis Sie fertig sind.
 
@@ -103,7 +103,7 @@ Lassen Sie das PowerShell-Fenster offen, bis Sie fertig sind.
 
 ## Wieder entfernen
 
-*Einstellungen › Apps › Installierte Apps*, KassenSturz suchen, **…** und **Deinstallieren**. Ihre Testbücher bleiben als Dateien liegen, bis Sie sie löschen.
+*Einstellungen › Apps › Installierte Apps*, KassenSturz suchen, **…** und **Deinstallieren**. Die Deinstallation entfernt nur die Dateien des Programms. Ihre Testbücher bleiben als Dateien liegen, bis Sie sie löschen (in `%LOCALAPPDATA%\io.github.vondor.KassenSturz`).
 
 ---
 

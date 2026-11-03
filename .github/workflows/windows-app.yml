@@ -1,0 +1,241 @@
+name: Windows app
+
+# The Qt app for Windows (M7a.7, D-554). KDE Craft brings Qt 6 and KDE
+# Frameworks from its binary cache for Visual Studio 2022, builds KassenSturz
+# with the project's CMake (which drives Cargo, D-063) and packs it as a
+# portable zip and an installer, both unsigned until signing comes (D-048).
+# This file is separate from ci.yml on purpose: the run is long, and only
+# changes that can affect the Windows app start it. The release workflow
+# calls it for a pre-release.
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/windows-app.yml"
+      - "packaging/windows/**"
+      - "crates/**"
+      - "po/**"
+      - "data/**"
+      - "CMakeLists.txt"
+      - "Cargo.toml"
+      - "Cargo.lock"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/windows-app.yml"
+      - "packaging/windows/**"
+      - "crates/**"
+      - "po/**"
+      - "data/**"
+      - "CMakeLists.txt"
+      - "Cargo.toml"
+      - "Cargo.lock"
+  workflow_dispatch:
+  # release.yml calls this workflow for a pre-release tag and attaches what
+  # it uploads as release-asset-windows (D-551, D-554).
+  workflow_call:
+    inputs:
+      release:
+        description: Upload the packages as release-asset-windows for the release job
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# In a call from release.yml, github.workflow is the caller's name, so a pull
+# request's own Windows run and the release workflow's call of it don't
+# cancel each other.
+concurrency:
+  group: windows-app-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CRAFT_ROOT: C:\CraftRoot
+  # Craft and its blueprints, pinned, so a run builds the same thing
+  # until these are moved on purpose (with the cache key below). Craft's
+  # binary cache (CacheVersion 26.10) has the package versions these
+  # blueprints ask for. The bootstrap script comes from the same Craft
+  # commit; the bootstrap fetches Craft's current code, which the "Pin
+  # Craft" step then checks out at these commits.
+  CRAFT_COMMIT: 911cb3f55b2ce0cb95c6a0013678028190a34a66
+  CRAFT_BLUEPRINTS_COMMIT: 0cb3f8cd34e5ce8527c278537825fb2315704496
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  windows-app:
+    name: Windows app with KDE Craft (D-554)
+    # Craft's binary cache is built for Visual Studio 2022; windows-latest has
+    # only Visual Studio 2026, which Craft's cache doesn't cover (D-214).
+    runs-on: windows-2022
+    timeout-minutes: 330
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # tools/build-version.sh counts the day's commits (D-226).
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          rustup default 1.98.1
+      # Craft's own folder with Qt and KDE Frameworks, kept between runs so
+      # only the first run downloads them. Craft's downloads and build folders
+      # are left out: they are big and rebuilt anyway.
+      - name: Restore Craft
+        id: craft-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            C:\CraftRoot
+            !C:\CraftRoot\build
+            !C:\CraftRoot\download
+            !C:\CraftRoot\tmp
+          key: craft-msvc2022-v2-${{ env.CRAFT_COMMIT }}-${{ env.CRAFT_BLUEPRINTS_COMMIT }}-${{ hashFiles('packaging/windows/craft/**/*.py') }}
+          restore-keys: craft-msvc2022-v2-${{ env.CRAFT_COMMIT }}-${{ env.CRAFT_BLUEPRINTS_COMMIT }}-
+      - name: Set up Craft
+        if: steps.craft-cache.outputs.cache-matched-key == ''
+        run: |
+          $boot = "$env:RUNNER_TEMP\CraftBootstrap.py"
+          Invoke-WebRequest "https://raw.githubusercontent.com/KDE/craft/$env:CRAFT_COMMIT/setup/CraftBootstrap.py" -OutFile $boot
+          # Craft's settings default to MinSizeRel now, but KDE's binary
+          # cache holds RelWithDebInfo builds: with MinSizeRel the bootstrap
+          # finds nothing and builds Perl, ICU, gettext and Python from
+          # source (run 1 took 52 minutes and failed in gettext). The
+          # bootstrap starts Craft right after writing the settings, so the
+          # build type goes in before that.
+          $text = Get-Content $boot -Raw
+          $patched = $text.Replace('    boot.writeSettings()', '    boot.setSettingsValue("Compile", "BuildType", "RelWithDebInfo"); boot.writeSettings()')
+          if ($patched -eq $text) { throw "CraftBootstrap.py changed: boot.writeSettings() not found" }
+          Set-Content $boot $patched
+          python $boot --prefix $env:CRAFT_ROOT --use-defaults
+      - name: Pin Craft and its blueprints
+        run: |
+          $pins = @(
+            @("$env:CRAFT_ROOT\craft", $env:CRAFT_COMMIT),
+            @("$env:CRAFT_ROOT\etc\blueprints\locations\craft-blueprints-kde", $env:CRAFT_BLUEPRINTS_COMMIT)
+          )
+          foreach ($pin in $pins) {
+            $dir, $commit = $pin
+            git -C $dir cat-file -e "$commit^{commit}" 2>$null
+            if ($LASTEXITCODE -ne 0) { git -C $dir fetch --quiet origin $commit; if ($LASTEXITCODE -ne 0) { throw "can't fetch $commit into $dir" } }
+            git -C $dir checkout --quiet --detach $commit
+            if ($LASTEXITCODE -ne 0) { throw "can't check out $commit in $dir" }
+            Write-Output "$dir at $(git -C $dir rev-parse HEAD)"
+          }
+      - name: Point Craft at KassenSturz's blueprint
+        run: |
+          $ini = "$env:CRAFT_ROOT\etc\CraftSettings.ini"
+          $blueprints = "$env:GITHUB_WORKSPACE\packaging\windows\craft"
+          $text = Get-Content $ini -Raw
+          $text = $text -replace '(?m)^#?Locations = .*$', "Locations = $blueprints"
+          # No daily blueprint updates: the pinned commits stay as they are.
+          $text = $text -replace '(?m)^EnableDailyUpdates = .*$', 'EnableDailyUpdates = False'
+          Set-Content $ini $text
+          Select-String -Path $ini -Pattern '^(ABI|Locations|UseCache|BuildType|EnableDailyUpdates) ='
+      - name: Install Qt and KDE Frameworks
+        run: python "$env:CRAFT_ROOT\craft\bin\craft.py" --ci-mode --install-deps kassensturz
+      - name: Save Craft
+        if: ${{ success() && steps.craft-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            C:\CraftRoot
+            !C:\CraftRoot\build
+            !C:\CraftRoot\download
+            !C:\CraftRoot\tmp
+          key: craft-msvc2022-v2-${{ env.CRAFT_COMMIT }}-${{ env.CRAFT_BLUEPRINTS_COMMIT }}-${{ hashFiles('packaging/windows/craft/**/*.py') }}
+      - name: Name the build
+        id: version
+        shell: bash
+        run: |
+          version=$(tools/build-version.sh)
+          echo "$version" > build-version
+          git rev-parse --short=7 HEAD > build-commit
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building $version ($(cat build-commit))"
+      - name: Build KassenSturz
+        run: python "$env:CRAFT_ROOT\craft\bin\craft.py" --ci-mode --src-dir "$env:GITHUB_WORKSPACE" kassensturz
+      - name: Pack the portable zip
+        run: python "$env:CRAFT_ROOT\craft\bin\craft.py" --ci-mode --src-dir "$env:GITHUB_WORKSPACE" --options "[Packager]PackageType=PortablePackager" --options "[Packager]7ZipArchiveType=zip" --package kassensturz
+      - name: Pack the installer
+        run: python "$env:CRAFT_ROOT\craft\bin\craft.py" --ci-mode --src-dir "$env:GITHUB_WORKSPACE" --options "[Packager]PackageType=NullsoftInstallerPackager" --package kassensturz
+      - name: Collect the packages
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $out = New-Item -ItemType Directory -Force "$env:GITHUB_WORKSPACE\out"
+          Get-ChildItem "$env:CRAFT_ROOT\tmp" -File | Format-Table Name, Length
+          $zip = Get-ChildItem "$env:CRAFT_ROOT\tmp\kassensturz-*.zip" | Where-Object Name -NotMatch '-dbg' | Select-Object -First 1
+          $exe = Get-ChildItem "$env:CRAFT_ROOT\tmp\kassensturz-*.exe" | Select-Object -First 1
+          Copy-Item $zip.FullName "$out\KassenSturz-$version-windows-x64.zip"
+          Copy-Item $exe.FullName "$out\KassenSturz-$version-windows-x64-setup.exe"
+          Get-ChildItem $out | Format-Table Name, Length
+      # The program from the zip, not from Craft's folder, so a library or QML
+      # module the package lacks shows up here. Without a book it opens the
+      # welcome screen; a QML error ends it at once (main.rs).
+      - name: Start the app from the zip
+        run: |
+          $dir = "$env:RUNNER_TEMP\ks-zip"
+          Expand-Archive (Get-ChildItem "$env:GITHUB_WORKSPACE\out\*.zip").FullName $dir
+          $exe = Get-ChildItem $dir -Recurse -Filter kassensturz.exe | Select-Object -First 1
+          Write-Output "Starting $($exe.FullName)"
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:APPDATA = "$env:RUNNER_TEMP\ks-appdata"
+          $env:LOCALAPPDATA = "$env:RUNNER_TEMP\ks-localappdata"
+          $p = Start-Process $exe.FullName -PassThru -RedirectStandardError "$env:RUNNER_TEMP\ks-err.txt" -RedirectStandardOutput "$env:RUNNER_TEMP\ks-out.txt"
+          Start-Sleep -Seconds 30
+          $running = -not $p.HasExited
+          if ($running) { Stop-Process -Id $p.Id -Force }
+          Write-Output "--- stderr"; Get-Content "$env:RUNNER_TEMP\ks-err.txt" -ErrorAction SilentlyContinue | Select-Object -First 80
+          if (-not $running) { Write-Output "The app ended with code $($p.ExitCode)"; exit 1 }
+          Write-Output "The app was still running after 30 seconds."
+      # The installer as a tester runs it, but silent (/S): it must install
+      # without administrator rights into the user's own folder, put an entry
+      # in the Start menu, and its uninstaller must take both away again
+      # (installer.nsi, D-583). The runner's account is an administrator, so
+      # this checks where it installs, not that Windows doesn't ask.
+      - name: Install and remove with the installer
+        run: |
+          $setup = (Get-ChildItem "$env:GITHUB_WORKSPACE\out\*-setup.exe").FullName
+          $dir = "$env:LOCALAPPDATA\Programs\KassenSturz"
+          $link = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\KassenSturz.lnk"
+          $p = Start-Process $setup -ArgumentList "/S" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "The installer ended with code $($p.ExitCode)" }
+          if (-not (Test-Path "$dir\bin\kassensturz.exe")) { throw "No kassensturz.exe in $dir\bin" }
+          if (-not (Test-Path $link)) { throw "No Start menu entry at $link" }
+          if (Test-Path "$env:ProgramFiles\KassenSturz") { throw "It installed into Program Files" }
+          Write-Output "Installed into $dir with a Start menu entry."
+          $p = Start-Process "$dir\uninstall.exe" -ArgumentList "/S" -Wait -PassThru
+          # The uninstaller copies itself away and returns at once; give it time.
+          for ($i = 0; $i -lt 30 -and (Test-Path "$dir\bin\kassensturz.exe"); $i++) { Start-Sleep -Seconds 2 }
+          if (Test-Path "$dir\bin\kassensturz.exe") { throw "kassensturz.exe is still there after uninstalling" }
+          if (Test-Path $link) { throw "The Start menu entry is still there after uninstalling" }
+          Write-Output "Removed again."
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kassensturz-windows-${{ steps.version.outputs.version }}
+          path: out/*
+          if-no-files-found: error
+      # The release job attaches every artifact named release-asset-* to the
+      # draft pre-release (release.yml).
+      - name: Hand the packages to the release
+        if: ${{ inputs.release }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-asset-windows
+          path: out/*
+          if-no-files-found: error
+      # Craft prints very long lines; the tail of its log is what explains a
+      # failure, so the last lines of each log come at the very end.
+      - name: Craft's logs
+        if: failure()
+        run: |
+          Get-ChildItem "$env:CRAFT_ROOT\logs" -Recurse -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 3 | ForEach-Object {
+            Write-Output "=== $($_.Name)"
+            Get-Content $_.FullName -Tail 60 | ForEach-Object { if ($_.Length -gt 300) { $_.Substring(0, 300) } else { $_ } }
+          }

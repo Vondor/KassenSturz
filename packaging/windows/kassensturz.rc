@@ -1,0 +1,7 @@
+// SPDX-FileCopyrightText: 2026 KassenSturz contributors
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// The program's icon on Windows (M6-B143): Explorer, the Start menu and the
+// installer's shortcuts show the first icon resource of the .exe, and Qt
+// takes the one named IDI_ICON1 for the window's title bar and the taskbar.
+IDI_ICON1 ICON "kassensturz.ico"

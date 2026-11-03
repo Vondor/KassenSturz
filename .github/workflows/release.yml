@@ -104,9 +104,8 @@ jobs:
           save-cache: false
           upload-artifact: false
       # Every file for the release goes up as an artifact named release-asset-*,
-      # and the release job attaches all of them (SLOT M7a.7: the Windows job,
-      # e.g. a call of windows-app.yml as a reusable workflow, uploads its
-      # installer the same way).
+      # and the release job attaches all of them; the Windows job below uploads
+      # its zip and installer the same way.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-asset-flatpak
@@ -174,11 +173,23 @@ jobs:
             exit 1
           fi
 
+  # The Windows app (M7a.7, D-554): the same workflow that checks Windows in
+  # pull requests, here asked to hand its portable zip and installer to the
+  # release job. It numbers the build with tools/build-version.sh, as the job
+  # above does, so both files carry the tag's number. Its own run installs and
+  # removes the installer and starts the app from the zip; the install sheet
+  # is proven by hand on a Windows 11 virtual machine (D-542).
+  windows:
+    name: Windows app
+    uses: ./.github/workflows/windows-app.yml
+    with:
+      release: true
+
   # Only for a tag. A published pre-release at once (D-585): the maintainer's
   # tag is the whole gate.
   release:
     name: Pre-release on GitHub
-    needs: [build, install-check]  # SLOT (M7a.7): add the Windows job here
+    needs: [build, install-check, windows]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:

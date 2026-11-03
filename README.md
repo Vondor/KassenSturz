@@ -102,10 +102,11 @@ tools/sdk.sh cargo run --bin kassensturz-cli -- undo
 Build and install the Flatpak, offline as on Flathub, and start it (it also appears in the app menu):
 
 ```sh
-flatpak run org.flatpak.Builder --user --install --force-clean --disable-rofiles-fuse \
-    --repo=build/flatpak-repo build/flatpak packaging/flatpak/io.github.vondor.KassenSturz.yml
+tools/build-flatpak.sh
 flatpak run io.github.vondor.KassenSturz
 ```
+
+The script runs `flatpak-builder` with the manifest, after writing the build's number and commit into `build-version` and `build-commit`. The Flatpak's copy of the sources has no `.git`, so without these files the app, `flatpak info` and software centres would show the version in `Cargo.toml` (M6-B165, D-226).
 
 When `Cargo.lock` changes, regenerate the Flatpak's crate list with `flatpak-cargo-generator.py` from [flatpak-builder-tools](https://github.com/flatpak/flatpak-builder-tools) (Python with `aiohttp` and `tomlkit`):
 

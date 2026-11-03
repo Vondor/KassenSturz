@@ -70,6 +70,11 @@ pub struct AccountCard {
     pub balance: Shown,
     /// Whether the balance is shown as "You owe" (D-067).
     pub owes: bool,
+    /// What the parts dated after today add to the balance, with its sign;
+    /// `None` if the account has none. The balance counts every part, the
+    /// Overview's figure for this month only those up to today, so the
+    /// screen says how much of the balance is still to come (D-587).
+    pub later: Option<Shown>,
 }
 
 /// The open accounts in one currency, with what they come to together.
@@ -84,6 +89,9 @@ pub struct CurrencySection {
     pub together: Shown,
     /// Whether, all together, the user owes money.
     pub together_owes: bool,
+    /// What the parts dated after today add to `together`, with its sign;
+    /// `None` if no account of the section has any (D-587).
+    pub later: Option<Shown>,
 }
 
 /// What the accounts screen shows.
@@ -238,7 +246,10 @@ fn correctable(starting: &[AccountPart], day: Date) -> Result<Option<&AccountPar
 
 /// What the book holds about the accounts, for the accounts screen.
 pub fn view(book: &Book, locale: &impl Locale) -> Result<AccountsView, StoreError> {
-    let mut sections: Vec<(CurrencyCode, Vec<AccountCard>, Vec<Money>)> = Vec::new();
+    let today = locale.today();
+    // Per currency: the cards, their balances and what is dated after today.
+    type Gathered = (CurrencyCode, Vec<AccountCard>, Vec<Money>, Vec<Money>);
+    let mut sections: Vec<Gathered> = Vec::new();
     let mut closed = Vec::new();
     // Sorted by ID, so in the order they were added (D-067).
     for account in book.all_accounts()? {
@@ -247,7 +258,11 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<AccountsView, StoreErro
         }
         let balance = book.balance(account.id)?;
         let writer = AmountWriter::new(book, account.currency, locale)?;
-        let card = card(&account, balance, &writer);
+        let mut card = card(&account, balance, &writer);
+        let later = after(book, account.id, today)?;
+        if !later.is_zero() {
+            card.later = Some(writer.text(later));
+        }
         if account.closed {
             closed.push(card);
             continue;
@@ -258,18 +273,21 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<AccountsView, StoreErro
         {
             Some(index) => index,
             None => {
-                sections.push((account.currency, Vec::new(), Vec::new()));
+                sections.push((account.currency, Vec::new(), Vec::new(), Vec::new()));
                 sections.len() - 1
             }
         };
         sections[index].1.push(card);
         sections[index].2.push(balance);
+        sections[index].3.push(later);
     }
     let sections = sections
         .into_iter()
-        .map(|(currency, accounts, balances)| {
+        .map(|(currency, accounts, balances, later)| {
             let together =
                 Money::checked_sum(currency, balances).map_err(|_| StoreError::AmountOverflow)?;
+            let later =
+                Money::checked_sum(currency, later).map_err(|_| StoreError::AmountOverflow)?;
             let writer = AmountWriter::new(book, currency, locale)?;
             let (together, together_owes) = writer.balance(together, AccountKind::Liability);
             Ok(CurrencySection {
@@ -277,10 +295,26 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<AccountsView, StoreErro
                 accounts,
                 together,
                 together_owes,
+                later: (!later.is_zero()).then(|| writer.text(later)),
             })
         })
         .collect::<Result<_, StoreError>>()?;
     Ok(AccountsView { sections, closed })
+}
+
+/// What the parts of `account` dated after `today` add up to: by the day
+/// the bank booked them where it says so, the day rule the Overview's
+/// balances use (`Book::account_parts`, D-029).
+fn after(book: &Book, account: AccountId, today: Date) -> Result<Money, StoreError> {
+    let currency = book.account(account)?.currency;
+    Money::checked_sum(
+        currency,
+        book.account_parts(account)?
+            .iter()
+            .filter(|part| part.bank_date() > today)
+            .map(|part| part.amount),
+    )
+    .map_err(|_| StoreError::AmountOverflow)
 }
 
 /// The currency the household mostly uses: that of the first open account
@@ -876,6 +910,7 @@ fn card(account: &Account, balance: Money, writer: &AmountWriter<'_, impl Locale
         account_type: account.account_type.map_or("", type_key),
         balance: shown,
         owes,
+        later: None,
     }
 }
 

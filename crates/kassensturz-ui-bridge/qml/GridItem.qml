@@ -272,9 +272,10 @@ Item {
 
     // What all the accounts hold together less what is owed, a card for each
     // currency (Q-215, D-329). Its figures are those of `account_balances`
-    // (M6c.2, D-370): what the accounts held at the end of today, so it stays
-    // when the month changes, or at the end of the period of the period box
-    // it lies in. As text (D-065).
+    // (M6c.2, D-370): what the accounts held at the end of the page's month,
+    // or at the end of today while the page shows the current month (D-587),
+    // or at the end of the period of the period box it lies in. As text
+    // (D-065).
     Component {
         id: netWorthBox
 
@@ -287,10 +288,15 @@ Item {
             readonly property var sections: (balances.view?.sets ?? [])
                 .map(set => ({currency: set.currency, card: set.cards.find(card => card.measure === "net_worth")}))
                 .filter(section => section.card !== undefined)
-            // The box's, else the filter bar's period; else the end of today.
+            // The box's, else the filter bar's period; else the page's month:
+            // its end, or today while it is the current month (D-587).
             readonly property string worthPeriod: {
                 const word = cell.info?.asked?.period;
-                return word === undefined || word === "page" ? "today" : word;
+                if (word !== undefined && word !== "page") {
+                    return word;
+                }
+                const month = cell.board.monthKey ?? "";
+                return month === "" || cell.board.pageView.thisMonth !== false ? "today" : month;
             }
             readonly property string scope: cell.info?.asked?.scope ?? ""
 

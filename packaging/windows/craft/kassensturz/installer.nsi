@@ -2,7 +2,7 @@
 ; SPDX-License-Identifier: GPL-3.0-or-later
 
 ; KassenSturz's installer for Windows (M7a.7, D-583). KDE Craft fills in the
-; @{...} values when it packs the installer (craft --package with
+; values in at-sign braces when it packs the installer (craft --package with
 ; NullsoftInstallerPackager; kassensturz.py points Craft at this file).
 ;
 ; It installs for the person who runs it, into their own

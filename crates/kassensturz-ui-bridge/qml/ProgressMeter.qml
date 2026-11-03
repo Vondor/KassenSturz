@@ -58,6 +58,11 @@ ColumnLayout {
         visible: meter.hasValue
 
         Rectangle {
+            // Always the active colours: a bar is a figure, not a
+            // selection, so it doesn't dim with an inactive window. It had
+            // kept the dimmed colour after Windows switched to dark mode
+            // while another window was in front (M6-B155).
+            Kirigami.Theme.colorGroup: Kirigami.Theme.Active
             width: parent.width * Math.max(0, Math.min(1000, meter.permille)) / 1000
             height: parent.height
             radius: parent.radius

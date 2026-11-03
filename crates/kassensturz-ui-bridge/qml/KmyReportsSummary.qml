@@ -170,7 +170,7 @@ ColumnLayout {
             visible: lines.length > 0
 
             FormCard.FormHeader {
-                title: group.modelData.title
+                title: Plain.plain(group.modelData.title)
             }
 
             FormCard.FormCard {

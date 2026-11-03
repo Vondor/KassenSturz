@@ -642,7 +642,7 @@ ColumnLayout {
             delegate: Controls.MenuItem {
                 required property var modelData
 
-                text: modelData.text
+                text: Plain.plain(modelData.text)
                 onTriggered: {
                     ActionLog.taken("ColumnBoard_triggered")
                     modelData.split ? board.splitCard(cardMenu.cardId, cardMenu.from) : modelData.create ? board.moveToNew(cardMenu.cardId, cardMenu.from, "") : modelData.move ? board.moveCard(cardMenu.cardId, cardMenu.from, modelData.to) : board.alsoPut(cardMenu.cardId, modelData.to)
@@ -733,7 +733,7 @@ ColumnLayout {
                     Controls.ToolButton {
                         visible: !slotColumn.isUnused && slotColumn.modelData.members.length > 0
                         icon.name: "folder-new"
-                        text: board.i18nContext.i18nc("@action:button %1 is the name of a column", "Save the column %1 as a group", slotColumn.modelData.name)
+                        text: Plain.plain(board.i18nContext.i18nc("@action:button %1 is the name of a column", "Save the column %1 as a group", slotColumn.modelData.name))
                         display: Controls.AbstractButton.IconOnly
                         Controls.ToolTip.text: text
                         Controls.ToolTip.visible: hovered
@@ -746,7 +746,7 @@ ColumnLayout {
                     Controls.ToolButton {
                         visible: !slotColumn.isUnused
                         icon.name: "edit-delete"
-                        text: board.i18nContext.i18nc("@action:button %1 is the name of a column", "Remove the column %1", slotColumn.modelData.name)
+                        text: Plain.plain(board.i18nContext.i18nc("@action:button %1 is the name of a column", "Remove the column %1", slotColumn.modelData.name))
                         display: Controls.AbstractButton.IconOnly
                         Controls.ToolTip.text: text
                         Controls.ToolTip.visible: hovered
@@ -1070,7 +1070,7 @@ ColumnLayout {
                                     id: menuButton
 
                                     icon.name: "overflow-menu"
-                                    text: board.i18nContext.i18nc("@action:button %1 is the name of a category; opens a menu to put it in a column", "Move %1 to…", board.labelOf(slot.modelData))
+                                    text: Plain.plain(board.i18nContext.i18nc("@action:button %1 is the name of a category; opens a menu to put it in a column", "Move %1 to…", board.labelOf(slot.modelData)))
                                     display: Controls.AbstractButton.IconOnly
                                     Controls.ToolTip.text: text
                                     Controls.ToolTip.visible: hovered

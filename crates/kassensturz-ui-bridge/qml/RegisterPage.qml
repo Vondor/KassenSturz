@@ -119,7 +119,7 @@ Kirigami.ScrollablePage {
         }
     }
 
-    title: loaded ? register.accountName : chosenName
+    title: Plain.plain(loaded ? register.accountName : chosenName)
     Component.onCompleted: {
         // The filter box of a new page starts empty.
         register.setFilter("");

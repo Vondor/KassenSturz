@@ -757,9 +757,9 @@ ColumnLayout {
     }
 
     Controls.Button {
-        text: view.showTable
+        text: Plain.plain(view.showTable
             ? i18nContext.i18nc("@action:button", "Show as chart")
-            : i18nContext.i18nc("@action:button", "Show as table")
+            : i18nContext.i18nc("@action:button", "Show as table"))
         icon.name: view.showTable ? "office-chart-bar" : "view-list-details"
         onClicked: {
             ActionLog.taken("ChartView_showTable")

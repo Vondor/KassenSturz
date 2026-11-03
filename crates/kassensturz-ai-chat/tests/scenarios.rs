@@ -184,6 +184,40 @@ fn an_invented_number_is_flagged_and_real_ones_pass() {
 }
 
 #[test]
+fn markdown_marks_are_taken_out_before_the_figures_are_checked() {
+    // M5-B46: the chat shows plain text, so ** would show as characters.
+    let book = hostile_book();
+    let (provider, _) = Script::provider(
+        on(),
+        vec![
+            calls(&[("c1", "search_transactions", r#"{"limit":5}"#)]),
+            says("## Result\nYou paid **53.20** at the grocery, and **60.00** more."),
+        ],
+    );
+    let mut chat = session();
+    let answer = chat
+        .ask(
+            &book,
+            &provider,
+            None,
+            "What did I pay?",
+            TODAY,
+            &mut NoHooks,
+        )
+        .unwrap();
+    assert_eq!(
+        answer.text,
+        "Result\nYou paid 53.20 at the grocery, and 60.00 more."
+    );
+    // The offsets of the flagged figure fit the text the user reads.
+    assert_eq!(answer.unverified.len(), 1);
+    assert_eq!(
+        &answer.text[answer.unverified[0].start..answer.unverified[0].end],
+        "60.00"
+    );
+}
+
+#[test]
 fn the_build_line_and_the_question_are_not_flagged() {
     let book = hostile_book();
     let (provider, _) = Script::provider(

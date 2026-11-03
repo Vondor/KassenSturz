@@ -558,7 +558,7 @@ impl ChatSession {
                 return Err(ChatError::Cancelled);
             }
             self.transcribe_reply(provider, sent.as_ref().err());
-            let reply = match sent {
+            let mut reply = match sent {
                 Ok(reply) => reply,
                 // A model that can't call functions: the provider refuses
                 // the request that offers them (D-190).
@@ -601,6 +601,9 @@ impl ChatSession {
                 if is_raw_tool_call(&reply.text) {
                     return Err(ChatError::ToolCallAsText);
                 }
+                // Marks like ** show as characters in the plain-text chat
+                // (M5-B46); the figures are checked in the text the user reads.
+                reply.text = crate::plain::plain_answer(&reply.text);
                 let unverified = check_numbers(&reply.text, &self.figures);
                 #[cfg(feature = "debug-log")]
                 self.debug_log.transcript(
@@ -752,6 +755,8 @@ impl ChatSession {
                 let prepares = call.name == PROPOSE_CHANGES.name;
                 let answer = if call.name == PROPOSE_VIEW_NAME {
                     view_error_json(&report)
+                } else if call.name == OPEN_PAGE.name {
+                    with_hint(error_json(&report, false), NOT_OPENED_HINT)
                 } else {
                     error_json(&report, prepares)
                 };
@@ -974,6 +979,29 @@ list_categories, not the name of the category.";
 const NOT_PREPARED_HINT: &str = "Nothing was prepared. Do not tell the user that a change is \
 prepared. Fix the call and call propose_changes again, or say plainly that it did not work.";
 
+/// What the model is told when a call to `open_page` failed (M5-B41): once
+/// a model claimed the page was open after its only call had failed.
+const NOT_OPENED_HINT: &str = "The page was NOT opened. Do not tell the user that it is \
+open. Fix the call and call open_page again, or say plainly that you could not open it.";
+
+/// What the model is told when something is not allowed (M5-B44): where the
+/// user can allow it, so it points them there instead of saying "do it by
+/// hand".
+const NOT_ALLOWED_HINT: &str = "This is switched off. Tell the user they can allow it in \
+KassenSturz's AI settings, under \"What the AI may do\". Don't suggest doing it by hand.";
+
+/// `answer` with `hint` added to its hints.
+fn with_hint(mut answer: Value, hint: &str) -> Value {
+    if let Value::Object(object) = &mut answer {
+        let hints = match object.get("hint").and_then(Value::as_str) {
+            Some(first) => format!("{first} {hint}"),
+            None => hint.to_owned(),
+        };
+        object.insert("hint".into(), json!(hints));
+    }
+    answer
+}
+
 /// A function's error for the model: its code and the fixed names it
 /// carries, never anything the model sent (D-034, X-8), and fixed hints
 /// when an ID was wrong, a key was used for an ID, or the call that failed
@@ -1006,6 +1034,9 @@ fn error_json(report: &ErrorReport, prepares: bool) -> Value {
     }
     if wrong_id {
         hints.push(ID_HINT);
+    }
+    if report.code.ends_with(".not-allowed") {
+        hints.push(NOT_ALLOWED_HINT);
     }
     if prepares {
         hints.push(NOT_PREPARED_HINT);
@@ -1155,6 +1186,34 @@ mod tests {
         assert_eq!(hint, format!("{CATEGORY_ID_HINT} {ID_HINT}"));
         let other = ToolError::BadArgument { argument: "from" }.report();
         assert!(error_json(&other, false).get("hint").is_none());
+    }
+
+    #[test]
+    fn a_refusal_points_to_the_settings_and_a_failed_page_is_not_opened() {
+        let refused = ToolError::NotAllowed { argument: "page" }.report();
+        let hint = error_json(&refused, false)["hint"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert!(hint.contains("What the AI may do"), "{hint}");
+        // The code of a refused change set carries the same hint.
+        let change = kassensturz_ai_tools::ChangeError::NotAllowed.report();
+        assert_eq!(change.code, "ai-changes.not-allowed");
+        assert!(
+            error_json(&change, true)["hint"]
+                .as_str()
+                .unwrap()
+                .contains("What the AI may do")
+        );
+        let failed = with_hint(
+            error_json(&ToolError::UnknownArgument.report(), false),
+            NOT_OPENED_HINT,
+        );
+        assert!(failed["hint"].as_str().unwrap().contains("NOT opened"));
+        // Hints add up: a refused page says both.
+        let both = with_hint(error_json(&refused, false), NOT_OPENED_HINT);
+        let both = both["hint"].as_str().unwrap();
+        assert!(both.contains("What the AI may do") && both.contains("NOT opened"));
     }
 
     #[test]

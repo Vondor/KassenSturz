@@ -317,9 +317,9 @@ ColumnLayout {
 
         Controls.ToolButton {
             icon.name: panel.detached ? "window-pin" : "window-new"
-            text: panel.detached
+            text: Plain.plain(panel.detached
                 ? panel.i18nContext.i18nc("@action:button put the chat back into the sidebar", "Move back to the sidebar")
-                : panel.i18nContext.i18nc("@action:button show the chat in a window of its own", "Open in its own window")
+                : panel.i18nContext.i18nc("@action:button show the chat in a window of its own", "Open in its own window"))
             display: Controls.AbstractButton.IconOnly
             Controls.ToolTip.visible: hovered
             Controls.ToolTip.text: text
@@ -581,7 +581,7 @@ ColumnLayout {
 
                 flat: true
                 enabled: !panel.chat.busy
-                text: panel.featureLabel(modelData)
+                text: Plain.plain(panel.featureLabel(modelData))
                 onClicked: {
                     ActionLog.taken("AiChatPanel_askFeature")
                     panel.askFeature(modelData, "")

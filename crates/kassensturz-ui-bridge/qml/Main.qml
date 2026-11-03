@@ -76,6 +76,10 @@ Kirigami.ApplicationWindow {
     // The household's currency, chosen on the setup wizard's first page and
     // written only when the book is created (M7a.9).
     property string wizardCurrency: ""
+    // A statistic left in the Statistic Builder before Finish (M6-B164),
+    // kept while the app runs so that it is back when the builder opens
+    // again; empty for none.
+    property var statisticDraft: ({})
     // The book was just created in the setup wizard, in this session: the
     // overview shows its first-look message. Kept in memory only, so it needs
     // no stored setting.
@@ -418,6 +422,8 @@ Kirigami.ApplicationWindow {
         // A layout session belongs to the book it was started on, and a book
         // opens at its own default dashboard (D-448).
         dashboardLayout.reopen();
+        // So is a statistic left unfinished in the builder (M6-B164).
+        statisticDraft = ({});
         bookChanged();
         if (!firstStartState.hasAccount) {
             pageStack.clear();
@@ -662,6 +668,26 @@ Kirigami.ApplicationWindow {
     // the way a saved view is added (D-326, D-428). When the layout is not
     // being arranged, it is one session: arrange, add, Done, so Undo takes it
     // back as one change; when it is, the chart joins that session.
+    // A chart of the Overview changed in the Statistic Builder (M6-B164):
+    // one change of the layout, which Undo takes back. The layout is
+    // normally still being arranged; if not, the change is kept at once.
+    function changeOverviewChart(id: string, json: string) {
+        const wasEditing = dashboardLayout.view.editing ?? false;
+        if (!wasEditing) {
+            dashboardLayout.edit();
+        }
+        let result = dashboardLayout.setComponent(id, json);
+        if (result.code === undefined && !wasEditing) {
+            result = dashboardLayout.done();
+        }
+        if (result.code !== undefined) {
+            if (!wasEditing) {
+                dashboardLayout.cancel();
+            }
+            showPassiveNotification(errorTexts.messageFor(result), 12000);
+        }
+    }
+
     function addChartToOverview(component: string, period: string) {
         const wasEditing = dashboardLayout.view.editing ?? false;
         if (!wasEditing) {
@@ -1398,6 +1424,11 @@ Kirigami.ApplicationWindow {
             onSetBudgetClicked: root.pushPage(budgetPage, { categoryId: "" })
             onDashboardFileChosen: file => root.pushPage(dashboardFilePage, { file: file })
             onConnectBankClicked: root.pushPage(bankSetupPage)
+            onStatisticBuilderRequested: (id, component, period) => root.pushPage(statisticsPage, {
+                overviewComponentId: id,
+                initialComponent: component,
+                initialPeriod: period
+            })
             // Set once, not bound: bankUsable() writes its own cache, so a
             // binding read and wrote the same property (M6-B99).
             Component.onCompleted: bankReady = root.bankUsable()
@@ -1425,7 +1456,15 @@ Kirigami.ApplicationWindow {
         StatisticsPage {
             saved: savedViews
             groupsSource: categoryGroups
+            draft: root.statisticDraft
             onKmyReportsFileChosen: file => root.pushPage(kmyReportsImportPage, { file: file })
+            onDraftLeft: left => root.statisticDraft = left
+            onAddToOverviewRequested: (component, period) => root.addChartToOverview(component, period)
+            onOverviewChangeFinished: (id, json) => {
+                root.pageStack.pop();
+                root.changeOverviewChart(id, json);
+            }
+            onOverviewChangeCancelled: root.pageStack.pop()
         }
     }
 

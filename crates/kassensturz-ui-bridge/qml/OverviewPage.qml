@@ -59,6 +59,10 @@ Kirigami.ScrollablePage {
     signal transactionClicked(string accountId, string transactionId)
     // The Update all accounts widget's *Connect a bank* (D-497).
     signal connectBankClicked()
+    // The user wants to change a chart of the page step by step in the
+    // Statistic Builder (M6-B164): its component ID, its JSON text and its
+    // period word.
+    signal statisticBuilderRequested(string id, string component, string period)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -106,6 +110,8 @@ Kirigami.ScrollablePage {
 
     // The component the properties panel is changing, by ID.
     property string editedId: ""
+    // The kinds the Statistic Builder can change step by step (M6-B164).
+    readonly property var builderTypes: ["chart.bar", "chart.pie", "chart.donut", "chart.line", "chart.area", "chart.stacked_bar", "kpi.card", "progress.bar", "table.rows"]
     property bool loadingPanel: false
 
     function openProperties(id: string) {
@@ -664,6 +670,35 @@ Kirigami.ScrollablePage {
 
         ColumnLayout {
             spacing: Kirigami.Units.largeSpacing
+
+            // The same chart in the Statistic Builder's steps (M6-B164);
+            // Finish there brings the change back to this page.
+            Controls.Button {
+                visible: page.builderTypes.includes(panelModel.view?.type ?? "")
+                text: page.i18nContext.i18nc("@action:button opens the Statistic Builder on this chart", "Change step by step in the Statistic Builder")
+                icon.name: "tools-wizard"
+                onClicked: {
+                    ActionLog.taken("OverviewPage_changeInBuilder")
+                    const id = page.editedId;
+                    const component = panelModel.view.json;
+                    const period = panelModel.view.period?.word ?? "";
+                    propertiesSheet.close();
+                    page.statisticBuilderRequested(id, component, period);
+                }
+            }
+
+            // A chart's colors are the palette in Settings, shared by every
+            // chart (M7a.10, D-589); this leads there (M6-B164).
+            Controls.Button {
+                visible: (panelModel.view?.type ?? "").startsWith("chart.")
+                text: page.i18nContext.i18nc("@action:button opens Settings, where the colors of the charts are changed", "Edit palette…")
+                icon.name: "color-management"
+                onClicked: {
+                    ActionLog.taken("OverviewPage_editPalette")
+                    propertiesSheet.close();
+                    ChartPalette.editRequested();
+                }
+            }
 
             Loader {
                 Layout.fillWidth: true

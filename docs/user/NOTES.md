@@ -295,3 +295,12 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **Saving changes to a view** brought in from KMyMoney keeps the accounts and categories it is narrowed to, and keeps it recognised by the next import.
 - German: *Berichte aus einer KMyMoney-Datei hinzufügen…*, *Neu in dieser Datei*, *Anders als Ihre Ansicht*, *Schon da*.
 
+
+## Finding and changing a statistic again (M6-B164)
+
+- **Saved views** stay in view under the Statistic Builder's steps. **Change step by step** beside a saved view opens it in the steps again; Finish keeps the change.
+- **Finish without a name** keeps a new statistic under its title, or as "Statistic 1", "Statistic 2" and so on. A name can be changed later with Rename.
+- **Put it on the Overview** (under a saved view that is open) adds it to the Overview as a chart of its own; a later change of the saved view does not reach that chart.
+- **A chart on the Overview** can be changed in the steps too: Edit layout, open the chart's Properties, then **Change step by step in the Statistic Builder**. Finish brings the change back to the chart, and Undo takes it back.
+- **Leaving the builder before Finish** loses nothing while KassenSturz runs: the statistic is back the next time the builder opens, at the step where you left it. Cancel starts a new one.
+- **Colors** of charts are one palette for every chart, in Settings → Chart colors. **Edit palette…** in the builder's last step and in a chart's Properties leads there.

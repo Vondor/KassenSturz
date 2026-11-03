@@ -23,8 +23,7 @@ The example books, their matching bank statements and the facilitator's answer s
 
 These need things that do not exist yet; each is marked "Bildschirmfoto folgt" or "wird nachgetragen" in the sheets.
 
-- **Screenshots** from a clean machine for every click. Windows: from the M7a.7 virtual machine run. Ubuntu: from a clean Ubuntu with the first pre-release installed. Save them next to the sheets as `img/windows-NN-*.png` and `img/ubuntu-NN-*.png`, one per marked spot.
-- **Windows file name and install folder** (the PowerShell start line) from M7a.7.
+- **Screenshots** from a clean machine for every click. Windows: the first VM run (M7a.7, 2026-11-03) is in `screenshots/windows/`, numbered in the order of the sheet and the task cards. Its installer pages show Craft's earlier installer (English, with an administrator prompt), so they go into the sheet after the second run with KassenSturz's own installer. Ubuntu: from a clean Ubuntu with the first pre-release installed, in `screenshots/ubuntu/`.
 - **First-start wording** once the setup wizard (M7a.9) has merged: the sheets and the user guide currently describe the example book chooser (M7a.2), whose button reads "Ein Beispielbuch ausprobieren …".
 
 ## Rules for this folder

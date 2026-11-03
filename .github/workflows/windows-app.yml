@@ -65,18 +65,6 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
-      - name: Diagnose Craft's bootstrap (temporary)
-        run: |
-          $boot = "$env:RUNNER_TEMP\CraftBootstrap.py"
-          Invoke-WebRequest "https://raw.githubusercontent.com/KDE/craft/$env:CRAFT_BOOTSTRAP_COMMIT/setup/CraftBootstrap.py" -OutFile $boot
-          $p = Start-Process python -ArgumentList $boot, "--prefix", $env:CRAFT_ROOT, "--use-defaults", "--verbose" -PassThru -NoNewWindow -RedirectStandardOutput "$env:RUNNER_TEMP\boot.log" -RedirectStandardError "$env:RUNNER_TEMP\boot-err.log"
-          Start-Sleep -Seconds 420
-          Write-Output "=== CraftCoreSettings"; Get-Content "$env:CRAFT_ROOT\craft*\etc\CraftCoreSettings.ini" -ErrorAction SilentlyContinue | Select-Object -First 20
-          Write-Output "=== CraftSettings"; Select-String -Path "$env:CRAFT_ROOT\etc\CraftSettings.ini" -Pattern '^(ABI|UseCache|RepositoryUrl|CacheVersion|BuildType|Python)' -ErrorAction SilentlyContinue
-          Write-Output "=== cache lines"
-          Get-Content "$env:RUNNER_TEMP\boot.log", "$env:RUNNER_TEMP\boot-err.log" | Select-String -Pattern 'cache|Could not find|missmatch|Cached config|Local config|restore|Failed to fetch|manifest|\*\*\* ' | Select-Object -First 80 | ForEach-Object { $l = $_.Line; if ($l.Length -gt 400) { $l.Substring(0, 400) } else { $l } }
-          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
-          exit 1
       - name: Install Rust
         run: |
           rustup toolchain install 1.98.1 --profile minimal
@@ -100,6 +88,16 @@ jobs:
         run: |
           $boot = "$env:RUNNER_TEMP\CraftBootstrap.py"
           Invoke-WebRequest "https://raw.githubusercontent.com/KDE/craft/$env:CRAFT_BOOTSTRAP_COMMIT/setup/CraftBootstrap.py" -OutFile $boot
+          # Craft's settings default to MinSizeRel now, but KDE's binary
+          # cache holds RelWithDebInfo builds: with MinSizeRel the bootstrap
+          # finds nothing and builds Perl, ICU, gettext and Python from
+          # source (run 1 took 52 minutes and failed in gettext). The
+          # bootstrap starts Craft right after writing the settings, so the
+          # build type goes in before that.
+          $text = Get-Content $boot -Raw
+          $patched = $text.Replace('    boot.writeSettings()', '    boot.setSettingsValue("Compile", "BuildType", "RelWithDebInfo"); boot.writeSettings()')
+          if ($patched -eq $text) { throw "CraftBootstrap.py changed: boot.writeSettings() not found" }
+          Set-Content $boot $patched
           python $boot --prefix $env:CRAFT_ROOT --use-defaults
       - name: Point Craft at KassenSturz's blueprint
         run: |

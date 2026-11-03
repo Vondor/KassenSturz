@@ -35,6 +35,8 @@ class subinfo(info.infoclass):
         # Windows has no icon theme: the app loads Breeze's icons from the
         # library breeze-icons builds (D-555).
         self.runtimeDependencies["kde/frameworks/tier1/breeze-icons"] = None
+        # The charts load org.kde.quickcharts (ChartView.qml).
+        self.runtimeDependencies["kde/frameworks/tier1/kquickcharts"] = None
         # Plasma's look, which main.rs asks for (org.kde.desktop).
         self.runtimeDependencies["kde/frameworks/tier3/qqc2-desktop-style"] = None
         # AqBanking and Gwenhywfar are not in Craft's cache for Visual Studio,

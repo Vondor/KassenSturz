@@ -58,7 +58,20 @@ Affixes currencyAffixes(bool negative, const QString &symbol)
         // is a readable fallback.
         return {negative ? locale.negativeSign() : QString(), QStringLiteral(" ") + symbol};
     }
-    return {formatted.left(at), formatted.mid(at + digits.size())};
+    // Windows' own currency format writes a whole number with its decimals
+    // ("1.234.567,00 €"), so the sample's decimals would become part of the
+    // suffix and every amount would end in ",00 €" after its own decimals.
+    // They are dropped here; the amount's decimals come from Rust.
+    QString suffix = formatted.mid(at + digits.size());
+    const QString point = locale.decimalPoint();
+    if (!point.isEmpty() && suffix.startsWith(point)) {
+        qsizetype end = point.size();
+        while (end < suffix.size() && suffix.at(end).isDigit()) {
+            ++end;
+        }
+        suffix.remove(0, end);
+    }
+    return {formatted.left(at), suffix};
 }
 }
 

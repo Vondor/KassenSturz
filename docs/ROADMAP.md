@@ -209,7 +209,7 @@ One item per step, with a blank line between items, so that two pull requests th
 
 - **M7a.0** · **done** · needs: — · strong, medium. Roadmap and decisions: M7 split into M7a and M7b, this table, the stage wording in "Releases", decision rows D-540, D-542 and D-550 to D-553; docs only
 
-- **M7a.1** · **todo** · needs: M7a.0 · standard, high. CI rework (D-535): superseded runs cancelled, the two KDE builds in parallel, a Flatpak cache key that survives `cargo-sources.json` changes, no duplicated Fedora and Kubuntu tests, runner disk, the required macOS check decided with measured numbers; CI only, checks never bypassed
+- **M7a.1** · **done** · needs: M7a.0 · standard, high. CI rework (D-535): superseded runs cancelled, the two KDE builds in parallel, a Flatpak cache key that survives `cargo-sources.json` changes, no duplicated Fedora and Kubuntu tests, runner disk, the required macOS check decided with measured numbers; CI only, checks never bypassed
 
 - **M7a.2** · **done** · needs: M7a.0; M7a.8 for the three new books · standard, high. "Try with an example book": a bridge call and a chooser for the four example books (Suburban Family marked as the suggested start), each with a one-line description; the pick builds a new, clearly named copy through the existing importer, so the bundled books stay untouched; also in "Open another book…"; until the wizard merges, a first-start choice next to "Start my own book", whose balance field says a made-up amount is fine for trying; translated. **Built (D-570, D-571):** `ExampleBookChooser` component with Space Colony bundled; the other three join with M7a.8; entry *Try an example book…* in Settings; the first-start entry is the wizard's (M7a.9)
 

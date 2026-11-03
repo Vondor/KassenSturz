@@ -108,7 +108,7 @@ Kirigami.ScrollablePage {
 
                 Layout.fillWidth: true
                 // A name could contain anything.
-                text: modelData.name
+                text: Plain.plain(modelData.name)
                 Accessible.name: page.i18nContext.i18nc("@info %1 is the name of a group, %2 what it holds", "%1: %2", modelData.name, page.summary(modelData))
                 onClicked: {
                     ActionLog.taken("CategoryGroupsPage_groupClicked")
@@ -215,7 +215,7 @@ Kirigami.ScrollablePage {
 
                 Layout.fillWidth: true
                 Layout.leftMargin: box.modelData.depth * Kirigami.Units.gridUnit * 1.5
-                text: modelData.name
+                text: Plain.plain(modelData.name)
                 checked: modelData.hidden
                 Accessible.name: page.i18nContext.i18nc("@option:check %1 is the path of a category", "Hide %1 in charts", modelData.path)
                 onToggled: {

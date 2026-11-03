@@ -218,7 +218,7 @@ Kirigami.ScrollablePage {
     readonly property string shownDashboardId: ((dashboard.view.dashboards ?? []).find(shown => shown.shown) ?? {}).id ?? ""
     readonly property string dashboardName: dashboard.view.name ?? i18nContext.i18nc("@title", "Overview")
 
-    title: layoutEditing ? i18nContext.i18nc("@title %1 is the name of the dashboard shown", "Arrange %1", dashboardName) : dashboardName
+    title: Plain.plain(layoutEditing ? i18nContext.i18nc("@title %1 is the name of the dashboard shown", "Arrange %1", dashboardName) : dashboardName)
 
     header: FormError {
         id: layoutError

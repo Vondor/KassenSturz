@@ -38,9 +38,9 @@ Kirigami.ScrollablePage {
     // The household's usual currency is the first; others are chosen on request.
     readonly property string currency: otherCurrency.checked ? currencyBox.currentText : accounts.currencies[0]
 
-    title: firstRun
+    title: Plain.plain(firstRun
         ? i18nContext.i18nc("@title", "Your first account")
-        : i18nContext.i18nc("@title", "Add an account")
+        : i18nContext.i18nc("@title", "Add an account"))
     header: ColumnLayout {
         spacing: 0
 
@@ -77,7 +77,7 @@ Kirigami.ScrollablePage {
                 required property int index
 
                 Kirigami.FormData.label: index === 0 ? page.i18nContext.i18nc("@label", "What kind of account is it?") : ""
-                text: modelData.name
+                text: Plain.plain(modelData.name)
                 checked: index === page.typeIndex
                 Controls.ButtonGroup.group: typeGroup
                 onToggled: {
@@ -151,7 +151,7 @@ Kirigami.ScrollablePage {
         Controls.CheckBox {
             id: otherCurrency
             Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Currency:")
-            text: page.i18nContext.i18nc("@option:check %1 is a currency code such as EUR", "This account is not in %1", accounts.currencies[0])
+            text: Plain.plain(page.i18nContext.i18nc("@option:check %1 is a currency code such as EUR", "This account is not in %1", accounts.currencies[0]))
         }
 
         Controls.ComboBox {

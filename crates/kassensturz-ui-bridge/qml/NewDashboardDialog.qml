@@ -152,9 +152,9 @@ Kirigami.Dialog {
         }
     }
 
-    title: renaming
+    title: Plain.plain(renaming
         ? i18nContext.i18nc("@title:window", "Rename this dashboard")
-        : i18nContext.i18nc("@title:window", "New dashboard")
+        : i18nContext.i18nc("@title:window", "New dashboard"))
     standardButtons: Kirigami.Dialog.NoButton
     preferredWidth: Kirigami.Units.gridUnit * (renaming ? 22 : 30)
     padding: Kirigami.Units.largeSpacing

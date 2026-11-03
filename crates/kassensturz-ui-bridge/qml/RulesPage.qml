@@ -220,7 +220,7 @@ Kirigami.Page {
 
                         Controls.ToolButton {
                             icon.name: "document-edit"
-                            text: page.i18nContext.i18nc("@action:button %1 is the name of a Rule", "Edit %1", entry.modelData.name)
+                            text: Plain.plain(page.i18nContext.i18nc("@action:button %1 is the name of a Rule", "Edit %1", entry.modelData.name))
                             display: Controls.AbstractButton.IconOnly
                             onClicked: {
                                 ActionLog.taken("RulesPage_edit")
@@ -233,7 +233,7 @@ Kirigami.Page {
                         Controls.ToolButton {
                             icon.name: "go-up"
                             enabled: entry.modelData.position > 0
-                            text: page.i18nContext.i18nc("@action:button %1 is the name of a Rule", "Move %1 up", entry.modelData.name)
+                            text: Plain.plain(page.i18nContext.i18nc("@action:button %1 is the name of a Rule", "Move %1 up", entry.modelData.name))
                             display: Controls.AbstractButton.IconOnly
                             onClicked: {
                                 ActionLog.taken("RulesPage_moveUp")
@@ -246,7 +246,7 @@ Kirigami.Page {
                         Controls.ToolButton {
                             icon.name: "go-down"
                             enabled: entry.modelData.position < entry.modelData.siblings - 1
-                            text: page.i18nContext.i18nc("@action:button %1 is the name of a Rule", "Move %1 down", entry.modelData.name)
+                            text: Plain.plain(page.i18nContext.i18nc("@action:button %1 is the name of a Rule", "Move %1 down", entry.modelData.name))
                             display: Controls.AbstractButton.IconOnly
                             onClicked: {
                                 ActionLog.taken("RulesPage_moveDown")

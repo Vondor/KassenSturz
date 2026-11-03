@@ -314,7 +314,7 @@ Kirigami.ScrollablePage {
                 visible: page.hasProvider
                 flat: true
                 checkable: true
-                text: checked ? page.i18nContext.i18nc("@action:button", "Hide what the test sends") : page.i18nContext.i18nc("@action:button", "Show what the test sends")
+                text: Plain.plain(checked ? page.i18nContext.i18nc("@action:button", "Hide what the test sends") : page.i18nContext.i18nc("@action:button", "Show what the test sends"))
             }
 
             Controls.TextArea {
@@ -505,9 +505,9 @@ Kirigami.ScrollablePage {
             spacing: Kirigami.Units.largeSpacing
 
             Controls.Button {
-                text: page.form.consent === "given"
+                text: Plain.plain(page.form.consent === "given"
                     ? page.i18nContext.i18nc("@action:button", "Read it again…")
-                    : page.i18nContext.i18nc("@action:button", "Read what is sent and agree…")
+                    : page.i18nContext.i18nc("@action:button", "Read what is sent and agree…"))
                 icon.name: "view-readermode"
                 onClicked: {
                     ActionLog.taken("AiSettingsPage_given")
@@ -613,7 +613,7 @@ Kirigami.ScrollablePage {
             delegate: Controls.CheckBox {
                 required property var modelData
 
-                text: modelData.text
+                text: Plain.plain(modelData.text)
                 checked: page.settings.notice(modelData.word)
                 onToggled: {
                     ActionLog.taken("AiSettingsPage_toggled")

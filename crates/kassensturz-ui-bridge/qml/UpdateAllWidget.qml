@@ -143,7 +143,7 @@ Flickable {
             visible: !widget.running && !widget.cannotUpdate
             enabled: !widget.arranging && !(widget.bank?.busy ?? true)
             icon.name: "view-refresh"
-            text: widget.title !== "" ? widget.title : widget.i18nContext.i18nc("@action:button", "Update all accounts")
+            text: Plain.plain(widget.title !== "" ? widget.title : widget.i18nContext.i18nc("@action:button", "Update all accounts"))
             Accessible.description: widget.i18nContext.i18nc("@info", "Asks your banks for the new transactions of every linked account and books them.")
             onClicked: {
                 ActionLog.taken("UpdateAllWidget_update")

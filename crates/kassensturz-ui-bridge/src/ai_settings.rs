@@ -408,6 +408,18 @@ impl Store {
         }
     }
 
+    /// Takes the key saved for the saved provider out of `keys`' place,
+    /// before the Password storage moves to another one (M6-B134, D-575):
+    /// remembered until KassenSturz closes, never copied. Nothing to do
+    /// when no usable provider address is saved, since no key can be filed
+    /// without one.
+    pub fn remove_saved_key(&self, keys: &mut ProviderKeys) -> Result<(), AiError> {
+        match self.config.read().connection() {
+            Ok(provider) => keys.remove_saved(&provider.address),
+            Err(_) => Ok(()),
+        }
+    }
+
     /// Removes the key kept for the saved provider, in memory and where it
     /// was saved. Fails with `ai.no-provider` when none is set up.
     pub fn forget_key(&self, keys: &mut ProviderKeys) -> Result<(), AiError> {
@@ -747,6 +759,33 @@ mod tests {
         );
         assert_eq!(store.form().consent, Consent::NotNeeded);
         assert!(store.withdraw_consent(), "nothing to take back is fine");
+    }
+
+    #[test]
+    fn switching_the_password_storage_takes_the_saved_key_out() {
+        // M6-B134, D-575: the key leaves the old place with the PINs and
+        // is remembered until KassenSturz closes.
+        let (_folder, _file, store) = on();
+        let (memory, mut keys) = keys();
+        let cloud = "https://api.example.com/v1";
+        store.save(
+            &mut keys,
+            cloud,
+            "big",
+            KeyUse::Saved,
+            Some(secret("test-key-ui-b134")),
+        );
+        assert_eq!(memory.len(), 1);
+        store.remove_saved_key(&mut keys).expect("removed");
+        assert_eq!(memory.len(), 0);
+        keys.use_store(None);
+        assert_eq!(
+            store.key_for(&keys, None).unwrap(),
+            Some(secret("test-key-ui-b134"))
+        );
+        // Nothing set up: nothing to take out.
+        let (_other_folder, _other_file, empty) = on();
+        empty.remove_saved_key(&mut keys).expect("nothing to do");
     }
 
     #[test]

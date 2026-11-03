@@ -37,6 +37,72 @@ impl Drop for AnotherProgram<'_> {
     }
 }
 
+/// How much SQLite worked while `work` ran on `book`, counted in steps of
+/// its virtual machine (`SQLITE_STMTSTATUS_VM_STEP`): the number of
+/// bytecode instructions all its statements ran, triggers included. A test
+/// of what something costs compares these counts, never clock time: the
+/// count is the same on every run and every machine with the same SQLite,
+/// while a shared CI runner can pause a test at any time (M6-B102 and the
+/// macOS job's failures on the former timing tests, D-576).
+///
+/// Every statement's cumulative count is read when it starts and when it
+/// finishes, because a statement the cache keeps (Q-084) counts on from its
+/// last run. A trigger's subprogram starts with no statement of its own and
+/// is counted with the statement that fired it.
+pub(crate) fn vm_steps<T>(book: &mut Book, work: impl FnOnce(&mut Book) -> T) -> (T, u64) {
+    use rusqlite::StatementStatus;
+    use rusqlite::trace::{TraceEvent, TraceEventCodes};
+    use std::cell::{Cell, RefCell};
+
+    thread_local! {
+        static STEPS: Cell<u64> = const { Cell::new(0) };
+        /// The statements that have started and not finished, newest last,
+        /// each with its count when it started.
+        static STARTED: RefCell<Vec<(String, i32)>> = const { RefCell::new(Vec::new()) };
+    }
+
+    fn count(event: TraceEvent<'_>) {
+        match event {
+            TraceEvent::Stmt(statement, text) => {
+                // SQLite announces a trigger's subprogram as a comment.
+                if !text.starts_with("--") {
+                    let at_start = statement.get_status(StatementStatus::VmStep);
+                    STARTED.with(|started| {
+                        started
+                            .borrow_mut()
+                            .push((statement.sql().into_owned(), at_start));
+                    });
+                }
+            }
+            TraceEvent::Profile(statement, _) => {
+                let sql = statement.sql();
+                let at_end = statement.get_status(StatementStatus::VmStep);
+                let at_start = STARTED.with(|started| {
+                    let mut started = started.borrow_mut();
+                    let index = started.iter().rposition(|(text, _)| *text == sql)?;
+                    Some(started.remove(index).1)
+                });
+                if let Some(at_start) = at_start {
+                    let steps =
+                        u64::try_from(i64::from(at_end) - i64::from(at_start)).expect("counts up");
+                    STEPS.with(|total| total.set(total.get() + steps));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    STEPS.with(|total| total.set(0));
+    STARTED.with(|started| started.borrow_mut().clear());
+    book.conn.trace_v2(
+        TraceEventCodes::SQLITE_TRACE_STMT | TraceEventCodes::SQLITE_TRACE_PROFILE,
+        Some(count),
+    );
+    let result = work(book);
+    book.conn.trace_v2(TraceEventCodes::empty(), None);
+    (result, STEPS.with(Cell::get))
+}
+
 pub(crate) const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
     Err(_) => panic!("EUR is a valid code"),

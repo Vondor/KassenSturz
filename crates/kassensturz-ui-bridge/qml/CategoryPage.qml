@@ -40,9 +40,9 @@ Kirigami.ScrollablePage {
         translationDomain: "kassensturz"
     }
 
-    title: adding
+    title: Plain.plain(adding
         ? i18nContext.i18nc("@title", "Add a category")
-        : i18nContext.i18nc("@title %1 is the name of a category", "Change %1", categoryName)
+        : i18nContext.i18nc("@title %1 is the name of a category", "Change %1", categoryName))
     header: FormError {
         id: error
         forCategory: true
@@ -149,9 +149,9 @@ Kirigami.ScrollablePage {
         }
 
         Controls.Button {
-            text: page.adding
+            text: Plain.plain(page.adding
                 ? page.i18nContext.i18nc("@action:button", "Add category")
-                : page.i18nContext.i18nc("@action:button", "Save")
+                : page.i18nContext.i18nc("@action:button", "Save"))
             icon.name: page.adding ? "list-add" : "document-save"
             onClicked: {
                 ActionLog.taken("CategoryPage_save_2")

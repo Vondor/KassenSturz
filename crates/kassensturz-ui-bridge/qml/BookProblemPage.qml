@@ -197,7 +197,7 @@ Kirigami.Page {
             Controls.Button {
                 visible: page.session.open
                 icon.name: "go-previous"
-                text: page.i18nContext.i18nc("@action:button %1 is a file name", "Back to %1", page.session.fileName)
+                text: Plain.plain(page.i18nContext.i18nc("@action:button %1 is a file name", "Back to %1", page.session.fileName))
                 onClicked: {
                     ActionLog.taken("BookProblemPage_back")
                     page.backClicked()

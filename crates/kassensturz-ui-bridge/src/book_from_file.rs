@@ -413,6 +413,34 @@ pub fn read(path: &Path) -> Result<Prepared, FromFileError> {
     })
 }
 
+/// Reads a KMyMoney SQLite book that is bundled with the app (M7a.2), as
+/// untrusted input with the importer's limits like any other file, and
+/// calls it `stem`.
+pub fn read_bundled_kmy_sqlite(stem: &str, bytes: &[u8]) -> Result<Prepared, FromFileError> {
+    let limits = Limits::default();
+    let Imported::Book(book) = import(&KmySqlite, bytes, &limits)? else {
+        unreachable!("the KMyMoney importers read a book")
+    };
+    Ok(Prepared {
+        file_name: stem.to_owned(),
+        stem: stem.to_owned(),
+        source: Source::Other(book),
+    })
+}
+
+/// Reads a complete export that is bundled with the app (M7a.2, M6-B138):
+/// the book plus what a KMyMoney file cannot hold, such as budgets and saved
+/// Overviews. It is read like any file, as untrusted input, and called
+/// `stem`.
+pub fn read_bundled_export(stem: &str, bytes: &[u8]) -> Result<Prepared, FromFileError> {
+    let data = kassensturz_export::read_book(bytes)?;
+    Ok(Prepared {
+        file_name: stem.to_owned(),
+        stem: stem.to_owned(),
+        source: Source::Export(Box::new(data)),
+    })
+}
+
 /// The KMyMoney importer for a file that starts with `start`, if it may be
 /// a KMyMoney book.
 fn kmymoney_importer(start: &[u8]) -> Option<&'static dyn Importer> {

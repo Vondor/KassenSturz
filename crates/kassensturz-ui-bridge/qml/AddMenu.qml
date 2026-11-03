@@ -73,13 +73,13 @@ Controls.Menu {
 
             required property var modelData
 
-            title: modelData.name
+            title: Plain.plain(modelData.name)
 
             Instantiator {
                 model: groupMenu.modelData.rows
                 delegate: Controls.MenuItem {
                     required property var modelData
-                    text: modelData.name
+                    text: Plain.plain(modelData.name)
                     onTriggered: {
                         ActionLog.taken("AddMenu_triggered")
                         modelData.saved ? widgetMenu.savedChosen(modelData.id) : widgetMenu.kindChosen(modelData.kind, modelData.dataset)

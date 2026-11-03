@@ -10,7 +10,7 @@ Die **eingerahmten Texte** liest die Testleitung **wörtlich vor**, damit jeder 
 
 - Die Installationsdatei liegt **nicht** bereit und nichts ist installiert: Karte 1 misst die Installation. Der Tester kennt nur die [Installationsblätter](README.md) und die Download-Seite.
 - **Die Testleitung installiert nie für den Tester.** Auch nicht, wenn er es bittet.
-- Die Beispielbücher kommen mit der App. Der passende Test-Kontoauszug für Karte 5 und die neuere Version für Karte 6 liegen bereit (Pfade siehe [README.md](README.md)).
+- Die Beispielbücher kommen mit der App. Der passende Test-Kontoauszug für Karte 5 (aus dem Ordner `statements/`, siehe [README.md](README.md)) liegt auf dem Rechner des Testers bereit, ebenso die neuere Version für Karte 6.
 - KI und Bankverbindungen sind aus. Internet ist nach der Installation nicht nötig.
 - Die Aufgabenkarten sind **einzeln** ausgedruckt oder als einzelne Nachrichten vorbereitet. Der Tester sieht immer nur die aktuelle Karte.
 - Mitschrift bereit (Abschnitt 6), Uhr. Bei Videoanruf: Bildschirm geteilt, die Aufnahmefunktion bleibt **aus**.
@@ -132,7 +132,7 @@ Hier steht, **woran die Testleitung erkennt, ob eine Karte geschafft ist**. Pro 
 | 7 Sprache und Wörter | (keine Lösung; jede Fundstelle zählt) | 3 Min. | Liste der Wörter übernehmen |
 | 8 Tiefer einsteigen (freiwillig) | eine Regel sortiert Kaffee-Käufe von selbst; ein neues Diagramm ist auf der Übersicht | 7 Min. | Neue Kaffee-Buchung eintragen: landet sie in der Kategorie? |
 
-**Lösungsblätter (nur für die Testleitung, nie dem Tester zeigen):** Zu jedem Beispielbuch gibt es ein Lösungsblatt, das das Team aus dem echten Import- und Berichtscode erzeugt, nie von Hand (Schritt M7a.8): für Karte 4 die Lebensmittel-Summe des Vormonats und ob mehr rein- oder rausging, für Karte 5 die Anzahl der Zeilen, der neuen und der doppelten Buchungen und den Endsaldo. Die Pfade stehen in [README.md](README.md).
+**Lösungsblätter (nur für die Testleitung, nie dem Tester zeigen):** Zu jedem Beispielbuch gibt es ein Lösungsblatt, das das Team aus dem echten Import- und Berichtscode erzeugt, nie von Hand (Schritt M7a.8): für Karte 4 die Lebensmittel-Summe des Vormonats und ob mehr rein- oder rausging, für Karte 5 die Anzahl der Zeilen, der neuen und der doppelten Buchungen und den Endsaldo. Die Pfade stehen in [README.md](README.md); das Lösungsblatt für Karte 4 und 5 ist je Buch eine Datei.
 
 ### Wann ist die Runde bestanden?
 

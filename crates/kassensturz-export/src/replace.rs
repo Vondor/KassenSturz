@@ -6,7 +6,7 @@
 //! replaced, because the file chooser has asked the user already.
 
 use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 use crate::error::ExportError;
@@ -20,9 +20,10 @@ const TRIES: u32 = 8;
 /// renamed over it, so a failed write leaves the old file as it was (or no
 /// file). Where the folder doesn't let the app make a file of its own (the
 /// file chooser's portal gives it only the file the user named, D-125), the
-/// file is written in place instead; if that fails, a file this call made
-/// is removed again and one that was there is emptied, so there is never a
-/// half-written file.
+/// file is written in place instead: the old file is read first and, if
+/// the write fails, written back, and a file this call made is removed
+/// again, so there is never a half-written or emptied file (M6-B136). An
+/// old file that can't be read is not touched at all.
 pub fn replace_file(path: &Path, bytes: &[u8]) -> Result<(), ExportError> {
     match temporary(path) {
         Some((temporary_path, file)) => {
@@ -60,25 +61,54 @@ fn write_all(mut file: File, bytes: &[u8]) -> Result<(), ExportError> {
 
 /// Writes `bytes` over the file at `path`, or into a new one.
 fn write_in_place(path: &Path, bytes: &[u8]) -> Result<(), ExportError> {
-    let was_there = path.exists();
+    write_in_place_with(path, bytes, |file, bytes| file.write_all(bytes))
+}
+
+/// [`write_in_place`] with the writing step given, so a test can make it
+/// fail half-way. The old content is read before anything changes: when
+/// it can't be read, nothing is written. After a failed write the old
+/// content is written back; the space it needs was just freed by the
+/// truncation, so this works unless something else took that space.
+fn write_in_place_with(
+    path: &Path,
+    bytes: &[u8],
+    mut write: impl FnMut(&mut File, &[u8]) -> std::io::Result<()>,
+) -> Result<(), ExportError> {
+    let old = if path.exists() {
+        Some(fs::read(path)?)
+    } else {
+        None
+    };
     let mut file = OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
         .open(path)?;
-    let written = file
-        .write_all(bytes)
+    let written = write(&mut file, bytes)
         .and_then(|()| file.sync_all())
         .map_err(ExportError::from);
     if written.is_err() {
-        if was_there {
-            let _ = file.set_len(0);
-        } else {
-            drop(file);
-            let _ = fs::remove_file(path);
+        match old {
+            // Nothing more can be done if even this fails; the error of
+            // the write is the one to report.
+            Some(old) => {
+                let _ = restore(&mut file, &old);
+            }
+            None => {
+                drop(file);
+                let _ = fs::remove_file(path);
+            }
         }
     }
     written
+}
+
+/// Writes `old` back as the whole content of `file`.
+fn restore(file: &mut File, old: &[u8]) -> std::io::Result<()> {
+    file.set_len(0)?;
+    file.seek(SeekFrom::Start(0))?;
+    file.write_all(old)?;
+    file.sync_all()
 }
 
 #[cfg(test)]
@@ -165,5 +195,47 @@ mod tests {
         write_in_place(&other, b"fresh").expect("written");
         assert_eq!(fs::read(&other).expect("read"), b"fresh");
         assert_eq!(names(&folder), ["a.json", "b.json"]);
+    }
+
+    /// Writes half of the bytes, then fails as a full disk would.
+    fn half_then_full(file: &mut File, bytes: &[u8]) -> std::io::Result<()> {
+        file.write_all(&bytes[..bytes.len() / 2])?;
+        Err(std::io::Error::from(ErrorKind::StorageFull))
+    }
+
+    #[test]
+    fn a_failed_write_in_place_brings_the_old_file_back() {
+        // M6-B136: the old file is neither emptied nor left half-written.
+        let folder = folder("in-place-failed");
+        let path = folder.join("a.json");
+        fs::write(&path, "the old dashboard").expect("written");
+        let error = write_in_place_with(&path, b"a new and longer dashboard", half_then_full)
+            .expect_err("disk full");
+        assert!(
+            matches!(error, ExportError::Io(ErrorKind::StorageFull)),
+            "{error:?}"
+        );
+        assert_eq!(fs::read(&path).expect("read"), b"the old dashboard");
+        // A file the call made is removed again.
+        let other = folder.join("b.json");
+        write_in_place_with(&other, b"fresh", half_then_full).expect_err("disk full");
+        assert_eq!(names(&folder), ["a.json"]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_old_file_that_cant_be_read_is_not_touched() {
+        use std::os::unix::fs::PermissionsExt;
+        let folder = folder("in-place-unreadable");
+        let path = folder.join("a.json");
+        fs::write(&path, "the old dashboard").expect("written");
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o200)).expect("write only");
+        if fs::read(&path).is_ok() {
+            // Running as root reads anyway; nothing to check then.
+            return;
+        }
+        assert!(write_in_place(&path, b"new").is_err());
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).expect("readable");
+        assert_eq!(fs::read(&path).expect("read"), b"the old dashboard");
     }
 }

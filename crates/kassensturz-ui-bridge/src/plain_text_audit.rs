@@ -12,6 +12,12 @@
 //! knows the elements this app uses to show a text; Kirigami's InlineMessage,
 //! PlaceholderMessage and PromptDialog have no `textFormat`, so a sentence
 //! with outside text in it goes through `Plain.plain()` instead.
+//!
+//! The same holds for the elements that show a text through a label of
+//! their own without offering its `textFormat` (M6-B137): buttons, check
+//! boxes, radio buttons, tabs and menu items (`text`), the form delegates
+//! (`text`, `description`), and page, dialog, menu and form header titles
+//! (`title`). A changing value there must go through `Plain.plain()`.
 
 #[cfg(test)]
 mod tests {
@@ -24,6 +30,55 @@ mod tests {
         line: usize,
         needs: Vec<(&'static str, String)>,
         formats: Vec<String>,
+    }
+
+    /// The elements whose `text` is shown by a label of their own that
+    /// reads markup and whose format can't be set (M6-B137).
+    const TEXT_THROUGH_PLAIN: [&str; 15] = [
+        "Controls.Button",
+        "Controls.ToolButton",
+        "Controls.RadioButton",
+        "Controls.CheckBox",
+        "Controls.TabButton",
+        "Controls.MenuItem",
+        "Controls.ItemDelegate",
+        "Controls.CheckDelegate",
+        "Controls.RadioDelegate",
+        "Controls.SwitchDelegate",
+        "FormCard.FormCheckDelegate",
+        "FormCard.FormRadioDelegate",
+        "FormCard.FormSwitchDelegate",
+        "FormCard.FormComboBoxDelegate",
+        "FormCard.FormButtonDelegate",
+    ];
+
+    /// The elements whose `title` is shown that way.
+    const TITLE_THROUGH_PLAIN: [&str; 6] = [
+        "Kirigami.ScrollablePage",
+        "Kirigami.Page",
+        "Kirigami.Dialog",
+        "Kirigami.PromptDialog",
+        "FormCard.FormHeader",
+        "Controls.Menu",
+    ];
+
+    /// The elements whose `description` is shown that way.
+    const DESCRIPTION_THROUGH_PLAIN: [&str; 4] = [
+        "FormCard.FormCheckDelegate",
+        "FormCard.FormRadioDelegate",
+        "FormCard.FormSwitchDelegate",
+        "FormCard.FormComboBoxDelegate",
+    ];
+
+    /// Whether `key` of an element of `kind` must go through
+    /// `Plain.plain()`.
+    fn needs_plain(kind: &str, key: &str) -> bool {
+        match key {
+            "text" => TEXT_THROUGH_PLAIN.contains(&kind),
+            "title" => TITLE_THROUGH_PLAIN.contains(&kind),
+            "description" => DESCRIPTION_THROUGH_PLAIN.contains(&kind),
+            _ => false,
+        }
     }
 
     /// Whether a value is more than a fixed sentence: after taking out the
@@ -125,6 +180,15 @@ mod tests {
             if value.is_empty() || !is_dynamic(value) {
                 continue;
             }
+            if needs_plain(&element.kind, key) {
+                if !value.contains("Plain.plain(") {
+                    found.push(format!(
+                        "line {number}: {} {key}: needs Plain.plain()",
+                        element.kind
+                    ));
+                }
+                continue;
+            }
             let (key, format) = match (element.kind.as_str(), key) {
                 (
                     "Controls.Label" | "Label" | "Kirigami.Heading" | "FormCard.FormSectionText",
@@ -181,6 +245,23 @@ mod tests {
             [
                 "line 1: Controls.Label text: needs textFormat: Text.PlainText",
                 "line 4: FormCard.FormTextDelegate description: needs descriptionItem.textFormat: Text.PlainText",
+            ]
+        );
+    }
+
+    #[test]
+    fn the_check_finds_a_title_tab_or_delegate_that_forgot() {
+        // M6-B137: these show their text through a label of their own.
+        let source = "Kirigami.ScrollablePage {\n    title: account.name\n\
+                      Controls.TabButton {\n        text: modelData.name\n    }\n\
+                      FormCard.FormCheckDelegate {\n        text: Plain.plain(modelData.name)\n        description: modelData.note\n    }\n\
+                      Controls.MenuItem {\n        text: page.i18nContext.i18nc(\"@action\", \"Fixed\")\n    }\n}\n";
+        assert_eq!(
+            unformatted(source),
+            [
+                "line 2: Kirigami.ScrollablePage title: needs Plain.plain()",
+                "line 4: Controls.TabButton text: needs Plain.plain()",
+                "line 8: FormCard.FormCheckDelegate description: needs Plain.plain()",
             ]
         );
     }

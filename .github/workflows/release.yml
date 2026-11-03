@@ -1,0 +1,228 @@
+name: Release
+
+# Builds the Flatpak bundle that testers download and puts it on a draft
+# pre-release of the public repository (D-551, D-579). It runs when the
+# maintainer pushes a tag `v<build number>`, e.g. `v0.261103.0`; docs/RELEASING.md
+# has the steps. Tagging and publishing stay with the maintainer (AGENTS.md 3.2):
+# the workflow never creates a tag, and the release it makes is a draft until he
+# publishes it.
+on:
+  push:
+    tags: ["v0.*"]
+  # A pull request that changes this workflow (or the script that numbers the
+  # build) runs everything but the release itself, so the workflow is proven
+  # before the first tag is pushed, and again whenever it changes.
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - "tools/build-version.sh"
+
+permissions:
+  contents: read
+
+# One release run per tag, and none is cancelled half-way. A pull request's
+# older run is dropped when a newer commit arrives, as in ci.yml (D-220).
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Builds the bundle in the KDE image that CI uses (D-063), numbered as D-152
+  # and D-226 say.
+  build:
+    name: Build the Flatpak bundle
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11@sha256:b0a8a2acb9e420dd0e3e083ff552bea5a817e17e41532f1d2287ff49ef9aae0e
+      options: --privileged
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      file: ${{ steps.version.outputs.file }}
+    steps:
+      # The whole history, since the build's number counts merges (D-226).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # The tag must be the number of the commit it points to, and the commit
+      # must be on main, so a release always holds merged, checked code and
+      # its name tells the tester which build it is. The Flatpak's copy of the
+      # sources has no .git, so the number and the commit go in files that
+      # build.rs reads (as in ci.yml).
+      - name: Number the build and check the tag
+        id: version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          TAG: ${{ github.ref_name }}
+          COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -eu
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          version=$(sh tools/build-version.sh)
+          if [ -z "$version" ]; then
+            echo "::error::tools/build-version.sh printed no number: the checkout has no history."
+            exit 1
+          fi
+          if [ "$REF_TYPE" = tag ]; then
+            if [ "$TAG" != "v$version" ]; then
+              echo "::error::The tag is $TAG, but this commit is build $version. Delete the tag and push v$version (docs/RELEASING.md)."
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor HEAD origin/main; then
+              echo "::error::This commit is not on main. Only merged code is released."
+              exit 1
+            fi
+          fi
+          echo "$version" > build-version
+          echo "$COMMIT" | cut -c1-7 > build-commit
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "file=KassenSturz-$version-x86_64.flatpak" >> "$GITHUB_OUTPUT"
+          echo "Build $version from $(cat build-commit)"
+      # SLOT (M7a.8): regenerate the example books with the build month, so
+      # "this month" and "last month" are never empty in a tester's copy, before
+      # the bundle is built from the sources. The generator takes a reference
+      # month:
+      #   - name: Example books for the build month
+      #     run: <the generator in tools/> <reference month, e.g. $(date -u +%Y-%m)>
+      #
+      # Restore only: the cache is saved by the runs on main (ci.yml, the
+      # Flatpak job), which uses this very key. A tag's run reads main's
+      # caches. The step's name shows what was restored.
+      - name: Restore the builder's cache
+        id: builder-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .flatpak-builder
+          key: flatpak-builder-state-x86_64-${{ hashFiles('packaging/flatpak/**') }}
+          restore-keys: flatpak-builder-state-x86_64-
+      - name: "Builder cache restored from: ${{ steps.builder-cache.outputs.cache-matched-key || 'nothing' }}"
+        run: ls .flatpak-builder 2>/dev/null | head || true
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
+        with:
+          manifest-path: packaging/flatpak/io.github.vondor.KassenSturz.yml
+          bundle: ${{ steps.version.outputs.file }}
+          restore-cache: false
+          save-cache: false
+          upload-artifact: false
+      # Every file for the release goes up as an artifact named release-asset-*,
+      # and the release job attaches all of them (SLOT M7a.7: the Windows job,
+      # e.g. a call of windows-app.yml as a reusable workflow, uploads its
+      # installer the same way).
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-asset-flatpak
+          path: ${{ steps.version.outputs.file }}
+          if-no-files-found: error
+
+  # What a tester does on Ubuntu (docs/testing/INSTALL_UBUNTU.de.md, steps 2 to
+  # 5 and "remove"), on a fresh runner with nothing of KassenSturz's
+  # on it and no KDE runtime: install Flatpak, add the catalog and the runtime
+  # for the user, install the downloaded file, start the app. A release is made
+  # only if all of it worked. The commands are the sheet's; the extra flags
+  # (-y, a virtual display, software drawing) are only because nobody sits at
+  # this machine.
+  install-check:
+    name: Install the bundle as the Ubuntu sheet says
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: The downloaded file (sheet step 1) lands in Downloads
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-asset-flatpak
+          path: ${{ github.workspace }}/Downloads
+      - name: Flatpak itself (sheet step 2)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak xvfb
+          flatpak --version
+      - name: The catalog and the KDE runtime, for this user only (sheet step 3)
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub org.kde.Platform//6.11
+      - name: Install the bundle (sheet step 4)
+        working-directory: Downloads
+        run: |
+          ls -l
+          flatpak install --user -y KassenSturz-*.flatpak
+          flatpak list --user --app
+      # The app opens a window and keeps running; timeout ends it with status
+      # 124. A missing runtime part or a crash at start-up ends it sooner. The
+      # developer mode (sheet step 5) writes the log, whose first lines show
+      # that the app got as far as its first screen.
+      - name: Start the app (sheet step 5)
+        run: |
+          set -u
+          status=0
+          xvfb-run -a timeout 20 flatpak run --env=KASSENSTURZ_DEBUG_LOG=1 \
+            --env=QT_QUICK_BACKEND=software io.github.vondor.KassenSturz \
+            > start.log 2>&1 || status=$?
+          echo "--- what the app printed (tail) ---"
+          tail -n 30 start.log
+          echo "--- the debug log's folder ---"
+          log="$HOME/.var/app/io.github.vondor.KassenSturz/data/io.github.vondor.KassenSturz/debug-log"
+          ls -l "$log" || true
+          test "$status" -eq 124
+          test -n "$(find "$log" -type f -size +0 -print -quit)"
+      # Not checked here: the sheet's update over an older build (card 6). The
+      # same file can't be installed over itself ("already installed"), and a
+      # second build isn't at hand; round 1 tries it with two real pre-releases.
+      - name: Remove it again (sheet, "remove")
+        run: |
+          flatpak uninstall --user -y io.github.vondor.KassenSturz
+          if flatpak list --user --app | grep -q io.github.vondor.KassenSturz; then
+            echo "::error::The app is still installed after uninstall."
+            exit 1
+          fi
+
+  # Only for a tag. A draft pre-release (D-579): nothing is public until the
+  # maintainer has looked at it and presses Publish.
+  release:
+    name: Draft pre-release on GitHub
+    needs: [build, install-check]  # SLOT (M7a.7): add the Windows job here
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-asset-*
+          merge-multiple: true
+          path: assets
+      - name: Make the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -eu
+          ls -l assets
+          previous=$(git describe --tags --abbrev=0 --match 'v0.*' "$TAG^" 2>/dev/null || true)
+          {
+            echo "Test build $VERSION of KassenSturz for testers. It is a pre-release and may have bugs: use made-up numbers or an example book only, never your own data."
+            echo
+            echo "How to install it: follow the install sheet for your system in [docs/testing](https://github.com/$GH_REPO/tree/$TAG/docs/testing)."
+            echo
+            echo "Commit: \`${SHA}\`"
+            if [ -n "$previous" ]; then
+              echo
+              echo "Changes since $previous:"
+              echo
+              git log --first-parent --format='- %s' "$previous..$TAG"
+            fi
+          } > notes.md
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            # A re-run of this workflow: replace the files, keep the text.
+            gh release upload "$TAG" assets/* --clobber
+          else
+            gh release create "$TAG" assets/* \
+              --title "KassenSturz $VERSION (pre-release)" \
+              --notes-file notes.md \
+              --prerelease --draft --verify-tag
+          fi
+          echo "Draft pre-release for $TAG: open the repository's Releases page to publish it." | tee -a "$GITHUB_STEP_SUMMARY"

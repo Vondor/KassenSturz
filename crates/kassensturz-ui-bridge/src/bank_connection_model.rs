@@ -323,11 +323,10 @@ pub mod qobject {
 
         /// Choosing a place for saved PINs, or getting it ready again,
         /// ended (D-163, D-167): an object with `saved`, false when the
-        /// settings couldn't be written, `removal`, empty or the error
-        /// object when the old place couldn't be reached (the new one is
-        /// used anyway), and `place` (`name` and `group`) when the place
-        /// has a name to show, a KeePassXC database; or an error object
-        /// when nothing changed.
+        /// settings couldn't be written, and `place` (`name` and `group`)
+        /// when the place has a name to show, a KeePassXC database; or an
+        /// error object when nothing changed, e.g. a saved secret couldn't
+        /// be removed from the old place (D-575).
         #[qsignal]
         #[cxx_name = "pinStorageFinished"]
         fn pin_storage_finished(self: Pin<&mut BankConnection>, result: QVariant);
@@ -669,7 +668,8 @@ impl qobject::BankConnection {
     fn choose_pin_storage(mut self: Pin<&mut Self>, key: &QString) -> QVariant {
         let storage = SecretStorage::from_key(&key.to_string());
         let started = self.as_mut().worker().spawn(move |connection, notify| {
-            let result = bank_connection::choose_pin_storage(connection, storage);
+            let result =
+                bank_connection::choose_pin_storage(connection, storage, remove_saved_ai_key);
             notify(Event::PinStorageDone {
                 storage,
                 result: result.map_err(|error| bank_connection::error_text(&error)),
@@ -1098,14 +1098,32 @@ fn pin_storage_choices_object(choices: &[SecretStorage]) -> QVariant {
     )])
 }
 
+/// Takes the AI provider's saved key out of the place the Password
+/// storage names now, before a switch to another place goes through
+/// (M6-B134, D-575). Runs while AI is off too: it only deletes the app's
+/// own keychain entry and connects to no provider. An error refuses the
+/// switch, worded as the keychain's error.
+#[cfg(feature = "ai")]
+fn remove_saved_ai_key() -> Result<(), BankError> {
+    crate::ai_settings::with_keys(|keys| crate::ai_settings::Store::user().remove_saved_key(keys))
+        .map_err(|error| match error {
+            kassensturz_ai::AiError::KeePassXc => BankError::KeePassXc,
+            _ => BankError::Keychain,
+        })
+}
+
+/// Without AI built in there is no AI key to take out (D-039).
+#[cfg(not(feature = "ai"))]
+fn remove_saved_ai_key() -> Result<(), BankError> {
+    Ok(())
+}
+
 /// What choosing a place for saved PINs did: whether the choice was
-/// `saved` in the settings, the `removal` from the old place, and the
-/// `place` when it has a name to show (D-167).
+/// `saved` in the settings, and the `place` when it has a name to show
+/// (D-167). A secret that couldn't be removed from the old place refuses
+/// the choice instead (D-575).
 fn pin_storage_object(saved: bool, change: &PinStorageChange) -> QVariant {
-    let mut entries = vec![
-        ("saved", QVariant::from(&saved)),
-        ("removal", done_object(change.removal.clone())),
-    ];
+    let mut entries = vec![("saved", QVariant::from(&saved))];
     if let Some(place) = &change.place {
         entries.push((
             "place",
@@ -1185,19 +1203,9 @@ mod tests {
         assert!(!flag_of(&rows[0], "advanced"));
         assert_eq!(text_of(rows.last().expect("a choice"), "key"), "nowhere");
 
-        let chosen = pin_storage_object(
-            true,
-            &PinStorageChange {
-                place: None,
-                removal: Ok(()),
-            },
-        );
+        let chosen = pin_storage_object(true, &PinStorageChange { place: None });
         assert!(flag_of(&chosen, "saved"));
-        let removal = chosen
-            .value::<QMap<QMapPair_QString_QVariant>>()
-            .and_then(|object| object.get(&QString::from("removal")))
-            .expect("removal");
-        assert!(object(&removal).is_empty());
+        assert!(object(&chosen).get(&QString::from("removal")).is_none());
         assert!(object(&chosen).get(&QString::from("place")).is_none());
 
         let keepassxc = pin_storage_object(
@@ -1207,7 +1215,6 @@ mod tests {
                     name: "Household".to_owned(),
                     group: "KassenSturz".to_owned(),
                 }),
-                removal: Ok(()),
             },
         );
         let place = object(&keepassxc)
@@ -1216,18 +1223,8 @@ mod tests {
         assert_eq!(text_of(&place, "name"), "Household");
         assert_eq!(text_of(&place, "group"), "KassenSturz");
 
-        let kept = pin_storage_object(
-            false,
-            &PinStorageChange {
-                place: None,
-                removal: Err(BankError::Keychain),
-            },
-        );
+        let kept = pin_storage_object(false, &PinStorageChange { place: None });
         assert!(!flag_of(&kept, "saved"));
-        let removal = object(&kept)
-            .get(&QString::from("removal"))
-            .expect("removal");
-        assert_eq!(text_of(&removal, "code"), "bank.keychain");
     }
 
     #[test]

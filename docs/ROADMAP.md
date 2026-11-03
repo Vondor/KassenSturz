@@ -215,7 +215,7 @@ One item per step, with a blank line between items, so that two pull requests th
 
 - **M7a.3** · **done** · needs: M7a.0; M7a.4 for the download link · standard, medium. Tester kit, German first, English second, in `docs/testing/`: an install sheet per platform (Windows first, then Ubuntu) that a fresh user follows alone, the safety and think-aloud introduction, the facilitator script, the questionnaire with a question whether real data was used, the report page (sent privately to the maintainer, D-552), the matching example bank files and answer sheets from M7a.8, and a "Try it" section at the top of the README
 
-- **M7a.4** · **todo** · needs: M7a.1 · standard, high. Downloadable build: a release workflow that builds the Flatpak bundle with the build number (D-152, D-226) on a pre-release tag and attaches it to a GitHub pre-release (D-551); the install sheet's commands checked on a clean user account; human gate (releases: the maintainer tags and publishes)
+- **M7a.4** · **done** · needs: M7a.1 · standard, high. Downloadable build: a release workflow that builds the Flatpak bundle with the build number (D-152, D-226) on a pre-release tag and attaches it to a GitHub pre-release (D-551); the install sheet's commands checked on a clean user account; human gate (releases: the maintainer tags and publishes)
 
 - **M7a.5** · **done** · needs: M7a.0 · standard, high. M5 carry-overs: M5-B40 (AI category totals leave subcategories out of the parent; a wrong figure, so first), B41, B44 and B46 checked against `main` with a test each, then fixed or closed with the reason
 

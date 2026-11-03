@@ -5,7 +5,10 @@
 // clicks through it (M6a.7): a chart shows, a view is saved, a second one
 // with the same name is refused with a message, a key figure replaces the
 // chart when the type changes, and deleting the view that is open ends
-// "changing" it. `tools/check-panel.sh` runs it and fails on the first FAIL
+// "changing" it; a new one without a name gets "Statistic 1", the saved views
+// stay in view in the wizard and each can be changed step by step, an
+// unfinished statistic is reported as a draft and comes back, and a chart of
+// the Overview is changed and handed back (M6-B164). `tools/check-panel.sh` runs it and fails on the first FAIL
 // line or on any QML warning about a binding or a type.
 
 import QtQuick
@@ -21,6 +24,13 @@ Kirigami.ApplicationWindow {
     visible: true
     property bool failed: false
     property int step: 0
+    // What the page last said was left unfinished (M6-B164).
+    property var lastDraft: ({})
+    // A page opened on a chart of the Overview, and what it handed back.
+    property var overviewPage: null
+    property var handedBack: ({})
+    property bool overviewCancelled: false
+    readonly property var store: saved
 
     SavedViews {
         id: saved
@@ -35,6 +45,39 @@ Kirigami.ApplicationWindow {
 
         saved: saved
         groupsSource: groups
+        onDraftLeft: left => window.lastDraft = left
+    }
+
+    Component {
+        id: overviewBuilder
+
+        StatisticsPage {
+            // Not `saved: saved`: inside the page that names its own property.
+            saved: window.store
+            groupsSource: groups
+            overviewComponentId: "w7"
+            initialComponent: JSON.stringify({type: "chart.line", dataset: "spending_by_category", params: {}, props: {title: "On the page"}})
+            initialPeriod: "page"
+            onOverviewChangeFinished: (id, json) => window.handedBack = {id: id, json: json}
+            onOverviewChangeCancelled: window.overviewCancelled = true
+            onDraftLeft: left => window.lastDraft = left
+        }
+    }
+
+    Component {
+        id: draftBuilder
+
+        StatisticsPage {
+            // Not `saved: saved`: inside the page that names its own property.
+            saved: window.store
+            groupsSource: groups
+            draft: ({
+                component: JSON.stringify({type: "chart.donut", dataset: "spending_by_category", params: {}, props: {title: "Half done"}}),
+                period: "last-year",
+                name: "Kept name",
+                step: 2
+            })
+        }
     }
 
     function check(ok, what) {
@@ -158,15 +201,21 @@ Kirigami.ApplicationWindow {
                     window.check(wizard.step === (wizard.usable(1) ? 1 : 2), "Next goes to the categories, or past them when there is nothing to choose: " + wizard.step);
                     wizard.goTo(2);
                     window.check(wizard.step === 2, "the last step is reachable by its list");
+                    window.check(window.lastDraft.component !== undefined && JSON.parse(window.lastDraft.component).type === "chart.pie" && window.lastDraft.step === 2, "the unfinished statistic is reported as a draft: " + JSON.stringify(window.lastDraft));
+                    const headings = find(page, "Heading", []).filter(heading => heading.visible && heading.text === "Saved views");
+                    window.check(headings.length === 1, "the saved views stay in view in the wizard");
+                    window.check(find(page, "Button", []).filter(button => button.visible && button.text === "Edit palette…").length === 1, "the last step offers Edit palette…");
                     wizard.step = 0;
                     wizard.finish();
-                    window.check(wizard.step === 2 && page.openId === "", "Finish without a name asks for it first");
-                    wizard.finishRequested("Wizard view");
                 }
                 break;
             case 11:
-                window.check(page.openId !== "" && page.openName === "Wizard view", "the wizard saves the view under its name");
+                window.check(page.openId !== "" && page.openName === "Statistic 1", "Finish without a name keeps the view as Statistic 1: " + page.openName);
+                window.check(page.defaultName() === "Statistic 2", "the next one would be Statistic 2: " + page.defaultName());
+                window.check(window.lastDraft.component === undefined, "and nothing is left unfinished");
                 window.check(!page.wizard, "and the page shows every setting from then on");
+                window.check(find(page, "Button", []).filter(button => button.visible && button.text === "Put it on the Overview").length === 1, "the kept view can be put on the Overview");
+                window.check(find(page, "ToolButton", []).filter(button => button.visible && button.text === "Change step by step").length === 1, "each saved view can be changed step by step");
                 // The board of columns (D-340): reopen the view at the step.
                 page.changeStep(1);
                 break;
@@ -286,6 +335,38 @@ Kirigami.ApplicationWindow {
                 {
                     const wizard = find(page, "StatisticWizard", [])[0];
                     window.check(JSON.parse(wizard.workbench.view.columns).length === 1, "the saved view comes back with its column");
+                    // Change step by step from the list opens the wizard at its start.
+                    page.wizard = false;
+                    page.changeView(page.openId);
+                    window.check(page.wizard && wizard.step === 0, "Change step by step opens the saved view in the wizard");
+                    window.overviewPage = window.pageStack.push(overviewBuilder);
+                }
+                break;
+            case 16:
+                {
+                    const other = window.overviewPage;
+                    const wizard = find(other, "StatisticWizard", [])[0];
+                    window.check(other.wizard && wizard.visible && wizard.onOverview && !wizard.isNew && wizard.step === 0, "a chart of the Overview opens in the wizard");
+                    window.check(other.workbench.view.type === "chart.line", "with its own chart: " + other.workbench.view.type);
+                    window.check(find(other, "Heading", []).filter(heading => heading.visible && heading.text === "Saved views").length === 0, "and without the saved views");
+                    window.check(other.period === "last-12-months" && other.startPeriod === other.period, "a chart following the page's period is shown for the last 12 months");
+                    other.workbench.setType("chart.area");
+                    wizard.finish();
+                    window.check(window.handedBack.id === "w7" && JSON.parse(window.handedBack.json).type === "chart.area", "Finish hands the changed chart back: " + JSON.stringify(window.handedBack));
+                    window.check(saved.view.views.length === 1, "and saves no view");
+                    wizard.cancelled();
+                    window.check(window.overviewCancelled, "Cancel hands nothing back");
+                    window.pageStack.pop();
+                    window.overviewPage = window.pageStack.push(draftBuilder);
+                }
+                break;
+            case 17:
+                {
+                    const other = window.overviewPage;
+                    const wizard = find(other, "StatisticWizard", [])[0];
+                    window.check(other.shownDraft && other.wizard && wizard.step === 2, "an unfinished statistic comes back at its step");
+                    window.check(other.workbench.view.type === "chart.donut" && other.period === "last-year" && wizard.nameText === "Kept name", "with its chart, period and name");
+                    window.check(other.defaultName() === "Half done", "its title is its default name");
                     Qt.exit(window.failed ? 1 : 0);
                 }
                 break;

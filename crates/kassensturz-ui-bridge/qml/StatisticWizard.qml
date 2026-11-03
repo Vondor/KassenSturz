@@ -28,7 +28,9 @@ ColumnLayout {
     property int step: 0
     readonly property int steps: 3
     readonly property var workbench: builder.workbench
-    readonly property bool isNew: builder.openId === ""
+    // A chart from the Overview (M6-B164) is changed, not saved as a view.
+    readonly property bool onOverview: builder.overviewComponentId !== ""
+    readonly property bool isNew: builder.openId === "" && !onOverview
     // The properties that belong to each step; the others are not offered
     // there.
     readonly property var rangeKeys: ["grouping", "measure"]
@@ -151,15 +153,15 @@ ColumnLayout {
         goTo(usable(step - 1) ? step - 1 : step - 2);
     }
 
-    // Finish keeps the view. A new view needs a name first, so the last step
-    // is shown when it has none.
+    // Finish keeps the view. A new view without a name gets a default one
+    // from the page (M6-B164).
     function finish() {
-        if (isNew && wizardName.text.trim() === "") {
-            step = 2;
-            wizardName.forceActiveFocus();
-            return;
-        }
         finishRequested(wizardName.text);
+    }
+
+    // The name of an unfinished statistic that comes back (M6-B164).
+    function restoreName(name: string) {
+        wizardName.text = name;
     }
 
     function openAt(index: int) {
@@ -208,7 +210,9 @@ ColumnLayout {
         Kirigami.Heading {
             Layout.fillWidth: true
             level: 2
-            text: wizard.isNew
+            text: wizard.onOverview
+                ? wizard.i18nContext.i18nc("@title:group", "Change the chart on the Overview")
+                : wizard.isNew
                 ? wizard.i18nContext.i18nc("@title:group", "New statistic")
                 : wizard.i18nContext.i18nc("@title:group %1 is the name of a saved view", "Change “%1”", wizard.builder.openName)
             textFormat: Text.PlainText
@@ -216,6 +220,7 @@ ColumnLayout {
 
         Controls.Button {
             flat: true
+            visible: !wizard.onOverview
             text: wizard.i18nContext.i18nc("@action:button leave the wizard and see every setting on one page", "Show all settings at once")
             onClicked: {
                 ActionLog.taken("StatisticWizard_showAllSettings")
@@ -483,7 +488,21 @@ ColumnLayout {
                     visible: wizard.isNew
                     wrapMode: Text.Wrap
                     textFormat: Text.PlainText
-                    text: wizard.i18nContext.i18nc("@info", "To put it on the Overview, choose Edit layout there, then Add to the page and Saved views.")
+                    text: wizard.i18nContext.i18nc("@info", "Finish keeps it under this name, or as “Statistic 1” and so on if you leave the name empty. It then stays in the list of saved views below, and “Put it on the Overview” shows it there.")
+                }
+
+                // The colors of the charts are the palette in Settings, so
+                // every chart matches (M7a.10, D-589).
+                // Not for a chart of the Overview: Settings would leave its
+                // change unfinished.
+                Controls.Button {
+                    visible: !wizard.onOverview
+                    text: wizard.i18nContext.i18nc("@action:button opens Settings, where the colors of the charts are changed", "Edit palette…")
+                    icon.name: "color-management"
+                    onClicked: {
+                        ActionLog.taken("StatisticWizard_editPalette")
+                        ChartPalette.editRequested()
+                    }
                 }
             }
 

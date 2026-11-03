@@ -42,9 +42,14 @@ Kirigami.ScrollablePage {
     // for the Update all accounts widget (M6d.7).
     property var bank: null
     property bool bankReady: false
+    // The book was just created in the setup wizard (M7a.9): a one-time
+    // message says what this page is and what to do next.
+    property bool justSetUp: false
     readonly property var view: overview.view ?? ({})
 
     signal addAccountClicked()
+    // The first-look message was read.
+    signal firstLookClosed()
     signal addTransactionClicked()
     signal getTransactionsClicked(string accountId)
     signal setBudgetClicked()
@@ -696,6 +701,23 @@ Kirigami.ScrollablePage {
 
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: page.justSetUp && !page.layoutEditing
+            type: Kirigami.MessageType.Positive
+            text: page.i18nContext.i18nc("@info", "Your household book is ready. This page shows you every day where you stand. Add a new expense with +; every step can be taken back with Ctrl+Z.")
+            actions: [
+                Kirigami.Action {
+                    text: page.i18nContext.i18nc("@action:button", "Got it")
+                    icon.name: "dialog-ok"
+                    onTriggered: {
+                        ActionLog.taken("OverviewPage_firstLookClosed")
+                        page.firstLookClosed()
+                    }
+                }
+            ]
+        }
 
         Kirigami.InlineMessage {
             Layout.fillWidth: true

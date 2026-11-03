@@ -46,7 +46,17 @@ impl ErrorText {
                 code: "input.malformed-amount",
                 params: vec![(
                     "example",
-                    amount_example(book, currency, locale).unwrap_or_default(),
+                    // A currency the book doesn't use yet, e.g. in the setup
+                    // wizard before the book is written, has the decimal
+                    // places ISO 4217 gives it (D-027, M6-B105).
+                    amount_example(book, currency, locale)
+                        .ok()
+                        .or_else(|| {
+                            currency.iso_minor_digits().map(|minor_digits| {
+                                amount_example_with(minor_digits, currency, locale)
+                            })
+                        })
+                        .unwrap_or_default(),
                 )],
             },
             AmountInputError::TooManyDecimalPlaces { max } => Self {

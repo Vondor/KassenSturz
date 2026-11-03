@@ -84,6 +84,7 @@ For the maintainer; the steps and the reasons are in `docs/RELEASING.md` (D-579)
 6. Open the *Overview* or a *Statistics* chart: the first series uses color 1, the second color 2, and so on. The new colors are used at once; there is no restart.
 7. In row 6 enter a color almost like row 5's: the row says *This color looks very much like the next one…*, and row 5 says it looks like the one before. Enter near-white in any row on a light theme: it says *hard to see against the background*. A warning never stops you; keep the color if you want.
 8. **Standard** puts one color back, **Back to standard for all** all of them. Close and start KassenSturz: your colors are still there.
+9. **Add a color** (below the list) adds a ninth row, *9. Wine red*, with its own standard color; you can go up to 16. **Remove** in a row takes that color out and the ones below move up (a row that now holds another place's color is called *Own color*); you can go down to 2, and **Remove** is then greyed out. Close and start KassenSturz: the number of colors and your colors are still there. **Back to standard for all** brings back the eight standard colors. A chart with more parts than colors starts again at color 1.
 
 **Click path (Report designer).** Open *Statistics*, choose a *Custom chart* and select it. Under the description field, *Colors you can name in a description* shows the eight places with their words (blue, vermillion, …) as they are set now. There is no color field; **Edit palette…** opens *Settings*.
 

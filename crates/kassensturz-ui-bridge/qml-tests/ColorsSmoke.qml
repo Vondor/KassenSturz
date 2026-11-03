@@ -146,6 +146,46 @@ Window {
                 window.check(fake.calls.includes("resetAll"), "Back to standard for all reached the object");
                 window.check(fake.colors.every((color, at) => color === fake.standard[at]), "every color is the standard one again");
                 window.check(window.fields()[3].text === "#CC79A7", "the fields follow: " + window.fields()[3].text);
+                window.check(window.button("Remove", 0).enabled === true, "a place can be removed while there are more than two");
+                window.button("Add a color").clicked();
+                break;
+            }
+            case 10: {
+                window.check(fake.calls.includes("addColor") && fake.colors.length === 9, "Add a color reached the object: " + fake.colors.length);
+                window.check(fake.colors[8] === "#882255", "an added place starts with its own standard color: " + fake.colors[8]);
+                window.check(window.fields().length === 9 && window.fields()[8].text === "#882255", "a ninth row shows it");
+                window.check(window.shown().includes("9. Wine red"), "the added place has its name: " + window.shown());
+                window.check(window.button("Back to standard for all").enabled === true, "nine colors is not the standard palette");
+                window.button("Remove", 0).clicked();
+                break;
+            }
+            case 11: {
+                window.check(fake.calls.includes("removeColor:0") && fake.colors.length === 8, "Remove reached the object: " + fake.colors.length);
+                window.check(fake.colors[0] === "#D55E00", "the later places moved up: " + fake.colors[0]);
+                window.check(window.shown().includes("1. Own color"), "a place holding another place's color is no longer called by its standard name: " + window.shown());
+                // Down to the fewest, then no more.
+                while (window.button("Remove", 0).enabled) {
+                    window.button("Remove", 0).clicked();
+                }
+                break;
+            }
+            case 12: {
+                window.check(fake.colors.length === 2 && window.fields().length === 2, "two is the fewest: " + fake.colors.length);
+                window.check(window.button("Remove", 0).enabled === false, "the last two cannot be removed");
+                // Up to the most, then no more.
+                while (window.button("Add a color").enabled) {
+                    window.button("Add a color").clicked();
+                }
+                break;
+            }
+            case 13: {
+                window.check(fake.colors.length === 16 && window.fields().length === 16, "sixteen is the most: " + fake.colors.length);
+                window.check(window.button("Add a color").enabled === false, "no more can be added");
+                window.button("Back to standard for all").clicked();
+                break;
+            }
+            case 14: {
+                window.check(fake.colors.length === 8 && window.fields().length === 8, "Back to standard for all brings back the eight: " + fake.colors.length);
                 Qt.exit(window.failed ? 1 : 0);
                 break;
             }

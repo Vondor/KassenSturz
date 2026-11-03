@@ -63,6 +63,15 @@ ColumnLayout {
             i18nContext.i18nc("@label name of a chart color", "Sky blue"),
             i18nContext.i18nc("@label name of a chart color", "Yellow"),
             i18nContext.i18nc("@label name of a chart color", "Grey"),
+            // The places a person can add (D-588).
+            i18nContext.i18nc("@label name of a chart color", "Wine red"),
+            i18nContext.i18nc("@label name of a chart color", "Green"),
+            i18nContext.i18nc("@label name of a chart color", "Teal"),
+            i18nContext.i18nc("@label name of a chart color", "Purple"),
+            i18nContext.i18nc("@label name of a chart color", "Sand"),
+            i18nContext.i18nc("@label name of a chart color", "Indigo"),
+            i18nContext.i18nc("@label name of a chart color", "Rose"),
+            i18nContext.i18nc("@label name of a chart color", "Dark red"),
         ][slot] ?? "";
     }
 
@@ -128,6 +137,18 @@ ColumnLayout {
     function resetAll() {
         problems = ({});
         notSaved = chartColors.resetAll() === "not-saved";
+    }
+
+    // Adds a place at the end, with its standard color.
+    function addPlace() {
+        notSaved = chartColors.addColor() === "not-saved";
+    }
+
+    // Removes place `slot`; the places after it move up, so what was said
+    // about their typed text no longer fits.
+    function removePlace(slot: int) {
+        problems = ({});
+        notSaved = chartColors.removeColor(slot) === "not-saved";
     }
 
     FormCard.FormCard {
@@ -219,6 +240,16 @@ ColumnLayout {
                         }
                     }
 
+                    Controls.Button {
+                        enabled: card.chartColors.colors.length > card.chartColors.minColors
+                        text: card.i18nContext.i18nc("@action:button takes one color out of the chart colors", "Remove")
+                        Accessible.name: card.i18nContext.i18nc("@action:button accessible name; %1 is the number of a chart color, %2 its name", "Remove color %1, %2", place.index + 1, card.nameOf(place.index))
+                        onClicked: {
+                            ActionLog.taken("ChartColorsCard_remove")
+                            card.removePlace(place.index);
+                        }
+                    }
+
                     Connections {
                         target: place
 
@@ -256,6 +287,17 @@ ColumnLayout {
         FormCard.FormDelegateSeparator {}
 
         FormCard.FormButtonDelegate {
+            enabled: card.chartColors.colors.length < card.chartColors.maxColors
+            text: card.i18nContext.i18nc("@action:button adds one more color to the chart colors", "Add a color")
+            onClicked: {
+                ActionLog.taken("ChartColorsCard_add")
+                card.addPlace();
+            }
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
             enabled: card.chartColors.changed
             text: card.i18nContext.i18nc("@action:button puts every chart color back to the ones KassenSturz comes with", "Back to standard for all")
             onClicked: {
@@ -269,7 +311,7 @@ ColumnLayout {
         textFormat: Text.PlainText
         text: card.notSaved
             ? card.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice, so it applies only until you close KassenSturz. Check that your settings folder can be written to, then choose again.")
-            : card.i18nContext.i18nc("@info", "These colors are used for every chart in KassenSturz: the first part of a chart gets color 1, the next color 2, and so on. They change only how charts look on this computer, not your numbers. A warning means a color may be hard to see or to tell from its neighbour. You can keep it anyway; the standard colors were chosen to work for people who see colors differently.")
+            : card.i18nContext.i18nc("@info", "These colors are used for every chart in KassenSturz: the first part of a chart gets color 1, the next color 2, and so on, and a chart with more parts than colors starts again at color 1. You can have from 2 to 16 colors. They change only how charts look on this computer, not your numbers. A warning means a color may be hard to see or to tell from its neighbour. You can keep it anyway. The first eight standard colors were chosen to work for people who see colors differently; the colors you add are not checked that way.")
     }
 
     // The system's own color dialog, where there is one.

@@ -1,13 +1,15 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! The colors of the charts, which the user can change (M7a.10, D-589).
+//! The colors of the charts, which the user can change (M7a.10, D-589) and
+//! whose number the user can change too (D-588).
 //!
-//! The app has one palette of eight places (D-283), a display setting like
-//! the number format (D-002): it is kept per computer, never in a book, and
-//! it changes only how charts look. The standard colors are the Okabe-Ito
-//! set. Every color is three whole numbers from 0 to 255 ([`Rgb`]); outside
-//! Rust a color is the text `#rrggbb` (D-065).
+//! The app has one palette, a display setting like the number format
+//! (D-002): it is kept per computer, never in a book, and it changes only how
+//! charts look. It starts with eight colors, the Okabe-Ito set (D-283), and a
+//! power user can add colors up to [`MAX_COLORS`] or remove them down to
+//! [`MIN_COLORS`]. Every color is three whole numbers from 0 to 255
+//! ([`Rgb`]); outside Rust a color is the text `#rrggbb` (D-065).
 //!
 //! A changed color gets a warning in plain words when it would be hard to see
 //! on the background or hard to tell from the place next to it. The check is
@@ -17,15 +19,24 @@
 
 use kassensturz_report::spec::Rgb;
 
-use crate::PALETTE_SIZE;
+/// How many colors the palette has at the start (D-283).
+pub const DEFAULT_COLORS: usize = 8;
 
-/// The number of places in the palette as a `usize`.
-const SLOTS: usize = PALETTE_SIZE as usize;
+/// The fewest colors a palette may have: with one, no chart could tell its
+/// parts apart.
+pub const MIN_COLORS: usize = 2;
 
-/// The standard colors in palette order: blue, vermillion, bluish green,
-/// reddish purple, orange, sky blue, yellow and grey (grey in place of
-/// black, so the set also reads on a dark theme).
-pub const STANDARD_COLORS: [Rgb; SLOTS] = [
+/// The most colors a palette may have. More are hard to tell apart in a
+/// chart, and a chart that needs more starts again at the first.
+pub const MAX_COLORS: usize = 16;
+
+/// The standard colors in palette order: the eight of the Okabe-Ito set
+/// (blue, vermillion, bluish green, reddish purple, orange, sky blue, yellow
+/// and grey, grey in place of black so the set also reads on a dark theme),
+/// then eight more for a person who adds colors (wine red, green, teal,
+/// purple, sand, indigo, rose and dark red). Only the first eight are the
+/// color-blind-safe set (D-283).
+pub const STANDARD_COLORS: [Rgb; MAX_COLORS] = [
     Rgb::new(0x00, 0x72, 0xB2),
     Rgb::new(0xD5, 0x5E, 0x00),
     Rgb::new(0x00, 0x9E, 0x73),
@@ -34,9 +45,17 @@ pub const STANDARD_COLORS: [Rgb; SLOTS] = [
     Rgb::new(0x56, 0xB4, 0xE9),
     Rgb::new(0xF0, 0xE4, 0x42),
     Rgb::new(0x99, 0x99, 0x99),
+    Rgb::new(0x88, 0x22, 0x55),
+    Rgb::new(0x11, 0x77, 0x33),
+    Rgb::new(0x44, 0xAA, 0x99),
+    Rgb::new(0xAA, 0x44, 0x99),
+    Rgb::new(0xDD, 0xCC, 0x77),
+    Rgb::new(0x33, 0x22, 0x88),
+    Rgb::new(0xCC, 0x66, 0x77),
+    Rgb::new(0x66, 0x11, 0x00),
 ];
 
-/// What is wrong with a changed color, by place (0 to 7).
+/// What is wrong with a changed color, by place (0 to 15).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PaletteWarning {
     /// The color is hard to see on the background (less than 3 to 1, the
@@ -54,10 +73,10 @@ pub enum PaletteWarning {
     },
 }
 
-/// The eight colors of the app's charts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// The colors of the app's charts: [`MIN_COLORS`] to [`MAX_COLORS`] of them.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Palette {
-    colors: [Rgb; SLOTS],
+    colors: Vec<Rgb>,
 }
 
 impl Default for Palette {
@@ -67,39 +86,62 @@ impl Default for Palette {
 }
 
 impl Palette {
-    /// The standard colors.
+    /// The standard palette: the eight Okabe-Ito colors.
     #[must_use]
-    pub const fn standard() -> Self {
+    pub fn standard() -> Self {
         Self {
-            colors: STANDARD_COLORS,
+            colors: STANDARD_COLORS[..DEFAULT_COLORS].to_vec(),
         }
     }
 
-    /// The palette from the eight texts a settings file keeps, one per
-    /// place. A text that is not exactly `#rrggbb`, or none, gives the
-    /// standard color of that place, so a file edited by hand never breaks
-    /// the charts.
+    /// The standard color of place `slot`, which is also the one an added
+    /// place starts with. A place above 15 has the standard color of its
+    /// place in the next round.
     #[must_use]
-    pub fn from_texts<S: AsRef<str>>(texts: &[S]) -> Self {
-        let mut palette = Self::standard();
-        for (slot, text) in texts.iter().take(SLOTS).enumerate() {
-            if let Some(color) = Rgb::parse(text.as_ref()) {
-                palette.colors[slot] = color;
-            }
-        }
-        palette
+    pub fn standard_color(slot: usize) -> Rgb {
+        STANDARD_COLORS[slot % MAX_COLORS]
     }
 
-    /// The color of `slot`, the standard one for a place above 7.
+    /// The palette of `count` places (kept between [`MIN_COLORS`] and
+    /// [`MAX_COLORS`]) from the texts a settings file keeps, one per place.
+    /// A text that is not exactly `#rrggbb`, or none, gives the standard
+    /// color of that place, so a file edited by hand never breaks the
+    /// charts.
+    #[must_use]
+    pub fn from_texts<S: AsRef<str>>(count: usize, texts: &[S]) -> Self {
+        let count = count.clamp(MIN_COLORS, MAX_COLORS);
+        let colors = (0..count)
+            .map(|slot| {
+                texts
+                    .get(slot)
+                    .and_then(|text| Rgb::parse(text.as_ref()))
+                    .unwrap_or_else(|| Self::standard_color(slot))
+            })
+            .collect();
+        Self { colors }
+    }
+
+    /// How many colors the palette has.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.colors.len()
+    }
+
+    /// Never true: a palette has at least [`MIN_COLORS`] places. Here for
+    /// the sake of `len`.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.colors.is_empty()
+    }
+
+    /// The color of series or slice `slot`: places beyond the palette start
+    /// again at the first.
     #[must_use]
     pub fn color(&self, slot: usize) -> Rgb {
-        self.colors
-            .get(slot)
-            .copied()
-            .unwrap_or_else(|| STANDARD_COLORS[slot % SLOTS])
+        self.colors[slot % self.colors.len()]
     }
 
-    /// The eight colors as `#RRGGBB` text, which is what QML gets.
+    /// The colors as `#RRGGBB` text, which is what QML gets.
     #[must_use]
     pub fn texts(&self) -> Vec<String> {
         self.colors.iter().map(|color| color.to_hex()).collect()
@@ -119,27 +161,46 @@ impl Palette {
     /// Puts `slot` back to its standard color. Returns whether the place
     /// exists.
     pub fn reset(&mut self, slot: usize) -> bool {
-        match STANDARD_COLORS.get(slot) {
-            Some(color) => self.set(slot, *color),
-            None => false,
-        }
+        self.set(slot, Self::standard_color(slot))
     }
 
-    /// Puts every place back to its standard color.
+    /// Puts the palette back to the eight standard colors.
     pub fn reset_all(&mut self) {
-        self.colors = STANDARD_COLORS;
+        *self = Self::standard();
+    }
+
+    /// Adds a place at the end with its standard color. Returns whether
+    /// there was room (there are at most [`MAX_COLORS`] places).
+    pub fn add(&mut self) -> bool {
+        if self.colors.len() >= MAX_COLORS {
+            return false;
+        }
+        self.colors.push(Self::standard_color(self.colors.len()));
+        true
+    }
+
+    /// Removes place `slot`; the places after it move up by one. Returns
+    /// whether it was removed: a palette keeps at least [`MIN_COLORS`]
+    /// places, and the place must exist.
+    pub fn remove(&mut self, slot: usize) -> bool {
+        if self.colors.len() <= MIN_COLORS || slot >= self.colors.len() {
+            return false;
+        }
+        self.colors.remove(slot);
+        true
     }
 
     /// Whether `slot` has its standard color.
     #[must_use]
     pub fn is_standard(&self, slot: usize) -> bool {
-        self.colors.get(slot) == STANDARD_COLORS.get(slot)
+        self.colors.get(slot) == Some(&Self::standard_color(slot))
     }
 
-    /// Whether every place has its standard color.
+    /// Whether this is the standard palette: eight places, each with its
+    /// standard color.
     #[must_use]
     pub fn all_standard(&self) -> bool {
-        self.colors == STANDARD_COLORS
+        self.colors == STANDARD_COLORS[..DEFAULT_COLORS]
     }
 
     /// The warnings for the colors the user changed: too little contrast
@@ -149,17 +210,16 @@ impl Palette {
     #[must_use]
     pub fn warnings(&self, background: Rgb) -> Vec<PaletteWarning> {
         let mut found = Vec::new();
-        for slot in 0..SLOTS {
-            if !self.is_standard(slot) && !contrast_is_enough(self.colors[slot], background) {
+        for (slot, color) in self.colors.iter().enumerate() {
+            if !self.is_standard(slot) && !contrast_is_enough(*color, background) {
                 found.push(PaletteWarning::LowContrast {
                     slot: slot_u8(slot),
                 });
             }
         }
-        for slot in 0..SLOTS - 1 {
+        for (slot, pair) in self.colors.windows(2).enumerate() {
             let other = slot + 1;
-            if (!self.is_standard(slot) || !self.is_standard(other))
-                && too_alike(self.colors[slot], self.colors[other])
+            if (!self.is_standard(slot) || !self.is_standard(other)) && too_alike(pair[0], pair[1])
             {
                 found.push(PaletteWarning::TooAlike {
                     slot: slot_u8(slot),
@@ -171,7 +231,7 @@ impl Palette {
     }
 }
 
-/// A place as the small number it is (below 8).
+/// A place as the small number it is (below 16).
 fn slot_u8(slot: usize) -> u8 {
     u8::try_from(slot).unwrap_or(u8::MAX)
 }

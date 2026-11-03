@@ -1249,20 +1249,23 @@ fn colored(palette: &str, mark: &str) -> ChartSpec {
 }
 
 #[test]
-fn a_free_color_in_the_palette_gets_an_index_after_the_eight_places() {
+fn a_free_color_in_the_palette_gets_an_index_from_the_extra_base_on() {
     let table = spending_table(&[("a", 1), ("b", 2), ("c", 3)]);
     // Words and codes mixed: the word keeps its place's index, each code is
     // an extra, and a code used twice is one extra.
     let spec = colored(r##"["sky-blue", "#00FF7f", "#00ff7F"]"##, r#""bar""#);
     let chart = draw(&spec, &table).chart;
     let colors: Vec<u8> = chart.series.iter().map(|s| s.color).collect();
-    assert_eq!(colors, [5, PALETTE_SIZE, PALETTE_SIZE]);
+    assert_eq!(colors, [5, EXTRA_COLOR_BASE, EXTRA_COLOR_BASE]);
     assert_eq!(chart.extra_colors, [Rgb::new(0x00, 0xFF, 0x7F)]);
     // Two different codes are two extras, in order of the list.
     let two = colored(r##"["#010203", "#040506", "#010203"]"##, r#""bar""#);
     let chart = draw(&two, &table).chart;
     let colors: Vec<u8> = chart.series.iter().map(|s| s.color).collect();
-    assert_eq!(colors, [8, 9, 8]);
+    assert_eq!(
+        colors,
+        [EXTRA_COLOR_BASE, EXTRA_COLOR_BASE + 1, EXTRA_COLOR_BASE]
+    );
     assert_eq!(chart.extra_colors, [Rgb::new(1, 2, 3), Rgb::new(4, 5, 6)]);
     // Without a palette the colors are the app's, and there are no extras.
     let plain = draw(&colored("[]", r#""bar""#), &table).chart;
@@ -1288,7 +1291,7 @@ fn a_mark_in_its_own_color_colors_a_layer_without_a_color_channel() {
     };
     let chart = draw(&one(r##"{"type": "bar", "color": "#123456"}"##), &table).chart;
     assert_eq!(chart.series.len(), 1);
-    assert_eq!(chart.series[0].color, PALETTE_SIZE);
+    assert_eq!(chart.series[0].color, EXTRA_COLOR_BASE);
     assert_eq!(chart.extra_colors, [Rgb::new(0x12, 0x34, 0x56)]);
     // A palette word colors it with that place of the app's palette.
     let word = draw(&one(r#"{"type": "bar", "color": "grey"}"#), &table).chart;
@@ -1322,8 +1325,8 @@ fn layers_in_their_own_colors_leave_the_standard_colors_to_the_others() {
         }"##,
     );
     let chart = draw(&read, &table).chart;
-    assert_eq!(chart.series[0].color, 8);
-    assert_eq!(chart.overlays[0].series[0].color, 9);
+    assert_eq!(chart.series[0].color, EXTRA_COLOR_BASE);
+    assert_eq!(chart.overlays[0].series[0].color, EXTRA_COLOR_BASE + 1);
     // The rule has no color of its own and takes the first standard one.
     assert_eq!(chart.overlays[1].series[0].color, 0);
     assert_eq!(
@@ -1351,12 +1354,11 @@ fn a_pie_takes_the_descriptions_colors_for_its_slices_in_order() {
     let chart = draw(&pie(r##"["#102030", "grey"]"##), &table).chart;
     assert_eq!(chart.kind, ChartKind::Pie);
     let colors: Vec<u8> = (0..3).map(|at| chart.slice_color(at)).collect();
-    assert_eq!(colors, [PALETTE_SIZE, 7, PALETTE_SIZE]);
+    assert_eq!(colors, [EXTRA_COLOR_BASE, 7, EXTRA_COLOR_BASE]);
     assert_eq!(chart.extra_colors, [Rgb::new(0x10, 0x20, 0x30)]);
     // Without a palette the slices take the app's colors by place, as the
     // built-in pie does.
     let plain = draw(&pie("[]"), &table).chart;
     let colors: Vec<u8> = (0..3).map(|at| plain.slice_color(at)).collect();
     assert_eq!(colors, [0, 1, 2]);
-    assert_eq!(ChartModel::color_of(9), 1);
 }

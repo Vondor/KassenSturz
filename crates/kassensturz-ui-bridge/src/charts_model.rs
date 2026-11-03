@@ -13,7 +13,7 @@ use core::pin::Pin;
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
-use kassensturz_charts::{ChartModel, HiddenNote, PALETTE_SIZE, Prepared, Series, Slices};
+use kassensturz_charts::{ChartModel, HiddenNote, Prepared, Series, Slices};
 use kassensturz_core::ErrorParam;
 
 use crate::charts::{self, ChartSet, ChartsError, Request};
@@ -396,9 +396,9 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
         ("total", text(&model.total)),
         ("hidden", hidden_object(model.hidden.as_ref())),
         ("slices", slices_object(&model.slices)),
-        ("paletteSize", QVariant::from(&i32::from(PALETTE_SIZE))),
         // The free colors of a custom chart, as `#RRGGBB` text: a color
-        // index from `paletteSize` on is one of these (M7a.10).
+        // index from `ChartPalette.extraColorBase` on is one of these
+        // (M7a.10, D-588).
         (
             "extraColors",
             list(model.extra_colors.iter().map(|color| text(&color.to_hex()))),
@@ -659,7 +659,6 @@ mod tests {
                 "hidden",
                 "kind",
                 "overlays",
-                "paletteSize",
                 "round",
                 "series",
                 "slices",
@@ -673,7 +672,6 @@ mod tests {
         assert_eq!(text_of(chart, "dataset"), "spending_by_category");
         assert_eq!(text_of(chart, "currency"), "EUR");
         assert!(flag_of(chart, "round"));
-        assert_eq!(number_of(chart, "paletteSize"), 8);
         assert_eq!(number_of(chart, "count"), 3);
         assert_eq!(text_of(chart, "total"), "1.665,54 €".replace('.', ""));
         let names: Vec<String> = list_of(chart, "categories")
@@ -1430,7 +1428,7 @@ mod tests {
 
     /// A free color of a description (`#rrggbb`) reaches QML as text in the
     /// chart's `extraColors`, and a series in it has a color index from
-    /// `paletteSize` on and no marker (M7a.10).
+    /// `EXTRA_COLOR_BASE` on and no marker (M7a.10).
     #[test]
     fn free_colors_of_a_description_reach_qml_as_text() {
         let coloured = MONTHLY.replacen(

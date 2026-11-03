@@ -35,8 +35,8 @@ use kassensturz_report::{Percent, ReportError, TextFormat, TextTable};
 use crate::datasets::{ShownRow, extent, major_unit, round_slices};
 use crate::ticks::{ticks, ticks_with};
 use crate::{
-    ANSWER_NO, ANSWER_YES, ChartError, ChartKind, ChartModel, MAX_DOT_SIZE, Overlay, OverlayItem,
-    OverlayMark, OverlaySeries, PALETTE_SIZE, Point, Series, Slices, Tick,
+    ANSWER_NO, ANSWER_YES, ChartError, ChartKind, ChartModel, EXTRA_COLOR_BASE, MAX_DOT_SIZE,
+    Overlay, OverlayItem, OverlayMark, OverlaySeries, Point, Series, Slices, Tick,
 };
 
 /// Most rows a chart may use after its filters (D-281), and most points it
@@ -1230,12 +1230,12 @@ fn scaled(left: i128, left_places: u8, right: i128, right_places: u8) -> Orderin
 
 /// The colors of a chart as palette indices: the description's own colors in
 /// order, else the standard ones (D-283). A color the description names as
-/// `#rrggbb` has no place in the app's palette: it gets an index after the
-/// eight places, which `extras` explains (`ChartModel::extra_colors`).
+/// `#rrggbb` has no place in the app's palette: it gets an index from
+/// `EXTRA_COLOR_BASE` on, which `extras` explains (`ChartModel::extra_colors`).
 struct Palette {
     /// The index of each color of `config.range.category`, in order.
     chosen: Vec<u8>,
-    /// The free colors, in order of first use; extra `n` has index 8 + `n`.
+    /// The free colors, in order of first use; extra `n` has index `EXTRA_COLOR_BASE` + `n`.
     extras: Vec<Rgb>,
 }
 
@@ -1280,7 +1280,7 @@ impl Palette {
                 .iter()
                 .position(|known| *known == rgb)
                 .and_then(|at| u8::try_from(at).ok())
-                .map_or(0, |at| PALETTE_SIZE.saturating_add(at)),
+                .map_or(0, |at| EXTRA_COLOR_BASE.saturating_add(at)),
         }
     }
 

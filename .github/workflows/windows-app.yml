@@ -42,9 +42,14 @@ concurrency:
 
 env:
   CRAFT_ROOT: C:\CraftRoot
-  # Craft's bootstrap script, pinned; the bootstrap itself fetches Craft's
-  # current code, which matches its binary cache.
-  CRAFT_BOOTSTRAP_COMMIT: 911cb3f55b2ce0cb95c6a0013678028190a34a66
+  # Craft and its blueprints, pinned, so a run builds the same thing
+  # until these are moved on purpose (with the cache key below). Craft's
+  # binary cache (CacheVersion 26.10) has the package versions these
+  # blueprints ask for. The bootstrap script comes from the same Craft
+  # commit; the bootstrap fetches Craft's current code, which the "Pin
+  # Craft" step then checks out at these commits.
+  CRAFT_COMMIT: 911cb3f55b2ce0cb95c6a0013678028190a34a66
+  CRAFT_BLUEPRINTS_COMMIT: 0cb3f8cd34e5ce8527c278537825fb2315704496
   CARGO_INCREMENTAL: "0"
 
 jobs:
@@ -81,13 +86,13 @@ jobs:
             !C:\CraftRoot\build
             !C:\CraftRoot\download
             !C:\CraftRoot\tmp
-          key: craft-msvc2022-v2-${{ hashFiles('packaging/windows/craft/**/*.py') }}
-          restore-keys: craft-msvc2022-v2-
+          key: craft-msvc2022-v2-${{ env.CRAFT_COMMIT }}-${{ env.CRAFT_BLUEPRINTS_COMMIT }}-${{ hashFiles('packaging/windows/craft/**/*.py') }}
+          restore-keys: craft-msvc2022-v2-${{ env.CRAFT_COMMIT }}-${{ env.CRAFT_BLUEPRINTS_COMMIT }}-
       - name: Set up Craft
         if: steps.craft-cache.outputs.cache-matched-key == ''
         run: |
           $boot = "$env:RUNNER_TEMP\CraftBootstrap.py"
-          Invoke-WebRequest "https://raw.githubusercontent.com/KDE/craft/$env:CRAFT_BOOTSTRAP_COMMIT/setup/CraftBootstrap.py" -OutFile $boot
+          Invoke-WebRequest "https://raw.githubusercontent.com/KDE/craft/$env:CRAFT_COMMIT/setup/CraftBootstrap.py" -OutFile $boot
           # Craft's settings default to MinSizeRel now, but KDE's binary
           # cache holds RelWithDebInfo builds: with MinSizeRel the bootstrap
           # finds nothing and builds Perl, ICU, gettext and Python from
@@ -99,14 +104,30 @@ jobs:
           if ($patched -eq $text) { throw "CraftBootstrap.py changed: boot.writeSettings() not found" }
           Set-Content $boot $patched
           python $boot --prefix $env:CRAFT_ROOT --use-defaults
+      - name: Pin Craft and its blueprints
+        run: |
+          $pins = @(
+            @("$env:CRAFT_ROOT\craft", $env:CRAFT_COMMIT),
+            @("$env:CRAFT_ROOT\etc\blueprints\locations\craft-blueprints-kde", $env:CRAFT_BLUEPRINTS_COMMIT)
+          )
+          foreach ($pin in $pins) {
+            $dir, $commit = $pin
+            git -C $dir cat-file -e "$commit^{commit}" 2>$null
+            if ($LASTEXITCODE -ne 0) { git -C $dir fetch --quiet origin $commit; if ($LASTEXITCODE -ne 0) { throw "can't fetch $commit into $dir" } }
+            git -C $dir checkout --quiet --detach $commit
+            if ($LASTEXITCODE -ne 0) { throw "can't check out $commit in $dir" }
+            Write-Output "$dir at $(git -C $dir rev-parse HEAD)"
+          }
       - name: Point Craft at KassenSturz's blueprint
         run: |
           $ini = "$env:CRAFT_ROOT\etc\CraftSettings.ini"
           $blueprints = "$env:GITHUB_WORKSPACE\packaging\windows\craft"
           $text = Get-Content $ini -Raw
           $text = $text -replace '(?m)^#?Locations = .*$', "Locations = $blueprints"
+          # No daily blueprint updates: the pinned commits stay as they are.
+          $text = $text -replace '(?m)^EnableDailyUpdates = .*$', 'EnableDailyUpdates = False'
           Set-Content $ini $text
-          Select-String -Path $ini -Pattern '^(ABI|Locations|UseCache|BuildType) ='
+          Select-String -Path $ini -Pattern '^(ABI|Locations|UseCache|BuildType|EnableDailyUpdates) ='
       - name: Install Qt and KDE Frameworks
         run: python "$env:CRAFT_ROOT\craft\bin\craft.py" --ci-mode --install-deps kassensturz
       - name: Save Craft
@@ -118,7 +139,7 @@ jobs:
             !C:\CraftRoot\build
             !C:\CraftRoot\download
             !C:\CraftRoot\tmp
-          key: craft-msvc2022-v2-${{ hashFiles('packaging/windows/craft/**/*.py') }}
+          key: craft-msvc2022-v2-${{ env.CRAFT_COMMIT }}-${{ env.CRAFT_BLUEPRINTS_COMMIT }}-${{ hashFiles('packaging/windows/craft/**/*.py') }}
       - name: Name the build
         id: version
         shell: bash

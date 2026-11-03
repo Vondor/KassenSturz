@@ -40,6 +40,17 @@ ecm_find_qmlmodule(org.kde.kirigamiaddons.formcard REQUIRED)
 ecm_find_qmlmodule(org.kde.ki18n REQUIRED)
 ecm_find_qmlmodule(QtQuick.Dialogs REQUIRED)
 
+# Windows has no icon theme, so the app links Breeze's icons, which
+# breeze-icons builds into a library (D-555); Cargo gets its paths below.
+set(breeze_icons_env "")
+if(WIN32)
+    find_package(KF6BreezeIcons ${KF_MIN_VERSION} REQUIRED)
+    set(breeze_icons_env
+        "KASSENSTURZ_BREEZEICONS_INCLUDE_DIRS=$<TARGET_PROPERTY:KF6::BreezeIcons,INTERFACE_INCLUDE_DIRECTORIES>"
+        KASSENSTURZ_BREEZEICONS_LIBRARY_DIR=$<TARGET_LINKER_FILE_DIR:KF6::BreezeIcons>
+    )
+endif()
+
 find_program(CARGO_EXECUTABLE cargo REQUIRED)
 
 option(KASSENSTURZ_BUNDLED_SQLITE
@@ -88,6 +99,7 @@ add_custom_target(kassensturz ALL
         QMAKE=$<TARGET_FILE:Qt6::qmake>
         "KASSENSTURZ_KCONFIG_INCLUDE_DIRS=$<TARGET_PROPERTY:KF6::ConfigCore,INTERFACE_INCLUDE_DIRECTORIES>"
         KASSENSTURZ_KCONFIG_LIBRARY_DIR=$<TARGET_LINKER_FILE_DIR:KF6::ConfigCore>
+        ${breeze_icons_env}
         CARGO_TARGET_DIR=${cargo_target_dir}
         ${CARGO_EXECUTABLE} ${cargo_args}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

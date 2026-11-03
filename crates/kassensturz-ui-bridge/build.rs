@@ -22,11 +22,7 @@ fn main() {
     // The Windows app brings its own icons (D-555); Cargo builds this script
     // for the computer it runs on, so the target comes from Cargo's variable.
     let windows = std::env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "windows");
-    let breeze_icons_include = if windows {
-        qmake_query("QT_INSTALL_HEADERS").join("KF6/BreezeIcons")
-    } else {
-        PathBuf::new()
-    };
+    let breeze_icons = windows.then(BreezeIcons::find);
     let mut builder = CxxQtBuilder::new_qml_module(
         QmlModule::new("io.github.vondor.kassensturz")
             .qml_files([
@@ -190,8 +186,10 @@ fn main() {
             for dir in &kconfig.include_dirs {
                 cc.include(dir);
             }
-            if windows {
-                cc.include(&breeze_icons_include);
+            if let Some(breeze_icons) = &breeze_icons {
+                for dir in &breeze_icons.include_dirs {
+                    cc.include(dir);
+                }
             }
         })
     };
@@ -202,8 +200,12 @@ fn main() {
         kconfig.library_dir.display()
     );
     println!("cargo:rustc-link-lib=KF6ConfigCore");
-    if windows {
-        // Breeze's icons, built into a library (D-555); it sits with KConfig.
+    if let Some(breeze_icons) = &breeze_icons {
+        // Breeze's icons, built into a library (D-555).
+        println!(
+            "cargo:rustc-link-search=native={}",
+            breeze_icons.library_dir.display()
+        );
         println!("cargo:rustc-link-lib=KF6BreezeIcons");
     }
 }
@@ -281,6 +283,44 @@ impl KConfigCore {
             library_dir: qmake_query("QT_INSTALL_LIBS"),
         }
     }
+}
+
+/// Where the library with Breeze's icons is, on Windows only (D-555).
+struct BreezeIcons {
+    include_dirs: Vec<PathBuf>,
+    library_dir: PathBuf,
+}
+
+impl BreezeIcons {
+    /// CMake passes what its `KF6::BreezeIcons` target says, as for KConfig.
+    /// A plain `cargo build` looks next to Qt, where breeze-icons installs
+    /// its header (`include/KF6/BreezeIcons`) and library in KDE Craft.
+    fn find() -> Self {
+        println!("cargo:rerun-if-env-changed=KASSENSTURZ_BREEZEICONS_INCLUDE_DIRS");
+        println!("cargo:rerun-if-env-changed=KASSENSTURZ_BREEZEICONS_LIBRARY_DIR");
+        if let (Some(includes), Some(library_dir)) = (
+            std::env::var_os("KASSENSTURZ_BREEZEICONS_INCLUDE_DIRS"),
+            std::env::var_os("KASSENSTURZ_BREEZEICONS_LIBRARY_DIR"),
+        ) {
+            return Self {
+                include_dirs: cmake_list(&includes),
+                library_dir: library_dir.into(),
+            };
+        }
+        Self {
+            include_dirs: vec![qmake_query("QT_INSTALL_HEADERS").join("KF6/BreezeIcons")],
+            library_dir: qmake_query("QT_INSTALL_LIBS"),
+        }
+    }
+}
+
+/// The folders of a CMake list, which separates them with semicolons.
+fn cmake_list(list: &std::ffi::OsStr) -> Vec<PathBuf> {
+    list.to_string_lossy()
+        .split(';')
+        .filter(|dir| !dir.is_empty())
+        .map(PathBuf::from)
+        .collect()
 }
 
 /// What Qt's `qmake` says about Qt, from the `qmake` cxx-qt-build uses too:

@@ -125,6 +125,7 @@ pub const ACTIONS: &[&str] = &[
     "BookProblemPage_back",
     "BookProblemPage_openAnotherBook",
     "BookProblemPage_openAnyway",
+    "BookProblemPage_showFolder",
     "BookProblemPage_startBookFile",
     "BookProblemPage_startNewBook",
     "BookProblemPage_tryAgain",

@@ -52,12 +52,26 @@ fn changed() {
 }
 
 /// Makes `book` the open book. The one open before is closed, which
-/// removes its lock file (D-038).
+/// removes its lock file (D-038). If that one was the app's own book and
+/// nothing was ever put in it, as at a first start where the user then picks
+/// an example or another book, its file is removed too, so no empty book is
+/// left behind (M6-B148).
 pub fn set(book: OpenBook) {
     changed();
+    let next = book.path.clone();
     // Taken out first, so it is closed outside the borrow.
     let previous = OPEN.with(|open| open.borrow_mut().replace(book));
+    let unused = previous
+        .as_ref()
+        .filter(|previous| {
+            crate::books::unused_own_book(previous, &next, crate::platform::app_folder().as_deref())
+        })
+        .map(|previous| previous.path.clone());
     drop(previous);
+    if let Some(path) = unused {
+        // Nothing is in it; if it can't be removed, it stays as it was.
+        let _ = std::fs::remove_file(path);
+    }
 }
 
 /// Closes the open book, if there is one, removing its lock file. The app

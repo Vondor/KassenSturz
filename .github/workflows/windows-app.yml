@@ -65,33 +65,17 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
-      - name: Diagnose Craft's binary cache (temporary)
+      - name: Diagnose Craft's bootstrap (temporary)
         run: |
-          @'
-          import json, re, urllib.request
-          base = "https://files.kde.org/craft/Qt6/"
-          html = urllib.request.urlopen(base).read().decode()
-          print("versions:", sorted(set(re.findall(r'href="([0-9][^"/]*)/', html))))
-          names = ["libs/icu", "libs/gettext", "libs/python", "craft/craft-core", "libs/qt/qtbase",
-                   "kde/frameworks/tier1/kirigami", "kde/unreleased/kirigami-addons"]
-          for abi in ["msvc2022", "msvc2026"]:
-              for bt in ["RelWithDebInfo", "Release"]:
-                  url = f"{base}26.10/windows/cl/{abi}/x86_64/{bt}/manifest.json"
-                  try:
-                      m = json.load(urllib.request.urlopen(url))
-                  except Exception as e:
-                      print(url, "ERR", e)
-                      continue
-                  print(url, "date", m.get("date"))
-                  for comp, entries in m["packages"].items():
-                      pkgs = {e["name"]: e for e in entries}
-                      print(" ", comp, len(pkgs), "packages")
-                      for name in names:
-                          if name in pkgs:
-                              builds = pkgs[name]["build"]
-                              print("   ", name, [b.get("version") for b in builds][:4], builds[0].get("config"))
-          '@ | Set-Content "$env:RUNNER_TEMP\diag.py"
-          python "$env:RUNNER_TEMP\diag.py"
+          $boot = "$env:RUNNER_TEMP\CraftBootstrap.py"
+          Invoke-WebRequest "https://raw.githubusercontent.com/KDE/craft/$env:CRAFT_BOOTSTRAP_COMMIT/setup/CraftBootstrap.py" -OutFile $boot
+          $p = Start-Process python -ArgumentList $boot, "--prefix", $env:CRAFT_ROOT, "--use-defaults", "--verbose" -PassThru -NoNewWindow -RedirectStandardOutput "$env:RUNNER_TEMP\boot.log" -RedirectStandardError "$env:RUNNER_TEMP\boot-err.log"
+          Start-Sleep -Seconds 420
+          Write-Output "=== CraftCoreSettings"; Get-Content "$env:CRAFT_ROOT\craft*\etc\CraftCoreSettings.ini" -ErrorAction SilentlyContinue | Select-Object -First 20
+          Write-Output "=== CraftSettings"; Select-String -Path "$env:CRAFT_ROOT\etc\CraftSettings.ini" -Pattern '^(ABI|UseCache|RepositoryUrl|CacheVersion|BuildType|Python)' -ErrorAction SilentlyContinue
+          Write-Output "=== cache lines"
+          Get-Content "$env:RUNNER_TEMP\boot.log", "$env:RUNNER_TEMP\boot-err.log" | Select-String -Pattern 'cache|Could not find|missmatch|Cached config|Local config|restore|Failed to fetch|manifest|\*\*\* ' | Select-Object -First 80 | ForEach-Object { $l = $_.Line; if ($l.Length -gt 400) { $l.Substring(0, 400) } else { $l } }
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
           exit 1
       - name: Install Rust
         run: |

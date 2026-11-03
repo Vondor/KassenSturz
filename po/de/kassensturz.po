@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-11-03 09:54+0000\n"
+"POT-Creation-Date: 2026-11-03 10:44+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -15453,6 +15453,7 @@ msgstr "Erweiterte Möglichkeiten anzeigen"
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:479
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:598
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:137
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -15587,6 +15588,7 @@ msgid "Language"
 msgstr "Sprache"
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:580
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:71
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "As in your system"
@@ -16893,19 +16895,19 @@ msgctxt "@action:button the user has read the summary"
 msgid "Seen"
 msgstr "Gesehen"
 
-#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:28
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:31
 #, kde-format
 msgctxt "@title"
 msgid "Welcome"
 msgstr "Willkommen"
 
-#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:44
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:47
 #, kde-format
 msgctxt "@title"
 msgid "Welcome to KassenSturz"
 msgstr "Willkommen bei KassenSturz"
 
-#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:51
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:54
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -16915,13 +16917,33 @@ msgstr ""
 "KassenSturz zeigt Ihnen, wie viel Geld Sie haben und wohin es geht. Alles "
 "bleibt auf diesem Computer."
 
-#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:61
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:65
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Language:"
+msgstr "Sprache:"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:88
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz starts again in your system's language. Nothing is lost."
+msgstr ""
+"KassenSturz startet neu in der Sprache Ihres Systems. Es geht nichts "
+"verloren."
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:89
+#, kde-format
+msgctxt "@info %1 is a language, named in itself"
+msgid "KassenSturz starts again in %1. Nothing is lost."
+msgstr "KassenSturz startet neu auf %1. Es geht nichts verloren."
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:96
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Which currency do you use?"
 msgstr "Welche Währung verwenden Sie?"
 
-#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:71
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:106
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -16931,11 +16953,22 @@ msgstr ""
 "Die meisten müssen das nur bestätigen. Ein Konto in einer anderen Währung "
 "können Sie später hinzufügen."
 
-#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:77
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:112
 #, kde-format
 msgctxt "@action:button"
 msgid "Continue"
 msgstr "Weiter"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:148
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz couldn't start again by itself. Close it and open it again to "
+"see it in the new language; your choice is saved."
+msgstr ""
+"KassenSturz konnte nicht von selbst neu starten. Schließen Sie es und öffnen "
+"Sie es wieder, um es in der neuen Sprache zu sehen; Ihre Wahl ist "
+"gespeichert."
 
 #: crates/kassensturz-ui-bridge/qml/WizardAccountsPage.qml:98
 #, kde-format

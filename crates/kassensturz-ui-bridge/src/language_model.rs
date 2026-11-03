@@ -40,6 +40,13 @@ pub mod qobject {
         /// choice isn't.
         #[qinvokable]
         fn choose(self: Pin<&mut LanguageSettings>, choice: &QString) -> bool;
+
+        /// Starts KassenSturz again, so the chosen language applies at once,
+        /// and ends this one: for the setup wizard's first page, where
+        /// nothing has been typed yet (Q-395). Returns false, and changes
+        /// nothing, when the new one couldn't be started.
+        #[qinvokable]
+        fn restart(self: &LanguageSettings) -> bool;
     }
 
     impl cxx_qt::Initialize for LanguageSettings {}
@@ -68,6 +75,10 @@ impl qobject::LanguageSettings {
         let saved = language.write(&Settings::user());
         self.show(language);
         saved
+    }
+
+    fn restart(&self) -> bool {
+        crate::restart::restart()
     }
 
     /// Shows `language` as the choice.

@@ -1246,6 +1246,7 @@ Kirigami.ApplicationWindow {
 
         WelcomePage {
             firstStart: firstStartState
+            language: languageSettings
             onContinued: currency => {
                 root.wizardCurrency = currency;
                 // A test uses a made-up book only, so it goes straight to the

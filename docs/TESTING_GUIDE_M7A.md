@@ -47,7 +47,9 @@ For the maintainer; the steps and the reasons are in `docs/RELEASING.md` (D-579)
 - Page 2 › **Try an example book** opens the M7a.2 chooser; page 2 › **Bring my data from another program** opens the existing *Start a book from a file* dialog.
 - *Add an account* from the overview no longer says *Your first account*, and adding a transaction has no *Skip for now*.
 
-**Not in this step yet.** The language choice on page 1 and page 4 (bank file and bank).
+**Language on page 1** (Q-395). Choose *English* on the German welcome page: a line says *KassenSturz startet neu auf English. Es geht nichts verloren.* Press **Continue**: KassenSturz closes and starts again by itself, in English, on the welcome page. *Settings* shows the same choice. In the Flatpak the new KassenSturz starts in a sandbox of its own through `flatpak-spawn`, with the `KASSENSTURZ_*` variables it was started with; check there that it comes back, and in test mode that the banner is still there.
+
+**Not in this step yet.** Page 4 (bank file and bank).
 
 ## M7a.9 Test mode kept apart from the real setup
 

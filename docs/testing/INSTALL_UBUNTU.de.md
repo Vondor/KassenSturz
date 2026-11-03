@@ -84,11 +84,12 @@ flatpak run --env=KASSENSTURZ_DEBUG_LOG=1 io.github.vondor.KassenSturz
 
 ## Schritt 6: Das erste Mal öffnen
 
-1. Wählen Sie beim ersten Start **Ein Beispielbuch ausprobieren …** und dann **Vorstadtfamilie** (empfohlener Einstieg). Das Beispielbuch ist eine ausgedachte Familie. KassenSturz legt daraus ein neues Buch an. Sie können auch ein eigenes Testbuch anlegen.
-2. Legen Sie ein Konto an und **denken Sie sich einen Kontostand aus**. Tragen Sie keine echten Zahlen ein.
-3. Sie sind fertig, wenn Sie die **Übersicht** sehen. Notieren Sie, wie viele Minuten Sie gebraucht haben. Das ist das Ergebnis von Karte 1.
+1. Auf der ersten Seite **Willkommen bei KassenSturz** wählen Sie Ihre Sprache und Währung. Meist ist schon alles richtig eingestellt; klicken Sie **Weiter**.
+2. Auf der Seite **Wie möchten Sie anfangen?** wählen Sie für Karte 1 **Mit meinen eigenen Konten**. Wollen Sie lieber nur herumschauen, wählen Sie **Ein Beispielbuch ausprobieren** und dann die *Vorstadtfamilie* (empfohlener Einstieg).
+3. Bei **Mit meinen eigenen Konten** legen Sie ein Konto an und **denken sich einen Kontostand aus**. Tragen Sie keine echten Zahlen ein. Mit **Haushaltsbuch anlegen** geht es weiter. Wie neue Buchungen hineinkommen, wählen Sie als Nächstes (zum Beispiel **Ich tippe sie selbst ein**).
+4. Sie sind fertig, wenn Sie die **Übersicht** sehen. Notieren Sie, wie viele Minuten Sie gebraucht haben. Das ist das Ergebnis von Karte 1.
 
-*(Bildschirmfoto folgt: Startbildschirm und Übersicht.)*
+*(Bildschirmfoto folgt: Die Seiten des Einrichtungsassistenten und die Übersicht.)*
 
 ## Später: eine neuere Version darüber installieren (Karte 6)
 

@@ -2,7 +2,7 @@
 
 *Step by step; no help needed. Your password is needed once. About 15 minutes. German original (the one handed to testers): [INSTALL_UBUNTU.de.md](INSTALL_UBUNTU.de.md).*
 
-> **Team note.** Commands match the README ("Trying a build from CI"). Each pre-release runs steps 2 to 5, the update and the removal on a fresh Ubuntu before it is made (`.github/workflows/release.yml`, [RELEASING.md](../RELEASING.md)). Screenshots from a clean Ubuntu are still to be added.
+> **Team note.** Commands match the README ("Trying a build from CI"). Each pre-release runs steps 2 to 5 and the removal on a fresh Ubuntu before it is made (`.github/workflows/release.yml`, [RELEASING.md](../RELEASING.md)). Screenshots from a clean Ubuntu are still to be added.
 
 **Stuck?** Tell the facilitator. They don't install for you, but they note the spot and give you a hint.
 

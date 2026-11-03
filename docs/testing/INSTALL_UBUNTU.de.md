@@ -2,7 +2,7 @@
 
 *Dieses Blatt führt Sie Schritt für Schritt durch die Installation. Sie brauchen dafür keine Hilfe. Ihr Computer-Passwort wird einmal gebraucht. Dauer: etwa 15 Minuten. Englische Fassung: [INSTALL_UBUNTU.en.md](INSTALL_UBUNTU.en.md).*
 
-> **Stand für das Team.** Der Ablauf unten ist mit den Befehlen aus der [README](../../README.md) (Abschnitt „Trying a build from CI“) abgeglichen, und bei jeder Testversion führt die Veröffentlichung (`.github/workflows/release.yml`, [RELEASING.md](../RELEASING.md)) die Schritte 2 bis 5 sowie „Später“ und „Wieder entfernen“ auf einem frischen Ubuntu aus, bevor die Version entsteht. Bildschirmfotos von einem frischen Ubuntu werden nachgetragen; die Stellen sind mit „Bildschirmfoto folgt“ gekennzeichnet (Liste in [README.md](README.md)).
+> **Stand für das Team.** Der Ablauf unten ist mit den Befehlen aus der [README](../../README.md) (Abschnitt „Trying a build from CI“) abgeglichen, und bei jeder Testversion führt die Veröffentlichung (`.github/workflows/release.yml`, [RELEASING.md](../RELEASING.md)) die Schritte 2 bis 5 sowie „Wieder entfernen“ auf einem frischen Ubuntu aus, bevor die Version entsteht. Bildschirmfotos von einem frischen Ubuntu werden nachgetragen; die Stellen sind mit „Bildschirmfoto folgt“ gekennzeichnet (Liste in [README.md](README.md)).
 
 **Kommen Sie nicht weiter?** Sagen Sie es der Testleitung. Sie installiert nicht für Sie, aber sie notiert die Stelle, und Sie bekommen einen Hinweis, damit der Test weitergeht.
 

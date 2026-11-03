@@ -13,6 +13,7 @@
 //! value that breaks one cannot be built. There is no floating point: numbers
 //! from a description are kept as digits and decimal places (D-506).
 
+mod color;
 mod fields;
 mod limits;
 mod model;
@@ -20,6 +21,8 @@ mod parse;
 mod rows;
 mod unsupported;
 
+#[cfg(test)]
+mod color_tests;
 #[cfg(test)]
 mod fields_tests;
 #[cfg(test)]
@@ -29,6 +32,7 @@ mod parse_tests;
 #[cfg(test)]
 mod rows_tests;
 
+pub use color::{ColorError, Rgb, SpecColor};
 pub use fields::{FieldValue, SPEC_DATASETS, SpecDataset, SpecField, spec_dataset};
 pub use limits::{MAX_SPEC_BYTES, MAX_SPEC_DEPTH};
 pub use model::{

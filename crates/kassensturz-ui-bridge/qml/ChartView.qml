@@ -43,6 +43,9 @@ ColumnLayout {
     // The layers a custom chart puts over its own marks (M6e.2); built-in
     // charts have none.
     readonly property var overlays: chart.overlays ?? []
+    // The free colors of a custom chart, as text: a color index from the
+    // palette's size on is one of these (M7a.10).
+    readonly property var extraColors: chart.extraColors ?? []
     // Every series the picture has, for the legend: the chart's own, then
     // those of its overlays. The names of overlay series are the user's own
     // text from the chart description.
@@ -607,7 +610,7 @@ ColumnLayout {
                     Rectangle {
                         width: view.high > 0 ? Math.max(0, Math.min(1, barRow.point.value / view.high)) * parent.width : 0
                         height: parent.height
-                        color: ChartPalette.color(barRow.point.color)
+                        color: ChartPalette.color(barRow.point.color, view.extraColors)
                         border.width: view.current === barRow.index ? 2 : 0
                         border.color: Kirigami.Theme.highlightColor
                     }
@@ -669,7 +672,7 @@ ColumnLayout {
                     radius: entry.marker === 1 ? width / 2 : (entry.marker === 2 ? 0 : 2)
                     rotation: entry.marker === 3 ? 45 : 0
                     // A row that can't be a slice has no color of its own.
-                    color: view.undrawn(entry.index) ? "transparent" : ChartPalette.color(entry.color)
+                    color: view.undrawn(entry.index) ? "transparent" : ChartPalette.color(entry.color, view.extraColors)
                     border.width: view.undrawn(entry.index) ? 1 : 0
                     border.color: Kirigami.Theme.disabledTextColor
 
@@ -804,7 +807,7 @@ ColumnLayout {
                 Accessible.ignored: true
             }
             colorSource: Charts.ArraySource {
-                array: view.chart.series.map(series => ChartPalette.color(series.color))
+                array: view.chart.series.map(series => ChartPalette.color(series.color, view.extraColors))
             }
             valueSources: view.sources(lineChart)
         }
@@ -822,7 +825,7 @@ ColumnLayout {
             spacing: Kirigami.Units.smallSpacing
             indexingMode: Charts.Chart.IndexEachSource
             colorSource: Charts.ArraySource {
-                array: view.chart.series.map(series => ChartPalette.color(series.color))
+                array: view.chart.series.map(series => ChartPalette.color(series.color, view.extraColors))
             }
             valueSources: view.sources(barChart)
         }
@@ -840,7 +843,7 @@ ColumnLayout {
             spacing: 1
             indexingMode: Charts.Chart.IndexSourceValues
             colorSource: Charts.ArraySource {
-                array: view.chart.series[0].points.map(point => ChartPalette.color(point.color))
+                array: view.chart.series[0].points.map(point => ChartPalette.color(point.color, view.extraColors))
             }
             valueSources: view.sources(pieChart)
         }

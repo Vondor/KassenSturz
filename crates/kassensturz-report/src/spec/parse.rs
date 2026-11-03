@@ -19,12 +19,13 @@
 
 use serde_json::{Map, Value};
 
+use super::color::SpecColor;
 use super::fields::{FieldValue, SpecDataset, SpecField, spec_dataset};
 use super::limits::{self, MAX_SPEC_BYTES, NO_ORDER, Order, Refused, push_index, push_key};
 use super::model::{
     Aggregate, Channel, ChartSize, ChartSpec, Encoding, FieldFilter, FieldType, FilterTest, Layer,
     MAX_ENCODINGS, MAX_FILTERS, MAX_LAYERS, MAX_ONE_OF, MAX_PALETTE, Mark, MarkKind, ModelError,
-    PaletteName, Sort, SpecNumber, SpecText, SpecValue, TimeUnit, VL_SUBSET,
+    Sort, SpecNumber, SpecText, SpecValue, TimeUnit, VL_SUBSET,
 };
 use super::unsupported::{self as why, Unsupported};
 use crate::ReportError;
@@ -221,6 +222,7 @@ struct RawMark {
     tooltip: bool,
     point: bool,
     inner_radius: Option<u16>,
+    color: Option<SpecColor>,
     path: String,
 }
 
@@ -270,7 +272,7 @@ struct RawSpec<'a> {
     description: Option<SpecText>,
     width: Option<u16>,
     height: Option<u16>,
-    palette: Vec<PaletteName>,
+    palette: Vec<SpecColor>,
     /// The top level: its mark and encodings are the chart's only layer when
     /// there is no `layer`; its filters are the chart's own.
     top: RawView<'a>,
@@ -451,13 +453,14 @@ impl Walk {
         }
     }
 
-    /// `config`: only `range.category`, a list of palette words.
+    /// `config`: only `range.category`, a list of palette words and
+    /// `#rrggbb` colors (M7a.10).
     fn config(
         &mut self,
         value: &Value,
         order: &Order,
         path: &str,
-    ) -> Result<Vec<PaletteName>, ReportError> {
+    ) -> Result<Vec<SpecColor>, ReportError> {
         let map = value
             .as_object()
             .ok_or_else(|| invalid("wrong-type", path))?;
@@ -488,9 +491,11 @@ impl Walk {
                 for (at, color) in colors.iter().enumerate() {
                     let path = index(&path, at);
                     match color.as_str() {
-                        Some(word) => match PaletteName::from_word(word) {
-                            Some(name) => palette.push(name),
-                            // A color by its code, such as "#ff0000".
+                        Some(text) => match SpecColor::parse(text) {
+                            Some(color) => palette.push(color),
+                            // Any other way to write a color: `#fff`,
+                            // `rgb(...)`, a CSS name. The text is never
+                            // repeated, only its place.
                             None => self.note(path, why::VALUE),
                         },
                         None => self.other(color, path)?,
@@ -552,6 +557,7 @@ impl Walk {
                 tooltip: false,
                 point: false,
                 inner_radius: None,
+                color: None,
                 path,
             }));
         }
@@ -561,6 +567,7 @@ impl Walk {
         let mut kind = None;
         let mut has_type = false;
         let (mut tooltip, mut point, mut inner_radius) = (false, false, None);
+        let mut color = None;
         for (name, value, _) in entries(map, order) {
             let at = key(&path, name);
             match name {
@@ -575,6 +582,15 @@ impl Walk {
                 },
                 "point" => match value.as_bool() {
                     Some(on) => point = on,
+                    None => self.other(value, at)?,
+                },
+                "color" => match value.as_str() {
+                    // A palette word or `#rrggbb`; anything else (a CSS
+                    // name, `rgb(...)`) is noted without repeating it.
+                    Some(text) => match SpecColor::parse(text) {
+                        Some(found) => color = Some(found),
+                        None => self.note(at, why::VALUE),
+                    },
                     None => self.other(value, at)?,
                 },
                 "innerRadius" => {
@@ -596,6 +612,7 @@ impl Walk {
             tooltip,
             point,
             inner_radius,
+            color,
             path,
         }))
     }
@@ -1165,8 +1182,12 @@ fn layer(view: RawView<'_>, dataset: &'static SpecDataset, walk: &mut Walk) -> R
     if mark.kind == MarkKind::Rule && !has(Channel::X) && !has(Channel::Y) {
         return Err(Stop::Missing(key(&encoding_path, "y")));
     }
-    let built_mark = Mark::new(mark.kind, mark.tooltip, mark.point, mark.inner_radius)
+    let mut built_mark = Mark::new(mark.kind, mark.tooltip, mark.point, mark.inner_radius)
         .map_err(|e| model(e, &mark.path))?;
+    // A pie or donut is colored by its `color` channel only.
+    if let (Some(color), false) = (mark.color, mark.kind == MarkKind::Arc) {
+        built_mark = built_mark.with_color(color);
+    }
     let mut built = Vec::with_capacity(encodings.len());
     for encoding in &encodings {
         built.push(encoding_of(encoding, dataset)?);

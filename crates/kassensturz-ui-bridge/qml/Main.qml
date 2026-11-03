@@ -327,6 +327,27 @@ Kirigami.ApplicationWindow {
         id: languageSettings
     }
 
+    // The colors of the charts (M7a.10, D-589): what the user chose in
+    // Settings reaches every chart through `ChartPalette`. A screen that
+    // wants the palette changed asks with `ChartPalette.editRequested()`.
+    ChartPaletteSettings {
+        id: chartPaletteSettings
+    }
+
+    Binding {
+        target: ChartPalette
+        property: "colors"
+        value: chartPaletteSettings.colors
+    }
+
+    Connections {
+        target: ChartPalette
+
+        function onEditRequested() {
+            root.showScreen("settings");
+        }
+    }
+
     // How amounts look (D-002): the screens show them again when it changes.
     NumberFormatSettings {
         id: numberFormatSettings
@@ -1601,6 +1622,7 @@ Kirigami.ApplicationWindow {
         SettingsPage {
             session: bookSession
             numberFormat: numberFormatSettings
+            chartPalette: chartPaletteSettings
             language: languageSettings
             ai: aiSwitch
             history: changeHistory

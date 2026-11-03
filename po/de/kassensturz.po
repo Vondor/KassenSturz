@@ -17192,3 +17192,195 @@ msgstr ""
 msgctxt "@action:button"
 msgid "Open a KassenSturz book I already have…"
 msgstr "Ein KassenSturz-Haushaltsbuch öffnen, das ich schon habe…"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:58
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Blue"
+msgstr "Blau"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:59
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Vermillion"
+msgstr "Zinnoberrot"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:60
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Bluish green"
+msgstr "Blaugrün"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:61
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Reddish purple"
+msgstr "Rotpurpur"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:62
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Orange"
+msgstr "Orange"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:63
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Sky blue"
+msgstr "Himmelblau"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:64
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Yellow"
+msgstr "Gelb"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:65
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Grey"
+msgstr "Grau"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:74
+#, kde-format
+msgctxt "@info"
+msgid ""
+"That is not a color. Write it as #rrggbb, for example #0072B2, or as three "
+"numbers for red, green and blue, for example 0, 114, 178."
+msgstr ""
+"Das ist keine Farbe. Schreiben Sie sie als #rrggbb, zum Beispiel #0072B2, "
+"oder als drei Zahlen für Rot, Grün und Blau, zum Beispiel 0, 114, 178."
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:76
+#, kde-format
+msgctxt "@info"
+msgid "Red, green and blue each go from 0 to 255."
+msgstr "Rot, Grün und Blau gehen jeweils von 0 bis 255."
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This color is hard to see against the background. A darker or a lighter "
+"color is easier to read."
+msgstr ""
+"Diese Farbe ist vor dem Hintergrund schwer zu erkennen. Eine dunklere oder "
+"hellere Farbe ist besser zu lesen."
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:82
+#, kde-format
+msgctxt "@info %1 is the name of a color"
+msgid ""
+"This color looks very much like the next one (%1), so the two are hard to "
+"tell apart in a chart."
+msgstr ""
+"Diese Farbe sieht der nächsten (%1) sehr ähnlich, daher sind beide in "
+"einem Diagramm schwer zu unterscheiden."
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:84
+#, kde-format
+msgctxt "@info %1 is the name of a color"
+msgid ""
+"This color looks very much like the one before it (%1), so the two are hard "
+"to tell apart in a chart."
+msgstr ""
+"Diese Farbe sieht der vorherigen (%1) sehr ähnlich, daher sind beide in "
+"einem Diagramm schwer zu unterscheiden."
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:150
+#, kde-format
+msgctxt "@label %1 is the number of a chart color, %2 its name"
+msgid "%1. %2"
+msgstr "%1. %2"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:163
+#, kde-format
+msgctxt ""
+"@label accessible name of a field for the color of a chart; %1 is its "
+"number, %2 its name"
+msgid "Color %1, %2: red, green and blue"
+msgstr "Farbe %1, %2: Rot, Grün und Blau"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:176
+#, kde-format
+msgctxt "@action:button opens the system's dialog for choosing a color"
+msgid "Choose…"
+msgstr "Auswählen …"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:177
+#, kde-format
+msgctxt ""
+"@action:button accessible name; %1 is the number of a chart color, %2 its "
+"name"
+msgid "Choose color %1, %2"
+msgstr "Farbe %1, %2 auswählen"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:188
+#, kde-format
+msgctxt ""
+"@action:button puts one chart color back to the one KassenSturz comes with"
+msgid "Standard"
+msgstr "Standard"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:189
+#, kde-format
+msgctxt ""
+"@action:button accessible name; %1 is the number of a chart color, %2 its "
+"name"
+msgid "Back to the standard color %1, %2"
+msgstr "Farbe %1, %2 auf die Standardfarbe zurücksetzen"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:234
+#, kde-format
+msgctxt ""
+"@action:button puts every chart color back to the ones KassenSturz comes with"
+msgid "Back to standard for all"
+msgstr "Alle auf Standard zurücksetzen"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:246
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These colors are used for every chart in KassenSturz: the first part of a "
+"chart gets color 1, the next color 2, and so on. They change only how charts "
+"look on this computer, not your numbers. A warning means a color may be hard "
+"to see or to tell from its neighbour. You can keep it anyway; the standard "
+"colors were chosen to work for people who see colors differently."
+msgstr ""
+"Diese Farben gelten für jedes Diagramm in KassenSturz: Der erste Teil "
+"eines Diagramms bekommt Farbe 1, der nächste Farbe 2 und so weiter. Sie "
+"ändern nur, wie Diagramme auf diesem Computer aussehen, nicht Ihre Zahlen. "
+"Eine Warnung bedeutet, dass eine Farbe schwer zu erkennen oder von ihrer "
+"Nachbarfarbe schwer zu unterscheiden sein kann. Sie können sie trotzdem "
+"behalten; die Standardfarben sind so gewählt, dass sie auch für Menschen "
+"gut funktionieren, die Farben anders sehen."
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:253
+#, kde-format
+msgctxt "@title:window"
+msgid "Choose a color"
+msgstr "Farbe auswählen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:767
+#, kde-format
+msgctxt "@title:group"
+msgid "Chart colors"
+msgstr "Diagrammfarben"
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:179
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Colors you can name in a description. They are the colors of your palette, "
+"so your charts match each other. For any other color, write it as #rrggbb."
+msgstr ""
+"Farben, die Sie in einer Beschreibung benennen können. Es sind die Farben "
+"Ihrer Palette, damit Ihre Diagramme zueinander passen. Jede andere Farbe "
+"schreiben Sie als #rrggbb."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:218
+#, kde-format
+msgctxt ""
+"@action:button opens Settings, where the colors of the charts are changed"
+msgid "Edit palette…"
+msgstr "Palette bearbeiten …"

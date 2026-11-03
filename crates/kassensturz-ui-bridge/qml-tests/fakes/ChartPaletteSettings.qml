@@ -1,0 +1,62 @@
+// SPDX-FileCopyrightText: 2026 KassenSturz contributors
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// A stand-in for the Rust object ChartPaletteSettings, for
+// `tools/check-panel.sh` (M7a.10): the eight colors as text, what was asked
+// of it (`calls`), and `warningList`, which `warnings()` hands back.
+
+import QtQuick
+
+QtObject {
+    id: fake
+
+    readonly property var standard: ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#F0E442", "#999999"]
+    property var colors: standard
+    property bool changed: false
+    property var calls: []
+    property var warningList: []
+
+    function show(next) {
+        colors = next;
+        changed = next.some((color, at) => color !== standard[at]);
+    }
+
+    function setColor(slot, entry) {
+        calls.push("setColor:" + slot + ":" + entry);
+        const text = entry.trim();
+        const next = colors.slice();
+        if (/^#[0-9a-fA-F]{6}$/.test(text)) {
+            next[slot] = text.toUpperCase();
+        } else {
+            const parts = text.split(/[,; ]+/);
+            if (parts.length !== 3 || !parts.every(part => /^[0-9]+$/.test(part))) {
+                return "format";
+            }
+            if (parts.some(part => parseInt(part) > 255)) {
+                return "part";
+            }
+            next[slot] = "#" + parts.map(part => ("0" + parseInt(part).toString(16)).slice(-2)).join("").toUpperCase();
+        }
+        show(next);
+        return "ok";
+    }
+
+    function reset(slot) {
+        calls.push("reset:" + slot);
+        const next = colors.slice();
+        next[slot] = standard[slot];
+        show(next);
+        return "ok";
+    }
+
+    function resetAll() {
+        calls.push("resetAll");
+        show(standard);
+        return "ok";
+    }
+
+    function warnings(background) {
+        calls.push("warnings:" + background);
+        return warningList;
+    }
+}

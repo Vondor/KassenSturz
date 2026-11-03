@@ -28,7 +28,7 @@ use std::collections::HashMap;
 use kassensturz_core::{Date, ErrorReport, Money, Report, RoundingMode};
 use kassensturz_report::spec::{
     Aggregate, Cell, Channel, ChartSpec, Encoding, FieldFilter, FieldType, FieldValue, FilterTest,
-    FlatTable, Layer, MarkKind, Sort, SpecField, SpecValue, TimeUnit,
+    FlatTable, Layer, MarkKind, Rgb, Sort, SpecColor, SpecField, SpecValue, TimeUnit,
 };
 use kassensturz_report::{Percent, ReportError, TextFormat, TextTable};
 
@@ -36,7 +36,7 @@ use crate::datasets::{ShownRow, extent, major_unit, round_slices};
 use crate::ticks::{ticks, ticks_with};
 use crate::{
     ANSWER_NO, ANSWER_YES, ChartError, ChartKind, ChartModel, MAX_DOT_SIZE, Overlay, OverlayItem,
-    OverlayMark, OverlaySeries, Point, Series, Slices, Tick,
+    OverlayMark, OverlaySeries, PALETTE_SIZE, Point, Series, Slices, Tick,
 };
 
 /// Most rows a chart may use after its filters (D-281), and most points it
@@ -633,7 +633,7 @@ impl<F: TextFormat> Renderer<'_, F> {
         places: &HashMap<Key, usize>,
         count: usize,
         first_color: &mut usize,
-        palette: &Palette,
+        paint: &Paint<'_>,
     ) -> Result<(Vec<Aligned>, Quantity), CustomError> {
         let y = channels.y.ok_or(CustomError::Invalid("missing"))?;
         let quantity = Self::quantity_of(y);
@@ -674,7 +674,7 @@ impl<F: TextFormat> Renderer<'_, F> {
             }
             built.push(Aligned {
                 name: self.series_name(channels, key.as_ref()),
-                color: palette.color(*first_color + index),
+                color: paint.pick(*first_color + index),
                 values,
                 labels,
                 texts,
@@ -682,8 +682,11 @@ impl<F: TextFormat> Renderer<'_, F> {
                 sizes: Vec::new(),
             });
         }
-        // The next layer's series take the colors after this layer's.
-        *first_color += series.len();
+        // The next layer's series take the colors after this layer's; a
+        // layer in a color of its own takes none of them.
+        if paint.own.is_none() {
+            *first_color += series.len();
+        }
         // The sizes are tiers over the whole layer, not per series.
         let all: Vec<Option<i64>> = built
             .iter()
@@ -702,7 +705,7 @@ impl<F: TextFormat> Renderer<'_, F> {
         channels: &Channels<'_>,
         rows: &[&[Cell]],
         first_color: &mut usize,
-        palette: &Palette,
+        paint: &Paint<'_>,
     ) -> Result<(Vec<Levels>, Quantity), CustomError> {
         let y = channels.y.ok_or(CustomError::Invalid("missing"))?;
         let quantity = Self::quantity_of(y);
@@ -735,14 +738,16 @@ impl<F: TextFormat> Renderer<'_, F> {
             }
             built.push((
                 self.series_name(channels, key.as_ref()),
-                palette.color(*first_color + index),
+                paint.pick(*first_color + index),
                 levels
                     .into_iter()
                     .map(|level| (level, self.label(quantity, level)))
                     .collect(),
             ));
         }
-        *first_color += series.len();
+        if paint.own.is_none() {
+            *first_color += series.len();
+        }
         Ok((built, quantity))
     }
 
@@ -753,7 +758,7 @@ impl<F: TextFormat> Renderer<'_, F> {
         rows: &[&[Cell]],
         places: &HashMap<Key, usize>,
         first_color: &mut usize,
-        palette: &Palette,
+        paint: &Paint<'_>,
     ) -> Result<Vec<(String, u8, Vec<usize>)>, CustomError> {
         let series = self.series_keys(channels, rows)?;
         let groups = self.groups(channels, rows, &series, places)?;
@@ -767,11 +772,13 @@ impl<F: TextFormat> Renderer<'_, F> {
             at.sort_unstable();
             built.push((
                 self.series_name(channels, key.as_ref()),
-                palette.color(*first_color + index),
+                paint.pick(*first_color + index),
                 at,
             ));
         }
-        *first_color += series.len();
+        if paint.own.is_none() {
+            *first_color += series.len();
+        }
         Ok(built)
     }
 
@@ -879,10 +886,20 @@ impl<F: TextFormat> Renderer<'_, F> {
             let mark = layer.mark();
             let rows = &layer_rows[at];
             let is_base = Some(at) == base_at;
+            // A mark that names its color is drawn in it when the layer has
+            // no `color` channel; with one, the channel's series decide.
+            let paint = Paint {
+                palette: &palette,
+                own: if channels[at].color.is_none() {
+                    mark.color().map(|color| palette.index_of(color))
+                } else {
+                    None
+                },
+            };
             match mark.kind() {
                 MarkKind::Rule if channels[at].x.is_none() => {
                     let (levels, own) =
-                        self.levels(&channels[at], rows, &mut first_color, &palette)?;
+                        self.levels(&channels[at], rows, &mut first_color, &paint)?;
                     take_quantity(own)?;
                     for (name, _, items) in &levels {
                         for (_, label) in items {
@@ -912,7 +929,7 @@ impl<F: TextFormat> Renderer<'_, F> {
                 }
                 MarkKind::Rule => {
                     let lines =
-                        self.verticals(&channels[at], rows, &places, &mut first_color, &palette)?;
+                        self.verticals(&channels[at], rows, &places, &mut first_color, &paint)?;
                     for (name, _, at) in &lines {
                         for place in at {
                             table_rows.push(vec![
@@ -950,7 +967,7 @@ impl<F: TextFormat> Renderer<'_, F> {
                         &places,
                         count,
                         &mut first_color,
-                        &palette,
+                        &paint,
                     )?;
                     take_quantity(own)?;
                     // Every layer's table rows: the place, the series, the value.
@@ -1051,6 +1068,8 @@ impl<F: TextFormat> Renderer<'_, F> {
             slices: Slices::default(),
             hidden: None,
             overlays,
+            extra_colors: palette.extras.clone(),
+            slice_colors: Vec::new(),
         })))
     }
 
@@ -1101,6 +1120,9 @@ impl<F: TextFormat> Renderer<'_, F> {
             slices.sort_by_key(|slice| std::cmp::Reverse(slice.minor_units));
         }
         let shown = round_slices(slices, self.format, |value| self.label(quantity, value))?;
+        // The slices take the chart's own colors in order, else the palette's.
+        let palette = Palette::of(spec);
+        let slice_colors: Vec<u8> = (0..shown.rows.len()).map(|at| palette.color(at)).collect();
         let inner = layer.mark().inner_radius().is_some();
         let currency = self.table.currency().to_string();
         let points: Vec<Point> = shown
@@ -1141,6 +1163,8 @@ impl<F: TextFormat> Renderer<'_, F> {
             slices: shown.slices,
             hidden: None,
             overlays: Vec::new(),
+            extra_colors: palette.extras,
+            slice_colors,
         })
     }
 }
@@ -1204,25 +1228,83 @@ fn scaled(left: i128, left_places: u8, right: i128, right_places: u8) -> Orderin
     scale(left, left_places).cmp(&scale(right, right_places))
 }
 
-/// The palette indices of a chart: the description's own colors in order,
-/// else the standard ones (D-283).
-struct Palette(Vec<u8>);
+/// The colors of a chart as palette indices: the description's own colors in
+/// order, else the standard ones (D-283). A color the description names as
+/// `#rrggbb` has no place in the app's palette: it gets an index after the
+/// eight places, which `extras` explains (`ChartModel::extra_colors`).
+struct Palette {
+    /// The index of each color of `config.range.category`, in order.
+    chosen: Vec<u8>,
+    /// The free colors, in order of first use; extra `n` has index 8 + `n`.
+    extras: Vec<Rgb>,
+}
 
 impl Palette {
     fn of(spec: &ChartSpec) -> Self {
-        Self(
-            spec.palette()
-                .iter()
-                .map(|name| u8::try_from(name.index()).unwrap_or(0))
-                .collect(),
-        )
+        let mut palette = Self {
+            chosen: Vec::new(),
+            extras: Vec::new(),
+        };
+        let listed: Vec<u8> = spec
+            .palette()
+            .iter()
+            .map(|color| palette.add(*color))
+            .collect();
+        palette.chosen = listed;
+        // Every mark's own color is known before any series is built.
+        for layer in spec.layers() {
+            if let Some(color) = layer.mark().color() {
+                palette.add(color);
+            }
+        }
+        palette
     }
 
+    /// Adds a free color once, and returns the index of `color`.
+    fn add(&mut self, color: SpecColor) -> u8 {
+        if let SpecColor::Rgb(rgb) = color
+            && !self.extras.contains(&rgb)
+        {
+            self.extras.push(rgb);
+        }
+        self.index_of(color)
+    }
+
+    /// The index of a color that [`add`](Self::add) has seen. A free color
+    /// that was not added reads as the first place.
+    fn index_of(&self, color: SpecColor) -> u8 {
+        match color {
+            SpecColor::Slot(name) => u8::try_from(name.index()).unwrap_or(0),
+            SpecColor::Rgb(rgb) => self
+                .extras
+                .iter()
+                .position(|known| *known == rgb)
+                .and_then(|at| u8::try_from(at).ok())
+                .map_or(0, |at| PALETTE_SIZE.saturating_add(at)),
+        }
+    }
+
+    /// The color of series number `series` of the chart.
     fn color(&self, series: usize) -> u8 {
-        if self.0.is_empty() {
+        if self.chosen.is_empty() {
             ChartModel::color_of(series)
         } else {
-            self.0[series % self.0.len()]
+            self.chosen[series % self.chosen.len()]
         }
+    }
+}
+
+/// The colors a layer draws its series in: the chart's palette, and the
+/// color its mark names, if it names one and has no `color` channel.
+struct Paint<'a> {
+    palette: &'a Palette,
+    own: Option<u8>,
+}
+
+impl Paint<'_> {
+    /// The color of a series: the layer's own if it has one, else the next
+    /// of the chart's.
+    fn pick(&self, series: usize) -> u8 {
+        self.own.unwrap_or_else(|| self.palette.color(series))
     }
 }

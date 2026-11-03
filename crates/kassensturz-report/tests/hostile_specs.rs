@@ -144,6 +144,15 @@ const PIE: &str = r#"{"$schema":"https://vega.github.io/schema/vega-lite/v5.json
  "encoding":{"theta":{"field":"planned","type":"quantitative","aggregate":"sum"},
  "color":{"field":"category","type":"nominal"}}}"#;
 
+/// `BAR` with the color `color` on its mark.
+fn mark_color(color: &str) -> String {
+    BAR.replacen(
+        r#""mark":"bar""#,
+        &format!(r#""mark":{{"type":"bar","color":"{color}"}}"#),
+        1,
+    )
+}
+
 /// `BAR` with `rest` added at the end of its top level.
 fn bar_with(rest: &str) -> String {
     format!("{},{rest}}}", &BAR[..BAR.len() - 1])
@@ -220,7 +229,42 @@ fn cases() -> Vec<(&'static str, String, &'static str)> {
         (
             "an expression as a color",
             BAR.replacen(r#""mark":"bar""#, r#""mark":{"type":"bar","color":{"expr":"'red'"}}"#, 1),
-            "draws; mark.color option",
+            "draws; mark.color expression",
+        ),
+        // Colors (M7a.10): `#rrggbb` and the palette words are read; every
+        // other way to write one is listed by its place, never repeated.
+        (
+            "a short color code in a mark",
+            mark_color("#fff"),
+            "draws; mark.color value",
+        ),
+        ("a color as rgb()", mark_color("rgb(255,0,0)"), "draws; mark.color value"),
+        ("a CSS color name", mark_color("rebeccapurple"), "draws; mark.color value"),
+        ("a color with an alpha part", mark_color("#ff000080"), "draws; mark.color value"),
+        (
+            "a color that is markup",
+            mark_color("<img src=https://example.invalid/x.png>"),
+            "draws; mark.color value",
+        ),
+        (
+            "a color that looks like a command",
+            mark_color("$(rm -rf ~)"),
+            "draws; mark.color value",
+        ),
+        (
+            "a color that is a number",
+            BAR.replacen(r#""mark":"bar""#, r#""mark":{"type":"bar","color":16711680}"#, 1),
+            "invalid wrong-type mark.color",
+        ),
+        (
+            "a palette with a short code and a name",
+            bar_with(r##""config":{"range":{"category":["#abc","orange","#12345g"]}}"##),
+            "draws; config.range.category[0] value; config.range.category[2] value",
+        ),
+        (
+            "a palette made of a scheme",
+            bar_with(r#""config":{"range":{"category":{"scheme":"tableau10"}}}"#),
+            "draws; config.range.category value",
         ),
         (
             "a condition with a test",

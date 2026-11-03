@@ -13,13 +13,13 @@
       </Acct>
       <Bal>
         <Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>
-        <Amt Ccy="EUR">5862.39</Amt>
+        <Amt Ccy="EUR">17062.15</Amt>
         <CdtDbtInd>CRDT</CdtDbtInd>
         <Dt><Dt>2026-10-30</Dt></Dt>
       </Bal>
       <Bal>
         <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
-        <Amt Ccy="EUR">6725.71</Amt>
+        <Amt Ccy="EUR">17925.47</Amt>
         <CdtDbtInd>CRDT</CdtDbtInd>
         <Dt><Dt>2026-11-06</Dt></Dt>
       </Bal>
@@ -29,7 +29,7 @@
         <Sts><Cd>BOOK</Cd></Sts>
         <BookgDt><Dt>2026-10-30</Dt></BookgDt>
         <ValDt><Dt>2026-10-30</Dt></ValDt>
-        <AcctSvcrRef>SU2610-0117</AcctSvcrRef>
+        <AcctSvcrRef>SU2610-0933</AcctSvcrRef>
         <NtryDtls>
           <TxDtls>
             <RltdPties>

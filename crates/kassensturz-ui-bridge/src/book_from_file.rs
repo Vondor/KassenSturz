@@ -423,11 +423,19 @@ pub fn read(path: &Path) -> Result<Prepared, FromFileError> {
 /// Reads a KMyMoney SQLite book that is bundled with the app (M7a.2), as
 /// untrusted input with the importer's limits like any other file, and
 /// calls it `stem`.
-pub fn read_bundled_kmy_sqlite(stem: &str, bytes: &[u8]) -> Result<Prepared, FromFileError> {
+///
+/// `adjust` may change the book before anything is made from it, as the
+/// example books do with their dates (D-584).
+pub fn read_bundled_kmy_sqlite(
+    stem: &str,
+    bytes: &[u8],
+    adjust: impl FnOnce(&mut ImportedBook),
+) -> Result<Prepared, FromFileError> {
     let limits = Limits::default();
-    let Imported::Book(book) = import(&KmySqlite, bytes, &limits)? else {
+    let Imported::Book(mut book) = import(&KmySqlite, bytes, &limits)? else {
         unreachable!("the KMyMoney importers read a book")
     };
+    adjust(&mut book);
     Ok(Prepared {
         file_name: stem.to_owned(),
         stem: stem.to_owned(),

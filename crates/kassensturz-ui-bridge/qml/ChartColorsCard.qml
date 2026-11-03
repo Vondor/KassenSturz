@@ -28,7 +28,7 @@ ColumnLayout {
 
     // A `ChartPaletteSettings`: the colors in use, the standard ones, and
     // the warnings.
-    required property var palette
+    required property var chartColors
 
     // Whether a change couldn't be saved for the next start.
     property bool notSaved: false
@@ -40,10 +40,10 @@ ColumnLayout {
     // The window's background as `#rrggbb`, which the contrast is checked
     // against, and the warnings for it. Reading `colors` makes the list
     // follow every change.
-    readonly property string background: Kirigami.Theme.backgroundColor.toString()
+    readonly property string windowColor: Kirigami.Theme.backgroundColor.toString()
     readonly property var warnings: {
-        card.palette.colors;
-        return card.palette.warnings(card.background);
+        card.chartColors.colors;
+        return card.chartColors.warnings(card.windowColor);
     }
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -90,7 +90,7 @@ ColumnLayout {
     // Gives place `slot` the color written in `entry` and keeps what went
     // wrong, so the row says it.
     function apply(slot: int, entry: string) {
-        const answer = palette.setColor(slot, entry);
+        const answer = chartColors.setColor(slot, entry);
         const next = Object.assign({}, problems);
         if (answer === "format" || answer === "part") {
             next[slot] = answer;
@@ -105,26 +105,26 @@ ColumnLayout {
         const next = Object.assign({}, problems);
         delete next[slot];
         problems = next;
-        notSaved = palette.reset(slot) === "not-saved";
+        notSaved = chartColors.reset(slot) === "not-saved";
     }
 
     function resetAll() {
         problems = ({});
-        notSaved = palette.resetAll() === "not-saved";
+        notSaved = chartColors.resetAll() === "not-saved";
     }
 
     FormCard.FormCard {
         Layout.fillWidth: true
 
         Repeater {
-            model: card.palette.colors.length
+            model: card.chartColors.colors.length
 
             delegate: ColumnLayout {
                 id: place
 
                 required property int index
-                readonly property string current: card.palette.colors[index] ?? ""
-                readonly property bool changed: current !== (card.palette.standard[index] ?? "")
+                readonly property string current: card.chartColors.colors[index] ?? ""
+                readonly property bool changed: current !== (card.chartColors.standard[index] ?? "")
                 readonly property var notes: card.notesFor(index)
 
                 Layout.fillWidth: true
@@ -222,7 +222,7 @@ ColumnLayout {
                 }
 
                 FormCard.FormDelegateSeparator {
-                    visible: place.index < card.palette.colors.length - 1
+                    visible: place.index < card.chartColors.colors.length - 1
                 }
             }
         }
@@ -230,7 +230,7 @@ ColumnLayout {
         FormCard.FormDelegateSeparator {}
 
         FormCard.FormButtonDelegate {
-            enabled: card.palette.changed
+            enabled: card.chartColors.changed
             text: card.i18nContext.i18nc("@action:button puts every chart color back to the ones KassenSturz comes with", "Back to standard for all")
             onClicked: {
                 ActionLog.taken("ChartColorsCard_resetAll")

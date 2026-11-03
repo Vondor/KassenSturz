@@ -33,7 +33,7 @@ Window {
         id: card
 
         width: parent.width
-        palette: fake
+        chartColors: fake
     }
 
     function check(ok, what) {

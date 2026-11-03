@@ -770,7 +770,7 @@ FormCard.FormCardPage {
     // The colors of the charts (M7a.10, D-589).
     ChartColorsCard {
         Layout.fillWidth: true
-        palette: page.chartPalette
+        chartColors: page.chartPalette
     }
 
     FormCard.FormHeader {

@@ -19,6 +19,7 @@
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QStyle>
 
+#include <KColorSchemeManager>
 #include <breezeicons.h>
 #endif
 
@@ -112,6 +113,17 @@ void useReadableWidgetStyle()
         }
     }
     QApplication::setStyle(QStringLiteral("Fusion"));
+#endif
+}
+
+void followSystemColours()
+{
+#ifdef Q_OS_WIN
+    // With no colour scheme chosen, KDE's manager applies Breeze or Breeze
+    // Dark after Windows' own light or dark mode, and again whenever that
+    // changes; both schemes are built into the library. It sets the palette
+    // that Qt's widgets and Kirigami's colours both read, so they agree.
+    KColorSchemeManager::instance();
 #endif
 }
 

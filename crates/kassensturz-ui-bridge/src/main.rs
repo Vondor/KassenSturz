@@ -131,6 +131,7 @@ fn main() {
     QGuiApplication::set_desktop_file_name(&QString::from(platform::APP_ID));
     platform::use_bundled_icons();
     platform::use_readable_widget_style();
+    platform::follow_system_colours();
     platform::start_in_user_folder();
     platform::set_window_icon();
     platform::load_ki18n_qml();

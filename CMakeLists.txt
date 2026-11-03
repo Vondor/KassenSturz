@@ -47,9 +47,13 @@ set(windows_resource_env "")
 set(windows_resource_depends "")
 if(WIN32)
     find_package(KF6BreezeIcons ${KF_MIN_VERSION} REQUIRED)
+    # KDE's colour schemes follow Windows' light or dark mode (D-581).
+    find_package(KF6ColorScheme ${KF_MIN_VERSION} REQUIRED)
     set(breeze_icons_env
         "KASSENSTURZ_BREEZEICONS_INCLUDE_DIRS=$<TARGET_PROPERTY:KF6::BreezeIcons,INTERFACE_INCLUDE_DIRECTORIES>"
         KASSENSTURZ_BREEZEICONS_LIBRARY_DIR=$<TARGET_LINKER_FILE_DIR:KF6::BreezeIcons>
+        "KASSENSTURZ_COLORSCHEME_INCLUDE_DIRS=$<TARGET_PROPERTY:KF6::ColorScheme,INTERFACE_INCLUDE_DIRECTORIES>"
+        KASSENSTURZ_COLORSCHEME_LIBRARY_DIR=$<TARGET_LINKER_FILE_DIR:KF6::ColorScheme>
     )
     # The program's icon (M6-B143): the resource compiler turns the .rc into
     # a .res, which Cargo's linker adds to kassensturz.exe (build.rs).

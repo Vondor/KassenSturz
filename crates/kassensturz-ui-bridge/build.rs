@@ -118,6 +118,8 @@ fn main() {
                 "qml/TransactionPage.qml",
                 "qml/TransactionRow.qml",
                 "qml/TransferPrompt.qml",
+                "qml/ExampleBookChooser.qml",
+                "qml/ExampleBooksPage.qml",
                 "qml/WelcomePage.qml",
             ])
             // Helpers, not screens: `Plain.plain()` (D-143) and the colors of
@@ -143,6 +145,7 @@ fn main() {
         "src/categories_model.rs",
         "src/category_groups_model.rs",
         "src/developer_mode.rs",
+        "src/example_books_model.rs",
         "src/export_model.rs",
         "src/fetch_gap_model.rs",
         "src/formulas_model.rs",

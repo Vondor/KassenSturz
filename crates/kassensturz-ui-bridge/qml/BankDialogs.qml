@@ -431,7 +431,7 @@ Item {
                         required property string modelData
                         required property int index
 
-                        text: dialogs.bankWords(modelData)
+                        text: Plain.plain(dialogs.bankWords(modelData))
                         highlighted: index === 0
                         // The label comes from the bank's library: plain
                         // text too.

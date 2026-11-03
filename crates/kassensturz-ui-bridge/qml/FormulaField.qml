@@ -245,9 +245,9 @@ ColumnLayout {
                 Layout.fillWidth: true
                 focusPolicy: Qt.NoFocus
                 highlighted: index === field.chosen
-                text: modelData.group
+                text: Plain.plain(modelData.group
                     ? field.i18nContext.i18nc("@item a group of categories the user made, %1 is its name", "%1 (group)", modelData.label)
-                    : modelData.label
+                    : modelData.label)
                 onClicked: {
                     ActionLog.taken("FormulaField_insertName")
                     field.insertName(modelData)

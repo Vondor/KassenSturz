@@ -44,9 +44,9 @@ Controls.Button {
         picked((on ? without.concat([id]) : without).join(","));
     }
 
-    text: chosen.length === 0
+    text: Plain.plain(chosen.length === 0
         ? i18nContext.i18nc("@action:button %1 is what the list is about, like Accounts", "%1: all", label)
-        : i18nContext.i18ncp("@action:button %2 is what the list is about, like Accounts", "%2: %1 chosen", "%2: %1 chosen", chosen.length, label)
+        : i18nContext.i18ncp("@action:button %2 is what the list is about, like Accounts", "%2: %1 chosen", "%2: %1 chosen", chosen.length, label))
     icon.name: "view-filter"
     checked: popup.opened
     Accessible.name: text
@@ -116,9 +116,9 @@ Controls.Button {
                         required property var modelData
 
                         width: ListView.view.width
-                        text: modelData.gone === true
+                        text: Plain.plain(modelData.gone === true
                             ? picker.i18nContext.i18nc("@option:check a choice in a filter that was removed from the book", "Something that no longer exists")
-                            : modelData.name
+                            : modelData.name)
                         checked: picker.isChosen(modelData.id)
                         onToggled: {
                             ActionLog.taken("FilterPicker_toggle")

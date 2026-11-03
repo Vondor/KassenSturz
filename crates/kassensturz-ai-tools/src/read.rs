@@ -195,6 +195,11 @@ enum Bucket {
     UnsortedOut,
 }
 
+/// One row of `category_totals`: the category (`None` for money not sorted
+/// yet), what is booked to it alone, and, for a parent whose subcategories
+/// hold money, the total with them (M5-B40).
+type Row = (Option<AccountId>, Money, Option<Money>);
+
 /// `category_totals`: money in and money out by category from `from` to
 /// `last`, per currency, counted as the overview counts them (D-021,
 /// D-089): money moved between the user's own accounts and starting
@@ -246,43 +251,83 @@ pub(crate) fn category_totals(
     for currency in currencies {
         // (name, unsorted, total), in the order of the category tree so
         // that equal totals keep it after sorting.
-        let mut income: Vec<(Option<AccountId>, Money)> = Vec::new();
-        let mut spending: Vec<(Option<AccountId>, Money)> = Vec::new();
-        for &id in &names.tree {
-            let Some(total) = sums.get(&(currency, Bucket::Category(id))) else {
+        let mut income: Vec<Row> = Vec::new();
+        let mut spending: Vec<Row> = Vec::new();
+        // What a category and everything below it holds (M5-B40): each
+        // category's own total added to all of its parents.
+        let mut rolled: HashMap<AccountId, Money> = HashMap::new();
+        for (&(sum_currency, bucket), total) in &sums {
+            let Bucket::Category(id) = bucket else {
                 continue;
             };
-            if total.is_zero() {
+            if sum_currency != currency {
                 continue;
             }
-            match names.account(id)?.kind {
-                // A spending category takes money: its total is what went out.
-                AccountKind::Expense => spending.push((Some(id), *total)),
-                // An income category gives money: its total is negative.
-                AccountKind::Income => {
-                    income.push((Some(id), total.checked_neg().map_err(overflow)?));
-                }
-                _ => {}
+            let mut at = Some(id);
+            // A category tree is shallow; the bound only guards a broken cycle.
+            for _ in 0..64 {
+                let Some(current) = at else { break };
+                let sum = rolled
+                    .entry(current)
+                    .or_insert_with(|| Money::zero(currency));
+                *sum = sum.checked_add(*total).map_err(overflow)?;
+                at = names.account(current)?.parent;
             }
+        }
+        for &id in &names.tree {
+            let own = sums
+                .get(&(currency, Bucket::Category(id)))
+                .copied()
+                .unwrap_or_else(|| Money::zero(currency));
+            let with_children = rolled
+                .get(&id)
+                .copied()
+                .unwrap_or_else(|| Money::zero(currency));
+            if own.is_zero() && with_children.is_zero() {
+                continue;
+            }
+            // Only a parent whose subcategories hold money gets the second figure.
+            let below = (with_children != own).then_some(with_children);
+            let (own, below) = match names.account(id)?.kind {
+                // A spending category takes money: its total is what went out.
+                AccountKind::Expense => {
+                    spending.push((Some(id), own, below));
+                    continue;
+                }
+                // An income category gives money: its total is negative.
+                AccountKind::Income => (
+                    own.checked_neg().map_err(overflow)?,
+                    below
+                        .map(Money::checked_neg)
+                        .transpose()
+                        .map_err(overflow)?,
+                ),
+                _ => continue,
+            };
+            income.push((Some(id), own, below));
         }
         if let Some(total) = sums.get(&(currency, Bucket::UnsortedOut))
             && !total.is_zero()
         {
-            spending.push((None, *total));
+            spending.push((None, *total, None));
         }
         if let Some(total) = sums.get(&(currency, Bucket::UnsortedIn))
             && !total.is_zero()
         {
-            income.push((None, total.checked_neg().map_err(overflow)?));
+            income.push((None, total.checked_neg().map_err(overflow)?, None));
         }
-        let money_in = Money::checked_sum(currency, income.iter().map(|(_, total)| *total))
+        let money_in = Money::checked_sum(currency, income.iter().map(|(_, own, _)| *own))
             .map_err(overflow)?;
-        let money_out = Money::checked_sum(currency, spending.iter().map(|(_, total)| *total))
+        let money_out = Money::checked_sum(currency, spending.iter().map(|(_, own, _)| *own))
             .map_err(overflow)?;
         let left = money_in.checked_sub(money_out).map_err(overflow)?;
-        // Largest first, from the exact amounts; a tie keeps the tree order.
-        income.sort_by_key(|(_, total)| core::cmp::Reverse(total.minor_units()));
-        spending.sort_by_key(|(_, total)| core::cmp::Reverse(total.minor_units()));
+        // Largest first by what the category holds with everything below it
+        // (M6-B131), so a parent with nothing booked to itself is not cut
+        // off by the limit while its children are listed; a tie keeps the
+        // tree order.
+        let size = |row: &Row| row.2.unwrap_or(row.1).minor_units();
+        income.sort_by_key(|row| core::cmp::Reverse(size(row)));
+        spending.sort_by_key(|row| core::cmp::Reverse(size(row)));
 
         let mut entry = Map::new();
         entry.insert("currency".into(), Value::from(currency.as_str()));
@@ -291,7 +336,7 @@ pub(crate) fn category_totals(
         entry.insert("left".into(), w.amount(left)?);
         for (key, side) in [("income", &income), ("spending", &spending)] {
             let mut rows = Vec::new();
-            for &(id, total) in side.iter().take(limit) {
+            for &(id, total, below) in side.iter().take(limit) {
                 let mut row = Map::new();
                 match id {
                     Some(id) => {
@@ -303,6 +348,9 @@ pub(crate) fn category_totals(
                     }
                 }
                 row.insert("amount".into(), w.amount(total)?);
+                if let Some(below) = below {
+                    row.insert("amount_with_subcategories".into(), w.amount(below)?);
+                }
                 rows.push(Value::Object(row));
             }
             entry.insert(key.into(), Value::Array(rows));

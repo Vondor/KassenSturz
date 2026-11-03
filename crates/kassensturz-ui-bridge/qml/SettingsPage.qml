@@ -37,6 +37,7 @@ FormCard.FormCardPage {
     property bool aiNotSaved: false
 
     signal openAnotherClicked()
+    signal exampleBookClicked()
     signal newBookClicked()
     signal saveCopyClicked()
     signal bookFromFileClicked()
@@ -215,6 +216,18 @@ FormCard.FormCardPage {
             onClicked: {
                 ActionLog.taken("SettingsPage_openAnotherBook")
                 page.openAnotherClicked()
+            }
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            icon.name: "folder-open"
+            text: page.i18nContext.i18nc("@action:button", "Try an example book…")
+            description: page.i18nContext.i18nc("@info", "Look around in a made-up household. KassenSturz makes a new book for it, so your own books are never changed.")
+            onClicked: {
+                ActionLog.taken("SettingsPage_tryExampleBook")
+                page.exampleBookClicked()
             }
         }
 
@@ -449,9 +462,9 @@ FormCard.FormCardPage {
 
         FormCard.FormButtonDelegate {
             icon.name: page.showAdvancedStorage ? "arrow-up" : "arrow-down"
-            text: page.showAdvancedStorage
+            text: Plain.plain(page.showAdvancedStorage
                 ? page.i18nContext.i18nc("@action:button", "Hide advanced choices")
-                : page.i18nContext.i18nc("@action:button", "Show advanced choices")
+                : page.i18nContext.i18nc("@action:button", "Show advanced choices"))
             visible: page.pinStorageChoices.some(choice => choice.advanced && choice.key !== page.bank.pinStorage)
             onClicked: {
                 ActionLog.taken("SettingsPage_showAdvancedStorage")

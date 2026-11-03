@@ -204,6 +204,17 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // The example books that come with the app (M7a.2). A pick makes a new
+    // book and opens it; the window shows it, as for any book that was made.
+    ExampleBooks {
+        id: exampleBooksState
+
+        onCreated: {
+            bookSession.adoptOpenBook();
+            root.showBook();
+        }
+    }
+
     // Writes error codes as messages, for a notice.
     FormError {
         id: errorTexts
@@ -571,6 +582,11 @@ Kirigami.ApplicationWindow {
 
     function chooseFileForNewBook() {
         fromFileDialog.open();
+    }
+
+    // Shows the example books to try (M7a.2).
+    function chooseExampleBook() {
+        pushPage(exampleBooksPage);
     }
 
     // Reads `file` and shows what it holds, or says why a book can't be
@@ -1215,6 +1231,14 @@ Kirigami.ApplicationWindow {
     }
 
     Component {
+        id: exampleBooksPage
+
+        ExampleBooksPage {
+            examples: exampleBooksState
+        }
+    }
+
+    Component {
         id: problemPage
 
         BookProblemPage {
@@ -1503,6 +1527,7 @@ Kirigami.ApplicationWindow {
             onConnectBankClicked: root.pushPage(bankSetupPage)
             onChangeBankClicked: login => root.pushPage(bankSetupPage, { replacesLogin: login.id, startIban: login.iban })
             onOpenAnotherClicked: root.chooseBookToOpen()
+            onExampleBookClicked: root.chooseExampleBook()
             onNewBookClicked: root.chooseNewBook()
             onSaveCopyClicked: root.pushPage(exportPage)
             onBookFromFileClicked: root.chooseFileForNewBook()

@@ -231,11 +231,13 @@ fn the_questionnaire_answers_of_this_book() {
     assert_eq!(
         amounts(&euro["spending"], "category")[..5],
         [
+            // A parent sorts by its total with the subcategories (M6-B131) and
+            // shows what is booked to itself.
+            ("Taxes and Fees", "0.00"),
             ("Taxes and Fees › Colony Income Tax", "10230.00"),
+            ("Habitat", "0.00"),
             ("Habitat › Rent", "7350.00"),
-            ("Food › Hydroponic Greens", "2822.01"),
-            ("Travel › Earth-Mars Flights", "2779.43"),
-            ("Taxes and Fees › Colony Pension Fund", "2325.00"),
+            ("Food", "1786.37"),
         ]
         .map(|(category, amount)| (category.to_owned(), amount.to_owned()))
     );
@@ -255,12 +257,23 @@ fn the_questionnaire_answers_of_this_book() {
     assert_eq!(
         food,
         [
-            ("Food › Hydroponic Greens", "2822.01"),
             ("Food", "1786.37"),
+            ("Food › Hydroponic Greens", "2822.01"),
             ("Food › Algae Bars and Nutrient Paste", "705.43"),
         ]
         .map(|(category, amount)| (category.to_owned(), amount.to_owned()))
     );
+
+    // M5-B40: the Food row itself carries the total with its subcategories,
+    // the answer Q9 expects (1786.37 + 2822.01 + 705.43).
+    let food_row = euro["spending"]
+        .as_array()
+        .expect("a list")
+        .iter()
+        .find(|row| row["category"] == "Food")
+        .expect("the Food row");
+    assert_eq!(food_row["amount"], "1786.37");
+    assert_eq!(food_row["amount_with_subcategories"], "5313.81");
 
     // Q2: the ice deliveries come once a month for five years.
     let ice = run(

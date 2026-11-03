@@ -8,7 +8,7 @@
 //! exactly, its counts, and every number in its texts. The chat collects
 //! them over a conversation, and [`check_numbers`] lists every number of an
 //! answer that isn't among them, so the answer can say so (M5.4). A number
-//! is compared by its value without its sign, and an answer may write it the
+//! is compared by its value, and an answer may write it the
 //! way the user's language does: `1234.5`, `1,234.50`, `1.234,50` and
 //! `1 234,50` are all the same figure. Where a number can be read two ways,
 //! such as `1.234` (one thousand two hundred thirty-four, or one point two
@@ -17,9 +17,17 @@
 //! Not checked, because they aren't figures: dates (`2026-10-25`,
 //! `25.10.2026`, `25 October`, `Oct 25th`), times (`14:30`), a year on its
 //! own (`2026`, without a currency next to it), ordinals (`3rd`) and digits
-//! that are part of a word or a name (`M5`, `A4`, `3D`). Known limits, as
-//! D-188 records: the sign isn't checked, so an answer that calls a payment
-//! income passes, and numbers written as words ("twelve") aren't seen.
+//! that are part of a word or a name (`M5`, `A4`, `3D`).
+//!
+//! The sign (D-574, M6-B133): a number the answer writes with a minus or a
+//! plus right before it (`-500`, `−53,20`, `-€12`, `+5`) passes only if a
+//! function produced that value with that sign, so `-500 EUR` for a book's
+//! +500 EUR is flagged. A number written without a sign passes for either
+//! sign, because an answer says "you spent 500 EUR" for an amount booked as
+//! -500. A minus after a letter or a digit is a dash (`Shop-24`, `100-200`),
+//! not a sign. Known limits, as D-188 records: a sign said in words ("you
+//! gained 120" for -120) isn't checked, and numbers written as words
+//! ("twelve") aren't seen.
 
 use std::collections::HashSet;
 use std::sync::LazyLock;
@@ -63,6 +71,9 @@ impl Exact {
 pub struct Figures {
     /// Their values, without the sign.
     values: HashSet<Exact>,
+    /// Their values with whether they are below zero. Zero, counts and
+    /// numbers in texts are here with both signs.
+    signed: HashSet<(Exact, bool)>,
     /// Numbers as they were written in a text, e.g. `0.261025.1`, which
     /// pass when an answer writes them the same way.
     written: HashSet<String>,
@@ -81,15 +92,31 @@ impl Figures {
 
     /// `amount`, in a currency with `minor_digits` decimal places.
     pub fn add_money(&mut self, amount: Money, minor_digits: u8) {
-        self.values.insert(Exact::new(
-            u128::from(amount.minor_units().unsigned_abs()),
-            minor_digits,
-        ));
+        let units = amount.minor_units();
+        let value = Exact::new(u128::from(units.unsigned_abs()), minor_digits);
+        self.values.insert(value);
+        if units == 0 {
+            self.add_both_signs(value);
+        } else {
+            self.signed.insert((value, units < 0));
+        }
     }
 
     /// A count, such as how many transactions a search found.
     pub fn add_count(&mut self, count: u64) {
-        self.values.insert(Exact::new(u128::from(count), 0));
+        let value = Exact::new(u128::from(count), 0);
+        self.values.insert(value);
+        self.signed.insert((value, false));
+        if count == 0 {
+            self.signed.insert((value, true));
+        }
+    }
+
+    /// `value` known with either sign: zero, or a number in a text, whose
+    /// dash may be a sign or not.
+    fn add_both_signs(&mut self, value: Exact) {
+        self.signed.insert((value, false));
+        self.signed.insert((value, true));
     }
 
     /// Every number in `text`, in every way it can be read. For text the
@@ -97,7 +124,10 @@ impl Figures {
     /// user and the app (the user's question, the build's version).
     pub fn add_text(&mut self, text: &str) {
         for number in numbers(text) {
-            self.values.extend(number.values);
+            for value in number.values {
+                self.values.insert(value);
+                self.add_both_signs(value);
+            }
             self.written.insert(number.written.to_owned());
         }
     }
@@ -105,15 +135,16 @@ impl Figures {
     /// Adds the figures of `other`, e.g. of the next result in a chat.
     pub fn extend(&mut self, other: &Self) {
         self.values.extend(other.values.iter().copied());
+        self.signed.extend(other.signed.iter().copied());
         self.written.extend(other.written.iter().cloned());
     }
 
     fn knows(&self, number: &Number<'_>) -> bool {
-        number
-            .values
-            .iter()
-            .any(|value| self.values.contains(value))
-            || self.written.contains(number.written)
+        number.values.iter().any(|&value| match number.sign {
+            Sign::None => self.values.contains(&value),
+            Sign::Minus => self.signed.contains(&(value, true)),
+            Sign::Plus => self.signed.contains(&(value, false)),
+        }) || self.written.contains(number.written)
     }
 }
 
@@ -142,10 +173,43 @@ pub fn check_numbers(answer: &str, known: &Figures) -> Vec<Unverified> {
         .collect()
 }
 
+/// The sign an answer writes right before a number.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Sign {
+    None,
+    Minus,
+    Plus,
+}
+
+/// The sign written right before the number that starts at `first`: a
+/// minus or plus directly before its digits, or before a currency sign
+/// directly before them (`-€12`), when no letter or digit stands before it
+/// (`Shop-24` and `100-200` are dashes).
+fn sign_before(chars: &[(usize, char)], first: usize) -> Sign {
+    let mut index = first;
+    if index > 0 && CURRENCY_SIGNS.contains(&chars[index - 1].1) {
+        index -= 1;
+    }
+    if index == 0 {
+        return Sign::None;
+    }
+    let sign = match chars[index - 1].1 {
+        '-' | '−' | '–' => Sign::Minus,
+        '+' => Sign::Plus,
+        _ => return Sign::None,
+    };
+    if index >= 2 && is_word(chars[index - 2].1) {
+        return Sign::None;
+    }
+    sign
+}
+
 /// A number found in a text.
 #[derive(Debug)]
 struct Number<'a> {
     written: &'a str,
+    /// The sign written before it.
+    sign: Sign,
     start: usize,
     end: usize,
     /// Every value it can be read as; none if it can't be read as one, like
@@ -277,6 +341,7 @@ fn numbers(text: &str) -> Vec<Number<'_>> {
         }
         found.push(Number {
             written,
+            sign: sign_before(&chars, first),
             start,
             end,
             values: readings(&groups, &marks),
@@ -401,7 +466,7 @@ mod tests {
             "Du hast 1 234,50 EUR ausgegeben.",
             "You spent €1,234.5 and then 53.2.",
             "Balance: -1234.5",
-            "Kontostand: −53,20 EUR",
+            "Kontostand: 53,20 EUR",
         ] {
             assert_eq!(flagged(answer, &figures), Vec::<String>::new(), "{answer}");
         }
@@ -469,6 +534,45 @@ mod tests {
     }
 
     #[test]
+    fn a_written_sign_must_match_the_books() {
+        // M6-B133, D-574: the book has +500.00 and -120.00.
+        let figures = known(&[50_000, -12_000]);
+        for answer in [
+            "You got -500 EUR.",
+            "Kontostand: −500,00 EUR",
+            "That is -€500.",
+            "You were paid +120 EUR.",
+            "Saldo: €-500",
+        ] {
+            assert_eq!(flagged(answer, &figures).len(), 1, "{answer}");
+        }
+        for answer in [
+            "You got +500 EUR and spent -120 EUR.",
+            "You got 500 EUR and spent 120 EUR.",
+            "Rent – 120 EUR, salary 500 EUR.",
+            "Between 120-500 EUR.",
+            "Shop-120 got 500 EUR.",
+        ] {
+            assert_eq!(flagged(answer, &figures), Vec::<String>::new(), "{answer}");
+        }
+    }
+
+    #[test]
+    fn zero_counts_and_texts_pass_with_a_sign() {
+        let mut figures = known(&[0]);
+        figures.add_count(3);
+        figures.add_text("Refund -15");
+        assert!(flagged("A change of -0.00 EUR and +0 EUR.", &figures).is_empty());
+        assert!(flagged("+3 transactions, a refund of -15 and +15.", &figures).is_empty());
+        assert_eq!(flagged("-3 transactions", &figures), ["3"]);
+        // A sign known in one result carries over to the next.
+        let mut later = Figures::new();
+        later.extend(&known(&[-700]));
+        assert!(flagged("-7 EUR", &later).is_empty());
+        assert_eq!(flagged("+7 EUR", &later), ["7"]);
+    }
+
+    #[test]
     fn huge_numbers_are_flagged_not_misread() {
         let figures = known(&[i64::MAX, i64::MIN]);
         let digits = "9".repeat(60);
@@ -505,6 +609,17 @@ mod tests {
             let figures = known(&[units]);
             let answer = format!("The balance is {} EUR.", written(units, style));
             prop_assert_eq!(flagged(&answer, &figures), Vec::<String>::new());
+        }
+
+        #[test]
+        fn the_opposite_sign_is_flagged(units in (1..i64::MAX), style in 0..4u8) {
+            // D-574: -x for a book's +x, and +x for a book's -x.
+            let positive = known(&[units]);
+            let answer = format!("The balance is -{} EUR.", written(units, style));
+            prop_assert_eq!(flagged(&answer, &positive).len(), 1);
+            let negative = known(&[-units]);
+            let answer = format!("The balance is +{} EUR.", written(units, style));
+            prop_assert_eq!(flagged(&answer, &negative).len(), 1);
         }
     }
 }

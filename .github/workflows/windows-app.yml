@@ -31,13 +31,23 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
   workflow_dispatch:
+  # release.yml calls this workflow for a pre-release tag and attaches what
+  # it uploads as release-asset-windows (D-551, D-554).
   workflow_call:
+    inputs:
+      release:
+        description: Upload the packages as release-asset-windows for the release job
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+# In a call from release.yml, github.workflow is the caller's name, so a pull
+# request's own Windows run and the release workflow's call of it don't
+# cancel each other.
 concurrency:
-  group: windows-app-${{ github.event.pull_request.number || github.run_id }}
+  group: windows-app-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -187,6 +197,15 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kassensturz-windows-${{ steps.version.outputs.version }}
+          path: out/*
+          if-no-files-found: error
+      # The release job attaches every artifact named release-asset-* to the
+      # draft pre-release (release.yml).
+      - name: Hand the packages to the release
+        if: ${{ inputs.release }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-asset-windows
           path: out/*
           if-no-files-found: error
       # Craft prints very long lines; the tail of its log is what explains a

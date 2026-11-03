@@ -112,7 +112,7 @@ Dann die Fragen „Nach dem Test“ (Fragebogen, Abschnitt 3), Frage 8 zuletzt u
 Danach Fragen des Testers beantworten und zeigen, was er gesucht hat. Dann erklären, wohin Fragebogen und Berichte gehen ([Berichtsseite](REPORT_PAGE.de.md)). Zum Schluss:
 > Sie haben uns heute sehr geholfen. Alles, was Sie gesagt haben, fließt direkt in die nächste Version ein.
 
-Nach dem Termin: KassenSturz ohne Entwicklermodus neu starten lassen (oder deinstallieren). Unter Windows prüfen, dass der Windows-Entwicklermodus aus ist (falls er je an war). Mitschrift ohne Namen ablegen: nur ein Kürzel.
+Nach dem Termin: KassenSturz ohne Entwicklermodus neu starten lassen (oder deinstallieren). Mitschrift ohne Namen ablegen: nur ein Kürzel.
 
 ## 5a. Wann ist die App gut? Erfolgskriterien (nur für die Testleitung, nicht vorlesen)
 

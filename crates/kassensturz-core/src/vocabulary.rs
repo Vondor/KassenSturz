@@ -103,6 +103,8 @@ pub const DETAILS: &[&str] = &[
     "StatisticsPage",
     "TransactionPage",
     "WelcomePage",
+    "WizardAccountsPage",
+    "WizardStartPage",
 ];
 
 mod actions;

@@ -27,8 +27,6 @@ Kirigami.ScrollablePage {
     property string accountId: ""
     // The transaction to change, by ID; empty to add a new one.
     property string transactionId: ""
-    // Part of the first start rather than added from the overview.
-    property bool firstRun: false
     property bool moneyIn: false
 
     readonly property bool adding: transactionId === ""
@@ -71,9 +69,7 @@ Kirigami.ScrollablePage {
         translationDomain: "kassensturz"
     }
 
-    title: Plain.plain(firstRun
-        ? i18nContext.i18nc("@title", "Your first transaction")
-        : adding
+    title: Plain.plain(adding
             ? i18nContext.i18nc("@title", "Add a transaction")
             : kind === "starting-balance"
                 ? i18nContext.i18nc("@title", "Starting balance")
@@ -164,13 +160,6 @@ Kirigami.ScrollablePage {
     }
 
     Kirigami.FormLayout {
-        Controls.Label {
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
-            visible: page.firstRun
-            text: page.i18nContext.i18nc("@info", "Now add something you paid or received, for example your last shopping trip.")
-            wrapMode: Text.Wrap
-        }
-
         // What can't be changed here, and where it can.
         Controls.Label {
             textFormat: Text.PlainText
@@ -331,16 +320,6 @@ Kirigami.ScrollablePage {
                 onClicked: {
                     ActionLog.taken("TransactionPage_remove")
                     page.remove()
-                }
-            }
-
-            Controls.Button {
-                visible: page.firstRun
-                text: page.i18nContext.i18nc("@action:button", "Skip for now")
-                flat: true
-                onClicked: {
-                    ActionLog.taken("TransactionPage_skipNow")
-                    page.done()
                 }
             }
         }

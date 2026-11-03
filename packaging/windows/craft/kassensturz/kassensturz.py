@@ -37,6 +37,8 @@ class subinfo(info.infoclass):
         # Windows has no icon theme: the app loads Breeze's icons from the
         # library breeze-icons builds (D-555).
         self.runtimeDependencies["kde/frameworks/tier1/breeze-icons"] = None
+        # Breeze and Breeze Dark after Windows' light or dark mode (D-581).
+        self.runtimeDependencies["kde/frameworks/tier2/kcolorscheme"] = None
         # The charts load org.kde.quickcharts (ChartView.qml).
         self.runtimeDependencies["kde/frameworks/tier1/kquickcharts"] = None
         # Plasma's look, which main.rs asks for (org.kde.desktop).

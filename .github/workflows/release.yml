@@ -114,7 +114,7 @@ jobs:
           if-no-files-found: error
 
   # What a tester does on Ubuntu (docs/testing/INSTALL_UBUNTU.de.md, steps 2 to
-  # 5, "later" and "remove"), on a fresh runner with nothing of KassenSturz's
+  # 5 and "remove"), on a fresh runner with nothing of KassenSturz's
   # on it and no KDE runtime: install Flatpak, add the catalog and the runtime
   # for the user, install the downloaded file, start the app. A release is made
   # only if all of it worked. The commands are the sheet's; the extra flags
@@ -163,9 +163,9 @@ jobs:
           ls -l "$log" || true
           test "$status" -eq 124
           test -n "$(find "$log" -type f -size +0 -print -quit)"
-      - name: Install a newer file over it (sheet, "later")
-        working-directory: Downloads
-        run: flatpak install --user -y --reinstall KassenSturz-*.flatpak
+      # Not checked here: the sheet's update over an older build (card 6). The
+      # same file can't be installed over itself ("already installed"), and a
+      # second build isn't at hand; round 1 tries it with two real pre-releases.
       - name: Remove it again (sheet, "remove")
         run: |
           flatpak uninstall --user -y io.github.vondor.KassenSturz

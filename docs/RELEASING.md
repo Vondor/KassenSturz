@@ -24,7 +24,7 @@ No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the App
 
 3. **Wait for the run.** The **Release** workflow (Actions tab, about 15 minutes with a warm cache) has three jobs:
    - *Build the Flatpak bundle* builds `KassenSturz-<number>-x86_64.flatpak` from the commit, with the number and commit shown in Settings → About.
-   - *Install the bundle as the Ubuntu sheet says* takes that file on a fresh Ubuntu machine and runs what `docs/testing/INSTALL_UBUNTU.de.md` tells a tester: install Flatpak, add the catalog and the KDE runtime for the user, install the file, start it with the developer mode and check the debug log was written, install it over itself, uninstall it. Nothing is released if this fails.
+   - *Install the bundle as the Ubuntu sheet says* takes that file on a fresh Ubuntu machine and runs what `docs/testing/INSTALL_UBUNTU.de.md` tells a tester: install Flatpak, add the catalog and the KDE runtime for the user, install the file, start it with the developer mode and check the debug log was written, uninstall it. (The update over an older build, card 6, can't be checked here: it needs two builds.) Nothing is released if this fails.
    - *Draft pre-release on GitHub* creates the release `KassenSturz <number> (pre-release)` as a **draft** with the files attached and a text that lists the merged changes since the previous tag.
 4. **Look at the draft.** On the repository's Releases page open the draft: the file name, the text, and that *Set as a pre-release* is ticked.
 5. **Publish it.** Press *Publish release*. From then on the file can be downloaded without a GitHub account, and the install sheets' step 1 ("the newest entry marked Pre-release") is right.

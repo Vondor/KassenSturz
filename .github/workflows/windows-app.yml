@@ -65,6 +65,31 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
+      - name: Diagnose Craft's binary cache (temporary)
+        run: |
+          @'
+          import json, re, urllib.request
+          base = "https://files.kde.org/craft/Qt6/"
+          html = urllib.request.urlopen(base).read().decode()
+          print("versions:", sorted(set(re.findall(r'href="([0-9][^"/]*)/', html))))
+          names = ["libs/icu", "libs/gettext", "libs/python", "craft/craft-core", "libs/qt/qtbase",
+                   "kde/frameworks/tier1/kirigami", "kde/unreleased/kirigami-addons"]
+          for abi in ["msvc2022", "msvc2026"]:
+              for bt in ["RelWithDebInfo", "Release"]:
+                  url = f"{base}26.10/windows/cl/{abi}/x86_64/{bt}/manifest.json"
+                  try:
+                      m = json.load(urllib.request.urlopen(url))
+                  except Exception as e:
+                      print(url, "ERR", e)
+                      continue
+                  print(url, "date", m.get("date"))
+                  for comp, pkgs in m["packages"].items():
+                      for name in names:
+                          if name in pkgs:
+                              print(" ", comp, name, [b.get("version") for b in pkgs[name]["build"]][:4])
+          '@ | Set-Content "$env:RUNNER_TEMP\diag.py"
+          python "$env:RUNNER_TEMP\diag.py"
+          exit 1
       - name: Install Rust
         run: |
           rustup toolchain install 1.98.1 --profile minimal
@@ -81,8 +106,8 @@ jobs:
             !C:\CraftRoot\build
             !C:\CraftRoot\download
             !C:\CraftRoot\tmp
-          key: craft-msvc2022-v1-${{ hashFiles('packaging/windows/craft/**/*.py') }}
-          restore-keys: craft-msvc2022-v1-
+          key: craft-msvc2022-v2-${{ hashFiles('packaging/windows/craft/**/*.py') }}
+          restore-keys: craft-msvc2022-v2-
       - name: Set up Craft
         if: steps.craft-cache.outputs.cache-matched-key == ''
         run: |
@@ -100,7 +125,7 @@ jobs:
       - name: Install Qt and KDE Frameworks
         run: python "$env:CRAFT_ROOT\craft\bin\craft.py" --ci-mode --install-deps kassensturz
       - name: Save Craft
-        if: ${{ !cancelled() && steps.craft-cache.outputs.cache-hit != 'true' }}
+        if: ${{ success() && steps.craft-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -108,7 +133,7 @@ jobs:
             !C:\CraftRoot\build
             !C:\CraftRoot\download
             !C:\CraftRoot\tmp
-          key: craft-msvc2022-v1-${{ hashFiles('packaging/windows/craft/**/*.py') }}
+          key: craft-msvc2022-v2-${{ hashFiles('packaging/windows/craft/**/*.py') }}
       - name: Name the build
         id: version
         shell: bash
@@ -163,7 +188,7 @@ jobs:
       - name: Craft's logs
         if: failure()
         run: |
-          Get-ChildItem "$env:CRAFT_ROOT\logs" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 3 | ForEach-Object {
+          Get-ChildItem "$env:CRAFT_ROOT\logs" -Recurse -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 3 | ForEach-Object {
             Write-Output "=== $($_.Name)"
             Get-Content $_.FullName -Tail 60 | ForEach-Object { if ($_.Length -gt 300) { $_.Substring(0, 300) } else { $_ } }
           }

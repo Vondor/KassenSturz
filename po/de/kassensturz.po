@@ -17378,18 +17378,22 @@ msgstr "Alle auf Standard zurücksetzen"
 msgctxt "@info"
 msgid ""
 "These colors are used for every chart in KassenSturz: the first part of a "
-"chart gets color 1, the next color 2, and so on. They change only how charts "
-"look on this computer, not your numbers. A warning means a color may be hard "
-"to see or to tell from its neighbour. You can keep it anyway; the standard "
-"colors were chosen to work for people who see colors differently."
+"chart gets color 1, the next color 2, and so on, and a chart with more parts "
+"than colors starts again at color 1. You can have from 2 to 200 colors. They "
+"change only how charts look on this computer, not your numbers. A warning "
+"means a color may be hard to see or to tell from its neighbour. You can keep "
+"it anyway. The first eight standard colors were chosen to work for people "
+"who see colors differently; the colors you add are not checked that way."
 msgstr ""
 "Diese Farben gelten für jedes Diagramm in KassenSturz: Der erste Teil "
-"eines Diagramms bekommt Farbe 1, der nächste Farbe 2 und so weiter. Sie "
-"ändern nur, wie Diagramme auf diesem Computer aussehen, nicht Ihre Zahlen. "
-"Eine Warnung bedeutet, dass eine Farbe schwer zu erkennen oder von ihrer "
-"Nachbarfarbe schwer zu unterscheiden sein kann. Sie können sie trotzdem "
-"behalten; die Standardfarben sind so gewählt, dass sie auch für Menschen "
-"gut funktionieren, die Farben anders sehen."
+"eines Diagramms bekommt Farbe 1, der nächste Farbe 2 und so weiter; hat ein "
+"Diagramm mehr Teile als Farben, beginnt es wieder bei Farbe 1. Sie können "
+"2 bis 200 Farben haben. Sie ändern nur, wie Diagramme auf diesem Computer "
+"aussehen, nicht Ihre Zahlen. Eine Warnung bedeutet, dass eine Farbe schwer "
+"zu erkennen oder von ihrer Nachbarfarbe schwer zu unterscheiden sein kann. "
+"Sie können sie trotzdem behalten. Die ersten acht Standardfarben sind so "
+"gewählt, dass sie auch für Menschen gut funktionieren, die Farben anders "
+"sehen; die Farben, die Sie hinzufügen, werden so nicht geprüft."
 
 #: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:253
 #, kde-format
@@ -17426,3 +17430,77 @@ msgstr "Palette bearbeiten …"
 msgctxt "@label name of a chart color a person changed"
 msgid "Own color"
 msgstr "Eigene Farbe"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Wine red"
+msgstr "Weinrot"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Green"
+msgstr "Grün"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Teal"
+msgstr "Petrol"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Purple"
+msgstr "Violett"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Sand"
+msgstr "Sand"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Indigo"
+msgstr "Indigo"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Rose"
+msgstr "Altrosa"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Dark red"
+msgstr "Dunkelrot"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:229
+#, kde-format
+msgctxt "@action:button takes one color out of the chart colors"
+msgid "Remove"
+msgstr "Entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:230
+#, kde-format
+msgctxt ""
+"@action:button accessible name; %1 is the number of a chart color, %2 its "
+"name"
+msgid "Remove color %1, %2"
+msgstr "Farbe %1, %2 entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:290
+#, kde-format
+msgctxt "@action:button adds one more color to the chart colors"
+msgid "Add a color"
+msgstr "Farbe hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:90
+#, kde-format
+msgctxt "@label name of a chart color you added beyond the sixteen with a name"
+msgid "Added color"
+msgstr "Hinzugefügte Farbe"

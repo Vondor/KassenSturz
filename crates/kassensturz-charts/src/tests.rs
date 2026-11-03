@@ -328,10 +328,15 @@ fn an_amount_that_would_lose_digits_is_refused() {
 }
 
 #[test]
-fn colors_come_from_the_palette_and_start_again_after_eight() {
-    let colors: Vec<u8> = (0..10).map(ChartModel::color_of).collect();
-    assert_eq!(colors, [0, 1, 2, 3, 4, 5, 6, 7, 0, 1]);
-    assert_eq!(PALETTE_SIZE, 8);
+fn a_color_index_is_the_place_in_the_chart_and_the_palette_wraps_it() {
+    // The chart does not know how many colors the user's palette has (D-588).
+    let colors: Vec<u16> = (0..10).map(ChartModel::color_of).collect();
+    assert_eq!(colors, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    // No chart has more colored parts than 4 layers of 50 series, so a
+    // place never reaches the base where free colors start.
+    assert_eq!(EXTRA_COLOR_BASE, 1000);
+    assert_eq!(ChartModel::color_of(199), 199);
+    assert_eq!(ChartModel::color_of(1002), 2);
 }
 
 #[test]

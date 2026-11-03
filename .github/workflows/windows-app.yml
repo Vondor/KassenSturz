@@ -194,6 +194,28 @@ jobs:
           Write-Output "--- stderr"; Get-Content "$env:RUNNER_TEMP\ks-err.txt" -ErrorAction SilentlyContinue | Select-Object -First 80
           if (-not $running) { Write-Output "The app ended with code $($p.ExitCode)"; exit 1 }
           Write-Output "The app was still running after 30 seconds."
+      # The installer as a tester runs it, but silent (/S): it must install
+      # without administrator rights into the user's own folder, put an entry
+      # in the Start menu, and its uninstaller must take both away again
+      # (installer.nsi, Q-406). The runner's account is an administrator, so
+      # this checks where it installs, not that Windows doesn't ask.
+      - name: Install and remove with the installer
+        run: |
+          $setup = (Get-ChildItem "$env:GITHUB_WORKSPACE\out\*-setup.exe").FullName
+          $dir = "$env:LOCALAPPDATA\Programs\KassenSturz"
+          $link = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\KassenSturz.lnk"
+          $p = Start-Process $setup -ArgumentList "/S" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "The installer ended with code $($p.ExitCode)" }
+          if (-not (Test-Path "$dir\bin\kassensturz.exe")) { throw "No kassensturz.exe in $dir\bin" }
+          if (-not (Test-Path $link)) { throw "No Start menu entry at $link" }
+          if (Test-Path "$env:ProgramFiles\KassenSturz") { throw "It installed into Program Files" }
+          Write-Output "Installed into $dir with a Start menu entry."
+          $p = Start-Process "$dir\uninstall.exe" -ArgumentList "/S" -Wait -PassThru
+          # The uninstaller copies itself away and returns at once; give it time.
+          for ($i = 0; $i -lt 30 -and (Test-Path "$dir\bin\kassensturz.exe"); $i++) { Start-Sleep -Seconds 2 }
+          if (Test-Path "$dir\bin\kassensturz.exe") { throw "kassensturz.exe is still there after uninstalling" }
+          if (Test-Path $link) { throw "The Start menu entry is still there after uninstalling" }
+          Write-Output "Removed again."
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kassensturz-windows-${{ steps.version.outputs.version }}

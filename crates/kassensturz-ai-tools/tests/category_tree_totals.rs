@@ -127,3 +127,35 @@ fn a_parent_row_also_gives_the_total_with_its_subcategories() -> Result<(), Tool
     assert_eq!(totals["money_in"], json!("2100.00"));
     Ok(())
 }
+
+#[test]
+fn rows_are_sorted_by_the_total_with_subcategories() -> Result<(), ToolError> {
+    // M6-B131: Home has nothing of its own but 800.00 below it, so it comes
+    // before Food (52.26 with its subcategories) instead of last, where the
+    // limit would cut it off.
+    let book = book_with_food_tree();
+    let value = call(
+        &book,
+        "category_totals",
+        &json!({ "from": "2026-10-01", "to": "2026-10-31" }),
+        TODAY,
+    )?
+    .value;
+    let names: Vec<&str> = value["currencies"][0]["spending"]
+        .as_array()
+        .expect("a list")
+        .iter()
+        .map(|row| row["category"].as_str().expect("a name"))
+        .collect();
+    assert_eq!(
+        names,
+        [
+            "Home",
+            "Home › Rent",
+            "Food",
+            "Food › Groceries",
+            "Food › Dining out"
+        ]
+    );
+    Ok(())
+}

@@ -295,9 +295,13 @@ ColumnLayout {
             }
         }
 
+        // A form is as wide as its widest row, and a label that may wrap is
+        // as wide as its whole text, so without a limit the text ran past the
+        // window's edge instead of wrapping (M6-B153).
         Controls.Label {
             Kirigami.FormData.label: ""
             Layout.fillWidth: true
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 22
             wrapMode: Text.Wrap
             text: panel.datasetHelp(panel.view.dataset)
             textFormat: Text.PlainText
@@ -463,6 +467,7 @@ ColumnLayout {
                         // its own dimension only (D-350).
                         Controls.Label {
                             Layout.fillWidth: true
+                            Layout.maximumWidth: Kirigami.Units.gridUnit * 22
                             visible: panel.withPeriod && (row.modelData.key === "accounts" || row.modelData.key === "categories")
                             wrapMode: Text.Wrap
                             textFormat: Text.PlainText

@@ -112,8 +112,40 @@ pub fn apply_at_start() {
         // SAFETY: nothing but `main`'s first statements runs yet, so no other
         // thread reads or writes the environment.
         unsafe {
-            std::env::set_var("LANGUAGE", code);
-            std::env::set_var("LC_MESSAGES", locale);
+            set_for_qt("LANGUAGE", code);
+            set_for_qt("LC_MESSAGES", locale);
+        }
+    }
+}
+
+/// Sets an environment variable so that Qt and KI18n see it.
+///
+/// On Windows, Rust's `set_var` changes only the environment of Windows
+/// itself, while Qt's `qgetenv`, which KI18n reads the language with, asks
+/// the C runtime's copy of it, taken when the program started. So the choice
+/// was saved but the app stayed in the system's language (M6-B151). The C
+/// runtime's `_putenv_s` changes both, and Qt's libraries share that runtime
+/// (`ucrtbase.dll`) with the program.
+///
+/// # Safety
+///
+/// As for `std::env::set_var`: no other thread may read or write the
+/// environment at the same time.
+unsafe fn set_for_qt(name: &str, value: &str) {
+    // SAFETY: the caller guarantees that no other thread uses the environment.
+    unsafe { std::env::set_var(name, value) };
+    #[cfg(windows)]
+    {
+        use std::ffi::{CString, c_char, c_int};
+        unsafe extern "C" {
+            fn _putenv_s(name: *const c_char, value: *const c_char) -> c_int;
+        }
+        // Names and values here are fixed ASCII without NUL characters.
+        if let (Ok(name), Ok(value)) = (CString::new(name), CString::new(value)) {
+            // SAFETY: both are NUL-terminated strings that live for the
+            // call; the caller guarantees that no other thread uses the
+            // environment.
+            unsafe { _putenv_s(name.as_ptr(), value.as_ptr()) };
         }
     }
 }
@@ -164,6 +196,26 @@ mod tests {
         let settings = Settings::at(&file);
         assert!(settings.set_text(GENERAL, "Language", "klingon"));
         assert_eq!(Language::read(&settings), Language::System);
+    }
+
+    /// What KI18n reads on Windows: the C runtime's copy of the
+    /// environment, not Windows' own (M6-B151).
+    #[cfg(windows)]
+    #[test]
+    fn the_c_runtime_sees_a_variable_set_for_qt() {
+        use std::ffi::{CStr, CString, c_char};
+        unsafe extern "C" {
+            fn getenv(name: *const c_char) -> *const c_char;
+        }
+        let name = "KASSENSTURZ_LANGUAGE_TEST";
+        // SAFETY: only this test uses this variable.
+        unsafe { set_for_qt(name, "en") };
+        let c_name = CString::new(name).expect("no NUL");
+        // SAFETY: a NUL-terminated name; the result is read at once.
+        let value = unsafe { getenv(c_name.as_ptr()) };
+        assert!(!value.is_null(), "the C runtime doesn't see {name}");
+        // SAFETY: getenv returned a NUL-terminated string.
+        assert_eq!(unsafe { CStr::from_ptr(value) }.to_str(), Ok("en"));
     }
 
     #[test]

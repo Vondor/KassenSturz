@@ -1,4 +1,4 @@
-; SPDX-FileCopyrightText: 2026 KassenSturz contributors
+﻿; SPDX-FileCopyrightText: 2026 KassenSturz contributors
 ; SPDX-License-Identifier: GPL-3.0-or-later
 
 ; KassenSturz's installer for Windows (M7a.7, D-583). KDE Craft fills in the
@@ -10,6 +10,11 @@
 ; administrator; it speaks German on a German Windows and English otherwise.
 ; Craft's packager hands it the program as one 7z archive plus 7-Zip's
 ; 7za.exe, which unpacks it and is then deleted (docs/THIRD_PARTY.md).
+;
+; The file starts with a UTF-8 byte order mark: without one, makensis reads it
+; in the system's code page and the German umlauts came out garbled
+; (M6-B150). Craft keeps the mark when it fills in the values, and
+; kassensturz.py refuses to pack without it.
 
 Unicode true
 ManifestDPIAware true

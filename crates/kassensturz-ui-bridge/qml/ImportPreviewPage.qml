@@ -34,7 +34,7 @@ Kirigami.ScrollablePage {
         translationDomain: "kassensturz"
     }
 
-    title: i18nContext.i18nc("@title %1 is the name of an account", "Import into %1", view.accountName ?? "")
+    title: Plain.plain(i18nContext.i18nc("@title %1 is the name of an account", "Import into %1", view.accountName ?? ""))
     header: FormError {
         id: error
     }
@@ -242,7 +242,7 @@ Kirigami.ScrollablePage {
             }
 
             FormCard.FormHeader {
-                title: page.i18nContext.i18ncp("@title:group", "%1 transaction in the file", "%1 transactions in the file", page.entries.length)
+                title: Plain.plain(page.i18nContext.i18ncp("@title:group", "%1 transaction in the file", "%1 transactions in the file", page.entries.length))
             }
         }
 

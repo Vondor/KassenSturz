@@ -13,7 +13,7 @@ use kassensturz_core::{
 
 use super::*;
 use crate::RuleMark;
-use crate::tests::{EUR, Sample, USD, account, date, eur, sample, transaction};
+use crate::tests::{EUR, Sample, USD, account, date, eur, sample, transaction, vm_steps};
 
 const JPY: CurrencyCode = match CurrencyCode::new("JPY") {
     Ok(code) => code,
@@ -273,44 +273,41 @@ fn the_whole_book_is_read_in_a_fixed_order() {
 fn filling_a_book_costs_the_same_per_transaction_however_big_it_gets() {
     // #84: starting a book from a big file was slow. Filling one in one go
     // costs the same for every transaction, so four times as many take about
-    // four times as long.
-    fn time_to_fill(count: u32) -> f64 {
+    // four times the work. The work is counted in SQLite's own steps
+    // (`vm_steps`), not in clock time, which depends on how busy the machine
+    // is: on a shared CI runner the timing version of this test failed again
+    // and again (M6-B102, D-576).
+    fn steps_to_fill(count: u32) -> u64 {
         let mut book = Book::create_in_memory().expect("book created");
-        let started = std::time::Instant::now();
-        book.fill_new(HistoryRetention::default(), |book| {
-            book.restore_currency(kassensturz_core::Currency::new(EUR, 2).expect("valid"))?;
-            let checking = account(book, "Checking", AccountKind::Asset, EUR);
-            let food = account(book, "Food", AccountKind::Expense, EUR);
-            for index in 0..count {
-                let day = i8::try_from(index % 28 + 1).expect("a day");
-                let amount = 100 + i64::from(day);
-                book.add_transaction(&transaction(
-                    date(2026, 1, day),
-                    "Shop",
-                    &[(checking, eur(-amount)), (food, eur(amount))],
-                ))?;
-            }
-            Ok::<_, StoreError>(())
-        })
-        .expect("filled");
+        let (_, steps) = vm_steps(&mut book, |book| {
+            book.fill_new(HistoryRetention::default(), |book| {
+                book.restore_currency(kassensturz_core::Currency::new(EUR, 2).expect("valid"))?;
+                let checking = account(book, "Checking", AccountKind::Asset, EUR);
+                let food = account(book, "Food", AccountKind::Expense, EUR);
+                for index in 0..count {
+                    let day = i8::try_from(index % 28 + 1).expect("a day");
+                    let amount = 100 + i64::from(day);
+                    book.add_transaction(&transaction(
+                        date(2026, 1, day),
+                        "Shop",
+                        &[(checking, eur(-amount)), (food, eur(amount))],
+                    ))?;
+                }
+                Ok::<_, StoreError>(())
+            })
+            .expect("filled");
+        });
         assert_eq!(book.transactions().expect("read").len(), count as usize);
-        started.elapsed().as_secs_f64()
+        steps
     }
-    // The fastest of several runs is the cost without the noise of a busy
-    // machine: other tests run beside this one, and a shared CI runner may
-    // pause it at any time. The small and the big fill take turns, so a
-    // stretch of load slows both alike instead of only the ones run during
-    // it (M6-B102: three small fills first and three big ones after gave a
-    // ratio of 9.7 once on a macOS runner, against about 4 when run alone).
-    let (mut small, mut big) = (f64::MAX, f64::MAX);
-    for _ in 0..7 {
-        small = small.min(time_to_fill(250));
-        big = big.min(time_to_fill(1000));
-    }
-    // Four times the transactions; more than eight times the time would be
-    // the start of a growth of its own.
+    let small = steps_to_fill(250);
+    let big = steps_to_fill(1000);
+    // Four times the transactions take a little over four times the steps
+    // (the transaction count is checked once at the end, and finding a place
+    // in a bigger index costs a few more). Six times would be the start of a
+    // growth of its own: a part of adding that looks at what is there.
     assert!(
-        big < small * 8.0,
-        "250 transactions took {small:.3} s to fill and 1000 took {big:.3} s"
+        big < small * 6,
+        "250 transactions took {small} steps to fill and 1000 took {big}"
     );
 }

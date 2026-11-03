@@ -323,9 +323,9 @@ Kirigami.ScrollablePage {
                     Controls.Button {
                         icon.name: "view-list-details"
                         enabled: !row.seen
-                        text: row.outcome && row.outcome.transactions > 0
+                        text: Plain.plain(row.outcome && row.outcome.transactions > 0
                             ? page.i18nContext.i18ncp("@action:button", "Look at %1 transaction from your bank", "Look at %1 transactions from your bank", row.outcome.transactions)
-                            : page.i18nContext.i18nc("@action:button", "Look at what your bank sent")
+                            : page.i18nContext.i18nc("@action:button", "Look at what your bank sent"))
                         onClicked: {
                             ActionLog.taken("BankFetchPage_lookAt")
                             page.lookAt(row.modelData.id)

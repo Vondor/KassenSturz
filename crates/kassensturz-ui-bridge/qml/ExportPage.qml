@@ -54,12 +54,6 @@ FormCard.FormCardPage {
         decimalMark.currentIndex = decimalMark.indexOfValue(choices.decimalMark);
     }
 
-    // The label of a check box reads markup, and an account's name could
-    // contain anything.
-    function escaped(name: string): string {
-        return name.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-
     function chosenIds(): var {
         return accounts.filter(account => ticked[account.id]).map(account => account.id);
     }
@@ -134,10 +128,10 @@ FormCard.FormCardPage {
             delegate: FormCard.FormCheckDelegate {
                 required property var modelData
 
-                text: page.escaped(modelData.name)
-                description: modelData.closed
+                text: Plain.plain(modelData.name)
+                description: Plain.plain(modelData.closed
                     ? page.i18nContext.i18nc("@info %1 is a currency code", "%1, closed", modelData.currency)
-                    : modelData.currency
+                    : modelData.currency)
                 checked: page.ticked[modelData.id] === true
                 onToggled: {
                     ActionLog.taken("ExportPage_toggled")
@@ -153,9 +147,9 @@ FormCard.FormCardPage {
         FormCard.FormButtonDelegate {
             descriptionItem.textFormat: Text.PlainText
             icon.name: page.moreChoices ? "arrow-up" : "arrow-down"
-            text: page.moreChoices
+            text: Plain.plain(page.moreChoices
                 ? page.i18nContext.i18nc("@action:button", "Fewer choices")
-                : page.i18nContext.i18nc("@action:button", "More choices for the file")
+                : page.i18nContext.i18nc("@action:button", "More choices for the file"))
             description: page.moreChoices
                 ? ""
                 : page.i18nContext.i18nc("@info", "How the columns are separated, how decimals are written, and more. The usual choices fit your region.")

@@ -13,7 +13,10 @@ import QtQuick
 // text for markup if it has a `<` (before the first line break) or a written
 // `&lt;`.
 QtObject {
+    // Nothing (undefined or null) is shown as nothing, not as a word.
     function plain(text: var): string {
+        if (text === undefined || text === null)
+            return "";
         return String(text).replace(/</g, "‹").replace(/&(?=lt;)/gi, "&​");
     }
 }

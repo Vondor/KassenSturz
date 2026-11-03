@@ -49,7 +49,7 @@ Kirigami.ScrollablePage {
         }
     }
 
-    title: i18nContext.i18nc("@title %1 is the name of an account", "Check %1 against my bank", account.name ?? "")
+    title: Plain.plain(i18nContext.i18nc("@title %1 is the name of an account", "Check %1 against my bank", account.name ?? ""))
     header: FormError {
         id: error
     }
@@ -234,11 +234,11 @@ Kirigami.ScrollablePage {
 
             Controls.Button {
                 visible: page.correction !== null
-                text: page.correction === null
+                text: Plain.plain(page.correction === null
                     ? ""
                     : page.correction.adds
                         ? page.i18nContext.i18nc("@action:button %1 is an amount of money", "Add a starting balance of %1", page.money(page.correction.wouldBe, page.correction.owes))
-                        : page.i18nContext.i18nc("@action:button %1 is an amount of money", "Set the starting balance to %1", page.money(page.correction.wouldBe, page.correction.owes))
+                        : page.i18nContext.i18nc("@action:button %1 is an amount of money", "Set the starting balance to %1", page.money(page.correction.wouldBe, page.correction.owes)))
                 icon.name: "dialog-ok-apply"
                 onClicked: {
                     ActionLog.taken("BankCheckPage_correct")

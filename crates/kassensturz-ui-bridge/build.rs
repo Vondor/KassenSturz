@@ -122,6 +122,7 @@ fn main() {
                 "qml/ExampleBooksPage.qml",
                 "qml/WelcomePage.qml",
                 "qml/WizardAccountsPage.qml",
+                "qml/WizardEntriesPage.qml",
                 "qml/WizardStartPage.qml",
             ])
             // Helpers, not screens: `Plain.plain()` (D-143) and the colors of

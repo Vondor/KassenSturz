@@ -1284,7 +1284,29 @@ Kirigami.ApplicationWindow {
                 root.bookChanged();
                 root.freshBook = true;
                 root.showScreen("overview");
+                // Page 4 on top of the overview: going back from it is the
+                // overview, never the finished wizard pages.
+                root.pushPage(wizardEntriesPage, {});
             }
+        }
+    }
+
+    // The setup wizard's page 4: how new entries get in, once the book is
+    // made. The bank is offered only in a build that allows it (Q-398) and
+    // where bank connections work; asking starts the bank's thread, so it is
+    // asked only then.
+    Component {
+        id: wizardEntriesPage
+
+        WizardEntriesPage {
+            accounts: accountList
+            bankOffered: firstStartState.bankOffered && root.bankUsable()
+            onTypeMyselfClicked: root.pageStack.pop()
+            onImportClicked: accountId => {
+                root.pageStack.pop();
+                root.importStatement(accountId);
+            }
+            onConnectBankClicked: root.replacePage(bankSetupPage, {})
         }
     }
 

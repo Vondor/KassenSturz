@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-11-03 10:44+0000\n"
+"POT-Creation-Date: 2026-11-03 11:10+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -17064,6 +17064,76 @@ msgctxt "@action:button"
 msgid "Create my household book"
 msgstr "Haushaltsbuch anlegen"
 
+#: crates/kassensturz-ui-bridge/qml/WizardEntriesPage.qml:39
+#, kde-format
+msgctxt "@title"
+msgid "How do new entries get in?"
+msgstr "Wie kommen neue Einträge hinein?"
+
+#: crates/kassensturz-ui-bridge/qml/WizardEntriesPage.qml:109
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Your household book is ready. How would you like to add what you pay and "
+"receive from now on?"
+msgstr ""
+"Ihr Haushaltsbuch ist bereit. Wie möchten Sie ab jetzt eintragen, was Sie "
+"bezahlen und erhalten?"
+
+#: crates/kassensturz-ui-bridge/qml/WizardEntriesPage.qml:117
+#, kde-format
+msgctxt "@action:button"
+msgid "I'll type them myself"
+msgstr "Ich tippe sie selbst ein"
+
+#: crates/kassensturz-ui-bridge/qml/WizardEntriesPage.qml:118
+#, kde-format
+msgctxt "@info"
+msgid "Add each payment with + on the overview."
+msgstr "Tragen Sie jede Zahlung mit + in der Übersicht ein."
+
+#: crates/kassensturz-ui-bridge/qml/WizardEntriesPage.qml:128
+#, kde-format
+msgctxt "@action:button"
+msgid "Import a file from my bank"
+msgstr "Eine Datei von meiner Bank importieren"
+
+#: crates/kassensturz-ui-bridge/qml/WizardEntriesPage.qml:129
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A statement you downloaded from your online banking, for example as CSV or "
+"CAMT."
+msgstr ""
+"Ein Kontoauszug, den Sie aus Ihrem Online-Banking heruntergeladen haben, zum "
+"Beispiel als CSV oder CAMT."
+
+#: crates/kassensturz-ui-bridge/qml/WizardEntriesPage.qml:149
+#, kde-format
+msgctxt "@info"
+msgid "Which account is the file for?"
+msgstr "Für welches Konto ist die Datei?"
+
+#: crates/kassensturz-ui-bridge/qml/WizardEntriesPage.qml:172
+#, kde-format
+msgctxt "@action:button"
+msgid "Connect to my bank"
+msgstr "Mit meiner Bank verbinden"
+
+#: crates/kassensturz-ui-bridge/qml/WizardEntriesPage.qml:173
+#, kde-format
+msgctxt "@info"
+msgid "For banks in Germany. KassenSturz only reads, it never sends money."
+msgstr ""
+"Für Banken in Deutschland. KassenSturz liest nur und überweist nie Geld."
+
+#: crates/kassensturz-ui-bridge/qml/WizardEntriesPage.qml:182
+#: crates/kassensturz-ui-bridge/qml/WizardStartPage.qml:136
+#, kde-format
+msgctxt "@info"
+msgid "You can change everything later."
+msgstr "Sie können später alles ändern."
+
 #: crates/kassensturz-ui-bridge/qml/WizardStartPage.qml:28
 #, kde-format
 msgctxt "@title"
@@ -17109,9 +17179,3 @@ msgstr ""
 msgctxt "@action:button"
 msgid "Open a KassenSturz book I already have…"
 msgstr "Ein KassenSturz-Haushaltsbuch öffnen, das ich schon habe…"
-
-#: crates/kassensturz-ui-bridge/qml/WizardStartPage.qml:136
-#, kde-format
-msgctxt "@info"
-msgid "You can change everything later."
-msgstr "Sie können später alles ändern."

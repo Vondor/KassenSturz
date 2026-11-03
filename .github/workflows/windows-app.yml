@@ -197,7 +197,7 @@ jobs:
       # The installer as a tester runs it, but silent (/S): it must install
       # without administrator rights into the user's own folder, put an entry
       # in the Start menu, and its uninstaller must take both away again
-      # (installer.nsi, Q-406). The runner's account is an administrator, so
+      # (installer.nsi, D-583). The runner's account is an administrator, so
       # this checks where it installs, not that Windows doesn't ask.
       - name: Install and remove with the installer
         run: |

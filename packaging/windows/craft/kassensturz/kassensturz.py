@@ -55,7 +55,7 @@ class Package(CMakePackageBase):
 
     def createPackage(self):
         # KassenSturz's own installer: for the person who runs it, without
-        # administrator rights, in German or English (installer.nsi, Q-406).
+        # administrator rights, in German or English (installer.nsi, D-583).
         # Craft's portable zip ignores it.
         self.scriptname = self.blueprintDir() / "installer.nsi"
         # The build number (D-152, D-226) that the workflow wrote next to the

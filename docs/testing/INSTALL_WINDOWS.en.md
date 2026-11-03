@@ -2,7 +2,7 @@
 
 *Click-by-click; no help needed and normally no administrator rights. About 10 minutes. German original (the one handed to testers): [INSTALL_WINDOWS.de.md](INSTALL_WINDOWS.de.md).*
 
-> **Team note.** The German sheet was followed on a Windows 11 VM on 2026-11-03 with build 0.261103.18 (D-542, D-557). Screenshots: [screenshots/windows/](screenshots/windows/). Since then the installer installs for the user alone, without administrator rights, and in German (Q-406). A second VM run checks it and the fixes M6-B141 to B143, B147 and B149; no Windows testers before then.
+> **Team note.** The German sheet was followed on a Windows 11 VM on 2026-11-03 with build 0.261103.18 (D-542, D-557). Screenshots: [screenshots/windows/](screenshots/windows/). Since then the installer installs for the user alone, without administrator rights, and in German (D-583). A second VM run checks it and the fixes M6-B141 to B143, B147 and B149; no Windows testers before then.
 
 **Stuck?** Tell the facilitator. They don't install for you, but they note the spot and give you a hint so the test continues.
 

@@ -2,7 +2,7 @@
 
 *Dieses Blatt führt Sie Klick für Klick durch die Installation. Sie brauchen dafür keine Hilfe und normalerweise keine Administrator-Rechte. Dauer: etwa 10 Minuten. Englische Fassung: [INSTALL_WINDOWS.en.md](INSTALL_WINDOWS.en.md).*
 
-> **Stand für das Team.** Am 3. November 2026 wurde dieses Blatt auf einer Windows-11-VM mit Build 0.261103.18 abgearbeitet (D-542, D-557). Die Bildschirmfotos dieses Laufs liegen in [screenshots/windows/](screenshots/windows/). Dateinamen, Ordner und Abläufe unten stammen aus diesem Lauf. Ausnahme ist der Installer: Er installiert inzwischen ohne Administrator-Rechte und auf Deutsch (Q-406). Seine Bildschirmfotos und die Korrekturen aus dem Lauf (M6-B141 bis B143, B147, B149) werden in einem zweiten Lauf geprüft. Erst danach dürfen Tester mit Windows eingeladen werden.
+> **Stand für das Team.** Am 3. November 2026 wurde dieses Blatt auf einer Windows-11-VM mit Build 0.261103.18 abgearbeitet (D-542, D-557). Die Bildschirmfotos dieses Laufs liegen in [screenshots/windows/](screenshots/windows/). Dateinamen, Ordner und Abläufe unten stammen aus diesem Lauf. Ausnahme ist der Installer: Er installiert inzwischen ohne Administrator-Rechte und auf Deutsch (D-583). Seine Bildschirmfotos und die Korrekturen aus dem Lauf (M6-B141 bis B143, B147, B149) werden in einem zweiten Lauf geprüft. Erst danach dürfen Tester mit Windows eingeladen werden.
 
 **Kommen Sie nicht weiter?** Sagen Sie es der Testleitung. Sie installiert nicht für Sie, aber sie notiert die Stelle, und Sie bekommen einen Hinweis, damit der Test weitergeht.
 

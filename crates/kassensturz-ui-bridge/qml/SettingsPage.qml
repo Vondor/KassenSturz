@@ -467,13 +467,13 @@ FormCard.FormCardPage {
             : page.i18nContext.i18nc("@info", "KassenSturz saves a PIN only when you choose so as you type it. When you choose another place here, the PINs saved in the old one are removed, and you type each PIN again at the next connection.")
     }
 
-    // Why the choice couldn't be made, or why the old place couldn't be
-    // emptied.
+    // Why the choice couldn't be made, e.g. the old place couldn't be
+    // emptied, so it stays chosen (D-575).
     FormError {
         Layout.fillWidth: true
         Layout.maximumWidth: Kirigami.Units.gridUnit * 30
         Layout.alignment: Qt.AlignHCenter
-        result: page.pinStorageResult.code !== undefined ? page.pinStorageResult : page.pinStorageResult.removal ?? ({})
+        result: page.pinStorageResult
     }
 
     // When the overview reminds the user to fetch (M5.U, D-180): kept for

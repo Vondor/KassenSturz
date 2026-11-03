@@ -9,7 +9,8 @@
 //! stays. A build without AI (D-039) is never `available` and never
 //! `enabled`; the object exists so the screens are the same in both builds,
 //! but it holds no AI code. The switch is kept in the app's settings file
-//! for this computer, never in a book (D-168).
+//! for this computer, never in a book (D-168). In the test profile AI is
+//! neither `available` nor `enabled` (Q-399).
 
 use core::pin::Pin;
 
@@ -50,14 +51,17 @@ pub struct AiSwitchRust {
 impl cxx_qt::Initialize for qobject::AiSwitch {
     fn initialize(mut self: Pin<&mut Self>) {
         let mut model = self.as_mut().rust_mut();
-        model.available = cfg!(feature = "ai");
-        model.enabled = is_on(&Settings::user());
+        // AI stays off in the test profile, and its switch is hidden there
+        // too (Q-399).
+        let allowed = cfg!(feature = "ai") && !crate::test_profile::on();
+        model.available = allowed;
+        model.enabled = allowed && is_on(&Settings::user());
     }
 }
 
 impl qobject::AiSwitch {
     fn switch_to(mut self: Pin<&mut Self>, on: bool) -> bool {
-        if !cfg!(feature = "ai") || !write(&Settings::user(), on) {
+        if !self.available || !write(&Settings::user(), on) {
             return false;
         }
         if self.enabled != on {

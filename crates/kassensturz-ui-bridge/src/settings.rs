@@ -72,8 +72,14 @@ pub struct Settings {
 }
 
 impl Settings {
-    /// The user's own settings.
+    /// The user's own settings, or the test profile's.
     pub fn user() -> Self {
+        // In the test profile, the test folder's own file (Q-399).
+        if let Some(file) = crate::test_profile::settings_file() {
+            return Self {
+                file: QString::from(file.to_string_lossy().as_ref()),
+            };
+        }
         Self {
             file: QString::from(USER_FILE),
         }

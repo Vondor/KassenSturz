@@ -177,6 +177,7 @@ fn main() {
         "src/saved_views_model.rs",
         "src/settings.rs",
         "src/statement_import_model.rs",
+        "src/test_profile_model.rs",
     ])
     .cpp_files([
         "cpp/local_only.cpp",

@@ -32,7 +32,7 @@ Kirigami.ScrollablePage {
         translationDomain: "kassensturz"
     }
 
-    title: i18nContext.i18nc("@title %1 is the name of an account", "Imported into %1", view.accountName ?? "")
+    title: Plain.plain(i18nContext.i18nc("@title %1 is the name of an account", "Imported into %1", view.accountName ?? ""))
     header: FormError {
         id: error
     }

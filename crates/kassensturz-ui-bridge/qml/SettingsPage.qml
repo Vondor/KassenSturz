@@ -449,9 +449,9 @@ FormCard.FormCardPage {
 
         FormCard.FormButtonDelegate {
             icon.name: page.showAdvancedStorage ? "arrow-up" : "arrow-down"
-            text: page.showAdvancedStorage
+            text: Plain.plain(page.showAdvancedStorage
                 ? page.i18nContext.i18nc("@action:button", "Hide advanced choices")
-                : page.i18nContext.i18nc("@action:button", "Show advanced choices")
+                : page.i18nContext.i18nc("@action:button", "Show advanced choices"))
             visible: page.pinStorageChoices.some(choice => choice.advanced && choice.key !== page.bank.pinStorage)
             onClicked: {
                 ActionLog.taken("SettingsPage_showAdvancedStorage")

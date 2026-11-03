@@ -368,7 +368,7 @@ ColumnLayout {
 
                                     required property var modelData
 
-                                    text: modelData.token
+                                    text: Plain.plain(modelData.token)
                                     flat: true
                                     Accessible.description: modelData.help
                                     Controls.ToolTip.text: modelData.help
@@ -424,7 +424,7 @@ ColumnLayout {
                     id: flagBox
 
                     Controls.CheckBox {
-                        text: panel.fieldLabel(row.modelData.key)
+                        text: Plain.plain(panel.fieldLabel(row.modelData.key))
                         checked: row.modelData.flag
                         onToggled: {
                             ActionLog.taken("PropertiesPanel_setFlag")
@@ -500,7 +500,7 @@ ColumnLayout {
                                     required property var modelData
 
                                     width: ListView.view.width
-                                    text: modelData.name
+                                    text: Plain.plain(modelData.name)
                                     checked: row.modelData.ids.includes(modelData.id)
                                     onToggled: {
                                         ActionLog.taken("PropertiesPanel_toggled")

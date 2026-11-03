@@ -71,7 +71,7 @@ Kirigami.ScrollablePage {
         translationDomain: "kassensturz"
     }
 
-    title: firstRun
+    title: Plain.plain(firstRun
         ? i18nContext.i18nc("@title", "Your first transaction")
         : adding
             ? i18nContext.i18nc("@title", "Add a transaction")
@@ -79,7 +79,7 @@ Kirigami.ScrollablePage {
                 ? i18nContext.i18nc("@title", "Starting balance")
                 : kind === "transfer"
                     ? i18nContext.i18nc("@title", "Money moved between your accounts")
-                    : i18nContext.i18nc("@title", "Change a transaction")
+                    : i18nContext.i18nc("@title", "Change a transaction"))
 
     header: FormError {
         id: error
@@ -314,9 +314,9 @@ Kirigami.ScrollablePage {
         RowLayout {
             Controls.Button {
                 visible: page.editable
-                text: page.adding
+                text: Plain.plain(page.adding
                     ? page.i18nContext.i18nc("@action:button", "Add transaction")
-                    : page.i18nContext.i18nc("@action:button", "Save")
+                    : page.i18nContext.i18nc("@action:button", "Save"))
                 icon.name: page.adding ? "list-add" : "document-save"
                 onClicked: {
                     ActionLog.taken("TransactionPage_save_4")

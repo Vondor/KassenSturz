@@ -446,9 +446,9 @@ Kirigami.ScrollablePage {
                         Layout.fillWidth: true
                         flat: true
                         enabled: row.modelData.usable
-                        text: row.modelData.usable
+                        text: Plain.plain(row.modelData.usable
                             ? row.modelData.name
-                            : page.i18nContext.i18nc("@action:button %1 is the name of a saved view", "%1 (can't be opened by this version)", row.modelData.name)
+                            : page.i18nContext.i18nc("@action:button %1 is the name of a saved view", "%1 (can't be opened by this version)", row.modelData.name))
                         onClicked: {
                             ActionLog.taken("StatisticsPage_openView")
                             page.openView(row.modelData.id)

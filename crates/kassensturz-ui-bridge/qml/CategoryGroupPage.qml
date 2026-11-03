@@ -39,9 +39,9 @@ Kirigami.ScrollablePage {
         translationDomain: "kassensturz"
     }
 
-    title: adding
+    title: Plain.plain(adding
         ? i18nContext.i18nc("@title", "New group")
-        : i18nContext.i18nc("@title %1 is the name of a group", "Change %1", groupName)
+        : i18nContext.i18nc("@title %1 is the name of a group", "Change %1", groupName))
     header: FormError {
         id: error
     }
@@ -146,7 +146,7 @@ Kirigami.ScrollablePage {
 
                 Kirigami.FormData.label: index === 0 ? page.i18nContext.i18nc("@label", "What is in it:") : ""
                 Layout.leftMargin: modelData.depth * Kirigami.Units.gridUnit * 1.5
-                text: modelData.name
+                text: Plain.plain(modelData.name)
                 checked: page.ticked[modelData.id] === true
                 Accessible.name: modelData.path
                 onToggled: {
@@ -164,7 +164,7 @@ Kirigami.ScrollablePage {
 
                 required property var modelData
 
-                text: page.i18nContext.i18nc("@option:check %1 is the name of a group that goes inside this one", "The group %1", modelData.name)
+                text: Plain.plain(page.i18nContext.i18nc("@option:check %1 is the name of a group that goes inside this one", "The group %1", modelData.name))
                 checked: page.ticked[modelData.id] === true
                 onToggled: {
                     ActionLog.taken("CategoryGroupPage_group")
@@ -182,9 +182,9 @@ Kirigami.ScrollablePage {
         }
 
         Controls.Button {
-            text: page.adding
+            text: Plain.plain(page.adding
                 ? page.i18nContext.i18nc("@action:button", "Make the group")
-                : page.i18nContext.i18nc("@action:button", "Save")
+                : page.i18nContext.i18nc("@action:button", "Save"))
             icon.name: page.adding ? "list-add" : "document-save"
             onClicked: {
                 ActionLog.taken("CategoryGroupPage_save_2")

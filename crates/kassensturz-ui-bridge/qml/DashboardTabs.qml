@@ -41,7 +41,7 @@ Controls.TabBar {
             required property int index
 
             width: implicitWidth
-            text: modelData.name
+            text: Plain.plain(modelData.name)
             icon.name: modelData.isDefault ? "go-home" : ""
             checked: modelData.shown
             Accessible.name: modelData.isDefault

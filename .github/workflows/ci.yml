@@ -133,7 +133,11 @@ jobs:
       - name: Make room on the runner's disk
         run: |
           df -h /
-          rm -rf /host/android/* /host/dotnet/* /host/toolcache/*
+          # Side by side is quicker than one after the other (M7a.1, D-558).
+          for dir in android dotnet toolcache; do
+            rm -rf /host/"$dir"/* &
+          done
+          wait
           df -h /
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install the Rust SDK extension
@@ -216,7 +220,11 @@ jobs:
       - name: Make room on the runner's disk
         run: |
           df -h /
-          rm -rf /host/android/* /host/dotnet/* /host/toolcache/*
+          # Side by side is quicker than one after the other (M7a.1, D-558).
+          for dir in android dotnet toolcache; do
+            rm -rf /host/"$dir"/* &
+          done
+          wait
           df -h /
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install the Rust SDK extension
@@ -352,7 +360,11 @@ jobs:
       - name: Make room on the runner's disk
         run: |
           df -h /
-          rm -rf /host/android/* /host/dotnet/* /host/toolcache/*
+          # Side by side is quicker than one after the other (M7a.1, D-558).
+          for dir in android dotnet toolcache; do
+            rm -rf /host/"$dir"/* &
+          done
+          wait
           df -h /
       # zstd lets the cache action pack Cargo's folder in seconds, not minutes.
       - name: Install the distribution's build tools, Qt, KDE Frameworks and SQLite
@@ -449,7 +461,12 @@ jobs:
       # mode's debug log (M6c.D, D-419); the same check runs as a unit test.
       - name: Every action handler names its action in the debug log
         run: tools/check-action-log.sh
+      # The KDE job runs the same Rust tests, and its second test step runs the
+      # store's tests with the system's SQLite (D-061); here they run on main
+      # only, like Fedora's, since this job adds Kubuntu's libraries, which the
+      # build, the install and the checks around this step already try (D-558).
       - name: Tests, with the system's SQLite
+        if: github.event_name == 'push'
         run: cargo test --workspace --no-default-features --features ai --locked
         env:
           QMAKE: /usr/bin/qmake6
@@ -500,7 +517,11 @@ jobs:
       - name: Make room on the runner's disk
         run: |
           df -h /
-          rm -rf /host/android/* /host/dotnet/* /host/toolcache/*
+          # Side by side is quicker than one after the other (M7a.1, D-558).
+          for dir in android dotnet toolcache; do
+            rm -rf /host/"$dir"/* &
+          done
+          wait
           df -h /
       # Kirigami Addons is named by the file it installs: Fedora 44 has no
       # package called kirigami-addons, and its name couldn't be checked
@@ -583,9 +604,9 @@ jobs:
           HOME="$PWD/build/mcp-home" XDG_CONFIG_HOME="$PWD/build/mcp-home/.config" \
             build/stage/usr/bin/kassensturz-mcp < /dev/null || status=$?
           test "$status" -eq 2
-      # The same Rust tests run on Kubuntu on every pull request; here they run
-      # on main only, since this job adds Fedora's libraries, which the build,
-      # the install and the start above already try (D-220).
+      # The KDE job runs the same Rust tests on every pull request; here they
+      # run on main only, since this job adds Fedora's libraries, which the
+      # build, the install and the start above already try (D-220, D-558).
       - name: Tests, with the system's SQLite
         if: github.event_name == 'push'
         run: cargo test --workspace --no-default-features --features ai --locked

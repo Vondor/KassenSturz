@@ -51,6 +51,13 @@ fn changed() {
     CHANGES.with(|changes| changes.set(changes.get().wrapping_add(1)));
 }
 
+/// The count of times the open book may have changed: a book opened or
+/// closed, or handed out to be changed. A screen that read the book under
+/// another count shows figures that may be out of date (M6-B145).
+pub fn changes() -> u64 {
+    CHANGES.with(Cell::get)
+}
+
 /// Makes `book` the open book. The one open before is closed, which
 /// removes its lock file (D-038). If that one was the app's own book and
 /// nothing was ever put in it, as at a first start where the user then picks
@@ -213,8 +220,13 @@ mod tests {
         assert_eq!(reads.get(), 3);
 
         // A book handed out to be changed, even if nothing is, throws the
-        // readings away.
+        // readings away, and the count the Overview's widgets ask again by
+        // moves on (M6-B145); reading it does not.
+        let before = changes();
+        with_book(|_| ()).expect("a book is open");
+        assert_eq!(changes(), before);
         with_book_mut(|_| ()).expect("a book is open");
+        assert_ne!(changes(), before);
         let after = read_count(period(), false, &reads);
         assert_eq!(reads.get(), 4);
         assert!(!Rc::ptr_eq(&first, &after));

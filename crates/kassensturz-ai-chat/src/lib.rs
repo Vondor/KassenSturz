@@ -40,6 +40,7 @@ mod demo;
 mod error;
 mod features;
 mod log;
+mod plain;
 mod prompt;
 mod session;
 

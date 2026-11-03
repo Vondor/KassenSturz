@@ -394,7 +394,7 @@ mod path_audit {
         // A test of the settings file's `$HOME` paths.
         ("kassensturz-ui-bridge/src/settings.rs", 1),
         // The test profile itself.
-        ("kassensturz-ui-bridge/src/test_profile.rs", 21),
+        ("kassensturz-ui-bridge/src/test_profile.rs", 23),
     ];
 
     /// The variables that name a user's folders, as string literals.

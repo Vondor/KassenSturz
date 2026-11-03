@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kassensturz\n"
 "Report-Msgid-Bugs-To: https://github.com/Vondor/KassenSturz/issues\n"
-"POT-Creation-Date: 2026-11-03 08:58+0000\n"
+"POT-Creation-Date: 2026-11-03 09:54+0000\n"
 "PO-Revision-Date: 2026-10-22 22:00+0200\n"
 "Last-Translator: KassenSturz contributors\n"
 "Language-Team: German\n"
@@ -1043,7 +1043,7 @@ msgstr ""
 "zurücknehmen."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:362
-#: crates/kassensturz-ui-bridge/qml/Main.qml:441
+#: crates/kassensturz-ui-bridge/qml/Main.qml:445
 #, kde-format
 msgctxt "@action:button take the last change back"
 msgid "Undo"
@@ -3464,7 +3464,7 @@ msgstr ""
 "würden beide übereinstimmen."
 
 #: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:112
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:655
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:657
 #, kde-format
 msgctxt "@info %1 is an error code"
 msgid "Something went wrong (%1). Please report this, so it can be fixed."
@@ -4742,8 +4742,8 @@ msgid "Where to keep the new book"
 msgstr "Wo das neue Haushaltsbuch gespeichert wird"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFilePage.qml:74
-#: crates/kassensturz-ui-bridge/qml/Main.qml:1117
-#: crates/kassensturz-ui-bridge/qml/Main.qml:1131
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1141
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1155
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "KassenSturz books (*.ksz)"
@@ -4970,22 +4970,28 @@ msgstr "KassenSturz hat keinen Ordner für Ihr Haushaltsbuch"
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:53
 #, kde-format
 msgctxt "@title"
+msgid "The test mode only opens books in its own folder"
+msgstr "Der Testmodus öffnet nur Bücher in seinem eigenen Ordner"
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:55
+#, kde-format
+msgctxt "@title"
 msgid "There is a file with this name already"
 msgstr "Es gibt schon eine Datei mit diesem Namen"
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:55
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:57
 #, kde-format
 msgctxt "@title"
 msgid "KassenSturz couldn't open this book"
 msgstr "KassenSturz konnte dieses Haushaltsbuch nicht öffnen"
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:63
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:65
 #, kde-format
 msgctxt "@info %1 is a date and time"
 msgid "It has been open since %1."
 msgstr "Es ist seit %1 geöffnet."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:66
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:68
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -4996,7 +5002,7 @@ msgstr ""
 "beim letzten Mal nicht richtig beendet. Ist es nicht mehr geöffnet, können "
 "Sie das Haushaltsbuch trotzdem öffnen."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:67
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:69
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5008,7 +5014,7 @@ msgstr ""
 "KassenSturz dort nicht mehr, zum Beispiel weil der Computer abgestürzt ist, "
 "können Sie das Haushaltsbuch hier trotzdem öffnen."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:71
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:73
 #, kde-format
 msgctxt "@info %1 is where the book was"
 msgid ""
@@ -5021,7 +5027,7 @@ msgstr ""
 "Laufwerk an und versuchen Sie es erneut, oder öffnen Sie das Haushaltsbuch "
 "dort, wo es jetzt liegt. Es wurde nichts verändert."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:73
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:75
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5034,7 +5040,19 @@ msgstr ""
 "Dateien anlegen. Wählen Sie stattdessen ein Haushaltsbuch im eigenen Ordner "
 "von KassenSturz."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:75
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:77
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz runs in test mode, which never opens or changes your own books. "
+"Choose a book in the test folder, or try an example book. The book wasn't "
+"touched."
+msgstr ""
+"KassenSturz läuft im Testmodus, der Ihre eigenen Bücher nie öffnet oder "
+"ändert. Wählen Sie ein Buch im Testordner oder probieren Sie ein "
+"Beispielbuch aus. Das Buch wurde nicht angefasst."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:79
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5045,7 +5063,7 @@ msgstr ""
 "Sie ein Haushaltsbuch oder legen Sie ein neues an, in einem Ordner Ihrer "
 "Wahl."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:77
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:81
 #, kde-format
 msgctxt "@info %1 is a file name"
 msgid ""
@@ -5056,7 +5074,7 @@ msgstr ""
 "wurde %1 nicht verändert. Wählen Sie einen anderen Namen oder einen anderen "
 "Ordner."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:79
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:83
 #, kde-format
 msgctxt "@info %1 is a file name"
 msgid "%1 isn't a KassenSturz book. It wasn't changed. Choose another file."
@@ -5064,7 +5082,7 @@ msgstr ""
 "%1 ist kein Haushaltsbuch von KassenSturz. Die Datei wurde nicht verändert. "
 "Wählen Sie eine andere Datei."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:81
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:85
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5075,7 +5093,7 @@ msgstr ""
 "angelegt. Aktualisieren Sie KassenSturz, um es zu öffnen. Das Haushaltsbuch "
 "wurde nicht verändert."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:83
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:87
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5088,7 +5106,7 @@ msgstr ""
 "Haushaltsbuch speichern“ und beginnen Sie ein neues Haushaltsbuch aus der "
 "gespeicherten Datei. Das Haushaltsbuch wurde nicht verändert."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:85
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:89
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5101,7 +5119,7 @@ msgstr ""
 "Haushaltsbuch, wie es war. Schaffen Sie Platz auf dem Laufwerk und versuchen "
 "Sie es erneut."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:87
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:91
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5112,7 +5130,7 @@ msgstr ""
 "KassenSturz sie nicht geöffnet. Kopieren Sie das Haushaltsbuch in einen "
 "Ordner auf diesem Computer und öffnen Sie es von dort."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:92
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:96
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5122,13 +5140,13 @@ msgstr ""
 "KassenSturz darf in diesem Ordner keine Dateien ändern. Wählen Sie einen "
 "Ordner, in den Sie schreiben dürfen."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:95
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:99
 #, kde-format
 msgctxt "@info"
 msgid "The drive is full. Free up some space, then try again."
 msgstr "Das Laufwerk ist voll. Schaffen Sie Platz und versuchen Sie es erneut."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:97
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:101
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5138,7 +5156,7 @@ msgstr ""
 "Die Datei konnte nicht gelesen oder geschrieben werden. Prüfen Sie, ob das "
 "Laufwerk angeschlossen ist, und versuchen Sie es erneut."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:101
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:105
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5149,7 +5167,7 @@ msgstr ""
 "Ihre Sicherungen liegen im Sicherungsordner von KassenSturz; öffnen Sie "
 "stattdessen die neueste."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:103
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:107
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -5160,46 +5178,46 @@ msgstr ""
 "erneut. Passiert es wieder, öffnen Sie eine Sicherung aus dem "
 "Sicherungsordner von KassenSturz."
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:107
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:111
 #, kde-format
 msgctxt "@title"
 msgid "Opening a book"
 msgstr "Ein Haushaltsbuch öffnen"
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:158
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:162
 #, kde-format
 msgctxt "@action:button"
 msgid "Open anyway"
 msgstr "Trotzdem öffnen"
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:167
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:171
 #, kde-format
 msgctxt "@action:button"
 msgid "Try again"
 msgstr "Erneut versuchen"
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:175
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:179
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:214
 #, kde-format
 msgctxt "@action:button"
 msgid "Open another book…"
 msgstr "Anderes Haushaltsbuch öffnen…"
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:183
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:187
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:238
 #, kde-format
 msgctxt "@action:button"
 msgid "Start a new book…"
 msgstr "Neues Haushaltsbuch anlegen…"
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:191
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:195
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:266
 #, kde-format
 msgctxt "@action:button"
 msgid "Start a book from a file…"
 msgstr "Haushaltsbuch aus einer Datei anlegen…"
 
-#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:200
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:204
 #, kde-format
 msgctxt "@action:button %1 is a file name"
 msgid "Back to %1"
@@ -8776,37 +8794,48 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid ""
+"KassenSturz runs in test mode, which never reads your own books. Choose a "
+"file in the test folder, or try an example book. The file wasn't read."
+msgstr ""
+"KassenSturz läuft im Testmodus, der Ihre eigenen Bücher nie liest. Wählen "
+"Sie eine Datei im Testordner oder probieren Sie ein Beispielbuch aus. Die "
+"Datei wurde nicht gelesen."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:144
+#, kde-format
+msgctxt "@info"
+msgid ""
 "This isn't a KMyMoney file. Reports can be added from a KMyMoney book, saved "
 "as a .kmy file or as its SQLite database."
 msgstr ""
 "Das ist keine KMyMoney-Datei. Berichte lassen sich aus einem KMyMoney-Buch "
 "hinzufügen, gespeichert als .kmy-Datei oder als seine SQLite-Datenbank."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:144
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:146
 #, kde-format
 msgctxt "@info %1 is a currency code"
 msgid "Choose the currency that replaced %1."
 msgstr "Wählen Sie die Währung, die %1 ersetzt hat."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:146
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:148
 #, kde-format
 msgctxt "@info %1 is a currency code"
 msgid "Type how many %1 one unit of the new currency was worth."
 msgstr "Geben Sie ein, wie viele %1 eine Einheit der neuen Währung wert war."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:148
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:150
 #, kde-format
 msgctxt "@info %1 is a currency code"
 msgid "Type the day the change from %1 took effect."
 msgstr "Geben Sie den Tag ein, an dem die Umstellung von %1 galt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:150
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:152
 #, kde-format
 msgctxt "@info %1 is a currency code, %2 an example number"
 msgid "This isn't a rate for %1. Type it like this: %2"
 msgstr "Das ist kein Kurs für %1. Geben Sie ihn so ein: %2"
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:152
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:154
 #, kde-format
 msgctxt "@info %1 is a number"
 msgid ""
@@ -8816,13 +8845,13 @@ msgstr ""
 "Ein Kurs hat hier höchstens %1 Dezimalstellen. Lassen Sie die übrigen weg; "
 "es wird nichts für Sie gerundet."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:154
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:156
 #, kde-format
 msgctxt "@info"
 msgid "This rate is too large. Check it for extra digits."
 msgstr "Dieser Kurs ist zu groß. Prüfen Sie, ob eine Ziffer zu viel ist."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:156
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:158
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -8832,14 +8861,14 @@ msgstr ""
 "Ein Kurs ist größer als null. Geben Sie ein, was eine Einheit der neuen "
 "Währung in der alten wert war."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:166
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:168
 #, kde-format
 msgctxt "@info"
 msgid "The formula is empty. Type one, for example =Pets - Travel."
 msgstr ""
 "Die Formel ist leer. Schreiben Sie eine, zum Beispiel =Haustiere - Reisen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:168
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:170
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -8849,7 +8878,7 @@ msgstr ""
 "An Zeichen %1 fehlt ein Wert. Setzen Sie dort eine Zahl, den Namen einer "
 "Kategorie oder eine Funktion ein."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:170
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:172
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -8859,7 +8888,7 @@ msgstr ""
 "An Zeichen %1 fehlt eine schließende Klammer ). Jede ( braucht eine ), die "
 "sie schließt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:172
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:174
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -8869,7 +8898,7 @@ msgstr ""
 "An Zeichen %1 steht eine schließende Klammer ) ohne ( davor. Nehmen Sie sie "
 "heraus oder fügen Sie die passende ( hinzu."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:174
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:176
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -8879,7 +8908,7 @@ msgstr ""
 "An Zeichen %1 steht etwas am falschen Platz. Nehmen Sie es heraus oder "
 "setzen Sie + - * oder / davor."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:176
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:178
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -8889,7 +8918,7 @@ msgstr ""
 "Eine Formel kann nur einmal vergleichen, und an Zeichen %1 steht ein zweiter "
 "Vergleich. Verbinden Sie Tests mit AND oder OR."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:178
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:180
 #, kde-format
 msgctxt "@info %1 is a character position, %2 a separator"
 msgid ""
@@ -8899,7 +8928,7 @@ msgstr ""
 "Setzen Sie %2 zwischen die Teile eines Aufrufs, an Zeichen %1, wie in "
 "SUM(Haustiere%2 Reisen)."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:180
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:182
 #, kde-format
 msgctxt "@info %1 is a character position, %2 a decimal mark"
 msgid ""
@@ -8910,7 +8939,7 @@ msgstr ""
 "werden. Nehmen Sie Ziffern und ein Dezimalzeichen (%2), keine Trennzeichen "
 "für Tausender."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:182
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:184
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -8921,7 +8950,7 @@ msgstr ""
 "einen Namen mit Leerzeichen oder Sonderzeichen in einfache "
 "Anführungszeichen: 'Essen gehen'."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:184
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:186
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid "A quote at character %1 is never closed. Add the quote that closes it."
@@ -8929,7 +8958,7 @@ msgstr ""
 "Ein Anführungszeichen an Zeichen %1 wird nie geschlossen. Fügen Sie das "
 "schließende Anführungszeichen hinzu."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:186
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:188
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -8941,7 +8970,7 @@ msgstr ""
 "geschrieben werden. Nehmen Sie Wörter in doppelten Anführungszeichen, etwa "
 "@\"last month\", oder Daten, etwa @2026-03 oder @2026-01..2026-03."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:188
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:190
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -8951,7 +8980,7 @@ msgstr ""
 "Das ist an Zeichen %1 nicht so geschrieben, wie Formeln geschrieben werden. "
 "Ändern Sie es an dieser Stelle."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:194
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:196
 #, kde-format
 msgctxt "@info %1 is a function name, %2 a character position"
 msgid ""
@@ -8959,13 +8988,13 @@ msgid ""
 msgstr ""
 "%1 hat zu wenige Teile bekommen (Zeichen %2). Fügen Sie die fehlenden hinzu."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:196
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:198
 #, kde-format
 msgctxt "@info %1 is a function name, %2 a character position"
 msgid "%1 was given too many parts (character %2). Take some out."
 msgstr "%1 hat zu viele Teile bekommen (Zeichen %2). Nehmen Sie einige heraus."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:198
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:200
 #, kde-format
 msgctxt "@info %1 is a function name, %2 a character position"
 msgid ""
@@ -8975,7 +9004,7 @@ msgstr ""
 "%1 zählt nur Kategorien und Gruppen (Zeichen %2). Geben Sie ihre Namen an, "
 "keine Zahlen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:200
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:202
 #, kde-format
 msgctxt "@info %1 is a function name, %2 a character position"
 msgid ""
@@ -8984,13 +9013,13 @@ msgstr ""
 "Die Nachkommastellen von %1 (Zeichen %2) müssen eine ganze Zahl von -9 bis "
 "10 sein."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:202
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:204
 #, kde-format
 msgctxt "@info %1 is a function name, %2 a character position"
 msgid "%1 was given the wrong parts (character %2). Check them."
 msgstr "%1 hat die falschen Teile bekommen (Zeichen %2). Prüfen Sie sie."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:208
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:210
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -9000,7 +9029,7 @@ msgstr ""
 "Zwei Beträge lassen sich nicht multiplizieren (Zeichen %1). Multipliziere "
 "stattdessen einen Betrag mit einer einfachen Zahl."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:210
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:212
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -9011,7 +9040,7 @@ msgstr ""
 "Sie den Betrag durch die Zahl, oder nehmen Sie PERCENT_OF(Teil; Ganzes) für "
 "einen Anteil."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:212
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:214
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -9021,7 +9050,7 @@ msgstr ""
 "Mit einem Ja-oder-Nein-Test lässt sich nicht rechnen (Zeichen %1). Setzen "
 "Sie ihn in IF(Test; ja; nein)."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:214
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:216
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -9031,7 +9060,7 @@ msgstr ""
 "Die Formel endet in einem Ja-oder-Nein-Test, nicht in einer Zahl (Zeichen "
 "%1). Setzen Sie ihn in IF(Test; ja; nein)."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:216
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:218
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -9040,7 +9069,7 @@ msgstr ""
 "IF, AND, OR und NOT brauchen einen Vergleich wie Haustiere > 100 (Zeichen "
 "%1)."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:218
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:220
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -9050,7 +9079,7 @@ msgstr ""
 "Die beiden Antworten von IF (Zeichen %1) müssen beide Zahlen oder beide Ja "
 "oder Nein sein."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:220
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:222
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -9060,7 +9089,7 @@ msgstr ""
 "PERCENT_OF und CHANGE brauchen zwei Beträge oder zwei Zahlen (Zeichen %1), "
 "nicht je einen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:222
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:224
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -9070,19 +9099,19 @@ msgstr ""
 "Diese Teile der Formel passen nicht zusammen (Zeichen %1). Ändern Sie es an "
 "dieser Stelle."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:234
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:236
 #, kde-format
 msgctxt "@info"
 msgid "Type an amount."
 msgstr "Geben Sie einen Betrag ein."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:236
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:238
 #, kde-format
 msgctxt "@info %1 is an example amount"
 msgid "This isn't an amount. Type it like this: %1"
 msgstr "Das ist kein Betrag. Geben Sie ihn so ein: %1"
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:238
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:240
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9098,13 +9127,13 @@ msgstr[1] ""
 "Beträge haben hier höchstens %1 Nachkommastellen. Lassen Sie die übrigen "
 "weg; es wird nichts für Sie gerundet."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:240
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:242
 #, kde-format
 msgctxt "@info"
 msgid "This amount is too large. Check it for extra digits."
 msgstr "Dieser Betrag ist zu groß. Prüfen Sie, ob eine Ziffer zu viel ist."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:242
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:244
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9113,25 +9142,25 @@ msgstr ""
 "Geben Sie einen Betrag über null ein. Ob Sie bezahlt oder erhalten haben, "
 "wählen Sie oben."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:244
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:246
 #, kde-format
 msgctxt "@info"
 msgid "Type what you owe without a minus sign."
 msgstr "Geben Sie ohne Minuszeichen ein, was Sie schulden."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:246
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:248
 #, kde-format
 msgctxt "@info %1 is an example date"
 msgid "This isn't a date. Type it like this: %1"
 msgstr "Das ist kein Datum. Geben Sie es so ein: %1"
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:248
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:250
 #, kde-format
 msgctxt "@info"
 msgid "This choice isn't there anymore. Choose again."
 msgstr "Diese Auswahl gibt es nicht mehr. Wählen Sie bitte neu."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:250
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:252
 #, kde-format
 msgctxt "@info"
 msgid "This day hasn't come yet. Type today or a day in the past."
@@ -9139,13 +9168,13 @@ msgstr ""
 "Dieser Tag ist noch nicht gekommen. Geben Sie heute oder einen Tag in der "
 "Vergangenheit ein."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:252
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:254
 #, kde-format
 msgctxt "@info"
 msgid "KassenSturz doesn't know this currency. Choose another one."
 msgstr "KassenSturz kennt diese Währung nicht. Wählen Sie eine andere."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:254
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:256
 #, kde-format
 msgctxt "@info %1 is the name of a category"
 msgid ""
@@ -9155,7 +9184,7 @@ msgstr ""
 "Die Standardkategorien konnten nicht angelegt werden: %1 gehört nicht dazu. "
 "Bitte melden Sie das, damit es behoben werden kann."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:256
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:258
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9165,7 +9194,7 @@ msgstr ""
 "Diese Buchung lässt sich auf dieser Seite nicht ändern. Gehen Sie zurück zur "
 "Liste und öffnen Sie sie erneut."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:258
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:260
 #, kde-format
 msgctxt "@info"
 msgid "Add at least one part, so the transaction says what it was for."
@@ -9173,7 +9202,7 @@ msgstr ""
 "Fügen Sie mindestens einen Teilbetrag hinzu, damit die Buchung sagt, wofür "
 "sie war."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:260
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:262
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9183,7 +9212,7 @@ msgstr ""
 "Nur ein Teilbetrag darf ohne Betrag bleiben; den rechnet KassenSturz aus. "
 "Geben Sie die Beträge der anderen ein."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:263
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:265
 #, kde-format
 msgctxt "@info %1, %2 and %3 are amounts of money"
 msgid ""
@@ -9194,7 +9223,7 @@ msgstr ""
 "die fehlenden %3 einem Teilbetrag zu oder lassen Sie bei einem Teilbetrag "
 "den Betrag leer, dann rechnet KassenSturz ihn aus."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:264
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:266
 #, kde-format
 msgctxt "@info %1, %2 and %3 are amounts of money"
 msgid ""
@@ -9205,7 +9234,7 @@ msgstr ""
 "Sie %3 aus den Teilbeträgen heraus oder lassen Sie bei einem Teilbetrag den "
 "Betrag leer, dann rechnet KassenSturz ihn aus."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:266
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:268
 #, kde-format
 msgctxt "@info %1 is a currency code"
 msgid ""
@@ -9216,7 +9245,7 @@ msgstr ""
 "keinen Wechselkurs. Geben Sie ein, was der Teilbetrag in %1 war, zum "
 "Beispiel laut Kassenbon."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:268
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:270
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9225,7 +9254,7 @@ msgstr ""
 "Die beiden Beträge dieses Teilbetrags zeigen in verschiedene Richtungen. "
 "Geben Sie beiden dasselbe Vorzeichen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:270
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:272
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9238,7 +9267,7 @@ msgstr ""
 "Konto importieren. Stattdessen kann daraus ein neues Haushaltsbuch angelegt "
 "werden."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:272
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:274
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9250,7 +9279,7 @@ msgstr ""
 "xml), MT940- (.sta), OFX- (.ofx) oder CSV-Dateien (.csv, .txt); laden Sie "
 "eine davon in Ihrem Online-Banking herunter."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:274
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:276
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9260,13 +9289,13 @@ msgstr ""
 "Die Datei enthält keinen Kontoauszug. Prüfen Sie, ob es die richtige Datei "
 "ist, oder laden Sie sie erneut herunter."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:276
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:278
 #, kde-format
 msgctxt "@info"
 msgid "Choose a file on this computer."
 msgstr "Wählen Sie eine Datei auf diesem Computer."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:278
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:280
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9276,7 +9305,7 @@ msgstr ""
 "Die Datei konnte nicht gelesen werden. Sie wurde vielleicht verschoben oder "
 "entfernt, oder Sie dürfen sie nicht lesen. Wählen Sie sie erneut."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:280
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:282
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9286,7 +9315,7 @@ msgstr ""
 "Diese Datei ist zu groß für einen Kontoauszug, den KassenSturz sicher lesen "
 "kann. Prüfen Sie, ob es die richtige Datei ist. Es wurde nichts importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:283
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:285
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9296,7 +9325,7 @@ msgstr ""
 "Die Datei ist nicht wie eine Bankdatei aufgebaut; sie ist vielleicht "
 "beschädigt. Laden Sie sie erneut herunter. Es wurde nichts importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:285
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:287
 #, kde-format
 msgctxt "@info %1 is a number"
 msgid ""
@@ -9306,7 +9335,7 @@ msgstr ""
 "Die Datei hat mehr als %1 Einträge. Laden Sie einen kürzeren Zeitraum "
 "herunter und importieren Sie jeden Teil. Es wurde nichts importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:288
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:290
 #, kde-format
 msgctxt "@info %1 is a line number"
 msgid ""
@@ -9317,7 +9346,7 @@ msgstr ""
 "Prüfen Sie die Auswahl oder laden Sie die Datei erneut herunter. Es wurde "
 "nichts importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:289
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:291
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9327,7 +9356,7 @@ msgstr ""
 "Die Datei hat nicht das gewählte Format oder ist beschädigt. Prüfen Sie die "
 "Auswahl oder laden Sie die Datei erneut herunter. Es wurde nichts importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:291
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:293
 #, kde-format
 msgctxt "@info %1 is text from the file"
 msgid ""
@@ -9338,7 +9367,7 @@ msgstr ""
 "lesen. Prüfen Sie das Dezimaltrennzeichen und die Betragsspalten. Es wurde "
 "nichts importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:293
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:295
 #, kde-format
 msgctxt "@info %1 is text from the file"
 msgid ""
@@ -9349,7 +9378,7 @@ msgstr ""
 "Reihenfolge von Tag, Monat und Jahr lesen. Prüfen Sie diese Reihenfolge. Es "
 "wurde nichts importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:295
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:297
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9361,7 +9390,7 @@ msgstr ""
 "nicht gibt. Wählen Sie eine andere Kodierung oder lassen Sie KassenSturz sie "
 "aus der Datei erkennen. Es wurde nichts importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:297
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:299
 #, kde-format
 msgctxt "@info %1 is the name of a column"
 msgid ""
@@ -9371,7 +9400,7 @@ msgstr ""
 "Die Datei hat keine Spalte namens „%1“. Ihre Bank hat die Datei vielleicht "
 "geändert: Prüfen Sie, welche Spalte was enthält. Es wurde nichts importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:299
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:301
 #, kde-format
 msgctxt "@info %1 is the name of a column"
 msgid ""
@@ -9381,7 +9410,7 @@ msgstr ""
 "Die Datei hat mehr als eine Spalte namens „%1“, deshalb weiß KassenSturz "
 "nicht, welche gemeint ist. Es wurde nichts importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:301
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:303
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9393,7 +9422,7 @@ msgstr ""
 "Spalte für das Buchungsdatum oder den Betrag, oder ein Spaltenname steht "
 "ohne Kopfzeile. Prüfen Sie sie und versuchen Sie es erneut."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:303
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:305
 #, kde-format
 msgctxt "@info %1 is text from the file, %2 a currency code"
 msgid ""
@@ -9405,7 +9434,7 @@ msgstr ""
 "was eine Bank geliefert hat, deshalb wurde nichts importiert. Prüfen Sie das "
 "Dezimaltrennzeichen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:305
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:307
 #, kde-format
 msgctxt "@info %1 is text from the file"
 msgid ""
@@ -9415,7 +9444,7 @@ msgstr ""
 "Der Betrag „%1“ ist zu groß für KassenSturz. Die Datei ist vielleicht "
 "beschädigt. Es wurde nichts importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:307
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:309
 #, kde-format
 msgctxt "@info %1 is a currency code"
 msgid ""
@@ -9425,7 +9454,7 @@ msgstr ""
 "Die Datei verwendet die Währung %1, die KassenSturz nicht kennt. Es wurde "
 "nichts importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:309
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:311
 #, kde-format
 msgctxt "@info %1 and %2 are currency codes"
 msgid ""
@@ -9436,7 +9465,7 @@ msgstr ""
 "deshalb lassen sich die Buchungen nicht zusammenrechnen. Es wurde nichts "
 "importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:311
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:313
 #, kde-format
 msgctxt ""
 "@info %1 is a currency code, %2 the name of an account, %3 a currency code"
@@ -9447,7 +9476,7 @@ msgstr ""
 "Der Kontoauszug ist in %1, aber %2 wird in %3 gerechnet. Importieren Sie ihn "
 "in ein Konto in %1. Es wurde nichts importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:313
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:315
 #, kde-format
 msgctxt ""
 "@info %1 and %2 are currency codes, %3 the name of an account, %4 a currency "
@@ -9459,7 +9488,7 @@ msgstr ""
 "Der Kontoauszug ist in %1, das %2 ersetzt hat, aber %3 wird in %4 gerechnet. "
 "Importieren Sie ihn in ein Konto in %2. Es wurde nichts importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:316
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:318
 #, kde-format
 msgctxt "@info %1 is a currency code"
 msgid ""
@@ -9472,7 +9501,7 @@ msgstr ""
 "Solche Dateien lassen sich noch nicht importieren. Es wurde nichts "
 "importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:318
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:320
 #, kde-format
 msgctxt "@info %1 is a currency code, %2 and %3 are numbers"
 msgid ""
@@ -9483,7 +9512,7 @@ msgstr ""
 "deshalb lassen sich die Beträge nicht sicher lesen. Es wurde nichts "
 "importiert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:320
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:322
 #, kde-format
 msgctxt "@info %1 is the name of a Rule"
 msgid ""
@@ -9493,7 +9522,7 @@ msgstr ""
 "%1 hat keine Bedingungen und würde deshalb für jede Buchung gelten. Fügen "
 "Sie mindestens eine Bedingung hinzu."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:322
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:324
 #, kde-format
 msgctxt "@info %1 is the number of a condition, %2 the name of a Rule"
 msgid ""
@@ -9503,7 +9532,7 @@ msgstr ""
 "Bedingung %1 von %2 hat keinen Text, nach dem gesucht wird. Geben Sie einen "
 "ein oder entfernen Sie die Bedingung."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:324
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:326
 #, kde-format
 msgctxt "@info %1 is the number of a condition, %2 the name of a Rule"
 msgid ""
@@ -9514,7 +9543,7 @@ msgstr ""
 "Sie die Klammern und Sonderzeichen oder suchen Sie stattdessen nach "
 "einfachem Text."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:326
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:328
 #, kde-format
 msgctxt "@info %1 is the number of a condition, %2 the name of a Rule"
 msgid "In condition %1 of %2, the last day is before the first. Swap them."
@@ -9522,7 +9551,7 @@ msgstr ""
 "In Bedingung %1 von %2 liegt der letzte Tag vor dem ersten. Tauschen Sie "
 "beide."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:328
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:330
 #, kde-format
 msgctxt "@info %1 is the name of a saved view"
 msgid ""
@@ -9532,7 +9561,7 @@ msgstr ""
 "Sie haben bereits eine gespeicherte Ansicht namens %1. Wählen Sie einen "
 "anderen Namen, damit Sie sie auseinanderhalten können."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:333
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:335
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9544,7 +9573,7 @@ msgstr ""
 "KassenSturz sie nicht verwenden kann. Es wurde nichts geändert. Erstellen "
 "Sie sie im Statistik-Baukasten noch einmal und wählen Sie einen kurzen Namen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:335
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:337
 #, kde-format
 msgctxt "@info %1 is a place in the file, as text from the file"
 msgid ""
@@ -9557,7 +9586,7 @@ msgstr ""
 "Datei speichern“ gespeichert hat, oder bitten Sie die Person, die sie Ihnen "
 "gegeben hat, sie noch einmal zu speichern."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:337
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:339
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9567,7 +9596,7 @@ msgstr ""
 "Diese Datei ist zu groß für eine Dashboard-Datei, deshalb wurde sie nicht "
 "gelesen. Prüfen Sie, ob Sie die richtige Datei gewählt haben."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:339
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:341
 #, kde-format
 msgctxt "@info %1 is a version number"
 msgid ""
@@ -9580,7 +9609,7 @@ msgstr ""
 "Sie KassenSturz oder bitten Sie um eine Datei, die mit dieser Version "
 "gespeichert wurde."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:343
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:345
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9590,7 +9619,7 @@ msgstr ""
 "Ein Filter kann höchstens 200 Konten nennen. Nehmen Sie einige aus dem "
 "Filter heraus, oder wählen Sie keine aus, damit alle zählen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:344
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:346
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9600,7 +9629,7 @@ msgstr ""
 "Ein Filter kann höchstens 200 Kategorien nennen. Nehmen Sie einige aus dem "
 "Filter heraus, oder wählen Sie keine aus, damit alle zählen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:348
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:350
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9609,7 +9638,7 @@ msgstr ""
 "Der Filter nennt dasselbe Konto zweimal. Nehmen Sie es einmal heraus und "
 "versuchen Sie es dann erneut."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:349
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:351
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9618,7 +9647,7 @@ msgstr ""
 "Der Filter nennt dieselbe Kategorie zweimal. Nehmen Sie sie einmal heraus "
 "und versuchen Sie es dann erneut."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:352
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:354
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9628,7 +9657,7 @@ msgstr ""
 "Unter den Konten im Filter ist etwas, das keines Ihrer Konten ist. Nehmen "
 "Sie es aus dem Filter heraus, oder wählen Sie die Konten neu aus."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:354
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:356
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9639,7 +9668,7 @@ msgstr ""
 "Gruppe ist. Nehmen Sie es aus dem Filter heraus, oder wählen Sie die "
 "Kategorien neu aus."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:356
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:358
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9650,20 +9679,20 @@ msgstr ""
 "dieses sie nicht öffnen. Aktualisieren Sie KassenSturz, um sie zu öffnen. "
 "Sie können sie weiterhin umbenennen oder löschen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:358
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:360
 #, kde-format
 msgctxt "@info"
 msgid "Give it a name."
 msgstr "Geben Sie einen Namen ein."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:360
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:362
 #, kde-format
 msgctxt "@info"
 msgid "This group isn't in the book anymore. It may have just been removed."
 msgstr ""
 "Diese Gruppe ist nicht mehr im Buch. Vielleicht wurde sie gerade entfernt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:362
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:364
 #, kde-format
 msgctxt "@info %1 is a name"
 msgid ""
@@ -9673,7 +9702,7 @@ msgstr ""
 "Es gibt schon eine Gruppe oder eine Kategorie namens %1. Wählen Sie einen "
 "anderen Namen, damit ein Diagramm oder eine Formel sie unterscheiden kann."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:364
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:366
 #, kde-format
 msgctxt "@info %1 is a number"
 msgid "A group's name can have at most %1 characters. Choose a shorter name."
@@ -9681,7 +9710,7 @@ msgstr ""
 "Der Name einer Gruppe darf höchstens %1 Zeichen lang sein. Wählen Sie einen "
 "kürzeren Namen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:366
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:368
 #, kde-format
 msgctxt "@info %1 is the name of a category or group"
 msgid ""
@@ -9694,14 +9723,14 @@ msgstr ""
 "Geld nur solche für eingenommenes Geld. Nehmen Sie es heraus oder legen Sie "
 "es in eine Gruppe seiner Art."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:368
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:370
 #, kde-format
 msgctxt "@info %1 is the name of a group"
 msgid "%1 would end up inside itself. Take out the group that contains it."
 msgstr ""
 "%1 läge am Ende in sich selbst. Nehmen Sie die Gruppe heraus, die es enthält."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:370
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:372
 #, kde-format
 msgctxt "@info %1 is a number"
 msgid ""
@@ -9712,7 +9741,7 @@ msgstr ""
 "darin und so weiter. Legen Sie die Kategorien stattdessen direkt in diese "
 "Gruppe."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:372
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:374
 #, kde-format
 msgctxt "@info %1 is a number"
 msgid ""
@@ -9722,7 +9751,7 @@ msgstr ""
 "Ein Buch hält höchstens %1 Gruppen. Entfernen Sie eine Gruppe, die Sie nicht "
 "mehr brauchen, und versuchen Sie es dann noch einmal."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:374
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:376
 #, kde-format
 msgctxt "@info %1 is a number"
 msgid ""
@@ -9732,7 +9761,7 @@ msgstr ""
 "Eine Gruppe kann höchstens %1 Mitglieder haben. Legen Sie einige davon in "
 "eine andere Gruppe und diese dann in diese hier."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:378
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:380
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9742,7 +9771,7 @@ msgstr ""
 "Dieser Teil der Anordnung ist nicht mehr da, deshalb wurde nichts geändert. "
 "Er wurde vielleicht gerade entfernt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:380
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:382
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9752,7 +9781,7 @@ msgstr ""
 "Dieser Teil der Anordnung stammt von einem neueren KassenSturz. Dieses kann "
 "ihn verschieben oder entfernen, aber nicht ändern. Es wurde nichts geändert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:382
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:384
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9763,7 +9792,7 @@ msgstr ""
 "hinzugefügt. Entfernen Sie eines, das Sie nicht mehr brauchen, und versuchen "
 "Sie es dann noch einmal."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:384
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:386
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9774,7 +9803,7 @@ msgstr ""
 "wurde nichts geändert. Schieben Sie etwas nach oben oder entfernen Sie es, "
 "und versuchen Sie es dann noch einmal."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:386
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:388
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9784,7 +9813,7 @@ msgstr ""
 "Diese Änderung an der Anordnung ging nicht, deshalb wurde nichts geändert. "
 "Versuchen Sie etwas anderes."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:388
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:390
 #, kde-format
 msgctxt ""
 "@info %1 is the name of a category, %2 and %3 are the names of two groups"
@@ -9796,7 +9825,7 @@ msgstr ""
 "nicht doppelt zählen. Nehmen Sie es aus einer der beiden heraus oder zeigen "
 "Sie sie als Balken oder Linien."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:392
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:394
 #, kde-format
 msgctxt "@info %1 is a name, %2 a character position"
 msgid ""
@@ -9807,7 +9836,7 @@ msgstr ""
 "Schreibweise, oder setzen Sie einen Namen mit Leerzeichen in einfache "
 "Anführungszeichen: 'Essen gehen'."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:394
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:396
 #, kde-format
 msgctxt "@info %1 is a name, %2 a list of names"
 msgid ""
@@ -9818,7 +9847,7 @@ msgstr ""
 "aufgelistet, oder benennen Sie eine Gruppe oder Kategorie mit demselben "
 "Namen um."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:396
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:398
 #, kde-format
 msgctxt "@info %1 is a function name, %2 a character position"
 msgid ""
@@ -9828,7 +9857,7 @@ msgstr ""
 "Es gibt keine Funktion namens %1 (Zeichen %2). Die Liste der Funktionen "
 "neben der Formel zeigt, welche es gibt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:402
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:404
 #, kde-format
 msgctxt "@info %1 and %3 are names, %2 and %4 currency codes"
 msgid ""
@@ -9838,7 +9867,7 @@ msgstr ""
 "%1 ist in %2 und %3 in %4; eine Formel rechnet in einer Währung. Lassen Sie "
 "eines von beiden weg."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:404
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:406
 #, kde-format
 msgctxt "@info %1 is a character position"
 msgid ""
@@ -9848,7 +9877,7 @@ msgstr ""
 "Das teilt an Zeichen %1 durch null und hat deshalb keinen Wert. Nehmen Sie "
 "IFERROR, um dann etwas anderes zu zeigen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:406
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:408
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9858,7 +9887,7 @@ msgstr ""
 "Eine Zahl in dieser Formel ist zu groß oder hat zu viele Nachkommastellen, "
 "um genau gerechnet zu werden. Nehmen Sie kleinere Zahlen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:410
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:412
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9868,7 +9897,7 @@ msgstr ""
 "Das Ziel ist null, also gibt es nichts, woran der Balken gemessen werden "
 "kann. Ändern Sie das Ziel."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:412
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:414
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9878,7 +9907,7 @@ msgstr ""
 "Aus so großen oder kleinen Zahlen lässt sich der Balken nicht berechnen. "
 "Nehmen Sie ein Ziel, das näher an der Formel liegt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:414
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:416
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9888,7 +9917,7 @@ msgstr ""
 "Ziel und Formel müssen dieselbe Art von Zahl sein: Beträge in einer Währung, "
 "Prozente oder einfache Zahlen. Ändern Sie das Ziel."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:416
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:418
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9901,7 +9930,7 @@ msgstr ""
 "in einem Aufruf, 64 Namen und 8 verschiedene Zeiträume. Machen Sie sie "
 "kleiner."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:418
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:420
 #, kde-format
 msgctxt "@info %1 is how many parts"
 msgid ""
@@ -9923,7 +9952,7 @@ msgstr[1] ""
 "Sie seine Eigenschaften, um zu sehen, welche Teile es sind. Dann können Sie "
 "es ohne sie zeichnen lassen oder die Beschreibung ändern."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:422
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:424
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9933,7 +9962,7 @@ msgstr ""
 "Diese Diagrammbeschreibung ist länger als 32 KiB und kann deshalb nicht "
 "verwendet werden. Kürzen Sie sie."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:424
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:426
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9944,7 +9973,7 @@ msgstr ""
 "Klammern und kann deshalb nicht verwendet werden. Verschachteln Sie weniger "
 "tief."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:426
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:428
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9954,7 +9983,7 @@ msgstr ""
 "Diese Diagrammbeschreibung hat mehr als 4 Ebenen und kann deshalb nicht "
 "verwendet werden. Nehmen Sie einige Ebenen heraus."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:428
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:430
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9965,7 +9994,7 @@ msgstr ""
 "und so weiter) und kann deshalb nicht verwendet werden. Nehmen Sie einige "
 "heraus."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:430
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:432
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9975,7 +10004,7 @@ msgstr ""
 "Diese Diagrammbeschreibung hat mehr als 8 Filter und kann deshalb nicht "
 "verwendet werden. Nehmen Sie einige heraus."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:432
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:434
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9985,7 +10014,7 @@ msgstr ""
 "Eine Liste in dieser Diagrammbeschreibung hat mehr als 50 Werte oder mehr "
 "als 8 Farben und kann deshalb nicht verwendet werden. Kürzen Sie die Liste."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:434
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:436
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -9995,7 +10024,7 @@ msgstr ""
 "Ein Text in dieser Diagrammbeschreibung ist länger als 200 Zeichen und kann "
 "deshalb nicht verwendet werden. Kürzen Sie ihn."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:436
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:438
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10006,7 +10035,7 @@ msgstr ""
 "Sie es mit einem Filter in der Beschreibung ein oder wählen Sie einen "
 "kürzeren Zeitraum."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:438
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:440
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10016,7 +10045,7 @@ msgstr ""
 "Dieses Diagramm hätte mehr als 50 Reihen oder Stücke. Grenzen Sie es mit "
 "einem Filter in der Beschreibung ein."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:440
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:442
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10026,13 +10055,13 @@ msgstr ""
 "Diese Diagrammbeschreibung ist größer, als KassenSturz sie liest, und kann "
 "deshalb nicht verwendet werden. Verkleinern Sie sie."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:444
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:446
 #, kde-format
 msgctxt "@info"
 msgid "Give the Rule a name."
 msgstr "Geben Sie der Regel einen Namen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:446
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:448
 #, kde-format
 msgctxt "@info %1 is the name of a Rule"
 msgid ""
@@ -10042,7 +10071,7 @@ msgstr ""
 "%1 hat hier schon diesen Namen. Wählen Sie einen anderen, damit Sie beide "
 "unterscheiden können."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:448
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:450
 #, kde-format
 msgctxt "@info"
 msgid "This Rule isn't in the book anymore. It may have just been removed."
@@ -10050,7 +10079,7 @@ msgstr ""
 "Diese Regel ist nicht mehr im Haushaltsbuch. Sie wurde vielleicht gerade "
 "entfernt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:450
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:452
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10061,19 +10090,19 @@ msgstr ""
 "er sich von hier aus nicht korrigieren. Gleichen Sie einen Tag am oder nach "
 "dem Anfangsbestand ab."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:453
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:455
 #, kde-format
 msgctxt "@info"
 msgid "Give the category a name."
 msgstr "Geben Sie der Kategorie einen Namen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:454
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:456
 #, kde-format
 msgctxt "@info"
 msgid "Give the account a name."
 msgstr "Geben Sie dem Konto einen Namen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:456
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:458
 #, kde-format
 msgctxt "@info %1 is the name of an account or category"
 msgid ""
@@ -10082,7 +10111,7 @@ msgstr ""
 "%1 hat schon diesen Namen. Wählen Sie einen anderen, damit Sie beide "
 "unterscheiden können."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:458
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:460
 #, kde-format
 msgctxt "@info %1 is the name of an account, %2 an amount of money"
 msgid ""
@@ -10092,7 +10121,7 @@ msgstr ""
 "Auf %1 liegen noch %2. Buchen Sie das Geld zuerst auf ein anderes Konto um, "
 "dann schließen Sie es."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:460
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:462
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10102,7 +10131,7 @@ msgstr ""
 "Dieses Konto oder diese Kategorie ist nicht mehr im Haushaltsbuch. Es wurde "
 "vielleicht gerade entfernt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:462
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:464
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10112,7 +10141,7 @@ msgstr ""
 "Kategorien für Geld, das Sie erhalten, gehören in Kategorien für erhaltenes "
 "Geld, und bei Ausgaben ebenso. Wählen Sie eine andere Kategorie."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:464
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:466
 #, kde-format
 msgctxt "@info %1 is the name of a category, %2 and %3 are currency codes"
 msgid ""
@@ -10121,14 +10150,14 @@ msgstr ""
 "%1 wird in %2 gerechnet, diese Kategorie in %3. Wählen Sie eine Kategorie in "
 "derselben Währung."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:466
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:468
 #, kde-format
 msgctxt "@info"
 msgid "This budget isn't in the book anymore. It may have just been deleted."
 msgstr ""
 "Dieses Budget ist nicht mehr im Buch. Es wurde vielleicht gerade gelöscht."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:468
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:470
 #, kde-format
 msgctxt "@info %1 is the name of a category"
 msgid ""
@@ -10138,7 +10167,7 @@ msgstr ""
 "%1 ist keine Kategorie für Geld, das Sie ausgeben, und kann deshalb kein "
 "Budget haben. Wählen Sie eine Ausgabenkategorie."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:470
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:472
 #, kde-format
 msgctxt "@info %1 is the name of a category"
 msgid ""
@@ -10149,7 +10178,7 @@ msgstr ""
 "ein Budget: Ändern oder beenden Sie zuerst das andere, oder beginnen Sie "
 "dieses erst nach dessen Ende."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:474
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:476
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10159,7 +10188,7 @@ msgstr ""
 "Dieser Betrag ist größer, als KassenSturz über die Zeiträume eines Budgets "
 "zusammenzählen kann. Geben Sie einen kleineren Betrag ein."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:476
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:478
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10169,7 +10198,7 @@ msgstr ""
 "Der Betrag ist nicht in der Währung dieser Kategorie. Geben Sie einen Betrag "
 "in der Währung der Kategorie ein."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:478
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:480
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10178,7 +10207,7 @@ msgstr ""
 "Ein Budget braucht einen Betrag über null. Geben Sie ein, was Sie ausgeben "
 "möchten."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:483
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:485
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10189,7 +10218,7 @@ msgstr ""
 "daran beginnt am ersten Tag eines solchen Zeitraums. Wählen Sie einen der "
 "Zeiträume aus der Liste."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:485
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:487
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10199,14 +10228,14 @@ msgstr ""
 "Ein Budget für jeden Monat, jedes Quartal oder jedes Jahr endet am letzten "
 "Tag eines solchen Zeitraums. Wählen Sie einen der Zeiträume aus der Liste."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:487
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:489
 #, kde-format
 msgctxt "@info"
 msgid "The last day can't be before the first day. Choose other days."
 msgstr ""
 "Der letzte Tag darf nicht vor dem ersten Tag liegen. Wählen Sie andere Tage."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:489
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:491
 #, kde-format
 msgctxt "@info"
 msgid "A budget for some days needs a last day. Enter the last day."
@@ -10214,7 +10243,7 @@ msgstr ""
 "Ein Budget für einige Tage braucht einen letzten Tag. Geben Sie den letzten "
 "Tag ein."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:491
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:493
 #, kde-format
 msgctxt "@info"
 msgid "A budget for some days can cover at most 100 years. Choose other days."
@@ -10222,7 +10251,7 @@ msgstr ""
 "Ein Budget für einige Tage kann höchstens 100 Jahre umfassen. Wählen Sie "
 "andere Tage."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:493
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:495
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10232,7 +10261,7 @@ msgstr ""
 "Ein Budget für einige Tage hat keinen nächsten Zeitraum, in den etwas "
 "mitgenommen werden könnte. Schalten Sie das Mitnehmen aus."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:496
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:498
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10242,13 +10271,13 @@ msgstr ""
 "Eine Änderung kann nicht vor dem Beginn oder nach dem Ende des Budgets "
 "gelten. Wählen Sie einen der Zeiträume aus der Liste."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:498
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:500
 #, kde-format
 msgctxt "@info"
 msgid "These days don't fit the budget. Choose other days."
 msgstr "Diese Tage passen nicht zum Budget. Wählen Sie andere Tage."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:502
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:504
 #, kde-format
 msgctxt "@info %1 is a number"
 msgid ""
@@ -10258,7 +10287,7 @@ msgstr ""
 "Ein Budget kann höchstens %1 Änderungen seines Betrags behalten. Ändern Sie "
 "den Betrag stattdessen ab einem früheren Zeitraum."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:503
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:505
 #, kde-format
 msgctxt "@info %1 is a number"
 msgid "A book can keep at most %1 budgets. Delete a budget you no longer need."
@@ -10266,7 +10295,7 @@ msgstr ""
 "Ein Buch kann höchstens %1 Budgets behalten. Löschen Sie ein Budget, das Sie "
 "nicht mehr brauchen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:507
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:509
 #, kde-format
 msgctxt "@info %1 is the name of a category"
 msgid ""
@@ -10276,7 +10305,7 @@ msgstr ""
 "In %1 liegen Kategorien, deshalb kann sie nicht gelöscht werden. Verschieben "
 "oder löschen Sie diese zuerst."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:509
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:511
 #, kde-format
 msgctxt "@info %1 is the name of a category"
 msgid ""
@@ -10286,7 +10315,7 @@ msgstr ""
 "Eine Regel bucht nach %1 oder prüft sie, deshalb kann sie nicht gelöscht "
 "werden. Ändern oder löschen Sie zuerst die Regel."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:511
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:513
 #, kde-format
 msgctxt "@info %1 is the name of a category"
 msgid "%1 has a budget, so it can't be deleted. Delete its budget first."
@@ -10294,7 +10323,7 @@ msgstr ""
 "%1 hat ein Budget, deshalb kann sie nicht gelöscht werden. Löschen Sie "
 "zuerst ihr Budget."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:513
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:515
 #, kde-format
 msgctxt "@info %1 is the name of a category"
 msgid ""
@@ -10304,7 +10333,7 @@ msgstr ""
 "%1 hat Buchungen, deshalb kann sie nicht gelöscht werden. Ordnen Sie diese "
 "zuerst einer anderen Kategorie zu."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:516
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:518
 #, kde-format
 msgctxt "@info %1 is the name of a category"
 msgid ""
@@ -10314,7 +10343,7 @@ msgstr ""
 "%1 kann nicht in sich selbst oder in einer der Kategorien darin liegen. "
 "Wählen Sie einen anderen Ort."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:518
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:520
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10323,7 +10352,7 @@ msgstr ""
 "Diese Buchung ist nicht mehr im Haushaltsbuch. Sie wurde vielleicht gerade "
 "entfernt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:520
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:522
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10333,7 +10362,7 @@ msgstr ""
 "Diese Buchung kam von Ihrer Bank oder aus einer Datei, deshalb bleibt ihr "
 "Betrag, wie geliefert. Das Übrige können Sie ändern."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:522
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:524
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10346,7 +10375,7 @@ msgstr ""
 "Das ist ein Fehler in KassenSturz oder in einem anderen Programm, das das "
 "Buch geändert hat; bitte melden Sie ihn."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:524
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:526
 #, kde-format
 msgctxt "@info %1 is the name of an account"
 msgid "%1 is closed. Open it again to add or change its transactions."
@@ -10354,7 +10383,7 @@ msgstr ""
 "%1 ist geschlossen. Öffnen Sie es wieder, um Buchungen hinzuzufügen oder zu "
 "ändern."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:526
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:528
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10367,13 +10396,13 @@ msgstr ""
 "„Rückgängig“ weiterzumachen, öffnen Sie die Einstellungen und wählen Sie "
 "„Verlauf bereinigen“."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:528
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:530
 #, kde-format
 msgctxt "@info"
 msgid "Tick at least one account."
 msgstr "Setzen Sie bei mindestens einem Konto ein Häkchen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:532
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:534
 #, kde-format
 msgctxt "@info"
 msgid "The folder doesn't exist. Choose another one. Nothing was saved."
@@ -10381,7 +10410,7 @@ msgstr ""
 "Der Ordner existiert nicht. Wählen Sie einen anderen. Es wurde nichts "
 "gespeichert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:534
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:536
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10391,7 +10420,7 @@ msgstr ""
 "KassenSturz darf dort nicht schreiben. Wählen Sie einen Ordner, in den Sie "
 "schreiben dürfen. Es wurde nichts gespeichert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:536
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:538
 #, kde-format
 msgctxt "@info"
 msgid "That is a folder. Type a file name after it. Nothing was saved."
@@ -10399,7 +10428,7 @@ msgstr ""
 "Das ist ein Ordner. Geben Sie dahinter einen Dateinamen ein. Es wurde nichts "
 "gespeichert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:538
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:540
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10408,7 +10437,7 @@ msgstr ""
 "Der Speicherplatz ist voll. Schaffen Sie Platz oder wählen Sie ein anderes "
 "Laufwerk. Es wurde nichts gespeichert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:540
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:542
 #, kde-format
 msgctxt "@info"
 msgid "The file couldn't be written. Choose another place. Nothing was saved."
@@ -10416,7 +10445,7 @@ msgstr ""
 "Die Datei konnte nicht geschrieben werden. Wählen Sie einen anderen Ort. Es "
 "wurde nichts gespeichert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:543
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:545
 #, kde-format
 msgctxt "@info %1 is a file name"
 msgid ""
@@ -10427,7 +10456,7 @@ msgstr ""
 "Datei, wählen Sie also einen anderen Namen oder verschieben Sie zuerst die "
 "alte Datei. Es wurde nichts gespeichert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:545
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:547
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10440,7 +10469,7 @@ msgstr ""
 "einen Tabulator oder für Dezimalstellen einen Punkt. Es wurde nichts "
 "gespeichert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:550
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:552
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10451,7 +10480,7 @@ msgstr ""
 "KassenSturz oder im Haushaltsbuch. Bitte melden Sie ihn. Es wurde nichts "
 "gespeichert."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:552
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:554
 #, kde-format
 msgctxt "@info %1 is a currency code"
 msgid ""
@@ -10463,7 +10492,7 @@ msgstr ""
 "deshalb sind die Dezimalstellen nicht bekannt. Wenn KassenSturz die Datei "
 "gespeichert hat, melden Sie das bitte. Es wurde nichts angelegt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:554
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:556
 #, kde-format
 msgctxt "@info %1 is a number"
 msgid ""
@@ -10473,7 +10502,7 @@ msgstr ""
 "Regeln liegen mehr als %1 Ebenen tief ineinander. Schieben Sie einige eine "
 "Ebene nach oben und versuchen Sie es erneut."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:556
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:558
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10484,7 +10513,7 @@ msgstr ""
 "sein kann, deshalb wurde sie nicht gelesen. Prüfen Sie, ob es die richtige "
 "Datei ist."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:559
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:561
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10495,7 +10524,7 @@ msgstr ""
 "Haushaltsbuch von KMyMoney oder eine Datei, die mit „Das ganze Haushaltsbuch "
 "speichern“ gespeichert wurde. Es wurde nichts angelegt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:561
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:563
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10505,7 +10534,7 @@ msgstr ""
 "Diese Datei wurde mit einer neueren Version von KassenSturz gespeichert. "
 "Aktualisieren Sie KassenSturz, um sie zu lesen. Es wurde nichts angelegt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:567
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:569
 #, kde-format
 msgctxt "@info %1 is where in the file the problem is"
 msgid ""
@@ -10518,7 +10547,7 @@ msgstr ""
 "anderen Programm geändert. Speichern Sie das Haushaltsbuch erneut oder "
 "korrigieren Sie die Datei. Es wurde nichts angelegt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:569
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:571
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10528,7 +10557,7 @@ msgstr ""
 "In diesem Haushaltsbuch ist schon etwas. Legen Sie stattdessen ein neues "
 "Haushaltsbuch aus der Datei an."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:571
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:573
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10538,13 +10567,13 @@ msgstr ""
 "KassenSturz hat keinen Ordner für ein neues Haushaltsbuch gefunden. Prüfen "
 "Sie, ob Ihr Benutzerordner beschreibbar ist."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:573
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:575
 #, kde-format
 msgctxt "@info %1 is a file name"
 msgid "There is a book called \"%1\" already. Nothing was made."
 msgstr "Es gibt schon ein Haushaltsbuch namens „%1“. Es wurde nichts angelegt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:575
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:577
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10557,7 +10586,7 @@ msgstr ""
 "installiert. Installieren Sie es aus Ihrer Distribution oder importieren Sie "
 "stattdessen eine Datei von Ihrer Bank."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:577
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:579
 #, kde-format
 msgctxt "@info %1 is a program's name, %2 and %3 version numbers"
 msgid ""
@@ -10568,7 +10597,7 @@ msgstr ""
 "Aktualisieren Sie es oder importieren Sie stattdessen eine Datei von Ihrer "
 "Bank."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:579
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:581
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10580,7 +10609,7 @@ msgstr ""
 "deutschen Banken registriert und kann sich deshalb nicht mit einer Bank "
 "verbinden. Importieren Sie stattdessen eine Datei von Ihrer Bank."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:581
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:583
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10591,7 +10620,7 @@ msgstr ""
 "Vergleichen Sie sie mit dem Registrierungsschreiben und geben Sie sie noch "
 "einmal ein."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:583
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:585
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10603,14 +10632,14 @@ msgstr ""
 "Buchstaben oder Ziffern, zum Beispiel DE89 3704 0044 0532 0130 00; "
 "Leerzeichen sind egal. Vergleichen Sie sie mit dem, was Ihre Bank zeigt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:585
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:587
 #, kde-format
 msgctxt "@info"
 msgid "This bank login no longer exists in KassenSturz. Set it up again."
 msgstr ""
 "Diesen Bankzugang gibt es in KassenSturz nicht mehr. Richten Sie ihn neu ein."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:587
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:589
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10622,7 +10651,7 @@ msgstr ""
 "diesen Zugang nicht mehr. Verknüpfen Sie das Konto mit einem anderen "
 "Bankkonto oder verbinden Sie die Bank in den Einstellungen noch einmal."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:589
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:591
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10634,13 +10663,13 @@ msgstr ""
 "ist. Verbinden Sie die Bank in den Einstellungen noch einmal oder verknüpfen "
 "Sie das Konto mit einem anderen Bankkonto."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:591
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:593
 #, kde-format
 msgctxt "@info"
 msgid "Your bank asks for your PIN. Type it to continue."
 msgstr "Ihre Bank fragt nach Ihrer PIN. Geben Sie sie ein, um fortzufahren."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:593
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:595
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10652,7 +10681,7 @@ msgstr ""
 "nicht noch einmal gesendet wird. Prüfen Sie sie und geben Sie sie erneut "
 "ein; nach einigen falschen PINs sperrt eine Bank den Zugang."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:595
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:597
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10663,7 +10692,7 @@ msgstr ""
 "Internetverbindung und die Adresse der Bank und versuchen Sie es später noch "
 "einmal."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:598
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:600
 #, kde-format
 msgctxt "@info %1 is the bank's own message"
 msgid ""
@@ -10673,7 +10702,7 @@ msgstr ""
 "Ihre Bank hat die Anfrage abgelehnt. Sie sagt: %1. Versuchen Sie es später "
 "noch einmal; wenn es immer wieder passiert, fragen Sie Ihre Bank."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:599
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:601
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10683,7 +10712,7 @@ msgstr ""
 "Ihre Bank hat die Anfrage abgelehnt. Versuchen Sie es später noch einmal; "
 "wenn es immer wieder passiert, fragen Sie Ihre Bank."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:601
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:603
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10693,7 +10722,7 @@ msgstr ""
 "Die Frage der Bank wurde geschlossen, bevor sie beantwortet war, deshalb ist "
 "nichts geschehen. Fangen Sie neu an, wenn Sie so weit sind."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:603
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:605
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10703,7 +10732,7 @@ msgstr ""
 "Ihre Bank fragt nach einer TAN, und KassenSturz konnte Sie nicht danach "
 "fragen. Es ist nichts geschehen. Versuchen Sie es noch einmal."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:605
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:607
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10716,7 +10745,7 @@ msgstr ""
 "Verfahren, das die TAN als Text schickt oder Sie in ihrer App um Freigabe "
 "bittet, und versuchen Sie es dann noch einmal."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:607
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:609
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10729,7 +10758,7 @@ msgstr ""
 "Internetverbindung und die Adresse der Bank; wenn es immer wieder passiert, "
 "fragen Sie Ihre Bank."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:609
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:611
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10740,7 +10769,7 @@ msgstr ""
 "Nutzen Sie für diese Bank einen Zugang mit PIN und TAN oder importieren Sie "
 "stattdessen eine Datei von Ihrer Bank."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:612
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:614
 #, kde-format
 msgctxt "@info %1 is the bank software's own message"
 msgid ""
@@ -10751,7 +10780,7 @@ msgstr ""
 "behalten. Die Banksoftware sagt: %1. Prüfen Sie den Anmeldenamen und die "
 "Adresse der Bank und versuchen Sie es noch einmal."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:613
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:615
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10762,7 +10791,7 @@ msgstr ""
 "behalten. Prüfen Sie den Anmeldenamen und die Adresse der Bank und versuchen "
 "Sie es noch einmal."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:615
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:617
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10773,7 +10802,7 @@ msgstr ""
 "nicht anlegen oder öffnen. Prüfen Sie, ob in Ihren Benutzerordner "
 "geschrieben werden kann."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:617
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:619
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10783,7 +10812,7 @@ msgstr ""
 "KassenSturz spricht noch mit Ihrer Bank. Warten Sie, bis es fertig ist, und "
 "versuchen Sie es dann noch einmal."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:619
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:621
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10798,7 +10827,7 @@ msgstr ""
 "KassenSturz den Zugriff, wenn KeePassXC fragt, und versuchen Sie es noch "
 "einmal. Bis dahin geben Sie die PIN jedes Mal ein."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:621
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:623
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10811,7 +10840,7 @@ msgstr ""
 "Passwortspeicher (zum Beispiel KWallet) entsperrt ist, oder wählen Sie, die "
 "PIN jedes Mal einzugeben."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:623
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:625
 #, kde-format
 msgctxt "@info %1 is an amount as the bank sent it"
 msgid ""
@@ -10822,7 +10851,7 @@ msgstr ""
 "Es wurde nichts übernommen. Wenn das wieder vorkommt, melden Sie es mit dem "
 "Betrag, wie er hier steht."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:625
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:627
 #, kde-format
 msgctxt "@info %1 is an amount as the bank sent it"
 msgid ""
@@ -10834,7 +10863,7 @@ msgstr ""
 "geschickt (%1), den KassenSturz nie rundet. Es wurde nichts übernommen. Wenn "
 "das wieder vorkommt, melden Sie es."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:627
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:629
 #, kde-format
 msgctxt "@info %1 is an amount as the bank sent it"
 msgid ""
@@ -10844,7 +10873,7 @@ msgstr ""
 "Ihre Bank hat einen Betrag geschickt, der für KassenSturz zu groß ist: %1. "
 "Es wurde nichts übernommen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:629
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:631
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10854,7 +10883,7 @@ msgstr ""
 "Ihre Bank hat nicht gesagt, in welcher Währung die Beträge sind. Es wurde "
 "nichts übernommen. Fragen Sie Ihre Bank nach der Währung des Kontos."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:631
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:633
 #, kde-format
 msgctxt "@info %1 and %2 are currency codes"
 msgid ""
@@ -10864,7 +10893,7 @@ msgstr ""
 "Ihre Bank hat Beträge in %2 für ein Konto in %1 geschickt. Es wurde nichts "
 "übernommen. Fragen Sie Ihre Bank nach der Währung des Kontos."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:633
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:635
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10874,7 +10903,7 @@ msgstr ""
 "Ihre Bank hat eine Buchung ohne Datum geschickt. Es wurde nichts übernommen. "
 "Wenn das wieder vorkommt, melden Sie es."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:636
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:638
 #, kde-format
 msgctxt "@info %1 is an error code"
 msgid ""
@@ -10884,7 +10913,7 @@ msgstr ""
 "Die Buchungen Ihrer Bank konnten nicht verwendet werden (%1). Es wurde "
 "nichts übernommen. Wenn das wieder vorkommt, melden Sie es."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:637
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:639
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10894,7 +10923,7 @@ msgstr ""
 "Die Buchungen Ihrer Bank konnten nicht verwendet werden. Es wurde nichts "
 "übernommen. Wenn das wieder vorkommt, melden Sie es."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:639
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:641
 #, kde-format
 msgctxt "@info %1 is the name of an account"
 msgid ""
@@ -10904,7 +10933,7 @@ msgstr ""
 "%1 ist noch nicht mit einem Bankkonto verknüpft. Verknüpfen Sie es zuerst "
 "und rufen Sie dann die neuen Buchungen ab."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:641
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:643
 #, kde-format
 msgctxt "@info %1 is the name of an account"
 msgid "%1 is already linked to this bank account. Choose another bank account."
@@ -10912,7 +10941,7 @@ msgstr ""
 "%1 ist schon mit diesem Bankkonto verknüpft. Wählen Sie ein anderes "
 "Bankkonto."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:643
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:645
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10922,7 +10951,7 @@ msgstr ""
 "Banken außerhalb Deutschlands lassen sich noch nicht verbinden. Importieren "
 "Sie stattdessen die Dateien, die Ihre Bank anbietet."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:645
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:647
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10931,7 +10960,7 @@ msgstr ""
 "Geben Sie die FinTS-Adresse Ihrer Bank ein. Die Website oder der "
 "Kundendienst Ihrer Bank kann sie Ihnen sagen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:647
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:649
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10941,14 +10970,14 @@ msgstr ""
 "Eine FinTS-Adresse beginnt mit https:// und hat keine Leerzeichen, zum "
 "Beispiel %1. Vergleichen Sie sie mit dem, was Ihre Bank angibt."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:649
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:651
 #, kde-format
 msgctxt "@info"
 msgid "Type the login name you use for your bank's website."
 msgstr ""
 "Geben Sie den Anmeldenamen ein, den Sie für die Website Ihrer Bank nutzen."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:651
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:653
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -10958,7 +10987,7 @@ msgstr ""
 "Diese Bank gibt ihren Kunden neben dem Anmeldenamen eine Kunden-ID. Geben "
 "Sie auch sie ein; Sie finden sie in den Briefen Ihrer Bank."
 
-#: crates/kassensturz-ui-bridge/qml/FormError.qml:653
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:655
 #, kde-format
 msgctxt "@info"
 msgid "Type your PIN. KassenSturz keeps it only as long as you choose below."
@@ -12766,43 +12795,43 @@ msgctxt "@title the name of the built-in dashboard"
 msgid "Overview"
 msgstr "Übersicht"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:385
+#: crates/kassensturz-ui-bridge/qml/Main.qml:389
 #, kde-format
 msgctxt "@item the file name of the app's own book, without its extension"
 msgid "Household"
 msgstr "Haushalt"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:482
+#: crates/kassensturz-ui-bridge/qml/Main.qml:486
 #, kde-format
 msgctxt "@info %1 is what was done, e.g. Added a transaction"
 msgid "Made again: %1"
 msgstr "Wiederholt: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:482
+#: crates/kassensturz-ui-bridge/qml/Main.qml:486
 #, kde-format
 msgctxt "@action:button"
 msgid "Undo"
 msgstr "Rückgängig"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:484
+#: crates/kassensturz-ui-bridge/qml/Main.qml:488
 #, kde-format
 msgctxt "@info %1 is what was done, e.g. Added a transaction"
 msgid "Undone: %1"
 msgstr "Rückgängig gemacht: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:484
+#: crates/kassensturz-ui-bridge/qml/Main.qml:488
 #, kde-format
 msgctxt "@action:button"
 msgid "Redo"
 msgstr "Wiederholen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:674
+#: crates/kassensturz-ui-bridge/qml/Main.qml:678
 #, kde-format
 msgctxt "@action:button"
 msgid "Start a book from it"
 msgstr "Haushaltsbuch daraus anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:752
+#: crates/kassensturz-ui-bridge/qml/Main.qml:756
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -12821,19 +12850,38 @@ msgstr ""
 "Modus läuft. Um ihn zu beenden, schließen Sie KassenSturz und starten es wie "
 "gewohnt."
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:756
+#: crates/kassensturz-ui-bridge/qml/Main.qml:760
 #, kde-format
 msgctxt "@action:button opens the folder of the developer mode's log"
 msgid "Show the log"
 msgstr "Protokoll zeigen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:764
+#: crates/kassensturz-ui-bridge/qml/Main.qml:768
 #, kde-format
 msgctxt "@action:button deletes the developer mode's log"
 msgid "Delete the log"
 msgstr "Protokoll löschen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:780
+#: crates/kassensturz-ui-bridge/qml/Main.qml:784
+#, kde-format
+msgctxt "@info %1 is a folder"
+msgid ""
+"Test mode: KassenSturz keeps its books and settings for this test in %1. "
+"Your own books and settings are not used or changed. To end the test mode, "
+"close KassenSturz and start it the usual way."
+msgstr ""
+"Testmodus: KassenSturz speichert die Bücher und Einstellungen für diesen "
+"Test in %1. Ihre eigenen Bücher und Einstellungen werden weder verwendet "
+"noch geändert. Um den Testmodus zu beenden, schließen Sie KassenSturz und "
+"starten Sie es wie gewohnt."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:788
+#, kde-format
+msgctxt "@action:button opens the test mode's folder"
+msgid "Show the folder"
+msgstr "Ordner anzeigen"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:804
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -12847,92 +12895,92 @@ msgstr ""
 "Haushaltsbuch auf diesem Computer auf; ein Sync-Ordner, etwa von Nextcloud, "
 "ist in Ordnung."
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:800
+#: crates/kassensturz-ui-bridge/qml/Main.qml:824
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Overview"
 msgstr "Übersicht"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:808
+#: crates/kassensturz-ui-bridge/qml/Main.qml:832
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Accounts"
 msgstr "Konten"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:816
+#: crates/kassensturz-ui-bridge/qml/Main.qml:840
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Categories"
 msgstr "Kategorien"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:824
+#: crates/kassensturz-ui-bridge/qml/Main.qml:848
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Budgets"
 msgstr "Budgets"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:832
+#: crates/kassensturz-ui-bridge/qml/Main.qml:856
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Rules"
 msgstr "Regeln"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:840
+#: crates/kassensturz-ui-bridge/qml/Main.qml:864
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Statistic Builder"
 msgstr "Statistik-Baukasten"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:848
+#: crates/kassensturz-ui-bridge/qml/Main.qml:872
 #, kde-format
 msgctxt "@action:inmenu a screen"
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:861
+#: crates/kassensturz-ui-bridge/qml/Main.qml:885
 #, kde-format
 msgctxt "@action:inmenu %1 is what was done, e.g. Added a transaction"
 msgid "Undo: %1"
 msgstr "Rückgängig: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:862
+#: crates/kassensturz-ui-bridge/qml/Main.qml:886
 #, kde-format
 msgctxt "@action:inmenu there is nothing to undo"
 msgid "Undo"
 msgstr "Rückgängig"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:875
+#: crates/kassensturz-ui-bridge/qml/Main.qml:899
 #, kde-format
 msgctxt "@action:inmenu %1 is what was done, e.g. Added a transaction"
 msgid "Redo: %1"
 msgstr "Wiederholen: %1"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:876
+#: crates/kassensturz-ui-bridge/qml/Main.qml:900
 #, kde-format
 msgctxt "@action:inmenu there is nothing to redo"
 msgid "Redo"
 msgstr "Wiederholen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:1114
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1138
 #, kde-format
 msgctxt "@title:window"
 msgid "Open another book"
 msgstr "Anderes Haushaltsbuch öffnen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:1127
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1151
 #, kde-format
 msgctxt "@title:window"
 msgid "Start a new book"
 msgstr "Neues Haushaltsbuch anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:1141
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1165
 #, kde-format
 msgctxt "@title:window"
 msgid "Start a book from a file"
 msgstr "Haushaltsbuch aus einer Datei anlegen"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:1147
-#: crates/kassensturz-ui-bridge/qml/Main.qml:1166
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1171
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1190
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:452
 #: crates/kassensturz-ui-bridge/qml/SpecPage.qml:105
 #: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:499
@@ -12941,19 +12989,19 @@ msgctxt "@item:inlistbox a file type"
 msgid "All files (*)"
 msgstr "Alle Dateien (*)"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:1148
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1172
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "Books (*.kmy *.sqlite *.db *.json)"
 msgstr "Haushaltsbücher (*.kmy *.sqlite *.db *.json)"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:1162
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1186
 #, kde-format
 msgctxt "@title:window"
 msgid "Import a file from your bank"
 msgstr "Eine Datei von Ihrer Bank importieren"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml:1165
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1189
 #, kde-format
 msgctxt "@item:inlistbox a file type"
 msgid "Bank files (*.xml *.sta *.ofx *.csv *.txt)"

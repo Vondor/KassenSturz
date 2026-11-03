@@ -178,6 +178,12 @@ impl Books {
         &self.computer.backup_folder
     }
 
+    /// The app's own folder, where its book lives and where the Flatpak may
+    /// make the lock file next to a book (D-033, M6-B159).
+    pub fn app_folder(&self) -> Option<&Path> {
+        self.app_folder.as_deref()
+    }
+
     /// The name of this computer, as lock files tell others (D-038).
     pub fn computer_name(&self) -> &str {
         &self.computer.name

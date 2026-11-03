@@ -12,9 +12,8 @@
    - Browser: click **…** next to the message, **Keep**, then **Keep anyway**.
    - SmartScreen "Windows protected your PC": click **More info** (not "Don't run"), then **Run anyway**.
 4. **Install:** open the file, **Weiter** (Next), **Installieren** (Install), **Fertig stellen** (Finish). It installs into the user's own `%LOCALAPPDATA%\Programs\KassenSturz`, so no administrator rights are needed; if Windows asks anyway, cancel and tell the facilitator.
-5. *Only if the facilitator tells you Windows developer mode is needed (normally it isn't):* ⚠️ it lets Windows run unchecked programs. Install only this file, then switch it off again. Settings › System › For developers (Windows 10: Update & Security › For developers).
-6. **Start in KassenSturz developer mode:** Windows key, type PowerShell, Enter, then paste `$env:KASSENSTURZ_DEBUG_LOG = "1"; & "<install folder>\kassensturz.exe"` (folder added after the VM run). "Entwicklermodus" should show in the window title.
-7. **First start:** page 1 (language and currency), then **Continue**; on "How would you like to start?" choose **My own accounts** for card 1 (German: "Mit meinen eigenen Konten"), or "Try an example book" ("Ein Beispielbuch ausprobieren", recommended: Suburban Family) just to look around. Create an account with an **invented** balance, then "Create my household book" ("Haushaltsbuch anlegen"). Done when you see the **overview**; note the minutes (card 1).
+5. **Start in KassenSturz developer mode:** Windows key, type PowerShell, Enter, then paste `$env:KASSENSTURZ_DEBUG_LOG = "1"; & "<install folder>\kassensturz.exe"` (folder added after the VM run). "Entwicklermodus" should show in the window title.
+6. **First start:** page 1 (language and currency), then **Continue**; on "How would you like to start?" choose **My own accounts** for card 1 (German: "Mit meinen eigenen Konten"), or "Try an example book" ("Ein Beispielbuch ausprobieren", recommended: Suburban Family) just to look around. Create an account with an **invented** balance, then "Create my household book" ("Haushaltsbuch anlegen"). Done when you see the **overview**; note the minutes (card 1).
 
 **Remove:** Settings › Apps › Installed apps › KassenSturz › Uninstall. It removes only the program's files; books stay (in `%LOCALAPPDATA%\io.github.vondor.KassenSturz`).
 

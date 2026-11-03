@@ -1473,4 +1473,22 @@ mod tests {
         assert_eq!(series.len(), 1);
         assert_eq!(text_of(&series[0], "name"), "Rent");
     }
+
+    #[test]
+    fn hovering_the_legend_takes_no_room_above_it() {
+        // The line with the point in focus sits above the legend. Shown while
+        // the pointer rests on a legend entry, it pushed the entry away from
+        // the pointer and the legend flickered (M6-B163, like M6-B18).
+        let view = include_str!("../qml/ChartView.qml");
+        let focus_line = view
+            .find("// The text of the point in focus, also for those who see it.")
+            .expect("the line with the point in focus");
+        let legend = view.find("// The legend:").expect("the legend");
+        assert!(focus_line < legend, "the line sits above the legend");
+        assert!(
+            view[focus_line..legend]
+                .contains("visible: !view.showTable && view.current >= 0 && view.legendTip < 0"),
+            "the line must hide while the pointer rests on the legend"
+        );
+    }
 }

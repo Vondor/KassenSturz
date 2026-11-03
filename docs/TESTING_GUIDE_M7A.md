@@ -77,10 +77,10 @@ For the maintainer; the steps and the reasons are in `docs/RELEASING.md` (D-579)
 
 **Click path (Settings).**
 1. Open *Settings* and scroll to *Chart colors*. There are eight rows: a swatch, the number and name (1. Blue … 8. Grey), a field with the color, **Choose…** and **Standard**. **Back to standard for all** is greyed out.
-2. In row 1, select the field, type `#1a2b3c` and press Enter. The swatch changes and the field shows `#1A2B3C`. **Standard** in that row and **Back to standard for all** can now be pressed.
+2. In row 1, select the field, type `#1a2b3c` and press Enter. The swatch changes and the field shows `#1A2B3C`. The row is now called *1. Own color* instead of *1. Blue*, because the name would say the wrong color; **Standard** brings the old name back. **Standard** in that row and **Back to standard for all** can now be pressed.
 3. In row 2 type `0, 114, 178` and press Enter: it becomes `#0072B2`.
 4. In row 3 type `nonsense`: the row says *That is not a color…* and nothing changes. Type `256, 0, 0` in row 4: it says red, green and blue each go from 0 to 255. Type a good color: the sentence goes away.
-5. In row 5 press **Choose…**. The system's own color dialog opens (on Plasma, the one every KDE program uses). Pick a color and press OK: the swatch and field change.
+5. In row 5 press **Choose…**. The system's own color dialog opens (on Plasma, the one every KDE program uses). Pick a color and press OK: the swatch and field change. Clicking the swatch itself opens the same dialog.
 6. Open the *Overview* or a *Statistics* chart: the first series uses color 1, the second color 2, and so on. The new colors are used at once; there is no restart.
 7. In row 6 enter a color almost like row 5's: the row says *This color looks very much like the next one…*, and row 5 says it looks like the one before. Enter near-white in any row on a light theme: it says *hard to see against the background*. A warning never stops you; keep the color if you want.
 8. **Standard** puts one color back, **Back to standard for all** all of them. Close and start KassenSturz: your colors are still there.

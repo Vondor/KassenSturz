@@ -130,8 +130,17 @@ impl cxx_qt::Initialize for qobject::BookSession {
     fn initialize(mut self: Pin<&mut Self>) {
         let books = Books::for_user();
         let backup_folder = display(books.backup_folder());
+        // Until a book is open, the file dialogs start in the app's own
+        // folder: a book the Flatpak's file chooser hands over from anywhere
+        // else can't be opened (book.sandboxed, M6-B159).
+        let folder_url = books
+            .app_folder()
+            .filter(|folder| folder.is_dir())
+            .map(|folder| folder_url(&display(folder)))
+            .unwrap_or_default();
         let mut state = self.as_mut().rust_mut();
         state.backup_folder = QString::from(backup_folder.as_str());
+        state.folder_url = folder_url;
         state.version = QString::from(version_label().as_str());
         state.books = Some(books);
     }
@@ -280,9 +289,7 @@ impl qobject::BookSession {
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default();
         let folder = path.parent().map(display).unwrap_or_default();
-        let folder_url =
-            QUrl::from_user_input(&QString::from(folder.as_str()), &QString::default())
-                .to_qstring();
+        let folder_url = folder_url(&folder);
         let network_drive = session::on_network_drive();
         let mut state = self.as_mut().rust_mut();
         state.open = true;
@@ -328,6 +335,11 @@ fn version_label() -> String {
 
 fn display(path: &Path) -> String {
     path.display().to_string()
+}
+
+/// A folder as the file dialogs' `currentFolder` takes it.
+fn folder_url(folder: &str) -> QString {
+    QUrl::from_user_input(&QString::from(folder), &QString::default()).to_qstring()
 }
 
 fn qtext(value: &str) -> QVariant {

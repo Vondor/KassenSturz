@@ -25,7 +25,6 @@ These need things that do not exist yet; each is marked "Bildschirmfoto folgt" o
 
 - **Screenshots** from a clean machine for every click. Windows: from the M7a.7 virtual machine run. Ubuntu: from a clean Ubuntu with the first pre-release installed. Save them next to the sheets as `img/windows-NN-*.png` and `img/ubuntu-NN-*.png`, one per marked spot.
 - **Windows file name and install folder** (the PowerShell start line) from M7a.7.
-- **First-start wording** once the setup wizard (M7a.9) has merged: the sheets and the user guide currently describe the example book chooser (M7a.2), whose button reads "Ein Beispielbuch ausprobieren …".
 
 ## Rules for this folder
 

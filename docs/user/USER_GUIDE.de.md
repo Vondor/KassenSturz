@@ -35,16 +35,17 @@ Ihre Bücher bleiben bei einer neuen Version erhalten. Eine neuere Version insta
 
 ## 2. Der erste Start
 
-Beim ersten Start fragt KassenSturz nur das Nötigste:
+Beim ersten Start führt Sie ein kurzer Einrichtungsassistent durch das Nötigste. Sie können jederzeit zurückgehen, und es wird erst etwas gespeichert, wenn Sie den Schritt abschließen. Schließen Sie das Fenster mittendrin, beginnt der Assistent beim nächsten Mal neu.
 
-1. **Willkommen:** KassenSturz sagt kurz, was es tut, und fragt, welche **Währung** Sie benutzen. Die Währung Ihrer Region ist schon gewählt, meistens bestätigen Sie nur.
-2. **Erstes Konto hinzufügen:** Wählen Sie, was für ein Konto es ist (Girokonto, Sparkonto, Bargeld …), geben Sie ihm einen Namen und sagen Sie, wie viel an welchem Tag drin ist. Nehmen Sie den Betrag aus dem Kontoauszug Ihrer Bank, damit KassenSturz von dem ausgeht, was wirklich da ist. **Zum Ausprobieren dürfen Sie sich einen Betrag ausdenken.**
-3. **Erste Buchung:** Tragen Sie etwas ein, das Sie bezahlt oder erhalten haben, oder wählen Sie **Erst einmal überspringen**.
-4. Dann sehen Sie die **Übersicht**.
+1. **Willkommen bei KassenSturz:** Sie wählen Ihre **Sprache** (die Ihres Systems ist schon gewählt) und KassenSturz fragt, welche **Währung** Sie verwenden. Meistens bestätigen Sie nur mit **Weiter**. Ändern Sie die Sprache, startet KassenSturz einmal neu in dieser Sprache; es geht nichts verloren.
+2. **Wie möchten Sie anfangen?** Sie haben drei Möglichkeiten: **Mit meinen eigenen Konten** (etwa zwei Minuten), **Ein Beispielbuch ausprobieren** (ein ausgedachter Haushalt zum Umsehen) oder **Meine Daten aus einem anderen Programm holen** (ein KMyMoney-Buch oder eine mit KassenSturz gespeicherte Kopie). Wer schon ein KassenSturz-Buch hat, wählt den kleinen Link **Ein KassenSturz-Haushaltsbuch öffnen, das ich schon habe…**.
+3. Bei **Mit meinen eigenen Konten** legen Sie Ihre Konten an: Art (Girokonto, Sparkonto, Bargeld, Kreditkarte), Name und wie viel heute darin ist. Nehmen Sie den Betrag aus Ihrer Banking-App oder vom Kontoauszug, damit KassenSturz von dem ausgeht, was wirklich da ist. **Zum Ausprobieren dürfen Sie sich einen Betrag ausdenken.** Leer lassen heißt: nichts drin. Mit **Haushaltsbuch anlegen** wird alles auf einmal gespeichert.
+4. Dann fragt KassenSturz, wie neue Buchungen hineinkommen: **Ich tippe sie selbst ein**, **Eine Datei von meiner Bank importieren** oder **Mit meiner Bank verbinden**. Auch das lässt sich später ändern.
+5. Dann sehen Sie die **Übersicht** mit einer kurzen Meldung, dass Ihr Haushaltsbuch bereit ist.
 
 KassenSturz legt für Sie **Kategorien** an (Einnahmen wie Gehalt, Ausgaben wie Wohnen, Essen, Gesundheit). Sie gehören Ihnen: umbenennen, verschieben und ergänzen dürfen Sie alles.
 
-**Lieber erst mit einem Beispielbuch üben?** Wählen Sie **Ein Beispielbuch ausprobieren …** (beim ersten Start oder später unter **Anderes Haushaltsbuch öffnen…**). Zur Auswahl stehen *Vorstadtfamilie* (empfohlener Einstieg, ein ganz normaler Haushalt), *Blumen-Utopia* (eine kleine Gartengenossenschaft), *Weltraumkolonie* (fünf Jahre in einer Marskolonie) und *UdSSR-Agent* (ein ausgedachter Agent der 1980er mit mehreren Währungen). Es entsteht eine eigene Kopie; das mitgelieferte Buch bleibt unverändert.
+**Lieber erst mit einem Beispielbuch üben?** Wählen Sie **Ein Beispielbuch ausprobieren** (beim ersten Start oder später unter **Anderes Haushaltsbuch öffnen…**). Zur Auswahl stehen *Vorstadtfamilie* (empfohlener Einstieg, ein ganz normaler Haushalt), *Blumen-Utopia* (eine kleine Gartengenossenschaft), *Weltraumkolonie* (fünf Jahre in einer Marskolonie) und *UdSSR-Agent* (ein ausgedachter Agent der 1980er mit mehreren Währungen). Es entsteht eine eigene Kopie; das mitgelieferte Buch bleibt unverändert.
 
 **Ihr Haushaltsbuch** legt KassenSturz selbst in einem eigenen Ordner an und öffnet es bei jedem Start wieder. Sie müssen keine Datei auswählen. Unter *Einstellungen* können Sie ein anderes Buch öffnen (**Anderes Haushaltsbuch öffnen…**) oder ein neues anlegen (**Neues Haushaltsbuch anlegen…**), zum Beispiel zum Ausprobieren. Ein Buch ist immer nur an einem Ort geöffnet; Bücher auf Netzlaufwerken meldet KassenSturz mit einer Warnung.
 

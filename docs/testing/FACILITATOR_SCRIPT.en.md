@@ -14,7 +14,7 @@ Text marked "say" is read **word for word** in the German file; here its content
    - Note every hesitation, "hm", backtrack and search with time and card.
    - Stuck about 3 minutes or visibly frustrated: offer to keep trying or move on; show the way only if the next card depends on it and note "help given". On card 1 only say which step of the sheet they are at, never where to click.
    - Real data typed: don't interrupt; note it; ask question 8 at the end. Crash: note the time, stay calm, restart.
-6. **Closing (say).** "After the test" questions, question 8 last and gently. Answer the tester's questions. Explain where the questionnaire and reports go. Afterwards restart KassenSturz without developer mode (or uninstall); on Windows check Windows developer mode is off if it was ever on. Keep notes under a short code, no names.
+6. **Closing (say).** "After the test" questions, question 8 last and gently. Answer the tester's questions. Explain where the questionnaire and reports go. Afterwards restart KassenSturz without developer mode (or uninstall). Keep notes under a short code, no names.
 
 ## Success criteria (facilitator only)
 

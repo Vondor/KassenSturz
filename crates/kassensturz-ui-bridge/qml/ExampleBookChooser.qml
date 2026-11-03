@@ -104,7 +104,6 @@ ColumnLayout {
                     : chooser.bookName(modelData.id)
                 description: chooser.description(modelData.id)
                 // Written here, but shown as text, never as markup (D-143).
-                textItem.textFormat: Text.PlainText
                 descriptionItem.textFormat: Text.PlainText
                 onClicked: {
                     ActionLog.taken("ExampleBookChooser_chooseBook")

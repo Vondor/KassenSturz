@@ -11,7 +11,7 @@ CAMT.053 statement:
 
 * Suburban Family  (`suburban-family`): the everyday German household, the
   suggested start. Girokonto, Sparkonto, Kreditkarte and Bargeld, the default
-  German categories, three months and one Umbuchung.
+  German categories, two years and monthly Umbuchungen.
 * Flower Utopia    (`flower-utopia`): a small garden cooperative with a shared
   cash box. Its budgets and charts are added by the pipeline test
   `example_books`, which writes `flower-utopia.json`.
@@ -35,8 +35,11 @@ Usage:
     tools/example-books/generate.py --reference-month 2027-01
     tools/example-books/generate.py --check                  # fail if files differ
 
-The books hold the three months before the reference month, so "last month"
-is never empty. The reference month is saved in `reference-month.txt`; the
+The books hold the 24 months before the reference month, so "last month"
+and the last twelve months are never empty, plus some cash and card spending
+in the reference month (never on the statement's account). The app moves the
+dates by whole months when it makes a book, so the reference month is the
+running one, and leaves out what lies after today (D-584). The reference month is saved in `reference-month.txt`; the
 test reads it. Python 3.9 or newer, standard library only. Every random
 choice comes from a small generator seeded from the book's name, so the same
 call always writes the same files. Money is whole minor units (cents,
@@ -175,7 +178,12 @@ def iso(when):
     return when.isoformat()
 
 
-def earlier_months(reference, count=3):
+# How many months before the reference month each made book holds: about
+# two years, so year-on-year charts and the last twelve months are full.
+MONTHS = 24
+
+
+def earlier_months(reference, count=MONTHS):
     """The `count` months before the reference month, oldest first."""
     year, month = reference
     out = []
@@ -548,6 +556,7 @@ def book_statement(book, name, account_id, account_is_iban, existing_index, new_
 
 def suburban_family(reference):
     months = earlier_months(reference)
+    ry, rm = reference
     book = Book("suburban-family", "Suburban Family", "EUR", "Familie Sommerfeld", months,
                 "Sonnenauer Bank")
     s = lambda name: stream("suburban-family", name)
@@ -588,6 +597,7 @@ def suburban_family(reference):
         "Streamfabrik": "Abos und Streaming", "Zeitungsverlag Sonnenau": "Bücher und Medien",
         "Buchhandlung Lesezeichen": "Bücher und Medien", "Sonnenauer Bank": "Gebühren",
         "Blumen Lindenhof": "Geschenke und Spenden", "Tierarzt Dr. Weidenfeld": "Haustiere",
+        "Spielwaren Kreisel": "Geschenke und Spenden",
     }.items():
         book.payee(name, category)
 
@@ -611,23 +621,53 @@ def suburban_family(reference):
         book.spend(workday(day(y, m, 10)), G, "Hobbys und Sport", 2250, "Mitgliedsbeitrag Turnen", "Turnverein Sonnenau 1892")
         book.spend(workday(day(y, m, 28)), G, "Gebühren", 490, "Kontoführung", "Sonnenauer Bank")
         book.earn(workday(day(y, m, 29)), S, "Zinsen", 940, "Zinsen Sparkonto", "Sonnenauer Bank")
+        book.move(workday(day(y, m, 8)), G, B, 5000, "Bargeld abgehoben")
+        book.move(workday(day(y, m, 26)), G, S, 60000, "Sparrate")
         book.spend(day(y, m, 12), K, "Abos und Streaming", 1299, "Streaming", "Streamfabrik")
         book.spend(day(y, m, 12), K, "Gebühren", 290, "Kartenentgelt", "Sonnenauer Bank")
-        if index == 0:
+        # What comes once a year, by the season.
+        if m == 11:
+            book.earn(workday(day(y, m, 27)), G, "Gehalt", 123420, "Weihnachtsgeld", employer_a)
+        if m == 12:
+            book.spend(day(y, m, 9), K, "Geschenke und Spenden", rng_misc.between(16000, 24000),
+                       "Weihnachtsgeschenke Kinder", "Spielwaren Kreisel")
+            book.spend(day(y, m, 14), B, "Sonstige Ausgaben", 3900, "Weihnachtsbaum", None)
+            book.spend(day(y, m, 18), G, "Geschenke und Spenden", 5000, "Spende Tafel Sonnenau", None)
+        if m == 1:
+            book.spend(day(y, m, 17), G, "Haushaltswaren", rng_misc.between(4500, 9800),
+                       "Winterschlussverkauf Bettwäsche", None)
+        if m == 3:
+            book.earn(workday(day(y, m, 20)), G, "Erstattungen", rng_misc.between(9000, 21000),
+                      "Nebenkostenabrechnung Guthaben", "Wohnbau Sonnenau eG")
+        if m == 4:
+            book.spend(day(y, m, 14), G, "Arzt und Apotheke", 4500, "Zahnarzt Zuzahlung", None)
+            book.spend(day(y, m, 21), G, "Fahrrad", rng_misc.between(6500, 14500),
+                       "Fahrradinspektion", None)
+        if m == 5:
             book.spend(day(y, m, 2), G, "Urlaub", 64000, "Anzahlung Ferienwohnung", "Ferienhof Seeblick")
+            book.spend(day(y, m, 9), B, "Geschenke und Spenden", 1250, "Blumen zum Muttertag", "Blumen Lindenhof")
+        if m == 6:
+            book.spend(day(y, m, 21), G, "Geschenke und Spenden", 3500, "Geburtstagsgeschenk", None)
+        if m == 7:
+            book.spend(day(y, m, 3), G, "Urlaub", 96000, "Restzahlung Ferienwohnung", "Ferienhof Seeblick")
+        if m == 8:
             book.spend(day(y, m, 20), K, "Urlaub", 11850, "Fähre Ostsee", None)
+            book.spend(day(y, m, 22), K, "Urlaub", rng_misc.between(9000, 16000), "Ausflüge im Urlaub", None)
             book.spend(day(y, m, 9), G, "Hobbys und Sport", 3600, "Schwimmkurs Kinder", "Turnverein Sonnenau 1892")
-        if index == 1:
+        if m == 9:
             book.spend(day(y, m, 8), K, "Kleidung", rng_misc.between(3800, 5200), "Schulkleidung", "Modehaus Pfau")
-            book.spend(day(y, m, 9), K, "Kleidung", rng_misc.between(5500, 8900), "Winterjacke Kind", "Modehaus Pfau")
             book.spend(day(y, m, 10), G, "Schule und Kinderbetreuung", 3520, "Schulbedarf Schuljahresbeginn", None)
             book.spend(day(y, m, 17), G, "Auto", 18640, "Inspektion", "Autohaus Kalkberg")
             book.spend(day(y, m, 24), G, "Bücher und Medien", 3890, "Zeitungsabo", "Zeitungsverlag Sonnenau")
-        if index == 2:
+        if m == 10:
+            book.spend(day(y, m, 9), K, "Kleidung", rng_misc.between(5500, 8900), "Winterjacke Kind", "Modehaus Pfau")
             book.spend(day(y, m, 14), G, "Arzt und Apotheke", 4500, "Zahnarzt Zuzahlung", None)
-            book.spend(day(y, m, 19), G, "Reparaturen", 7490, "Wasserhahn Küche", None)
             book.spend(day(y, m, 6), G, "Haustiere", 5240, "Tierarzt Impfung", "Tierarzt Dr. Weidenfeld")
             book.spend(day(y, m, 22), K, "Bücher und Medien", 2495, "Kinderbuch", "Buchhandlung Lesezeichen")
+            book.spend(day(y, m, 16), B, "Geschenke und Spenden", 1250, "Blumen", "Blumen Lindenhof")
+            book.spend(day(y, m, 21), G, "Geschenke und Spenden", 3500, "Geburtstagsgeschenk", None)
+        if index == len(months) - 1:
+            book.spend(day(y, m, 19), G, "Reparaturen", 7490, "Wasserhahn Küche", None)
         # Food and household: the biggest part of daily life.
         for number in range(rng_food.between(6, 7)):
             when = workday(day(y, m, 2 + number * 4 + rng_day.between(0, 2)))
@@ -658,16 +698,38 @@ def suburban_family(reference):
                        rng_misc.between(5260, 7810), "Tanken", "Tankstelle Waldweg")
         book.spend(workday(day(y, m, 18)), G, "Arzt und Apotheke", rng_misc.between(845, 2490),
                    "Apotheke", "Apotheke am Markt")
-    # Birthday present late in the second month, flowers from the cash box.
-    book.spend(day(*months[1], 21), G, "Geschenke und Spenden", 3500, "Geburtstagsgeschenk", None)
-    book.spend(day(*months[2], 16), B, "Geschenke und Spenden", 1250, "Blumen", "Blumen Lindenhof")
-    # The one Umbuchung: the credit card paid off at the start of the last month.
-    pay_day = workday(day(*months[2], 3))
-    owed = -sum(sh for tx in book.tx if tx["date"] < pay_day
-                for n, _, sh in tx["parts"] if n == K) + 31240
-    book.move(pay_day, G, K, owed, "Kreditkarte beglichen")
+    # The running month (the reference month): paid by card and in cash only,
+    # because the Girokonto's lines of this month come from the statement.
+    # KassenSturz leaves out what lies after the day an example book is made
+    # (D-584), so the first day always has something.
+    rng_now = s("reference-month")
+    for offset, account, category, memo, who, low, high in [
+        (1, B, "Lebensmittel", "Brötchen", "Bäckerei Kornblume", 620, 1580),
+        (1, K, "Lebensmittel", "Einkauf", "Supermarkt Sonnental", 2860, 6840),
+        (2, K, "Auto", "Tanken", "Tankstelle Waldweg", 5260, 7810),
+        (4, B, "Lebensmittel", "Brötchen", "Bäckerei Kornblume", 620, 1580),
+        (6, K, "Auswärts essen", "Essen gehen", "Gasthaus Eichenhain", 2450, 6840),
+        (8, K, "Haushaltswaren", "Drogerie", "Drogerie Regenbogen", 1450, 4880),
+        (10, B, "Lebensmittel", "Obst und Gemüse", "Hofgut Linde Wochenmarkt", 1840, 4220),
+        (12, K, "Abos und Streaming", "Streaming", "Streamfabrik", 1299, 1299),
+        (12, K, "Gebühren", "Kartenentgelt", "Sonnenauer Bank", 290, 290),
+        (14, K, "Kleidung", "Kleidung Kinder und Erwachsene", "Modehaus Pfau", 6500, 14800),
+        (17, B, "Lebensmittel", "Brötchen", "Bäckerei Kornblume", 620, 1580),
+        (19, K, "Lebensmittel", "Einkauf", "Supermarkt Sonnental", 2860, 9840),
+        (23, K, "Auto", "Tanken", "Tankstelle Waldweg", 5260, 7810),
+        (25, B, "Auswärts essen", "Eis", "Eisdiele Zuckerhut", 850, 1650),
+        (28, K, "Lebensmittel", "Einkauf", "Supermarkt Sonnental", 2860, 9840),
+    ]:
+        book.spend(day(ry, rm, offset), account, category, rng_now.between(low, high), memo, who)
+    # The credit card is paid off from the Girokonto early each month: the
+    # book's Umbuchungen. The first one also pays what was owed at the start.
+    for index, (y, m) in enumerate(months[1:]):
+        pay_day = workday(day(y, m, 3))
+        owed = -sum(sh for tx in book.tx if tx["date"] < pay_day
+                    for n, _, sh in tx["parts"] if n == K) + (31240 if index == 0 else 0)
+        book.move(pay_day, G, K, owed, "Kreditkarte beglichen")
     # The last line of the Girokonto is the one the statement repeats.
-    book.spend(day(*months[2], 30), G, "Lebensmittel", 6318, "Wocheneinkauf", "Supermarkt Sonnental")
+    book.spend(day(*months[-1], 30), G, "Lebensmittel", 6318, "Wocheneinkauf", "Supermarkt Sonnental")
     opening(book, {G: 325000, S: 960000, B: 14000, K: -31240})
     book.finish()
     totals, _ = book.totals()
@@ -690,6 +752,7 @@ def suburban_family(reference):
 
 def flower_utopia(reference):
     months = earlier_months(reference)
+    ry, rm = reference
     book = Book("flower-utopia", "Flower Utopia", "EUR", "Blumenwiese Gartengemeinschaft",
                 months, "Gartenbank Sonnenau")
     s = lambda name: stream("flower-utopia", name)
@@ -716,36 +779,76 @@ def flower_utopia(reference):
     }.items():
         book.payee(name, category)
     rng = s("life")
+    # Watering by the season: little in winter, most in high summer.
+    water = {1: 600, 2: 600, 3: 900, 4: 1800, 5: 2900, 6: 3900, 7: 4600, 8: 4180,
+             9: 3640, 10: 2910, 11: 1200, 12: 600}
+    market = {5: "Pflanzenmarkt Mai: Setzlinge", 6: "Markttag Juni: Sommerblumen",
+              8: "Markttag August: Sträuße und Setzlinge", 9: "Markttag September: Herbststräuße",
+              10: "Herbstmarkt Oktober", 12: "Adventsmarkt: Kränze und Gestecke"}
     for index, (y, m) in enumerate(months):
         book.earn(workday(day(y, m, 2)), V, "Mitgliedsbeiträge", 14400, "Beiträge 24 Mitglieder × 6 €",
                   "Mitglieder Sammelbeitrag")
         book.spend(workday(day(y, m, 1)), V, "Pacht", 5200, "Pacht Gartenfläche", "Stadt Sonnenau Grünflächenamt")
         book.spend(workday(day(y, m, 28)), V, "Gebühren", 350, "Kontoführung", "Gartenbank Sonnenau")
-        book.spend(workday(day(y, m, 20)), V, "Wasser", [4180, 3640, 2910][index], "Wasser Gießen",
-                   "Wasserwerk Sonnenau")
+        if index < len(months) - 1:
+            book.spend(workday(day(y, m, 20)), V, "Wasser", water[m], "Wasser Gießen",
+                       "Wasserwerk Sonnenau")
         book.spend(day(y, m, 10), K, "Kaffee und Kuchen", rng.between(850, 1240), "Kaffee, Tee und Kekse",
                    "Bäckerei Kornblume")
         book.spend(day(y, m, 24), K, "Kaffee und Kuchen", rng.between(1450, 3240), "Kuchen Arbeitseinsatz",
                    "Bäckerei Kornblume")
         book.earn(workday(day(y, m, 29)), R, "Zinsen", 410, "Zinsen Rücklage", "Gartenbank Sonnenau")
-    a, b, c = months
-    book.spend(day(*a, 8), V, "Sommerfest", 14860, "Getränke Sommerfest", "Getränke Quellwiese")
-    book.spend(day(*a, 8), K, "Sommerfest", 3240, "Eis und Luftballons", None)
-    book.earn(day(*a, 8), K, "Verkauf Markttag", 12200, "Markttag August: Sträuße und Setzlinge", "Marktbesucher")
-    book.spend(day(*a, 14), V, "Versicherung", 9600, "Haftpflicht Gartengemeinschaft", "Versicherung Sternschnuppe")
-    book.spend(day(*a, 18), V, "Geräte und Werkzeug", 3890, "Gießkannen und Handschaufeln", "Baumarkt Eisenkraut")
-    book.earn(day(*b, 14), K, "Verkauf Markttag", 18650, "Markttag September: Herbststräuße", "Marktbesucher")
-    book.spend(day(*b, 5), V, "Saatgut und Pflanzen", 14320, "Blumenzwiebeln für das Frühjahr", "Samenhaus Löwenzahn")
-    book.earn(day(*b, 16), V, "Zuschüsse", 25000, "Förderung Gemeinschaftsgärten", "Stiftung Grünes Band")
-    book.spend(day(*b, 22), V, "Werbung und Druck", 2490, "Flyer Herbstmarkt", "Druckerei Tintenfass")
-    book.spend(day(*c, 4), V, "Erde und Dünger", 6480, "Blumenerde, 4 Säcke", "Erdenwerk Moorkamp")
-    book.spend(day(*c, 12), V, "Reparaturen", 7130, "Gewächshaustür repariert", "Schreinerei Holzwurm")
-    book.earn(day(*c, 11), K, "Verkauf Markttag", 9550, "Herbstmarkt Oktober", "Marktbesucher")
-    book.earn(day(*c, 20), V, "Spenden", 5000, "Spende eines Nachbarn", None)
-    book.spend(day(*c, 6), V, "Saatgut und Pflanzen", 3180, "Herbstastern", "Gärtnerei Hohlweg")
-    # The Transfer: the cash box paid into the club account.
-    book.move(workday(day(*c, 13)), K, V, 15000, "Einzahlung Kasse")
-    book.spend(day(*c, 30), V, "Wasser", 2910, "Wasser Gießen", "Wasserwerk Sonnenau")
+        if m in market:
+            book.earn(day(y, m, 14 if m != 12 else 6), K, "Verkauf Markttag",
+                      rng.between(8000, 19000), market[m], "Marktbesucher")
+            # What the market brought goes into the club account: a Transfer.
+            book.move(workday(day(y, m, 17)), K, V, 7500, "Einzahlung Kasse")
+        if m == 3:
+            book.spend(day(y, m, 6), V, "Saatgut und Pflanzen", rng.between(4800, 9600),
+                       "Saatgut Frühjahr", "Samenhaus Löwenzahn")
+            book.spend(day(y, m, 12), V, "Erde und Dünger", 6480, "Blumenerde, 4 Säcke", "Erdenwerk Moorkamp")
+        if m == 4:
+            book.spend(day(y, m, 18), V, "Geräte und Werkzeug", rng.between(3200, 7400),
+                       "Gießkannen und Handschaufeln", "Baumarkt Eisenkraut")
+        if m == 8:
+            book.spend(day(y, m, 8), V, "Sommerfest", 14860, "Getränke Sommerfest", "Getränke Quellwiese")
+            book.spend(day(y, m, 8), K, "Sommerfest", 3240, "Eis und Luftballons", None)
+            book.spend(day(y, m, 14), V, "Versicherung", 9600, "Haftpflicht Gartengemeinschaft",
+                       "Versicherung Sternschnuppe")
+        if m == 9:
+            book.spend(day(y, m, 5), V, "Saatgut und Pflanzen", 14320, "Blumenzwiebeln für das Frühjahr",
+                       "Samenhaus Löwenzahn")
+            book.earn(day(y, m, 16), V, "Zuschüsse", 25000, "Förderung Gemeinschaftsgärten",
+                      "Stiftung Grünes Band")
+            book.spend(day(y, m, 22), V, "Werbung und Druck", 2490, "Flyer Herbstmarkt", "Druckerei Tintenfass")
+        if m == 10:
+            book.spend(day(y, m, 4), V, "Erde und Dünger", 6480, "Blumenerde, 4 Säcke", "Erdenwerk Moorkamp")
+            book.spend(day(y, m, 6), V, "Saatgut und Pflanzen", 3180, "Herbstastern", "Gärtnerei Hohlweg")
+            book.earn(day(y, m, 20), V, "Spenden", 5000, "Spende eines Nachbarn", None)
+        if m == 12:
+            book.earn(day(y, m, 15), V, "Spenden", rng.between(3000, 8000), "Weihnachtsspende", None)
+        if m == 2:
+            book.spend(day(y, m, 12), V, "Reparaturen", rng.between(5200, 9800),
+                       "Gewächshaustür repariert" if y % 2 else "Zaun ausgebessert",
+                       "Schreinerei Holzwurm")
+    # The last line of the Vereinskonto is the one the statement repeats.
+    book.spend(day(*months[-1], 30), V, "Wasser", water[months[-1][1]], "Wasser Gießen",
+               "Wasserwerk Sonnenau")
+    # The running month (the reference month): the cash box only, because the
+    # club account's lines of this month come from the statement (D-584).
+    rng_now = s("reference-month")
+    for offset, category, memo, low, high in [
+        (1, "Kaffee und Kuchen", "Kaffee für den Arbeitseinsatz", 650, 1180),
+        (7, "Kaffee und Kuchen", "Kaffee, Tee und Kekse", 850, 1240),
+        (15, "Kaffee und Kuchen", "Kuchen Arbeitseinsatz", 1450, 3240),
+        (26, "Kaffee und Kuchen", "Kaffee, Tee und Kekse", 850, 1240),
+    ]:
+        book.spend(day(ry, rm, offset), K, category, rng_now.between(low, high), memo,
+                   "Bäckerei Kornblume")
+    book.earn(day(ry, rm, 1), K, "Verkauf Markttag", rng_now.between(1800, 3600),
+              "Pflanzenverkauf am Gartentor", "Marktbesucher")
+    book.earn(day(ry, rm, 21), K, "Verkauf Markttag", rng_now.between(2400, 5200),
+              "Pflanzenverkauf am Gartentor", "Marktbesucher")
     opening(book, {V: 142000, K: 6000, R: 200000})
     book.finish()
     totals, _ = book.totals()
@@ -766,13 +869,27 @@ def flower_utopia(reference):
 
 # ========================================================= UdSSR Government Agent
 
-RATES_PER = {  # agency rate: rubles per 1 unit of the currency, over 10000
-    "USD": [7234, 7260, 7290], "GBP": [9112, 9075, 9031], "CHF": [3350, 3342, 3361],
-}
+# Agency rate at the start: rubles per 1 unit of the currency, over 10000. It
+# moves a little every month.
+RATES_START = {"USD": 7234, "GBP": 9112, "CHF": 3350}
+
+
+def agency_rates(count):
+    """One rate per currency and month, `count` months, as a list of dicts."""
+    rng = stream("udssr-agent", "rates")
+    now = dict(RATES_START)
+    out = []
+    for _ in range(count):
+        out.append(dict(now))
+        for code in now:
+            now[code] += rng.between(0, 80) - 40
+    return out
 
 
 def udssr_agent(reference):
     months = earlier_months(reference)
+    ry, rm = reference
+    rates = agency_rates(len(months) + 1)
     book = Book("udssr-agent", "UdSSR Government Agent", "RUB",
                 "Genosse Iwan Petrowitsch Nebelow", months, "Staatsbank der Wolkenverwaltung")
     s = lambda name: stream("udssr-agent", name)
@@ -806,11 +923,16 @@ def udssr_agent(reference):
     rng = s("life")
 
     def rub_of(foreign_cents, code, index):
-        return (foreign_cents * RATES_PER[code][index] + 5000) // 10000
+        return (foreign_cents * rates[index][code] + 5000) // 10000
 
+    def abroad(when, category, account, code, index, cents, memo, who=None):
+        rub = rub_of(cents, code, index)
+        book.add(when, [(category, rub), (account, -rub, -cents)], memo, who)
+
+    for index, (y, m) in enumerate(months + [reference]):
+        for code in sorted(RATES_START):
+            book.rates.append((code, "RUB", date(y, m, 1), rates[index][code]))
     for index, (y, m) in enumerate(months):
-        for code, numerator in RATES_PER.items():
-            book.rates.append((code, "RUB", date(y, m, 1), numerator[index]))
         book.earn(workday(day(y, m, 20)), G, "Gehalt", 42000, "Gehalt Hauptverwaltung",
                   "Hauptverwaltung für Windstille")
         book.spend(workday(day(y, m, 3)), G, "Kommunalwohnung", 1860, "Miete Kommunalwohnung", "Hausverwaltung Nr. 12")
@@ -829,46 +951,73 @@ def udssr_agent(reference):
             book.spend(workday(day(y, m, 7 + number * 7)), G, "Kantine", rng.between(550, 780),
                        "Mittagessen Kantine (Woche)", "Kantine der Hauptverwaltung")
         book.spend(day(y, m, 16), CA, "Kultur", rng.between(150, 350), "Kino und Theater", "Ballett am Kanal")
-        # Allowance paid in dollars into the service cash box, every month.
-        usd_cents = 25000
-        rub = rub_of(usd_cents, "USD", index)
-        book.add(workday(day(y, m, 21)), [("Auslandszulage", -rub), (USD, rub, usd_cents)],
-                 "Auslandszulage in Dollar", "Hauptverwaltung für Windstille")
-    a, b, c = months
-    # August: London.
-    pounds = 25000
-    book.add(workday(day(*a, 11)), [(G, -rub_of(pounds, "GBP", 0)), (GBP, rub_of(pounds, "GBP", 0), pounds)],
-             "Rubel in Pfund getauscht für die Londoner Reise", None)
-    for when, category, who, memo, cents in [
-        (day(*a, 12), "Hotel", "Hotel Brackenhill Court", "Hotel London, 3 Nächte", 21600),
-        (day(*a, 13), "Essen unterwegs", None, "Abendessen London", 2480),
-        (day(*a, 14), "Fahrten", None, "Bahn und Bus London", 1760),
-    ]:
-        rub = rub_of(cents, "GBP", 0)
-        book.add(when, [(category, rub), (GBP, -rub, -cents)], memo, who)
-    # September: Zürich, paid from the francs account.
-    francs = 60000
-    book.add(workday(day(*b, 8)), [(G, -rub_of(francs, "CHF", 1)), (CHF, rub_of(francs, "CHF", 1), francs)],
-             "Rubel in Franken getauscht für die Zürcher Reise", None)
-    for when, category, who, memo, cents in [
-        (day(*b, 10), "Hotel", "Gasthof Zum Stern", "Gasthof Zürich, 2 Nächte", 28000),
-        (day(*b, 11), "Essen unterwegs", None, "Abendessen Zürich", 4850),
-        (day(*b, 12), "Fahrten", None, "Bahnfahrkarte Zürich", 7200),
-    ]:
-        rub = rub_of(cents, "CHF", 1)
-        book.add(when, [(category, rub), (CHF, -rub, -cents)], memo, who)
-    # A coat before winter, a bonus and a costume for a mission.
-    book.spend(day(*b, 18), G, "Kleidung", 14800, "Wintermantel", "Kaufhaus Morgenrot")
-    book.earn(workday(day(*c, 9)), G, "Prämien", 15000, "Quartalsprämie Windstille", "Hauptverwaltung für Windstille")
-    book.spend(day(*c, 15), G, "Tarnung und Requisiten", 2200, "Hut und Schnurrbart", "Theaterwerkstatt am Fluss")
-    # Tips and a taxi in dollars.
-    for when, memo, cents in [(day(*c, 17), "Taxi und Trinkgeld", 3800)]:
-        rub = rub_of(cents, "USD", 2)
-        book.add(when, [("Fahrten", rub), (USD, -rub, -cents)], memo, None)
-    # The Transfer: rubles to the savings book.
-    book.move(workday(day(*c, 22)), G, SP, 8000, "Auf das Sparbuch")
+        book.move(workday(day(y, m, 11)), G, CA, 1500, "Bargeld abgehoben")
+        # Allowance paid in dollars into the service cash box, every quarter.
+        if m in (3, 6, 9, 12):
+            usd_cents = 25000
+            rub = rub_of(usd_cents, "USD", index)
+            book.add(workday(day(y, m, 21)), [("Auslandszulage", -rub), (USD, rub, usd_cents)],
+                     "Auslandszulage in Dollar", "Hauptverwaltung für Windstille")
+        # The Transfer: rubles to the savings book.
+        book.move(workday(day(y, m, 22)), G, SP, 8000, "Auf das Sparbuch")
+        if m in (1, 4, 7, 10):
+            book.earn(workday(day(y, m, 9)), G, "Prämien", 15000, "Quartalsprämie Windstille",
+                      "Hauptverwaltung für Windstille")
+        if m in (2, 5, 8, 11):
+            abroad(day(y, m, 17), "Fahrten", USD, "USD", index, rng.between(2200, 4800),
+                   "Taxi und Trinkgeld")
+        if m in (3, 8):
+            # London.
+            pounds = 30000
+            book.add(workday(day(y, m, 11)),
+                     [(G, -rub_of(pounds, "GBP", index)), (GBP, rub_of(pounds, "GBP", index), pounds)],
+                     "Rubel in Pfund getauscht für die Londoner Reise", None)
+            abroad(day(y, m, 12), "Hotel", GBP, "GBP", index, 21600, "Hotel London, 3 Nächte",
+                   "Hotel Brackenhill Court")
+            abroad(day(y, m, 13), "Essen unterwegs", GBP, "GBP", index, rng.between(1800, 3200),
+                   "Abendessen London")
+            abroad(day(y, m, 14), "Fahrten", GBP, "GBP", index, rng.between(1200, 2200),
+                   "Bahn und Bus London")
+        if m in (6, 9):
+            # Zürich, paid from the francs account.
+            francs = 60000
+            book.add(workday(day(y, m, 8)),
+                     [(G, -rub_of(francs, "CHF", index)), (CHF, rub_of(francs, "CHF", index), francs)],
+                     "Rubel in Franken getauscht für die Zürcher Reise", None)
+            abroad(day(y, m, 10), "Hotel", CHF, "CHF", index, 28000, "Gasthof Zürich, 2 Nächte",
+                   "Gasthof Zum Stern")
+            abroad(day(y, m, 11), "Essen unterwegs", CHF, "CHF", index, rng.between(3600, 5600),
+                   "Abendessen Zürich")
+            abroad(day(y, m, 12), "Fahrten", CHF, "CHF", index, 7200, "Bahnfahrkarte Zürich",
+                   "Bahngesellschaft Nordland")
+        if m == 9:
+            book.spend(day(y, m, 18), G, "Kleidung", 14800, "Wintermantel", "Kaufhaus Morgenrot")
+        if m == 12:
+            book.spend(day(y, m, 15), G, "Kleidung", 6400, "Pelzmütze", "Kaufhaus Morgenrot")
+        if m in (5, 10):
+            book.spend(day(y, m, 15), G, "Tarnung und Requisiten", rng.between(1600, 2800),
+                       "Hut und Schnurrbart", "Theaterwerkstatt am Fluss")
     # The statement repeats this last line of the Gehaltskonto.
-    book.spend(day(*c, 30), G, "Lebensmittel", 1475, "Einkauf Lebensmittel", "Gastronom Nr. 7")
+    book.spend(day(*months[-1], 30), G, "Lebensmittel", 1475, "Einkauf Lebensmittel", "Gastronom Nr. 7")
+    # The running month (the reference month): cash and the dollar box only,
+    # because the Gehaltskonto's lines of this month come from the statement
+    # (D-584).
+    rng_now = s("reference-month")
+    now = len(months)
+    for offset, category, memo, who, low, high in [
+        (1, "Lebensmittel", "Brot und Milch", "Brotladen Nr. 3", 40, 180),
+        (6, "Lebensmittel", "Brot und Milch", "Brotladen Nr. 3", 40, 180),
+        (10, "Kultur", "Kino und Theater", "Ballett am Kanal", 150, 350),
+        (15, "Lebensmittel", "Brot und Milch", "Brotladen Nr. 3", 40, 180),
+        (24, "Lebensmittel", "Brot und Milch", "Brotladen Nr. 3", 40, 180),
+    ]:
+        book.spend(day(ry, rm, offset), CA, category, rng_now.between(low, high), memo, who)
+    abroad(day(ry, rm, 1), "Bücher und Zeitungen", USD, "USD", now, rng_now.between(300, 900),
+           "Zeitschriften am Kiosk")
+    abroad(day(ry, rm, 4), "Fahrten", USD, "USD", now, rng_now.between(2200, 4800),
+           "Taxi und Trinkgeld")
+    abroad(day(ry, rm, 18), "Essen unterwegs", USD, "USD", now, rng_now.between(1200, 2600),
+           "Mittagessen mit einem Kontakt")
     opening(book, {G: 80000, SP: 250000, CA: 3000}, floor=2000)
     book.finish()
     totals, _ = book.totals()
@@ -959,7 +1108,7 @@ def build_all(reference, out):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--reference-month", default="2026-11",
-                        help="YYYY-MM: the books hold the three months before it")
+                        help="YYYY-MM: the books hold the 24 months before it")
     parser.add_argument("--out", default=OUT, help="where to write the files")
     parser.add_argument("--check", action="store_true",
                         help="fail if the files in --out differ from what this writes")

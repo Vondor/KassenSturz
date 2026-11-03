@@ -766,16 +766,20 @@ mod tests {
 
         let view = view_object(&accounts::view(&book, &OnTheThird).expect("view"));
         let euros = &list_of(&view, "sections")[0];
-        assert_eq!(text_of(euros, "together"), "16263,31 €");
-        assert_eq!(text_of(euros, "later"), "-201,15 €");
-        assert_eq!(text_of(euros, "exactLater"), "-201,15 €");
+        // The statement's lines after the 3rd, and the card and cash
+        // spending later in the book's running month (D-584; the app leaves
+        // those out when it makes the book, this test reads the file).
+        assert_eq!(text_of(euros, "together"), "41237,20 €");
+        assert_eq!(text_of(euros, "later"), "-729,26 €");
+        assert_eq!(text_of(euros, "exactLater"), "-729,26 €");
         for card in list_of(euros, "accounts") {
-            let later = if text_of(&card, "name") == "Girokonto" {
-                "-201,15 €"
-            } else {
-                ""
+            let later = match text_of(&card, "name").as_str() {
+                "Girokonto" => "-201,15 €",
+                "Bargeld" => "-75,16 €",
+                "Kreditkarte" => "-452,95 €",
+                _ => "",
             };
-            assert_eq!(text_of(&card, "later"), later);
+            assert_eq!(text_of(&card, "later"), later, "{}", text_of(&card, "name"));
         }
 
         // What the Overview shows for today is the total less what is to
@@ -787,7 +791,7 @@ mod tests {
             .expect("balances")
             .results[0]
             .worth;
-        assert_eq!(worth.net_worth.minor_units(), 1_626_331 + 20_115);
+        assert_eq!(worth.net_worth.minor_units(), 4_123_720 + 72_926);
         // At the end of the month it is the accounts screen's total.
         let november = Period::this_month(today).expect("a month");
         let source = Source::read_with_balances(&book, november).expect("read");
@@ -795,6 +799,6 @@ mod tests {
             .expect("balances")
             .results[0]
             .worth;
-        assert_eq!(worth.net_worth.minor_units(), 1_626_331);
+        assert_eq!(worth.net_worth.minor_units(), 4_123_720);
     }
 }

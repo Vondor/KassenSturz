@@ -2,7 +2,7 @@
 
 Dieses Blatt schreibt der Test `example_books` (`crates/kassensturz-pipeline/tests/example_books.rs`) aus dem echten Import- und Berichtscode, nicht von Hand. Das Buch und die Kontoauszüge macht `tools/example-books/generate.py`; nichts darin gehört zu einer echten Person.
 
-Referenzmonat: 2026-11 (der letzte Monat ist Oktober 2026). Haben Sie das Buch zu einem späteren Zeitpunkt aufgemacht, zeigt die App den dann letzten Monat; die Zahlen unten gelten für Oktober 2026.
+Referenzmonat: 2026-11 (der letzte Monat ist Oktober 2026). Das Buch reicht etwa zwei Jahre zurück. Legen Sie es in einem späteren Monat an, verschiebt KassenSturz alle Daten um ganze Monate, sodass der Referenzmonat der laufende Monat ist; die Zahlen unten gelten dann für den Monat vor dem laufenden. Buchungen nach dem heutigen Tag lässt KassenSturz weg. Die Kontoauszüge passen nur im Referenzmonat selbst zum Buch.
 
 ## Karte 4: Übersicht
 

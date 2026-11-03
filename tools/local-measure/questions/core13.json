@@ -1,0 +1,103 @@
+[
+ {
+  "text": "How much did I spend in 2026, and what were the biggest categories?",
+  "expect": [
+   [
+    "45,821.91",
+    "45821.91",
+    "45.821,91",
+    "45,587.26",
+    "45587.26",
+    "45.587,26"
+   ],
+   [
+    "2,433.53",
+    "2433.53",
+    "2.433,53"
+   ]
+  ],
+  "new_chat": true
+ },
+ {
+  "text": "Show me my transactions with \"Northern Ice\".",
+  "expect": [
+   [
+    "81"
+   ]
+  ]
+ },
+ {
+  "text": "What is the balance of Everyday Checking?",
+  "expect": [
+   [
+    "9,509.07",
+    "9509.07",
+    "9.509,07"
+   ]
+  ]
+ },
+ {
+  "text": "List all my categories.",
+  "expect": [
+   [
+    "Zero-G Sports"
+   ],
+   [
+    "Miscellaneous"
+   ]
+  ]
+ },
+ {
+  "text": "Add a new category \"Pets\" under Miscellaneous.",
+  "expect": []
+ },
+ {
+  "text": "What were my ten biggest expenses in 2026?",
+  "expect": [
+   [
+    "2,779.43",
+    "2779.43",
+    "2.779,43"
+   ]
+  ]
+ },
+ {
+  "text": "Make a Rule that puts everything from Kepler Sports Club into Leisure › Zero-G Sports.",
+  "expect": []
+ },
+ {
+  "text": "Rename the category Pets to \"Pets and animals\" and move it under Leisure.",
+  "expect": []
+ },
+ {
+  "text": "Wie viel habe ich 2026 für Lebensmittel (Food) ausgegeben, mit allen Unterkategorien?",
+  "expect": [
+   [
+    "5.227,60",
+    "5,227.60",
+    "5227.60",
+    "5227,60",
+    "5.313,81",
+    "5,313.81",
+    "5313.81",
+    "5313,81"
+   ]
+  ]
+ },
+ {
+  "text": "Please pay my electricity bill.",
+  "expect": []
+ },
+ {
+  "text": "Open the account Everyday Checking for me.",
+  "expect": []
+ },
+ {
+  "text": "Open the Rules page.",
+  "expect": []
+ },
+ {
+  "text": "Put all Northern Ice Works transactions into the category Food.",
+  "expect": []
+ }
+]

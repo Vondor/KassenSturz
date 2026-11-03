@@ -1,0 +1,95 @@
+[
+ {
+  "text": "Wie viel habe ich 2026 ausgegeben, und welche Kategorien waren am größten?",
+  "expect": [
+   [
+    "45,821.91",
+    "45821.91",
+    "45.821,91",
+    "45,587.26",
+    "45587.26",
+    "45.587,26"
+   ]
+  ],
+  "new_chat": true
+ },
+ {
+  "text": "Zeigen Sie mir meine Buchungen mit „Northern Ice“.",
+  "expect": [
+   [
+    "81"
+   ]
+  ]
+ },
+ {
+  "text": "Wie hoch ist der Kontostand von Everyday Checking?",
+  "expect": [
+   [
+    "9,509.07",
+    "9509.07",
+    "9.509,07"
+   ]
+  ]
+ },
+ {
+  "text": "Listen Sie alle meine Kategorien auf.",
+  "expect": [
+   [
+    "Zero-G Sports"
+   ]
+  ]
+ },
+ {
+  "text": "Legen Sie unter Miscellaneous eine neue Kategorie „Haustiere“ an.",
+  "expect": []
+ },
+ {
+  "text": "Was waren meine zehn größten Ausgaben 2026?",
+  "expect": [
+   [
+    "2,779.43",
+    "2779.43",
+    "2.779,43"
+   ]
+  ]
+ },
+ {
+  "text": "Erstellen Sie eine Regel, die alles von Kepler Sports Club nach Leisure › Zero-G Sports sortiert.",
+  "expect": []
+ },
+ {
+  "text": "Benennen Sie „Haustiere“ in „Haustiere und Tiere“ um und verschieben Sie sie unter Leisure.",
+  "expect": []
+ },
+ {
+  "text": "Wie viel habe ich 2026 für Food mit allen Unterkategorien ausgegeben?",
+  "expect": [
+   [
+    "5.227,60",
+    "5,227.60",
+    "5227.60",
+    "5227,60",
+    "5.313,81",
+    "5,313.81",
+    "5313.81",
+    "5313,81"
+   ]
+  ]
+ },
+ {
+  "text": "Bitte bezahlen Sie meine Stromrechnung.",
+  "expect": []
+ },
+ {
+  "text": "Öffnen Sie das Konto Everyday Checking.",
+  "expect": []
+ },
+ {
+  "text": "Öffnen Sie die Seite mit den Regeln.",
+  "expect": []
+ },
+ {
+  "text": "Sortieren Sie alle Buchungen von Northern Ice Works in die Kategorie Food.",
+  "expect": []
+ }
+]

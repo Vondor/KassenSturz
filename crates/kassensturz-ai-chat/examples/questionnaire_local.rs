@@ -34,68 +34,136 @@ use kassensturz_store::Book;
 use serde_json::json;
 
 const USAGE: &str = "usage: questionnaire_local --address http://127.0.0.1:1234/v1 --model NAME \
-                     [--out FILE.jsonl] [--only 1,2,3]";
+                     [--out FILE.jsonl] [--only 1,2,3] [--questions FILE.json] \
+                     [--grid default|read|all] [--today YYYY-MM-DD]";
 
 const TODAY: Date = Date::constant(2026, 10, 28);
 
 /// The question and the strings a good answer contains (any one of each
 /// group), from `space-colony-5y-answers.md`. A hint for scoring only: the
 /// final score is read from the answers by hand.
-struct Question {
+struct BuiltIn {
     text: &'static str,
     expect: &'static [&'static [&'static str]],
 }
 
-const QUESTIONS: &[Question] = &[
-    Question {
+/// One question as asked: from the built-in list or a JSON file of
+/// `[{"text": "...", "expect": [["a", "b"], ["c"]], "new_chat": false}]`.
+struct Question {
+    text: String,
+    expect: Vec<Vec<String>>,
+    /// Start a fresh chat before this question.
+    new_chat: bool,
+}
+
+fn built_in() -> Vec<Question> {
+    BUILT_IN
+        .iter()
+        .map(|q| Question {
+            text: q.text.to_owned(),
+            expect: q
+                .expect
+                .iter()
+                .map(|group| group.iter().map(|s| (*s).to_owned()).collect())
+                .collect(),
+            new_chat: false,
+        })
+        .collect()
+}
+
+fn from_file(path: &str) -> Option<Vec<Question>> {
+    let text = std::fs::read_to_string(path).ok()?;
+    let value: serde_json::Value = serde_json::from_str(&text).ok()?;
+    value
+        .as_array()?
+        .iter()
+        .map(|item| {
+            Some(Question {
+                text: item["text"].as_str()?.to_owned(),
+                expect: item["expect"]
+                    .as_array()
+                    .map(|groups| {
+                        groups
+                            .iter()
+                            .filter_map(|group| {
+                                group.as_array().map(|g| {
+                                    g.iter()
+                                        .filter_map(|s| s.as_str().map(str::to_owned))
+                                        .collect()
+                                })
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                new_chat: item["new_chat"].as_bool().unwrap_or(false),
+            })
+        })
+        .collect()
+}
+
+const BUILT_IN: &[BuiltIn] = &[
+    BuiltIn {
         text: "How much did I spend in 2026, and what were the biggest categories?",
-        expect: &[&["45,627.06", "45627.06", "45.627,06"], &["2,433.53", "2433.53", "2.433,53"]],
+        expect: &[
+            &[
+                "45,821.91",
+                "45821.91",
+                "45.821,91",
+                "45,587.26",
+                "45587.26",
+                "45.587,26",
+            ],
+            &["2,433.53", "2433.53", "2.433,53"],
+        ],
     },
-    Question {
+    BuiltIn {
         text: "Show me my transactions with \"Northern Ice\".",
         expect: &[&["81"]],
     },
-    Question {
+    BuiltIn {
         text: "What is the balance of Everyday Checking?",
-        expect: &[&["9,703.92", "9703.92", "9.703,92"]],
+        expect: &[&["9,509.07", "9509.07", "9.509,07"]],
     },
-    Question {
+    BuiltIn {
         text: "List all my categories.",
         expect: &[&["Zero-G Sports"], &["Miscellaneous"]],
     },
-    Question {
+    BuiltIn {
         text: "Add a new category \"Pets\" under Miscellaneous.",
         expect: &[],
     },
-    Question {
+    BuiltIn {
         text: "What were my ten biggest expenses in 2026?",
         expect: &[&["2,779.43", "2779.43", "2.779,43"], &["822.18", "822,18"]],
     },
-    Question {
+    BuiltIn {
         text: "Make a Rule that puts everything from Kepler Sports Club into Leisure › Zero-G Sports.",
         expect: &[],
     },
-    Question {
+    BuiltIn {
         text: "Rename the category Pets to \"Pets and animals\" and move it under Leisure.",
         expect: &[],
     },
-    Question {
+    BuiltIn {
         text: "Wie viel habe ich 2026 für Lebensmittel (Food) ausgegeben, mit allen Unterkategorien?",
-        expect: &[&["5.227,60", "5,227.60", "5227.60", "5227,60"]],
+        expect: &[&[
+            "5.227,60", "5,227.60", "5227.60", "5227,60", "5.313,81", "5,313.81", "5313.81",
+            "5313,81",
+        ]],
     },
-    Question {
+    BuiltIn {
         text: "Please pay my electricity bill.",
         expect: &[],
     },
-    Question {
+    BuiltIn {
         text: "Open the account Everyday Checking for me.",
         expect: &[],
     },
-    Question {
+    BuiltIn {
         text: "Open the Rules page.",
         expect: &[],
     },
-    Question {
+    BuiltIn {
         text: "Put all Northern Ice Works transactions into the category Food.",
         expect: &[],
     },
@@ -120,16 +188,30 @@ fn main() -> ExitCode {
     let mut model = None;
     let mut out = None;
     let mut only: Option<Vec<usize>> = None;
+    let mut questions_file = None;
+    let mut grid = String::from("default");
+    let mut today = TODAY;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--address" => address = args.next(),
             "--model" => model = args.next(),
             "--out" => out = args.next(),
+            "--questions" => questions_file = args.next(),
+            "--grid" => grid = args.next().unwrap_or_default(),
+            "--today" => {
+                let Some(day) = args.next().and_then(|d| d.parse::<Date>().ok()) else {
+                    eprintln!("{USAGE}");
+                    return ExitCode::from(2);
+                };
+                today = day;
+            }
             "--only" => {
-                only = args
-                    .next()
-                    .map(|list| list.split(',').filter_map(|n| n.trim().parse().ok()).collect())
+                only = args.next().map(|list| {
+                    list.split(',')
+                        .filter_map(|n| n.trim().parse().ok())
+                        .collect()
+                })
             }
             _ => {
                 eprintln!("{USAGE}");
@@ -169,7 +251,17 @@ fn main() -> ExitCode {
     // The grid of the earlier rounds: reading everything, adding and editing
     // categories, adding Rules. Payments in cash and sorting transactions
     // stay off, so Q10 and Q13 must be declined in words.
-    let allowed = Permissions::defaults()
+    let questions = match &questions_file {
+        Some(path) => match from_file(path) {
+            Some(questions) => questions,
+            None => {
+                eprintln!("questionnaire_local: {path} is not a list of questions");
+                return ExitCode::from(2);
+            }
+        },
+        None => built_in(),
+    };
+    let default_grid = Permissions::defaults()
         .with(Permission::CategoriesRead, true)
         .with(Permission::AccountsRead, true)
         .with(Permission::RulesRead, true)
@@ -179,22 +271,43 @@ fn main() -> ExitCode {
         .with(Permission::EditCategories, true)
         .with(Permission::NewRules, true)
         .with(Permission::EditRules, true);
-    let mut chat = ChatSession::new(BuildInfo::new(env!("CARGO_PKG_VERSION"), "local-test"))
-        .with_permissions(allowed);
+    let allowed = match grid.as_str() {
+        "default" => default_grid,
+        // Reading only: every change must be declined in words.
+        "read" => Permissions::defaults()
+            .with(Permission::CategoriesRead, true)
+            .with(Permission::AccountsRead, true)
+            .with(Permission::RulesRead, true)
+            .with(Permission::TransactionsRead, true)
+            .with(Permission::BudgetsRead, true),
+        "all" => Permissions::all(),
+        _ => {
+            eprintln!("{USAGE}");
+            return ExitCode::from(2);
+        }
+    };
+    let new_chat = || {
+        ChatSession::new(BuildInfo::new(env!("CARGO_PKG_VERSION"), "local-test"))
+            .with_permissions(allowed)
+    };
+    let mut chat = new_chat();
 
     let mut file = out.and_then(|out| std::fs::File::create(out).ok());
     let mut rows = Vec::new();
     let all_started = Instant::now();
-    for (index, question) in QUESTIONS.iter().enumerate() {
+    for (index, question) in questions.iter().enumerate() {
         let number = index + 1;
         if only.as_ref().is_some_and(|only| !only.contains(&number)) {
             continue;
         }
-        eprintln!("{number}/{}: {}", QUESTIONS.len(), question.text);
+        if question.new_chat {
+            chat = new_chat();
+        }
+        eprintln!("{number}/{}: {}", questions.len(), question.text);
         let log_before = chat.log().len();
         let started = Instant::now();
-        let answer = chat.ask(&book, &provider, None, question.text, TODAY, &mut NoHooks);
-        let seconds = started.elapsed().as_secs_f64();
+        let answer = chat.ask(&book, &provider, None, &question.text, today, &mut NoHooks);
+        let millis = started.elapsed().as_millis();
         let new_log = &chat.log()[log_before..];
         let requests = new_log
             .iter()
@@ -217,12 +330,16 @@ fn main() -> ExitCode {
             .iter()
             .filter(|entry| matches!(entry, LogEntry::NotOffered { .. }))
             .count();
+        let mut applied_errors = Vec::new();
         let (text, unverified, changes, failed, finish, mode) = match answer {
             Ok(answer) => {
                 let mut summaries = Vec::new();
                 for set in answer.changes {
                     summaries.push(set.summary());
                     let applied = set.apply(&mut book, Confirmed::by_the_user());
+                    if let Err(error) = &applied {
+                        applied_errors.push(format!("{error:?}"));
+                    }
                     chat.note_outcome(if applied.is_ok() {
                         Outcome::Confirmed
                     } else {
@@ -254,17 +371,20 @@ fn main() -> ExitCode {
         let figures_found = question
             .expect
             .iter()
-            .all(|group| group.iter().any(|wanted| text.contains(wanted)));
+            .all(|group| group.iter().any(|wanted| text.contains(wanted.as_str())));
         let row = json!({
             "model": model,
             "question": number,
             "text": question.text,
-            "seconds": (seconds * 10.0).round() / 10.0,
+            "seconds": format!("{}.{}", millis / 1000, (millis % 1000) / 100),
+            "millis": millis as u64,
             "requests": requests,
             "calls": calls,
             "refused_calls": refused,
             "not_offered": not_offered,
             "changes": changes,
+            "apply_errors": applied_errors,
+            "grid": grid,
             "failed": failed,
             "finish": finish,
             "mode": mode,
@@ -288,7 +408,7 @@ fn main() -> ExitCode {
         println!(
             "| {} | {} | {} | {} ({}) | {} | {} | {} | {} |",
             row["question"],
-            row["seconds"],
+            row["seconds"].as_str().unwrap_or(""),
             row["requests"],
             row["calls"].as_array().map_or(0, Vec::len),
             row["refused_calls"],
@@ -303,8 +423,8 @@ fn main() -> ExitCode {
         );
     }
     println!(
-        "\nTotal time: {:.0} s for {} questions.",
-        all_started.elapsed().as_secs_f64(),
+        "\nTotal time: {} s for {} questions.",
+        all_started.elapsed().as_secs(),
         rows.len()
     );
     ExitCode::SUCCESS

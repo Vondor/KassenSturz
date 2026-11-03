@@ -65,4 +65,8 @@ For the maintainer; the steps and the reasons are in `docs/RELEASING.md` (D-579)
 
 **Starting fresh.** Delete the test folder.
 
-**Not in this step yet.** Saved PINs and real bank logins in test mode (bank connections are a human gate, so they come in a pull request of their own).
+**Bank in test mode** (D-547).
+
+7. Start with `KASSENSTURZ_TEST=1` only (no fake bank variable). *Bank connections* show the made-up bank, marked as such, and no real bank can be set up.
+8. In *Settings*, choose KeePassXC as the place for saved PINs, then save a PIN for the made-up bank. KeePassXC is not asked and gets no entry; after a restart in test mode the PIN is asked again.
+9. With `KASSENSTURZ_FAKE_BANK=keychain` the PIN goes to the system keychain under `io.github.vondor.KassenSturz.FakeBank`, as before (D-159): that variable asks for the keychain by name.

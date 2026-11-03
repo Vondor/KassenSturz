@@ -313,27 +313,42 @@ impl PinSession {
     /// are deleted there and never copied over: the user types each again
     /// at the next connection and chooses to save it in the new place. A
     /// PIN remembered because it was saved stays remembered until the app
-    /// closes. The store is replaced even when the old place can't be
-    /// reached; the first error then says so, and the PINs it holds stay
-    /// there until the user removes them in that place's own manager.
+    /// closes. When a PIN can't be deleted from the old place, e.g. a
+    /// locked keychain, the store is not replaced and the first error says
+    /// why, so a PIN never stays behind in a place the user left (D-575).
     pub fn replace_store(
         &mut self,
         store: Box<dyn PinStore>,
         logins: &[LoginId],
     ) -> Result<(), BankError> {
+        self.remove_saved(logins)?;
+        self.use_store(store);
+        Ok(())
+    }
+
+    /// Deletes the PINs of `logins` from the place they are saved in now,
+    /// the first step of [`PinSession::replace_store`]. Tries every login;
+    /// the first error is returned and the store stays as it is.
+    pub fn remove_saved(&mut self, logins: &[LoginId]) -> Result<(), BankError> {
         let mut result = Ok(());
         for login in logins {
             if let Err(error) = self.store.delete(login) {
                 result = result.and(Err(error));
             }
         }
+        result
+    }
+
+    /// Saves PINs in `store` from now on, after [`PinSession::remove_saved`]
+    /// emptied the old place: the second step of
+    /// [`PinSession::replace_store`].
+    pub fn use_store(&mut self, store: Box<dyn PinStore>) {
         self.store = store;
         for (_, mode) in self.remembered.values_mut() {
             if *mode == PinMode::SaveInKeychain {
                 *mode = PinMode::RememberUntilClose;
             }
         }
-        result
     }
 
     /// `mode`, or remembering until the app closes when it asks to save
@@ -624,7 +639,9 @@ mod tests {
     }
 
     #[test]
-    fn an_old_place_out_of_reach_is_still_left_and_says_so() {
+    fn an_old_place_out_of_reach_refuses_the_switch() {
+        // M6-B135, D-575: a PIN that can't be deleted from the old place
+        // doesn't count as moved; the old place stays chosen.
         let old = Shared::default();
         let mut session = PinSession::new(Box::new(old.clone()));
         session
@@ -635,10 +652,17 @@ mod tests {
         let result = session.replace_store(Box::new(NoPinStore), &[login()]);
 
         assert_eq!(result, Err(BankError::Keychain));
-        assert!(!session.saves());
-        assert_eq!(session.is_saved(&login()), Ok(false));
+        assert!(session.saves(), "still the old place");
         old.0.lock().expect("store").unavailable = false;
         assert_eq!(old.0.lock().expect("store").len(), 1);
+        assert_eq!(session.is_saved(&login()), Ok(true));
+
+        // Once the old place can be reached, the switch goes through.
+        session
+            .replace_store(Box::new(NoPinStore), &[login()])
+            .expect("replaced");
+        assert!(!session.saves());
+        assert!(old.0.lock().expect("store").is_empty());
     }
 
     #[test]

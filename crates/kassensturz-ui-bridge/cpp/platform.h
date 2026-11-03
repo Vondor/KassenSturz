@@ -7,11 +7,27 @@
 #pragma once
 
 #include <QtCore/QString>
+#include <QtCore/QStringList>
 
 namespace kassensturz::platform
 {
 // The folder for apps' data, e.g. ~/.local/share; empty if Qt found none.
 QString dataFolder();
+
+// The app's own executable file.
+QString appFilePath();
+
+// Starts `program` with `arguments` on its own, outliving this process. An
+// empty `environment` ("NAME=value" entries) keeps this process's; otherwise
+// it is the new process's whole environment. Returns whether it started.
+bool startDetached(const QString &program, const QStringList &arguments, const QStringList &environment);
+
+// Ends the event loop, so the app ends.
+void quitApp();
+
+// Switches QStandardPaths to Qt's test locations, apart from the user's real
+// ones: the test profile on Windows (M7a.9).
+void useTestLocations();
 
 QString computerName();
 

@@ -40,6 +40,9 @@ pub enum FromFileError {
     /// Reports can come only from a KMyMoney book, and the file isn't one
     /// (M6d.6b).
     NotKmyMoney,
+    /// The app runs in the test profile, and the file is outside its test
+    /// folder: a test never reads the user's own books (Q-399).
+    OutsideTest,
     /// The step meant isn't there (anymore): no file read, or an answer for
     /// a currency the file doesn't need one for.
     NoSuchEntry,
@@ -148,6 +151,7 @@ pub fn error_text_in(
         FromFileError::IsABook => ErrorText::plain("input.is-a-book"),
         FromFileError::IsAStatement => ErrorText::plain("input.is-a-statement"),
         FromFileError::NotKmyMoney => ErrorText::plain("input.not-kmymoney"),
+        FromFileError::OutsideTest => ErrorText::plain("input.outside-test"),
         FromFileError::NoSuchEntry => ErrorText::plain("input.no-such-entry"),
         FromFileError::Replacement {
             currency,
@@ -383,6 +387,9 @@ const STATEMENTS: &[&dyn Importer] = &[&Camt053, &Mt940, &Ofx];
 /// export. A KassenSturz book and a bank's statement are told apart, so the
 /// message can say where they belong.
 pub fn read(path: &Path) -> Result<Prepared, FromFileError> {
+    if !crate::test_profile::allows(path) {
+        return Err(FromFileError::OutsideTest);
+    }
     let name = path.file_name().map(|name| name.to_string_lossy());
     let file_name = name.as_deref().unwrap_or_default().to_owned();
     let stem = path
@@ -472,6 +479,9 @@ fn read_kmymoney_with(
 /// [`FromFileError::IsABook`], any other file that isn't KMyMoney's
 /// [`FromFileError::NotKmyMoney`].
 pub fn read_kmymoney(path: &Path) -> Result<Box<ImportedBook>, FromFileError> {
+    if !crate::test_profile::allows(path) {
+        return Err(FromFileError::OutsideTest);
+    }
     let extension = path
         .extension()
         .map(|extension| extension.to_string_lossy().to_ascii_lowercase());

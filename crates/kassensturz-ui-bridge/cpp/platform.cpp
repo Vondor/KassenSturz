@@ -3,7 +3,10 @@
 
 #include "kassensturz-ui-bridge/cpp/platform.h"
 
+#include <QtCore/QCoreApplication>
 #include <QtCore/QLibrary>
+#include <QtCore/QProcess>
+#include <QtCore/QProcessEnvironment>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QStorageInfo>
 #include <QtCore/QSysInfo>
@@ -15,6 +18,39 @@ namespace kassensturz::platform
 QString dataFolder()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+}
+
+QString appFilePath()
+{
+    return QCoreApplication::applicationFilePath();
+}
+
+bool startDetached(const QString &program, const QStringList &arguments, const QStringList &environment)
+{
+    QProcess process;
+    process.setProgram(program);
+    process.setArguments(arguments);
+    if (!environment.isEmpty()) {
+        QProcessEnvironment whole;
+        for (const QString &entry : environment) {
+            const qsizetype equals = entry.indexOf(QLatin1Char('='));
+            if (equals > 0) {
+                whole.insert(entry.left(equals), entry.mid(equals + 1));
+            }
+        }
+        process.setProcessEnvironment(whole);
+    }
+    return process.startDetached();
+}
+
+void quitApp()
+{
+    QCoreApplication::quit();
+}
+
+void useTestLocations()
+{
+    QStandardPaths::setTestModeEnabled(true);
 }
 
 QString computerName()

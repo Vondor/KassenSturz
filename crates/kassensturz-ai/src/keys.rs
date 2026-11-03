@@ -109,6 +109,25 @@ impl ProviderKeys {
         }
     }
 
+    /// Deletes the key saved for `address` from the place it is saved in
+    /// now, because the user chose another place (D-163, D-575): never
+    /// copied over, but remembered until KassenSturz closes, as a PIN is.
+    /// When it can't be read or deleted, e.g. a locked keychain, the error
+    /// says why and the key stays where it is, so the switch can be
+    /// refused. [`ProviderKeys::use_store`] then moves to the new place.
+    pub fn remove_saved(&mut self, address: &ProviderAddress) -> Result<(), AiError> {
+        let Some(store) = &self.store else {
+            return Ok(());
+        };
+        let key = Self::key(address)?;
+        let saved = store.read(&key).map_err(keychain_error)?;
+        store.delete(&key).map_err(keychain_error)?;
+        if let Some(saved) = saved {
+            self.remembered.entry(address.origin()).or_insert(saved);
+        }
+        Ok(())
+    }
+
     /// Forgets the key for `address`, in memory and where it was saved.
     pub fn forget(&mut self, address: &ProviderAddress) -> Result<(), AiError> {
         self.remembered.remove(&address.origin());
@@ -157,6 +176,38 @@ mod tests {
 
     fn secret(text: &str) -> Secret {
         Secret::new(text.to_owned())
+    }
+
+    #[test]
+    fn leaving_a_place_deletes_the_saved_key_there_and_remembers_it() {
+        // M6-B134, D-575: switching the Password storage takes the AI key
+        // out of the old place, like the PINs, and keeps it until close.
+        let old = Arc::new(MemoryKeychain::new());
+        let new = Arc::new(MemoryKeychain::new());
+        let mut keys = ProviderKeys::new(Some(Box::new(Shared(old.clone()))));
+        let cloud = address("https://api.example.com/v1");
+        keys.keep(&cloud, KeyUse::Saved, secret("test-key-b134"))
+            .unwrap();
+
+        old.fail_with(Some(KeychainError::Unavailable));
+        assert_eq!(keys.remove_saved(&cloud), Err(AiError::Keychain));
+        old.fail_with(None);
+        assert_eq!(old.len(), 1, "a locked place keeps the key, and says so");
+
+        keys.remove_saved(&cloud).unwrap();
+        assert!(old.is_empty());
+        keys.use_store(Some(Box::new(Shared(new.clone()))));
+        assert!(new.is_empty(), "never copied");
+        assert_eq!(
+            keys.get(&cloud, KeyUse::Saved).unwrap(),
+            Some(secret("test-key-b134")),
+            "remembered until KassenSturz closes"
+        );
+        // Nothing saved, or no place to save in: nothing to do.
+        keys.remove_saved(&address("https://other.example.com/v1"))
+            .unwrap();
+        let mut nowhere = ProviderKeys::new(None);
+        nowhere.remove_saved(&cloud).unwrap();
     }
 
     #[test]

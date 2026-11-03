@@ -49,6 +49,8 @@ Kirigami.Page {
             return i18nContext.i18nc("@title", "KassenSturz can't open a book from there");
         case "book.no-app-folder":
             return i18nContext.i18nc("@title", "KassenSturz has no folder for your book");
+        case "book.outside-test":
+            return i18nContext.i18nc("@title", "The test mode only opens books in its own folder");
         case "store.already-exists":
             return i18nContext.i18nc("@title", "There is a file with this name already");
         default:
@@ -71,6 +73,8 @@ Kirigami.Page {
             return i18nContext.i18nc("@info %1 is where the book was", "It was %1. It may have been moved or renamed, or it is on a drive that isn't connected. Connect the drive and try again, or open the book where it is now. Nothing was changed.", page.where);
         case "book.sandboxed":
             return i18nContext.i18nc("@info", "While a book is open, KassenSturz keeps a small file next to it, and this version of KassenSturz isn't allowed to make files in that folder. Choose a book in KassenSturz's own folder instead.");
+        case "book.outside-test":
+            return i18nContext.i18nc("@info", "KassenSturz runs in test mode, which never opens or changes your own books. Choose a book in the test folder, or try an example book. The book wasn't touched.");
         case "book.no-app-folder":
             return i18nContext.i18nc("@info", "Your system doesn't tell KassenSturz where apps keep their data. Open a book or start a new one in a folder you choose.");
         case "store.already-exists":

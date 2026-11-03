@@ -18,7 +18,7 @@ Open a **terminal** with Ctrl+Alt+T; paste each line (Ctrl+Shift+V) and press En
    Confirm with `y`; the download takes a few minutes.
 4. **Install:** `cd ~/Downloads` then `flatpak install --user KassenSturz.flatpak`.
 5. **Start in developer mode, not from the menu:** `flatpak run --env=KASSENSTURZ_DEBUG_LOG=1 io.github.vondor.KassenSturz`. "Entwicklermodus" should show in the window title.
-6. **First start:** choose an example book if offered (recommended: *Suburban Family*), otherwise create an account with an **invented** balance. Done when you see the **overview**; note the minutes (card 1).
+6. **First start:** choose "Try an example book" (German: "Ein Beispielbuch ausprobieren …", recommended: Suburban Family), otherwise create an account with an **invented** balance. Done when you see the **overview**; note the minutes (card 1).
 
 **Update over the old version (card 6):** `flatpak install --user --reinstall KassenSturz.flatpak`. **Remove:** `flatpak uninstall --user io.github.vondor.KassenSturz`.
 

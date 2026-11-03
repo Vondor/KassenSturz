@@ -1,6 +1,6 @@
 # Releasing a pre-release build
 
-How a build for testers is made and published (D-551, D-579). Until the maintainer declares 1.0 every build is a **pre-release** numbered `0.YYMMDD.N` (D-152, D-226). Only the maintainer tags and publishes (AGENTS.md section 3.2); the workflow never creates a tag, and what it makes stays a draft until he publishes it.
+How a build for testers is made and published (D-551, D-579). Until the maintainer declares 1.0 every build is a **pre-release** numbered `0.YYMMDD.N` (D-152, D-226). Only the maintainer tags and publishes (AGENTS.md section 3.2); the workflow never creates a tag, and the tag he pushes is his decision to publish: the release appears on the public Releases page when the run ends (D-585, no draft step).
 
 ## The tag
 
@@ -25,15 +25,14 @@ No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the App
 3. **Wait for the run.** The **Release** workflow (Actions tab, about 15 minutes with a warm cache) has three jobs:
    - *Build the Flatpak bundle* builds `KassenSturz-<number>-x86_64.flatpak` from the commit, with the number and commit shown in Settings → About.
    - *Install the bundle as the Ubuntu sheet says* takes that file on a fresh Ubuntu machine and runs what `docs/testing/INSTALL_UBUNTU.de.md` tells a tester: install Flatpak, add the catalog and the KDE runtime for the user, install the file, start it with the developer mode and check the debug log was written, uninstall it. (The update over an older build, card 6, can't be checked here: it needs two builds.) Nothing is released if this fails.
-   - *Draft pre-release on GitHub* creates the release `KassenSturz <number> (pre-release)` as a **draft** with the files attached and a text that lists the merged changes since the previous tag.
-4. **Look at the draft.** On the repository's Releases page open the draft: the file name, the text, and that *Set as a pre-release* is ticked.
-5. **Publish it.** Press *Publish release*. From then on the file can be downloaded without a GitHub account, and the install sheets' step 1 ("the newest entry marked Pre-release") is right.
-6. **Tell the facilitator** the exact file name (the sheets say the facilitator names it before the session).
+   - *Pre-release on GitHub* creates the release `KassenSturz <number> (pre-release)`, marked as a pre-release, with the files attached and a text that lists the merged changes since the previous tag.
+4. **Look at the release.** On the repository's Releases page the new entry is marked *Pre-release* and can be downloaded without a GitHub account, so the install sheets' step 1 ("the newest entry marked Pre-release") is right. Check the file name and the text.
+5. **Tell the facilitator** the exact file name (the sheets say the facilitator names it before the session).
 
 ## If something is wrong
 
 - The run is red: read the failing job. If the fault is in the code or the workflow, fix it on `main` first. A tag that did not produce a release is deleted and the number of the fixed commit is tagged instead: `git push --delete origin "$tag" && git tag -d "$tag"`.
-- A published release has a wrong file: delete the release on GitHub (not only the draft), delete the tag as above, and tag again. Testers who already downloaded the file are told through the facilitator.
+- A published release has a wrong file: delete the release on GitHub, delete the tag as above, and tag again. Testers who already downloaded the file are told through the facilitator.
 - The same tag may be re-run (re-run the workflow in the Actions tab): files of an existing release are replaced and its text is kept.
 
 ## What else goes in a release (slots in `release.yml`)
@@ -45,7 +44,7 @@ Both are marked `SLOT` in the workflow file.
 
 ## Trying the workflow without a tag
 
-A pull request that changes `.github/workflows/release.yml` or `tools/build-version.sh` runs the **Release** workflow's build and install check (not the draft), so a change to the release path is proven before a tag depends on it. The caches are read from `main`: the builder's folder has the same key as the Flatpak job of `ci.yml` (`flatpak-builder-state-x86_64-<hash of packaging/flatpak/**>`), which only `main` saves.
+A pull request that changes `.github/workflows/release.yml` or `tools/build-version.sh` runs the **Release** workflow's build and install check (not the release), so a change to the release path is proven before a tag depends on it. The caches are read from `main`: the builder's folder has the same key as the Flatpak job of `ci.yml` (`flatpak-builder-state-x86_64-<hash of packaging/flatpak/**>`), which only `main` saves.
 
 ## What a tester's file is not
 

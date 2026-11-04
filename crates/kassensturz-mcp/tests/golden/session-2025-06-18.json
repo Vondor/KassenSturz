@@ -117,6 +117,42 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
+            "description": "Who the user paid and who paid the user in a period, per currency, largest first: \"paid\" with what went to each payee, \"received\" with what came from each, and how many transactions. Each payee's figure is net, so a refund from a shop lowers what was paid to it. Moves between the user's own accounts and starting balances are left out. Use it for questions such as \"whom did I pay the most\" instead of adding up search results yourself.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "from": {
+                  "description": "First day, YYYY-MM-DD.",
+                  "format": "date",
+                  "type": "string"
+                },
+                "limit": {
+                  "description": "Most payees per side and currency. Default 10.",
+                  "maximum": 50,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "to": {
+                  "description": "Last day, YYYY-MM-DD.",
+                  "format": "date",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "type": "object"
+            },
+            "name": "payee_totals"
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
             "description": "Finds entries in the user's accounts, newest first unless \"sort\" says otherwise, one row per account an entry is in, with the amount as seen from that account (money in positive, money out negative), the payee, memo and bank text, and the category, the other account of a transfer, or \"unsorted\": true. Returns how many matched in all, at most \"limit\" rows and, when rows were cut off, \"rows_left_out\". All filters are optional and combine. With \"unsorted_only\" only entries not sorted into a category yet are found. \"min_amount\" and \"max_amount\" keep entries by their size, money in and out alike. \"sort\" \"largest_out\" lists the most money out first (the biggest expenses), \"largest_in\" the most money in first; rows of different currencies are grouped by currency. For the biggest expenses use \"sort\" \"largest_out\" with \"skip_transfers\". Sorting and filtering are done here, so use them instead of sorting rows yourself.",
             "inputSchema": {
               "additionalProperties": false,

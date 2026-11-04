@@ -41,6 +41,9 @@ impl Function {
         match self.name {
             "list_accounts" | "account_balance" => &[Row::Accounts],
             "category_totals" => &[Row::Categories, Row::Transactions],
+            // Whether a part is spending or a move between own accounts
+            // comes from the account list, not from the user's categories.
+            "payee_totals" => &[Row::Transactions],
             "search_transactions" => &[Row::Transactions],
             "list_categories" => &[Row::Categories],
             "list_rules" => &[Row::Rules],
@@ -95,6 +98,16 @@ pub const FUNCTIONS: &[Function] = &[
             \"amount_with_subcategories\": that category and everything below it; for \
             \"how much on Food\" use that figure, never the sum of the rows.",
         parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."}},"required":["from","to"],"additionalProperties":false}"#,
+    },
+    Function {
+        name: "payee_totals",
+        description: "Who the user paid and who paid the user in a period, per currency, \
+            largest first: \"paid\" with what went to each payee, \"received\" with what \
+            came from each, and how many transactions. Each payee's figure is net, so a refund \
+            from a shop lowers what was paid to it. Moves between the user's own accounts and \
+            starting balances are left out. Use it for questions such as \"whom did I pay the \
+            most\" instead of adding up search results yourself.",
+        parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most payees per side and currency. Default 10."}},"required":["from","to"],"additionalProperties":false}"#,
     },
     Function {
         name: "search_transactions",
@@ -237,6 +250,23 @@ fn call_with(
                 return Err(ToolError::BadPeriod);
             }
             read::category_totals(book, &mut w, &names, from, to, read::MAX_TOTALS)?
+        }
+        "payee_totals" => {
+            let names = Names::read(book)?;
+            let from = args
+                .date("from")?
+                .ok_or(ToolError::BadArgument { argument: "from" })?;
+            let to = args
+                .date("to")?
+                .ok_or(ToolError::BadArgument { argument: "to" })?;
+            if to < from {
+                return Err(ToolError::BadPeriod);
+            }
+            let limit = match args.get("limit") {
+                None => read::DEFAULT_PAYEES,
+                Some(_) => args.limit()?.min(read::MAX_PAYEES),
+            };
+            read::payee_totals(book, &mut w, &names, from, to, limit)?
         }
         "search_transactions" => {
             let names = Names::read(book)?;

@@ -387,6 +387,116 @@ pub(crate) fn category_totals(
     Ok(Value::Object(result))
 }
 
+/// The most payees each side of `payee_totals` lists, and how many it
+/// lists when the model doesn't say.
+pub(crate) const MAX_PAYEES: usize = 50;
+pub(crate) const DEFAULT_PAYEES: usize = 10;
+
+/// One row of `payee_totals`: the payee (`None` for entries without one),
+/// the amount and the number of transactions.
+type PayeeRow = (Option<String>, Money, usize);
+
+/// `payee_totals`: per currency, who the user paid and who paid the user
+/// from `from` to `to`, net per payee, largest first (Q-414, D-597), so a
+/// question such as "whom did I pay most" is answered by code, not by the
+/// model's own arithmetic. Counted as `category_totals` counts: money moved
+/// between the user's own accounts and starting balances are left out, and
+/// each part counts in its transaction's currency. An entry without a payee
+/// counts under `no_payee`.
+pub(crate) fn payee_totals(
+    book: &Book,
+    w: &mut Writer<'_>,
+    names: &Names,
+    from: Date,
+    to: Date,
+    limit: usize,
+) -> Result<Value, ToolError> {
+    let overflow = |_| StoreError::AmountOverflow;
+    // (currency, payee) -> (money into the user's accounts, net; entries).
+    let mut sums: BTreeMap<(String, Option<String>), (Money, usize)> = BTreeMap::new();
+    for transaction in book.transactions_between(from, to)? {
+        let currency = transaction.currency();
+        let mut own = Vec::new();
+        let mut flows = false;
+        for split in transaction.splits() {
+            match split.account {
+                None => flows = true,
+                Some(id) => {
+                    let kind = names.account(id)?.kind;
+                    if kind.is_account() {
+                        own.push(split);
+                    } else if kind.is_category() {
+                        flows = true;
+                    }
+                }
+            }
+        }
+        // A move between own accounts, or a starting balance.
+        if own.len() != 1 || !flows {
+            continue;
+        }
+        let part = own[0];
+        let payee = transaction
+            .payee_of(part)
+            .or_else(|| {
+                part.imported
+                    .as_ref()
+                    .and_then(|imported| imported.other_party_name.as_deref())
+            })
+            .map(str::trim)
+            .filter(|payee| !payee.is_empty())
+            .map(str::to_owned);
+        let (sum, count) = sums
+            .entry((currency.as_str().to_owned(), payee))
+            .or_insert_with(|| (Money::zero(currency), 0));
+        *sum = sum.checked_add(part.amount).map_err(overflow)?;
+        *count += 1;
+    }
+    let mut per_currency: BTreeMap<String, (Vec<PayeeRow>, Vec<PayeeRow>)> = BTreeMap::new();
+    for ((currency, payee), (net, count)) in sums {
+        let (paid, received) = per_currency.entry(currency).or_default();
+        if net.is_negative() {
+            paid.push((payee, net.checked_neg().map_err(overflow)?, count));
+        } else if !net.is_zero() {
+            received.push((payee, net, count));
+        }
+    }
+    let mut currencies = Vec::new();
+    for (currency, (mut paid, mut received)) in per_currency {
+        let mut entry = Map::new();
+        entry.insert("currency".into(), Value::from(currency));
+        for (key, side) in [("paid", &mut paid), ("received", &mut received)] {
+            // Largest first; a tie keeps the order of the names.
+            side.sort_by_key(|(_, total, _)| core::cmp::Reverse(total.minor_units()));
+            let mut rows = Vec::new();
+            for (payee, total, count) in side.iter().take(limit) {
+                let mut row = Map::new();
+                match payee {
+                    Some(payee) => {
+                        row.insert("payee".into(), w.text(payee));
+                    }
+                    None => {
+                        row.insert("no_payee".into(), Value::Bool(true));
+                    }
+                }
+                row.insert("amount".into(), w.amount(*total)?);
+                row.insert("transactions".into(), w.count(*count));
+                rows.push(Value::Object(row));
+            }
+            entry.insert(key.into(), Value::Array(rows));
+            if side.len() > limit {
+                entry.insert(format!("{key}_left_out"), w.count(side.len() - limit));
+            }
+        }
+        currencies.push(Value::Object(entry));
+    }
+    let mut result = Map::new();
+    result.insert("from".into(), Value::String(from.to_string()));
+    result.insert("to".into(), Value::String(to.to_string()));
+    result.insert("currencies".into(), Value::Array(currencies));
+    Ok(Value::Object(result))
+}
+
 /// What `search_transactions` looks for.
 pub(crate) struct Search {
     /// Lowercase text to find in a payee, memo or bank text.

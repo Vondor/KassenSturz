@@ -69,7 +69,7 @@ fn each_row_opens_only_the_functions_that_read_it() {
     );
     assert_eq!(
         names(Permissions::NONE.with(Permission::TransactionsRead, true)),
-        ["search_transactions"]
+        ["payee_totals", "search_transactions"]
     );
     // Totals per category read both rows.
     let both = Permissions::NONE

@@ -25,7 +25,7 @@ ColumnLayout {
     required property AiSettings settings
     // What the panel keeps for this message: its `kind` (`question`,
     // `answer`, `error`, `changes`, `changesDone`, `chart`, `chartFailed`,
-    // `page` or `issue`) and the fields
+    // `noChange`, `page` or `issue`) and the fields
     // of it.
     required property var message
 
@@ -217,6 +217,17 @@ ColumnLayout {
         onChangeClicked: (title, component, period) => item.chartChangeClicked(title, component, period)
         onAddToOverviewClicked: (component, period) => item.chartAddToOverviewClicked(component, period)
         onHandled: outcome => item.chartHandled(outcome)
+    }
+
+    // The AI's last attempt at a change was refused and nothing waits:
+    // KassenSturz says so itself, whatever the answer claims (D-595).
+    Controls.Label {
+        Layout.fillWidth: true
+        visible: item.message.kind === "noChange"
+        wrapMode: Text.Wrap
+        textFormat: Text.PlainText
+        font.italic: true
+        text: item.i18nContext.i18nc("@info said by KassenSturz under an AI answer", "No change was prepared. Nothing waits for your review.")
     }
 
     // The AI could not prepare the chart, even after two corrections: said

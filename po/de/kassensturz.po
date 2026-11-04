@@ -1672,6 +1672,13 @@ msgctxt "@action:button"
 msgid "Read and confirm…"
 msgstr "Lesen und bestätigen …"
 
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:224
+#, kde-format
+msgctxt "@info said by KassenSturz under an AI answer"
+msgid "No change was prepared. Nothing waits for your review."
+msgstr ""
+"Es wurde keine Änderung vorbereitet. Nichts wartet auf Ihre Prüfung."
+
 #: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:235
 #, kde-format
 msgctxt "@info"
@@ -2204,11 +2211,11 @@ msgctxt "@info"
 msgid ""
 "The model's context, its working memory, is too small for this question. In "
 "the program that runs the model, load it again with a larger context length "
-"(8192 or more; 16384 is better), or ask about less at a time."
+"(16384 or more; 32768 is better), or ask about less at a time."
 msgstr ""
 "Der Kontext des Modells, also sein Arbeitsgedächtnis, ist für diese Frage zu "
 "klein. Laden Sie das Modell in dem Programm, das es ausführt, mit einer "
-"größeren Kontextlänge neu (8192 oder mehr, besser 16384), oder fragen Sie "
+"größeren Kontextlänge neu (16384 oder mehr, besser 32768), oder fragen Sie "
 "weniger auf einmal."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:88
@@ -2298,6 +2305,29 @@ msgstr ""
 "Fragen Sie noch einmal. Wenn das wieder passiert, prüfen Sie im Programm, "
 "das das Modell ausführt, ob die Antwort nur in seinem Nachdenken steht, oder "
 "versuchen Sie ein anderes Modell."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:104
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The AI took too long for this question in all, so KassenSturz stopped "
+"waiting. Ask again, perhaps about less at a time, or use a smaller or faster "
+"model."
+msgstr ""
+"Die KI hat für diese Frage insgesamt zu lange gebraucht, deshalb hat "
+"KassenSturz aufgehört zu warten. Fragen Sie noch einmal, am besten nach "
+"weniger auf einmal, oder nutzen Sie ein kleineres oder schnelleres Modell."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:106
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The model thought or wrote for too long without finishing its answer, so it "
+"was stopped. Ask again, perhaps about less at a time, or try another model."
+msgstr ""
+"Das Modell hat zu lange nachgedacht oder geschrieben, ohne seine Antwort "
+"fertigzustellen, deshalb wurde es angehalten. Fragen Sie noch einmal, am "
+"besten nach weniger auf einmal, oder versuchen Sie ein anderes Modell."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:102
 #, kde-format
@@ -3016,11 +3046,11 @@ msgctxt "@info %1 is a number of tokens"
 msgid ""
 "The provider says this model reads only %1 tokens at once, which is too "
 "little for the chat. In the program that runs the model, load it again with "
-"a context length of 8192 or more (16384 is better)."
+"a context length of 16384 or more (32768 is better)."
 msgstr ""
 "Der Anbieter gibt an, dass dieses Modell nur %1 Token auf einmal liest. Das "
 "ist für den Chat zu wenig. Laden Sie das Modell im Programm, das es "
-"ausführt, mit einer Kontextlänge von 8192 oder mehr neu (16384 ist besser)."
+"ausführt, mit einer Kontextlänge von 16384 oder mehr neu (32768 ist besser)."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:441
 #, kde-format
@@ -3035,12 +3065,12 @@ msgctxt "@info"
 msgid ""
 "How much this model can read at once is not known: the provider's list does "
 "not say. If the chat says its working memory is too small, load the model "
-"with a context length of 8192 or more."
+"with a context length of 16384 or more (32768 is better)."
 msgstr ""
 "Wie viel dieses Modell auf einmal lesen kann, ist nicht bekannt: Die Liste "
 "des Anbieters sagt es nicht. Wenn der Chat meldet, dass sein "
 "Arbeitsgedächtnis zu klein ist, laden Sie das Modell mit einer Kontextlänge "
-"von 8192 oder mehr."
+"von 16384 oder mehr (besser 32768)."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:456
 #, kde-format

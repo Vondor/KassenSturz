@@ -67,7 +67,7 @@ pub use consent::{ConsentRecord, STATEMENT, STATEMENT_VERSION, SentData, consent
 pub use error::AiError;
 pub use http::Limits;
 pub use keys::ProviderKeys;
-pub use openai::{MAX_CALLS, MAX_DEPTH};
+pub use openai::{MAX_ANSWER_TOKENS, MAX_CALLS, MAX_DEPTH};
 pub use request::{MAX_REQUEST_BYTES, PreparedRequest, REDACTED};
 pub use scripted::{Respond, SCRIPTED_ADDRESS, SCRIPTED_MODEL, ScriptedProvider};
 
@@ -108,6 +108,12 @@ pub trait Provider {
     fn last_reply_text(&self) -> Option<String> {
         None
     }
+
+    /// How long one question may take in all its requests together, or
+    /// `None` for no limit beyond each request's own (M6-B172, D-595).
+    fn question_limit(&self) -> Option<std::time::Duration> {
+        None
+    }
 }
 
 impl Provider for AiClient {
@@ -135,7 +141,21 @@ impl Provider for AiClient {
     fn last_reply_text(&self) -> Option<String> {
         self.last_reply.lock().ok().and_then(|reply| reply.clone())
     }
+
+    /// Twice the time one request may take, unless the user chose to keep
+    /// waiting for slow answers (D-246): then only Stop ends the wait.
+    fn question_limit(&self) -> Option<std::time::Duration> {
+        match self.config.read().slow_answer() {
+            SlowAnswer::Timeout => Some(self.limits.total.saturating_mul(QUESTION_REQUESTS)),
+            SlowAnswer::Warn => None,
+        }
+    }
 }
+
+/// How many full request times one question may take with the default
+/// "stop waiting" setting: a question takes two or three requests, each a
+/// few seconds to a minute or two on a local model (D-595).
+const QUESTION_REQUESTS: u32 = 2;
 
 /// How often a call that can be stopped looks at the stop button.
 const STOP_POLL: std::time::Duration = std::time::Duration::from_millis(200);

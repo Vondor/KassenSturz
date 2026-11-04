@@ -83,7 +83,7 @@ ColumnLayout {
         case "ai.rate-limited":
             return i18nContext.i18nc("@info", "The provider asks you to wait before the next request. Try again in a little while.");
         case "ai.context-too-small":
-            return i18nContext.i18nc("@info", "The model's context, its working memory, is too small for this question. In the program that runs the model, load it again with a larger context length (8192 or more; 16384 is better), or ask about less at a time.");
+            return i18nContext.i18nc("@info", "The model's context, its working memory, is too small for this question. In the program that runs the model, load it again with a larger context length (16384 or more; 32768 is better), or ask about less at a time.");
         case "ai.provider-failed":
             return i18nContext.i18nc("@info %1 is a number", "The provider answered with an error (HTTP %1). Try again later. If it keeps happening, check the provider's settings and the key: some providers report a wrong key this way.", result.status);
         case "ai.reply-too-large":
@@ -100,6 +100,10 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "The model wrote a function call as plain text instead of making the call, so nothing was done. Ask again, or try another model: this one doesn't work well with KassenSturz's functions.");
         case "ai-chat.empty-answer":
             return i18nContext.i18nc("@info", "The model answered with nothing, also when asked once more. Ask again. If it keeps happening, check in the program that runs the model that the answer isn't only in its thinking, or try another model.");
+        case "ai-chat.too-slow":
+            return i18nContext.i18nc("@info", "The AI took too long for this question in all, so KassenSturz stopped waiting. Ask again, perhaps about less at a time, or use a smaller or faster model.");
+        case "ai-chat.answer-too-long":
+            return i18nContext.i18nc("@info", "The model thought or wrote for too long without finishing its answer, so it was stopped. Ask again, perhaps about less at a time, or try another model.");
         case "ai-chat.book-unreadable":
             return i18nContext.i18nc("@info", "Your book couldn't be read to answer the question. Make sure the book is still where it was, then ask again.");
         case "ai-changes.out-of-date":

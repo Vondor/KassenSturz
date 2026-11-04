@@ -639,7 +639,10 @@ fn the_function_test_sends_the_fixed_request_and_nothing_else() {
     // The body is the one the screen shows beforehand, byte for byte.
     let body = String::from_utf8_lossy(&sent.raw);
     assert!(
-        body.ends_with(&kassensturz_ai::probe_request_body("test-model")),
+        body.ends_with(&kassensturz_ai::probe_request_body(
+            "test-model",
+            kassensturz_ai::Place::ThisComputer
+        )),
         "the screen's preview is what went out"
     );
     // The key is a header, never in the body; nothing of a book is in it.

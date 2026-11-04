@@ -22,7 +22,7 @@ BIN=target/release/examples/questionnaire_local
 PROXY=tools/local-measure/qwen-proxy.py
 PORT=1235
 mkdir -p "$OUT"
-PHASES=${*:-S1 S2 S3 S4}
+PHASES=${*:-S1 S2 S3 S4}  # also R: short re-measure
 [ -n "${MODELS:-}" ] || MODELS=$($LMS ls 2>/dev/null | grep -io '[a-z0-9._/-]*qwen[a-z0-9._/-]*' | sort -u | tr '\n' ' ')
 echo "models: $MODELS" | tee -a "$OUT/stress.log"
 
@@ -66,6 +66,13 @@ for m in $MODELS; do
                 ask "$m" core13 "$mt-S1-$ctx-think$think"
             done
         done;;
+    esac
+    case " $PHASES " in *" R "*)
+        # R: short re-measure after fixes: core 13 once at 32k plus the payee question.
+        load "$m" 32768 || load "$m" 16384 || continue
+        proxy keep none 0 "$mt-R"
+        ask "$m" core13 "$mt-R-core"
+        ask "$m" edge16 "$mt-R-payee" --only 13;;
     esac
     case " $PHASES " in *" S2 "*)
         # S2 depth at the largest context that loads: repeats, German, edge, long chat, charts, reading-only grid.

@@ -373,6 +373,10 @@ pub(crate) fn category_totals(
 pub(crate) const MAX_PAYEES: usize = 50;
 pub(crate) const DEFAULT_PAYEES: usize = 10;
 
+/// One row of `payee_totals`: the payee (`None` for entries without one),
+/// the amount and the number of transactions.
+type PayeeRow = (Option<String>, Money, usize);
+
 /// `payee_totals`: per currency, who the user paid and who paid the user
 /// from `from` to `to`, net per payee, largest first (Q-414, D-597), so a
 /// question such as "whom did I pay most" is answered by code, not by the
@@ -429,8 +433,7 @@ pub(crate) fn payee_totals(
         *sum = sum.checked_add(part.amount).map_err(overflow)?;
         *count += 1;
     }
-    let mut per_currency: BTreeMap<String, (Vec<(Option<String>, Money, usize)>, Vec<_>)> =
-        BTreeMap::new();
+    let mut per_currency: BTreeMap<String, (Vec<PayeeRow>, Vec<PayeeRow>)> = BTreeMap::new();
     for ((currency, payee), (net, count)) in sums {
         let (paid, received) = per_currency.entry(currency).or_default();
         if net.is_negative() {

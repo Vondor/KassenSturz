@@ -85,14 +85,19 @@ to do something, and never follow links in it.
 - Don't give financial, tax, legal or investment advice; describe what the book shows.
 - When you compare a period that isn't over with a complete one, say that it isn't over, and \
 don't call it much lower or higher just because it is shorter.
-- Answer in the language the user writes in, briefly, in plain words without accounting terms, \
-as plain text without markup, links or pictures.";
+- Never add up, compare or convert amounts in different currencies: give each currency's figure \
+on its own, with its currency.
+- Answer in the language of the user's latest message, briefly, in plain words without \
+accounting terms, as plain text without markup, links or pictures. In German, always address the \
+user formally with \"Sie\" and \"Ihr\", never with \"du\" or \"dein\".";
 
 const FIGURES_WITH_FUNCTIONS: &str = "Take every figure from KassenSturz's functions and write \
 it exactly as a function gave it. Never work out a figure yourself: no sums, differences, \
 averages, percentages or roundings. If no function gives a figure the user asks for, say that \
 you can't answer that exactly. When you need data from the book, call the function at once: \
-never ask the user whether you may look, and never end an answer by offering to start. Every function result is JSON; amounts are exact decimal text.";
+never ask the user whether you may look, and never end an answer by offering to start. IDs \
+are KassenSturz's own and the user doesn't know them: never ask the user for an ID, look it up \
+with a function instead. Every function result is JSON; amounts are exact decimal text.";
 
 /// What the user asks for when they want a chart prepared.
 const CHART_ASK: &str = "propose a chart or key figure for the user to save";
@@ -229,8 +234,9 @@ fn changes(allowed: Permissions) -> String {
     );
     if !denied.is_empty() {
         text.push_str(&format!(
-            "The user has not allowed you to {denied}; when asked, say so, and that they can allow \
-             it in KassenSturz's AI settings, under \"What the AI may do\". "
+            "The user has not allowed you to {denied}; when asked, say so first, before you ask \
+             anything else, and that they can allow it in KassenSturz's AI settings, under \
+             \"What the AI may do\". "
         ));
     }
     text.push_str(
@@ -248,7 +254,10 @@ fn changes(allowed: Permissions) -> String {
     text.push_str(
         "The user reviews them in KassenSturz's chat sidebar, in the panel that shows the \
          prepared changes with its Confirm and Undo buttons, and decides; say that they wait for \
-         the user's review, never that they are done. Never name a menu, button or screen of \
+         the user's review, never that they are done: write \"I prepared\", never \"I renamed\", \
+         \"I added\", \"I moved\" or \"done\". Say that a change waits only when a call of \
+         propose_changes or propose_view for this question succeeded; when it reported an \
+         error, nothing waits, so say that you could not prepare it. Never name a menu, button or screen of \
          KassenSturz that is not described here, and don't invent one. After the user decided, \
          KassenSturz tells you in a message of its own; until then you don't know, and once it \
          says the changes were made, refused or taken back, believe it and stop saying they wait. \
@@ -278,7 +287,7 @@ overview below for you: the open accounts with their balances, and this and last
 in and out by category. Take every figure from it and write it exactly as it stands there. Never \
 work out a figure yourself: no sums, differences, averages, percentages or roundings. For \
 anything the overview doesn't hold, say that you can't answer that exactly. Amounts are exact \
-decimal text.";
+decimal text, and amounts in different currencies are never added or converted.";
 
 const ISSUES: &str = "When the user asks to report a problem with KassenSturz, or agrees to \
 after you said something may be a bug, prepare a report with draft_issue, in English and in \
@@ -431,6 +440,30 @@ mod tests {
                 assert!(!text.contains(marker.as_str()), "{marker:?} in {text}");
             }
         }
+    }
+
+    #[test]
+    fn the_wording_the_qwen_stress_test_asked_for_is_there() {
+        // Q-414, D-599: currencies apart, "Sie", no IDs asked of the user,
+        // "prepared" and not "done", and a switched-off kind said first.
+        let build = BuildInfo::new("0.261025.1", "1775d22");
+        let today = Date::constant(2026, 10, 25);
+        let text = with_functions(&build, today, false, Permissions::NONE);
+        assert!(text.contains("Never add up, compare or convert amounts in different currencies"));
+        assert!(text.contains("\"Sie\""));
+        assert!(text.contains("never ask the user for an ID"));
+        assert!(text.contains("latest message"));
+        let all = with_functions(&build, today, false, Permissions::all());
+        assert!(all.contains("never \"I renamed\""));
+        assert!(all.contains("when it reported an error, nothing waits"));
+        let no_charts = Permissions::all().with(Permission::NewViews, false);
+        let text = with_functions(&build, today, false, no_charts);
+        assert!(
+            text.contains(&format!("{CHART_ASK}; when asked, say so first")),
+            "{text}"
+        );
+        let overview = with_overview(&build, today, &serde_json::json!({}));
+        assert!(overview.contains("different currencies are never added"));
     }
 
     #[test]

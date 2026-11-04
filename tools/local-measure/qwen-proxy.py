@@ -92,7 +92,7 @@ class Handler(BaseHTTPRequestHandler):
         request = urllib.request.Request(ARGS.upstream + self.path, data=data, method=self.command,
                                          headers={"Content-Type": "application/json"})
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        with opener.open(request, timeout=3600) as response:
+        with opener.open(request, timeout=330) as response:
             return response.status, response.read()
 
     def _send(self, status, payload):

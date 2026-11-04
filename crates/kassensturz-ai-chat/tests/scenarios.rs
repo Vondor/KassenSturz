@@ -821,10 +821,12 @@ fn a_model_that_stays_empty_is_not_asked_a_third_time() {
     let book = hostile_book();
     let (provider, script) = Script::provider(on(), vec![says("")]);
     let mut chat = session();
-    let answer = chat
+    // It ends with an error of its own instead of an empty answer, which
+    // looked like a finished question (M6-B169, D-593).
+    let error = chat
         .ask(&book, &provider, None, "Accounts?", TODAY, &mut NoHooks)
-        .unwrap();
-    assert_eq!(answer.text, "");
+        .unwrap_err();
+    assert!(matches!(error, ChatError::EmptyAnswer), "{error:?}");
     assert_eq!(script.seen().len(), 2);
 }
 

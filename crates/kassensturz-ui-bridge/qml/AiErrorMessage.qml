@@ -98,6 +98,8 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "The AI kept asking for more data without answering, so KassenSturz stopped it. Ask a narrower question, or try another model.");
         case "ai-chat.tool-call-as-text":
             return i18nContext.i18nc("@info", "The model wrote a function call as plain text instead of making the call, so nothing was done. Ask again, or try another model: this one doesn't work well with KassenSturz's functions.");
+        case "ai-chat.empty-answer":
+            return i18nContext.i18nc("@info", "The model answered with nothing, also when asked once more. Ask again. If it keeps happening, check in the program that runs the model that the answer isn't only in its thinking, or try another model.");
         case "ai-chat.book-unreadable":
             return i18nContext.i18nc("@info", "Your book couldn't be read to answer the question. Make sure the book is still where it was, then ask again.");
         case "ai-changes.out-of-date":

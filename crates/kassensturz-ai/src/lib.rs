@@ -47,6 +47,7 @@ mod error;
 mod http;
 mod keys;
 mod openai;
+mod reply_text;
 mod request;
 mod scripted;
 #[cfg(test)]

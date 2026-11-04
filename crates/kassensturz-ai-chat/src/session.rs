@@ -601,6 +601,20 @@ impl ChatSession {
                 if is_raw_tool_call(&reply.text) {
                     return Err(ChatError::ToolCallAsText);
                 }
+                // Still nothing after a normal end, and nothing prepared
+                // either: say so instead of showing an empty answer, e.g.
+                // when a server put the whole answer in its thinking field
+                // (M6-B169, D-593). A refusal or a filter (another finish)
+                // reaches the chat panel with its reason, as before.
+                if reply.text.trim().is_empty()
+                    && reply.finish == Finish::Done
+                    && self.proposed.is_empty()
+                    && self.issue.is_none()
+                    && self.page.is_none()
+                    && self.chart_failed.is_none()
+                {
+                    return Err(ChatError::EmptyAnswer);
+                }
                 // Marks like ** show as characters in the plain-text chat
                 // (M5-B46); the figures are checked in the text the user reads.
                 reply.text = crate::plain::plain_answer(&reply.text);
@@ -642,12 +656,24 @@ impl ChatSession {
             }
             self.history
                 .push(Message::assistant(reply.text, reply.calls.clone()));
+            // A call is repeated when an earlier request of this question
+            // made it. The same call twice in one reply runs once and both
+            // get its result, so it prepares nothing twice (M6-B170, D-593).
             let mut repeated = false;
+            let mut this_reply: Vec<((String, String), String)> = Vec::new();
             for call in &reply.calls {
-                repeated |= !made.insert((call.name.clone(), call.arguments.clone()));
+                let key = (call.name.clone(), call.arguments.clone());
+                if let Some((_, content)) = this_reply.iter().find(|(made, _)| *made == key) {
+                    self.history
+                        .push(Message::tool_result(call.id.clone(), content.clone()));
+                    continue;
+                }
+                repeated |= made.contains(&key);
                 let message = self.run_call(book, call, today, hooks);
+                this_reply.push((key, message.content.clone()));
                 self.history.push(message);
             }
+            made.extend(this_reply.into_iter().map(|(key, _)| key));
             if !reply.ignored_calls.is_empty() {
                 self.note(
                     LogEntry::NotOffered {

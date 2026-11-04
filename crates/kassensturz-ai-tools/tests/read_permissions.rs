@@ -77,7 +77,12 @@ fn each_row_opens_only_the_functions_that_read_it() {
         .with(Permission::TransactionsRead, true);
     assert_eq!(
         names(both),
-        ["category_totals", "search_transactions", "list_categories"]
+        [
+            "category_totals",
+            "payee_totals",
+            "search_transactions",
+            "list_categories"
+        ]
     );
     assert_eq!(names(Permissions::all()).len(), FUNCTIONS.len());
 }

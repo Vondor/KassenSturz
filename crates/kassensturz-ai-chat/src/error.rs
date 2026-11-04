@@ -27,6 +27,9 @@ pub enum ChatError {
     /// The model wrote a function call as text, which the provider didn't
     /// turn into a call, so nothing ran (#196, D-248).
     ToolCallAsText,
+    /// The model answered with nothing, also when asked once more, and
+    /// prepared nothing (M6-B169, D-593).
+    EmptyAnswer,
     /// The overview for a model that can't call functions couldn't be read
     /// from the book.
     Book(ToolError),
@@ -57,6 +60,7 @@ impl Report for ChatError {
             Self::Stopped => ErrorReport::new("ai-chat.stopped"),
             Self::TooManyRounds => ErrorReport::new("ai-chat.too-many-rounds"),
             Self::ToolCallAsText => ErrorReport::new("ai-chat.tool-call-as-text"),
+            Self::EmptyAnswer => ErrorReport::new("ai-chat.empty-answer"),
             Self::Book(error) => {
                 ErrorReport::new("ai-chat.book-unreadable").caused_by(error.report())
             }
@@ -85,6 +89,7 @@ mod tests {
             ChatError::Stopped,
             ChatError::TooManyRounds,
             ChatError::ToolCallAsText,
+            ChatError::EmptyAnswer,
             ChatError::Book(ToolError::BadPeriod),
         ]
     }

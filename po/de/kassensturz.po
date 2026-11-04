@@ -2290,6 +2290,19 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid ""
+"The model answered with nothing, also when asked once more. Ask again. If it "
+"keeps happening, check in the program that runs the model that the answer "
+"isn't only in its thinking, or try another model."
+msgstr ""
+"Das Modell hat nichts geantwortet, auch nicht auf die zweite Nachfrage. "
+"Fragen Sie noch einmal. Wenn das wieder passiert, prüfen Sie im Programm, "
+"das das Modell ausführt, ob die Antwort nur in seinem Nachdenken steht, oder "
+"versuchen Sie ein anderes Modell."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:102
+#, kde-format
+msgctxt "@info"
+msgid ""
 "Your book couldn't be read to answer the question. Make sure the book is "
 "still where it was, then ask again."
 msgstr ""

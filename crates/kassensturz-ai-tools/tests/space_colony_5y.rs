@@ -187,7 +187,9 @@ fn the_balances_are_the_generators() {
     let expected = [
         ("Dome Petty Cash", "1814.40", "EUR"),
         ("Earth Trip Wallet", "915.90", "USD"),
-        ("Everyday Checking", "9509.07", "EUR"),
+        // Up to today; the entries dated after it take 234.65 off
+        // (M6-B168, D-601).
+        ("Everyday Checking", "9743.72", "EUR"),
         ("Mars Rainy-Day Savings", "23375.01", "EUR"),
         ("Shipyard Loan", "-4200.00", "EUR"),
         ("Shuttle Travel Fund", "3300.49", "EUR"),
@@ -201,7 +203,7 @@ fn the_balances_are_the_generators() {
     assert_eq!(
         found["together"],
         json!([
-            {"currency": "EUR", "together": "33798.97"},
+            {"currency": "EUR", "together": "34033.62", "after_today": "-234.65"},
             {"currency": "USD", "together": "915.90"},
         ])
     );

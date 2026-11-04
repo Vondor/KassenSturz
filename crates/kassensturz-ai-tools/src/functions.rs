@@ -72,10 +72,12 @@ pub fn readable_functions(permissions: Permissions) -> impl Iterator<Item = &'st
 pub const FUNCTIONS: &[Function] = &[
     Function {
         name: "list_accounts",
-        description: "Lists the user's accounts (not categories) with each one's current \
-            balance and ID, and what the balances add up to per currency. A debt such as a \
-            credit card has \"debt\": true and a negative balance for what is owed. Amounts \
-            are exact decimal text with a dot as the decimal mark.",
+        description: "Lists the user's accounts (not categories) with each one's balance at \
+            the end of today and ID, and what the balances add up to per currency. Entries \
+            dated after today are not in the balance; an account that has some says what they \
+            add in \"after_today\". A debt such as a credit card has \"debt\": true and a \
+            negative balance for what is owed. Amounts are exact decimal text with a dot as \
+            the decimal mark.",
         parameters: r#"{"type":"object","properties":{"include_closed":{"type":"boolean","description":"Also list closed accounts. Default false."}},"additionalProperties":false}"#,
     },
     Function {
@@ -226,6 +228,7 @@ fn call_with(
             book,
             &mut w,
             args.boolean("include_closed")?.unwrap_or(false),
+            today,
         )?,
         "account_balance" => {
             let names = Names::read(book)?;
@@ -341,7 +344,7 @@ pub fn overview_allowed(
     let mut result = Map::new();
     result.insert("today".into(), Value::String(today.to_string()));
     if permissions.reads(Row::Accounts)
-        && let Value::Object(accounts) = read::list_accounts(book, &mut w, false)?
+        && let Value::Object(accounts) = read::list_accounts(book, &mut w, false, today)?
     {
         result.extend(accounts);
     }

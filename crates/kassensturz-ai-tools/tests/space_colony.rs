@@ -67,8 +67,20 @@ fn the_balances_are_the_stores() {
         assert_eq!(row["id"], account.id.to_string().as_str());
         // Every row says what kind of account it is; none leaves it out.
         assert!(row["type"].is_string(), "{}", account.name);
-        let balance = book.balance(account.id).expect("a balance");
+        // The balance at the end of today, as account_balance counts it;
+        // with what is dated after today it is the store's whole balance
+        // (M6-B168, D-601).
+        let balance = book.balance_on(account.id, TODAY).expect("a balance");
         assert_eq!(eur(&row["balance"]), balance, "{}", account.name);
+        let later = row
+            .get("after_today")
+            .map_or(Money::zero(balance.currency()), eur);
+        assert_eq!(
+            balance.checked_add(later).expect("no overflow"),
+            book.balance(account.id).expect("a balance"),
+            "{}",
+            account.name
+        );
         together = together.checked_add(balance).expect("no overflow");
         assert_eq!(
             row["debt"].as_bool().unwrap_or(false),

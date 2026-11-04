@@ -14,6 +14,7 @@ pub const DETAILS: &[&str] = &[
     "list_accounts",
     "account_balance",
     "category_totals",
+    "payee_totals",
     "search_transactions",
     "list_categories",
     "list_rules",

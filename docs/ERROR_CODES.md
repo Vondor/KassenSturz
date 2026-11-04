@@ -324,7 +324,7 @@ A request to the AI provider the user set up couldn't be sent, or its answer cou
 | `ai.not-found` | | | The AI provider doesn't know this address or this model. Check both in Settings → AI features. |
 | `ai.missing-v1` | | | The address needs `/v1` at its end: the provider's answer to the address as typed is an error, and with `/v1` it lists its models. KassenSturz offers the address with `/v1`. |
 | `ai.rate-limited` | | | The AI provider asks you to wait before the next request. Try again in a little while. |
-| `ai.context-too-small` | | | The AI model's context (its working memory) is too small for this question. In the program that runs the model, load it again with a larger context length (8192 tokens or more; 16384 is better), or ask about less at a time. |
+| `ai.context-too-small` | | | The AI model's context (its working memory) is too small for this question. In the program that runs the model, load it again with a larger context length (16384 tokens or more; 32768 is better), or ask about less at a time. |
 | `ai.provider-failed` | `status` | | The AI provider answered with an error (HTTP {status}). Try again later; if it keeps happening, check the provider's settings. |
 | `ai.reply-too-large` | | | The AI provider's answer was too large, so KassenSturz didn't read it. Ask about less at a time. |
 | `ai.bad-reply` | | | The AI provider's answer isn't what KassenSturz expects from an OpenAI-compatible provider. Check that the address points to such an interface, often ending in `/v1`. |
@@ -401,6 +401,8 @@ A question in the chat ended without an answer (D-190, D-193). Errors of the pro
 | `ai-chat.too-many-rounds` | | | The AI kept asking KassenSturz for data without answering, so KassenSturz stopped it. Ask a narrower question, or try another model. |
 | `ai-chat.tool-call-as-text` | | | The AI model wrote a function call as plain text instead of making the call, so nothing was done. Ask again, or try another model; this one doesn't work well with KassenSturz's functions. |
 | `ai-chat.empty-answer` | | | The AI model answered with nothing, also when asked once more. Ask again; if it keeps happening, check in the program that runs the model that its answer isn't only in its thinking, or try another model. |
+| `ai-chat.too-slow` | | | The AI took too long for this question in all (twice the time one request may take), so KassenSturz stopped waiting. Ask again, perhaps about less at a time, or use a smaller or faster model. With "keep waiting" chosen for slow answers there is no such limit. |
+| `ai-chat.answer-too-long` | | | The model thought or wrote for too long without finishing its answer (more than the 8192 tokens KassenSturz asks a model on this computer to stay under), so it was stopped. Ask again, perhaps about less at a time, or try another model. |
 | `ai-chat.book-unreadable` | | | The book couldn't be read for the overview a model without functions gets. The detail says why; see that message. |
 
 ## The reporting layer (`kassensturz-report`)

@@ -11,6 +11,7 @@ Die **eingerahmten Texte** liest die Testleitung **wörtlich vor**, damit jeder 
 - Die Installationsdatei liegt **nicht** bereit und nichts ist installiert: Karte 1 misst die Installation. Der Tester kennt nur die [Installationsblätter](README.md) und die Download-Seite.
 - **Die Testleitung installiert nie für den Tester.** Auch nicht, wenn er es bittet.
 - Die Beispielbücher kommen mit der App. Der passende Test-Kontoauszug für Karte 5 (aus dem Ordner `statements/`, siehe [README.md](README.md)) liegt auf dem Rechner des Testers bereit, ebenso die neuere Version für Karte 6.
+- **Stimmen Beispielbuch und Kontoauszug zusammen?** Die Kontoauszüge und Lösungsblätter im Repository gehören zum Referenzmonat 2026-11 (siehe `reference-month.txt` im Ordner der Beispielbücher). Die App verschiebt die Daten eines Beispielbuchs beim Anlegen in den laufenden Monat und hält 24 Monate; ein Auszug aus 2026-11 passt dann nur zum Buch, wenn der Termin im November 2026 liegt. Vor jeder späteren Runde: `tools/example-books/generate.py --reference-month JJJJ-MM` für den Monat des Termins laufen lassen, den Test `example_books` die Lösungsblätter neu schreiben lassen und erst dann Auszüge und Lösungsblätter verwenden (Einzelheiten in der [README](README.md)). Die Aufgabe 4 und 5 am besten vorab einmal selbst durchspielen.
 - KI und Bankverbindungen sind aus. Internet ist nach der Installation nicht nötig.
 - Die Aufgabenkarten sind **einzeln** ausgedruckt oder als einzelne Nachrichten vorbereitet. Der Tester sieht immer nur die aktuelle Karte.
 - Mitschrift bereit (Abschnitt 6), Uhr. Bei Videoanruf: Bildschirm geteilt, die Aufnahmefunktion bleibt **aus**.
@@ -111,7 +112,7 @@ Dann die Fragen „Nach dem Test“ (Fragebogen, Abschnitt 3), Frage 8 zuletzt u
 Danach Fragen des Testers beantworten und zeigen, was er gesucht hat. Dann erklären, wohin Fragebogen und Berichte gehen ([Berichtsseite](REPORT_PAGE.de.md)). Zum Schluss:
 > Sie haben uns heute sehr geholfen. Alles, was Sie gesagt haben, fließt direkt in die nächste Version ein.
 
-Nach dem Termin: KassenSturz ohne Entwicklermodus neu starten lassen (oder deinstallieren). Unter Windows prüfen, dass der Windows-Entwicklermodus aus ist (falls er je an war). Mitschrift ohne Namen ablegen: nur ein Kürzel.
+Nach dem Termin: KassenSturz ohne Entwicklermodus neu starten lassen (oder deinstallieren). Mitschrift ohne Namen ablegen: nur ein Kürzel.
 
 ## 5a. Wann ist die App gut? Erfolgskriterien (nur für die Testleitung, nicht vorlesen)
 
@@ -134,7 +135,7 @@ Hier steht, **woran die Testleitung erkennt, ob eine Karte geschafft ist**. Pro 
 
 **Lösungsblätter (nur für die Testleitung, nie dem Tester zeigen):** Zu jedem Beispielbuch gibt es ein Lösungsblatt, das das Team aus dem echten Import- und Berichtscode erzeugt, nie von Hand (Schritt M7a.8): für Karte 4 die Lebensmittel-Summe des Vormonats und ob mehr rein- oder rausging, für Karte 5 die Anzahl der Zeilen, der neuen und der doppelten Buchungen und den Endsaldo. Die Pfade stehen in [README.md](README.md); das Lösungsblatt für Karte 4 und 5 ist je Buch eine Datei.
 
-**Hinweis zu Karte 5 mit der Vorstadtfamilie:** Liegt der Tag, an dem der Tester testet, vor dem 6. November 2026, zeigt das Konto „Girokonto“ nach dem Einlesen der CAMT-Datei „Darin Buchungen nach heute: −201,15 €“. Das ist gewollt: Ein Teil der Zeilen der Datei trägt ein Datum, das für den Rechner des Testers noch in der Zukunft liegt. Sagen Sie dem Tester dazu nichts vorab; fragt er danach, gilt die neutrale Rückfrage („Was würden Sie vermuten?“). Der Schlusssaldo laut Datei bleibt trotzdem der Vergleichswert. Ab dem 6. November 2026 erscheint der Hinweis nicht mehr.
+**Hinweis zu Karte 5 mit der Vorstadtfamilie:** Liegt der Tag, an dem der Tester testet, vor dem 6. November 2026, zeigt das Konto „Girokonto“ nach dem Einlesen der CAMT-Datei „Darin Buchungen nach heute: 394,45 €“. Das ist gewollt: Ein Teil der Zeilen der Datei trägt ein Datum, das für den Rechner des Testers noch in der Zukunft liegt. Sagen Sie dem Tester dazu nichts vorab; fragt er danach, gilt die neutrale Rückfrage („Was würden Sie vermuten?“). Der Schlusssaldo laut Datei bleibt trotzdem der Vergleichswert. Ab dem 6. November 2026 erscheint der Hinweis nicht mehr.
 
 ### Wann ist die Runde bestanden?
 

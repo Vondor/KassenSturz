@@ -11,7 +11,7 @@
 //! key is not part of the body; the adapter adds it as a header only when
 //! it sends, after the preview was built (D-169, threat T-25).
 
-use crate::address::ProviderAddress;
+use crate::address::{Place, ProviderAddress};
 use crate::chat::{FunctionSpec, Message};
 use crate::error::AiError;
 use crate::openai;
@@ -51,7 +51,12 @@ impl PreparedRequest {
     }
 
     fn build(&mut self) -> Result<(), AiError> {
-        let body = openai::chat_body(&self.model, &self.messages, &self.functions);
+        // Only a server on this computer is asked to keep its answer short
+        // (D-595).
+        let max_tokens =
+            (self.address.place() == Place::ThisComputer).then_some(openai::MAX_ANSWER_TOKENS);
+        let body =
+            openai::chat_body_limited(&self.model, &self.messages, &self.functions, max_tokens);
         // Indented, so the preview is readable; it is still the body sent.
         self.body = serde_json::to_string_pretty(&body).map_err(|_| AiError::BadReply)?;
         if self.body.len() > MAX_REQUEST_BYTES {
@@ -127,9 +132,29 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(request.preview()).unwrap();
         assert_eq!(
             parsed,
-            openai::chat_body("m", &[Message::user("Hi")], &[]),
+            openai::chat_body_limited(
+                "m",
+                &[Message::user("Hi")],
+                &[],
+                Some(openai::MAX_ANSWER_TOKENS)
+            ),
             "the preview is the body KassenSturz builds"
         );
+        assert_eq!(parsed["max_tokens"], 8192, "a server on this computer");
+    }
+
+    #[test]
+    fn only_a_server_on_this_computer_gets_an_answer_limit() {
+        // Some cloud models refuse max_tokens (D-595).
+        let request = PreparedRequest::new(
+            ProviderAddress::parse("https://api.example.com/v1").unwrap(),
+            "m".into(),
+            vec![Message::user("Hi")],
+            Vec::new(),
+        )
+        .unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(request.preview()).unwrap();
+        assert!(parsed.get("max_tokens").is_none(), "{parsed}");
     }
 
     #[test]

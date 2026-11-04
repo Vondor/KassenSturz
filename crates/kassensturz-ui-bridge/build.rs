@@ -22,7 +22,9 @@ fn main() {
     // The Windows app brings its own icons (D-555); Cargo builds this script
     // for the computer it runs on, so the target comes from Cargo's variable.
     let windows = std::env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "windows");
-    let breeze_icons = windows.then(BreezeIcons::find);
+    let breeze_icons = windows.then(|| WindowsLibrary::find("BREEZEICONS", "BreezeIcons"));
+    // And follows Windows' light or dark mode with KDE's colour schemes (D-581).
+    let color_scheme = windows.then(|| WindowsLibrary::find("COLORSCHEME", "KColorScheme"));
     let mut builder = CxxQtBuilder::new_qml_module(
         QmlModule::new("io.github.vondor.kassensturz")
             .qml_files([
@@ -76,6 +78,7 @@ fn main() {
                 "qml/CategoryPage.qml",
                 "qml/ChangeNames.qml",
                 "qml/FormulaField.qml",
+                "qml/ChartColorsCard.qml",
                 "qml/ChartOverlays.qml",
                 "qml/SpecPage.qml",
                 "qml/ChartTable.qml",
@@ -166,6 +169,7 @@ fn main() {
         "src/network_guard.rs",
         "src/number_format_model.rs",
         "src/cards_model.rs",
+        "src/chart_palette_model.rs",
         "src/chart_spec_model.rs",
         "src/charts_model.rs",
         "src/dashboard_file_model.rs",
@@ -201,8 +205,8 @@ fn main() {
             for dir in &kconfig.include_dirs {
                 cc.include(dir);
             }
-            if let Some(breeze_icons) = &breeze_icons {
-                for dir in &breeze_icons.include_dirs {
+            for library in breeze_icons.iter().chain(&color_scheme) {
+                for dir in &library.include_dirs {
                     cc.include(dir);
                 }
             }
@@ -236,6 +240,14 @@ fn main() {
             breeze_icons.library_dir.display()
         );
         println!("cargo:rustc-link-lib=KF6BreezeIcons");
+    }
+    if let Some(color_scheme) = &color_scheme {
+        // KDE's colour schemes, which follow Windows' dark mode (D-581).
+        println!(
+            "cargo:rustc-link-search=native={}",
+            color_scheme.library_dir.display()
+        );
+        println!("cargo:rustc-link-lib=KF6ColorScheme");
     }
 }
 
@@ -314,22 +326,26 @@ impl KConfigCore {
     }
 }
 
-/// Where the library with Breeze's icons is, on Windows only (D-555).
-struct BreezeIcons {
+/// Where a KDE Frameworks library that only the Windows app links is: Breeze's
+/// icons (D-555) and the colour schemes (D-581).
+struct WindowsLibrary {
     include_dirs: Vec<PathBuf>,
     library_dir: PathBuf,
 }
 
-impl BreezeIcons {
-    /// CMake passes what its `KF6::BreezeIcons` target says, as for KConfig.
-    /// A plain `cargo build` looks next to Qt, where breeze-icons installs
-    /// its header (`include/KF6/BreezeIcons`) and library in KDE Craft.
-    fn find() -> Self {
-        println!("cargo:rerun-if-env-changed=KASSENSTURZ_BREEZEICONS_INCLUDE_DIRS");
-        println!("cargo:rerun-if-env-changed=KASSENSTURZ_BREEZEICONS_LIBRARY_DIR");
+impl WindowsLibrary {
+    /// CMake passes what its target says in `KASSENSTURZ_<name>_INCLUDE_DIRS`
+    /// and `KASSENSTURZ_<name>_LIBRARY_DIR`, as for KConfig. A plain
+    /// `cargo build` looks next to Qt, where KDE Craft installs the header
+    /// folder `include/KF6/<headers>` and the library.
+    fn find(name: &str, headers: &str) -> Self {
+        let includes_variable = format!("KASSENSTURZ_{name}_INCLUDE_DIRS");
+        let library_variable = format!("KASSENSTURZ_{name}_LIBRARY_DIR");
+        println!("cargo:rerun-if-env-changed={includes_variable}");
+        println!("cargo:rerun-if-env-changed={library_variable}");
         if let (Some(includes), Some(library_dir)) = (
-            std::env::var_os("KASSENSTURZ_BREEZEICONS_INCLUDE_DIRS"),
-            std::env::var_os("KASSENSTURZ_BREEZEICONS_LIBRARY_DIR"),
+            std::env::var_os(&includes_variable),
+            std::env::var_os(&library_variable),
         ) {
             return Self {
                 include_dirs: cmake_list(&includes),
@@ -337,7 +353,7 @@ impl BreezeIcons {
             };
         }
         Self {
-            include_dirs: vec![qmake_query("QT_INSTALL_HEADERS").join("KF6/BreezeIcons")],
+            include_dirs: vec![qmake_query("QT_INSTALL_HEADERS").join(format!("KF6/{headers}"))],
             library_dir: qmake_query("QT_INSTALL_LIBS"),
         }
     }

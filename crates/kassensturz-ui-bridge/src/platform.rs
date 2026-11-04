@@ -46,6 +46,9 @@ mod ffi {
         #[cxx_name = "useReadableWidgetStyle"]
         fn use_readable_widget_style();
 
+        #[cxx_name = "followSystemColours"]
+        fn follow_system_colours();
+
         #[cxx_name = "startInUserFolder"]
         fn start_in_user_folder();
 
@@ -89,6 +92,13 @@ pub fn use_bundled_icons() {
 /// choice of style wins. Elsewhere nothing changes.
 pub fn use_readable_widget_style() {
     ffi::use_readable_widget_style();
+}
+
+/// On Windows, colours that follow Windows' light or dark mode, also while
+/// the app runs (M6-B152, D-581). Elsewhere the desktop's colour scheme
+/// applies, so nothing here.
+pub fn follow_system_colours() {
+    ffi::follow_system_colours();
 }
 
 /// On Windows, the user's Downloads folder as the working folder when the

@@ -13,7 +13,7 @@ use core::pin::Pin;
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
-use kassensturz_charts::{ChartModel, HiddenNote, PALETTE_SIZE, Prepared, Series, Slices};
+use kassensturz_charts::{ChartModel, HiddenNote, Prepared, Series, Slices};
 use kassensturz_core::ErrorParam;
 
 use crate::charts::{self, ChartSet, ChartsError, Request};
@@ -256,7 +256,7 @@ impl qobject::BookCharts {
 
 /// The marker (a second mark besides the color) of palette index `color`:
 /// the first four series get one, the others none, as -1 (D-283).
-fn marker(color: u8) -> i32 {
+fn marker(color: u16) -> i32 {
     if color < 4 { i32::from(color) } else { -1 }
 }
 
@@ -335,7 +335,7 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
                         // A slice takes the palette color of its place, a bar or line
                         // the color of its series.
                         let color = if round {
-                            ChartModel::color_of(index)
+                            model.slice_color(index)
                         } else {
                             series.color
                         };
@@ -396,7 +396,13 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
         ("total", text(&model.total)),
         ("hidden", hidden_object(model.hidden.as_ref())),
         ("slices", slices_object(&model.slices)),
-        ("paletteSize", QVariant::from(&i32::from(PALETTE_SIZE))),
+        // The free colors of a custom chart, as `#RRGGBB` text: a color
+        // index from `ChartPalette.extraColorBase` on is one of these
+        // (M7a.10, D-588).
+        (
+            "extraColors",
+            list(model.extra_colors.iter().map(|color| text(&color.to_hex()))),
+        ),
         ("count", count(model.categories.len())),
         ("unsortedIndex", QVariant::from(&unsorted)),
         (
@@ -649,10 +655,10 @@ mod tests {
                 "count",
                 "currency",
                 "dataset",
+                "extraColors",
                 "hidden",
                 "kind",
                 "overlays",
-                "paletteSize",
                 "round",
                 "series",
                 "slices",
@@ -666,7 +672,6 @@ mod tests {
         assert_eq!(text_of(chart, "dataset"), "spending_by_category");
         assert_eq!(text_of(chart, "currency"), "EUR");
         assert!(flag_of(chart, "round"));
-        assert_eq!(number_of(chart, "paletteSize"), 8);
         assert_eq!(number_of(chart, "count"), 3);
         assert_eq!(text_of(chart, "total"), "1.665,54 €".replace('.', ""));
         let names: Vec<String> = list_of(chart, "categories")
@@ -677,6 +682,8 @@ mod tests {
         assert_eq!(names, ["Rent", "Groceries", ""]);
         assert_eq!(number_of(chart, "unsortedIndex"), 2);
         assert!(list_of(chart, "ticks").is_empty());
+        // A built-in chart has no free colors, and the key is there.
+        assert!(list_of(chart, "extraColors").is_empty());
 
         let series = list_of(chart, "series");
         assert_eq!(series.len(), 1);
@@ -1419,6 +1426,34 @@ mod tests {
         assert_eq!(text_of(&error, "limit"), "bytes");
     }
 
+    /// A free color of a description (`#rrggbb`) reaches QML as text in the
+    /// chart's `extraColors`, and a series in it has a color index from
+    /// `EXTRA_COLOR_BASE` on and no marker (M7a.10).
+    #[test]
+    fn free_colors_of_a_description_reach_qml_as_text() {
+        let coloured = MONTHLY.replacen(
+            "\"data\"",
+            "\"config\": {\"range\": {\"category\": [\"#00ff7f\", \"grey\"]}}, \"data\"",
+            1,
+        );
+        let view = view_of(&custom(&coloured, false));
+        let chart = &list_of(&view, "charts")[0];
+        let extra: Vec<String> = list_of(chart, "extraColors")
+            .iter()
+            .map(|color| color.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(extra, ["#00FF7F"]);
+        let own = list_of(chart, "series");
+        assert_eq!(
+            number_of(&own[0], "color"),
+            i32::from(kassensturz_charts::EXTRA_COLOR_BASE)
+        );
+        assert_eq!(number_of(&own[0], "marker"), -1);
+        // A description without free colors has an empty list, not a missing key.
+        let plain = view_of(&custom(MONTHLY, false));
+        assert!(list_of(&list_of(&plain, "charts")[0], "extraColors").is_empty());
+    }
+
     /// The series of a chart over time reach the description's dataset, and
     /// an id the book does not know is counted (Q-353).
     #[test]
@@ -1438,5 +1473,23 @@ mod tests {
         let series = list_of(chart, "series");
         assert_eq!(series.len(), 1);
         assert_eq!(text_of(&series[0], "name"), "Rent");
+    }
+
+    #[test]
+    fn hovering_the_legend_takes_no_room_above_it() {
+        // The line with the point in focus sits above the legend. Shown while
+        // the pointer rests on a legend entry, it pushed the entry away from
+        // the pointer and the legend flickered (M6-B163, like M6-B18).
+        let view = include_str!("../qml/ChartView.qml");
+        let focus_line = view
+            .find("// The text of the point in focus, also for those who see it.")
+            .expect("the line with the point in focus");
+        let legend = view.find("// The legend:").expect("the legend");
+        assert!(focus_line < legend, "the line sits above the legend");
+        assert!(
+            view[focus_line..legend]
+                .contains("visible: !view.showTable && view.current >= 0 && view.legendTip < 0"),
+            "the line must hide while the pointer rests on the legend"
+        );
     }
 }

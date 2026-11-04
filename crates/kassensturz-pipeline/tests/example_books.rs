@@ -13,8 +13,10 @@
 //! book compares their screen with.
 //!
 //! The reference month is `reference-month.txt` next to the books: the books
-//! hold the three months before it, and "last month" is the one just before
-//! it. To write the sheets (and Flower Utopia's complete export) again after
+//! hold the 24 months before it and some cash and card spending in it, and
+//! "last month" is the one just before it. The app moves a book's dates by
+//! whole months when it makes the book, so the reference month becomes the
+//! running one (D-584); the figures of last month stay the same. To write the sheets (and Flower Utopia's complete export) again after
 //! a change to the generator:
 //!
 //! ```sh
@@ -313,9 +315,12 @@ Dieses Blatt schreibt der Test `example_books` (`crates/kassensturz-pipeline/tes
 aus dem echten Import- und Berichtscode, nicht von Hand. Das Buch und die \
 Kontoauszüge macht `tools/example-books/generate.py`; nichts darin gehört zu \
 einer echten Person.\n\n\
-Referenzmonat: {year}-{month:02} (der letzte Monat ist {last_name}). Haben Sie das \
-Buch zu einem späteren Zeitpunkt aufgemacht, zeigt die App den dann letzten \
-Monat; die Zahlen unten gelten für {last_name}.\n\n\
+Referenzmonat: {year}-{month:02} (der letzte Monat ist {last_name}). Das Buch \
+reicht etwa zwei Jahre zurück. Legen Sie es in einem späteren Monat an, \
+verschiebt KassenSturz alle Daten um ganze Monate, sodass der Referenzmonat der \
+laufende Monat ist; die Zahlen unten gelten dann für den Monat vor dem \
+laufenden. Buchungen nach dem heutigen Tag lässt KassenSturz weg. Die \
+Kontoauszüge passen nur im Referenzmonat selbst zum Buch.\n\n\
 ## Karte 4: Übersicht\n\n\
 - Ausgaben für „{food}“ im {last_name}: **{food_total}**\n\
 - Eingenommen im {last_name}: {income}; ausgegeben: {expenses}; \
@@ -507,12 +512,8 @@ fn flower_utopia_with_budgets() -> Book {
         .map(|entry| (entry.category.name.clone(), entry.category.id))
         .collect();
     let (year, month) = reference();
-    // The first month of the book: three months before the reference month.
-    let first = if month > 3 {
-        Date::constant(year, month - 3, 1)
-    } else {
-        Date::constant(year - 1, month + 9, 1)
-    };
+    // The first month of the book: 24 months before the reference month.
+    let first = Date::constant(year - 2, month, 1);
     for (name, minor) in BUDGETS {
         let category = categories[name];
         let currency = book.account(category).expect("the category").currency;

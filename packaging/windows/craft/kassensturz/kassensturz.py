@@ -37,6 +37,8 @@ class subinfo(info.infoclass):
         # Windows has no icon theme: the app loads Breeze's icons from the
         # library breeze-icons builds (D-555).
         self.runtimeDependencies["kde/frameworks/tier1/breeze-icons"] = None
+        # Breeze and Breeze Dark after Windows' light or dark mode (D-581).
+        self.runtimeDependencies["kde/frameworks/tier2/kcolorscheme"] = None
         # The charts load org.kde.quickcharts (ChartView.qml).
         self.runtimeDependencies["kde/frameworks/tier1/kquickcharts"] = None
         # Plasma's look, which main.rs asks for (org.kde.desktop).
@@ -58,6 +60,11 @@ class Package(CMakePackageBase):
         # administrator rights, in German or English (installer.nsi, D-583).
         # Craft's portable zip ignores it.
         self.scriptname = self.blueprintDir() / "installer.nsi"
+        # makensis reads the script as UTF-8 only with a byte order mark
+        # (M6-B150); without it the German texts would be garbled.
+        if not self.scriptname.read_bytes().startswith(b"\xef\xbb\xbf"):
+            CraftCore.log.critical(f"{self.scriptname} lost its UTF-8 byte order mark (M6-B150)")
+            return False
         # The build number (D-152, D-226) that the workflow wrote next to the
         # sources; without it Craft would name the version after the Git
         # target ("HEAD").

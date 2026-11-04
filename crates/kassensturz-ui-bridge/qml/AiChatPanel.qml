@@ -259,6 +259,9 @@ ColumnLayout {
             if (result.chartFailed !== undefined) {
                 panel.add({ kind: "chartFailed", dataset: result.chartFailed.dataset });
             }
+            if (result.noChange === true) {
+                panel.add({ kind: "noChange" });
+            }
             if (result.page !== undefined) {
                 panel.add({ kind: "page", page: result.page.name, hasId: result.page.id !== "" });
                 panel.openPageRequested(result.page.name, result.page.id);

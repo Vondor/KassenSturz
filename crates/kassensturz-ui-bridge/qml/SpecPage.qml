@@ -41,6 +41,11 @@ ColumnLayout {
         translationDomain: "kassensturz"
     }
 
+    // The eight places of the palette by the words a description writes
+    // (M7a.10); `PaletteName::word` in Rust has the same words, in the same
+    // order, and a test of the bridge compares them.
+    readonly property var paletteWords: ["blue", "vermillion", "bluish-green", "reddish-purple", "orange", "sky-blue", "yellow", "grey"]
+
     function reasonText(reason: string): string {
         switch (reason) {
         case "data-source":
@@ -155,6 +160,66 @@ ColumnLayout {
             onClicked: {
                 ActionLog.taken("SpecPage_openClicked")
                 openDialog.open()
+            }
+        }
+    }
+
+    // The colors a description can use by name: the palette's places as they
+    // are set in Settings (Q-410). There is no color field here, so charts
+    // stay in step with each other; "Edit palette…" opens Settings. Any other
+    // color can be written in the description as #rrggbb, for people who write
+    // code.
+    ColumnLayout {
+        Layout.fillWidth: true
+        spacing: Kirigami.Units.smallSpacing
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            text: page.i18nContext.i18nc("@info", "Colors you can name in a description. They are the colors of your palette, so your charts match each other. For any other color, write it as #rrggbb.")
+            textFormat: Text.PlainText
+        }
+
+        Flow {
+            Layout.fillWidth: true
+            spacing: Kirigami.Units.largeSpacing
+
+            Repeater {
+                model: page.paletteWords
+
+                delegate: RowLayout {
+                    id: word
+
+                    required property int index
+                    required property string modelData
+
+                    spacing: Kirigami.Units.smallSpacing
+
+                    Rectangle {
+                        implicitWidth: Kirigami.Units.gridUnit
+                        implicitHeight: Kirigami.Units.gridUnit
+                        radius: Kirigami.Units.smallSpacing
+                        color: ChartPalette.color(word.index, [])
+                        border.width: 1
+                        border.color: Kirigami.Theme.textColor
+                        Accessible.ignored: true
+                    }
+
+                    Controls.Label {
+                        text: word.modelData
+                        textFormat: Text.PlainText
+                        font: Kirigami.Theme.fixedWidthFont
+                    }
+                }
+            }
+        }
+
+        Controls.Button {
+            text: page.i18nContext.i18nc("@action:button opens Settings, where the colors of the charts are changed", "Edit palette…")
+            icon.name: "color-management"
+            onClicked: {
+                ActionLog.taken("SpecPage_editPalette")
+                ChartPalette.editRequested()
             }
         }
     }

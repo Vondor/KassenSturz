@@ -98,7 +98,7 @@ fn a_question_with_a_function_call_works_in_every_dialect() {
         assert_eq!(answer.mode, Mode::Functions);
         assert!(
             answer.unverified.is_empty(),
-            "{}: 5531.90 comes from the function: {:?}",
+            "{}: 2271.88 comes from the function: {:?}",
             dialect.name(),
             answer.unverified
         );
@@ -107,7 +107,7 @@ fn a_question_with_a_function_call_works_in_every_dialect() {
         let sent = bodies(&fake);
         assert_eq!(sent.len(), 2, "{}", dialect.name());
         // The function offered are the real ones, propose_view among them.
-        assert_eq!(sent[0]["tools"].as_array().unwrap().len(), 11);
+        assert_eq!(sent[0]["tools"].as_array().unwrap().len(), 12);
         // The second request answers the call, by the provider's ID, with
         // the real result.
         let messages = sent[1]["messages"].as_array().unwrap();
@@ -116,7 +116,7 @@ fn a_question_with_a_function_call_works_in_every_dialect() {
         assert_eq!(messages[2]["tool_calls"][0]["id"], id);
         assert_eq!(messages[3]["role"], "tool");
         assert_eq!(messages[3]["tool_call_id"], id);
-        assert!(messages[3]["content"].as_str().unwrap().contains("5531.90"));
+        assert!(messages[3]["content"].as_str().unwrap().contains("2271.88"));
 
         // What the log shows is what went out.
         let logged: Vec<&str> = chat
@@ -202,13 +202,15 @@ fn a_model_that_ignores_the_functions_just_answers() {
 
 #[test]
 fn a_bad_gemini_key_is_a_400_and_costs_one_more_request() {
-    // Gemini answers a bad key with 400 (reported), which the chat takes
+    // Gemini answers a bad key with 400 (reported). The chat first sends
+    // the same request again, as for a passing hiccup (D-595), then takes it
     // for "this model can't call functions" and tries once more without
     // them (D-190); then the 400 stands (D-208).
     let dialect = Dialect::Gemini;
     let (fake, client) = provider(
         dialect,
         vec![
+            dialect.failure(400, "error_auth"),
             dialect.failure(400, "error_auth"),
             dialect.failure(400, "error_auth"),
         ],
@@ -222,7 +224,7 @@ fn a_bad_gemini_key_is_a_400_and_costs_one_more_request() {
         ),
         "{error:?}"
     );
-    assert_eq!(fake.received().len(), 2);
+    assert_eq!(fake.received().len(), 3);
     assert!(!format!("{error:?} {error} {:?}", chat.log()).contains(TEST_KEY));
 }
 

@@ -41,6 +41,9 @@ impl Function {
         match self.name {
             "list_accounts" | "account_balance" => &[Row::Accounts],
             "category_totals" => &[Row::Categories, Row::Transactions],
+            // Whether a part is spending or a move between own accounts
+            // comes from the account list, not from the user's categories.
+            "payee_totals" => &[Row::Transactions],
             "search_transactions" => &[Row::Transactions],
             "list_categories" => &[Row::Categories],
             "list_rules" => &[Row::Rules],
@@ -69,10 +72,12 @@ pub fn readable_functions(permissions: Permissions) -> impl Iterator<Item = &'st
 pub const FUNCTIONS: &[Function] = &[
     Function {
         name: "list_accounts",
-        description: "Lists the user's accounts (not categories) with each one's current \
-            balance and ID, and what the balances add up to per currency. A debt such as a \
-            credit card has \"debt\": true and a negative balance for what is owed. Amounts \
-            are exact decimal text with a dot as the decimal mark.",
+        description: "Lists the user's accounts (not categories) with each one's balance at \
+            the end of today and ID, and what the balances add up to per currency. Entries \
+            dated after today are not in the balance; an account that has some says what they \
+            add in \"after_today\". A debt such as a credit card has \"debt\": true and a \
+            negative balance for what is owed. Amounts are exact decimal text with a dot as \
+            the decimal mark.",
         parameters: r#"{"type":"object","properties":{"include_closed":{"type":"boolean","description":"Also list closed accounts. Default false."}},"additionalProperties":false}"#,
     },
     Function {
@@ -93,6 +98,16 @@ pub const FUNCTIONS: &[Function] = &[
             \"amount_with_subcategories\": that category and everything below it; for \
             \"how much on Food\" use that figure, never the sum of the rows.",
         parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."}},"required":["from","to"],"additionalProperties":false}"#,
+    },
+    Function {
+        name: "payee_totals",
+        description: "Who the user paid and who paid the user in a period, per currency, \
+            largest first: \"paid\" with what went to each payee, \"received\" with what \
+            came from each, and how many transactions. Each payee's figure is net, so a refund \
+            from a shop lowers what was paid to it. Moves between the user's own accounts and \
+            starting balances are left out. Use it for questions such as \"whom did I pay the \
+            most\" instead of adding up search results yourself.",
+        parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most payees per side and currency. Default 10."}},"required":["from","to"],"additionalProperties":false}"#,
     },
     Function {
         name: "search_transactions",
@@ -213,6 +228,7 @@ fn call_with(
             book,
             &mut w,
             args.boolean("include_closed")?.unwrap_or(false),
+            today,
         )?,
         "account_balance" => {
             let names = Names::read(book)?;
@@ -234,6 +250,23 @@ fn call_with(
                 return Err(ToolError::BadPeriod);
             }
             read::category_totals(book, &mut w, &names, from, to, read::MAX_TOTALS)?
+        }
+        "payee_totals" => {
+            let names = Names::read(book)?;
+            let from = args
+                .date("from")?
+                .ok_or(ToolError::BadArgument { argument: "from" })?;
+            let to = args
+                .date("to")?
+                .ok_or(ToolError::BadArgument { argument: "to" })?;
+            if to < from {
+                return Err(ToolError::BadPeriod);
+            }
+            let limit = match args.get("limit") {
+                None => read::DEFAULT_PAYEES,
+                Some(_) => args.limit()?.min(read::MAX_PAYEES),
+            };
+            read::payee_totals(book, &mut w, &names, from, to, limit)?
         }
         "search_transactions" => {
             let names = Names::read(book)?;
@@ -311,7 +344,7 @@ pub fn overview_allowed(
     let mut result = Map::new();
     result.insert("today".into(), Value::String(today.to_string()));
     if permissions.reads(Row::Accounts)
-        && let Value::Object(accounts) = read::list_accounts(book, &mut w, false)?
+        && let Value::Object(accounts) = read::list_accounts(book, &mut w, false, today)?
     {
         result.extend(accounts);
     }

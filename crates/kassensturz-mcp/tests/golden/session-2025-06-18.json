@@ -39,7 +39,7 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
-            "description": "Lists the user's accounts (not categories) with each one's current balance and ID, and what the balances add up to per currency. A debt such as a credit card has \"debt\": true and a negative balance for what is owed. Amounts are exact decimal text with a dot as the decimal mark.",
+            "description": "Lists the user's accounts (not categories) with each one's balance at the end of today and ID, and what the balances add up to per currency. Entries dated after today are not in the balance; an account that has some says what they add in \"after_today\". A debt such as a credit card has \"debt\": true and a negative balance for what is owed. Amounts are exact decimal text with a dot as the decimal mark.",
             "inputSchema": {
               "additionalProperties": false,
               "properties": {
@@ -109,6 +109,42 @@
               "type": "object"
             },
             "name": "category_totals"
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Who the user paid and who paid the user in a period, per currency, largest first: \"paid\" with what went to each payee, \"received\" with what came from each, and how many transactions. Each payee's figure is net, so a refund from a shop lowers what was paid to it. Moves between the user's own accounts and starting balances are left out. Use it for questions such as \"whom did I pay the most\" instead of adding up search results yourself.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "from": {
+                  "description": "First day, YYYY-MM-DD.",
+                  "format": "date",
+                  "type": "string"
+                },
+                "limit": {
+                  "description": "Most payees per side and currency. Default 10.",
+                  "maximum": 50,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "to": {
+                  "description": "Last day, YYYY-MM-DD.",
+                  "format": "date",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "type": "object"
+            },
+            "name": "payee_totals"
           },
           {
             "annotations": {

@@ -5,10 +5,16 @@
 //! with its label already written as text.
 
 use kassensturz_report::TextTable;
+use kassensturz_report::spec::Rgb;
 
-/// How many colors the palette has (D-283). A series or slice beyond the
-/// eighth starts again at the first.
-pub const PALETTE_SIZE: u8 = 8;
+/// Where a chart's free colors start in the color index space (M7a.10,
+/// D-588). A series or slice has the index of its place in the chart, from 0
+/// up; the app's palette (2 to 200 colors, set by the user) wraps it, so a
+/// chart does not need to know how many colors there are. No chart has more
+/// than 200 colored parts (4 layers of at most 50 series), far below this
+/// base, so a place never wraps early. An index from here on is not a place
+/// but one of [`ChartModel::extra_colors`].
+pub const EXTRA_COLOR_BASE: u16 = 1000;
 
 /// The mark a custom chart writes for the answer "yes" of a yes/no field,
 /// wherever a name of the chart holds one: a category, a series, a slice, a
@@ -93,9 +99,11 @@ pub struct Series {
     /// from the book, so the UI shows it as plain text. `None` for the series
     /// that have a fixed name, which the UI translates by `key`.
     pub name: Option<String>,
-    /// The palette index, 0 to [`PALETTE_SIZE`] - 1. The first four also get
-    /// a second mark in the UI, so color is never the only difference.
-    pub color: u8,
+    /// The color index: the series' place in the chart (the palette wraps
+    /// it), or [`EXTRA_COLOR_BASE`] and up for a free color. The first four
+    /// also get a second mark in the UI, so color is never the only
+    /// difference.
+    pub color: u16,
     /// One point per category, in the order of [`ChartModel::categories`].
     pub points: Vec<Point>,
 }
@@ -217,7 +225,7 @@ pub struct OverlaySeries {
     /// field or a title): the user's own text, shown as plain text.
     pub name: String,
     /// The palette index, as for [`Series::color`].
-    pub color: u8,
+    pub color: u16,
     /// The marks, in the order of the categories.
     pub items: Vec<OverlayItem>,
 }
@@ -266,6 +274,14 @@ pub struct ChartModel {
     /// Layers drawn on top of the chart on the same axes; empty for every
     /// built-in chart. Only a custom chart has them (M6e.2).
     pub overlays: Vec<Overlay>,
+    /// Free colors that a custom chart names as `#rrggbb` (M7a.10, Q-410).
+    /// A color index from [`EXTRA_COLOR_BASE`] on is one of these: that index
+    /// is the first, the next the second. Empty for every built-in chart.
+    pub extra_colors: Vec<Rgb>,
+    /// A round chart's color index for each slice, in the order of
+    /// [`categories`](Self::categories). Empty when the slices take the
+    /// palette's colors by place, as the built-in round charts do.
+    pub slice_colors: Vec<u16>,
 }
 
 impl ChartModel {
@@ -302,9 +318,21 @@ impl ChartModel {
         }
     }
 
-    /// The palette index of slice or series `index`.
-    pub const fn color_of(index: usize) -> u8 {
-        // The remainder is below 8, so it fits.
-        (index % PALETTE_SIZE as usize) as u8
+    /// The color index of slice `index` of a round chart.
+    #[must_use]
+    pub fn slice_color(&self, index: usize) -> u16 {
+        self.slice_colors
+            .get(index)
+            .copied()
+            .unwrap_or_else(|| Self::color_of(index))
+    }
+
+    /// The color index of slice or series `index`: its place in the chart,
+    /// which the app's palette wraps to its own number of colors. A place
+    /// from [`EXTRA_COLOR_BASE`] on starts again at 0 (no chart has so
+    /// many).
+    pub const fn color_of(index: usize) -> u16 {
+        // The remainder is below 1000, so it fits.
+        (index % EXTRA_COLOR_BASE as usize) as u16
     }
 }

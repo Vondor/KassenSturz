@@ -64,16 +64,6 @@ Diese Warnung kommt, weil das Programm noch nicht signiert ist. Das ändert sich
 
 *(Bildschirmfoto folgt: Installationsfenster, Schritte.)*
 
-> **Nur falls die Installation „Entwicklermodus“ von Windows verlangt.** Die Testleitung sagt Ihnen vorher, ob das für Ihre Version nötig ist. In der Regel ist es **nicht** nötig.
->
-> ⚠️ **Hinweis zum Windows-Entwicklermodus.** Mit dieser Einstellung lässt Windows auch Programme zu, die nicht aus dem Store kommen und nicht geprüft sind. Installieren Sie in dieser Zeit **nur die KassenSturz-Datei von der Seite oben** und nichts anderes. **Schalten Sie ihn nach der Installation wieder aus**; KassenSturz läuft danach weiter.
->
-> 1. *Einstellungen › System › Für Entwickler* (Windows 10: *Update und Sicherheit › Für Entwickler*) öffnen und **Entwicklermodus** einschalten. Die Warnung von Windows mit **Ja** bestätigen.
-> 2. Die KassenSturz-Datei installieren (Schritt 4).
-> 3. An derselben Stelle den **Entwicklermodus wieder ausschalten**.
->
-> Das ist etwas anderes als der *KassenSturz*-Entwicklermodus in Schritt 5.
-
 ## Schritt 5: KassenSturz im Entwicklermodus starten
 
 Für den Test soll KassenSturz ein Protokoll mitschreiben (siehe [Tester-Guide](TESTER_GUIDE.de.md), Abschnitt 3). Dafür starten Sie es einmal so:

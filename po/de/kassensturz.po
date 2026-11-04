@@ -1672,6 +1672,13 @@ msgctxt "@action:button"
 msgid "Read and confirm…"
 msgstr "Lesen und bestätigen …"
 
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:224
+#, kde-format
+msgctxt "@info said by KassenSturz under an AI answer"
+msgid "No change was prepared. Nothing waits for your review."
+msgstr ""
+"Es wurde keine Änderung vorbereitet. Nichts wartet auf Ihre Prüfung."
+
 #: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:235
 #, kde-format
 msgctxt "@info"
@@ -2204,11 +2211,11 @@ msgctxt "@info"
 msgid ""
 "The model's context, its working memory, is too small for this question. In "
 "the program that runs the model, load it again with a larger context length "
-"(8192 or more; 16384 is better), or ask about less at a time."
+"(16384 or more; 32768 is better), or ask about less at a time."
 msgstr ""
 "Der Kontext des Modells, also sein Arbeitsgedächtnis, ist für diese Frage zu "
 "klein. Laden Sie das Modell in dem Programm, das es ausführt, mit einer "
-"größeren Kontextlänge neu (8192 oder mehr, besser 16384), oder fragen Sie "
+"größeren Kontextlänge neu (16384 oder mehr, besser 32768), oder fragen Sie "
 "weniger auf einmal."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:88
@@ -2285,6 +2292,42 @@ msgstr ""
 "ihn auszuführen. Es wurde also nichts getan. Fragen Sie noch einmal oder "
 "versuchen Sie ein anderes Modell: Dieses arbeitet nicht gut mit den "
 "Funktionen von KassenSturz zusammen."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:102
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The model answered with nothing, also when asked once more. Ask again. If it "
+"keeps happening, check in the program that runs the model that the answer "
+"isn't only in its thinking, or try another model."
+msgstr ""
+"Das Modell hat nichts geantwortet, auch nicht auf die zweite Nachfrage. "
+"Fragen Sie noch einmal. Wenn das wieder passiert, prüfen Sie im Programm, "
+"das das Modell ausführt, ob die Antwort nur in seinem Nachdenken steht, oder "
+"versuchen Sie ein anderes Modell."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:104
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The AI took too long for this question in all, so KassenSturz stopped "
+"waiting. Ask again, perhaps about less at a time, or use a smaller or faster "
+"model."
+msgstr ""
+"Die KI hat für diese Frage insgesamt zu lange gebraucht, deshalb hat "
+"KassenSturz aufgehört zu warten. Fragen Sie noch einmal, am besten nach "
+"weniger auf einmal, oder nutzen Sie ein kleineres oder schnelleres Modell."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:106
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The model thought or wrote for too long without finishing its answer, so it "
+"was stopped. Ask again, perhaps about less at a time, or try another model."
+msgstr ""
+"Das Modell hat zu lange nachgedacht oder geschrieben, ohne seine Antwort "
+"fertigzustellen, deshalb wurde es angehalten. Fragen Sie noch einmal, am "
+"besten nach weniger auf einmal, oder versuchen Sie ein anderes Modell."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:102
 #, kde-format
@@ -3003,11 +3046,11 @@ msgctxt "@info %1 is a number of tokens"
 msgid ""
 "The provider says this model reads only %1 tokens at once, which is too "
 "little for the chat. In the program that runs the model, load it again with "
-"a context length of 8192 or more (16384 is better)."
+"a context length of 16384 or more (32768 is better)."
 msgstr ""
 "Der Anbieter gibt an, dass dieses Modell nur %1 Token auf einmal liest. Das "
 "ist für den Chat zu wenig. Laden Sie das Modell im Programm, das es "
-"ausführt, mit einer Kontextlänge von 8192 oder mehr neu (16384 ist besser)."
+"ausführt, mit einer Kontextlänge von 16384 oder mehr neu (32768 ist besser)."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:441
 #, kde-format
@@ -3022,12 +3065,12 @@ msgctxt "@info"
 msgid ""
 "How much this model can read at once is not known: the provider's list does "
 "not say. If the chat says its working memory is too small, load the model "
-"with a context length of 8192 or more."
+"with a context length of 16384 or more (32768 is better)."
 msgstr ""
 "Wie viel dieses Modell auf einmal lesen kann, ist nicht bekannt: Die Liste "
 "des Anbieters sagt es nicht. Wenn der Chat meldet, dass sein "
 "Arbeitsgedächtnis zu klein ist, laden Sie das Modell mit einer Kontextlänge "
-"von 8192 oder mehr."
+"von 16384 oder mehr (besser 32768)."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:456
 #, kde-format
@@ -16278,11 +16321,47 @@ msgstr "Name der Ansicht"
 #, kde-format
 msgctxt "@info"
 msgid ""
-"To put it on the Overview, choose Edit layout there, then Add to the page "
-"and Saved views."
+"Finish keeps it under this name, or as “Statistic 1” and so on if you leave "
+"the name empty. It then stays in the list of saved views below, and “Put it "
+"on the Overview” shows it there."
 msgstr ""
-"Um sie auf die Übersicht zu legen, wählen Sie dort „Layout bearbeiten“, dann "
-"„Zur Seite hinzufügen“ und „Gespeicherte Ansichten“."
+"„Fertig“ behält sie unter diesem Namen, oder als „Auswertung 1“ usw., wenn "
+"Sie den Namen leer lassen. Danach steht sie unten in der Liste der "
+"gespeicherten Ansichten, und „Auf die Übersicht legen“ zeigt sie dort."
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Change the chart on the Overview"
+msgstr "Diagramm auf der Übersicht ändern"
+
+#, kde-format
+msgctxt "@item the name a new saved statistic gets when the user gave none, %1 is a number"
+msgid "Statistic %1"
+msgstr "Auswertung %1"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This is the statistic you left before Finish. Finish keeps it; Cancel starts "
+"a new one."
+msgstr ""
+"Das ist die Auswertung, die Sie vor „Fertig“ verlassen haben. „Fertig“ behält "
+"sie; „Abbrechen“ beginnt eine neue."
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Put it on the Overview"
+msgstr "Auf die Übersicht legen"
+
+#, kde-format
+msgctxt "@action:button change a saved view in the wizard"
+msgid "Change step by step"
+msgstr "Schritt für Schritt ändern"
+
+#, kde-format
+msgctxt "@action:button opens the Statistic Builder on this chart"
+msgid "Change step by step in the Statistic Builder"
+msgstr "Im Statistik-Baukasten Schritt für Schritt ändern"
 
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:517
 #, kde-format
@@ -17192,3 +17271,279 @@ msgstr ""
 msgctxt "@action:button"
 msgid "Open a KassenSturz book I already have…"
 msgstr "Ein KassenSturz-Haushaltsbuch öffnen, das ich schon habe…"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:58
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Blue"
+msgstr "Blau"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:59
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Vermillion"
+msgstr "Zinnoberrot"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:60
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Bluish green"
+msgstr "Blaugrün"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:61
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Reddish purple"
+msgstr "Rotpurpur"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:62
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Orange"
+msgstr "Orange"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:63
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Sky blue"
+msgstr "Himmelblau"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:64
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Yellow"
+msgstr "Gelb"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:65
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Grey"
+msgstr "Grau"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:74
+#, kde-format
+msgctxt "@info"
+msgid ""
+"That is not a color. Write it as #rrggbb, for example #0072B2, or as three "
+"numbers for red, green and blue, for example 0, 114, 178."
+msgstr ""
+"Das ist keine Farbe. Schreiben Sie sie als #rrggbb, zum Beispiel #0072B2, "
+"oder als drei Zahlen für Rot, Grün und Blau, zum Beispiel 0, 114, 178."
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:76
+#, kde-format
+msgctxt "@info"
+msgid "Red, green and blue each go from 0 to 255."
+msgstr "Rot, Grün und Blau gehen jeweils von 0 bis 255."
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This color is hard to see against the background. A darker or a lighter "
+"color is easier to read."
+msgstr ""
+"Diese Farbe ist vor dem Hintergrund schwer zu erkennen. Eine dunklere oder "
+"hellere Farbe ist besser zu lesen."
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:82
+#, kde-format
+msgctxt "@info %1 is the name of a color"
+msgid ""
+"This color looks very much like the next one (%1), so the two are hard to "
+"tell apart in a chart."
+msgstr ""
+"Diese Farbe sieht der nächsten (%1) sehr ähnlich, daher sind beide in "
+"einem Diagramm schwer zu unterscheiden."
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:84
+#, kde-format
+msgctxt "@info %1 is the name of a color"
+msgid ""
+"This color looks very much like the one before it (%1), so the two are hard "
+"to tell apart in a chart."
+msgstr ""
+"Diese Farbe sieht der vorherigen (%1) sehr ähnlich, daher sind beide in "
+"einem Diagramm schwer zu unterscheiden."
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:150
+#, kde-format
+msgctxt "@label %1 is the number of a chart color, %2 its name"
+msgid "%1. %2"
+msgstr "%1. %2"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:163
+#, kde-format
+msgctxt ""
+"@label accessible name of a field for the color of a chart; %1 is its "
+"number, %2 its name"
+msgid "Color %1, %2: red, green and blue"
+msgstr "Farbe %1, %2: Rot, Grün und Blau"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:176
+#, kde-format
+msgctxt "@action:button opens the system's dialog for choosing a color"
+msgid "Choose…"
+msgstr "Auswählen …"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:177
+#, kde-format
+msgctxt ""
+"@action:button accessible name; %1 is the number of a chart color, %2 its "
+"name"
+msgid "Choose color %1, %2"
+msgstr "Farbe %1, %2 auswählen"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:188
+#, kde-format
+msgctxt ""
+"@action:button puts one chart color back to the one KassenSturz comes with"
+msgid "Standard"
+msgstr "Standard"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:189
+#, kde-format
+msgctxt ""
+"@action:button accessible name; %1 is the number of a chart color, %2 its "
+"name"
+msgid "Back to the standard color %1, %2"
+msgstr "Farbe %1, %2 auf die Standardfarbe zurücksetzen"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:234
+#, kde-format
+msgctxt ""
+"@action:button puts every chart color back to the ones KassenSturz comes with"
+msgid "Back to standard for all"
+msgstr "Alle auf Standard zurücksetzen"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:246
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These colors are used for every chart in KassenSturz: the first part of a "
+"chart gets color 1, the next color 2, and so on, and a chart with more parts "
+"than colors starts again at color 1. You can have from 2 to 200 colors. They "
+"change only how charts look on this computer, not your numbers. A warning "
+"means a color may be hard to see or to tell from its neighbour. You can keep "
+"it anyway. The first eight standard colors were chosen to work for people "
+"who see colors differently; the colors you add are not checked that way."
+msgstr ""
+"Diese Farben gelten für jedes Diagramm in KassenSturz: Der erste Teil "
+"eines Diagramms bekommt Farbe 1, der nächste Farbe 2 und so weiter; hat ein "
+"Diagramm mehr Teile als Farben, beginnt es wieder bei Farbe 1. Sie können "
+"2 bis 200 Farben haben. Sie ändern nur, wie Diagramme auf diesem Computer "
+"aussehen, nicht Ihre Zahlen. Eine Warnung bedeutet, dass eine Farbe schwer "
+"zu erkennen oder von ihrer Nachbarfarbe schwer zu unterscheiden sein kann. "
+"Sie können sie trotzdem behalten. Die ersten acht Standardfarben sind so "
+"gewählt, dass sie auch für Menschen gut funktionieren, die Farben anders "
+"sehen; die Farben, die Sie hinzufügen, werden so nicht geprüft."
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:253
+#, kde-format
+msgctxt "@title:window"
+msgid "Choose a color"
+msgstr "Farbe auswählen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:767
+#, kde-format
+msgctxt "@title:group"
+msgid "Chart colors"
+msgstr "Diagrammfarben"
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:179
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Colors you can name in a description. They are the colors of your palette, "
+"so your charts match each other. For any other color, write it as #rrggbb."
+msgstr ""
+"Farben, die Sie in einer Beschreibung benennen können. Es sind die Farben "
+"Ihrer Palette, damit Ihre Diagramme zueinander passen. Jede andere Farbe "
+"schreiben Sie als #rrggbb."
+
+#: crates/kassensturz-ui-bridge/qml/SpecPage.qml:218
+#, kde-format
+msgctxt ""
+"@action:button opens Settings, where the colors of the charts are changed"
+msgid "Edit palette…"
+msgstr "Palette bearbeiten …"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:75
+#, kde-format
+msgctxt "@label name of a chart color a person changed"
+msgid "Own color"
+msgstr "Eigene Farbe"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Wine red"
+msgstr "Weinrot"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Green"
+msgstr "Grün"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Teal"
+msgstr "Petrol"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Purple"
+msgstr "Violett"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Sand"
+msgstr "Sand"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Indigo"
+msgstr "Indigo"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Rose"
+msgstr "Altrosa"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:80
+#, kde-format
+msgctxt "@label name of a chart color"
+msgid "Dark red"
+msgstr "Dunkelrot"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:229
+#, kde-format
+msgctxt "@action:button takes one color out of the chart colors"
+msgid "Remove"
+msgstr "Entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:230
+#, kde-format
+msgctxt ""
+"@action:button accessible name; %1 is the number of a chart color, %2 its "
+"name"
+msgid "Remove color %1, %2"
+msgstr "Farbe %1, %2 entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:290
+#, kde-format
+msgctxt "@action:button adds one more color to the chart colors"
+msgid "Add a color"
+msgstr "Farbe hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:90
+#, kde-format
+msgctxt "@label name of a chart color you added beyond the sixteen with a name"
+msgid "Added color"
+msgstr "Hinzugefügte Farbe"

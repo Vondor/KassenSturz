@@ -355,7 +355,11 @@ impl Store {
         if model.is_empty() {
             String::new()
         } else {
-            probe_request_body(&model)
+            // The answer limit goes only to a server on this computer
+            // (D-595).
+            let place = ProviderAddress::parse(&self.text(kassensturz_ai::ADDRESS_KEY))
+                .map_or(Place::AnotherComputer, |address| address.place());
+            probe_request_body(&model, place)
         }
     }
 

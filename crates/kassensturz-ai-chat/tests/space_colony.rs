@@ -38,7 +38,7 @@ fn a_question_goes_through_the_real_client_and_functions() {
             "function": {"name": "list_accounts", "arguments": "{}"}}]}}]});
     let fake = FakeProvider::start(vec![
         Answer::Json(200, call.to_string()),
-        Answer::text("Everyday Checking has 5531.90 EUR, about 5500.00."),
+        Answer::text("Everyday Checking has 2271.88 EUR, about 5500.00."),
     ]);
     let config = settings(true, Some(&fake.address()), KeyUse::AskEachTime);
     let client = AiClient::new(config);
@@ -65,16 +65,18 @@ fn a_question_goes_through_the_real_client_and_functions() {
     assert_eq!(received.len(), 2);
     let first: Value = serde_json::from_slice(&received[0].body).unwrap();
     assert_eq!(first["stream"], false);
-    // The seven read functions (list_budgets since M6c.11), propose_changes
-    // (M5.5), propose_view (M6c.8), draft_issue (M5.13) and open_page; the
-    // debug log isn't offered, since it is off.
+    // The eight read functions (list_budgets since M6c.11, payee_totals
+    // since D-597), propose_changes (M5.5), propose_view (M6c.8),
+    // draft_issue (M5.13) and open_page; the debug log isn't offered, since
+    // it is off.
     let tools = first["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 11);
-    assert_eq!(tools[6]["function"]["name"], "list_budgets");
-    assert_eq!(tools[7]["function"]["name"], "propose_changes");
-    assert_eq!(tools[8]["function"]["name"], "propose_view");
-    assert_eq!(tools[9]["function"]["name"], "draft_issue");
-    assert_eq!(tools[10]["function"]["name"], "open_page");
+    assert_eq!(tools.len(), 12);
+    assert_eq!(tools[3]["function"]["name"], "payee_totals");
+    assert_eq!(tools[7]["function"]["name"], "list_budgets");
+    assert_eq!(tools[8]["function"]["name"], "propose_changes");
+    assert_eq!(tools[9]["function"]["name"], "propose_view");
+    assert_eq!(tools[10]["function"]["name"], "draft_issue");
+    assert_eq!(tools[11]["function"]["name"], "open_page");
     let system = first["messages"][0]["content"].as_str().unwrap();
     assert!(system.contains("KassenSturz 0.261025.0 (commit 1775d22), a pre-release build"));
     assert!(system.contains("Today is 2026-10-25."));
@@ -94,7 +96,10 @@ fn a_question_goes_through_the_real_client_and_functions() {
         .iter()
         .find(|account| account["name"] == "Everyday Checking")
         .unwrap();
-    assert_eq!(checking["balance"], "5531.90");
+    // The balance at the end of the test's today, as account_balance counts
+    // it; the entries dated after it are named apart (M6-B168, D-601).
+    assert_eq!(checking["balance"], "2271.88");
+    assert_eq!(checking["after_today"], "3260.02");
 
     // What the log says was sent is what the provider got, byte for byte,
     // and the key went only in the header.
@@ -135,7 +140,7 @@ fn the_fake_model_answers_from_the_book() {
         .unwrap();
     assert!(answer.text.starts_with(DEMO_LABEL), "{}", answer.text);
     assert!(
-        answer.text.contains("Everyday Checking: 5531.90 EUR"),
+        answer.text.contains("Everyday Checking: 2271.88 EUR"),
         "{}",
         answer.text
     );
@@ -196,6 +201,6 @@ fn the_fake_model_without_functions_uses_the_overview() {
         "{}",
         answer.text
     );
-    assert!(answer.text.contains("5531.90"), "{}", answer.text);
+    assert!(answer.text.contains("2271.88"), "{}", answer.text);
     assert!(answer.unverified.is_empty(), "{:?}", answer.unverified);
 }

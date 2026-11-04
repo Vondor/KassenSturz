@@ -21,6 +21,7 @@ use serde_json::{Map, Value, json};
 
 use crate::chat::{Finish, FunctionSpec, Message, ModelInfo, Reply, Role, ToolCall};
 use crate::error::AiError;
+use crate::reply_text::{text_calls, unfenced, without_thinking};
 
 /// How deeply a reply's JSON may nest. A real reply nests about six
 /// levels; the arguments of a call are a JSON text inside a string, so
@@ -33,8 +34,26 @@ pub const MAX_CALLS: usize = 32;
 /// The most models a `models` reply is read for.
 pub const MAX_MODELS: usize = 500;
 
-/// The request body for `chat/completions`.
+/// The most tokens KassenSturz asks a server on this computer to write in
+/// one answer, its thinking included (`max_tokens`, M6-B172, D-595). A
+/// thinking model needs a few thousand for its thinking; a model that runs
+/// away stops here instead of filling its whole context. A provider on
+/// another computer gets no limit: some cloud models refuse the field.
+pub const MAX_ANSWER_TOKENS: u64 = 8192;
+
+/// The request body for `chat/completions`, without an answer limit.
+#[cfg(test)]
 pub fn chat_body(model: &str, messages: &[Message], functions: &[FunctionSpec]) -> Value {
+    chat_body_limited(model, messages, functions, None)
+}
+
+/// [`chat_body`] with `max_tokens` when `max_tokens` is set.
+pub fn chat_body_limited(
+    model: &str,
+    messages: &[Message],
+    functions: &[FunctionSpec],
+    max_tokens: Option<u64>,
+) -> Value {
     let messages: Vec<Value> = messages.iter().map(message_json).collect();
     let mut body = Map::new();
     body.insert("model".into(), json!(model));
@@ -54,6 +73,9 @@ pub fn chat_body(model: &str, messages: &[Message], functions: &[FunctionSpec]) 
             })
             .collect();
         body.insert("tools".into(), Value::Array(tools));
+    }
+    if let Some(max_tokens) = max_tokens {
+        body.insert("max_tokens".into(), json!(max_tokens));
     }
     body.insert("stream".into(), json!(false));
     Value::Object(body)
@@ -128,6 +150,8 @@ pub fn parse_chat_reply(bytes: &[u8], offered: &[String]) -> Result<Reply, AiErr
         Some(Value::Array(calls)) if calls.len() <= MAX_CALLS => calls.as_slice(),
         Some(_) => return Err(AiError::BadReply),
     };
+    // A model's thinking is never part of its answer (D-593).
+    let mut text = without_thinking(&text);
     let mut calls = Vec::new();
     let mut ignored_calls = Vec::new();
     let mut ids: Vec<String> = Vec::with_capacity(raw_calls.len());
@@ -140,7 +164,13 @@ pub fn parse_chat_reply(bytes: &[u8], offered: &[String]) -> Result<Reply, AiErr
             // A function without parameters is sometimes called with no
             // text at all.
             Some(Value::String(arguments)) if arguments.trim().is_empty() => "{}".to_owned(),
-            Some(Value::String(arguments)) => arguments.clone(),
+            // Some servers send the arguments as an object, or the model
+            // wraps them in a code fence; both are read as the text of the
+            // object (D-593). Anything else is still a broken reply.
+            Some(Value::String(arguments)) => unfenced(arguments).to_owned(),
+            Some(Value::Object(arguments)) => {
+                serde_json::to_string(arguments).map_err(|_| AiError::BadReply)?
+            }
             Some(_) => return Err(AiError::BadReply),
         };
         if offered.contains(&name) {
@@ -153,6 +183,28 @@ pub fn parse_chat_reply(bytes: &[u8], offered: &[String]) -> Result<Reply, AiErr
             ignored_calls.push(id);
         }
     }
+    // Calls the server left in the text, when functions were offered and
+    // it sent none of its own (M6-B166, D-593). They are checked like the
+    // others: a function that isn't offered is not run.
+    if raw_calls.is_empty()
+        && !offered.is_empty()
+        && let Some((text_calls, rest)) = text_calls(&text, MAX_CALLS)
+    {
+        for call in text_calls {
+            let id = call_id(&Value::Null, &ids)?;
+            ids.push(id.clone());
+            if offered.contains(&call.name) {
+                calls.push(ToolCall {
+                    id,
+                    name: call.name,
+                    arguments: call.arguments,
+                });
+            } else {
+                ignored_calls.push(id);
+            }
+        }
+        text = rest;
+    }
     Ok(Reply {
         text,
         calls,
@@ -161,6 +213,10 @@ pub fn parse_chat_reply(bytes: &[u8], offered: &[String]) -> Result<Reply, AiErr
         prompt_tokens: reply
             .get("usage")
             .and_then(|usage| usage.get("prompt_tokens"))
+            .and_then(Value::as_u64),
+        completion_tokens: reply
+            .get("usage")
+            .and_then(|usage| usage.get("completion_tokens"))
             .and_then(Value::as_u64),
     })
 }
@@ -392,6 +448,43 @@ mod tests {
     }
 
     #[test]
+    fn qwen_reply_shapes_are_read() {
+        // Arguments as an object (M6-B167) and in a code fence (M6-B171).
+        let bytes = br#"{"choices":[{"finish_reason":"tool_calls","message":{"tool_calls":[
+              {"id":"a","function":{"name":"account_balances","arguments":{"x":1}}},
+              {"id":"b","function":{"name":"account_balances","arguments":"```json\n{\"x\":2}\n```"}}
+            ]}}]}"#;
+        let reply = parse_chat_reply(bytes, &offered()).unwrap();
+        let arguments: Vec<&str> = reply.calls.iter().map(|c| c.arguments.as_str()).collect();
+        assert_eq!(arguments, [r#"{"x":1}"#, r#"{"x":2}"#]);
+
+        // Thinking in the text is not shown.
+        let bytes = br#"{"choices":[{"finish_reason":"stop","message":{"content":"<think>\nLet me look.\n</think>\nIt is 12.00."}}]}"#;
+        assert_eq!(
+            parse_chat_reply(bytes, &offered()).unwrap().text,
+            "It is 12.00."
+        );
+
+        // Calls written as text become calls (M6-B166); one for a function
+        // that isn't offered is not run.
+        let bytes = br#"{"choices":[{"finish_reason":"stop","message":{"content":"<tool_call>\n{\"name\": \"account_balances\", \"arguments\": {}}\n</tool_call>\n<tool_call>\n<function=send_money>\n<parameter=to>\nx\n</parameter>\n</function>\n</tool_call>"}}]}"#;
+        let reply = parse_chat_reply(bytes, &offered()).unwrap();
+        assert_eq!(reply.text, "");
+        assert_eq!(
+            reply.calls,
+            [ToolCall {
+                id: "ks-call-1".into(),
+                name: "account_balances".into(),
+                arguments: "{}".into()
+            }]
+        );
+        assert_eq!(reply.ignored_calls, ["ks-call-2"]);
+        // With no function offered, the text stays text.
+        let reply = parse_chat_reply(bytes, &[]).unwrap();
+        assert!(reply.calls.is_empty() && reply.text.contains("<tool_call>"));
+    }
+
+    #[test]
     fn broken_replies_are_refused() {
         let deep = format!("{}{}", "[".repeat(MAX_DEPTH + 1), "]".repeat(MAX_DEPTH + 1));
         let too_many_calls = format!(
@@ -406,7 +499,8 @@ mod tests {
             br#"{"choices":[{"message":{"content":5}}]}"#,
             br#"{"choices":[{"message":{"tool_calls":[{"id":7,"function":{"name":"x"}}]}}]}"#,
             br#"{"choices":[{"message":{"content":null,"refusal":5}}]}"#,
-            br#"{"choices":[{"message":{"tool_calls":[{"id":"a","function":{"name":"account_balances","arguments":{}}}]}}]}"#,
+            br#"{"choices":[{"message":{"tool_calls":[{"id":"a","function":{"name":"account_balances","arguments":[]}}]}}]}"#,
+            br#"{"choices":[{"message":{"tool_calls":[{"id":"a","function":{"name":"account_balances","arguments":5}}]}}]}"#,
             deep.as_bytes(),
             too_many_calls.as_bytes(),
         ] {

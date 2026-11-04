@@ -82,7 +82,7 @@ Item {
             id: series
 
             required property var modelData
-            readonly property color color: ChartPalette.color(modelData?.color ?? 0)
+            readonly property color color: ChartPalette.color(modelData?.color ?? 0, overlays.chart?.extraColors)
             readonly property string mark: modelData?.mark ?? ""
 
             anchors.fill: parent

@@ -563,6 +563,7 @@ fn filters_and_palette_are_counted_over_the_whole_spec() {
             PaletteName::ALL
                 .iter()
                 .copied()
+                .map(SpecColor::Slot)
                 .cycle()
                 .take(palette)
                 .collect(),

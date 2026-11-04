@@ -3,7 +3,7 @@
 
 // The app's settings: which book is open, opening another one or starting a
 // new one (D-033, for people who want more than one book), how amounts look
-// (D-002, D-114), the language (D-127), saving a copy of the data and starting a book from a file
+// (D-002, D-114), the colors of the charts (D-589), the language (D-127), saving a copy of the data and starting a book from a file
 // (M3.12), the bank logins on this computer and their PINs (M4.6, D-057),
 // how long the history of changes is kept (D-066, M3.8), where the
 // backups go, and which version of the app is running (D-152).
@@ -21,6 +21,7 @@ FormCard.FormCardPage {
 
     required property BookSession session
     required property NumberFormatSettings numberFormat
+    required property ChartPaletteSettings chartPalette
     required property LanguageSettings language
     required property AiSwitch ai
     required property ChangeHistory history
@@ -760,6 +761,16 @@ FormCard.FormCardPage {
         text: page.formatNotSaved
             ? page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice, so it applies only until you close KassenSturz. Check that your settings folder can be written to, then choose again.")
             : page.i18nContext.i18nc("@info", "This changes only how amounts look on this computer, not the amounts themselves. KassenSturz always calculates with the exact amounts, so rounded amounts may not add up exactly on screen: point at one to see it exactly. You can still type amounts with all their decimal places.")
+    }
+
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "Chart colors")
+    }
+
+    // The colors of the charts (M7a.10, D-589).
+    ChartColorsCard {
+        Layout.fillWidth: true
+        chartColors: page.chartPalette
     }
 
     FormCard.FormHeader {

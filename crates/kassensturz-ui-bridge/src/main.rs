@@ -36,6 +36,8 @@ mod categories;
 mod categories_model;
 mod category_groups;
 mod category_groups_model;
+mod chart_palette;
+mod chart_palette_model;
 mod chart_spec;
 #[cfg(test)]
 mod chart_spec_hostile_tests;
@@ -129,6 +131,7 @@ fn main() {
     QGuiApplication::set_desktop_file_name(&QString::from(platform::APP_ID));
     platform::use_bundled_icons();
     platform::use_readable_widget_style();
+    platform::follow_system_colours();
     platform::start_in_user_folder();
     platform::set_window_icon();
     platform::load_ki18n_qml();

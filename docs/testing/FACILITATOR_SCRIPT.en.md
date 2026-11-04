@@ -4,7 +4,7 @@
 
 Text marked "say" is read **word for word** in the German file; here its content is summarised.
 
-1. **Preparation.** Nothing installed and no installer handed over: card 1 measures installation. The facilitator **never installs for the tester**. Example books ship with the app; the matching statement file (card 5) and the newer build (card 6) are ready. AI and bank connections off. Cards handed out one at a time. Notes template ready. Recording stays **off**. Agree privately how the tester will send their questionnaire.
+1. **Preparation.** Nothing installed and no installer handed over: card 1 measures installation. The facilitator **never installs for the tester**. Example books ship with the app; the matching statement file (card 5) and the newer build (card 6) are ready. AI and bank connections off. Check that the statements match the book: the repository's statements and answer sheets belong to reference month 2026-11; the app shifts a new example book's dates to the running month and holds 24 months (D-584), so before any later round rerun `tools/example-books/generate.py --reference-month YYYY-MM`, let the `example_books` test rewrite the answer sheets, and play cards 4 and 5 through once yourself. Cards handed out one at a time. Notes template ready. Recording stays **off**. Agree privately how the tester will send their questionnaire.
 2. **Greeting (say).** We test the program, not you. The facilitator helped build it, so blunt criticism is a favour, not an insult. Made-up numbers and example books only; nothing leaves the computer. Pause or stop any time.
 3. **Recording consent (2a, say).** Ask before recording, never the reverse. Only the facilitator hears and sees it, nothing is published, it is deleted after evaluation (at the latest after __ weeks), no name on it. "No" is fine and changes nothing. Record only on a clear yes; hesitation means no. Repeat the question on the recording. A later "stop" ends it at once. A recording counts like a report with personal data: facilitator only, never git, issue, shared files or an agent.
 4. **Think aloud (say, practise).** Demonstrate on an everyday task (setting an alarm); let the tester practise (counting the windows of their home aloud). "I won't help you during the test, this includes installing. If you go quiet I only ask: what are you thinking now?"
@@ -14,7 +14,7 @@ Text marked "say" is read **word for word** in the German file; here its content
    - Note every hesitation, "hm", backtrack and search with time and card.
    - Stuck about 3 minutes or visibly frustrated: offer to keep trying or move on; show the way only if the next card depends on it and note "help given". On card 1 only say which step of the sheet they are at, never where to click.
    - Real data typed: don't interrupt; note it; ask question 8 at the end. Crash: note the time, stay calm, restart.
-6. **Closing (say).** "After the test" questions, question 8 last and gently. Answer the tester's questions. Explain where the questionnaire and reports go. Afterwards restart KassenSturz without developer mode (or uninstall); on Windows check Windows developer mode is off if it was ever on. Keep notes under a short code, no names.
+6. **Closing (say).** "After the test" questions, question 8 last and gently. Answer the tester's questions. Explain where the questionnaire and reports go. Afterwards restart KassenSturz without developer mode (or uninstall). Keep notes under a short code, no names.
 
 ## Success criteria (facilitator only)
 
@@ -33,7 +33,7 @@ Per card: **done** (no help, right result, in target time), **with effort** (ove
 
 Answer sheets come from the real import and report code for each example book (step M7a.8), never by hand; facilitator only.
 
-**Card 5 note (Suburban Family):** if the tester's date is before 6 Nov 2026, the checking account shows "Darin Buchungen nach heute: −201,15 €" after the CAMT import. This is expected: some lines in the file are dated in the future for the tester's computer. Say nothing in advance; if asked, use the neutral prompt. The statement's closing balance stays the comparison value. It disappears from 6 Nov 2026.
+**Card 5 note (Suburban Family):** if the tester's date is before 6 Nov 2026, the checking account shows "Darin Buchungen nach heute: 394,45 €" after the CAMT import. This is expected: some lines in the file are dated in the future for the tester's computer. Say nothing in advance; if asked, use the neutral prompt. The statement's closing balance stays the comparison value. It disappears from 6 Nov 2026.
 
 **A round passes** when, over all testers: no wrong result is believed (cards 2 to 5); cards 1 to 6 are done by at least 4 of 5 and none by more than one only "with effort"; average ease at least 4, no card under 3; nobody answers "no" to trust (3.1); at least half "yes" or "maybe" to continue (3.6); no crash or data loss. Any spot where two or more testers stall is a finding. With a single tester (the maintainer), 1, 4 and 6 count fully.
 

@@ -9,8 +9,8 @@
 use kassensturz_core::{GroupMember, Money, Report, RoundingMode};
 use kassensturz_report::spec::{
     Aggregate, Cell, Channel, ChartSpec, Encoding, FieldFilter, FieldType, FilterTest, FlatTable,
-    Layer, Mark, MarkKind, PaletteName, Sort, SpecNumber, SpecText, SpecValue, TimeUnit,
-    spec_dataset,
+    Layer, Mark, MarkKind, PaletteName, Rgb, Sort, SpecColor, SpecNumber, SpecText, SpecValue,
+    TimeUnit, spec_dataset,
 };
 use kassensturz_report::{
     Filter, Overlap, Source, TextFormat, cash_flow_by_month as cash_flow_dataset,
@@ -813,14 +813,17 @@ fn the_palette_of_the_description_colors_the_series() {
         Some(SpecText::new("Title").expect("text")),
         None,
         None,
-        vec![PaletteName::ALL[5], PaletteName::ALL[2]],
+        vec![
+            SpecColor::Slot(PaletteName::ALL[5]),
+            SpecColor::Slot(PaletteName::ALL[2]),
+        ],
         Vec::new(),
         vec![by_color],
     )
     .expect("spec");
     let custom = draw(&spec, &table);
     assert_eq!(custom.title.as_deref(), Some("Title"));
-    let colors: Vec<u8> = custom.chart.series.iter().map(|s| s.color).collect();
+    let colors: Vec<u16> = custom.chart.series.iter().map(|s| s.color).collect();
     assert_eq!(colors, [5, 2]);
 }
 
@@ -1225,4 +1228,137 @@ fn a_yes_no_field_is_marked_and_the_screens_words_go_in_its_place() {
     );
     let amounts_after: Vec<Vec<i64>> = chart.series.iter().map(amounts).collect();
     assert_eq!(amounts_before, amounts_after);
+}
+
+// ---- free colors by their code (M7a.10, D-589, Q-410) ----
+
+/// A description by hand for these tests, as the parser reads it.
+fn colored(palette: &str, mark: &str) -> ChartSpec {
+    parsed(&format!(
+        r##"{{
+          "data": {{"name": "spending_by_category"}},
+          "config": {{"range": {{"category": {palette}}}}},
+          "mark": {mark},
+          "encoding": {{
+            "x": {{"field": "top_level", "type": "nominal"}},
+            "y": {{"field": "total", "type": "quantitative"}},
+            "color": {{"field": "category", "type": "nominal"}}
+          }}
+        }}"##
+    ))
+}
+
+#[test]
+fn a_free_color_in_the_palette_gets_an_index_from_the_extra_base_on() {
+    let table = spending_table(&[("a", 1), ("b", 2), ("c", 3)]);
+    // Words and codes mixed: the word keeps its place's index, each code is
+    // an extra, and a code used twice is one extra.
+    let spec = colored(r##"["sky-blue", "#00FF7f", "#00ff7F"]"##, r#""bar""#);
+    let chart = draw(&spec, &table).chart;
+    let colors: Vec<u16> = chart.series.iter().map(|s| s.color).collect();
+    assert_eq!(colors, [5, EXTRA_COLOR_BASE, EXTRA_COLOR_BASE]);
+    assert_eq!(chart.extra_colors, [Rgb::new(0x00, 0xFF, 0x7F)]);
+    // Two different codes are two extras, in order of the list.
+    let two = colored(r##"["#010203", "#040506", "#010203"]"##, r#""bar""#);
+    let chart = draw(&two, &table).chart;
+    let colors: Vec<u16> = chart.series.iter().map(|s| s.color).collect();
+    assert_eq!(
+        colors,
+        [EXTRA_COLOR_BASE, EXTRA_COLOR_BASE + 1, EXTRA_COLOR_BASE]
+    );
+    assert_eq!(chart.extra_colors, [Rgb::new(1, 2, 3), Rgb::new(4, 5, 6)]);
+    // Without a palette the colors are the app's, and there are no extras.
+    let plain = draw(&colored("[]", r#""bar""#), &table).chart;
+    let colors: Vec<u16> = plain.series.iter().map(|s| s.color).collect();
+    assert_eq!(colors, [0, 1, 2]);
+    assert!(plain.extra_colors.is_empty());
+}
+
+#[test]
+fn a_mark_in_its_own_color_colors_a_layer_without_a_color_channel() {
+    let table = spending_table(&[("a", 1), ("b", 2)]);
+    let one = |mark: &str| {
+        parsed(&format!(
+            r##"{{
+              "data": {{"name": "spending_by_category"}},
+              "mark": {mark},
+              "encoding": {{
+                "x": {{"field": "category", "type": "nominal"}},
+                "y": {{"field": "total", "type": "quantitative"}}
+              }}
+            }}"##
+        ))
+    };
+    let chart = draw(&one(r##"{"type": "bar", "color": "#123456"}"##), &table).chart;
+    assert_eq!(chart.series.len(), 1);
+    assert_eq!(chart.series[0].color, EXTRA_COLOR_BASE);
+    assert_eq!(chart.extra_colors, [Rgb::new(0x12, 0x34, 0x56)]);
+    // A palette word colors it with that place of the app's palette.
+    let word = draw(&one(r#"{"type": "bar", "color": "grey"}"#), &table).chart;
+    assert_eq!(word.series[0].color, 7);
+    assert!(word.extra_colors.is_empty());
+    // With a color channel, the channel's series take the colors.
+    let with_channel = colored("[]", r##"{"type": "bar", "color": "#123456"}"##);
+    let chart = draw(&with_channel, &table).chart;
+    let colors: Vec<u16> = chart.series.iter().map(|s| s.color).collect();
+    assert_eq!(colors, [0, 1]);
+}
+
+#[test]
+fn layers_in_their_own_colors_leave_the_standard_colors_to_the_others() {
+    let book = book();
+    let data = monthly(&book);
+    let table = FlatTable::from_monthly(&data);
+    let read = parsed(
+        r##"{
+          "data": {"name": "income_expense_by_month"},
+          "layer": [
+            {"mark": {"type": "bar", "color": "#336699"}, "encoding": {
+              "x": {"field": "month", "type": "temporal", "timeUnit": "yearmonth"},
+              "y": {"field": "net", "type": "quantitative"}}},
+            {"mark": {"type": "line", "color": "#CC3300"}, "encoding": {
+              "x": {"field": "month", "type": "temporal", "timeUnit": "yearmonth"},
+              "y": {"field": "income", "type": "quantitative"}}},
+            {"mark": "rule", "encoding": {
+              "y": {"field": "net", "type": "quantitative", "aggregate": "mean"}}}
+          ]
+        }"##,
+    );
+    let chart = draw(&read, &table).chart;
+    assert_eq!(chart.series[0].color, EXTRA_COLOR_BASE);
+    assert_eq!(chart.overlays[0].series[0].color, EXTRA_COLOR_BASE + 1);
+    // The rule has no color of its own and takes the first standard one.
+    assert_eq!(chart.overlays[1].series[0].color, 0);
+    assert_eq!(
+        chart.extra_colors,
+        [Rgb::new(0x33, 0x66, 0x99), Rgb::new(0xCC, 0x33, 0x00)]
+    );
+}
+
+#[test]
+fn a_pie_takes_the_descriptions_colors_for_its_slices_in_order() {
+    let table = spending_table(&[("a", 3), ("b", 2), ("c", 1)]);
+    let pie = |palette: &str| {
+        parsed(&format!(
+            r##"{{
+              "data": {{"name": "spending_by_category"}},
+              "config": {{"range": {{"category": {palette}}}}},
+              "mark": "arc",
+              "encoding": {{
+                "theta": {{"field": "total", "type": "quantitative"}},
+                "color": {{"field": "category", "type": "nominal"}}
+              }}
+            }}"##
+        ))
+    };
+    let chart = draw(&pie(r##"["#102030", "grey"]"##), &table).chart;
+    assert_eq!(chart.kind, ChartKind::Pie);
+    let colors: Vec<u16> = (0..3).map(|at| chart.slice_color(at)).collect();
+    assert_eq!(colors, [EXTRA_COLOR_BASE, 7, EXTRA_COLOR_BASE]);
+    assert_eq!(chart.extra_colors, [Rgb::new(0x10, 0x20, 0x30)]);
+    // Without a palette the slices take the app's colors by place, as the
+    // built-in pie does.
+    let plain = draw(&pie("[]"), &table).chart;
+    let colors: Vec<u16> = (0..3).map(|at| plain.slice_color(at)).collect();
+    assert_eq!(colors, [0, 1, 2]);
 }

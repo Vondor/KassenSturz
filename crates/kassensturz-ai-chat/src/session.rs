@@ -7,9 +7,11 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Instant;
 
 use kassensturz_ai::{
-    AiError, Finish, FunctionSpec, Message, PreparedRequest, Provider, Role, ToolCall,
+    AiError, Finish, FunctionSpec, MAX_ANSWER_TOKENS, Message, PreparedRequest, Provider, Role,
+    ToolCall,
 };
 use kassensturz_ai_tools::{
     ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, MAX_VIEWS_PER_ANSWER,
@@ -83,6 +85,16 @@ fn is_raw_tool_call(text: &str) -> bool {
     ]
     .iter()
     .any(|marker| text.contains(marker))
+}
+
+/// Whether a server's refusal names tools or functions, as Ollama's "does
+/// not support tools" does: then the model can't call them and there is no
+/// point in asking again (D-595).
+fn names_functions(refusal: Option<&str>) -> bool {
+    refusal.is_some_and(|text| {
+        let text = text.to_lowercase();
+        text.contains("tool") || text.contains("function")
+    })
 }
 
 /// What a function's result becomes once its question is over. A small
@@ -218,6 +230,11 @@ pub struct Answer {
     pub title_numbers: Vec<Vec<Unverified>>,
     /// Set when the model's attempts at a chart ran out (D-402).
     pub chart_failed: Option<ChartFailed>,
+    /// Set when the model's last attempt to prepare a change or a chart
+    /// for this question was refused and nothing was prepared, so the chat
+    /// says in its own words that no change waits, whatever the model
+    /// claims (Q-414, D-595).
+    pub no_change: bool,
     /// The issue draft the model prepared for this question, the last one
     /// if it made several, for the user to read (D-173, D-228). Nothing is
     /// sent: only the user opens the prefilled page.
@@ -318,6 +335,9 @@ pub struct ChatSession {
     view_refusals: usize,
     /// Set when the refusals went past [`MAX_VIEW_CORRECTIONS`].
     chart_failed: Option<ChartFailed>,
+    /// Whether the last call of `propose_changes` or `propose_view` in the
+    /// question under way was refused.
+    last_change_refused: bool,
     /// The debug log the conversation writes to and the model may read
     /// while AI and the log are on (D-173).
     #[cfg(feature = "debug-log")]
@@ -350,6 +370,7 @@ impl ChatSession {
             page: None,
             view_refusals: 0,
             chart_failed: None,
+            last_change_refused: false,
             #[cfg(feature = "debug-log")]
             debug_log: DebugLog::none(),
             screen: None,
@@ -498,6 +519,14 @@ impl ChatSession {
         self.page = None;
         self.view_refusals = 0;
         self.chart_failed = None;
+        self.last_change_refused = false;
+        // The whole question's time limit, when the provider has one
+        // (M6-B172, D-595).
+        let deadline = provider
+            .question_limit()
+            .map(|limit| Instant::now() + limit);
+        let too_late = || deadline.is_some_and(|deadline| Instant::now() >= deadline);
+        let mut retried_failure = false;
         let mut overview = None;
         let mut context_cut = false;
         if self.mode == Mode::Overview {
@@ -517,6 +546,9 @@ impl ChatSession {
             }
             if hooks.cancelled() {
                 return Err(ChatError::Cancelled);
+            }
+            if too_late() {
+                return Err(ChatError::TooSlow);
             }
             // Asked again for each request: the user may turn the log on
             // or off while a question runs.
@@ -551,15 +583,32 @@ impl ChatSession {
                 },
                 hooks,
             );
-            let sent = provider.send_until(&request, key, &|| hooks.cancelled());
+            let sent = provider.send_until(&request, key, &|| hooks.cancelled() || too_late());
             // Whatever came back while the user stopped is thrown away,
             // an error too: Stop and Cancel end the wait (D-246).
             if hooks.cancelled() {
                 return Err(ChatError::Cancelled);
             }
+            if sent.is_err() && too_late() {
+                return Err(ChatError::TooSlow);
+            }
             self.transcribe_reply(provider, sent.as_ref().err());
             let mut reply = match sent {
                 Ok(reply) => reply,
+                // A server's passing hiccup (LM Studio's "fetch failed")
+                // is also a 400: unless the server's words name tools or
+                // functions, the same request is tried once more before the
+                // chat changes its mode (M6-B173, D-595).
+                Err(AiError::ProviderFailed { status: 400 })
+                    if offered
+                        && !self.functions_taken
+                        && !retried_failure
+                        && !names_functions(provider.last_reply_text().as_deref()) =>
+                {
+                    // The log shows it as a second request of the round.
+                    retried_failure = true;
+                    continue;
+                }
                 // A model that can't call functions: the provider refuses
                 // the request that offers them (D-190).
                 Err(AiError::ProviderFailed { status: 400 })
@@ -584,6 +633,15 @@ impl ChatSession {
                 // Nothing came back because the context was full: the
                 // request and the answer didn't fit (M5-B33).
                 if reply.text.trim().is_empty() && reply.finish == Finish::Length {
+                    // It used up the answer length KassenSturz asked for,
+                    // thinking most likely, before writing an answer
+                    // (M6-B172, D-595); otherwise the context was full.
+                    if reply
+                        .completion_tokens
+                        .is_some_and(|tokens| tokens >= MAX_ANSWER_TOKENS)
+                    {
+                        return Err(ChatError::AnswerTooLong);
+                    }
                     return Err(AiError::ContextTooSmall.into());
                 }
                 // An empty reply that ended normally (not a refusal, a filter or a
@@ -600,6 +658,20 @@ impl ChatSession {
                 }
                 if is_raw_tool_call(&reply.text) {
                     return Err(ChatError::ToolCallAsText);
+                }
+                // Still nothing after a normal end, and nothing prepared
+                // either: say so instead of showing an empty answer, e.g.
+                // when a server put the whole answer in its thinking field
+                // (M6-B169, D-593). A refusal or a filter (another finish)
+                // reaches the chat panel with its reason, as before.
+                if reply.text.trim().is_empty()
+                    && reply.finish == Finish::Done
+                    && self.proposed.is_empty()
+                    && self.issue.is_none()
+                    && self.page.is_none()
+                    && self.chart_failed.is_none()
+                {
+                    return Err(ChatError::EmptyAnswer);
                 }
                 // Marks like ** show as characters in the plain-text chat
                 // (M5-B46); the figures are checked in the text the user reads.
@@ -622,6 +694,8 @@ impl ChatSession {
                 self.history
                     .push(Message::assistant(reply.text.clone(), Vec::new()));
                 let changes = std::mem::take(&mut self.proposed);
+                let no_change =
+                    self.last_change_refused && changes.is_empty() && self.chart_failed.is_none();
                 let title_numbers = changes.iter().map(|set| self.title_numbers(set)).collect();
                 return Ok(Answer {
                     text: reply.text,
@@ -631,6 +705,7 @@ impl ChatSession {
                     context_cut,
                     changes,
                     title_numbers,
+                    no_change,
                     chart_failed: self.chart_failed.take(),
                     issue: self.issue.take(),
                     page: self.page.take(),
@@ -642,12 +717,24 @@ impl ChatSession {
             }
             self.history
                 .push(Message::assistant(reply.text, reply.calls.clone()));
+            // A call is repeated when an earlier request of this question
+            // made it. The same call twice in one reply runs once and both
+            // get its result, so it prepares nothing twice (M6-B170, D-593).
             let mut repeated = false;
+            let mut this_reply: Vec<((String, String), String)> = Vec::new();
             for call in &reply.calls {
-                repeated |= !made.insert((call.name.clone(), call.arguments.clone()));
+                let key = (call.name.clone(), call.arguments.clone());
+                if let Some((_, content)) = this_reply.iter().find(|(made, _)| *made == key) {
+                    self.history
+                        .push(Message::tool_result(call.id.clone(), content.clone()));
+                    continue;
+                }
+                repeated |= made.contains(&key);
                 let message = self.run_call(book, call, today, hooks);
+                this_reply.push((key, message.content.clone()));
                 self.history.push(message);
             }
+            made.extend(this_reply.into_iter().map(|(key, _)| key));
             if !reply.ignored_calls.is_empty() {
                 self.note(
                     LogEntry::NotOffered {
@@ -736,6 +823,9 @@ impl ChatSession {
                     }
                 })
         };
+        if call.name == PROPOSE_CHANGES.name || call.name == PROPOSE_VIEW_NAME {
+            self.last_change_refused = outcome.is_err();
+        }
         let (result, error) = match outcome {
             Ok(output) => {
                 self.figures.extend(&output.figures);

@@ -59,6 +59,13 @@ void useBundledIcons();
 // Call it after the QApplication exists and before the first window.
 void useReadableWidgetStyle();
 
+// On Windows, the app's colours follow Windows' light or dark mode, also when
+// it changes while the app runs, with KDE's Breeze and Breeze Dark schemes
+// (M6-B152, D-581). Before this, only the title bar turned dark. Does nothing
+// elsewhere, where the desktop's own colour scheme applies. Call it after
+// the QApplication exists and before the first window.
+void followSystemColours();
+
 // On Windows, makes the user's Downloads folder (or else their home folder)
 // the working folder when the app was started in the system's folder or in
 // its own program folder: Windows' file dialogs open in the working folder

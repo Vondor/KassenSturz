@@ -140,6 +140,9 @@ pub struct Reply {
     /// How many tokens the provider counted in the request it answered,
     /// when it says (`usage.prompt_tokens`).
     pub prompt_tokens: Option<u64>,
+    /// How many tokens the provider counted in its answer, thinking
+    /// included, when it says (`usage.completion_tokens`).
+    pub completion_tokens: Option<u64>,
 }
 
 /// One model a provider offers, with what its list says about it.

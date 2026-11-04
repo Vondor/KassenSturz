@@ -335,45 +335,27 @@ Item {
                     filter: balances.view?.filter
                 }
 
-                Repeater {
-                    model: sections
-
-                    delegate: ColumnLayout {
-                        id: section
-
-                        required property var modelData
-                        readonly property string value: modelData.card.negative
-                            ? names.i18nContext.i18nc("@label %1 is an amount of money", "You owe %1", modelData.card.magnitude)
-                            : modelData.card.value
-                        readonly property string exact: modelData.card.negative
-                            ? names.i18nContext.i18nc("@label %1 is an amount of money", "You owe %1", modelData.card.exactMagnitude)
-                            : modelData.card.exactValue
-
-                        Layout.fillWidth: true
-                        spacing: Kirigami.Units.smallSpacing
-
-                        // Only a book with several currencies needs to say which.
-                        Kirigami.Heading {
-                            textFormat: Text.PlainText
-                            visible: sections.length > 1
-                            text: section.modelData.currency
-                            level: 3
-                        }
-
-                        KpiGrid {
-                            cards: [{
-                                measure: "net-worth",
-                                currency: section.modelData.currency,
-                                value: section.value,
-                                exactValue: section.exact,
-                                negative: section.modelData.card.negative,
-                                previous: "",
-                                change: "",
-                                changePercent: "",
-                                direction: "none"
-                            }]
-                        }
-                    }
+                // One card per currency, side by side as the width allows
+                // (M6-B161): each figure names its currency, so a book with
+                // several currencies needs no heading per currency, and four
+                // currencies fit in one row instead of a column that is cut
+                // off at the bottom of the cell.
+                KpiGrid {
+                    cards: sections.map(section => ({
+                        measure: "net-worth",
+                        currency: section.currency,
+                        value: section.card.negative
+                            ? names.i18nContext.i18nc("@label %1 is an amount of money", "You owe %1", section.card.magnitude)
+                            : section.card.value,
+                        exactValue: section.card.negative
+                            ? names.i18nContext.i18nc("@label %1 is an amount of money", "You owe %1", section.card.exactMagnitude)
+                            : section.card.exactValue,
+                        negative: section.card.negative,
+                        previous: "",
+                        change: "",
+                        changePercent: "",
+                        direction: "none"
+                    }))
                 }
             }
         }

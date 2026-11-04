@@ -67,8 +67,20 @@ fn the_balances_are_the_stores() {
         assert_eq!(row["id"], account.id.to_string().as_str());
         // Every row says what kind of account it is; none leaves it out.
         assert!(row["type"].is_string(), "{}", account.name);
-        let balance = book.balance(account.id).expect("a balance");
+        // The balance at the end of today, as account_balance counts it;
+        // with what is dated after today it is the store's whole balance
+        // (M6-B168, D-601).
+        let balance = book.balance_on(account.id, TODAY).expect("a balance");
         assert_eq!(eur(&row["balance"]), balance, "{}", account.name);
+        let later = row
+            .get("after_today")
+            .map_or(Money::zero(balance.currency()), eur);
+        assert_eq!(
+            balance.checked_add(later).expect("no overflow"),
+            book.balance(account.id).expect("a balance"),
+            "{}",
+            account.name
+        );
         together = together.checked_add(balance).expect("no overflow");
         assert_eq!(
             row["debt"].as_bool().unwrap_or(false),
@@ -286,7 +298,9 @@ fn an_answer_quoting_the_results_passes_the_number_check() {
                 let id = book.accounts(false).expect("accounts")[0].id.to_string();
                 json!({ "account_id": id })
             }
-            "category_totals" => json!({ "from": "2026-10-01", "to": "2026-10-31" }),
+            "category_totals" | "payee_totals" => {
+                json!({ "from": "2026-10-01", "to": "2026-10-31" })
+            }
             _ => json!({}),
         };
         let (value, figures) = run(&book, function.name, arguments);
@@ -507,4 +521,38 @@ fn an_empty_text_means_no_text_filter() {
         );
         assert_eq!(value, all);
     }
+}
+
+/// A test where the steps meet: what `payee_totals` says a payee got is
+/// what the search finds for it, so "whom did I pay most" comes from code
+/// (Q-414, D-597).
+#[test]
+fn payee_totals_agree_with_the_search() {
+    let book = space_colony();
+    let period = json!({"from": "2026-01-01", "to": "2026-12-31"});
+    let (totals, figures) = run(&book, "payee_totals", period.clone());
+    let eur_side = &totals["currencies"][0];
+    assert_eq!(eur_side["currency"], "EUR");
+    let paid = eur_side["paid"].as_array().expect("paid");
+    assert_eq!(paid.len(), 10, "the default limit");
+    assert_eq!(eur_side["paid_left_out"], 11);
+    assert_eq!(paid[0]["payee"], "Kepler Sports Club");
+    assert_eq!(paid[0]["amount"], "1427.21");
+    let row = paid
+        .iter()
+        .find(|row| row["payee"] == "Hydroponics Cooperative")
+        .expect("Hydroponics Cooperative");
+    let mut arguments = period;
+    arguments["text"] = json!("Hydroponics Cooperative");
+    arguments["skip_transfers"] = json!(true);
+    let (found, _) = run(&book, "search_transactions", arguments);
+    let rows = found["rows"].as_array().expect("rows");
+    assert_eq!(row["transactions"], rows.len());
+    let net = rows.iter().fold(
+        Money::zero(kassensturz_core::CurrencyCode::new("EUR").expect("EUR")),
+        |sum, row| sum.checked_add(eur(&row["amount"])).expect("no overflow"),
+    );
+    assert_eq!(eur(&row["amount"]), net.checked_neg().expect("no overflow"));
+    // Its figures pass the number check of an answer that quotes them.
+    assert!(check_numbers("Kepler Sports Club got 1427.21 EUR.", &figures).is_empty());
 }

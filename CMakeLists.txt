@@ -47,9 +47,13 @@ set(windows_resource_env "")
 set(windows_resource_depends "")
 if(WIN32)
     find_package(KF6BreezeIcons ${KF_MIN_VERSION} REQUIRED)
+    # KDE's colour schemes follow Windows' light or dark mode (D-581).
+    find_package(KF6ColorScheme ${KF_MIN_VERSION} REQUIRED)
     set(breeze_icons_env
         "KASSENSTURZ_BREEZEICONS_INCLUDE_DIRS=$<TARGET_PROPERTY:KF6::BreezeIcons,INTERFACE_INCLUDE_DIRECTORIES>"
         KASSENSTURZ_BREEZEICONS_LIBRARY_DIR=$<TARGET_LINKER_FILE_DIR:KF6::BreezeIcons>
+        "KASSENSTURZ_COLORSCHEME_INCLUDE_DIRS=$<TARGET_PROPERTY:KF6::ColorScheme,INTERFACE_INCLUDE_DIRECTORIES>"
+        KASSENSTURZ_COLORSCHEME_LIBRARY_DIR=$<TARGET_LINKER_FILE_DIR:KF6::ColorScheme>
     )
     # The program's icon (M6-B143): the resource compiler turns the .rc into
     # a .res, which Cargo's linker adds to kassensturz.exe (build.rs).
@@ -148,7 +152,29 @@ if(KASSENSTURZ_BANK_DIALOGS)
     add_subdirectory(crates/kassensturz-aqbanking-sys/gwengui)
 endif()
 install(FILES data/io.github.vondor.KassenSturz.desktop DESTINATION ${KDE_INSTALL_APPDIR})
-install(FILES data/io.github.vondor.KassenSturz.metainfo.xml DESTINATION ${KDE_INSTALL_METAINFODIR})
+# The AppStream file carries the build's own number, which comes from git
+# (D-226), in the same order as build.rs reads it: KASSENSTURZ_VERSION, the
+# file build-version that CI writes, then tools/build-version.sh. Without
+# one, the file is installed as it is (M6-B156).
+set(build_version "$ENV{KASSENSTURZ_VERSION}")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/build-version")
+if(build_version STREQUAL "" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/build-version")
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/build-version" build_version LIMIT_COUNT 1)
+endif()
+if(build_version STREQUAL "")
+    execute_process(COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/tools/build-version.sh"
+        OUTPUT_VARIABLE build_version OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+endif()
+set(metainfo "${CMAKE_CURRENT_BINARY_DIR}/io.github.vondor.KassenSturz.metainfo.xml")
+execute_process(COMMAND "${CMAKE_COMMAND}"
+    "-DIN=${CMAKE_CURRENT_SOURCE_DIR}/data/io.github.vondor.KassenSturz.metainfo.xml"
+    "-DOUT=${metainfo}" "-DVERSION=${build_version}"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/StampMetainfo.cmake"
+    COMMAND_ERROR_IS_FATAL ANY)
+install(FILES "${metainfo}" DESTINATION ${KDE_INSTALL_METAINFODIR})
+add_test(NAME metainfo-version
+    COMMAND "${CMAKE_COMMAND}" "-DWORK=${CMAKE_CURRENT_BINARY_DIR}/stamp-test"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/StampMetainfoTest.cmake")
 # The app icon in the freedesktop icon theme layout: an SVG and PNG sizes (D-165).
 if(KASSENSTURZ_INSTALL_SVG_ICON)
     install(DIRECTORY data/icons/hicolor DESTINATION ${KDE_INSTALL_ICONDIR})

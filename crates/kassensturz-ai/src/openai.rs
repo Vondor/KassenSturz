@@ -34,8 +34,26 @@ pub const MAX_CALLS: usize = 32;
 /// The most models a `models` reply is read for.
 pub const MAX_MODELS: usize = 500;
 
-/// The request body for `chat/completions`.
+/// The most tokens KassenSturz asks a server on this computer to write in
+/// one answer, its thinking included (`max_tokens`, M6-B172, D-595). A
+/// thinking model needs a few thousand for its thinking; a model that runs
+/// away stops here instead of filling its whole context. A provider on
+/// another computer gets no limit: some cloud models refuse the field.
+pub const MAX_ANSWER_TOKENS: u64 = 8192;
+
+/// The request body for `chat/completions`, without an answer limit.
+#[cfg(test)]
 pub fn chat_body(model: &str, messages: &[Message], functions: &[FunctionSpec]) -> Value {
+    chat_body_limited(model, messages, functions, None)
+}
+
+/// [`chat_body`] with `max_tokens` when `max_tokens` is set.
+pub fn chat_body_limited(
+    model: &str,
+    messages: &[Message],
+    functions: &[FunctionSpec],
+    max_tokens: Option<u64>,
+) -> Value {
     let messages: Vec<Value> = messages.iter().map(message_json).collect();
     let mut body = Map::new();
     body.insert("model".into(), json!(model));
@@ -55,6 +73,9 @@ pub fn chat_body(model: &str, messages: &[Message], functions: &[FunctionSpec]) 
             })
             .collect();
         body.insert("tools".into(), Value::Array(tools));
+    }
+    if let Some(max_tokens) = max_tokens {
+        body.insert("max_tokens".into(), json!(max_tokens));
     }
     body.insert("stream".into(), json!(false));
     Value::Object(body)
@@ -192,6 +213,10 @@ pub fn parse_chat_reply(bytes: &[u8], offered: &[String]) -> Result<Reply, AiErr
         prompt_tokens: reply
             .get("usage")
             .and_then(|usage| usage.get("prompt_tokens"))
+            .and_then(Value::as_u64),
+        completion_tokens: reply
+            .get("usage")
+            .and_then(|usage| usage.get("completion_tokens"))
             .and_then(Value::as_u64),
     })
 }

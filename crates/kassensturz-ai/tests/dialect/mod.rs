@@ -132,8 +132,11 @@ pub fn check_request(dialect: Dialect, body: &[u8]) -> Result<(), String> {
     // Fields KassenSturz doesn't send and some providers refuse: Claude
     // returns a 400 for a temperature below 1 or any top_p on its newest
     // models, and for forced tool use (tool_choice) on some of them.
+    // max_tokens goes only to a server on this computer (D-595), which every
+    // fake here is; a provider on another computer never gets it
+    // (`request::tests::only_a_server_on_this_computer_gets_an_answer_limit`).
     for key in object.keys() {
-        if !["model", "messages", "tools", "stream"].contains(&key.as_str()) {
+        if !["model", "messages", "tools", "stream", "max_tokens"].contains(&key.as_str()) {
             return Err(format!("{}: unexpected field {key}", dialect.name()));
         }
     }

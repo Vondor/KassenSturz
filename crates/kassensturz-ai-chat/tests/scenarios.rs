@@ -640,17 +640,21 @@ fn a_model_without_functions_gets_the_overview() {
     assert_eq!(answer.mode, Mode::Overview);
     assert!(answer.unverified.is_empty(), "the overview's figures pass");
     assert!(chat.log().contains(&LogEntry::Overview));
+    // A 400 without words about functions is first asked again, the same
+    // request, in case it was a passing hiccup (M6-B173, D-595).
     let seen = script.seen();
-    assert_eq!(seen.len(), 2);
-    assert!(seen[1].offered.is_empty());
-    assert!(seen[1].messages[0].content.contains(DATA_START));
-    assert!(seen[1].messages[0].content.contains("2271.88"));
+    assert_eq!(seen.len(), 3);
+    assert_eq!(seen[0].messages, seen[1].messages);
+    assert!(!seen[1].offered.is_empty());
+    assert!(seen[2].offered.is_empty());
+    assert!(seen[2].messages[0].content.contains(DATA_START));
+    assert!(seen[2].messages[0].content.contains("2271.88"));
 
     // The next question goes straight to the overview.
     chat.ask(&book, &provider, None, "And savings?", TODAY, &mut NoHooks)
         .unwrap();
-    assert_eq!(script.seen().len(), 3);
-    assert!(script.seen()[2].offered.is_empty());
+    assert_eq!(script.seen().len(), 4);
+    assert!(script.seen()[3].offered.is_empty());
 }
 
 #[test]

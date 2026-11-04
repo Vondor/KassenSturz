@@ -58,10 +58,15 @@ fn probe_spec() -> FunctionSpec {
     }
 }
 
-/// The exact body the test sends to `model`, for the screen to show before
-/// it runs (D-204's promise, kept for the test as for the chat).
-pub fn probe_request_body(model: &str) -> String {
-    let body = crate::openai::chat_body(model, &probe_messages(), &[probe_spec()]);
+/// The exact body the test sends to `model` at a provider in `place`, for
+/// the screen to show before it runs (D-204's promise, kept for the test as
+/// for the chat). A server on this computer is asked to keep its answer
+/// short, as for the chat (D-595).
+pub fn probe_request_body(model: &str, place: crate::Place) -> String {
+    let max_tokens =
+        (place == crate::Place::ThisComputer).then_some(crate::openai::MAX_ANSWER_TOKENS);
+    let body =
+        crate::openai::chat_body_limited(model, &probe_messages(), &[probe_spec()], max_tokens);
     serde_json::to_string_pretty(&body).unwrap_or_default()
 }
 
@@ -188,7 +193,8 @@ mod tests {
 
     #[test]
     fn the_request_is_fixed_and_holds_nothing_of_a_book() {
-        let body: Value = serde_json::from_str(&probe_request_body("m")).unwrap();
+        let body: Value =
+            serde_json::from_str(&probe_request_body("m", crate::Place::ThisComputer)).unwrap();
         assert_eq!(body["model"], "m");
         assert_eq!(body["messages"].as_array().unwrap().len(), 1);
         assert_eq!(body["messages"][0]["role"], "user");
@@ -209,7 +215,7 @@ mod tests {
         assert_eq!(seen[0].0, probe_messages());
         assert_eq!(seen[0].1, [PROBE_FUNCTION]);
         assert_eq!(
-            probe_request_body("m"),
+            probe_request_body("m", crate::Place::ThisComputer),
             provider
                 .prepare(probe_messages(), vec![probe_spec()])
                 .map(|r| r.preview().replace(crate::scripted::SCRIPTED_MODEL, "m"))

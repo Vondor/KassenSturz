@@ -449,6 +449,11 @@ pub(crate) mod engine {
                 map([("dataset", text(failed.dataset.unwrap_or_default()))]),
             ));
         }
+        if answer.no_change {
+            // The model's last attempt at a change was refused and nothing
+            // waits: the chat says so in its own words (D-595).
+            fields.push(("noChange", QVariant::from(&true)));
+        }
         if let Some(issue) = &answer.issue {
             fields.push(("issue", issue_object(issue)));
         }
@@ -1421,6 +1426,7 @@ mod tests {
             changes: Vec::new(),
             title_numbers: Vec::new(),
             chart_failed: None,
+            no_change: false,
             issue: None,
             page: None,
         };
@@ -1469,6 +1475,7 @@ mod tests {
             changes: Vec::new(),
             title_numbers: Vec::new(),
             chart_failed: None,
+            no_change: false,
             issue: None,
             page: None,
         };
@@ -1521,6 +1528,15 @@ mod tests {
         });
         let object = finished_object(&answer, &[], &[]);
         assert_eq!(text_of(&object_of(&object, "chartFailed"), "dataset"), "");
+        assert!(!keys(&object).contains(&"noChange".to_owned()));
+
+        // A refused change with nothing prepared is said by the chat itself
+        // (D-595).
+        answer.chart_failed = None;
+        answer.no_change = true;
+        let object = finished_object(&answer, &[], &[]);
+        assert!(keys(&object).contains(&"noChange".to_owned()));
+        assert!(flag_of(&object, "noChange"));
     }
 
     #[test]
@@ -1541,6 +1557,7 @@ mod tests {
             changes: Vec::new(),
             title_numbers: Vec::new(),
             chart_failed: None,
+            no_change: false,
             issue: Some(issue.clone()),
             page: None,
         };
@@ -1581,6 +1598,7 @@ mod tests {
             changes: Vec::new(),
             title_numbers: Vec::new(),
             chart_failed: None,
+            no_change: false,
             issue: None,
             page: Some(page.clone()),
         };

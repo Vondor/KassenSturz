@@ -202,13 +202,15 @@ fn a_model_that_ignores_the_functions_just_answers() {
 
 #[test]
 fn a_bad_gemini_key_is_a_400_and_costs_one_more_request() {
-    // Gemini answers a bad key with 400 (reported), which the chat takes
+    // Gemini answers a bad key with 400 (reported). The chat first sends
+    // the same request again, as for a passing hiccup (D-595), then takes it
     // for "this model can't call functions" and tries once more without
     // them (D-190); then the 400 stands (D-208).
     let dialect = Dialect::Gemini;
     let (fake, client) = provider(
         dialect,
         vec![
+            dialect.failure(400, "error_auth"),
             dialect.failure(400, "error_auth"),
             dialect.failure(400, "error_auth"),
         ],
@@ -222,7 +224,7 @@ fn a_bad_gemini_key_is_a_400_and_costs_one_more_request() {
         ),
         "{error:?}"
     );
-    assert_eq!(fake.received().len(), 2);
+    assert_eq!(fake.received().len(), 3);
     assert!(!format!("{error:?} {error} {:?}", chat.log()).contains(TEST_KEY));
 }
 

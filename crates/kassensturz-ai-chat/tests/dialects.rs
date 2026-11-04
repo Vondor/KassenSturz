@@ -98,7 +98,7 @@ fn a_question_with_a_function_call_works_in_every_dialect() {
         assert_eq!(answer.mode, Mode::Functions);
         assert!(
             answer.unverified.is_empty(),
-            "{}: 5531.90 comes from the function: {:?}",
+            "{}: 2271.88 comes from the function: {:?}",
             dialect.name(),
             answer.unverified
         );
@@ -116,7 +116,7 @@ fn a_question_with_a_function_call_works_in_every_dialect() {
         assert_eq!(messages[2]["tool_calls"][0]["id"], id);
         assert_eq!(messages[3]["role"], "tool");
         assert_eq!(messages[3]["tool_call_id"], id);
-        assert!(messages[3]["content"].as_str().unwrap().contains("5531.90"));
+        assert!(messages[3]["content"].as_str().unwrap().contains("2271.88"));
 
         // What the log shows is what went out.
         let logged: Vec<&str> = chat

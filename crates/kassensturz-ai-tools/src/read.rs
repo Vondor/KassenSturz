@@ -110,18 +110,29 @@ fn account_type(account_type: AccountType) -> &'static str {
     }
 }
 
-/// `list_accounts`: the user's accounts with their balances, and what they
-/// add up to per currency.
+/// `list_accounts`: the user's accounts with their balances at the end of
+/// `today`, by the day the bank booked each entry, as `account_balance`
+/// counts them (M6-B168, D-601), and what they add up to per currency. An
+/// account with entries dated after today also says what they add
+/// (`after_today`, signed), as the accounts screen does (D-587).
 pub(crate) fn list_accounts(
     book: &Book,
     w: &mut Writer<'_>,
     include_closed: bool,
+    today: Date,
 ) -> Result<Value, ToolError> {
+    let overflow = |_| StoreError::AmountOverflow;
     let accounts = book.accounts(include_closed)?;
     let mut rows = Vec::new();
-    let mut together: BTreeMap<String, Money> = BTreeMap::new();
+    let mut together: BTreeMap<String, (Money, Money)> = BTreeMap::new();
     for account in accounts.iter().take(MAX_ACCOUNTS) {
-        let balance = book.balance(account.id)?;
+        let parts = book.account_parts(account.id)?;
+        let (until_today, later): (Vec<_>, Vec<_>) =
+            parts.iter().partition(|part| part.bank_date() <= today);
+        let balance = Money::checked_sum(account.currency, until_today.iter().map(|p| p.amount))
+            .map_err(overflow)?;
+        let after_today = Money::checked_sum(account.currency, later.iter().map(|p| p.amount))
+            .map_err(overflow)?;
         let mut row = Map::new();
         row.insert("id".into(), Value::String(account.id.to_string()));
         row.insert("name".into(), w.text(&account.name));
@@ -137,17 +148,25 @@ pub(crate) fn list_accounts(
         }
         row.insert("currency".into(), Value::from(account.currency.as_str()));
         row.insert("balance".into(), w.amount(balance)?);
+        if !later.is_empty() {
+            row.insert("after_today".into(), w.amount(after_today)?);
+        }
         rows.push(Value::Object(row));
-        let sum = together
+        let (sum, sum_later) = together
             .entry(account.currency.as_str().to_owned())
-            .or_insert_with(|| Money::zero(account.currency));
-        *sum = sum
-            .checked_add(balance)
-            .map_err(|_| StoreError::AmountOverflow)?;
+            .or_insert_with(|| (Money::zero(account.currency), Money::zero(account.currency)));
+        *sum = sum.checked_add(balance).map_err(overflow)?;
+        *sum_later = sum_later.checked_add(after_today).map_err(overflow)?;
     }
     let mut totals = Vec::new();
-    for (currency, sum) in together {
-        totals.push(json!({ "currency": currency, "together": w.amount(sum)? }));
+    for (currency, (sum, later)) in together {
+        let mut total = Map::new();
+        total.insert("currency".into(), Value::from(currency));
+        total.insert("together".into(), w.amount(sum)?);
+        if later != Money::zero(later.currency()) {
+            total.insert("after_today".into(), w.amount(later)?);
+        }
+        totals.push(Value::Object(total));
     }
     let mut result = Map::new();
     result.insert("accounts".into(), Value::Array(rows));

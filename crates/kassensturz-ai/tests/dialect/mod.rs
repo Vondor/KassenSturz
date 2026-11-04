@@ -37,7 +37,7 @@ pub const ALL: [Dialect; 4] = [
 ];
 
 /// The text every `text.json` fixture answers with.
-pub const TEXT: &str = "Everyday Checking has 5531.90 EUR.";
+pub const TEXT: &str = "Everyday Checking has 2271.88 EUR.";
 
 impl Dialect {
     pub fn name(self) -> &'static str {

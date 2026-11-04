@@ -619,7 +619,7 @@ fn a_model_without_functions_gets_the_overview() {
     let refuse_functions: common::Step = Box::new(|_, offered| {
         if offered.is_empty() {
             Ok(serde_json::json!({"choices": [{"finish_reason": "stop",
-                "message": {"content": "Everyday Checking has 5531.90 EUR."}}]})
+                "message": {"content": "Everyday Checking has 2271.88 EUR."}}]})
             .to_string())
         } else {
             Err(AiError::ProviderFailed { status: 400 })
@@ -644,7 +644,7 @@ fn a_model_without_functions_gets_the_overview() {
     assert_eq!(seen.len(), 2);
     assert!(seen[1].offered.is_empty());
     assert!(seen[1].messages[0].content.contains(DATA_START));
-    assert!(seen[1].messages[0].content.contains("5531.90"));
+    assert!(seen[1].messages[0].content.contains("2271.88"));
 
     // The next question goes straight to the overview.
     chat.ask(&book, &provider, None, "And savings?", TODAY, &mut NoHooks)
@@ -661,7 +661,7 @@ fn a_model_the_test_found_without_functions_starts_in_the_overview() {
     let (provider, script) = Script::provider(
         on(),
         vec![
-            says("Everyday Checking has 5531.90 EUR."),
+            says("Everyday Checking has 2271.88 EUR."),
             says("Savings too."),
         ],
     );
@@ -684,7 +684,7 @@ fn a_model_the_test_found_without_functions_starts_in_the_overview() {
     assert_eq!(seen.len(), 1, "one request, no refused one first");
     assert!(seen[0].offered.is_empty());
     assert!(seen[0].messages[0].content.contains(DATA_START));
-    assert!(seen[0].messages[0].content.contains("5531.90"));
+    assert!(seen[0].messages[0].content.contains("2271.88"));
     // Only logged once, at the switch.
     chat.ask(&book, &provider, None, "And savings?", TODAY, &mut NoHooks)
         .unwrap();

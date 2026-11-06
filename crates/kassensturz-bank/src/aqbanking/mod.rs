@@ -423,6 +423,14 @@ impl Bank for AqBankingBank {
         if setup.kind == LoginKind::ChipCard {
             return Err(BankError::NeedsSetupDialog);
         }
+        // Whatever the caller checked, the PIN never goes to a plain-http
+        // or malformed address (T-56).
+        if !setup.url.starts_with("https://")
+            || setup.url.len() == "https://".len()
+            || setup.url.contains(char::is_whitespace)
+        {
+            return Err(BankError::SetupFailed { text: None });
+        }
         self.before_contact(session, &setup.bank)?;
         let pending = LoginId::pending();
         let pin = match pins.answer(&pending)? {

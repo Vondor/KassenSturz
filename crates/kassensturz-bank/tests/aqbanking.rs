@@ -1030,3 +1030,26 @@ fn only_one_backend_runs_per_thread() {
     drop(bank);
     assert!(AqBankingBank::open_from(library, library, &folder("third"), None).is_ok());
 }
+
+#[test]
+fn a_login_address_without_https_never_reaches_aqbanking() {
+    let _guard = lock();
+    let mut bank = open("plain-http");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    for url in [
+        "http://fints.testbank.example/",
+        "https://",
+        "https://a b.example/",
+    ] {
+        let mut setup = login_setup();
+        setup.url = url.to_owned();
+        assert!(
+            matches!(
+                bank.add_login(&setup, &mut pins),
+                Err(BankError::SetupFailed { text: None })
+            ),
+            "{url}"
+        );
+    }
+    assert!(!journal_of(&bank).contains("adduser"));
+}

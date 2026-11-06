@@ -161,7 +161,7 @@ KASSENSTURZ_BANK_LOG=1 tools/sdk.sh cargo run --bin kassensturz
 flatpak run --env=KASSENSTURZ_BANK_LOG=1 io.github.vondor.KassenSturz
 ```
 
-The log `bank-log/bank-log.jsonl` (next to the debug log's folder) holds only the time, which step a bank connection reached (setup, fetch, PIN, TAN, bank question, registration number asked and answered, whether AqBanking left a message log), an error code and a small count. It never holds the registration number, PIN, TAN, login name, bank name, IBAN, amounts or text from the bank. To report a problem, send that file.
+The log `bank-log/bank-log.jsonl` (next to the debug log's folder) holds only the time, which step a bank connection reached (setup, fetch, PIN, TAN, bank question, registration number asked and answered, whether AqBanking left a message log), an error code and a small count; for a refusal also the bank's FinTS return code (e.g. 9931), only if it is on a fixed list of public codes (D-607). It never holds the registration number, PIN, TAN, login name, bank name, IBAN, amounts or text from the bank. To report a problem, send that file.
 
 ## For AI agents
 

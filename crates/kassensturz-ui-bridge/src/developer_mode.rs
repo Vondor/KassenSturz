@@ -113,12 +113,12 @@ impl qobject::DeveloperMode {
     }
 
     fn clear_log(&self) -> bool {
+        // Both logs may run at once; "Delete the log" clears every one that
+        // runs, and says it worked only if all of them did.
         #[cfg(feature = "debug-log")]
-        if self.bank_log_on && !self.on {
-            return kassensturz_core::bank_log::clear();
-        }
-        #[cfg(feature = "debug-log")]
-        return self.on && log().clear().is_ok();
+        return (self.on || self.bank_log_on)
+            && (!self.bank_log_on || kassensturz_core::bank_log::clear())
+            && (!self.on || log().clear().is_ok());
         #[cfg(not(feature = "debug-log"))]
         false
     }

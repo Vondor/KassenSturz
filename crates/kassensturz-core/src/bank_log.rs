@@ -110,7 +110,7 @@ steps! {
 pub fn line(
     at: Timestamp,
     step: Step,
-    code: Option<&str>,
+    code: Option<&'static str>,
     count: Option<u32>,
     ms: Option<u64>,
 ) -> String {
@@ -137,6 +137,20 @@ pub fn line(
     line
 }
 
+/// The code that stands for why *Update all accounts* left an account out
+/// (`cancelled`, `bank-failed`, `earlier-failure`, `stopped`), so the log
+/// holds a code of the shape of every other and nothing else. Any other
+/// reason is `bank.unknown-code`.
+pub fn skip_code(reason: &str) -> &'static str {
+    match reason {
+        "cancelled" => "bank.cancelled",
+        "bank-failed" => "bank.bank-failed",
+        "earlier-failure" => "bank.earlier-failure",
+        "stopped" => "bank.stopped",
+        _ => "bank.unknown-code",
+    }
+}
+
 /// Whether the bank log runs: the program was started with
 /// `KASSENSTURZ_BANK_LOG=1` and knows where the log goes. Read once.
 pub fn is_on() -> bool {
@@ -153,12 +167,17 @@ pub fn folder() -> Option<std::path::PathBuf> {
 
 /// Notes `step` now. Does nothing when the log is off; a failure to write
 /// is ignored, a log must never break a bank call.
-pub fn note(step: Step, code: Option<&str>, count: Option<u32>) {
+pub fn note(step: Step, code: Option<&'static str>, count: Option<u32>) {
     note_after(step, code, count, None);
 }
 
 /// Like [`note`], with the time since `since`, in milliseconds.
-pub fn note_after(step: Step, code: Option<&str>, count: Option<u32>, since: Option<Instant>) {
+pub fn note_after(
+    step: Step,
+    code: Option<&'static str>,
+    count: Option<u32>,
+    since: Option<Instant>,
+) {
     if !is_on() {
         return;
     }
@@ -214,6 +233,18 @@ mod tests {
             assert!(text.contains("bank.unknown-code"), "{text}");
             assert!(!text.contains(stray), "{text}");
         }
+    }
+
+    #[test]
+    fn every_skip_reason_has_a_code_of_its_own() {
+        let at: Timestamp = "2026-11-06T16:00:00Z".parse().unwrap();
+        for reason in ["cancelled", "bank-failed", "earlier-failure", "stopped"] {
+            let code = skip_code(reason);
+            assert_ne!(code, "bank.unknown-code", "{reason}");
+            assert!(is_error_code(code), "{code}");
+            assert!(line(at, Step::FetchSkipped, Some(code), None, None).contains(code));
+        }
+        assert_eq!(skip_code("anything else"), "bank.unknown-code");
     }
 
     #[test]

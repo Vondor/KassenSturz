@@ -386,6 +386,10 @@ macro_rules! bank_note {
 /// What the bank log notes of a screen event: which question the bank asked
 /// and how a call ended. Nothing the event carries is written.
 fn log_event(event: &Event) {
+    #[cfg(feature = "debug-log")]
+    use kassensturz_core::bank_log::skip_code;
+    #[cfg(not(feature = "debug-log"))]
+    let skip_code = |_: &str| "bank.unknown-code";
     match event {
         Event::Tan(_) => bank_note!(TanAsked),
         Event::Question(_) => bank_note!(QuestionAsked),
@@ -421,7 +425,7 @@ fn log_event(event: &Event) {
                         )
                     ),
                     Updated::Failed(error) => bank_note!(FetchFailed, Some(error.code), None),
-                    Updated::Skipped(why) => bank_note!(FetchSkipped, Some(*why), None),
+                    Updated::Skipped(why) => bank_note!(FetchSkipped, Some(skip_code(why)), None),
                 }
             }
         }

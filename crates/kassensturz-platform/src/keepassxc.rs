@@ -330,9 +330,7 @@ impl Problem {
     fn into_error(self) -> KeychainError {
         match self {
             Self::Lost | Self::Refused => KeychainError::KeePassXcUnavailable,
-            Self::Garbled => KeychainError::Failed {
-                kind: "KeePassXcAnswer",
-            },
+            Self::Garbled => KeychainError::KeePassXcAnswer,
         }
     }
 }

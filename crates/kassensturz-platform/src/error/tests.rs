@@ -17,6 +17,7 @@ fn examples() -> Vec<KeychainError> {
         },
         KeychainError::NotText,
         KeychainError::KeePassXcUnavailable,
+        KeychainError::KeePassXcAnswer,
         KeychainError::InvalidKey,
     ]
 }

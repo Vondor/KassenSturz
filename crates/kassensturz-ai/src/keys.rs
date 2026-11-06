@@ -142,7 +142,7 @@ impl ProviderKeys {
 /// (D-164), else `ai.keychain`, without the keychain's own text.
 fn keychain_error(error: KeychainError) -> AiError {
     match error {
-        KeychainError::KeePassXcUnavailable => AiError::KeePassXc,
+        KeychainError::KeePassXcUnavailable | KeychainError::KeePassXcAnswer => AiError::KeePassXc,
         _ => AiError::Keychain,
     }
 }

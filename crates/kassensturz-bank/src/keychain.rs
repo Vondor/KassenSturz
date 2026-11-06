@@ -66,11 +66,12 @@ impl PinStore for KeychainPinStore {
     }
 }
 
-/// The keychain's error as `bank.keepassxc` when KeePassXC was the place
-/// (D-164), else `bank.keychain`, without the keychain's own text.
+/// The keychain's error as `bank.keepassxc` or `bank.keepassxc-answer` when
+/// KeePassXC was the place (D-164, M6-B179), else `bank.keychain`, without the keychain's own text.
 fn bank_error(error: KeychainError) -> BankError {
     match error {
         KeychainError::KeePassXcUnavailable => BankError::KeePassXc,
+        KeychainError::KeePassXcAnswer => BankError::KeePassXcAnswer,
         _ => BankError::Keychain,
     }
 }
@@ -152,6 +153,15 @@ mod tests {
             store.load(&LoginId::new("has a space")),
             Err(BankError::Keychain)
         );
+    }
+
+    #[test]
+    fn an_answer_keepassxc_gave_that_cant_be_read_is_its_own_code() {
+        let keychain = Shared(Arc::new(MemoryKeychain::new()));
+        keychain.0.fail_with(Some(KeychainError::KeePassXcAnswer));
+        let store = KeychainPinStore::new(Box::new(keychain));
+        assert_eq!(store.load(&login()), Err(BankError::KeePassXcAnswer));
+        assert_eq!(store.open(), Err(BankError::KeePassXcAnswer));
     }
 
     #[test]

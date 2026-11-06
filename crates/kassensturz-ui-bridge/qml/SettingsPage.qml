@@ -481,8 +481,17 @@ FormCard.FormCardPage {
             : page.i18nContext.i18nc("@info", "KassenSturz saves a PIN only when you choose so as you type it. When you choose another place here, the PINs saved in the old one are removed, and you type each PIN again at the next connection.")
     }
 
-    // Why the choice couldn't be made, e.g. the old place couldn't be
-    // emptied, so it stays chosen (D-575).
+    // The new place is in use, but the old one couldn't be emptied, e.g. it
+    // can't be reached: a saved PIN or the AI key may still be there
+    // (D-605).
+    FormCard.FormSectionText {
+        visible: page.pinStorageResult.leftBehind === true
+        textFormat: Text.PlainText
+        text: page.i18nContext.i18nc("@info", "The new place is in use, but KassenSturz could not remove everything from the old one, so a saved PIN or another saved secret may still be there. Nothing was copied to the new place. To remove them, open the old place yourself, for example your system's keychain manager or KeePassXC, and delete the entries named KassenSturz.")
+    }
+
+    // Why the choice couldn't be made, e.g. the new place can't be reached,
+    // so the old one stays chosen (D-167).
     FormError {
         Layout.fillWidth: true
         Layout.maximumWidth: Kirigami.Units.gridUnit * 30

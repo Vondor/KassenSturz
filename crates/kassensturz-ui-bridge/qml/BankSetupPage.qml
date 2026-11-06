@@ -257,6 +257,19 @@ Kirigami.ScrollablePage {
                 }
             }
 
+            // The address from KassenSturz's bank lists, when it isn't asked
+            // for: shown so it can be compared with the bank's own
+            // information (the address is public, not personal).
+            Controls.Label {
+                Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox the bank's FinTS server address", "FinTS address:")
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                visible: !(page.lookup.askUrl ?? false) && urlField.text !== ""
+                wrapMode: Text.WrapAnywhere
+                textFormat: Text.PlainText
+                font: Kirigami.Theme.smallFont
+                text: urlField.text
+            }
+
             Controls.TextField {
                 id: urlField
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox the bank's FinTS server address", "FinTS address:")

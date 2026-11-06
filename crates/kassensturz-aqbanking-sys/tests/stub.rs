@@ -232,6 +232,26 @@ fn all_records_of_a_bank_code_or_a_region_can_be_listed() {
     );
 }
 
+/// A PIN with FinTS's special characters (`? + : ' @`) and characters
+/// outside ASCII reaches the library whole, as UTF-8 bytes: nothing is
+/// cut, escaped or converted on the way (M6-B181). The stub counts the
+/// bytes of the buffer it was given, and never writes the PIN itself.
+#[test]
+fn a_pin_with_symbols_and_umlauts_reaches_the_library_whole() {
+    let _guard = lock();
+    // 7 symbols and letters + 2 bytes for "ä" + 3 bytes for "€" + 1.
+    let pin = "?+:'@aB\u{e4}\u{20ac}9";
+    assert_eq!(pin.len(), 7 + 2 + 3 + 1);
+    let (session, data_dir) = open("ok", "special-pin", Some(pin));
+    set_up_login(&session);
+    let journal = journal(&data_dir);
+    assert!(
+        journal.contains("password: pin with 13 characters\n"),
+        "{journal}"
+    );
+    assert!(!journal.contains("?+:"), "the journal never holds the PIN");
+}
+
 #[test]
 fn setup_commands_reach_the_backend_with_their_options() {
     let _guard = lock();

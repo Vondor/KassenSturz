@@ -17627,8 +17627,8 @@ msgstr "2.2 (nur, wenn Ihre Bank es verlangt)"
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:286
 #, kde-format
 msgctxt "@label:textbox"
-msgid "TAN method number:"
-msgstr "Nummer des TAN-Verfahrens:"
+msgid "Approval method number:"
+msgstr "Nummer des Freigabeverfahrens:"
 
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:289
 #, kde-format

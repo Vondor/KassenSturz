@@ -284,6 +284,7 @@ Kirigami.ScrollablePage {
                 visible: page.addressChanged
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
                 wrapMode: Text.Wrap
+                textFormat: Text.PlainText
                 color: Kirigami.Theme.negativeTextColor
                 text: page.i18nContext.i18nc("@info %1 is a web address", "Careful: this address is not the one in KassenSturz's bank lists. Your login name and PIN will be sent to %1. Anyone who runs that server can read them, so only go on if your bank itself told you this address.", page.addressHost)
             }
@@ -343,9 +344,9 @@ Kirigami.ScrollablePage {
             // The settings a connection that doesn't work may need changed
             // (D-609): shown on request, defaults otherwise.
             Controls.Button {
-                text: page.advancedShown
+                text: Plain.plain(page.advancedShown
                     ? page.i18nContext.i18nc("@action:button", "Hide advanced settings")
-                    : page.i18nContext.i18nc("@action:button", "Show advanced settings")
+                    : page.i18nContext.i18nc("@action:button", "Show advanced settings"))
                 icon.name: page.advancedShown ? "arrow-up" : "arrow-down"
                 flat: true
                 onClicked: {
@@ -368,7 +369,7 @@ Kirigami.ScrollablePage {
 
             Controls.TextField {
                 id: tanMethodField
-                Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "TAN method number:")
+                Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Approval method number:")
                 visible: page.advancedShown
                 placeholderText: page.i18nContext.i18nc("@info:placeholder", "Let the bank choose")
                 inputMethodHints: Qt.ImhDigitsOnly | Qt.ImhNoPredictiveText

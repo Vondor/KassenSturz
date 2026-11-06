@@ -165,7 +165,7 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - KassenSturz connects only to a server whose security certificate passes every check; there is no "connect anyway". If the check fails, it tells you so and sends nothing.
 - Until KassenSturz has its own registration with the banks' FinTS system, the connection says so and offers importing a file instead; the registration is the maintainer's job and takes a while.
 - TANs and approvals in your bank's app are asked in KassenSturz's own windows (see below). A chip card can't be set up yet.
-- If KassenSturz knows your bank's name but not its server address or how you log in there, you can enter these yourself. The list of known banks grows with what people confirm in test rounds; it names banks and their servers, never who banks where.
+- If KassenSturz knows your bank's name but not its server address or how you log in there, you can enter these yourself. The list of known banks grows from public sources; it names banks and their servers, never who banks where.
 
 ## Connecting a bank (M4.6)
 

@@ -178,7 +178,7 @@ fn no_two_accounts_are_linked_to_the_same_bank_account() {
         book.link_bank_account(&by_number(savings, "37040044", "4111111111111111")),
         Err(StoreError::BankAccountAlreadyLinked { existing }) if existing == card
     ));
-    book.link_bank_account(&by_number(savings, "50010517", "4111111111111111"))
+    book.link_bank_account(&by_number(savings, "10000000", "4111111111111111"))
         .expect("another bank");
     // An account can be linked to the same bank account again, e.g. to
     // add its bank code.

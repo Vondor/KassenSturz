@@ -36,7 +36,7 @@ pub mod qobject {
         #[qobject]
         #[qml_element]
         #[qproperty(bool, on, READ, CONSTANT)]
-        #[qproperty(bool, bank_log_on, READ, CONSTANT)]
+        #[qproperty(bool, bank_log_on, cxx_name = "bankLogOn", READ, CONSTANT)]
         type DeveloperMode = super::DeveloperModeRust;
     }
 
@@ -272,6 +272,39 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// QML reads a property by the name the object exports, and cxx-qt
+    /// exports the Rust name as written: a property of several words needs
+    /// its camelCase `cxx_name`, or QML gets `undefined` (M6-B177). The
+    /// check reads every bridge source, and the QML that uses the name.
+    #[test]
+    fn a_property_of_several_words_is_exported_in_camel_case() {
+        let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut checked = 0;
+        for entry in fs::read_dir(src).expect("src folder") {
+            let path = entry.expect("entry").path();
+            if path.extension().is_none_or(|ext| ext != "rs") {
+                continue;
+            }
+            let text = fs::read_to_string(&path).expect("source");
+            for declaration in text.split(concat!("#[qprop", "erty(")).skip(1) {
+                let Some((declaration, _)) = declaration.split_once(")]") else {
+                    continue;
+                };
+                let declaration = declaration.split_whitespace().collect::<Vec<_>>().join(" ");
+                let name = declaration.split(',').nth(1).unwrap_or("").trim();
+                if name.contains('_') {
+                    checked += 1;
+                    assert!(
+                        declaration.contains("cxx_name"),
+                        "{}: property `{name}` needs cxx_name in camelCase",
+                        path.display()
+                    );
+                }
+            }
+        }
+        assert!(checked >= 3, "the check found only {checked} properties");
     }
 
     #[test]

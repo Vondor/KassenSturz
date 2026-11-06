@@ -920,7 +920,12 @@ fn address_problem(url: &str) -> Option<&'static str> {
     ]
     .iter()
     .any(|suffix| host.ends_with(suffix));
-    if host.is_empty() || numeric || !host.contains('.') || private_name {
+    // A real top-level name is letters (or `xn--` for a non-Latin one); this
+    // also turns away numbers written as `0x7f.0.0.1` or `0177.0.0.1`.
+    let last = host.rsplit('.').next().unwrap_or("");
+    let real_top_level = last.starts_with("xn--")
+        || (last.len() >= 2 && last.bytes().all(|b| b.is_ascii_lowercase()));
+    if host.is_empty() || numeric || !host.contains('.') || private_name || !real_top_level {
         return Some("input.bank-address-private");
     }
     None
@@ -2047,12 +2052,17 @@ mod tests {
             ("https://router/fints", "input.bank-address-private"),
             ("https://nas.local/fints", "input.bank-address-private"),
             ("https://fints.home.arpa/", "input.bank-address-private"),
+            ("https://0x7f.0.0.1/", "input.bank-address-private"),
+            ("https://0177.0.0.1/", "input.bank-address-private"),
+            ("https://2130706433/", "input.bank-address-private"),
+            ("https://fints.example.d/", "input.bank-address-private"),
         ] {
             assert_eq!(address_problem(url), Some(code), "{url}");
         }
         for url in [
             "https://fints2.atruvia.de/cgi-bin/hbciservlet",
             "https://fints.example-bank.de:443/fints?x=1",
+            "https://fints.bank.xn--p1ai/fints",
         ] {
             assert_eq!(address_problem(url), None, "{url}");
         }

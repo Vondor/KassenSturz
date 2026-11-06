@@ -2,7 +2,7 @@
 
 KassenSturz finds a bank from the IBAN the user types and then asks only what that bank's login needs (D-145). The bank's details come from two sources, in this order (D-146):
 
-1. **The hand-checked list** in this repository: `crates/kassensturz-bank/src/banks.rs`, `HAND_CHECKED`. Corrections and additions a person confirmed in a test round. An entry here wins over the external source entirely.
+1. **The hand-checked list** in this repository: `crates/kassensturz-bank/src/banks.rs`, `HAND_CHECKED`. Corrections and additions that rest on a public source (D-611). An entry here wins over the external source entirely.
 2. **The external source**: AqBanking's bank information, read by the real backend (M4.5). It covers most German banks but can be out of date: a moved server, a bank that merged, a login kind it doesn't know; what it carries and what it lacks is below.
 
 One guess stands on top of the two (D-157): a cooperative bank (Volksbank, Raiffeisenbank, PSD bank) with no server in either source is offered the Atruvia server its neighbours use, marked as a guess. It is described in "The Atruvia guess" below and never becomes an entry by itself.
@@ -52,26 +52,19 @@ What the data says (AqBanking 6.9 data, counted for D-157):
 
 **The rule** (`kassensturz_bank::guess_server`): for a bank in Germany with a BIC starting `GENODE`, a name without "Sparda" and no server in either source, the directory lists the banks whose code starts with the same five digits (else four, else three). Only neighbours whose server is an `https://` address on `atruvia.de` count, and the guess is the address most of them use. If the nearest neighbourhood that has one is split evenly, or none has, nothing is guessed. Left out one at a time, the known Atruvia banks were guessed right 327 times and wrong 5 times (76 had no guess); for the banks without a server it would offer an address for 647 codes and leave 170 as `NoServer`.
 
-**What a guess is not:** it is not an entry. It is never saved, the app says it is a guess, and the user can change the address. A login that works through a guess is worth a test round: report the bank code and the address that worked, and an agent adds the entry (next sections). A guess that fails (`bank.setup-failed`, `bank.unreachable`) is no bug of the list; if the bank is on another server, the entry is the fix.
+**What a guess is not:** it is not an entry. It is never saved, the app says it is a guess, and the user can change the address. If the guess is wrong, the fix is an entry that rests on a public source (next sections). A guess that fails (`bank.setup-failed`, `bank.unreachable`) is no bug of the list; if the bank is on another server, the entry is the fix.
 
-## The first entries (item 77)
+## The entries so far (D-611)
 
-The first entries of `HAND_CHECKED` are settings reported on 2026-10-23 as working with AqBanking 6.9.2 (no login data was given or taken; who uses which bank is nobody's business and is not recorded anywhere in this repository):
+`HAND_CHECKED` starts empty. Entries rest on a named public source, see D-611. AqBanking's bank information and the Atruvia guess cover the banks until then.
 
-| Bank | Code | What worked in AqBanking | AqBanking's data for the code |
-|---|---|---|---|
-| Volksbank Darmstadt Mainz | `55190000` (BIC `MVBMDE55XXX`), and `50890000` (BIC `GENODEF1VBD`, the former Volksbank Darmstadt - Südhessen) | Server `https://fints2.atruvia.de/cgi-bin/hbciservlet`, HBCI 3.0, HTTP 1.1, numeric login name, TAN method 946 "SecureGo plus" (version 7), TAN mechanism "text", statements as CAMT preferred | `55190000`: PIN/TAN with that address, after several key-file services. `50890000`: 30 records, none with a service, so `NoServer` without the entry. |
-| ING | `50010517` (BIC `INGDDEFFXXX`) | Server `https://fints.ing.de/fints`, HBCI 3.0, HTTP 1.1, login name, TAN method 900 "iTAN" (version 1), TAN mechanism "auto" | PIN/TAN with `https://fints.ing.de/fints/`, protocol version empty. |
+## How the list is completed (D-611)
 
-At both banks the customer ID is the login name (AqBanking's setup shows the same value as user ID, customer ID and user name), so the entries have `customer_id: CustomerId::SameAsLoginName` and the app doesn't ask for one. Which of the two codes a Volksbank Darmstadt Mainz IBAN carries depends on the account; both are listed. The TAN method and mechanism aren't part of an entry (there is no field for them, Q-088); they are kept here for M4.6.
-
-## How a test round completes the list
-
-A person runs the real bank test on their own computer and reports **in words** what happened: the state shown, the bank code, which server address and login kind worked, and the error codes seen (D-055). No agent ever sees bank traffic, logs, PINs, TANs or login names, and the report must not contain them either. **Nothing in the repository says who banks where**: an entry, a commit message, a pull request or a decision names the bank and the settings, never the person who reported them or that they are a customer there (AGENTS.md §3.1 rule 2).
+An entry rests on a **public source**: the bank's own FinTS or online-banking page, its documentation for payment programs, or a public list such as hbci4java's. The entry, a commit message, a pull request or a decision names the bank, the settings and that source.
 
 An agent then adds or corrects an entry:
 
-1. **Take only what the maintainer confirmed worked.** Never fill a server address or login kind from memory, a search result or another program's bank list. If the maintainer's report lacks a value, leave it `None`, which the app shows as "no server" or "unknown login type", and ask through the coordinator.
+1. **Take only what a public source states.** Never fill a server address or login kind from memory or from a source you cannot name. If the source lacks a value, leave it `None`, which the app shows as "no server" or "unknown login type", and ask through the coordinator.
 2. **Write the whole entry**, since it replaces the external source's record completely:
 
    ```rust
@@ -82,16 +75,16 @@ An agent then adds or corrects an entry:
        bic: Some("EXAMDEFFXXX"),                // or None
        server: Some("https://fints.example-bank.example/"), // https only (threat T-12), or None
        login_kinds: Some(&[LoginKind::PinTan { customer_id: CustomerId::SameAsLoginName }]), // or None
-       checked: "2026-11-05, the maintainer's test round 1: login and fetch worked",
+       source: "2026-11-05, the bank's FinTS page <address of the page>",
    },
    ```
 
    `customer_id` says whether the bank gives a customer ID apart from the login name (`Separate`), uses the login name for both (`SameAsLoginName`), or whether that isn't known (`Unknown`, asked as optional).
 3. **Nothing personal goes in**: no login name, customer ID, account number, IBAN of a person, PIN or TAN, and no fragment of a bank's log (AGENTS.md §3.1 rules 2 and 3). The server address and login kinds are the same for every customer of the bank, so they are fine.
 4. **Run the tests.** `cargo test -p kassensturz-bank banks` checks the format: a two-letter country, an eight-digit German code, an `https://` server, non-empty `checked`, no duplicate codes.
-5. **Record it**: a line in the pull request's description naming the test round, and the bug the Issue Tracker opened for the missing bank, closed by the pull request.
+5. **Record it**: a line in the pull request's description naming the public source, and the bug the Issue Tracker opened for the missing bank, closed by the pull request.
 
-When the external source and the maintainer's finding differ, the list entry stands, and a note in `docs/THIRD_PARTY.md`'s verification log or an upstream report to AqBanking is a follow-up, not part of the entry.
+When the external source and the public source differ, the list entry stands, and a note in `docs/THIRD_PARTY.md`'s verification log or an upstream report to AqBanking is a follow-up, not part of the entry.
 
 ## Showing the list's state to agents
 

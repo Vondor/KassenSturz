@@ -651,17 +651,14 @@ mod tests {
     }
 
     #[test]
-    fn a_hand_checked_entry_stands_in_the_neighbours_too() {
-        // The hand-checked list's banks replace the external source's for
-        // the same code and are listed when the source lacks them.
-        let external = Listed(vec![cooperative("55190000", None)]);
+    fn an_empty_hand_checked_list_leaves_the_neighbours_as_the_source_gives_them() {
+        // The list is empty (D-611), so the source's banks pass through.
+        let external = Listed(vec![cooperative("55500001", None)]);
         let corrected = Corrected::new(&external as &dyn BankDirectory);
-        let banks = corrected.banks_starting_with("DE", "5519");
-        let entry = banks::HAND_CHECKED
-            .iter()
-            .find(|entry| entry.code == "55190000")
-            .expect("an entry");
-        assert_eq!(banks, vec![entry.info()]);
+        assert_eq!(
+            corrected.banks_starting_with("DE", "5550"),
+            vec![cooperative("55500001", None)]
+        );
         assert!(corrected.banks_starting_with("DE", "9999").is_empty());
     }
 }

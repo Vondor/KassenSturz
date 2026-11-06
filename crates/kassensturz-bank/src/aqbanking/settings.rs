@@ -371,8 +371,8 @@ data {
         assert_eq!(delete_message_logs(&data_dir).expect("cleaned"), 0);
         assert!(bank.join("logs").is_file());
         // A bank never contacted before gets its folders made.
-        block_message_logs(&data_dir, &BankCode::new("DE", "50010517")).expect("new bank");
-        assert!(bank.with_file_name("50010517").join("logs").is_file());
+        block_message_logs(&data_dir, &BankCode::new("DE", "10000000")).expect("new bank");
+        assert!(bank.with_file_name("10000000").join("logs").is_file());
         let _ = fs::remove_dir_all(&data_dir);
     }
 

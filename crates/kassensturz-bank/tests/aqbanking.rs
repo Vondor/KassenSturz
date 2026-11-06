@@ -875,15 +875,6 @@ fn the_directory_is_aqbankings_bank_information_behind_the_hand_checked_list() {
         .expect("known");
     assert!(odd_name.name.contains('\u{FFFD}'), "{}", odd_name.name);
     assert_eq!(directory.lookup(&BankCode::new("DE", "99999999")), None);
-    // The hand-checked list wins, for a bank AqBanking's data lacks too.
-    let ing = directory
-        .lookup(&BankCode::new("DE", "50010517"))
-        .expect("in the hand-checked list");
-    assert_eq!(ing.name, "ING");
-    assert_eq!(
-        ing.server.expect("a server").url,
-        "https://fints.ing.de/fints"
-    );
 }
 
 /// A German IBAN with valid check digits for `code` and an account number.

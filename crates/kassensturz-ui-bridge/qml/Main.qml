@@ -834,7 +834,7 @@ Kirigami.ApplicationWindow {
                         icon.name: "folder-open"
                         text: root.i18nContext.i18nc("@action:button opens the folder of the developer mode's log", "Show the log")
                         onTriggered: {
-                            ActionLog.taken("Main_showLog")
+                            ActionLog.taken("Main_showBankLog")
                             Qt.openUrlExternally(developerMode.folderUrl())
                         }
                     },
@@ -842,7 +842,7 @@ Kirigami.ApplicationWindow {
                         icon.name: "edit-delete"
                         text: root.i18nContext.i18nc("@action:button deletes the developer mode's log", "Delete the log")
                         onTriggered: {
-                            ActionLog.taken("Main_deleteLog")
+                            ActionLog.taken("Main_deleteBankLog")
                             developerMode.clearLog()
                         }
                     }

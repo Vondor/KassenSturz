@@ -6,6 +6,12 @@
 //! It opens the book the app manages, or the one the user opened last
 //! (D-033), and shows it through one QML page per screen.
 
+// On Windows the app is a window program, not a console one: without this,
+// Windows opens an empty terminal window next to it (M6-B175). Started from
+// PowerShell, as the install sheet's developer mode does, it still runs; its
+// messages go to the debug log, not to the terminal.
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 mod accounts;
 mod accounts_model;
 mod action_log_audit;

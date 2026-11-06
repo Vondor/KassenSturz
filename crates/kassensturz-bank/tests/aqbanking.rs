@@ -172,19 +172,20 @@ fn the_advanced_settings_reach_the_backend_with_a_login() {
     let journal = journal_of(&bank);
     assert!(journal.contains("--hbciversion=220"), "{journal}");
     assert!(!journal.contains("--hbciversion=300"), "{journal}");
-    let select = journal
-        .find("control: setitanmode -u 1 -m 912")
-        .unwrap_or_else(|| panic!("the TAN method is selected in:\n{journal}"));
+    // The method is chosen after the system ID and before the accounts,
+    // completed with the version the bank offers it in (M6-B184).
     let ids = journal.find("control: getsysid -u 1").expect("getsysid");
     let modes = journal
         .find("control: getitanmodes -u 1")
         .expect("getitanmodes");
+    let select = journal
+        .find("control: setitanmode -u 1 -m 6912")
+        .unwrap_or_else(|| panic!("the TAN method is selected in:\n{journal}"));
     let accounts = journal
         .find("control: getaccounts -u 1")
         .expect("getaccounts");
-    // The method is chosen before the first call with the PIN (M6-B183).
     assert!(
-        modes < select && select < ids && ids < accounts,
+        ids < modes && modes < select && select < accounts,
         "{journal}"
     );
 }
@@ -199,12 +200,12 @@ fn a_tan_method_the_backend_doesnt_know_yet_is_asked_for_once() {
     setup.tan_method = Some(912);
     bank.add_login(&setup, &mut pins).expect("login added");
     let journal = journal_of(&bank);
+    let ids = journal.find("control: getsysid -u 1").expect("getsysid");
     let modes = journal
         .find("control: getitanmodes -u 1")
         .expect("modes asked");
     let select = journal.find("control: setitanmode").expect("selected");
-    let ids = journal.find("control: getsysid -u 1").expect("getsysid");
-    assert!(modes < select && select < ids, "{journal}");
+    assert!(ids < modes && modes < select, "{journal}");
 }
 
 fn choice(number: u16, name: &str) -> kassensturz_bank::TanMethodChoice {
@@ -258,6 +259,58 @@ fn a_bank_wanting_a_tan_method_is_not_blamed_on_the_pin() {
             ]
         })
     );
+    stub::set_scenario("ok");
+}
+
+#[test]
+fn a_bank_that_refuses_even_the_system_id_without_a_method_gets_the_list() {
+    let _guard = lock();
+    let mut bank = open("strong-auth-sysid");
+    stub::set_scenario("strong-auth-sysid");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    assert_eq!(
+        bank.add_login(&login_setup(), &mut pins),
+        Err(BankError::TanMethodNeeded {
+            offered: vec![
+                choice(6912, "Test TAN list"),
+                choice(7920, "Test app approval")
+            ]
+        })
+    );
+    assert_eq!(bank.logins().expect("logins"), vec![]);
+    stub::set_scenario("ok");
+}
+
+#[test]
+fn a_setup_that_ends_without_an_account_is_a_failure_and_leaves_no_login() {
+    // M6-B184: AqBanking reports success without an account when the bank
+    // refused the dialog; the setup must not count as done.
+    let _guard = lock();
+    let mut bank = open("no-accounts");
+    stub::set_scenario("no-accounts");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    assert_eq!(
+        bank.add_login(&login_setup(), &mut pins),
+        Err(BankError::SetupFailed { text: None })
+    );
+    assert_eq!(bank.logins().expect("logins"), vec![]);
+    stub::set_scenario("ok");
+}
+
+#[test]
+fn a_bare_method_number_is_completed_to_the_version_the_bank_offers() {
+    // M6-B184: 912 alone means HKTAN version 0, which cannot be used for
+    // strong customer authentication.
+    let _guard = lock();
+    let mut bank = open("strong-auth-bare");
+    stub::set_scenario("strong-auth");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    let mut setup = login_setup();
+    setup.tan_method = Some(920);
+    bank.add_login(&setup, &mut pins).expect("login added");
+    let journal = journal_of(&bank);
+    assert!(journal.contains("setitanmode -u 1 -m 7920"), "{journal}");
+    assert!(!journal.contains("-m 920"), "{journal}");
     stub::set_scenario("ok");
 }
 
@@ -625,6 +678,12 @@ fn a_fetch_is_imported_like_a_file() {
     assert!(!fetched.transactions[2].booked);
     let journal = journal_of(&bank);
     assert!(journal.contains("fetch: account 1 since -\n"), "{journal}");
+    // Banks that serve only CAMT statements: the flag is set on every new
+    // account and again before each fetch (M6-B184).
+    let flag = "control: addaccountflags -a 1 -f preferCamtDownload";
+    assert!(journal.matches(flag).count() >= 2, "{journal}");
+    let last_flag = journal.rfind(flag).expect("flag");
+    assert!(last_flag < journal.find("fetch: account 1").expect("fetch"));
     // Into the pipeline, as the fetch screen will (M4.7).
     let statement = statement(&fetched, &Limits::default()).expect("a statement");
     assert_eq!(statement.entries.len(), 3);
@@ -848,8 +907,10 @@ fn a_wrong_pin_stays_wrong_when_the_bank_also_wants_a_tan_method() {
     let mut bank = open("strong-auth-bad-pin");
     stub::set_scenario("strong-auth-bad-pin");
     let mut pins = pins_with(PinMode::SaveInKeychain);
+    let mut setup = login_setup();
+    setup.tan_method = Some(7920);
     assert_eq!(
-        bank.add_login(&login_setup(), &mut pins),
+        bank.add_login(&setup, &mut pins),
         Err(BankError::PinRejected)
     );
     assert_eq!(pins.is_saved(&LoginId::pending()), Ok(false));

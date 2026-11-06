@@ -1120,10 +1120,13 @@ fn remove_saved_ai_key() -> Result<(), BankError> {
 
 /// What choosing a place for saved PINs did: whether the choice was
 /// `saved` in the settings, and the `place` when it has a name to show
-/// (D-167). A secret that couldn't be removed from the old place refuses
-/// the choice instead (D-575).
+/// (D-167), and whether a secret may have been `leftBehind` in the old place
+/// because it couldn't be removed there (D-605).
 fn pin_storage_object(saved: bool, change: &PinStorageChange) -> QVariant {
-    let mut entries = vec![("saved", QVariant::from(&saved))];
+    let mut entries = vec![
+        ("saved", QVariant::from(&saved)),
+        ("leftBehind", QVariant::from(&change.left_behind)),
+    ];
     if let Some(place) = &change.place {
         entries.push((
             "place",
@@ -1203,9 +1206,23 @@ mod tests {
         assert!(!flag_of(&rows[0], "advanced"));
         assert_eq!(text_of(rows.last().expect("a choice"), "key"), "nowhere");
 
-        let chosen = pin_storage_object(true, &PinStorageChange { place: None });
+        let chosen = pin_storage_object(
+            true,
+            &PinStorageChange {
+                place: None,
+                left_behind: false,
+            },
+        );
         assert!(flag_of(&chosen, "saved"));
-        assert!(object(&chosen).get(&QString::from("removal")).is_none());
+        assert!(!flag_of(&chosen, "leftBehind"));
+        let left = pin_storage_object(
+            true,
+            &PinStorageChange {
+                place: None,
+                left_behind: true,
+            },
+        );
+        assert!(flag_of(&left, "leftBehind"));
         assert!(object(&chosen).get(&QString::from("place")).is_none());
 
         let keepassxc = pin_storage_object(
@@ -1215,6 +1232,7 @@ mod tests {
                     name: "Household".to_owned(),
                     group: "KassenSturz".to_owned(),
                 }),
+                left_behind: false,
             },
         );
         let place = object(&keepassxc)
@@ -1223,7 +1241,13 @@ mod tests {
         assert_eq!(text_of(&place, "name"), "Household");
         assert_eq!(text_of(&place, "group"), "KassenSturz");
 
-        let kept = pin_storage_object(false, &PinStorageChange { place: None });
+        let kept = pin_storage_object(
+            false,
+            &PinStorageChange {
+                place: None,
+                left_behind: false,
+            },
+        );
         assert!(!flag_of(&kept, "saved"));
     }
 

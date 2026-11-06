@@ -1064,9 +1064,12 @@ pub fn forget_pin(connection: &mut Connection, id: &str) -> Result<(), BankError
 /// place, never copied: the user types each again at the next connection.
 /// `also_remove` then takes the other secrets saved there out, the AI
 /// provider's key (M6-B134). When anything can't be removed from the old
-/// place, e.g. a locked keychain, the error says why and the old place
-/// stays chosen, so no secret stays behind in a place the user left
-/// (M6-B135, D-575). May wait for the user: runs in the background.
+/// place, e.g. a locked keychain or a KeePassXC that is gone, the switch
+/// still goes through, since a choice that can't be made would be a dead
+/// end, and the change says `left_behind` so the screen warns in plain
+/// words that saved secrets may stay in the old place (M6-B180, D-605;
+/// changes D-575).
+/// May wait for the user: runs in the background.
 pub fn choose_pin_storage(
     connection: &mut Connection,
     storage: SecretStorage,
@@ -1079,14 +1082,25 @@ pub fn choose_pin_storage(
             .unwrap_or_default(),
         Err(_) => Vec::new(),
     };
-    let store = (connection.pin_stores)(storage);
+    let mut store = (connection.pin_stores)(storage);
     // The new place first: when it can't be got ready, e.g. KeePassXC
     // isn't running or the user said no there, nothing changes (D-167).
     let place = store.open()?;
-    connection.pins.remove_saved(&logins)?;
-    also_remove()?;
+    // A new place starts empty: a PIN left there from an earlier stay
+    // (D-605) may be out of date, and the bank locks a login after a few
+    // wrong PINs, so it is never tried. Best effort; the user types the
+    // PIN again and chooses to save it.
+    for login in &logins {
+        let _ = store.delete(login);
+    }
+    // Both removals are tried; a failure of either is told, not fatal.
+    let pins_left = connection.pins.remove_saved(&logins).is_err();
+    let key_left = also_remove().is_err();
     connection.pins.use_store(store);
-    Ok(PinStorageChange { place })
+    Ok(PinStorageChange {
+        place,
+        left_behind: pins_left || key_left,
+    })
 }
 
 /// Gets the place PINs are saved in ready again and says where they go,
@@ -1094,6 +1108,7 @@ pub fn choose_pin_storage(
 pub fn open_pin_storage(connection: &mut Connection) -> Result<PinStorageChange, BankError> {
     Ok(PinStorageChange {
         place: connection.pins.open_store()?,
+        left_behind: false,
     })
 }
 
@@ -1103,6 +1118,9 @@ pub struct PinStorageChange {
     /// Where in the new place PINs go, when the user can tell it apart
     /// from others: a KeePassXC database's name and group.
     pub place: Option<KeychainPlace>,
+    /// Whether a saved PIN or the AI key could not be removed from the old
+    /// place, so it may still be there (D-605).
+    pub left_behind: bool,
 }
 
 /// An account in the book that a bank account can be linked to.
@@ -2730,7 +2748,10 @@ mod tests {
         assert_eq!(system.0.len(), 1);
         assert_eq!(
             open_pin_storage(&mut connection),
-            Ok(PinStorageChange { place: None })
+            Ok(PinStorageChange {
+                place: None,
+                left_behind: false,
+            })
         );
 
         // Now it answers and names the database and the group.
@@ -2741,6 +2762,7 @@ mod tests {
             chosen,
             Ok(PinStorageChange {
                 place: Some(household()),
+                left_behind: false,
             })
         );
         assert!(system.0.is_empty());
@@ -2806,9 +2828,10 @@ mod tests {
     }
 
     #[test]
-    fn a_keychain_out_of_reach_refuses_the_switch() {
-        // M6-B135, D-575: a PIN that can't be removed from the old place
-        // doesn't count as moved; nothing changes and the error says why.
+    fn a_keychain_out_of_reach_lets_the_switch_go_through_and_says_so() {
+        // M6-B180, D-605 (changes D-575): a PIN that can't be removed from
+        // the old place doesn't block the switch; the change says it may
+        // still be there.
         let keychain = SharedKeychain(Arc::new(kassensturz_platform::MemoryKeychain::new()));
         let mut connection = Connection::fake_with_keychain(
             FakeBank::new(),
@@ -2823,40 +2846,82 @@ mod tests {
             .fail_with(Some(kassensturz_platform::KeychainError::Unavailable));
         let mut asked = false;
 
-        let result = choose_pin_storage(&mut connection, SecretStorage::Nowhere, || {
+        let change = choose_pin_storage(&mut connection, SecretStorage::Nowhere, || {
             asked = true;
             Ok(())
-        });
+        })
+        .expect("the switch goes through");
 
-        assert_eq!(result, Err(BankError::Keychain));
-        assert!(!asked, "the AI key is not touched once a PIN failed");
-        assert_eq!(
-            error_text(&BankError::Keychain).code,
-            "bank.keychain",
-            "the screens explain it"
-        );
-        assert!(connection.pins.saves(), "still the old place");
+        assert!(change.left_behind);
+        assert!(asked, "the AI key is still tried");
+        assert!(!connection.pins.saves(), "the new place is in use");
         keychain.0.fail_with(None);
-        assert_eq!(keychain.0.len(), 1);
+        assert_eq!(keychain.0.len(), 1, "the PIN stayed in the old place");
     }
 
     #[test]
-    fn a_key_that_cant_leave_the_old_place_refuses_the_switch() {
-        // M6-B134, D-575: the AI key leaves with the PINs; when it can't
-        // be removed, the old place stays chosen.
+    fn a_pin_left_in_a_place_earlier_is_cleared_when_the_place_is_chosen_again() {
+        // D-605: back in KeePassXC after days in the system keychain, the
+        // PIN that stayed there is not used (it may be out of date); the
+        // new place starts empty, as D-163 says.
+        let (system, keepassxc) = (shared(), shared());
+        let mut connection = Connection::fake_with_keychain(
+            FakeBank::new(),
+            stores_with(&system, &keepassxc),
+            SecretStorage::System,
+        );
+        let mut setup = form(FakeBank::PIN);
+        setup.pin_mode = PinMode::SaveInKeychain;
+        set_up(&mut connection, setup).expect("set up");
+        let key = kassensturz_platform::SecretKey::new("bank-pin", "fake-login-1").expect("key");
+        keepassxc
+            .0
+            .store(&key, &kassensturz_platform::Secret::new("0000".to_owned()))
+            .expect("a PIN left from before");
+
+        choose_pin_storage(&mut connection, SecretStorage::KeePassXc, || Ok(())).expect("chosen");
+
+        assert!(!keepassxc.0.contains(&key), "the old entry is gone");
+        assert!(system.0.is_empty(), "and the system keychain was emptied");
+    }
+
+    #[test]
+    fn a_key_that_cant_leave_the_old_place_is_told_not_blocking() {
+        // M6-B180, D-605: the AI key that can't be removed doesn't block
+        // the switch either; a clean switch says nothing is left behind.
         let keychain = SharedKeychain(Arc::new(kassensturz_platform::MemoryKeychain::new()));
         let mut connection = Connection::fake_with_keychain(
             FakeBank::new(),
             stores(&keychain),
             SecretStorage::System,
         );
-        let result = choose_pin_storage(&mut connection, SecretStorage::Nowhere, || {
+        let change = choose_pin_storage(&mut connection, SecretStorage::Nowhere, || {
             Err(BankError::Keychain)
-        });
-        assert_eq!(result, Err(BankError::Keychain));
-        assert!(connection.pins.saves(), "still the old place");
-        choose_pin_storage(&mut connection, SecretStorage::Nowhere, || Ok(())).expect("chosen");
+        })
+        .expect("the switch goes through");
+        assert!(change.left_behind);
         assert!(!connection.pins.saves());
+        let clean =
+            choose_pin_storage(&mut connection, SecretStorage::System, || Ok(())).expect("chosen");
+        assert!(!clean.left_behind);
+        assert!(connection.pins.saves());
+    }
+
+    #[test]
+    fn a_new_place_that_cant_be_reached_still_refuses_the_switch() {
+        // D-605 keeps D-167: only the old place may be out of reach.
+        let (system, keepassxc) = (shared(), shared());
+        let mut connection = Connection::fake_with_keychain(
+            FakeBank::new(),
+            stores_with(&system, &keepassxc),
+            SecretStorage::System,
+        );
+        keepassxc.0.fail_with(Some(
+            kassensturz_platform::KeychainError::KeePassXcUnavailable,
+        ));
+        let refused = choose_pin_storage(&mut connection, SecretStorage::KeePassXc, || Ok(()));
+        assert_eq!(refused, Err(BankError::KeePassXc));
+        assert!(connection.pins.saves());
     }
 
     #[test]

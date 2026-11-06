@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! The hand-checked bank list: corrections to the external bank information
-//! (AqBanking's), checked by a person in a test round (item 93 of the
-//! Proposals list, D-146). How to add an entry is in `docs/BANK_LIST.md`.
+//! (AqBanking's), from public sources (item 93 of the
+//! Proposals list, D-146, D-611). How to add an entry is in `docs/BANK_LIST.md`.
 //!
 //! An entry here wins over the external source entirely, so write the whole
 //! entry, not just the field that was wrong. Nothing here is a secret: a
 //! bank's server address and login kinds are the same for every customer.
 //! Never write a login name, account number, PIN or TAN here.
 
-use crate::directory::{BankInfo, CustomerId, FintsServer, LoginKind};
+use crate::directory::{BankInfo, FintsServer, LoginKind};
 use crate::iban::BankCode;
 
 /// One bank in the hand-checked list.
@@ -31,10 +31,9 @@ pub struct BankEntry {
     /// The ways to log in the bank offers; `None` when not checked yet,
     /// which the app shows as an unknown login type.
     pub login_kinds: Option<&'static [LoginKind]>,
-    /// When and how the entry was checked, e.g. `2026-11-05, the
-    /// maintainer's test round 1`: a person confirmed that a login at this
-    /// bank worked with these settings.
-    pub checked: &'static str,
+    /// The public source of the entry and the date it was read, e.g.
+    /// `2026-11-05, the bank's FinTS page <address>` (D-611).
+    pub source: &'static str,
 }
 
 impl BankEntry {
@@ -52,52 +51,12 @@ impl BankEntry {
     }
 }
 
-/// The list: every entry comes from a person who confirmed it, never from
-/// an agent's memory (`docs/BANK_LIST.md`). The first entries are settings
-/// reported as working with AqBanking (item 77 of the Proposals list,
-/// 2026-10-23); both banks use the login name as the customer ID, so it
-/// isn't asked for.
-pub const HAND_CHECKED: &[BankEntry] = &[
-    BankEntry {
-        country: "DE",
-        code: "55190000",
-        name: "Volksbank Darmstadt Mainz",
-        bic: Some("MVBMDE55XXX"),
-        server: Some("https://fints2.atruvia.de/cgi-bin/hbciservlet"),
-        login_kinds: Some(&[LoginKind::PinTan {
-            customer_id: CustomerId::SameAsLoginName,
-        }]),
-        checked: "2026-10-23, settings reported as working with AqBanking (item 77): \
-                  numeric login name, HBCI 3.0, PIN/TAN",
-    },
-    BankEntry {
-        // The bank code of the former Volksbank Darmstadt - Südhessen,
-        // which AqBanking's data lists under the same name without a
-        // server; the merged bank runs on the same server.
-        country: "DE",
-        code: "50890000",
-        name: "Volksbank Darmstadt Mainz",
-        bic: Some("GENODEF1VBD"),
-        server: Some("https://fints2.atruvia.de/cgi-bin/hbciservlet"),
-        login_kinds: Some(&[LoginKind::PinTan {
-            customer_id: CustomerId::SameAsLoginName,
-        }]),
-        checked: "2026-10-23, the same settings as for 55190000 (item 77); this code is \
-                  the one AqBanking's data has no server for",
-    },
-    BankEntry {
-        country: "DE",
-        code: "50010517",
-        name: "ING",
-        bic: Some("INGDDEFFXXX"),
-        server: Some("https://fints.ing.de/fints"),
-        login_kinds: Some(&[LoginKind::PinTan {
-            customer_id: CustomerId::SameAsLoginName,
-        }]),
-        checked: "2026-10-23, settings reported as working with AqBanking (item 77): \
-                  login name, HBCI 3.0, PIN/TAN",
-    },
-];
+/// The list: every entry rests on a public source (the bank's own FinTS
+/// page, its customer documentation, or a public list such as hbci4java's),
+/// named in `source`, never on an agent's memory (`docs/BANK_LIST.md`,
+/// D-611). It starts empty: AqBanking's bank information and the Atruvia
+/// guess (D-157) cover the banks so far.
+pub const HAND_CHECKED: &[BankEntry] = &[];
 
 #[cfg(test)]
 mod tests {
@@ -150,8 +109,8 @@ mod tests {
                 assert!(!login_kinds.is_empty(), "login kinds of {}", entry.name);
             }
             assert!(
-                !entry.checked.trim().is_empty(),
-                "who checked {}?",
+                !entry.source.trim().is_empty(),
+                "what is the public source of {}?",
                 entry.name
             );
             assert!(

@@ -840,6 +840,8 @@ fn logins_object(rows: &[LoginRow]) -> QVariant {
                 ("bankCode", text(&row.bank_code)),
                 ("kind", text(row.kind)),
                 ("iban", text(&row.iban)),
+                ("url", text(&row.url)),
+                ("fintsVersion", text(row.fints_version)),
             ])
         })),
     )])
@@ -1270,6 +1272,8 @@ mod tests {
             bank_code: "37040044".to_owned(),
             kind: "pin-tan",
             iban: "DE89 3704 0044 0532 0130 00".to_owned(),
+            url: "https://fints.testbank.example/".to_owned(),
+            fints_version: "300",
         }]);
         let rows = list_of(&logins, "logins");
         assert_eq!(rows.len(), 1);
@@ -1279,6 +1283,8 @@ mod tests {
             ("bankCode", "37040044"),
             ("kind", "pin-tan"),
             ("iban", "DE89 3704 0044 0532 0130 00"),
+            ("url", "https://fints.testbank.example/"),
+            ("fintsVersion", "300"),
         ] {
             assert_eq!(text_of(&rows[0], key), expected, "{key}");
         }
@@ -1453,6 +1459,7 @@ mod tests {
                 id: LoginId::new("7"),
                 bank: BankCode::new("DE", "37040044"),
                 kind: LoginKind::ChipCard,
+                connection: Default::default(),
             },
             account: BankAccount {
                 id: BankAccountId::new("9"),

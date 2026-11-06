@@ -63,7 +63,8 @@ use kassensturz_core::{CurrencyCode, Date};
 
 use crate::availability::{Availability, FINTS_REGISTRATION_KEY, Library, Version};
 use crate::backend::{
-    Bank, BankAccount, BankAccountId, BankAccountKind, Login, LoginId, LoginSetup,
+    Bank, BankAccount, BankAccountId, BankAccountKind, FintsVersion, Login, LoginConnection,
+    LoginId, LoginSetup,
 };
 use crate::directory::{BankDirectory, BankInfo, Corrected, CustomerId, FintsServer, LoginKind};
 use crate::error::BankError;
@@ -418,6 +419,13 @@ impl Bank for AqBankingBank {
                     id: LoginId::new(user.unique_id.to_string()),
                     bank: BankCode::new(&user.country, &user.bank_code),
                     kind,
+                    connection: LoginConnection {
+                        url: user.server.unwrap_or_default(),
+                        fints_version: user
+                            .hbci_version
+                            .as_deref()
+                            .and_then(FintsVersion::from_number),
+                    },
                 })
             })
             .collect())

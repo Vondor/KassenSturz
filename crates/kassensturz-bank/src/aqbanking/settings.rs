@@ -43,6 +43,10 @@ pub(crate) struct UserRecord {
     /// How the user logs in, as the FinTS backend names it: `pintan`,
     /// `ddv` (chip card), `rdh` or `rah` (key files, D-059).
     pub crypt_mode: Option<String>,
+    /// The bank's FinTS address the login uses.
+    pub server: Option<String>,
+    /// The FinTS version as AqBanking keeps it (`300`, `220`, …).
+    pub hbci_version: Option<String>,
 }
 
 /// The logins AqBanking has set up, by unique ID.
@@ -60,6 +64,8 @@ pub(crate) fn users(data_dir: &Path) -> io::Result<Vec<UserRecord>> {
                 .unwrap_or_default()
                 .to_owned(),
             crypt_mode: value(&values, "data/backend", "cryptMode").map(str::to_owned),
+            server: value(&values, "data/backend", "server").map(str::to_owned),
+            hbci_version: value(&values, "data/backend", "hbciVersion").map(str::to_owned),
         });
     }
     records.sort_by_key(|record| record.unique_id);
@@ -317,6 +323,12 @@ data {
         assert_eq!(users[1].bank_code, "37040044");
         assert_eq!(users[1].country, "de");
         assert_eq!(users[1].crypt_mode.as_deref(), Some("pintan"));
+        assert_eq!(
+            users[1].server.as_deref(),
+            Some("https://fints.testbank.example/")
+        );
+        assert_eq!(users[1].hbci_version.as_deref(), Some("300"));
+        assert_eq!(users[0].server, None);
         assert_eq!(account_owners(&data_dir).expect("read").get(&3), Some(&7));
         let _ = fs::remove_dir_all(&data_dir);
     }

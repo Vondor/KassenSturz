@@ -165,7 +165,7 @@ mod tests {
         let old = linked(
             &mut book,
             "Savings",
-            "DE02500105170137075030",
+            "DE62370400440532013001",
             Some(day(2026, 7, 17)),
         );
 
@@ -205,7 +205,7 @@ mod tests {
         let _ = linked(
             &mut book,
             "Future",
-            "DE02500105170137075030",
+            "DE62370400440532013001",
             Some(day(2027, 1, 1)),
         );
         close_account(&mut book, &closed.to_string()).expect("closed");

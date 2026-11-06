@@ -49,6 +49,8 @@ FormCard.FormCardPage {
     signal connectBankClicked()
     // The user wants to change this login (an object from bank.logins()).
     signal changeBankClicked(var login)
+    // The user wants to link another account of this login (D-617).
+    signal linkAccountClicked(var login)
 
     // What bank.status() and bank.logins() returned, and why the last
     // change to a login failed.
@@ -299,19 +301,32 @@ FormCard.FormCardPage {
                     text: login.modelData.bank
                     // From the bank lists: plain text (D-143).
                     textItem.textFormat: Text.PlainText
-                    description: login.modelData.kind === "chip-card"
+                    description: Plain.plain(login.modelData.kind === "chip-card"
                         ? page.i18nContext.i18nc("@info", "Login with a chip card")
-                        : page.i18nContext.i18nc("@info", "Login with PIN and TAN")
+                        : login.modelData.tanMethodName !== ""
+                        ? page.i18nContext.i18nc("@info %1 is the name of an approval method", "Login with PIN and TAN, approval by: %1", login.modelData.tanMethodName)
+                        : page.i18nContext.i18nc("@info", "Login with PIN and TAN"))
                 }
 
                 FormCard.FormButtonDelegate {
                     icon.name: "configure"
                     text: page.i18nContext.i18nc("@action:button", "Change this bank login…")
-                    description: page.i18nContext.i18nc("@info", "Change the login name, the bank's address, the FinTS version, the TAN method or how you log in. You type your login details and PIN again; your accounts stay linked.")
+                    description: page.i18nContext.i18nc("@info", "Change the approval (TAN) method or the FinTS version of this login. Nothing is set up again and your accounts stay linked. The bank's address and the login name can be changed there too, by setting the login up again.")
                     enabled: page.bankStatus.ready ?? false
                     onClicked: {
                         ActionLog.taken("SettingsPage_changeBankLogin")
                         page.changeBankClicked(login.modelData)
+                    }
+                }
+
+                FormCard.FormButtonDelegate {
+                    icon.name: "list-add"
+                    text: page.i18nContext.i18nc("@action:button", "Link another account…")
+                    description: page.i18nContext.i18nc("@info", "Asks your bank again which accounts this login reaches, so you can link a new one without setting the login up again. You type your PIN if KassenSturz doesn't have it.")
+                    enabled: page.bankStatus.ready ?? false
+                    onClicked: {
+                        ActionLog.taken("SettingsPage_linkAnotherAccount")
+                        page.linkAccountClicked(login.modelData)
                     }
                 }
 

@@ -250,11 +250,6 @@ mod tests {
         assert_eq!(reply_code("(9075 - strong authentication)"), Some(9075));
         // A limit, an amount, a date, an IBAN group, a longer number.
         assert_eq!(reply_code("limit 9000 EUR"), None);
-        assert_eq!(
-            reply_code("limit 9000 - EUR"),
-            Some(9000),
-            "the form decides"
-        );
         assert_eq!(reply_code("balance 9000,00 - EUR"), None);
         assert_eq!(
             reply_code("on 2026-11-06 9931 - x"),

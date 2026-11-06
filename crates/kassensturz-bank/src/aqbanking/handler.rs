@@ -46,47 +46,32 @@ const KEPT_CODES: usize = 8;
 /// on it is never taken. The success codes (below 1000) are left out, since
 /// short numbers are too likely to be an amount.
 pub(crate) const REPLY_CODES: &[u16] = &[
-    3040, 3050, 3060, 3076, 3920, 3955, 3956, 9000, 9010, 9050, 9110, 9120, 9130, 9140, 9160, 9210,
-    9220, 9230, 9250, 9340, 9800, 9801, 9810, 9930, 9931, 9932, 9942, 9955, 9956,
+    3040, 3050, 3060, 3076, 3920, 3955, 3956, 9000, 9010, 9050, 9075, 9110, 9120, 9130, 9140, 9160,
+    9210, 9220, 9230, 9250, 9340, 9800, 9801, 9810, 9930, 9931, 9932, 9942, 9955, 9956,
 ];
 
-/// The return codes on the list in `line`: a run of exactly four digits
-/// with a space, bracket, colon or the line's edge on both sides (a comma
-/// may follow, if a space comes after it), so a
-/// group of a date, an amount (`3,040.00`) or a longer number is never
-/// taken. In the order they appear.
-pub(crate) fn reply_codes(line: &str) -> Vec<u16> {
-    let characters: Vec<char> = line.chars().collect();
-    let mut codes = Vec::new();
-    let mut start = 0;
-    while start < characters.len() {
-        if !characters[start].is_ascii_digit() {
-            start += 1;
-            continue;
-        }
-        let mut end = start;
-        while end < characters.len() && characters[end].is_ascii_digit() {
-            end += 1;
-        }
-        let plain =
-            |index: Option<&char>| index.is_none_or(|c| c.is_whitespace() || "()[]:;".contains(*c));
-        let before = start.checked_sub(1).and_then(|index| characters.get(index));
-        if end - start == 4
-            && plain(before)
-            && (plain(characters.get(end))
-                || (characters.get(end) == Some(&',')
-                    && characters.get(end + 1).is_none_or(|c| c.is_whitespace())))
-            && let Ok(code) = characters[start..end]
-                .iter()
-                .collect::<String>()
-                .parse::<u16>()
-            && REPLY_CODES.contains(&code)
-        {
-            codes.push(code);
-        }
-        start = end;
+/// The return code of a result line of AqBanking, which has the form
+/// `NNNN - text`: the line's **first** number must be four digits that
+/// stand alone and are followed by ` - `, and be on the list. Any other
+/// number in the line is never looked at, so a limit (`9000 EUR`), a date,
+/// an IBAN group or an amount can't be taken for a code (D-607).
+pub(crate) fn reply_code(line: &str) -> Option<u16> {
+    let digits = line.find(|character: char| character.is_ascii_digit())?;
+    let rest = &line[digits..];
+    let length = rest
+        .find(|character: char| !character.is_ascii_digit())
+        .unwrap_or(rest.len());
+    let before_is_plain = line[..digits]
+        .chars()
+        .next_back()
+        .is_none_or(|character| character.is_whitespace() || "([:;".contains(character));
+    if length != 4 || !before_is_plain || !rest[length..].starts_with(" - ") {
+        return None;
     }
-    codes
+    rest[..length]
+        .parse::<u16>()
+        .ok()
+        .filter(|code| REPLY_CODES.contains(code))
 }
 
 #[derive(Default)]
@@ -198,13 +183,15 @@ impl SessionHandler for Handler {
     }
 
     fn log(&mut self, level: LogLevel, message: &str) {
-        for code in reply_codes(message) {
-            if self.codes.len() < KEPT_CODES && !self.codes.contains(&code) {
-                self.codes.push(code);
-            }
-        }
         if level < LogLevel::Notice || message.trim().is_empty() {
             return;
+        }
+        // Only the result lines of notice level and above (D-607).
+        if let Some(code) = reply_code(message.trim())
+            && self.codes.len() < KEPT_CODES
+            && !self.codes.contains(&code)
+        {
+            self.codes.push(code);
         }
         if self.lines.len() == KEPT_LINES {
             self.lines.remove(0);
@@ -256,40 +243,41 @@ mod tests {
     }
 
     #[test]
-    fn return_codes_on_the_list_are_taken_and_nothing_else() {
-        // D-607: only the specification's codes, never other numbers.
-        assert_eq!(reply_codes("Bank: 9931: Login or PIN wrong"), vec![9931]);
+    fn a_return_code_is_taken_only_from_a_result_line() {
+        // D-607: the first number of the line, four digits, then " - ".
+        assert_eq!(reply_code("9931 - Login or PIN wrong"), Some(9931));
+        assert_eq!(reply_code("HBCI: 9942 - PIN locked"), Some(9942));
+        assert_eq!(reply_code("(9075 - strong authentication)"), Some(9075));
+        // A limit, an amount, a date, an IBAN group, a longer number.
+        assert_eq!(reply_code("limit 9000 EUR"), None);
         assert_eq!(
-            reply_codes("9800 and 3920, 9800 again"),
-            vec![9800, 3920, 9800]
+            reply_code("limit 9000 - EUR"),
+            Some(9000),
+            "the form decides"
         );
-        assert_eq!(reply_codes("(9942)"), vec![9942]);
-        // Not next to a point, comma or dash: amounts and dates.
+        assert_eq!(reply_code("balance 9000,00 - EUR"), None);
         assert_eq!(
-            reply_codes("balance 9000,00 EUR, 3.040 and 2026-9800"),
-            Vec::<u16>::new()
+            reply_code("on 2026-11-06 9931 - x"),
+            None,
+            "first number is the year"
         );
-        // Success codes are not on the list.
-        assert_eq!(reply_codes("0020 100 900"), Vec::<u16>::new());
-        // Groups of an IBAN or a date are not codes, even when a group
-        // looks like one; a longer run of digits is never cut up.
-        assert_eq!(
-            reply_codes("DE89 3704 0044 0532 0130 00"),
-            Vec::<u16>::new()
-        );
-        assert_eq!(
-            reply_codes("account 99319931 on 2026-11-06"),
-            Vec::<u16>::new()
-        );
-        assert_eq!(reply_codes("no digits here"), Vec::<u16>::new());
+        assert_eq!(reply_code("DE89 3704 0044 - x"), None);
+        assert_eq!(reply_code("99319931 - x"), None);
+        // Not on the list, or no number at all.
+        assert_eq!(reply_code("0020 - fine"), None);
+        assert_eq!(reply_code("no digits here"), None);
     }
 
     #[test]
     fn a_calls_return_codes_are_kept_once_and_cleared_by_the_next_call() {
         let mut handler = Handler::default();
         handler.begin(None);
-        handler.log(LogLevel::Info, "reply 9931");
-        handler.log(LogLevel::Notice, "again 9931 and 9942");
+        // Below notice level, nothing is taken.
+        handler.log(LogLevel::Info, "9800 - not kept");
+        handler.log(LogLevel::Notice, "9931 - Login or PIN wrong");
+        handler.log(LogLevel::Notice, "9931 - again");
+        handler.log(LogLevel::Notice, "9942 - locked");
+        handler.log(LogLevel::Notice, "limit 9000 EUR");
         assert_eq!(handler.reply_codes(), &[9931, 9942]);
         handler.begin(None);
         assert!(handler.reply_codes().is_empty());

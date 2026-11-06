@@ -1898,7 +1898,7 @@ mod tests {
         assert_eq!(tan_method(" 912 "), Ok(Some(912)));
         assert_eq!(tan_method("900"), Ok(Some(900)));
         assert_eq!(tan_method("999"), Ok(Some(999)));
-        for bad in ["899", "1000", "9x6", "-912", "+912", "9 46", "99999999999"] {
+        for bad in ["899", "1000", "9x6", "-912", "+912", "9 12", "99999999999"] {
             assert_eq!(tan_method(bad), Err(()), "{bad}");
         }
         let lookup = look_up(&mut fake(None), IBAN).expect("looked up");

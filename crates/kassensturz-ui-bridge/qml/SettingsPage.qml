@@ -487,7 +487,7 @@ FormCard.FormCardPage {
     FormCard.FormSectionText {
         visible: page.pinStorageResult.leftBehind === true
         textFormat: Text.PlainText
-        text: page.i18nContext.i18nc("@info", "The new place is in use, but KassenSturz could not remove everything from the old one, so a saved PIN or the AI key may still be there. Nothing was copied to the new place. To remove them, open the old place yourself, for example your system's keychain manager or KeePassXC, and delete the entries named KassenSturz.")
+        text: page.i18nContext.i18nc("@info", "The new place is in use, but KassenSturz could not remove everything from the old one, so a saved PIN or another saved secret may still be there. Nothing was copied to the new place. To remove them, open the old place yourself, for example your system's keychain manager or KeePassXC, and delete the entries named KassenSturz.")
     }
 
     // Why the choice couldn't be made, e.g. the new place can't be reached,

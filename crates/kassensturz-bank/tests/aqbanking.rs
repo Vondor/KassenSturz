@@ -176,11 +176,17 @@ fn the_advanced_settings_reach_the_backend_with_a_login() {
         .find("control: setitanmode -u 1 -m 912")
         .unwrap_or_else(|| panic!("the TAN method is selected in:\n{journal}"));
     let ids = journal.find("control: getsysid -u 1").expect("getsysid");
+    let modes = journal
+        .find("control: getitanmodes -u 1")
+        .expect("getitanmodes");
     let accounts = journal
         .find("control: getaccounts -u 1")
         .expect("getaccounts");
-    assert!(ids < select && select < accounts, "{journal}");
-    assert!(!journal.contains("getitanmodes"), "{journal}");
+    // The method is chosen before the first call with the PIN (M6-B183).
+    assert!(
+        modes < select && select < ids && ids < accounts,
+        "{journal}"
+    );
 }
 
 #[test]
@@ -193,12 +199,82 @@ fn a_tan_method_the_backend_doesnt_know_yet_is_asked_for_once() {
     setup.tan_method = Some(912);
     bank.add_login(&setup, &mut pins).expect("login added");
     let journal = journal_of(&bank);
-    let first = journal.find("control: setitanmode").expect("first try");
     let modes = journal
         .find("control: getitanmodes -u 1")
         .expect("modes asked");
-    let last = journal.rfind("control: setitanmode").expect("second try");
-    assert!(first < modes && modes < last, "{journal}");
+    let select = journal.find("control: setitanmode").expect("selected");
+    let ids = journal.find("control: getsysid -u 1").expect("getsysid");
+    assert!(modes < select && select < ids, "{journal}");
+}
+
+fn choice(number: u16, name: &str) -> kassensturz_bank::TanMethodChoice {
+    kassensturz_bank::TanMethodChoice {
+        number,
+        function: number % 1000,
+        version: number / 1000,
+        name: name.to_owned(),
+    }
+}
+
+#[test]
+fn a_bank_wanting_a_tan_method_is_not_blamed_on_the_pin() {
+    // M6-B183: the bank answers 9075, then 9340, which AqBanking takes for
+    // a bad PIN. Several methods are allowed: the user is told which.
+    let _guard = lock();
+    let mut bank = open("strong-auth");
+    stub::set_scenario("strong-auth");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    assert_eq!(
+        bank.add_login(&login_setup(), &mut pins),
+        Err(BankError::TanMethodNeeded {
+            offered: vec![
+                choice(6912, "Test TAN list"),
+                choice(7920, "Test app approval")
+            ]
+        })
+    );
+    // Not called wrong: no "rejected" path, so nothing is left half set up.
+    assert_eq!(bank.logins().expect("logins"), vec![]);
+    // With a method from the list, the setup goes through (the PIN of a
+    // failed setup is forgotten like after any failure, so it is given again).
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    let mut setup = login_setup();
+    setup.tan_method = Some(7920);
+    bank.add_login(&setup, &mut pins).expect("login added");
+    assert!(
+        journal_of(&bank).contains("setitanmode -u 2 -m 7920"),
+        "the number with the version reaches the backend"
+    );
+    // A method the bank doesn't allow is told with the allowed ones.
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    let mut other = login_setup();
+    other.tan_method = Some(955);
+    assert_eq!(
+        bank.add_login(&other, &mut pins),
+        Err(BankError::TanMethodNeeded {
+            offered: vec![
+                choice(6912, "Test TAN list"),
+                choice(7920, "Test app approval")
+            ]
+        })
+    );
+    stub::set_scenario("ok");
+}
+
+#[test]
+fn a_single_allowed_tan_method_is_taken_without_asking() {
+    let _guard = lock();
+    let mut bank = open("strong-auth-one");
+    stub::set_scenario("strong-auth-one");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    bank.add_login(&login_setup(), &mut pins)
+        .expect("login added");
+    let journal = journal_of(&bank);
+    assert!(
+        journal.contains("control: setitanmode -u 1 -m 7920"),
+        "{journal}"
+    );
+    stub::set_scenario("ok");
 }
 
 #[test]
@@ -761,6 +837,44 @@ fn a_wrong_pin_is_named_when_the_pin_place_cant_be_reached() {
         bank.add_login(&login_setup(), &mut pins),
         Err(BankError::PinRejected)
     );
+    stub::set_scenario("ok");
+}
+
+#[test]
+fn a_wrong_pin_stays_wrong_when_the_bank_also_wants_a_tan_method() {
+    // M6-B183: 9075 clears the PIN of blame only when the bank didn't also
+    // call it wrong (9942), at setup and at a fetch.
+    let _guard = lock();
+    let mut bank = open("strong-auth-bad-pin");
+    stub::set_scenario("strong-auth-bad-pin");
+    let mut pins = pins_with(PinMode::SaveInKeychain);
+    assert_eq!(
+        bank.add_login(&login_setup(), &mut pins),
+        Err(BankError::PinRejected)
+    );
+    assert_eq!(pins.is_saved(&LoginId::pending()), Ok(false));
+    // A fetch of a set-up login.
+    stub::set_scenario("ok");
+    let mut pins = pins_with(PinMode::SaveInKeychain);
+    let (login, accounts) = connect(&mut bank, &mut pins);
+    let account = accounts[0].id.clone();
+    stub::set_scenario("strong-auth-fetch-bad-pin");
+    assert_eq!(
+        bank.fetch(&account, None, &mut pins),
+        Err(BankError::PinRejected)
+    );
+    assert_eq!(pins.is_saved(&login), Ok(false));
+    // Without the 9942 the PIN keeps its place and the user is told why.
+    stub::set_scenario("ok");
+    let mut pins = pins_with(PinMode::SaveInKeychain);
+    let (login, accounts) = connect(&mut bank, &mut pins);
+    let account = accounts[0].id.clone();
+    stub::set_scenario("strong-auth-fetch");
+    assert_eq!(
+        bank.fetch(&account, None, &mut pins),
+        Err(BankError::TanMethodNeeded { offered: vec![] })
+    );
+    assert_eq!(pins.is_saved(&login), Ok(true));
     stub::set_scenario("ok");
 }
 

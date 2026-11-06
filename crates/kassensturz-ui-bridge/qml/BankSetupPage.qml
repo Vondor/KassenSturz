@@ -36,6 +36,13 @@ Kirigami.ScrollablePage {
     // The advanced settings of the connection are one deliberate step away
     // (D-609); closed, the defaults are used.
     property bool advancedShown: false
+    // The approval methods the bank offers for this login, with their names,
+    // once it asked for one (D-615): entries of `value` (the number
+    // AqBanking takes) and `text`. Empty until then; the number can be typed.
+    property var tanChoices: []
+    // The entry of the list to start on: the one app approval of FinTS
+    // version 7 if there is exactly one, else the request to choose.
+    property int tanPreselect: 0
     property string startIban: ""
     // Changing a login: the address and FinTS version it uses now, so the
     // advanced settings start from them (D-609).
@@ -120,13 +127,49 @@ Kirigami.ScrollablePage {
             pinMode: pinMode.currentValue,
             replaces: replacesLogin,
             fintsVersion: advancedShown ? versionBox.currentValue : "",
-            tanMethod: advancedShown ? tanMethodField.text : "",
+            tanMethod: advancedShown
+                ? (tanChoices.length > 0 ? tanMethodBox.currentValue : tanMethodField.text)
+                : "",
             addressConfirmed: addressChanged && addressConfirm.checked ? "yes" : "",
         });
         error.result = result;
         if (result.code === undefined) {
             step = "connecting";
         }
+    }
+
+    // Reads the lines of the error's `methods` (`number`, `version` and the
+    // bank's name, separated by tabs) into the pick list (D-615).
+    function setTanChoices(lines: string) {
+        const found = [];
+        let version7 = 0;
+        let preselect = 0;
+        for (const line of lines.split("\n")) {
+            const parts = line.split("\t");
+            if (parts.length < 3) {
+                continue;
+            }
+            const name = parts.slice(2).join(" ");
+            const number = parts[0];
+            const function_ = Number(number) % 1000;
+            found.push({
+                value: number,
+                text: Plain.plain(name !== ""
+                    ? i18nContext.i18nc("@item:inlistbox %1 is the method's number, %2 its name, %3 the FinTS version", "%1 - %2 (version %3)", function_, name, parts[1])
+                    : i18nContext.i18nc("@item:inlistbox %1 is the method's number, %2 the FinTS version", "%1 (version %2)", function_, parts[1])),
+            });
+            if (parts[1] === "7") {
+                ++version7;
+                preselect = found.length;
+            }
+        }
+        if (found.length === 0) {
+            return;
+        }
+        found.unshift({ value: "", text: i18nContext.i18nc("@item:inlistbox", "Choose an approval method…") });
+        tanChoices = found;
+        tanPreselect = version7 === 1 ? preselect : 0;
+        advancedShown = true;
     }
 
     function link() {
@@ -152,6 +195,9 @@ Kirigami.ScrollablePage {
             pinField.hide();
             error.result = result.code !== undefined ? result : ({});
             if (result.code !== undefined) {
+                if (result.code === "bank.tan-method-needed" && result.methods !== undefined) {
+                    page.setTanChoices(result.methods);
+                }
                 page.step = "details";
                 return;
             }
@@ -377,13 +423,25 @@ Kirigami.ScrollablePage {
                 ]
             }
 
+            // The bank's own methods with their names, once it has told
+            // them (D-615).
+            Controls.ComboBox {
+                id: tanMethodBox
+                Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox", "Approval method:")
+                visible: page.advancedShown && page.tanChoices.length > 0
+                textRole: "text"
+                valueRole: "value"
+                model: page.tanChoices
+                currentIndex: page.tanPreselect
+            }
+
             Controls.TextField {
                 id: tanMethodField
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Approval method number:")
-                visible: page.advancedShown
+                visible: page.advancedShown && page.tanChoices.length === 0
                 placeholderText: page.i18nContext.i18nc("@info:placeholder", "Let the bank choose")
                 inputMethodHints: Qt.ImhDigitsOnly | Qt.ImhNoPredictiveText
-                validator: IntValidator { bottom: 900; top: 999 }
+                validator: IntValidator { bottom: 900; top: 9999 }
             }
 
             Controls.Label {

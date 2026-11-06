@@ -10801,6 +10801,44 @@ msgstr ""
 "Verfahren, das die TAN als Text schickt oder Sie in ihrer App um Freigabe "
 "bittet, und versuchen Sie es dann noch einmal."
 
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:610
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Your bank wants an approval method chosen first. Your PIN was not called "
+"wrong. Pick your method in the list of the advanced settings, type your PIN "
+"again and try again."
+msgstr ""
+"Ihre Bank möchte, dass zuerst ein Freigabeverfahren gewählt wird. Ihre PIN "
+"wurde nicht als falsch bezeichnet. Wählen Sie Ihr Verfahren in der Liste der "
+"erweiterten Einstellungen, geben Sie Ihre PIN noch einmal ein und versuchen "
+"Sie es erneut."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:609
+#, kde-format
+msgctxt "@info %1 is a list of method numbers"
+msgid ""
+"Your bank wants an approval method chosen first. Your PIN was not called "
+"wrong. Open the advanced settings, enter one of these numbers: %1, and try "
+"again."
+msgstr ""
+"Ihre Bank möchte, dass zuerst ein Freigabeverfahren gewählt wird. Ihre PIN "
+"wurde nicht als falsch bezeichnet. Öffnen Sie die erweiterten Einstellungen, "
+"tragen Sie eine dieser Nummern ein: %1, und versuchen Sie es noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:611
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Your bank wants an approval method chosen first. Your PIN was not called "
+"wrong. Open the advanced settings, enter your bank's approval method number, "
+"and try again."
+msgstr ""
+"Ihre Bank möchte, dass zuerst ein Freigabeverfahren gewählt wird. Ihre PIN "
+"wurde nicht als falsch bezeichnet. Öffnen Sie die erweiterten Einstellungen, "
+"tragen Sie die Nummer des Freigabeverfahrens Ihrer Bank ein und versuchen "
+"Sie es noch einmal."
+
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:609
 #, kde-format
 msgctxt "@info"
@@ -17630,6 +17668,31 @@ msgstr "2.2 (nur, wenn Ihre Bank es verlangt)"
 msgctxt "@label:textbox"
 msgid "Approval method number:"
 msgstr "Nummer des Freigabeverfahrens:"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:160
+#, kde-format
+msgctxt ""
+"@item:inlistbox %1 is the method's number, %2 its name, %3 the FinTS version"
+msgid "%1 - %2 (version %3)"
+msgstr "%1 - %2 (Version %3)"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:161
+#, kde-format
+msgctxt "@item:inlistbox %1 is the method's number, %2 the FinTS version"
+msgid "%1 (version %2)"
+msgstr "%1 (Version %2)"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:174
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Choose an approval method…"
+msgstr "Freigabeverfahren wählen …"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:440
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Approval method:"
+msgstr "Freigabeverfahren:"
 
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:289
 #, kde-format

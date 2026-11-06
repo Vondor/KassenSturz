@@ -605,6 +605,13 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "Your bank asks for a TAN, and KassenSturz had no way to ask you for it. Nothing was done. Try again.");
         case "bank.tan-method-unsupported":
             return i18nContext.i18nc("@info", "Your bank shows the TAN as a picture (a flicker code, photoTAN or QR code), which KassenSturz can't show yet. Choose a TAN method at your bank that sends the TAN as text or asks you to approve in its app, then try again.");
+        case "bank.tan-method-needed":
+            if (result.methods !== undefined) {
+                return i18nContext.i18nc("@info", "Your bank wants an approval method chosen first. Your PIN was not called wrong. Pick your method in the list of the advanced settings, type your PIN again and try again.");
+            }
+            return result.offered !== undefined
+                ? i18nContext.i18nc("@info %1 is a list of method numbers", "Your bank wants an approval method chosen first. Your PIN was not called wrong. Open the advanced settings, enter one of these numbers: %1, and try again.", result.offered)
+                : i18nContext.i18nc("@info", "Your bank wants an approval method chosen first. Your PIN was not called wrong. Open the advanced settings, enter your bank's approval method number, and try again.");
         case "bank.untrusted-server":
             return i18nContext.i18nc("@info", "The bank server's security certificate didn't pass every check, so KassenSturz sent nothing to it. Check your internet connection and the bank's address; if it keeps happening, ask your bank.");
         case "bank.needs-setup-dialog":

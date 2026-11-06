@@ -51,6 +51,28 @@ fn examples() -> Vec<BankError> {
         BankError::KeePassXcAnswer,
         BankError::TanNeeded,
         BankError::TanMethodUnsupported,
+        BankError::TanMethodNeeded {
+            offered: vec![
+                crate::TanMethodChoice {
+                    number: 7920,
+                    function: 920,
+                    version: 7,
+                    name: "made-up name".to_owned(),
+                },
+                crate::TanMethodChoice {
+                    number: 6920,
+                    function: 920,
+                    version: 6,
+                    name: "made-up name".to_owned(),
+                },
+                crate::TanMethodChoice {
+                    number: 6912,
+                    function: 912,
+                    version: 6,
+                    name: "made-up name".to_owned(),
+                },
+            ],
+        },
         BankError::UntrustedServer,
         BankError::NeedsSetupDialog,
         BankError::SetupFailed {
@@ -97,6 +119,51 @@ fn every_code_is_listed_with_its_parameters() {
         unused.is_empty(),
         "listed in docs/ERROR_CODES.md but no error has them: {unused:?}"
     );
+}
+
+#[test]
+fn the_tan_method_report_names_numbers_only_each_once() {
+    let report = BankError::TanMethodNeeded {
+        offered: vec![
+            crate::TanMethodChoice {
+                number: 7920,
+                function: 920,
+                version: 7,
+                name: "made-up name".to_owned(),
+            },
+            crate::TanMethodChoice {
+                number: 6920,
+                function: 920,
+                version: 6,
+                name: "made-up name".to_owned(),
+            },
+        ],
+    }
+    .report();
+    assert_eq!(
+        format!("{:?}", report.params),
+        format!(
+            "{:?}",
+            BankError::TanMethodNeeded {
+                offered: vec![crate::TanMethodChoice {
+                    number: 920,
+                    function: 920,
+                    version: 0,
+                    name: String::new()
+                }],
+            }
+            .report()
+            .params
+        )
+    );
+    assert!(!format!("{report:?}").contains("made-up"));
+}
+
+#[test]
+fn an_unknown_list_of_tan_methods_leaves_the_parameter_out() {
+    let report = BankError::TanMethodNeeded { offered: vec![] }.report();
+    assert_eq!(report.code, "bank.tan-method-needed");
+    assert!(report.params.is_empty());
 }
 
 #[test]

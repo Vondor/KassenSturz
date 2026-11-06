@@ -273,6 +273,7 @@ A bank connection couldn't be used, or what the bank delivered couldn't be turne
 | `bank.aborted` | | | The bank's question was closed before it was answered, so nothing was done. Start again when you are ready. |
 | `bank.tan-needed` | | | Your bank asks for a TAN, and KassenSturz had no way to ask you for it. Nothing was done. Try again. |
 | `bank.tan-method-unsupported` | | | Your bank shows this TAN as a picture (a flicker code, photoTAN or QR code), which KassenSturz can't show yet. Choose a TAN method at your bank that sends the TAN as text or asks you to approve in its app, then try again. |
+| `bank.tan-method-needed` | `offered?` | | Your bank wants an approval method chosen first. Your PIN was not called wrong. Open the advanced settings, enter one of these numbers: {offered}, and try again. |
 | `bank.untrusted-server` | | | The bank server's security certificate didn't pass every check, so KassenSturz sent nothing to it. Check your internet connection and the server address; if it keeps happening, ask your bank. |
 | `bank.needs-setup-dialog` | | | A chip-card login can't be set up in KassenSturz yet. Use a login with PIN and TAN for this bank, or import a file from your bank instead. |
 | `bank.setup-failed` | `text?` | | The bank login couldn't be set up, so nothing of it was kept. The bank software says: {text}. Check the login name and the server address and try again. |

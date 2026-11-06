@@ -655,6 +655,54 @@ fn a_setup_whose_approval_is_refused_keeps_nothing() {
     stub::set_scenario("ok");
 }
 
+/// The user chose ask-each-time, but the place saved PINs go to (a KeePassXC
+/// database) can't be reached: a setup the bank doesn't take says what the
+/// bank said, not that KeePassXC is missing (M6-B174).
+#[test]
+fn a_failed_setup_names_the_banks_error_when_the_pin_place_cant_be_reached() {
+    let _guard = lock();
+    let mut bank = open("pin-place-gone");
+    let keychain = MemoryKeychain::new();
+    keychain.fail_with(Some(KeychainError::KeePassXcUnavailable));
+    let mut pins = PinSession::new(Box::new(KeychainPinStore::new(Box::new(keychain))));
+    pins.provide(
+        &LoginId::pending(),
+        Pin::new(PIN.to_owned()),
+        PinMode::AskEachTime,
+    )
+    .expect("a PIN that is asked each time is kept in memory only");
+    stub::set_scenario("unreachable");
+    assert_eq!(
+        bank.add_login(&login_setup(), &mut pins),
+        Err(BankError::Unreachable)
+    );
+    assert!(!pins.is_remembered(&LoginId::pending()));
+    stub::set_scenario("ok");
+}
+
+/// A PIN the bank calls wrong is reported as such, also when the place for
+/// saved PINs can't be reached (M6-B174).
+#[test]
+fn a_wrong_pin_is_named_when_the_pin_place_cant_be_reached() {
+    let _guard = lock();
+    let mut bank = open("wrong-pin-place-gone");
+    let keychain = MemoryKeychain::new();
+    keychain.fail_with(Some(KeychainError::KeePassXcUnavailable));
+    let mut pins = PinSession::new(Box::new(KeychainPinStore::new(Box::new(keychain))));
+    pins.provide(
+        &LoginId::pending(),
+        Pin::new(PIN.to_owned()),
+        PinMode::AskEachTime,
+    )
+    .expect("kept in memory only");
+    stub::set_scenario("bad-pin");
+    assert_eq!(
+        bank.add_login(&login_setup(), &mut pins),
+        Err(BankError::PinRejected)
+    );
+    stub::set_scenario("ok");
+}
+
 fn pins_once(bank: &mut AqBankingBank) -> PinSession {
     let mut pins = pins_with(PinMode::AskEachTime);
     let _ = bank.add_login(&login_setup(), &mut pins);

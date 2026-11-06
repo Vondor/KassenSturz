@@ -211,7 +211,18 @@ impl AqBankingBank {
     /// folder that can't be cleaned isn't an error of the call that ran:
     /// the next call tries again.
     fn clean_logs(&self) {
-        let _ = settings::delete_message_logs(&self.folder);
+        let removed = settings::delete_message_logs(&self.folder);
+        // The bank log (D-603) notes whether the block of D-261 held: 1 when
+        // AqBanking left no message log, 0 when it did or the folder can't
+        // be read.
+        #[cfg(feature = "debug-log")]
+        kassensturz_core::bank_log::note(
+            kassensturz_core::bank_log::Step::MessageLogCheck,
+            None,
+            Some(u32::from(matches!(removed, Ok(0)))),
+        );
+        #[cfg(not(feature = "debug-log"))]
+        let _ = removed;
     }
 
     /// The logins AqBanking has set up, by their unique IDs.

@@ -87,7 +87,7 @@ Kirigami.ApplicationWindow {
 
     // The app's name, which isn't translated, and in the developer mode a
     // marker that stays as long as it runs (D-227).
-    title: developerMode.on
+    title: developerMode.on || developerMode.bankLogOn
         ? "KassenSturz – " + i18nContext.i18nc("@title:window marker that KassenSturz was started in its developer mode", "developer mode")
         : "KassenSturz"
     // The size, place and maximized state of the last close come back (the
@@ -801,6 +801,34 @@ Kirigami.ApplicationWindow {
                 type: Kirigami.MessageType.Error
                 visible: developerMode.on
                 text: root.i18nContext.i18nc("@info", "Developer mode: KassenSturz is writing a log of what it does on this computer, such as which screens open and which errors happen, and a full record of the chat: your questions, everything sent to the model and its replies, including data from your book. Your privacy can't be guaranteed while this mode runs. To end it, close KassenSturz and start it the usual way.")
+                actions: [
+                    Kirigami.Action {
+                        icon.name: "folder-open"
+                        text: root.i18nContext.i18nc("@action:button opens the folder of the developer mode's log", "Show the log")
+                        onTriggered: {
+                            ActionLog.taken("Main_showLog")
+                            Qt.openUrlExternally(developerMode.folderUrl())
+                        }
+                    },
+                    Kirigami.Action {
+                        icon.name: "edit-delete"
+                        text: root.i18nContext.i18nc("@action:button deletes the developer mode's log", "Delete the log")
+                        onTriggered: {
+                            ActionLog.taken("Main_deleteLog")
+                            developerMode.clearLog()
+                        }
+                    }
+                ]
+            }
+
+            // The bank log shows this on every screen for as long as it runs
+            // (D-603); with the full developer mode the banner above says it.
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                position: Kirigami.InlineMessage.Position.Header
+                type: Kirigami.MessageType.Warning
+                visible: developerMode.bankLogOn && !developerMode.on
+                text: root.i18nContext.i18nc("@info", "Developer mode for bank connections: KassenSturz is writing a short log of how far each bank connection gets and which errors happen. It leaves out your login name, account numbers, amounts, PIN, TANs and the registration number. To end it, close KassenSturz and start it the usual way.")
                 actions: [
                     Kirigami.Action {
                         icon.name: "folder-open"

@@ -364,6 +364,89 @@ pub struct RegistrationRequest {
     pub malformed: bool,
 }
 
+/// Notes a step of the bank log (D-603): only fixed step names, error codes
+/// and counts, never anything of the login, the account or the bank. A
+/// build without the feature `debug-log` leaves it out.
+macro_rules! bank_note {
+    ($step:ident) => {
+        bank_note!($step, None, None)
+    };
+    ($step:ident, $code:expr, $count:expr) => {{
+        #[cfg(feature = "debug-log")]
+        kassensturz_core::bank_log::note(
+            kassensturz_core::bank_log::Step::$step,
+            $code,
+            $count.map(|count: usize| u32::try_from(count).unwrap_or(u32::MAX)),
+        );
+        #[cfg(not(feature = "debug-log"))]
+        let _: (Option<&str>, Option<usize>) = ($code, $count);
+    }};
+}
+
+/// What the bank log notes of a screen event: which question the bank asked
+/// and how a call ended. Nothing the event carries is written.
+fn log_event(event: &Event) {
+    match event {
+        Event::Tan(_) => bank_note!(TanAsked),
+        Event::Question(_) => bank_note!(QuestionAsked),
+        Event::Pin(_) => bank_note!(PinAsked),
+        Event::Registration(_) => bank_note!(RegistrationAsked),
+        Event::SetupDone(Ok(done)) => bank_note!(SetupDone, None, Some(done.accounts.len())),
+        Event::SetupDone(Err(error)) => bank_note!(SetupFailed, Some(error.code), None),
+        Event::FetchStarted(_) | Event::PinStorageDone { .. } => {}
+        Event::FetchDone(Err(error)) | Event::UpdateAllDone(Err(error)) => {
+            bank_note!(FetchRefused, Some(error.code), None);
+        }
+        Event::FetchDone(Ok(outcomes)) => {
+            for outcome in outcomes {
+                match (&outcome.error, outcome.state) {
+                    (Some(error), _) => bank_note!(FetchFailed, Some(error.code), None),
+                    (None, "ready") => bank_note!(FetchDone, None, Some(outcome.transactions)),
+                    _ => bank_note!(FetchSkipped),
+                }
+            }
+        }
+        Event::UpdateAllDone(Ok(fetches)) => {
+            for fetch in fetches {
+                match &fetch.result {
+                    Updated::Fetched(statement) => bank_note!(
+                        FetchDone,
+                        None,
+                        Some(
+                            statement
+                                .entries
+                                .iter()
+                                .filter(|entry| entry.status == EntryStatus::Booked)
+                                .count()
+                        )
+                    ),
+                    Updated::Failed(error) => bank_note!(FetchFailed, Some(error.code), None),
+                    Updated::Skipped(why) => bank_note!(FetchSkipped, Some(*why), None),
+                }
+            }
+        }
+    }
+}
+
+/// What the bank log notes of an answer: that it came, and whether it was
+/// given or cancelled; never what was typed.
+fn log_answer(answer: &Answer) {
+    match answer {
+        Answer::Tan(tan) => bank_note!(TanAnswered, None, Some(usize::from(tan.is_some()))),
+        Answer::Button(button) => {
+            bank_note!(QuestionAnswered, None, Some(usize::from(button.is_some())));
+        }
+        Answer::Pin(pin) => bank_note!(PinAnswered, None, Some(usize::from(pin.is_some()))),
+        Answer::Registration(typed) => {
+            bank_note!(
+                RegistrationAnswered,
+                None,
+                Some(usize::from(typed.is_some()))
+            );
+        }
+    }
+}
+
 /// The user's answer to an [`Event`].
 pub enum Answer {
     /// The TAN typed, or `None` for "Cancel".
@@ -407,6 +490,7 @@ impl Screens {
     /// answer meant for another question, which came late, is dropped.
     /// `None` when the screens are gone.
     fn ask<T>(&self, event: Event, pick: impl Fn(Answer) -> Result<T, Answer>) -> Option<T> {
+        log_event(&event);
         (self.notify)(event);
         let answers = self.answers.lock().unwrap_or_else(PoisonError::into_inner);
         loop {
@@ -423,6 +507,7 @@ impl Screens {
 
     /// Tells the screens `event`; nothing is waited for.
     fn tell(&self, event: Event) {
+        log_event(&event);
         (self.notify)(event);
     }
 }
@@ -545,6 +630,7 @@ impl Worker {
                 connection.pins.end_session();
                 busy.store(false, Ordering::SeqCst);
                 for event in ended.try_iter() {
+                    log_event(&event);
                     notify(event);
                 }
             }))
@@ -556,6 +642,7 @@ impl Worker {
 
     /// Passes the user's answer to the call waiting for it.
     pub fn answer(&self, answer: Answer) {
+        log_answer(&answer);
         let _ = self.answers.send(answer);
     }
 }
@@ -866,6 +953,7 @@ fn ensure_registered(connection: &mut Connection) -> Result<(), BankError> {
 /// approval through the dialogs on the way (D-151). An IBAN from a country
 /// without FinTS is `input.no-fints`; the screen stops before that.
 pub fn set_up(connection: &mut Connection, form: SetupForm) -> Result<SetupDone, ErrorText> {
+    bank_note!(SetupStarted);
     let iban = Iban::parse(&form.iban).map_err(|error| error_text(&error))?;
     let code: BankCode = iban
         .bank_code()
@@ -1313,6 +1401,7 @@ pub fn fetch(
     requests: Vec<FetchRequest>,
     today: Date,
 ) -> Result<Vec<FetchOutcome>, ErrorText> {
+    bank_note!(FetchStarted, None, Some(requests.len()));
     if let Status::Unusable(error) = connection.status() {
         return Err(error_text(&error));
     }
@@ -1457,6 +1546,7 @@ pub fn update_all(
     today: Date,
     stop: &AtomicBool,
 ) -> Result<Vec<UpdateFetch>, ErrorText> {
+    bank_note!(FetchStarted, None, Some(requests.len()));
     if let Status::Unusable(error) = connection.status() {
         return Err(error_text(&error));
     }

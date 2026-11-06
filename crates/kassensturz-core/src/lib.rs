@@ -15,6 +15,8 @@ mod account;
 #[cfg(feature = "ai")]
 pub mod ai_switch;
 mod bank_link;
+#[cfg(feature = "debug-log")]
+pub mod bank_log;
 mod budget;
 mod category_group;
 mod changeover;

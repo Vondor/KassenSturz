@@ -354,3 +354,21 @@ fn the_entry_url_is_the_service_in_lower_case() {
     assert_eq!(keychain.url(), "kassensturz://io.github.vondor.kassensturz");
     assert!(format!("{keychain:?}").starts_with("KeePassXcKeychain"));
 }
+
+/// KeePassXC's answer to `get-database-groups` holds the list one level
+/// down; a list at the top is read too (M6-B178).
+#[test]
+fn the_group_list_is_read_one_level_down_and_at_the_top() {
+    let group = json!({ "name": "Household", "uuid": "00", "children": [] });
+    let nested = json!({ "groups": { "groups": [group.clone()] }, "defaultGroup": "" });
+    let flat = json!({ "groups": [group.clone()] });
+    assert_eq!(group_list(&nested), Some(&vec![group.clone()]));
+    assert_eq!(group_list(&flat), Some(&vec![group]));
+    for broken in [
+        json!({}),
+        json!({ "groups": "none" }),
+        json!({ "groups": { "list": [] } }),
+    ] {
+        assert_eq!(group_list(&broken), None, "{broken}");
+    }
+}

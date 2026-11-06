@@ -97,7 +97,9 @@ pub mod qobject {
         /// Starts setting up a login from `form`, an object with `iban`,
         /// `url`, `loginName`, `customerId`, `customerIdRule`, `pin`,
         /// `pinMode` (`ask`, `remember`, `save`) and `replaces`, the ID of
-        /// a login to remove once the new one is set up (or empty). An error object when the
+        /// a login to remove once the new one is set up (or empty), and the
+        /// advanced settings `fintsVersion` (`300`, `220` or empty) and
+        /// `tanMethod` (900 to 999 or empty, D-609). An error object when the
         /// form isn't complete, else an empty object; the result comes
         /// with `setupFinished`.
         #[qinvokable]
@@ -425,6 +427,8 @@ impl qobject::BankConnection {
             pin: kassensturz_bank::Pin::new(field(&fields, "pin")),
             pin_mode: bank_connection::pin_mode(&field(&fields, "pinMode")),
             replaces: field(&fields, "replaces"),
+            fints_version: field(&fields, "fintsVersion"),
+            tan_method: field(&fields, "tanMethod"),
         };
         let rule = field(&fields, "customerIdRule");
         let rule = Lookup {

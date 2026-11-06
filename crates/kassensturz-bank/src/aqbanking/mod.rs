@@ -78,10 +78,6 @@ use crate::dialogs::BankDialogs;
 /// The name AqBanking knows KassenSturz by, e.g. in its user settings.
 const APP_NAME: &str = "KassenSturz";
 
-/// The FinTS version every login is set up with: 3.0, the one German
-/// banks run today (D-142).
-const FINTS_VERSION: &str = "--hbciversion=300";
-
 /// The FinTS backend's name for a PIN/TAN login.
 const PIN_TAN: &str = "pintan";
 
@@ -294,6 +290,7 @@ impl AqBankingBank {
         session: &Session<Handler>,
         uid: &str,
         pin: Option<Pin>,
+        tan_method: Option<u16>,
         pins: &mut PinSession,
     ) -> Result<(), BankError> {
         let login = LoginId::pending();
@@ -302,6 +299,20 @@ impl AqBankingBank {
         self.setup_command(session, "getbankinfo", &user, None, &login, pins)?;
         // The system ID the bank gives this login, with the PIN.
         self.setup_command(session, "getsysid", &user, pin.clone(), &login, pins)?;
+        // The TAN method the user chose, among those the bank allows this
+        // login (D-609). The bank's answer to the first call lists them; if
+        // AqBanking doesn't know them yet, they are asked for once.
+        if let Some(method) = tan_method {
+            let method = method.to_string();
+            let select = ["-u", uid, "-m", method.as_str()];
+            if self
+                .setup_command(session, "setitanmode", &select, None, &login, pins)
+                .is_err()
+            {
+                self.setup_command(session, "getitanmodes", &user, pin.clone(), &login, pins)?;
+                self.setup_command(session, "setitanmode", &select, None, &login, pins)?;
+            }
+        }
         // The accounts the login reaches.
         self.setup_command(session, "getaccounts", &user, pin.clone(), &login, pins)?;
         // IBANs for accounts the bank listed without one. A credit card
@@ -421,6 +432,9 @@ impl Bank for AqBankingBank {
         // `adduser` only writes the settings file; it is undone below
         // when the bank doesn't accept the login.
         let before = self.user_ids()?;
+        // The FinTS version is a fixed choice, 3.0 unless the user chose
+        // otherwise (D-142, D-609).
+        let version = format!("--hbciversion={}", setup.fints_version.number());
         let mut arguments = vec![
             "-N",
             APP_NAME,
@@ -432,7 +446,7 @@ impl Bank for AqBankingBank {
             PIN_TAN,
             "-s",
             setup.url.as_str(),
-            FINTS_VERSION,
+            version.as_str(),
         ];
         if let Some(customer_id) = &setup.customer_id {
             arguments.extend(["-c", customer_id.as_str()]);
@@ -444,7 +458,7 @@ impl Bank for AqBankingBank {
         };
         let uid_text = uid.to_string();
         let id = LoginId::new(uid_text.clone());
-        if let Err(error) = self.connect_new(session, &uid_text, pin, pins) {
+        if let Err(error) = self.connect_new(session, &uid_text, pin, setup.tan_method, pins) {
             // Nothing is kept of a login that didn't work, including its
             // PIN (D-057).
             let _ = Self::call(session, None, || {

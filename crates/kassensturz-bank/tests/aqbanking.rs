@@ -18,9 +18,10 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use kassensturz_aqbanking_sys::stub;
 use kassensturz_bank::{
     AqBankingBank, Availability, Bank, BankAccount, BankAccountId, BankAccountKind, BankCode,
-    BankDialogs, BankError, BankQuestion, CustomerId, Iban, KeychainPinStore, Library, Login,
-    LoginId, LoginKind, LoginSetup, MemoryPinStore, Pin, PinMode, PinSession, QuestionLevel,
-    RegistrationKey, Setup, Tan, TanRequest, Version, remove_login, setup_for, statement,
+    BankDialogs, BankError, BankQuestion, CustomerId, FintsVersion, Iban, KeychainPinStore,
+    Library, Login, LoginId, LoginKind, LoginSetup, MemoryPinStore, Pin, PinMode, PinSession,
+    QuestionLevel, RegistrationKey, Setup, Tan, TanRequest, Version, remove_login, setup_for,
+    statement,
 };
 use kassensturz_core::{Account, AccountId, AccountKind, BankLink, CurrencyCode, Date};
 use kassensturz_import::{EntryStatus, Limits};
@@ -73,6 +74,8 @@ fn login_setup() -> LoginSetup {
         },
         login_name: "made-up-login".to_owned(),
         customer_id: Some("made-up-customer".to_owned()),
+        fints_version: FintsVersion::default(),
+        tan_method: None,
     }
 }
 
@@ -154,6 +157,60 @@ fn the_availability_comes_from_the_libraries() {
         .expect("the backend opens without the libraries");
     assert_eq!(bank.availability(), Availability::NotInstalled);
     assert_eq!(bank.logins(), Err(BankError::NotInstalled));
+}
+
+#[test]
+fn the_advanced_settings_reach_the_backend_with_a_login() {
+    // D-609: the FinTS version and the TAN method the user chose.
+    let _guard = lock();
+    let mut bank = open("advanced");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    let mut setup = login_setup();
+    setup.fints_version = FintsVersion::V220;
+    setup.tan_method = Some(946);
+    bank.add_login(&setup, &mut pins).expect("login added");
+    let journal = journal_of(&bank);
+    assert!(journal.contains("--hbciversion=220"), "{journal}");
+    assert!(!journal.contains("--hbciversion=300"), "{journal}");
+    let select = journal
+        .find("control: setitanmode -u 1 -m 946")
+        .unwrap_or_else(|| panic!("the TAN method is selected in:\n{journal}"));
+    let ids = journal.find("control: getsysid -u 1").expect("getsysid");
+    let accounts = journal
+        .find("control: getaccounts -u 1")
+        .expect("getaccounts");
+    assert!(ids < select && select < accounts, "{journal}");
+    assert!(!journal.contains("getitanmodes"), "{journal}");
+}
+
+#[test]
+fn a_tan_method_the_backend_doesnt_know_yet_is_asked_for_once() {
+    let _guard = lock();
+    let mut bank = open("advanced-modes");
+    stub::set_scenario("itan-modes-unknown");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    let mut setup = login_setup();
+    setup.tan_method = Some(946);
+    bank.add_login(&setup, &mut pins).expect("login added");
+    let journal = journal_of(&bank);
+    let first = journal.find("control: setitanmode").expect("first try");
+    let modes = journal
+        .find("control: getitanmodes -u 1")
+        .expect("modes asked");
+    let last = journal.rfind("control: setitanmode").expect("second try");
+    assert!(first < modes && modes < last, "{journal}");
+}
+
+#[test]
+fn without_a_choice_the_defaults_are_version_3_and_the_banks_tan_method() {
+    let _guard = lock();
+    let mut bank = open("advanced-defaults");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    bank.add_login(&login_setup(), &mut pins)
+        .expect("login added");
+    let journal = journal_of(&bank);
+    assert!(journal.contains("--hbciversion=300"), "{journal}");
+    assert!(!journal.contains("itanmode"), "{journal}");
 }
 
 #[test]

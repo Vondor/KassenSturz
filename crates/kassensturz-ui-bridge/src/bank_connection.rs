@@ -52,10 +52,11 @@ use std::thread;
 
 use kassensturz_bank::{
     AqBankingBank, Availability, Bank, BankAccount, BankAccountKind, BankCode, BankDialogs,
-    BankError, BankQuestion, CustomerId, FINTS_REGISTRATION_KEY, FakeBank, Iban, KeychainPinStore,
-    Login, LoginId, LoginKind, LoginSetup, MemoryPinStore, NoPinStore, Pin, PinAsker, PinMode,
-    PinSession, PinStore, QuestionLevel, RegistrationKey, SecondFactor, Setup, Tan, TanRequest,
-    fetch_linked, find_bank_account, names_account, remove_login, setup_for,
+    BankError, BankQuestion, CustomerId, FINTS_REGISTRATION_KEY, FakeBank, FintsVersion, Iban,
+    KeychainPinStore, Login, LoginId, LoginKind, LoginSetup, MemoryPinStore, NoPinStore, Pin,
+    PinAsker, PinMode, PinSession, PinStore, QuestionLevel, RegistrationKey, SecondFactor, Setup,
+    TAN_METHODS, Tan, TanRequest, fetch_linked, find_bank_account, names_account, remove_login,
+    setup_for,
 };
 use kassensturz_core::{AccountId, BankLink, Date, ErrorParam, Report};
 use kassensturz_import::{EntryStatus, Limits, Statement};
@@ -841,6 +842,12 @@ pub struct SetupForm {
     /// old login is removed, with its PIN, only after the new one is set
     /// up, so a change that fails changes nothing.
     pub replaces: String,
+    /// The FinTS version chosen in the advanced settings: `300`, `220`, or
+    /// empty for the default (D-609).
+    pub fints_version: String,
+    /// The TAN method number chosen in the advanced settings (900 to 999),
+    /// or empty to leave the choice to the bank (D-609).
+    pub tan_method: String,
 }
 
 impl std::fmt::Debug for SetupForm {
@@ -861,6 +868,23 @@ pub fn pin_mode(key: &str) -> PinMode {
     }
 }
 
+/// The TAN method number typed in the advanced settings: none when empty,
+/// else a number from 900 to 999 (D-609).
+fn tan_method(text: &str) -> Result<Option<u16>, ()> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Ok(None);
+    }
+    if !text.chars().all(|character| character.is_ascii_digit()) {
+        return Err(());
+    }
+    text.parse::<u16>()
+        .ok()
+        .filter(|method| TAN_METHODS.contains(method))
+        .map(Some)
+        .ok_or(())
+}
+
 /// Checks what the user typed before anything reaches the bank: the
 /// `input.` code of the first gap, if there is one.
 pub fn check_form(form: &SetupForm, lookup: &Lookup) -> Result<(), ErrorText> {
@@ -873,6 +897,9 @@ pub fn check_form(form: &SetupForm, lookup: &Lookup) -> Result<(), ErrorText> {
         || url.contains(char::is_whitespace)
     {
         return Err(ErrorText::plain("input.bank-address-not-https"));
+    }
+    if tan_method(&form.tan_method).is_err() {
+        return Err(ErrorText::plain("input.bad-tan-method"));
     }
     if form.login_name.trim().is_empty() {
         return Err(ErrorText::plain("input.empty-login-name"));
@@ -991,6 +1018,8 @@ fn add_login(
         },
         login_name: form.login_name.trim().to_owned(),
         customer_id,
+        fints_version: FintsVersion::from_number(&form.fints_version).unwrap_or_default(),
+        tan_method: tan_method(&form.tan_method).unwrap_or(None),
     };
     let Connection { bank, pins, .. } = connection;
     let bank = match bank {
@@ -1797,6 +1826,35 @@ mod tests {
         assert!(connection.pins.saves());
     }
 
+    #[test]
+    fn the_advanced_settings_are_checked_and_default_to_the_banks_choice() {
+        // D-609: a TAN method is empty or a number from 900 to 999.
+        assert_eq!(tan_method(""), Ok(None));
+        assert_eq!(tan_method(" 946 "), Ok(Some(946)));
+        assert_eq!(tan_method("900"), Ok(Some(900)));
+        assert_eq!(tan_method("999"), Ok(Some(999)));
+        for bad in ["899", "1000", "9x6", "-946", "+946", "9 46", "99999999999"] {
+            assert_eq!(tan_method(bad), Err(()), "{bad}");
+        }
+        let lookup = look_up(&mut fake(None), IBAN).expect("looked up");
+        let mut with = form("12345");
+        with.tan_method = "12".to_owned();
+        assert_eq!(
+            check_form(&with, &lookup).map_err(|error| error.code),
+            Err("input.bad-tan-method")
+        );
+        with.tan_method = "946".to_owned();
+        assert_eq!(
+            check_form(&with, &lookup).map_err(|error| error.code),
+            Ok(())
+        );
+        // The version is one of the fixed choices, 3.0 for anything else.
+        assert_eq!(FintsVersion::from_number("220"), Some(FintsVersion::V220));
+        assert_eq!(FintsVersion::from_number(" 300 "), Some(FintsVersion::V300));
+        assert_eq!(FintsVersion::from_number("210"), None);
+        assert_eq!(FintsVersion::from_number(""), None);
+    }
+
     fn form(pin: &str) -> SetupForm {
         SetupForm {
             iban: IBAN.to_owned(),
@@ -1806,6 +1864,8 @@ mod tests {
             pin: Pin::new(pin.to_owned()),
             pin_mode: PinMode::RememberUntilClose,
             replaces: String::new(),
+            fints_version: String::new(),
+            tan_method: String::new(),
         }
     }
 
@@ -1895,6 +1955,8 @@ mod tests {
             pin: Pin::new("12345".to_owned()),
             pin_mode: PinMode::AskEachTime,
             replaces: String::new(),
+            fints_version: String::new(),
+            tan_method: String::new(),
         };
         assert_eq!(
             check_form(&form(&lookup.url), &lookup).map_err(|error| error.code),

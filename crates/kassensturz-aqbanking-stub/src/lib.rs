@@ -80,6 +80,9 @@ struct State {
     /// The registration key, which AqBanking writes into each message
     /// log's header as `appname` and into HKVVB (D-261).
     registration_key: Option<String>,
+    /// Whether `getitanmodes` ran: in the scenario `itan-modes-unknown`
+    /// `setitanmode` fails until it has (D-609).
+    modes_known: bool,
 }
 
 // SAFETY: the pointer is only used on the thread that set it.
@@ -93,6 +96,7 @@ static STATE: Mutex<State> = Mutex::new(State {
     next_account_id: 1,
     accounts: Vec::new(),
     registration_key: None,
+    modes_known: false,
 });
 
 fn state() -> MutexGuard<'static, State> {
@@ -898,6 +902,33 @@ pub unsafe extern "C" fn AB_Banking_ProviderControl(
                 return rv;
             }
             write_message_log();
+            0
+        }
+        "getitanmodes" => {
+            if !user_option(arguments).is_some_and(has_user) {
+                return 1;
+            }
+            let rv = ask_password(false);
+            if rv != 0 {
+                return rv;
+            }
+            state().modes_known = true;
+            0
+        }
+        "setitanmode" => {
+            let method = arguments
+                .iter()
+                .position(|argument| *argument == "-m")
+                .and_then(|index| arguments.get(index + 1))
+                .and_then(|method| method.parse::<u16>().ok());
+            if !user_option(arguments).is_some_and(has_user)
+                || !method.is_some_and(|method| (900..=999).contains(&method))
+            {
+                return 1;
+            }
+            if state().scenario == "itan-modes-unknown" && !state().modes_known {
+                return 1;
+            }
             0
         }
         "getaccounts" => match user_option(arguments) {

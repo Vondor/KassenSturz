@@ -102,6 +102,9 @@ pub enum BankError {
     /// KeePassXC, the place the user chose for saved PINs, couldn't be
     /// reached to save, read or delete a PIN (D-164).
     KeePassXc,
+    /// KeePassXC answered, but with something KassenSturz can't read
+    /// (M6-B179).
+    KeePassXcAnswer,
     /// An amount the bank sent isn't a fraction of whole numbers, or names a
     /// currency that isn't a code (D-141).
     MalformedAmount {
@@ -186,6 +189,7 @@ impl Report for BankError {
             Self::Busy => ErrorReport::new("bank.busy"),
             Self::Keychain => ErrorReport::new("bank.keychain"),
             Self::KeePassXc => ErrorReport::new("bank.keepassxc"),
+            Self::KeePassXcAnswer => ErrorReport::new("bank.keepassxc-answer"),
             Self::MalformedAmount { amount } => {
                 ErrorReport::new("bank.malformed-amount").with("amount", text(amount))
             }

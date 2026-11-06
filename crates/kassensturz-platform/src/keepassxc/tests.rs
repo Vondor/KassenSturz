@@ -355,6 +355,20 @@ fn the_entry_url_is_the_service_in_lower_case() {
     assert!(format!("{keychain:?}").starts_with("KeePassXcKeychain"));
 }
 
+/// An answer that can't be read is its own error, not the system
+/// keychain's (M6-B179).
+#[test]
+fn an_unreadable_answer_is_its_own_error() {
+    assert_eq!(
+        Problem::Garbled.into_error(),
+        KeychainError::KeePassXcAnswer
+    );
+    assert_eq!(
+        Problem::Lost.into_error(),
+        KeychainError::KeePassXcUnavailable
+    );
+}
+
 /// KeePassXC's answer to `get-database-groups` holds the list one level
 /// down; a list at the top is read too (M6-B178).
 #[test]

@@ -10868,6 +10868,19 @@ msgstr ""
 "KassenSturz spricht noch mit Ihrer Bank. Warten Sie, bis es fertig ist, und "
 "versuchen Sie es dann noch einmal."
 
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:623
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KeePassXC answered, but KassenSturz couldn't read its answer, so nothing was "
+"saved, read or removed. Try again; if it keeps happening, report it, and "
+"type the PIN each time for now."
+msgstr ""
+"KeePassXC hat geantwortet, aber KassenSturz konnte die Antwort nicht lesen. "
+"Deshalb wurde nichts gespeichert, gelesen oder entfernt. Versuchen Sie es "
+"noch einmal; wenn es weiter passiert, melden Sie es und geben Sie die PIN "
+"vorerst jedes Mal ein."
+
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:621
 #, kde-format
 msgctxt "@info"

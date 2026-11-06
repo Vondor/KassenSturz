@@ -131,6 +131,8 @@ pub(crate) fn users(data_dir: &Path) -> io::Result<Vec<UserRecord>> {
         });
     }
     records.sort_by_key(|record| record.unique_id);
+    // The same login in two files is one login (M6-B185).
+    records.dedup_by_key(|record| record.unique_id);
     Ok(records)
 }
 

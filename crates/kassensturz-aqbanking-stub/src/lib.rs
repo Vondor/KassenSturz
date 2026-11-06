@@ -861,7 +861,9 @@ fn insert_after_version(text: &str, lines: &str) -> String {
     let Some(start) = text.find("    int hbciVersion=") else {
         return text.to_owned();
     };
-    let end = text[start..].find('\n').map_or(text.len(), |n| start + n + 1);
+    let end = text[start..]
+        .find('\n')
+        .map_or(text.len(), |n| start + n + 1);
     format!("{}{lines}{}", &text[..end], &text[end..])
 }
 
@@ -965,28 +967,41 @@ fn get_accounts(uid: u32) -> c_int {
     0
 }
 
+/// AqBanking refuses to delete a user while an account still names it
+/// (`AB_Provider_DeleteUser`: "N accounts using this user", error -6, and
+/// `deluser` prints "Could not delete user"). Its accounts go first, one by
+/// one, with `delaccount`.
 fn delete_user(uid: u32) -> c_int {
     if !has_user(uid) {
+        return 2;
+    }
+    if state()
+        .accounts
+        .iter()
+        .any(|account| account.user_id == uid)
+    {
+        eprintln!("stub: accounts still use this user");
         return 2;
     }
     if let Some(file) = user_file(uid) {
         let _ = std::fs::remove_file(file);
     }
-    let removed: Vec<u32> = {
+    0
+}
+
+/// `delaccount -a ID`: removes one account.
+fn delete_account(aid: u32) -> c_int {
+    let known = {
         let mut state = state();
-        let removed = state
-            .accounts
-            .iter()
-            .filter(|account| account.user_id == uid)
-            .map(|account| account.unique_id)
-            .collect();
-        state.accounts.retain(|account| account.user_id != uid);
-        removed
+        let before = state.accounts.len();
+        state.accounts.retain(|account| account.unique_id != aid);
+        state.accounts.len() != before
     };
-    for aid in removed {
-        if let Some(file) = account_file(aid) {
-            let _ = std::fs::remove_file(file);
-        }
+    if !known {
+        return 2;
+    }
+    if let Some(file) = account_file(aid) {
+        let _ = std::fs::remove_file(file);
     }
     0
 }
@@ -1020,6 +1035,9 @@ pub unsafe extern "C" fn AB_Banking_ProviderControl(
     match command {
         "adduser" => add_user(arguments),
         "deluser" => user_option(arguments).map_or(1, delete_user),
+        "delaccount" => option(arguments, "-a", "--account")
+            .and_then(|value| value.parse().ok())
+            .map_or(1, delete_account),
         "addaccountflags" => option(arguments, "-a", "--account")
             .and_then(|id| id.parse::<u32>().ok())
             .map_or(1, |id| {
@@ -1106,7 +1124,9 @@ pub unsafe extern "C" fn AB_Banking_ProviderControl(
         }
         "sethbciversion" => {
             let version = option(arguments, "", "--hbciversion").filter(|version| {
-                version.parse::<u16>().is_ok_and(|v| (200..=399).contains(&v))
+                version
+                    .parse::<u16>()
+                    .is_ok_and(|v| (200..=399).contains(&v))
             });
             match (user_option(arguments), version) {
                 (Some(uid), Some(version)) if has_user(uid) => set_version(uid, version),

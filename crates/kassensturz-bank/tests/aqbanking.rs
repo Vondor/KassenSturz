@@ -1334,3 +1334,27 @@ fn another_account_is_linked_to_a_working_login_without_a_new_login() {
     );
     stub::set_scenario("ok");
 }
+
+#[test]
+fn a_login_with_accounts_is_removed_accounts_first() {
+    // M6-B185: AqBanking refuses to delete a user while an account names
+    // it ("Could not delete user", -6); the accounts go first.
+    let _guard = lock();
+    let mut bank = open("remove-with-accounts");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    let (login, accounts) = connect(&mut bank, &mut pins);
+    assert!(!accounts.is_empty());
+    remove_login(&mut bank, &login, &mut pins).expect("removed");
+    assert_eq!(bank.logins().expect("logins"), vec![]);
+    let journal = journal_of(&bank);
+    let first_account = journal
+        .find("control: delaccount")
+        .expect("accounts deleted");
+    let user = journal.find("control: deluser").expect("user deleted");
+    assert!(first_account < user, "{journal}");
+    assert_eq!(
+        journal.matches("control: delaccount").count(),
+        accounts.len(),
+        "{journal}"
+    );
+}

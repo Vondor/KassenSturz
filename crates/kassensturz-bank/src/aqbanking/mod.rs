@@ -389,6 +389,34 @@ impl AqBankingBank {
         Ok(())
     }
 
+    /// Deletes the login `uid` with its accounts. AqBanking refuses to
+    /// delete a user while an account still names it (`deluser` ends with
+    /// "Could not delete user", error -6), so the accounts go first
+    /// (M6-B185). A login whose accounts can't all be deleted is not
+    /// deleted either, and the error says so.
+    fn delete_login(&self, session: &Session<Handler>, uid: u32) -> Result<(), BankError> {
+        let owners = settings::account_owners(&self.folder).map_err(|_| BankError::Folder)?;
+        let mut accounts: Vec<u32> = owners
+            .into_iter()
+            .filter(|(_, owner)| *owner == uid)
+            .map(|(account, _)| account)
+            .collect();
+        accounts.sort_unstable();
+        let mut first_error = None;
+        for account in accounts {
+            let id = account.to_string();
+            if let Err(error) = self.edit_setting(session, "delaccount", &["-a", id.as_str()]) {
+                first_error.get_or_insert(error);
+            }
+        }
+        let uid_text = uid.to_string();
+        let user = self.edit_setting(session, "deluser", &["-u", uid_text.as_str()]);
+        match (first_error, user) {
+            (_, Ok(())) => Ok(()),
+            (Some(error), Err(_)) | (None, Err(error)) => Err(error),
+        }
+    }
+
     /// Runs one command that only edits a login's settings (D-617): it
     /// reaches no bank and asks for no PIN.
     fn edit_setting(
@@ -633,10 +661,7 @@ impl Bank for AqBankingBank {
         if let Err(error) = self.connect_new(session, &uid_text, pin, setup.tan_method, pins) {
             // Nothing is kept of a login that didn't work, including its
             // PIN (D-057).
-            let _ = Self::call(session, None, || {
-                session.control("deluser", &["-u", &uid_text])
-            });
-            self.clean_logs();
+            let _ = self.delete_login(session, uid);
             // The PIN is gone from memory either way. A place for saved
             // PINs that can't be reached (KeePassXC not running) must not
             // hide what the bank said: its error is the one to show
@@ -736,10 +761,8 @@ impl Bank for AqBankingBank {
 
     fn remove_login(&mut self, login: &LoginId) -> Result<(), BankError> {
         let session = self.session()?;
-        let uid = self.user_id(login)?.to_string();
-        let outcome = Self::call(session, None, || session.control("deluser", &["-u", &uid]));
-        self.clean_logs();
-        outcome.into_result(true)
+        let uid = self.user_id(login)?;
+        self.delete_login(session, uid)
     }
 
     fn accounts(&self, login: &LoginId) -> Result<Vec<BankAccount>, BankError> {

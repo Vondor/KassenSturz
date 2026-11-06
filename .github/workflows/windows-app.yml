@@ -4,32 +4,20 @@ name: Windows app
 # Frameworks from its binary cache for Visual Studio 2022, builds KassenSturz
 # with the project's CMake (which drives Cargo, D-063) and packs it as a
 # portable zip and an installer, both unsigned until signing comes (D-048).
-# This file is separate from ci.yml on purpose: the run is long, and only
-# changes that can affect the Windows app start it. The release workflow
-# calls it for a pre-release.
+# This file is separate from ci.yml on purpose: the run is long (20 to 30
+# minutes warm).
+#
+# For now it runs only when asked for (D-613): on a pull request with the
+# `windows` label, by hand (workflow_dispatch, also on main), and from the
+# release workflow for every pre-release tag, so no release ships without it.
+# The quick Windows lints and tests in ci.yml still run on every pull
+# request. D-613 is reversed (back to every pull request and every push to
+# main that touches the app) before Windows testers get builds.
 
 on:
   pull_request:
-    paths:
-      - ".github/workflows/windows-app.yml"
-      - "packaging/windows/**"
-      - "crates/**"
-      - "po/**"
-      - "data/**"
-      - "CMakeLists.txt"
-      - "Cargo.toml"
-      - "Cargo.lock"
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/windows-app.yml"
-      - "packaging/windows/**"
-      - "crates/**"
-      - "po/**"
-      - "data/**"
-      - "CMakeLists.txt"
-      - "Cargo.toml"
-      - "Cargo.lock"
+    # `labeled`, so adding the `windows` label starts the build at once.
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
   # release.yml calls this workflow for a pre-release tag and attaches what
   # it uploads as release-asset-windows (D-551, D-554).
@@ -46,8 +34,10 @@ permissions:
 # In a call from release.yml, github.workflow is the caller's name, so a pull
 # request's own Windows run and the release workflow's call of it don't
 # cancel each other.
+# Adding another label to a pull request starts a run that does nothing; it
+# gets a group of its own, so it doesn't cancel a Windows build in progress.
 concurrency:
-  group: windows-app-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  group: windows-app-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}${{ github.event.action == 'labeled' && github.event.label.name != 'windows' && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -65,6 +55,12 @@ env:
 jobs:
   windows-app:
     name: Windows app with KDE Craft (D-554)
+    # On a pull request only with the `windows` label (D-613); a label event
+    # starts it only for that label, not again for every other label added.
+    if: >-
+      github.event_name != 'pull_request' || (
+        contains(github.event.pull_request.labels.*.name, 'windows') &&
+        (github.event.action != 'labeled' || github.event.label.name == 'windows'))
     # Craft's binary cache is built for Visual Studio 2022; windows-latest has
     # only Visual Studio 2026, which Craft's cache doesn't cover (D-214).
     runs-on: windows-2022
@@ -141,7 +137,12 @@ jobs:
       - name: Install Qt and KDE Frameworks
         run: python "$env:CRAFT_ROOT\craft\bin\craft.py" --ci-mode --install-deps kassensturz
       - name: Save Craft
-        if: ${{ success() && steps.craft-cache.outputs.cache-hit != 'true' }}
+        # Only main saves (D-613, as D-427 for Cargo's caches): a pull
+        # request's copy of this several-GB folder serves no other branch and
+        # pushes main's caches out of GitHub's 10 GB limit. On 2026-11-06 that
+        # left the Flatpak and Craft caches empty for most of the day. A
+        # cold main cache is filled by starting this workflow by hand on main.
+        if: ${{ success() && github.ref == 'refs/heads/main' && steps.craft-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |

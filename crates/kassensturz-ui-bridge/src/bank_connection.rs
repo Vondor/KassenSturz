@@ -960,9 +960,6 @@ pub fn check_form(form: &SetupForm, lookup: &Lookup) -> Result<(), ErrorText> {
     if let Some(code) = address_problem(url) {
         return Err(ErrorText::plain(code));
     }
-    if url != lookup.url && !form.address_confirmed {
-        return Err(ErrorText::plain("input.address-not-confirmed"));
-    }
     if tan_method(&form.tan_method).is_err() {
         return Err(ErrorText::plain("input.bad-tan-method"));
     }
@@ -1055,6 +1052,13 @@ pub fn set_up(connection: &mut Connection, form: SetupForm) -> Result<SetupDone,
         .bank_code()
         .ok_or_else(|| ErrorText::plain("input.no-fints"))?;
     ensure_registered(connection).map_err(|error| error_text(&error))?;
+    // An address that isn't the bank lists' needs the user's tick, checked
+    // here against the lists' own answer, before any PIN is handed over
+    // (T-56, D-609).
+    let listed = look_up(connection, &form.iban).map_err(|error| error_text(&error))?;
+    if form.url.trim() != listed.url && !form.address_confirmed {
+        return Err(ErrorText::plain("input.address-not-confirmed"));
+    }
     let replaces = form.replaces.clone();
     let mut done = add_login(connection, form, code).map_err(|error| error_text(&error))?;
     if !replaces.is_empty() && replaces != done.login {
@@ -2079,23 +2083,20 @@ mod tests {
         ] {
             assert_eq!(address_problem(url), None, "{url}");
         }
-        let lookup = look_up(&mut fake(None), IBAN).expect("looked up");
+        // The tick itself is checked in `set_up`, against the bank lists.
+        let mut connection = fake(None);
         let mut other = form("12345");
         other.url = "https://fints.other-bank.example/fints".to_owned();
         assert_eq!(
-            check_form(&other, &lookup).map_err(|error| error.code),
+            set_up(&mut connection, other.clone()).map_err(|error| error.code),
             Err("input.address-not-confirmed")
         );
+        // No PIN was handed over: nothing was set up.
+        assert_eq!(logins(&mut connection).expect("logins").len(), 0);
         other.address_confirmed = true;
-        assert_eq!(
-            check_form(&other, &lookup).map_err(|error| error.code),
-            Ok(())
-        );
-        // The bank list's own address needs no tick.
-        assert_eq!(
-            check_form(&form("12345"), &lookup).map_err(|error| error.code),
-            Ok(())
-        );
+        assert!(set_up(&mut connection, other).is_ok());
+        // The bank list's own address, as the screen sends it, needs no tick.
+        assert!(set_up(&mut fake(None), form(FakeBank::PIN)).is_ok());
     }
 
     #[test]

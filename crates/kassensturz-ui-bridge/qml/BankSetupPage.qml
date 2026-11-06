@@ -91,6 +91,14 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // The address typed is not the one of KassenSturz's bank lists (D-609).
+    readonly property string addressHost: {
+        const match = /^https:\/\/([^\/?#]*)/.exec(urlField.text.trim());
+        return match ? match[1] : urlField.text.trim();
+    }
+    readonly property bool addressChanged: urlField.visible
+        && urlField.text.trim() !== (lookup.url ?? "")
+
     function connect() {
         const result = bank.setUp({
             iban: lookup.iban,
@@ -103,6 +111,7 @@ Kirigami.ScrollablePage {
             replaces: replacesLogin,
             fintsVersion: advancedShown ? versionBox.currentValue : "",
             tanMethod: advancedShown ? tanMethodField.text : "",
+            addressConfirmed: addressChanged && addressConfirm.checked ? "yes" : "",
         });
         error.result = result;
         if (result.code === undefined) {
@@ -256,6 +265,23 @@ Kirigami.ScrollablePage {
                 visible: (page.lookup.askUrl ?? false) || page.advancedShown
                 placeholderText: "https://"
                 inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoPredictiveText
+            }
+
+            Controls.Label {
+                visible: page.addressChanged
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                wrapMode: Text.Wrap
+                color: Kirigami.Theme.negativeTextColor
+                text: page.i18nContext.i18nc("@info %1 is a web address", "Careful: this address is not the one in KassenSturz's bank lists. Your login name and PIN will be sent to %1. Anyone who runs that server can read them, so only go on if your bank itself told you this address.", page.addressHost)
+            }
+
+            Controls.CheckBox {
+                id: addressConfirm
+                visible: page.addressChanged
+                text: page.i18nContext.i18nc("@option:check", "My bank gave me this address; send my PIN there")
+                onToggled: {
+                    ActionLog.taken("BankSetupPage_toggleAddressConfirm")
+                }
             }
 
             Controls.TextField {

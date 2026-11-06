@@ -649,6 +649,12 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "Type your bank's FinTS address. Your bank's website or support can tell you.");
         case "input.bank-address-not-https":
             return i18nContext.i18nc("@info", "A FinTS address starts with https:// and has no spaces, for example %1. Check it against what your bank gives.", "https://fints.example-bank.de/fints");
+        case "input.bank-address-userinfo":
+            return i18nContext.i18nc("@info", "A FinTS address has no name and @ in front of the server, as in https://name@server. Check it against what your bank gives.");
+        case "input.bank-address-private":
+            return i18nContext.i18nc("@info", "That address points to a computer in your own network, not to a bank. Check it against what your bank gives.");
+        case "input.address-not-confirmed":
+            return i18nContext.i18nc("@info", "This address isn't the one in KassenSturz's bank lists. Tick the box under the address if your bank gave you exactly this address.");
         case "input.bad-tan-method":
             return i18nContext.i18nc("@info", "A TAN method is a number from 900 to 999, for example 946. Leave the field empty to let your bank choose.");
         case "input.empty-login-name":

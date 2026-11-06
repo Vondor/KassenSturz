@@ -429,6 +429,7 @@ impl qobject::BankConnection {
             replaces: field(&fields, "replaces"),
             fints_version: field(&fields, "fintsVersion"),
             tan_method: field(&fields, "tanMethod"),
+            address_confirmed: field(&fields, "addressConfirmed") == "yes",
         };
         let rule = field(&fields, "customerIdRule");
         let rule = Lookup {

@@ -848,6 +848,9 @@ pub struct SetupForm {
     /// The TAN method number chosen in the advanced settings (900 to 999),
     /// or empty to leave the choice to the bank (D-609).
     pub tan_method: String,
+    /// The user ticked that the PIN may go to an address that isn't the bank
+    /// list's (D-609).
+    pub address_confirmed: bool,
 }
 
 impl std::fmt::Debug for SetupForm {
@@ -885,6 +888,44 @@ fn tan_method(text: &str) -> Result<Option<u16>, ()> {
         .ok_or(())
 }
 
+/// What is wrong with a bank address that starts with `https://`, as an
+/// `input.` code: a user name in front of the host (`https://bank@evil`),
+/// or a host no bank uses, such as an IP address, `localhost`, a name
+/// without a dot or one of a private network (D-609, T-37).
+fn address_problem(url: &str) -> Option<&'static str> {
+    let rest = url.strip_prefix("https://")?;
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    if authority.contains('@') || authority.contains('\\') {
+        return Some("input.bank-address-userinfo");
+    }
+    if authority.starts_with('[') {
+        // An IPv6 address.
+        return Some("input.bank-address-private");
+    }
+    let host = authority
+        .split(':')
+        .next()
+        .unwrap_or("")
+        .trim_end_matches('.')
+        .to_ascii_lowercase();
+    let numeric = !host.is_empty() && host.bytes().all(|b| b.is_ascii_digit() || b == b'.');
+    let private_name = [
+        ".local",
+        ".localhost",
+        ".internal",
+        ".lan",
+        ".home",
+        ".home.arpa",
+        ".corp",
+    ]
+    .iter()
+    .any(|suffix| host.ends_with(suffix));
+    if host.is_empty() || numeric || !host.contains('.') || private_name {
+        return Some("input.bank-address-private");
+    }
+    None
+}
+
 /// Checks what the user typed before anything reaches the bank: the
 /// `input.` code of the first gap, if there is one.
 pub fn check_form(form: &SetupForm, lookup: &Lookup) -> Result<(), ErrorText> {
@@ -897,6 +938,12 @@ pub fn check_form(form: &SetupForm, lookup: &Lookup) -> Result<(), ErrorText> {
         || url.contains(char::is_whitespace)
     {
         return Err(ErrorText::plain("input.bank-address-not-https"));
+    }
+    if let Some(code) = address_problem(url) {
+        return Err(ErrorText::plain(code));
+    }
+    if url != lookup.url && !form.address_confirmed {
+        return Err(ErrorText::plain("input.address-not-confirmed"));
     }
     if tan_method(&form.tan_method).is_err() {
         return Err(ErrorText::plain("input.bad-tan-method"));
@@ -1866,6 +1913,7 @@ mod tests {
             replaces: String::new(),
             fints_version: String::new(),
             tan_method: String::new(),
+            address_confirmed: false,
         }
     }
 
@@ -1957,6 +2005,7 @@ mod tests {
             replaces: String::new(),
             fints_version: String::new(),
             tan_method: String::new(),
+            address_confirmed: false,
         };
         assert_eq!(
             check_form(&form(&lookup.url), &lookup).map_err(|error| error.code),
@@ -1975,6 +2024,55 @@ mod tests {
             (rest * 10 + u32::from(digit - b'0')) % 97
         });
         format!("DE{:02}{code}{account}", 98 - remainder)
+    }
+
+    #[test]
+    fn an_address_that_is_not_the_banks_is_refused_or_needs_a_tick() {
+        for (url, code) in [
+            (
+                "https://bank@evil.example/fints",
+                "input.bank-address-userinfo",
+            ),
+            (
+                "https://fints.example@10.0.0.1/",
+                "input.bank-address-userinfo",
+            ),
+            ("https://127.0.0.1/fints", "input.bank-address-private"),
+            (
+                "https://192.168.1.5:8443/fints",
+                "input.bank-address-private",
+            ),
+            ("https://[::1]/fints", "input.bank-address-private"),
+            ("https://localhost/fints", "input.bank-address-private"),
+            ("https://router/fints", "input.bank-address-private"),
+            ("https://nas.local/fints", "input.bank-address-private"),
+            ("https://fints.home.arpa/", "input.bank-address-private"),
+        ] {
+            assert_eq!(address_problem(url), Some(code), "{url}");
+        }
+        for url in [
+            "https://fints2.atruvia.de/cgi-bin/hbciservlet",
+            "https://fints.example-bank.de:443/fints?x=1",
+        ] {
+            assert_eq!(address_problem(url), None, "{url}");
+        }
+        let lookup = look_up(&mut fake(None), IBAN).expect("looked up");
+        let mut other = form("12345");
+        other.url = "https://fints.other-bank.example/fints".to_owned();
+        assert_eq!(
+            check_form(&other, &lookup).map_err(|error| error.code),
+            Err("input.address-not-confirmed")
+        );
+        other.address_confirmed = true;
+        assert_eq!(
+            check_form(&other, &lookup).map_err(|error| error.code),
+            Ok(())
+        );
+        // The bank list's own address needs no tick.
+        assert_eq!(
+            check_form(&form("12345"), &lookup).map_err(|error| error.code),
+            Ok(())
+        );
     }
 
     #[test]

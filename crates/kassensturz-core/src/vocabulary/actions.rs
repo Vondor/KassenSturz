@@ -115,6 +115,7 @@ pub const ACTIONS: &[&str] = &[
     "BankSetupPage_findBank",
     "BankSetupPage_findBank_2",
     "BankSetupPage_forceActiveFocus",
+    "BankSetupPage_toggleAddressConfirm",
     "BankSetupPage_toggleAdvanced",
     "BookFromFileDonePage_goBook",
     "BookFromFileDonePage_pairsTransactionsMoney",

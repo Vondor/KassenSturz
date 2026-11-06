@@ -165,6 +165,7 @@ impl FakeBank {
                     id: login,
                     bank: BankCode::new("DE", BANK_CODE),
                     kind: FakeDirectory::PIN_TAN,
+                    connection: Default::default(),
                 },
             });
         }
@@ -445,6 +446,10 @@ impl Bank for FakeBank {
                 id: id.clone(),
                 bank: setup.bank.clone(),
                 kind: setup.kind,
+                connection: crate::backend::LoginConnection {
+                    url: setup.url.clone(),
+                    fints_version: Some(setup.fints_version),
+                },
             },
         });
         Ok(id)
@@ -649,6 +654,10 @@ mod tests {
                 id: login.clone(),
                 bank: BankCode::new("DE", BANK_CODE),
                 kind: FakeDirectory::PIN_TAN,
+                connection: crate::backend::LoginConnection {
+                    url: FakeDirectory::URL.to_owned(),
+                    fints_version: Some(crate::backend::FintsVersion::V300),
+                },
             }])
         );
         let accounts = bank.accounts(&login).expect("accounts");
@@ -674,6 +683,7 @@ mod tests {
                 id: earlier.clone(),
                 bank: BankCode::new("DE", BANK_CODE),
                 kind: FakeDirectory::PIN_TAN,
+                connection: Default::default(),
             }])
         );
         // Nothing is kept of its PIN: the bank asks, as a real one would.

@@ -694,6 +694,11 @@ pub struct LoginRow {
     /// The IBAN of the first of its accounts that has one, grouped by
     /// four; empty if none has. Changing the login starts from it.
     pub iban: String,
+    /// The FinTS address the login uses; empty if unknown.
+    pub url: String,
+    /// The FinTS version (`300` or `220`) it uses; empty if not one of
+    /// those. Changing the login starts from these (D-609).
+    pub fints_version: &'static str,
 }
 
 /// The logins set up on this computer.
@@ -724,6 +729,14 @@ pub fn logins(connection: &mut Connection) -> Result<Vec<LoginRow>, BankError> {
                 bank_code: login.bank.code().to_owned(),
                 kind: kind_key(login.kind),
                 iban,
+                url: login.connection.url,
+                fints_version: login
+                    .connection
+                    .fints_version
+                    .map_or("", |version| match version {
+                        FintsVersion::V300 => "300",
+                        FintsVersion::V220 => "220",
+                    }),
             }
         })
         .collect())
@@ -1886,10 +1899,10 @@ mod tests {
     fn the_advanced_settings_are_checked_and_default_to_the_banks_choice() {
         // D-609: a TAN method is empty or a number from 900 to 999.
         assert_eq!(tan_method(""), Ok(None));
-        assert_eq!(tan_method(" 946 "), Ok(Some(946)));
+        assert_eq!(tan_method(" 912 "), Ok(Some(912)));
         assert_eq!(tan_method("900"), Ok(Some(900)));
         assert_eq!(tan_method("999"), Ok(Some(999)));
-        for bad in ["899", "1000", "9x6", "-946", "+946", "9 46", "99999999999"] {
+        for bad in ["899", "1000", "9x6", "-912", "+912", "9 12", "99999999999"] {
             assert_eq!(tan_method(bad), Err(()), "{bad}");
         }
         let lookup = look_up(&mut fake(None), IBAN).expect("looked up");
@@ -1899,7 +1912,7 @@ mod tests {
             check_form(&with, &lookup).map_err(|error| error.code),
             Err("input.bad-tan-method")
         );
-        with.tan_method = "946".to_owned();
+        with.tan_method = "912".to_owned();
         assert_eq!(
             check_form(&with, &lookup).map_err(|error| error.code),
             Ok(())

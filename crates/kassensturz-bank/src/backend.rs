@@ -83,6 +83,18 @@ pub struct Login {
     pub bank: BankCode,
     /// How the user logs in there.
     pub kind: LoginKind,
+    /// The bank address and FinTS version it uses, for changing them
+    /// later (D-609). Both are public data, not secrets.
+    pub connection: LoginConnection,
+}
+
+/// Where and how a login talks to its bank, as far as the backend knows.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct LoginConnection {
+    /// The bank's FinTS address; empty if unknown.
+    pub url: String,
+    /// The FinTS version, if it is one of the offered ones.
+    pub fints_version: Option<FintsVersion>,
 }
 
 /// The FinTS version a login talks to the bank in (D-609). 3.0 is what
@@ -117,7 +129,7 @@ impl FintsVersion {
 }
 
 /// The lowest and highest number of a TAN method in FinTS (D-609): methods
-/// are numbered 900 to 999, e.g. 946 for an app method of the Volksbanken.
+/// are numbered 900 to 999, e.g. 912.
 pub const TAN_METHODS: std::ops::RangeInclusive<u16> = 900..=999;
 
 /// What setting up a login needs, as the setup screens gathered it (M4.6)

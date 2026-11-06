@@ -37,6 +37,10 @@ Kirigami.ScrollablePage {
     // (D-609); closed, the defaults are used.
     property bool advancedShown: false
     property string startIban: ""
+    // Changing a login: the address and FinTS version it uses now, so the
+    // advanced settings start from them (D-609).
+    property string startUrl: ""
+    property string startVersion: ""
     // The old login could not be removed after the change.
     property bool oldLoginLeft: false
 
@@ -85,6 +89,12 @@ Kirigami.ScrollablePage {
         }
         lookup = result;
         urlField.text = result.url;
+        if (replacesLogin !== "" && startUrl !== "") {
+            // The login's own settings, which may differ from the lists'.
+            urlField.text = startUrl;
+            advancedShown = true;
+            versionBox.currentIndex = startVersion === "220" ? 1 : 0;
+        }
         if (canContinue) {
             step = "details";
             loginField.forceActiveFocus();
@@ -382,7 +392,7 @@ Kirigami.ScrollablePage {
                 wrapMode: Text.Wrap
                 font: Kirigami.Theme.smallFont
                 textFormat: Text.PlainText
-                text: page.i18nContext.i18nc("@info", "Change these only if connecting doesn't work and your bank, or the program you use with it today, tells you what to use. The address and the TAN method number (for example 946) are in your bank's information for FinTS. Empty or unchanged means KassenSturz uses what its bank lists give and your bank's own choice.")
+                text: page.i18nContext.i18nc("@info", "Change these only if connecting doesn't work and your bank, or the program you use with it today, tells you what to use. The address and the TAN method number (for example 912) are in your bank's information for FinTS. Empty or unchanged means KassenSturz uses what its bank lists give and your bank's own choice.")
             }
 
             Controls.ComboBox {

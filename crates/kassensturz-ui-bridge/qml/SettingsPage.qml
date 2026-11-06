@@ -307,7 +307,7 @@ FormCard.FormCardPage {
                 FormCard.FormButtonDelegate {
                     icon.name: "configure"
                     text: page.i18nContext.i18nc("@action:button", "Change this bank login…")
-                    description: page.i18nContext.i18nc("@info", "Change the login name, the bank's address or how you log in. You type your login details and PIN again; your accounts stay linked.")
+                    description: page.i18nContext.i18nc("@info", "Change the login name, the bank's address, the FinTS version, the TAN method or how you log in. You type your login details and PIN again; your accounts stay linked.")
                     enabled: page.bankStatus.ready ?? false
                     onClicked: {
                         ActionLog.taken("SettingsPage_changeBankLogin")

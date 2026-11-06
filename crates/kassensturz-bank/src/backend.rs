@@ -353,15 +353,19 @@ pub trait Bank {
 }
 
 /// Removes `login` from `bank` and forgets its PIN, remembered or saved
-/// (D-057: a saved PIN goes with its login). The PIN is forgotten even when
-/// the backend fails, so no PIN outlives an attempt to remove its login.
+/// (D-057: a saved PIN goes with its login). The PIN is forgotten once the
+/// login is gone, or was not there to begin with; when the backend fails to
+/// remove it, the login is still there and keeps its PIN, so a saved one is
+/// not lost for a login that still works (M6-B185).
 pub fn remove_login(
     bank: &mut dyn Bank,
     login: &LoginId,
     pins: &mut PinSession,
 ) -> Result<(), BankError> {
     let removed = bank.remove_login(login);
-    pins.forget(login)?;
+    if matches!(removed, Ok(()) | Err(BankError::UnknownLogin(_))) {
+        pins.forget(login)?;
+    }
     removed
 }
 

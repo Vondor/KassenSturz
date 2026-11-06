@@ -1034,6 +1034,7 @@ pub unsafe extern "C" fn AB_Banking_ProviderControl(
     }
     match command {
         "adduser" => add_user(arguments),
+        "deluser" if state().scenario == "deluser-fails" => 2,
         "deluser" => user_option(arguments).map_or(1, delete_user),
         "delaccount" => option(arguments, "-a", "--account")
             .and_then(|value| value.parse().ok())

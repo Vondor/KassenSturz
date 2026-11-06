@@ -1358,3 +1358,20 @@ fn a_login_with_accounts_is_removed_accounts_first() {
         "{journal}"
     );
 }
+
+#[test]
+fn a_login_that_cant_be_removed_keeps_its_pin() {
+    // M6-B185: the PIN goes with the login, not before it.
+    let _guard = lock();
+    let mut bank = open("remove-fails");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    let (login, _) = connect(&mut bank, &mut pins);
+    assert!(pins.is_remembered(&login));
+    stub::set_scenario("deluser-fails");
+    assert!(remove_login(&mut bank, &login, &mut pins).is_err());
+    assert!(pins.is_remembered(&login));
+    assert_eq!(bank.logins().expect("logins").len(), 1);
+    stub::set_scenario("ok");
+    remove_login(&mut bank, &login, &mut pins).expect("removed");
+    assert!(!pins.is_remembered(&login));
+}

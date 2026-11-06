@@ -11,6 +11,11 @@ license.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[features]
+# The bank log of the developer mode (D-603): notes whether AqBanking wrote
+# a message log. Without it the crate holds no log code.
+debug-log = ["kassensturz-core/debug-log"]
+
 [dependencies]
 kassensturz-aqbanking-sys.workspace = true
 kassensturz-core.workspace = true

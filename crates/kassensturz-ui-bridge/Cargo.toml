@@ -36,6 +36,7 @@ ai = [
 # with KASSENSTURZ_DEBUG_LOG=1. Without it the app holds no log code.
 debug-log = [
     "kassensturz-core/debug-log",
+    "kassensturz-bank/debug-log",
     "kassensturz-ai-chat?/debug-log",
     "kassensturz-ai-tools?/debug-log",
 ]

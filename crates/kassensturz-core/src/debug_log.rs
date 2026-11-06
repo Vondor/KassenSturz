@@ -539,7 +539,7 @@ fn settings_file() -> Option<PathBuf> {
     None
 }
 
-fn default_folder() -> Option<PathBuf> {
+pub(crate) fn default_folder() -> Option<PathBuf> {
     folder_for(std::env::consts::OS, |name| {
         std::env::var_os(name).filter(|value| !value.is_empty())
     })
@@ -565,7 +565,7 @@ fn folder_for(os: &str, var: impl Fn(&str) -> Option<std::ffi::OsString>) -> Opt
 /// Appends `line` to the first file of `names` in `folder`, which becomes
 /// the second one when it has reached `max` bytes. One write of the whole
 /// line, so lines from the app and the MCP server don't run into each other.
-fn append(folder: &Path, names: (&str, &str), max: u64, line: &str) -> io::Result<()> {
+pub(crate) fn append(folder: &Path, names: (&str, &str), max: u64, line: &str) -> io::Result<()> {
     open_folder(folder)?;
     let current = folder.join(names.0);
     if fs::metadata(&current).is_ok_and(|meta| meta.len() >= max) {

@@ -36,6 +36,7 @@ pub mod qobject {
         #[qobject]
         #[qml_element]
         #[qproperty(bool, on, READ, CONSTANT)]
+        #[qproperty(bool, bank_log_on, READ, CONSTANT)]
         type DeveloperMode = super::DeveloperModeRust;
     }
 
@@ -86,16 +87,24 @@ pub mod qobject {
 #[derive(Default)]
 pub struct DeveloperModeRust {
     on: bool,
+    bank_log_on: bool,
 }
 
 impl cxx_qt::Initialize for qobject::DeveloperMode {
     fn initialize(mut self: Pin<&mut Self>) {
         self.as_mut().rust_mut().on = is_on();
+        self.as_mut().rust_mut().bank_log_on = bank_log_is_on();
     }
 }
 
 impl qobject::DeveloperMode {
     fn folder_url(&self) -> QString {
+        #[cfg(feature = "debug-log")]
+        if let Some(folder) =
+            kassensturz_core::bank_log::folder().filter(|_| self.bank_log_on && !self.on)
+        {
+            return QString::from(format!("file://{}", folder.display()).as_str());
+        }
         #[cfg(feature = "debug-log")]
         if let Some(folder) = log().folder().filter(|_| self.on) {
             return QString::from(format!("file://{}", folder.display()).as_str());
@@ -104,8 +113,12 @@ impl qobject::DeveloperMode {
     }
 
     fn clear_log(&self) -> bool {
+        // Both logs may run at once; "Delete the log" clears every one that
+        // runs, and says it worked only if all of them did.
         #[cfg(feature = "debug-log")]
-        return self.on && log().clear().is_ok();
+        return (self.on || self.bank_log_on)
+            && (!self.bank_log_on || kassensturz_core::bank_log::clear())
+            && (!self.on || log().clear().is_ok());
         #[cfg(not(feature = "debug-log"))]
         false
     }
@@ -154,6 +167,16 @@ fn set_current_screen(screen: Option<&'static str>) {
 #[cfg(feature = "ai")]
 pub fn current_screen() -> Option<&'static str> {
     CURRENT_SCREEN.lock().ok().and_then(|current| *current)
+}
+
+/// Whether the bank log runs (D-603): started from a terminal with
+/// `KASSENSTURZ_BANK_LOG=1`, apart from the debug log. Never in a build
+/// without the feature `debug-log`.
+pub fn bank_log_is_on() -> bool {
+    #[cfg(feature = "debug-log")]
+    return kassensturz_core::bank_log::is_on();
+    #[cfg(not(feature = "debug-log"))]
+    false
 }
 
 /// Whether the developer mode runs.

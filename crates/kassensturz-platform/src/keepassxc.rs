@@ -594,9 +594,7 @@ impl Session {
         let answer = self
             .request("get-database-groups", message, false)
             .map_err(Reply::into_problem)?;
-        let top = answer
-            .get("groups")
-            .and_then(Value::as_array)
+        let top = group_list(&answer)
             .and_then(|groups| groups.first())
             .ok_or(Problem::Garbled)?;
         let name = text(top, "name").ok_or(Problem::Garbled)?.to_owned();
@@ -750,6 +748,19 @@ impl Session {
             None => Ok(None),
             Some(Err(_)) => Err(Problem::Garbled),
         }
+    }
+}
+
+/// The list of groups in the answer to `get-database-groups`. KeePassXC
+/// holds it one level down, `{"groups": {"groups": [...]}}`, as its protocol
+/// description shows; the first reading expected it at the top and failed
+/// on a real KeePassXC after the user had allowed the connection
+/// (M6-B178). A list at the top is read too.
+fn group_list(answer: &Value) -> Option<&Vec<Value>> {
+    match answer.get("groups")? {
+        Value::Array(list) => Some(list),
+        Value::Object(inner) => inner.get("groups")?.as_array(),
+        _ => None,
     }
 }
 

@@ -103,6 +103,11 @@ steps! {
     /// call; the count is 1 when it left none, 0 when it left some (which
     /// were deleted) or the folder could not be read.
     MessageLogCheck = "bank.message-log-check",
+    /// A return code the bank sent back (FinTS, e.g. 9931 for a wrong
+    /// login or PIN); the count is the code. Only codes from the public
+    /// list of the FinTS specification are taken, never any other text or
+    /// number from the bank (D-607).
+    BankReply = "bank.bank-reply",
 }
 
 /// One line of the log, without the line break. `code` that isn't an error

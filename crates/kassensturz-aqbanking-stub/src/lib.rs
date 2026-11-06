@@ -83,6 +83,10 @@ struct State {
     /// Whether `getitanmodes` ran: in the scenario `itan-modes-unknown`
     /// `setitanmode` fails until it has (D-609).
     modes_known: bool,
+    /// Whether `setitanmode` ran for the login: in the scenarios
+    /// `strong-auth` and `strong-auth-one` the bank refuses a login
+    /// dialog without a TAN method (9075, 9340) until it has (B183).
+    tan_selected: bool,
 }
 
 // SAFETY: the pointer is only used on the thread that set it.
@@ -97,6 +101,7 @@ static STATE: Mutex<State> = Mutex::new(State {
     accounts: Vec::new(),
     registration_key: None,
     modes_known: false,
+    tan_selected: false,
 });
 
 fn state() -> MutexGuard<'static, State> {
@@ -404,6 +409,12 @@ fn ask_approval() -> c_int {
 /// Asks the wrapper for the PIN (or a TAN) the way AqBanking does, and
 /// plays the scenario's answer to it. `0` means the job may go on.
 fn ask_password(tan: bool) -> c_int {
+    ask_password_with(tan, true)
+}
+
+/// [`ask_password`]; `enforce_strong_auth` is false for `getitanmodes`,
+/// which is how a login without a TAN method learns the allowed ones.
+fn ask_password_with(tan: bool, enforce_strong_auth: bool) -> c_int {
     let Some(gui) = gui() else {
         return GWEN_ERROR_NOT_IMPLEMENTED;
     };
@@ -469,6 +480,34 @@ fn ask_password(tan: bool) -> c_int {
             };
         }
         progress("Bank says: PIN wrong (9942)");
+        return GWEN_ERROR_GENERIC;
+    }
+    // `strong-auth-fetch…` refuses the login dialog of a fetch the same way;
+    // `…bad-pin` adds the bank's 9942 (a PIN that really is wrong).
+    if !tan
+        && enforce_strong_auth
+        && scenario.starts_with("strong-auth")
+        && (scenario.contains("fetch") || !state().tan_selected)
+    {
+        // What AqBanking does with the bank's 9340: it flags the PIN as bad.
+        if let Some(set_status) = gui.set_password_status {
+            // SAFETY: as above.
+            unsafe {
+                set_status(
+                    ptr::null_mut(),
+                    token.as_ptr(),
+                    buffer.as_ptr(),
+                    GWEN_Gui_PasswordStatus_Bad,
+                    0,
+                )
+            };
+        }
+        progress("HBCI: 9050 - Die Nachricht enthält Fehler. (E)");
+        progress("HBCI: 9075 - Starke Kundenauthentifizierung notwendig. (E)");
+        progress("HBCI: 9340 - Ungültige Auftragsnachricht. (E)");
+        if scenario.contains("bad-pin") {
+            progress("HBCI: 9942 - PIN ungültig. (E)");
+        }
         return GWEN_ERROR_GENERIC;
     }
     if let Some(set_status) = gui.set_password_status {
@@ -748,6 +787,7 @@ fn add_user(arguments: &[&str]) -> c_int {
     let customer = option(arguments, "-c", "--customer").unwrap_or(login);
     let uid = {
         let mut state = state();
+        state.tan_selected = false;
         let uid = state.next_user_id;
         state.next_user_id += 1;
         uid
@@ -908,11 +948,42 @@ pub unsafe extern "C" fn AB_Banking_ProviderControl(
             if !user_option(arguments).is_some_and(has_user) {
                 return 1;
             }
-            let rv = ask_password(false);
+            let rv = ask_password_with(false, false);
             if rv != 0 {
                 return rv;
             }
             state().modes_known = true;
+            // The allowed methods, as the bank's 3920 answer leaves them in
+            // the login's settings file (one method in `strong-auth-one`).
+            let methods = if state().scenario == "strong-auth-one" {
+                concat!(
+                    "    int tanMethodList=\"920\"\n",
+                    "    bpd {\n      bpdjobs {\n        HITANS {\n          7 {\n",
+                    "            tanMethod {\n              int function=\"920\"\n",
+                    "              char methodName=\"Test app approval\"\n            }\n",
+                    "          }\n        }\n      }\n    }\n",
+                )
+            } else {
+                concat!(
+                    "    int tanMethodList=\"920\", \"912\"\n",
+                    "    bpd {\n      bpdjobs {\n        HITANS {\n          6 {\n",
+                    "            tanMethod {\n              int function=\"912\"\n",
+                    "              char methodName=\"Test TAN list\"\n            }\n",
+                    "          }\n          7 {\n",
+                    "            tanMethod {\n              int function=\"920\"\n",
+                    "              char methodName=\"Test app approval\"\n            }\n",
+                    "          }\n        }\n      }\n    }\n",
+                )
+            };
+            if let Some(file) = user_option(arguments).and_then(user_file)
+                && let Ok(text) = std::fs::read_to_string(&file)
+            {
+                let marker = "    int hbciVersion=\"300\"\n";
+                let _ = std::fs::write(
+                    &file,
+                    text.replacen(marker, &format!("{marker}{methods}"), 1),
+                );
+            }
             0
         }
         "setitanmode" => {
@@ -922,13 +993,14 @@ pub unsafe extern "C" fn AB_Banking_ProviderControl(
                 .and_then(|index| arguments.get(index + 1))
                 .and_then(|method| method.parse::<u16>().ok());
             if !user_option(arguments).is_some_and(has_user)
-                || !method.is_some_and(|method| (900..=999).contains(&method))
+                || !method.is_some_and(|method| (900..=999).contains(&(method % 1000)))
             {
                 return 1;
             }
             if state().scenario == "itan-modes-unknown" && !state().modes_known {
                 return 1;
             }
+            state().tan_selected = true;
             0
         }
         "getaccounts" => match user_option(arguments) {

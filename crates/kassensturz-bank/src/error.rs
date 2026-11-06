@@ -75,6 +75,13 @@ pub enum BankError {
     /// chooses a TAN method at their bank that works as text or as an
     /// approval in an app (D-151, Q-089).
     TanMethodUnsupported,
+    /// The bank wants a TAN method chosen first (strong customer
+    /// authentication) and none was: `offered` are the method numbers the
+    /// bank allows this login, if known (M6-B183). The PIN is not at fault.
+    TanMethodNeeded {
+        /// The methods the bank allows, if known (D-615).
+        offered: Vec<crate::TanMethodChoice>,
+    },
     /// The bank server's certificate didn't pass every check, so nothing
     /// was sent to it (D-140, threat T-12).
     UntrustedServer,
@@ -175,6 +182,23 @@ impl Report for BankError {
             }
             Self::TanNeeded => ErrorReport::new("bank.tan-needed"),
             Self::TanMethodUnsupported => ErrorReport::new("bank.tan-method-unsupported"),
+            Self::TanMethodNeeded { offered } => {
+                let report = ErrorReport::new("bank.tan-method-needed");
+                if offered.is_empty() {
+                    report
+                } else {
+                    // Numbers only: the names are the bank's text and stay
+                    // out of reports (D-611, D-615).
+                    let mut numbers: Vec<u16> = Vec::new();
+                    for choice in offered {
+                        if !numbers.contains(&choice.function) {
+                            numbers.push(choice.function);
+                        }
+                    }
+                    let list: Vec<String> = numbers.iter().map(u16::to_string).collect();
+                    report.with("offered", text(&list.join(", ")))
+                }
+            }
             Self::UntrustedServer => ErrorReport::new("bank.untrusted-server"),
             Self::Aborted => ErrorReport::new("bank.aborted"),
             Self::NeedsSetupDialog => ErrorReport::new("bank.needs-setup-dialog"),

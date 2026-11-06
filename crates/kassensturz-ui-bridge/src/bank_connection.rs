@@ -55,8 +55,8 @@ use kassensturz_bank::{
     BankError, BankQuestion, CustomerId, FINTS_REGISTRATION_KEY, FakeBank, FintsVersion, Iban,
     KeychainPinStore, Login, LoginId, LoginKind, LoginSetup, MemoryPinStore, NoPinStore, Pin,
     PinAsker, PinMode, PinSession, PinStore, QuestionLevel, RegistrationKey, SecondFactor, Setup,
-    TAN_METHODS, Tan, TanRequest, fetch_linked, find_bank_account, names_account, remove_login,
-    setup_for,
+    Tan, TanRequest, fetch_linked, find_bank_account, names_account, remove_login, setup_for,
+    valid_tan_method,
 };
 use kassensturz_core::{AccountId, BankLink, Date, ErrorParam, Report};
 use kassensturz_import::{EntryStatus, Limits, Statement};
@@ -674,6 +674,23 @@ pub fn error_text(error: &BankError) -> ErrorText {
     if let BankError::Statement(cause) = error {
         params.push(("cause", cause.report().code.to_owned()));
     }
+    // The methods a bank offers for its login, with their names, for the
+    // pick list (D-615): one per line, `number`, `version` and `name`
+    // separated by tabs. The names are the bank's text and reach the
+    // screen only, shown as plain text (D-611).
+    if let BankError::TanMethodNeeded { offered } = error {
+        let lines: Vec<String> = offered
+            .iter()
+            .filter(|choice| choice.version > 0)
+            .map(|choice| {
+                let name = choice.name.replace(['\t', '\n', '\r'], " ");
+                format!("{}\t{}\t{}", choice.number, choice.version, name)
+            })
+            .collect();
+        if !lines.is_empty() {
+            params.push(("methods", lines.join("\n")));
+        }
+    }
     ErrorText {
         code: report.code,
         params,
@@ -885,7 +902,8 @@ pub fn pin_mode(key: &str) -> PinMode {
 }
 
 /// The TAN method number typed in the advanced settings: none when empty,
-/// else a number from 900 to 999 (D-609).
+/// else a number from 900 to 999, or with the FinTS version of the bank's
+/// TAN segment in front, e.g. 7920 (D-609, D-615).
 fn tan_method(text: &str) -> Result<Option<u16>, ()> {
     let text = text.trim();
     if text.is_empty() {
@@ -896,7 +914,7 @@ fn tan_method(text: &str) -> Result<Option<u16>, ()> {
     }
     text.parse::<u16>()
         .ok()
-        .filter(|method| TAN_METHODS.contains(method))
+        .filter(|method| valid_tan_method(*method))
         .map(Some)
         .ok_or(())
 }
@@ -1477,6 +1495,7 @@ fn ends_the_fetch(error: &BankError) -> bool {
             | BankError::PinRejected
             | BankError::TanNeeded
             | BankError::TanMethodUnsupported
+            | BankError::TanMethodNeeded { .. }
     )
 }
 
@@ -1622,6 +1641,7 @@ fn ends_the_login(error: &BankError) -> bool {
             | BankError::PinRejected
             | BankError::TanNeeded
             | BankError::TanMethodUnsupported
+            | BankError::TanMethodNeeded { .. }
             | BankError::UntrustedServer
     )
 }
@@ -1902,7 +1922,18 @@ mod tests {
         assert_eq!(tan_method(" 912 "), Ok(Some(912)));
         assert_eq!(tan_method("900"), Ok(Some(900)));
         assert_eq!(tan_method("999"), Ok(Some(999)));
-        for bad in ["899", "1000", "9x6", "-912", "+912", "9 12", "99999999999"] {
+        assert_eq!(tan_method("7920"), Ok(Some(7920)));
+        for bad in [
+            "899",
+            "1000",
+            "7899",
+            "10920",
+            "9x6",
+            "-912",
+            "+912",
+            "9 12",
+            "99999999999",
+        ] {
             assert_eq!(tan_method(bad), Err(()), "{bad}");
         }
         let lookup = look_up(&mut fake(None), IBAN).expect("looked up");
@@ -3308,12 +3339,51 @@ mod tests {
     }
 
     #[test]
+    fn the_tan_methods_a_bank_offers_reach_the_screen_with_their_names() {
+        // D-615: the pick list's lines, names only in the screen's object.
+        let choice = |number: u16, name: &str| kassensturz_bank::TanMethodChoice {
+            number,
+            function: number % 1000,
+            version: number / 1000,
+            name: name.to_owned(),
+        };
+        let error = BankError::TanMethodNeeded {
+            offered: vec![choice(6912, "made-up one"), choice(7920, "made\tup\ntwo")],
+        };
+        let shown = error_text(&error);
+        assert_eq!(shown.code, "bank.tan-method-needed");
+        let methods = shown
+            .params
+            .iter()
+            .find(|(name, _)| *name == "methods")
+            .map(|(_, value)| value.as_str());
+        assert_eq!(methods, Some("6912\t6\tmade-up one\n7920\t7\tmade up two"));
+        let offered = shown
+            .params
+            .iter()
+            .find(|(name, _)| *name == "offered")
+            .map(|(_, value)| value.as_str());
+        assert_eq!(offered, Some("912, 920"));
+        // Without names (numbers of a list only) there is no pick list.
+        let plain = BankError::TanMethodNeeded {
+            offered: vec![choice(920, "")],
+        };
+        assert!(
+            error_text(&plain)
+                .params
+                .iter()
+                .all(|(name, _)| *name != "methods")
+        );
+    }
+
+    #[test]
     fn only_errors_of_one_bank_end_only_that_bank() {
         for error in [
             BankError::Aborted,
             BankError::PinRejected,
             BankError::TanNeeded,
             BankError::TanMethodUnsupported,
+            BankError::TanMethodNeeded { offered: vec![] },
             BankError::UntrustedServer,
         ] {
             assert!(

@@ -128,9 +128,37 @@ impl FintsVersion {
     }
 }
 
+/// One TAN method a bank offers a login, as the bank's parameters name it
+/// (D-615): what the user picks from when connecting needs a method chosen.
+/// The name is the bank's own text and is shown on screen only (PlainText),
+/// never written to the bank log, an error report or an issue (D-611).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TanMethodChoice {
+    /// The number AqBanking selects it by: the FinTS version of the bank's
+    /// TAN segment times 1000, plus the method's own number (7920).
+    pub number: u16,
+    /// The method's own number, 900 to 999 (920).
+    pub function: u16,
+    /// The FinTS version of the bank's TAN segment it is offered in (7).
+    pub version: u16,
+    /// The method's name as the bank gives it.
+    pub name: String,
+}
+
 /// The lowest and highest number of a TAN method in FinTS (D-609): methods
-/// are numbered 900 to 999, e.g. 912.
+/// are numbered 900 to 999, e.g. 912. AqBanking also takes the number with
+/// the FinTS version of the bank's TAN segment in front (7920, D-615).
 pub const TAN_METHODS: std::ops::RangeInclusive<u16> = 900..=999;
+
+/// The highest number [`valid_tan_method`] accepts: version 9, method 999.
+pub const TAN_METHOD_MAX: u16 = 9999;
+
+/// Whether `number` is a TAN method AqBanking can be told: 900 to 999, or
+/// with a version in front, 1900 to 9999 whose last three digits are 900 to
+/// 999 (D-615).
+pub fn valid_tan_method(number: u16) -> bool {
+    number <= TAN_METHOD_MAX && TAN_METHODS.contains(&(number % 1000))
+}
 
 /// What setting up a login needs, as the setup screens gathered it (M4.6)
 /// from the questions of the bank's [`LoginKind`]. The backend keeps it in

@@ -64,7 +64,7 @@ use kassensturz_core::{CurrencyCode, Date};
 use crate::availability::{Availability, FINTS_REGISTRATION_KEY, Library, Version};
 use crate::backend::{
     Bank, BankAccount, BankAccountId, BankAccountKind, FintsVersion, Login, LoginConnection,
-    LoginId, LoginSetup,
+    LoginId, LoginSetup, TanMethodChoice,
 };
 use crate::directory::{BankDirectory, BankInfo, Corrected, CustomerId, FintsServer, LoginKind};
 use crate::error::BankError;
@@ -263,9 +263,13 @@ impl AqBankingBank {
                 Some(u32::from(*code)),
             );
         }
+        // 9075 asks for strong customer authentication; AqBanking flags the
+        // 9340 that follows as a bad PIN, which it is not (M6-B183).
+        let strong_auth = handler.only_strong_auth();
         Outcome {
             result,
-            rejected: handler.rejected,
+            rejected: handler.rejected && !strong_auth,
+            strong_auth,
             refusal: handler.refusal,
             message: handler.last_message(),
         }
@@ -291,6 +295,11 @@ impl AqBankingBank {
             let _ = pins.rejected(login);
             return Err(BankError::PinRejected);
         }
+        if outcome.strong_auth && outcome.result.is_err() {
+            return Err(BankError::TanMethodNeeded {
+                offered: Vec::new(),
+            });
+        }
         outcome.into_result(true)
     }
 
@@ -307,29 +316,69 @@ impl AqBankingBank {
         let user = ["-u", uid];
         // The bank's parameters, without a login.
         self.setup_command(session, "getbankinfo", &user, None, &login, pins)?;
-        // The system ID the bank gives this login, with the PIN.
-        self.setup_command(session, "getsysid", &user, pin.clone(), &login, pins)?;
-        // The TAN method the user chose, among those the bank allows this
-        // login (D-609). The bank's answer to the first call lists them; if
-        // AqBanking doesn't know them yet, they are asked for once.
-        if let Some(method) = tan_method {
-            let method = method.to_string();
-            let select = ["-u", uid, "-m", method.as_str()];
-            if self
-                .setup_command(session, "setitanmode", &select, None, &login, pins)
-                .is_err()
-            {
-                self.setup_command(session, "getitanmodes", &user, pin.clone(), &login, pins)?;
+        let unique: u32 = uid
+            .parse()
+            .map_err(|_| BankError::SetupFailed { text: None })?;
+        match tan_method {
+            // The TAN method the user chose (D-609) is set before the first
+            // call with the PIN, since some banks refuse that call without
+            // one (M6-B183). The bank's allowed methods are asked for first.
+            Some(method) => {
+                match self.setup_command(session, "getitanmodes", &user, pin.clone(), &login, pins)
+                {
+                    Ok(()) | Err(BankError::TanMethodNeeded { .. }) => {}
+                    Err(error) => return Err(error),
+                }
+                let offered = self.offered_methods(unique);
+                if !offered.is_empty()
+                    && !offered
+                        .iter()
+                        .any(|choice| choice.number == method || choice.function == method)
+                {
+                    return Err(BankError::TanMethodNeeded { offered });
+                }
+                let method = method.to_string();
+                let select = ["-u", uid, "-m", method.as_str()];
                 self.setup_command(session, "setitanmode", &select, None, &login, pins)?;
+                self.setup_command(session, "getsysid", &user, pin.clone(), &login, pins)?;
+            }
+            // Without a choice, the bank is tried as it is. If it wants a
+            // method, its allowed ones are asked for, and a single one is
+            // taken; with several the user picks (M6-B183).
+            None => {
+                let first =
+                    self.setup_command(session, "getsysid", &user, pin.clone(), &login, pins);
+                match first {
+                    Err(BankError::TanMethodNeeded { .. }) => {
+                        match self.setup_command(
+                            session,
+                            "getitanmodes",
+                            &user,
+                            pin.clone(),
+                            &login,
+                            pins,
+                        ) {
+                            Ok(()) | Err(BankError::TanMethodNeeded { .. }) => {}
+                            Err(error) => return Err(error),
+                        }
+                        let offered = self.offered_methods(unique);
+                        let [only] = offered.as_slice() else {
+                            return Err(BankError::TanMethodNeeded { offered });
+                        };
+                        let method = only.number.to_string();
+                        let select = ["-u", uid, "-m", method.as_str()];
+                        self.setup_command(session, "setitanmode", &select, None, &login, pins)?;
+                        self.setup_command(session, "getsysid", &user, pin.clone(), &login, pins)?;
+                    }
+                    other => other?,
+                }
             }
         }
         // The accounts the login reaches.
         self.setup_command(session, "getaccounts", &user, pin.clone(), &login, pins)?;
         // IBANs for accounts the bank listed without one. A credit card
         // has none, so a failure here leaves the login usable.
-        let uid: u32 = uid
-            .parse()
-            .map_err(|_| BankError::SetupFailed { text: None })?;
+        let uid = unique;
         let owners = settings::account_owners(&self.folder).map_err(|_| BankError::Folder)?;
         let without_iban = session
             .accounts()
@@ -340,6 +389,42 @@ impl AqBankingBank {
             let _ = self.setup_command(session, "getaccsepa", &user, pin, &login, pins);
         }
         Ok(())
+    }
+
+    /// The TAN methods the bank allows the login `uid`, as AqBanking
+    /// recorded them (D-615): the methods of the bank's parameters that are
+    /// on the login's list of allowed ones, with their names; or, when the
+    /// bank's parameters name none, the numbers of the list alone. The
+    /// placeholder 999 (unknown) is left out.
+    fn offered_methods(&self, uid: u32) -> Vec<TanMethodChoice> {
+        let Some(user) = settings::users(&self.folder)
+            .ok()
+            .and_then(|users| users.into_iter().find(|user| user.unique_id == uid))
+        else {
+            return Vec::new();
+        };
+        let allowed: Vec<u16> = user
+            .tan_methods
+            .into_iter()
+            .filter(|method| *method != 999)
+            .collect();
+        let mut choices: Vec<TanMethodChoice> = user
+            .tan_choices
+            .into_iter()
+            .filter(|choice| allowed.is_empty() || allowed.contains(&choice.function))
+            .collect();
+        if choices.is_empty() {
+            choices = allowed
+                .into_iter()
+                .map(|function| TanMethodChoice {
+                    number: function,
+                    function,
+                    version: 0,
+                    name: String::new(),
+                })
+                .collect();
+        }
+        choices
     }
 
     /// The accounts of the login with `uid`, as AqBanking lists them.
@@ -364,6 +449,9 @@ impl AqBankingBank {
 struct Outcome<T> {
     result: Result<T, SessionError>,
     rejected: bool,
+    /// The bank asked for strong customer authentication (code 9075): a
+    /// TAN method has to be chosen first. `rejected` is false then.
+    strong_auth: bool,
     refusal: Option<Refusal>,
     message: Option<String>,
 }
@@ -403,7 +491,7 @@ impl Bank for AqBankingBank {
 
     fn logins(&self) -> Result<Vec<Login>, BankError> {
         self.session()?;
-        Ok(settings::users(&self.folder)
+        let found: Vec<Login> = settings::users(&self.folder)
             .map_err(|_| BankError::Folder)?
             .into_iter()
             .filter_map(|user| {
@@ -428,7 +516,17 @@ impl Bank for AqBankingBank {
                     },
                 })
             })
-            .collect())
+            .collect();
+        #[cfg(feature = "debug-log")]
+        if found.is_empty()
+            && let Ok((files, with_id, pin_tan)) = settings::user_file_counts(&self.folder)
+        {
+            use kassensturz_core::bank_log::{Step, note};
+            note(Step::UserFiles, None, Some(files));
+            note(Step::UserFilesWithId, None, Some(with_id));
+            note(Step::UserFilesPinTan, None, Some(pin_tan));
+        }
+        Ok(found)
     }
 
     fn add_login(
@@ -549,6 +647,11 @@ impl Bank for AqBankingBank {
         if outcome.rejected {
             let _ = pins.rejected(&login);
             return Err(BankError::PinRejected);
+        }
+        if outcome.strong_auth && outcome.result.is_err() {
+            return Err(BankError::TanMethodNeeded {
+                offered: Vec::new(),
+            });
         }
         let record = outcome.into_result(false)?;
         pins.end_session();

@@ -84,14 +84,27 @@ pub(crate) struct Handler {
     lines: Vec<String>,
     /// The bank's return codes of the running call (D-607), each once.
     codes: Vec<u16>,
+    /// The bank sent 9075 (strong customer authentication needed) during
+    /// the running call. Kept apart from `codes`, so its limit can't hide it.
+    strong_auth: bool,
+    /// The bank sent 9931 or 9942 (PIN wrong) during the running call; kept
+    /// apart from `codes` for the same reason.
+    pin_called_wrong: bool,
 }
 
 impl Handler {
     /// The bank's return codes seen during the last call, each once, in
     /// the order they came (D-607).
-    #[cfg_attr(not(feature = "debug-log"), allow(dead_code))]
+    #[cfg_attr(not(any(test, feature = "debug-log")), allow(dead_code))]
     pub fn reply_codes(&self) -> &[u16] {
         &self.codes
+    }
+
+    /// The bank asked for strong customer authentication and did not also
+    /// call the PIN wrong (M6-B183): AqBanking's bad-PIN flag, set by the
+    /// 9340 that follows, is then not the PIN's fault.
+    pub fn only_strong_auth(&self) -> bool {
+        self.strong_auth && !self.pin_called_wrong
     }
 
     /// Prepares the running call: what PIN it may send, and a clean
@@ -102,6 +115,8 @@ impl Handler {
         self.refusal = None;
         self.lines.clear();
         self.codes.clear();
+        self.strong_auth = false;
+        self.pin_called_wrong = false;
     }
 
     /// Ends the running call: the PIN is dropped and wiped.
@@ -182,10 +197,12 @@ impl SessionHandler for Handler {
         // The bank's result lines, at info level and above (D-607).
         if level >= LogLevel::Info
             && let Some(code) = reply_code(message.trim())
-            && self.codes.len() < KEPT_CODES
-            && !self.codes.contains(&code)
         {
-            self.codes.push(code);
+            self.strong_auth |= code == 9075;
+            self.pin_called_wrong |= matches!(code, 9931 | 9942);
+            if self.codes.len() < KEPT_CODES && !self.codes.contains(&code) {
+                self.codes.push(code);
+            }
         }
         if level < LogLevel::Notice || message.trim().is_empty() {
             return;
@@ -290,6 +307,25 @@ mod tests {
         assert_eq!(handler.last_message().as_deref(), Some("limit 9000 EUR"));
         handler.begin(None);
         assert!(handler.reply_codes().is_empty());
+    }
+
+    #[test]
+    fn strong_auth_and_a_wrong_pin_are_seen_beyond_the_code_limit() {
+        let mut handler = Handler::default();
+        handler.begin(None);
+        // Fill the kept codes with others first.
+        for code in [3040, 3050, 3060, 3076, 3920, 3955, 3956, 9000] {
+            handler.log(LogLevel::Info, &format!("HBCI: {code} - x (S)"));
+        }
+        assert_eq!(handler.reply_codes().len(), KEPT_CODES);
+        handler.log(LogLevel::Info, "HBCI: 9075 - strong (E)");
+        assert!(!handler.reply_codes().contains(&9075));
+        assert!(handler.only_strong_auth());
+        handler.log(LogLevel::Info, "HBCI: 9942 - PIN wrong (E)");
+        assert!(!handler.reply_codes().contains(&9942));
+        assert!(!handler.only_strong_auth());
+        handler.begin(None);
+        assert!(!handler.only_strong_auth());
     }
 
     #[test]

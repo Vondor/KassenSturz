@@ -119,6 +119,13 @@ steps! {
     /// a bank code and number, 4 when some listed account has the link's
     /// bank code. Never the values themselves.
     LookupLink = "bank.lookup-link",
+    /// A lookup found no login: how many login settings files AqBanking's
+    /// folder holds (M6-B181).
+    UserFiles = "bank.user-files",
+    /// The same: how many of those files give a login ID.
+    UserFilesWithId = "bank.user-files-with-id",
+    /// The same: how many of those say they are a PIN/TAN login.
+    UserFilesPinTan = "bank.user-files-pin-tan",
 }
 
 /// One line of the log, without the line break. `code` that isn't an error

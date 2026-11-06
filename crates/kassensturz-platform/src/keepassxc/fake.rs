@@ -289,7 +289,7 @@ fn answer(
             json!({
                 "defaultGroup": "",
                 "defaultGroupAlwaysAllow": false,
-                "groups": [{ "name": state.name, "uuid": "00", "children": children }],
+                "groups": { "groups": [{ "name": state.name, "uuid": "00", "children": children }] },
                 "success": "true",
             })
         }

@@ -210,10 +210,15 @@ impl PinSession {
         if let Some((pin, _)) = self.remembered.get(login) {
             return Ok(PinAnswer::Known(pin.clone()));
         }
-        Ok(self
-            .store
-            .load(login)?
-            .map_or(PinAnswer::Ask, PinAnswer::Known))
+        // A place for saved PINs that can't be reached (KeePassXC not
+        // running, a locked keychain) means none is known, so the user is
+        // asked to type it, as the message for it says. An error here must
+        // not stop a connection whose PIN is typed each time (M6-B174).
+        match self.store.load(login) {
+            Ok(saved) => Ok(saved.map_or(PinAnswer::Ask, PinAnswer::Known)),
+            Err(BankError::KeePassXc | BankError::Keychain) => Ok(PinAnswer::Ask),
+            Err(error) => Err(error),
+        }
     }
 
     /// Takes the PIN the user typed for `login`, to be kept as `mode`
@@ -572,6 +577,44 @@ mod tests {
         fn delete(&mut self, login: &LoginId) -> Result<(), BankError> {
             self.0.lock().expect("store").delete(login)
         }
+    }
+
+    /// A place for saved PINs that can't be reached, like KeePassXC not
+    /// running.
+    struct Unreachable(BankError);
+
+    impl PinStore for Unreachable {
+        fn save(&mut self, _: &LoginId, _: &Pin) -> Result<(), BankError> {
+            Err(self.0.clone())
+        }
+
+        fn load(&self, _: &LoginId) -> Result<Option<Pin>, BankError> {
+            Err(self.0.clone())
+        }
+
+        fn delete(&mut self, _: &LoginId) -> Result<(), BankError> {
+            Err(self.0.clone())
+        }
+    }
+
+    #[test]
+    fn a_place_that_cant_be_reached_means_the_user_is_asked_for_the_pin() {
+        for error in [BankError::KeePassXc, BankError::Keychain] {
+            let mut session = PinSession::new(Box::new(Unreachable(error.clone())));
+            // Nothing remembered: the app asks, it doesn't stop (M6-B174).
+            assert_eq!(session.answer(&login()), Ok(PinAnswer::Ask));
+            // A PIN typed for asking each time never touches the place.
+            session
+                .provide(&login(), pin("0000"), PinMode::AskEachTime)
+                .expect("kept in memory only");
+            assert_eq!(session.answer(&login()), Ok(PinAnswer::Known(pin("0000"))));
+            // After the bank session it is asked for again, still no error.
+            session.end_session();
+            assert_eq!(session.answer(&login()), Ok(PinAnswer::Ask));
+        }
+        // Another error is still an error.
+        let session = PinSession::new(Box::new(Unreachable(BankError::Busy)));
+        assert_eq!(session.answer(&login()), Err(BankError::Busy));
     }
 
     #[test]

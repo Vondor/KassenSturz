@@ -40,8 +40,8 @@ pub mod qobject {
         // The standard color of every place that can exist (200), not only of
         // the places there are now.
         #[qproperty(QVariant, standard, READ, CONSTANT)]
-        #[qproperty(i32, min_colors, READ, CONSTANT)]
-        #[qproperty(i32, max_colors, READ, CONSTANT)]
+        #[qproperty(i32, min_colors, cxx_name = "minColors", READ, CONSTANT)]
+        #[qproperty(i32, max_colors, cxx_name = "maxColors", READ, CONSTANT)]
         #[qproperty(bool, changed, READ, NOTIFY)]
         type ChartPaletteSettings = super::ChartPaletteSettingsRust;
     }

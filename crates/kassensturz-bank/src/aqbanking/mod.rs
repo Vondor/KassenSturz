@@ -280,7 +280,9 @@ impl AqBankingBank {
         let outcome = Self::call(session, pin, || session.control(command, arguments));
         self.clean_logs();
         if outcome.rejected {
-            pins.rejected(login)?;
+            // The PIN is forgotten in memory first; a place for saved PINs
+            // that can't be reached must not hide that the bank refused it.
+            let _ = pins.rejected(login);
             return Err(BankError::PinRejected);
         }
         outcome.into_result(true)
@@ -449,7 +451,11 @@ impl Bank for AqBankingBank {
                 session.control("deluser", &["-u", &uid_text])
             });
             self.clean_logs();
-            pins.forget(&pending)?;
+            // The PIN is gone from memory either way. A place for saved
+            // PINs that can't be reached (KeePassXC not running) must not
+            // hide what the bank said: its error is the one to show
+            // (M6-B174).
+            let _ = pins.forget(&pending);
             return Err(error);
         }
         pins.rename(&pending, &id)?;
@@ -502,7 +508,7 @@ impl Bank for AqBankingBank {
         let outcome = Self::call(session, pin, || session.fetch(aid, since.map(date_record)));
         self.clean_logs();
         if outcome.rejected {
-            pins.rejected(&login)?;
+            let _ = pins.rejected(&login);
             return Err(BankError::PinRejected);
         }
         let record = outcome.into_result(false)?;

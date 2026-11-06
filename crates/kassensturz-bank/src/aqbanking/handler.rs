@@ -94,6 +94,7 @@ pub(crate) struct Handler {
 impl Handler {
     /// The bank's return codes seen during the last call, each once, in
     /// the order they came (D-607).
+    #[cfg_attr(not(feature = "debug-log"), allow(dead_code))]
     pub fn reply_codes(&self) -> &[u16] {
         &self.codes
     }

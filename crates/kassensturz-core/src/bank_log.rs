@@ -108,6 +108,17 @@ steps! {
     /// list of the FinTS specification are taken, never any other text or
     /// number from the bank (D-607).
     BankReply = "bank.bank-reply",
+    /// A fetch looked for the bank account a book account is linked to
+    /// (D-607). The count is how many logins it looked through.
+    LookupLogins = "bank.lookup-logins",
+    /// The same lookup: how many bank accounts those logins list.
+    LookupAccounts = "bank.lookup-accounts",
+    /// The same lookup: how many of the listed accounts have an IBAN.
+    LookupIbans = "bank.lookup-ibans",
+    /// The same lookup: what the link names, as a sum: 1 for an IBAN, 2 for
+    /// a bank code and number, 4 when some listed account has the link's
+    /// bank code. Never the values themselves.
+    LookupLink = "bank.lookup-link",
 }
 
 /// One line of the log, without the line break. `code` that isn't an error

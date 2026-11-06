@@ -74,17 +74,49 @@ pub fn find_bank_account(
     bank: &dyn Bank,
     link: &BankLink,
 ) -> Result<(Login, BankAccount), BankError> {
-    for login in bank.logins()? {
+    let logins = bank.logins()?;
+    let (mut listed, mut with_iban, mut same_code) = (0_u32, 0_u32, false);
+    for login in &logins {
         let accounts = bank.accounts(&login.id)?;
+        listed += u32::try_from(accounts.len()).unwrap_or(u32::MAX);
+        with_iban +=
+            u32::try_from(accounts.iter().filter(|a| a.iban.is_some()).count()).unwrap_or(u32::MAX);
+        same_code |= link
+            .bank_code
+            .as_deref()
+            .is_some_and(|code| plain(code) == plain(login.bank.code()));
         if let Some(account) = accounts
             .into_iter()
-            .find(|account| names_account(link, &login, account))
+            .find(|account| names_account(link, login, account))
         {
-            return Ok((login, account));
+            return Ok((login.clone(), account));
         }
     }
+    note_lookup(&logins, listed, with_iban, link, same_code);
     Err(BankError::NoBankAccount)
 }
+
+/// The bank log (D-603) gets only counts of what the failed lookup saw, to
+/// tell why no bank account matched without any value of the link or of
+/// the bank (D-607).
+#[cfg(feature = "debug-log")]
+fn note_lookup(logins: &[Login], listed: u32, with_iban: u32, link: &BankLink, same_code: bool) {
+    use kassensturz_core::bank_log::{Step, note};
+    let kind = u32::from(link.iban.as_deref().is_some_and(|iban| !iban.is_empty()))
+        | (u32::from(link.bank_code.is_some() && link.number.is_some()) << 1)
+        | (u32::from(same_code) << 2);
+    note(
+        Step::LookupLogins,
+        None,
+        Some(u32::try_from(logins.len()).unwrap_or(u32::MAX)),
+    );
+    note(Step::LookupAccounts, None, Some(listed));
+    note(Step::LookupIbans, None, Some(with_iban));
+    note(Step::LookupLink, None, Some(kind));
+}
+
+#[cfg(not(feature = "debug-log"))]
+fn note_lookup(_: &[Login], _: u32, _: u32, _: &BankLink, _: bool) {}
 
 /// How many days before the last fetched day a fetch starts (Q-090, D-153):
 /// a bank may book a transaction a day or two late, with the booking date of

@@ -295,7 +295,10 @@ impl AqBankingBank {
             let _ = pins.rejected(login);
             return Err(BankError::PinRejected);
         }
-        if outcome.strong_auth && outcome.result.is_err() {
+        // 9075 means "choose a TAN method first", whatever the call's own
+        // result says: AqBanking reports success when the bank refused the
+        // dialog (M6-B184).
+        if outcome.strong_auth {
             return Err(BankError::TanMethodNeeded {
                 offered: Vec::new(),
             });
@@ -303,7 +306,10 @@ impl AqBankingBank {
         outcome.into_result(true)
     }
 
-    /// The commands that make a new login usable, after `adduser`.
+    /// The commands that make a new login usable, after `adduser`, in the
+    /// order of AqBanking's own setup wizard (`dlg_pintan.c`): the bank's
+    /// parameters, the system ID (the bank's answer lists the allowed TAN
+    /// methods), the TAN method, the accounts (M6-B184, D-615).
     fn connect_new(
         &self,
         session: &Session<Handler>,
@@ -314,81 +320,89 @@ impl AqBankingBank {
     ) -> Result<(), BankError> {
         let login = LoginId::pending();
         let user = ["-u", uid];
-        // The bank's parameters, without a login.
-        self.setup_command(session, "getbankinfo", &user, None, &login, pins)?;
         let unique: u32 = uid
             .parse()
             .map_err(|_| BankError::SetupFailed { text: None })?;
-        match tan_method {
-            // The TAN method the user chose (D-609) is set before the first
-            // call with the PIN, since some banks refuse that call without
-            // one (M6-B183). The bank's allowed methods are asked for first.
-            Some(method) => {
-                match self.setup_command(session, "getitanmodes", &user, pin.clone(), &login, pins)
-                {
-                    Ok(()) | Err(BankError::TanMethodNeeded { .. }) => {}
-                    Err(error) => return Err(error),
-                }
-                let offered = self.offered_methods(unique);
-                if !offered.is_empty()
-                    && !offered
-                        .iter()
-                        .any(|choice| choice.number == method || choice.function == method)
-                {
-                    return Err(BankError::TanMethodNeeded { offered });
-                }
-                let method = method.to_string();
-                let select = ["-u", uid, "-m", method.as_str()];
-                self.setup_command(session, "setitanmode", &select, None, &login, pins)?;
-                self.setup_command(session, "getsysid", &user, pin.clone(), &login, pins)?;
-            }
-            // Without a choice, the bank is tried as it is. If it wants a
-            // method, its allowed ones are asked for, and a single one is
-            // taken; with several the user picks (M6-B183).
-            None => {
-                let first =
-                    self.setup_command(session, "getsysid", &user, pin.clone(), &login, pins);
-                match first {
-                    Err(BankError::TanMethodNeeded { .. }) => {
-                        match self.setup_command(
-                            session,
-                            "getitanmodes",
-                            &user,
-                            pin.clone(),
-                            &login,
-                            pins,
-                        ) {
-                            Ok(()) | Err(BankError::TanMethodNeeded { .. }) => {}
-                            Err(error) => return Err(error),
-                        }
-                        let offered = self.offered_methods(unique);
-                        let [only] = offered.as_slice() else {
-                            return Err(BankError::TanMethodNeeded { offered });
-                        };
-                        let method = only.number.to_string();
-                        let select = ["-u", uid, "-m", method.as_str()];
-                        self.setup_command(session, "setitanmode", &select, None, &login, pins)?;
-                        self.setup_command(session, "getsysid", &user, pin.clone(), &login, pins)?;
-                    }
-                    other => other?,
-                }
+        // The bank's parameters, without a login.
+        self.setup_command(session, "getbankinfo", &user, None, &login, pins)?;
+        // The system ID the bank gives this login, with the PIN. A bank
+        // that wants a method first says so (9075); the system ID is then
+        // asked for again once one is selected.
+        let first = self.setup_command(session, "getsysid", &user, pin.clone(), &login, pins);
+        let wants_method = match first {
+            Ok(()) => false,
+            Err(BankError::TanMethodNeeded { .. }) => true,
+            Err(error) => return Err(error),
+        };
+        // A bank whose answer left no list of methods is asked for it once,
+        // when a method was typed or the bank refused without one.
+        if self.offered_methods(unique).is_empty() && (tan_method.is_some() || wants_method) {
+            match self.setup_command(session, "getitanmodes", &user, pin.clone(), &login, pins) {
+                Ok(()) | Err(BankError::TanMethodNeeded { .. }) => {}
+                Err(error) => return Err(error),
             }
         }
-        // The accounts the login reaches.
-        self.setup_command(session, "getaccounts", &user, pin.clone(), &login, pins)?;
-        // IBANs for accounts the bank listed without one. A credit card
-        // has none, so a failure here leaves the login usable.
-        let uid = unique;
+        let offered = self.offered_methods(unique);
+        if let Some(number) = resolve_method(&offered, tan_method, wants_method)? {
+            let number = number.to_string();
+            let select = ["-u", uid, "-m", number.as_str()];
+            self.setup_command(session, "setitanmode", &select, None, &login, pins)?;
+        }
+        if wants_method {
+            self.setup_command(session, "getsysid", &user, pin.clone(), &login, pins)?;
+        }
+        // The accounts the login reaches. AqBanking reports success even
+        // when the bank refused the dialog, so what came back decides.
+        match self.setup_command(session, "getaccounts", &user, pin.clone(), &login, pins) {
+            Ok(()) => {}
+            Err(BankError::TanMethodNeeded { .. }) => {
+                return Err(BankError::TanMethodNeeded {
+                    offered: self.offered_methods(unique),
+                });
+            }
+            Err(error) => return Err(error),
+        }
         let owners = settings::account_owners(&self.folder).map_err(|_| BankError::Folder)?;
-        let without_iban = session
+        let accounts: Vec<_> = session
             .accounts()
             .map_err(|error| map_error(error, None, true))?
             .into_iter()
-            .any(|account| owners.get(&account.unique_id) == Some(&uid) && account.iban.is_none());
-        if without_iban {
+            .filter(|account| owners.get(&account.unique_id) == Some(&unique))
+            .collect();
+        // A login that reaches no account is of no use; it is removed like
+        // after any failed setup, not kept as "done".
+        if accounts.is_empty() {
+            return Err(BankError::SetupFailed { text: None });
+        }
+        // Banks that serve statements only as CAMT answer "job not
+        // available" to the MT940 request; with this flag AqBanking asks for
+        // CAMT and falls back to MT940 otherwise (provider_job.c), so it is
+        // safe for every bank. A failure leaves the login usable.
+        for account in &accounts {
+            self.prefer_camt(session, account.unique_id, &login, pins);
+        }
+        // IBANs for accounts the bank listed without one. A credit card
+        // has none, so a failure here leaves the login usable.
+        if accounts.iter().any(|account| account.iban.is_none()) {
             let _ = self.setup_command(session, "getaccsepa", &user, pin, &login, pins);
         }
         Ok(())
+    }
+
+    /// Sets AqBanking's `preferCamtDownload` flag on one account, which asks
+    /// the bank for CAMT statements (M6-B184). The command only edits the
+    /// account's settings, so it needs no PIN and sends nothing; a failure
+    /// is ignored, since the fetch then simply works as before.
+    fn prefer_camt(
+        &self,
+        session: &Session<Handler>,
+        account: u32,
+        login: &LoginId,
+        pins: &mut PinSession,
+    ) {
+        let id = account.to_string();
+        let arguments = ["-a", id.as_str(), "-f", "preferCamtDownload"];
+        let _ = self.setup_command(session, "addaccountflags", &arguments, None, login, pins);
     }
 
     /// The TAN methods the bank allows the login `uid`, as AqBanking
@@ -397,34 +411,11 @@ impl AqBankingBank {
     /// bank's parameters name none, the numbers of the list alone. The
     /// placeholder 999 (unknown) is left out.
     fn offered_methods(&self, uid: u32) -> Vec<TanMethodChoice> {
-        let Some(user) = settings::users(&self.folder)
+        settings::users(&self.folder)
             .ok()
             .and_then(|users| users.into_iter().find(|user| user.unique_id == uid))
-        else {
-            return Vec::new();
-        };
-        let allowed: Vec<u16> = user
-            .tan_methods
-            .into_iter()
-            .filter(|method| *method != 999)
-            .collect();
-        let mut choices: Vec<TanMethodChoice> = user
-            .tan_choices
-            .into_iter()
-            .filter(|choice| allowed.is_empty() || allowed.contains(&choice.function))
-            .collect();
-        if choices.is_empty() {
-            choices = allowed
-                .into_iter()
-                .map(|function| TanMethodChoice {
-                    number: function,
-                    function,
-                    version: 0,
-                    name: String::new(),
-                })
-                .collect();
-        }
-        choices
+            .map(|user| user.offered_methods())
+            .unwrap_or_default()
     }
 
     /// The accounts of the login with `uid`, as AqBanking lists them.
@@ -442,6 +433,51 @@ impl AqBankingBank {
             .filter(|account| owners.get(&account.unique_id) == Some(&uid))
             .map(|account| bank_account(account, login))
             .collect())
+    }
+}
+
+/// The TAN method to select for a new login, from the methods the bank
+/// offers (`offered`, best first) and the number the user typed or picked
+/// (M6-B184, D-615):
+///
+/// - a number with the FinTS version in front (6912) is taken as it is when
+///   offered; a bare one (912) is completed to the version the bank offers
+///   it in, since a bare number means version 0 and cannot be used for
+///   strong customer authentication;
+/// - a number the bank doesn't offer is refused with the list;
+/// - nothing typed: a single offered method is taken; with several the user
+///   is asked (`TanMethodNeeded`) when the bank's parameters name them, else
+///   AqBanking is left to choose, as before, unless the bank refused
+///   without one (`must_choose`);
+/// - nothing offered: a typed number goes as it is, else nothing is set.
+fn resolve_method(
+    offered: &[TanMethodChoice],
+    typed: Option<u16>,
+    must_choose: bool,
+) -> Result<Option<u16>, BankError> {
+    let named = offered.iter().any(|choice| choice.version > 0);
+    match typed {
+        Some(number) if offered.is_empty() => Ok(Some(number)),
+        Some(number) => offered
+            .iter()
+            .find(|choice| choice.number == number)
+            .or_else(|| {
+                offered
+                    .iter()
+                    .find(|choice| choice.function == number && number < 1000)
+            })
+            .map(|choice| Some(choice.number))
+            .ok_or_else(|| BankError::TanMethodNeeded {
+                offered: offered.to_vec(),
+            }),
+        None => match offered {
+            [] => Ok(None),
+            [only] => Ok(Some(only.number)),
+            _ if named || must_choose => Err(BankError::TanMethodNeeded {
+                offered: offered.to_vec(),
+            }),
+            _ => Ok(None),
+        },
     }
 }
 
@@ -642,15 +678,18 @@ impl Bank for AqBankingBank {
             PinAnswer::Known(pin) => Some(pin),
             PinAnswer::Ask => None,
         };
+        // Accounts set up before this was added get the flag at their next
+        // fetch; the command is repeatable.
+        self.prefer_camt(session, aid, &login, pins);
         let outcome = Self::call(session, pin, || session.fetch(aid, since.map(date_record)));
         self.clean_logs();
         if outcome.rejected {
             let _ = pins.rejected(&login);
             return Err(BankError::PinRejected);
         }
-        if outcome.strong_auth && outcome.result.is_err() {
+        if outcome.strong_auth {
             return Err(BankError::TanMethodNeeded {
-                offered: Vec::new(),
+                offered: self.offered_methods(uid),
             });
         }
         let record = outcome.into_result(false)?;

@@ -56,6 +56,51 @@ pub(crate) struct UserRecord {
     pub tan_choices: Vec<TanMethodChoice>,
 }
 
+impl UserRecord {
+    /// The methods to offer for this login (D-615): those of the bank's
+    /// parameters that are on the login's list of allowed ones, each once in
+    /// the highest version the bank offers it in, those of version 6 and up
+    /// first (only they take the dialog path that strong customer
+    /// authentication needs, AqBanking's `cbox_dialog.c`); or, when the
+    /// parameters name none, the numbers of the list alone. The placeholder
+    /// 999 (unknown) is left out.
+    pub(crate) fn offered_methods(&self) -> Vec<TanMethodChoice> {
+        let allowed: Vec<u16> = self
+            .tan_methods
+            .iter()
+            .copied()
+            .filter(|method| *method != 999)
+            .collect();
+        let mut choices: Vec<TanMethodChoice> = Vec::new();
+        for choice in &self.tan_choices {
+            if !allowed.is_empty() && !allowed.contains(&choice.function) {
+                continue;
+            }
+            match choices
+                .iter_mut()
+                .find(|known| known.function == choice.function)
+            {
+                Some(known) if known.version < choice.version => *known = choice.clone(),
+                Some(_) => {}
+                None => choices.push(choice.clone()),
+            }
+        }
+        choices.sort_by_key(|choice| choice.version < 6);
+        if !choices.is_empty() {
+            return choices;
+        }
+        allowed
+            .into_iter()
+            .map(|function| TanMethodChoice {
+                number: function,
+                function,
+                version: 0,
+                name: String::new(),
+            })
+            .collect()
+    }
+}
+
 /// The logins AqBanking has set up, by unique ID.
 pub(crate) fn users(data_dir: &Path) -> io::Result<Vec<UserRecord>> {
     let mut records = Vec::new();
@@ -97,6 +142,7 @@ fn tan_choices(text: &str) -> Vec<TanMethodChoice> {
     #[derive(Default)]
     struct Method {
         version: u16,
+        process: u16,
         function: Option<u16>,
         names: [Option<String>; 3],
     }
@@ -105,11 +151,13 @@ fn tan_choices(text: &str) -> Vec<TanMethodChoice> {
     let mut current: Option<Method> = None;
     for line in text.lines() {
         let line = line.trim();
-        if line == "}" {
+        if line.starts_with('}') {
             if let Some(name) = groups.pop()
                 && name == "tanMethod"
                 && let Some(method) = current.take()
                 && let Some(function) = method.function
+                // AqBanking uses processes 1 and 2 only (applayer/cbox_itan.c).
+                && matches!(method.process, 1 | 2)
             {
                 let [method_name, method_id, zka] = method.names;
                 let name: String = method_name
@@ -172,6 +220,7 @@ fn tan_choices(text: &str) -> Vec<TanMethodChoice> {
         let value = unescape(&raw);
         match key {
             "function" => method.function = value.trim().parse().ok(),
+            "process" => method.process = value.trim().parse().unwrap_or(0),
             "methodName" => method.names[0] = Some(value),
             "methodId" => method.names[1] = Some(value),
             "zkaTanName" => method.names[2] = Some(value),
@@ -252,7 +301,9 @@ fn parse(text: &str) -> Vec<Value> {
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        if line == "}" {
+        // Gwenhywfar closes every group with `} #name` (detailed groups),
+        // older files with a bare `}`.
+        if line.starts_with('}') {
             groups.pop();
             continue;
         }
@@ -380,6 +431,9 @@ fn remove_logs_below(folder: &Path, removed: &mut usize) -> io::Result<()> {
 mod tests {
     use super::*;
 
+    /// A login file in the format AqBanking writes: the certificate group
+    /// comes first and every group closes with `} #name` (Gwenhywfar's
+    /// detailed groups, M6-B184). Everything in it is made up.
     const USER_FILE: &str = r#"int uniqueId="7"
 char backendName="aqhbci"
 char userName="KassenSturz"
@@ -388,15 +442,51 @@ char customerId="made-up-login"
 char country="de"
 char bankCode="37040044"
 int lastSessionId="0"
+certDb {
+  cert {
+    char serial="made-up"
+  } #cert
+} #certDb
 data {
   backend {
     char cryptMode="pintan"
     char server="https%3A%2F%2Ffints.testbank.example%2F"
     int hbciVersion="300"
+    int selectedTanMethod="6912"
     int tanMethodList="920", "912"
     int tanMethodList="999"
-  }
-}
+    bpd {
+      bpdjobs {
+        HITANS {
+          6 {
+            tanMethod {
+              int function="912"
+              int process="2"
+              char methodName="Test list"
+            } #tanMethod
+            tanMethod {
+              int function="920"
+              int process="2"
+              char methodName="Test app (old)"
+            } #tanMethod
+            tanMethod {
+              int function="930"
+              int process="9"
+              char methodName="Test not used"
+            } #tanMethod
+          } #6
+          7 {
+            tanMethod {
+              char methodName="Test app"
+              int function="920"
+              int process="2"
+            } #tanMethod
+          } #7
+        } #HITANS
+      } #bpdjobs
+    } #bpd
+  } #backend
+} #data
 "#;
 
     #[test]
@@ -413,59 +503,75 @@ data {
     }
 
     #[test]
-    fn the_banks_tan_methods_are_read_with_their_names_and_versions() {
-        let text = r#"int uniqueId="7"
-data {
-  backend {
-    int tanMethodList="912", "920"
-    bpd {
-      bpdjobs {
-        HITANS {
-          6 {
-            tanMethod {
-              int function="912"
-              char methodName="Test list"
-            }
-            tanMethod {
-              int function="930"
-              char methodId="Test manual"
-            }
-          }
-          7 {
-            tanMethod {
-              char methodName="Test app"
-              int function="920"
-            }
-            tanMethod {
-              int function="12"
-              char methodName="not a method"
-            }
-          }
-        }
-      }
-    }
-  }
-}
-"#;
-        let choices = tan_choices(text);
+    fn a_real_user_file_is_read_past_its_certificate_group() {
+        // M6-B184: before the fix every value after `certDb` was filed under
+        // a wrong path, so no login and no method was found.
+        let values = parse(USER_FILE);
+        assert_eq!(value(&values, "data/backend", "cryptMode"), Some("pintan"));
+        assert_eq!(
+            backend_pin_tan_count(&values),
+            1,
+            "found where AqBanking puts it"
+        );
+        let choices = tan_choices(USER_FILE);
         let seen: Vec<(u16, &str)> = choices
             .iter()
             .map(|choice| (choice.number, choice.name.as_str()))
             .collect();
+        // Process 9 is not used by AqBanking and is left out.
         assert_eq!(
             seen,
             vec![
                 (6912, "Test list"),
-                (6930, "Test manual"),
+                (6920, "Test app (old)"),
                 (7920, "Test app"),
             ]
         );
         assert_eq!(choices[2].function, 920);
         assert_eq!(choices[2].version, 7);
-        // A bank's oversized or odd numbers and a name turned around by
-        // direction marks are handled, not trusted.
-        let odd = "bpd {\nbpdjobs {\nHITANS {\n9 {\ntanMethod {\nint function=\"60000\"\n}\n\
-            tanMethod {\nint function=\"930\"\nchar methodName=\"a\u{202E}b\u{2066}c\"\n}\n}\n}\n}\n}\n";
+    }
+
+    fn backend_pin_tan_count(values: &[Value]) -> usize {
+        values
+            .iter()
+            .filter(|(group, name, value, _)| {
+                group == "data/backend" && name == "cryptMode" && value == "pintan"
+            })
+            .count()
+    }
+
+    #[test]
+    fn the_offered_methods_are_each_once_in_their_highest_version() {
+        let data_dir = folder("offered");
+        let users = data_dir.join(SETTINGS).join("users");
+        fs::create_dir_all(&users).expect("folder");
+        fs::write(users.join("00000007.conf"), USER_FILE).expect("file");
+        let records = users_in(&data_dir);
+        assert_eq!(records.len(), 1);
+        let record = &records[0];
+        assert_eq!(record.crypt_mode.as_deref(), Some("pintan"));
+        assert_eq!(
+            record.server.as_deref(),
+            Some("https://fints.testbank.example/")
+        );
+        let methods = record.offered_methods();
+        let offered: Vec<(u16, &str)> = methods
+            .iter()
+            .map(|choice| (choice.number, choice.name.as_str()))
+            .collect();
+        assert_eq!(offered, vec![(6912, "Test list"), (7920, "Test app")]);
+    }
+
+    fn users_in(data_dir: &Path) -> Vec<UserRecord> {
+        users(data_dir).expect("users")
+    }
+
+    #[test]
+    fn odd_numbers_and_names_and_older_files_are_handled_not_trusted() {
+        // A bank's oversized number can't overflow, and a name turned around
+        // by direction marks is cleaned; a bare `}` closer still works.
+        let odd = "bpd {\nbpdjobs {\nHITANS {\n9 {\ntanMethod {\nint function=\"60000\"\nint process=\"2\"\n} #tanMethod\n\
+            tanMethod {\nint function=\"930\"\nint process=\"1\"\nchar methodName=\"a\u{202E}b\u{2066}c\"\n}\n} #9\n} #HITANS\n}\n}\n";
         let odd = tan_choices(odd);
         assert_eq!(odd.len(), 1);
         assert_eq!(odd[0].number, 9930);

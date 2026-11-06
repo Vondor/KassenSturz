@@ -487,7 +487,7 @@ fn ask_password_with(tan: bool, enforce_strong_auth: bool) -> c_int {
     if !tan
         && enforce_strong_auth
         && scenario.starts_with("strong-auth")
-        && (scenario.contains("fetch") || !state().tan_selected)
+        && (scenario.contains("fetch") || scenario.contains("bad-pin") || !state().tan_selected)
     {
         // What AqBanking does with the bank's 9340: it flags the PIN as bad.
         if let Some(set_status) = gui.set_password_status {
@@ -796,17 +796,67 @@ fn add_user(arguments: &[&str]) -> c_int {
         return GWEN_ERROR_INVALID;
     };
     let _ = std::fs::create_dir_all(file.parent().unwrap_or(&file));
+    // The format AqBanking really writes: Gwenhywfar's config manager closes
+    // every group with `} #name` (detailed groups), and the bank's
+    // certificate group comes before the backend's data (M6-B184).
     let content = format!(
         "int uniqueId=\"{uid}\"\nchar backendName=\"aqhbci\"\nchar userName=\"{name}\"\n\
          char userId=\"{login}\"\nchar customerId=\"{customer}\"\nchar country=\"de\"\n\
-         char bankCode=\"{bank}\"\nint lastSessionId=\"0\"\ndata {{\n  backend {{\n    \
-         char cryptMode=\"pintan\"\n    char server=\"{}\"\n    int hbciVersion=\"300\"\n  }}\n}}\n",
+         char bankCode=\"{bank}\"\nint lastSessionId=\"0\"\n\
+         certDb {{\n  cert {{\n    char serial=\"made-up\"\n  }} #cert\n}} #certDb\n\
+         data {{\n  backend {{\n    \
+         char cryptMode=\"pintan\"\n    char server=\"{}\"\n    int hbciVersion=\"300\"\n  }} #backend\n}} #data\n",
         server.replace(':', "%3A").replace('/', "%2F")
     );
     if std::fs::write(&file, content).is_err() {
         return GWEN_ERROR_IO;
     }
     0
+}
+
+/// What the bank's 3920 answer leaves in the login's settings file: the
+/// allowed methods and the bank parameters naming them (one method in
+/// `strong-auth-one`), in the format AqBanking writes (`} #name`).
+fn write_tan_methods(uid: u32) {
+    let methods = if state().scenario == "strong-auth-one" {
+        concat!(
+            "    int tanMethodList=\"920\"\n",
+            "    bpd {\n      bpdjobs {\n        HITANS {\n          7 {\n",
+            "            tanMethod {\n              int function=\"920\"\n",
+            "              int process=\"2\"\n",
+            "              char methodName=\"Test app approval\"\n            } #tanMethod\n",
+            "          } #7\n        } #HITANS\n      } #bpdjobs\n    } #bpd\n",
+        )
+    } else {
+        concat!(
+            "    int tanMethodList=\"920\", \"912\"\n",
+            "    bpd {\n      bpdjobs {\n        HITANS {\n          6 {\n",
+            "            tanMethod {\n              int function=\"912\"\n",
+            "              int process=\"2\"\n",
+            "              char methodName=\"Test TAN list\"\n            } #tanMethod\n",
+            "            tanMethod {\n              int function=\"920\"\n",
+            "              int process=\"2\"\n",
+            "              char methodName=\"Test app approval (old)\"\n            } #tanMethod\n",
+            "            tanMethod {\n              int function=\"930\"\n",
+            "              int process=\"9\"\n",
+            "              char methodName=\"Test not used\"\n            } #tanMethod\n",
+            "          } #6\n          7 {\n",
+            "            tanMethod {\n              int function=\"920\"\n",
+            "              int process=\"2\"\n",
+            "              char methodName=\"Test app approval\"\n            } #tanMethod\n",
+            "          } #7\n        } #HITANS\n      } #bpdjobs\n    } #bpd\n",
+        )
+    };
+    if let Some(file) = user_file(uid)
+        && let Ok(text) = std::fs::read_to_string(&file)
+        && !text.contains("tanMethodList")
+    {
+        let marker = "    int hbciVersion=\"300\"\n";
+        let _ = std::fs::write(
+            &file,
+            text.replacen(marker, &format!("{marker}{methods}"), 1),
+        );
+    }
 }
 
 fn user_option(arguments: &[&str]) -> Option<u32> {
@@ -820,7 +870,17 @@ fn has_user(uid: u32) -> bool {
 fn get_accounts(uid: u32) -> c_int {
     let rv = ask_password(false);
     if rv != 0 {
-        return rv;
+        // AqBanking reports success for the dialog it could not open: the
+        // bank's refusal (9075) is only in the log, and no account comes
+        // back (M6-B184).
+        return if state().scenario.starts_with("strong-auth") {
+            0
+        } else {
+            rv
+        };
+    }
+    if state().scenario == "no-accounts" {
+        return 0;
     }
     write_message_log();
     let mut state = state();
@@ -917,6 +977,19 @@ pub unsafe extern "C" fn AB_Banking_ProviderControl(
     match command {
         "adduser" => add_user(arguments),
         "deluser" => user_option(arguments).map_or(1, delete_user),
+        "addaccountflags" => option(arguments, "-a", "--account")
+            .and_then(|id| id.parse::<u32>().ok())
+            .map_or(1, |id| {
+                if state()
+                    .accounts
+                    .iter()
+                    .any(|account| account.unique_id == id)
+                {
+                    0
+                } else {
+                    1
+                }
+            }),
         "getbankinfo" | "getaccsepa" => {
             if user_option(arguments).is_some_and(has_user) {
                 0
@@ -932,7 +1005,11 @@ pub unsafe extern "C" fn AB_Banking_ProviderControl(
             if rv != 0 {
                 return rv;
             }
-            let rv = ask_password(false);
+            // `strong-auth-sysid`: a bank that refuses even this dialog
+            // without a TAN method; in the other strong-auth scenarios only
+            // the accounts' dialog is refused.
+            let enforce = state().scenario.contains("sysid");
+            let rv = ask_password_with(false, enforce);
             if rv != 0 {
                 return rv;
             }
@@ -940,6 +1017,12 @@ pub unsafe extern "C" fn AB_Banking_ProviderControl(
             let rv = second_factor(scenario.strip_prefix("setup-").unwrap_or_default());
             if rv != 0 {
                 return rv;
+            }
+            // The bank's answer lists the allowed TAN methods (3920).
+            if scenario.starts_with("strong-auth")
+                && let Some(uid) = user_option(arguments)
+            {
+                write_tan_methods(uid);
             }
             write_message_log();
             0
@@ -953,36 +1036,8 @@ pub unsafe extern "C" fn AB_Banking_ProviderControl(
                 return rv;
             }
             state().modes_known = true;
-            // The allowed methods, as the bank's 3920 answer leaves them in
-            // the login's settings file (one method in `strong-auth-one`).
-            let methods = if state().scenario == "strong-auth-one" {
-                concat!(
-                    "    int tanMethodList=\"920\"\n",
-                    "    bpd {\n      bpdjobs {\n        HITANS {\n          7 {\n",
-                    "            tanMethod {\n              int function=\"920\"\n",
-                    "              char methodName=\"Test app approval\"\n            }\n",
-                    "          }\n        }\n      }\n    }\n",
-                )
-            } else {
-                concat!(
-                    "    int tanMethodList=\"920\", \"912\"\n",
-                    "    bpd {\n      bpdjobs {\n        HITANS {\n          6 {\n",
-                    "            tanMethod {\n              int function=\"912\"\n",
-                    "              char methodName=\"Test TAN list\"\n            }\n",
-                    "          }\n          7 {\n",
-                    "            tanMethod {\n              int function=\"920\"\n",
-                    "              char methodName=\"Test app approval\"\n            }\n",
-                    "          }\n        }\n      }\n    }\n",
-                )
-            };
-            if let Some(file) = user_option(arguments).and_then(user_file)
-                && let Ok(text) = std::fs::read_to_string(&file)
-            {
-                let marker = "    int hbciVersion=\"300\"\n";
-                let _ = std::fs::write(
-                    &file,
-                    text.replacen(marker, &format!("{marker}{methods}"), 1),
-                );
+            if let Some(uid) = user_option(arguments) {
+                write_tan_methods(uid);
             }
             0
         }

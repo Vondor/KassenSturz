@@ -32,6 +32,10 @@ Kirigami.ScrollablePage {
     // Changing a login: the one the new login replaces, and the IBAN of its
     // account to begin with. Empty for a new login.
     property string replacesLogin: ""
+
+    // The advanced settings of the connection are one deliberate step away
+    // (D-609); closed, the defaults are used.
+    property bool advancedShown: false
     property string startIban: ""
     // The old login could not be removed after the change.
     property bool oldLoginLeft: false
@@ -87,6 +91,14 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // The address typed is not the one of KassenSturz's bank lists (D-609).
+    readonly property string addressHost: {
+        const match = /^https:\/\/([^\/?#]*)/.exec(urlField.text.trim());
+        return match ? match[1] : urlField.text.trim();
+    }
+    readonly property bool addressChanged: urlField.visible
+        && urlField.text.trim() !== (lookup.url ?? "")
+
     function connect() {
         const result = bank.setUp({
             iban: lookup.iban,
@@ -97,6 +109,9 @@ Kirigami.ScrollablePage {
             pin: pinField.text,
             pinMode: pinMode.currentValue,
             replaces: replacesLogin,
+            fintsVersion: advancedShown ? versionBox.currentValue : "",
+            tanMethod: advancedShown ? tanMethodField.text : "",
+            addressConfirmed: addressChanged && addressConfirm.checked ? "yes" : "",
         });
         error.result = result;
         if (result.code === undefined) {
@@ -248,7 +263,7 @@ Kirigami.ScrollablePage {
             Controls.Label {
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox the bank's FinTS server address", "FinTS address:")
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
-                visible: !(page.lookup.askUrl ?? false) && urlField.text !== ""
+                visible: !(page.lookup.askUrl ?? false) && !page.advancedShown && urlField.text !== ""
                 wrapMode: Text.WrapAnywhere
                 textFormat: Text.PlainText
                 font: Kirigami.Theme.smallFont
@@ -258,9 +273,29 @@ Kirigami.ScrollablePage {
             Controls.TextField {
                 id: urlField
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox the bank's FinTS server address", "FinTS address:")
-                visible: page.lookup.askUrl ?? false
+                // Also with the advanced settings, so a known bank's address
+                // can be changed (D-609).
+                visible: (page.lookup.askUrl ?? false) || page.advancedShown
                 placeholderText: "https://"
                 inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoPredictiveText
+            }
+
+            Controls.Label {
+                visible: page.addressChanged
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                color: Kirigami.Theme.negativeTextColor
+                text: page.i18nContext.i18nc("@info %1 is a web address", "Careful: this address is not the one in KassenSturz's bank lists. Your login name and PIN will be sent to %1. Anyone who runs that server can read them, so only go on if your bank itself told you this address.", page.addressHost)
+            }
+
+            Controls.CheckBox {
+                id: addressConfirm
+                visible: page.addressChanged
+                text: page.i18nContext.i18nc("@option:check", "My bank gave me this address; send my PIN there")
+                onToggled: {
+                    ActionLog.taken("BankSetupPage_toggleAddressConfirm")
+                }
             }
 
             Controls.TextField {
@@ -304,6 +339,50 @@ Kirigami.ScrollablePage {
                     ActionLog.taken("BankSetupPage_connect")
                     page.connect()
                 }
+            }
+
+            // The settings a connection that doesn't work may need changed
+            // (D-609): shown on request, defaults otherwise.
+            Controls.Button {
+                text: Plain.plain(page.advancedShown
+                    ? page.i18nContext.i18nc("@action:button", "Hide advanced settings")
+                    : page.i18nContext.i18nc("@action:button", "Show advanced settings"))
+                icon.name: page.advancedShown ? "arrow-up" : "arrow-down"
+                flat: true
+                onClicked: {
+                    ActionLog.taken("BankSetupPage_toggleAdvanced")
+                    page.advancedShown = !page.advancedShown
+                }
+            }
+
+            Controls.ComboBox {
+                id: versionBox
+                Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox", "FinTS version:")
+                visible: page.advancedShown
+                textRole: "text"
+                valueRole: "value"
+                model: [
+                    { value: "300", text: page.i18nContext.i18nc("@item:inlistbox", "3.0 (nearly all banks)") },
+                    { value: "220", text: page.i18nContext.i18nc("@item:inlistbox", "2.2 (only if your bank says so)") },
+                ]
+            }
+
+            Controls.TextField {
+                id: tanMethodField
+                Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Approval method number:")
+                visible: page.advancedShown
+                placeholderText: page.i18nContext.i18nc("@info:placeholder", "Let the bank choose")
+                inputMethodHints: Qt.ImhDigitsOnly | Qt.ImhNoPredictiveText
+                validator: IntValidator { bottom: 900; top: 999 }
+            }
+
+            Controls.Label {
+                visible: page.advancedShown
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                wrapMode: Text.Wrap
+                font: Kirigami.Theme.smallFont
+                textFormat: Text.PlainText
+                text: page.i18nContext.i18nc("@info", "Change these only if connecting doesn't work and your bank, or the program you use with it today, tells you what to use. The address and the TAN method number (for example 946) are in your bank's information for FinTS. Empty or unchanged means KassenSturz uses what its bank lists give and your bank's own choice.")
             }
 
             Controls.ComboBox {

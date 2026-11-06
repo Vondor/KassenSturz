@@ -17593,3 +17593,102 @@ msgstr "Farbe hinzufügen"
 msgctxt "@label name of a chart color you added beyond the sixteen with a name"
 msgid "Added color"
 msgstr "Hinzugefügte Farbe"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:262
+#, kde-format
+msgctxt "@action:button"
+msgid "Hide advanced settings"
+msgstr "Erweiterte Einstellungen ausblenden"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:262
+#, kde-format
+msgctxt "@action:button"
+msgid "Show advanced settings"
+msgstr "Erweiterte Einstellungen anzeigen"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:275
+#, kde-format
+msgctxt "@label:listbox"
+msgid "FinTS version:"
+msgstr "FinTS-Version:"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:279
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "3.0 (nearly all banks)"
+msgstr "3.0 (fast alle Banken)"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:280
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "2.2 (only if your bank says so)"
+msgstr "2.2 (nur, wenn Ihre Bank es verlangt)"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:286
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Approval method number:"
+msgstr "Nummer des Freigabeverfahrens:"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:289
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Let the bank choose"
+msgstr "Die Bank entscheiden lassen"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:299
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Change these only if connecting doesn't work and your bank, or the "
+"program you use with it today, tells you what to use. The address and "
+"the TAN method number (for example 946) are in your bank's information "
+"for FinTS. Empty or unchanged means KassenSturz uses what its bank "
+"lists give and your bank's own choice."
+msgstr ""
+"Ändern Sie diese Angaben nur, wenn die Verbindung nicht klappt und "
+"Ihre Bank oder das Programm, das Sie heute damit nutzen, Ihnen sagt, "
+"was einzutragen ist. Die Adresse und die Nummer des TAN-Verfahrens "
+"(zum Beispiel 946) stehen in den FinTS-Informationen Ihrer Bank. Leer "
+"oder unverändert heißt: KassenSturz nimmt, was seine Bankenlisten "
+"angeben, und die Wahl Ihrer Bank."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:650
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A TAN method is a number from 900 to 999, for example 946. Leave the "
+"field empty to let your bank choose."
+msgstr ""
+"Ein TAN-Verfahren ist eine Zahl von 900 bis 999, zum Beispiel 946. "
+"Lassen Sie das Feld leer, damit Ihre Bank das Verfahren wählt."
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:1
+#. i18n: @info %1 is a web address
+msgctxt "@info %1 is a web address"
+msgid "Careful: this address is not the one in KassenSturz's bank lists. Your login name and PIN will be sent to %1. Anyone who runs that server can read them, so only go on if your bank itself told you this address."
+msgstr "Achtung: Diese Adresse ist nicht die aus den Banklisten von KassenSturz. Ihr Anmeldename und Ihre PIN werden an %1 gesendet. Wer diesen Server betreibt, kann beides lesen. Fahren Sie nur fort, wenn Ihre Bank Ihnen genau diese Adresse genannt hat."
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:1
+#. i18n: @option:check
+msgctxt "@option:check"
+msgid "My bank gave me this address; send my PIN there"
+msgstr "Meine Bank hat mir diese Adresse genannt; PIN dorthin senden"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:1
+#. i18n: @info
+msgctxt "@info"
+msgid "A FinTS address has no name and @ in front of the server, as in https://name@server. Check it against what your bank gives."
+msgstr "Eine FinTS-Adresse hat keinen Namen und kein @ vor dem Server, wie in https://name@server. Prüfen Sie sie anhand der Angaben Ihrer Bank."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:1
+#. i18n: @info
+msgctxt "@info"
+msgid "That address points to a computer in your own network, not to a bank. Check it against what your bank gives."
+msgstr "Diese Adresse zeigt auf einen Rechner in Ihrem eigenen Netz, nicht auf eine Bank. Prüfen Sie sie anhand der Angaben Ihrer Bank."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:1
+#. i18n: @info
+msgctxt "@info"
+msgid "This address isn't the one in KassenSturz's bank lists. Tick the box under the address if your bank gave you exactly this address."
+msgstr "Diese Adresse ist nicht die aus den Banklisten von KassenSturz. Setzen Sie den Haken unter der Adresse, wenn Ihre Bank Ihnen genau diese Adresse genannt hat."

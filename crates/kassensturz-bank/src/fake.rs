@@ -206,6 +206,8 @@ impl FakeBank {
             kind: FakeDirectory::PIN_TAN,
             login_name: "test-login".to_owned(),
             customer_id: None,
+            fints_version: crate::backend::FintsVersion::default(),
+            tan_method: None,
         }
     }
 

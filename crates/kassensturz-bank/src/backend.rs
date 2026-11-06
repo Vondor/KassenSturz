@@ -85,6 +85,41 @@ pub struct Login {
     pub kind: LoginKind,
 }
 
+/// The FinTS version a login talks to the bank in (D-609). 3.0 is what
+/// nearly every bank offers; 2.2 is for the few that don't answer 3.0.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum FintsVersion {
+    /// FinTS 3.0, the default.
+    #[default]
+    V300,
+    /// HBCI 2.2.
+    V220,
+}
+
+impl FintsVersion {
+    /// Every choice, the default first.
+    pub const ALL: [FintsVersion; 2] = [FintsVersion::V300, FintsVersion::V220];
+
+    /// The number AqBanking names it by.
+    pub fn number(self) -> u16 {
+        match self {
+            Self::V300 => 300,
+            Self::V220 => 220,
+        }
+    }
+
+    /// The version with this number, or `None` for any other.
+    pub fn from_number(text: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|version| version.number().to_string() == text.trim())
+    }
+}
+
+/// The lowest and highest number of a TAN method in FinTS (D-609): methods
+/// are numbered 900 to 999, e.g. 946 for an app method of the Volksbanken.
+pub const TAN_METHODS: std::ops::RangeInclusive<u16> = 900..=999;
+
 /// What setting up a login needs, as the setup screens gathered it (M4.6)
 /// from the questions of the bank's [`LoginKind`]. The backend keeps it in
 /// its own storage; this crate keeps nothing of it after the call. Its
@@ -102,6 +137,11 @@ pub struct LoginSetup {
     /// The customer ID the bank gave, if it has one apart from the login
     /// name.
     pub customer_id: Option<String>,
+    /// The FinTS version (D-609).
+    pub fints_version: FintsVersion,
+    /// The TAN method to use, one of [`TAN_METHODS`], or `None` to leave the
+    /// choice to the bank and AqBanking (D-609).
+    pub tan_method: Option<u16>,
 }
 
 impl fmt::Debug for LoginSetup {
@@ -112,6 +152,8 @@ impl fmt::Debug for LoginSetup {
             .field("kind", &self.kind)
             .field("login_name", &"…")
             .field("customer_id", &self.customer_id.as_ref().map(|_| "…"))
+            .field("fints_version", &self.fints_version)
+            .field("tan_method", &self.tan_method)
             .finish()
     }
 }
@@ -243,6 +285,8 @@ mod tests {
             },
             login_name: "made-up-login-name".to_owned(),
             customer_id: Some("made-up-customer-id".to_owned()),
+            fints_version: FintsVersion::default(),
+            tan_method: None,
         };
         let debug = format!("{setup:?}");
         assert!(!debug.contains("made-up"), "{debug}");

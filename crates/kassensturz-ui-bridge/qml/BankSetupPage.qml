@@ -263,7 +263,7 @@ Kirigami.ScrollablePage {
             Controls.Label {
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox the bank's FinTS server address", "FinTS address:")
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
-                visible: !(page.lookup.askUrl ?? false) && urlField.text !== ""
+                visible: !(page.lookup.askUrl ?? false) && !page.advancedShown && urlField.text !== ""
                 wrapMode: Text.WrapAnywhere
                 textFormat: Text.PlainText
                 font: Kirigami.Theme.smallFont

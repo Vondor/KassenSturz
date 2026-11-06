@@ -257,6 +257,15 @@ impl AqBankingBank {
         let result = action();
         let mut handler = session.handler();
         handler.end();
+        // The bank log (D-603) names the bank's return codes (D-607).
+        #[cfg(feature = "debug-log")]
+        for code in handler.reply_codes() {
+            kassensturz_core::bank_log::note(
+                kassensturz_core::bank_log::Step::BankReply,
+                None,
+                Some(u32::from(*code)),
+            );
+        }
         Outcome {
             result,
             rejected: handler.rejected,

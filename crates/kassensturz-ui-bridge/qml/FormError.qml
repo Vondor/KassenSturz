@@ -656,7 +656,7 @@ Kirigami.InlineMessage {
         case "input.address-not-confirmed":
             return i18nContext.i18nc("@info", "This address isn't the one in KassenSturz's bank lists. Tick the box under the address if your bank gave you exactly this address.");
         case "input.bad-tan-method":
-            return i18nContext.i18nc("@info", "A TAN method is a number from 900 to 999, for example 946. Leave the field empty to let your bank choose.");
+            return i18nContext.i18nc("@info", "A TAN method is a number from 900 to 999, for example 912. Leave the field empty to let your bank choose.");
         case "input.empty-login-name":
             return i18nContext.i18nc("@info", "Type the login name you use for your bank's website.");
         case "input.empty-customer-id":

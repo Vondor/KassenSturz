@@ -19,9 +19,9 @@ use kassensturz_aqbanking_sys::stub;
 use kassensturz_bank::{
     AqBankingBank, Availability, Bank, BankAccount, BankAccountId, BankAccountKind, BankCode,
     BankDialogs, BankError, BankQuestion, CustomerId, FintsVersion, Iban, KeychainPinStore,
-    Library, Login, LoginId, LoginKind, LoginSetup, MemoryPinStore, Pin, PinMode, PinSession,
-    QuestionLevel, RegistrationKey, Setup, Tan, TanRequest, Version, remove_login, setup_for,
-    statement,
+    Library, Login, LoginConnection, LoginId, LoginKind, LoginSetup, MemoryPinStore, Pin, PinMode,
+    PinSession, QuestionLevel, RegistrationKey, Setup, Tan, TanRequest, Version, remove_login,
+    setup_for, statement,
 };
 use kassensturz_core::{Account, AccountId, AccountKind, BankLink, CurrencyCode, Date};
 use kassensturz_import::{EntryStatus, Limits};
@@ -167,13 +167,13 @@ fn the_advanced_settings_reach_the_backend_with_a_login() {
     let mut pins = pins_with(PinMode::RememberUntilClose);
     let mut setup = login_setup();
     setup.fints_version = FintsVersion::V220;
-    setup.tan_method = Some(946);
+    setup.tan_method = Some(912);
     bank.add_login(&setup, &mut pins).expect("login added");
     let journal = journal_of(&bank);
     assert!(journal.contains("--hbciversion=220"), "{journal}");
     assert!(!journal.contains("--hbciversion=300"), "{journal}");
     let select = journal
-        .find("control: setitanmode -u 1 -m 946")
+        .find("control: setitanmode -u 1 -m 912")
         .unwrap_or_else(|| panic!("the TAN method is selected in:\n{journal}"));
     let ids = journal.find("control: getsysid -u 1").expect("getsysid");
     let accounts = journal
@@ -190,7 +190,7 @@ fn a_tan_method_the_backend_doesnt_know_yet_is_asked_for_once() {
     stub::set_scenario("itan-modes-unknown");
     let mut pins = pins_with(PinMode::RememberUntilClose);
     let mut setup = login_setup();
-    setup.tan_method = Some(946);
+    setup.tan_method = Some(912);
     bank.add_login(&setup, &mut pins).expect("login added");
     let journal = journal_of(&bank);
     let first = journal.find("control: setitanmode").expect("first try");
@@ -245,6 +245,10 @@ fn a_login_is_set_up_with_the_backends_commands_and_removed_again() {
             bank: BankCode::new("DE", "37040044"),
             kind: LoginKind::PinTan {
                 customer_id: CustomerId::Unknown,
+            },
+            connection: LoginConnection {
+                url: "https://fints.testbank.example/".to_owned(),
+                fints_version: Some(FintsVersion::V300),
             },
         }]
     );

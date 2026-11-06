@@ -1697,7 +1697,7 @@ Kirigami.ApplicationWindow {
             bank: bankConnection
             fetchGap: fetchGapSettings
             onConnectBankClicked: root.pushPage(bankSetupPage)
-            onChangeBankClicked: login => root.pushPage(bankSetupPage, { replacesLogin: login.id, startIban: login.iban })
+            onChangeBankClicked: login => root.pushPage(bankSetupPage, { replacesLogin: login.id, startIban: login.iban, startUrl: login.url, startVersion: login.fintsVersion })
             onOpenAnotherClicked: root.chooseBookToOpen()
             onExampleBookClicked: root.chooseExampleBook()
             onNewBookClicked: root.chooseNewBook()

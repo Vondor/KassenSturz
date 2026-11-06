@@ -19,9 +19,9 @@ use kassensturz_aqbanking_sys::stub;
 use kassensturz_bank::{
     AqBankingBank, Availability, Bank, BankAccount, BankAccountId, BankAccountKind, BankCode,
     BankDialogs, BankError, BankQuestion, CustomerId, FintsVersion, Iban, KeychainPinStore,
-    Library, Login, LoginConnection, LoginId, LoginKind, LoginSetup, MemoryPinStore, Pin, PinMode,
-    PinSession, QuestionLevel, RegistrationKey, Setup, Tan, TanRequest, Version, remove_login,
-    setup_for, statement,
+    Library, Login, LoginChange, LoginConnection, LoginId, LoginKind, LoginSetup, MemoryPinStore,
+    Pin, PinMode, PinSession, QuestionLevel, RegistrationKey, Setup, Tan, TanRequest, Version,
+    remove_login, setup_for, statement,
 };
 use kassensturz_core::{Account, AccountId, AccountKind, BankLink, CurrencyCode, Date};
 use kassensturz_import::{EntryStatus, Limits};
@@ -1222,4 +1222,115 @@ fn a_login_address_without_https_never_reaches_aqbanking() {
         );
     }
     assert!(!journal_of(&bank).contains("adduser"));
+}
+
+#[test]
+fn a_login_is_changed_in_place_and_the_change_is_read_back() {
+    // D-617: the TAN method and the FinTS version of a working login change
+    // without a new login; what the Change screen reads is what the
+    // backend wrote.
+    let _guard = lock();
+    let mut bank = open("change");
+    stub::set_scenario("strong-auth");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    let mut setup = login_setup();
+    setup.tan_method = Some(7920);
+    let login = bank.add_login(&setup, &mut pins).expect("login added");
+
+    let details = bank.login_details(&login).expect("details");
+    assert_eq!(details.login_name, "made-up-login");
+    assert_eq!(details.tan_method, Some(7920));
+    assert_eq!(
+        details.offered,
+        vec![
+            choice(6912, "Test TAN list"),
+            choice(7920, "Test app approval")
+        ]
+    );
+    assert!(!format!("{details:?}").contains("made-up"));
+
+    bank.change_login(
+        &login,
+        &LoginChange {
+            fints_version: Some(FintsVersion::V220),
+            tan_method: Some(6912),
+        },
+    )
+    .expect("changed");
+    let details = bank.login_details(&login).expect("details");
+    assert_eq!(details.tan_method, Some(6912));
+    let logins = bank.logins().expect("logins");
+    assert_eq!(logins.len(), 1);
+    assert_eq!(logins[0].id, login);
+    assert_eq!(logins[0].connection.fints_version, Some(FintsVersion::V220));
+    // Nothing was set up again, the PIN is still the login's own.
+    let journal = journal_of(&bank);
+    assert_eq!(journal.matches("adduser").count(), 1, "{journal}");
+    assert!(journal.contains("setitanmode -u 1 -m 6912"), "{journal}");
+    assert!(journal.contains("sethbciversion"), "{journal}");
+    assert!(pins.is_remembered(&login));
+
+    // A method the bank doesn't offer is refused with the list; the
+    // settings stay as they were.
+    assert_eq!(
+        bank.change_login(
+            &login,
+            &LoginChange {
+                fints_version: None,
+                tan_method: Some(955),
+            },
+        ),
+        Err(BankError::TanMethodNeeded {
+            offered: vec![
+                choice(6912, "Test TAN list"),
+                choice(7920, "Test app approval")
+            ]
+        })
+    );
+    assert_eq!(
+        bank.login_details(&login).expect("details").tan_method,
+        Some(6912)
+    );
+    assert!(matches!(
+        bank.change_login(&LoginId::new("99"), &LoginChange::default()),
+        Err(BankError::UnknownLogin(_))
+    ));
+    stub::set_scenario("ok");
+}
+
+#[test]
+fn another_account_is_linked_to_a_working_login_without_a_new_login() {
+    // D-617: the bank is asked again for the login's accounts.
+    let _guard = lock();
+    let mut bank = open("refresh");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    let (login, before) = connect(&mut bank, &mut pins);
+    let after = bank
+        .refresh_accounts(&login, &mut pins)
+        .expect("accounts refreshed");
+    assert_eq!(
+        after.iter().map(|a| a.iban.clone()).collect::<Vec<_>>(),
+        before.iter().map(|a| a.iban.clone()).collect::<Vec<_>>()
+    );
+    let journal = journal_of(&bank);
+    assert_eq!(journal.matches("adduser").count(), 1, "{journal}");
+    assert_eq!(
+        journal.matches("control: getaccounts").count(),
+        2,
+        "{journal}"
+    );
+    // A wrong PIN is forgotten like at a fetch.
+    stub::set_scenario("bad-pin");
+    let mut pins = pins_with(PinMode::AskEachTime);
+    pins.provide(
+        &login,
+        Pin::new("00000".to_owned()),
+        PinMode::RememberUntilClose,
+    )
+    .expect("provided");
+    assert_eq!(
+        bank.refresh_accounts(&login, &mut pins),
+        Err(BankError::PinRejected)
+    );
+    stub::set_scenario("ok");
 }

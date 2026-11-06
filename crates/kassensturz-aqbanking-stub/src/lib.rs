@@ -851,12 +851,55 @@ fn write_tan_methods(uid: u32) {
         && let Ok(text) = std::fs::read_to_string(&file)
         && !text.contains("tanMethodList")
     {
-        let marker = "    int hbciVersion=\"300\"\n";
-        let _ = std::fs::write(
-            &file,
-            text.replacen(marker, &format!("{marker}{methods}"), 1),
-        );
+        let _ = std::fs::write(&file, insert_after_version(&text, methods));
     }
+}
+
+/// `lines` put right after the backend's `hbciVersion` line, whatever its
+/// value; the text unchanged if there is no such line.
+fn insert_after_version(text: &str, lines: &str) -> String {
+    let Some(start) = text.find("    int hbciVersion=") else {
+        return text.to_owned();
+    };
+    let end = text[start..].find('\n').map_or(text.len(), |n| start + n + 1);
+    format!("{}{lines}{}", &text[..end], &text[end..])
+}
+
+/// Sets `int hbciVersion` in a login's file, as `sethbciversion` does.
+fn set_version(uid: u32, version: &str) -> c_int {
+    let Some(file) = user_file(uid) else {
+        return 1;
+    };
+    let Ok(text) = std::fs::read_to_string(&file) else {
+        return 1;
+    };
+    let Some(start) = text.find("    int hbciVersion=") else {
+        return 1;
+    };
+    let end = text[start..].find('\n').map_or(text.len(), |n| start + n);
+    let changed = format!(
+        "{}    int hbciVersion=\"{version}\"{}",
+        &text[..start],
+        &text[end..]
+    );
+    std::fs::write(&file, changed).map_or(1, |()| 0)
+}
+
+/// Sets `int selectedTanMethod` in a login's file, as `setitanmode` does.
+fn set_selected_method(uid: u32, method: u16) {
+    let Some(file) = user_file(uid) else {
+        return;
+    };
+    let Ok(text) = std::fs::read_to_string(&file) else {
+        return;
+    };
+    let kept: String = text
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("int selectedTanMethod="))
+        .map(|line| format!("{line}\n"))
+        .collect();
+    let line = format!("    int selectedTanMethod=\"{method}\"\n");
+    let _ = std::fs::write(&file, insert_after_version(&kept, &line));
 }
 
 fn user_option(arguments: &[&str]) -> Option<u32> {
@@ -1056,7 +1099,19 @@ pub unsafe extern "C" fn AB_Banking_ProviderControl(
                 return 1;
             }
             state().tan_selected = true;
+            if let (Some(uid), Some(method)) = (user_option(arguments), method) {
+                set_selected_method(uid, method);
+            }
             0
+        }
+        "sethbciversion" => {
+            let version = option(arguments, "", "--hbciversion").filter(|version| {
+                version.parse::<u16>().is_ok_and(|v| (200..=399).contains(&v))
+            });
+            match (user_option(arguments), version) {
+                (Some(uid), Some(version)) if has_user(uid) => set_version(uid, version),
+                _ => 1,
+            }
         }
         "getaccounts" => match user_option(arguments) {
             Some(uid) if has_user(uid) => get_accounts(uid),

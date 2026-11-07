@@ -459,6 +459,48 @@ impl AqBankingBank {
             .unwrap_or_default()
     }
 
+    /// The work of [`Bank::refresh_accounts`], without ending the PIN session.
+    fn refresh_accounts_inner(
+        &self,
+        login: &LoginId,
+        pins: &mut PinSession,
+    ) -> Result<Vec<BankAccount>, BankError> {
+        let session = self.session()?;
+        let uid = self.user_id(login)?;
+        let uid_text = uid.to_string();
+        let bank = self
+            .logins()?
+            .into_iter()
+            .find(|candidate| &candidate.id == login)
+            .map(|candidate| candidate.bank)
+            .ok_or_else(|| BankError::UnknownLogin(login.clone()))?;
+        self.before_contact(session, &bank)?;
+        let pin = match pins.answer(login)? {
+            PinAnswer::Known(pin) => Some(pin),
+            PinAnswer::Ask => None,
+        };
+        let user = ["-u", uid_text.as_str()];
+        match self.setup_command(session, "getaccounts", &user, pin.clone(), login, pins) {
+            Ok(()) => {}
+            Err(BankError::TanMethodNeeded { .. }) => {
+                return Err(BankError::TanMethodNeeded {
+                    offered: self.offered_methods(uid),
+                });
+            }
+            Err(error) => return Err(error),
+        }
+        let accounts = self.accounts_of(session, uid, login)?;
+        for account in &accounts {
+            if let Ok(id) = account.id.as_str().parse() {
+                self.prefer_camt(session, id, login, pins);
+            }
+        }
+        if accounts.iter().any(|account| account.iban.is_none()) {
+            let _ = self.setup_command(session, "getaccsepa", &user, pin, login, pins);
+        }
+        self.accounts_of(session, uid, login)
+    }
+
     /// The accounts of the login with `uid`, as AqBanking lists them.
     fn accounts_of(
         &self,
@@ -722,41 +764,11 @@ impl Bank for AqBankingBank {
         login: &LoginId,
         pins: &mut PinSession,
     ) -> Result<Vec<BankAccount>, BankError> {
-        let session = self.session()?;
-        let uid = self.user_id(login)?;
-        let uid_text = uid.to_string();
-        let bank = self
-            .logins()?
-            .into_iter()
-            .find(|candidate| &candidate.id == login)
-            .map(|candidate| candidate.bank)
-            .ok_or_else(|| BankError::UnknownLogin(login.clone()))?;
-        self.before_contact(session, &bank)?;
-        let pin = match pins.answer(login)? {
-            PinAnswer::Known(pin) => Some(pin),
-            PinAnswer::Ask => None,
-        };
-        let user = ["-u", uid_text.as_str()];
-        match self.setup_command(session, "getaccounts", &user, pin.clone(), login, pins) {
-            Ok(()) => {}
-            Err(BankError::TanMethodNeeded { .. }) => {
-                return Err(BankError::TanMethodNeeded {
-                    offered: self.offered_methods(uid),
-                });
-            }
-            Err(error) => return Err(error),
-        }
-        let accounts = self.accounts_of(session, uid, login)?;
-        for account in &accounts {
-            if let Ok(id) = account.id.as_str().parse() {
-                self.prefer_camt(session, id, login, pins);
-            }
-        }
-        if accounts.iter().any(|account| account.iban.is_none()) {
-            let _ = self.setup_command(session, "getaccsepa", &user, pin, login, pins);
-        }
+        // The PIN kept for this one session ends with it, whatever came
+        // of the call.
+        let result = self.refresh_accounts_inner(login, pins);
         pins.end_session();
-        self.accounts_of(session, uid, login)
+        result
     }
 
     fn remove_login(&mut self, login: &LoginId) -> Result<(), BankError> {

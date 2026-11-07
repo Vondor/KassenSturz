@@ -1375,3 +1375,21 @@ fn a_login_that_cant_be_removed_keeps_its_pin() {
     remove_login(&mut bank, &login, &mut pins).expect("removed");
     assert!(!pins.is_remembered(&login));
 }
+
+#[test]
+fn a_failed_refresh_still_ends_the_pin_session() {
+    // Security review of D-617: a PIN asked for each time must not stay in
+    // memory because the bank could not be reached.
+    let _guard = lock();
+    let mut bank = open("refresh-fails");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    let (login, _) = connect(&mut bank, &mut pins);
+    let mut once = PinSession::new(Box::new(MemoryPinStore::new()));
+    once.provide(&login, Pin::new(PIN.to_owned()), PinMode::AskEachTime)
+        .expect("provided");
+    assert!(once.is_remembered(&login));
+    stub::set_scenario("unreachable");
+    assert!(bank.refresh_accounts(&login, &mut once).is_err());
+    assert!(!once.is_remembered(&login));
+    stub::set_scenario("ok");
+}

@@ -28,8 +28,10 @@ use crate::format::Locale;
 use crate::locale::QtLocale;
 use crate::number_format::app_locale;
 use crate::parts_entry::{self, PartInput, PartsError, PartsInput};
-use crate::register::{RegisterRow, Sort, SortKey, register_view};
+use crate::register::{RegisterRow, Sort, SortKey, register_view_with};
+use crate::register_columns::{Column, Columns};
 use crate::session;
+use crate::settings::Settings;
 use crate::transaction_entry::{self, EntryError, EntryForm, NewEntry, RemovalNotice};
 use crate::transfer_prompt::{self, SideText, SuggestionText};
 use crate::variant::{error_object, list, map, text};
@@ -70,6 +72,8 @@ pub mod qobject {
         #[qproperty(bool, owes, READ, NOTIFY)]
         #[qproperty(QString, sort_key, cxx_name = "sortKey", READ, NOTIFY)]
         #[qproperty(bool, descending, READ, NOTIFY)]
+        #[qproperty(bool, balance_shown, cxx_name = "balanceShown", READ, NOTIFY)]
+        #[qproperty(QString, columns, READ, NOTIFY)]
         #[qproperty(i32, count, READ, NOTIFY)]
         #[qproperty(i32, unfiltered, READ, NOTIFY)]
         #[qproperty(QString, filter, READ, NOTIFY)]
@@ -93,6 +97,25 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "sortBy"]
         fn sort_by(self: Pin<&mut AccountRegister>, key: &QString, descending: bool);
+
+        /// The columns the register of the account with `account_id` can
+        /// show, as a list of `key`, `shown` and `fixed`: a fixed column is
+        /// always shown (US1.19). The page owns every title.
+        #[qinvokable]
+        #[cxx_name = "columnChoices"]
+        fn column_choices(self: &AccountRegister, account_id: &QString) -> QVariant;
+
+        /// Shows or hides the column `key` in that account's register, from
+        /// now on and at the next start, and reads the register again.
+        /// Returns whether the choice was saved.
+        #[qinvokable]
+        #[cxx_name = "setColumn"]
+        fn set_column(
+            self: Pin<&mut AccountRegister>,
+            account_id: &QString,
+            key: &QString,
+            shown: bool,
+        ) -> bool;
 
         /// Shows only the transactions that fit `text`, the words typed in
         /// the quick filter (`RegisterRow::fits`). Empty text shows all.
@@ -295,7 +318,7 @@ pub mod qobject {
 }
 
 /// The roles a row has, numbered from Qt's first user role.
-const ROLES: [(&str, i32); 12] = [
+const ROLES: [(&str, i32); 15] = [
     ("transactionId", 0x0100),
     ("date", 0x0101),
     ("otherParty", 0x0102),
@@ -308,6 +331,9 @@ const ROLES: [(&str, i32); 12] = [
     ("balance", 0x0109),
     ("exactBalance", 0x010A),
     ("note", 0x010B),
+    ("otherPartyIban", 0x010C),
+    ("purpose", 0x010D),
+    ("valueDate", 0x010E),
 ];
 
 /// The Rust side of [`qobject::AccountRegister`].
@@ -320,6 +346,8 @@ pub struct AccountRegisterRust {
     owes: bool,
     sort_key: QString,
     descending: bool,
+    balance_shown: bool,
+    columns: QString,
     count: i32,
     unfiltered: i32,
     filter: QString,
@@ -339,6 +367,8 @@ impl cxx_qt::Initialize for qobject::AccountRegister {
         model.sort = sort;
         model.sort_key = QString::from(sort.key.key());
         model.descending = sort.descending;
+        model.balance_shown = true;
+        model.columns = QString::from(Columns::default().text().as_str());
     }
 }
 
@@ -364,6 +394,7 @@ impl qobject::AccountRegister {
     fn refresh(mut self: Pin<&mut Self>) {
         let account_id = self.rust().account_id.to_string();
         let sort = self.rust().sort;
+        let columns = columns_of(&account_id);
         let locale = app_locale();
         let view = session::with_book(|book| {
             let account = transaction_entry::account_choices(book)?
@@ -378,7 +409,7 @@ impl qobject::AccountRegister {
                 .find(|account| account.id.to_string() == choice.id)
                 .map(|account| account.id);
             found
-                .map(|id| register_view(book, id, sort, &locale))
+                .map(|id| register_view_with(book, id, sort, columns, &locale))
                 .transpose()
         });
         let view = match view {
@@ -398,6 +429,7 @@ impl qobject::AccountRegister {
                     model.balance = QString::from(view.balance.text.as_str());
                     model.exact_balance = QString::from(view.balance.exact.as_str());
                     model.owes = view.owes;
+                    model.balance_shown = view.balance_shown;
                     model.rows = view.rows;
                 }
                 None => {
@@ -405,9 +437,11 @@ impl qobject::AccountRegister {
                     model.balance = QString::default();
                     model.exact_balance = QString::default();
                     model.owes = false;
+                    model.balance_shown = false;
                     model.rows = Vec::new();
                 }
             }
+            model.columns = QString::from(columns.text().as_str());
             model.unfiltered = i32::try_from(model.rows.len()).unwrap_or(i32::MAX);
             let query = model.filter.to_string();
             model.rows.retain(|row| row.fits(&query));
@@ -421,6 +455,8 @@ impl qobject::AccountRegister {
         self.as_mut().balance_changed();
         self.as_mut().exact_balance_changed();
         self.as_mut().owes_changed();
+        self.as_mut().balance_shown_changed();
+        self.as_mut().columns_changed();
         self.as_mut().count_changed();
     }
 
@@ -447,6 +483,28 @@ impl qobject::AccountRegister {
         self.as_mut().sort_key_changed();
         self.as_mut().descending_changed();
         self.refresh();
+    }
+
+    fn column_choices(&self, account_id: &QString) -> QVariant {
+        column_choices_object(columns_of(&account_id.to_string()))
+    }
+
+    fn set_column(
+        mut self: Pin<&mut Self>,
+        account_id: &QString,
+        key: &QString,
+        shown: bool,
+    ) -> bool {
+        let Some(column) = Column::from_key(&key.to_string()) else {
+            return false;
+        };
+        let account = account_id.to_string();
+        let chosen = columns_of(&account).with(column, shown);
+        let saved = Settings::user().set_register_columns(&account, &chosen.text());
+        if saved && self.rust().account_id == *account_id {
+            self.as_mut().refresh();
+        }
+        saved
     }
 
     fn account_choices(&self) -> QVariant {
@@ -746,6 +804,9 @@ impl qobject::AccountRegister {
             Some(("balance", _)) => text(&row.balance.text),
             Some(("exactBalance", _)) => text(&row.balance.exact),
             Some(("note", _)) => text(&row.note),
+            Some(("otherPartyIban", _)) => text(&row.other_party_iban),
+            Some(("purpose", _)) => text(&row.purpose),
+            Some(("valueDate", _)) => text(&row.value_date),
             _ => QVariant::default(),
         }
     }
@@ -932,6 +993,24 @@ fn notice_object(notice: &RemovalNotice) -> QVariant {
     ])
 }
 
+/// The columns the user chose for the register of the account with
+/// `account_id`; the default ones if none were.
+fn columns_of(account_id: &str) -> Columns {
+    Columns::read(&Settings::user().register_columns(account_id))
+}
+
+/// Every column with whether `columns` shows it and whether it is always
+/// shown, as the page reads them by name.
+fn column_choices_object(columns: Columns) -> QVariant {
+    list(Column::ALL.into_iter().map(|column| {
+        map([
+            ("key", text(column.key())),
+            ("shown", QVariant::from(&columns.shows(column))),
+            ("fixed", QVariant::from(&column.fixed())),
+        ])
+    }))
+}
+
 /// A text field of a form, empty if missing.
 pub(crate) fn field(map: &QMap<QMapPair_QString_QVariant>, key: &str) -> String {
     map.get(&QString::from(key))
@@ -966,9 +1045,36 @@ fn error_text(book: &Book, account_id: &str, error: &EntryError) -> ErrorText {
 
 #[cfg(test)]
 mod tests {
-    use super::{form_object, notice_object};
+    use super::{column_choices_object, form_object, notice_object};
+    use crate::register_columns::{Column, Columns};
     use crate::transaction_entry::{EntryForm, RemovalNotice};
-    use crate::variant::read_back::{flag_of, keys, number_of, text_of};
+    use crate::variant::read_back::{elements, flag_of, keys, number_of, text_of};
+
+    /// The Columns menu reads these by name: the key, whether the column is
+    /// shown and whether it is always shown (US1.19).
+    #[test]
+    fn the_columns_menu_reads_back_every_column_with_its_state() {
+        let chosen = Columns::default()
+            .with(Column::Purpose, true)
+            .with(Column::Category, false);
+        let choices = elements(&column_choices_object(chosen)).expect("an array");
+        let keys_in_order: Vec<String> = choices
+            .iter()
+            .map(|choice| text_of(choice, "key"))
+            .collect();
+        let expected: Vec<&str> = Column::ALL.into_iter().map(Column::key).collect();
+        assert_eq!(keys_in_order, expected);
+        for (choice, column) in choices.iter().zip(Column::ALL) {
+            assert_eq!(keys(choice), ["fixed", "key", "shown"]);
+            assert_eq!(flag_of(choice, "fixed"), column.fixed());
+            assert_eq!(
+                flag_of(choice, "shown"),
+                chosen.shows(column),
+                "{}",
+                column.key()
+            );
+        }
+    }
 
     /// The pages read these by name (AGENTS.md §9.4): `deliveredName` next
     /// to the payee (D-375), and the notice before a removal.

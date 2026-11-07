@@ -1805,6 +1805,7 @@ mod tests {
                 "edited",
                 "fields",
                 "form",
+                "inside",
                 "kind",
                 "leftOut",
                 "matchAll",

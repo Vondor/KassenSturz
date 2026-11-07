@@ -378,6 +378,7 @@ fn a_login_is_set_up_with_the_backends_commands_and_removed_again() {
             connection: LoginConnection {
                 url: "https://fints.testbank.example/".to_owned(),
                 fints_version: Some(FintsVersion::V300),
+                ..Default::default()
             },
         }]
     );

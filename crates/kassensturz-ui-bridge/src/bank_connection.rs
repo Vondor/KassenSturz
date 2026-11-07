@@ -53,10 +53,10 @@ use std::thread;
 use kassensturz_bank::{
     AqBankingBank, Availability, Bank, BankAccount, BankAccountKind, BankCode, BankDialogs,
     BankError, BankQuestion, CustomerId, FINTS_REGISTRATION_KEY, FakeBank, FintsVersion, Iban,
-    KeychainPinStore, Login, LoginId, LoginKind, LoginSetup, MemoryPinStore, NoPinStore, Pin,
-    PinAsker, PinMode, PinSession, PinStore, QuestionLevel, RegistrationKey, SecondFactor, Setup,
-    Tan, TanRequest, fetch_linked, find_bank_account, names_account, remove_login, setup_for,
-    valid_tan_method,
+    KeychainPinStore, Login, LoginChange, LoginId, LoginKind, LoginSetup, MemoryPinStore,
+    NoPinStore, Pin, PinAsker, PinMode, PinSession, PinStore, QuestionLevel, RegistrationKey,
+    SecondFactor, Setup, Tan, TanRequest, fetch_linked, find_bank_account, names_account,
+    refresh_linked, remove_login, setup_for, valid_tan_method,
 };
 use kassensturz_core::{AccountId, BankLink, Date, ErrorParam, Report};
 use kassensturz_import::{EntryStatus, Limits, Statement};
@@ -716,6 +716,12 @@ pub struct LoginRow {
     /// The FinTS version (`300` or `220`) it uses; empty if not one of
     /// those. Changing the login starts from these (D-609).
     pub fints_version: &'static str,
+    /// The TAN method selected for the login, as text; empty if none
+    /// (D-617).
+    pub tan_method: String,
+    /// The name the bank gave that method, if its parameters say; the
+    /// bank's text, shown as plain text only (D-611).
+    pub tan_method_name: String,
 }
 
 /// The logins set up on this computer.
@@ -740,7 +746,18 @@ pub fn logins(connection: &mut Connection) -> Result<Vec<LoginRow>, BankError> {
                 })
                 .map(|iban| iban.grouped())
                 .unwrap_or_default();
+            // The method comes with the list: the login name is not read
+            // for it (D-617).
+            let tan_method = login.connection.tan_method;
+            let tan_method_name = login
+                .connection
+                .tan_method_name
+                .replace(['\t', '\n', '\r'], " ");
             LoginRow {
+                tan_method: tan_method
+                    .map(|number| number.to_string())
+                    .unwrap_or_default(),
+                tan_method_name,
                 id: login.id.to_string(),
                 bank: name.unwrap_or_else(|| login.bank.code().to_owned()),
                 bank_code: login.bank.code().to_owned(),
@@ -757,6 +774,141 @@ pub fn logins(connection: &mut Connection) -> Result<Vec<LoginRow>, BankError> {
             }
         })
         .collect())
+}
+
+/// One TAN method a login's bank offers, for the Change screen (D-617).
+/// The name is the bank's text: shown as plain text only (D-611).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MethodRow {
+    /// The number `setitanmode` takes, the FinTS version in front.
+    pub number: String,
+    /// The FinTS version of the bank's TAN segment.
+    pub version: String,
+    /// The name the bank gave it; empty if none.
+    pub name: String,
+}
+
+/// What the screen that changes a login shows besides its [`LoginRow`]
+/// (D-617).
+#[derive(Clone, PartialEq, Eq)]
+pub struct LoginDetailsRow {
+    /// The login name the bank gave. Read for this screen only (the narrow
+    /// exception of D-617 to threat T-19): it is never logged, reported or
+    /// put in an issue, and `Debug` hides it.
+    pub login_name: String,
+    /// The TAN method selected now, as text; empty if none.
+    pub tan_method: String,
+    /// The methods the bank offers.
+    pub methods: Vec<MethodRow>,
+}
+
+impl std::fmt::Debug for LoginDetailsRow {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoginDetailsRow")
+            .field("tan_method", &self.tan_method)
+            .field("methods", &self.methods.len())
+            .finish_non_exhaustive()
+    }
+}
+
+/// The login name, the selected TAN method and the offered methods of the
+/// login `id` (D-617).
+pub fn login_details(connection: &mut Connection, id: &str) -> Result<LoginDetailsRow, BankError> {
+    let details = connection.bank()?.login_details(&LoginId::new(id))?;
+    Ok(LoginDetailsRow {
+        login_name: details.login_name.clone(),
+        tan_method: details
+            .tan_method
+            .map(|method| method.to_string())
+            .unwrap_or_default(),
+        methods: details
+            .offered
+            .iter()
+            .filter(|choice| choice.version > 0)
+            .map(|choice| MethodRow {
+                number: choice.number.to_string(),
+                version: choice.version.to_string(),
+                name: choice.name.replace(['\t', '\n', '\r'], " "),
+            })
+            .collect(),
+    })
+}
+
+/// Changes the FinTS version and the TAN method of the login `id` in
+/// place (D-617): no new login, no PIN, no contact with the bank. An empty
+/// text leaves a part as it is, and so does one equal to what is set now.
+pub fn change_login(
+    connection: &mut Connection,
+    id: &str,
+    fints_version: &str,
+    tan_method_text: &str,
+) -> Result<(), BankError> {
+    let login = LoginId::new(id);
+    let bank = connection.bank()?;
+    let current = bank
+        .logins()?
+        .into_iter()
+        .find(|candidate| candidate.id == login)
+        .ok_or_else(|| BankError::UnknownLogin(login.clone()))?;
+    let version = match fints_version.trim() {
+        "" => None,
+        text => Some(FintsVersion::from_number(text).ok_or(BankError::SetupFailed { text: None })?),
+    }
+    .filter(|version| current.connection.fints_version != Some(*version));
+    let method = tan_method(tan_method_text).map_err(|()| BankError::SetupFailed { text: None })?;
+    let method = match method {
+        Some(number) if bank.login_details(&login)?.tan_method == Some(number) => None,
+        other => other,
+    };
+    if version.is_none() && method.is_none() {
+        return Ok(());
+    }
+    bank.change_login(
+        &login,
+        &LoginChange {
+            fints_version: version,
+            tan_method: method,
+        },
+    )
+}
+
+/// Asks the bank again for the accounts of the login `id`, so one that came
+/// later can be linked without setting the login up again (D-617). The
+/// result is shaped like a setup's, so the screens that link accounts take
+/// it the same way. The PIN is asked for like at a fetch.
+pub fn refresh_accounts(connection: &mut Connection, id: &str) -> Result<SetupDone, BankError> {
+    ensure_registered(connection)?;
+    let login = LoginId::new(id);
+    let rows = logins(connection)?;
+    let Connection {
+        bank,
+        pins,
+        screens,
+        ..
+    } = connection;
+    let bank = match bank {
+        Ok(bank) => bank.as_mut(),
+        Err(error) => return Err(error.clone()),
+    };
+    let known = bank
+        .logins()?
+        .into_iter()
+        .find(|candidate| candidate.id == login)
+        .ok_or_else(|| BankError::UnknownLogin(login.clone()))?;
+    let code = known.bank.clone();
+    let mut asker = AskForPins {
+        screens: screens.as_ref(),
+        logins: &rows,
+    };
+    let accounts = refresh_linked(bank, pins, &mut asker, &known)?;
+    Ok(SetupDone {
+        login: login.to_string(),
+        accounts: accounts
+            .into_iter()
+            .map(|account| found(account, &code))
+            .collect(),
+        old_login_left: false,
+    })
 }
 
 fn kind_key(kind: LoginKind) -> &'static str {
@@ -3297,6 +3449,25 @@ mod tests {
         assert_eq!(
             results(&done),
             vec!["failed bank.unreachable", "skipped earlier-failure"]
+        );
+    }
+
+    #[test]
+    fn linking_another_account_reads_the_accounts_and_a_missing_pin_counts_as_cancelled() {
+        let mut connection = fetch_connection(|_| {});
+        let done = refresh_accounts(&mut connection, "fake-login-1").expect("accounts");
+        assert_eq!(done.login, "fake-login-1");
+        assert_eq!(done.accounts.len(), 2);
+        assert!(!done.old_login_left);
+        // The PIN is gone and no screens can ask: the PIN dialog is cancelled
+        // instead of the page looping on a bank error.
+        connection
+            .pins
+            .forget(&LoginId::new("fake-login-1"))
+            .expect("forgotten");
+        assert_eq!(
+            refresh_accounts(&mut connection, "fake-login-1").err(),
+            Some(BankError::Aborted)
         );
     }
 

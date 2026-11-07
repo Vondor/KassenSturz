@@ -626,6 +626,15 @@ impl Bank for AqBankingBank {
                     // Key files (D-059) or something newer: not ours.
                     _ => return None,
                 };
+                let tan_method_name = user
+                    .selected_tan_method
+                    .and_then(|number| {
+                        user.offered_methods()
+                            .into_iter()
+                            .find(|choice| choice.number == number)
+                    })
+                    .map(|choice| choice.name)
+                    .unwrap_or_default();
                 Some(Login {
                     id: LoginId::new(user.unique_id.to_string()),
                     bank: BankCode::new(&user.country, &user.bank_code),
@@ -636,6 +645,8 @@ impl Bank for AqBankingBank {
                             .hbci_version
                             .as_deref()
                             .and_then(FintsVersion::from_number),
+                        tan_method_name,
+                        tan_method: user.selected_tan_method,
                     },
                 })
             })

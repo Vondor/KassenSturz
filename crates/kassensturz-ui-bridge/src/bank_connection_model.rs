@@ -23,8 +23,8 @@ use kassensturz_platform::SecretStorage;
 
 use crate::bank_connection::{
     self, Answer, Connection, Event, FetchOutcome, FetchRow, FoundAccount, ListedBankAccount,
-    LoginRow, Lookup, PinRequest, PinStorageChange, RegistrationRequest, SetupDone, SetupForm,
-    Status, Worker,
+    LoginDetailsRow, LoginRow, Lookup, PinRequest, PinStorageChange, RegistrationRequest,
+    SetupDone, SetupForm, Status, Worker,
 };
 use crate::errors::ErrorText;
 use crate::format::Locale;
@@ -121,6 +121,35 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "answerQuestion"]
         fn answer_question(self: &BankConnection, index: i32);
+
+        /// What the screen that changes the login `id` shows (D-617): an
+        /// object with `loginName` (for that screen's field only),
+        /// `tanMethod` (the number selected now, or empty) and `methods`, a
+        /// list of objects with `number`, `version` and `name`, or an error
+        /// object.
+        #[qinvokable]
+        #[cxx_name = "loginDetails"]
+        fn login_details(self: Pin<&mut BankConnection>, id: &QString) -> QVariant;
+
+        /// Changes the FinTS version (`300`, `220` or empty) and the TAN
+        /// method (a number or empty) of the login `id` in place (D-617).
+        /// An empty object, or an error object.
+        #[qinvokable]
+        #[cxx_name = "changeLogin"]
+        fn change_login(
+            self: Pin<&mut BankConnection>,
+            id: &QString,
+            fints_version: &QString,
+            tan_method: &QString,
+        ) -> QVariant;
+
+        /// Asks the bank again for the accounts of the login `id` (D-617).
+        /// An error object when it can't start, else an empty object; the
+        /// result comes with `setupFinished`, shaped like a setup's, so the
+        /// accounts are linked the same way.
+        #[qinvokable]
+        #[cxx_name = "refreshAccounts"]
+        fn refresh_accounts(self: Pin<&mut BankConnection>, id: &QString) -> QVariant;
 
         /// Removes the login `id` and its PIN (D-057). An empty object, or
         /// an error object.
@@ -648,6 +677,44 @@ impl qobject::BankConnection {
         }
     }
 
+    fn login_details(mut self: Pin<&mut Self>, id: &QString) -> QVariant {
+        let id = id.to_string();
+        match self
+            .as_mut()
+            .worker()
+            .run(move |connection| bank_connection::login_details(connection, &id))
+        {
+            Ok(details) => login_details_object(&details),
+            Err(error) => error_object(&bank_connection::error_text(&error)),
+        }
+    }
+
+    fn change_login(
+        mut self: Pin<&mut Self>,
+        id: &QString,
+        fints_version: &QString,
+        tan_method: &QString,
+    ) -> QVariant {
+        let (id, version, method) = (
+            id.to_string(),
+            fints_version.to_string(),
+            tan_method.to_string(),
+        );
+        done_object(self.as_mut().worker().run(move |connection| {
+            bank_connection::change_login(connection, &id, &version, &method)
+        }))
+    }
+
+    fn refresh_accounts(mut self: Pin<&mut Self>, id: &QString) -> QVariant {
+        let id = id.to_string();
+        let started = self.as_mut().worker().spawn(move |connection, notify| {
+            let result = bank_connection::refresh_accounts(connection, &id)
+                .map_err(|error| bank_connection::error_text(&error));
+            notify(Event::SetupDone(result));
+        });
+        self.started(started)
+    }
+
     fn remove_login(mut self: Pin<&mut Self>, id: &QString) -> QVariant {
         let id = id.to_string();
         done_object(
@@ -842,9 +909,29 @@ fn logins_object(rows: &[LoginRow]) -> QVariant {
                 ("iban", text(&row.iban)),
                 ("url", text(&row.url)),
                 ("fintsVersion", text(row.fints_version)),
+                ("tanMethod", text(&row.tan_method)),
+                ("tanMethodName", text(&row.tan_method_name)),
             ])
         })),
     )])
+}
+
+/// What the Change screen reads (D-617).
+fn login_details_object(details: &LoginDetailsRow) -> QVariant {
+    map([
+        ("loginName", text(&details.login_name)),
+        ("tanMethod", text(&details.tan_method)),
+        (
+            "methods",
+            list(details.methods.iter().map(|method| {
+                map([
+                    ("number", text(&method.number)),
+                    ("version", text(&method.version)),
+                    ("name", text(&method.name)),
+                ])
+            })),
+        ),
+    ])
 }
 
 fn lookup_object(lookup: &Lookup) -> QVariant {
@@ -1159,6 +1246,7 @@ mod tests {
     };
 
     use super::*;
+    use crate::bank_connection::MethodRow;
 
     fn object(value: &QVariant) -> QMap<QMapPair_QString_QVariant> {
         value
@@ -1274,6 +1362,8 @@ mod tests {
             iban: "DE89 3704 0044 0532 0130 00".to_owned(),
             url: "https://fints.testbank.example/".to_owned(),
             fints_version: "300",
+            tan_method: "7920".to_owned(),
+            tan_method_name: "Test app approval".to_owned(),
         }]);
         let rows = list_of(&logins, "logins");
         assert_eq!(rows.len(), 1);
@@ -1285,8 +1375,30 @@ mod tests {
             ("iban", "DE89 3704 0044 0532 0130 00"),
             ("url", "https://fints.testbank.example/"),
             ("fintsVersion", "300"),
+            ("tanMethod", "7920"),
+            ("tanMethodName", "Test app approval"),
         ] {
             assert_eq!(text_of(&rows[0], key), expected, "{key}");
+        }
+        let details = login_details_object(&LoginDetailsRow {
+            login_name: "made-up-login".to_owned(),
+            tan_method: "7920".to_owned(),
+            methods: vec![MethodRow {
+                number: "6912".to_owned(),
+                version: "6".to_owned(),
+                name: "Test TAN list".to_owned(),
+            }],
+        });
+        assert_eq!(text_of(&details, "loginName"), "made-up-login");
+        assert_eq!(text_of(&details, "tanMethod"), "7920");
+        let methods = list_of(&details, "methods");
+        assert_eq!(methods.len(), 1);
+        for (key, expected) in [
+            ("number", "6912"),
+            ("version", "6"),
+            ("name", "Test TAN list"),
+        ] {
+            assert_eq!(text_of(&methods[0], key), expected, "{key}");
         }
         assert_eq!(
             text_of(&done_object(Err(BankError::Busy)), "code"),

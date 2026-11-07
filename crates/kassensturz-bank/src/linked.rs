@@ -11,7 +11,7 @@
 use kassensturz_core::{BankLink, Date};
 use kassensturz_import::{Limits, Statement};
 
-use crate::backend::{Bank, BankAccount, Login};
+use crate::backend::{Bank, BankAccount, BankAccountKind, Login};
 use crate::error::BankError;
 use crate::pin::{Pin, PinAnswer, PinMode, PinSession};
 use crate::statement::statement;
@@ -246,6 +246,11 @@ pub fn fetch_linked(
     limits: &Limits,
 ) -> Result<Statement, BankError> {
     let (login, account) = find_bank_account(bank, link)?;
+    // A securities account holds no money transactions KassenSturz can
+    // read yet; its bank is not even contacted (M6-B190, D-624).
+    if account.kind == BankAccountKind::Securities {
+        return Err(BankError::SecuritiesAccount);
+    }
     let mut rejected = 0;
     loop {
         match bank.fetch(&account.id, fetch_start(link.last_fetched_on), pins) {

@@ -31,6 +31,8 @@ QtObject {
             return i18nContext.i18nc("@label an account at the bank, by its kind", "Savings account");
         case "credit-card":
             return i18nContext.i18nc("@label an account at the bank, by its kind", "Credit card");
+        case "securities":
+            return i18nContext.i18nc("@label an account at the bank, by its kind", "Securities account");
         default:
             return i18nContext.i18nc("@label an account at the bank without a name", "Account");
         }

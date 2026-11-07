@@ -453,6 +453,19 @@ pub(crate) fn allow_message_logs(data_dir: &Path, bank: &BankCode) -> io::Result
     if logs.is_file() {
         fs::remove_file(&logs)?;
     }
+    // AqBanking writes its message logs with the usual file mode, not
+    // 0600: the folder around them is closed to everyone else for the call.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let banks = data_dir
+            .join("backends")
+            .join("aqhbci")
+            .join("data")
+            .join("banks");
+        fs::create_dir_all(&banks)?;
+        fs::set_permissions(&banks, fs::Permissions::from_mode(0o700))?;
+    }
     Ok(())
 }
 
@@ -867,6 +880,15 @@ data {
         assert!(logs.is_file());
         allow_message_logs(&dir, &bank).unwrap();
         assert!(!logs.exists());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = fs::metadata(dir.join("backends/aqhbci/data/banks"))
+                .unwrap()
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o777, 0o700);
+        }
         // Nothing to take away is no error.
         allow_message_logs(&dir, &bank).unwrap();
         block_message_logs(&dir, &bank).unwrap();

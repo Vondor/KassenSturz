@@ -112,6 +112,14 @@ impl std::fmt::Debug for AqBankingBank {
 }
 
 impl AqBankingBank {
+    /// Removes the message logs AqBanking may have left below `folder`
+    /// (D-139) and returns how many files went; what the developer mode's
+    /// "Delete the log" does for the logs a crash can leave at level 3 of the
+    /// bank log (D-620).
+    pub fn remove_message_logs(folder: &Path) -> usize {
+        settings::delete_message_logs(folder).unwrap_or(0)
+    }
+
     /// Opens the backend with AqBanking's folder at `folder` (D-139),
     /// over the installed libraries (D-054) and the registration this
     /// build has ([`FINTS_REGISTRATION_KEY`]).
@@ -199,16 +207,23 @@ impl AqBankingBank {
     /// since it would keep the messages in plain text, the statements and
     /// the registration number among them (D-261, threat T-06). A log
     /// that can't be blocked stops the call before anything is sent.
-    fn before_contact(&self, session: &Session<Handler>, bank: &BankCode) -> Result<(), BankError> {
+    fn before_contact(
+        &self,
+        session: &Session<Handler>,
+        bank: &BankCode,
+        statements: bool,
+    ) -> Result<(), BankError> {
         self.require_registration(session)?;
-        // Level 3 of the bank log (D-620) needs the message log for the one
-        // call, to note the shape of the statement request; it is removed
-        // right after by `clean_logs`. Builds without `debug-log` never get
-        // here with the log allowed.
+        // Level 3 of the bank log (D-620) needs the message log for the
+        // statement fetch only, to note the shape of its request: never for
+        // setup, which carries the registration number (D-260), and never in
+        // a build without `debug-log`. `clean_logs` removes it right after.
         #[cfg(feature = "debug-log")]
-        if kassensturz_core::bank_log::is_segments() {
+        if statements && kassensturz_core::bank_log::is_segments() {
             return settings::allow_message_logs(&self.folder, bank).map_err(|_| BankError::Folder);
         }
+        #[cfg(not(feature = "debug-log"))]
+        let _ = statements;
         settings::block_message_logs(&self.folder, bank).map_err(|_| BankError::Folder)
     }
 
@@ -497,7 +512,7 @@ impl AqBankingBank {
             .find(|candidate| &candidate.id == login)
             .map(|candidate| candidate.bank)
             .ok_or_else(|| BankError::UnknownLogin(login.clone()))?;
-        self.before_contact(session, &bank)?;
+        self.before_contact(session, &bank, false)?;
         let pin = match pins.answer(login)? {
             PinAnswer::Known(pin) => Some(pin),
             PinAnswer::Ask => None,
@@ -702,7 +717,7 @@ impl Bank for AqBankingBank {
         {
             return Err(BankError::SetupFailed { text: None });
         }
-        self.before_contact(session, &setup.bank)?;
+        self.before_contact(session, &setup.bank, false)?;
         let pending = LoginId::pending();
         let pin = match pins.answer(&pending)? {
             PinAnswer::Known(pin) => Some(pin),
@@ -843,7 +858,7 @@ impl Bank for AqBankingBank {
             .find(|candidate| candidate.id == login)
             .map(|candidate| candidate.bank)
             .ok_or_else(|| BankError::UnknownLogin(login.clone()))?;
-        self.before_contact(session, &bank)?;
+        self.before_contact(session, &bank, true)?;
         let pin = match pins.answer(&login)? {
             PinAnswer::Known(pin) => Some(pin),
             PinAnswer::Ask => None,

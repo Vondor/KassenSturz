@@ -170,6 +170,8 @@ ColumnLayout {
             return i18nContext.i18nc("@option:check", "Show the legend");
         case "grouping":
             return i18nContext.i18nc("@label:listbox how the figures are grouped", "Group by");
+        case "average":
+            return i18nContext.i18nc("@label:listbox whether a chart shows the total spending or an average per month, quarter or year", "Show as");
         case "show_hidden":
             return i18nContext.i18nc("@option:check", "Show hidden categories");
         case "hide_note":
@@ -218,6 +220,14 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox a period", "This year");
         case "last-year":
             return i18nContext.i18nc("@item:inlistbox a period", "Last year");
+        case "total":
+            return i18nContext.i18nc("@item:inlistbox show spending as what it adds up to over the period", "Total");
+        case "per-month":
+            return i18nContext.i18nc("@item:inlistbox show spending as an average", "Average per month");
+        case "per-quarter":
+            return i18nContext.i18nc("@item:inlistbox show spending as an average", "Average per quarter");
+        case "per-year":
+            return i18nContext.i18nc("@item:inlistbox show spending as an average", "Average per year");
         case "previous_period":
             return i18nContext.i18nc("@item:inlistbox", "The period before");
         case "same_last_year":
@@ -338,7 +348,7 @@ ColumnLayout {
                 readonly property var modelData: panel.fieldByKey[key] ?? ({key: key, kind: ""})
 
                 visible: shown && (panel.only.length === 0 || panel.only.includes(modelData.key))
-                    && !(panel.hasColumns && ["categories", "series", "groups", "income_categories", "income_accounts", "expenses_categories", "expenses_accounts"].includes(modelData.key))
+                    && !(panel.hasColumns && ["categories", "series", "groups", "average", "income_categories", "income_accounts", "expenses_categories", "expenses_accounts"].includes(modelData.key))
                 active: visible
                 Kirigami.FormData.label: modelData.kind === "flag" ? "" : panel.fieldLabel(modelData.key)
                 Kirigami.FormData.labelAlignment: modelData.kind === "ids" || modelData.kind === "formula" || modelData.kind === "spec" ? Qt.AlignTop : Qt.AlignVCenter

@@ -75,7 +75,10 @@ pub(crate) fn period_of(range: Option<Range>, figure: Period) -> Result<Period, 
             }
             Words::ThisYear => Period::this_year(day),
             Words::LastYear => Period::last_year(day),
-            Words::Last12Months => Period::last_12_months(day),
+            // Counted back from the figure's last day, as every word is.
+            Words::Months { count, complete } => {
+                crate::Rolling::Months { count, complete }.period(day)
+            }
         },
     }
 }

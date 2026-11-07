@@ -183,6 +183,50 @@ fn spending_is_a_bar_pie_or_donut_with_the_datasets_own_rows() {
 }
 
 #[test]
+fn an_average_divides_every_amount_once_and_keeps_the_shares_of_the_total() {
+    // US1.13 (D-648): a third, so that the rows and the total round apart.
+    let book = book();
+    let data = spending(&book);
+    let average = kassensturz_report::Average {
+        per: kassensturz_report::Per::Month,
+        count: 3,
+        rounding: kassensturz_core::RoundingMode::HalfAwayFromZero,
+    };
+    for kind in [ChartKind::Bar, ChartKind::Pie, ChartKind::Donut] {
+        let exact = spending_by_category(&data, kind, &Words).expect("chart");
+        let chart = spending_by_category_as(&data, kind, &Words, Some(&average)).expect("chart");
+        let amounts: Vec<i64> = chart.series[0]
+            .points
+            .iter()
+            .map(|p| p.minor_units)
+            .collect();
+        assert_eq!(amounts, [53_333, 1_773, 411], "{kind:?}");
+        let labels: Vec<&str> = chart.series[0]
+            .points
+            .iter()
+            .map(|p| p.label.as_str())
+            .collect();
+        assert_eq!(labels, ["533,33 EUR", "17,73 EUR", "4,11 EUR"]);
+        // The total is a third of the exact total, not the sum of the rows
+        // (555,17).
+        assert_eq!(chart.total, "555,18 EUR");
+        assert_eq!(chart.table.columns, ["category", "per_month"]);
+        assert_eq!(chart.table.rows[0], ["Rent", "533,33 EUR"]);
+        // A slice is the same share of the whole as in the total.
+        assert_eq!(chart.slices.shares, exact.slices.shares);
+        assert_eq!(chart.categories, exact.categories);
+        if !kind.is_round() {
+            assert!(chart.ticks.iter().all(|tick| tick.minor_units <= 60_000));
+        }
+    }
+    // Without an average it is the chart it always was.
+    assert_eq!(
+        spending_by_category_as(&data, ChartKind::Donut, &Words, None),
+        spending_by_category(&data, ChartKind::Donut, &Words)
+    );
+}
+
+#[test]
 fn income_and_expenses_are_two_series_with_a_point_for_every_month() {
     let book = book();
     let data = monthly(&book);

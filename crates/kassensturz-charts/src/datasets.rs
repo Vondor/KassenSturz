@@ -5,8 +5,8 @@
 
 use kassensturz_core::{CurrencyCode, Money};
 use kassensturz_report::{
-    CATEGORY_OVER_TIME, CategoryOverTime, INCOME_EXPENSE_BY_MONTH, IncomeExpenseByMonth, Percent,
-    SPENDING_BY_CATEGORY, SpendingByCategory, TextFormat, TextTable,
+    Average, CATEGORY_OVER_TIME, CategoryOverTime, INCOME_EXPENSE_BY_MONTH, IncomeExpenseByMonth,
+    Per, Percent, SPENDING_BY_CATEGORY, SpendingByCategory, TextFormat, TextTable,
 };
 
 use crate::ticks::ticks;
@@ -56,14 +56,35 @@ pub(crate) fn extent(series: &[Series], stacked: bool) -> (i64, i64) {
 }
 
 /// The note about hidden categories, `None` when nothing is hidden. The
-/// largest hidden category is named; the screen writes the sentence.
-fn hidden_note(data: &SpendingByCategory, format: &impl TextFormat) -> Option<HiddenNote> {
+/// largest hidden category is named; the screen writes the sentence. The
+/// amount is the exact one or its `average`.
+fn hidden_note(
+    data: &SpendingByCategory,
+    format: &impl TextFormat,
+    average: Option<&Average>,
+) -> Option<HiddenNote> {
     let first = data.hidden.first()?;
     Some(HiddenNote {
         first: first.path.join(" › "),
         more: data.hidden.len() - 1,
-        total: format.amount(data.hidden_total),
+        total: format.amount(shown_as(data.hidden_total, average)),
     })
+}
+
+/// `money` as a chart shows it: the exact amount, or its average.
+fn shown_as(money: Money, average: Option<&Average>) -> Money {
+    average.map_or(money, |average| average.of(money))
+}
+
+/// The fixed name of the amount column of a spending table: `total`, or
+/// the average it shows (D-648), which the UI translates.
+fn amount_column(average: Option<&Average>) -> &'static str {
+    match average.map(|average| average.per) {
+        None => "total",
+        Some(Per::Month) => "per_month",
+        Some(Per::Quarter) => "per_quarter",
+        Some(Per::Year) => "per_year",
+    }
 }
 
 /// Spending by category as a bar, pie or donut chart. Every category is one
@@ -75,17 +96,39 @@ pub fn spending_by_category(
     kind: ChartKind,
     format: &impl TextFormat,
 ) -> Result<ChartModel, ChartError> {
+    spending_by_category_as(data, kind, format, None)
+}
+
+/// [`spending_by_category`] with every amount shown as its average
+/// (US1.13, D-648): each row, "Other", the total and the hidden amount are
+/// divided once from their exact amounts, never added up from rounded
+/// averages. The shares of a round chart come from the exact amounts, so
+/// they stay what the total shows; the table's amount column is named for
+/// the average (`per_month`, `per_quarter`, `per_year`).
+pub fn spending_by_category_as(
+    data: &SpendingByCategory,
+    kind: ChartKind,
+    format: &impl TextFormat,
+    average: Option<&Average>,
+) -> Result<ChartModel, ChartError> {
     if !matches!(kind, ChartKind::Bar | ChartKind::Pie | ChartKind::Donut) {
         return Err(ChartError::KindNotSupported(kind));
     }
-    let shown = if kind.is_round() {
-        round_rows(data, format)?
+    let mut shown = if kind.is_round() {
+        round_rows(data, format, average)?
     } else {
-        Shown::plain(data, format)
+        Shown::plain(data, format, average)
     };
+    // The points are drawn and the axis is marked in what the labels say;
+    // the shares were worked out before, from the exact amounts.
+    if let Some(average) = average {
+        for row in &mut shown.rows {
+            row.minor_units = average.of_minor(row.minor_units);
+        }
+    }
     let table = TextTable {
         currency: data.currency.to_string(),
-        columns: vec!["category", "total"],
+        columns: vec!["category", amount_column(average)],
         rows: shown
             .rows
             .iter()
@@ -121,10 +164,10 @@ pub fn spending_by_category(
         unsorted,
         series,
         ticks,
-        total: format.amount(data.total),
+        total: format.amount(shown_as(data.total, average)),
         table,
         slices: shown.slices,
-        hidden: hidden_note(data, format),
+        hidden: hidden_note(data, format, average),
         overlays: Vec::new(),
         extra_colors: Vec::new(),
         slice_colors: Vec::new(),
@@ -149,8 +192,13 @@ pub(crate) struct Shown {
 }
 
 impl Shown {
-    /// Every row of the dataset as it is.
-    fn plain(data: &SpendingByCategory, format: &impl TextFormat) -> Self {
+    /// Every row of the dataset with its exact amount, labelled with the
+    /// amount or its `average`.
+    fn plain(
+        data: &SpendingByCategory,
+        format: &impl TextFormat,
+        average: Option<&Average>,
+    ) -> Self {
         let rows = data
             .rows
             .iter()
@@ -161,7 +209,7 @@ impl Shown {
                     row.path.join(" › ")
                 },
                 minor_units: row.total.minor_units(),
-                label: format.amount(row.total),
+                label: format.amount(shown_as(row.total, average)),
                 unsorted: row.is_unsorted(),
             })
             .collect();
@@ -173,10 +221,17 @@ impl Shown {
 }
 
 /// The rows of a pie, donut or ring of a spending result (D-291).
-fn round_rows(data: &SpendingByCategory, format: &impl TextFormat) -> Result<Shown, ChartError> {
-    let plain = Shown::plain(data, format);
+fn round_rows(
+    data: &SpendingByCategory,
+    format: &impl TextFormat,
+    average: Option<&Average>,
+) -> Result<Shown, ChartError> {
+    let plain = Shown::plain(data, format, average);
     round_slices(plain.rows, format, |minor_units| {
-        format.amount(Money::from_minor_units(minor_units, data.currency))
+        format.amount(shown_as(
+            Money::from_minor_units(minor_units, data.currency),
+            average,
+        ))
     })
 }
 

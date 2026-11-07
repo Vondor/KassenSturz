@@ -381,6 +381,7 @@ mod tests {
             order,
             [
                 "grouping",
+                "average",
                 "categories",
                 "accounts",
                 "title",
@@ -404,14 +405,23 @@ mod tests {
             .map(|w| w.value::<QString>().expect("text").to_string())
             .collect();
         assert_eq!(words, ["category", "top_level_category", "groups"]);
-        assert_eq!(text_of(&fields[1], "kind"), "ids");
-        assert_eq!(text_of(&fields[1], "key"), "categories");
-        // The accounts it counts on its own (M6c.7).
+        // The total or an average (US1.13, D-648), the total at first.
+        assert_eq!(text_of(&fields[1], "key"), "average");
+        assert_eq!(text_of(&fields[1], "kind"), "choice");
+        assert_eq!(text_of(&fields[1], "word"), "total");
+        let words: Vec<String> = list_of(&fields[1], "words")
+            .iter()
+            .map(|w| w.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(words, ["total", "per-month", "per-quarter", "per-year"]);
         assert_eq!(text_of(&fields[2], "kind"), "ids");
-        assert_eq!(text_of(&fields[2], "key"), "accounts");
-        assert_eq!(text_of(&fields[3], "kind"), "text");
-        assert_eq!(text_of(&fields[4], "kind"), "flag");
-        assert!(flag_of(&fields[4], "flag"));
+        assert_eq!(text_of(&fields[2], "key"), "categories");
+        // The accounts it counts on its own (M6c.7).
+        assert_eq!(text_of(&fields[3], "kind"), "ids");
+        assert_eq!(text_of(&fields[3], "key"), "accounts");
+        assert_eq!(text_of(&fields[4], "kind"), "text");
+        assert_eq!(text_of(&fields[5], "kind"), "flag");
+        assert!(flag_of(&fields[5], "flag"));
         let preview = object_of(&view, "preview");
         assert_eq!(
             keys(&preview),
@@ -461,6 +471,7 @@ mod tests {
             order,
             [
                 "grouping",
+                "average",
                 "groups",
                 "categories",
                 "accounts",
@@ -470,8 +481,8 @@ mod tests {
             ]
         );
         let fields = list_of(&view, "fields");
-        assert_eq!(text_of(&fields[1], "kind"), "ids");
-        let chosen: Vec<String> = list_of(&fields[1], "ids")
+        assert_eq!(text_of(&fields[2], "kind"), "ids");
+        let chosen: Vec<String> = list_of(&fields[2], "ids")
             .iter()
             .map(|id| id.value::<QString>().expect("text").to_string())
             .collect();

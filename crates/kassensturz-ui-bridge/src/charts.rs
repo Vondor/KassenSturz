@@ -13,12 +13,13 @@ use kassensturz_charts::{
     BalancesBy, ChartError, ChartKind, ChartModel, ChartProvider, CustomError, Prepared,
     account_balances as balances_chart, cash_flow_by_month as cash_flow_chart, category_over_time,
     income_expense_by_month, net_worth_over_time as net_worth_chart, spending_by_category,
+    spending_by_category_as,
 };
 use kassensturz_core::{CurrencyCode, Date, ErrorReport, GroupMember, Money, Report};
 use kassensturz_report::{
-    ACCOUNT_BALANCES, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, Column, Filter,
-    INCOME_EXPENSE_BY_MONTH, Level, NET_WORTH_OVER_TIME, Overlap, Percent, Period, ReportError,
-    SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat,
+    ACCOUNT_BALANCES, Average, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, Column, Filter,
+    INCOME_EXPENSE_BY_MONTH, Level, NET_WORTH_OVER_TIME, Overlap, Per, Percent, Period,
+    ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat,
     account_balances as balances_dataset, cash_flow_by_month as cash_flow_dataset,
     category_over_time as over_time_dataset, columns_over_time, columns_span, columns_spending,
     income_expense_by_month as monthly_dataset, income_expense_by_series,
@@ -412,10 +413,21 @@ pub fn charts(
         show_hidden: request.show_hidden,
         overlap,
     };
+    // Spending as an average per month, quarter or year (US1.13, D-648):
+    // counted up to today, divided in the book's rounding mode.
+    let average = match Per::read(&request.scope.average) {
+        Some(per) if request.dataset == SPENDING_BY_CATEGORY => Some(Average::new(
+            per,
+            period,
+            locale.today(),
+            book.rounding_mode().map_err(ReportError::Store)?,
+        )?),
+        _ => None,
+    };
     let models = match request.dataset.as_str() {
         SPENDING_BY_CATEGORY => spending_dataset(&source, period, &filter, level, &shown)?
             .iter()
-            .map(|data| spending_by_category(data, kind, &text))
+            .map(|data| spending_by_category_as(data, kind, &text, average.as_ref()))
             .collect::<Result<Vec<_>, _>>()?,
         CATEGORY_OVER_TIME => over_time_dataset(&source, period, &filter, &series, overlap)?
             .iter()

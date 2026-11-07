@@ -26,7 +26,14 @@ pub(crate) enum Words {
     LastQuarter,
     ThisYear,
     LastYear,
-    Last12Months,
+    /// `"last N months"` (the figure's month and the N-1 before it, so
+    /// `"last 12 months"` as before) or `"last N complete months"` (the N
+    /// whole months before the figure's month), N from 1 to
+    /// [`crate::MAX_ROLLING_MONTHS`] (US1.13, D-649; the words of D-644).
+    Months {
+        count: u16,
+        complete: bool,
+    },
 }
 
 impl Words {
@@ -43,9 +50,26 @@ impl Words {
             "last quarter" => Self::LastQuarter,
             "this year" => Self::ThisYear,
             "last year" => Self::LastYear,
-            "last 12 months" => Self::Last12Months,
-            _ => return None,
+            _ => return Self::months(&words),
         })
+    }
+
+    /// `last N months` or `last N complete months`, N written without a
+    /// leading zero, so each period is written one way.
+    fn months(words: &str) -> Option<Self> {
+        let rest = words.strip_prefix("last ")?;
+        let (number, complete) = if let Some(number) = rest.strip_suffix(" complete months") {
+            (number, true)
+        } else {
+            (rest.strip_suffix(" months")?, false)
+        };
+        if number.starts_with('0') || !number.bytes().all(|byte| byte.is_ascii_digit()) {
+            return None;
+        }
+        let count: u16 = number.parse().ok()?;
+        (1..=crate::MAX_ROLLING_MONTHS)
+            .contains(&count)
+            .then_some(Self::Months { count, complete })
     }
 }
 

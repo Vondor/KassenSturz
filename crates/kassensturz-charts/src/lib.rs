@@ -24,7 +24,9 @@ mod provider;
 mod ticks;
 
 pub use custom::{CustomChart, CustomError, MAX_ROWS, MAX_SERIES, custom_chart};
-pub use datasets::{category_over_time, income_expense_by_month, spending_by_category};
+pub use datasets::{
+    category_over_time, income_expense_by_month, spending_by_category, spending_by_category_as,
+};
 pub use error::ChartError;
 pub use financial::{BalancesBy, account_balances, cash_flow_by_month, net_worth_over_time};
 pub use model::{

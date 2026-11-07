@@ -216,8 +216,11 @@ impl AqBankingBank {
         self.require_registration(session)?;
         // Level 3 of the bank log (D-620) needs the message log for the
         // statement fetch only, to note the shape of its request: never for
-        // setup, which carries the registration number (D-260), and never in
-        // a build without `debug-log`. `clean_logs` removes it right after.
+        // setup and the other calls, and never in a build without
+        // `debug-log`. The fetch's dialog still carries the registration
+        // number (HKVVB) and the PIN segment, so both are on disk, in a
+        // folder closed to others, until `clean_logs` removes the log right
+        // after: a deliberate exception to D-260 for the person's own tries.
         #[cfg(feature = "debug-log")]
         if statements && kassensturz_core::bank_log::is_segments() {
             return settings::allow_message_logs(&self.folder, bank).map_err(|_| BankError::Folder);

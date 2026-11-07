@@ -201,6 +201,14 @@ impl AqBankingBank {
     /// that can't be blocked stops the call before anything is sent.
     fn before_contact(&self, session: &Session<Handler>, bank: &BankCode) -> Result<(), BankError> {
         self.require_registration(session)?;
+        // Level 3 of the bank log (D-620) needs the message log for the one
+        // call, to note the shape of the statement request; it is removed
+        // right after by `clean_logs`. Builds without `debug-log` never get
+        // here with the log allowed.
+        #[cfg(feature = "debug-log")]
+        if kassensturz_core::bank_log::is_segments() {
+            return settings::allow_message_logs(&self.folder, bank).map_err(|_| BankError::Folder);
+        }
         settings::block_message_logs(&self.folder, bank).map_err(|_| BankError::Folder)
     }
 
@@ -208,6 +216,20 @@ impl AqBankingBank {
     /// folder that can't be cleaned isn't an error of the call that ran:
     /// the next call tries again.
     fn clean_logs(&self) {
+        // Level 3 of the bank log (D-620): the shape of the statement
+        // request and the TAN segment, read before the logs go.
+        #[cfg(feature = "debug-log")]
+        if kassensturz_core::bank_log::is_segments() {
+            for (index, segment) in settings::message_log_segments(&self.folder)
+                .iter()
+                .enumerate()
+            {
+                kassensturz_core::bank_log::note_segment(
+                    u32::try_from(index).unwrap_or(u32::MAX),
+                    segment,
+                );
+            }
+        }
         let removed = settings::delete_message_logs(&self.folder);
         // The bank log (D-603) notes whether the block of D-261 held: 1 when
         // AqBanking left no message log, 0 when it did or the folder can't

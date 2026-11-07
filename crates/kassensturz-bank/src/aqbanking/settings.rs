@@ -432,6 +432,106 @@ pub(crate) fn block_message_logs(data_dir: &Path, bank: &BankCode) -> io::Result
     Ok(())
 }
 
+/// Takes away the block of [`block_message_logs`] for `bank`, for the one
+/// call of level 3 of the bank log (D-620): the plain file `logs` goes, and
+/// AqBanking makes its folder again. The next call that doesn't run at level
+/// 3 blocks it anew, and [`delete_message_logs`] removes what was written.
+#[cfg(feature = "debug-log")]
+pub(crate) fn allow_message_logs(data_dir: &Path, bank: &BankCode) -> io::Result<()> {
+    let plain = |text: &str| !text.is_empty() && text.bytes().all(|b| b.is_ascii_alphanumeric());
+    if !plain(bank.country()) || !plain(bank.code()) {
+        return Err(io::ErrorKind::InvalidInput.into());
+    }
+    let logs = data_dir
+        .join("backends")
+        .join("aqhbci")
+        .join("data")
+        .join("banks")
+        .join(bank.country().to_ascii_lowercase())
+        .join(bank.code())
+        .join("logs");
+    if logs.is_file() {
+        fs::remove_file(&logs)?;
+    }
+    Ok(())
+}
+
+/// The statement-request and TAN segments (`HKCAZ`, `HKKAZ`, `HKTAN`) in the
+/// message logs below AqBanking's bank data, oldest first, at most the last
+/// [`MAX_SEGMENTS`] of them, as plain text. Only for the shape that level 3
+/// of the bank log notes (D-620), which `shape_segment` makes of each before
+/// it is written anywhere; the logs themselves are removed right after by
+/// [`delete_message_logs`].
+#[cfg(feature = "debug-log")]
+pub(crate) fn message_log_segments(data_dir: &Path) -> Vec<String> {
+    let banks = data_dir
+        .join("backends")
+        .join("aqhbci")
+        .join("data")
+        .join("banks");
+    let mut files = Vec::new();
+    collect_log_files(&banks, false, &mut files);
+    files.sort();
+    let mut segments = Vec::new();
+    for file in files {
+        let Ok(bytes) = fs::read(&file) else { continue };
+        let text = String::from_utf8_lossy(&bytes);
+        segments.extend(
+            split_segments(&text)
+                .filter(|segment| kassensturz_core::bank_log::is_noted_segment(segment)),
+        );
+    }
+    let skip = segments.len().saturating_sub(MAX_SEGMENTS);
+    segments.split_off(skip)
+}
+
+/// How many segments [`message_log_segments`] returns at most.
+#[cfg(feature = "debug-log")]
+const MAX_SEGMENTS: usize = 40;
+
+/// The files in the `logs` folders below `folder`.
+#[cfg(feature = "debug-log")]
+fn collect_log_files(folder: &Path, in_logs: bool, files: &mut Vec<std::path::PathBuf>) {
+    let Ok(entries) = fs::read_dir(folder) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            let logs = in_logs || path.file_name().is_some_and(|name| name == "logs");
+            collect_log_files(&path, logs, files);
+        } else if in_logs {
+            files.push(path);
+        }
+    }
+}
+
+/// The segments of a FinTS message text: cut at every `'` that is not
+/// escaped by `?`, white space at the start of a piece dropped.
+#[cfg(feature = "debug-log")]
+fn split_segments(text: &str) -> impl Iterator<Item = String> + '_ {
+    let mut pieces = Vec::new();
+    let mut current = String::new();
+    let mut escaped = false;
+    for c in text.chars() {
+        if escaped {
+            current.push(c);
+            escaped = false;
+        } else if c == '?' {
+            current.push(c);
+            escaped = true;
+        } else if c == '\'' {
+            pieces.push(std::mem::take(&mut current));
+        } else {
+            current.push(c);
+        }
+    }
+    pieces.push(current);
+    pieces
+        .into_iter()
+        .map(|piece| piece.trim_start().to_owned())
+}
+
 fn remove_logs_below(folder: &Path, removed: &mut usize) -> io::Result<()> {
     for entry in fs::read_dir(folder)? {
         let path = entry?.path();
@@ -731,5 +831,46 @@ data {
             assert!(block_message_logs(&data_dir, &code).is_err(), "{code:?}");
         }
         assert!(!data_dir.exists());
+    }
+
+    #[cfg(feature = "debug-log")]
+    #[test]
+    fn the_segments_come_out_of_the_message_logs_and_only_the_wanted_ones() {
+        let dir = std::env::temp_dir().join(format!("ks-seg-{}", std::process::id()));
+        let logs = dir.join("backends/aqhbci/data/banks/de/12345678/logs");
+        fs::create_dir_all(&logs).unwrap();
+        // Made-up message text.
+        fs::write(
+            logs.join("a.log"),
+            "HNHBK:1:3+000+300'HNSHK:2:4+PIN:2'HKCAZ:3:1+DE00:XX+urn?:x+N+20260101'\nHKTAN:4:7+4+HKCAZ?'x'HNSHA:5:2+1+1234'",
+        )
+        .unwrap();
+        let segments = message_log_segments(&dir);
+        assert_eq!(
+            segments,
+            [
+                "HKCAZ:3:1+DE00:XX+urn?:x+N+20260101",
+                "HKTAN:4:7+4+HKCAZ?'x"
+            ]
+        );
+        fs::remove_dir_all(&dir).unwrap();
+        assert!(message_log_segments(&dir).is_empty());
+    }
+
+    #[cfg(feature = "debug-log")]
+    #[test]
+    fn level_three_takes_the_block_away_and_the_next_call_puts_it_back() {
+        let dir = std::env::temp_dir().join(format!("ks-allow-{}", std::process::id()));
+        let bank = BankCode::new("DE", "12345678");
+        block_message_logs(&dir, &bank).unwrap();
+        let logs = dir.join("backends/aqhbci/data/banks/de/12345678/logs");
+        assert!(logs.is_file());
+        allow_message_logs(&dir, &bank).unwrap();
+        assert!(!logs.exists());
+        // Nothing to take away is no error.
+        allow_message_logs(&dir, &bank).unwrap();
+        block_message_logs(&dir, &bank).unwrap();
+        assert!(logs.is_file());
+        fs::remove_dir_all(&dir).unwrap();
     }
 }

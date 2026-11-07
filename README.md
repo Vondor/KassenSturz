@@ -163,6 +163,8 @@ flatpak run --env=KASSENSTURZ_BANK_LOG=1 io.github.vondor.KassenSturz
 
 The log `bank-log/bank-log.jsonl` (next to the debug log's folder) holds only the time, which step a bank connection reached (setup, fetch, PIN, TAN, bank question, registration number asked and answered, whether AqBanking left a message log), an error code and a small count; for a refusal also the bank's FinTS return code (e.g. 9931), only if it is on a fixed list of public codes (D-607). It never holds the registration number, PIN, TAN, login name, bank name, IBAN, amounts or text from the bank. To report a problem, send that file.
 
+With `KASSENSTURZ_BANK_LOG=2` (the same ways of starting) the log also holds the bank's own reply texts for those public return codes (D-619), for working out why a bank refuses. Each text is cut down to words: any word with a digit or an `@` and any very long word is replaced by `#`, everything but letters and simple punctuation is dropped, and at most 160 characters are kept. Look at the file before you send it; use level 1 when in doubt.
+
 ## For AI agents
 
 Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and working rules.

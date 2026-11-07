@@ -293,7 +293,7 @@ Kirigami.ScrollablePage {
         // Step 2: what this bank needs.
         Kirigami.FormLayout {
             Layout.fillWidth: true
-            visible: page.step === "details" || page.step === "connecting"
+            visible: (page.step === "details" || page.step === "connecting") && page.refreshLogin === ""
             enabled: page.step === "details"
 
             Controls.Label {

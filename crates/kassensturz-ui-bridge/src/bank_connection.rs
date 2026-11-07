@@ -56,7 +56,7 @@ use kassensturz_bank::{
     KeychainPinStore, Login, LoginChange, LoginId, LoginKind, LoginSetup, MemoryPinStore,
     NoPinStore, Pin, PinAsker, PinMode, PinSession, PinStore, QuestionLevel, RegistrationKey,
     SecondFactor, Setup, Tan, TanRequest, fetch_linked, find_bank_account, names_account,
-    remove_login, setup_for, valid_tan_method,
+    refresh_linked, remove_login, setup_for, valid_tan_method,
 };
 use kassensturz_core::{AccountId, BankLink, Date, ErrorParam, Report};
 use kassensturz_import::{EntryStatus, Limits, Statement};
@@ -746,20 +746,13 @@ pub fn logins(connection: &mut Connection) -> Result<Vec<LoginRow>, BankError> {
                 })
                 .map(|iban| iban.grouped())
                 .unwrap_or_default();
-            // The login name inside the details is not used here.
-            let details = bank.login_details(&login.id).ok();
-            let tan_method = details.as_ref().and_then(|details| details.tan_method);
-            let tan_method_name = details
-                .as_ref()
-                .zip(tan_method)
-                .and_then(|(details, number)| {
-                    details
-                        .offered
-                        .iter()
-                        .find(|choice| choice.number == number)
-                        .map(|choice| choice.name.replace(['\t', '\n', '\r'], " "))
-                })
-                .unwrap_or_default();
+            // The method comes with the list: the login name is not read
+            // for it (D-617).
+            let tan_method = login.connection.tan_method;
+            let tan_method_name = login
+                .connection
+                .tan_method_name
+                .replace(['\t', '\n', '\r'], " ");
             LoginRow {
                 tan_method: tan_method
                     .map(|number| number.to_string())
@@ -886,18 +879,28 @@ pub fn change_login(
 pub fn refresh_accounts(connection: &mut Connection, id: &str) -> Result<SetupDone, BankError> {
     ensure_registered(connection)?;
     let login = LoginId::new(id);
-    let Connection { bank, pins, .. } = connection;
+    let rows = logins(connection)?;
+    let Connection {
+        bank,
+        pins,
+        screens,
+        ..
+    } = connection;
     let bank = match bank {
         Ok(bank) => bank.as_mut(),
         Err(error) => return Err(error.clone()),
     };
-    let code = bank
+    let known = bank
         .logins()?
         .into_iter()
         .find(|candidate| candidate.id == login)
-        .map(|candidate| candidate.bank)
         .ok_or_else(|| BankError::UnknownLogin(login.clone()))?;
-    let accounts = bank.refresh_accounts(&login, pins)?;
+    let code = known.bank.clone();
+    let mut asker = AskForPins {
+        screens: screens.as_ref(),
+        logins: &rows,
+    };
+    let accounts = refresh_linked(bank, pins, &mut asker, &known)?;
     Ok(SetupDone {
         login: login.to_string(),
         accounts: accounts
@@ -3446,6 +3449,25 @@ mod tests {
         assert_eq!(
             results(&done),
             vec!["failed bank.unreachable", "skipped earlier-failure"]
+        );
+    }
+
+    #[test]
+    fn linking_another_account_reads_the_accounts_and_a_missing_pin_counts_as_cancelled() {
+        let mut connection = fetch_connection(|_| {});
+        let done = refresh_accounts(&mut connection, "fake-login-1").expect("accounts");
+        assert_eq!(done.login, "fake-login-1");
+        assert_eq!(done.accounts.len(), 2);
+        assert!(!done.old_login_left);
+        // The PIN is gone and no screens can ask: the PIN dialog is cancelled
+        // instead of the page looping on a bank error.
+        connection
+            .pins
+            .forget(&LoginId::new("fake-login-1"))
+            .expect("forgotten");
+        assert_eq!(
+            refresh_accounts(&mut connection, "fake-login-1").err(),
+            Some(BankError::Aborted)
         );
     }
 

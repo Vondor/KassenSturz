@@ -832,7 +832,9 @@ impl ChatSession {
                 (prompt::data_json(&output.value), None)
             }
             Err(error) => {
-                let report = error.report();
+                // The code of the cause, with the list and place of the
+                // item it came from, so one answer names both (M6-B191).
+                let report = error.model_report();
                 if view_refused {
                     self.view_refusals += 1;
                     if self.view_refusals > MAX_VIEW_CORRECTIONS && self.chart_failed.is_none() {
@@ -1065,6 +1067,18 @@ copied from list_categories.";
 const CATEGORY_ID_HINT: &str = "category_id and parent_id take the ID copied from \
 list_categories, not the name of the category.";
 
+/// What the model is told when a name is taken (M6-B191): the name of a new
+/// Rule must be free after the call's own deletions and renames.
+const NAME_TAKEN_HINT: &str = "Names must be new among their neighbours, ignoring capitals. \
+To replace a Rule by a new one of the same name, delete the old one with delete_rules in the \
+same call; to rename one, use edit_rules.";
+
+/// What the model is told when it wanted to rewrite conditions it cannot see
+/// in full (M6-B191).
+const CONDITIONS_HIDDEN_HINT: &str = "This Rule has conditions you cannot write (such as an \
+IBAN). Leave conditions out of this edit_rules item to keep them, or delete the Rule and make \
+a new one.";
+
 /// What the model is told when a call to `propose_changes` failed.
 const NOT_PREPARED_HINT: &str = "Nothing was prepared. Do not tell the user that a change is \
 prepared. Fix the call and call propose_changes again, or say plainly that it did not work.";
@@ -1121,6 +1135,14 @@ fn error_json(report: &ErrorReport, prepares: bool) -> Value {
             }
             _ => {}
         }
+    }
+    if report.code == "ai-tools.name-taken" {
+        hints.push(NAME_TAKEN_HINT);
+    }
+    if report.code == "ai-tools.not-changeable"
+        && report.param("reason") == Some(&ErrorParam::Keyword("conditions-hidden"))
+    {
+        hints.push(CONDITIONS_HIDDEN_HINT);
     }
     if wrong_id {
         hints.push(ID_HINT);
@@ -1322,6 +1344,30 @@ mod tests {
         assert!(both.contains(NEW_CATEGORY_HINT) && both.contains(NOT_PREPARED_HINT));
         let other = ToolError::BadArgument { argument: "from" }.report();
         assert_eq!(error_json(&other, true)["hint"], json!(NOT_PREPARED_HINT));
+    }
+
+    #[test]
+    fn a_refused_item_is_named_with_its_list_its_place_and_a_hint_that_helps() {
+        // The third of `new_rules`, whose name is taken (M6-B191).
+        let report = ToolError::NameTaken.at("new_rules", 2).model_report();
+        let answer = error_json(&report, true);
+        assert_eq!(answer["error"], json!("ai-tools.name-taken"));
+        assert_eq!(answer["list"], json!("new_rules"));
+        assert_eq!(answer["item"], json!(3));
+        let hint = answer["hint"].as_str().unwrap();
+        assert!(hint.contains(NAME_TAKEN_HINT) && hint.contains(NOT_PREPARED_HINT));
+        // A Rule with conditions the model can't write says which and why.
+        let report = ToolError::NotChangeable {
+            argument: "conditions",
+            reason: "conditions-hidden",
+        }
+        .at("edit_rules", 0)
+        .model_report();
+        let answer = error_json(&report, false);
+        assert_eq!(answer["argument"], json!("conditions"));
+        assert_eq!(answer["reason"], json!("conditions-hidden"));
+        assert_eq!(answer["item"], json!(1));
+        assert_eq!(answer["hint"], json!(CONDITIONS_HIDDEN_HINT));
     }
 
     #[test]

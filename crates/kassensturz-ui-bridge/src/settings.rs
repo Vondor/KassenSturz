@@ -51,6 +51,10 @@ const LAST_BOOK: &str = "LastBook";
 /// The group of the settings about bank connections.
 const BANK: &str = "Bank";
 
+/// The group that keeps, for each account by its ID, the columns of its
+/// register (US1.19, D-657).
+const REGISTER_COLUMNS: &str = "RegisterColumns";
+
 /// Where saved PINs go (D-163).
 const PIN_STORAGE: &str = "PinStorage";
 
@@ -139,6 +143,23 @@ impl Settings {
         self.set_text(BANK, FETCH_GAP, choice)
     }
 
+    /// The columns the user chose for the register of the account with
+    /// `account_id`, as `Columns::text` keeps them; empty when none were
+    /// chosen, which reads as the default columns.
+    pub fn register_columns(&self, account_id: &str) -> String {
+        if !is_account_id(account_id) {
+            return String::new();
+        }
+        self.text(REGISTER_COLUMNS, account_id)
+    }
+
+    /// Keeps the columns of that account's register. Returns whether they
+    /// were saved; nothing is kept for text that is not an account's ID,
+    /// since it would name a group's key by accident.
+    pub fn set_register_columns(&self, account_id: &str, columns: &str) -> bool {
+        is_account_id(account_id) && self.set_text(REGISTER_COLUMNS, account_id, columns)
+    }
+
     /// The window's size and place as `window_state` keeps them; empty when
     /// nothing is kept.
     pub fn window_geometry(&self) -> String {
@@ -196,6 +217,16 @@ impl Settings {
             &QString::from(value),
         )
     }
+}
+
+/// Whether `text` could be an account's ID: letters, digits and dashes
+/// only, so it can be the key of a setting.
+fn is_account_id(text: &str) -> bool {
+    !text.is_empty()
+        && text.len() <= 64
+        && text
+            .chars()
+            .all(|letter| letter.is_ascii_hexdigit() || letter == '-')
 }
 
 #[cfg(test)]
@@ -267,5 +298,27 @@ mod tests {
             "{written}"
         );
         assert_eq!(settings.last_book(), Some(book));
+    }
+
+    #[test]
+    fn keeps_the_register_columns_of_each_account_apart() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        let (first, second) = (
+            "0192f3a0-0000-7000-8000-000000000001",
+            "0192f3a0-0000-7000-8000-000000000002",
+        );
+        assert_eq!(settings.register_columns(first), "");
+        assert!(settings.set_register_columns(first, "date,other-party,amount,purpose"));
+        assert_eq!(
+            Settings::at(&file).register_columns(first),
+            "date,other-party,amount,purpose"
+        );
+        assert_eq!(settings.register_columns(second), "");
+        // Text that is no account's ID is not kept.
+        assert!(!settings.set_register_columns("a]\n[Books", "date"));
+        assert_eq!(settings.register_columns("a]\n[Books"), "");
+        assert_eq!(settings.last_book(), None);
     }
 }

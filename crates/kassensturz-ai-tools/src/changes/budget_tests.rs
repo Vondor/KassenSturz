@@ -96,7 +96,7 @@ fn propose(book: &Book, arguments: &Value) -> Result<Proposal, ToolError> {
 }
 
 fn code(result: Result<Proposal, ToolError>) -> String {
-    match result {
+    match result.map_err(ToolError::without_item) {
         Ok(_) => "prepared".into(),
         Err(ToolError::BadArgument { argument }) => format!("bad-argument {argument}"),
         Err(ToolError::NotAllowed { argument }) => format!("not-allowed {argument}"),

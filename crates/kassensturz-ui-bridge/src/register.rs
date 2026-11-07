@@ -13,6 +13,7 @@ use kassensturz_core::{AccountId, AccountKind, CurrencyCode, Date, Money, Transa
 use kassensturz_store::{Book, StoreError, TransactionOutline};
 
 use crate::format::{AmountFormat, Locale};
+use crate::register_columns::{Column, Columns};
 
 /// Writes amounts of one currency in the user's regional format.
 pub struct AmountWriter<'a, L> {
@@ -77,6 +78,11 @@ pub struct RegisterView {
     pub balance: Shown,
     /// Whether the balance is shown as "You owe" (D-067).
     pub owes: bool,
+    /// Whether the rows say what the account held after each entry. They do
+    /// so only in date order and only while the column is chosen: in any
+    /// other order the figure beside an entry would read as if it were the
+    /// one before or after its neighbour (US1.18, D-656).
+    pub balance_shown: bool,
     /// Its transactions, in the order asked for ([`Sort`]).
     pub rows: Vec<RegisterRow>,
 }
@@ -108,6 +114,16 @@ pub struct RegisterRow {
     pub owes: bool,
     /// What the user noted about it; may be empty.
     pub note: String,
+    /// The other party's IBAN, or whatever account number the bank gave,
+    /// exactly as delivered. Filled only while its column is chosen
+    /// (D-657); empty for a transaction typed in by hand.
+    pub other_party_iban: String,
+    /// What the payment came with, on one line. Filled only while its
+    /// column is chosen.
+    pub purpose: String,
+    /// The day the money counts from or until, as the user's locale writes
+    /// dates. Filled only while its column is chosen.
+    pub value_date: String,
 }
 
 impl RegisterRow {
@@ -127,6 +143,9 @@ impl RegisterRow {
             &self.amount.text,
             &self.amount.exact,
             &self.note,
+            &self.other_party_iban,
+            &self.purpose,
+            &self.value_date,
         ]
         .map(|text| text.to_lowercase())
         .join("\n");
@@ -206,6 +225,9 @@ impl Entry {
             balance,
             owes,
             note: self.note.clone(),
+            other_party_iban: String::new(),
+            purpose: String::new(),
+            value_date: String::new(),
         }
     }
 }
@@ -405,6 +427,15 @@ pub enum SortKey {
     /// By category, ignoring case; entries without come first when
     /// ascending.
     Category,
+    /// By the other party's IBAN, ignoring case and spaces; entries without
+    /// one (typed in by hand) come first when ascending (D-658).
+    OtherPartyIban,
+    /// By the purpose, ignoring case; entries without come first when
+    /// ascending.
+    Purpose,
+    /// By the value date, the earliest first when ascending; entries without
+    /// one come first.
+    ValueDate,
 }
 
 impl SortKey {
@@ -415,14 +446,30 @@ impl SortKey {
             Self::Amount => "amount",
             Self::OtherParty => "other-party",
             Self::Category => "category",
+            Self::OtherPartyIban => "other-party-iban",
+            Self::Purpose => "purpose",
+            Self::ValueDate => "value-date",
         }
     }
 
     /// The sort for a key from [`SortKey::key`].
     pub fn from_key(key: &str) -> Option<Self> {
-        [Self::Date, Self::Amount, Self::OtherParty, Self::Category]
-            .into_iter()
-            .find(|sort| sort.key() == key)
+        [
+            Self::Date,
+            Self::Amount,
+            Self::OtherParty,
+            Self::Category,
+            Self::OtherPartyIban,
+            Self::Purpose,
+            Self::ValueDate,
+        ]
+        .into_iter()
+        .find(|sort| sort.key() == key)
+    }
+
+    /// Whether the order depends on what a bank or file delivered.
+    pub fn needs_import(self) -> bool {
+        matches!(self, Self::OtherPartyIban | Self::Purpose | Self::ValueDate)
     }
 }
 
@@ -448,8 +495,26 @@ impl Default for Sort {
 impl Sort {
     /// Sorts `entries` as asked. A tie keeps the date order, which is how
     /// they come from [`entries`]; so does sorting by date.
+    #[cfg(test)]
     pub fn apply(self, entries: &mut [Entry]) {
+        self.apply_with(entries, &HashMap::new());
+    }
+
+    /// Like [`Sort::apply`], with what was delivered for the entries, which
+    /// the orders by IBAN, purpose and value date need. An entry with no
+    /// delivery sorts as an empty one.
+    pub fn apply_with(
+        self,
+        entries: &mut [Entry],
+        imported: &HashMap<(TransactionId, Date), ImportedText>,
+    ) {
         let key = self.key;
+        let none = ImportedText::default();
+        let delivered = |entry: &Entry| {
+            imported
+                .get(&(entry.transaction, entry.date))
+                .unwrap_or(&none)
+        };
         entries.sort_by(|a, b| {
             let ordering = match key {
                 SortKey::Date => (a.date, a.transaction).cmp(&(b.date, b.transaction)),
@@ -459,6 +524,13 @@ impl Sort {
                     .to_lowercase()
                     .cmp(&b.other_party.to_lowercase()),
                 SortKey::Category => a.category.to_lowercase().cmp(&b.category.to_lowercase()),
+                SortKey::OtherPartyIban => compact(&delivered(a).other_party_iban)
+                    .cmp(&compact(&delivered(b).other_party_iban)),
+                SortKey::Purpose => delivered(a)
+                    .purpose
+                    .to_lowercase()
+                    .cmp(&delivered(b).purpose.to_lowercase()),
+                SortKey::ValueDate => delivered(a).value_day.cmp(&delivered(b).value_day),
             };
             if self.descending {
                 ordering.reverse()
@@ -469,12 +541,90 @@ impl Sort {
     }
 }
 
+/// `text` in lower case without its spaces, to compare IBANs written with
+/// and without them.
+fn compact(text: &str) -> String {
+    text.split_whitespace().collect::<String>().to_lowercase()
+}
+
+/// What a bank or file delivered for an entry, written as text for the
+/// register's detail columns (US1.19).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ImportedText {
+    /// The other party's IBAN, or whatever account number the bank gave.
+    pub other_party_iban: String,
+    /// What the payment came with, on one line.
+    pub purpose: String,
+    /// The day the money counts from or until, as the locale writes dates.
+    pub value_date: String,
+    /// The same day as a date, to sort by it exactly.
+    pub value_day: Option<Date>,
+}
+
+/// What a bank or file delivered for each entry of `account`, by the
+/// transaction and the day the register shows it on. An entry that has
+/// several parts in the account shows what the first part with a delivery
+/// came with. Entries typed in by hand have none.
+///
+/// The text is shown as it was delivered, and is untrusted (AGENTS.md §8):
+/// the screens show it as plain text. Only white space is tidied, since the
+/// register keeps a line to one row.
+pub fn imported_texts(
+    book: &Book,
+    account: AccountId,
+    locale: &impl Locale,
+) -> Result<HashMap<(TransactionId, Date), ImportedText>, StoreError> {
+    let mut found: HashMap<(TransactionId, Date), ImportedText> = HashMap::new();
+    for part in book.account_parts(account)? {
+        let Some(imported) = part.imported else {
+            continue;
+        };
+        found
+            .entry((part.transaction, part.booking_date))
+            .or_insert_with(|| ImportedText {
+                other_party_iban: one_line(imported.other_party_iban.as_deref()),
+                purpose: one_line(imported.remittance_information.as_deref()),
+                value_date: imported
+                    .value_date
+                    .map(|date| locale.short_date(date))
+                    .unwrap_or_default(),
+                value_day: imported.value_date,
+            });
+    }
+    Ok(found)
+}
+
+/// `text` with every run of white space, e.g. the line breaks of a bank's
+/// remittance information, written as one space.
+fn one_line(text: Option<&str>) -> String {
+    text.unwrap_or_default()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 /// Reads `account`'s register from `book`, sorts it and formats it for
-/// `locale`.
+/// `locale`, with the default columns.
+#[cfg(test)]
 pub fn register_view(
     book: &Book,
     account: AccountId,
     sort: Sort,
+    locale: &impl Locale,
+) -> Result<RegisterView, StoreError> {
+    register_view_with(book, account, sort, Columns::default(), locale)
+}
+
+/// Like [`register_view`], for the `columns` the user chose for the
+/// account. What a bank or file delivered is read only if one of the
+/// columns shows it, and the balance after each entry only comes with date
+/// order (US1.18, D-656): in another order it would be a figure beside the
+/// wrong neighbours, and a wrong balance is the worst bug (AGENTS.md §2).
+pub fn register_view_with(
+    book: &Book,
+    account: AccountId,
+    sort: Sort,
+    columns: Columns,
     locale: &impl Locale,
 ) -> Result<RegisterView, StoreError> {
     let details = book.account(account)?;
@@ -486,15 +636,42 @@ pub fn register_view(
         .last()
         .map_or(Money::zero(details.currency), |entry| entry.balance);
     let (balance, owes) = writer.balance(now, details.kind);
-    sort.apply(&mut entries);
+    // What was delivered is read only if a column shows it or the order
+    // needs it.
+    let imported = if columns.needs_import() || sort.key.needs_import() {
+        imported_texts(book, account, locale)?
+    } else {
+        HashMap::new()
+    };
+    sort.apply_with(&mut entries, &imported);
+    let balance_shown = sort.key == SortKey::Date && columns.shows(Column::Balance);
     let rows = entries
         .iter()
-        .map(|entry| entry.row(&writer, details.kind))
+        .map(|entry| {
+            let mut row = entry.row(&writer, details.kind);
+            if !balance_shown {
+                row.balance = Shown::default();
+                row.owes = false;
+            }
+            if let Some(text) = imported.get(&(entry.transaction, entry.date)) {
+                if columns.shows(Column::OtherPartyIban) {
+                    row.other_party_iban.clone_from(&text.other_party_iban);
+                }
+                if columns.shows(Column::Purpose) {
+                    row.purpose.clone_from(&text.purpose);
+                }
+                if columns.shows(Column::ValueDate) {
+                    row.value_date.clone_from(&text.value_date);
+                }
+            }
+            row
+        })
         .collect();
     Ok(RegisterView {
         account_name: details.name,
         balance,
         owes,
+        balance_shown,
         rows,
     })
 }
@@ -612,6 +789,9 @@ mod sort_tests {
             SortKey::Amount,
             SortKey::OtherParty,
             SortKey::Category,
+            SortKey::OtherPartyIban,
+            SortKey::Purpose,
+            SortKey::ValueDate,
         ] {
             assert_eq!(SortKey::from_key(key.key()), Some(key));
         }
@@ -637,6 +817,9 @@ mod sort_tests {
             },
             owes: false,
             note: "Rolls for Sunday".into(),
+            other_party_iban: String::new(),
+            purpose: String::new(),
+            value_date: String::new(),
         };
         assert!(row.fits(""));
         assert!(row.fits("  "));
@@ -647,5 +830,310 @@ mod sort_tests {
         assert!(!row.fits("bakery rent"));
         // What the account held afterwards is not part of the row's text.
         assert!(!row.fits("100"));
+    }
+}
+
+#[cfg(test)]
+mod view_tests {
+    use kassensturz_core::{Account, ImportedDetails, Split, Transaction};
+
+    use super::tests::TestLocale;
+    use super::*;
+
+    fn eur() -> CurrencyCode {
+        CurrencyCode::new("EUR").expect("EUR")
+    }
+
+    fn money(minor: i64) -> Money {
+        Money::from_minor_units(minor, eur())
+    }
+
+    fn account(book: &mut Book, name: &str, kind: AccountKind) -> AccountId {
+        let id = AccountId::generate();
+        book.add_account(&Account {
+            id,
+            name: name.into(),
+            kind,
+            currency: eur(),
+            account_type: None,
+            closed: false,
+            parent: None,
+            number: None,
+            notes: None,
+            institution: None,
+        })
+        .expect("account added");
+        id
+    }
+
+    /// What a bank delivers; the IBAN is the example for Germany in SWIFT's
+    /// IBAN Registry (D-055).
+    fn delivered(purpose: &str) -> ImportedDetails {
+        ImportedDetails {
+            bank_id: Some("2026100500017".into()),
+            booking_date: Some(Date::constant(2026, 10, 5)),
+            value_date: Some(Date::constant(2026, 10, 7)),
+            other_party_name: Some("Corner Grocery".into()),
+            other_party_iban: Some("DE89370400440532013000".into()),
+            remittance_information: Some(purpose.into()),
+        }
+    }
+
+    /// A checking account with an entry a bank delivered, one typed in by
+    /// hand and one more by hand on a later day, so the three orders differ.
+    fn book_with_entries(purpose: &str) -> (Book, AccountId) {
+        let mut book = Book::create_in_memory().expect("book");
+        book.use_currency(eur()).expect("currency");
+        let checking = account(&mut book, "Checking", AccountKind::Asset);
+        let food = account(&mut book, "Food", AccountKind::Expense);
+        let mut parts = vec![
+            Split::new(checking, money(-5320)),
+            Split::new(food, money(5320)),
+        ];
+        parts[0].imported = Some(delivered(purpose));
+        let imported = Transaction::new(
+            TransactionId::generate(),
+            Date::constant(2026, 10, 5),
+            Some("Corner Grocery".into()),
+            parts,
+        )
+        .expect("transaction");
+        book.add_transaction(&imported).expect("added");
+        for (day, minor) in [(6, 10_000), (8, -900)] {
+            let parts = vec![
+                Split::new(checking, money(minor)),
+                Split::new(food, money(-minor)),
+            ];
+            let by_hand = Transaction::new(
+                TransactionId::generate(),
+                Date::constant(2026, 10, day),
+                Some("Cash".into()),
+                parts,
+            )
+            .expect("transaction");
+            book.add_transaction(&by_hand).expect("added");
+        }
+        (book, checking)
+    }
+
+    fn view(book: &Book, account: AccountId, sort: Sort, columns: Columns) -> RegisterView {
+        register_view_with(book, account, sort, columns, &TestLocale).expect("register")
+    }
+
+    fn by(key: SortKey, descending: bool) -> Sort {
+        Sort { key, descending }
+    }
+
+    #[test]
+    fn the_default_columns_show_no_delivered_details() {
+        let (book, checking) = book_with_entries("Card payment");
+        let default = view(&book, checking, Sort::default(), Columns::default());
+        assert!(default.balance_shown);
+        for row in &default.rows {
+            assert_eq!(row.other_party_iban, "");
+            assert_eq!(row.purpose, "");
+            assert_eq!(row.value_date, "");
+        }
+        // The same as the register has always been.
+        let plain = register_view(&book, checking, Sort::default(), &TestLocale).expect("view");
+        assert_eq!(plain, default);
+    }
+
+    #[test]
+    fn a_chosen_detail_shows_what_the_bank_delivered_as_text_and_only_for_those_entries() {
+        let (book, checking) = book_with_entries("Card\npayment   no. 7");
+        let columns = Columns::default()
+            .with(Column::OtherPartyIban, true)
+            .with(Column::Purpose, true)
+            .with(Column::ValueDate, true);
+        let shown = view(&book, checking, by(SortKey::Date, false), columns);
+        let [grocery, cash_in, cash_out] = shown.rows.as_slice() else {
+            panic!("three rows");
+        };
+        assert_eq!(grocery.other_party_iban, "DE89370400440532013000");
+        assert_eq!(grocery.purpose, "Card payment no. 7");
+        assert_eq!(grocery.value_date, "2026-10-07");
+        for by_hand in [cash_in, cash_out] {
+            assert_eq!(by_hand.other_party_iban, "");
+            assert_eq!(by_hand.purpose, "");
+            assert_eq!(by_hand.value_date, "");
+        }
+        // Only the column that is chosen is filled.
+        let only_iban = view(
+            &book,
+            checking,
+            by(SortKey::Date, false),
+            Columns::default().with(Column::OtherPartyIban, true),
+        );
+        assert_eq!(only_iban.rows[0].other_party_iban, "DE89370400440532013000");
+        assert_eq!(only_iban.rows[0].purpose, "");
+        // The quick filter finds what a chosen column shows.
+        assert!(shown.rows[0].fits("DE89 card"));
+        assert!(!shown.rows[0].fits("DE89 rent"));
+    }
+
+    #[test]
+    fn the_balance_after_each_entry_comes_only_with_date_order() {
+        let (book, checking) = book_with_entries("Card payment");
+        let balances = |sort| {
+            let shown = view(&book, checking, sort, Columns::default());
+            let balances: Vec<_> = shown
+                .rows
+                .iter()
+                .map(|row| row.balance.text.clone())
+                .collect();
+            (shown.balance_shown, balances)
+        };
+        assert_eq!(
+            balances(by(SortKey::Date, true)),
+            (
+                true,
+                ["37,80 €", "46,80 €", "-53,20 €"]
+                    .map(String::from)
+                    .to_vec()
+            )
+        );
+        assert_eq!(
+            balances(by(SortKey::Date, false)),
+            (
+                true,
+                ["-53,20 €", "46,80 €", "37,80 €"]
+                    .map(String::from)
+                    .to_vec()
+            )
+        );
+        for key in [SortKey::Amount, SortKey::OtherParty, SortKey::Category] {
+            for descending in [false, true] {
+                let (shown, balances) = balances(by(key, descending));
+                assert!(!shown, "{key:?}");
+                assert!(balances.iter().all(String::is_empty), "{key:?}");
+            }
+        }
+        // The account's own balance is still there, whatever the order.
+        let amount = view(
+            &book,
+            checking,
+            by(SortKey::Amount, false),
+            Columns::default(),
+        );
+        assert_eq!(amount.balance.text, "37,80 €");
+    }
+
+    #[test]
+    fn a_hidden_balance_column_leaves_no_balance_in_the_rows() {
+        let (book, checking) = book_with_entries("Card payment");
+        let hidden = Columns::default().with(Column::Balance, false);
+        let shown = view(&book, checking, Sort::default(), hidden);
+        assert!(!shown.balance_shown);
+        assert!(shown.rows.iter().all(|row| row.balance == Shown::default()));
+    }
+
+    #[test]
+    fn the_detail_columns_sort_by_what_the_bank_delivered_even_when_hidden() {
+        let (book, checking) = book_with_entries("Card payment");
+        let amounts = |key, descending| -> Vec<String> {
+            // The default columns show none of the details: the order still
+            // needs them.
+            view(&book, checking, by(key, descending), Columns::default())
+                .rows
+                .iter()
+                .map(|row| row.amount.exact.clone())
+                .collect()
+        };
+        for key in [
+            SortKey::OtherPartyIban,
+            SortKey::Purpose,
+            SortKey::ValueDate,
+        ] {
+            // Entries typed in by hand have nothing delivered: first when
+            // ascending, in date order; the delivered one last.
+            assert_eq!(
+                amounts(key, false),
+                ["100,00 €", "-9,00 €", "-53,20 €"],
+                "{key:?}"
+            );
+            assert_eq!(
+                amounts(key, true),
+                ["-53,20 €", "100,00 €", "-9,00 €"],
+                "{key:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_value_date_sorts_as_a_date_and_the_iban_ignores_case_and_spaces() {
+        let mut book = Book::create_in_memory().expect("book");
+        book.use_currency(eur()).expect("currency");
+        let checking = account(&mut book, "Checking", AccountKind::Asset);
+        let food = account(&mut book, "Food", AccountKind::Expense);
+        // Booked on days 5, 6 and 7 (amounts -0,05 to -0,07 €), but with value
+        // dates in another order, and IBANs written in different cases and
+        // with and without spaces.
+        for (day, iban, value_date) in [
+            (
+                5,
+                "de89 3704 0044 0532 0130 00",
+                Date::constant(2026, 11, 1),
+            ),
+            (
+                6,
+                "DE02 1203 0000 0000 2020 51",
+                Date::constant(2026, 10, 9),
+            ),
+            (7, "de02120300000000202051x", Date::constant(2026, 10, 30)),
+        ] {
+            let mut details = delivered("x");
+            details.other_party_iban = Some(iban.into());
+            details.value_date = Some(value_date);
+            let mut parts = vec![
+                Split::new(checking, money(-i64::from(day))),
+                Split::new(food, money(i64::from(day))),
+            ];
+            parts[0].imported = Some(details);
+            let transaction = Transaction::new(
+                TransactionId::generate(),
+                Date::constant(2026, 10, day),
+                None,
+                parts,
+            )
+            .expect("transaction");
+            book.add_transaction(&transaction).expect("added");
+        }
+        let amounts = |key| -> Vec<String> {
+            view(&book, checking, by(key, false), Columns::default())
+                .rows
+                .iter()
+                .map(|row| row.amount.exact.clone())
+                .collect()
+        };
+        assert_eq!(
+            amounts(SortKey::ValueDate),
+            ["-0,06 €", "-0,07 €", "-0,05 €"]
+        );
+        // "DE02 1203 ..." < "DE02 1203 ...x" < "DE89 ...", whatever the
+        // case and the spaces.
+        assert_eq!(
+            amounts(SortKey::OtherPartyIban),
+            ["-0,06 €", "-0,07 €", "-0,05 €"]
+        );
+    }
+
+    #[test]
+    fn amounts_sort_by_their_exact_value_not_their_text() {
+        let (book, checking) = book_with_entries("Card payment");
+        let shown = view(
+            &book,
+            checking,
+            by(SortKey::Amount, false),
+            Columns::default(),
+        );
+        let amounts: Vec<_> = shown
+            .rows
+            .iter()
+            .map(|row| row.amount.exact.clone())
+            .collect();
+        // As text "-9,00 €" would come after "-53,20 €" and "100,00 €" before
+        // "-9,00 €".
+        assert_eq!(amounts, ["-53,20 €", "-9,00 €", "100,00 €"]);
     }
 }

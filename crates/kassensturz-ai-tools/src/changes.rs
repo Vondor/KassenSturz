@@ -34,8 +34,8 @@ mod views;
 use kassensturz_core::ai_switch::{Field, Permission, Permissions};
 use kassensturz_core::{
     Account, AccountId, AccountKind, Actions, AmountTest, BookTo, Condition, CurrencyCode, Date,
-    ErrorReport, MatchMode, Money, Report, Rule, RuleId, RuleNode, Split, SplitId, TextField,
-    TextOperator, Transaction, TransactionId,
+    ErrorReport, MatchMode, Money, Report, Rule, RuleError, RuleId, RuleNode, Split, SplitId,
+    TextField, TextOperator, Transaction, TransactionId,
 };
 use kassensturz_store::{Action, Book, StoreError};
 use serde_json::{Map, Value, json};
@@ -74,7 +74,9 @@ pub const PROPOSE_CHANGES: Function = Function {
         edit_rules and categorize use as new_category. Only a transaction with one category, \
         or none yet, can get another one; a transfer between the user's own accounts can't. \
         Rules are checked in order and the first that matches wins, so a new Rule goes last \
-        until you move it with move_rules. Categories and Rules are named by the IDs that \
+        until you move it with move_rules. A Rule's name is used once among Rules next to each \
+        other, ignoring capitals; to replace a Rule by a new one of the same name, delete the \
+        old one in the same call. Categories and Rules are named by the IDs that \
         list_categories and list_rules give. Prepare everything that belongs together in one \
         call.",
     parameters: r#"{"type":"object","properties":{"new_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"key":{"type":"string","maxLength":40,"description":"Your short name for it, used as new_category below."},"name":{"type":"string","maxLength":100},"parent_id":{"type":"string","description":"Put it inside this category, ID from list_categories. Default: at the top."},"income":{"type":"boolean","description":"An income category, not a spending one. Default false. Inside a category it must be the same kind."},"currency":{"type":"string","description":"ISO 4217 code. Default: the parent's, or the one all the user's accounts use."}},"required":["key","name"],"additionalProperties":false}},"new_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"],"description":"Whether every condition must hold or one is enough. Default all."},"conditions":{"type":"array","minItems":1,"maxItems":10,"items":{"type":"object","description":"Either field, test and text, or money_in: true, or money_out: true.","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with"]},"text":{"type":"string","maxLength":100},"case_sensitive":{"type":"boolean"},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"Where it books what it finds, ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["name","conditions"],"additionalProperties":false}},"edit_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"The category to rename or move, ID from list_categories."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"parent_id":{"type":"string","description":"Move it, with everything inside it, into this category, ID from list_categories. It must be the same kind and currency."},"new_parent":{"type":"string","description":"Or into the new category with this key."},"to_top":{"type":"boolean","description":"Move it to the top level."}},"required":["category_id"],"additionalProperties":false}},"edit_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to change, ID from list_rules."},"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"]},"conditions":{"type":"array","minItems":1,"maxItems":10,"description":"All of its conditions as they should be, same shape as in new_rules. Only for a Rule whose conditions list_rules shows in full.","items":{"type":"object","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with"]},"text":{"type":"string","maxLength":100},"case_sensitive":{"type":"boolean"},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"The category it books to, ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["rule_id"],"additionalProperties":false}},"move_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"A top-level Rule, ID from list_rules."},"position":{"type":"integer","minimum":1,"description":"Its new place in the list of top-level Rules, 1 is the first. New Rules in this call are at the end."}},"required":["rule_id","position"],"additionalProperties":false}},"delete_rules":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to delete, ID from list_rules. It must have no sub-Rules. What it booked stays as it is."}},"required":["rule_id"],"additionalProperties":false}},"new_transactions":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"account_id":{"type":"string","description":"A cash account of the user, ID from list_accounts."},"date":{"type":"string","description":"The day of the purchase, YYYY-MM-DD."},"amount":{"type":"string","description":"Exact decimal text with a dot, in the account's currency: negative is money out, positive money in, e.g. -12.50."},"payee":{"type":"string","maxLength":200,"description":"Who was paid or who paid, e.g. the shop."},"note":{"type":"string","maxLength":200,"description":"A note, e.g. what the money was for."},"category_id":{"type":"string","description":"The category it belongs to, ID from list_categories, in the account's currency. Leave it out for none yet."}},"required":["account_id","date","amount"],"additionalProperties":false}},"delete_transactions":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"A transaction of a cash account that the user entered by hand, ID from search_transactions."}},"required":["transaction_id"],"additionalProperties":false}},"edit_transactions":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"date":{"type":"string","description":"The new day, YYYY-MM-DD."},"payee":{"type":"string","maxLength":200,"description":"The new payee: who was paid or who paid. An empty text removes it."},"note":{"type":"string","maxLength":200,"description":"The new note. An empty text removes it."},"amount":{"type":"string","description":"The new amount of the transaction in the account, exact decimal text with a dot, in the transaction's currency: negative is money out, positive money in, e.g. -12.50. Only for a plain transaction with one account and one category."},"account_id":{"type":"string","description":"Move the transaction to this other account, ID from list_accounts, in the same currency. Only for a plain transaction."}},"required":["transaction_id"],"additionalProperties":false}},"categorize":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"category_id":{"type":"string","description":"ID from list_categories."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["transaction_id"],"additionalProperties":false}},"delete_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"An empty category to delete, ID from list_categories. It must have no transactions, no sub-categories and no Rule that books to it."}},"required":["category_id"],"additionalProperties":false}},"new_accounts":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100},"type":{"type":"string","enum":["checking","savings","cash","credit_card"]},"currency":{"type":"string","description":"ISO 4217 code. Default: the one all the user's accounts use."}},"required":["name","type"],"additionalProperties":false}},"edit_accounts":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"account_id":{"type":"string","description":"The account to change, ID from list_accounts."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"closed":{"type":"boolean","description":"true closes it (its balance must be zero), false opens a closed one again."}},"required":["account_id"],"additionalProperties":false}},"new_budgets":{"type":"array","maxItems":50,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"A spending category without a budget yet, ID from list_categories. The budget counts it with everything inside it."},"category_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Instead of category_id, for one budget over several spending categories from anywhere in the tree, IDs from list_categories, all in one currency. Each counts with everything inside it."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only count what was paid from these accounts of the user, IDs from list_accounts. Leave it out to count every account."},"every":{"type":"string","enum":["month","quarter","year"],"description":"How often the budget starts again. It starts with the current month, quarter or year."},"based_on":{"type":"string","enum":["last_period","average_3_periods","average_6_periods","average_12_periods"],"description":"Let KassenSturz compute the amount from what the category spent in the last full period, or on average in the last 3, 6 or 12 full periods. Use this whenever the user did not name an amount."},"round_to":{"type":"integer","enum":[1,5,10,50,100],"description":"Only with based_on: round the computed amount up to a multiple of this many whole units of the currency. Default 1."},"amount":{"type":"string","description":"Only for an amount the user named: exact decimal text with a dot, in the category's currency, above zero, e.g. 250.00. Never compute it yourself; use based_on instead."},"carry_over":{"type":"boolean","description":"Whether what is left at the end of a period, or spent too much, moves into the next one. Default false."}},"required":["every"],"additionalProperties":false}},"edit_budgets":{"type":"array","maxItems":50,"items":{"type":"object","properties":{"budget_id":{"type":"string","description":"The budget to change, ID from list_budgets. The change applies from the current period on; earlier periods stay as they were."},"based_on":{"type":"string","enum":["last_period","average_3_periods","average_6_periods","average_12_periods"],"description":"Let KassenSturz compute the new amount from what the category spent in the last full period, or on average in the last 3, 6 or 12 full periods."},"round_to":{"type":"integer","enum":[1,5,10,50,100],"description":"Only with based_on: round the computed amount up to a multiple of this many whole units of the currency. Default 1."},"amount":{"type":"string","description":"Only for an amount the user named: exact decimal text with a dot, above zero. Never compute it yourself."},"carry_over":{"type":"boolean","description":"Whether what is left moves into the next period from now on."}},"required":["budget_id"],"additionalProperties":false}}},"additionalProperties":false}"#,
@@ -345,6 +347,12 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
         } else {
             "."
         });
+    }
+    if allowed.allows(Permission::NewRules) && allowed.allows(Permission::DeleteRules) {
+        description.push_str(
+            " A Rule's name is used once among Rules next to each other, ignoring capitals; to \
+             replace a Rule by a new one of the same name, delete the old one in the same call.",
+        );
     }
     if allowed.allows(Permission::NewAccounts) {
         description.push_str(
@@ -1163,95 +1171,125 @@ fn build(
     let mut known = Known::read(book)?;
     let rule_order = known.rule_order.clone();
     let mut changes = Vec::with_capacity(count);
-    for category in categories {
-        changes.push(ProposedChange::NewCategory(known.new_category(category)?));
+    for (index, category) in categories.iter().enumerate() {
+        changes.push(ProposedChange::NewCategory(
+            known
+                .new_category(category)
+                .map_err(|e| e.at("new_categories", index))?,
+        ));
     }
     let mut edited = HashSet::new();
-    for item in edited_categories {
-        let change = known.edit_category(item)?;
+    for (index, item) in edited_categories.iter().enumerate() {
+        let change = known
+            .edit_category(item)
+            .map_err(|e| e.at("edit_categories", index))?;
         if !edited.insert(change.id) {
             return Err(ToolError::BadArgument {
                 argument: "category_id",
-            });
+            }
+            .at("edit_categories", index));
         }
         changes.push(ProposedChange::EditCategory(change));
     }
-    let mut rule_names = HashSet::new();
-    for rule in rules {
-        let new = known.new_rule(book, rule, &mut rule_names)?;
+    // Changing and deleting Rules come before new ones, in the check and
+    // when the set is applied: a Rule can be replaced by a new one of the
+    // same name in one call (M6-B191, D-626).
+    let mut touched = HashSet::new();
+    for (index, item) in edited_rules.iter().enumerate() {
+        changes.push(ProposedChange::EditRule(
+            known
+                .edit_rule(item, &mut touched)
+                .map_err(|e| e.at("edit_rules", index))?,
+        ));
+    }
+    for (index, item) in deleted_rules.iter().enumerate() {
+        changes.push(ProposedChange::DeleteRule(
+            known
+                .delete_rule(item, &mut touched)
+                .map_err(|e| e.at("delete_rules", index))?,
+        ));
+    }
+    for (index, rule) in rules.iter().enumerate() {
+        let new = known.new_rule(rule).map_err(|e| e.at("new_rules", index))?;
         known.rule_order.push(new.rule.id);
         changes.push(ProposedChange::NewRule(new));
     }
-    let mut touched = HashSet::new();
-    for item in edited_rules {
-        changes.push(ProposedChange::EditRule(known.edit_rule(
-            item,
-            &mut touched,
-            &mut rule_names,
-        )?));
-    }
-    for item in deleted_rules {
-        changes.push(ProposedChange::DeleteRule(
-            known.delete_rule(item, &mut touched)?,
-        ));
-    }
-    for item in moved_rules {
+    for (index, item) in moved_rules.iter().enumerate() {
         changes.push(ProposedChange::MoveRule(
-            known.move_rule(item, &mut touched)?,
+            known
+                .move_rule(item, &mut touched)
+                .map_err(|e| e.at("move_rules", index))?,
         ));
     }
     let mut seen = HashSet::new();
-    for item in transactions {
-        let change = known.categorize(book, item)?;
+    for (index, item) in transactions.iter().enumerate() {
+        let change = known
+            .categorize(book, item)
+            .map_err(|e| e.at("categorize", index))?;
         if !seen.insert(change.transaction) {
             return Err(ToolError::BadArgument {
                 argument: "transaction_id",
-            });
+            }
+            .at("categorize", index));
         }
         changes.push(ProposedChange::Categorize(change));
     }
     // After the rest, so what the set moves or books away is seen as it
     // will be.
-    for item in new_accounts {
-        changes.push(ProposedChange::NewAccount(known.new_account(item)?));
-    }
-    let mut edited_account_ids = HashSet::new();
-    for item in edited_accounts {
-        changes.push(ProposedChange::EditAccount(known.edit_account(
-            book,
-            item,
-            &mut edited_account_ids,
-        )?));
-    }
-    let mut gone = HashSet::new();
-    for item in deleted_categories {
-        changes.push(ProposedChange::DeleteCategory(
-            known.delete_category(book, item, &mut gone)?,
+    for (index, item) in new_accounts.iter().enumerate() {
+        changes.push(ProposedChange::NewAccount(
+            known
+                .new_account(item)
+                .map_err(|e| e.at("new_accounts", index))?,
         ));
     }
-    for item in edited_transactions {
-        let change = known.edit_transaction(book, item, allowed)?;
+    let mut edited_account_ids = HashSet::new();
+    for (index, item) in edited_accounts.iter().enumerate() {
+        changes.push(ProposedChange::EditAccount(
+            known
+                .edit_account(book, item, &mut edited_account_ids)
+                .map_err(|e| e.at("edit_accounts", index))?,
+        ));
+    }
+    let mut gone = HashSet::new();
+    for (index, item) in deleted_categories.iter().enumerate() {
+        changes.push(ProposedChange::DeleteCategory(
+            known
+                .delete_category(book, item, &mut gone)
+                .map_err(|e| e.at("delete_categories", index))?,
+        ));
+    }
+    for (index, item) in edited_transactions.iter().enumerate() {
+        let change = known
+            .edit_transaction(book, item, allowed)
+            .map_err(|e| e.at("edit_transactions", index))?;
         if !seen.insert(change.transaction) {
             return Err(ToolError::BadArgument {
                 argument: "transaction_id",
-            });
+            }
+            .at("edit_transactions", index));
         }
         changes.push(ProposedChange::EditTransaction(change));
     }
     if new_transactions.len() > MAX_CASH_CHANGES || deleted_transactions.len() > MAX_CASH_CHANGES {
         return Err(ToolError::TooManyChanges);
     }
-    for item in new_transactions {
+    for (index, item) in new_transactions.iter().enumerate() {
         changes.push(ProposedChange::NewTransaction(
-            known.new_transaction(book, item, allowed)?,
+            known
+                .new_transaction(book, item, allowed)
+                .map_err(|e| e.at("new_transactions", index))?,
         ));
     }
-    for item in deleted_transactions {
-        let change = known.delete_transaction(book, item)?;
+    for (index, item) in deleted_transactions.iter().enumerate() {
+        let change = known
+            .delete_transaction(book, item)
+            .map_err(|e| e.at("delete_transactions", index))?;
         if !seen.insert(change.transaction) {
             return Err(ToolError::BadArgument {
                 argument: "transaction_id",
-            });
+            }
+            .at("delete_transactions", index));
         }
         changes.push(ProposedChange::DeleteTransaction(change));
     }
@@ -1259,12 +1297,10 @@ fn build(
         return Err(ToolError::TooManyChanges);
     }
     let mut view_names = HashSet::new();
-    for item in new_views {
-        changes.push(ProposedChange::NewView(views::new_view(
-            book,
-            item,
-            &mut view_names,
-        )?));
+    for (index, item) in new_views.iter().enumerate() {
+        changes.push(ProposedChange::NewView(
+            views::new_view(book, item, &mut view_names).map_err(|e| e.at("new_views", index))?,
+        ));
     }
 
     if !(new_budgets.is_empty() && edited_budgets.is_empty()) {
@@ -1279,24 +1315,18 @@ fn build(
         })?;
         let stored = book.budgets()?;
         let mut prepared = Vec::new();
-        for item in new_budgets {
-            changes.push(ProposedChange::NewBudget(budgets::new_budget(
-                book,
-                item,
-                today,
-                &stored,
-                &mut prepared,
-            )?));
+        for (index, item) in new_budgets.iter().enumerate() {
+            changes.push(ProposedChange::NewBudget(
+                budgets::new_budget(book, item, today, &stored, &mut prepared)
+                    .map_err(|e| e.at("new_budgets", index))?,
+            ));
         }
         let mut edited_ids = Vec::new();
-        for item in edited_budgets {
-            changes.push(ProposedChange::EditBudget(budgets::edit_budget(
-                book,
-                item,
-                today,
-                &stored,
-                &mut edited_ids,
-            )?));
+        for (index, item) in edited_budgets.iter().enumerate() {
+            changes.push(ProposedChange::EditBudget(
+                budgets::edit_budget(book, item, today, &stored, &mut edited_ids)
+                    .map_err(|e| e.at("edit_budgets", index))?,
+            ));
         }
     }
 
@@ -1334,6 +1364,10 @@ struct Known {
     rules: HashMap<RuleId, RuleInfo>,
     /// The top-level Rules in order, as the set so far leaves them.
     rule_order: Vec<RuleId>,
+    /// The names the Rules have, ignoring capitals, in each place (the top
+    /// level or inside a Rule), as the set so far leaves them: a Rule the
+    /// set deletes or renames frees its name for the next one (M6-B191).
+    rule_names: HashMap<Option<RuleId>, HashSet<String>>,
 }
 
 /// A Rule of the book and where it sits.
@@ -1341,6 +1375,11 @@ struct RuleInfo {
     rule: Rule,
     parent: Option<RuleId>,
     sub_rules: usize,
+}
+
+/// A Rule's name as the book compares names: trimmed, ignoring capitals.
+fn rule_name_key(name: &str) -> String {
+    name.trim().to_lowercase()
 }
 
 fn collect_rules(nodes: &[RuleNode], parent: Option<RuleId>, into: &mut HashMap<RuleId, RuleInfo>) {
@@ -1379,6 +1418,13 @@ impl Known {
         let tree = book.rules()?;
         let mut rules = HashMap::new();
         collect_rules(&tree, None, &mut rules);
+        let mut rule_names: HashMap<Option<RuleId>, HashSet<String>> = HashMap::new();
+        for info in rules.values() {
+            rule_names
+                .entry(info.parent)
+                .or_default()
+                .insert(rule_name_key(&info.rule.name));
+        }
         Ok(Self {
             accounts,
             original_paths: paths.clone(),
@@ -1387,6 +1433,7 @@ impl Known {
             usual_currency,
             rules,
             rule_order: tree.iter().map(|node| node.rule.id).collect(),
+            rule_names,
         })
     }
 
@@ -1679,10 +1726,9 @@ impl Known {
     /// counts, the conditions and the category it books to. What isn't named
     /// stays.
     fn edit_rule(
-        &self,
+        &mut self,
         value: &Value,
         touched: &mut HashSet<RuleId>,
-        names: &mut HashSet<String>,
     ) -> Result<EditRule, ToolError> {
         let item = Object::read(
             value,
@@ -1698,17 +1744,21 @@ impl Known {
         )?;
         let info = self.rule_to_change(&item, touched)?;
         let before = info.rule.clone();
+        let parent = info.parent;
         let mut rule = before.clone();
         if let Some(name) = item.string("name")? {
             let name = plain_text(name, "name")?;
-            let wanted = name.to_lowercase();
-            let taken = self.rules.values().any(|other| {
-                other.parent == info.parent
-                    && other.rule.id != before.id
-                    && other.rule.name.trim().to_lowercase() == wanted
-            });
-            if taken || (info.parent.is_none() && !names.insert(wanted)) {
-                return Err(ToolError::NameTaken);
+            // Its old name is free for the next Rule of the set, its new
+            // one is taken.
+            let old = rule_name_key(&before.name);
+            let wanted = rule_name_key(&name);
+            if wanted != old {
+                let names = self.rule_names.entry(parent).or_default();
+                if names.contains(&wanted) {
+                    return Err(ToolError::NameTaken);
+                }
+                names.remove(&old);
+                names.insert(wanted);
             }
             rule.name = name;
         }
@@ -1723,22 +1773,19 @@ impl Known {
             // in it has conditions a model can't write back, so it couldn't
             // change them without dropping those.
             if !before.conditions.iter().all(writable) {
-                return Err(ToolError::NotChangeable);
-            }
-            let listed = item.array("conditions")?;
-            if listed.is_empty() || listed.len() > MAX_CONDITIONS {
-                return Err(ToolError::BadArgument {
+                return Err(ToolError::NotChangeable {
                     argument: "conditions",
+                    reason: "conditions-hidden",
                 });
             }
-            rule.conditions = listed
-                .iter()
-                .map(condition)
-                .collect::<Result<Vec<_>, _>>()?;
+            rule.conditions = conditions(item.array("conditions")?)?;
         }
         if item.get("category_id").is_some() || item.get("new_category").is_some() {
             if matches!(before.actions.book_to, Some(BookTo::Transfer(_))) {
-                return Err(ToolError::NotChangeable);
+                return Err(ToolError::NotChangeable {
+                    argument: "category_id",
+                    reason: "makes-transfer",
+                });
             }
             rule.actions.book_to = Some(BookTo::Category(self.target(&item)?));
         }
@@ -1747,9 +1794,7 @@ impl Known {
                 argument: "rule_id",
             });
         }
-        rule.check().map_err(|_| ToolError::BadArgument {
-            argument: "conditions",
-        })?;
+        rule.check().map_err(rule_refused)?;
         Ok(EditRule {
             before_category: self.rule_category(&before),
             category: self.rule_category(&rule),
@@ -1767,10 +1812,18 @@ impl Known {
         let item = Object::read(value, &["rule_id"], "delete_rules")?;
         let info = self.rule_to_change(&item, touched)?;
         if info.sub_rules > 0 {
-            return Err(ToolError::NotChangeable);
+            return Err(ToolError::NotChangeable {
+                argument: "rule_id",
+                reason: "has-sub-rules",
+            });
         }
         let rule = info.rule.clone();
+        let parent = info.parent;
         self.rule_order.retain(|id| *id != rule.id);
+        // Its name is free for a new Rule of the same call.
+        if let Some(names) = self.rule_names.get_mut(&parent) {
+            names.remove(&rule_name_key(&rule.name));
+        }
         Ok(DeleteRule {
             category: self.rule_category(&rule),
             rule,
@@ -1787,7 +1840,10 @@ impl Known {
         let item = Object::read(value, &["rule_id", "position"], "move_rules")?;
         let info = self.rule_to_change(&item, touched)?;
         if info.parent.is_some() {
-            return Err(ToolError::NotChangeable);
+            return Err(ToolError::NotChangeable {
+                argument: "rule_id",
+                reason: "is-sub-rule",
+            });
         }
         let rule = info.rule.clone();
         let to = item
@@ -1819,24 +1875,21 @@ impl Known {
         })
     }
 
-    fn new_rule(
-        &self,
-        book: &Book,
-        value: &Value,
-        names: &mut HashSet<String>,
-    ) -> Result<NewRule, ToolError> {
+    fn new_rule(&mut self, value: &Value) -> Result<NewRule, ToolError> {
         let item = Object::read(
             value,
             &["name", "match", "conditions", "category_id", "new_category"],
             "new_rules",
         )?;
         let name = plain_text(item.required_string("name")?, "name")?;
-        let wanted = name.to_lowercase();
-        let taken = book
-            .rules()?
-            .iter()
-            .any(|node| node.rule.name.trim().to_lowercase() == wanted);
-        if taken || !names.insert(wanted) {
+        // Against the Rules as the changes and deletions before it leave
+        // them, not only as the book has them now (M6-B191).
+        if !self
+            .rule_names
+            .entry(None)
+            .or_default()
+            .insert(rule_name_key(&name))
+        {
             return Err(ToolError::NameTaken);
         }
         let match_mode = match item.string("match")? {
@@ -1844,16 +1897,7 @@ impl Known {
             Some("any") => MatchMode::Any,
             Some(_) => return Err(ToolError::BadArgument { argument: "match" }),
         };
-        let listed = item.array("conditions")?;
-        if listed.is_empty() || listed.len() > MAX_CONDITIONS {
-            return Err(ToolError::BadArgument {
-                argument: "conditions",
-            });
-        }
-        let conditions = listed
-            .iter()
-            .map(condition)
-            .collect::<Result<Vec<_>, _>>()?;
+        let conditions = conditions(item.array("conditions")?)?;
         let category = self.target(&item)?;
         let rule = Rule {
             id: RuleId::generate(),
@@ -1865,9 +1909,7 @@ impl Known {
                 payee: None,
             },
         };
-        rule.check().map_err(|_| ToolError::BadArgument {
-            argument: "conditions",
-        })?;
+        rule.check().map_err(rule_refused)?;
         Ok(NewRule {
             rule,
             category: self.path(category),
@@ -1947,10 +1989,29 @@ fn writable(condition: &Condition) -> bool {
     }
 }
 
+/// The conditions of a Rule as a model wrote them: at least one, at most
+/// [`MAX_CONDITIONS`]. An error names the condition by its place in the
+/// list (M6-B191, D-626).
+fn conditions(listed: &[Value]) -> Result<Vec<Condition>, ToolError> {
+    let bad = |condition, reason| ToolError::BadCondition { condition, reason };
+    if listed.is_empty() {
+        return Err(bad(None, "none"));
+    }
+    if listed.len() > MAX_CONDITIONS {
+        return Err(bad(None, "too-many"));
+    }
+    listed
+        .iter()
+        .enumerate()
+        .map(|(index, value)| condition(value).map_err(|reason| bad(Some(index + 1), reason)))
+        .collect()
+}
+
 /// One condition of a new Rule: a text test on the payee, the other party's
 /// name or the bank's text, or money in or out. No IBAN, since a model
-/// never sees one (D-186), and no pattern, the advanced way (D-015).
-fn condition(value: &Value) -> Result<Condition, ToolError> {
+/// never sees one (D-186), and no pattern, the advanced way (D-015). The
+/// error is the fixed reason, as `ai-tools.bad-condition` lists it.
+fn condition(value: &Value) -> Result<Condition, &'static str> {
     let item = Object::read(
         value,
         &[
@@ -1962,10 +2023,11 @@ fn condition(value: &Value) -> Result<Condition, ToolError> {
             "money_out",
         ],
         "conditions",
-    )?;
-    let money_in = item.boolean("money_in")?;
-    let money_out = item.boolean("money_out")?;
-    let field = item.string("field")?;
+    )
+    .map_err(|_| "shape")?;
+    let money_in = item.boolean("money_in").map_err(|_| "shape")?;
+    let money_out = item.boolean("money_out").map_err(|_| "shape")?;
+    let field = item.string("field").map_err(|_| "field")?;
     match (field, money_in, money_out) {
         (None, Some(true), None) => Ok(Condition::Amount(AmountTest::MoneyIn)),
         (None, None, Some(true)) => Ok(Condition::Amount(AmountTest::MoneyOut)),
@@ -1974,26 +2036,45 @@ fn condition(value: &Value) -> Result<Condition, ToolError> {
                 "payee" => TextField::Payee,
                 "other_party_name" => TextField::OtherPartyName,
                 "bank_text" => TextField::RemittanceInformation,
-                _ => return Err(ToolError::BadArgument { argument: "field" }),
+                _ => return Err("field"),
             };
-            let operator = match item.required_string("test")? {
+            let operator = match item.required_string("test").map_err(|_| "test")? {
                 "contains" => TextOperator::Contains,
                 "equals" => TextOperator::Equals,
                 "starts_with" => TextOperator::StartsWith,
                 "ends_with" => TextOperator::EndsWith,
-                _ => return Err(ToolError::BadArgument { argument: "test" }),
+                _ => return Err("test"),
             };
             Ok(Condition::Text {
                 field,
                 operator,
-                value: plain_text(item.required_string("text")?, "text")?,
-                case_sensitive: item.boolean("case_sensitive")?.unwrap_or(false),
+                value: item
+                    .required_string("text")
+                    .and_then(|text| plain_text(text, "text"))
+                    .map_err(|_| "text")?,
+                case_sensitive: item
+                    .boolean("case_sensitive")
+                    .map_err(|_| "shape")?
+                    .unwrap_or(false),
             })
         }
-        _ => Err(ToolError::BadArgument {
-            argument: "conditions",
-        }),
+        _ => Err("shape"),
     }
+}
+
+/// What a Rule the store would refuse tells the model: which condition and
+/// why, from the Rule's own check.
+fn rule_refused(error: RuleError) -> ToolError {
+    let (condition, reason) = match error {
+        RuleError::NoConditions(_) => (None, "none"),
+        RuleError::EmptyText { condition, .. } => (Some(condition + 1), "text"),
+        RuleError::BadPattern { condition, .. } => (Some(condition + 1), "bad-pattern"),
+        RuleError::AmountRangeReversed { condition, .. }
+        | RuleError::AmountRangeCurrencies { condition, .. }
+        | RuleError::DateRangeReversed { condition, .. } => (Some(condition + 1), "invalid"),
+        RuleError::EmptyPayee(_) => (None, "invalid"),
+    };
+    ToolError::BadCondition { condition, reason }
 }
 
 /// A name or text a model wrote, as the book will keep it: trimmed, not

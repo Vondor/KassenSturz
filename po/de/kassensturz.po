@@ -17929,6 +17929,84 @@ msgstr ""
 "nach dem Zeitraum seit %1 gefragt. Ältere Umsätze kann Ihre Bank auf diesem "
 "Weg nicht liefern: Laden Sie dafür eine Datei von Ihrer Bank."
 
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:1
+#, kde-format
+msgctxt "@item:inmenu a column of the transactions"
+msgid "Category"
+msgstr "Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:1
+#, kde-format
+msgctxt "@item:inmenu a column of the transactions: what the account held after each one"
+msgid "Balance after"
+msgstr "Kontostand danach"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:1
+#, kde-format
+msgctxt "@item:inmenu a column of the transactions: the IBAN of whom the money came from or went to"
+msgid "Their IBAN"
+msgstr "IBAN der Gegenseite"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:1
+#, kde-format
+msgctxt "@item:inmenu a column of the transactions: what the payment came with (German: Verwendungszweck)"
+msgid "Purpose"
+msgstr "Verwendungszweck"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:1
+#, kde-format
+msgctxt "@item:inmenu a column of the transactions: the day the money counts from or until (German: Wertstellung)"
+msgid "Value date"
+msgstr "Wertstellung"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:1
+#, kde-format
+msgctxt "@action:button choose which details the list of transactions shows as columns"
+msgid "Columns"
+msgstr "Spalten"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:1
+#, kde-format
+msgctxt "@info"
+msgid "The balance after each transaction is shown only when the list is sorted by date."
+msgstr "Der Kontostand nach jedem Umsatz wird nur gezeigt, wenn die Liste nach Datum sortiert ist."
+
+#: crates/kassensturz-ui-bridge/qml/TransactionRow.qml:1
+#, kde-format
+msgctxt "@info a column title that sorts the list when it is clicked"
+msgid "Sort by this column"
+msgstr "Nach dieser Spalte sortieren"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionRow.qml:1
+#, kde-format
+msgctxt "@info the list is sorted by this column, largest or latest first"
+msgid "Sorted descending"
+msgstr "Absteigend sortiert"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionRow.qml:1
+#, kde-format
+msgctxt "@info the list is sorted by this column, smallest or earliest first"
+msgid "Sorted ascending"
+msgstr "Aufsteigend sortiert"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionRow.qml:1
+#, kde-format
+msgctxt "@title:column the day the money counts from or until (German: Wertstellung)"
+msgid "Value date"
+msgstr "Wertstellung"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionRow.qml:1
+#, kde-format
+msgctxt "@title:column the IBAN of whom the money came from or went to"
+msgid "Their IBAN"
+msgstr "IBAN der Gegenseite"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionRow.qml:1
+#, kde-format
+msgctxt "@title:column what the payment came with (German: Verwendungszweck)"
+msgid "Purpose"
+msgstr "Verwendungszweck"
+
 #: crates/kassensturz-ui-bridge/qml/BudgetBars.qml
 #, kde-format
 msgctxt "@info %1 is a list of account names"

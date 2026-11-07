@@ -15,10 +15,14 @@ use kassensturz_store::{Book, StoreError};
 
 use crate::accounts::{self, CurrencySection};
 use crate::format::Locale;
-use crate::register::{AmountWriter, Entry, Shown, latest_entries};
+use crate::register::{AmountWriter, Entry, EntryKind, Shown, latest_entries};
 
 /// How many transactions the overview lists.
 const LATEST: usize = 5;
+
+/// How many of the transactions without a category the note lists (US1.9,
+/// #535); the count is always the whole book's.
+const UNSORTED_LISTED: usize = 10;
 
 /// A calendar month, named by its first day.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -142,6 +146,14 @@ pub struct OverviewView {
     pub budgets: usize,
     /// The newest transactions, newest first, without starting balances.
     pub latest: Vec<LatestRow>,
+    /// How many transactions in the whole book have a part without a
+    /// category, not only those of the month shown; Transfers between the
+    /// user's own accounts are left out (US1.9, #535, D-637).
+    pub unsorted: usize,
+    /// The newest of them, newest first, at most [`UNSORTED_LISTED`], each
+    /// seen from the account of the user's it is in. Their `category` is
+    /// empty.
+    pub unsorted_rows: Vec<LatestRow>,
 }
 
 /// What money a part of a transaction counts as.
@@ -249,7 +261,42 @@ pub fn view(book: &Book, month: Month, locale: &impl Locale) -> Result<OverviewV
         transfers,
         budgets: book.budgets()?.len(),
         latest: latest(book, &accounts, locale)?,
+        unsorted: book.unsorted_count()?,
+        unsorted_rows: unsorted_rows(book, &accounts, locale)?,
     })
+}
+
+/// The newest transactions without a category, as rows of the account of the
+/// user's they are booked to. One that touches no account of the user's has
+/// no account to open it from and is left out of the rows (it still counts).
+fn unsorted_rows(
+    book: &Book,
+    accounts: &HashMap<AccountId, Account>,
+    locale: &impl Locale,
+) -> Result<Vec<LatestRow>, StoreError> {
+    let mut rows = Vec::new();
+    for transaction in book.newest_unsorted(UNSORTED_LISTED)? {
+        let seen_from = transaction.splits().iter().find_map(|split| {
+            let account = accounts.get(&split.account?)?;
+            account.kind.is_account().then_some((account, split.amount))
+        });
+        let Some((account, amount)) = seen_from else {
+            continue;
+        };
+        let writer = AmountWriter::new(book, account.currency, locale)?;
+        rows.push(LatestRow {
+            account_id: account.id.to_string(),
+            account: account.name.clone(),
+            id: transaction.id().to_string(),
+            date: locale.short_date(transaction.booking_date()),
+            other_party: transaction.payee().unwrap_or_default().to_owned(),
+            category: String::new(),
+            amount: writer.text(amount),
+            incoming: amount.minor_units() > 0,
+            kind: EntryKind::Simple.key(),
+        });
+    }
+    Ok(rows)
 }
 
 /// The month's totals in `currency`, from `sums`.
@@ -486,6 +533,81 @@ mod tests {
             .iter()
             .map(|total| (total.name.as_str(), total.amount.exact.as_str()))
             .collect()
+    }
+
+    /// The count and the rows of the transactions without a category are the
+    /// whole book's, whatever month is shown, and each row opens from the
+    /// account it is booked to (US1.9, #535).
+    #[test]
+    fn counts_the_transactions_without_a_category_across_the_whole_book() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "EUR",
+            "1.000,00",
+            "2026-01-01",
+        );
+        assert_eq!(overview(&book, october()).unsorted, 0);
+        entered(
+            &mut book,
+            &checking,
+            false,
+            "12,50",
+            "Kiosk",
+            "",
+            "2026-10-13",
+        );
+        entered(
+            &mut book,
+            &checking,
+            false,
+            "30,00",
+            "Bakery",
+            "",
+            "2026-03-02",
+        );
+        entered(
+            &mut book,
+            &checking,
+            false,
+            "40,00",
+            "Corner Grocery",
+            "Food › Groceries",
+            "2026-10-12",
+        );
+        for month in [october(), Month::of(date(2026, 3, 1))] {
+            let shown = overview(&book, month);
+            assert_eq!(shown.unsorted, 2, "the whole book, not the month");
+            let payees: Vec<&str> = shown
+                .unsorted_rows
+                .iter()
+                .map(|row| row.other_party.as_str())
+                .collect();
+            assert_eq!(payees, ["Kiosk", "Bakery"], "newest first");
+        }
+        let shown = overview(&book, october());
+        let row = &shown.unsorted_rows[0];
+        assert_eq!(row.account_id, checking);
+        assert_eq!(row.account, "Checking account");
+        assert_eq!(row.amount.exact, "-12,50 €");
+        assert!(!row.incoming);
+        assert_eq!(row.category, "");
+        // A joined Transfer is not unsorted.
+        let savings = account(
+            &mut book,
+            "Savings account",
+            AccountType::Savings,
+            "EUR",
+            "0,00",
+            "2026-01-01",
+        );
+        let out = entered(&mut book, &checking, false, "100,00", "", "", "2026-10-14");
+        let into = entered(&mut book, &savings, true, "100,00", "", "", "2026-10-14");
+        assert_eq!(overview(&book, october()).unsorted, 4);
+        join(&mut book, &out, &into).expect("joined");
+        assert_eq!(overview(&book, october()).unsorted, 2);
     }
 
     #[test]

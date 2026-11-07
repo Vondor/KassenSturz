@@ -59,7 +59,7 @@ Controls.Menu {
               // offered: a page may hold as many as the user wants (D-532).
               rows: kindRows(["text.heading", "text.separator", "group.period", "page.tabs", "page.period", "page.filters"]) },
             { name: ctx.i18nc("@title:menu a group of widgets: notes and warnings", "Notes"),
-              rows: kindRows(["notice.fetch_gap", "notice.transfers"]) },
+              rows: kindRows(["notice.fetch_gap", "notice.transfers", "notice.unsorted"]) },
             { name: ctx.i18nc("@title:menu a group of widgets: views saved in the Statistic Builder", "Saved views"),
               rows: sorted(widgetMenu.savedList.map(row => ({ id: row.id, name: row.name, saved: true }))) }
         ];

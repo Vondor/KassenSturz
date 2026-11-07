@@ -61,6 +61,8 @@ QtObject {
             return i18nContext.i18nc("@item:inlistbox a part of the layout: the bar that chooses the period, accounts and categories for the whole page", "Filter bar");
         case "notice.transfers":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a note that money moved between the user's own accounts is not counted", "Note about moved money");
+        case "notice.unsorted":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: a note with how many transactions have no category yet and the newest of them", "Transactions without a category");
         }
         return i18nContext.i18nc("@item:inlistbox a part of the layout that this version doesn't know", "Unknown");
     }

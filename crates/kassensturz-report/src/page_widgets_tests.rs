@@ -274,7 +274,7 @@ fn the_built_in_overview_of_an_earlier_build_reads_as_todays() {
         old["version"] = version.into();
         let components = old["components"].as_array_mut().unwrap();
         components.retain(|component| !removed.contains(&component["type"].as_str().unwrap()));
-        assert_eq!(components.len(), 15 - removed.len());
+        assert_eq!(components.len(), 16 - removed.len());
         for component in components.iter_mut() {
             let row = component["frame"]["row"].as_u64().unwrap();
             component["frame"]["row"] = (row - up).into();

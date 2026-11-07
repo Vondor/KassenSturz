@@ -324,7 +324,7 @@ Kirigami.ScrollablePage {
                     textFormat: Text.PlainText
                     font: Kirigami.Theme.smallFont
                     visible: row.outcome !== undefined && row.outcome.state === "ready" && (row.outcome.firstFrom ?? "") !== ""
-                    text: Plain.plain(page.i18nContext.i18nc("@info %1 is a date", "This was the first time for this account, so KassenSturz asked your bank for the time since %1. Older transactions your bank can't give this way: import a file from your bank for them.", row.outcome.firstFrom ?? ""))
+                    text: row.outcome === undefined ? "" : Plain.plain(page.i18nContext.i18nc("@info %1 is a date", "This was the first time for this account, so KassenSturz asked your bank for the time since %1. Older transactions your bank can't give this way: import a file from your bank for them.", row.outcome.firstFrom ?? ""))
                 }
 
                 RowLayout {

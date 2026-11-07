@@ -98,7 +98,8 @@ Kirigami.ScrollablePage {
         if (adding) {
             const first = repeats ? (starts[Math.max(0, startBox.currentIndex)]?.day ?? "") : firstDayField.text;
             const accounts = someAccountsBox.checked ? chosenAccounts : [];
-            result = budgets.addBudget(chosenCategories.join(","), accounts.join(","), everyWord, amountField.text, repeats && carryBox.checked, first, lastDayField.text);
+            // The categories, then the accounts after a semicolon (D-639).
+            result = budgets.addBudget(chosenCategories.join(",") + ";" + accounts.join(","), everyWord, amountField.text, repeats && carryBox.checked, first, lastDayField.text);
         } else {
             const from = changes[Math.max(0, fromBox.currentIndex)]?.day ?? "";
             result = budgets.changeBudget(budgetId, from, amountField.text, repeats && carryBox.checked);
@@ -156,7 +157,10 @@ Kirigami.ScrollablePage {
 
                     text: modelData.path
                     checked: page.moreCategories.includes(modelData.id)
-                    onToggled: page.moreCategories = page.toggled(page.moreCategories, modelData.id, checked)
+                    onToggled: {
+                        ActionLog.taken("BudgetPage_pickCategory")
+                        page.moreCategories = page.toggled(page.moreCategories, modelData.id, checked)
+                    }
                 }
             }
         }
@@ -192,7 +196,10 @@ Kirigami.ScrollablePage {
 
                     text: modelData.name
                     checked: page.chosenAccounts.includes(modelData.id)
-                    onToggled: page.chosenAccounts = page.toggled(page.chosenAccounts, modelData.id, checked)
+                    onToggled: {
+                        ActionLog.taken("BudgetPage_pickAccount")
+                        page.chosenAccounts = page.toggled(page.chosenAccounts, modelData.id, checked)
+                    }
                 }
             }
 

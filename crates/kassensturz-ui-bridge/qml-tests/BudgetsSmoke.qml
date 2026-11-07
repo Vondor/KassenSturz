@@ -120,13 +120,13 @@ Kirigami.ApplicationWindow {
             window.check(adding.adding, "the sheet adds");
             adding.save();
             const added = () => fake.calls.filter(call => call.startsWith("addBudget:"));
-            window.check(added()[0] === "addBudget:c-food::month::false:2026-10-01:", "adding sends what was chosen, got " + added()[0]);
+            window.check(added()[0] === "addBudget:c-food;:month::false:2026-10-01:", "adding sends what was chosen, got " + added()[0]);
             window.check(window.texts(adding, []).some(text => text.includes("amount")), "a refused amount says what to do");
             const amount = window.all(adding, "TextField", []).filter(field => field.placeholderText === "What you plan to spend");
             window.check(amount.length === 1, "one amount field, found " + amount.length);
             amount[0].text = "250,00";
             adding.save();
-            window.check(added()[1] === "addBudget:c-food::month:250,00:false:2026-10-01:", "adding sends the amount, got " + added()[1]);
+            window.check(added()[1] === "addBudget:c-food;:month:250,00:false:2026-10-01:", "adding sends the amount, got " + added()[1]);
 
             // More categories and some accounts are one deliberate tick away
             // (D-639); nothing else is sent before they are ticked.
@@ -140,7 +140,7 @@ Kirigami.ApplicationWindow {
             box("Checking").toggle();
             box("Checking").toggled();
             adding.save();
-            window.check(added()[2] === "addBudget:c-food,c-rent:a-checking:month:250,00:false:2026-10-01:", "adding sends the categories and accounts, got " + added()[2]);
+            window.check(added()[2] === "addBudget:c-food,c-rent;a-checking:month:250,00:false:2026-10-01:", "adding sends the categories and accounts, got " + added()[2]);
 
             // The sheet to change a budget sends the period it starts from.
             const changing = window.pageStack.push(sheet, {budgetId: "b-food"});

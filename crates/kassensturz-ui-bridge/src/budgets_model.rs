@@ -52,10 +52,10 @@ pub mod qobject {
         #[cxx_name = "startChoices"]
         fn start_choices(self: &BudgetBook, every: &QString) -> QVariant;
 
-        /// Makes a budget for the categories in `categories` (IDs separated
-        /// by commas, at least one), counting only what was paid from the
-        /// accounts in `accounts` (IDs separated by commas; empty for every
-        /// account, D-639). `first_day` is a start from `startChoices` as
+        /// Makes a budget for what `chosen` names (D-639): the categories'
+        /// IDs separated by commas (at least one), then optionally a `;` and
+        /// the IDs of the accounts it counts from, separated by commas
+        /// (none for every account). `first_day` is a start from `startChoices` as
         /// `day`, empty for the current period, or for a range the typed
         /// first day; `last_day` is the typed last day of a range. Returns
         /// an empty map, or the error's `code` and its parameters.
@@ -63,8 +63,7 @@ pub mod qobject {
         #[cxx_name = "addBudget"]
         fn add_budget(
             self: Pin<&mut BudgetBook>,
-            categories: &QString,
-            accounts: &QString,
+            chosen: &QString,
             every: &QString,
             amount: &QString,
             carry_over: bool,
@@ -144,21 +143,16 @@ impl qobject::BudgetBook {
         }
     }
 
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "the sheet sends every field of a new budget"
-    )]
     fn add_budget(
         self: Pin<&mut Self>,
-        categories: &QString,
-        accounts: &QString,
+        chosen: &QString,
         every: &QString,
         amount: &QString,
         carry_over: bool,
         first_day: &QString,
         last_day: &QString,
     ) -> QVariant {
-        let (categories, accounts) = (id_list(categories), id_list(accounts));
+        let (categories, accounts) = split_choice(&chosen.to_string());
         let (every, amount) = (every.to_string(), amount.to_string());
         let (first_day, last_day) = (first_day.to_string(), last_day.to_string());
         let result = change(|book, locale| {
@@ -227,12 +221,18 @@ fn change<T>(
 }
 
 /// IDs sent by QML separated by commas, without empty ones.
-fn id_list(ids: &QString) -> Vec<String> {
-    ids.to_string()
-        .split(',')
+fn id_list(ids: &str) -> Vec<String> {
+    ids.split(',')
         .filter(|id| !id.is_empty())
         .map(str::to_owned)
         .collect()
+}
+
+/// The categories and accounts of `addBudget`'s `chosen`: categories, then
+/// optionally `;` and accounts, each separated by commas.
+fn split_choice(chosen: &str) -> (Vec<String>, Vec<String>) {
+    let (categories, accounts) = chosen.split_once(';').unwrap_or((chosen, ""));
+    (id_list(categories), id_list(accounts))
 }
 
 /// A bar as QML reads it. Shared with the bars of the components
@@ -413,6 +413,15 @@ mod tests {
             book.add_transaction(&transaction).expect("added");
         }
         book
+    }
+
+    #[test]
+    fn the_sheet_sends_categories_then_accounts() {
+        let both = split_choice("c1,c2;a1");
+        assert_eq!(both, (vec!["c1".into(), "c2".into()], vec!["a1".into()]));
+        assert_eq!(split_choice("c1"), (vec!["c1".into()], Vec::new()));
+        assert_eq!(split_choice("c1;"), (vec!["c1".into()], Vec::new()));
+        assert_eq!(split_choice(""), (Vec::new(), Vec::new()));
     }
 
     /// What QML reads from the page's view, built from the real output of

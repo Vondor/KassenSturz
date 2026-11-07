@@ -37,8 +37,8 @@ QtObject {
                 {day: "2026-10-01", firstDay: "2026-10-01", lastDay: "2026-10-31", current: true}];
     }
 
-    function addBudget(categories, accounts, every, amount, carryOver, firstDay, lastDay) {
-        calls.push("addBudget:" + [categories, accounts, every, amount, carryOver, firstDay, lastDay].join(":"));
+    function addBudget(chosen, every, amount, carryOver, firstDay, lastDay) {
+        calls.push("addBudget:" + [chosen, every, amount, carryOver, firstDay, lastDay].join(":"));
         return amount === "" ? {code: "store.budget-amount", reason: "not-positive"} : {};
     }
 

@@ -382,11 +382,12 @@ impl AqBankingBank {
         for account in &accounts {
             self.prefer_camt(session, account.unique_id, &login, pins);
         }
-        // IBANs for accounts the bank listed without one. A credit card
-        // has none, so a failure here leaves the login usable.
-        if accounts.iter().any(|account| account.iban.is_none()) {
-            let _ = self.setup_command(session, "getaccsepa", &user, pin, &login, pins);
-        }
+        // The SEPA data of the accounts: IBANs for accounts the bank listed
+        // without one, and the BIC, which the account list does not carry and
+        // some banks need in the statement request (an empty BIC gave
+        // "mandatory field missing", FinTS 9160). A credit card has no IBAN,
+        // so a failure here leaves the login usable.
+        let _ = self.setup_command(session, "getaccsepa", &user, pin, &login, pins);
         Ok(())
     }
 
@@ -496,9 +497,9 @@ impl AqBankingBank {
                 self.prefer_camt(session, id, login, pins);
             }
         }
-        if accounts.iter().any(|account| account.iban.is_none()) {
-            let _ = self.setup_command(session, "getaccsepa", &user, pin, login, pins);
-        }
+        // The SEPA data again, also for logins set up before it carried the
+        // BIC (see `connect_new`): the call is repeatable.
+        let _ = self.setup_command(session, "getaccsepa", &user, pin, login, pins);
         self.accounts_of(session, uid, login)
     }
 

@@ -421,7 +421,20 @@ impl Bank for FakeBank {
 
     fn logins(&self) -> Result<Vec<Login>, BankError> {
         self.availability.require()?;
-        Ok(self.logins.iter().map(|fake| fake.login.clone()).collect())
+        Ok(self
+            .logins
+            .iter()
+            .map(|fake| {
+                let mut login = fake.login.clone();
+                login.connection.tan_method = fake.tan_method;
+                login.connection.tan_method_name = match fake.tan_method {
+                    Some(6912) => "Test TAN list".to_owned(),
+                    Some(7920) => "Test app approval".to_owned(),
+                    _ => String::new(),
+                };
+                login
+            })
+            .collect())
     }
 
     fn add_login(
@@ -454,6 +467,7 @@ impl Bank for FakeBank {
                 connection: crate::backend::LoginConnection {
                     url: setup.url.clone(),
                     fints_version: Some(setup.fints_version),
+                    ..Default::default()
                 },
             },
             login_name: setup.login_name.clone(),
@@ -721,6 +735,7 @@ mod tests {
                 connection: crate::backend::LoginConnection {
                     url: FakeDirectory::URL.to_owned(),
                     fints_version: Some(crate::backend::FintsVersion::V300),
+                    ..Default::default()
                 },
             }])
         );

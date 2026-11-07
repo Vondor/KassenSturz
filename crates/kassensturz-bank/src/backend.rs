@@ -95,6 +95,11 @@ pub struct LoginConnection {
     pub url: String,
     /// The FinTS version, if it is one of the offered ones.
     pub fints_version: Option<FintsVersion>,
+    /// The approval (TAN) method it uses, if one is selected: its number.
+    /// Read with the list so that the login name is not touched (D-617).
+    pub tan_method: Option<u16>,
+    /// The bank's name for that method, empty if it hasn't told it.
+    pub tan_method_name: String,
 }
 
 /// The FinTS version a login talks to the bank in (D-609). 3.0 is what

@@ -1699,7 +1699,8 @@ Kirigami.ApplicationWindow {
             bank: bankConnection
             fetchGap: fetchGapSettings
             onConnectBankClicked: root.pushPage(bankSetupPage)
-            onChangeBankClicked: login => root.pushPage(bankSetupPage, { replacesLogin: login.id, startIban: login.iban, startUrl: login.url, startVersion: login.fintsVersion })
+            onChangeBankClicked: login => root.pushPage(bankLoginPage, { login: login })
+            onLinkAccountClicked: login => root.pushPage(bankSetupPage, { refreshLogin: login.id })
             onOpenAnotherClicked: root.chooseBookToOpen()
             onExampleBookClicked: root.chooseExampleBook()
             onNewBookClicked: root.chooseNewBook()
@@ -1768,6 +1769,24 @@ Kirigami.ApplicationWindow {
                     settings.refreshBanks();
                 }
             }
+        }
+    }
+
+    Component {
+        id: bankLoginPage
+
+        BankLoginPage {
+            bank: bankConnection
+            onDone: {
+                root.pageStack.pop();
+                const settings = root.pageStack.currentItem;
+                if (settings && settings.refreshBanks !== undefined) {
+                    settings.refreshBanks();
+                }
+            }
+            // The login is set up again: the old one is replaced, as before
+            // (D-609), starting from what it has now.
+            onSetUpAgainClicked: login => root.replacePage(bankSetupPage, { replacesLogin: login.id, startIban: login.iban, startUrl: login.url, startVersion: login.fintsVersion, startLoginName: details.loginName ?? "" })
         }
     }
 

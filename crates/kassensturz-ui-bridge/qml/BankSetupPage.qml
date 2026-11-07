@@ -32,6 +32,12 @@ Kirigami.ScrollablePage {
     // Changing a login: the one the new login replaces, and the IBAN of its
     // account to begin with. Empty for a new login.
     property string replacesLogin: ""
+    // Linking another account of a working login: its ID. The bank is asked
+    // again for the accounts of that login, and the usual linking follows
+    // (D-617). Empty otherwise.
+    property string refreshLogin: ""
+    // Changing a login: the login name it has now, to start from (D-617).
+    property string startLoginName: ""
 
     // The advanced settings of the connection are one deliberate step away
     // (D-609); closed, the defaults are used.
@@ -65,7 +71,9 @@ Kirigami.ScrollablePage {
 
     readonly property bool canContinue: ["ready", "unknown-bank", "no-server", "guessed-server", "unknown-login-kind"].includes(lookup.state ?? "")
 
-    title: Plain.plain(replacesLogin !== ""
+    title: Plain.plain(refreshLogin !== ""
+        ? i18nContext.i18nc("@title", "Link another account")
+        : replacesLogin !== ""
         ? i18nContext.i18nc("@title", "Change a bank login")
         : i18nContext.i18nc("@title", "Connect a bank"))
     header: ColumnLayout {
@@ -198,7 +206,7 @@ Kirigami.ScrollablePage {
                 if (result.code === "bank.tan-method-needed" && result.methods !== undefined) {
                     page.setTanChoices(result.methods);
                 }
-                page.step = "details";
+                page.step = page.refreshLogin !== "" ? "refresh-failed" : "details";
                 return;
             }
             page.oldLoginLeft = result.oldLoginLeft ?? false;
@@ -209,7 +217,19 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // Asks the bank again for the accounts of the login (D-617).
+    function refreshAccounts() {
+        const result = bank.refreshAccounts(refreshLogin);
+        error.result = result;
+        step = result.code === undefined ? "connecting" : "refresh-failed";
+    }
+
     Component.onCompleted: {
+        if (refreshLogin !== "") {
+            refreshAccounts();
+            return;
+        }
+        loginField.text = startLoginName;
         if (startIban !== "") {
             ibanField.text = startIban;
             findBank();
@@ -273,7 +293,7 @@ Kirigami.ScrollablePage {
         // Step 2: what this bank needs.
         Kirigami.FormLayout {
             Layout.fillWidth: true
-            visible: page.step === "details" || page.step === "connecting"
+            visible: (page.step === "details" || page.step === "connecting") && page.refreshLogin === ""
             enabled: page.step === "details"
 
             Controls.Label {
@@ -517,6 +537,18 @@ Kirigami.ScrollablePage {
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 20
                 wrapMode: Text.Wrap
                 text: page.i18nContext.i18nc("@info", "Talking to your bank… This can take a minute. Your bank may ask for a TAN, or for your approval in its app.")
+            }
+        }
+
+        // Linking another account failed: try again, or leave.
+        Controls.Button {
+            Layout.alignment: Qt.AlignHCenter
+            visible: page.step === "refresh-failed"
+            text: page.i18nContext.i18nc("@action:button", "Try again")
+            icon.name: "view-refresh"
+            onClicked: {
+                ActionLog.taken("BankSetupPage_refreshAgain")
+                page.refreshAccounts()
             }
         }
 

@@ -1154,7 +1154,7 @@ mod tests {
     use crate::first_start::tests::started;
     use crate::register::tests::TestLocale;
     use crate::register::{Sort, register_view, register_view_with};
-    use crate::register_columns::{Column, Columns};
+    use crate::register_columns::{Column as RegisterColumn, Columns};
     use crate::test_folder::TestFolder;
     use crate::transaction_entry::{self, NewEntry};
 
@@ -1795,9 +1795,9 @@ mod tests {
         // (US1.19), as the importer produced it, and nothing for the starting
         // balance or the entry that came without an IBAN.
         let columns = Columns::default()
-            .with(Column::OtherPartyIban, true)
-            .with(Column::Purpose, true)
-            .with(Column::ValueDate, true);
+            .with(RegisterColumn::OtherPartyIban, true)
+            .with(RegisterColumn::Purpose, true)
+            .with(RegisterColumn::ValueDate, true);
         let details = register_view_with(&book, checking, Sort::default(), columns, &TestLocale)
             .expect("register");
         let bookshop = details

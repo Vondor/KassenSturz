@@ -495,6 +495,7 @@ impl Default for Sort {
 impl Sort {
     /// Sorts `entries` as asked. A tie keeps the date order, which is how
     /// they come from [`entries`]; so does sorting by date.
+    #[cfg(test)]
     pub fn apply(self, entries: &mut [Entry]) {
         self.apply_with(entries, &HashMap::new());
     }
@@ -604,6 +605,7 @@ fn one_line(text: Option<&str>) -> String {
 
 /// Reads `account`'s register from `book`, sorts it and formats it for
 /// `locale`, with the default columns.
+#[cfg(test)]
 pub fn register_view(
     book: &Book,
     account: AccountId,

@@ -20,7 +20,7 @@ use crate::balances::Holdings;
 use crate::{Filter, Period, ReportError};
 
 /// Whether money counts as income or as spending.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Kind {
     Income,
     Spending,

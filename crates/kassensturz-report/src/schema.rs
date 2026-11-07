@@ -336,6 +336,11 @@ pub enum Kind {
     /// Empty means it follows the page's filter bar. The book decides
     /// which of them it still knows, when the filter is applied.
     Accounts,
+    /// A list of up to [`MAX_FILTER_IDS`] budget IDs, written as text
+    /// (D-642): the budgets the budget bars show. Empty means every budget.
+    /// The book decides which of them it still knows; a dashboard file
+    /// leaves them out, since another book has budgets of its own.
+    Budgets,
     /// A formula in the canonical form the book stores (D-295), at most
     /// [`MAX_FORMULA_CHARS`] characters on one line. Empty means the
     /// component shows what its other properties say. Only the length and
@@ -388,7 +393,7 @@ pub enum Setting {
     Flag(bool),
     /// For [`Kind::Choice`] and [`Kind::Grouping`].
     Word(String),
-    /// For [`Kind::Ids`] and [`Kind::Accounts`].
+    /// For [`Kind::Ids`], [`Kind::Accounts`] and [`Kind::Budgets`].
     Ids(Vec<String>),
     /// For [`Kind::Columns`].
     Columns(Vec<ColumnSetting>),
@@ -422,6 +427,13 @@ const ACCOUNTS: Property = Property {
     key: "accounts",
     place: Place::Params,
     kind: Kind::Accounts,
+};
+/// `params.budgets` (D-642): the budgets the budget bars show, their *Which
+/// budgets*. Empty means every budget.
+const BUDGETS: Property = Property {
+    key: "budgets",
+    place: Place::Params,
+    kind: Kind::Budgets,
 };
 const SERIES: Property = Property {
     key: "series",
@@ -591,10 +603,10 @@ const HEADING: [Property; 1] = [TEXT];
 /// *Update all accounts*.
 const UPDATE_ALL: [Property; 1] = [TITLE];
 const PERIOD_BOX: [Property; 2] = [TITLE, BOX_PERIOD];
-/// The budget bars (D-357): which categories' budgets (empty: every
-/// budget), a title and the period whose last day (or today, if earlier)
-/// the bars are asked for (D-346).
-const BUDGET_PROGRESS: [Property; 3] = [CATEGORIES, TITLE, PERIOD];
+/// The budget bars (D-357): which budgets (D-642) and which categories'
+/// budgets (empty: every budget), a title and the period whose last day (or
+/// today, if earlier) the bars are asked for (D-346).
+const BUDGET_PROGRESS: [Property; 4] = [BUDGETS, CATEGORIES, TITLE, PERIOD];
 
 /// A custom chart (D-504): its description, whether to draw it without the
 /// parts that are not supported, the series of a chart over time and the
@@ -626,6 +638,7 @@ impl Property {
             | Kind::Flag { .. }
             | Kind::Ids
             | Kind::Accounts
+            | Kind::Budgets
             | Kind::Formula
             | Kind::Columns
             | Kind::Spec => &[],
@@ -638,7 +651,7 @@ impl Property {
             Kind::Text | Kind::Formula => Setting::Text(String::new()),
             Kind::Spec => Setting::Text(starter_spec(dataset.id)),
             Kind::Flag { default } => Setting::Flag(default),
-            Kind::Ids | Kind::Accounts => Setting::Ids(Vec::new()),
+            Kind::Ids | Kind::Accounts | Kind::Budgets => Setting::Ids(Vec::new()),
             Kind::Columns => Setting::Columns(Vec::new()),
             Kind::Choice(_) | Kind::Grouping => Setting::Word(
                 self.words(dataset)
@@ -701,7 +714,9 @@ impl Property {
                 Err(invalid("unknown-property", self.path()))
             }
             (Kind::Ids, Setting::Ids(ids)) => self.check_ids(ids, MAX_IDS),
-            (Kind::Accounts, Setting::Ids(ids)) => self.check_ids(ids, MAX_FILTER_IDS),
+            (Kind::Accounts | Kind::Budgets, Setting::Ids(ids)) => {
+                self.check_ids(ids, MAX_FILTER_IDS)
+            }
             (Kind::Columns, Setting::Columns(columns)) => {
                 if columns.len() > MAX_COLUMNS {
                     return Err(invalid("too-many", self.path()));

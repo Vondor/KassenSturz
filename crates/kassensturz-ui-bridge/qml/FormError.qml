@@ -184,6 +184,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is a character position", "Character %1 isn't one formulas use. Take it out, or put a name with spaces or special characters in single quotes: 'Eating out'.", result.position);
         case "missing-quote":
             return i18nContext.i18nc("@info %1 is a character position", "A quote at character %1 is never closed. Add the quote that closes it.", result.position);
+        case "unknown-kind":
+            return i18nContext.i18nc("@info %1 is a character position", "The word before the dot at character %1 isn't one formulas know. Write Income or Spending before the dot, for example Spending.Pets, or put a name with a dot in single quotes.", result.position);
         case "bad-period":
             return i18nContext.i18nc("@info %1 is a character position", "The time range at character %1 isn't written the way ranges are. Use words in double quotes, such as @\"last month\", or dates, such as @2026-03 or @2026-01..2026-03.", result.position);
         }
@@ -393,6 +395,8 @@ Kirigami.InlineMessage {
         case "report.formula-unknown-name":
             return i18nContext.i18nc("@info %1 is a name, %2 a character position", "%1 is not a category or one of My groups (character %2). Check the spelling, or put a name with spaces in single quotes: 'Eating out'.", result.name, result.position);
         case "report.formula-ambiguous-name":
+            if (result.by === "kind")
+                return i18nContext.i18nc("@info %1 is a name, %2 a list of names", "%1 fits more than one: %2. Write the one you mean as listed. Income. in front is money that came in, Spending. money that went out. Or rename a group or category of the same name.", result.name, result.paths);
             return i18nContext.i18nc("@info %1 is a name, %2 a list of names", "%1 fits more than one: %2. Write the one you mean with its path, as listed, or rename a group or category of the same name.", result.name, result.paths);
         case "report.formula-unknown-function":
             return i18nContext.i18nc("@info %1 is a function name, %2 a character position", "There is no function called %1 (character %2). The list of functions beside the formula shows the ones there are.", result.name, result.position);
@@ -469,7 +473,18 @@ Kirigami.InlineMessage {
         case "store.budget-not-spending":
             return i18nContext.i18nc("@info %1 is the name of a category", "%1 isn't a category for money you spend, so it can't have a budget. Choose a category for spending.", result.category);
         case "store.budget-overlap":
-            return i18nContext.i18nc("@info %1 is the name of a category", "%1 already has a budget for some of these days. A category has one budget at a time: change or stop the other one first, or start this one after it ends.", result.category);
+            return i18nContext.i18nc("@info %1 is the name of a category", "%1 already has a budget for some of these days that counts the same accounts. A category's money is in one budget at a time: change or stop the other one first, start this one after it ends, or count other accounts in it.", result.category);
+        case "store.budget-choice":
+            switch (result.reason) {
+            case "no-category":
+                return i18nContext.i18nc("@info", "A budget needs a category for money you spend. Choose one.");
+            case "currencies":
+                return i18nContext.i18nc("@info", "The categories of one budget need the same currency. Choose categories in one currency, or set a budget for each currency.");
+            case "not-own-account":
+                return i18nContext.i18nc("@info", "A budget can only count money paid from your own accounts. Choose among your accounts.");
+            default:
+                return i18nContext.i18nc("@info", "Each category and each account can be chosen once. Choose them again.");
+            }
         case "store.budget-amount":
             switch (result.reason) {
             case "too-large":
@@ -500,9 +515,15 @@ Kirigami.InlineMessage {
                 return i18nContext.i18nc("@info", "These days don't fit the budget. Choose other days.");
             }
         case "store.budget-too-many":
-            return result.limit === "amounts"
-                ? i18nContext.i18nc("@info %1 is a number", "A budget can keep at most %1 changes of its amount. Change the amount from an earlier period on instead.", result.max)
-                : i18nContext.i18nc("@info %1 is a number", "A book can keep at most %1 budgets. Delete a budget you no longer need.", result.max);
+            switch (result.limit) {
+            case "amounts":
+                return i18nContext.i18nc("@info %1 is a number", "A budget can keep at most %1 changes of its amount. Change the amount from an earlier period on instead.", result.max);
+            case "categories":
+                return i18nContext.i18nc("@info %1 is a number", "A budget can count at most %1 categories. Choose fewer, or a category that has the others inside it.", result.max);
+            case "accounts":
+                return i18nContext.i18nc("@info %1 is a number", "A budget can count at most %1 accounts. Choose fewer, or tick none to count every account.", result.max);
+            }
+            return i18nContext.i18nc("@info %1 is a number", "A book can keep at most %1 budgets. Delete a budget you no longer need.", result.max);
         case "store.category-in-use":
             switch (result.used_by) {
             case "subcategories":

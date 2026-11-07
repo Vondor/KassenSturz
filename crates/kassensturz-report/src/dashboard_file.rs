@@ -201,6 +201,14 @@ fn map_component(refs: &mut Refs<'_>, component: &mut Value) {
         match property.kind {
             Kind::Ids => refs.map_list(value, List::Categories),
             Kind::Accounts => refs.map_list(value, List::Accounts),
+            // A budget has no name another book could know it by: the
+            // bars there show every budget (D-642).
+            Kind::Budgets => {
+                if let Some(Value::Array(ids)) = value {
+                    refs.left_out += ids.len();
+                    ids.clear();
+                }
+            }
             Kind::Columns => {
                 if let Some(Value::Array(columns)) = value {
                     for column in columns {

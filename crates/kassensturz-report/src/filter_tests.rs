@@ -522,7 +522,8 @@ fn a_budget_counts_every_account_and_takes_the_categories() {
     let food = base
         .book
         .add_budget(
-            base.food,
+            &[base.food],
+            &[],
             BudgetEvery::Month,
             first,
             None,
@@ -533,7 +534,8 @@ fn a_budget_counts_every_account_and_takes_the_categories() {
     let rent = base
         .book
         .add_budget(
-            base.rent,
+            &[base.rent],
+            &[],
             BudgetEvery::Month,
             first,
             None,
@@ -557,7 +559,7 @@ fn a_budget_counts_every_account_and_takes_the_categories() {
     assert!(every.filtered.is_empty());
     assert_eq!(every.notes, [FilterNote::NotApplied(Dimension::Accounts)]);
     let spent = |filter: &Filter| -> Vec<_> {
-        budget_utilization(&source, shown, today, BudgetGrouping::Budget, filter)
+        budget_utilization(&source, shown, today, BudgetGrouping::Budget, filter, None)
             .unwrap()
             .iter()
             .map(|result| (result.budget, result.periods[0].spent.minor_units()))

@@ -213,6 +213,14 @@ fn view_object(view: &GroupsView) -> QVariant {
         ),
         ("groups", list(view.groups.iter().map(group_object))),
         (
+            "budgets",
+            list(
+                view.budgets
+                    .iter()
+                    .map(|budget| map([("id", text(&budget.id)), ("name", text(&budget.name))])),
+            ),
+        ),
+        (
             "categories",
             list(view.categories.iter().map(|row| {
                 map([
@@ -282,7 +290,9 @@ mod tests {
             .expect("group");
         category_groups::set_hidden(&mut book, std::slice::from_ref(&food)).expect("hidden");
         let view = view_object(&category_groups::view(&book).expect("view"));
-        assert_eq!(keys(&view), ["accounts", "categories", "groups"]);
+        assert_eq!(keys(&view), ["accounts", "budgets", "categories", "groups"]);
+        // No budget yet: nothing to pick in *Which budgets* (D-642).
+        assert!(list_of(&view, "budgets").is_empty());
         let groups = list_of(&view, "groups");
         assert_eq!(groups.len(), 1);
         assert_eq!(keys(&groups[0]), ["id", "income", "members", "name"]);

@@ -155,6 +155,7 @@ impl qobject::BookFormula {
 fn line_object(line: &Line) -> QVariant {
     map([
         ("name", text(&line.name)),
+        ("all", text(line.all)),
         ("inside", list(line.inside.iter().map(|name| text(name)))),
         (
             "insideMore",
@@ -226,6 +227,7 @@ fn completion_object(completion: &Completion) -> QVariant {
                     ("insert", text(&name.insert)),
                     ("label", text(&name.label)),
                     ("group", QVariant::from(&name.group)),
+                    ("all", text(name.all)),
                 ])
             })),
         ),
@@ -299,6 +301,7 @@ mod tests {
         assert_eq!(
             keys(&counted[0]),
             [
+                "all",
                 "firstDay",
                 "inside",
                 "insideMore",
@@ -309,6 +312,7 @@ mod tests {
             ]
         );
         assert_eq!(text_of(&counted[0], "name"), "Pets");
+        assert_eq!(text_of(&counted[0], "all"), "");
         let inside: Vec<String> = list_of(&counted[0], "inside")
             .iter()
             .map(|name| name.value::<QString>().expect("text").to_string())
@@ -387,7 +391,8 @@ mod tests {
         let names = list_of(&completion, "names");
         // Pets, and Vet inside it, whose path holds the word.
         assert_eq!(names.len(), 2);
-        assert_eq!(keys(&names[0]), ["group", "insert", "label"]);
+        assert_eq!(keys(&names[0]), ["all", "group", "insert", "label"]);
+        assert_eq!(text_of(&names[0], "all"), "");
         assert_eq!(text_of(&names[0], "insert"), "Pets");
         assert!(!flag_of(&names[0], "group"));
         // Nothing to complete still has the three keys.

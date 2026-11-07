@@ -119,6 +119,7 @@ fn main() {
                 "qml/ReplacedCurrency.qml",
                 "qml/RuleCondition.qml",
                 "qml/RulePage.qml",
+                "qml/RulesApply.qml",
                 "qml/RulesPage.qml",
                 "qml/SecretField.qml",
                 "qml/SettingsPage.qml",

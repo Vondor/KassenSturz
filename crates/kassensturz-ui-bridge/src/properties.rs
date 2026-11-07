@@ -38,7 +38,8 @@ pub struct Field {
     pub word: String,
     /// The words of a choice, in the order they are offered.
     pub words: Vec<&'static str>,
-    /// The IDs of a list of groups or categories; empty for the other kinds.
+    /// The IDs of a list of groups, categories, accounts or budgets; empty
+    /// for the other kinds.
     pub ids: Vec<String>,
 }
 
@@ -95,6 +96,7 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
             }
             // A list of IDs is offered only where it is used: the groups of a
             // chart that groups by My groups, the series of a chart over time.
+            // The budget bars' *Which budgets* is always offered (D-642).
             if let (Kind::Ids | Kind::Accounts, Setting::Ids(_)) = (&property.kind, setting) {
                 // The accounts and categories of a component are its own
                 // filters (M6c.7, D-350): offered where its dataset takes
@@ -141,7 +143,7 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                 Kind::Formula => "formula",
                 Kind::Flag { .. } => "flag",
                 Kind::Choice(_) | Kind::Grouping if words.len() > 1 => "choice",
-                Kind::Ids | Kind::Accounts => "ids",
+                Kind::Ids | Kind::Accounts | Kind::Budgets => "ids",
                 Kind::Columns | Kind::Choice(_) | Kind::Grouping => return None,
             };
             let (mut text, mut flag, mut word) = (String::new(), false, String::new());
@@ -215,6 +217,9 @@ pub struct Preview {
     /// these categories and groups (D-331), separated by commas; empty for
     /// all.
     pub only: String,
+    /// The IDs of the budgets the budget bars show, separated by commas,
+    /// for `BookBudgets.setBudgets`; empty for every budget (D-642).
+    pub budgets: String,
     /// Whether the hidden categories are shown anyway.
     pub show_hidden: bool,
     /// The columns of a chart or table as the document writes them (a JSON
@@ -402,6 +407,7 @@ pub fn preview(component: &Component) -> Preview {
             },
         ),
         only: ids(component, "categories"),
+        budgets: ids(component, "budgets"),
         show_hidden: matches!(component.get("show_hidden"), Some(Setting::Flag(true))),
         columns: columns_json(component, &str::to_owned)
             .filter(|json| json != "[]")

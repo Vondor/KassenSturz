@@ -43,8 +43,16 @@ fn last_action(book: &Book) -> Action {
 
 /// A monthly Groceries budget of 400.00 from September 2026 on.
 fn monthly(book: &mut Book, groceries: AccountId) -> BudgetId {
-    book.add_budget(groceries, Month, date(2026, 9, 1), None, eur(40_000), true)
-        .expect("added")
+    book.add_budget(
+        &[groceries],
+        &[],
+        Month,
+        date(2026, 9, 1),
+        None,
+        eur(40_000),
+        true,
+    )
+    .expect("added")
 }
 
 #[test]
@@ -60,7 +68,8 @@ fn a_budget_is_kept_with_its_period_and_amount() {
     let trip = account(&mut book, "Summer trip", AccountKind::Expense, EUR);
     let once = book
         .add_budget(
-            trip,
+            &[trip],
+            &[],
             Range,
             date(2026, 7, 10),
             Some(date(2026, 7, 24)),
@@ -70,7 +79,8 @@ fn a_budget_is_kept_with_its_period_and_amount() {
         .expect("added");
     let expected = Budget {
         id,
-        category: groceries,
+        categories: vec![groceries],
+        accounts: Vec::new(),
         every: Month,
         first_day: date(2026, 9, 1),
         last_day: None,
@@ -108,13 +118,29 @@ fn only_a_spending_category_has_a_budget() {
     } = sample();
     for not_spending in [checking, salary] {
         assert_refused(
-            book.add_budget(not_spending, Month, date(2026, 9, 1), None, eur(100), false),
+            book.add_budget(
+                &[not_spending],
+                &[],
+                Month,
+                date(2026, 9, 1),
+                None,
+                eur(100),
+                false,
+            ),
             StoreError::BudgetNotSpending(not_spending),
         );
     }
     let unknown = AccountId::generate();
     assert_refused(
-        book.add_budget(unknown, Month, date(2026, 9, 1), None, eur(100), false),
+        book.add_budget(
+            &[unknown],
+            &[],
+            Month,
+            date(2026, 9, 1),
+            None,
+            eur(100),
+            false,
+        ),
         StoreError::UnknownAccount(unknown),
     );
     assert_eq!(book.budgets().expect("read"), Vec::new());
@@ -128,7 +154,7 @@ fn the_days_must_fit_the_kind_of_period() {
         ..
     } = sample();
     let mut add = |every, first, last, carry_over| {
-        book.add_budget(groceries, every, first, last, eur(100), carry_over)
+        book.add_budget(&[groceries], &[], every, first, last, eur(100), carry_over)
     };
     assert_period(
         add(Month, date(2026, 9, 2), None, false),
@@ -176,8 +202,17 @@ fn the_amount_is_above_zero_in_the_categorys_currency() {
         groceries,
         ..
     } = sample();
-    let mut add =
-        |amount: Money| book.add_budget(groceries, Month, date(2026, 9, 1), None, amount, false);
+    let mut add = |amount: Money| {
+        book.add_budget(
+            &[groceries],
+            &[],
+            Month,
+            date(2026, 9, 1),
+            None,
+            amount,
+            false,
+        )
+    };
     let refused = |reason| StoreError::BudgetAmount { reason };
     assert_refused(add(eur(0)), refused("zero"));
     assert_refused(add(eur(-100)), refused("zero"));
@@ -201,13 +236,22 @@ fn a_category_has_one_budget_at_a_time() {
     };
     // Any day of the ongoing one, even years later.
     assert_refused(
-        book.add_budget(groceries, Year, date(2030, 1, 1), None, eur(100), false),
+        book.add_budget(
+            &[groceries],
+            &[],
+            Year,
+            date(2030, 1, 1),
+            None,
+            eur(100),
+            false,
+        ),
         overlap,
     );
     // Days before it are free.
     let before = book
         .add_budget(
-            groceries,
+            &[groceries],
+            &[],
             Quarter,
             date(2026, 4, 1),
             Some(date(2026, 6, 30)),
@@ -217,8 +261,16 @@ fn a_category_has_one_budget_at_a_time() {
         .expect("added");
     // A budget on a category inside it is a separate figure (D-344).
     let fruit = category_in(&mut book, "Fruit", AccountKind::Expense, Some(groceries));
-    book.add_budget(fruit, Month, date(2026, 9, 1), None, eur(5_000), false)
-        .expect("added");
+    book.add_budget(
+        &[fruit],
+        &[],
+        Month,
+        date(2026, 9, 1),
+        None,
+        eur(5_000),
+        false,
+    )
+    .expect("added");
     // Making the earlier one keep going would overlap the ongoing one.
     assert_refused(
         book.set_budget_last_day(before, None),
@@ -229,8 +281,16 @@ fn a_category_has_one_budget_at_a_time() {
     // Once the ongoing one stops, a new one may follow it.
     book.set_budget_last_day(ongoing, Some(date(2026, 12, 31)))
         .expect("stopped");
-    book.add_budget(groceries, Year, date(2027, 1, 1), None, eur(500_000), false)
-        .expect("added");
+    book.add_budget(
+        &[groceries],
+        &[],
+        Year,
+        date(2027, 1, 1),
+        None,
+        eur(500_000),
+        false,
+    )
+    .expect("added");
     assert_eq!(book.budgets().expect("read").len(), 4);
 }
 
@@ -319,7 +379,8 @@ fn a_range_has_one_amount_and_never_carries_over() {
     } = sample();
     let trip = book
         .add_budget(
-            groceries,
+            &[groceries],
+            &[],
             Range,
             date(2026, 7, 10),
             Some(date(2026, 7, 24)),
@@ -455,7 +516,8 @@ fn a_book_keeps_at_most_1000_budgets_of_at_most_1200_amounts() {
         );
         Budget {
             id: BudgetId::generate(),
-            category,
+            categories: vec![category],
+            accounts: Vec::new(),
             every: Month,
             first_day: first,
             last_day: Some(first.last_of_month()),
@@ -472,7 +534,15 @@ fn a_book_keeps_at_most_1000_budgets_of_at_most_1200_amounts() {
     .expect("filled");
     assert_eq!(book.budgets().expect("read").len(), MAX_BUDGETS);
     assert_refused(
-        book.add_budget(category, Month, date(2100, 1, 1), None, eur(100), false),
+        book.add_budget(
+            &[category],
+            &[],
+            Month,
+            date(2100, 1, 1),
+            None,
+            eur(100),
+            false,
+        ),
         StoreError::TooManyBudgets {
             limit: "budgets",
             max: MAX_BUDGETS,
@@ -510,7 +580,8 @@ fn budgets_come_back_with_their_ids_when_a_book_is_filled() {
     let groceries = AccountId::generate();
     let budgets = vec![Budget {
         id: BudgetId::generate(),
-        category: groceries,
+        categories: vec![groceries],
+        accounts: Vec::new(),
         every: Quarter,
         first_day: date(2026, 7, 1),
         last_day: Some(date(2027, 6, 30)),
@@ -599,4 +670,143 @@ fn add_with_id(book: &mut Book, id: AccountId, name: &str) -> Result<(), StoreEr
         notes: None,
         institution: None,
     })
+}
+
+#[test]
+fn a_budget_covers_several_categories_from_chosen_accounts() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let shared = account(&mut book, "Shared account", AccountKind::Asset, EUR);
+    let rent = account(&mut book, "Rent", AccountKind::Expense, EUR);
+    let power = account(&mut book, "Electricity", AccountKind::Expense, EUR);
+    let id = book
+        .add_budget(
+            &[rent, power, groceries],
+            &[shared],
+            Month,
+            date(2026, 11, 1),
+            None,
+            eur(150_000),
+            false,
+        )
+        .expect("added");
+    let kept = book.budget(id).expect("read");
+    assert_eq!(kept.categories, [rent, power, groceries]);
+    assert_eq!(kept.accounts, [shared]);
+    // The same category from another account is another figure.
+    let own = book
+        .add_budget(
+            &[power],
+            &[checking],
+            Month,
+            date(2026, 11, 1),
+            None,
+            eur(5_000),
+            false,
+        )
+        .expect("from another account");
+    // From every account it would count the shared one too.
+    assert_refused(
+        book.add_budget(
+            &[groceries],
+            &[],
+            Month,
+            date(2026, 1, 1),
+            None,
+            eur(5_000),
+            false,
+        ),
+        StoreError::BudgetOverlap {
+            category: groceries,
+        },
+    );
+    // Ended before, it doesn't overlap.
+    book.add_budget(
+        &[groceries],
+        &[],
+        Month,
+        date(2026, 1, 1),
+        Some(date(2026, 10, 31)),
+        eur(5_000),
+        false,
+    )
+    .expect("earlier days");
+    // Nor can that one be made to go on into the shared budget's days.
+    let earlier = book.budgets().expect("read")[2].id;
+    assert_refused(
+        book.set_budget_last_day(earlier, None),
+        StoreError::BudgetOverlap {
+            category: groceries,
+        },
+    );
+    // Every category in a budget is in use, and removing the budget gives
+    // them free, with Undo bringing all of it back.
+    assert_eq!(book.category_use(power).expect("use"), Some("budgets"));
+    book.remove_budget(own).expect("removed");
+    book.remove_budget(id).expect("removed");
+    assert_eq!(book.category_use(power).expect("use"), None);
+    book.undo().expect("undone");
+    assert_eq!(book.budget(id).expect("back"), kept);
+}
+
+#[test]
+fn a_budgets_categories_and_accounts_must_fit() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        salary,
+    } = sample();
+    book.use_currency(USD).expect("currency used");
+    let travel = account(&mut book, "Travel", AccountKind::Expense, USD);
+    let mut add = |categories: &[AccountId], accounts: &[AccountId]| {
+        book.add_budget(
+            categories,
+            accounts,
+            Month,
+            date(2026, 11, 1),
+            None,
+            eur(100),
+            false,
+        )
+    };
+    let choice = |reason| StoreError::BudgetChoice { reason };
+    assert_refused(add(&[], &[]), choice("no-category"));
+    assert_refused(add(&[groceries, groceries], &[]), choice("category-twice"));
+    assert_refused(add(&[groceries, travel], &[]), choice("currencies"));
+    assert_refused(
+        add(&[groceries, salary], &[]),
+        StoreError::BudgetNotSpending(salary),
+    );
+    assert_refused(add(&[groceries], &[salary]), choice("not-own-account"));
+    assert_refused(
+        add(&[groceries], &[checking, checking]),
+        choice("account-twice"),
+    );
+    let unknown = AccountId::generate();
+    assert_refused(
+        add(&[groceries], &[unknown]),
+        StoreError::UnknownAccount(unknown),
+    );
+    let many: Vec<AccountId> = (0..101).map(|_| AccountId::generate()).collect();
+    assert_refused(
+        add(&many, &[]),
+        StoreError::TooManyBudgets {
+            limit: "categories",
+            max: 100,
+        },
+    );
+    assert_refused(
+        add(&[groceries], &many),
+        StoreError::TooManyBudgets {
+            limit: "accounts",
+            max: 100,
+        },
+    );
+    // Nothing was kept of any of them.
+    assert!(book.budgets().expect("read").is_empty());
 }

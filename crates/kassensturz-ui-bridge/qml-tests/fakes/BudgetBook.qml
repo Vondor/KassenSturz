@@ -14,16 +14,20 @@ QtObject {
 
     property var view: ({
         budgets: [
-            {id: "b-food", category: "c-food", name: "Food", every: "month", currency: "EUR", amount: "400,00 €", amountInput: "400,00", carryOver: true,
+            {id: "b-food", categories: ["c-food"], name: "Food", accounts: "", every: "month", currency: "EUR", amount: "400,00 €", amountInput: "400,00", carryOver: true,
              state: "running", firstDay: "2026-09-01", lastDay: "", canStop: true,
              changes: [{day: "2026-10-01", firstDay: "2026-10-01", lastDay: "2026-10-31", current: true},
                        {day: "2026-09-01", firstDay: "2026-09-01", lastDay: "2026-09-30", current: false}]},
-            {id: "b-rent", category: "c-rent", name: "Rent", every: "year", currency: "EUR", amount: "9.600,00 €", amountInput: "9600,00", carryOver: false,
+            {id: "b-rent", categories: ["c-rent"], name: "Rent", accounts: "Checking", every: "year", currency: "EUR", amount: "9.600,00 €", amountInput: "9600,00", carryOver: false,
              state: "upcoming", firstDay: "2027-01-01", lastDay: "", canStop: false, changes: []}
         ],
         categories: [
             {id: "c-food", name: "Food", path: "Food", depth: 0, currency: "EUR"},
             {id: "c-rent", name: "Rent", path: "Rent", depth: 0, currency: "EUR"}
+        ],
+        accounts: [
+            {id: "a-checking", name: "Checking"},
+            {id: "a-savings", name: "Savings"}
         ]
     })
 
@@ -33,8 +37,8 @@ QtObject {
                 {day: "2026-10-01", firstDay: "2026-10-01", lastDay: "2026-10-31", current: true}];
     }
 
-    function addBudget(category, every, amount, carryOver, firstDay, lastDay) {
-        calls.push("addBudget:" + [category, every, amount, carryOver, firstDay, lastDay].join(":"));
+    function addBudget(chosen, every, amount, carryOver, firstDay, lastDay) {
+        calls.push("addBudget:" + [chosen, every, amount, carryOver, firstDay, lastDay].join(":"));
         return amount === "" ? {code: "store.budget-amount", reason: "not-positive"} : {};
     }
 

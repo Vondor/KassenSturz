@@ -164,6 +164,8 @@ ColumnLayout {
             return i18nContext.i18nc("@label which categories and groups the money out of a chart counts, for money out only", "Money out: only these categories");
         case "expenses_accounts":
             return i18nContext.i18nc("@label which accounts the money out of a chart counts, for money out only", "Money out: only these accounts");
+        case "budgets":
+            return i18nContext.i18nc("@label which budgets the budget bars show", "Which budgets");
         case "legend":
             return i18nContext.i18nc("@option:check", "Show the legend");
         case "grouping":
@@ -247,6 +249,10 @@ ColumnLayout {
         const book = choices?.view ?? ({});
         if (key === "accounts" || key === "income_accounts" || key === "expenses_accounts") {
             return (book.accounts ?? []).map(account => ({id: account.id, name: account.closed ? i18nContext.i18nc("@option:check %1 is the name of a closed account", "%1 (closed)", account.name) : account.name}));
+        }
+        // The budget bars' Which budgets (D-642).
+        if (key === "budgets") {
+            return (book.budgets ?? []).map(budget => ({id: budget.id, name: budget.name}));
         }
         // A budget belongs to a category, not to a group (D-357).
         const forBudgets = view.preview?.shows === "budget-progress" || view.dataset === "budget_utilization";
@@ -473,6 +479,8 @@ ColumnLayout {
                                 ? panel.i18nContext.i18nc("@info", "There are no categories to pick yet.")
                                 : ["accounts", "income_accounts", "expenses_accounts"].includes(row.modelData.key)
                                 ? panel.i18nContext.i18nc("@info", "There are no accounts to pick yet.")
+                                : row.modelData.key === "budgets"
+                                ? panel.i18nContext.i18nc("@info", "There are no budgets to pick yet. Set one on the page Budgets first.")
                                 : panel.i18nContext.i18nc("@info", "There is nothing to pick yet. Make groups on the page My groups and hidden categories first.")
                         }
 
@@ -500,6 +508,17 @@ ColumnLayout {
                             font: Kirigami.Theme.smallFont
                             opacity: 0.75
                             text: panel.i18nContext.i18nc("@info", "Nothing ticked: this counts like the rest of the chart. Tick some to count only those for this one series, for example money in from the salary category only.")
+                        }
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                            visible: row.modelData.key === "budgets" && picker.options.length > 0
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            font: Kirigami.Theme.smallFont
+                            opacity: 0.75
+                            text: panel.i18nContext.i18nc("@info", "Nothing ticked: every budget is shown.")
                         }
 
                         Controls.ScrollView {

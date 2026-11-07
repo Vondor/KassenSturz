@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 8,
+  "version": 9,
   "settings": {"rounding_mode": "half_even", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2},
@@ -51,7 +51,8 @@
   "budgets": [
     {
       "id": "019a0000-0000-7000-8000-000000000091",
-      "category": "019a0000-0000-7000-8000-000000000004",
+      "categories": ["019a0000-0000-7000-8000-000000000004", "019a0000-0000-7000-8000-000000000005"],
+      "accounts": ["019a0000-0000-7000-8000-000000000001"],
       "every": "month",
       "first_day": "2026-09-01",
       "last_day": null,
@@ -62,7 +63,8 @@
     },
     {
       "id": "019a0000-0000-7000-8000-000000000092",
-      "category": "019a0000-0000-7000-8000-000000000006",
+      "categories": ["019a0000-0000-7000-8000-000000000006"],
+      "accounts": [],
       "every": "range",
       "first_day": "2026-07-10",
       "last_day": "2026-07-24",

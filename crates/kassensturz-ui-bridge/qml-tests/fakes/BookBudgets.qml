@@ -12,7 +12,7 @@ QtObject {
 
     function show(period, only) {
         const bar = (name, spent, left, used, permille, over) => ({
-            budget: "b-" + name, category: "c-" + name, name: name, every: "month", currency: "EUR", firstDay: "2026-10-01", lastDay: "2026-10-31",
+            budget: "b-" + name, categories: ["c-" + name], name: name, accounts: name === "Fun" ? "Checking" : "", every: "month", currency: "EUR", firstDay: "2026-10-01", lastDay: "2026-10-31",
             countedTo: "2026-10-19", running: true, planned: "400,00 €", carriedIn: "0,00 €", available: "400,00 €", spent: spent, left: left,
             used: used, permille: permille, over: over, hasShare: true,
             notes: over ? [{word: "over", amount: "50,00 €", negative: false}] : []
@@ -23,6 +23,10 @@ QtObject {
     // The filters the next requests are narrowed by (M6c.7); kept to read.
     property string scope: ""
     function setScope(text) { scope = text; }
+
+    // The budgets the next requests show (D-642); kept to read.
+    property string budgets: ""
+    function setBudgets(text) { budgets = text; }
 
     function refresh() { }
 }

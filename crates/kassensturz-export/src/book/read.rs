@@ -307,17 +307,31 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
     if version >= 8 {
         let mut ids = HashSet::new();
         for (value, path) in top.list("budgets")? {
+            // Version 8 names one category; version 9 a list of them and
+            // the accounts (D-640).
             let budget = Object::new(
                 value,
                 &path,
-                &[
-                    "id",
-                    "category",
-                    "every",
-                    "first_day",
-                    "last_day",
-                    "amounts",
-                ],
+                if version >= 9 {
+                    &[
+                        "id",
+                        "categories",
+                        "accounts",
+                        "every",
+                        "first_day",
+                        "last_day",
+                        "amounts",
+                    ]
+                } else {
+                    &[
+                        "id",
+                        "category",
+                        "every",
+                        "first_day",
+                        "last_day",
+                        "amounts",
+                    ]
+                },
             )?;
             let id = BudgetId::from_bytes(budget.id("id")?);
             if !ids.insert(id) {
@@ -340,9 +354,25 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
                     carry_over: row.boolean("carry_over")?,
                 });
             }
+            let (categories, accounts) = if version >= 9 {
+                let ids = |key| -> Result<Vec<AccountId>> {
+                    budget
+                        .list(key)?
+                        .into_iter()
+                        .map(|(value, path)| parse_id(value, &path).map(AccountId::from_bytes))
+                        .collect()
+                };
+                (ids("categories")?, ids("accounts")?)
+            } else {
+                (
+                    vec![AccountId::from_bytes(budget.id("category")?)],
+                    Vec::new(),
+                )
+            };
             budgets.push(Budget {
                 id,
-                category: AccountId::from_bytes(budget.id("category")?),
+                categories,
+                accounts,
                 every: budget.keyword("every", &BUDGET_EVERY)?,
                 first_day: budget.date("first_day")?,
                 last_day: budget.optional_date("last_day")?,

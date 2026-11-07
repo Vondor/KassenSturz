@@ -74,6 +74,15 @@ Kirigami.AbstractCard {
             }
         }
 
+        // A budget may count only some of the user's accounts (D-641).
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: (card.change.accounts ?? "") !== ""
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: card.i18nContext.i18nc("@info %1 is a list of account names", "Only money paid from %1", card.change.accounts ?? "")
+        }
+
         Controls.Label {
             Layout.fillWidth: true
             wrapMode: Text.Wrap

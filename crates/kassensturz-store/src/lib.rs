@@ -42,7 +42,7 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 pub use error::{Corruption, DatabaseError, StoreError};
 pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};
 pub use lock::Lock;
-pub use rules::{RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
+pub use rules::{ApplyRules, RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
 pub use transactions::{AccountPart, PartOutline, RegisterEntry, TransactionOutline};
 
 use lock::HeldLock;
@@ -689,7 +689,7 @@ impl Book {
                 OR EXISTS (SELECT 1 FROM rule_conditions WHERE account_id = ?1)",
         )? {
             Ok(Some("rules"))
-        } else if used("SELECT EXISTS (SELECT 1 FROM budgets WHERE category_id = ?1)")? {
+        } else if used("SELECT EXISTS (SELECT 1 FROM budget_categories WHERE category_id = ?1)")? {
             Ok(Some("budgets"))
         } else {
             Ok(None)

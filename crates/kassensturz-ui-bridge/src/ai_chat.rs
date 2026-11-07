@@ -483,8 +483,11 @@ pub enum ChangeView {
     },
     /// A new budget (M6c.11, D-358).
     NewBudget {
-        /// Its category as a path.
+        /// Its categories as paths, separated by commas (D-641).
         category: String,
+        /// The names of the accounts it counts from, separated by commas;
+        /// empty for every account.
+        accounts: String,
         /// How often it starts again: `month`, `quarter` or `year`.
         every: &'static str,
         /// The first and last day of its first period, in the user's
@@ -501,8 +504,11 @@ pub enum ChangeView {
     },
     /// A budget changed from one period on (M6c.11, D-358).
     EditBudget {
-        /// Its category as a path.
+        /// Its categories as paths, separated by commas (D-641).
         category: String,
+        /// The names of the accounts it counts from, separated by commas;
+        /// empty for every account.
+        accounts: String,
         /// How often it starts again: `month`, `quarter`, `year` or
         /// `range`.
         every: &'static str,
@@ -825,7 +831,8 @@ fn view_of(
                 .unwrap_or_default(),
         },
         ProposedChange::NewBudget(new) => ChangeView::NewBudget {
-            category: new.path.join(" › "),
+            category: paths_text(&new.paths),
+            accounts: new.account_names.join(", "),
             every: every_word(new.every),
             from: locale.short_date(new.first_day),
             to: locale.short_date(new.first_period_end),
@@ -842,7 +849,8 @@ fn view_of(
         ProposedChange::EditBudget(edit) => {
             let writer = AmountWriter::new(book, edit.amount.currency(), locale)?;
             ChangeView::EditBudget {
-                category: edit.path.join(" › "),
+                category: paths_text(&edit.paths),
+                accounts: edit.account_names.join(", "),
                 every: every_word(edit.every),
                 from: locale.short_date(edit.from_day),
                 to: locale.short_date(edit.from_period_end),
@@ -868,6 +876,16 @@ fn view_of(
                 .collect(),
         },
     })
+}
+
+/// Category paths as the cards show them: each from the top-level
+/// category down, the categories separated by commas.
+fn paths_text(paths: &[Vec<String>]) -> String {
+    paths
+        .iter()
+        .map(|path| path.join(" › "))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// How a budget's amount was computed, as the review writes it (D-065).

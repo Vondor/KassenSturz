@@ -169,10 +169,11 @@ pub const CATALOG: &[DatasetInfo] = &[
         description: "For each budget: how much was planned for one of its periods, what was carried \
          in from the period before, what was available (planned plus carried in), what was \
          spent, what is left (available less spent; below zero, the amount it is over by) and \
-         the share used. Spent is what was booked to the budget's category and every category \
-         inside it, each category once, by the transaction's date, from the period's first day \
+         the share used. Spent is what was booked to the budget's categories and every category \
+         inside them, each category once, by the transaction's date, from the period's first day \
          to the day asked for (the shown period's last day, or today if that is earlier), in \
-         the category's own currency as it was booked; a refund reduces it. Hidden categories \
+         the categories' own currency as it was booked; a refund reduces it. A budget that \
+         counts only some accounts counts only the transactions with a part on one of them. Hidden categories \
          count as well, and money not sorted into a category yet is not in any budget. Without \
          a grouping each budget shows the period that contains the day asked for; a budget that \
          has not started or has ended by then is not shown. Grouped by period, each budget \

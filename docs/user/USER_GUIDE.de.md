@@ -114,6 +114,8 @@ Sie können also nichts so ändern, dass es nicht mehr zurückgeht. Auch vor Akt
 
 Mit **Regeln** (im Menü) sortiert KassenSturz neue Buchungen selbst, zum Beispiel alles vom Supermarkt in *Lebensmittel*. Haben Sie dieselbe Gegenseite dreimal von Hand in dieselbe Kategorie sortiert, schlägt KassenSturz selbst eine Regel vor (**Regel erstellen** oder **Nein, danke**). Eine Regel legen Sie mit **Regel hinzufügen** an: Name, „Wenn eine Buchung passt“ (eine oder mehrere Bedingungen), „Dann“ (in eine Kategorie sortieren). Sie sehen schon beim Tippen, wie viele Buchungen passen. Die erste passende Regel in der Liste gilt; mit den Pfeilen ändern Sie die Reihenfolge. Eine Regel sortiert nur Buchungen ohne Kategorie, Ihre eigene Sortierung bleibt unberührt.
 
+Eine neue Regel ordnet zunächst nur Buchungen zu, die später dazukommen. Für Buchungen, die schon im Buch stehen, gibt es **Alle Regeln anwenden…** oben auf der Regelseite, **Jetzt anwenden…** bei einer Regel und im Regel-Editor **Hinzufügen und jetzt anwenden…**. Ein Fenster zeigt zuerst, wie viele Buchungen zugeordnet werden, welche bleiben, wie sie sind, und warum, und die neuesten fünf so, wie sie danach aussehen. Erst **3 Buchungen zuordnen** (mit der jeweiligen Zahl) ändert etwas; **Abbrechen** ändert nichts. Normalerweise werden nur Buchungen ohne Kategorie zugeordnet. Mit **Auch neu zuordnen, was Regeln vorher zugeordnet haben** werden auch Buchungen neu zugeordnet, die eine Regel früher zugeordnet hat und die Sie seitdem nicht geändert haben. Was Sie selbst zugeordnet oder geändert haben, bleibt immer unberührt, und einmal **Rückgängig** nimmt alles zurück.
+
 ## 10. Ihre Daten sichern
 
 Unter *Einstellungen › Ihre Daten* gibt es **Eine Kopie meiner Daten speichern**:

@@ -691,7 +691,8 @@ mod tests {
         let mut chosen = scope(&[f.cash], &[]);
         chosen.takes = Takes::NO_ACCOUNTS;
         let (bars, view) =
-            budgets::bars_filtered(&f.book, &TestLocale, "last-month", &[], &chosen).expect("bars");
+            budgets::bars_filtered(&f.book, &TestLocale, "last-month", &[], &[], &chosen)
+                .expect("bars");
         assert!(bars.is_empty());
         assert!(view.filtered.is_empty(), "the accounts were not applied");
         let notes: Vec<(&str, &str)> = view

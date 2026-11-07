@@ -3,7 +3,8 @@
 
 //! Budgets the AI prepares (M6c.11, D-358, D-394, D-395).
 //!
-//! A model names a spending category, how often the budget repeats and
+//! A model names one or more spending categories, optionally the user's
+//! accounts the budget counts from (D-641), how often the budget repeats and
 //! either an amount the user named in the chat or what the amount is
 //! **based on**: the last full period, or the average of the last 3, 6 or
 //! 12 full periods, rounded up to a step. With `based_on` the amount is
@@ -15,7 +16,8 @@
 //! own budget operations and their checks.
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, Budget, BudgetAmount, BudgetEvery, BudgetId, Date, Money,
+    Account, AccountId, AccountKind, Budget, BudgetAmount, BudgetEvery, BudgetId, CurrencyCode,
+    Date, Money,
 };
 use kassensturz_report::{BudgetGrouping, Filter, Period, ReportError, Source, budget_utilization};
 use kassensturz_store::{Book, StoreError};
@@ -27,6 +29,10 @@ use crate::error::ToolError;
 
 /// The most budgets one set may prepare, new and changed together (D-358).
 pub(super) const MAX_BUDGETS: usize = 50;
+
+/// The most categories, and the most accounts, one prepared budget names
+/// (D-641); the book itself keeps up to 100 of each.
+pub(super) const MAX_IDS: usize = 20;
 
 /// The steps an amount based on spending is rounded up to, in whole units
 /// of the currency (D-358).
@@ -42,8 +48,9 @@ pub struct AmountBasis {
     /// The last day of the last period counted, the day before the
     /// current period starts.
     pub last_day: Date,
-    /// What the category spent in those periods, everything inside it
-    /// counted once (D-291), exact.
+    /// What the budget's categories spent in those periods, from its
+    /// accounts if it has any, everything inside them counted once
+    /// (D-291, D-641), exact.
     pub spent: Money,
     /// `spent` per period, rounded half away from zero to the currency's
     /// smallest unit: shown to the user, never stored.
@@ -56,10 +63,14 @@ pub struct AmountBasis {
 /// A budget the AI prepares, as the user reviews it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NewBudget {
-    /// The spending category.
-    pub category: AccountId,
-    /// Its path, e.g. `["Food", "Groceries"]`.
-    pub path: Vec<String>,
+    /// The spending categories, in the order the call names them.
+    pub categories: Vec<AccountId>,
+    /// Their paths, e.g. `["Food", "Groceries"]`, in the same order.
+    pub paths: Vec<Vec<String>>,
+    /// The user's own accounts it counts from, empty for all (D-641).
+    pub accounts: Vec<AccountId>,
+    /// Their names, in the same order.
+    pub account_names: Vec<String>,
     /// How often it repeats.
     pub every: BudgetEvery,
     /// The first day of its first period: the current one.
@@ -79,10 +90,14 @@ pub struct NewBudget {
 pub struct EditBudget {
     /// The budget.
     pub budget: BudgetId,
-    /// Its spending category.
-    pub category: AccountId,
-    /// The category's path.
-    pub path: Vec<String>,
+    /// Its spending categories.
+    pub categories: Vec<AccountId>,
+    /// Their paths, in the same order.
+    pub paths: Vec<Vec<String>>,
+    /// The accounts it counts from, empty for all.
+    pub accounts: Vec<AccountId>,
+    /// Their names, in the same order.
+    pub account_names: Vec<String>,
     /// How often it repeats.
     pub every: BudgetEvery,
     /// The first day of the period the change applies from: the current
@@ -101,6 +116,25 @@ pub struct EditBudget {
     pub basis: Option<AmountBasis>,
     /// The budget as it was checked, so a change in between is caught.
     pub(super) reviewed: Budget,
+}
+
+/// The categories' paths in quotes, separated by commas, for the
+/// developer mode's log: `"Home › Rent", "Electricity"`.
+pub(super) fn paths_text(paths: &[Vec<String>]) -> String {
+    paths
+        .iter()
+        .map(|path| format!("\"{}\"", path.join(" › ")))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// ` from "Shared account"`, or nothing for every account.
+pub(super) fn accounts_text(names: &[String]) -> String {
+    if names.is_empty() {
+        return String::new();
+    }
+    let quoted: Vec<String> = names.iter().map(|name| format!("\"{name}\"")).collect();
+    format!(" from {}", quoted.join(", "))
 }
 
 /// The word of `every` in a call.
@@ -162,17 +196,79 @@ fn current_period(every: BudgetEvery, today: Date) -> Result<(Date, Date), ToolE
     }
 }
 
-/// A spending category of the book, with its path.
-fn spending_category(book: &Book, id: AccountId) -> Result<(Account, Vec<String>), ToolError> {
-    let entry = book
-        .categories()?
-        .into_iter()
-        .find(|entry| entry.category.id == id)
-        .ok_or(ToolError::UnknownCategory)?;
-    if entry.category.kind != AccountKind::Expense {
-        return Err(ToolError::BudgetRefused(StoreError::BudgetNotSpending(id)));
+/// Spending categories of the book, with their paths and their one
+/// currency: the checks of the book's own budgets (D-639), so the model
+/// hears them at once.
+fn spending_categories(
+    book: &Book,
+    ids: &[AccountId],
+) -> Result<(CurrencyCode, Vec<Vec<String>>), ToolError> {
+    let choice = |reason| ToolError::BudgetRefused(StoreError::BudgetChoice { reason });
+    let entries = book.categories()?;
+    let mut currency = None;
+    let mut paths = Vec::with_capacity(ids.len());
+    for (index, &id) in ids.iter().enumerate() {
+        if ids[..index].contains(&id) {
+            return Err(choice("category-twice"));
+        }
+        let entry = entries
+            .iter()
+            .find(|entry| entry.category.id == id)
+            .ok_or(ToolError::UnknownCategory)?;
+        if entry.category.kind != AccountKind::Expense {
+            return Err(ToolError::BudgetRefused(StoreError::BudgetNotSpending(id)));
+        }
+        match currency {
+            None => currency = Some(entry.category.currency),
+            Some(first) if first != entry.category.currency => return Err(choice("currencies")),
+            Some(_) => {}
+        }
+        paths.push(entry.path.clone());
     }
-    Ok((entry.category, entry.path))
+    Ok((currency.ok_or(choice("no-category"))?, paths))
+}
+
+/// The user's own accounts of the book, with their names.
+fn own_accounts(book: &Book, ids: &[AccountId]) -> Result<Vec<String>, ToolError> {
+    let mut names = Vec::with_capacity(ids.len());
+    for (index, &id) in ids.iter().enumerate() {
+        if ids[..index].contains(&id) {
+            return Err(ToolError::BudgetRefused(StoreError::BudgetChoice {
+                reason: "account-twice",
+            }));
+        }
+        let account: Account = match book.account(id) {
+            Ok(account) => account,
+            Err(StoreError::UnknownAccount(_)) => return Err(ToolError::UnknownAccount),
+            Err(other) => return Err(other.into()),
+        };
+        if !matches!(account.kind, AccountKind::Asset | AccountKind::Liability) {
+            return Err(ToolError::BudgetRefused(StoreError::BudgetChoice {
+                reason: "not-own-account",
+            }));
+        }
+        names.push(account.name);
+    }
+    Ok(names)
+}
+
+/// A list of IDs of `name`, at most [`MAX_IDS`]; not given is empty.
+fn ids_of(item: &Object<'_>, name: &'static str) -> Result<Vec<AccountId>, ToolError> {
+    let bad = ToolError::BadArgument { argument: name };
+    let values = item.array(name)?;
+    if values.len() > MAX_IDS {
+        return Err(bad);
+    }
+    values
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .and_then(|text| uuid::Uuid::try_parse(text).ok())
+                .map(|id| AccountId::from_bytes(id.into_bytes()))
+                .ok_or(ToolError::BadArgument { argument: name })
+        })
+        .collect()
 }
 
 /// What a report error means for a call: the book's own errors as they
@@ -187,7 +283,8 @@ fn from_report(error: ReportError) -> ToolError {
 }
 
 /// The amount of `periods` full periods of `every` before the one that
-/// starts on `current`, for `category`, rounded up to `round_to` whole
+/// starts on `current`, for `categories` from `accounts` (none: every
+/// account) in `currency`, rounded up to `round_to` whole
 /// units (D-395).
 ///
 /// The spending is counted as a budget counts it, by `budget_utilization`
@@ -200,7 +297,7 @@ fn from_report(error: ReportError) -> ToolError {
 /// too low), and when nothing was spent in them.
 fn amount_based_on(
     book: &Book,
-    category: &Account,
+    counts: &Counts<'_>,
     every: BudgetEvery,
     current: Date,
     periods: u8,
@@ -220,10 +317,11 @@ fn amount_based_on(
     if earliest.is_none_or(|earliest| earliest > first_period_end) {
         return Err(bad());
     }
-    let currency = category.currency;
+    let currency = counts.currency;
     let probe = Budget {
         id: BudgetId::generate(),
-        category: category.id,
+        categories: counts.categories.to_vec(),
+        accounts: counts.accounts.to_vec(),
         every,
         first_day,
         last_day: Some(last_day),
@@ -243,6 +341,7 @@ fn amount_based_on(
         last_day,
         BudgetGrouping::Period,
         &Filter::default(),
+        None,
     )
     .map_err(from_report)?;
     let counted: Vec<Money> = rows
@@ -288,13 +387,20 @@ fn amount_based_on(
     ))
 }
 
+/// What a budget counts: its categories and accounts, and their currency.
+struct Counts<'a> {
+    categories: &'a [AccountId],
+    accounts: &'a [AccountId],
+    currency: CurrencyCode,
+}
+
 /// The amount of an item: `amount` exactly as the user named it, or
 /// computed from `based_on`; `None` when it names neither (allowed only in
 /// an edit, which then keeps the amount).
 fn amount_of(
     book: &Book,
     item: &Object<'_>,
-    category: &Account,
+    counts: &Counts<'_>,
     every: BudgetEvery,
     current: Date,
 ) -> Result<Option<(Money, Option<AmountBasis>)>, ToolError> {
@@ -306,8 +412,8 @@ fn amount_of(
             argument: "based_on",
         }),
         (Some(text), None) => {
-            let digits = book.currency_minor_digits(category.currency)?;
-            let amount = parse_amount(text, category.currency, digits)?;
+            let digits = book.currency_minor_digits(counts.currency)?;
+            let amount = parse_amount(text, counts.currency, digits)?;
             if amount.is_negative() {
                 return Err(ToolError::BadArgument { argument: "amount" });
             }
@@ -320,8 +426,7 @@ fn amount_of(
                 });
             }
             let periods = periods_of(word)?;
-            let (amount, basis) =
-                amount_based_on(book, category, every, current, periods, round_to)?;
+            let (amount, basis) = amount_based_on(book, counts, every, current, periods, round_to)?;
             Ok(Some((amount, Some(basis))))
         }
         (None, None) => Ok(None),
@@ -340,18 +445,23 @@ fn check_amount(amount: Money) -> Result<(), ToolError> {
 }
 
 /// A new budget from an item of `new_budgets`, checked against `book` and
-/// the budgets the set already prepares, on `today`.
+/// the budgets the set already prepares (`prepared`, as the book will keep
+/// them), on `today`. One category is `category_id`, several are
+/// `category_ids` (D-641); `account_ids` limits it to the user's own
+/// accounts.
 pub(super) fn new_budget(
     book: &Book,
     value: &Value,
     today: Date,
     budgets: &[Budget],
-    prepared: &mut Vec<AccountId>,
+    prepared: &mut Vec<Budget>,
 ) -> Result<NewBudget, ToolError> {
     let item = Object::read(
         value,
         &[
             "category_id",
+            "category_ids",
+            "account_ids",
             "every",
             "amount",
             "based_on",
@@ -360,34 +470,69 @@ pub(super) fn new_budget(
         ],
         "new_budgets",
     )?;
-    let id = item.id("category_id")?.ok_or(ToolError::BadArgument {
-        argument: "category_id",
-    })?;
-    let (category, path) = spending_category(book, id)?;
+    let one = item.id("category_id")?;
+    let several = ids_of(&item, "category_ids")?;
+    // The argument that names the categories, for a refusal.
+    let named = if one.is_some() {
+        "category_id"
+    } else {
+        "category_ids"
+    };
+    let categories = match (one, several.is_empty()) {
+        (Some(id), true) => vec![id],
+        (None, false) => several,
+        (Some(_), false) => {
+            return Err(ToolError::BadArgument {
+                argument: "category_ids",
+            });
+        }
+        (None, true) => {
+            return Err(ToolError::BadArgument {
+                argument: "category_id",
+            });
+        }
+    };
+    let accounts = ids_of(&item, "account_ids")?;
+    let (currency, paths) = spending_categories(book, &categories)?;
+    let account_names = own_accounts(book, &accounts)?;
     let every = every_of(&item)?;
     let (first_day, first_period_end) = current_period(every, today)?;
-    // One budget per category at a time (D-344): this one keeps going
-    // from the current period on.
-    let overlaps = budgets.iter().any(|budget| {
-        budget.category == id && budget.last_day.is_none_or(|last| last >= first_day)
-    });
-    if overlaps {
+    // A category's money is in one budget at a time (D-344, D-639): this
+    // one keeps going from the current period on.
+    let probe = Budget {
+        id: BudgetId::generate(),
+        categories: categories.clone(),
+        accounts: accounts.clone(),
+        every,
+        first_day,
+        last_day: None,
+        amounts: Vec::new(),
+    };
+    if let Some(category) = budgets.iter().find_map(|budget| probe.clashes_with(budget)) {
         return Err(ToolError::BudgetRefused(StoreError::BudgetOverlap {
-            category: id,
+            category,
         }));
     }
-    if prepared.contains(&id) {
-        return Err(ToolError::BadArgument {
-            argument: "category_id",
-        });
+    if prepared
+        .iter()
+        .any(|budget| probe.clashes_with(budget).is_some())
+    {
+        return Err(ToolError::BadArgument { argument: named });
     }
-    let (amount, basis) = amount_of(book, &item, &category, every, first_day)?
+    let counts = Counts {
+        categories: &categories,
+        accounts: &accounts,
+        currency,
+    };
+    let (amount, basis) = amount_of(book, &item, &counts, every, first_day)?
         .ok_or(ToolError::BadArgument { argument: "amount" })?;
     check_amount(amount)?;
-    prepared.push(id);
+    prepared.push(probe);
     Ok(NewBudget {
-        category: id,
-        path,
+        categories,
+        paths,
+        accounts,
+        account_names,
         every,
         first_day,
         first_period_end,
@@ -439,9 +584,15 @@ pub(super) fn edit_budget(
     let before = *budget
         .amount_for(from_day)
         .ok_or(ToolError::Store(StoreError::UnknownBudget(id)))?;
-    let (category, path) = spending_category(book, budget.category)?;
+    let (currency, paths) = spending_categories(book, &budget.categories)?;
+    let account_names = own_accounts(book, &budget.accounts)?;
+    let counts = Counts {
+        categories: &budget.categories,
+        accounts: &budget.accounts,
+        currency,
+    };
     let carry_over = item.boolean("carry_over")?;
-    let amount = amount_of(book, &item, &category, budget.every, from_day)?;
+    let amount = amount_of(book, &item, &counts, budget.every, from_day)?;
     if amount.is_none() && carry_over.is_none() {
         return Err(ToolError::BadArgument { argument: "amount" });
     }
@@ -456,8 +607,10 @@ pub(super) fn edit_budget(
     edited.push(id);
     Ok(EditBudget {
         budget: id,
-        category: budget.category,
-        path,
+        categories: budget.categories.clone(),
+        paths,
+        accounts: budget.accounts.clone(),
+        account_names,
         every: budget.every,
         from_day,
         from_period_end,
@@ -472,7 +625,8 @@ pub(super) fn edit_budget(
 /// Makes the new budget in `book`, with the store's checks.
 pub(super) fn apply_new_budget(book: &mut Book, new: &NewBudget) -> Result<(), StoreError> {
     book.add_budget(
-        new.category,
+        &new.categories,
+        &new.accounts,
         new.every,
         new.first_day,
         None,

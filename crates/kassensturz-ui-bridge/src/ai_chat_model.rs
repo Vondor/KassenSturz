@@ -714,6 +714,7 @@ pub(crate) mod engine {
             ],
             ChangeView::NewBudget {
                 category,
+                accounts,
                 every,
                 from,
                 to,
@@ -724,6 +725,7 @@ pub(crate) mod engine {
                 let mut fields = vec![
                     ("kind", text("newBudget")),
                     ("category", text(category)),
+                    ("accounts", text(accounts)),
                     ("every", text(every)),
                     ("from", text(from)),
                     ("to", text(to)),
@@ -735,6 +737,7 @@ pub(crate) mod engine {
             }
             ChangeView::EditBudget {
                 category,
+                accounts,
                 every,
                 from,
                 to,
@@ -747,6 +750,7 @@ pub(crate) mod engine {
                 let mut fields = vec![
                     ("kind", text("editBudget")),
                     ("category", text(category)),
+                    ("accounts", text(accounts)),
                     ("every", text(every)),
                     ("from", text(from)),
                     ("to", text(to)),
@@ -1747,6 +1751,7 @@ mod tests {
             },
             ChangeView::NewBudget {
                 category: "Food › <b>Groceries</b>".into(),
+                accounts: "<b>Checking</b>".into(),
                 every: "month",
                 from: "01.11.2026".into(),
                 to: "30.11.2026".into(),
@@ -1763,6 +1768,7 @@ mod tests {
             },
             ChangeView::EditBudget {
                 category: "Fun".into(),
+                accounts: String::new(),
                 every: "quarter",
                 from: "01.10.2026".into(),
                 to: "31.12.2026".into(),
@@ -1933,6 +1939,7 @@ mod tests {
             "basisTo",
         ];
         let mut expected: Vec<&str> = [
+            "accounts",
             "amount",
             "carryOver",
             "category",
@@ -1948,6 +1955,7 @@ mod tests {
         assert_eq!(own_keys(&items[14]), expected);
         assert_eq!(text_of(&items[14], "kind"), "newBudget");
         assert_eq!(text_of(&items[14], "category"), "Food › <b>Groceries</b>");
+        assert_eq!(text_of(&items[14], "accounts"), "<b>Checking</b>");
         assert_eq!(text_of(&items[14], "every"), "month");
         assert_eq!(text_of(&items[14], "amount"), "390,00 €");
         assert!(flag_of(&items[14], "carryOver"));
@@ -1956,6 +1964,7 @@ mod tests {
         assert_eq!(text_of(&items[14], "basisStep"), "10,00 €");
         assert_eq!(text_of(&items[14], "basisFrom"), "01.05.2026");
         let mut expected: Vec<&str> = [
+            "accounts",
             "amount",
             "before",
             "carriedOver",

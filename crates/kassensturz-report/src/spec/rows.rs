@@ -285,7 +285,7 @@ impl FlatTable {
         for budget in budgets.iter().filter(|budget| budget.currency == currency) {
             for period in &budget.periods {
                 rows.push(vec![
-                    Cell::Text(budget.path.join(PATH_SEPARATOR)),
+                    Cell::Text(budget.categories_text(PATH_SEPARATOR)),
                     Cell::Text(every_word(budget.every).to_owned()),
                     Cell::Day(period.first_day),
                     Cell::Day(period.last_day),

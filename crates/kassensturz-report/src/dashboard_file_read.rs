@@ -255,6 +255,11 @@ fn each_list(
                 visit(&at, list)?;
             }
         }
+        // The budgets of the book the file came from are not this book's
+        // (D-642): the bars show every budget.
+        if let Some(Value::Array(list)) = params.get_mut("budgets") {
+            list.clear();
+        }
         if let Some(Value::Array(columns)) = params.get_mut("columns") {
             for (column_index, column) in columns.iter_mut().enumerate() {
                 if let Some(Value::Array(list)) = column.get_mut("members") {

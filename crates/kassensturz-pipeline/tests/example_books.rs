@@ -518,7 +518,8 @@ fn flower_utopia_with_budgets() -> Book {
         let category = categories[name];
         let currency = book.account(category).expect("the category").currency;
         book.add_budget(
-            category,
+            &[category],
+            &[],
             BudgetEvery::Month,
             first,
             None,
@@ -604,6 +605,7 @@ fn flower_utopia_budgets_have_figures_for_last_month() {
         today,
         BudgetGrouping::Period,
         &Filter::default(),
+        None,
     )
     .expect("figures");
     assert_eq!(rows.len(), BUDGETS.len());

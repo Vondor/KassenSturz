@@ -36,6 +36,8 @@ Kirigami.ScrollablePage {
     // again for the accounts of that login, and the usual linking follows
     // (D-617). Empty otherwise.
     property string refreshLogin: ""
+    // The bank wants an approval method chosen before it lists accounts.
+    property bool methodNeededOnRefresh: false
     // Changing a login: the login name it has now, to start from (D-617).
     property string startLoginName: ""
 
@@ -203,6 +205,12 @@ Kirigami.ScrollablePage {
             pinField.hide();
             error.result = result.code !== undefined ? result : ({});
             if (result.code !== undefined) {
+                // A refresh can't choose a method here: "Change" in
+                // Settings does (D-617).
+                page.methodNeededOnRefresh = page.refreshLogin !== "" && result.code === "bank.tan-method-needed";
+                if (page.methodNeededOnRefresh) {
+                    error.result = ({});
+                }
                 if (result.code === "bank.tan-method-needed" && result.methods !== undefined) {
                     page.setTanChoices(result.methods);
                 }
@@ -219,6 +227,7 @@ Kirigami.ScrollablePage {
 
     // Asks the bank again for the accounts of the login (D-617).
     function refreshAccounts() {
+        methodNeededOnRefresh = false;
         const result = bank.refreshAccounts(refreshLogin);
         error.result = result;
         step = result.code === undefined ? "connecting" : "refresh-failed";
@@ -541,9 +550,17 @@ Kirigami.ScrollablePage {
         }
 
         // Linking another account failed: try again, or leave.
+        Controls.Label {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+            wrapMode: Text.Wrap
+            visible: page.step === "refresh-failed" && page.methodNeededOnRefresh
+            text: page.i18nContext.i18nc("@info", "Your bank wants you to choose an approval method first. Go back to Settings, choose \"Change this bank login…\", pick the method and save; then link the account again.")
+        }
+
         Controls.Button {
             Layout.alignment: Qt.AlignHCenter
-            visible: page.step === "refresh-failed"
+            visible: page.step === "refresh-failed" && !page.methodNeededOnRefresh
             text: page.i18nContext.i18nc("@action:button", "Try again")
             icon.name: "view-refresh"
             onClicked: {

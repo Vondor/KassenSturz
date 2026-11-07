@@ -559,6 +559,9 @@ FormCard.FormCardPage {
 
         title: page.i18nContext.i18nc("@title:window", "Remove this bank login?")
         subtitle: page.i18nContext.i18nc("@info", "KassenSturz forgets the login and its saved PIN on this computer. Your accounts and their transactions stay as they are, and so does which bank account fills which of them: set the login up again to fetch once more.")
+            + (page.bank.pinStorage === "keepassxc"
+                ? "\n\n" + page.i18nContext.i18nc("@info", "KeePassXC cannot delete an entry for another program, so the PIN's entry stays there with an empty password. You can delete it in KeePassXC.")
+                : "")
         standardButtons: Kirigami.Dialog.NoButton
         customFooterActions: [
             Kirigami.Action {

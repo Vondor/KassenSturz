@@ -15703,6 +15703,17 @@ msgctxt "@title:window"
 msgid "Remove this bank login?"
 msgstr "Diesen Bankzugang entfernen?"
 
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:538
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KeePassXC cannot delete an entry for another program, so the PIN's entry "
+"stays there with an empty password. You can delete it in KeePassXC."
+msgstr ""
+"KeePassXC erlaubt anderen Programmen nicht, einen Eintrag zu löschen. Der "
+"Eintrag mit der PIN bleibt deshalb mit leerem Passwort dort stehen. Sie "
+"können ihn in KeePassXC löschen."
+
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:536
 #, kde-format
 msgctxt "@info"

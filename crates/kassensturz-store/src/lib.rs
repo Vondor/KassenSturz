@@ -25,6 +25,7 @@ mod reader;
 mod rules;
 mod transactions;
 mod transfers;
+mod unsorted;
 mod views;
 
 use std::collections::{HashMap, HashSet};

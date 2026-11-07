@@ -14730,12 +14730,17 @@ msgstr "Ein Muster verwenden (fortgeschritten)"
 msgctxt "@info"
 msgid ""
 "A pattern is a regular expression, for example ^REWE .* DANKE$. It can match "
-"part of the text. If you only want to look for some words, switch this off "
-"and use \"contains\"."
+"part of the text. Capital letters are ignored unless \"Capital letters must "
+"match\" is ticked. Lookahead and lookbehind, such as (?=…) or (?<!…), and "
+"back-references such as \\1 don't work. If you only want to look for some "
+"words, switch this off and use \"contains\"."
 msgstr ""
 "Ein Muster ist ein regulärer Ausdruck, zum Beispiel ^REWE .* DANKE$. Es kann "
-"auf einen Teil des Textes passen. Wenn Sie nur nach einigen Wörtern suchen "
-"wollen, schalten Sie das aus und nehmen Sie „enthält“."
+"auf einen Teil des Textes passen. Groß- und Kleinschreibung wird nicht "
+"beachtet, außer wenn „Groß- und Kleinschreibung muss übereinstimmen“ "
+"angehakt ist. Vorausschau und Rückschau wie (?=…) oder (?<!…) und "
+"Rückverweise wie \\1 funktionieren nicht. Wenn Sie nur nach einigen Wörtern "
+"suchen wollen, schalten Sie das aus und nehmen Sie „enthält“."
 
 #: crates/kassensturz-ui-bridge/qml/RuleCondition.qml:151
 #, kde-format
@@ -17926,3 +17931,207 @@ msgstr ""
 "Das war das erste Mal für dieses Konto, deshalb hat KassenSturz Ihre Bank "
 "nach dem Zeitraum seit %1 gefragt. Ältere Umsätze kann Ihre Bank auf diesem "
 "Weg nicht liefern: Laden Sie dafür eine Datei von Ihrer Bank."
+
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml
+#, kde-format
+msgctxt ""
+"@action:button add the Rule, then sort the transactions already in the book "
+"with it"
+msgid "Add and apply now…"
+msgstr "Hinzufügen und jetzt anwenden…"
+
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml
+#, kde-format
+msgctxt ""
+"@action:button save the Rule, then sort the transactions already in the book "
+"with it"
+msgid "Save and apply now…"
+msgstr "Speichern und jetzt anwenden…"
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid ""
+"%1 transaction looks like money moved between your own accounts. Decide that "
+"in the account first; it stays as it is."
+msgid_plural ""
+"%1 transactions look like money moved between your own accounts. Decide that "
+"in the account first; they stay as they are."
+msgstr[0] ""
+"%1 Buchung sieht aus wie Geld, das zwischen Ihren eigenen Konten bewegt "
+"wurde. Entscheiden Sie das zuerst im Konto; sie bleibt, wie sie ist."
+msgstr[1] ""
+"%1 Buchungen sehen aus wie Geld, das zwischen Ihren eigenen Konten bewegt "
+"wurde. Entscheiden Sie das zuerst im Konto; sie bleiben, wie sie sind."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid ""
+"%1 transaction stays as it is because an exchange rate for its day is "
+"missing."
+msgid_plural ""
+"%1 transactions stay as they are because an exchange rate for their day is "
+"missing."
+msgstr[0] ""
+"%1 Buchung bleibt, wie sie ist, weil für ihren Tag ein Wechselkurs fehlt."
+msgstr[1] ""
+"%1 Buchungen bleiben, wie sie sind, weil für ihren Tag ein Wechselkurs fehlt."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid ""
+"%1 transaction stays as it is because an account it would go to or come from "
+"is closed."
+msgid_plural ""
+"%1 transactions stay as they are because an account they would go to or come "
+"from is closed."
+msgstr[0] ""
+"%1 Buchung bleibt, wie sie ist, weil ein Konto, zu dem sie gehen oder von dem "
+"sie kommen würde, aufgelöst ist."
+msgstr[1] ""
+"%1 Buchungen bleiben, wie sie sind, weil ein Konto, zu dem sie gehen oder von "
+"dem sie kommen würden, aufgelöst ist."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "%1 more transaction a Rule fits can't be sorted and stays as it is."
+msgid_plural ""
+"%1 more transactions a Rule fits can't be sorted and stay as they are."
+msgstr[0] ""
+"%1 weitere Buchung, auf die eine Regel passt, kann nicht zugeordnet werden "
+"und bleibt, wie sie ist."
+msgstr[1] ""
+"%1 weitere Buchungen, auf die eine Regel passt, können nicht zugeordnet "
+"werden und bleiben, wie sie sind."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "Sort your transactions with all Rules"
+msgstr "Ihre Buchungen mit allen Regeln zuordnen"
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@title:window %1 is the name of a Rule"
+msgid "Sort your transactions with %1"
+msgstr "Ihre Buchungen mit %1 zuordnen"
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@action:button %1 is a number"
+msgid "Sort %1 transaction"
+msgid_plural "Sort %1 transactions"
+msgstr[0] "%1 Buchung zuordnen"
+msgstr[1] "%1 Buchungen zuordnen"
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Your Rules sort the transactions already in your book, in the order of the "
+"list: the first Rule that fits a transaction decides. Transactions you "
+"sorted or changed yourself are never touched."
+msgstr ""
+"Ihre Regeln ordnen die Buchungen zu, die schon in Ihrem Buch stehen, in der "
+"Reihenfolge der Liste: Die erste Regel, die auf eine Buchung passt, "
+"entscheidet. Buchungen, die Sie selbst zugeordnet oder geändert haben, "
+"bleiben immer unangetastet."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This Rule sorts the transactions already in your book that it decides. A "
+"Rule before it in the list still takes a transaction first. Transactions you "
+"sorted or changed yourself are never touched."
+msgstr ""
+"Diese Regel ordnet die Buchungen zu, die schon in Ihrem Buch stehen und über "
+"die sie entscheidet. Eine Regel weiter oben in der Liste nimmt eine Buchung "
+"weiterhin zuerst. Buchungen, die Sie selbst zugeordnet oder geändert haben, "
+"bleiben immer unangetastet."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@option:check"
+msgid "Also sort again what Rules sorted before"
+msgstr "Auch neu zuordnen, was Regeln vorher zugeordnet haben"
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Without this, only transactions without a category are sorted. With it, what "
+"a Rule sorted earlier is sorted again as the Rules say now, for example "
+"after you changed a Rule or the order. What no Rule fits anymore stays as it "
+"is."
+msgstr ""
+"Ohne das werden nur Buchungen ohne Kategorie zugeordnet. Mit dem wird, was "
+"eine Regel früher zugeordnet hat, neu so zugeordnet, wie die Regeln es jetzt "
+"sagen, zum Beispiel nachdem Sie eine Regel oder die Reihenfolge geändert "
+"haben. Worauf keine Regel mehr passt, das bleibt, wie es ist."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info"
+msgid "There is nothing to sort."
+msgstr "Es gibt nichts zuzuordnen."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "%1 transaction will be sorted."
+msgid_plural "%1 transactions will be sorted."
+msgstr[0] "%1 Buchung wird zugeordnet."
+msgstr[1] "%1 Buchungen werden zugeordnet."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info"
+msgid "The newest of them, as they will look:"
+msgstr "Die neuesten davon, so wie sie danach aussehen:"
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info"
+msgid "As they will look:"
+msgstr "So sehen sie danach aus:"
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info"
+msgid "All of it is one change: one Undo takes it back."
+msgstr ""
+"Alles zusammen ist eine Änderung: Einmal Rückgängig nimmt sie zurück."
+
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml
+#, kde-format
+msgctxt ""
+"@action:button sort the transactions already in the book with every Rule"
+msgid "Apply all Rules…"
+msgstr "Alle Regeln anwenden…"
+
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Sort the transactions already in your book with your Rules. You see first "
+"what would change."
+msgstr ""
+"Die Buchungen, die schon in Ihrem Buch stehen, mit Ihren Regeln zuordnen. "
+"Sie sehen zuerst, was sich ändern würde."
+
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml
+#, kde-format
+msgctxt "@action:button %1 is the name of a Rule"
+msgid "Apply %1 now"
+msgstr "%1 jetzt anwenden"
+
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml
+#, kde-format
+msgctxt ""
+"@action:button sort the transactions already in the book with this Rule"
+msgid "Apply now…"
+msgstr "Jetzt anwenden…"

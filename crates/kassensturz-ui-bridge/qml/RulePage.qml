@@ -5,7 +5,9 @@
 // fits its conditions, the Rule sorts it into a category, moves it to one of
 // your accounts, or sets the payee. A Rule only sorts transactions that have
 // no category yet; what you sorted yourself stays as you left it. Changing a
-// Rule can also book again what it sorted before.
+// Rule can also book again what it sorted before. "Add and apply now…" and
+// "Save and apply now…" save the Rule and then sort the transactions already
+// in the book with it, after a preview (RulesApply.qml, D-630).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -165,6 +167,24 @@ Kirigami.ScrollablePage {
         if (result.code === undefined) {
             done();
         }
+    }
+
+    // Saves the Rule, then offers to sort what is already in the book with
+    // it; the page closes when that dialog does, whatever the user chose.
+    function saveAndApply() {
+        const result = adding
+            ? rules.addRule(form())
+            : rules.changeRule(form(), rebookBox.checked);
+        error.result = result;
+        if (result.code === undefined) {
+            applyDialog.openFor(adding ? result.id : ruleId, nameField.text);
+        }
+    }
+
+    RulesApply {
+        id: applyDialog
+        rules: page.rules
+        onClosed: page.done()
     }
 
     function remove() {
@@ -405,6 +425,17 @@ Kirigami.ScrollablePage {
                 onClicked: {
                     ActionLog.taken("RulePage_save")
                     page.save()
+                }
+            }
+
+            Controls.Button {
+                text: Plain.plain(page.adding
+                    ? page.i18nContext.i18nc("@action:button add the Rule, then sort the transactions already in the book with it", "Add and apply now…")
+                    : page.i18nContext.i18nc("@action:button save the Rule, then sort the transactions already in the book with it", "Save and apply now…"))
+                icon.name: "view-sort"
+                onClicked: {
+                    ActionLog.taken("RulePage_saveAndApply")
+                    page.saveAndApply()
                 }
             }
 

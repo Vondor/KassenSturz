@@ -41,7 +41,7 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 pub use error::{Corruption, DatabaseError, StoreError};
 pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};
 pub use lock::Lock;
-pub use rules::{RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
+pub use rules::{ApplyRules, RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
 pub use transactions::{AccountPart, PartOutline, RegisterEntry, TransactionOutline};
 
 use lock::HeldLock;

@@ -52,12 +52,34 @@ pub struct RuleMatch {
 }
 
 /// One transaction the Rules change.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuleChange {
     /// The transaction.
     pub transaction: TransactionId,
     /// The Rule that decided: the deepest sub-Rule that matched.
     pub rule: RuleId,
+    /// The user's account the money moves in or out of, whose register
+    /// shows the transaction.
+    pub account: AccountId,
+    /// The category, or for a Transfer the account, the part the Rules book
+    /// is in afterwards; `None` if it stays without a category because the
+    /// Rule only sets the payee.
+    pub booked_to: Option<AccountId>,
+    /// The name the Rule shows as From or To, if it sets one.
+    pub payee: Option<String>,
+}
+
+/// What "Apply now" on one Rule and "Apply all" on the Rules page sort among
+/// the transactions already in the book (D-630, D-631).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ApplyRules {
+    /// Only the transactions this Rule decides, itself or through one of
+    /// its sub-Rules, with the whole list of Rules as it is, so the first
+    /// Rule that fits still decides (D-031); `None` for every Rule.
+    pub rule: Option<RuleId>,
+    /// Also sort again what Rules sorted before and the user didn't change
+    /// since. Without it only transactions without a category are sorted.
+    pub resort: bool,
 }
 
 /// One transaction a Rule matched but couldn't change.
@@ -107,6 +129,10 @@ enum Scope<'a> {
     /// The ones these Rules booked and the user didn't change since, which
     /// changing one of the Rules books again when the user asks for it.
     BookedBy(&'a HashSet<RuleId>),
+    /// The ones without a category yet, and the ones any Rule booked that
+    /// the user didn't change since: "Apply" with "also sort again what
+    /// Rules sorted before" (D-631).
+    Resort,
 }
 
 impl Book {
@@ -443,7 +469,7 @@ impl Book {
     /// What running the Rules would do, without changing anything: see
     /// [`Book::run_rules`].
     pub fn preview_rules(&self) -> Result<RuleRun, StoreError> {
-        self.plan(&self.rules()?, Scope::Uncategorized)
+        self.plan(&self.rules()?, Scope::Uncategorized, None)
             .map(|(run, _)| run)
     }
 
@@ -467,7 +493,7 @@ impl Book {
     /// transaction stays as it is. A Rule that only set the payee left the
     /// category open, so a later run can still book that transaction.
     pub fn run_rules(&mut self) -> Result<RuleRun, StoreError> {
-        let (run, planned) = self.plan(&self.rules()?, Scope::Uncategorized)?;
+        let (run, planned) = self.plan(&self.rules()?, Scope::Uncategorized, None)?;
         if planned.is_empty() {
             return Ok(run);
         }
@@ -486,7 +512,7 @@ impl Book {
     /// Among `transactions`, the Rules book only what has no category yet.
     pub fn run_rules_on(&mut self, transactions: &[TransactionId]) -> Result<RuleRun, StoreError> {
         let only: HashSet<TransactionId> = transactions.iter().copied().collect();
-        let (run, planned) = self.plan(&self.rules()?, Scope::Only(&only))?;
+        let (run, planned) = self.plan(&self.rules()?, Scope::Only(&only), None)?;
         if planned.is_empty() {
             return Ok(run);
         }
@@ -505,15 +531,61 @@ impl Book {
         self.check_rule(rule, parent)?;
         let mut tree = self.rules()?;
         let booked_by = replace_rule(&mut tree, rule).expect("a Rule of the book is in its tree");
-        self.plan(&tree, Scope::BookedBy(&booked_by))
+        self.plan(&tree, Scope::BookedBy(&booked_by), None)
+    }
+
+    /// What [`Book::apply_rules`] would do, without changing anything: the
+    /// preview the user sees before they confirm (D-630).
+    pub fn preview_apply_rules(&self, apply: ApplyRules) -> Result<RuleRun, StoreError> {
+        self.plan_apply(apply).map(|(run, _)| run)
+    }
+
+    /// Sorts the transactions already in the book with the Rules, as one
+    /// user action that one undo takes back (D-630): "Apply now" on one
+    /// Rule, or "Apply all" on the Rules page.
+    ///
+    /// By default only transactions without a category are sorted, as a run
+    /// sorts them ([`Book::run_rules`]); with [`ApplyRules::resort`], what
+    /// Rules sorted before and the user didn't change since is sorted again
+    /// too, and when no Rule fits it anymore it stays as it is (Q-046). A
+    /// transaction the user sorted, changed or broke into Parts is never
+    /// touched (D-031), nor is one that looks like one side of a Transfer.
+    /// The whole list of Rules decides in its order, even for one Rule:
+    /// [`ApplyRules::rule`] only limits the run to what that Rule decides
+    /// (D-630). A Rule that doesn't exist is refused.
+    pub fn apply_rules(&mut self, apply: ApplyRules) -> Result<RuleRun, StoreError> {
+        let (run, planned) = self.plan_apply(apply)?;
+        if planned.is_empty() {
+            return Ok(run);
+        }
+        self.as_one_action(Action::RunRules, |book| {
+            for change in &planned {
+                book.write_planned(change)?;
+            }
+            Ok(run)
+        })
+    }
+
+    fn plan_apply(&self, apply: ApplyRules) -> Result<(RuleRun, Vec<Planned>), StoreError> {
+        if let Some(rule) = apply.rule {
+            self.rule(rule)?;
+        }
+        let scope = if apply.resort {
+            Scope::Resort
+        } else {
+            Scope::Uncategorized
+        };
+        self.plan(&self.rules()?, scope, apply.rule)
     }
 
     /// What the Rules in `tree` do to the transactions `scope` names: what
-    /// to report, and what to write.
+    /// to report, and what to write. With `decided_by`, only what that Rule
+    /// decides, itself or through one of its sub-Rules.
     fn plan(
         &self,
         tree: &[RuleNode],
         scope: Scope<'_>,
+        decided_by: Option<RuleId>,
     ) -> Result<(RuleRun, Vec<Planned>), StoreError> {
         let rules = RuleSet::new(tree).map_err(StoreError::Rule)?;
         let accounts: HashMap<AccountId, Account> = self
@@ -558,6 +630,9 @@ impl Book {
                 Scope::BookedBy(booked_by) => {
                     mark.flatten().is_some_and(|rule| booked_by.contains(&rule))
                 }
+                // A mark means a Rule booked it and the user didn't change
+                // it since, even if that Rule was removed later.
+                Scope::Resort => part.account.is_none() || mark.is_some(),
             };
             if !wanted {
                 continue;
@@ -579,6 +654,9 @@ impl Book {
             let Some(outcome) = rules.evaluate(&facts) else {
                 continue;
             };
+            if decided_by.is_some_and(|wanted| !outcome.rules.contains(&wanted)) {
+                continue;
+            }
             let rule = outcome.rule();
             let id = transaction.id();
             let skip = |reason| RuleSkip {
@@ -610,9 +688,17 @@ impl Book {
                 };
             let changed = rebooked != transaction;
             if changed {
+                let booked_to = rebooked
+                    .splits()
+                    .iter()
+                    .find(|split| split.id == part.id)
+                    .and_then(|split| split.account);
                 run.changed.push(RuleChange {
                     transaction: id,
                     rule,
+                    account,
+                    booked_to,
+                    payee: outcome.actions.payee.clone(),
                 });
             }
             // A mark naming another Rule now is updated too, so the book
@@ -785,18 +871,30 @@ impl Book {
 
     /// The transactions `scope` may name, each once: those with two parts,
     /// one of them without a category, all or only the ones it names, or
-    /// those with a part one of the Rules booked. [`Book::plan`] checks each
+    /// those with a part one of the Rules booked, or both for a re-sort. [`Book::plan`] checks each
     /// one further.
     fn candidates(&self, scope: Scope<'_>) -> Result<Vec<TransactionId>, StoreError> {
         let mut ids = match scope {
-            Scope::Uncategorized | Scope::Only(_) => {
+            Scope::Uncategorized | Scope::Only(_) | Scope::Resort => {
                 let mut statement = self.conn.prepare(
                     "SELECT transaction_id FROM splits GROUP BY transaction_id
                      HAVING count(*) = 2 AND count(account_id) = 1",
                 )?;
-                statement
+                let mut ids = statement
                     .query_map([], |row| Ok(TransactionId::from_bytes(row.get(0)?)))?
-                    .collect::<Result<Vec<_>, _>>()?
+                    .collect::<Result<Vec<_>, _>>()?;
+                if matches!(scope, Scope::Resort) {
+                    let mut marked = self.conn.prepare(
+                        "SELECT s.transaction_id
+                         FROM split_rules AS m JOIN splits AS s ON s.id = m.split_id",
+                    )?;
+                    ids.extend(
+                        marked
+                            .query_map([], |row| Ok(TransactionId::from_bytes(row.get(0)?)))?
+                            .collect::<Result<Vec<_>, _>>()?,
+                    );
+                }
+                ids
             }
             Scope::BookedBy(booked_by) => {
                 let mut statement = self.conn.prepare(

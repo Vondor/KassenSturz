@@ -6,7 +6,9 @@
 // so each Rule has buttons to move it up or down. Rules inside a Rule are
 // indented. At the top, KassenSturz offers a Rule for a payee you sorted
 // into the same category by hand several times (D-071); that is plain
-// counting, and works with AI off.
+// counting, and works with AI off. "Apply all Rules…" and "Apply now…" on
+// a Rule sort the transactions already in the book, after a preview
+// (RulesApply.qml, D-630).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -60,8 +62,24 @@ Kirigami.Page {
                 ActionLog.taken("RulesPage_addRule")
                 page.addRuleClicked()
             }
+        },
+        Kirigami.Action {
+            icon.name: "view-sort"
+            visible: page.rows.length > 0
+            text: page.i18nContext.i18nc("@action:button sort the transactions already in the book with every Rule", "Apply all Rules…")
+            tooltip: page.i18nContext.i18nc("@info:tooltip", "Sort the transactions already in your book with your Rules. You see first what would change.")
+            onTriggered: {
+                ActionLog.taken("RulesPage_applyAll")
+                applyDialog.openFor("", "")
+            }
         }
     ]
+
+    // Applies one Rule or all of them to what is already in the book.
+    RulesApply {
+        id: applyDialog
+        rules: page.rules
+    }
 
     // What a Rule does, in a few words.
     function doesText(row: var): string {
@@ -231,6 +249,18 @@ Kirigami.Page {
                         }
 
                         Controls.ToolButton {
+                            icon.name: "view-sort"
+                            text: Plain.plain(page.i18nContext.i18nc("@action:button %1 is the name of a Rule", "Apply %1 now", entry.modelData.name))
+                            display: Controls.AbstractButton.IconOnly
+                            onClicked: {
+                                ActionLog.taken("RulesPage_applyNow")
+                                applyDialog.openFor(entry.modelData.id, entry.modelData.name)
+                            }
+                            Controls.ToolTip.text: text
+                            Controls.ToolTip.visible: hovered
+                        }
+
+                        Controls.ToolButton {
                             icon.name: "go-up"
                             enabled: entry.modelData.position > 0
                             text: Plain.plain(page.i18nContext.i18nc("@action:button %1 is the name of a Rule", "Move %1 up", entry.modelData.name))
@@ -297,6 +327,15 @@ Kirigami.Page {
                         : page.i18nContext.i18ncp("@title %2 is the name of a Rule, %1 how many transactions it fits", "%2 fits %1 transaction", "%2 fits %1 transactions", page.matchRows.length, page.selected.name)
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
+                }
+
+                Controls.Button {
+                    icon.name: "view-sort"
+                    text: page.i18nContext.i18nc("@action:button sort the transactions already in the book with this Rule", "Apply now…")
+                    onClicked: {
+                        ActionLog.taken("RulesPage_applyNow_2")
+                        applyDialog.openFor(page.selected.id, page.selected.name)
+                    }
                 }
 
                 Controls.Button {

@@ -958,7 +958,7 @@ fn fetch_errors_are_error_codes_and_a_wrong_pin_is_forgotten() {
         (
             "refused",
             BankError::Refused {
-                text: Some("Auftrag abgelehnt: Konto gesperrt (9010)".to_owned()),
+                text: Some("HBCI: 9010 - Auftrag abgelehnt: Konto gesperrt (E)".to_owned()),
             },
         ),
         ("tan", BankError::TanNeeded),
@@ -1072,6 +1072,13 @@ fn broken_answers_are_refused_never_rounded_or_guessed() {
     assert!(fetched.transactions.is_empty());
     let statement = statement(&fetched, &limits).expect("a statement");
     assert!(statement.entries.is_empty());
+    // M6-B186: a bank that rejects the approval step (9160) and sends the
+    // balance only has refused the fetch; it is not "nothing new".
+    stub::set_scenario("approval-refused");
+    assert!(matches!(
+        bank.fetch(&account, None, &mut pins),
+        Err(BankError::Refused { .. })
+    ));
     stub::set_scenario("ok");
 }
 

@@ -57,7 +57,7 @@ pub fn take_requests(
                 arrived.push(Arrived { id, count });
                 Reply::Shown { changes: count }
             }
-            Err(error) => failed(error.report().code),
+            Err(error) => failed(error.model_report().code),
         };
         // An answer that can't be written leaves the AI tool waiting until
         // it gives up; the set is shown all the same.

@@ -331,6 +331,24 @@ fn a_single_allowed_tan_method_is_taken_without_asking() {
 }
 
 #[test]
+fn the_sepa_call_runs_at_setup_even_when_every_account_has_an_iban() {
+    // The BIC comes with that call only; a bank that needs it in the
+    // statement request refused the request without it (FinTS 9160).
+    let _guard = lock();
+    let mut bank = open("iban-only");
+    let mut pins = pins_with(PinMode::RememberUntilClose);
+    bank.add_login(&login_setup(), &mut pins)
+        .expect("login added");
+    let journal = journal_of(&bank);
+    let accounts = journal.find("control: getaccounts -u 1").expect("accounts");
+    assert!(
+        journal[accounts..].contains("control: getaccsepa -u 1"),
+        "{journal}"
+    );
+    stub::set_scenario("ok");
+}
+
+#[test]
 fn without_a_choice_the_defaults_are_version_3_and_the_banks_tan_method() {
     let _guard = lock();
     let mut bank = open("advanced-defaults");

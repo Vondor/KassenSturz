@@ -169,7 +169,11 @@ fn the_bank_link_can_only_read() {
 
     // The trait: set up and remove a login, list accounts, fetch, and take
     // the registration number typed for this run (D-260), which sends
-    // nothing by itself.
+    // nothing by itself. D-617 adds three functions that move no money:
+    // `login_details` reads a login's settings, `change_login` edits the
+    // TAN method and the FinTS version in the backend's settings (no bank
+    // contact), and `refresh_accounts` asks the bank for the login's
+    // accounts again (a read, like a fetch).
     let source = read(&root.join("crates/kassensturz-bank/src/backend.rs"));
     let start = source.find("pub trait Bank {").expect("the trait");
     let end = start + source[start..].find("\n}\n").expect("its end");
@@ -185,9 +189,12 @@ fn the_bank_link_can_only_read() {
             "accounts",
             "add_login",
             "availability",
+            "change_login",
             "directory",
             "fetch",
+            "login_details",
             "logins",
+            "refresh_accounts",
             "register",
             "remove_login",
             "set_dialogs"

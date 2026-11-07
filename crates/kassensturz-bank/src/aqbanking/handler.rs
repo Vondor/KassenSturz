@@ -149,13 +149,15 @@ impl Handler {
     ///
     /// Only the bank's own reply lines (`HBCI: NNNN - text`) qualify: any
     /// other notice could hold an account number or a login, and testers
-    /// may screenshot the message (M6-B186).
+    /// may screenshot the message (M6-B186). The newest *error* reply (a
+    /// code from 9000 on) wins over a newer one that is not, because a
+    /// bank ends its dialog with `0100 - Dialog beendet` after an error and
+    /// that says nothing (a real try showed it, 2026-11-07).
     pub fn last_message(&self) -> Option<String> {
-        self.lines
-            .iter()
-            .rev()
-            .find(|line| is_reply_line(line))
-            .cloned()
+        let mut replies = self.lines.iter().rev().filter(|line| is_reply_line(line));
+        let newest = replies.clone().next()?;
+        let error = replies.find(|line| line[6..10].parse::<u16>().is_ok_and(|code| code >= 9000));
+        Some(error.unwrap_or(newest).clone())
     }
 }
 
@@ -391,6 +393,12 @@ mod tests {
         handler.log(LogLevel::Debug, "noise");
         handler.log(LogLevel::Notice, "  HBCI: 9210 - Bank says: no  ");
         handler.log(LogLevel::Warning, "");
+        assert_eq!(
+            handler.last_message().as_deref(),
+            Some("HBCI: 9210 - Bank says: no")
+        );
+        // An error reply wins over a newer one that is none (the dialog's end).
+        handler.log(LogLevel::Notice, "HBCI: 0100 - Dialog beendet (M)");
         assert_eq!(
             handler.last_message().as_deref(),
             Some("HBCI: 9210 - Bank says: no")

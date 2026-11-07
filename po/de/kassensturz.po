@@ -4042,6 +4042,12 @@ msgctxt "@info"
 msgid "Talking to your bank…"
 msgstr "Verbindung zu Ihrer Bank wird hergestellt…"
 
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:392
+#, kde-format
+msgctxt "@action:button"
+msgid "Connect another bank…"
+msgstr "Weitere Bank verbinden…"
+
 #: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:381
 #: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:476
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:346

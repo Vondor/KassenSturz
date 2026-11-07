@@ -388,8 +388,10 @@ Kirigami.ScrollablePage {
         }
 
         Controls.Button {
-            visible: page.usable && page.rows.length > 0 && !Array.from(page.rows).some(row => row.linked)
-            text: page.i18nContext.i18nc("@action:button", "Connect a bank…")
+            visible: page.usable && page.rows.length > 0
+            text: Array.from(page.rows).some(row => row.linked)
+                ? page.i18nContext.i18nc("@action:button", "Connect another bank…")
+                : page.i18nContext.i18nc("@action:button", "Connect a bank…")
             icon.name: "network-connect"
             onClicked: {
                 ActionLog.taken("BankFetchPage_connectBank")

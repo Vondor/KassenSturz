@@ -605,8 +605,59 @@ mod tests {
         .iter()
         .map(|f| text_of(f, "key"))
         .collect();
-        // Monthly figures take accounts and categories as filters (M6c.7).
-        assert_eq!(order, ["categories", "accounts", "title", "legend"]);
+        // Monthly figures take accounts and categories as filters (M6c.7),
+        // and money in and money out each take lists of their own (D-646).
+        assert_eq!(
+            order,
+            [
+                "categories",
+                "accounts",
+                "income_categories",
+                "income_accounts",
+                "expenses_categories",
+                "expenses_accounts",
+                "title",
+                "legend"
+            ]
+        );
+        // Spending by category has no money in and out to filter apart.
+        let donut = component(ComponentType::ChartDonut, "spending_by_category");
+        let keys: Vec<String> = list_of(
+            &view_object(Some(&donut), None, NumberForm::DecimalComma),
+            "fields",
+        )
+        .iter()
+        .map(|f| text_of(f, "key"))
+        .collect();
+        assert!(
+            !keys
+                .iter()
+                .any(|key| key.starts_with("income_") || key.starts_with("expenses_"))
+        );
+    }
+
+    #[test]
+    fn a_series_list_reads_back_as_an_ids_field_and_into_the_scope() {
+        let mut bars = component(ComponentType::ChartBar, "income_expense_by_month");
+        bars.set("expenses_accounts", Setting::Ids(vec!["account-1".into()]))
+            .unwrap();
+        let view = view_object(Some(&bars), None, NumberForm::DecimalComma);
+        let fields = list_of(&view, "fields");
+        let field = fields
+            .iter()
+            .find(|f| text_of(f, "key") == "expenses_accounts")
+            .expect("a field for money out's accounts");
+        assert_eq!(text_of(field, "kind"), "ids");
+        assert_eq!(text_of(field, "place"), "params");
+        let ids: Vec<String> = list_of(field, "ids")
+            .iter()
+            .map(|id| id.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(ids, ["account-1"]);
+        // The scope the workbench draws with carries the series' list.
+        let scope = text_of(&object_of(&view, "preview"), "scope");
+        assert!(scope.contains("\"series\":\"expenses\""), "{scope}");
+        assert!(scope.contains("account-1"), "{scope}");
     }
 
     #[test]

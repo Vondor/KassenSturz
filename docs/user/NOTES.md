@@ -313,3 +313,10 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **The last months:** choose how many. *Only complete months (leave out this month)* is ticked at first, because a month that isn't over yet makes its figures look small; untick it to count this month too.
 - **A salary month** runs from a day you choose, for example your payday, to the day before it in the next month. In a month without that day (the 31st in April), its last day counts. Choose *The one running now* or *The one before*.
 - **One period for the whole page:** choose it in the filter bar and every chart, table, number card and formula that follows the page counts the same days.
+
+## Money in and out with lists of their own (US1.16)
+
+- **Side-by-side bars:** a chart of money in and out can now be drawn as bars next to each other for each month (*Bars*), besides the line and the stacked bars. The AI can propose it too.
+- **A list for one side only:** in the chart's Properties, *Money in: only these categories*, *Money in: only these accounts*, *Money out: only these categories* and *Money out: only these accounts* count only what you tick, for that side only. Example: money in from the salary category only next to all money out of the checking account, over a salary month.
+- **Nothing ticked** means that side counts like the rest of the chart: the chart's own lists, or the filter bar. The period is always the same for both sides.
+- **Money out of one account** includes money not sorted into a category yet and leaves out Transfers between your own accounts.

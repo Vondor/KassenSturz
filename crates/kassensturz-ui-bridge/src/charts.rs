@@ -21,8 +21,9 @@ use kassensturz_report::{
     SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat,
     account_balances as balances_dataset, cash_flow_by_month as cash_flow_dataset,
     category_over_time as over_time_dataset, columns_over_time, columns_span, columns_spending,
-    income_expense_by_month as monthly_dataset, net_worth_over_time as net_worth_dataset,
-    shared_categories, spending_by_category_shown as spending_dataset,
+    income_expense_by_month as monthly_dataset, income_expense_by_series,
+    net_worth_over_time as net_worth_dataset, shared_categories,
+    spending_by_category_shown as spending_dataset,
 };
 use kassensturz_store::Book;
 
@@ -321,7 +322,23 @@ pub fn charts(
         session::cached_source(book, span, false, || Source::read(book, span))?
     };
     let text = AppText::new(book, locale);
-    let (filter, filter_view) = request.scope.resolve(book, &source)?;
+    let (filter, mut filter_view) = request.scope.resolve(book, &source)?;
+    // Money in and money out with filters of their own (D-646): each series
+    // is counted with its own lists, and the chart says what both did.
+    let series_filters = if request.dataset == INCOME_EXPENSE_BY_MONTH
+        && request.scope.has_series()
+        && request.columns.is_empty()
+    {
+        let (income, income_view) = request.scope.for_series("income").resolve(book, &source)?;
+        let (expenses, expenses_view) = request
+            .scope
+            .for_series("expenses")
+            .resolve(book, &source)?;
+        filter_view = income_view.merge(expenses_view);
+        Some((income, expenses))
+    } else {
+        None
+    };
     // A filter that chooses nothing says so instead of drawing zeros.
     if filter_view.nothing {
         return Ok(ChartSet {
@@ -404,10 +421,15 @@ pub fn charts(
             .iter()
             .map(|data| category_over_time(data, kind, &text))
             .collect::<Result<Vec<_>, _>>()?,
-        INCOME_EXPENSE_BY_MONTH => monthly_dataset(&source, period, &filter)?
-            .iter()
-            .map(|data| income_expense_by_month(data, kind, &text))
-            .collect::<Result<Vec<_>, _>>()?,
+        INCOME_EXPENSE_BY_MONTH => match &series_filters {
+            Some((income, expenses)) => {
+                income_expense_by_series(&source, period, income, expenses)?
+            }
+            None => monthly_dataset(&source, period, &filter)?,
+        }
+        .iter()
+        .map(|data| income_expense_by_month(data, kind, &text))
+        .collect::<Result<Vec<_>, _>>()?,
         ACCOUNT_BALANCES => {
             let by = if request.grouping == "account-kind" {
                 BalancesBy::Kind

@@ -18508,6 +18508,48 @@ msgstr ""
 "Von diesem Tag bis zum Tag davor im nächsten Monat, zum Beispiel ab Ihrem "
 "Zahltag. In einem Monat ohne diesen Tag zählt sein letzter Tag."
 
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:160
+#, kde-format
+msgctxt ""
+"@label which categories and groups the money in of a chart counts, for money "
+"in only"
+msgid "Money in: only these categories"
+msgstr "Einnahmen: nur diese Kategorien"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:162
+#, kde-format
+msgctxt ""
+"@label which accounts the money in of a chart counts, for money in only"
+msgid "Money in: only these accounts"
+msgstr "Einnahmen: nur diese Konten"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:164
+#, kde-format
+msgctxt ""
+"@label which categories and groups the money out of a chart counts, for "
+"money out only"
+msgid "Money out: only these categories"
+msgstr "Ausgaben: nur diese Kategorien"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:166
+#, kde-format
+msgctxt ""
+"@label which accounts the money out of a chart counts, for money out only"
+msgid "Money out: only these accounts"
+msgstr "Ausgaben: nur diese Konten"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:502
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Nothing ticked: this counts like the rest of the chart. Tick some to count "
+"only those for this one series, for example money in from the salary "
+"category only."
+msgstr ""
+"Nichts angehakt: Hier wird gezählt wie im übrigen Diagramm. Haken Sie etwas "
+"an, um für diese eine Reihe nur das zu zählen, zum Beispiel bei den Einnahmen "
+"nur die Kategorie Gehalt."
+
 #: crates/kassensturz-ui-bridge/qml/BudgetBars.qml
 #, kde-format
 msgctxt "@info %1 is a list of account names"

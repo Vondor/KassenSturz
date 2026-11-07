@@ -114,6 +114,22 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                     }
                     "categories" => takes.categories,
                     "accounts" => takes.accounts,
+                    // Money in and money out with lists of their own
+                    // (US1.16, D-646): only for the dataset with those two
+                    // series, and not for one made of columns, which count
+                    // with the component's lists.
+                    key if kassensturz_report::is_series_filter(key) => {
+                        component.dataset().id == kassensturz_report::INCOME_EXPENSE_BY_MONTH
+                            && !matches!(
+                                component.get("columns"),
+                                Some(Setting::Columns(columns)) if !columns.is_empty()
+                            )
+                            && if key.ends_with("_accounts") {
+                                takes.accounts
+                            } else {
+                                takes.categories
+                            }
+                    }
                     _ => component.dataset().id == kassensturz_report::CATEGORY_OVER_TIME,
                 };
                 if !wanted {

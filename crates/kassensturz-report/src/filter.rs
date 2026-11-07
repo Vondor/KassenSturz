@@ -154,6 +154,54 @@ pub struct Chosen {
     pub origin: Origin,
 }
 
+/// A series of a chart that can count with a filter of its own (US1.16,
+/// D-646): its fixed name and the keys of its two lists in `params`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SeriesFilter {
+    /// The series' fixed name, as the chart names it: `income` or
+    /// `expenses`.
+    pub series: &'static str,
+    /// The key of its own accounts.
+    pub accounts: &'static str,
+    /// The key of its own categories and groups.
+    pub categories: &'static str,
+}
+
+/// The series that can have a filter of their own: money in and money out
+/// of [`crate::INCOME_EXPENSE_BY_MONTH`], the only dataset that takes them.
+pub const SERIES_FILTERS: [SeriesFilter; 2] = [
+    SeriesFilter {
+        series: "income",
+        accounts: "income_accounts",
+        categories: "income_categories",
+    },
+    SeriesFilter {
+        series: "expenses",
+        accounts: "expenses_accounts",
+        categories: "expenses_categories",
+    },
+];
+
+/// Whether `key` is one of the lists of [`SERIES_FILTERS`].
+pub fn is_series_filter(key: &str) -> bool {
+    SERIES_FILTERS
+        .iter()
+        .any(|series| series.accounts == key || series.categories == key)
+}
+
+/// What one series asks for on its own (D-646): a list it has replaces the
+/// component's (or the filter bar's) list of that dimension for this series
+/// only; a list it lacks follows the component as before.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SeriesAsked {
+    /// The series' fixed name ([`SeriesFilter::series`]).
+    pub series: &'static str,
+    /// Its own accounts, if it has some.
+    pub accounts: Option<Chosen>,
+    /// Its own categories and groups, if it has some.
+    pub categories: Option<Chosen>,
+}
+
 /// What one component asks for, before the book is consulted.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Asked {
@@ -168,6 +216,9 @@ pub struct Asked {
     pub categories: Option<Chosen>,
     /// The dimensions the component's dataset takes.
     pub takes: Takes,
+    /// The series with a filter of their own (D-646), in the order of
+    /// [`SERIES_FILTERS`]; empty when none has one.
+    pub series: Vec<SeriesAsked>,
 }
 
 /// A note under a component about its filter (D-350). The component writes
@@ -297,7 +348,27 @@ impl Asked {
             accounts: own_ids(component, "accounts").or_else(|| bar_ids(&bar.accounts)),
             categories: own_ids(component, "categories").or_else(|| bar_ids(&bar.categories)),
             takes,
+            series: series_asked(component),
         })
+    }
+
+    /// What the series `series` is counted with (D-646): this, with the
+    /// series' own lists in place of the component's. The same as this for
+    /// a series without a filter of its own.
+    pub fn for_series(&self, series: &str) -> Self {
+        let own = self.series.iter().find(|asked| asked.series == series);
+        Self {
+            period: self.period.clone(),
+            period_origin: self.period_origin,
+            accounts: own
+                .and_then(|own| own.accounts.clone())
+                .or_else(|| self.accounts.clone()),
+            categories: own
+                .and_then(|own| own.categories.clone())
+                .or_else(|| self.categories.clone()),
+            takes: self.takes,
+            series: Vec::new(),
+        }
     }
 
     /// Checks the IDs against the book `source` was read from and gives the
@@ -340,6 +411,23 @@ impl Asked {
         }
         Ok(applied)
     }
+}
+
+/// The series of `component` that have a list of their own (D-646); only
+/// the dataset of [`SERIES_FILTERS`] takes them.
+fn series_asked(component: &Component) -> Vec<SeriesAsked> {
+    if component.dataset().id != crate::INCOME_EXPENSE_BY_MONTH {
+        return Vec::new();
+    }
+    SERIES_FILTERS
+        .iter()
+        .map(|filter| SeriesAsked {
+            series: filter.series,
+            accounts: own_ids(component, filter.accounts),
+            categories: own_ids(component, filter.categories),
+        })
+        .filter(|asked| asked.accounts.is_some() || asked.categories.is_some())
+        .collect()
 }
 
 /// Puts what a list kept into `applied`: the filter, the marks and the

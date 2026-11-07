@@ -336,7 +336,8 @@ impl Component {
 
     /// The component as a document writes it: `type`, `dataset`, `params`
     /// and `props` with every property. A custom chart writes the `series` and
-    /// `categories` of its dataset only (D-504).
+    /// `categories` of its dataset only (D-504); the series' own filters are
+    /// written only when they have a list (D-646).
     pub fn to_value(&self) -> Value {
         let mut params = Map::new();
         let mut props = Map::new();
@@ -368,6 +369,13 @@ impl Component {
             if self.kind == ComponentType::CustomChart
                 && property.place == Place::Params
                 && !self.takes_choice(property.key)
+            {
+                continue;
+            }
+            // A series' own filter is written only when it has a list
+            // (D-646), so documents without one read as they always did.
+            if crate::is_series_filter(property.key)
+                && matches!(setting, Setting::Ids(ids) if ids.is_empty())
             {
                 continue;
             }

@@ -285,6 +285,13 @@ fn auto_and_the_default_period_suit_the_financial_datasets() {
         prepared("net_worth_over_time", json!({"to": "2025-12-31"})).1,
         "..2025-12-31"
     );
+    // Money in and money out as bars side by side (US1.16, D-647).
+    let side_by_side = json!({
+        "title": "In and out", "data": "income_expense_by_month", "show_as": "bar"
+    });
+    let proposal = propose_view_text(&book, &side_by_side.to_string(), Permissions::all())
+        .unwrap_or_else(|error| panic!("bars: {}", error.report().code));
+    assert_eq!(chart(&proposal).type_id(), "chart.bar");
     // A key figure of the balances takes their own figures.
     let figure = json!({
         "title": "Owed", "data": "account_balances", "show_as": "figure",

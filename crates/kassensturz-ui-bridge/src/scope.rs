@@ -41,6 +41,20 @@ pub struct Scope {
     categories_own: bool,
     /// The dimensions its dataset takes.
     takes: Takes,
+    /// The series with a filter of their own (US1.16, D-646).
+    series: Vec<SeriesScope>,
+}
+
+/// The own lists of one series of a chart (D-646): empty for a dimension it
+/// takes from the component.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SeriesScope {
+    /// The series' fixed name: `income` or `expenses`.
+    series: String,
+    /// Its own accounts.
+    accounts: Vec<String>,
+    /// Its own categories and groups.
+    categories: Vec<String>,
 }
 
 impl Default for Scope {
@@ -52,6 +66,7 @@ impl Default for Scope {
             categories: Vec::new(),
             categories_own: false,
             takes: Takes::ALL,
+            series: Vec::new(),
         }
     }
 }
@@ -76,7 +91,42 @@ impl Scope {
             categories: ids(&asked.categories),
             categories_own: own(&asked.categories),
             takes: asked.takes,
+            series: asked
+                .series
+                .iter()
+                .map(|series| SeriesScope {
+                    series: series.series.to_owned(),
+                    accounts: ids(&series.accounts),
+                    categories: ids(&series.categories),
+                })
+                .collect(),
         }
+    }
+
+    /// Whether a series has a filter of its own (D-646).
+    pub fn has_series(&self) -> bool {
+        !self.series.is_empty()
+    }
+
+    /// The scope the series `series` is counted with (D-646): this, with
+    /// the series' own lists in place of the component's; its own lists
+    /// are marked as the component's own.
+    pub fn for_series(&self, series: &str) -> Self {
+        let mut scope = Self {
+            series: Vec::new(),
+            ..self.clone()
+        };
+        if let Some(own) = self.series.iter().find(|own| own.series == series) {
+            if !own.accounts.is_empty() {
+                scope.accounts.clone_from(&own.accounts);
+                scope.accounts_own = true;
+            }
+            if !own.categories.is_empty() {
+                scope.categories.clone_from(&own.categories);
+                scope.categories_own = true;
+            }
+        }
+        scope
     }
 
     /// The scope as the text QML passes on.
@@ -92,6 +142,15 @@ impl Scope {
                 "accounts": self.takes.accounts,
                 "categories": self.takes.categories,
             },
+            "series": self
+                .series
+                .iter()
+                .map(|series| json!({
+                    "series": series.series,
+                    "accounts": series.accounts,
+                    "categories": series.categories,
+                }))
+                .collect::<Vec<_>>(),
         })
         .to_string()
     }
@@ -105,7 +164,7 @@ impl Scope {
         let flag = |value: &Value, key: &str, otherwise: bool| {
             value.get(key).and_then(Value::as_bool).unwrap_or(otherwise)
         };
-        let ids = |key: &str| -> Vec<String> {
+        let ids_in = |value: &Value, key: &str| -> Vec<String> {
             value
                 .get(key)
                 .and_then(Value::as_array)
@@ -116,6 +175,22 @@ impl Scope {
                 })
                 .unwrap_or_default()
         };
+        let ids = |key: &str| ids_in(&value, key);
+        let series = value
+            .get("series")
+            .and_then(Value::as_array)
+            .map(|list| {
+                list.iter()
+                    .filter_map(|entry| {
+                        Some(SeriesScope {
+                            series: entry.get("series")?.as_str()?.to_owned(),
+                            accounts: ids_in(entry, "accounts"),
+                            categories: ids_in(entry, "categories"),
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
         let takes = value.get("takes").cloned().unwrap_or(Value::Null);
         Self {
             period_own: flag(&value, "periodOwn", false),
@@ -128,6 +203,7 @@ impl Scope {
                 accounts: flag(&takes, "accounts", true),
                 categories: flag(&takes, "categories", true),
             },
+            series,
         }
     }
 
@@ -153,6 +229,8 @@ impl Scope {
             accounts: chosen(&self.accounts, self.accounts_own),
             categories: chosen(&self.categories, self.categories_own),
             takes: self.takes,
+            // Each series is applied on its own (`for_series`).
+            series: Vec::new(),
         }
         .apply(source)
     }
@@ -288,6 +366,60 @@ impl FilterView {
         }
     }
 
+    /// The view of a chart whose two series count with filters of their
+    /// own (D-646): the marks of both, each dimension once in the order
+    /// period, accounts, categories; the notes of both, each once; the names
+    /// of both lists. Nothing is drawn only when both choose nothing; a
+    /// series whose own lists choose nothing counts zero.
+    pub fn merge(self, other: Self) -> Self {
+        let order = ["period", "accounts", "categories"];
+        let union = |a: &[&'static str], b: &[&'static str]| -> Vec<&'static str> {
+            order
+                .into_iter()
+                .filter(|word| a.contains(word) || b.contains(word))
+                .collect()
+        };
+        let names = |a: Vec<String>, a_more: usize, b: Vec<String>, b_more: usize| {
+            let mut all = a;
+            for name in b {
+                if !all.contains(&name) {
+                    all.push(name);
+                }
+            }
+            let more = a_more + b_more + all.len().saturating_sub(NAMES_SHOWN);
+            all.truncate(NAMES_SHOWN);
+            (all, more)
+        };
+        let mut notes = self.notes;
+        for note in other.notes {
+            if !notes.contains(&note) {
+                notes.push(note);
+            }
+        }
+        let (accounts, accounts_more) = names(
+            self.accounts,
+            self.accounts_more,
+            other.accounts,
+            other.accounts_more,
+        );
+        let (categories, categories_more) = names(
+            self.categories,
+            self.categories_more,
+            other.categories,
+            other.categories_more,
+        );
+        Self {
+            own: union(&self.own, &other.own),
+            filtered: union(&self.filtered, &other.filtered),
+            notes,
+            accounts,
+            accounts_more,
+            categories,
+            categories_more,
+            nothing: self.nothing && other.nothing,
+        }
+    }
+
     /// The object QML reads as `filter`.
     pub fn object(&self) -> QVariant {
         let words = |words: &[&'static str]| list(words.iter().map(|word| text(word)));
@@ -362,6 +494,7 @@ mod tests {
         checking: AccountId,
         cash: AccountId,
         rent: AccountId,
+        salary: AccountId,
     }
 
     fn fixture() -> Fixture {
@@ -393,6 +526,7 @@ mod tests {
             checking,
             cash,
             rent,
+            salary,
         }
     }
 
@@ -430,6 +564,18 @@ mod tests {
             categories: vec!["c-1".into()],
             categories_own: true,
             takes: Takes::NO_ACCOUNTS,
+            series: vec![
+                SeriesScope {
+                    series: "income".into(),
+                    accounts: Vec::new(),
+                    categories: vec!["c-2".into()],
+                },
+                SeriesScope {
+                    series: "expenses".into(),
+                    accounts: vec!["a-3".into()],
+                    categories: Vec::new(),
+                },
+            ],
         };
         assert_eq!(Scope::from_text(&scope.to_text()), scope);
     }
@@ -555,6 +701,94 @@ mod tests {
             .map(|note| (note.kind, note.dimension))
             .collect();
         assert_eq!(notes, [("not-applied", "accounts")]);
+    }
+
+    /// Money in and money out of the chart `component` (a JSON component of
+    /// `income_expense_by_month`) for September 2026, with the filter bar's
+    /// accounts `bar`, read through the scope QML passes on; and the view.
+    fn money_in_and_out(
+        f: &Fixture,
+        component: Value,
+        bar: &[AccountId],
+    ) -> (i64, i64, FilterView) {
+        let component = kassensturz_report::Component::from_value(&component).expect("component");
+        let bar = Filters {
+            period: None,
+            accounts: bar.iter().map(ToString::to_string).collect(),
+            categories: Vec::new(),
+        };
+        let asked = Asked::new(&component, None, &bar).expect("asks");
+        let request = ChartRequest {
+            dataset: "income_expense_by_month".into(),
+            kind: "bar".into(),
+            period: "last-month".into(),
+            grouping: "each".into(),
+            scope: Scope::from_text(&Scope::from_asked(&asked).to_text()),
+            ..ChartRequest::default()
+        };
+        let set = charts::charts(&f.book, &TestLocale, &request).expect("charts");
+        let model = &set.charts[0].0;
+        let total = |key: &str| -> i64 {
+            model
+                .series
+                .iter()
+                .filter(|series| series.key == key)
+                .flat_map(|series| series.points.iter())
+                .map(|point| point.minor_units)
+                .sum()
+        };
+        (total("income"), total("expenses"), set.filter)
+    }
+
+    #[test]
+    fn each_series_of_money_in_and_out_counts_with_its_own_lists() {
+        // A seam test: the component's own lists go through the real Asked,
+        // the scope text QML passes on, and the chart (US1.16, D-646).
+        let f = fixture();
+        let plain = json!({"type": "chart.bar", "dataset": "income_expense_by_month"});
+        let (income, expenses, view) = money_in_and_out(&f, plain, &[]);
+        assert_eq!((income, expenses), (200_000, 85_000));
+        assert!(view.filtered.is_empty());
+        // Money out from the cash box only; money in as before.
+        let own = json!({
+            "type": "chart.bar", "dataset": "income_expense_by_month",
+            "params": {"expenses_accounts": [f.cash.to_string()]}
+        });
+        let (income, expenses, view) = money_in_and_out(&f, own.clone(), &[]);
+        assert_eq!((income, expenses), (200_000, 5_000));
+        assert_eq!(view.own, ["accounts"]);
+        assert_eq!(view.accounts, ["Cash box"]);
+        // The filter bar's accounts still narrow money in, which has no
+        // list of its own; money out keeps its own list.
+        let (income, expenses, _) = money_in_and_out(&f, own, &[f.cash]);
+        assert_eq!((income, expenses), (0, 5_000));
+        // Money in from the salary only and money out from the checking
+        // account only: the two lists of the goal of US1.16.
+        let both = json!({
+            "type": "chart.bar", "dataset": "income_expense_by_month",
+            "params": {
+                "income_categories": [f.salary.to_string()],
+                "expenses_accounts": [f.checking.to_string()]
+            }
+        });
+        let (income, expenses, view) = money_in_and_out(&f, both, &[]);
+        assert_eq!((income, expenses), (200_000, 80_000));
+        assert_eq!(view.own, ["accounts", "categories"]);
+        assert_eq!(view.categories, ["Salary"]);
+    }
+
+    #[test]
+    fn a_series_whose_list_chooses_nothing_counts_zero_and_the_other_is_drawn() {
+        let f = fixture();
+        let gone = json!({
+            "type": "chart.bar", "dataset": "income_expense_by_month",
+            "params": {"income_categories": [AccountId::generate().to_string()]}
+        });
+        let (income, expenses, view) = money_in_and_out(&f, gone, &[]);
+        assert_eq!((income, expenses), (0, 85_000));
+        assert!(!view.nothing);
+        let kinds: Vec<&str> = view.notes.iter().map(|note| note.kind).collect();
+        assert!(kinds.contains(&"gone"), "{kinds:?}");
     }
 
     #[test]

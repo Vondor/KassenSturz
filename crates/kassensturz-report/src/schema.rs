@@ -440,6 +440,31 @@ const SERIES: Property = Property {
     place: Place::Params,
     kind: Kind::Ids,
 };
+/// `params.income_accounts`, `params.income_categories`,
+/// `params.expenses_accounts` and `params.expenses_categories` (US1.16,
+/// D-646): a filter of its own for money in and for money out of
+/// `income_expense_by_month`, the only dataset that takes them. Empty means
+/// the series follows the component's own lists or the filter bar.
+const INCOME_ACCOUNTS: Property = Property {
+    key: "income_accounts",
+    place: Place::Params,
+    kind: Kind::Accounts,
+};
+const INCOME_CATEGORIES: Property = Property {
+    key: "income_categories",
+    place: Place::Params,
+    kind: Kind::Ids,
+};
+const EXPENSES_ACCOUNTS: Property = Property {
+    key: "expenses_accounts",
+    place: Place::Params,
+    kind: Kind::Accounts,
+};
+const EXPENSES_CATEGORIES: Property = Property {
+    key: "expenses_categories",
+    place: Place::Params,
+    kind: Kind::Ids,
+};
 /// `params.columns` (D-339): the columns a chart or table is made of.
 const COLUMNS: Property = Property {
     key: "columns",
@@ -539,12 +564,16 @@ const MEASURE: Property = Property {
 };
 const MEASURE_KEY: &str = "measure";
 
-const CHART: [Property; 10] = [
+const CHART: [Property; 14] = [
     GROUPING,
     GROUPS,
     CATEGORIES,
     ACCOUNTS,
     SERIES,
+    INCOME_CATEGORIES,
+    INCOME_ACCOUNTS,
+    EXPENSES_CATEGORIES,
+    EXPENSES_ACCOUNTS,
     COLUMNS,
     TITLE,
     LEGEND,
@@ -555,11 +584,15 @@ const KPI_CARD: [Property; 7] = [
     MEASURE, ACCOUNTS, HIDE_NOTE, COMPARE, FORMULA, TITLE, PERIOD,
 ];
 const PROGRESS_BAR: [Property; 6] = [ACCOUNTS, COMPARE, FORMULA, TARGET, TITLE, PERIOD];
-const TABLE: [Property; 8] = [
+const TABLE: [Property; 12] = [
     GROUPING,
     GROUPS,
     CATEGORIES,
     ACCOUNTS,
+    INCOME_CATEGORIES,
+    INCOME_ACCOUNTS,
+    EXPENSES_CATEGORIES,
+    EXPENSES_ACCOUNTS,
     COLUMNS,
     TITLE,
     SHOW_HIDDEN,
@@ -671,6 +704,15 @@ impl Property {
                     .map_err(|_| invalid("bad-spec", self.path()))
             }
             (Kind::Flag { .. }, Setting::Flag(_)) => Ok(()),
+            // A series' own filter belongs to the dataset whose series it
+            // names (D-646); another dataset has nothing it could narrow.
+            (Kind::Ids | Kind::Accounts, Setting::Ids(ids))
+                if !ids.is_empty()
+                    && crate::is_series_filter(self.key)
+                    && dataset.id != crate::INCOME_EXPENSE_BY_MONTH =>
+            {
+                Err(invalid("unknown-property", self.path()))
+            }
             (Kind::Ids, Setting::Ids(ids)) => self.check_ids(ids, MAX_IDS),
             (Kind::Accounts | Kind::Budgets, Setting::Ids(ids)) => {
                 self.check_ids(ids, MAX_FILTER_IDS)

@@ -156,6 +156,14 @@ ColumnLayout {
             return i18nContext.i18nc("@label which accounts a component counts, whatever the filters of the page say", "Only count these accounts");
         case "series":
             return i18nContext.i18nc("@label which categories and groups a chart over time draws a line for", "Lines to draw");
+        case "income_categories":
+            return i18nContext.i18nc("@label which categories and groups the money in of a chart counts, for money in only", "Money in: only these categories");
+        case "income_accounts":
+            return i18nContext.i18nc("@label which accounts the money in of a chart counts, for money in only", "Money in: only these accounts");
+        case "expenses_categories":
+            return i18nContext.i18nc("@label which categories and groups the money out of a chart counts, for money out only", "Money out: only these categories");
+        case "expenses_accounts":
+            return i18nContext.i18nc("@label which accounts the money out of a chart counts, for money out only", "Money out: only these accounts");
         case "budgets":
             return i18nContext.i18nc("@label which budgets the budget bars show", "Which budgets");
         case "legend":
@@ -234,11 +242,12 @@ ColumnLayout {
         return "";
     }
 
-    // What can be ticked for a list: the groups of money spent (`groups`), or
-    // the categories and groups of both kinds (`series`).
+    // What can be ticked for a list: the groups of money spent (`groups`), the
+    // categories and groups of both kinds (`series`), or those of money in or
+    // money out only for a series' own list (D-646).
     function idOptions(key: string): var {
         const book = choices?.view ?? ({});
-        if (key === "accounts") {
+        if (key === "accounts" || key === "income_accounts" || key === "expenses_accounts") {
             return (book.accounts ?? []).map(account => ({id: account.id, name: account.closed ? i18nContext.i18nc("@option:check %1 is the name of a closed account", "%1 (closed)", account.name) : account.name}));
         }
         // The budget bars' Which budgets (D-642).
@@ -248,13 +257,15 @@ ColumnLayout {
         // A budget belongs to a category, not to a group (D-357).
         const forBudgets = view.preview?.shows === "budget-progress" || view.dataset === "budget_utilization";
         const groups = (forBudgets ? [] : book.groups ?? [])
-            .filter(group => (key !== "groups" && key !== "categories") || !group.income)
+            .filter(group => key === "income_categories" ? group.income
+                : (key !== "groups" && key !== "categories" && key !== "expenses_categories") || !group.income)
             .map(group => ({id: group.id, name: i18nContext.i18nc("@option:check %1 is the name of a group", "%1 (group)", group.name)}));
         if (key === "groups") {
             return groups;
         }
         const categories = (book.categories ?? [])
-            .filter(category => key !== "categories" || !category.income)
+            .filter(category => key === "income_categories" ? category.income
+                : (key !== "categories" && key !== "expenses_categories") || !category.income)
             .map(category => ({id: category.id, name: category.path ?? category.name}));
         return groups.concat(categories);
     }
@@ -327,7 +338,7 @@ ColumnLayout {
                 readonly property var modelData: panel.fieldByKey[key] ?? ({key: key, kind: ""})
 
                 visible: shown && (panel.only.length === 0 || panel.only.includes(modelData.key))
-                    && !(panel.hasColumns && ["categories", "series", "groups"].includes(modelData.key))
+                    && !(panel.hasColumns && ["categories", "series", "groups", "income_categories", "income_accounts", "expenses_categories", "expenses_accounts"].includes(modelData.key))
                 active: visible
                 Kirigami.FormData.label: modelData.kind === "flag" ? "" : panel.fieldLabel(modelData.key)
                 Kirigami.FormData.labelAlignment: modelData.kind === "ids" || modelData.kind === "formula" || modelData.kind === "spec" ? Qt.AlignTop : Qt.AlignVCenter
@@ -464,9 +475,9 @@ ColumnLayout {
                             visible: picker.options.length === 0
                             wrapMode: Text.Wrap
                             textFormat: Text.PlainText
-                            text: row.modelData.key === "categories"
+                            text: ["categories", "income_categories", "expenses_categories"].includes(row.modelData.key)
                                 ? panel.i18nContext.i18nc("@info", "There are no categories to pick yet.")
-                                : row.modelData.key === "accounts"
+                                : ["accounts", "income_accounts", "expenses_accounts"].includes(row.modelData.key)
                                 ? panel.i18nContext.i18nc("@info", "There are no accounts to pick yet.")
                                 : row.modelData.key === "budgets"
                                 ? panel.i18nContext.i18nc("@info", "There are no budgets to pick yet. Set one on the page Budgets first.")
@@ -484,6 +495,19 @@ ColumnLayout {
                             font: Kirigami.Theme.smallFont
                             opacity: 0.75
                             text: panel.i18nContext.i18nc("@info", "Nothing ticked: this follows the filters of the page. Tick some to count only those, whatever the page says.")
+                        }
+
+                        // A series' own list wins over the component's and
+                        // the page's, for that series only (D-646).
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                            visible: ["income_categories", "income_accounts", "expenses_categories", "expenses_accounts"].includes(row.modelData.key)
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            font: Kirigami.Theme.smallFont
+                            opacity: 0.75
+                            text: panel.i18nContext.i18nc("@info", "Nothing ticked: this counts like the rest of the chart. Tick some to count only those for this one series, for example money in from the salary category only.")
                         }
 
                         Controls.Label {

@@ -54,6 +54,30 @@ pub fn income_expense_by_month(
     period: Period,
     filter: &Filter,
 ) -> Result<Vec<IncomeExpenseByMonth>, ReportError> {
+    income_expense_by_series(source, period, filter, filter)
+}
+
+/// As [`income_expense_by_month`], with a filter of its own for each series
+/// (US1.16, D-646): what came in is counted with `income`, what went out with
+/// `expenses`, so one chart can show, for example, one income category
+/// against all spending from one account. What is left is still money in
+/// less money out of each month, from the exact amounts.
+pub fn income_expense_by_series(
+    source: &Source,
+    period: Period,
+    income: &Filter,
+    expenses: &Filter,
+) -> Result<Vec<IncomeExpenseByMonth>, ReportError> {
+    let mut parts = source.parts(period, income)?;
+    if income != expenses {
+        parts.retain(|part| part.kind == Kind::Income);
+        parts.extend(
+            source
+                .parts(period, expenses)?
+                .into_iter()
+                .filter(|part| part.kind == Kind::Spending),
+        );
+    }
     let overflow = |_| ReportError::Store(StoreError::AmountOverflow);
     let months = period.months();
     let position: HashMap<Date, usize> = months
@@ -63,7 +87,7 @@ pub fn income_expense_by_month(
         .collect();
     // Per currency, per month: income and expenses in minor units.
     let mut sums: HashMap<CurrencyCode, Vec<(Money, Money)>> = HashMap::new();
-    for part in source.parts(period, filter)? {
+    for part in parts {
         let Some(&at) = position.get(&part.day.first_of_month()) else {
             continue;
         };

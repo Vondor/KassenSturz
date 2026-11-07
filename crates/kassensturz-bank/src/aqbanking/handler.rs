@@ -69,6 +69,16 @@ pub(crate) fn reply_code(line: &str) -> Option<u16> {
         .filter(|code| REPLY_CODES.contains(code))
 }
 
+/// Whether the line is a bank reply: `HBCI: `, four digits, ` - `, text.
+fn is_reply_line(line: &str) -> bool {
+    let Some(rest) = line.strip_prefix("HBCI: ") else {
+        return false;
+    };
+    rest.get(..4)
+        .is_some_and(|number| number.chars().all(|character| character.is_ascii_digit()))
+        && rest[4..].starts_with(" - ")
+}
+
 #[derive(Default)]
 pub(crate) struct Handler {
     /// The PIN the running call may send, if any.
@@ -136,8 +146,16 @@ impl Handler {
 
     /// The last message of the bank or the backend, for `bank.refused`
     /// and `bank.setup-failed`.
+    ///
+    /// Only the bank's own reply lines (`HBCI: NNNN - text`) qualify: any
+    /// other notice could hold an account number or a login, and testers
+    /// may screenshot the message (M6-B186).
     pub fn last_message(&self) -> Option<String> {
-        self.lines.last().cloned()
+        self.lines
+            .iter()
+            .rev()
+            .find(|line| is_reply_line(line))
+            .cloned()
     }
 }
 
@@ -315,7 +333,11 @@ mod tests {
         assert_eq!(handler.reply_codes(), &[9931, 9942]);
         // A line below notice level is not kept for the error text.
         handler.log(LogLevel::Info, "info only");
-        assert_eq!(handler.last_message().as_deref(), Some("limit 9000 EUR"));
+        // Only the bank's reply lines are given out: "limit 9000 EUR" isn't one.
+        assert_eq!(
+            handler.last_message().as_deref(),
+            Some("HBCI: 9942 - locked")
+        );
         handler.begin(None);
         assert!(handler.reply_codes().is_empty());
     }
@@ -362,17 +384,29 @@ mod tests {
         handler.password_status(PasswordStatus::Bad);
         assert!(handler.rejected);
         handler.log(LogLevel::Debug, "noise");
-        handler.log(LogLevel::Notice, "  Bank says: no  ");
+        handler.log(LogLevel::Notice, "  HBCI: 9210 - Bank says: no  ");
         handler.log(LogLevel::Warning, "");
-        assert_eq!(handler.last_message().as_deref(), Some("Bank says: no"));
+        assert_eq!(
+            handler.last_message().as_deref(),
+            Some("HBCI: 9210 - Bank says: no")
+        );
+        // Other notices (they could name an account or a login) are never
+        // given out, even when they are the newest.
+        handler.log(
+            LogLevel::Notice,
+            "Account DE00 0000 0000 0000 0000 00 locked",
+        );
+        handler.log(LogLevel::Notice, "HBCI: 12 - too short");
+        handler.log(LogLevel::Notice, "xHBCI: 9210 - not at the start");
+        assert_eq!(
+            handler.last_message().as_deref(),
+            Some("HBCI: 9210 - Bank says: no")
+        );
         for index in 0..KEPT_LINES + 5 {
             handler.log(LogLevel::Error, &format!("line {index}"));
         }
         assert_eq!(handler.lines.len(), KEPT_LINES);
-        assert_eq!(
-            handler.last_message().as_deref(),
-            Some(format!("line {}", KEPT_LINES + 4).as_str())
-        );
+        assert_eq!(handler.last_message(), None, "none of the lines is a reply");
         handler.begin(None);
         assert_eq!(handler.last_message(), None);
         assert!(!handler.rejected);

@@ -957,7 +957,7 @@ fn fetch_errors_are_error_codes_and_a_wrong_pin_is_forgotten() {
         (
             "refused",
             BankError::Refused {
-                text: Some("Auftrag abgelehnt: Konto gesperrt (9010)".to_owned()),
+                text: Some("HBCI: 9010 - Auftrag abgelehnt: Konto gesperrt (E)".to_owned()),
             },
         ),
         ("tan", BankError::TanNeeded),

@@ -2036,7 +2036,8 @@ pub unsafe extern "C" fn AB_Banking_SendCommands(
             return GWEN_ERROR_NET_UNREACHABLE;
         }
         "refused" => {
-            add_message(context, "Auftrag abgelehnt: Konto gesperrt (9010)");
+            // The bank's reply line, the way AqBanking logs it.
+            progress("HBCI: 9010 - Auftrag abgelehnt: Konto gesperrt (E)");
             return GWEN_ERROR_GENERIC;
         }
         _ => {}

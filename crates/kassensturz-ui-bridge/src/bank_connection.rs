@@ -55,8 +55,8 @@ use kassensturz_bank::{
     BankError, BankQuestion, CustomerId, FINTS_REGISTRATION_KEY, FakeBank, FintsVersion, Iban,
     KeychainPinStore, Login, LoginChange, LoginId, LoginKind, LoginSetup, MemoryPinStore,
     NoPinStore, Pin, PinAsker, PinMode, PinSession, PinStore, QuestionLevel, RegistrationKey,
-    SecondFactor, Setup, Tan, TanRequest, fetch_linked, find_bank_account, link_for_fetch,
-    names_account, refresh_linked, remove_login, setup_for, valid_tan_method,
+    SecondFactor, Setup, Tan, TanRequest, fetch_linked, fetch_start, find_bank_account,
+    link_for_fetch, names_account, refresh_linked, remove_login, setup_for, valid_tan_method,
 };
 use kassensturz_core::{AccountId, BankLink, Date, ErrorParam, Report};
 use kassensturz_import::{EntryStatus, Limits, Statement};
@@ -1640,6 +1640,10 @@ pub struct FetchOutcome {
     pub transactions: usize,
     /// Why it failed.
     pub error: Option<ErrorText>,
+    /// For the first fetch of an account: the day it asked the bank from
+    /// (D-618), so the screen can say that older entries come with a file
+    /// import.
+    pub first_from: Option<Date>,
 }
 
 /// Whether an error ends the whole fetch, since fetching the next account
@@ -1734,6 +1738,16 @@ pub fn fetch(
             state: "skipped",
             transactions: 0,
             error: None,
+            first_from: request
+                .link
+                .last_fetched_on
+                .is_none()
+                .then(|| {
+                    fetch_start(
+                        link_for_fetch(&request.link, request.newest_entry, today).last_fetched_on,
+                    )
+                })
+                .flatten(),
         };
         if !ended {
             let _ = bank_fetch::take(request.account);
@@ -2593,7 +2607,6 @@ mod tests {
 
     #[test]
     fn a_first_fetch_starts_from_the_newest_entry_the_book_has_for_the_account() {
-        use kassensturz_bank::fetch_start;
         use kassensturz_core::{Money, Split, Transaction, TransactionId};
         let mut book = Book::create_in_memory().expect("book");
         let eur = CurrencyCode::new("EUR").expect("EUR");

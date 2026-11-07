@@ -1153,7 +1153,8 @@ mod tests {
     use crate::accounts::{NewAccount, add_account};
     use crate::first_start::tests::started;
     use crate::register::tests::TestLocale;
-    use crate::register::{Sort, register_view};
+    use crate::register::{Sort, register_view, register_view_with};
+    use crate::register_columns::{Column as RegisterColumn, Columns};
     use crate::test_folder::TestFolder;
     use crate::transaction_entry::{self, NewEntry};
 
@@ -1750,15 +1751,17 @@ mod tests {
             "From checking",
             "2026-10-07",
         );
+        // The IBAN is the example for Germany in SWIFT's IBAN Registry (D-055).
+        let mut bookshop = entry(5, -3525, "Example Bookshop");
+        bookshop.other_party_iban = Some("DE89370400440532013000".into());
+        bookshop.remittance_information = Some("Invoice 7\nthank you".into());
+        bookshop.value_date = Some(Date::new(2026, 10, 7).expect("a date"));
         let statement = Statement {
             account: StatementAccount::default(),
             currency: eur(),
             opening_balance: None,
             closing_balance: None,
-            entries: vec![
-                entry(5, -3525, "Example Bookshop"),
-                entry(6, -10_000, "Own transfer"),
-            ],
+            entries: vec![bookshop, entry(6, -10_000, "Own transfer")],
         };
         let loaded = Loaded::new(checking, PathBuf::from("october.sta"), vec![statement]);
 
@@ -1788,6 +1791,29 @@ mod tests {
         let register =
             register_view(&book, checking, Sort::default(), &TestLocale).expect("register");
         assert!(register.rows.iter().any(|row| row.category == "Groceries"));
+        // The register's detail columns show what the import delivered
+        // (US1.19), as the importer produced it, and nothing for the starting
+        // balance or the entry that came without an IBAN.
+        let columns = Columns::default()
+            .with(RegisterColumn::OtherPartyIban, true)
+            .with(RegisterColumn::Purpose, true)
+            .with(RegisterColumn::ValueDate, true);
+        let details = register_view_with(&book, checking, Sort::default(), columns, &TestLocale)
+            .expect("register");
+        let bookshop = details
+            .rows
+            .iter()
+            .find(|row| row.other_party == "Example Bookshop")
+            .expect("the imported entry");
+        assert_eq!(bookshop.other_party_iban, "DE89370400440532013000");
+        assert_eq!(bookshop.purpose, "Invoice 7 thank you");
+        assert_eq!(bookshop.value_date, "2026-10-07");
+        let own = details
+            .rows
+            .iter()
+            .filter(|row| row.other_party_iban.is_empty())
+            .count();
+        assert_eq!(own, 2, "the starting balance and the entry without an IBAN");
     }
 
     #[test]

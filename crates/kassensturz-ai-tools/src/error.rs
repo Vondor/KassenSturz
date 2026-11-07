@@ -69,8 +69,36 @@ pub enum ToolError {
     UnknownRule,
     /// A Rule or category can't be changed that way: a Rule with sub-Rules
     /// can't be deleted, only a top-level Rule moves, a Rule that books a
-    /// Transfer or has conditions a model can't write keeps them.
-    NotChangeable,
+    /// Transfer or has conditions a model can't write keeps them. The
+    /// report names the argument and why (M6-B191, D-626).
+    NotChangeable {
+        /// The argument that asked for it, from the function's fixed list.
+        argument: &'static str,
+        /// Why not, one of the fixed words in `docs/ERROR_CODES.md`.
+        reason: &'static str,
+    },
+    /// The conditions of a Rule are unusable. The report counts the
+    /// condition from 1 in the Rule's `conditions` (not for the list as a
+    /// whole) and gives a fixed reason, never the model's text (M6-B191,
+    /// D-626).
+    BadCondition {
+        /// Its place in the list, from 1, if it is about one condition.
+        condition: Option<usize>,
+        /// Why, one of the fixed words in `docs/ERROR_CODES.md`.
+        reason: &'static str,
+    },
+    /// The error `cause` came from one item of a list of the call, e.g. the
+    /// third of `new_rules`. The report is the cause's, plus the list and
+    /// the item's place, so the model knows which one to fix (M6-B191,
+    /// D-626).
+    InItem {
+        /// The list's name, from [`PROPOSE_CHANGES`](crate::PROPOSE_CHANGES)'s fixed list.
+        list: &'static str,
+        /// The item's place in the list, from 1.
+        item: usize,
+        /// What was wrong with it.
+        cause: Box<ToolError>,
+    },
     /// A category can't be deleted because something uses it
     /// (`used_by`: `subcategories`, `transactions` or `rules`, D-253).
     CategoryInUse {
@@ -106,6 +134,59 @@ pub enum ToolError {
     /// the store gives a budget made by hand (D-358): the model hears the
     /// store's own code, as the user would.
     BudgetRefused(StoreError),
+}
+
+impl ToolError {
+    /// The error as the item `index` (from 0) of the call's list `list`
+    /// raised it. An error that is not about one item, or already names
+    /// one, stays as it is.
+    #[must_use]
+    pub fn at(self, list: &'static str, index: usize) -> Self {
+        match self {
+            Self::Store(_)
+            | Self::TooManyChanges
+            | Self::NotAllowed { .. }
+            | Self::InItem { .. } => self,
+            cause => Self::InItem {
+                list,
+                item: index + 1,
+                cause: Box::new(cause),
+            },
+        }
+    }
+
+    /// The report as the model hears it: the cause's own code and
+    /// parameters, plus the list and the place of the item it came from, so
+    /// that one answer names the item and the reason (M6-B191, D-626).
+    /// [`Report::report`] keeps them apart, as a code of its own with the
+    /// cause behind it.
+    pub fn model_report(&self) -> ErrorReport {
+        match self {
+            Self::InItem { list, item, cause } => cause
+                .model_report()
+                .with("list", ErrorParam::Keyword(list))
+                .with("item", ErrorParam::count(*item)),
+            other => other.report(),
+        }
+    }
+
+    /// The error itself, without the place of the item it came from.
+    pub fn kind(&self) -> &Self {
+        match self {
+            Self::InItem { cause, .. } => cause,
+            other => other,
+        }
+    }
+
+    /// The error without the place of the item it came from, for code that
+    /// tells the kinds of error apart.
+    #[must_use]
+    pub fn without_item(self) -> Self {
+        match self {
+            Self::InItem { cause, .. } => *cause,
+            other => other,
+        }
+    }
 }
 
 impl From<StoreError> for ToolError {
@@ -147,7 +228,21 @@ impl Report for ToolError {
             }
             Self::OtherCurrency => ErrorReport::new("ai-tools.other-currency"),
             Self::UnknownRule => ErrorReport::new("ai-tools.unknown-rule"),
-            Self::NotChangeable => ErrorReport::new("ai-tools.not-changeable"),
+            Self::NotChangeable { argument, reason } => ErrorReport::new("ai-tools.not-changeable")
+                .with("argument", ErrorParam::Keyword(argument))
+                .with("reason", ErrorParam::Keyword(reason)),
+            Self::BadCondition { condition, reason } => {
+                let report = ErrorReport::new("ai-tools.bad-condition");
+                let report = match condition {
+                    Some(condition) => report.with("condition", ErrorParam::count(*condition)),
+                    None => report,
+                };
+                report.with("reason", ErrorParam::Keyword(reason))
+            }
+            Self::InItem { list, item, cause } => ErrorReport::new("ai-tools.in-item")
+                .with("list", ErrorParam::Keyword(list))
+                .with("item", ErrorParam::count(*item))
+                .caused_by(cause.report()),
             Self::CategoryInUse { used_by } => ErrorReport::new("ai-tools.category-in-use")
                 .with("used_by", ErrorParam::Keyword(used_by)),
             Self::AccountNotEmpty => ErrorReport::new("ai-tools.account-not-empty"),
@@ -204,7 +299,54 @@ mod tests {
             ToolError::NotDeletable,
             ToolError::OtherCurrency,
             ToolError::UnknownRule,
-            ToolError::NotChangeable,
+            ToolError::NotChangeable {
+                argument: "conditions",
+                reason: "conditions-hidden",
+            },
+            ToolError::NotChangeable {
+                argument: "rule_id",
+                reason: "has-sub-rules",
+            },
+            ToolError::NotChangeable {
+                argument: "rule_id",
+                reason: "is-sub-rule",
+            },
+            ToolError::NotChangeable {
+                argument: "category_id",
+                reason: "makes-transfer",
+            },
+            ToolError::BadCondition {
+                condition: None,
+                reason: "none",
+            },
+            ToolError::BadCondition {
+                condition: None,
+                reason: "too-many",
+            },
+            ToolError::BadCondition {
+                condition: Some(1),
+                reason: "shape",
+            },
+            ToolError::BadCondition {
+                condition: Some(2),
+                reason: "field",
+            },
+            ToolError::BadCondition {
+                condition: Some(3),
+                reason: "test",
+            },
+            ToolError::BadCondition {
+                condition: Some(4),
+                reason: "text",
+            },
+            ToolError::BadCondition {
+                condition: Some(5),
+                reason: "bad-pattern",
+            },
+            ToolError::BadCondition {
+                condition: Some(6),
+                reason: "invalid",
+            },
             ToolError::AccountNotEmpty,
             ToolError::CategoryInUse {
                 used_by: "subcategories",
@@ -223,6 +365,12 @@ mod tests {
                 .map(|&(argument, _)| ToolError::NotAllowed { argument }),
         );
         examples.push(ToolError::NotAllowed { argument: "page" });
+        // The place of the item a refusal came from (M6-B191).
+        examples.extend(
+            crate::changes::SECTIONS
+                .iter()
+                .map(|&(list, _)| ToolError::NameTaken.at(list, 2)),
+        );
         // The chart builder's ids and the function itself (D-353).
         for argument in ["categories", "accounts", crate::changes::PROPOSE_VIEW_NAME] {
             examples.push(ToolError::NotAllowed { argument });

@@ -14,7 +14,7 @@ use std::path::PathBuf;
 
 use kassensturz_ai_tools::{Confirmed, ProposedChange, call, propose as propose_with};
 use kassensturz_core::ai_switch::{Field, Permissions};
-use kassensturz_core::{Account, AccountId, AccountType, CurrencyCode, Date, Report};
+use kassensturz_core::{Account, AccountId, AccountType, CurrencyCode, Date};
 use kassensturz_import::{Imported, KmySqlite, Limits, import};
 use kassensturz_pipeline::fill_book_from;
 use kassensturz_store::{Action, Book};
@@ -165,7 +165,7 @@ fn only_a_hand_entered_cash_transaction_is_removed_never_a_transfer_or_a_bank_en
         open(),
     )
     .expect_err("a bank entry stays");
-    assert_eq!(error.report().code, "ai-tools.not-deletable");
+    assert_eq!(error.model_report().code, "ai-tools.not-deletable");
 
     // What the AI wrote itself can go again, and comes back with undo.
     let added = propose_with(

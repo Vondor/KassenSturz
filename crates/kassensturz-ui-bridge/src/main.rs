@@ -91,6 +91,7 @@ mod platform;
 mod properties;
 mod properties_model;
 mod register;
+mod register_columns;
 mod register_model;
 mod restart;
 mod rules;

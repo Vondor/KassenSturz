@@ -145,9 +145,13 @@ fn propose(book: &Book, arguments: &Value) -> Result<Proposal, ToolError> {
 }
 
 fn code(result: Result<Proposal, ToolError>) -> String {
-    match result {
+    match result.map_err(ToolError::without_item) {
         Ok(_) => "prepared".into(),
         Err(ToolError::BadArgument { argument }) => format!("bad-argument {argument}"),
+        Err(ToolError::BadCondition { condition, reason }) => format!(
+            "bad-condition {} {reason}",
+            condition.map_or_else(|| "-".to_owned(), |place| place.to_string())
+        ),
         Err(error) => error.report().code.into(),
     }
 }
@@ -466,23 +470,23 @@ fn calls_that_are_not_what_the_function_takes_are_refused() {
         ),
         (
             json!({"new_rules": [{"name": "A", "conditions": [], "category_id": food}]}),
-            "bad-argument conditions",
+            "bad-condition - none",
         ),
         (
             json!({"new_rules": [{"name": "A", "conditions": [{"field": "other_party_iban", "test": "contains", "text": "DE"}], "category_id": food}]}),
-            "bad-argument field",
+            "bad-condition 1 field",
         ),
         (
             json!({"new_rules": [{"name": "A", "conditions": [{"field": "payee", "test": "matches_pattern", "text": ".*"}], "category_id": food}]}),
-            "bad-argument test",
+            "bad-condition 1 test",
         ),
         (
             json!({"new_rules": [{"name": "A", "conditions": [{"money_in": true, "money_out": true}], "category_id": food}]}),
-            "bad-argument conditions",
+            "bad-condition 1 shape",
         ),
         (
             json!({"new_rules": [{"name": "A", "conditions": [{"money_in": false}], "category_id": food}]}),
-            "bad-argument conditions",
+            "bad-condition 1 shape",
         ),
         (
             json!({"new_rules": [{"name": "A", "conditions": [{"money_out": true}]}]}),
@@ -812,8 +816,10 @@ fn rules_are_edited_moved_and_deleted_in_the_order_they_are_listed() {
     .expect("prepared");
     assert_eq!(state(&book), before, "proposing changes nothing");
     let changes = proposal.changes.changes();
-    let ProposedChange::EditRule(edit) = &changes[1] else {
-        panic!("the edit after the new Rule: {changes:?}");
+    // Changing and deleting come before new Rules, so a Rule can be
+    // replaced by one of the same name (M6-B191).
+    let ProposedChange::EditRule(edit) = &changes[0] else {
+        panic!("the edit first: {changes:?}");
     };
     assert_eq!(edit.before.name, "Grocer");
     assert_eq!(
@@ -2945,4 +2951,5 @@ fn a_change_can_be_left_out_and_brought_back_as_the_ai_prepared_it() {
     assert_eq!(state(&book), before, "no entry in the history either");
 }
 
+mod rule_batches;
 mod view_call;

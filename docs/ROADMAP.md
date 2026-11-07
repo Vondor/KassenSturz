@@ -250,7 +250,7 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **US1.4** · **later** · waits for: the next removal of a bank login in US1 Phase 3 (a line in the test plan). #505 (M6-B188): check that the kept keychain entry's password is empty, then close the issue. Why: #506 already explains it in the remove dialog; only the check is left
 
-- **US1.5** · **todo** · thread B · needs: — · standard, high · D-626 to D-628. #517 (M6-B191): the AI rule tools fail to replace a rule with one of the same name in one batch, refuse edits of imported rules without a reason, and name no item in errors. Why: bugs, and the errors are dead ends
+- **US1.5** · **in review** · thread B · needs: — · standard, high · D-626 to D-628. #517 (M6-B191): the AI rule tools fail to replace a rule with one of the same name in one batch, refuse edits of imported rules without a reason, and name no item in errors. Why: bugs, and the errors are dead ends. **Built (D-626):** edits and deletions come before new Rules so a same-name replacement works in one call, `not-changeable` says which argument and why, `bad-condition` names the condition, and every refusal from a list item carries `list` and `item`
 
 - **US1.6** · **todo** · thread B, after US1.5 · needs: US1.5; US1.7 if it changes the condition cap in the store · standard, high · D-626 to D-628 (shared with US1.5). #518: the AI rule tools get the app's condition cap, sub-rules (a parent in `new_rules`), `matches_pattern` (the tool text says capitals are ignored and lookahead is unsupported) and higher batch limits; every change stays one confirmed change set. Why: the tools forced split rules such as "Food (2)"
 
@@ -276,9 +276,9 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **US1.17** · **todo** · thread F, last · needs: US1.12, US1.13, US1.14, US1.16, and US1.6 merged (`kassensturz-ai-tools`) · standard, high · D-644 to D-651 (shared in thread F). #530 and #534: the AI prepares formula cards, custom charts and the new views (average per month, last N months, complete months only) for the user to confirm; the formula is shown in plain words first, and figures come from code. Why: the AI could only offer preset views
 
-- **US1.18** · **todo** · thread H · needs: — · standard, high · D-656 to D-658. #538: clicking a register column header sorts by it (ascending, then descending), in Rust by exact values; the balance column shows only in date order and is hidden with a short note otherwise. Why: a balance after each entry is only true in date order
+- **US1.18** · **done** · thread H · needs: — · standard, high · D-656 to D-658. #538: clicking a register column header sorts by it (ascending, then descending), in Rust by exact values; the balance column shows only in date order and is hidden with a short note otherwise. Why: a balance after each entry is only true in date order
 
-- **US1.19** · **todo** · thread H, after US1.18 · needs: US1.18 · standard, high · D-656 to D-658 (shared with US1.18) · [format]. #537: the user chooses which transaction details show as register columns, per account; default columns unchanged; imported details shown as plain text. Why: details such as the other party's IBAN could not be seen in the register
+- **US1.19** · **done** · thread H, after US1.18 · needs: US1.18 · standard, high · D-656 to D-658 (shared with US1.18) · [format]. #537: the user chooses which transaction details show as register columns, per account; default columns unchanged; imported details shown as plain text. Why: details such as the other party's IBAN could not be seen in the register
 
 - **US1.20** · **later** · waits for: its own design pull request on data safety. #515: choose the folder where the Flatpak keeps the book. Why: revisits D-125, D-113, Q-081 and Q-071, needs a Flatpak permission, and must keep the book safe when the folder disappears or is read-only and when an existing book is moved (backup and a way back)
 

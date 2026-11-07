@@ -26,13 +26,23 @@ Kirigami.ApplicationWindow {
     visible: true
     property bool failed: false
     property int step: 0
+    property var opened: []
+    // What the page knows besides the figures: the whole book's transactions
+    // without a category and the newest of them (US1.9, #535).
+    readonly property var pageData: ({
+        unsorted: 12,
+        unsortedRows: [
+            {accountId: "a1", account: "Giro", id: "t1", date: "13.10.2026", otherParty: "Kiosk", category: "", amount: "-12,50 €", exactAmount: "-12,50 €", incoming: false, kind: "simple"},
+            {accountId: "a2", account: "Cash", id: "t2", date: "02.03.2026", otherParty: "", category: "", amount: "-3,00 €", exactAmount: "-3,00 €", incoming: false, kind: "simple"}
+        ]
+    })
 
     DashboardLayout {
         id: dashboard
 
         view: ({
             editing: false, damaged: false, hasChanges: false, canUndo: false, canRedo: false,
-            undoEdit: "", redoEdit: "", builtIn: true, columns: 12, maxRows: 24, rows: 4,
+            undoEdit: "", redoEdit: "", builtIn: true, columns: 12, maxRows: 24, rows: 8,
             library: [],
             filters: {period: "", accounts: [], categories: [], forNow: false},
             dashboards: [
@@ -44,7 +54,8 @@ Kirigami.ApplicationWindow {
                 dashboard.item("month", "page.period", 0, 1, 12, 1),
                 dashboard.item("bar", "page.filters", 0, 2, 12, 1),
                 dashboard.item("income", "kpi.card", 0, 3, 3, 2),
-                dashboard.item("tabs2", "page.tabs", 0, 5, 12, 1)
+                dashboard.item("tabs2", "page.tabs", 0, 5, 12, 1),
+                dashboard.item("note", "notice.unsorted", 0, 6, 12, 2)
             ]
         })
     }
@@ -90,6 +101,8 @@ Kirigami.ApplicationWindow {
             monthKey: "2026-09"
             overview: overview
             choices: book
+            pageView: window.pageData
+            onTransactionClicked: (account, transaction) => window.opened.push(account + ":" + transaction)
         }
     }
 
@@ -184,6 +197,34 @@ Kirigami.ApplicationWindow {
                 const tabs = grid.itemFor("tabs");
                 const texts = window.findAll(tabs, item => item.text !== undefined && item.visible, []).map(item => item.text);
                 window.check(texts.some(text => text.includes("once you have two or more")), "arranging says what the tabs will show: " + JSON.stringify(texts));
+                break;
+            }
+            case 6: {
+                // A bar that is not picked is picked by a drag that starts on
+                // it, and the drag is not cut off by that (US1.8, #520).
+                const bar = grid.itemFor("bar");
+                grid.select("income");
+                window.check(!bar.selected && bar.pointerOverlay && !bar.takesPointer, "a bar that is not picked has the overlay that picks and drags it");
+                bar.dragStarted();
+                window.check(bar.moving && bar.selected && bar.takesPointer, "a drag from an unpicked bar picks it");
+                window.check(bar.pointerOverlay, "the overlay under the drag stays until it is let go");
+                bar.dragEnded();
+                window.check(!bar.moving && dashboard.calls.some(call => call.startsWith("moveTo:bar:")), "letting go moves the bar: " + dashboard.calls);
+                window.check(bar.selected && !bar.pointerOverlay, "a picked bar gives the pointer back to its buttons");
+                window.check(!bar.hasSettings && !grid.itemFor("month").hasSettings && grid.itemFor("income").hasSettings, "the page widgets have nothing to set, a card has");
+                break;
+            }
+            case 7: {
+                // The note about the transactions without a category (US1.9).
+                const note = grid.itemFor("note");
+                window.check(note !== null && note.bare && !note.hasProblem, "the note is drawn without a card and is no problem");
+                const texts = window.findAll(note, item => item.text !== undefined && item.visible, []).map(item => item.text);
+                window.check(texts.some(text => text.includes("12 transactions have no category yet")), "it says how many, the whole book's: " + JSON.stringify(texts));
+                window.check(texts.some(text => text.includes("The newest 2 are listed here.")), "it says when only the newest are listed: " + JSON.stringify(texts));
+                const rows = window.findAll(note, item => item.clicked !== undefined && item.modelData !== undefined && item.visible, []);
+                window.check(rows.length === 2, "one row for each listed transaction: " + rows.length);
+                rows[0].clicked();
+                window.check(window.opened.join() === "a1:t1", "a row opens that transaction in its account: " + window.opened);
                 break;
             }
             default:

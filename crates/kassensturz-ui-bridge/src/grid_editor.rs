@@ -341,7 +341,7 @@ mod tests {
         assert!(!layout.damaged);
         assert!(!layout.editor.has_changes());
         let shown = rows(&layout.editor, &Filters::default());
-        assert_eq!(shown.len(), 15);
+        assert_eq!(shown.len(), 16);
         // Reading order: the tabs, the period header and the filter bar, the bank warnings, the four cards, the budget bars,
         // then the donut and the table, the line, and the note about
         // transfers.
@@ -363,10 +363,11 @@ mod tests {
                 "biggest",
                 "trend",
                 "sources",
-                "transfers"
+                "transfers",
+                "unsorted"
             ]
         );
-        assert_eq!(total_rows(&layout.editor), 26);
+        assert_eq!(total_rows(&layout.editor), 28);
     }
 
     #[test]
@@ -480,9 +481,9 @@ mod tests {
     }"#;
 
     #[test]
-    fn the_library_offers_the_twenty_two_components_and_adds_each_with_its_defaults() {
+    fn the_library_offers_the_twenty_three_components_and_adds_each_with_its_defaults() {
         let offered = library();
-        assert_eq!(offered.len(), 22);
+        assert_eq!(offered.len(), 23);
         assert!(offered.contains(&("text.heading", "")));
         assert!(offered.contains(&("page.period", "")));
         assert!(offered.contains(&("page.filters", "")));
@@ -498,7 +499,7 @@ mod tests {
                 .unwrap();
             assert_eq!(row.component.unwrap().kind().id(), kind);
         }
-        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 37);
+        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 39);
         assert!(add(&mut layout.editor, "chart.radar").is_err());
     }
 

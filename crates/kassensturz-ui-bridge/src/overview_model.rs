@@ -191,6 +191,7 @@ fn view_object(view: &OverviewView, gaps: &[FetchGap], changes: u64) -> QVariant
     let latest = view.latest.iter().map(latest_row_object);
     let transfers = i32::try_from(view.transfers).unwrap_or(i32::MAX);
     let budgets = i32::try_from(view.budgets).unwrap_or(i32::MAX);
+    let unsorted = i32::try_from(view.unsorted).unwrap_or(i32::MAX);
     map([
         ("month", text(&view.month)),
         ("monthKey", text(&view.month_key)),
@@ -203,6 +204,11 @@ fn view_object(view: &OverviewView, gaps: &[FetchGap], changes: u64) -> QVariant
         ("transfers", QVariant::from(&transfers)),
         ("budgets", QVariant::from(&budgets)),
         ("latest", list(latest)),
+        ("unsorted", QVariant::from(&unsorted)),
+        (
+            "unsortedRows",
+            list(view.unsorted_rows.iter().map(latest_row_object)),
+        ),
         ("fetchGaps", list(gaps.iter().map(fetch_gap_object))),
         ("bookChanges", text(&changes.to_string())),
     ])

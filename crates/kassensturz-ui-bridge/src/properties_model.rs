@@ -155,10 +155,15 @@ pub(crate) fn view_object(
                     .map(text),
             ),
         ));
-        entries.push((
-            "fields",
-            list(properties::fields(component, form).iter().map(field_object)),
-        ));
+        let fields = properties::fields(component, form);
+        let period = properties::period(component);
+        // Whether the Properties dialog has anything to set: a tile without
+        // settings hides its Properties button (US1.8, #522, D-635).
+        let has_settings = !fields.is_empty()
+            || properties::dataset_ids(component.kind()).len() > 1
+            || period.is_some();
+        entries.push(("fields", list(fields.iter().map(field_object))));
+        entries.push(("hasSettings", QVariant::from(&has_settings)));
         entries.push(("json", text(&properties::json(component))));
         // The columns, as JSON text, for a component that has them (D-339).
         // Their formulas are written in the user's number format (D-341).
@@ -166,7 +171,7 @@ pub(crate) fn view_object(
         if let Some(columns) = properties::columns_json(component, &show) {
             entries.push(("columns", text(&columns)));
         }
-        if let Some((word, words)) = properties::period(component) {
+        if let Some((word, words)) = period {
             entries.push((
                 "period",
                 map([
@@ -345,7 +350,15 @@ mod tests {
         assert_eq!(
             keys(&view),
             [
-                "columns", "dataset", "datasets", "fields", "json", "period", "preview", "type"
+                "columns",
+                "dataset",
+                "datasets",
+                "fields",
+                "hasSettings",
+                "json",
+                "period",
+                "preview",
+                "type"
             ]
         );
         // The grid editor's panel offers the period; the workbench's fields
@@ -836,5 +849,44 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn a_tile_with_nothing_to_set_says_so_and_a_card_can_hide_its_note_once_it_counts_accounts() {
+        // The filter bar, the period header, the tabs and the notes have no
+        // settings, no choice of data and no period (US1.8, #522).
+        for kind in [
+            ComponentType::FilterBar,
+            ComponentType::PeriodHeader,
+            ComponentType::DashboardTabs,
+            ComponentType::TransfersNote,
+            ComponentType::UnsortedNote,
+            ComponentType::Separator,
+        ] {
+            let view = view_object(Some(&component(kind, "")), None, NumberForm::DecimalComma);
+            assert!(!flag_of(&view, "hasSettings"), "{}", kind.id());
+        }
+        let card = component(ComponentType::KpiCard, "income_expense_by_month");
+        let view = view_object(Some(&card), None, NumberForm::DecimalComma);
+        assert!(flag_of(&view, "hasSettings"));
+        let keys_of = |view: &QVariant| -> Vec<String> {
+            list_of(view, "fields")
+                .iter()
+                .map(|f| text_of(f, "key"))
+                .collect()
+        };
+        // Nothing to hide while the card counts every account (US1.9, #523).
+        assert!(!keys_of(&view).contains(&"hide_note".to_owned()));
+        let mut card = card;
+        card.set("accounts", Setting::Ids(vec!["a".into()]))
+            .unwrap();
+        let view = view_object(Some(&card), None, NumberForm::DecimalComma);
+        let fields = list_of(&view, "fields");
+        let hide = fields
+            .iter()
+            .find(|f| text_of(f, "key") == "hide_note")
+            .expect("the switch is offered");
+        assert_eq!(text_of(hide, "kind"), "flag");
+        assert!(!flag_of(hide, "flag"), "the note is shown by default");
     }
 }

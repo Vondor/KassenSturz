@@ -19,9 +19,13 @@ ColumnLayout {
 
     // `view.filter` of the object that drew the component, or undefined.
     property var filter: undefined
+    // The title names the accounts the component counts, so the marks about
+    // the accounts are left out (US1.9, #523, D-636). Every other mark and
+    // every note stays.
+    property bool accountsInTitle: false
 
-    readonly property var own: filter?.own ?? []
-    readonly property var filtered: (filter?.filtered ?? []).filter(word => word !== "period")
+    readonly property var own: (filter?.own ?? []).filter(word => !(accountsInTitle && word === "accounts"))
+    readonly property var filtered: (filter?.filtered ?? []).filter(word => word !== "period" && !(accountsInTitle && word === "accounts"))
     readonly property var list: filter?.notes ?? []
     readonly property bool quiet: own.length === 0 && filtered.length === 0 && list.length === 0
 

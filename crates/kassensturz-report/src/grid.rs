@@ -43,12 +43,15 @@ impl ComponentType {
             Self::KpiCard => Size { cols: 2, rows: 2 },
             Self::ProgressBar | Self::Heading => Size { cols: 3, rows: 1 },
             Self::Separator => Size { cols: 1, rows: 1 },
-            Self::PeriodBox
-            | Self::NetWorth
-            | Self::IncomeSources
-            | Self::BudgetProgress
-            | Self::BankUpdateAll => Size { cols: 3, rows: 2 },
-            Self::FetchNotice | Self::TransfersNote => Size { cols: 4, rows: 1 },
+            Self::PeriodBox | Self::NetWorth | Self::IncomeSources | Self::BudgetProgress => {
+                Size { cols: 3, rows: 2 }
+            }
+            // Only the button fits in one row; the status, the warnings and
+            // the summary scroll (US1.8, #521, D-635).
+            Self::BankUpdateAll => Size { cols: 3, rows: 1 },
+            Self::FetchNotice | Self::TransfersNote | Self::UnsortedNote => {
+                Size { cols: 4, rows: 1 }
+            }
             // The tabs, the month header and the filter bar may be as narrow
             // as one column: the user decides (D-533).
             Self::FilterBar | Self::DashboardTabs | Self::PeriodHeader => Size { cols: 1, rows: 1 },
@@ -77,6 +80,8 @@ impl ComponentType {
             | Self::PeriodHeader
             | Self::FilterBar
             | Self::DashboardTabs => Size { cols: 12, rows: 1 },
+            // The count and a few of the newest transactions to open.
+            Self::UnsortedNote => Size { cols: 12, rows: 2 },
             Self::PeriodBox => Size { cols: 12, rows: 5 },
             Self::NetWorth => Size { cols: 6, rows: 2 },
             Self::IncomeSources => Size { cols: 6, rows: 4 },

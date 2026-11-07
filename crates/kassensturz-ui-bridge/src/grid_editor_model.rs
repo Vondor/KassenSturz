@@ -1181,7 +1181,7 @@ mod tests {
         assert!(!flag_of(&view, "hasChanges"));
         assert_eq!(text_of(&view, "undoEdit"), "");
         let items = list_of(&view, "items");
-        assert_eq!(items.len(), 15);
+        assert_eq!(items.len(), 16);
         // The first card, after the tabs, the period header, the filter bar,
         // the bank warnings and the net worth card.
         let first = &items[5];
@@ -1202,7 +1202,7 @@ mod tests {
         assert_eq!(text_of(&preview, "shows"), "card");
         assert_eq!(text_of(&preview, "measure"), "income");
         let library = list_of(&view, "library");
-        assert_eq!(library.len(), 22);
+        assert_eq!(library.len(), 23);
         assert_eq!(keys(&library[0]), ["dataset", "type"]);
     }
 

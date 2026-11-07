@@ -14,6 +14,7 @@ use std::collections::HashSet;
 use super::exact::Exact;
 use super::lex::{Comparison, Kind as Token, Token as Lexed};
 use super::{MAX_FORMULA_ARGUMENTS, MAX_FORMULA_DEPTH, MAX_FORMULA_NAMES, MAX_FORMULA_PERIODS};
+use crate::source::Kind as Side;
 use crate::{Period, ReportError};
 
 /// The words of a period, counted from the figure's period (D-292).
@@ -184,6 +185,37 @@ pub(crate) struct Name {
     /// Only an argument of `COUNT`, so its money doesn't decide the
     /// formula's currency.
     pub(crate) only_counted: bool,
+    /// `Income.` or `Spending.` in front: only an income or only a
+    /// spending category or group fits (D-653).
+    pub(crate) side: Option<Side>,
+    /// `Income.ALL` or `Spending.ALL`: everything of that side, also what
+    /// is not sorted into a category yet, and not a name to look up.
+    pub(crate) all: bool,
+}
+
+impl Name {
+    /// The name as an error message shows it: with its kind in front when
+    /// the formula gave one.
+    pub(crate) fn shown(&self) -> String {
+        match self.side {
+            Some(side) => format!("{}.{}", side_word(side), self.text),
+            None => self.text.clone(),
+        }
+    }
+}
+
+/// The word a formula writes for a kind (D-653).
+pub(crate) const fn side_word(side: Side) -> &'static str {
+    match side {
+        Side::Income => "Income",
+        Side::Spending => "Spending",
+    }
+}
+
+fn read_side(word: &str) -> Option<Side> {
+    [Side::Income, Side::Spending]
+        .into_iter()
+        .find(|&side| side_word(side).eq_ignore_ascii_case(word))
 }
 
 /// The kind of a value, known before any figure is read.
@@ -353,7 +385,8 @@ impl Parser<'_> {
                 at,
             }),
             Token::Name(name) if self.peek() == Some(&Token::Open) => self.call(&name, at),
-            Token::Name(text) | Token::Quoted(text) => self.name(text, at),
+            Token::Name(word) if self.peek() == Some(&Token::Dot) => self.kinded(&word, at),
+            Token::Name(text) | Token::Quoted(text) => self.name(text, at, None, false),
             Token::Open => {
                 self.deeper()?;
                 let inside = self.test()?;
@@ -369,8 +402,30 @@ impl Parser<'_> {
         }
     }
 
+    /// `Income . name` or `Spending . name`, also `Spending . ALL` (D-653).
+    /// `ALL` bare is the term; `'All'` in quotes is a name like any other.
+    fn kinded(&mut self, word: &str, at: usize) -> Result<Expr, ReportError> {
+        let side = read_side(word).ok_or_else(|| syntax(at, "unknown-kind"))?;
+        // The `.`.
+        self.next += 1;
+        let after = self.at();
+        match self.take().map(|token| token.kind.clone()) {
+            Some(Token::Name(text)) if text.eq_ignore_ascii_case("all") => {
+                self.name(text, at, Some(side), true)
+            }
+            Some(Token::Name(text) | Token::Quoted(text)) => self.name(text, at, Some(side), false),
+            _ => Err(syntax(after, "expected-value")),
+        }
+    }
+
     /// `name [@ period]`.
-    fn name(&mut self, text: String, at: usize) -> Result<Expr, ReportError> {
+    fn name(
+        &mut self,
+        text: String,
+        at: usize,
+        side: Option<Side>,
+        all: bool,
+    ) -> Result<Expr, ReportError> {
         let mut range = None;
         if self.peek() == Some(&Token::At) {
             self.next += 1;
@@ -397,6 +452,8 @@ impl Parser<'_> {
             range,
             at,
             only_counted: false,
+            side,
+            all,
         });
         Ok(Expr {
             node: Node::Name(self.names.len() - 1),

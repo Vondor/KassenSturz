@@ -96,10 +96,17 @@ ColumnLayout {
         return entry.name + "(" + entry.arguments.join(writing.separator + " ") + ")";
     }
 
+    // `Spending.ALL` and `Income.ALL` in words.
+    function allName(kind: string): string {
+        return kind === "income"
+            ? i18nContext.i18nc("@info a name in a list of what a formula counts: all money received", "all income")
+            : i18nContext.i18nc("@info a name in a list of what a formula counts: all money spent", "all spending");
+    }
+
     // The words of "counts Pets (with Vet), Travel".
     function counts(lines: var): string {
         const parts = lines.map(line => {
-            let name = line.name;
+            let name = line.all !== "" ? allName(line.all) : line.name;
             if (line.inside.length > 0) {
                 const more = line.insideMore > 0
                     ? i18nContext.i18ncp("@info the end of a list of names", "and %1 more", "and %1 more", line.insideMore) : "";
@@ -168,7 +175,7 @@ ColumnLayout {
             ? field.i18nContext.i18nc("@info:placeholder an example of a formula for a target", "For example =400")
             : field.i18nContext.i18nc("@info:placeholder an example of a formula", "For example =Pets - Travel")
         Accessible.name: field.i18nContext.i18nc("@label:textbox a formula that works out a figure", "Formula")
-        Accessible.description: field.i18nContext.i18nc("@info", "Use the names of your categories and groups. Add a time range to a name with @, for example Pets@\"last month\" or Pets@2026-03.")
+        Accessible.description: field.i18nContext.i18nc("@info", "Use the names of your categories and groups. Add a time range to a name with @, for example Pets@\"last month\" or Pets@2026-03. Put Income. or Spending. in front of a name to pick money that came in or went out, for example Spending.Pets. Spending.ALL and Income.ALL count everything, also what is not sorted into a category yet.")
         // The text decides what is offered; a typing pause decides when the
         // result is worked out again.
         onTextEdited: {
@@ -245,7 +252,9 @@ ColumnLayout {
                 Layout.fillWidth: true
                 focusPolicy: Qt.NoFocus
                 highlighted: index === field.chosen
-                text: Plain.plain(modelData.group
+                text: Plain.plain(modelData.all !== ""
+                    ? field.i18nContext.i18nc("@item %1 is what the formula writes for all spending or all income", "%1 (all, also what is not sorted yet)", modelData.label)
+                    : modelData.group
                     ? field.i18nContext.i18nc("@item a group of categories the user made, %1 is its name", "%1 (group)", modelData.label)
                     : modelData.label)
                 onClicked: {

@@ -268,7 +268,7 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **US1.13** · **todo** · thread F, after US1.12 · needs: US1.12, US1.14 · standard, high · D-644 to D-651 (shared in thread F). #531 and #533: "Show as: total or average per month (quarter, year)" for the category donut and table, with an explicit rounding rule and totals from exact amounts; in formulas a rolling period on a name, not a new function, since Calc has none (D-510). Why: averages had to be computed outside the app
 
-- **US1.14** · **todo** · thread G · needs: — · standard, high · D-653 to D-654. #529: a kind prefix picks the income or the spending category of the same name, and "all spending" and "all income" include unsorted transactions; the ambiguity error points to the prefix. Why: no wrong figure today, but when both have the same path the error's suggestion is a dead end
+- **US1.14** · **done** · thread G · needs: — · standard, high · D-653 to D-654. #529: a kind prefix picks the income or the spending category of the same name, and "all spending" and "all income" include unsorted transactions; the ambiguity error points to the prefix. Why: no wrong figure today, but when both have the same path the error's suggestion is a dead end
 
 - **US1.15** · **later** · waits for: US1.16 merged; then only if a formula still needs an account. #528: accounts and account groups as names in formulas (`category[account]`). Why: US1.16 reaches the "spending of one account" goal for charts, and number cards already have an account filter (D-417)
 

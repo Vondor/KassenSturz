@@ -101,8 +101,13 @@ pub enum ReportError {
         position: usize,
         /// The name as the formula writes it.
         name: String,
-        /// The ones it fits, each written as a formula names it, in quotes.
+        /// The ones it fits, each written as a formula names it, in quotes,
+        /// with `Income.` or `Spending.` in front when the kind tells them
+        /// apart (D-654).
         paths: String,
+        /// `kind` when the list gives the kind in front, `path` when the
+        /// path alone tells them apart.
+        by: &'static str,
     },
     /// A formula calls a function there is none of.
     FormulaUnknownFunction {
@@ -262,10 +267,12 @@ impl Report for ReportError {
                 position,
                 name,
                 paths,
+                by,
             } => ErrorReport::new("report.formula-ambiguous-name")
                 .with("position", ErrorParam::count(*position))
                 .with("name", ErrorParam::Text(name.clone()))
-                .with("paths", ErrorParam::Text(paths.clone())),
+                .with("paths", ErrorParam::Text(paths.clone()))
+                .with("by", ErrorParam::Keyword(by)),
             Self::FormulaUnknownFunction { position, name } => {
                 ErrorReport::new("report.formula-unknown-function")
                     .with("position", ErrorParam::count(*position))
@@ -378,6 +385,7 @@ mod tests {
                 position: 1,
                 name: "Other".into(),
                 paths: "'Food > Other', 'Car > Other'".into(),
+                by: "path",
             },
             ReportError::FormulaUnknownFunction {
                 position: 2,

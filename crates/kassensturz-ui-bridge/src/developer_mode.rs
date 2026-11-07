@@ -119,15 +119,6 @@ impl qobject::DeveloperMode {
         // Both logs may run at once; "Delete the log" clears every one that
         // runs, and says it worked only if all of them did.
         #[cfg(feature = "debug-log")]
-        if self.bank_log_on {
-            // A crash at level 3 of the bank log (D-620) can leave AqBanking's
-            // own message log: "Delete the log" removes it too.
-            if let Some(folder) = crate::platform::app_folder() {
-                let _ =
-                    kassensturz_bank::AqBankingBank::remove_message_logs(&folder.join("aqbanking"));
-            }
-        }
-        #[cfg(feature = "debug-log")]
         return (self.on || self.bank_log_on)
             && (!self.bank_log_on || kassensturz_core::bank_log::clear())
             && (!self.on || log().clear().is_ok());

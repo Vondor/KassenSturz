@@ -29,8 +29,7 @@ use crate::debug_log::{append, default_folder};
 use crate::is_error_code;
 
 /// The environment variable that starts the bank log: `1` is on, `2` is on
-/// with the bank's own reply texts, redacted (D-619), `3` adds the shape of
-/// the statement request (D-620); anything else is off.
+/// with the bank's own reply texts, redacted (D-619); anything else is off.
 pub const ENV: &str = "KASSENSTURZ_BANK_LOG";
 
 /// The log's folder, beside the debug log's.
@@ -131,10 +130,6 @@ steps! {
     /// Level 2 only (D-619): the bank's reply text for a FinTS code; the
     /// count is the code, the text is redacted by [`redact_notice`].
     BankNotice = "bank.bank-notice",
-    /// Level 3 only (D-620): the shape of one segment of a message AqBanking
-    /// sent (statement request or TAN segment); the count is its place in
-    /// the call, the text is made by [`shape_segment`].
-    Segment = "bank.segment",
 }
 
 /// How many characters of a bank's reply text the log keeps.
@@ -205,86 +200,6 @@ pub fn notice_line(at: Timestamp, code: u16, text: &str) -> String {
     )
 }
 
-/// The segment names whose shape level 3 may note.
-const SEGMENT_NAMES: [&str; 3] = ["HKCAZ", "HKKAZ", "HKTAN"];
-
-/// Whether `segment` (one FinTS segment, without its closing `'`) is one
-/// whose shape level 3 notes: a statement request or a TAN segment.
-pub fn is_noted_segment(segment: &str) -> bool {
-    SEGMENT_NAMES.iter().any(|name| {
-        segment
-            .strip_prefix(name)
-            .is_some_and(|rest| rest.starts_with(':'))
-    })
-}
-
-/// A FinTS segment as level 3 of the log may hold it (D-620): its structure
-/// without its content. Every run of letters and digits is replaced by its
-/// shape (`A` for a capital, `a` for another letter, `9` for a digit), so an
-/// IBAN, a date, a name or a number keeps only its length and kind. Kept as
-/// they are: segment names (`HK` and three capitals), `J` and `N`, numbers
-/// of up to three digits (segment number, version, process, country code)
-/// and the words of the name of a CAMT format. Separators (`:` `+` `?` `.`
-/// `,` `-` `/` and the space) stay; anything else becomes `_`, and the
-/// text is cut to [`SEGMENT_MAX_CHARS`], so nothing here needs escaping in
-/// JSON.
-pub fn shape_segment(segment: &str) -> String {
-    let mut out = String::new();
-    let mut run = String::new();
-    let flush = |run: &mut String, out: &mut String| {
-        if run.is_empty() {
-            return;
-        }
-        let digits = run.chars().all(|c| c.is_ascii_digit());
-        let keep = (run.len() == 5
-            && run.starts_with("HK")
-            && run[2..].chars().all(|c| c.is_ascii_uppercase()))
-            || run == "J"
-            || run == "N"
-            || (digits && run.len() <= 3)
-            || run == "20022"
-            || ["urn", "iso", "std", "xsd", "tech", "camt"].contains(&run.as_str());
-        if keep {
-            out.push_str(run);
-        } else {
-            out.extend(run.chars().map(|c| {
-                if c.is_ascii_digit() {
-                    '9'
-                } else if c.is_uppercase() {
-                    'A'
-                } else {
-                    'a'
-                }
-            }));
-        }
-        run.clear();
-    };
-    for c in segment.chars() {
-        if c.is_alphanumeric() {
-            run.push(c);
-        } else {
-            flush(&mut run, &mut out);
-            out.push(if ":+?.,-/ ".contains(c) { c } else { '_' });
-        }
-    }
-    flush(&mut run, &mut out);
-    out.chars().take(SEGMENT_MAX_CHARS).collect()
-}
-
-/// How many characters of a segment's shape the log keeps.
-pub const SEGMENT_MAX_CHARS: usize = 300;
-
-/// One line of level 3 holding the shape of a segment: the time, the step,
-/// its place in the call as the count and the shape.
-pub fn segment_line(at: Timestamp, index: u32, segment: &str) -> String {
-    format!(
-        "{{\"at\":\"{}\",\"step\":\"{}\",\"n\":{index},\"text\":\"{}\"}}\n",
-        at.strftime("%Y-%m-%dT%H:%M:%S%.3fZ"),
-        Step::Segment.name(),
-        shape_segment(segment)
-    )
-}
-
 /// One line of the log, without the line break. `code` that isn't an error
 /// code is replaced by `bank.unknown-code`, so a stray text can't get in.
 pub fn line(
@@ -342,19 +257,13 @@ pub fn is_detailed() -> bool {
     level() > 1
 }
 
-/// Whether level 3 runs (D-620): the shape of the statement request.
-pub fn is_segments() -> bool {
-    level() > 2
-}
-
-/// The level the program was started with (`1`, `2`, `3`), `0` for off. Read once.
+/// The level the program was started with (`1`, `2`), `0` for off. Read once.
 fn level() -> u8 {
     static LEVEL: OnceLock<u8> = OnceLock::new();
     *LEVEL.get_or_init(|| {
         let level = match std::env::var_os(ENV) {
             Some(value) if value == "1" => 1,
             Some(value) if value == "2" => 2,
-            Some(value) if value == "3" => 3,
             _ => 0,
         };
         if level > 0 && folder().is_some() {
@@ -377,22 +286,6 @@ pub fn note_notice(code: u16, text: &str) {
             FILES,
             MAX_FILE_BYTES,
             &notice_line(Timestamp::now(), code, text),
-        );
-    }
-}
-
-/// Notes the shape of `segment` (level 3 only, D-620) as number `index` of
-/// the call. Does nothing below level 3.
-pub fn note_segment(index: u32, segment: &str) {
-    if !is_segments() {
-        return;
-    }
-    if let Some(folder) = folder() {
-        let _ = append(
-            &folder,
-            FILES,
-            MAX_FILE_BYTES,
-            &segment_line(Timestamp::now(), index, segment),
         );
     }
 }
@@ -516,49 +409,6 @@ mod tests {
         }
         let long = "wort ".repeat(100);
         assert_eq!(redact_notice(&long).chars().count(), NOTICE_MAX_CHARS);
-    }
-
-    #[test]
-    fn a_segment_keeps_its_structure_and_nothing_else() {
-        // All values are made up.
-        assert_eq!(
-            shape_segment(
-                "HKCAZ:3:1+DE89370400440532013000:COBADEFFXXX:::280:37040044+urn?:iso?:std?:iso?:20022?:tech?:xsd?:camt.052.001.08+N+20260901"
-            ),
-            "HKCAZ:3:1+AA99999999999999999999:AAAAAAAAAAA:::280:99999999+urn?:iso?:std?:iso?:20022?:tech?:xsd?:camt.052.001.08+N+99999999"
-        );
-        assert_eq!(shape_segment("HKTAN:4:7+4+HKCAZ"), "HKTAN:4:7+4+HKCAZ");
-        assert_eq!(
-            shape_segment("HKKAZ:3:7+Max Mustermann@x\"y\\z"),
-            "HKKAZ:3:7+Aaa Aaaaaaaaaa_a_a_a"
-        );
-        let long = format!("HKCAZ:3:1+{}", "x".repeat(900));
-        assert_eq!(shape_segment(&long).chars().count(), SEGMENT_MAX_CHARS);
-    }
-
-    #[test]
-    fn only_statement_and_tan_segments_are_noted() {
-        assert!(is_noted_segment("HKCAZ:3:1+x"));
-        assert!(is_noted_segment("HKKAZ:3:7+x"));
-        assert!(is_noted_segment("HKTAN:4:7+4"));
-        for other in [
-            "HNSHA:5:2+1+1234",
-            "HKIDN:2:2+x",
-            "HKVVB:3:3+x",
-            "HKCAZS:1",
-            "",
-        ] {
-            assert!(!is_noted_segment(other), "{other}");
-        }
-    }
-
-    #[test]
-    fn a_segment_line_has_no_character_that_needs_escaping() {
-        let at: Timestamp = "2026-11-06T16:00:00Z".parse().unwrap();
-        assert_eq!(
-            segment_line(at, 2, "HKTAN:4:7+4+HKCAZ\" \\ DE89"),
-            "{\"at\":\"2026-11-06T16:00:00.000Z\",\"step\":\"bank.segment\",\"n\":2,\"text\":\"HKTAN:4:7+4+HKCAZ_ _ AA99\"}\n"
-        );
     }
 
     #[test]

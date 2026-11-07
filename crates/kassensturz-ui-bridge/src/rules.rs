@@ -20,7 +20,7 @@ use kassensturz_core::{
     Money, Report, Rule, RuleFacts, RuleId, RuleNode, RuleSet, SplitId, TextField, TextOperator,
     Transaction, TransactionId,
 };
-use kassensturz_store::{Book, RuleMatch, StoreError};
+use kassensturz_store::{ApplyRules, Book, RuleChange, RuleMatch, RuleRun, StoreError};
 
 use crate::accounts::usual_currency;
 use crate::errors::{ErrorText, report_text};
@@ -195,6 +195,32 @@ pub struct Rebooked {
     /// How many couldn't be, e.g. for lack of an exchange rate.
     pub skipped: usize,
 }
+
+/// What "Apply now" on a Rule or "Apply all" on the Rules page would do, or
+/// did, to the transactions already in the book (D-630).
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Applied {
+    /// How many transactions are sorted.
+    pub changed: usize,
+    /// How many a Rule fits but that stay as they are because they look
+    /// like one side of a Transfer, which the user decides first (D-030).
+    pub transfers: usize,
+    /// How many stay because the book has no exchange rate for the day.
+    pub no_rate: usize,
+    /// How many stay because an account they would go to, or come from, is
+    /// closed.
+    pub closed: usize,
+    /// How many stay for another reason, e.g. a Transfer into the
+    /// transaction's own account.
+    pub other: usize,
+    /// The newest of the sorted transactions, at most [`APPLY_EXAMPLES`],
+    /// as their account's register shows them afterwards; only in a
+    /// preview.
+    pub examples: Vec<LatestRow>,
+}
+
+/// How many examples the preview of "Apply now" and "Apply all" lists.
+pub const APPLY_EXAMPLES: usize = 5;
 
 /// A Rule and its place in the tree.
 struct Placed<'a> {
@@ -705,6 +731,105 @@ pub fn preview_rebook(
         changed: run.changed.len(),
         skipped: run.skipped.len(),
     })
+}
+
+/// What "Apply now" on the Rule with this ID, or "Apply all" with an empty
+/// ID, would sort among the transactions already in the book, without
+/// changing anything (D-630). With `resort`, what Rules sorted before and
+/// the user didn't change since is sorted again too (D-631).
+pub fn preview_apply(
+    book: &Book,
+    rule: &str,
+    resort: bool,
+    locale: &impl Locale,
+) -> Result<Applied, RuleEditError> {
+    let apply = apply_rules_of(book, rule, resort)?;
+    let run = book.preview_apply_rules(apply)?;
+    let examples = apply_examples(book, &run.changed, locale)?;
+    Ok(Applied {
+        examples,
+        ..applied_of(&run)
+    })
+}
+
+/// Sorts what [`preview_apply`] lists, as one user action that one undo
+/// takes back (D-630). Transactions the user sorted or changed are never
+/// touched (D-031).
+pub fn apply(book: &mut Book, rule: &str, resort: bool) -> Result<Applied, RuleEditError> {
+    let apply = apply_rules_of(book, rule, resort)?;
+    let run = book.apply_rules(apply)?;
+    Ok(applied_of(&run))
+}
+
+fn apply_rules_of(book: &Book, rule: &str, resort: bool) -> Result<ApplyRules, RuleEditError> {
+    let rule = if rule.is_empty() {
+        None
+    } else {
+        Some(find_rule(book, rule)?)
+    };
+    Ok(ApplyRules { rule, resort })
+}
+
+fn applied_of(run: &RuleRun) -> Applied {
+    let mut applied = Applied {
+        changed: run.changed.len(),
+        ..Applied::default()
+    };
+    for skip in &run.skipped {
+        match skip.reason {
+            StoreError::TransferSuggested(_) => applied.transfers += 1,
+            StoreError::NoRate { .. } => applied.no_rate += 1,
+            StoreError::AccountClosed(_) => applied.closed += 1,
+            _ => applied.other += 1,
+        }
+    }
+    applied
+}
+
+/// The newest of `changes`, as their account's register shows them once
+/// the Rules sorted them: in the category or account they go to, with the
+/// name the Rule shows.
+fn apply_examples(
+    book: &Book,
+    changes: &[RuleChange],
+    locale: &impl Locale,
+) -> Result<Vec<LatestRow>, StoreError> {
+    let accounts: HashMap<AccountId, Account> = book
+        .all_accounts()?
+        .into_iter()
+        .map(|account| (account.id, account))
+        .collect();
+    let by_transaction: HashMap<String, &RuleChange> = changes
+        .iter()
+        .map(|change| (change.transaction.to_string(), change))
+        .collect();
+    let found = changes
+        .iter()
+        .map(|change| RuleMatch {
+            transaction: change.transaction,
+            account: change.account,
+            rules: vec![change.rule],
+        })
+        .collect();
+    let mut rows = match_rows(book, found, locale)?;
+    rows.truncate(APPLY_EXAMPLES);
+    for row in &mut rows {
+        let Some(change) = by_transaction.get(&row.id) else {
+            continue;
+        };
+        if let Some(to) = change.booked_to.and_then(|id| accounts.get(&id)) {
+            row.category.clone_from(&to.name);
+            row.kind = if to.kind.is_account() {
+                "transfer"
+            } else {
+                "simple"
+            };
+        }
+        if let Some(payee) = &change.payee {
+            row.other_party.clone_from(payee);
+        }
+    }
+    Ok(rows)
 }
 
 /// The transactions the Rule with this ID matches as the book is now,
@@ -2173,5 +2298,138 @@ mod tests {
         let blank = new_form("");
         assert_eq!(blank.conditions.len(), 1);
         assert!(blank.match_all);
+    }
+
+    #[test]
+    fn a_new_rule_sorts_what_an_import_brought_before_it_existed() {
+        let mut book = started();
+        let groceries = category(&book, "Food › Groceries");
+        let clothes = category(&book, "Clothes");
+        let rent = category(&book, "Rent");
+        let account = checking(&mut book);
+        // The statement comes in through the real import before any Rule
+        // exists, so nothing is sorted yet.
+        let loaded = Loaded::new(
+            account_id(&book, &account),
+            PathBuf::from("october.sta"),
+            statement(&[
+                (5, -3525, "Example Market 12"),
+                (6, -1250, "Example Market 3"),
+                (7, -4999, "Example Fashion"),
+                (8, -800, "Example Market 7"),
+            ]),
+        );
+        let done = import(&mut book, &loaded, &TestLocale).expect("imported");
+        let [first, second, fashion, mine] = &done.new[..] else {
+            panic!("four new: {:?}", done.new);
+        };
+        let (first, second) = (first.to_string(), second.to_string());
+        let (fashion, mine) = (fashion.to_string(), mine.to_string());
+        // The user sorts one of them by hand.
+        let edit = transaction_entry::details(&book, &account, &mine, &TestLocale).expect("form");
+        transaction_entry::edit(
+            &mut book,
+            &mine,
+            &NewEntry {
+                account: &account,
+                money_in: edit.money_in,
+                amount: &edit.amount,
+                other_party: &edit.other_party,
+                category: &rent,
+                date: &edit.date,
+            },
+            &TestLocale,
+        )
+        .expect("edited");
+        let shop = add(
+            &mut book,
+            &text_form("Shop", "other-party-name", "contains", "market", &groceries),
+        );
+        add(
+            &mut book,
+            &text_form(
+                "Fashion",
+                "other-party-name",
+                "contains",
+                "fashion",
+                &clothes,
+            ),
+        );
+        let changes = book.history().expect("history").len();
+
+        // "Apply now" on the Shop Rule: a preview first, with examples as
+        // the register shows them afterwards, newest first.
+        let preview = preview_apply(&book, &shop, false, &TestLocale).expect("preview");
+        assert_eq!(preview.changed, 2);
+        assert_eq!(
+            (
+                preview.transfers,
+                preview.no_rate,
+                preview.closed,
+                preview.other
+            ),
+            (0, 0, 0, 0)
+        );
+        let shown: Vec<(&str, &str, &str)> = preview
+            .examples
+            .iter()
+            .map(|row| {
+                (
+                    row.id.as_str(),
+                    row.other_party.as_str(),
+                    row.category.as_str(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            shown,
+            [
+                (second.as_str(), "Example Market 3", "Groceries"),
+                (first.as_str(), "Example Market 12", "Groceries"),
+            ]
+        );
+        assert_eq!(category_of(&book, &first), None);
+        assert_eq!(book.history().expect("history").len(), changes);
+
+        let applied = apply(&mut book, &shop, false).expect("applied");
+        assert_eq!(applied.changed, 2);
+        assert!(applied.examples.is_empty());
+        assert_eq!(category_of(&book, &first).as_deref(), Some("Groceries"));
+        assert_eq!(category_of(&book, &second).as_deref(), Some("Groceries"));
+        assert_eq!(category_of(&book, &fashion), None);
+        assert_eq!(category_of(&book, &mine).as_deref(), Some("Rent"));
+
+        // "Apply all" sorts what is left; one undo takes that run back.
+        let all = preview_apply(&book, "", false, &TestLocale).expect("preview");
+        assert_eq!(all.changed, 1);
+        assert_eq!(apply(&mut book, "", false).expect("applied").changed, 1);
+        assert_eq!(category_of(&book, &fashion).as_deref(), Some("Clothes"));
+        assert_eq!(book.history().expect("history").len(), changes + 2);
+        book.undo().expect("undone");
+        assert_eq!(category_of(&book, &fashion), None);
+        assert_eq!(category_of(&book, &first).as_deref(), Some("Groceries"));
+
+        // Re-sorting is its own switch: after the Rule changes, only with it
+        // does what the Rule sorted follow, and the user's own stays.
+        let mut form = form_of(&book, &shop, &TestLocale).expect("form");
+        form.book_to = clothes;
+        change_rule(&mut book, &form, false, &TestLocale).expect("changed");
+        assert_eq!(
+            preview_apply(&book, &shop, false, &TestLocale)
+                .expect("preview")
+                .changed,
+            0
+        );
+        let resort = preview_apply(&book, &shop, true, &TestLocale).expect("preview");
+        assert_eq!(resort.changed, 2);
+        assert_eq!(apply(&mut book, &shop, true).expect("applied").changed, 2);
+        assert_eq!(category_of(&book, &first).as_deref(), Some("Clothes"));
+        assert_eq!(category_of(&book, &mine).as_deref(), Some("Rent"));
+
+        // A Rule that is gone, e.g. after an undo, is refused.
+        assert!(matches!(
+            preview_apply(&book, "no such rule", false, &TestLocale),
+            Err(RuleEditError::NoSuchEntry)
+        ));
     }
 }

@@ -18,8 +18,9 @@ pub const OVERVIEW_NAME: &str = "Overview";
 /// bank, what the accounts are worth, four key figures in a row, the budget
 /// bars (which take no room until the book has a budget, D-357, Q-264), the
 /// spending donut and the table of what it shows side by side, then the line
-/// of the last 12 months, where the money came from and the note about
-/// transfers. A component without a `props.period` takes the page's period
+/// of the last 12 months, where the money came from, the note about
+/// transfers and the note about the transactions without a category (US1.9,
+/// D-637). A component without a `props.period` takes the page's period
 /// (the month the Overview shows); the line asks for its own.
 pub const DEFAULT_OVERVIEW: &str = r#"{
   "format": "kassensturz-dashboard", "version": 4, "kind": "dashboard",
@@ -61,7 +62,9 @@ pub const DEFAULT_OVERVIEW: &str = r#"{
     {"id": "sources", "type": "table.income_sources",
      "frame": {"col": 0, "row": 21, "cols": 12, "rows": 4}},
     {"id": "transfers", "type": "notice.transfers",
-     "frame": {"col": 0, "row": 25, "cols": 12, "rows": 1}}
+     "frame": {"col": 0, "row": 25, "cols": 12, "rows": 1}},
+    {"id": "unsorted", "type": "notice.unsorted",
+     "frame": {"col": 0, "row": 26, "cols": 12, "rows": 2}}
   ]
 }"#;
 

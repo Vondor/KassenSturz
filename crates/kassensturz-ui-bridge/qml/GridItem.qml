@@ -48,10 +48,17 @@ Item {
     // choices can be kept with the layout (D-416); it moves with the keys
     // and its toolbar then.
     readonly property bool takesPointer: selected && present && info.type === "page.filters"
-    readonly property bool bare: present && (info.type === "text.separator" || info.type === "notice.fetch_gap" || info.type === "notice.transfers" || info.type === "card.net_worth" || isPageWidget)
+    // Whether the Properties dialog has anything to set (US1.8, #522): a
+    // component without settings has no Properties button and Enter does not
+    // open an empty dialog.
+    readonly property bool hasSettings: present && !unknown && (info.subject?.hasSettings ?? false)
+    readonly property bool bare: present && (info.type === "text.separator" || info.type === "notice.fetch_gap" || info.type === "notice.transfers" || info.type === "notice.unsorted" || info.type === "card.net_worth" || isPageWidget)
     readonly property bool showsFrame: !bare || (board.editing && !board.preview)
     // What a period box says: its title and the period it gives its widgets.
     readonly property string boxPeriod: isBox ? names.periodName(info.subject?.period?.word ?? "") : ""
+    // Whether the overlay that selects and drags the component is there; it
+    // stays while the component is dragged (US1.8, #520, D-634).
+    readonly property bool pointerOverlay: overlay.active
     property bool settled: false
     // The content is made once it is due and stays (M6-B30).
     property bool contentMade: false
@@ -133,12 +140,16 @@ Item {
 
     // Drag by hand, from the component or from the Move button.
     function dragStarted() {
-        board.select(itemId);
+        // `moving` is set before the component is selected: selecting a filter
+        // bar hands the pointer to its own buttons (`takesPointer`), and the
+        // overlay that is being dragged must stay until the drag is let go
+        // (US1.8, #520, D-634).
         startX = x;
         startY = y;
         dragX = 0;
         dragY = 0;
         moving = true;
+        board.select(itemId);
     }
 
     function dragMoved(translation: point) {
@@ -191,6 +202,16 @@ Item {
         handlersOn = true;
     }
 
+    // A picked filter bar takes the pointer for its buttons (D-416), so the
+    // overlay below is gone; a drag that starts on it, on a button too, still
+    // moves it (US1.8, #520, D-634). A click is not a drag, so the buttons work.
+    DragHandler {
+        target: null
+        enabled: cell.takesPointer && !cell.narrow && cell.handlersOn
+        onActiveChanged: active ? cell.dragStarted() : cell.dragEnded()
+        onActiveTranslationChanged: if (active) cell.dragMoved(activeTranslation)
+    }
+
     Rectangle {
         id: frame
 
@@ -224,6 +245,7 @@ Item {
                 : cell.info?.type === "page.period" ? periodHeaderBox
                 : cell.info?.type === "page.filters" ? filterBarBox
                 : cell.info?.type === "page.tabs" ? dashboardTabsBox
+                : cell.info?.type === "notice.unsorted" ? unsortedBox
                 : cell.info?.type === "notice.transfers" ? transfersBox : figuresBox
         }
     }
@@ -601,6 +623,81 @@ Item {
         }
     }
 
+    // The transactions without a category (US1.9, #535, D-637): how many there
+    // are in the whole book and the newest of them, each opening in its
+    // account's register. The count is worked out in Rust and arrives as a
+    // number of things, not of money (D-065). Nothing is shown when there is
+    // none; while the layout is arranged, a hint says what the widget is.
+    Component {
+        id: unsortedBox
+
+        Flickable {
+            id: unsortedList
+
+            readonly property bool failed: false
+            readonly property int count: cell.board.pageView.unsorted ?? 0
+            readonly property var rows: cell.board.pageView.unsortedRows ?? []
+
+            contentHeight: unsortedColumn.implicitHeight
+            clip: true
+
+            ColumnLayout {
+                id: unsortedColumn
+
+                width: parent.width
+                spacing: 0
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    visible: unsortedList.count > 0 || cell.board.editing
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    font.bold: unsortedList.count > 0
+                    color: unsortedList.count > 0 ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
+                    text: unsortedList.count > 0
+                        ? names.i18nContext.i18ncp("@info %1 is how many", "%1 transaction has no category yet. Open it to choose one.", "%1 transactions have no category yet. Open one to choose a category.", unsortedList.count)
+                        : names.i18nContext.i18nc("@info", "A note appears here when a transaction has no category. There is none right now.")
+                }
+
+                Repeater {
+                    model: unsortedList.rows
+
+                    delegate: Controls.ItemDelegate {
+                        id: unsortedRow
+
+                        required property var modelData
+
+                        Layout.fillWidth: true
+                        Accessible.name: unsortedLine.text
+                        onClicked: {
+                            ActionLog.taken("GridItem_openUnsorted")
+                            cell.board.transactionClicked(unsortedRow.modelData.accountId, unsortedRow.modelData.id)
+                        }
+
+                        contentItem: Controls.Label {
+                            id: unsortedLine
+
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            text: [unsortedRow.modelData.date, unsortedRow.modelData.otherParty, unsortedRow.modelData.amount, unsortedRow.modelData.account]
+                                .filter(part => part !== "").join(" · ")
+                        }
+                    }
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    visible: unsortedList.count > unsortedList.rows.length
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    font: Kirigami.Theme.smallFont
+                    color: Kirigami.Theme.disabledTextColor
+                    text: names.i18nContext.i18nc("@info %1 is how many are listed", "The newest %1 are listed here.", unsortedList.rows.length)
+                }
+            }
+        }
+    }
+
     // The Update all accounts button (M6d.7, D-446). Its title is the
     // button's own words, so it has no heading of its own.
     Component {
@@ -732,7 +829,7 @@ Item {
         id: overlay
 
         anchors.fill: parent
-        active: cell.board.editing && !cell.takesPointer
+        active: cell.board.editing && (!cell.takesPointer || cell.moving)
         visible: active && !cell.board.preview
 
         // Edit mode: the pointer selects and drags a component.
@@ -882,7 +979,7 @@ Item {
                                     icon.name: "configure"
                                     text: names.i18nContext.i18nc("@action:button change what the component shows", "Properties")
                                     displayHint: Kirigami.DisplayHint.IconOnly
-                                    enabled: !cell.unknown
+                                    visible: cell.hasSettings
                                     onTriggered: {
                                         ActionLog.taken("GridItem_properties")
                                         cell.board.propertiesRequested(cell.itemId)

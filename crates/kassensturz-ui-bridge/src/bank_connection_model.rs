@@ -283,6 +283,13 @@ pub mod qobject {
         #[cxx_name = "cancelPin"]
         fn cancel_pin(self: &BankConnection);
 
+        /// "Open it and try again" in the PIN dialog: the password manager
+        /// or keychain that couldn't be reached was opened; read the saved
+        /// PIN again (M6-B193, D-622).
+        #[qinvokable]
+        #[cxx_name = "retryPinStore"]
+        fn retry_pin_store(self: &BankConnection);
+
         /// Sends the FinTS product registration number the user typed
         /// (D-260). Rust checks it; when it isn't 25 letters and digits,
         /// `registrationRequested` asks again.
@@ -552,6 +559,10 @@ impl qobject::BankConnection {
         let Some(chosen) = listed.iter().find(|entry| entry.key == key) else {
             return error_object(&ErrorText::plain("input.no-such-entry"));
         };
+        // Never linked: it can't be fetched yet (M6-B190, D-624).
+        if !bank_connection::can_link(&chosen.found) {
+            return error_object(&bank_connection::error_text(&BankError::SecuritiesAccount));
+        }
         match session::with_book_mut(|book| {
             let account = crate::transaction_entry::find_account(book, &account_id)
                 .map_err(|_| ErrorText::plain("input.no-such-entry"))?;
@@ -662,6 +673,12 @@ impl qobject::BankConnection {
     fn cancel_pin(&self) {
         if let Some(worker) = &self.worker {
             worker.answer(Answer::Pin(None));
+        }
+    }
+
+    fn retry_pin_store(&self) {
+        if let Some(worker) = &self.worker {
+            worker.answer(Answer::PinStoreAgain);
         }
     }
 
@@ -1046,6 +1063,7 @@ fn pin_object(request: &PinRequest) -> QVariant {
     map([
         ("bank", text(&request.bank)),
         ("rejected", QVariant::from(&request.rejected)),
+        ("storeClosed", QVariant::from(&request.store_closed)),
     ])
 }
 
@@ -1553,15 +1571,25 @@ mod tests {
 
     #[test]
     fn the_fetch_screen_reads_back_as_qml_reads_it() {
-        // The PIN dialog never gets more than the bank's name and whether
-        // the last PIN was wrong.
+        // The PIN dialog never gets more than the bank's name, whether the
+        // last PIN was wrong and whether the password manager is closed
+        // (D-622).
         let pin = pin_object(&PinRequest {
             bank: "Testbank".to_owned(),
             rejected: true,
+            store_closed: false,
         });
         assert_eq!(text_of(&pin, "bank"), "Testbank");
         assert!(flag_of(&pin, "rejected"));
-        assert_eq!(object(&pin).len(), 2);
+        assert!(!flag_of(&pin, "storeClosed"));
+        assert_eq!(object(&pin).len(), 3);
+        let closed = pin_object(&PinRequest {
+            bank: "Testbank".to_owned(),
+            rejected: false,
+            store_closed: true,
+        });
+        assert!(flag_of(&closed, "storeClosed"));
+        assert!(!flag_of(&closed, "rejected"));
 
         let row = fetch_row_object(&FetchRow {
             id: "a1".to_owned(),

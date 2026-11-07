@@ -48,6 +48,8 @@ QtObject {
             // What the report layer works out for the component (M6c.7).
             asked: {period: id === "inner" ? "this-year" : "page", scope: "", shown: true, fromBar: false},
             subject: {
+                // Nothing to set for a separator, the notes and the page widgets (US1.8).
+                hasSettings: type !== "text.separator" && !type.startsWith("notice.") && !type.startsWith("page."),
                 type: type, dataset: heading ? "" : "spending_by_category", datasets: [],
                 json: JSON.stringify({type: type, id: id}),
                 fields: [{key: heading ? "text" : "title", place: "props", kind: "text", text: heading ? "Spending" : "", flag: false, word: "", words: []}],

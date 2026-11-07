@@ -512,9 +512,14 @@ Kirigami.ScrollablePage {
                     Layout.fillWidth: true
                     spacing: Kirigami.Units.largeSpacing
 
+                    // A securities account is shown but can't be chosen
+                    // (M6-B190, D-624).
+                    readonly property bool supported: choice.modelData.kind !== "securities"
+
                     Controls.RadioButton {
                         Controls.ButtonGroup.group: group
-                        checked: choice.modelData.key === linkDialog.chosen
+                        enabled: choice.supported
+                        checked: choice.supported && choice.modelData.key === linkDialog.chosen
                         Accessible.name: accountNames.name(choice.modelData, page.bank.fake)
                         onToggled: {
                             ActionLog.taken("BankFetchPage_chosen")
@@ -541,6 +546,14 @@ Kirigami.ScrollablePage {
                             font: Kirigami.Theme.smallFont
                             opacity: 0.7
                             text: page.i18nContext.i18nc("@info %1 is an IBAN or account number, %2 the name of a bank", "%1 · %2", choice.modelData.iban !== "" ? choice.modelData.iban : choice.modelData.number, choice.modelData.bank)
+                        }
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            font: Kirigami.Theme.smallFont
+                            visible: !choice.supported
+                            text: page.i18nContext.i18nc("@info", "Not supported yet: KassenSturz can't read securities accounts (depots) yet.")
                         }
                     }
                 }

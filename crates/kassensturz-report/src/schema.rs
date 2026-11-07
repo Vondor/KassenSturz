@@ -66,6 +66,11 @@ pub enum ComponentType {
     /// `notice.transfers`: the note that money moved between the user's
     /// own accounts is not counted (D-328). Filled by the page.
     TransfersNote,
+    /// `notice.unsorted`: the note about the transactions that have no
+    /// category yet, counted across the whole book, Transfers left out, with
+    /// the newest of them to open (US1.9, #535, D-637). Filled by the page.
+    /// It shows nothing while there is none.
+    UnsortedNote,
     /// `group.period`: a framed area with a period of its own (D-333). The
     /// widgets that lie completely inside it and have no period of their
     /// own show its period. It shows no data.
@@ -131,7 +136,7 @@ impl ComponentType {
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
     /// the heading (D-312).
-    pub const LIBRARY: [Self; 22] = [
+    pub const LIBRARY: [Self; 23] = [
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -145,6 +150,7 @@ impl ComponentType {
         Self::Separator,
         Self::FetchNotice,
         Self::TransfersNote,
+        Self::UnsortedNote,
         Self::PeriodBox,
         Self::NetWorth,
         Self::IncomeSources,
@@ -165,6 +171,7 @@ impl ComponentType {
                 | Self::Separator
                 | Self::FetchNotice
                 | Self::TransfersNote
+                | Self::UnsortedNote
                 | Self::PeriodBox
                 | Self::NetWorth
                 | Self::IncomeSources
@@ -191,6 +198,7 @@ impl ComponentType {
             Self::Separator => "text.separator",
             Self::FetchNotice => "notice.fetch_gap",
             Self::TransfersNote => "notice.transfers",
+            Self::UnsortedNote => "notice.unsorted",
             Self::PeriodBox => "group.period",
             Self::NetWorth => "card.net_worth",
             Self::IncomeSources => "table.income_sources",
@@ -230,6 +238,7 @@ impl ComponentType {
             | Self::Separator
             | Self::FetchNotice
             | Self::TransfersNote
+            | Self::UnsortedNote
             | Self::PeriodBox
             | Self::NetWorth
             | Self::IncomeSources
@@ -272,6 +281,7 @@ impl ComponentType {
             Self::Separator
             | Self::FetchNotice
             | Self::TransfersNote
+            | Self::UnsortedNote
             | Self::NetWorth
             | Self::IncomeSources
             | Self::PeriodHeader
@@ -450,6 +460,14 @@ const PARTIAL: Property = Property {
     place: Place::Props,
     kind: Kind::Flag { default: false },
 };
+/// `props.hide_note` (US1.9, #523, D-636): leave out the grey note of a
+/// number card that names the accounts it counts; its title names them
+/// instead. Shown by default.
+const HIDE_NOTE: Property = Property {
+    key: "hide_note",
+    place: Place::Props,
+    kind: Kind::Flag { default: false },
+};
 const SHOW_HIDDEN: Property = Property {
     key: "show_hidden",
     place: Place::Props,
@@ -533,7 +551,9 @@ const CHART: [Property; 10] = [
     SHOW_HIDDEN,
     PERIOD,
 ];
-const KPI_CARD: [Property; 6] = [MEASURE, ACCOUNTS, COMPARE, FORMULA, TITLE, PERIOD];
+const KPI_CARD: [Property; 7] = [
+    MEASURE, ACCOUNTS, HIDE_NOTE, COMPARE, FORMULA, TITLE, PERIOD,
+];
 const PROGRESS_BAR: [Property; 6] = [ACCOUNTS, COMPARE, FORMULA, TARGET, TITLE, PERIOD];
 const TABLE: [Property; 8] = [
     GROUPING,
@@ -690,9 +710,12 @@ impl Property {
                 Ok(())
             }
             (Kind::Choice(_) | Kind::Grouping, Setting::Word(word)) => {
-                // A period can also be a typed range of days (D-332).
+                // A period can also be a rolling period (D-644) or a typed
+                // range of days (D-332).
                 if self.words(dataset).contains(&word.as_str())
-                    || (self.key == "period" && crate::read_range_word(word).is_some())
+                    || (self.key == "period"
+                        && (crate::Rolling::read(word).is_some()
+                            || crate::read_range_word(word).is_some()))
                 {
                     Ok(())
                 } else {

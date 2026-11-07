@@ -20,12 +20,12 @@ QtObject {
             }};
         } else if (formula.indexOf("PERCENT_OF") >= 0) {
             view = {empty: false, result: {kind: "percent", value: "42,0 %", exactValue: "42,0 %", negative: false, currency: "", permille: 420,
-                counted: [{name: "Pets", inside: [], insideMore: 0, ownPeriod: true, month: "", firstDay: "", lastDay: ""}]}};
+                counted: [{name: "Pets", all: "", inside: [], insideMore: 0, ownPeriod: true, month: "", firstDay: "", lastDay: ""}]}};
         } else {
             view = {empty: false, result: {kind: "amount", value: "312,40 €", exactValue: "312,40 €", negative: false, currency: "EUR",
                 counted: [
-                    {name: "Pets", inside: ["Vet", "Cat food"], insideMore: 2, ownPeriod: true, month: "", firstDay: "", lastDay: ""},
-                    {name: "Travel", inside: [], insideMore: 0, ownPeriod: false, month: "September 2026", firstDay: "01.09.2026", lastDay: "30.09.2026"}
+                    {name: "Pets", all: "", inside: ["Vet", "Cat food"], insideMore: 2, ownPeriod: true, month: "", firstDay: "", lastDay: ""},
+                    {name: "Travel", all: "", inside: [], insideMore: 0, ownPeriod: false, month: "September 2026", firstDay: "01.09.2026", lastDay: "30.09.2026"}
                 ]}};
         }
     }
@@ -53,7 +53,7 @@ QtObject {
         if (match === null) {
             return {start: 0, end: 0, names: []};
         }
-        const names = [{insert: "Pets", label: "Pets", group: false}, {insert: "'Pet food'", label: "Pets > Pet food", group: false}]
+        const names = [{insert: "Pets", label: "Pets", group: false, all: ""}, {insert: "'Pet food'", label: "Pets > Pet food", group: false, all: ""}]
             .filter(name => name.label.toLowerCase().indexOf(match[0].toLowerCase()) >= 0);
         return {start: match.index, end: cursor, names: names};
     }

@@ -339,6 +339,8 @@ pub enum ChangeView {
         match_all: bool,
         /// Its conditions, as the Rule editor holds them.
         conditions: Vec<ConditionForm>,
+        /// The name of the Rule it sits inside; empty for a top-level Rule.
+        inside: String,
     },
     /// A category renamed, moved or both.
     EditCategory {
@@ -711,7 +713,13 @@ fn view_of(
             income: new.income,
             currency: new.currency.as_str().to_owned(),
         },
-        ProposedChange::NewRule(new) => new_rule_view(book, &new.rule, &new.category, locale)?,
+        ProposedChange::NewRule(new) => new_rule_view(
+            book,
+            &new.rule,
+            &new.category,
+            new.inside.as_deref().unwrap_or_default(),
+            locale,
+        )?,
         ProposedChange::EditCategory(edit) => ChangeView::EditCategory {
             before: edit.before.join(" › "),
             after: edit.after.join(" › "),
@@ -918,6 +926,7 @@ fn new_rule_view(
     book: &Book,
     rule: &Rule,
     category: &[String],
+    inside: &str,
     locale: &impl Locale,
 ) -> Result<ChangeView, StoreError> {
     Ok(ChangeView::NewRule {
@@ -925,6 +934,7 @@ fn new_rule_view(
         book_to: category.join(" › "),
         match_all: rule.match_mode == MatchMode::All,
         conditions: condition_forms(book, rule, locale)?,
+        inside: inside.to_owned(),
     })
 }
 

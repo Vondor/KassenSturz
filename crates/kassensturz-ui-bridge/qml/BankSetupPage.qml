@@ -600,8 +600,12 @@ Kirigami.ScrollablePage {
 
                     required property var modelData
 
+                    // A securities account can't be fetched yet, so it is
+                    // shown but never linked (M6-B190, D-624).
+                    readonly property bool supported: choice.modelData.kind !== "securities"
+
                     // The book account chosen, or empty for none.
-                    readonly property string chosenId: box.currentValue ?? ""
+                    readonly property string chosenId: choice.supported ? (box.currentValue ?? "") : ""
 
                     Layout.fillWidth: true
 
@@ -619,10 +623,18 @@ Kirigami.ScrollablePage {
                         }
                     }
 
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        visible: !choice.supported
+                        text: page.i18nContext.i18nc("@info", "Not supported yet: this is a securities account (depot). It holds securities, not money, and KassenSturz can't read those yet, so it isn't linked or fetched.")
+                    }
+
                     Controls.ComboBox {
                         id: box
 
                         Layout.fillWidth: true
+                        visible: choice.supported
                         Accessible.name: page.i18nContext.i18nc("@label:listbox", "Account in KassenSturz")
                         textRole: "text"
                         valueRole: "value"

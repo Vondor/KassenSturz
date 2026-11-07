@@ -156,6 +156,10 @@ Kirigami.ApplicationWindow {
                 window.check(!window.key(Qt.Key_D, 0, "spending"), "D alone is left to others");
                 window.key(Qt.Key_Return, 0, "spending");
                 window.check(window.asked[window.asked.length - 1] === "properties:spending", "Enter opens the properties");
+                // A tile with nothing to set opens no empty dialog (US1.8, #522).
+                const askedBefore = window.asked.length;
+                window.check(!window.key(Qt.Key_Return, 0, "line") && window.asked.length === askedBefore, "Enter does nothing for a tile without settings");
+                window.check(grid.itemFor("spending").hasSettings && !grid.itemFor("line").hasSettings && !grid.itemFor("gaps").hasSettings && !grid.itemFor("moved").hasSettings, "only a tile with settings has Properties");
                 window.key(Qt.Key_Delete, 0, "spending");
                 window.check(window.last() === "remove:spending", "Delete removes it: " + window.last());
                 window.check(grid.selectedId === "", "nothing is selected after a removal");
@@ -199,12 +203,12 @@ Kirigami.ApplicationWindow {
                 const saved = addMenu.groups.find(group => group.rows[0].saved);
                 window.check(saved && saved.rows.map(row => row.id).join() === "a,b", "the saved views are sorted by name");
                 const kinds = addMenu.groups.filter(group => !group.rows[0].saved).reduce((all, group) => all.concat(group.rows), []).length;
-                // 17 kinds, the 5 that start with the data of the accounts (M6c.2),
+                // 18 kinds, the 5 that start with the data of the accounts (M6c.2),
                 // the dashboard tabs, the period header and the filter bar the
                 // page lacks (M6d.8, M6d.9),
                 // Update all accounts, always offered (D-497), and the custom
                 // chart (M6e.3).
-                window.check(kinds === 27, "every kind of widget is in a group: " + kinds);
+                window.check(kinds === 28, "every kind of widget is in a group: " + kinds);
                 const withData = addMenu.groups.reduce((all, group) => all.concat(group.rows), []).filter(row => row.dataset !== undefined && row.dataset !== "").map(row => row.id).sort();
                 window.check(withData.join() === "chart.bar/cash_flow_by_month,chart.line/net_worth_over_time,kpi.card/account_balances,table.rows/account_balances,table.rows/cash_flow_by_month", "the widgets with data of their own: " + withData);
                 window.check(addMenu.count === 6, "one submenu for each group: " + addMenu.count);

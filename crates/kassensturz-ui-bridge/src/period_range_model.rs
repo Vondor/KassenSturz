@@ -6,7 +6,7 @@
 //! only gets text (D-065).
 
 use cxx_qt_lib::{QString, QVariant};
-use kassensturz_report::ReportError;
+use kassensturz_report::{ReportError, Rolling};
 
 use crate::errors::ErrorText;
 use crate::format::Locale;
@@ -43,9 +43,24 @@ pub mod qobject {
 
         /// What to show for a period word: `custom` says whether it is a
         /// typed range, `text` is the range as the user types it, in their
-        /// regional date format (empty for the fixed names).
+        /// regional date format (empty for the fixed names). `rolling` is
+        /// `months` or `salary` for a rolling period (D-644), else empty;
+        /// then `count` and `complete` (months) or `day` and `before`
+        /// (salary month) say which one.
         #[qinvokable]
         fn describe(self: &PeriodRange, word: &QString) -> QVariant;
+
+        /// The word for the last `count` months, with or without the month
+        /// today is in (D-644); empty for a count that can't be kept.
+        #[qinvokable]
+        fn months(self: &PeriodRange, count: i32, complete: bool) -> QString;
+
+        /// The word for the salary month from `day`, the one today is in or
+        /// the one before (D-645); empty for a day that is no day of a
+        /// month.
+        #[qinvokable]
+        #[cxx_name = "salaryMonth"]
+        fn salary_month(self: &PeriodRange, day: i32, before: bool) -> QString;
 
         /// An example of what to type, in the regional date format.
         #[qinvokable]
@@ -72,9 +87,21 @@ fn parse_object(input: &str, locale: &impl Locale) -> QVariant {
 /// What `describe` gives QML.
 fn describe_object(word: &str, locale: &impl Locale) -> QVariant {
     let described = period_range::describe(word, locale);
+    let (rolling, count, complete, day, before) = match Rolling::read(word) {
+        Some(Rolling::Months { count, complete }) => {
+            ("months", i32::from(count), complete, 0, false)
+        }
+        Some(Rolling::SalaryMonth { day, before }) => ("salary", 0, false, i32::from(day), before),
+        None => ("", 0, false, 0, false),
+    };
     map([
         ("custom", QVariant::from(&described.is_some())),
         ("text", text(&described.unwrap_or_default())),
+        ("rolling", text(rolling)),
+        ("count", QVariant::from(&count)),
+        ("complete", QVariant::from(&complete)),
+        ("day", QVariant::from(&day)),
+        ("before", QVariant::from(&before)),
     ])
 }
 
@@ -87,6 +114,14 @@ impl qobject::PeriodRange {
         describe_object(&word.to_string(), &app_locale())
     }
 
+    fn months(&self, count: i32, complete: bool) -> QString {
+        QString::from(period_range::months_word(count, complete).unwrap_or_default())
+    }
+
+    fn salary_month(&self, day: i32, before: bool) -> QString {
+        QString::from(period_range::salary_month_word(day, before).unwrap_or_default())
+    }
+
     fn example(&self) -> QString {
         QString::from(period_range::example(&app_locale()))
     }
@@ -96,7 +131,7 @@ impl qobject::PeriodRange {
 mod tests {
     use super::*;
     use crate::register::tests::TestLocale;
-    use crate::variant::read_back::{flag_of, keys, text_of};
+    use crate::variant::read_back::{flag_of, keys, number_of, text_of};
 
     #[test]
     fn a_typed_range_reads_back_as_a_word_or_an_error_code() {
@@ -117,11 +152,38 @@ mod tests {
     #[test]
     fn a_word_is_described_for_the_field_the_way_qml_reads_it() {
         let range = describe_object("..2025-01-01", &TestLocale);
-        assert_eq!(keys(&range), ["custom", "text"]);
+        assert_eq!(
+            keys(&range),
+            [
+                "before", "complete", "count", "custom", "day", "rolling", "text"
+            ]
+        );
         assert!(flag_of(&range, "custom"));
         assert_eq!(text_of(&range, "text"), "<=2025-01-01");
+        assert_eq!(text_of(&range, "rolling"), "");
         let fixed = describe_object("this-year", &TestLocale);
         assert!(!flag_of(&fixed, "custom"));
         assert_eq!(text_of(&fixed, "text"), "");
+        assert_eq!(text_of(&fixed, "rolling"), "");
+    }
+
+    #[test]
+    fn a_rolling_word_is_described_the_way_qml_reads_it() {
+        let months = describe_object("last-6-complete-months", &TestLocale);
+        assert!(!flag_of(&months, "custom"));
+        assert_eq!(text_of(&months, "rolling"), "months");
+        assert_eq!(number_of(&months, "count"), 6);
+        assert!(flag_of(&months, "complete"));
+        let open = describe_object("last-3-months", &TestLocale);
+        assert_eq!(number_of(&open, "count"), 3);
+        assert!(!flag_of(&open, "complete"));
+        let salary = describe_object("last-salary-month-28", &TestLocale);
+        assert_eq!(text_of(&salary, "rolling"), "salary");
+        assert_eq!(number_of(&salary, "day"), 28);
+        assert!(flag_of(&salary, "before"));
+        let this = describe_object("this-salary-month-1", &TestLocale);
+        assert_eq!(number_of(&this, "day"), 1);
+        assert!(!flag_of(&this, "before"));
+        assert!(!flag_of(&this, "custom"));
     }
 }

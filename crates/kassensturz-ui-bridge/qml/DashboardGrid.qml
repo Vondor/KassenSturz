@@ -319,6 +319,10 @@ Item {
             break;
         case Qt.Key_Return:
         case Qt.Key_Enter:
+            // Nothing to set: no empty dialog (US1.8, #522).
+            if (!item.hasSettings) {
+                return;
+            }
             propertiesRequested(id);
             break;
         case Qt.Key_Delete:

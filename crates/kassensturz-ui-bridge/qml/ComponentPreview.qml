@@ -61,15 +61,29 @@ ColumnLayout {
         ? cardSets.length === 0 : charts.length === 0)
     // Whether `FilterNotes` has anything to say (the same test as its own
     // `quiet`), so it is only made when it has.
-    readonly property bool hasFilterNotes: (filterView?.own?.length ?? 0) > 0
-        || (filterView?.filtered ?? []).some(word => word !== "period")
+    readonly property bool hasFilterNotes: (filterView?.own ?? []).some(word => !(accountsInTitle && word === "accounts"))
+        || (filterView?.filtered ?? []).some(word => word !== "period" && !(accountsInTitle && word === "accounts"))
         || (filterView?.notes?.length ?? 0) > 0
+    // A number card can leave out the note about its accounts when its title
+    // names them instead (US1.9, #523): only then, so a figure never appears
+    // without saying which accounts it counts.
+    readonly property bool hideNote: (subject?.fields ?? []).some(f => f.key === "hide_note" && f.flag)
+    readonly property var accountNames: filterView?.accounts ?? []
+    readonly property bool accountsInTitle: hideNote && (filterView?.filtered ?? []).includes("accounts") && accountNames.length > 0
     // What to call it when the user gave it no title (the grid editor's
     // built-in components have none, D-316).
     property string fallbackTitle: ""
     readonly property string title: {
         const field = (subject?.fields ?? []).find(f => f.key === "title");
-        return words.resolve(field && field.text !== "" ? field.text : fallbackTitle, period);
+        const base = words.resolve(field && field.text !== "" ? field.text : fallbackTitle, period);
+        if (!accountsInTitle) {
+            return base;
+        }
+        const more = filterView?.accountsMore ?? 0;
+        const named = more > 0
+            ? i18nContext.i18nc("@info %1 is a list of names, %2 how many more there are", "%1 and %2 more", accountNames.join(", "), more)
+            : accountNames.join(", ");
+        return base !== "" ? i18nContext.i18nc("@title %1 is the title of a card, %2 the accounts it counts", "%1 · %2", base, named) : named;
     }
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -222,6 +236,7 @@ ColumnLayout {
 
         sourceComponent: FilterNotes {
             filter: preview.filterView
+            accountsInTitle: preview.accountsInTitle
         }
     }
 

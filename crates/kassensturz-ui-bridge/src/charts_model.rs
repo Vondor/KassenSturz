@@ -1001,6 +1001,38 @@ mod tests {
         assert!(shown.is_err());
     }
 
+    /// Rolling periods (D-644, D-645) reach the chart through the same
+    /// resolver as every other figure, seen from `TestLocale`'s today, the
+    /// 19 October 2026.
+    #[test]
+    fn a_rolling_period_reaches_the_chart_with_the_days_it_names() {
+        let book = book();
+        let total = |period: &str| {
+            let mut asked = request("spending_by_category", "bar");
+            asked.show_hidden = true;
+            asked.period = period.into();
+            let view = view_with(&book, &asked);
+            list_of(&view, "charts")
+                .first()
+                .map(|chart| text_of(chart, "total"))
+        };
+        // The book has spending on the 3rd of August and of September 2026.
+        let everything = total("last-12-months");
+        let september = total("2026-09-01..2026-09-30");
+        assert!(september.is_some() && september != everything);
+        assert_eq!(total("last-2-complete-months"), everything);
+        assert_eq!(total("last-1-complete-months"), september);
+        assert_eq!(total("last-2-months"), september);
+        assert_eq!(total("last-salary-month-3"), september);
+        assert_eq!(total("last-salary-month-20"), september);
+        // The salary month from the 4th leaves the 3rd of September out.
+        assert_eq!(total("last-salary-month-4"), None);
+        assert_eq!(total("this-salary-month-3"), None);
+        let mut asked = request("spending_by_category", "bar");
+        asked.period = "this-salary-month-32".into();
+        assert!(charts::charts(&book, &TestLocale, &asked).is_err());
+    }
+
     #[test]
     fn the_chosen_categories_limit_a_chart_and_a_table_and_unknown_ones_are_counted() {
         let book = book();

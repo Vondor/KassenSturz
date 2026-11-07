@@ -16,7 +16,10 @@
 //! enum), an error code (a `&'static str` of the shape `area.word-word`,
 //! checked again before writing), a small count (accounts found,
 //! transactions fetched, the TAN method's number is *not* one) and the
-//! milliseconds the step took. Nothing here takes a `String`, so a login
+//! milliseconds the step took; a step about one account of a fetch also
+//! holds that account's place in the list the fetch was started with (1
+//! for the first, D-623), never
+//! its name or number. Nothing here takes a `String`, so a login
 //! name, IBAN, bank code, amount, PIN, TAN, registration number or text from
 //! the bank has no way in. Not even the bank's name is written.
 
@@ -73,11 +76,17 @@ steps! {
     /// A fetch began; the count is the accounts it is for.
     FetchStarted = "bank.fetch-started",
     /// One account's fetch ended well; the count is the booked entries.
+    /// Written when that account ends, with its place in the fetch (D-623).
     FetchDone = "bank.fetch-done",
-    /// One account's fetch failed; the code says why.
+    /// One account's fetch failed; the code says why. Written when that
+    /// account ends, with its place in the fetch (D-623).
     FetchFailed = "bank.fetch-failed",
-    /// One account was left out of a fetch; the code says why.
+    /// One account was left out of a fetch; the code says why. Written in
+    /// turn, with the account's place in the fetch (D-623).
     FetchSkipped = "bank.fetch-skipped",
+    /// A fetch that started ended; the count is the accounts that got a
+    /// statement (D-623).
+    FetchEnded = "bank.fetch-ended",
     /// The whole fetch could not start; the code says why.
     FetchRefused = "bank.fetch-refused",
     /// The registration number was asked for (never the number itself).
@@ -209,11 +218,39 @@ pub fn line(
     count: Option<u32>,
     ms: Option<u64>,
 ) -> String {
+    entry(at, step, None, code, count, ms)
+}
+
+/// One line about one account of a fetch: like [`line`], with the
+/// account's place in the fetch (`account`, 1 for the first), so a reader
+/// can tell which account a line is about without any name or number of it
+/// (D-623).
+pub fn account_line(
+    at: Timestamp,
+    step: Step,
+    account: u32,
+    code: Option<&'static str>,
+    count: Option<u32>,
+) -> String {
+    entry(at, step, Some(account), code, count, None)
+}
+
+fn entry(
+    at: Timestamp,
+    step: Step,
+    account: Option<u32>,
+    code: Option<&'static str>,
+    count: Option<u32>,
+    ms: Option<u64>,
+) -> String {
     let mut line = format!(
         "{{\"at\":\"{}\",\"step\":\"{}\"",
         at.strftime("%Y-%m-%dT%H:%M:%S%.3fZ"),
         step.name()
     );
+    if let Some(account) = account {
+        line.push_str(&format!(",\"account\":{account}"));
+    }
     if let Some(code) = code {
         let code = if is_error_code(code) {
             code
@@ -301,6 +338,18 @@ pub fn note(step: Step, code: Option<&'static str>, count: Option<u32>) {
     note_after(step, code, count, None);
 }
 
+/// Notes `step` about the account in place `account` of a fetch (1 for
+/// the first, D-623), like [`note`].
+pub fn note_account(step: Step, account: u32, code: Option<&'static str>, count: Option<u32>) {
+    if !is_on() {
+        return;
+    }
+    if let Some(folder) = folder() {
+        let text = account_line(Timestamp::now(), step, account, code, count);
+        let _ = append(&folder, FILES, MAX_FILE_BYTES, &text);
+    }
+}
+
 /// Like [`note`], with the time since `since`, in milliseconds.
 pub fn note_after(
     step: Step,
@@ -348,6 +397,27 @@ mod tests {
             text,
             "{\"at\":\"2026-11-06T16:00:00.000Z\",\"step\":\"bank.fetch-failed\",\"code\":\"bank.pin-rejected\",\"n\":3,\"ms\":120}\n"
         );
+    }
+
+    #[test]
+    fn a_line_about_one_account_names_only_its_place_in_the_fetch() {
+        let at: Timestamp = "2026-11-06T16:00:00Z".parse().unwrap();
+        assert_eq!(
+            account_line(
+                at,
+                Step::FetchSkipped,
+                3,
+                Some("bank.earlier-failure"),
+                None
+            ),
+            "{\"at\":\"2026-11-06T16:00:00.000Z\",\"step\":\"bank.fetch-skipped\",\"account\":3,\"code\":\"bank.earlier-failure\"}\n"
+        );
+        assert_eq!(
+            account_line(at, Step::FetchDone, 1, None, Some(5)),
+            "{\"at\":\"2026-11-06T16:00:00.000Z\",\"step\":\"bank.fetch-done\",\"account\":1,\"n\":5}\n"
+        );
+        let stray = account_line(at, Step::FetchFailed, 2, Some("DE89 3704"), None);
+        assert!(stray.contains("bank.unknown-code"), "{stray}");
     }
 
     #[test]

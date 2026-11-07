@@ -82,6 +82,8 @@ pub(crate) enum Kind {
     Text(String),
     /// The dates after `@`, already a period.
     Dates(Period),
+    /// The `.` between a kind and a name: `Spending.Pets` (D-653).
+    Dot,
     At,
     Plus,
     Minus,
@@ -177,6 +179,9 @@ pub(crate) fn tokens(text: &str, form: Form) -> Result<Vec<Token>, ReportError> 
         let at = reader.at();
         let start = reader.byte();
         let after_at = tokens.last().is_some_and(|token| token.kind == Kind::At);
+        let after_name = tokens
+            .last()
+            .is_some_and(|token| matches!(token.kind, Kind::Name(_)));
         let kind = if c.is_ascii_digit() && after_at {
             Kind::Dates(dates(&mut reader)?)
         } else if c.is_ascii_digit() {
@@ -209,6 +214,8 @@ pub(crate) fn tokens(text: &str, form: Form) -> Result<Vec<Token>, ReportError> 
                 '(' => Kind::Open,
                 ')' => Kind::Close,
                 '@' => Kind::At,
+                // Only after a bare word: that is where a kind stands.
+                '.' if after_name => Kind::Dot,
                 '=' => Kind::Compare(Comparison::Equal),
                 '<' => two('>', Kind::Compare(Comparison::NotEqual))
                     .or_else(|| two('=', Kind::Compare(Comparison::LessOrEqual)))

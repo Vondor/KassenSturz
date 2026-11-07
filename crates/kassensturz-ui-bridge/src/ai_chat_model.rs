@@ -556,12 +556,14 @@ pub(crate) mod engine {
                 book_to,
                 match_all,
                 conditions,
+                inside,
             } => vec![
                 ("kind", text("newRule")),
                 ("name", text(name)),
                 ("bookTo", text(book_to)),
                 ("matchAll", QVariant::from(match_all)),
                 ("conditions", list(conditions.iter().map(condition_object))),
+                ("inside", text(inside)),
             ],
             ChangeView::EditCategory { before, after } => vec![
                 ("kind", text("editCategory")),
@@ -1660,6 +1662,7 @@ mod tests {
                     value: "<img src=x>".into(),
                     ..ConditionForm::default()
                 }],
+                inside: "Food".into(),
             },
             ChangeView::EditCategory {
                 before: "Food".into(),
@@ -1808,6 +1811,7 @@ mod tests {
                 "edited",
                 "fields",
                 "form",
+                "inside",
                 "kind",
                 "leftOut",
                 "matchAll",
@@ -1840,9 +1844,10 @@ mod tests {
         assert!(!flag_of(&items[0], "income"));
         assert_eq!(
             own_keys(&items[1]),
-            ["bookTo", "conditions", "kind", "matchAll", "name"]
+            ["bookTo", "conditions", "inside", "kind", "matchAll", "name"]
         );
         assert!(flag_of(&items[1], "matchAll"));
+        assert_eq!(text_of(&items[1], "inside"), "Food");
         let conditions = list_of(&items[1], "conditions");
         assert_eq!(text_of(&conditions[0], "operator"), "contains");
         assert_eq!(text_of(&conditions[0], "value"), "<img src=x>");

@@ -816,6 +816,7 @@ msgctxt ""
 msgid "Other party's IBAN"
 msgstr "IBAN des Zahlungspartners"
 
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:59
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:150
 #, kde-format
 msgctxt "@item:inlistbox a text has to"
@@ -1156,6 +1157,12 @@ msgstr "Es wird wieder geöffnet."
 msgctxt "@title:group"
 msgid "New Rules"
 msgstr "Neue Regeln"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:624
+#, kde-format
+msgctxt "@info %1 is the name of a Rule"
+msgid "Inside the Rule “%1”: it is checked only when that Rule matched."
+msgstr "Innerhalb der Regel „%1“: Sie wird nur geprüft, wenn diese Regel gepasst hat."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:623
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:691
@@ -3377,6 +3384,12 @@ msgstr "Kreditkarte"
 
 #: crates/kassensturz-ui-bridge/qml/BankAccountNames.qml:35
 #, kde-format
+msgctxt "@label an account at the bank, by its kind"
+msgid "Securities account"
+msgstr "Wertpapierdepot"
+
+#: crates/kassensturz-ui-bridge/qml/BankAccountNames.qml:35
+#, kde-format
 msgctxt "@label an account at the bank without a name"
 msgid "Account"
 msgstr "Konto"
@@ -3760,6 +3773,51 @@ msgctxt "@action:button send the PIN to the bank"
 msgid "Send PIN"
 msgstr "PIN senden"
 
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:217
+#, kde-format
+msgctxt ""
+"@action:button the password manager was opened; read the saved PIN again"
+msgid "Open it and try again"
+msgstr "Öffnen und erneut versuchen"
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:268
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz couldn't read your saved PIN: KeePassXC is closed or its "
+"database is locked. Open and unlock it, then choose Open it and try again. "
+"Or type the PIN yourself below."
+msgstr ""
+"KassenSturz konnte Ihre gespeicherte PIN nicht lesen: KeePassXC ist "
+"geschlossen oder seine Datenbank ist gesperrt. Öffnen und entsperren Sie "
+"sie, und wählen Sie dann „Öffnen und erneut versuchen“. Oder geben Sie die "
+"PIN unten selbst ein."
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:269
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz couldn't read your saved PIN: your keychain is locked or not "
+"running. Unlock it, then choose Open it and try again. Or type the PIN "
+"yourself below."
+msgstr ""
+"KassenSturz konnte Ihre gespeicherte PIN nicht lesen: Ihr Passwortspeicher "
+"ist gesperrt oder läuft nicht. Entsperren Sie ihn, und wählen Sie dann "
+"„Öffnen und erneut versuchen“. Oder geben Sie die PIN unten selbst ein."
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:319
+#, kde-format
+msgctxt "@info"
+msgid ""
+"If it is still closed or locked when you send the PIN, KassenSturz keeps the "
+"PIN only until you close KassenSturz, and saves nothing. Next time, open it "
+"first to save the PIN."
+msgstr ""
+"Ist der Passwortspeicher beim Senden der PIN noch geschlossen oder "
+"gesperrt, behält KassenSturz die PIN nur, bis Sie KassenSturz schließen, "
+"und speichert nichts. Öffnen Sie ihn beim nächsten Mal zuerst, um die PIN "
+"zu speichern."
+
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:235
 #, kde-format
 msgctxt "@info"
@@ -3976,6 +4034,40 @@ msgstr "%1 mit einem anderen Bankkonto verknüpfen"
 msgctxt "@action:button"
 msgid "Unlink"
 msgstr "Verknüpfung lösen"
+
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:556
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Not supported yet: KassenSturz can't read securities accounts (depots) yet."
+msgstr ""
+"Noch nicht unterstützt: KassenSturz kann Wertpapierdepots noch nicht lesen."
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:630
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Not supported yet: this is a securities account (depot). It holds "
+"securities, not money, and KassenSturz can't read those yet, so it isn't "
+"linked or fetched."
+msgstr ""
+"Noch nicht unterstützt: Dies ist ein Wertpapierdepot. Es enthält "
+"Wertpapiere, kein Geld, und diese kann KassenSturz noch nicht lesen. Es "
+"wird deshalb weder verknüpft noch abgerufen."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:593
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This account is linked to a securities account (depot) at your bank. "
+"KassenSturz can't get securities accounts yet, so nothing was fetched for "
+"it. Unlink it on the Get new transactions page if you don't want it tried "
+"again."
+msgstr ""
+"Dieses Konto ist mit einem Wertpapierdepot bei Ihrer Bank verknüpft. "
+"KassenSturz kann Wertpapierdepots noch nicht abrufen, deshalb wurde dafür "
+"nichts abgerufen. Lösen Sie die Verknüpfung auf der Seite „Neue Buchungen "
+"abrufen“, wenn es nicht wieder versucht werden soll."
 
 #: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:298
 #, kde-format
@@ -9909,6 +10001,31 @@ msgstr ""
 "aufgelistet, oder benennen Sie eine Gruppe oder Kategorie mit demselben "
 "Namen um."
 
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:399
+#, kde-format
+msgctxt "@info %1 is a name, %2 a list of names"
+msgid ""
+"%1 fits more than one: %2. Write the one you mean as listed. Income. in "
+"front is money that came in, Spending. money that went out. Or rename a "
+"group or category of the same name."
+msgstr ""
+"%1 passt auf mehrere: %2. Schreiben Sie die gemeinte so, wie sie aufgelistet "
+"ist. Income. davor ist Geld, das hereingekommen ist, Spending. Geld, das "
+"ausgegeben wurde. Oder benennen Sie eine Gruppe oder Kategorie mit "
+"demselben Namen um."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:188
+#, kde-format
+msgctxt "@info %1 is a character position"
+msgid ""
+"The word before the dot at character %1 isn't one formulas know. Write "
+"Income or Spending before the dot, for example Spending.Pets, or put a name "
+"with a dot in single quotes."
+msgstr ""
+"Das Wort vor dem Punkt bei Zeichen %1 kennen Formeln nicht. Schreiben Sie "
+"Income oder Spending vor den Punkt, zum Beispiel Spending.Haustiere, oder "
+"setzen Sie einen Namen mit Punkt in einfache Anführungszeichen."
+
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:398
 #, kde-format
 msgctxt "@info %1 is a function name, %2 a character position"
@@ -11273,16 +11390,40 @@ msgctxt "@label:textbox a formula that works out a figure"
 msgid "Formula"
 msgstr "Formel"
 
-#: crates/kassensturz-ui-bridge/qml/FormulaField.qml:171
+#: crates/kassensturz-ui-bridge/qml/FormulaField.qml:178
 #, kde-format
 msgctxt "@info"
 msgid ""
 "Use the names of your categories and groups. Add a time range to a name with "
-"@, for example Pets@\"last month\" or Pets@2026-03."
+"@, for example Pets@\"last month\" or Pets@2026-03. Put Income. or Spending. "
+"in front of a name to pick money that came in or went out, for example "
+"Spending.Pets. Spending.ALL and Income.ALL count everything, also what is "
+"not sorted into a category yet."
 msgstr ""
 "Nehmen Sie die Namen Ihrer Kategorien und Gruppen. Hängen Sie mit @ einen "
 "Zeitraum an einen Namen, zum Beispiel Haustiere@\"last month\" oder "
-"Haustiere@2026-03."
+"Haustiere@2026-03. Setzen Sie Income. oder Spending. vor einen Namen, um "
+"Geld zu wählen, das hereingekommen oder ausgegeben wurde, zum Beispiel "
+"Spending.Haustiere. Spending.ALL und Income.ALL zählen alles, auch was noch "
+"keiner Kategorie zugeordnet ist."
+
+#: crates/kassensturz-ui-bridge/qml/FormulaField.qml:102
+#, kde-format
+msgctxt "@info a name in a list of what a formula counts: all money received"
+msgid "all income"
+msgstr "alle Einnahmen"
+
+#: crates/kassensturz-ui-bridge/qml/FormulaField.qml:103
+#, kde-format
+msgctxt "@info a name in a list of what a formula counts: all money spent"
+msgid "all spending"
+msgstr "alle Ausgaben"
+
+#: crates/kassensturz-ui-bridge/qml/FormulaField.qml:256
+#, kde-format
+msgctxt "@item %1 is what the formula writes for all spending or all income"
+msgid "%1 (all, also what is not sorted yet)"
+msgstr "%1 (alles, auch was noch nicht zugeordnet ist)"
 
 #: crates/kassensturz-ui-bridge/qml/FormulaField.qml:232
 #, kde-format
@@ -14732,12 +14873,17 @@ msgstr "Ein Muster verwenden (fortgeschritten)"
 msgctxt "@info"
 msgid ""
 "A pattern is a regular expression, for example ^REWE .* DANKE$. It can match "
-"part of the text. If you only want to look for some words, switch this off "
-"and use \"contains\"."
+"part of the text. Capital letters are ignored unless \"Capital letters must "
+"match\" is ticked. Lookahead and lookbehind, such as (?=…) or (?<!…), and "
+"back-references such as \\1 don't work. If you only want to look for some "
+"words, switch this off and use \"contains\"."
 msgstr ""
 "Ein Muster ist ein regulärer Ausdruck, zum Beispiel ^REWE .* DANKE$. Es kann "
-"auf einen Teil des Textes passen. Wenn Sie nur nach einigen Wörtern suchen "
-"wollen, schalten Sie das aus und nehmen Sie „enthält“."
+"auf einen Teil des Textes passen. Groß- und Kleinschreibung wird nicht "
+"beachtet, außer wenn „Groß- und Kleinschreibung muss übereinstimmen“ "
+"angehakt ist. Vorausschau und Rückschau wie (?=…) oder (?<!…) und "
+"Rückverweise wie \\1 funktionieren nicht. Wenn Sie nur nach einigen Wörtern "
+"suchen wollen, schalten Sie das aus und nehmen Sie „enthält“."
 
 #: crates/kassensturz-ui-bridge/qml/RuleCondition.qml:151
 #, kde-format
@@ -17929,6 +18075,261 @@ msgstr ""
 "nach dem Zeitraum seit %1 gefragt. Ältere Umsätze kann Ihre Bank auf diesem "
 "Weg nicht liefern: Laden Sie dafür eine Datei von Ihrer Bank."
 
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml
+#, kde-format
+msgctxt ""
+"@action:button add the Rule, then sort the transactions already in the book "
+"with it"
+msgid "Add and apply now…"
+msgstr "Hinzufügen und jetzt anwenden…"
+
+#: crates/kassensturz-ui-bridge/qml/RulePage.qml
+#, kde-format
+msgctxt ""
+"@action:button save the Rule, then sort the transactions already in the book "
+"with it"
+msgid "Save and apply now…"
+msgstr "Speichern und jetzt anwenden…"
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid ""
+"%1 transaction looks like money moved between your own accounts. Decide that "
+"in the account first; it stays as it is."
+msgid_plural ""
+"%1 transactions look like money moved between your own accounts. Decide that "
+"in the account first; they stay as they are."
+msgstr[0] ""
+"%1 Buchung sieht aus wie Geld, das zwischen Ihren eigenen Konten bewegt "
+"wurde. Entscheiden Sie das zuerst im Konto; sie bleibt, wie sie ist."
+msgstr[1] ""
+"%1 Buchungen sehen aus wie Geld, das zwischen Ihren eigenen Konten bewegt "
+"wurde. Entscheiden Sie das zuerst im Konto; sie bleiben, wie sie sind."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid ""
+"%1 transaction stays as it is because an exchange rate for its day is "
+"missing."
+msgid_plural ""
+"%1 transactions stay as they are because an exchange rate for their day is "
+"missing."
+msgstr[0] ""
+"%1 Buchung bleibt, wie sie ist, weil für ihren Tag ein Wechselkurs fehlt."
+msgstr[1] ""
+"%1 Buchungen bleiben, wie sie sind, weil für ihren Tag ein Wechselkurs fehlt."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid ""
+"%1 transaction stays as it is because an account it would go to or come from "
+"is closed."
+msgid_plural ""
+"%1 transactions stay as they are because an account they would go to or come "
+"from is closed."
+msgstr[0] ""
+"%1 Buchung bleibt, wie sie ist, weil ein Konto, zu dem sie gehen oder von dem "
+"sie kommen würde, aufgelöst ist."
+msgstr[1] ""
+"%1 Buchungen bleiben, wie sie sind, weil ein Konto, zu dem sie gehen oder von "
+"dem sie kommen würden, aufgelöst ist."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "%1 more transaction a Rule fits can't be sorted and stays as it is."
+msgid_plural ""
+"%1 more transactions a Rule fits can't be sorted and stay as they are."
+msgstr[0] ""
+"%1 weitere Buchung, auf die eine Regel passt, kann nicht zugeordnet werden "
+"und bleibt, wie sie ist."
+msgstr[1] ""
+"%1 weitere Buchungen, auf die eine Regel passt, können nicht zugeordnet "
+"werden und bleiben, wie sie sind."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "Sort your transactions with all Rules"
+msgstr "Ihre Buchungen mit allen Regeln zuordnen"
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@title:window %1 is the name of a Rule"
+msgid "Sort your transactions with %1"
+msgstr "Ihre Buchungen mit %1 zuordnen"
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@action:button %1 is a number"
+msgid "Sort %1 transaction"
+msgid_plural "Sort %1 transactions"
+msgstr[0] "%1 Buchung zuordnen"
+msgstr[1] "%1 Buchungen zuordnen"
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Your Rules sort the transactions already in your book, in the order of the "
+"list: the first Rule that fits a transaction decides. Transactions you "
+"sorted or changed yourself are never touched."
+msgstr ""
+"Ihre Regeln ordnen die Buchungen zu, die schon in Ihrem Buch stehen, in der "
+"Reihenfolge der Liste: Die erste Regel, die auf eine Buchung passt, "
+"entscheidet. Buchungen, die Sie selbst zugeordnet oder geändert haben, "
+"bleiben immer unangetastet."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This Rule sorts the transactions already in your book that it decides. A "
+"Rule before it in the list still takes a transaction first. Transactions you "
+"sorted or changed yourself are never touched."
+msgstr ""
+"Diese Regel ordnet die Buchungen zu, die schon in Ihrem Buch stehen und über "
+"die sie entscheidet. Eine Regel weiter oben in der Liste nimmt eine Buchung "
+"weiterhin zuerst. Buchungen, die Sie selbst zugeordnet oder geändert haben, "
+"bleiben immer unangetastet."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@option:check"
+msgid "Also sort again what Rules sorted before"
+msgstr "Auch neu zuordnen, was Regeln vorher zugeordnet haben"
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Without this, only transactions without a category are sorted. With it, what "
+"a Rule sorted earlier is sorted again as the Rules say now, for example "
+"after you changed a Rule or the order. What no Rule fits anymore stays as it "
+"is."
+msgstr ""
+"Ohne das werden nur Buchungen ohne Kategorie zugeordnet. Mit dem wird, was "
+"eine Regel früher zugeordnet hat, neu so zugeordnet, wie die Regeln es jetzt "
+"sagen, zum Beispiel nachdem Sie eine Regel oder die Reihenfolge geändert "
+"haben. Worauf keine Regel mehr passt, das bleibt, wie es ist."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info"
+msgid "There is nothing to sort."
+msgstr "Es gibt nichts zuzuordnen."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "%1 transaction will be sorted."
+msgid_plural "%1 transactions will be sorted."
+msgstr[0] "%1 Buchung wird zugeordnet."
+msgstr[1] "%1 Buchungen werden zugeordnet."
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info"
+msgid "The newest of them, as they will look:"
+msgstr "Die neuesten davon, so wie sie danach aussehen:"
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info"
+msgid "As they will look:"
+msgstr "So sehen sie danach aus:"
+
+#: crates/kassensturz-ui-bridge/qml/RulesApply.qml
+#, kde-format
+msgctxt "@info"
+msgid "All of it is one change: one Undo takes it back."
+msgstr ""
+"Alles zusammen ist eine Änderung: Einmal Rückgängig nimmt sie zurück."
+
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml
+#, kde-format
+msgctxt ""
+"@action:button sort the transactions already in the book with every Rule"
+msgid "Apply all Rules…"
+msgstr "Alle Regeln anwenden…"
+
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Sort the transactions already in your book with your Rules. You see first "
+"what would change."
+msgstr ""
+"Die Buchungen, die schon in Ihrem Buch stehen, mit Ihren Regeln zuordnen. "
+"Sie sehen zuerst, was sich ändern würde."
+
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml
+#, kde-format
+msgctxt "@action:button %1 is the name of a Rule"
+msgid "Apply %1 now"
+msgstr "%1 jetzt anwenden"
+
+#: crates/kassensturz-ui-bridge/qml/RulesPage.qml
+#, kde-format
+msgctxt ""
+"@action:button sort the transactions already in the book with this Rule"
+msgid "Apply now…"
+msgstr "Jetzt anwenden…"
+
+#: crates/kassensturz-ui-bridge/qml/ComponentPreview.qml
+#, kde-format
+msgctxt "@title %1 is the title of a card, %2 the accounts it counts"
+msgid "%1 · %2"
+msgstr "%1 · %2"
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info %1 is how many"
+msgid "%1 transaction has no category yet. Open it to choose one."
+msgid_plural ""
+"%1 transactions have no category yet. Open one to choose a category."
+msgstr[0] ""
+"%1 Buchung hat noch keine Kategorie. Öffnen Sie sie, um eine Kategorie zu "
+"wählen."
+msgstr[1] ""
+"%1 Buchungen haben noch keine Kategorie. Öffnen Sie eine, um eine Kategorie "
+"zu wählen."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A note appears here when a transaction has no category. There is none right "
+"now."
+msgstr ""
+"Hier erscheint ein Hinweis, wenn eine Buchung keine Kategorie hat. Im Moment "
+"gibt es keine."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info %1 is how many are listed"
+msgid "The newest %1 are listed here."
+msgstr "Hier stehen die neuesten %1."
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml
+#, kde-format
+msgctxt ""
+"@item:inlistbox a part of the layout: a note with how many transactions have "
+"no category yet and the newest of them"
+msgid "Transactions without a category"
+msgstr "Buchungen ohne Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+#, kde-format
+msgctxt ""
+"@option:check hides the grey note under a number card, the card's title "
+"names the accounts instead"
+msgid "Hide the note about the accounts"
+msgstr "Hinweis zu den Konten ausblenden"
+
 #: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:1
 #, kde-format
 msgctxt "@item:inmenu a column of the transactions"
@@ -18006,6 +18407,106 @@ msgstr "IBAN der Gegenseite"
 msgctxt "@title:column what the payment came with (German: Verwendungszweck)"
 msgid "Purpose"
 msgstr "Verwendungszweck"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:160
+#, kde-format
+msgctxt "@item:inlistbox a period of whole months that are over"
+msgid "The last complete month"
+msgid_plural "The last %1 complete months"
+msgstr[0] "Der letzte vollständige Monat"
+msgstr[1] "Die letzten %1 vollständigen Monate"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:161
+#, kde-format
+msgctxt "@item:inlistbox a period of months up to and with this one"
+msgid "This month"
+msgid_plural "The last %1 months"
+msgstr[0] "Dieser Monat"
+msgstr[1] "Die letzten %1 Monate"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:165
+#, kde-format
+msgctxt "@item:inlistbox a period; %1 is a day of the month, 1 to 31"
+msgid "The salary month before, from day %1"
+msgstr "Der vorige Gehaltsmonat, ab dem %1."
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:166
+#, kde-format
+msgctxt "@item:inlistbox a period; %1 is a day of the month, 1 to 31"
+msgid "The salary month from day %1"
+msgstr "Der Gehaltsmonat ab dem %1."
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:96
+#, kde-format
+msgctxt "@item:inlistbox a period of a number of months the user chooses"
+msgid "The last months…"
+msgstr "Die letzten Monate …"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:97
+#, kde-format
+msgctxt ""
+"@item:inlistbox a period from a day of the month the user chooses, such as "
+"payday, to the day before it in the next month"
+msgid "A salary month…"
+msgstr "Ein Gehaltsmonat …"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:127
+#, kde-format
+msgctxt "@label:spinbox how many months a period counts back"
+msgid "Months:"
+msgstr "Monate:"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:138
+#, kde-format
+msgctxt "@label:spinbox"
+msgid "How many months"
+msgstr "Wie viele Monate"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:152
+#, kde-format
+msgctxt "@option:check a period of months"
+msgid "Only complete months (leave out this month)"
+msgstr "Nur vollständige Monate (diesen Monat weglassen)"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:166
+#, kde-format
+msgctxt "@label:spinbox the day of the month a salary month starts on"
+msgid "Starts on day:"
+msgstr "Beginnt am Tag:"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:177
+#, kde-format
+msgctxt "@label:spinbox"
+msgid "The day of the month the salary month starts on"
+msgstr "Der Tag im Monat, an dem der Gehaltsmonat beginnt"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:191
+#, kde-format
+msgctxt "@item:inlistbox which salary month"
+msgid "The one running now"
+msgstr "Der laufende"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:192
+#, kde-format
+msgctxt "@item:inlistbox which salary month"
+msgid "The one before"
+msgstr "Der vorige"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:195
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Which salary month"
+msgstr "Welcher Gehaltsmonat"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:209
+#, kde-format
+msgctxt "@info"
+msgid ""
+"From this day to the day before it in the next month, for example from your "
+"payday. In a month without this day, its last day counts."
+msgstr ""
+"Von diesem Tag bis zum Tag davor im nächsten Monat, zum Beispiel ab Ihrem "
+"Zahltag. In einem Monat ohne diesen Tag zählt sein letzter Tag."
 
 #: crates/kassensturz-ui-bridge/qml/BudgetBars.qml
 #, kde-format

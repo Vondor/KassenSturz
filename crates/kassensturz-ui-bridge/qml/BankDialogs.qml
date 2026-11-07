@@ -11,6 +11,9 @@
 // A build without a FinTS registration, started with
 // `KASSENSTURZ_FINTS_ASK=1`, also asks for the product registration number
 // once per run, in a `SecretField` too, and never shows it back (D-260).
+// When the saved PIN couldn't be read because the password manager or
+// keychain is closed or locked, the PIN dialog says so and offers to open it
+// and try again, or to type the PIN (M6-B193, D-622).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -193,12 +196,32 @@ Item {
             close();
         }
 
+        // The user opened or unlocked the password manager: Rust reads the
+        // saved PIN again, and asks once more if it still can't (D-622).
+        function retryStore() {
+            answered = true;
+            pinField.text = "";
+            dialogs.bank.retryPinStore();
+            close();
+        }
+
+        readonly property bool storeClosed: request.storeClosed ?? false
+
         title: dialogs.i18nContext.i18nc("@title:window", "Your bank asks for your PIN")
         padding: Kirigami.Units.largeSpacing
         preferredWidth: Kirigami.Units.gridUnit * 24
         closePolicy: Controls.Popup.CloseOnEscape
         standardButtons: Kirigami.Dialog.NoButton
         customFooterActions: [
+            Kirigami.Action {
+                text: dialogs.i18nContext.i18nc("@action:button the password manager was opened; read the saved PIN again", "Open it and try again")
+                icon.name: "view-refresh"
+                visible: pinDialog.storeClosed
+                onTriggered: {
+                    ActionLog.taken("BankDialogs_retryPinStore")
+                    pinDialog.retryStore()
+                }
+            },
             Kirigami.Action {
                 text: dialogs.i18nContext.i18nc("@action:button send the PIN to the bank", "Send PIN")
                 icon.name: "dialog-ok"
@@ -233,6 +256,17 @@ Item {
                 type: Kirigami.MessageType.Warning
                 visible: pinDialog.request.rejected ?? false
                 text: dialogs.i18nContext.i18nc("@info", "Your bank said the PIN you typed was wrong. KassenSturz has forgotten it. Check it before you try again: after a few wrong PINs a bank blocks the login.")
+            }
+
+            // The saved PIN couldn't be read (D-622): say why, and what the
+            // two ways on are.
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                type: Kirigami.MessageType.Information
+                visible: pinDialog.storeClosed
+                text: dialogs.bank.pinStorage === "keepassxc"
+                    ? dialogs.i18nContext.i18nc("@info", "KassenSturz couldn't read your saved PIN: KeePassXC is closed or its database is locked. Open and unlock it, then choose Open it and try again. Or type the PIN yourself below.")
+                    : dialogs.i18nContext.i18nc("@info", "KassenSturz couldn't read your saved PIN: your keychain is locked or not running. Unlock it, then choose Open it and try again. Or type the PIN yourself below.")
             }
 
             Controls.Label {
@@ -276,6 +310,13 @@ Item {
                         choices.push({ value: "save", text: dialogs.i18nContext.i18nc("@item:inlistbox keep the PIN", "Save it in my keychain") });
                     return choices;
                 }
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                visible: pinDialog.storeClosed && pinMode.currentValue === "save"
+                text: dialogs.i18nContext.i18nc("@info", "If it is still closed or locked when you send the PIN, KassenSturz keeps the PIN only until you close KassenSturz, and saves nothing. Next time, open it first to save the PIN.")
             }
 
             Controls.Label {

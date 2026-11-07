@@ -271,6 +271,10 @@ pub enum BankAccountKind {
     /// A credit card, whose statements come as its own kind of fetch at the
     /// bank but as the same [`Fetched`] here (D-029).
     CreditCard,
+    /// A securities account (depot): it holds securities, not money, and
+    /// KassenSturz can't fetch it yet, so it is never linked or fetched
+    /// (M6-B190, D-624).
+    Securities,
     /// Anything else, or not said.
     Other,
 }

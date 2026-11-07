@@ -99,7 +99,7 @@ pub use filter::{
 pub use formula::{
     Counted, FUNCTIONS, Formula, FormulaResult, FormulaValue, FunctionInfo, KnownName,
     MAX_FORMULA_ARGUMENTS, MAX_FORMULA_CHARS, MAX_FORMULA_DEPTH, MAX_FORMULA_NAMES,
-    MAX_FORMULA_PERIODS, MAX_FORMULA_TOKENS, NumberForm,
+    MAX_FORMULA_PERIODS, MAX_FORMULA_TOKENS, NumberForm, Term,
 };
 pub use groups::{Overlap, Shown};
 pub use metrics::{
@@ -112,7 +112,9 @@ pub use monthly::{
 pub use over_time::{
     CATEGORY_OVER_TIME, CategoryOverTime, ChosenSeries, MonthTotals, category_over_time,
 };
-pub use period::{MAX_MONTHS, Period, range_word, read_range_word};
+pub use period::{
+    MAX_MONTHS, MAX_ROLLING_MONTHS, Period, Rolling, is_period_word, range_word, read_range_word,
+};
 pub use schema::{
     ColumnSetting, ComponentType, FORMULA_MEASURE, Kind, MAX_IDS, MAX_TEXT_CHARS, Place, Property,
     Setting, dataset_for,

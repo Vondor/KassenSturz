@@ -178,6 +178,10 @@ pub struct PinSession {
     /// Logins whose last PIN the bank called wrong: no PIN goes out for
     /// them until the user types one again (threat T-05).
     rejected: HashSet<LoginId>,
+    /// Logins whose saved PIN couldn't be read at the last [`Self::answer`],
+    /// because the place for saved PINs couldn't be reached (closed or
+    /// locked), so the PIN dialog can say why it asks (M6-B193, D-622).
+    closed: HashSet<LoginId>,
     store: Box<dyn PinStore>,
 }
 
@@ -196,6 +200,7 @@ impl PinSession {
         Self {
             remembered: HashMap::new(),
             rejected: HashSet::new(),
+            closed: HashSet::new(),
             store,
         }
     }
@@ -203,7 +208,7 @@ impl PinSession {
     /// The PIN to send for `login`, if one may be sent: a remembered one
     /// first, then a saved one. After the bank called a PIN wrong, `Ask`
     /// until the user types one.
-    pub fn answer(&self, login: &LoginId) -> Result<PinAnswer, BankError> {
+    pub fn answer(&mut self, login: &LoginId) -> Result<PinAnswer, BankError> {
         if self.rejected.contains(login) {
             return Ok(PinAnswer::Ask);
         }
@@ -212,13 +217,28 @@ impl PinSession {
         }
         // A place for saved PINs that can't be reached (KeePassXC not
         // running, a locked keychain) means none is known, so the user is
-        // asked to type it, as the message for it says. An error here must
-        // not stop a connection whose PIN is typed each time (M6-B174).
+        // asked to type it. An error here must not stop a connection whose
+        // PIN is typed each time (M6-B174). The login is noted, so the PIN
+        // dialog says that the place is closed or locked and offers to try
+        // it again (M6-B193, D-622).
         match self.store.load(login) {
-            Ok(saved) => Ok(saved.map_or(PinAnswer::Ask, PinAnswer::Known)),
-            Err(BankError::KeePassXc | BankError::Keychain) => Ok(PinAnswer::Ask),
+            Ok(saved) => {
+                self.closed.remove(login);
+                Ok(saved.map_or(PinAnswer::Ask, PinAnswer::Known))
+            }
+            Err(BankError::KeePassXc | BankError::Keychain) => {
+                self.closed.insert(login.clone());
+                Ok(PinAnswer::Ask)
+            }
             Err(error) => Err(error),
         }
+    }
+
+    /// Whether the last [`Self::answer`] for `login` asked because the
+    /// place for saved PINs couldn't be reached, e.g. a password manager
+    /// that is closed or locked (M6-B193, D-622).
+    pub fn store_closed(&self, login: &LoginId) -> bool {
+        self.closed.contains(login)
     }
 
     /// Takes the PIN the user typed for `login`, to be kept as `mode`
@@ -228,12 +248,42 @@ impl PinSession {
     /// save is only remembered until the app closes.
     pub fn provide(&mut self, login: &LoginId, pin: Pin, mode: PinMode) -> Result<(), BankError> {
         self.rejected.remove(login);
+        self.closed.remove(login);
         let mode = self.keepable(mode);
         if mode == PinMode::SaveInKeychain {
             self.store.save(login, &pin)?;
         }
         self.remembered.insert(login.clone(), (pin, mode));
         Ok(())
+    }
+
+    /// Like [`Self::provide`], for a PIN typed after the PIN dialog said
+    /// that the place for saved PINs is closed or locked (M6-B193, D-622):
+    /// when the PIN is to be saved and that place still can't be reached,
+    /// the PIN is remembered until the app closes instead, as the dialog
+    /// said it would be, and the bank call goes on. Returns how the PIN is
+    /// kept. Any other error of the store is returned as by `provide`, and
+    /// the PIN is then not kept at all.
+    pub fn provide_or_remember(
+        &mut self,
+        login: &LoginId,
+        pin: Pin,
+        mode: PinMode,
+    ) -> Result<PinMode, BankError> {
+        self.rejected.remove(login);
+        self.closed.remove(login);
+        let mut mode = self.keepable(mode);
+        if mode == PinMode::SaveInKeychain {
+            match self.store.save(login, &pin) {
+                Ok(()) => {}
+                Err(BankError::KeePassXc | BankError::Keychain) => {
+                    mode = PinMode::RememberUntilClose;
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        self.remembered.insert(login.clone(), (pin, mode));
+        Ok(mode)
     }
 
     /// The bank called the PIN for `login` wrong: the remembered one is
@@ -292,6 +342,7 @@ impl PinSession {
     pub fn forget(&mut self, login: &LoginId) -> Result<(), BankError> {
         self.remembered.remove(login);
         self.rejected.remove(login);
+        self.closed.remove(login);
         self.store.delete(login)
     }
 
@@ -403,7 +454,7 @@ mod tests {
 
     #[test]
     fn without_a_pin_the_user_is_asked() {
-        let session = session();
+        let mut session = session();
         assert_eq!(session.answer(&login()), Ok(PinAnswer::Ask));
         assert_eq!(session.is_saved(&login()), Ok(false));
         assert!(!session.is_remembered(&login()));
@@ -442,7 +493,7 @@ mod tests {
         assert_eq!(session.is_saved(&login()), Ok(true));
         // A new run of the app: nothing remembered, the same store.
         let store = std::mem::replace(&mut session.store, Box::new(MemoryPinStore::new()));
-        let next_run = PinSession::new(store);
+        let mut next_run = PinSession::new(store);
         assert_eq!(next_run.answer(&login()), Ok(PinAnswer::Known(pin("0000"))));
         assert!(!next_run.is_remembered(&login()));
     }
@@ -613,8 +664,81 @@ mod tests {
             assert_eq!(session.answer(&login()), Ok(PinAnswer::Ask));
         }
         // Another error is still an error.
-        let session = PinSession::new(Box::new(Unreachable(BankError::Busy)));
+        let mut session = PinSession::new(Box::new(Unreachable(BankError::Busy)));
         assert_eq!(session.answer(&login()), Err(BankError::Busy));
+        assert!(!session.store_closed(&login()));
+    }
+
+    #[test]
+    fn a_closed_place_is_noted_until_it_answers_again() {
+        // M6-B193, D-622: the PIN dialog says why it asks.
+        let place = Shared::default();
+        let mut session = PinSession::new(Box::new(place.clone()));
+        session
+            .provide(&login(), pin("0000"), PinMode::SaveInKeychain)
+            .expect("saved");
+        session.end_session();
+        // A new run of the app: nothing remembered, the place is locked.
+        let mut session = PinSession::new(Box::new(place.clone()));
+        assert!(!session.store_closed(&login()));
+        place.0.lock().expect("store").unavailable = true;
+        assert_eq!(session.answer(&login()), Ok(PinAnswer::Ask));
+        assert!(session.store_closed(&login()));
+        assert!(!session.store_closed(&LoginId::new("login-2")));
+        // The user unlocked it and tried again: the saved PIN is used.
+        place.0.lock().expect("store").unavailable = false;
+        assert_eq!(session.answer(&login()), Ok(PinAnswer::Known(pin("0000"))));
+        assert!(!session.store_closed(&login()));
+        // A PIN the bank called wrong is asked for without the place.
+        place.0.lock().expect("store").unavailable = true;
+        let _ = session.rejected(&login());
+        assert_eq!(session.answer(&login()), Ok(PinAnswer::Ask));
+        assert!(!session.store_closed(&login()));
+    }
+
+    #[test]
+    fn a_pin_to_save_in_a_closed_place_is_remembered_until_the_app_closes() {
+        // M6-B193, D-622: "save" while the place is still locked keeps the
+        // PIN in memory, as the dialog said, and never somewhere else.
+        let place = Shared::default();
+        place.0.lock().expect("store").unavailable = true;
+        let mut session = PinSession::new(Box::new(place.clone()));
+        assert_eq!(session.answer(&login()), Ok(PinAnswer::Ask));
+        let kept = session.provide_or_remember(&login(), pin("0000"), PinMode::SaveInKeychain);
+        assert_eq!(kept, Ok(PinMode::RememberUntilClose));
+        assert!(!session.store_closed(&login()));
+        session.end_session();
+        assert_eq!(session.answer(&login()), Ok(PinAnswer::Known(pin("0000"))));
+        place.0.lock().expect("store").unavailable = false;
+        assert!(place.0.lock().expect("store").is_empty(), "nothing saved");
+        // The plain `provide` still refuses, as before.
+        let mut strict = PinSession::new(Box::new(place.clone()));
+        place.0.lock().expect("store").unavailable = true;
+        assert_eq!(
+            strict.provide(&login(), pin("0000"), PinMode::SaveInKeychain),
+            Err(BankError::Keychain)
+        );
+        assert!(!strict.is_remembered(&login()));
+        // Once the place answers, the PIN is saved as chosen.
+        place.0.lock().expect("store").unavailable = false;
+        let mut open = PinSession::new(Box::new(place.clone()));
+        assert_eq!(
+            open.provide_or_remember(&login(), pin("1111"), PinMode::SaveInKeychain),
+            Ok(PinMode::SaveInKeychain)
+        );
+        assert_eq!(open.is_saved(&login()), Ok(true));
+        // Other modes are kept as they are.
+        assert_eq!(
+            open.provide_or_remember(&login(), pin("2222"), PinMode::AskEachTime),
+            Ok(PinMode::AskEachTime)
+        );
+        // Another error of the place keeps nothing.
+        let mut broken = PinSession::new(Box::new(Unreachable(BankError::KeePassXcAnswer)));
+        assert_eq!(
+            broken.provide_or_remember(&login(), pin("0000"), PinMode::SaveInKeychain),
+            Err(BankError::KeePassXcAnswer)
+        );
+        assert!(!broken.is_remembered(&login()));
     }
 
     #[test]

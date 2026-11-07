@@ -11,9 +11,9 @@
 use kassensturz_core::{BankLink, Date};
 use kassensturz_import::{Limits, Statement};
 
-use crate::backend::{Bank, BankAccount, Login};
+use crate::backend::{Bank, BankAccount, BankAccountKind, Login};
 use crate::error::BankError;
-use crate::pin::{Pin, PinMode, PinSession};
+use crate::pin::{Pin, PinAnswer, PinMode, PinSession};
 use crate::statement::statement;
 
 /// How many times the bank may call a PIN wrong in one fetch before the fetch
@@ -21,13 +21,76 @@ use crate::statement::statement;
 /// the user is asked once more after the first, and never a third time.
 const MAX_REJECTED_PINS: usize = 2;
 
+/// Why the PIN dialog asks, so it can tell the user (threat T-05,
+/// M6-B193).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct PinPrompt {
+    /// The bank has just called the last PIN wrong.
+    pub rejected: bool,
+    /// A PIN may be saved, but the place for saved PINs couldn't be reached:
+    /// the password manager or keychain is closed or locked (D-622). The
+    /// dialog offers to open it and try again.
+    pub store_closed: bool,
+}
+
+/// What the user answered in the PIN dialog.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PinReply {
+    /// The PIN typed, and how long to keep it.
+    Typed(Pin, PinMode),
+    /// The user opened or unlocked the place for saved PINs and wants it
+    /// read again (only offered with [`PinPrompt::store_closed`]).
+    TryStoreAgain,
+    /// The user cancelled.
+    Cancel,
+}
+
 /// How the front end asks the user for the PIN of a login: a dialog, or in a
 /// test an answer made up beforehand.
 pub trait PinAsker {
-    /// The PIN the user typed for `login` and how long to keep it, or `None`
-    /// when the user cancelled. `rejected` says the bank has just called the
-    /// last PIN wrong, so the dialog can say so.
-    fn pin(&mut self, login: &Login, rejected: bool) -> Option<(Pin, PinMode)>;
+    /// What the user answered when asked for the PIN of `login`; `prompt`
+    /// says why the dialog asks.
+    fn pin(&mut self, login: &Login, prompt: PinPrompt) -> PinReply;
+}
+
+/// Asks the user for the PIN of `login` and keeps the one typed in `pins`.
+/// When the place for saved PINs couldn't be reached, the dialog says so
+/// and the user may open it and try again: the place is opened (which may
+/// show the password manager's own unlock window) and read once more,
+/// without contacting the bank; if it still can't be read or holds no PIN,
+/// the user is asked again (M6-B193, D-622). A PIN to save that is typed
+/// while the place is still closed is remembered until the app closes,
+/// as the dialog says. Cancelling is [`BankError::Aborted`].
+fn ask_for_pin(
+    pins: &mut PinSession,
+    asker: &mut dyn PinAsker,
+    login: &Login,
+    rejected: bool,
+) -> Result<(), BankError> {
+    loop {
+        let store_closed = !rejected && pins.saves() && pins.store_closed(&login.id);
+        match asker.pin(
+            login,
+            PinPrompt {
+                rejected,
+                store_closed,
+            },
+        ) {
+            PinReply::Cancel => return Err(BankError::Aborted),
+            PinReply::Typed(pin, mode) if store_closed => {
+                pins.provide_or_remember(&login.id, pin, mode)?;
+                return Ok(());
+            }
+            PinReply::Typed(pin, mode) => return pins.provide(&login.id, pin, mode),
+            PinReply::TryStoreAgain => {
+                // An error opening it shows in the read that follows.
+                let _ = pins.open_store();
+                if let PinAnswer::Known(_) = pins.answer(&login.id)? {
+                    return Ok(());
+                }
+            }
+        }
+    }
 }
 
 /// The text without spaces and in capitals, the way IBANs and account
@@ -183,6 +246,11 @@ pub fn fetch_linked(
     limits: &Limits,
 ) -> Result<Statement, BankError> {
     let (login, account) = find_bank_account(bank, link)?;
+    // A securities account holds no money transactions KassenSturz can
+    // read yet; its bank is not even contacted (M6-B190, D-624).
+    if account.kind == BankAccountKind::Securities {
+        return Err(BankError::SecuritiesAccount);
+    }
     let mut rejected = 0;
     loop {
         match bank.fetch(&account.id, fetch_start(link.last_fetched_on), pins) {
@@ -191,8 +259,7 @@ pub fn fetch_linked(
             Err(BankError::PinRejected) if rejected + 1 < MAX_REJECTED_PINS => rejected += 1,
             Err(error) => return Err(error),
         }
-        let (pin, mode) = asker.pin(&login, rejected > 0).ok_or(BankError::Aborted)?;
-        pins.provide(&login.id, pin, mode)?;
+        ask_for_pin(pins, asker, &login, rejected > 0)?;
     }
 }
 
@@ -212,8 +279,7 @@ pub fn refresh_linked(
             Err(BankError::PinRejected) if rejected + 1 < MAX_REJECTED_PINS => rejected += 1,
             other => return other,
         }
-        let (pin, mode) = asker.pin(login, rejected > 0).ok_or(BankError::Aborted)?;
-        pins.provide(&login.id, pin, mode)?;
+        ask_for_pin(pins, asker, login, rejected > 0)?;
     }
 }
 
@@ -274,10 +340,12 @@ mod tests {
     }
 
     impl PinAsker for Answers {
-        fn pin(&mut self, _login: &Login, rejected: bool) -> Option<(Pin, PinMode)> {
-            self.asked.push(rejected);
-            let pin = self.pins.pop().expect("asked more often than answered")?;
-            Some((Pin::new(pin.to_owned()), self.mode))
+        fn pin(&mut self, _login: &Login, prompt: PinPrompt) -> PinReply {
+            self.asked.push(prompt.rejected);
+            match self.pins.pop().expect("asked more often than answered") {
+                Some(pin) => PinReply::Typed(Pin::new(pin.to_owned()), self.mode),
+                None => PinReply::Cancel,
+            }
         }
     }
 
@@ -546,5 +614,176 @@ mod tests {
                 amount: "1/3".to_owned()
             })
         );
+    }
+
+    /// A place for saved PINs the test can lock and unlock, and that
+    /// counts how often it was opened.
+    #[derive(Clone, Default)]
+    struct Lockable(std::sync::Arc<std::sync::Mutex<(MemoryPinStore, usize)>>);
+
+    impl Lockable {
+        fn lock(&self, locked: bool) {
+            self.0.lock().expect("store").0.unavailable = locked;
+        }
+
+        fn opened(&self) -> usize {
+            self.0.lock().expect("store").1
+        }
+
+        fn saved(&self) -> usize {
+            self.0.lock().expect("store").0.len()
+        }
+    }
+
+    impl crate::pin::PinStore for Lockable {
+        fn save(&mut self, login: &LoginId, pin: &Pin) -> Result<(), BankError> {
+            self.0.lock().expect("store").0.save(login, pin)
+        }
+
+        fn load(&self, login: &LoginId) -> Result<Option<Pin>, BankError> {
+            self.0.lock().expect("store").0.load(login)
+        }
+
+        fn delete(&mut self, login: &LoginId) -> Result<(), BankError> {
+            self.0.lock().expect("store").0.delete(login)
+        }
+
+        fn open(&self) -> Result<Option<kassensturz_platform::KeychainPlace>, BankError> {
+            let mut inner = self.0.lock().expect("store");
+            inner.1 += 1;
+            Ok(None)
+        }
+    }
+
+    /// Answers with the replies it is given in turn, and keeps each prompt.
+    struct Script {
+        replies: Vec<PinReply>,
+        prompts: Vec<PinPrompt>,
+        before_reply: Option<Box<dyn FnMut(usize)>>,
+    }
+
+    impl Script {
+        fn new(replies: Vec<PinReply>) -> Self {
+            Self {
+                replies: replies.into_iter().rev().collect(),
+                prompts: Vec::new(),
+                before_reply: None,
+            }
+        }
+    }
+
+    impl PinAsker for Script {
+        fn pin(&mut self, _login: &Login, prompt: PinPrompt) -> PinReply {
+            self.prompts.push(prompt);
+            if let Some(hook) = self.before_reply.as_mut() {
+                hook(self.prompts.len());
+            }
+            self.replies.pop().expect("asked more often than answered")
+        }
+    }
+
+    /// A fake bank whose login's PIN is saved in `place`, as in a new run
+    /// of the app: nothing is remembered.
+    fn saved_in(place: &Lockable) -> (FakeBank, PinSession, BankLink) {
+        let (bank, mut pins, login) = bank();
+        pins.use_store(Box::new(place.clone()));
+        pins.provide(
+            &login.id,
+            Pin::new(FakeBank::PIN.to_owned()),
+            PinMode::SaveInKeychain,
+        )
+        .expect("saved");
+        let pins = PinSession::new(Box::new(place.clone()));
+        assert!(!pins.is_remembered(&login.id));
+        (bank, pins, link(Some(CURRENT_ACCOUNT_IBAN), None, None))
+    }
+
+    #[test]
+    fn a_locked_place_is_named_and_can_be_opened_and_tried_again() {
+        // M6-B193, D-622: the user unlocks it and chooses to try again;
+        // the saved PIN is read and the fetch goes on.
+        let place = Lockable::default();
+        let (mut bank, mut pins, link) = saved_in(&place);
+        place.lock(true);
+        let mut asker = Script::new(vec![PinReply::TryStoreAgain]);
+        let unlock = place.clone();
+        asker.before_reply = Some(Box::new(move |_| unlock.lock(false)));
+        fetch_linked(&mut bank, &mut pins, &mut asker, &link, &Limits::default())
+            .expect("a statement");
+        assert_eq!(
+            asker.prompts,
+            vec![PinPrompt {
+                rejected: false,
+                store_closed: true
+            }]
+        );
+        assert_eq!(place.opened(), 1, "opened before reading again");
+    }
+
+    #[test]
+    fn a_place_still_locked_after_trying_again_is_named_again() {
+        let place = Lockable::default();
+        let (mut bank, mut pins, link) = saved_in(&place);
+        place.lock(true);
+        // Still locked, then the user types the PIN themselves.
+        let mut asker = Script::new(vec![
+            PinReply::TryStoreAgain,
+            PinReply::Typed(Pin::new(FakeBank::PIN.to_owned()), PinMode::AskEachTime),
+        ]);
+        fetch_linked(&mut bank, &mut pins, &mut asker, &link, &Limits::default())
+            .expect("a statement");
+        let closed = PinPrompt {
+            rejected: false,
+            store_closed: true,
+        };
+        assert_eq!(asker.prompts, vec![closed, closed]);
+        assert_eq!(place.opened(), 1);
+        // Cancelling stops the fetch, as before.
+        let mut asker = Script::new(vec![PinReply::Cancel]);
+        assert_eq!(
+            fetch_linked(&mut bank, &mut pins, &mut asker, &link, &Limits::default()),
+            Err(BankError::Aborted)
+        );
+    }
+
+    #[test]
+    fn saving_while_the_place_is_locked_keeps_the_pin_until_the_app_closes() {
+        // M6-B193, D-622: before, the PIN typed was dropped and the fetch
+        // stopped with `bank.keychain`.
+        let place = Lockable::default();
+        let (mut bank, mut pins, link) = saved_in(&place);
+        let login = LoginId::new("fake-login-1");
+        pins.forget(&login).expect("forgotten");
+        assert_eq!(place.saved(), 0);
+        // Saved before, now gone; the place is locked at the next fetch.
+        place.lock(true);
+        let mut asker = Script::new(vec![PinReply::Typed(
+            Pin::new(FakeBank::PIN.to_owned()),
+            PinMode::SaveInKeychain,
+        )]);
+        fetch_linked(&mut bank, &mut pins, &mut asker, &link, &Limits::default())
+            .expect("a statement");
+        assert!(pins.is_remembered(&login));
+        place.lock(false);
+        assert_eq!(place.saved(), 0, "nothing saved anywhere");
+        // The next fetch in this run doesn't ask.
+        let mut asker = Script::new(Vec::new());
+        fetch_linked(&mut bank, &mut pins, &mut asker, &link, &Limits::default())
+            .expect("a statement");
+        assert!(asker.prompts.is_empty());
+    }
+
+    #[test]
+    fn a_place_that_answers_but_holds_no_pin_asks_as_before() {
+        let place = Lockable::default();
+        let (mut bank, _, link) = saved_in(&place);
+        let mut pins = PinSession::new(Box::new(MemoryPinStore::new()));
+        let mut asker = Script::new(vec![PinReply::Typed(
+            Pin::new(FakeBank::PIN.to_owned()),
+            PinMode::AskEachTime,
+        )]);
+        fetch_linked(&mut bank, &mut pins, &mut asker, &link, &Limits::default())
+            .expect("a statement");
+        assert_eq!(asker.prompts, vec![PinPrompt::default()]);
     }
 }

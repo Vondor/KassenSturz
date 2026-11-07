@@ -184,6 +184,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is a character position", "Character %1 isn't one formulas use. Take it out, or put a name with spaces or special characters in single quotes: 'Eating out'.", result.position);
         case "missing-quote":
             return i18nContext.i18nc("@info %1 is a character position", "A quote at character %1 is never closed. Add the quote that closes it.", result.position);
+        case "unknown-kind":
+            return i18nContext.i18nc("@info %1 is a character position", "The word before the dot at character %1 isn't one formulas know. Write Income or Spending before the dot, for example Spending.Pets, or put a name with a dot in single quotes.", result.position);
         case "bad-period":
             return i18nContext.i18nc("@info %1 is a character position", "The time range at character %1 isn't written the way ranges are. Use words in double quotes, such as @\"last month\", or dates, such as @2026-03 or @2026-01..2026-03.", result.position);
         }
@@ -393,6 +395,8 @@ Kirigami.InlineMessage {
         case "report.formula-unknown-name":
             return i18nContext.i18nc("@info %1 is a name, %2 a character position", "%1 is not a category or one of My groups (character %2). Check the spelling, or put a name with spaces in single quotes: 'Eating out'.", result.name, result.position);
         case "report.formula-ambiguous-name":
+            if (result.by === "kind")
+                return i18nContext.i18nc("@info %1 is a name, %2 a list of names", "%1 fits more than one: %2. Write the one you mean as listed. Income. in front is money that came in, Spending. money that went out. Or rename a group or category of the same name.", result.name, result.paths);
             return i18nContext.i18nc("@info %1 is a name, %2 a list of names", "%1 fits more than one: %2. Write the one you mean with its path, as listed, or rename a group or category of the same name.", result.name, result.paths);
         case "report.formula-unknown-function":
             return i18nContext.i18nc("@info %1 is a function name, %2 a character position", "There is no function called %1 (character %2). The list of functions beside the formula shows the ones there are.", result.name, result.position);
@@ -606,6 +610,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "Your bank doesn't list the bank account this account is linked to for this login anymore. Link the account to another bank account, or connect the bank again in Settings.");
         case "bank.no-bank-account":
             return i18nContext.i18nc("@info", "None of your bank logins lists the bank account this account is linked to. Connect the bank again in Settings, or link the account to another bank account.");
+        case "bank.securities-account":
+            return i18nContext.i18nc("@info", "This account is linked to a securities account (depot) at your bank. KassenSturz can't get securities accounts yet, so nothing was fetched for it. Unlink it on the Get new transactions page if you don't want it tried again.");
         case "bank.pin-needed":
             return i18nContext.i18nc("@info", "Your bank asks for your PIN. Type it to continue.");
         case "bank.pin-rejected":

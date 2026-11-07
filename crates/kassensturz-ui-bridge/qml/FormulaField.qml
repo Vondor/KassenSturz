@@ -106,7 +106,7 @@ ColumnLayout {
     // The words of "counts Pets (with Vet), Travel".
     function counts(lines: var): string {
         const parts = lines.map(line => {
-            let name = line.all !== "" ? allName(line.all) : line.name;
+            let name = line.all ? allName(line.all) : line.name;
             if (line.inside.length > 0) {
                 const more = line.insideMore > 0
                     ? i18nContext.i18ncp("@info the end of a list of names", "and %1 more", "and %1 more", line.insideMore) : "";
@@ -252,7 +252,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 focusPolicy: Qt.NoFocus
                 highlighted: index === field.chosen
-                text: Plain.plain(modelData.all !== ""
+                text: Plain.plain(modelData.all
                     ? field.i18nContext.i18nc("@item %1 is what the formula writes for all spending or all income", "%1 (all, also what is not sorted yet)", modelData.label)
                     : modelData.group
                     ? field.i18nContext.i18nc("@item a group of categories the user made, %1 is its name", "%1 (group)", modelData.label)

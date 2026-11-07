@@ -57,6 +57,9 @@ pub const CURRENT_IBAN: &str = "DE89370400440532013000";
 pub const CURRENT_NUMBER: &str = "0532013000";
 /// The credit card's number, as the bank shows it.
 pub const CARD_NUMBER: &str = "1234567890";
+/// The securities account's number, listed in the `securities` scenarios
+/// (M6-B190).
+pub const DEPOT_NUMBER: &str = "7000000001";
 /// The other party's IBAN in the fetched transactions (SWIFT's example
 /// for Germany with a different bank).
 pub const OTHER_IBAN: &str = "DE02120300000000202051";
@@ -932,7 +935,7 @@ fn get_accounts(uid: u32) -> c_int {
     if state.accounts.iter().any(|account| account.user_id == uid) {
         return 0;
     }
-    for (kind, iban, number, name) in [
+    let mut listed = vec![
         (
             AB_AccountType_Checking,
             Some(CURRENT_IBAN),
@@ -940,7 +943,13 @@ fn get_accounts(uid: u32) -> c_int {
             "Girokonto",
         ),
         (AB_AccountType_CreditCard, None, CARD_NUMBER, "Kreditkarte"),
-    ] {
+    ];
+    // `securities`: the bank also lists a depot, which AqBanking gives the
+    // investment kind (FinTS account types 30 to 39, M6-B190).
+    if state.scenario.contains("securities") {
+        listed.push((AB_AccountType_Investment, None, DEPOT_NUMBER, "Depot"));
+    }
+    for (kind, iban, number, name) in listed {
         // `iban-only`: a bank whose accounts all come with an IBAN, which
         // needs the SEPA call for the BIC alone.
         if iban.is_none() && state.scenario.contains("iban-only") {

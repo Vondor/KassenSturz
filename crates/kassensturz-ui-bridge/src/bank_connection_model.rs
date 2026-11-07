@@ -559,6 +559,10 @@ impl qobject::BankConnection {
         let Some(chosen) = listed.iter().find(|entry| entry.key == key) else {
             return error_object(&ErrorText::plain("input.no-such-entry"));
         };
+        // Never linked: it can't be fetched yet (M6-B190, D-624).
+        if !bank_connection::can_link(&chosen.found) {
+            return error_object(&bank_connection::error_text(&BankError::SecuritiesAccount));
+        }
         match session::with_book_mut(|book| {
             let account = crate::transaction_entry::find_account(book, &account_id)
                 .map_err(|_| ErrorText::plain("input.no-such-entry"))?;

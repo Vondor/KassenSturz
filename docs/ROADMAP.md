@@ -246,7 +246,7 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **US1.2** · **dropped** · not done: #539 point 3, the bank library's "Adding flags" lines on the terminal. Why: cosmetic library stderr, accepted by the maintainer (Q-439 = 1); US1.1 found that AqBanking prints them whatever its log level (D-623)
 
-- **US1.3** · **todo** · thread A, after US1.1 · needs: US1.1 · strong, medium · D-622 to D-624 (shared with US1.1) · human gate (bank). #514 (M6-B190): a securities account is offered at bank setup and fetching it fails. Show such accounts as "not supported yet" with one line why, not linkable, never fetched. Why: no dead ends; hiding them would confuse
+- **US1.3** · **in review** · thread A, after US1.1 · needs: US1.1 · strong, medium · D-622 to D-624 (shared with US1.1) · human gate (bank). #514 (M6-B190): a securities account is offered at bank setup and fetching it fails. Show such accounts as "not supported yet" with one line why, not linkable, never fetched. Why: no dead ends; hiding them would confuse
 
 - **US1.4** · **later** · waits for: the next removal of a bank login in US1 Phase 3 (a line in the test plan). #505 (M6-B188): check that the kept keychain entry's password is empty, then close the issue. Why: #506 already explains it in the remove dialog; only the check is left
 

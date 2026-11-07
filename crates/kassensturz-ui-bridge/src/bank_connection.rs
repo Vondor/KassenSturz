@@ -1195,7 +1195,8 @@ pub struct FoundAccount {
     pub number: String,
     /// The name the bank gives it.
     pub name: String,
-    /// `current`, `savings`, `credit-card` or `other`.
+    /// `current`, `savings`, `credit-card`, `securities` (never linked or
+    /// fetched, D-624) or `other`.
     pub kind: &'static str,
     /// Its currency's code, if the bank says.
     pub currency: String,
@@ -1335,6 +1336,7 @@ fn found(account: BankAccount, code: &BankCode) -> FoundAccount {
             BankAccountKind::Current => "current",
             BankAccountKind::Savings => "savings",
             BankAccountKind::CreditCard => "credit-card",
+            BankAccountKind::Securities => "securities",
             BankAccountKind::Other => "other",
         },
         currency: account
@@ -1500,6 +1502,9 @@ pub fn link(
     let accounts = book.accounts(false)?;
     let mut linked = 0;
     for (bank_account, choice) in found.iter().zip(choices) {
+        if !can_link(bank_account) {
+            continue;
+        }
         let Some(account) = accounts
             .iter()
             .find(|account| account.id.to_string() == *choice)
@@ -1510,6 +1515,13 @@ pub fn link(
         linked += 1;
     }
     Ok(linked)
+}
+
+/// Whether an account of the book may be linked to the bank account
+/// `found`: not to a securities account, which can't be fetched yet
+/// (M6-B190, D-624). The screens show such an account as not supported.
+pub fn can_link(found: &FoundAccount) -> bool {
+    found.kind != "securities"
 }
 
 /// Links the bank account `found` to the book account `account`, as one
@@ -2079,6 +2091,7 @@ pub fn linkable<'a>(
         .collect();
     let suggested = free
         .iter()
+        .filter(|entry| can_link(&entry.found))
         .find(|entry| {
             own.as_deref().is_some_and(|own| {
                 !own.is_empty()
@@ -2962,6 +2975,45 @@ mod tests {
             })
             .expect("asked");
         assert!(remembered);
+    }
+
+    #[test]
+    fn a_securities_account_is_listed_but_never_linked_or_fetched() {
+        // M6-B190, D-624: the bank lists a depot. It is shown as such, can't
+        // be linked, and a link made before fails on its own, without the
+        // bank, while the other accounts are fetched.
+        let mut connection =
+            fetch_connection(|bank| *bank = std::mem::take(bank).with_securities_account());
+        let listed = bank_account_choices(&mut connection).expect("listed");
+        let kinds: Vec<_> = listed.iter().map(|entry| entry.found.kind).collect();
+        assert_eq!(kinds, vec!["current", "credit-card", "securities"]);
+        assert!(!can_link(&listed[2].found));
+        assert!(can_link(&listed[0].found) && can_link(&listed[1].found));
+
+        let mut book = Book::create_in_memory().expect("book");
+        let current = account(&mut book, "Current account", None);
+        let card = account(&mut book, "Card", None);
+        // Its number is the depot's, so the depot would be suggested.
+        let depot = account(&mut book, "Depot", Some("7000000001"));
+        let found: Vec<FoundAccount> = listed.iter().map(|entry| entry.found.clone()).collect();
+        let choices = [current.to_string(), card.to_string(), depot.to_string()];
+        assert_eq!(link(&mut book, &found, &choices).expect("linked"), 2);
+        assert_eq!(book.bank_link(depot).expect("read"), None);
+        let (free, suggested) = linkable(&book, depot, &listed).expect("linkable");
+        assert_eq!(free.len(), 1, "the depot is still listed");
+        assert_eq!(suggested, "", "but never suggested");
+
+        // A link from before this change: it fails alone.
+        link_to(&mut book, depot, None, Some("7000000001"));
+        let outcomes =
+            fetch(&mut connection, requests(&book, &[depot, current]), today()).expect("fetched");
+        let states: Vec<_> = outcomes.iter().map(|outcome| outcome.state).collect();
+        assert_eq!(states, vec!["failed", "ready"]);
+        assert_eq!(
+            outcomes[0].error.as_ref().map(|error| error.code),
+            Some("bank.securities-account")
+        );
+        let _ = bank_fetch::take(current);
     }
 
     #[test]

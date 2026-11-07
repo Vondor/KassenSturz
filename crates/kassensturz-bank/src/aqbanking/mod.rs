@@ -931,6 +931,7 @@ fn bank_account(account: AccountRecord, login: &LoginId) -> BankAccount {
             AccountKind::Checking => BankAccountKind::Current,
             AccountKind::Savings => BankAccountKind::Savings,
             AccountKind::CreditCard => BankAccountKind::CreditCard,
+            AccountKind::Investment => BankAccountKind::Securities,
             AccountKind::OtherBank | AccountKind::Unknown(_) => BankAccountKind::Other,
         },
         iban: account.iban.filter(|iban| !iban.is_empty()),
@@ -1680,5 +1681,22 @@ mod tests {
         );
         assert_eq!(other.kind, BankAccountKind::Other);
         assert_eq!(other.currency, None);
+        // A depot is a securities account (M6-B190, D-624).
+        let depot = bank_account(
+            AccountRecord {
+                unique_id: 3,
+                kind: AccountKind::Investment,
+                country: None,
+                bank_code: None,
+                account_number: Some("7000000001".to_owned()),
+                sub_account_number: None,
+                iban: None,
+                bic: None,
+                currency: Some("EUR".to_owned()),
+                name: Some("Depot".to_owned()),
+            },
+            &LoginId::new("7"),
+        );
+        assert_eq!(depot.kind, BankAccountKind::Securities);
     }
 }

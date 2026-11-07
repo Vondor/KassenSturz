@@ -107,6 +107,8 @@ pub struct FakeBank {
     failure: Option<Failure>,
     second_factor: Option<SecondFactor>,
     dialogs: Dialogs,
+    /// Every login also lists a securities account (M6-B190, D-624).
+    securities: bool,
 }
 
 impl Default for FakeBank {
@@ -135,7 +137,16 @@ impl FakeBank {
             failure: None,
             second_factor: None,
             dialogs: Dialogs::default(),
+            securities: false,
         }
+    }
+
+    /// Makes every login also list a securities account (a depot), which
+    /// a real bank refuses to send transactions for (FinTS 9210), so the
+    /// screens and the fetch can be tried with one (M6-B190, D-624).
+    pub fn with_securities_account(mut self) -> Self {
+        self.securities = true;
+        self
     }
 
     /// Makes the fake bank ask for `factor` after the PIN on every
@@ -224,7 +235,25 @@ impl FakeBank {
             .ok_or_else(|| BankError::UnknownLogin(login.clone()))
     }
 
-    /// The accounts of `login`: the current account and the credit card.
+    /// The accounts of `login`: the current account and the credit card,
+    /// and the securities account when there is one.
+    fn listed(&self, login: &LoginId) -> Vec<BankAccount> {
+        let mut accounts = Self::accounts_of(login);
+        if self.securities {
+            accounts.push(BankAccount {
+                id: BankAccountId::new(format!("{login}/securities")),
+                login: login.clone(),
+                kind: BankAccountKind::Securities,
+                iban: None,
+                number: Some("7000000001".to_owned()),
+                currency: Some(EUR),
+                name: Some("Securities account".to_owned()),
+            });
+        }
+        accounts
+    }
+
+    /// The current account and the credit card of `login`.
     fn accounts_of(login: &LoginId) -> Vec<BankAccount> {
         vec![
             BankAccount {
@@ -530,7 +559,7 @@ impl Bank for FakeBank {
         self.find(login)?;
         self.connect(login, pins)?;
         pins.end_session();
-        Ok(Self::accounts_of(login))
+        Ok(self.listed(login))
     }
 
     fn remove_login(&mut self, login: &LoginId) -> Result<(), BankError> {
@@ -543,7 +572,7 @@ impl Bank for FakeBank {
     fn accounts(&self, login: &LoginId) -> Result<Vec<BankAccount>, BankError> {
         self.availability.require()?;
         self.find(login)?;
-        Ok(Self::accounts_of(login))
+        Ok(self.listed(login))
     }
 
     fn fetch(
@@ -556,10 +585,18 @@ impl Bank for FakeBank {
         let account = self
             .logins
             .iter()
-            .flat_map(|fake| Self::accounts_of(&fake.login.id))
+            .flat_map(|fake| self.listed(&fake.login.id))
             .find(|candidate| &candidate.id == account)
             .ok_or_else(|| BankError::UnknownAccount(account.clone()))?;
         self.connect(&account.login, pins)?;
+        // A real bank refuses statements for a depot (M6-B190).
+        if account.kind == BankAccountKind::Securities {
+            return Err(BankError::Refused {
+                text: Some(
+                    "9210 This order type is not possible with this account (made up)".to_owned(),
+                ),
+            });
+        }
         pins.end_session();
         let eur = Currency::new(EUR, 2).expect("two decimal places");
         let (mut transactions, balance) = match account.kind {

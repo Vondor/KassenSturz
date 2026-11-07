@@ -941,6 +941,11 @@ fn get_accounts(uid: u32) -> c_int {
         ),
         (AB_AccountType_CreditCard, None, CARD_NUMBER, "Kreditkarte"),
     ] {
+        // `iban-only`: a bank whose accounts all come with an IBAN, which
+        // needs the SEPA call for the BIC alone.
+        if iban.is_none() && state.scenario.contains("iban-only") {
+            continue;
+        }
         let aid = state.next_account_id;
         state.next_account_id += 1;
         state.accounts.push(Account {

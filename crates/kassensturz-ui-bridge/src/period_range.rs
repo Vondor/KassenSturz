@@ -7,7 +7,7 @@
 //! QML, which only ever sees text (D-065).
 
 use kassensturz_core::Date;
-use kassensturz_report::{ReportError, range_word, read_range_word};
+use kassensturz_report::{MAX_ROLLING_MONTHS, ReportError, Rolling, range_word, read_range_word};
 
 use crate::format::Locale;
 
@@ -89,6 +89,26 @@ pub fn describe(word: &str, locale: &impl Locale) -> Option<String> {
         (None, Some(last)) => format!("<={}", locale.short_date(last)),
         (None, None) => return None,
     })
+}
+
+/// The word for "the last `count` months" (D-644), with or without the month
+/// today is in; `None` for a count KassenSturz doesn't keep (below 1 or
+/// above [`MAX_ROLLING_MONTHS`]).
+pub fn months_word(count: i32, complete: bool) -> Option<String> {
+    let count = u16::try_from(count)
+        .ok()
+        .filter(|count| (1..=MAX_ROLLING_MONTHS).contains(count))?;
+    Some(Rolling::Months { count, complete }.word())
+}
+
+/// The word for the salary month that starts on `day` (D-645), the one today
+/// is in or the one `before` it; `None` for a day that is no day of a
+/// month.
+pub fn salary_month_word(day: i32, before: bool) -> Option<String> {
+    let day = i8::try_from(day)
+        .ok()
+        .filter(|day| (1..=31).contains(day))?;
+    Some(Rolling::SalaryMonth { day, before }.word())
 }
 
 /// An example of what to type, in the regional format.
@@ -228,8 +248,36 @@ mod tests {
             "01.01.2000 – 01.01.2020"
         );
         assert_eq!(describe("this-year", &Dotted), None);
+        assert_eq!(describe("last-3-months", &Dotted), None);
         assert_eq!(describe("2026-10", &Dotted), None);
         assert_eq!(example(&Dotted), "01.01.2000 – 01.01.2020");
         assert_eq!(word(&example(&Dotted)).unwrap(), "2000-01-01..2020-01-01");
+    }
+
+    #[test]
+    fn a_rolling_word_is_made_only_from_numbers_it_can_keep() {
+        assert_eq!(months_word(3, false).as_deref(), Some("last-3-months"));
+        assert_eq!(
+            months_word(6, true).as_deref(),
+            Some("last-6-complete-months")
+        );
+        assert_eq!(
+            months_word(120, true).as_deref(),
+            Some("last-120-complete-months")
+        );
+        for count in [0, -3, 121, 70_000] {
+            assert_eq!(months_word(count, false), None, "{count}");
+        }
+        assert_eq!(
+            salary_month_word(28, false).as_deref(),
+            Some("this-salary-month-28")
+        );
+        assert_eq!(
+            salary_month_word(31, true).as_deref(),
+            Some("last-salary-month-31")
+        );
+        for day in [0, 32, -1, 300] {
+            assert_eq!(salary_month_word(day, false), None, "{day}");
+        }
     }
 }

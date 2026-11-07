@@ -176,6 +176,72 @@ fn a_typed_range_is_a_period_for_a_component_and_a_box() {
 }
 
 #[test]
+fn a_rolling_period_is_kept_by_a_component_a_box_the_filter_bar_and_the_editor() {
+    let make = |kind: &str, word: &str| {
+        let mut component = card("c1", 0, 0);
+        component["type"] = kind.into();
+        if kind == "group.period" {
+            component.as_object_mut().unwrap().remove("dataset");
+        }
+        component["props"] = json!({"period": word});
+        dashboard(vec![component])
+    };
+    let words = [
+        "last-3-months",
+        "last-6-complete-months",
+        "this-salary-month-28",
+        "last-salary-month-31",
+    ];
+    for kind in ["kpi.card", "group.period"] {
+        for word in words {
+            let document = Document::read(&make(kind, word)).unwrap();
+            let Item::Component(read) = &document.entries[0].item else {
+                panic!("a known component");
+            };
+            assert_eq!(read.get("period"), Some(&Setting::Word(word.into())));
+            assert_eq!(Document::read(&document.to_json()).unwrap(), document);
+        }
+        for bad in ["last-0-months", "this-salary-month-32", "last-06-months"] {
+            assert_eq!(reason(&make(kind, bad)).1, "props.period", "{kind} {bad}");
+        }
+    }
+    // The filter bar's period: kept by the editor and in the stored text.
+    let mut editor = Editor::new(Document::default_overview().expect("default")).expect("editor");
+    for word in words {
+        let chosen = Filters {
+            period: Some(word.into()),
+            ..Filters::default()
+        };
+        editor.set_filters(&chosen).expect("a rolling period");
+        let text = editor.document().to_json();
+        assert_eq!(Document::read(&text).expect("read").filters(), chosen);
+    }
+    let bad = Filters {
+        period: Some("this-salary-month-0".into()),
+        ..Filters::default()
+    };
+    assert!(matches!(
+        editor.set_filters(&bad),
+        Err(ReportError::DocumentInvalid {
+            reason: "bad-choice",
+            ..
+        })
+    ));
+    // A component that names one counts the days it names.
+    let page = period(date(2026, 8, 1), date(2026, 8, 31));
+    let today = date(2026, 11, 7);
+    let of = |name| Period::for_component(name, page, today).unwrap().unwrap();
+    assert_eq!(
+        of("this-salary-month-28"),
+        period(date(2026, 10, 28), date(2026, 11, 27))
+    );
+    assert_eq!(
+        of("last-3-complete-months"),
+        period(date(2026, 8, 1), date(2026, 10, 31))
+    );
+}
+
+#[test]
 fn a_component_takes_the_page_period_or_its_own() {
     let page = period(date(2026, 8, 1), date(2026, 8, 31));
     let today = date(2026, 10, 15);

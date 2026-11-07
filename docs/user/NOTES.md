@@ -304,3 +304,10 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **A chart on the Overview** can be changed in the steps too: Edit layout, open the chart's Properties, then **Change step by step in the Statistic Builder**. Finish brings the change back to the chart, and Undo takes it back.
 - **Leaving the builder before Finish** loses nothing while KassenSturz runs: the statistic is back the next time the builder opens, at the step where you left it. Cancel starts a new one.
 - **Colors** of charts are one palette for every chart, in Settings → Chart colors. **Edit palette…** in the builder's last step and in a chart's Properties leads there.
+
+## Periods that move with today (US1.12)
+
+- **Every place that asks for a period** (the filter bar, a widget's Properties, the Statistic Builder) offers *The last months…* and *A salary month…* after the quick choices. Both move with today, so a chart never goes stale.
+- **The last months:** choose how many. *Only complete months (leave out this month)* is ticked at first, because a month that isn't over yet makes its figures look small; untick it to count this month too.
+- **A salary month** runs from a day you choose, for example your payday, to the day before it in the next month. In a month without that day (the 31st in April), its last day counts. Choose *The one running now* or *The one before*.
+- **One period for the whole page:** choose it in the filter bar and every chart, table, number card and formula that follows the page counts the same days.

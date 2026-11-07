@@ -154,8 +154,19 @@ QtObject {
         case "last-year":
             return i18nContext.i18nc("@item:inlistbox a period", "Last year");
         }
-        // A range the user typed is named by its dates.
+        // A rolling period is named by its numbers (D-644, D-645), a range
+        // the user typed by its dates.
         const described = range.describe(word);
+        if (described.rolling === "months") {
+            return described.complete
+                ? i18nContext.i18ncp("@item:inlistbox a period of whole months that are over", "The last complete month", "The last %1 complete months", described.count)
+                : i18nContext.i18ncp("@item:inlistbox a period of months up to and with this one", "This month", "The last %1 months", described.count);
+        }
+        if (described.rolling === "salary") {
+            return described.before
+                ? i18nContext.i18nc("@item:inlistbox a period; %1 is a day of the month, 1 to 31", "The salary month before, from day %1", described.day)
+                : i18nContext.i18nc("@item:inlistbox a period; %1 is a day of the month, 1 to 31", "The salary month from day %1", described.day);
+        }
         return described.custom ? described.text : "";
     }
 

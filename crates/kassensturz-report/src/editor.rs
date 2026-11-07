@@ -21,8 +21,8 @@ use crate::grid::{
     self, COLUMNS, LAST_ROW, MAX_ROWS, Size, first_free, is_box, push_down, refused,
 };
 use crate::{
-    Component, ComponentType, Document, Entry, Filters, Frame, Item, MAX_COMPONENTS, PERIODS,
-    ReportError, read_range_word,
+    Component, ComponentType, Document, Entry, Filters, Frame, Item, MAX_COMPONENTS, ReportError,
+    is_period_word,
 };
 
 /// The most edits the editor can take back (D-288).
@@ -202,14 +202,14 @@ impl Editor {
     /// stored, as part of its one history entry, and dropped with it on
     /// Cancel. Refused: a list of more than [`crate::MAX_FILTER_IDS`] IDs or
     /// with one twice (`report.filter-invalid`); a period that is neither a
-    /// fixed one nor a typed range (`report.document-invalid`). An ID the book no longer knows
+    /// fixed one, a rolling one nor a typed range (`report.document-invalid`). An ID the book no longer knows
     /// is kept, so the user can take it out. Gives `false` when nothing
     /// changed.
     pub fn set_filters(&mut self, filters: &Filters) -> Result<bool, ReportError> {
         if filters
             .period
             .as_deref()
-            .is_some_and(|period| !PERIODS.contains(&period) && read_range_word(period).is_none())
+            .is_some_and(|period| !is_period_word(period))
         {
             return Err(ReportError::DocumentInvalid {
                 reason: "bad-choice",

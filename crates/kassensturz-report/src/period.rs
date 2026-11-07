@@ -48,6 +48,147 @@ pub fn read_range_word(word: &str) -> Option<(Option<Date>, Option<Date>)> {
     }
 }
 
+/// The most months a "last N months" period counts back (D-644).
+pub const MAX_ROLLING_MONTHS: u16 = 120;
+
+/// A period that moves with today (US1.12, D-644): the last few calendar
+/// months, or a salary month that starts on a day of the month. Its word
+/// names it completely, so a component, a period box or the filter bar
+/// stores it like any other period and every figure on the page counts the
+/// same days.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Rolling {
+    /// `count` calendar months up to today's. With `complete`, the month
+    /// today is in is left out: the months end with the last whole one.
+    /// Words `last-N-months` and `last-N-complete-months`.
+    Months {
+        /// How many months, 1 to [`MAX_ROLLING_MONTHS`].
+        count: u16,
+        /// Whether only whole months that are over count.
+        complete: bool,
+    },
+    /// The month from one salary day to the day before the next (D-645).
+    /// In a month shorter than `day` its last day counts. Words
+    /// `this-salary-month-D` and `last-salary-month-D`.
+    SalaryMonth {
+        /// The day of the month it starts on, 1 to 31.
+        day: i8,
+        /// Whether it is the salary month before the one today is in.
+        before: bool,
+    },
+}
+
+impl Rolling {
+    /// The word a period of this kind is stored as.
+    pub fn word(self) -> String {
+        match self {
+            Self::Months {
+                count,
+                complete: false,
+            } => format!("last-{count}-months"),
+            Self::Months {
+                count,
+                complete: true,
+            } => format!("last-{count}-complete-months"),
+            Self::SalaryMonth { day, before: false } => format!("this-salary-month-{day}"),
+            Self::SalaryMonth { day, before: true } => format!("last-salary-month-{day}"),
+        }
+    }
+
+    /// The rolling period `word` names, if it is one that [`Self::word`]
+    /// could have written (numbers without leading zeros, in range).
+    pub fn read(word: &str) -> Option<Self> {
+        let number = |text: &str| -> Option<u16> {
+            let plain = !text.is_empty()
+                && !text.starts_with('0')
+                && text.len() <= 3
+                && text.bytes().all(|b| b.is_ascii_digit());
+            plain.then(|| text.parse().ok()).flatten()
+        };
+        if let Some(rest) = word.strip_prefix("last-") {
+            if let Some(count) = rest.strip_suffix("-complete-months") {
+                let count = number(count).filter(|n| *n <= MAX_ROLLING_MONTHS)?;
+                return Some(Self::Months {
+                    count,
+                    complete: true,
+                });
+            }
+            if let Some(count) = rest.strip_suffix("-months") {
+                let count = number(count).filter(|n| *n <= MAX_ROLLING_MONTHS)?;
+                return Some(Self::Months {
+                    count,
+                    complete: false,
+                });
+            }
+        }
+        let (day, before) = if let Some(day) = word.strip_prefix("this-salary-month-") {
+            (day, false)
+        } else {
+            (word.strip_prefix("last-salary-month-")?, true)
+        };
+        let day = number(day).filter(|day| *day <= 31)?;
+        Some(Self::SalaryMonth {
+            day: i8::try_from(day).ok()?,
+            before,
+        })
+    }
+
+    /// The days it covers, seen from `today`.
+    pub fn period(self, today: Date) -> Result<Period, ReportError> {
+        let bad = |_| ReportError::BadPeriod;
+        match self {
+            Self::Months { count, complete } => {
+                let end = if complete {
+                    today.first_of_month().checked_sub(1.month()).map_err(bad)?
+                } else {
+                    today.first_of_month()
+                };
+                let first = end
+                    .checked_sub((i32::from(count) - 1).months())
+                    .map_err(bad)?;
+                Period::new(first, end.last_of_month())
+            }
+            Self::SalaryMonth { day, before } => {
+                let this = salary_day(today.first_of_month(), day)?;
+                let mut month = if today < this {
+                    today.first_of_month().checked_sub(1.month()).map_err(bad)?
+                } else {
+                    today.first_of_month()
+                };
+                if before {
+                    month = month.checked_sub(1.month()).map_err(bad)?;
+                }
+                salary_month(month, day)
+            }
+        }
+    }
+}
+
+/// The salary day `day` in the month that starts on `month`: that day, or
+/// the month's last day when the month is shorter (D-645).
+fn salary_day(month: Date, day: i8) -> Result<Date, ReportError> {
+    Date::new(month.year(), month.month(), day.min(month.days_in_month()))
+        .map_err(|_| ReportError::BadPeriod)
+}
+
+/// The salary month that starts in the month beginning on `month`: from its
+/// salary day to the day before the next month's.
+fn salary_month(month: Date, day: i8) -> Result<Period, ReportError> {
+    let bad = |_| ReportError::BadPeriod;
+    let first = salary_day(month, day)?;
+    let next = salary_day(month.checked_add(1.month()).map_err(bad)?, day)?;
+    Period::new(first, next.yesterday().map_err(bad)?)
+}
+
+/// Whether `word` names a period a document, a component or the filter bar
+/// can keep: a fixed name of [`crate::PERIODS`], a rolling period
+/// ([`Rolling`]) or a typed range of days (D-332).
+pub fn is_period_word(word: &str) -> bool {
+    crate::PERIODS.contains(&word)
+        || Rolling::read(word).is_some()
+        || read_range_word(word).is_some()
+}
+
 /// A range of days, both ends included.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Period {
@@ -117,12 +258,29 @@ impl Period {
     pub fn for_component(name: &str, page: Self, today: Date) -> Option<Result<Self, ReportError>> {
         match name {
             "page" => Some(Ok(page)),
+            _ => Self::named(name, today, None),
+        }
+    }
+
+    /// The period a stored word names, seen from `today`: a fixed name, a
+    /// rolling period (D-644) or a typed range, whose open start is
+    /// `earliest` (see [`Self::from_range_word`]). `None` for a word that is
+    /// none of them.
+    pub fn named(
+        word: &str,
+        today: Date,
+        earliest: Option<Date>,
+    ) -> Option<Result<Self, ReportError>> {
+        match word {
             "this-month" => Some(Self::this_month(today)),
             "last-month" => Some(Self::last_month(today)),
             "last-12-months" => Some(Self::last_12_months(today)),
             "this-year" => Some(Self::this_year(today)),
             "last-year" => Some(Self::last_year(today)),
-            _ => Self::from_range_word(name, today, None),
+            _ => match Rolling::read(word) {
+                Some(rolling) => Some(rolling.period(today)),
+                None => Self::from_range_word(word, today, earliest),
+            },
         }
     }
 
@@ -143,10 +301,19 @@ impl Period {
     }
 
     /// The period right before this one, to compare with: for whole calendar
-    /// months, the same number of months before; otherwise the same number
-    /// of days before.
+    /// months, the same number of months before; for a salary month, the
+    /// salary month before (D-645); otherwise the same number of days
+    /// before.
     pub fn before(self) -> Result<Self, ReportError> {
         let last = self.first.yesterday().map_err(|_| ReportError::BadPeriod)?;
+        if let Some(day) = self.salary_day() {
+            let month = self
+                .first
+                .first_of_month()
+                .checked_sub(1.month())
+                .map_err(|_| ReportError::BadPeriod)?;
+            return salary_month(month, day);
+        }
         let first = if self.is_whole_months() {
             let months = self.months().len() as i32;
             self.first
@@ -165,8 +332,18 @@ impl Period {
     }
 
     /// The same days one year earlier. For whole calendar months it is the
-    /// same months of the year before, with the last day of the last month.
+    /// same months of the year before, with the last day of the last month;
+    /// for a salary month, the salary month that starts in the same month a
+    /// year before (D-645).
     pub fn year_before(self) -> Result<Self, ReportError> {
+        if let Some(day) = self.salary_day() {
+            let month = self
+                .first
+                .first_of_month()
+                .checked_sub(1.year())
+                .map_err(|_| ReportError::BadPeriod)?;
+            return salary_month(month, day);
+        }
         let first = self
             .first
             .checked_sub(1.year())
@@ -179,6 +356,21 @@ impl Period {
             last = last.last_of_month();
         }
         Self::new(first, last)
+    }
+
+    /// The salary day, if the period is one salary month that does not start
+    /// on the 1st (D-645): it starts on a day of one month and ends the day
+    /// before the same day of the next, where a short month's last day
+    /// stands in for a day it lacks. Two months in a row are never both
+    /// shorter than the day, so the larger of the two days is that day.
+    fn salary_day(self) -> Option<i8> {
+        let next = self.last.tomorrow().ok()?;
+        let day = self.first.day().max(next.day());
+        let following = self.first.first_of_month().checked_add(1.month()).ok()?;
+        let fits = day > 1
+            && salary_day(self.first.first_of_month(), day).ok()? == self.first
+            && salary_day(following, day).ok()? == next;
+        fits.then_some(day)
     }
 
     /// Whether it starts on the first of a month and ends on the last of one.
@@ -398,6 +590,217 @@ mod tests {
         }
         // The names a component can use work for a range too.
         assert!(Period::for_component(&both, Period::this_month(today).unwrap(), today).is_some());
+    }
+
+    #[test]
+    fn the_last_months_count_back_with_or_without_this_one() {
+        let range = |word: &str, today| {
+            let period = Period::named(word, today, None).expect("a word");
+            let period = period.expect("a period");
+            (period.first(), period.last())
+        };
+        let today = date(2026, 11, 7);
+        assert_eq!(
+            range("last-3-months", today),
+            (date(2026, 9, 1), date(2026, 11, 30))
+        );
+        assert_eq!(
+            range("last-3-complete-months", today),
+            (date(2026, 8, 1), date(2026, 10, 31))
+        );
+        assert_eq!(
+            range("last-1-complete-months", date(2026, 1, 31)),
+            (date(2025, 12, 1), date(2025, 12, 31))
+        );
+        assert_eq!(
+            range("last-6-complete-months", date(2026, 3, 31)),
+            (date(2025, 9, 1), date(2026, 2, 28))
+        );
+        // The word written by hand before is the same period.
+        assert_eq!(
+            range("last-12-months", today),
+            (
+                Period::last_12_months(today).unwrap().first(),
+                Period::last_12_months(today).unwrap().last()
+            )
+        );
+        assert_eq!(
+            Rolling::read("last-12-months"),
+            Some(Rolling::Months {
+                count: 12,
+                complete: false
+            })
+        );
+        // Complete months compare with the same number of months before.
+        let three = Period::named("last-3-complete-months", today, None)
+            .unwrap()
+            .unwrap();
+        let before = three.before().unwrap();
+        assert_eq!(
+            (before.first(), before.last()),
+            (date(2026, 5, 1), date(2026, 7, 31))
+        );
+    }
+
+    #[test]
+    fn a_salary_month_runs_from_its_day_to_the_day_before_the_next() {
+        let range = |word: &str, today| {
+            let period = Period::named(word, today, None).expect("a word");
+            let period = period.expect("a period");
+            (period.first(), period.last())
+        };
+        // Before the salary day, the salary month began in the month before.
+        assert_eq!(
+            range("this-salary-month-28", date(2026, 11, 7)),
+            (date(2026, 10, 28), date(2026, 11, 27))
+        );
+        assert_eq!(
+            range("this-salary-month-28", date(2026, 11, 28)),
+            (date(2026, 11, 28), date(2026, 12, 27))
+        );
+        assert_eq!(
+            range("last-salary-month-28", date(2026, 11, 7)),
+            (date(2026, 9, 28), date(2026, 10, 27))
+        );
+        // Across the turn of the year.
+        assert_eq!(
+            range("this-salary-month-15", date(2026, 1, 3)),
+            (date(2025, 12, 15), date(2026, 1, 14))
+        );
+        // In a short month its last day counts.
+        assert_eq!(
+            range("this-salary-month-31", date(2026, 2, 28)),
+            (date(2026, 2, 28), date(2026, 3, 30))
+        );
+        assert_eq!(
+            range("this-salary-month-31", date(2026, 2, 27)),
+            (date(2026, 1, 31), date(2026, 2, 27))
+        );
+        assert_eq!(
+            range("this-salary-month-30", date(2028, 3, 1)),
+            (date(2028, 2, 29), date(2028, 3, 29))
+        );
+        assert_eq!(
+            range("last-salary-month-31", date(2026, 5, 31)),
+            (date(2026, 4, 30), date(2026, 5, 30))
+        );
+        // The 1st is the calendar month.
+        assert_eq!(
+            range("this-salary-month-1", date(2026, 2, 14)),
+            (date(2026, 2, 1), date(2026, 2, 28))
+        );
+    }
+
+    #[test]
+    fn a_salary_month_compares_with_the_salary_month_before() {
+        let compare = |word: &str, today| {
+            let period = Period::named(word, today, None).unwrap().unwrap();
+            let (before, year) = (period.before().unwrap(), period.year_before().unwrap());
+            ((before.first(), before.last()), (year.first(), year.last()))
+        };
+        assert_eq!(
+            compare("this-salary-month-28", date(2026, 11, 7)),
+            (
+                (date(2026, 9, 28), date(2026, 10, 27)),
+                (date(2025, 10, 28), date(2025, 11, 27))
+            )
+        );
+        // The day before a short month's stand-in is the real day again.
+        assert_eq!(
+            compare("this-salary-month-31", date(2026, 3, 10)),
+            (
+                (date(2026, 1, 31), date(2026, 2, 27)),
+                (date(2025, 2, 28), date(2025, 3, 30))
+            )
+        );
+        assert_eq!(
+            compare("this-salary-month-31", date(2026, 4, 1)),
+            (
+                (date(2026, 2, 28), date(2026, 3, 30)),
+                (date(2025, 3, 31), date(2025, 4, 29))
+            )
+        );
+        // Every salary month the word names compares with the one the
+        // "last" word names.
+        for day in 1..=31 {
+            let mut today = date(2025, 1, 1);
+            while today < date(2027, 1, 1) {
+                let this = Period::named(&format!("this-salary-month-{day}"), today, None)
+                    .unwrap()
+                    .unwrap();
+                let last = Period::named(&format!("last-salary-month-{day}"), today, None)
+                    .unwrap()
+                    .unwrap();
+                assert!(this.contains(today), "{day} {today}");
+                assert_eq!(this.before().unwrap(), last, "{day} {today}");
+                assert_eq!(last.last().tomorrow().unwrap(), this.first());
+                today = today.tomorrow().unwrap();
+            }
+        }
+    }
+
+    #[test]
+    fn rolling_words_are_written_and_read_exactly() {
+        for rolling in [
+            Rolling::Months {
+                count: 1,
+                complete: false,
+            },
+            Rolling::Months {
+                count: MAX_ROLLING_MONTHS,
+                complete: true,
+            },
+            Rolling::SalaryMonth {
+                day: 31,
+                before: false,
+            },
+            Rolling::SalaryMonth {
+                day: 1,
+                before: true,
+            },
+        ] {
+            let word = rolling.word();
+            assert_eq!(Rolling::read(&word), Some(rolling), "{word}");
+            assert!(is_period_word(&word), "{word}");
+        }
+        assert_eq!(
+            Rolling::SalaryMonth {
+                day: 28,
+                before: false
+            }
+            .word(),
+            "this-salary-month-28"
+        );
+        assert_eq!(
+            Rolling::Months {
+                count: 3,
+                complete: true
+            }
+            .word(),
+            "last-3-complete-months"
+        );
+        for word in [
+            "last-0-months",
+            "last-03-months",
+            "last-121-months",
+            "last--months",
+            "last-3-month",
+            "last-x-complete-months",
+            "this-salary-month-0",
+            "this-salary-month-32",
+            "this-salary-month-07",
+            "next-salary-month-1",
+            "this-salary-month-",
+            "last-salary-month-+1",
+        ] {
+            assert_eq!(Rolling::read(word), None, "{word}");
+            assert!(!is_period_word(word), "{word}");
+        }
+        for word in crate::PERIODS {
+            assert!(is_period_word(word), "{word}");
+        }
+        assert!(is_period_word("2025-01-01.."));
+        assert!(!is_period_word("page"));
     }
 
     #[test]

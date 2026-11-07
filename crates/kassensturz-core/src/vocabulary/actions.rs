@@ -316,6 +316,8 @@ pub const ACTIONS: &[&str] = &[
     "PartsPage_save_4",
     "PartsPage_save_5",
     "PeriodChoice_activated",
+    "PeriodChoice_complete",
+    "PeriodChoice_whichSalaryMonth",
     "PeriodHeader_backMonth",
     "PeriodHeader_earlierMonth",
     "PeriodHeader_laterMonth",

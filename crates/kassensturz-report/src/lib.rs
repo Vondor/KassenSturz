@@ -112,7 +112,9 @@ pub use monthly::{
 pub use over_time::{
     CATEGORY_OVER_TIME, CategoryOverTime, ChosenSeries, MonthTotals, category_over_time,
 };
-pub use period::{MAX_MONTHS, Period, range_word, read_range_word};
+pub use period::{
+    MAX_MONTHS, MAX_ROLLING_MONTHS, Period, Rolling, is_period_word, range_word, read_range_word,
+};
 pub use schema::{
     ColumnSetting, ComponentType, FORMULA_MEASURE, Kind, MAX_IDS, MAX_TEXT_CHARS, Place, Property,
     Setting, dataset_for,

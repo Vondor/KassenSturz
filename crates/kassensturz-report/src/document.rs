@@ -100,8 +100,8 @@ pub struct Document {
     pub kind: ViewKind,
     /// The name; never empty, at most 200 characters.
     pub name: String,
-    /// One of [`PERIODS`] for the whole document, if it names one: the
-    /// filter bar's period (`filters.period`).
+    /// A period word for the whole document ([`crate::is_period_word`]),
+    /// if it names one: the filter bar's period (`filters.period`).
     pub period: Option<String>,
     /// The filter bar's accounts (`filters.accounts`, D-351): IDs of own
     /// accounts, written as text. Empty narrows nothing.
@@ -528,11 +528,7 @@ fn read_filters(value: &Value) -> Result<Filters, ReportError> {
     }
     let period = match filters.get("period") {
         None => None,
-        Some(Value::String(period))
-            if PERIODS.contains(&period.as_str()) || crate::read_range_word(period).is_some() =>
-        {
-            Some(period.clone())
-        }
+        Some(Value::String(period)) if crate::is_period_word(period) => Some(period.clone()),
         Some(_) => return Err(invalid("bad-choice", "filters.period")),
     };
     let list = |dimension: Dimension| {

@@ -54,9 +54,10 @@ use kassensturz_bank::{
     AqBankingBank, Availability, Bank, BankAccount, BankAccountKind, BankCode, BankDialogs,
     BankError, BankQuestion, CustomerId, FINTS_REGISTRATION_KEY, FakeBank, FintsVersion, Iban,
     KeychainPinStore, Login, LoginChange, LoginId, LoginKind, LoginSetup, MemoryPinStore,
-    NoPinStore, Pin, PinAsker, PinMode, PinSession, PinStore, QuestionLevel, RegistrationKey,
-    SecondFactor, Setup, Tan, TanRequest, fetch_linked, fetch_start, find_bank_account,
-    link_for_fetch, names_account, refresh_linked, remove_login, setup_for, valid_tan_method,
+    NoPinStore, Pin, PinAsker, PinMode, PinPrompt, PinReply, PinSession, PinStore, QuestionLevel,
+    RegistrationKey, SecondFactor, Setup, Tan, TanRequest, fetch_linked, fetch_start,
+    find_bank_account, link_for_fetch, names_account, refresh_linked, remove_login, setup_for,
+    valid_tan_method,
 };
 use kassensturz_core::{AccountId, BankLink, Date, ErrorParam, Report};
 use kassensturz_import::{EntryStatus, Limits, Statement};
@@ -346,15 +347,19 @@ pub enum Event {
     },
 }
 
-/// What the PIN dialog says: which bank asks, and whether the bank has just
+/// What the PIN dialog says: which bank asks, whether the bank has just
 /// called the PIN typed before wrong, so the user checks it before the
-/// bank blocks the login (threat T-05).
+/// bank blocks the login (threat T-05), and whether the saved PIN couldn't
+/// be read because the password manager or keychain is closed or locked,
+/// so the user can open it and try again (M6-B193, D-622).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PinRequest {
     /// The bank's name, or its code when no source knows it.
     pub bank: String,
     /// The bank called the last PIN wrong.
     pub rejected: bool,
+    /// The place for saved PINs couldn't be reached.
+    pub store_closed: bool,
 }
 
 /// What the registration dialog says: whether the number typed before
@@ -384,13 +389,29 @@ macro_rules! bank_note {
     }};
 }
 
+/// Notes a step of the bank log about the account in place `$place` of a
+/// fetch (1 for the first, D-623), when that account ends.
+macro_rules! bank_note_account {
+    ($step:ident, $place:expr, $code:expr, $count:expr) => {{
+        #[cfg(feature = "debug-log")]
+        kassensturz_core::bank_log::note_account(
+            kassensturz_core::bank_log::Step::$step,
+            u32::try_from($place).unwrap_or(u32::MAX),
+            $code,
+            $count.map(|count: usize| u32::try_from(count).unwrap_or(u32::MAX)),
+        );
+        #[cfg(not(feature = "debug-log"))]
+        let _: (usize, Option<&str>, Option<usize>) = ($place, $code, $count);
+    }};
+}
+
 /// What the bank log notes of a screen event: which question the bank asked
 /// and how a call ended. Nothing the event carries is written.
+///
+/// Each account of a fetch is noted when it ends, in `fetch` and
+/// `update_all` (D-623); the end of the fetch notes how many got a
+/// statement.
 fn log_event(event: &Event) {
-    #[cfg(feature = "debug-log")]
-    use kassensturz_core::bank_log::skip_code;
-    #[cfg(not(feature = "debug-log"))]
-    let skip_code = |_: &str| "bank.unknown-code";
     match event {
         Event::Tan(_) => bank_note!(TanAsked),
         Event::Question(_) => bank_note!(QuestionAsked),
@@ -403,32 +424,46 @@ fn log_event(event: &Event) {
             bank_note!(FetchRefused, Some(error.code), None);
         }
         Event::FetchDone(Ok(outcomes)) => {
-            for outcome in outcomes {
-                match (&outcome.error, outcome.state) {
-                    (Some(error), _) => bank_note!(FetchFailed, Some(error.code), None),
-                    (None, "ready") => bank_note!(FetchDone, None, Some(outcome.transactions)),
-                    _ => bank_note!(FetchSkipped),
-                }
-            }
+            let ready = outcomes
+                .iter()
+                .filter(|outcome| outcome.state == "ready")
+                .count();
+            bank_note!(FetchEnded, None, Some(ready));
         }
         Event::UpdateAllDone(Ok(fetches)) => {
-            for fetch in fetches {
-                match &fetch.result {
-                    Updated::Fetched(statement) => bank_note!(
-                        FetchDone,
-                        None,
-                        Some(
-                            statement
-                                .entries
-                                .iter()
-                                .filter(|entry| entry.status == EntryStatus::Booked)
-                                .count()
-                        )
-                    ),
-                    Updated::Failed(error) => bank_note!(FetchFailed, Some(error.code), None),
-                    Updated::Skipped(why) => bank_note!(FetchSkipped, Some(skip_code(why)), None),
-                }
-            }
+            let fetched = fetches
+                .iter()
+                .filter(|fetch| matches!(fetch.result, Updated::Fetched(_)))
+                .count();
+            bank_note!(FetchEnded, None, Some(fetched));
+        }
+    }
+}
+
+/// What the bank log notes when the account in place `place` of a fetch
+/// ends (D-623): fetched, with its booked entries; failed, with the error's
+/// code; or skipped, with the reason's code.
+fn log_account(place: usize, updated: &Updated) {
+    #[cfg(feature = "debug-log")]
+    use kassensturz_core::bank_log::skip_code;
+    #[cfg(not(feature = "debug-log"))]
+    let skip_code = |_: &str| "bank.unknown-code";
+    match updated {
+        Updated::Fetched(statement) => bank_note_account!(
+            FetchDone,
+            place,
+            None,
+            Some(
+                statement
+                    .entries
+                    .iter()
+                    .filter(|entry| entry.status == EntryStatus::Booked)
+                    .count()
+            )
+        ),
+        Updated::Failed(error) => bank_note_account!(FetchFailed, place, Some(error.code), None),
+        Updated::Skipped(why) => {
+            bank_note_account!(FetchSkipped, place, Some(skip_code(why)), None);
         }
     }
 }
@@ -442,6 +477,8 @@ fn log_answer(answer: &Answer) {
             bank_note!(QuestionAnswered, None, Some(usize::from(button.is_some())));
         }
         Answer::Pin(pin) => bank_note!(PinAnswered, None, Some(usize::from(pin.is_some()))),
+        // 2: open the password manager and try again (D-622).
+        Answer::PinStoreAgain => bank_note!(PinAnswered, None, Some(2_usize)),
         Answer::Registration(typed) => {
             bank_note!(
                 RegistrationAnswered,
@@ -460,6 +497,9 @@ pub enum Answer {
     Button(Option<usize>),
     /// The PIN typed and how long to keep it, or `None` for "Cancel".
     Pin(Option<(Pin, PinMode)>),
+    /// "Open it and try again" in the PIN dialog: the password manager or
+    /// keychain was opened, read the saved PIN again (M6-B193, D-622).
+    PinStoreAgain,
     /// The registration number typed, or `None` for "Cancel" (D-260).
     /// Read only by [`RegistrationKey::parse`], which wipes it.
     Registration(Option<String>),
@@ -471,6 +511,7 @@ impl std::fmt::Debug for Answer {
             Self::Tan(tan) => f.debug_tuple("Tan").field(tan).finish(),
             Self::Button(button) => f.debug_tuple("Button").field(button).finish(),
             Self::Pin(pin) => f.debug_tuple("Pin").field(pin).finish(),
+            Self::PinStoreAgain => f.write_str("PinStoreAgain"),
             Self::Registration(typed) => f
                 .debug_tuple("Registration")
                 .field(&typed.as_ref().map(|_| "…"))
@@ -1675,21 +1716,30 @@ struct AskForPins<'a> {
 }
 
 impl PinAsker for AskForPins<'_> {
-    fn pin(&mut self, login: &Login, rejected: bool) -> Option<(Pin, PinMode)> {
+    fn pin(&mut self, login: &Login, prompt: PinPrompt) -> PinReply {
         let bank = self
             .logins
             .iter()
             .find(|row| row.id == login.id.as_str())
             .map_or_else(|| login.bank.code().to_owned(), |row| row.bank.clone());
-        self.screens?
+        let Some(screens) = self.screens else {
+            return PinReply::Cancel;
+        };
+        screens
             .ask(
-                Event::Pin(PinRequest { bank, rejected }),
+                Event::Pin(PinRequest {
+                    bank,
+                    rejected: prompt.rejected,
+                    store_closed: prompt.store_closed,
+                }),
                 |answer| match answer {
-                    Answer::Pin(pin) => Ok(pin),
+                    Answer::Pin(Some((pin, mode))) => Ok(PinReply::Typed(pin, mode)),
+                    Answer::Pin(None) => Ok(PinReply::Cancel),
+                    Answer::PinStoreAgain if prompt.store_closed => Ok(PinReply::TryStoreAgain),
                     other => Err(other),
                 },
             )
-            .flatten()
+            .unwrap_or(PinReply::Cancel)
     }
 }
 
@@ -1731,7 +1781,7 @@ pub fn fetch(
     };
     let mut outcomes = Vec::with_capacity(requests.len());
     let mut ended = false;
-    for request in requests {
+    for (index, request) in requests.into_iter().enumerate() {
         let mut outcome = FetchOutcome {
             account: request.account.to_string(),
             name: request.name,
@@ -1780,6 +1830,16 @@ pub fn fetch(
                     outcome.error = Some(error_text(&error));
                 }
             }
+        }
+        // Noted as each account ends, so the log reads in the order things
+        // happened (D-623).
+        let place = index + 1;
+        match (&outcome.error, outcome.state) {
+            (Some(error), _) => bank_note_account!(FetchFailed, place, Some(error.code), None),
+            (None, "ready") => {
+                bank_note_account!(FetchDone, place, None, Some(outcome.transactions));
+            }
+            _ => bank_note_account!(FetchSkipped, place, Some("bank.earlier-failure"), None),
         }
         outcomes.push(outcome);
     }
@@ -1887,6 +1947,9 @@ pub fn update_all(
         Ok(bank) => bank.as_mut(),
         Err(error) => return Err(error_text(error)),
     };
+    // An account's place in the list the fetch was started with, for the
+    // bank log (D-623); the fetch itself goes bank by bank.
+    let order: Vec<AccountId> = requests.iter().map(|request| request.account).collect();
     let groups = by_login(requests, |request| {
         find_bank_account(&*bank, &request.link)
             .ok()
@@ -1940,6 +2003,11 @@ pub fn update_all(
                     }
                 }
             };
+            let place = order
+                .iter()
+                .position(|account| *account == request.account)
+                .map_or(0, |index| index + 1);
+            log_account(place, &result);
             done.push(UpdateFetch {
                 account: request.account,
                 name: request.name,
@@ -3169,6 +3237,62 @@ mod tests {
             name: "Household".to_owned(),
             group: "KassenSturz".to_owned(),
         }
+    }
+
+    #[test]
+    fn a_locked_keychain_is_named_in_the_pin_dialog_and_can_be_tried_again() {
+        // M6-B193, D-622: the PIN is saved, but in the next run of the app
+        // the keychain is locked. The dialog says so; the user unlocks it
+        // and chooses to try again, and the saved PIN is used.
+        let system = shared();
+        let mut first_run =
+            Connection::fake_with_keychain(FakeBank::new(), stores(&system), SecretStorage::System);
+        let mut setup = form(FakeBank::PIN);
+        setup.pin_mode = PinMode::SaveInKeychain;
+        let done = set_up(&mut first_run, setup).expect("set up");
+        assert_eq!(system.0.len(), 1);
+        let mut book = Book::create_in_memory().expect("book");
+        let current = account(&mut book, "Current account", Some(IBAN));
+        link(
+            &mut book,
+            &done.accounts,
+            &[current.to_string(), String::new()],
+        )
+        .expect("linked");
+
+        let next_run = system.clone();
+        let (worker, events) = worker(move || {
+            Connection::fake_with_keychain(
+                FakeBank::new(),
+                stores(&next_run),
+                SecretStorage::System,
+            )
+        });
+        worker.run(logins).expect("started");
+        system
+            .0
+            .fail_with(Some(kassensturz_platform::KeychainError::Unavailable));
+        let requests = requests(&book, &[current]);
+        worker
+            .spawn(move |connection, notify| {
+                notify(Event::FetchDone(fetch(connection, requests, today())));
+            })
+            .expect("started");
+        assert_eq!(next(&events), Event::FetchStarted(current.to_string()));
+        let Event::Pin(asked) = next(&events) else {
+            panic!("the PIN is asked for");
+        };
+        assert!(asked.store_closed && !asked.rejected, "{asked:?}");
+        // Unlocked, then "Open it and try again".
+        system.0.fail_with(None);
+        worker.answer(Answer::PinStoreAgain);
+        let Event::FetchDone(done) = next(&events) else {
+            panic!("the fetch ends");
+        };
+        let outcomes = done.expect("fetched");
+        assert_eq!(outcomes[0].state, "ready", "{outcomes:?}");
+        assert_eq!(system.0.len(), 1, "the saved PIN stays");
+        let _ = bank_fetch::take(current);
     }
 
     #[test]

@@ -3760,6 +3760,51 @@ msgctxt "@action:button send the PIN to the bank"
 msgid "Send PIN"
 msgstr "PIN senden"
 
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:217
+#, kde-format
+msgctxt ""
+"@action:button the password manager was opened; read the saved PIN again"
+msgid "Open it and try again"
+msgstr "Öffnen und erneut versuchen"
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:268
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz couldn't read your saved PIN: KeePassXC is closed or its "
+"database is locked. Open and unlock it, then choose Open it and try again. "
+"Or type the PIN yourself below."
+msgstr ""
+"KassenSturz konnte Ihre gespeicherte PIN nicht lesen: KeePassXC ist "
+"geschlossen oder seine Datenbank ist gesperrt. Öffnen und entsperren Sie "
+"sie, und wählen Sie dann „Öffnen und erneut versuchen“. Oder geben Sie die "
+"PIN unten selbst ein."
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:269
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz couldn't read your saved PIN: your keychain is locked or not "
+"running. Unlock it, then choose Open it and try again. Or type the PIN "
+"yourself below."
+msgstr ""
+"KassenSturz konnte Ihre gespeicherte PIN nicht lesen: Ihr Passwortspeicher "
+"ist gesperrt oder läuft nicht. Entsperren Sie ihn, und wählen Sie dann "
+"„Öffnen und erneut versuchen“. Oder geben Sie die PIN unten selbst ein."
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:319
+#, kde-format
+msgctxt "@info"
+msgid ""
+"If it is still closed or locked when you send the PIN, KassenSturz keeps the "
+"PIN only until you close KassenSturz, and saves nothing. Next time, open it "
+"first to save the PIN."
+msgstr ""
+"Ist der Passwortspeicher beim Senden der PIN noch geschlossen oder "
+"gesperrt, behält KassenSturz die PIN nur, bis Sie KassenSturz schließen, "
+"und speichert nichts. Öffnen Sie ihn beim nächsten Mal zuerst, um die PIN "
+"zu speichern."
+
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:235
 #, kde-format
 msgctxt "@info"

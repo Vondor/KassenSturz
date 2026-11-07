@@ -1361,8 +1361,8 @@ mod tests {
         fn pin(
             &mut self,
             _login: &kassensturz_bank::Login,
-            _rejected: bool,
-        ) -> Option<(kassensturz_bank::Pin, kassensturz_bank::PinMode)> {
+            _prompt: kassensturz_bank::PinPrompt,
+        ) -> kassensturz_bank::PinReply {
             panic!("the PIN was remembered, so nothing should be asked");
         }
     }

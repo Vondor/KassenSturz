@@ -76,7 +76,7 @@ pub use iban::{BankCode, Iban};
 pub use keychain::KeychainPinStore;
 pub use linked::{
     FETCH_OVERLAP_DAYS, FIRST_FETCH_DAYS, PinAsker, fetch_linked, fetch_start, find_bank_account,
-    link_for_fetch, names_account,
+    link_for_fetch, names_account, refresh_linked,
 };
 pub use pin::{MemoryPinStore, NoPinStore, Pin, PinAnswer, PinMode, PinSession, PinStore};
 pub use registration::{REGISTRATION_KEY_LENGTH, RegistrationKey};

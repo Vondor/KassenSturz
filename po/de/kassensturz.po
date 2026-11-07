@@ -15382,13 +15382,14 @@ msgstr "Bankzugang ändern…"
 #, kde-format
 msgctxt "@info"
 msgid ""
-"Change the login name, the bank's address, the FinTS version, the TAN method "
-"or how you log in. You type your login details and PIN again; your accounts "
-"stay linked."
+"Change the approval (TAN) method or the FinTS version of this login. Nothing "
+"is set up again and your accounts stay linked. The bank's address and the "
+"login name can be changed there too, by setting the login up again."
 msgstr ""
-"Ändern Sie den Anmeldenamen, die Adresse der Bank, die FinTS-Version, das "
-"TAN-Verfahren oder die Art der Anmeldung. Sie geben Ihre Zugangsdaten und "
-"die PIN noch einmal ein; Ihre Konten bleiben verknüpft."
+"Ändern Sie die Freigabemethode (TAN) oder die FinTS-Version dieses Zugangs. "
+"Es wird nichts neu eingerichtet, Ihre Konten bleiben verknüpft. Auch die "
+"Adresse der Bank und der Anmeldename lassen sich dort ändern, indem Sie den "
+"Zugang neu einrichten."
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:319
 #, kde-format
@@ -17748,6 +17749,60 @@ msgstr "Diese Adresse zeigt auf einen Rechner in Ihrem eigenen Netz, nicht auf e
 msgctxt "@info"
 msgid "This address isn't the one in KassenSturz's bank lists. Tick the box under the address if your bank gave you exactly this address."
 msgstr "Diese Adresse ist nicht die aus den Banklisten von KassenSturz. Setzen Sie den Haken unter der Adresse, wenn Ihre Bank Ihnen genau diese Adresse genannt hat."
+
+#: crates/kassensturz-ui-bridge/qml/BankLoginPage.qml:1
+#, kde-format
+msgctxt "@info"
+msgid "You change a login that works. Nothing is set up again, KassenSturz asks no PIN and sends nothing to your bank now. Your accounts, their links and the PIN stay as they are; the new settings are used at the next connection."
+msgstr "Sie ändern einen Zugang, der funktioniert. Es wird nichts neu eingerichtet, KassenSturz fragt keine PIN ab und schickt jetzt nichts an Ihre Bank. Ihre Konten, deren Verknüpfungen und die PIN bleiben, wie sie sind; die neuen Einstellungen gelten bei der nächsten Verbindung."
+
+#: crates/kassensturz-ui-bridge/qml/BankLoginPage.qml:1
+#, kde-format
+msgctxt "@label"
+msgid "Login name:"
+msgstr "Anmeldename:"
+
+#: crates/kassensturz-ui-bridge/qml/BankLoginPage.qml:1
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Leave it as it is"
+msgstr "So lassen, wie es ist"
+
+#: crates/kassensturz-ui-bridge/qml/BankLoginPage.qml:1
+#, kde-format
+msgctxt "@action:button"
+msgid "Set this login up again…"
+msgstr "Diesen Zugang neu einrichten…"
+
+#: crates/kassensturz-ui-bridge/qml/BankLoginPage.qml:1
+#, kde-format
+msgctxt "@info"
+msgid "The bank's address and the login name can't be changed here. To change them, set the login up again: you type the login details and the PIN once more, and your accounts stay linked."
+msgstr "Die Adresse der Bank und der Anmeldename lassen sich hier nicht ändern. Um sie zu ändern, richten Sie den Zugang neu ein: Sie geben die Anmeldedaten und die PIN noch einmal ein, Ihre Konten bleiben verknüpft."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1
+#, kde-format
+msgctxt "@info %1 is the name of an approval method"
+msgid "Login with PIN and TAN, approval by: %1"
+msgstr "Zugang mit PIN und TAN, Freigabe per: %1"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1
+#, kde-format
+msgctxt "@action:button"
+msgid "Link another account…"
+msgstr "Weiteres Konto verknüpfen…"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1
+#, kde-format
+msgctxt "@info"
+msgid "Asks your bank again which accounts this login reaches, so you can link a new one without setting the login up again. You type your PIN if KassenSturz doesn't have it."
+msgstr "Fragt Ihre Bank erneut, welche Konten dieser Zugang erreicht, damit Sie ein neues Konto verknüpfen können, ohne den Zugang neu einzurichten. Sie geben Ihre PIN ein, falls KassenSturz sie nicht hat."
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:1
+#, kde-format
+msgctxt "@title"
+msgid "Link another account"
+msgstr "Weiteres Konto verknüpfen"
 
 #: crates/kassensturz-ui-bridge/qml/ImportPreviewPage.qml:80
 #, kde-format

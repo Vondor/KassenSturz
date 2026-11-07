@@ -196,6 +196,27 @@ pub fn fetch_linked(
     }
 }
 
+/// Reads the accounts of the login `login` again (D-617), asking for the PIN
+/// the way [`fetch_linked`] does: when none is known, and once more if the
+/// bank calls it wrong (never a third time, threat T-05).
+pub fn refresh_linked(
+    bank: &mut dyn Bank,
+    pins: &mut PinSession,
+    asker: &mut dyn PinAsker,
+    login: &Login,
+) -> Result<Vec<BankAccount>, BankError> {
+    let mut rejected = 0;
+    loop {
+        match bank.refresh_accounts(&login.id, pins) {
+            Err(BankError::PinNeeded) => {}
+            Err(BankError::PinRejected) if rejected + 1 < MAX_REJECTED_PINS => rejected += 1,
+            other => return other,
+        }
+        let (pin, mode) = asker.pin(login, rejected > 0).ok_or(BankError::Aborted)?;
+        pins.provide(&login.id, pin, mode)?;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use kassensturz_core::{AccountId, Date};
@@ -458,6 +479,37 @@ mod tests {
             Err(BankError::PinRejected)
         );
         assert_eq!(asker.asked, vec![false, true]);
+    }
+
+    #[test]
+    fn linking_another_account_asks_for_a_pin_that_is_not_known() {
+        let (mut bank, mut pins, login) = bank();
+        let mut asker = Answers::new(&[Some(FakeBank::PIN)]);
+        let accounts = refresh_linked(&mut bank, &mut pins, &mut asker, &login).expect("accounts");
+        assert_eq!(accounts.len(), 2);
+        assert_eq!(asker.asked, vec![false]);
+    }
+
+    #[test]
+    fn a_wrong_pin_on_a_refresh_is_asked_once_more_and_then_it_stops() {
+        let (mut bank, mut pins, login) = bank();
+        let mut asker = Answers::new(&[Some("00000"), Some(FakeBank::PIN)]);
+        refresh_linked(&mut bank, &mut pins, &mut asker, &login).expect("accounts");
+        assert_eq!(asker.asked, vec![false, true]);
+
+        pins.forget(&login.id).expect("forgotten");
+        let mut asker = Answers::new(&[Some("00000"), Some("11111"), Some(FakeBank::PIN)]);
+        assert_eq!(
+            refresh_linked(&mut bank, &mut pins, &mut asker, &login),
+            Err(BankError::PinRejected)
+        );
+        assert_eq!(asker.asked, vec![false, true]);
+
+        let mut asker = Answers::new(&[None]);
+        assert_eq!(
+            refresh_linked(&mut bank, &mut pins, &mut asker, &login),
+            Err(BankError::Aborted)
+        );
     }
 
     #[test]

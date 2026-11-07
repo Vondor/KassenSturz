@@ -59,6 +59,7 @@ pub const DETAILS: &[&str] = &[
     "AiSettingsPage",
     "BankCheckPage",
     "BankFetchPage",
+    "BankLoginPage",
     "BankSetupPage",
     "BookFromFileDonePage",
     "BookFromFilePage",

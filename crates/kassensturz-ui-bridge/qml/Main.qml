@@ -828,7 +828,9 @@ Kirigami.ApplicationWindow {
                 position: Kirigami.InlineMessage.Position.Header
                 type: Kirigami.MessageType.Warning
                 visible: developerMode.bankLogOn && !developerMode.on
-                text: root.i18nContext.i18nc("@info", "Developer mode for bank connections: KassenSturz is writing a short log of how far each bank connection gets and which errors happen. It leaves out your login name, account numbers, amounts, PIN, TANs and the registration number. To end it, close KassenSturz and start it the usual way.")
+                text: developerMode.bankLogDetailed
+                    ? root.i18nContext.i18nc("@info", "Developer mode for bank connections, detailed: KassenSturz is writing a log of how far each bank connection gets, which errors happen and the texts your bank sends with them. The texts are cut down to words, but a name written in words can remain: look through the log before you pass it on. It leaves out your account numbers, amounts, PIN, TANs and the registration number. To end it, close KassenSturz and start it the usual way.")
+                    : root.i18nContext.i18nc("@info", "Developer mode for bank connections: KassenSturz is writing a short log of how far each bank connection gets and which errors happen. It leaves out your login name, account numbers, amounts, PIN, TANs and the registration number. To end it, close KassenSturz and start it the usual way.")
                 actions: [
                     Kirigami.Action {
                         icon.name: "folder-open"

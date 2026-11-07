@@ -2058,6 +2058,11 @@ pub unsafe extern "C" fn AB_Banking_SendCommands(
         return rv;
     }
     write_message_log();
+    // `approval-refused`: the bank takes the login but rejects the approval
+    // step, and sends the balance only (M6-B186).
+    if scenario == "approval-refused" {
+        progress("HBCI: 9160 - Nachrichtenaufbau fehlerhaft (E)");
+    }
     let known = state()
         .accounts
         .iter()
@@ -2110,7 +2115,11 @@ pub unsafe extern "C" fn AB_Banking_SendCommands(
             leak_text("EUR")
         },
         balances,
-        transactions: transactions(&scenario, since),
+        transactions: if scenario == "approval-refused" {
+            ptr::null_mut()
+        } else {
+            transactions(&scenario, since)
+        },
         next: ptr::null_mut(),
     });
     add_message(context, "Hinweis: Auftrag ausgeführt");

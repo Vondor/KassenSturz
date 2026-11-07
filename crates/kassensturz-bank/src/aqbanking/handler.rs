@@ -90,9 +90,18 @@ pub(crate) struct Handler {
     /// The bank sent 9931 or 9942 (PIN wrong) during the running call; kept
     /// apart from `codes` for the same reason.
     pin_called_wrong: bool,
+    /// The bank sent 9050 or 9160 (the message has errors / its structure
+    /// is wrong) during the running call (M6-B186).
+    message_refused: bool,
 }
 
 impl Handler {
+    /// The bank said a message of the call was wrong (9050, 9160): a call
+    /// that then brings nothing back was refused, not empty (M6-B186).
+    pub fn message_refused(&self) -> bool {
+        self.message_refused
+    }
+
     /// The bank's return codes seen during the last call, each once, in
     /// the order they came (D-607).
     #[cfg_attr(not(any(test, feature = "debug-log")), allow(dead_code))]
@@ -117,6 +126,7 @@ impl Handler {
         self.codes.clear();
         self.strong_auth = false;
         self.pin_called_wrong = false;
+        self.message_refused = false;
     }
 
     /// Ends the running call: the PIN is dropped and wiped.
@@ -200,6 +210,7 @@ impl SessionHandler for Handler {
         {
             self.strong_auth |= code == 9075;
             self.pin_called_wrong |= matches!(code, 9931 | 9942);
+            self.message_refused |= matches!(code, 9050 | 9160);
             if self.codes.len() < KEPT_CODES && !self.codes.contains(&code) {
                 self.codes.push(code);
             }
@@ -326,6 +337,20 @@ mod tests {
         assert!(!handler.only_strong_auth());
         handler.begin(None);
         assert!(!handler.only_strong_auth());
+    }
+
+    #[test]
+    fn a_message_the_bank_called_wrong_is_seen_beyond_the_code_limit() {
+        let mut handler = Handler::default();
+        handler.begin(None);
+        for code in [3040, 3050, 3060, 3076, 3920, 3955, 3956, 9000] {
+            handler.log(LogLevel::Info, &format!("HBCI: {code} - x (S)"));
+        }
+        assert!(!handler.message_refused());
+        handler.log(LogLevel::Info, "HBCI: 9160 - structure (E)");
+        assert!(handler.message_refused());
+        handler.begin(None);
+        assert!(!handler.message_refused());
     }
 
     #[test]

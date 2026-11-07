@@ -270,6 +270,7 @@ impl AqBankingBank {
             result,
             rejected: handler.rejected && !strong_auth,
             strong_auth,
+            message_refused: handler.message_refused(),
             refusal: handler.refusal,
             message: handler.last_message(),
         }
@@ -571,6 +572,9 @@ struct Outcome<T> {
     /// The bank asked for strong customer authentication (code 9075): a
     /// TAN method has to be chosen first. `rejected` is false then.
     strong_auth: bool,
+    /// The bank called a message wrong (9050, 9160): with nothing
+    /// fetched, that is a refusal, not "nothing new" (M6-B186).
+    message_refused: bool,
     refusal: Option<Refusal>,
     message: Option<String>,
 }
@@ -825,9 +829,17 @@ impl Bank for AqBankingBank {
                 offered: self.offered_methods(uid),
             });
         }
+        let (message_refused, message) = (outcome.message_refused, outcome.message.clone());
         let record = outcome.into_result(false)?;
         pins.end_session();
-        Ok(fetched(bank_account, aid, record))
+        let result = fetched(bank_account, aid, record);
+        // A bank that rejects the approval step (9050/9160) after the
+        // dialog began sends the balance at best; reading that as "nothing
+        // new" would hide the refusal (M6-B186).
+        if message_refused && result.transactions.is_empty() {
+            return Err(BankError::Refused { text: message });
+        }
+        Ok(result)
     }
 }
 

@@ -137,8 +137,9 @@ pub const NOTICE_MAX_CHARS: usize = 160;
 
 /// The bank's reply text as level 2 of the log may hold it (D-619): the
 /// words only. A word with a digit in it (an account number, an IBAN, a
-/// date, an amount), a word with an `@`, and any word of 25 characters or
-/// more is replaced by `#`; of the rest only letters (also umlauts) and
+/// date, an amount), a word with an `@`, a dot between two letters (a
+/// domain), exactly 8 or 11 capitals (the shape of a BIC) and any word of
+/// 25 characters or more is replaced by `#`; of the rest only letters (also umlauts) and
 /// `.,:;()-/'` stay, other characters become spaces; the text is cut to
 /// [`NOTICE_MAX_CHARS`]. A name the bank puts into its text in words is the
 /// one thing this cannot see, which is why level 2 is for the person's
@@ -146,7 +147,7 @@ pub const NOTICE_MAX_CHARS: usize = 160;
 pub fn redact_notice(text: &str) -> String {
     let mut words: Vec<String> = Vec::new();
     for word in text.split_whitespace() {
-        if word.chars().any(|c| c.is_ascii_digit() || c == '@') || word.chars().count() >= 25 {
+        if hides_something(word) {
             words.push("#".to_owned());
             continue;
         }
@@ -167,6 +168,24 @@ pub fn redact_notice(text: &str) -> String {
     }
     let joined = words.join(" ");
     joined.chars().take(NOTICE_MAX_CHARS).collect()
+}
+
+/// Whether a word of a bank's text could be an identifier: a digit or an
+/// `@` in it, 25 characters or more, a dot between two letters (a domain or
+/// address), or exactly 8 or 11 capitals (the shape of a BIC).
+fn hides_something(word: &str) -> bool {
+    let chars: Vec<char> = word.chars().collect();
+    if chars.iter().any(|c| c.is_ascii_digit() || *c == '@') || chars.len() >= 25 {
+        return true;
+    }
+    if chars
+        .windows(3)
+        .any(|w| w[1] == '.' && w[0].is_alphabetic() && w[2].is_alphabetic())
+    {
+        return true;
+    }
+    let core: Vec<char> = word.chars().filter(|c| c.is_alphabetic()).collect();
+    matches!(core.len(), 8 | 11) && core.iter().all(|c| c.is_uppercase())
 }
 
 /// One line of level 2 holding a bank reply: the time, the step, the FinTS
@@ -378,6 +397,13 @@ mod tests {
                 "Auftrag abgelehnt (Details: siehe Anlage)",
             ),
             ("Averyveryveryverylongwordthatcouldbeatoken ok", "# ok"),
+            ("Siehe www.beispiel.de und mail.example", "Siehe # und #"),
+            (
+                "BIC COBADEFF oder COBADEFFXXX genannt",
+                "BIC # oder # genannt",
+            ),
+            ("Satz endet. Neuer Satz", "Satz endet. Neuer Satz"),
+            ("HKTAN und SEPA bleiben", "HKTAN und SEPA bleiben"),
         ] {
             assert_eq!(redact_notice(text), expected, "{text}");
         }

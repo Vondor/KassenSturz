@@ -16,7 +16,9 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use kassensturz_core::{AccountId, AccountKind, Currency, Date, Money, Report, TransactionId};
+use kassensturz_core::{
+    AccountId, AccountKind, Currency, Date, Money, Report, Transaction, TransactionId,
+};
 use kassensturz_import::{
     AmountColumns, Camt053, Column, Csv, CsvSettings, DateOrder, DecimalMark, ImportError,
     Imported, Importer, Kmy, KmySqlite, Limits, Mt940, Ofx, RECOGNITION_BYTES, Recognition,
@@ -29,7 +31,7 @@ use kassensturz_store::{Action, Book, StatedBalance, StoreError};
 
 use crate::errors::{ErrorText, report_text};
 use crate::format::Locale;
-use crate::register::{self, AmountWriter, Shown};
+use crate::register::{self, AmountWriter, EntryKind, Shown};
 use crate::settings::Settings;
 use crate::transfer_prompt::{self, SuggestionText, TransferPromptError};
 
@@ -370,13 +372,41 @@ pub struct EntryText {
     pub import_anyway: bool,
 }
 
-/// A transaction of the account that an entry looks like.
+/// A transaction of the account that an entry looks like, with what the
+/// user needs to tell whether the entry is the same one: the payee, the
+/// category or Parts, the note and, if it came from a statement or file,
+/// the text the bank delivered with it.
 #[derive(Debug, PartialEq, Eq)]
 pub struct SimilarText {
     pub id: String,
     pub date: String,
     pub other_party: String,
+    /// The category; for a Transfer the other account's name; empty for
+    /// Parts or no category yet.
     pub category: String,
+    pub amount: Shown,
+    /// `simple`, `starting-balance`, `transfer` or `parts`, as in the
+    /// register.
+    pub kind: &'static str,
+    /// What the user noted about it; may be empty.
+    pub note: String,
+    /// The other party's name as the bank delivered it, if the transaction
+    /// came from a statement or file and the name differs from the payee
+    /// shown (a Rule may have renamed it); else empty.
+    pub bank_name: String,
+    /// The remittance information the bank delivered with it, if it came
+    /// from a statement or file; else empty.
+    pub purpose: String,
+    /// For Parts: every part not booked to this account, as the account
+    /// sees it (money out is negative, like the amount).
+    pub parts: Vec<SimilarPart>,
+}
+
+/// One part of a transaction an entry looks like.
+#[derive(Debug, PartialEq, Eq)]
+pub struct SimilarPart {
+    /// The category's or account's name; empty for no category yet.
+    pub name: String,
     pub amount: Shown,
 }
 
@@ -513,6 +543,61 @@ fn closing_to_keep(
     }))
 }
 
+/// Adds to `shown` what the bank delivered with `transaction`'s part in
+/// `account` and, for Parts, the other parts.
+fn add_details(
+    book: &Book,
+    account: AccountId,
+    transaction: &Transaction,
+    locale: &impl Locale,
+    shown: &mut SimilarText,
+) {
+    if let Some(imported) = transaction
+        .splits()
+        .iter()
+        .filter(|split| split.account == Some(account))
+        .find_map(|split| split.imported.as_ref())
+    {
+        let name = imported
+            .other_party_name
+            .as_deref()
+            .unwrap_or_default()
+            .trim();
+        if !name.is_empty() && !name.eq_ignore_ascii_case(shown.other_party.trim()) {
+            name.clone_into(&mut shown.bank_name);
+        }
+        imported
+            .remittance_information
+            .as_deref()
+            .unwrap_or_default()
+            .trim()
+            .clone_into(&mut shown.purpose);
+    }
+    if shown.kind != EntryKind::Parts.key() {
+        return;
+    }
+    let Ok(writer) = AmountWriter::new(book, transaction.currency(), locale) else {
+        return;
+    };
+    for split in transaction.splits() {
+        if split.account == Some(account) {
+            continue;
+        }
+        let name = split
+            .account
+            .and_then(|id| book.account(id).ok())
+            .map(|other| other.name)
+            .unwrap_or_default();
+        let Ok(amount) = split.amount.checked_neg() else {
+            continue;
+        };
+        shown.parts.push(SimilarPart {
+            name,
+            amount: writer.text(amount),
+        });
+    }
+}
+
 fn describe(
     book: &Book,
     loaded: &Loaded,
@@ -527,14 +612,26 @@ fn describe(
         .into_iter()
         .map(|entry| (entry.transaction, entry))
         .collect();
-    let similar_text = |id: &TransactionId| {
-        register.get(id).map(|entry| SimilarText {
+    let similar_text = |id: &TransactionId| -> Option<SimilarText> {
+        let entry = register.get(id)?;
+        let mut shown = SimilarText {
             id: id.to_string(),
             date: locale.short_date(entry.date),
             other_party: entry.other_party.clone(),
             category: entry.category.clone(),
             amount: writer.text(entry.amount),
-        })
+            kind: entry.kind.key(),
+            note: entry.note.clone(),
+            bank_name: String::new(),
+            purpose: String::new(),
+            parts: Vec::new(),
+        };
+        // The rest is a help for the user's decision: a transaction that
+        // can't be read in full still shows what the register has.
+        if let Ok(transaction) = book.transaction(*id) {
+            add_details(book, account.id, &transaction, locale, &mut shown);
+        }
+        Some(shown)
     };
     let writers: Vec<Option<AmountWriter<'_, _>>> = statements
         .iter()
@@ -1474,6 +1571,131 @@ mod tests {
         let stated = book.stated_balance(checking).expect("stated").expect("set");
         assert_eq!(stated.on, Date::new(2026, 10, 1).expect("a date"));
         assert_eq!(stated.amount.minor_units(), 100_000);
+    }
+
+    /// What the user compares a possible double with (thread "Show the
+    /// original entry for possible doubles"): an earlier import shows the
+    /// name and purpose its bank delivered, a typed entry its note and its
+    /// Parts, and every lookalike is listed. The earlier import is the
+    /// pipeline's real output, not a hand-made transaction.
+    #[test]
+    fn a_possible_double_shows_what_the_book_entry_says() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "1000",
+            "2026-10-01",
+        );
+        let categories = book.categories().expect("categories");
+        let category = |path: &str| {
+            categories
+                .iter()
+                .find(|entry| entry.path.join(" › ") == path)
+                .unwrap_or_else(|| panic!("{path}"))
+                .category
+                .id
+        };
+        let groceries = category("Food › Groceries");
+        book.add_rule(
+            &Rule {
+                id: RuleId::generate(),
+                name: "Shops".into(),
+                match_mode: MatchMode::All,
+                conditions: vec![Condition::Text {
+                    field: TextField::OtherPartyName,
+                    operator: TextOperator::Contains,
+                    value: "bookshop".into(),
+                    case_sensitive: false,
+                }],
+                actions: Actions {
+                    book_to: Some(BookTo::Category(groceries)),
+                    payee: Some("Bookshop".into()),
+                },
+            },
+            None,
+        )
+        .expect("rule added");
+        let mut earlier = entry(5, -3525, "EXAMPLE BOOKSHOP 0042");
+        earlier.bank_id = Some("first-1".into());
+        earlier.remittance_information = Some("Order 1234 card payment".into());
+        let first = Statement {
+            account: StatementAccount::default(),
+            currency: eur(),
+            opening_balance: None,
+            closing_balance: None,
+            entries: vec![earlier],
+        };
+        let loaded = Loaded::new(checking, PathBuf::from("first.sta"), vec![first]);
+        import(&mut book, &loaded, &TestLocale).expect("imported");
+
+        // Typed by hand: 35,25 € in two Parts, with a note.
+        let other = book
+            .all_accounts()
+            .expect("accounts")
+            .into_iter()
+            .find(|account| account.kind == AccountKind::Expense && account.id != groceries)
+            .expect("a second category");
+        let money = |cents: i64| Money::from_minor_units(cents, eur().code());
+        let typed_parts = Transaction::new(
+            TransactionId::generate(),
+            Date::new(2026, 10, 6).expect("a date"),
+            Some("Market stall".into()),
+            vec![
+                kassensturz_core::Split::new(checking, money(-3525)),
+                kassensturz_core::Split::new(groceries, money(2000)),
+                kassensturz_core::Split::new(other.id, money(1525)),
+            ],
+        )
+        .expect("balances")
+        .with_note(Some("Paid at the weekly market".into()));
+        book.add_transaction(&typed_parts).expect("added");
+
+        // Without a bank ID, as a CSV file delivers it: with two different
+        // IDs the entries would not count as alike (D-092).
+        let again = entry(6, -3525, "EXAMPLE BOOKSHOP 0042");
+        let second = Statement {
+            account: StatementAccount::default(),
+            currency: eur(),
+            opening_balance: None,
+            closing_balance: None,
+            entries: vec![again],
+        };
+        let loaded = Loaded::new(checking, PathBuf::from("second.sta"), vec![second]);
+        let shown = preview(&mut book, &loaded, &TestLocale).expect("preview");
+        let waiting = &shown.entries[0];
+        assert_eq!(waiting.outcome, "similar");
+        assert_eq!(waiting.similar.len(), 2, "every lookalike is shown");
+
+        let imported = &waiting.similar[0];
+        assert_eq!(imported.date, "2026-10-05");
+        assert_eq!(imported.other_party, "Bookshop");
+        assert_eq!(imported.bank_name, "EXAMPLE BOOKSHOP 0042");
+        assert_eq!(imported.purpose, "Order 1234 card payment");
+        assert_eq!(imported.category, "Groceries");
+        assert_eq!(imported.kind, "simple");
+        assert_eq!(imported.amount.exact, "-35,25 €");
+        assert!(imported.parts.is_empty());
+
+        let by_hand = &waiting.similar[1];
+        assert_eq!(by_hand.other_party, "Market stall");
+        assert_eq!(by_hand.note, "Paid at the weekly market");
+        assert_eq!(by_hand.kind, "parts");
+        assert_eq!(by_hand.category, "");
+        assert_eq!(
+            (by_hand.bank_name.as_str(), by_hand.purpose.as_str()),
+            ("", "")
+        );
+        let parts: Vec<(&str, &str)> = by_hand
+            .parts
+            .iter()
+            .map(|part| (part.name.as_str(), part.amount.exact.as_str()))
+            .collect();
+        assert_eq!(
+            parts,
+            vec![("Groceries", "-20,00 €"), (other.name.as_str(), "-15,25 €")]
+        );
     }
 
     #[test]

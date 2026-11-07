@@ -478,6 +478,20 @@ fn entry_object(entry: &EntryText) -> QVariant {
                     ("category", text(&similar.category)),
                     ("amount", text(&similar.amount.text)),
                     ("exactAmount", text(&similar.amount.exact)),
+                    ("kind", text(similar.kind)),
+                    ("note", text(&similar.note)),
+                    ("bankName", text(&similar.bank_name)),
+                    ("purpose", text(&similar.purpose)),
+                    (
+                        "parts",
+                        list(similar.parts.iter().map(|part| {
+                            map([
+                                ("name", text(&part.name)),
+                                ("amount", text(&part.amount.text)),
+                                ("exactAmount", text(&part.amount.exact)),
+                            ])
+                        })),
+                    ),
                 ])
             })),
         ),
@@ -567,6 +581,103 @@ fn form_object(form: &CsvForm) -> QVariant {
 
 #[cfg(test)]
 mod tests {
+    use cxx_qt_lib::QList;
+
+    use super::*;
+    use crate::register::Shown;
+    use crate::statement_import::{SimilarPart, SimilarText};
+
+    fn object(value: &QVariant) -> QMap<QMapPair_QString_QVariant> {
+        value
+            .value::<QMap<QMapPair_QString_QVariant>>()
+            .expect("an object")
+    }
+
+    fn text_of(value: &QVariant, key: &str) -> String {
+        object(value)
+            .get(&QString::from(key))
+            .and_then(|value| value.value::<QString>())
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| panic!("no text `{key}`"))
+    }
+
+    fn list_of(value: &QVariant, key: &str) -> Vec<QVariant> {
+        object(value)
+            .get(&QString::from(key))
+            .and_then(|value| value.value::<QList<QVariant>>())
+            .map(|list| list.iter().cloned().collect())
+            .unwrap_or_else(|| panic!("no list `{key}`"))
+    }
+
+    fn shown(exact: &str) -> Shown {
+        Shown {
+            text: exact.to_owned(),
+            exact: exact.to_owned(),
+        }
+    }
+
+    /// The preview shows the book's side of a possible double with the
+    /// fields QML reads; each is read back here the way QML does.
+    #[test]
+    fn a_possible_double_reaches_qml_with_what_the_book_entry_says() {
+        let entry = EntryText {
+            key: "0.0".to_owned(),
+            date: "2026-10-06".to_owned(),
+            other_party: "EXAMPLE SHOP".to_owned(),
+            purpose: "Order 1".to_owned(),
+            amount: shown("-12,00 €"),
+            incoming: false,
+            outcome: "similar",
+            category: String::new(),
+            similar: vec![SimilarText {
+                id: "t1".to_owned(),
+                date: "2026-10-05".to_owned(),
+                other_party: "Shop".to_owned(),
+                category: String::new(),
+                amount: shown("-12,00 €"),
+                kind: "parts",
+                note: "For the party".to_owned(),
+                bank_name: "EXAMPLE SHOP 7".to_owned(),
+                purpose: "Order 1".to_owned(),
+                parts: vec![
+                    SimilarPart {
+                        name: "Groceries".to_owned(),
+                        amount: shown("-10,00 €"),
+                    },
+                    SimilarPart {
+                        name: String::new(),
+                        amount: shown("-2,00 €"),
+                    },
+                ],
+            }],
+            import_anyway: false,
+        };
+        let object = entry_object(&entry);
+        let similar = list_of(&object, "similar");
+        assert_eq!(similar.len(), 1);
+        let book = &similar[0];
+        assert_eq!(text_of(book, "date"), "2026-10-05");
+        assert_eq!(text_of(book, "otherParty"), "Shop");
+        assert_eq!(text_of(book, "category"), "");
+        assert_eq!(text_of(book, "exactAmount"), "-12,00 €");
+        assert_eq!(text_of(book, "kind"), "parts");
+        assert_eq!(text_of(book, "note"), "For the party");
+        assert_eq!(text_of(book, "bankName"), "EXAMPLE SHOP 7");
+        assert_eq!(text_of(book, "purpose"), "Order 1");
+        let parts = list_of(book, "parts");
+        let read: Vec<(String, String)> = parts
+            .iter()
+            .map(|part| (text_of(part, "name"), text_of(part, "exactAmount")))
+            .collect();
+        assert_eq!(
+            read,
+            vec![
+                ("Groceries".to_owned(), "-10,00 €".to_owned()),
+                (String::new(), "-2,00 €".to_owned()),
+            ]
+        );
+    }
+
     /// A statement can hold thousands of entries. A `Repeater` in a scrolling
     /// page makes a row for every one of them before the first frame
     /// (100 s for 3,000 entries, D-158), so the preview lists them in a

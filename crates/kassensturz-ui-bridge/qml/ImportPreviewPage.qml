@@ -73,6 +73,22 @@ Kirigami.ScrollablePage {
         error.result = statementImport.setImportAnyway(key, on);
     }
 
+    // What a transaction of the book the entry looks like is booked to.
+    function bookedText(similar: var): string {
+        switch (similar.kind) {
+        case "transfer":
+            return i18nContext.i18nc("@info a Transfer in the book, %1 is the other account", "Transfer with %1", similar.category);
+        case "parts":
+            return i18nContext.i18nc("@info a transaction in the book broken down into Parts, listed below", "In parts:");
+        case "starting-balance":
+            return i18nContext.i18nc("@info a transaction in the book that is the account's starting balance", "Starting balance");
+        default:
+            return similar.category !== ""
+                ? i18nContext.i18nc("@info the category of a transaction in the book, %1 is the category", "Category: %1", similar.category)
+                : i18nContext.i18nc("@info a transaction or Part in the book with no category", "No category");
+        }
+    }
+
     // What the bank or KassenSturz says: a debt reads "you owe".
     function says(amount: string, owes: bool): string {
         return owes ? i18nContext.i18nc("@label %1 is an amount of money", "you owe %1", amount) : amount;
@@ -320,20 +336,103 @@ Kirigami.ScrollablePage {
                         color: entryRow.modelData.outcome === "similar" ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.textColor
                     }
 
+                    // Each transaction of the book the entry looks like,
+                    // with what tells them apart: the payee, the category or
+                    // Parts, the note and what the bank delivered with it.
                     Repeater {
                         model: entryRow.modelData.similar
 
-                        delegate: Controls.Label {
+                        delegate: RowLayout {
+                            id: lookalike
+
                             required property var modelData
 
                             Layout.fillWidth: true
                             Layout.leftMargin: Kirigami.Units.largeSpacing
-                            text: modelData.category === ""
-                                ? page.i18nContext.i18nc("@info a transaction in the book: %1 is a date, %2 a name, %3 an amount", "In your book: %1 · %2 · %3", modelData.date, modelData.otherParty, modelData.exactAmount)
-                                : page.i18nContext.i18nc("@info a transaction in the book: %1 is a date, %2 a name, %3 an amount, %4 a category", "In your book: %1 · %2 · %3 · %4", modelData.date, modelData.otherParty, modelData.exactAmount, modelData.category)
-                            textFormat: Text.PlainText
-                            wrapMode: Text.Wrap
-                            font: Kirigami.Theme.smallFont
+                            Layout.topMargin: Kirigami.Units.smallSpacing
+                            spacing: Kirigami.Units.smallSpacing
+
+                            Rectangle {
+                                Layout.fillHeight: true
+                                implicitWidth: Math.max(2, Math.round(Kirigami.Units.smallSpacing / 2))
+                                color: Kirigami.Theme.neutralTextColor
+                                opacity: 0.6
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 0
+
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    text: page.i18nContext.i18nc("@info a transaction in the book: %1 is a date, %2 a name, %3 an amount", "In your book: %1 · %2 · %3",
+                                        lookalike.modelData.date,
+                                        lookalike.modelData.otherParty !== ""
+                                            ? lookalike.modelData.otherParty
+                                            : page.i18nContext.i18nc("@info an entry that names nobody", "Without a name"),
+                                        lookalike.modelData.exactAmount)
+                                    textFormat: Text.PlainText
+                                    wrapMode: Text.Wrap
+                                    font: Kirigami.Theme.smallFont
+                                }
+
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    text: page.bookedText(lookalike.modelData)
+                                    textFormat: Text.PlainText
+                                    wrapMode: Text.Wrap
+                                    font: Kirigami.Theme.smallFont
+                                    opacity: 0.8
+                                }
+
+                                Repeater {
+                                    model: lookalike.modelData.kind === "parts" ? lookalike.modelData.parts : []
+
+                                    delegate: Controls.Label {
+                                        required property var modelData
+
+                                        Layout.fillWidth: true
+                                        Layout.leftMargin: Kirigami.Units.largeSpacing
+                                        text: page.i18nContext.i18nc("@info one Part of a transaction in the book: %1 is a category, %2 an amount", "%1: %2",
+                                            modelData.name !== "" ? modelData.name : page.i18nContext.i18nc("@info a transaction or Part in the book with no category", "No category"),
+                                            modelData.exactAmount)
+                                        textFormat: Text.PlainText
+                                        wrapMode: Text.Wrap
+                                        font: Kirigami.Theme.smallFont
+                                        opacity: 0.8
+                                    }
+                                }
+
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    visible: lookalike.modelData.note !== ""
+                                    text: page.i18nContext.i18nc("@info what the user noted about a transaction in the book, %1 is the note", "Your note: %1", lookalike.modelData.note)
+                                    textFormat: Text.PlainText
+                                    wrapMode: Text.Wrap
+                                    font: Kirigami.Theme.smallFont
+                                    opacity: 0.8
+                                }
+
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    visible: lookalike.modelData.bankName !== ""
+                                    text: page.i18nContext.i18nc("@info the other party's name as the bank delivered it for a transaction in the book, %1 is the name", "As delivered: %1", lookalike.modelData.bankName)
+                                    textFormat: Text.PlainText
+                                    wrapMode: Text.Wrap
+                                    font: Kirigami.Theme.smallFont
+                                    opacity: 0.8
+                                }
+
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    visible: lookalike.modelData.purpose !== ""
+                                    text: page.i18nContext.i18nc("@info the text a transaction in the book came with from the bank, %1 is that text", "Purpose: %1", lookalike.modelData.purpose)
+                                    textFormat: Text.PlainText
+                                    wrapMode: Text.Wrap
+                                    font: Kirigami.Theme.smallFont
+                                    opacity: 0.8
+                                }
+                            }
                         }
                     }
 

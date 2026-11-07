@@ -137,6 +137,34 @@ pub fn fetch_start(last_fetched_on: Option<Date>) -> Option<Date> {
     Some(day)
 }
 
+/// How far back the first fetch of an account reaches when the book has no
+/// transaction for it (D-618): a bank gives data of the last 90 days without
+/// an approval of its own (PSD2), so 85 days stay inside that. Older entries
+/// come with a file import.
+pub const FIRST_FETCH_DAYS: u8 = 85;
+
+/// The link a fetch is made from (D-618). An account fetched before keeps
+/// its link. A never-fetched account asked the bank for everything, which
+/// banks answer with a second approval or a refusal; it starts instead
+/// [`FETCH_OVERLAP_DAYS`] days before the newest entry the book has for the
+/// account (`newest_entry`, never later than `today`) but never earlier than
+/// [`FIRST_FETCH_DAYS`] days before `today`, so the request stays inside the
+/// 90 days a bank gives without a second approval; with no entry it starts
+/// [`FIRST_FETCH_DAYS`] days before `today`. Entries before that come with a
+/// file import.
+pub fn link_for_fetch(link: &BankLink, newest_entry: Option<Date>, today: Date) -> BankLink {
+    let mut link = link.clone();
+    if link.last_fetched_on.is_none() {
+        // The newest entry that still gives a start inside the window.
+        let mut floor = today;
+        for _ in 0..FIRST_FETCH_DAYS - FETCH_OVERLAP_DAYS {
+            floor = floor.yesterday().unwrap_or(floor);
+        }
+        link.last_fetched_on = Some(newest_entry.map_or(floor, |day| day.min(today).max(floor)));
+    }
+    link
+}
+
 /// Fetches what the bank has for the account `link` names, from
 /// [`FETCH_OVERLAP_DAYS`] days before the day of the last fetch on (see
 /// [`fetch_start`]), or as far back as the bank goes at the first fetch, and
@@ -376,6 +404,40 @@ mod tests {
         assert_eq!(fetch_start(None), None);
         // No day before the calendar's first one.
         assert_eq!(fetch_start(Some(Date::MIN)), None);
+    }
+
+    #[test]
+    fn a_never_fetched_account_starts_near_its_newest_entry_or_85_days_back() {
+        let day = |m, d| Date::new(2026, m, d).expect("a date");
+        let new = link(Some(CURRENT_ACCOUNT_IBAN), None, None);
+        let start = |link: &BankLink| fetch_start(link.last_fetched_on);
+        // Five days before the newest entry the book has.
+        assert_eq!(
+            start(&link_for_fetch(&new, Some(day(9, 20)), day(10, 9))),
+            Some(day(9, 15))
+        );
+        // An entry dated after today (a future booking) doesn't push it on.
+        assert_eq!(
+            start(&link_for_fetch(&new, Some(day(12, 1)), day(10, 9))),
+            Some(day(10, 4))
+        );
+        // An entry older than the window: 85 days before today, not further.
+        assert_eq!(
+            start(&link_for_fetch(&new, Some(day(1, 3)), day(10, 9))),
+            Some(day(7, 16))
+        );
+        // No entry: 85 days before today.
+        assert_eq!(
+            start(&link_for_fetch(&new, None, day(10, 9))),
+            Some(day(7, 16))
+        );
+        // A fetched account keeps its own day.
+        let mut fetched = new.clone();
+        fetched.last_fetched_on = Some(day(10, 1));
+        assert_eq!(
+            start(&link_for_fetch(&fetched, Some(day(9, 20)), day(10, 9))),
+            Some(day(9, 26))
+        );
     }
 
     #[test]

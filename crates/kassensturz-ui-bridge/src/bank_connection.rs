@@ -55,8 +55,8 @@ use kassensturz_bank::{
     BankError, BankQuestion, CustomerId, FINTS_REGISTRATION_KEY, FakeBank, FintsVersion, Iban,
     KeychainPinStore, Login, LoginChange, LoginId, LoginKind, LoginSetup, MemoryPinStore,
     NoPinStore, Pin, PinAsker, PinMode, PinSession, PinStore, QuestionLevel, RegistrationKey,
-    SecondFactor, Setup, Tan, TanRequest, fetch_linked, find_bank_account, names_account,
-    refresh_linked, remove_login, setup_for, valid_tan_method,
+    SecondFactor, Setup, Tan, TanRequest, fetch_linked, find_bank_account, link_for_fetch,
+    names_account, refresh_linked, remove_login, setup_for, valid_tan_method,
 };
 use kassensturz_core::{AccountId, BankLink, Date, ErrorParam, Report};
 use kassensturz_import::{EntryStatus, Limits, Statement};
@@ -1575,6 +1575,9 @@ pub struct FetchRequest {
     pub name: String,
     /// The bank account it is linked to, and the day of the last fetch.
     pub link: BankLink,
+    /// The newest booking date the book has for it, read only for an account
+    /// never fetched, where the first fetch starts from it (D-618).
+    pub newest_entry: Option<Date>,
 }
 
 /// The requests for the accounts with these IDs. An account that isn't one
@@ -1604,10 +1607,20 @@ pub fn fetch_requests(
                     locale,
                 )
             })?;
+        let newest_entry = if link.last_fetched_on.is_none() {
+            book.transactions_of(account.id)
+                .map_err(|error| report_text(book, &error.report(), locale))?
+                .iter()
+                .map(|transaction| transaction.booking_date())
+                .max()
+        } else {
+            None
+        };
         requests.push(FetchRequest {
             account: account.id,
             name: account.name.clone(),
             link,
+            newest_entry,
         });
     }
     Ok(requests)
@@ -1727,7 +1740,13 @@ pub fn fetch(
             if let Some(screens) = screens.as_ref() {
                 screens.tell(Event::FetchStarted(outcome.account.clone()));
             }
-            match fetch_linked(bank, pins, &mut asker, &request.link, &Limits::default()) {
+            match fetch_linked(
+                bank,
+                pins,
+                &mut asker,
+                &link_for_fetch(&request.link, request.newest_entry, today),
+                &Limits::default(),
+            ) {
                 Ok(statement) => {
                     outcome.state = "ready";
                     outcome.transactions = statement
@@ -1882,7 +1901,13 @@ pub fn update_all(
                     if let Some(screens) = screens.as_ref() {
                         screens.tell(Event::FetchStarted(request.account.to_string()));
                     }
-                    match fetch_linked(bank, pins, &mut asker, &request.link, &Limits::default()) {
+                    match fetch_linked(
+                        bank,
+                        pins,
+                        &mut asker,
+                        &link_for_fetch(&request.link, request.newest_entry, today),
+                        &Limits::default(),
+                    ) {
                         Ok(statement) => Updated::Fetched(statement),
                         // Cancelling a PIN or TAN skips the bank's
                         // accounts, this one too (D-446).
@@ -2564,6 +2589,47 @@ mod tests {
     fn requests(book: &Book, accounts: &[AccountId]) -> Vec<FetchRequest> {
         let ids: Vec<String> = accounts.iter().map(ToString::to_string).collect();
         fetch_requests(book, &ids, &TestLocale).expect("requests")
+    }
+
+    #[test]
+    fn a_first_fetch_starts_from_the_newest_entry_the_book_has_for_the_account() {
+        use kassensturz_bank::fetch_start;
+        use kassensturz_core::{Money, Split, Transaction, TransactionId};
+        let mut book = Book::create_in_memory().expect("book");
+        let eur = CurrencyCode::new("EUR").expect("EUR");
+        let current = account(&mut book, "Current account", None);
+        let other = account(&mut book, "Other", None);
+        let empty = account(&mut book, "Empty", None);
+        link_to(&mut book, current, Some("DE89370400440532013000"), None);
+        link_to(&mut book, empty, None, Some(CARD_NUMBER));
+        for day in ["2026-09-01", "2026-09-20"] {
+            let amount = Money::from_minor_units(1000, eur);
+            let transaction = Transaction::new(
+                TransactionId::generate(),
+                day.parse().expect("day"),
+                Some("Payee".into()),
+                vec![
+                    Split::new(current, amount),
+                    Split::new(other, amount.checked_neg().expect("negated")),
+                ],
+            )
+            .expect("balanced");
+            book.add_transaction(&transaction).expect("added");
+        }
+        let found = requests(&book, &[current, empty]);
+        let september = |day| Date::new(2026, 9, day).expect("date");
+        assert_eq!(found[0].newest_entry, Some(september(20)));
+        assert_eq!(found[1].newest_entry, None);
+        // The fetch asks from 5 days before the newest entry; with none,
+        // 85 days before today (D-618).
+        let link = link_for_fetch(&found[0].link, found[0].newest_entry, today());
+        assert_eq!(fetch_start(link.last_fetched_on), Some(september(15)));
+        let link = link_for_fetch(&found[1].link, found[1].newest_entry, today());
+        assert_eq!(
+            fetch_start(link.last_fetched_on),
+            Some(Date::new(2026, 7, 16).expect("date")),
+            "85 days before 2026-10-09"
+        );
     }
 
     #[test]

@@ -1380,3 +1380,289 @@ fn a_category_is_removed_only_when_nothing_uses_it_and_undo_brings_it_back() {
     // With its subcategory gone, the parent can go too.
     book.remove_category(empty).expect("removed");
 }
+
+#[test]
+fn applying_the_rules_sorts_what_has_no_category_as_one_undo_step() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let household = account(&mut book, "Household", AccountKind::Expense, EUR);
+    // Already in the book before the Rules exist, as an import leaves them.
+    let shop = imported(&mut book, checking, -5320, 5, "REWE Markt");
+    let bakery = imported(&mut book, checking, -450, 6, "Corner Bakery");
+    let nothing_fits = imported(&mut book, checking, -999, 7, "Cinema");
+    // Sorted by hand when it was typed in.
+    let by_hand = transaction(
+        date(2026, 10, 8),
+        "REWE Markt",
+        &[(checking, eur(-1999)), (household, eur(1999))],
+    );
+    book.add_transaction(&by_hand).expect("added");
+    let shops = add(
+        &mut book,
+        "Shops",
+        "REWE",
+        Some(BookTo::Category(groceries)),
+        None,
+    );
+    let mut named = rule(
+        "Bakery",
+        vec![name_contains("Bakery")],
+        Some(BookTo::Category(household)),
+    );
+    named.actions.payee = Some("The bakery".into());
+    book.add_rule(&named, None).expect("added");
+    let before = history_length(&book);
+
+    // The preview says what would change and changes nothing (D-630).
+    let preview = book
+        .preview_apply_rules(ApplyRules::default())
+        .expect("preview");
+    assert_eq!(
+        changed(&preview),
+        [(shop.id(), shops.id), (bakery.id(), named.id)]
+    );
+    assert_eq!(preview.changed[0].account, checking);
+    assert_eq!(preview.changed[0].booked_to, Some(groceries));
+    assert_eq!(preview.changed[0].payee, None);
+    assert_eq!(preview.changed[1].booked_to, Some(household));
+    assert_eq!(preview.changed[1].payee.as_deref(), Some("The bakery"));
+    assert!(preview.skipped.is_empty());
+    assert_eq!(history_length(&book), before);
+    assert_eq!(other_side(&book, &shop, checking), None);
+
+    // Applying does what the preview said, as one user action.
+    let run = book.apply_rules(ApplyRules::default()).expect("applied");
+    assert_eq!(changed(&run), changed(&preview));
+    assert_eq!(history_length(&book), before + 1);
+    assert_eq!(
+        book.change_to_undo().expect("read").map(|c| c.action),
+        Some(Action::RunRules)
+    );
+    assert_eq!(other_side(&book, &shop, checking), Some(groceries));
+    assert_eq!(other_side(&book, &bakery, checking), Some(household));
+    assert_eq!(
+        book.transaction(bakery.id()).expect("read").payee(),
+        Some("The bakery")
+    );
+    assert_eq!(other_side(&book, &nothing_fits, checking), None);
+    assert_eq!(book.transaction(by_hand.id()).expect("read"), by_hand);
+    assert!(book.rule_mark(shop.id()).expect("mark").is_some());
+
+    // Nothing is left to do, and one undo takes the whole run back.
+    let again = book.apply_rules(ApplyRules::default()).expect("again");
+    assert!(again.changed.is_empty());
+    assert_eq!(history_length(&book), before + 1);
+    book.undo().expect("undone");
+    assert_eq!(book.transaction(shop.id()).expect("read"), shop);
+    assert_eq!(book.transaction(bakery.id()).expect("read"), bakery);
+    assert_eq!(book.rule_mark(shop.id()).expect("mark"), None);
+    assert_eq!(book.transaction(by_hand.id()).expect("read"), by_hand);
+}
+
+#[test]
+fn applying_one_rule_sorts_only_what_it_decides() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        salary,
+    } = sample();
+    let household = account(&mut book, "Household", AccountKind::Expense, EUR);
+    let market = imported(&mut book, checking, -5320, 5, "REWE Markt");
+    let city = imported(&mut book, checking, -1250, 6, "REWE City");
+    let center = imported(&mut book, checking, -830, 7, "REWE Center");
+    let bakery = imported(&mut book, checking, -450, 8, "Corner Bakery");
+    // An earlier Rule takes "REWE Markt" first (D-031).
+    let first = add(
+        &mut book,
+        "Market",
+        "REWE Markt",
+        Some(BookTo::Category(salary)),
+        None,
+    );
+    let shops = add(
+        &mut book,
+        "Shops",
+        "REWE",
+        Some(BookTo::Category(groceries)),
+        None,
+    );
+    let inside = add(
+        &mut book,
+        "City",
+        "City",
+        Some(BookTo::Category(household)),
+        Some(shops.id),
+    );
+    add(
+        &mut book,
+        "Bakery",
+        "Bakery",
+        Some(BookTo::Category(household)),
+        None,
+    );
+
+    let only = ApplyRules {
+        rule: Some(shops.id),
+        resort: false,
+    };
+    let preview = book.preview_apply_rules(only).expect("preview");
+    // The Rule itself and the Rule inside it; not what the earlier Rule
+    // takes, nor what another Rule decides.
+    assert_eq!(
+        changed(&preview),
+        [(city.id(), inside.id), (center.id(), shops.id)]
+    );
+    let run = book.apply_rules(only).expect("applied");
+    assert_eq!(changed(&run), changed(&preview));
+    assert_eq!(other_side(&book, &city, checking), Some(household));
+    assert_eq!(other_side(&book, &center, checking), Some(groceries));
+    assert_eq!(other_side(&book, &market, checking), None);
+    assert_eq!(other_side(&book, &bakery, checking), None);
+
+    // Applying the sub-Rule alone has nothing left; the earlier Rule still
+    // has its own.
+    let sub = ApplyRules {
+        rule: Some(inside.id),
+        resort: false,
+    };
+    assert!(
+        book.preview_apply_rules(sub)
+            .expect("preview")
+            .changed
+            .is_empty()
+    );
+    let earlier = ApplyRules {
+        rule: Some(first.id),
+        resort: false,
+    };
+    assert_eq!(
+        changed(&book.preview_apply_rules(earlier).expect("preview")),
+        [(market.id(), first.id)]
+    );
+
+    // A Rule that isn't in the book is refused, and nothing changes.
+    let missing = RuleId::generate();
+    let unknown = ApplyRules {
+        rule: Some(missing),
+        resort: false,
+    };
+    assert!(matches!(
+        book.preview_apply_rules(unknown),
+        Err(StoreError::UnknownRule(id)) if id == missing
+    ));
+    assert!(matches!(
+        book.apply_rules(unknown),
+        Err(StoreError::UnknownRule(id)) if id == missing
+    ));
+    assert_eq!(other_side(&book, &market, checking), None);
+}
+
+#[test]
+fn sorting_again_what_rules_sorted_is_a_separate_switch() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        salary,
+    } = sample();
+    let household = account(&mut book, "Household", AccountKind::Expense, EUR);
+    let mut shops = add(
+        &mut book,
+        "Shops",
+        "REWE",
+        Some(BookTo::Category(groceries)),
+        None,
+    );
+    let booked = imported(&mut book, checking, -5320, 5, "REWE Markt");
+    let edited_later = imported(&mut book, checking, -999, 6, "REWE City");
+    book.run_rules().expect("run");
+    // The user changes one of them afterwards, so the Rules leave it alone
+    // (D-031).
+    let mut edited = book.transaction(edited_later.id()).expect("read");
+    let splits = edited
+        .splits()
+        .iter()
+        .map(|split| Split {
+            account: split
+                .account
+                .map(|id| if id == groceries { salary } else { id }),
+            ..split.clone()
+        })
+        .collect();
+    edited = Transaction::new(edited.id(), edited.booking_date(), None, splits).expect("ok");
+    book.update_transaction(&edited).expect("edited");
+    let by_hand = transaction(
+        date(2026, 10, 7),
+        "REWE Markt",
+        &[(checking, eur(-1999)), (salary, eur(1999))],
+    );
+    book.add_transaction(&by_hand).expect("added");
+    let open = imported(&mut book, checking, -830, 8, "REWE Center");
+
+    // The Rule changes, without sorting again what it sorted.
+    shops.actions.book_to = Some(BookTo::Category(household));
+    book.update_rule(&shops).expect("changed");
+
+    // By default only what has no category yet is sorted.
+    let plain = book
+        .preview_apply_rules(ApplyRules::default())
+        .expect("preview");
+    assert_eq!(changed(&plain), [(open.id(), shops.id)]);
+
+    // With the switch, what the Rule sorted before follows too; what the
+    // user sorted or changed stays.
+    let resort = ApplyRules {
+        rule: None,
+        resort: true,
+    };
+    let run = book.apply_rules(resort).expect("applied");
+    assert_eq!(
+        changed(&run),
+        [(booked.id(), shops.id), (open.id(), shops.id)]
+    );
+    assert_eq!(other_side(&book, &booked, checking), Some(household));
+    assert_eq!(other_side(&book, &open, checking), Some(household));
+    assert_eq!(book.transaction(edited_later.id()).expect("read"), edited);
+    assert_eq!(book.transaction(by_hand.id()).expect("read"), by_hand);
+
+    // A Rule moved to the top takes over, with "Apply now" and the switch,
+    // what another Rule sorted, and the mark names it now.
+    let market = add(
+        &mut book,
+        "Market",
+        "Markt",
+        Some(BookTo::Category(groceries)),
+        None,
+    );
+    book.move_rule(market.id, None, 0).expect("first");
+    let now = ApplyRules {
+        rule: Some(market.id),
+        resort: true,
+    };
+    assert_eq!(
+        changed(&book.apply_rules(now).expect("applied")),
+        [(booked.id(), market.id)]
+    );
+    assert_eq!(other_side(&book, &booked, checking), Some(groceries));
+    assert_eq!(
+        book.rule_mark(booked.id()).expect("mark").map(|m| m.rule),
+        Some(Some(market.id))
+    );
+
+    // When no Rule fits anymore, what a Rule did stays (Q-046).
+    book.remove_rule(market.id).expect("removed");
+    book.remove_rule(shops.id).expect("removed");
+    assert!(
+        book.apply_rules(resort)
+            .expect("applied")
+            .changed
+            .is_empty()
+    );
+    assert_eq!(other_side(&book, &booked, checking), Some(groceries));
+    assert_eq!(other_side(&book, &open, checking), Some(household));
+}

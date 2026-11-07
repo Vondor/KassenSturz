@@ -23,7 +23,8 @@ use crate::number_format::{UserLocale, app_locale};
 use crate::overview_model::latest_row_object;
 use crate::register_model::{field, flag};
 use crate::rules::{
-    self, Choice, Choices, ConditionForm, Rebooked, RuleEditError, RuleForm, RuleRow, Suggestion,
+    self, Applied, Choice, Choices, ConditionForm, Rebooked, RuleEditError, RuleForm, RuleRow,
+    Suggestion,
 };
 use crate::session;
 use crate::settings::Settings;
@@ -99,7 +100,7 @@ pub mod qobject {
         #[cxx_name = "formFromSuggestion"]
         fn form_from_suggestion(self: &RuleBook, payee: &QString, category: &QString) -> QVariant;
 
-        /// Adds the Rule the form describes. Returns an empty map, or the
+        /// Adds the Rule the form describes. Returns its `id`, or the
         /// error's `code` and its parameters.
         #[qinvokable]
         #[cxx_name = "addRule"]
@@ -117,6 +118,24 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "previewRebook"]
         fn preview_rebook(self: &RuleBook, form: &QVariant) -> QVariant;
+
+        /// What "Apply now" on the Rule with this ID, or "Apply all" with an
+        /// empty ID, would sort among the transactions already in the book
+        /// (D-630): how many (`changed`), how many stay as they are and why
+        /// (`transfers`, `noRate`, `closed`, `other`), and the newest
+        /// `examples` as the register shows them afterwards, in the shape of
+        /// `matches`. With `resort`, also what Rules sorted before (D-631).
+        /// Nothing is changed. Or the error.
+        #[qinvokable]
+        #[cxx_name = "previewApply"]
+        fn preview_apply(self: &RuleBook, id: &QString, resort: bool) -> QVariant;
+
+        /// Sorts what `previewApply` lists, as one change that one undo
+        /// takes back. Returns the counts of `previewApply` without
+        /// examples, or the error.
+        #[qinvokable]
+        #[cxx_name = "applyRules"]
+        fn apply_rules(self: Pin<&mut RuleBook>, id: &QString, resort: bool) -> QVariant;
 
         /// The transactions the Rule with this ID matches now, newest first
         /// (`accountId`, `account`, `id`, `date`, `otherParty`, `category`,
@@ -242,8 +261,8 @@ impl qobject::RuleBook {
 
     fn add_rule(self: Pin<&mut Self>, form: &QVariant) -> QVariant {
         let form = read_form(form);
-        let result = change(|book, locale| rules::add_rule(book, &form, locale).map(drop));
-        self.finish(result.map(|()| map([])))
+        let result = change(|book, locale| rules::add_rule(book, &form, locale));
+        self.finish(result.map(|id| map([("id", text(&id.to_string()))])))
     }
 
     fn change_rule(self: Pin<&mut Self>, form: &QVariant, rebook: bool) -> QVariant {
@@ -256,6 +275,20 @@ impl qobject::RuleBook {
         let form = read_form(form);
         read_book(|book, locale| rules::preview_rebook(book, &form, locale))
             .map_or_else(|error| error_object(&error), rebooked_object)
+    }
+
+    fn preview_apply(&self, id: &QString, resort: bool) -> QVariant {
+        let id = id.to_string();
+        read_book(|book, locale| rules::preview_apply(book, &id, resort, locale)).map_or_else(
+            |error| error_object(&error),
+            |applied| applied_object(&applied),
+        )
+    }
+
+    fn apply_rules(self: Pin<&mut Self>, id: &QString, resort: bool) -> QVariant {
+        let id = id.to_string();
+        let result = change(|book, _| rules::apply(book, &id, resort));
+        self.finish(result.map(|applied| applied_object(&applied)))
     }
 
     fn matches(&self, id: &QString) -> QVariant {
@@ -371,6 +404,20 @@ fn suggestion_object(suggestion: &Suggestion) -> QVariant {
         ("category", text(&suggestion.category)),
         ("categoryPath", text(&suggestion.category_path)),
         ("count", int(suggestion.count)),
+    ])
+}
+
+fn applied_object(applied: &Applied) -> QVariant {
+    map([
+        ("changed", int(applied.changed)),
+        ("transfers", int(applied.transfers)),
+        ("noRate", int(applied.no_rate)),
+        ("closed", int(applied.closed)),
+        ("other", int(applied.other)),
+        (
+            "examples",
+            list(applied.examples.iter().map(latest_row_object)),
+        ),
     ])
 }
 
@@ -739,5 +786,56 @@ mod tests {
         assert_eq!(keys(&done), ["changed", "skipped"]);
         assert_eq!(number_of(&done, "changed"), 3);
         assert_eq!(number_of(&done, "skipped"), 1);
+    }
+
+    #[test]
+    fn the_preview_of_applying_the_rules_reads_back_as_qml_reads_it() {
+        let (mut book, account) = book_with_rules();
+        pay(&mut book, &account, "Corner Shop", "", "2026-10-08");
+        let preview = rules::preview_apply(&book, "", false, &TestLocale).expect("preview");
+        let shown = applied_object(&preview);
+        assert_eq!(
+            keys(&shown),
+            [
+                "changed",
+                "closed",
+                "examples",
+                "noRate",
+                "other",
+                "transfers"
+            ]
+        );
+        assert_eq!(number_of(&shown, "changed"), 1);
+        for key in ["closed", "noRate", "other", "transfers"] {
+            assert_eq!(number_of(&shown, key), 0, "{key}");
+        }
+        let examples = list_of(&shown, "examples");
+        assert_eq!(examples.len(), 1);
+        assert_eq!(
+            keys(&examples[0]),
+            [
+                "account",
+                "accountId",
+                "amount",
+                "category",
+                "date",
+                "exactAmount",
+                "id",
+                "incoming",
+                "kind",
+                "otherParty"
+            ]
+        );
+        // As the register shows it once the Rule sorted it.
+        assert_eq!(text_of(&examples[0], "category"), "Groceries");
+        assert_eq!(text_of(&examples[0], "kind"), "simple");
+        assert_eq!(text_of(&examples[0], "otherParty"), "Corner Shop");
+        assert_eq!(text_of(&examples[0], "accountId"), account);
+
+        // Applying gives the same counts, without examples.
+        let done = rules::apply(&mut book, "", false).expect("applied");
+        let shown = applied_object(&done);
+        assert_eq!(number_of(&shown, "changed"), 1);
+        assert!(list_of(&shown, "examples").is_empty());
     }
 }

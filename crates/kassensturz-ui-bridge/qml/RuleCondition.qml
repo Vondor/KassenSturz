@@ -115,8 +115,10 @@ Kirigami.AbstractCard {
                 Accessible.name: card.i18nContext.i18nc("@label:textbox", "The text or pattern to look for")
             }
 
+            // For a pattern too, so a pattern that has to match capitals,
+            // e.g. one imported from KMyMoney, shows it and can be changed.
             Controls.CheckBox {
-                visible: card.isText && !card.isPattern
+                visible: card.isText
                 text: card.i18nContext.i18nc("@option:check", "Capital letters must match")
                 checked: card.condition.caseSensitive
                 onToggled: {
@@ -139,7 +141,7 @@ Kirigami.AbstractCard {
             Controls.Label {
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 20
                 visible: card.isPattern
-                text: card.i18nContext.i18nc("@info", "A pattern is a regular expression, for example ^REWE .* DANKE$. It can match part of the text. If you only want to look for some words, switch this off and use \"contains\".")
+                text: card.i18nContext.i18nc("@info", "A pattern is a regular expression, for example ^REWE .* DANKE$. It can match part of the text. Capital letters are ignored unless \"Capital letters must match\" is ticked. Lookahead and lookbehind, such as (?=…) or (?<!…), and back-references such as \\1 don't work. If you only want to look for some words, switch this off and use \"contains\".")
                 wrapMode: Text.Wrap
                 font: Kirigami.Theme.smallFont
             }

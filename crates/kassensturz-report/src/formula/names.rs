@@ -7,8 +7,10 @@
 
 use kassensturz_core::GroupMember;
 
-use super::eval::fits;
+use super::eval::{fits, written_path};
+use super::parse::side_word;
 use crate::Source;
+use crate::source::Kind as Side;
 
 /// A function of the closed list, for the list beside the formula field. The
 /// plain explanation is the app's, looked up by the name (D-034).
@@ -60,6 +62,8 @@ pub struct KnownName {
     pub path: Vec<String>,
     /// Whether it is one of My groups.
     pub group: bool,
+    /// Whether it is money in (an income category or group), not money out.
+    pub income: bool,
 }
 
 /// A bare name starts with a letter and goes on with letters, digits and
@@ -83,7 +87,9 @@ fn written(name: &str) -> String {
 
 /// The groups in the book's order, then the categories in the order of the
 /// category tree. A name that cannot be written so that it reads back as
-/// itself alone is left out; the user can still type its path.
+/// itself alone is left out; the user can still type its path. A name an
+/// income and a spending category share is written with `Income.` or
+/// `Spending.` in front (D-654).
 pub(super) fn known(source: &Source) -> Vec<KnownName> {
     let candidates = source
         .groups()
@@ -98,35 +104,39 @@ pub(super) fn known(source: &Source) -> Vec<KnownName> {
     candidates
         .filter_map(|(member, path)| {
             let last = path.last()?;
-            let alone = fits(source, last);
-            let text = if alone.len() == 1 {
-                written(last)
-            } else {
-                quoted(&path.join(" > "))
-            };
+            let whole = path.join(" > ");
+            let own = fits(source, last, None)
+                .into_iter()
+                .find(|(found, _, _)| *found == member)?
+                .1;
+            // The ways to write it, the shortest first, each with what the
+            // formula then looks up: the name, the path, either with its
+            // side in front.
+            let ways = [
+                (written(last), None, last.clone()),
+                (written_path(own, &whole, false), None, whole.clone()),
+                (
+                    format!("{}.{}", side_word(own), written(last)),
+                    Some(own),
+                    last.clone(),
+                ),
+                (written_path(own, &whole, true), Some(own), whole),
+            ];
             // What is typed must fit this one and nothing else.
-            let reads_back = match fits(source, &unquote(&text)).as_slice() {
-                [(found, _)] => *found == member,
-                _ => false,
-            };
-            reads_back.then_some(KnownName {
+            let (text, _, _) = ways.into_iter().find(|(_, side, lookup)| {
+                matches!(
+                    fits(source, lookup, *side).as_slice(),
+                    [(found, _, _)] if *found == member
+                )
+            })?;
+            Some(KnownName {
                 written: text,
                 path,
                 group: matches!(member, GroupMember::Group(_)),
+                income: own == Side::Income,
             })
         })
         .collect()
-}
-
-/// The name a bare or quoted name stands for.
-fn unquote(text: &str) -> String {
-    match text
-        .strip_prefix('\'')
-        .and_then(|rest| rest.strip_suffix('\''))
-    {
-        Some(inner) => inner.replace("''", "'"),
-        None => text.to_owned(),
-    }
 }
 
 #[cfg(test)]

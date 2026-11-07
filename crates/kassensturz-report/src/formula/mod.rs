@@ -121,14 +121,27 @@ impl FormulaValue {
     }
 }
 
+/// What a name of a formula stands for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Term {
+    /// A category or a group.
+    Member(GroupMember),
+    /// `Income.ALL`: all money in, also what is not sorted into a category
+    /// yet (D-653).
+    AllIncome,
+    /// `Spending.ALL`: all money out, also what is not sorted into a
+    /// category yet (D-653).
+    AllSpending,
+}
+
 /// A category or group a formula counted, for the line "counts Pets (with
 /// Vet), Travel" next to its result.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Counted {
-    /// The category or group.
-    pub of: GroupMember,
+    /// The category or group, or all income or all spending.
+    pub of: Term,
     /// The category's names from the top-level category down, or the
-    /// group's name alone.
+    /// group's name alone; empty for all income or all spending.
     pub path: Vec<String>,
     /// The names of the other categories counted with it, in the order of
     /// the category tree: what is inside a category, or the categories of a

@@ -10001,6 +10001,31 @@ msgstr ""
 "aufgelistet, oder benennen Sie eine Gruppe oder Kategorie mit demselben "
 "Namen um."
 
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:399
+#, kde-format
+msgctxt "@info %1 is a name, %2 a list of names"
+msgid ""
+"%1 fits more than one: %2. Write the one you mean as listed. Income. in "
+"front is money that came in, Spending. money that went out. Or rename a "
+"group or category of the same name."
+msgstr ""
+"%1 passt auf mehrere: %2. Schreiben Sie die gemeinte so, wie sie aufgelistet "
+"ist. Income. davor ist Geld, das hereingekommen ist, Spending. Geld, das "
+"ausgegeben wurde. Oder benennen Sie eine Gruppe oder Kategorie mit "
+"demselben Namen um."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:188
+#, kde-format
+msgctxt "@info %1 is a character position"
+msgid ""
+"The word before the dot at character %1 isn't one formulas know. Write "
+"Income or Spending before the dot, for example Spending.Pets, or put a name "
+"with a dot in single quotes."
+msgstr ""
+"Das Wort vor dem Punkt bei Zeichen %1 kennen Formeln nicht. Schreiben Sie "
+"Income oder Spending vor den Punkt, zum Beispiel Spending.Haustiere, oder "
+"setzen Sie einen Namen mit Punkt in einfache Anführungszeichen."
+
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:398
 #, kde-format
 msgctxt "@info %1 is a function name, %2 a character position"
@@ -11363,16 +11388,40 @@ msgctxt "@label:textbox a formula that works out a figure"
 msgid "Formula"
 msgstr "Formel"
 
-#: crates/kassensturz-ui-bridge/qml/FormulaField.qml:171
+#: crates/kassensturz-ui-bridge/qml/FormulaField.qml:178
 #, kde-format
 msgctxt "@info"
 msgid ""
 "Use the names of your categories and groups. Add a time range to a name with "
-"@, for example Pets@\"last month\" or Pets@2026-03."
+"@, for example Pets@\"last month\" or Pets@2026-03. Put Income. or Spending. "
+"in front of a name to pick money that came in or went out, for example "
+"Spending.Pets. Spending.ALL and Income.ALL count everything, also what is "
+"not sorted into a category yet."
 msgstr ""
 "Nehmen Sie die Namen Ihrer Kategorien und Gruppen. Hängen Sie mit @ einen "
 "Zeitraum an einen Namen, zum Beispiel Haustiere@\"last month\" oder "
-"Haustiere@2026-03."
+"Haustiere@2026-03. Setzen Sie Income. oder Spending. vor einen Namen, um "
+"Geld zu wählen, das hereingekommen oder ausgegeben wurde, zum Beispiel "
+"Spending.Haustiere. Spending.ALL und Income.ALL zählen alles, auch was noch "
+"keiner Kategorie zugeordnet ist."
+
+#: crates/kassensturz-ui-bridge/qml/FormulaField.qml:102
+#, kde-format
+msgctxt "@info a name in a list of what a formula counts: all money received"
+msgid "all income"
+msgstr "alle Einnahmen"
+
+#: crates/kassensturz-ui-bridge/qml/FormulaField.qml:103
+#, kde-format
+msgctxt "@info a name in a list of what a formula counts: all money spent"
+msgid "all spending"
+msgstr "alle Ausgaben"
+
+#: crates/kassensturz-ui-bridge/qml/FormulaField.qml:256
+#, kde-format
+msgctxt "@item %1 is what the formula writes for all spending or all income"
+msgid "%1 (all, also what is not sorted yet)"
+msgstr "%1 (alles, auch was noch nicht zugeordnet ist)"
 
 #: crates/kassensturz-ui-bridge/qml/FormulaField.qml:232
 #, kde-format

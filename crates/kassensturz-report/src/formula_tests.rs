@@ -580,7 +580,7 @@ fn the_result_and_what_it_counted_come_back_together() {
         .evaluate(&source, autumn(), &Filter::default(), USD)
         .expect("worked out");
     assert_eq!(result.value, eur(17_640 + 80_000));
-    let counted: Vec<(GroupMember, Vec<String>, Period)> = result
+    let counted: Vec<(Term, Vec<String>, Period)> = result
         .counted
         .into_iter()
         .map(|counted| (counted.of, counted.path, counted.period))
@@ -589,12 +589,12 @@ fn the_result_and_what_it_counted_come_back_together() {
         counted,
         [
             (
-                GroupMember::Category(sample.food),
+                Term::Member(GroupMember::Category(sample.food)),
                 vec!["Food".into()],
                 autumn()
             ),
             (
-                GroupMember::Category(sample.rent),
+                Term::Member(GroupMember::Category(sample.rent)),
                 vec!["Rent".into()],
                 period(date(2026, 10, 1), date(2026, 10, 31))
             ),
@@ -698,13 +698,13 @@ fn unclear_names_are_refused_with_the_paths_to_write_never_guessed() {
     let figure = |text: &str| worked_out(&source, text, autumn());
     assert_eq!(
         mistake(figure("=1 + Groceries")),
-        "report.formula-ambiguous-name position=6 name=Groceries paths='Food > Groceries', 'Rent > Groceries'"
+        "report.formula-ambiguous-name position=6 name=Groceries paths='Food > Groceries', 'Rent > Groceries' by=path"
     );
     assert_eq!(figure("='Food > Groceries'"), Ok(eur(7_820)));
     assert_eq!(figure("='rent>groceries'"), Ok(eur(0)));
     assert_eq!(
         mistake(figure("=Pets")),
-        "report.formula-ambiguous-name position=2 name=Pets paths='Pets', 'Pets'"
+        "report.formula-ambiguous-name position=2 name=Pets paths='Pets', 'Pets' by=path"
     );
     // Bare, it is a subtraction; in quotes, the category.
     assert_eq!(figure("=Rent - Food"), Ok(eur(231_180)));
@@ -970,7 +970,7 @@ fn what_a_name_counted_includes_what_is_inside() {
         .expect("parsed")
         .evaluate(&source, autumn(), &Filter::default(), EUR)
         .expect("worked out");
-    let inside: Vec<(GroupMember, Vec<String>)> = result
+    let inside: Vec<(Term, Vec<String>)> = result
         .counted
         .iter()
         .map(|counted| (counted.of, counted.inside.clone()))
@@ -979,11 +979,11 @@ fn what_a_name_counted_includes_what_is_inside() {
         inside,
         [
             (
-                GroupMember::Category(sample.food),
+                Term::Member(GroupMember::Category(sample.food)),
                 vec!["Groceries".to_owned()]
             ),
             (
-                GroupMember::Group(household),
+                Term::Member(GroupMember::Group(household)),
                 vec!["Food".to_owned(), "Groceries".to_owned(), "Rent".to_owned()]
             ),
         ]
@@ -1194,4 +1194,331 @@ fn a_figure_and_its_target_come_from_the_book_together() {
         mistake(filled(figure, number)),
         "report.formula-target reason=kinds"
     );
+}
+
+/// The sample with an income category and a spending category that share a
+/// name, and a group of each kind.
+fn shared_names() -> super::tests::Sample {
+    let mut sample = sample();
+    account(&mut sample.book, "Pets", AccountKind::Expense, EUR, None);
+    account(&mut sample.book, "Pets", AccountKind::Income, EUR, None);
+    sample
+        .book
+        .add_category_group(
+            "Fixed",
+            GroupKind::Expense,
+            &[GroupMember::Category(sample.rent)],
+        )
+        .expect("group added");
+    sample
+}
+
+/// Money in and out of the two Pets, in October before the dollar trip.
+fn book_with_pets() -> (Source, kassensturz_store::Book) {
+    use kassensturz_core::{Split, Transaction, TransactionId};
+    let sample = shared_names();
+    let mut book = sample.book;
+    let id = |name: &str, kind| {
+        book.categories()
+            .expect("categories")
+            .into_iter()
+            .find(|entry| entry.category.name == name && entry.category.kind == kind)
+            .expect("the category")
+            .category
+            .id
+    };
+    let spent = id("Pets", AccountKind::Expense);
+    let earned = id("Pets", AccountKind::Income);
+    let money = |minor_units| Money::from_minor_units(minor_units, EUR);
+    for (day, category, amount) in [(5, spent, 4_000), (6, earned, -900)] {
+        let transaction = Transaction::new(
+            TransactionId::generate(),
+            date(2026, 10, day),
+            None,
+            vec![
+                Split::new(sample.checking, money(-amount)),
+                Split::new(category, money(amount)),
+            ],
+        )
+        .expect("balanced");
+        book.add_transaction(&transaction).expect("added");
+    }
+    let second_half = period(date(2026, 7, 1), date(2026, 12, 31));
+    (Source::read(&book, second_half).expect("read"), book)
+}
+
+fn early_october() -> Period {
+    period(date(2026, 10, 1), date(2026, 10, 24))
+}
+
+#[test]
+fn all_spending_and_all_income_count_what_is_not_sorted_yet() {
+    let sample = sample();
+    let second_half = period(date(2026, 7, 1), date(2026, 12, 31));
+    let source = Source::read(&sample.book, second_half).expect("read");
+    let figure = |text: &str| worked_out(&source, text, early_october());
+    // The rent, and 12,50 € paid but not sorted into a category yet.
+    assert_eq!(figure("=Rent"), Ok(eur(80_000)));
+    assert_eq!(figure("=Spending.ALL"), Ok(eur(81_250)));
+    assert_eq!(figure("=spending.all - Rent"), Ok(eur(1_250)));
+    // The salary, and 7,00 € received but not sorted yet.
+    assert_eq!(figure("=Salary"), Ok(eur(250_000)));
+    assert_eq!(figure("=Income.ALL"), Ok(eur(250_700)));
+    assert_eq!(figure("=Income.ALL - Spending.ALL"), Ok(eur(169_450)));
+    assert_eq!(
+        figure("=PERCENT_OF(Spending.ALL; Income.ALL)"),
+        Ok(tenths(324))
+    );
+    // Whole months, with the period a name gives itself.
+    assert_eq!(
+        worked_out(&source, "=Spending.ALL@2026-09", early_october()),
+        Ok(eur(83_500))
+    );
+    // COUNT counts transactions: the rent and the unsorted payment, the
+    // salary and the unsorted receipt.
+    assert_eq!(figure("=COUNT(Spending.ALL)"), Ok(hundredths(200)));
+    assert_eq!(figure("=COUNT(Income.ALL)"), Ok(hundredths(200)));
+    assert_eq!(
+        figure("=COUNT(Spending.ALL; Income.ALL)"),
+        Ok(hundredths(400))
+    );
+    // A category called All is still a name when it is in quotes.
+    let mut sample = sample;
+    account(&mut sample.book, "All", AccountKind::Expense, EUR, None);
+    let source = Source::read(&sample.book, second_half).expect("read");
+    assert_eq!(
+        worked_out(&source, "=Spending.'All'", early_october()),
+        Ok(eur(0))
+    );
+    assert_eq!(
+        worked_out(&source, "=Spending.ALL", early_october()),
+        Ok(eur(81_250))
+    );
+}
+
+#[test]
+fn all_spending_in_two_currencies_is_the_mixed_currencies_mistake() {
+    let sample = sample();
+    let source = Source::read(&sample.book, autumn()).expect("read");
+    assert_eq!(
+        mistake(worked_out(&source, "=Spending.ALL", autumn())),
+        "report.formula-mixed-currencies position=2 first=Spending.ALL first_currency=EUR \
+         second=Spending.ALL second_currency=USD"
+    );
+}
+
+#[test]
+fn all_spending_follows_the_filter_like_every_name() {
+    let sample = sample();
+    let second_half = period(date(2026, 7, 1), date(2026, 12, 31));
+    let source = Source::read(&sample.book, second_half).expect("read");
+    let only_rent = Filter {
+        categories: Some(vec![sample.rent]),
+        ..Filter::default()
+    };
+    let result = Formula::parse("=Spending.ALL")
+        .expect("parsed")
+        .evaluate(&source, early_october(), &only_rent, EUR)
+        .expect("worked out");
+    // Money not sorted into a category yet is not in a chosen category.
+    assert_eq!(result.value, eur(80_000));
+}
+
+#[test]
+fn what_all_spending_counted_comes_back_without_a_path() {
+    let sample = sample();
+    let second_half = period(date(2026, 7, 1), date(2026, 12, 31));
+    let source = Source::read(&sample.book, second_half).expect("read");
+    let result = Formula::parse("=Income.ALL - Spending.ALL + Spending.ALL")
+        .expect("parsed")
+        .evaluate(&source, early_october(), &Filter::default(), EUR)
+        .expect("worked out");
+    let counted: Vec<(Term, Vec<String>)> = result
+        .counted
+        .into_iter()
+        .map(|counted| (counted.of, counted.path))
+        .collect();
+    assert_eq!(
+        counted,
+        [
+            (Term::AllIncome, Vec::new()),
+            (Term::AllSpending, Vec::new())
+        ]
+    );
+}
+
+#[test]
+fn a_kind_in_front_picks_the_income_or_the_spending_category() {
+    let (source, _book) = book_with_pets();
+    let figure = |text: &str| worked_out(&source, text, early_october());
+    assert_eq!(figure("=Spending.Pets"), Ok(eur(4_000)));
+    assert_eq!(figure("=Income.Pets"), Ok(eur(900)));
+    assert_eq!(figure("=income.PETS - Spending.pets"), Ok(eur(-3_100)));
+    assert_eq!(figure("=Spending.'Pets'"), Ok(eur(4_000)));
+    assert_eq!(figure("=Spending . Pets"), Ok(eur(4_000)));
+    // Without the kind it is ambiguous, and the error lists the kinds.
+    assert_eq!(
+        mistake(figure("=Pets")),
+        "report.formula-ambiguous-name position=2 name=Pets \
+         paths=Income.'Pets', Spending.'Pets' by=kind"
+    );
+    // A name of the other kind is unknown, said with its kind.
+    assert_eq!(
+        mistake(figure("=Spending.Salary")),
+        "report.formula-unknown-name position=2 name=Spending.Salary"
+    );
+    assert_eq!(
+        mistake(figure("=1 + Income.Rent")),
+        "report.formula-unknown-name position=6 name=Income.Rent"
+    );
+    // The kind picks groups too.
+    assert_eq!(figure("=Spending.Fixed"), Ok(eur(80_000)));
+    assert_eq!(
+        mistake(figure("=Income.Fixed")),
+        "report.formula-unknown-name position=2 name=Income.Fixed"
+    );
+    // A path under a kind.
+    assert_eq!(figure("=Spending.'Food > Groceries'"), Ok(eur(0)));
+}
+
+#[test]
+fn a_kind_does_not_hide_names_that_are_still_unclear() {
+    let mut sample = shared_names();
+    account(
+        &mut sample.book,
+        "Pets",
+        AccountKind::Expense,
+        EUR,
+        Some(sample.rent),
+    );
+    let source = Source::read(&sample.book, autumn()).expect("read");
+    let figure = |text: &str| worked_out(&source, text, autumn());
+    // Two spending Pets and an income one: every way is listed with its
+    // kind, and the ways under Spending work.
+    assert_eq!(
+        mistake(figure("=Pets")),
+        "report.formula-ambiguous-name position=2 name=Pets \
+         paths=Income.'Pets', Spending.'Pets', Spending.'Rent > Pets' by=kind"
+    );
+    // Told the kind, the list that is left is pasted as it stands.
+    assert_eq!(
+        mistake(figure("=Spending.Pets")),
+        "report.formula-ambiguous-name position=2 name=Spending.Pets \
+         paths=Spending.'Pets', Spending.'Rent > Pets' by=kind"
+    );
+    assert_eq!(figure("=Spending.'Pets'"), figure("=Spending.Pets"));
+    assert_eq!(figure("=Spending.'Rent > Pets'"), Ok(eur(0)));
+}
+
+#[test]
+fn a_kind_is_one_of_two_words_and_needs_a_name() {
+    let (source, _book) = book_with_pets();
+    let figure = |text: &str| worked_out(&source, text, early_october());
+    assert_eq!(
+        mistake(figure("=Food.Pets")),
+        "report.formula-syntax position=2 reason=unknown-kind"
+    );
+    assert_eq!(
+        mistake(figure("=Pets.Pets")),
+        "report.formula-syntax position=2 reason=unknown-kind"
+    );
+    assert_eq!(
+        mistake(figure("=Spending.")),
+        "report.formula-syntax position=11 reason=expected-value"
+    );
+    assert_eq!(
+        mistake(figure("=Spending.(1)")),
+        "report.formula-syntax position=11 reason=expected-value"
+    );
+    assert_eq!(
+        mistake(figure("=Spending.5")),
+        "report.formula-syntax position=11 reason=expected-value"
+    );
+    // Only after a bare word, and not twice.
+    assert_eq!(
+        mistake(figure("=.Pets")),
+        "report.formula-syntax position=2 reason=bad-number"
+    );
+    assert_eq!(
+        mistake(figure("='Spending'.Pets")),
+        "report.formula-syntax position=12 reason=bad-number"
+    );
+    assert_eq!(
+        mistake(figure("=Spending.Pets.Pets")),
+        "report.formula-syntax position=15 reason=unexpected"
+    );
+    // A kind is not a function, and a function is not a kind.
+    assert_eq!(
+        mistake(figure("=Spending.ALL(1)")),
+        "report.formula-syntax position=14 reason=unexpected"
+    );
+}
+
+#[test]
+fn a_kind_reads_the_same_in_both_number_forms() {
+    for (form, users, stored) in [
+        (
+            NumberForm::DecimalComma,
+            "=ROUND(Spending.ALL * 1,5; 2)",
+            "=ROUND(Spending.ALL * 1.5; 2)",
+        ),
+        (
+            NumberForm::DecimalPoint,
+            "=ROUND(Spending.ALL * 1.5, 2)",
+            "=ROUND(Spending.ALL * 1.5; 2)",
+        ),
+        (
+            NumberForm::DecimalPoint,
+            "=Income.Salary * 1.5",
+            "=Income.Salary * 1.5",
+        ),
+    ] {
+        assert_eq!(
+            Formula::to_canonical(users, form).map_err(described),
+            Ok(stored.to_owned())
+        );
+        assert!(Formula::parse_users(users, form).is_ok(), "{users}");
+        assert_eq!(
+            Formula::parse_users(users, form).expect("parsed"),
+            Formula::parse(stored).expect("parsed")
+        );
+    }
+    assert_eq!(
+        Formula::to_users_form("=Income.Salary + Spending.ALL", NumberForm::DecimalComma)
+            .map_err(described),
+        Ok("=Income.Salary + Spending.ALL".to_owned())
+    );
+}
+
+#[test]
+fn every_name_the_book_offers_reads_back_with_its_kind_when_it_needs_one() {
+    let (source, _book) = book_with_pets();
+    let known = Formula::known_names(&source);
+    let pets: Vec<(&str, bool)> = known
+        .iter()
+        .filter(|name| name.path == ["Pets"])
+        .map(|name| (name.written.as_str(), name.income))
+        .collect();
+    assert_eq!(pets, [("Income.Pets", true), ("Spending.Pets", false)]);
+    // Names that need nothing extra are written as before.
+    let rent = known
+        .iter()
+        .find(|name| name.path == ["Rent"])
+        .expect("rent");
+    assert_eq!((rent.written.as_str(), rent.income), ("Rent", false));
+    let salary = known
+        .iter()
+        .find(|name| name.path == ["Salary"])
+        .expect("salary");
+    assert!(salary.income);
+    // Every offered name is a formula that works out to that one alone.
+    for name in &known {
+        let formula = format!("={}", name.written);
+        let result = Formula::parse(&formula)
+            .expect("parsed")
+            .evaluate(&source, early_october(), &Filter::default(), EUR)
+            .expect("worked out");
+        assert_eq!(result.counted.len(), 1, "{formula}");
+        assert_eq!(result.counted[0].path, name.path, "{formula}");
+    }
 }

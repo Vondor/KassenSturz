@@ -99,7 +99,7 @@ pub use filter::{
 pub use formula::{
     Counted, FUNCTIONS, Formula, FormulaResult, FormulaValue, FunctionInfo, KnownName,
     MAX_FORMULA_ARGUMENTS, MAX_FORMULA_CHARS, MAX_FORMULA_DEPTH, MAX_FORMULA_NAMES,
-    MAX_FORMULA_PERIODS, MAX_FORMULA_TOKENS, NumberForm,
+    MAX_FORMULA_PERIODS, MAX_FORMULA_TOKENS, NumberForm, Term,
 };
 pub use groups::{Overlap, Shown};
 pub use metrics::{

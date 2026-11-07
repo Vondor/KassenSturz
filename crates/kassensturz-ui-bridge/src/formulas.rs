@@ -16,7 +16,7 @@
 use kassensturz_core::{CurrencyCode, Report};
 use kassensturz_report::{
     Counted, FUNCTIONS, Formula, FormulaValue, KnownName, NumberForm, Period, ReportError, Source,
-    TextFormat,
+    Term, TextFormat,
 };
 use kassensturz_store::Book;
 
@@ -57,8 +57,11 @@ pub struct Request {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Line {
     /// Its name; a category's path from the top-level category down, joined
-    /// by " > ".
+    /// by " > ". Empty for all income and all spending.
     pub name: String,
+    /// `income` or `spending` for `Income.ALL` and `Spending.ALL`, which
+    /// the app words itself (D-034); empty for a category or group.
+    pub all: &'static str,
     /// The first names of what is counted with it.
     pub inside: Vec<String>,
     /// How many more there are than `inside` lists.
@@ -221,6 +224,11 @@ fn line(
     let whole_month = first.day() == 1 && last == first.last_of_month();
     Line {
         name: counted.path.join(" > "),
+        all: match counted.of {
+            Term::Member(_) => "",
+            Term::AllIncome => "income",
+            Term::AllSpending => "spending",
+        },
         inside: counted.inside.iter().take(INSIDE_SHOWN).cloned().collect(),
         inside_more: counted.inside.len().saturating_sub(INSIDE_SHOWN),
         own_period: counted.period == own,
@@ -441,6 +449,9 @@ pub struct Suggestion {
     pub label: String,
     /// Whether it is one of My groups.
     pub group: bool,
+    /// `income` or `spending` for `Income.ALL` and `Spending.ALL`, whose
+    /// label the app words itself (D-034); empty for a category or group.
+    pub all: &'static str,
 }
 
 /// What can be completed at the cursor.
@@ -520,8 +531,14 @@ pub fn complete(book: &Book, locale: &impl Locale, text: &str, cursor: usize) ->
         }
         units += c.len_utf16();
     }
-    let Some((start, end, typed)) = word_at(&chars, at) else {
-        return Completion::default();
+    // Right after `Spending.` nothing is typed of the name yet.
+    let (name_start, end, typed) = if kind_before(&chars, at).is_some() {
+        (at, at, String::new())
+    } else {
+        match word_at(&chars, at) {
+            Some(word) => word,
+            None => return Completion::default(),
+        }
     };
     let Ok(this_month) = Period::this_month(locale.today()) else {
         return Completion::default();
@@ -529,29 +546,101 @@ pub fn complete(book: &Book, locale: &impl Locale, text: &str, cursor: usize) ->
     let Ok(source) = Source::read(book, this_month) else {
         return Completion::default();
     };
+    // `Spending.Pe`: the kind is typed, so only that kind's names fit and
+    // what is replaced starts at the kind, which stays in front.
+    let kind = kind_before(&chars, name_start);
+    let start = kind.map_or(name_start, |(first, _)| first);
+    let side = kind.map(|(_, income)| income);
+    let typed_kind: String = chars[start..name_start].iter().collect();
     let mut starting = Vec::new();
     let mut containing = Vec::new();
     for known in Formula::known_names(&source) {
+        if side.is_some_and(|income| income != known.income) {
+            continue;
+        }
         match fits(&known, &typed) {
             Some(true) => starting.push(known),
             Some(false) => containing.push(known),
             None => {}
         }
     }
-    let names = starting
-        .into_iter()
-        .chain(containing)
-        .take(SUGGESTIONS)
-        .map(|known| Suggestion {
+    let suggestion = |known: KnownName| {
+        // A name that needs its kind carries it; any other keeps the kind
+        // the user typed.
+        let insert =
+            if known.written.starts_with("Income.") || known.written.starts_with("Spending.") {
+                known.written.clone()
+            } else {
+                format!("{typed_kind}{}", known.written)
+            };
+        Suggestion {
             label: known.path.join(" > "),
-            insert: known.written,
+            insert,
             group: known.group,
-        })
+            all: "",
+        }
+    };
+    // After a typed kind `ALL` comes first, else after the names that start
+    // like the word.
+    let (first, then) = if side.is_some() {
+        (all_terms(&typed, side), Vec::new())
+    } else {
+        (Vec::new(), all_terms(&typed, side))
+    };
+    let names = first
+        .into_iter()
+        .chain(starting.into_iter().map(&suggestion))
+        .chain(then)
+        .chain(containing.into_iter().map(&suggestion))
+        .take(SUGGESTIONS)
         .collect();
     Completion {
         start: utf16(&chars, start),
         end: utf16(&chars, end),
         names,
+    }
+}
+
+/// `Income.ALL` and `Spending.ALL` as completions: with the kind typed,
+/// whenever what follows the dot could become `ALL`; without it, when the
+/// kind's word is begun.
+fn all_terms(typed: &str, side: Option<bool>) -> Vec<Suggestion> {
+    let typed = typed.to_lowercase();
+    let term = |income: bool| Suggestion {
+        insert: format!("{}.ALL", if income { "Income" } else { "Spending" }),
+        label: format!("{}.ALL", if income { "Income" } else { "Spending" }),
+        group: false,
+        all: if income { "income" } else { "spending" },
+    };
+    match side {
+        Some(income) if "all".starts_with(&typed) => vec![term(income)],
+        Some(_) => Vec::new(),
+        None => [(false, "spending"), (true, "income")]
+            .into_iter()
+            .filter(|(_, word)| typed.chars().count() >= 2 && word.starts_with(&typed))
+            .map(|(income, _)| term(income))
+            .collect(),
+    }
+}
+
+/// Whether the name that starts at `start` has `Income.` or `Spending.`
+/// in front of it: where that kind begins and whether it is income.
+fn kind_before(chars: &[char], start: usize) -> Option<(usize, bool)> {
+    let start = start.min(chars.len());
+    if start == 0 || chars[start - 1] != '.' {
+        return None;
+    }
+    let mut first = start - 1;
+    while first > 0 && chars[first - 1].is_alphabetic() {
+        first -= 1;
+    }
+    let word: String = chars[first..start - 1].iter().collect();
+    if word.eq_ignore_ascii_case("income") {
+        Some((first, true))
+    } else if word.eq_ignore_ascii_case("spending") {
+        Some((first, false))
+    } else {
+        None
     }
 }
 
@@ -1020,5 +1109,82 @@ pub(crate) mod tests {
             shown(&book, &PointLocale, &request("=1234.5")).value,
             "1234.5"
         );
+    }
+
+    #[test]
+    fn an_income_and_a_spending_category_of_one_name_are_told_apart_by_their_kind() {
+        let mut book = book();
+        account(&mut book, "Pets", AccountKind::Income, None);
+        let unclear = mistake_of(&book, &TestLocale, &request("=Pets"));
+        assert_eq!(unclear.error.code, "report.formula-ambiguous-name");
+        assert_eq!(param(&unclear, "by"), Some("kind"));
+        assert_eq!(
+            param(&unclear, "paths"),
+            Some("Income.'Pets', Spending.'Pets'")
+        );
+        let spent = shown(&book, &TestLocale, &request("=Spending.Pets"));
+        assert_eq!(spent.value, "80,00 €");
+        let earned = shown(&book, &TestLocale, &request("=Income.Pets"));
+        assert_eq!(earned.value, "0,00 €");
+        // A name of the other kind is unknown, said with its kind.
+        let other = mistake_of(&book, &TestLocale, &request("=Spending.Salary"));
+        assert_eq!(other.error.code, "report.formula-unknown-name");
+        assert_eq!(param(&other, "name"), Some("Spending.Salary"));
+        // A word that is no kind says so.
+        let unknown = mistake_of(&book, &TestLocale, &request("=Food.Pets"));
+        assert_eq!(unknown.error.code, "report.formula-syntax");
+        assert_eq!(param(&unknown, "reason"), Some("unknown-kind"));
+    }
+
+    #[test]
+    fn all_spending_and_all_income_are_lines_of_their_own() {
+        let book = book();
+        let spending = shown(&book, &TestLocale, &request("=Spending.ALL"));
+        assert_eq!(spending.value, "200,40 €");
+        assert_eq!(spending.counted.len(), 1);
+        let line = &spending.counted[0];
+        assert_eq!((line.name.as_str(), line.all), ("", "spending"));
+        assert!(line.inside.is_empty() && line.own_period);
+        let both = shown(&book, &TestLocale, &request("=Income.ALL - Spending.ALL"));
+        assert_eq!(both.value, "1799,60 €");
+        let all: Vec<&str> = both.counted.iter().map(|line| line.all).collect();
+        assert_eq!(all, ["income", "spending"]);
+        // A category is no "all".
+        let pets = shown(&book, &TestLocale, &request("=Pets"));
+        assert_eq!(pets.counted[0].all, "");
+    }
+
+    #[test]
+    fn the_kind_typed_in_front_stays_and_narrows_what_is_offered() {
+        let mut book = book();
+        account(&mut book, "Pets", AccountKind::Income, None);
+        let at = |text: &str| complete(&book, &TestLocale, text, text.encode_utf16().count());
+        // The kind is replaced with the name, so it is written once.
+        let kinded = at("=Spending.Pe");
+        assert_eq!(names(&kinded), ["Spending.Pets", "Spending.Vet"]);
+        assert_eq!((kinded.start, kinded.end), (1, 12));
+        let income = at("=income.pe");
+        assert_eq!(names(&income), ["Income.Pets"]);
+        // Right after the dot, `ALL` is offered first.
+        let dotted = at("=Spending.");
+        assert_eq!(dotted.names[0].insert, "Spending.ALL");
+        assert_eq!(dotted.names[0].all, "spending");
+        assert_eq!((dotted.start, dotted.end), (1, 10));
+        assert!(
+            dotted.names[1..]
+                .iter()
+                .all(|name| name.all.is_empty() && !name.insert.contains("Income"))
+        );
+        // The start of the kind's word offers `ALL`.
+        let begun = at("=spen");
+        assert_eq!(names(&begun), ["Spending.ALL"]);
+        assert_eq!((begun.start, begun.end), (1, 5));
+        // A quoted name keeps the kind too.
+        let quoted = at("=Spending.'Pe");
+        assert_eq!(names(&quoted)[0], "Spending.Pets");
+        assert_eq!(quoted.start, 1);
+        // Not a kind: a number with a decimal point, or another word.
+        assert!(at("=1.").names.is_empty());
+        assert!(at("=Pets.").names.is_empty());
     }
 }

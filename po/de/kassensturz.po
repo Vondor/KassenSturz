@@ -17897,3 +17897,15 @@ msgstr ""
 "zurück zu den Einstellungen, wählen Sie „Bankzugang ändern…“, "
 "wählen Sie das Verfahren und speichern Sie; verknüpfen Sie das Konto "
 "danach erneut."
+
+#: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:326
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid ""
+"This was the first time for this account, so KassenSturz asked your bank for "
+"the time since %1. Older transactions your bank can't give this way: import a "
+"file from your bank for them."
+msgstr ""
+"Das war das erste Mal für dieses Konto, deshalb hat KassenSturz Ihre Bank "
+"nach dem Zeitraum seit %1 gefragt. Ältere Umsätze kann Ihre Bank auf diesem "
+"Weg nicht liefern: Laden Sie dafür eine Datei von Ihrer Bank."

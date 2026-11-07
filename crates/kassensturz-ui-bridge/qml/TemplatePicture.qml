@@ -51,6 +51,7 @@ Rectangle {
             return "format-text-bold";
         case "notice.fetch_gap":
         case "notice.transfers":
+        case "notice.unsorted":
             return "dialog-information";
         case "bank.update_all":
             return "view-refresh";

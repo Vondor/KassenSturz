@@ -137,6 +137,24 @@ Kirigami.ApplicationWindow {
                 window.check(labels.some(text => text.includes("Not filtered by account")), "the account note");
                 window.check(labels.some(text => text.includes("no longer exists")), "the gone note");
                 window.check(labels.some(text => text.includes("chooses nothing")), "the chooses-nothing note");
+                // A card whose title names its accounts leaves out the marks about
+                // them, and only those (US1.9, #523).
+                notes.filter = {
+                    own: ["accounts", "categories"], filtered: ["accounts", "categories"], accounts: ["Cash box"], accountsMore: 0, categories: ["Food"], categoriesMore: 0,
+                    notes: [{kind: "gone", dimension: "categories", id: "c-gone"}], nothing: false
+                };
+                notes.accountsInTitle = true;
+                break;
+            }
+            case 5: {
+                const labels = window.findAll(notes, item => item.text !== undefined && item.visible, []).map(item => item.text);
+                window.check(labels.length === 3, "own mark, filtered mark and the note stay: " + JSON.stringify(labels));
+                window.check(labels.some(text => text.includes("Own filter") && text.includes("categories") && !text.includes("accounts")), "the own mark leaves out the accounts: " + JSON.stringify(labels));
+                window.check(labels.every(text => !text.includes("Cash box")), "the accounts are not named in the marks: " + JSON.stringify(labels));
+                window.check(labels.some(text => text.includes("Food")), "the categories still are");
+                window.check(labels.some(text => text.includes("no longer exists")), "a note about the filter stays");
+                notes.accountsInTitle = false;
+                window.check(window.findAll(notes, item => item.text !== undefined && item.visible, []).some(text => text.text.includes("Cash box")), "shown again when the title does not name them");
                 notes.filter = undefined;
                 break;
             }

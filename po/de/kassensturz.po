@@ -17926,3 +17926,54 @@ msgstr ""
 "Das war das erste Mal für dieses Konto, deshalb hat KassenSturz Ihre Bank "
 "nach dem Zeitraum seit %1 gefragt. Ältere Umsätze kann Ihre Bank auf diesem "
 "Weg nicht liefern: Laden Sie dafür eine Datei von Ihrer Bank."
+
+#: crates/kassensturz-ui-bridge/qml/ComponentPreview.qml
+#, kde-format
+msgctxt "@title %1 is the title of a card, %2 the accounts it counts"
+msgid "%1 · %2"
+msgstr "%1 · %2"
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info %1 is how many"
+msgid "%1 transaction has no category yet. Open it to choose one."
+msgid_plural ""
+"%1 transactions have no category yet. Open one to choose a category."
+msgstr[0] ""
+"%1 Buchung hat noch keine Kategorie. Öffnen Sie sie, um eine Kategorie zu "
+"wählen."
+msgstr[1] ""
+"%1 Buchungen haben noch keine Kategorie. Öffnen Sie eine, um eine Kategorie "
+"zu wählen."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A note appears here when a transaction has no category. There is none right "
+"now."
+msgstr ""
+"Hier erscheint ein Hinweis, wenn eine Buchung keine Kategorie hat. Im Moment "
+"gibt es keine."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info %1 is how many are listed"
+msgid "The newest %1 are listed here."
+msgstr "Hier stehen die neuesten %1."
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml
+#, kde-format
+msgctxt ""
+"@item:inlistbox a part of the layout: a note with how many transactions have "
+"no category yet and the newest of them"
+msgid "Transactions without a category"
+msgstr "Buchungen ohne Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+#, kde-format
+msgctxt ""
+"@option:check hides the grey note under a number card, the card's title "
+"names the accounts instead"
+msgid "Hide the note about the accounts"
+msgstr "Hinweis zu den Konten ausblenden"

@@ -63,6 +63,33 @@ Kirigami.ScrollablePage {
             : i18nContext.i18nc("@label %1 is an amount of money", "Balance: %1", amount);
     }
 
+    // A click on a column title sorts by that column: smallest or earliest
+    // first, and the next click on the same title turns the order around
+    // (US1.18).
+    function sortByTitle(key: string) {
+        register.sortBy(key, register.sortKey === key ? !register.descending : false);
+    }
+
+    // Whether the register shows the column with this key.
+    function shows(key: string): bool {
+        return register.columns.split(",").indexOf(key) >= 0;
+    }
+
+    function columnName(key: string): string {
+        switch (key) {
+        case "category":
+            return i18nContext.i18nc("@item:inmenu a column of the transactions", "Category");
+        case "balance":
+            return i18nContext.i18nc("@item:inmenu a column of the transactions: what the account held after each one", "Balance after");
+        case "other-party-iban":
+            return i18nContext.i18nc("@item:inmenu a column of the transactions: the IBAN of whom the money came from or went to", "Their IBAN");
+        case "purpose":
+            return i18nContext.i18nc("@item:inmenu a column of the transactions: what the payment came with (German: Verwendungszweck)", "Purpose");
+        default:
+            return i18nContext.i18nc("@item:inmenu a column of the transactions: the day the money counts from or until (German: Wertstellung)", "Value date");
+        }
+    }
+
     function sortName(key: string): string {
         switch (key) {
         case "amount":
@@ -71,6 +98,10 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@item:inmenu sort the transactions by whom the money came from or went to", "From or to");
         case "category":
             return i18nContext.i18nc("@item:inmenu sort the transactions by", "Category");
+        case "other-party-iban":
+        case "purpose":
+        case "value-date":
+            return columnName(key);
         default:
             return i18nContext.i18nc("@item:inmenu sort the transactions by", "Date");
         }
@@ -237,6 +268,56 @@ Kirigami.ScrollablePage {
                     page.register.sortBy(page.register.sortKey, !page.register.descending)
                 }
             }
+        },
+        Kirigami.Action {
+            icon.name: "view-list-details"
+            text: page.i18nContext.i18nc("@action:button choose which details the list of transactions shows as columns", "Columns")
+
+            Kirigami.Action {
+                text: page.columnName("category")
+                checkable: true
+                checked: page.shows("category")
+                onTriggered: {
+                    ActionLog.taken("RegisterPage_columnCategory")
+                    page.register.setColumn(page.accountId, "category", !page.shows("category"))
+                }
+            }
+            Kirigami.Action {
+                text: page.columnName("balance")
+                checkable: true
+                checked: page.shows("balance")
+                onTriggered: {
+                    ActionLog.taken("RegisterPage_columnBalance")
+                    page.register.setColumn(page.accountId, "balance", !page.shows("balance"))
+                }
+            }
+            Kirigami.Action {
+                text: page.columnName("other-party-iban")
+                checkable: true
+                checked: page.shows("other-party-iban")
+                onTriggered: {
+                    ActionLog.taken("RegisterPage_columnIban")
+                    page.register.setColumn(page.accountId, "other-party-iban", !page.shows("other-party-iban"))
+                }
+            }
+            Kirigami.Action {
+                text: page.columnName("purpose")
+                checkable: true
+                checked: page.shows("purpose")
+                onTriggered: {
+                    ActionLog.taken("RegisterPage_columnPurpose")
+                    page.register.setColumn(page.accountId, "purpose", !page.shows("purpose"))
+                }
+            }
+            Kirigami.Action {
+                text: page.columnName("value-date")
+                checkable: true
+                checked: page.shows("value-date")
+                onTriggered: {
+                    ActionLog.taken("RegisterPage_columnValueDate")
+                    page.register.setColumn(page.accountId, "value-date", !page.shows("value-date"))
+                }
+            }
         }
     ]
 
@@ -268,6 +349,18 @@ Kirigami.ScrollablePage {
                     }
                 }
             }
+        }
+
+        // The balance after each entry is only true in date order, so any
+        // other order leaves it out (US1.18).
+        Controls.Label {
+            Layout.fillWidth: true
+            Layout.margins: Kirigami.Units.smallSpacing
+            visible: page.loaded && page.register.sortKey !== "date" && page.shows("balance")
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            font: Kirigami.Theme.smallFont
+            text: page.i18nContext.i18nc("@info", "The balance after each transaction is shown only when the list is sorted by date.")
         }
 
         Kirigami.InlineMessage {
@@ -347,6 +440,11 @@ Kirigami.ScrollablePage {
                 ledger: true
                 header: true
                 owes: page.register.owes
+                columns: page.register.columns
+                balanceShown: page.register.balanceShown
+                sortKey: page.register.sortKey
+                descending: page.register.descending
+                onSortRequested: key => page.sortByTitle(key)
             }
         }
 
@@ -387,6 +485,9 @@ Kirigami.ScrollablePage {
             required property string balance
             required property string exactBalance
             required property string note
+            required property string otherPartyIban
+            required property string purpose
+            required property string valueDate
 
             width: ListView.view.width
             Accessible.name: transaction.Accessible.name
@@ -420,6 +521,11 @@ Kirigami.ScrollablePage {
                 exactBalance: delegate.exactBalance
                 owes: page.register.owes
                 note: delegate.note
+                columns: page.register.columns
+                balanceShown: page.register.balanceShown
+                otherPartyIban: delegate.otherPartyIban
+                purpose: delegate.purpose
+                valueDate: delegate.valueDate
             }
         }
     }

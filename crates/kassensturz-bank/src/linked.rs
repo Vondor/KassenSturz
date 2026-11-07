@@ -147,18 +147,20 @@ pub const FIRST_FETCH_DAYS: u8 = 85;
 /// its link. A never-fetched account asked the bank for everything, which
 /// banks answer with a second approval or a refusal; it starts instead
 /// [`FETCH_OVERLAP_DAYS`] days before the newest entry the book has for the
-/// account (`newest_entry`, never later than `today`), or [`FIRST_FETCH_DAYS`]
-/// days before `today` when the book has none.
+/// account (`newest_entry`, never later than `today`) but never earlier than
+/// [`FIRST_FETCH_DAYS`] days before `today`, so the request stays inside the
+/// 90 days a bank gives without a second approval; with no entry it starts
+/// [`FIRST_FETCH_DAYS`] days before `today`. Entries before that come with a
+/// file import.
 pub fn link_for_fetch(link: &BankLink, newest_entry: Option<Date>, today: Date) -> BankLink {
     let mut link = link.clone();
     if link.last_fetched_on.is_none() {
-        link.last_fetched_on = newest_entry.map(|day| day.min(today)).or_else(|| {
-            let mut day = today;
-            for _ in 0..FIRST_FETCH_DAYS - FETCH_OVERLAP_DAYS {
-                day = day.yesterday().ok()?;
-            }
-            Some(day)
-        });
+        // The newest entry that still gives a start inside the window.
+        let mut floor = today;
+        for _ in 0..FIRST_FETCH_DAYS - FETCH_OVERLAP_DAYS {
+            floor = floor.yesterday().unwrap_or(floor);
+        }
+        link.last_fetched_on = Some(newest_entry.map_or(floor, |day| day.min(today).max(floor)));
     }
     link
 }
@@ -397,6 +399,11 @@ mod tests {
         assert_eq!(
             start(&link_for_fetch(&new, Some(day(12, 1)), day(10, 9))),
             Some(day(10, 4))
+        );
+        // An entry older than the window: 85 days before today, not further.
+        assert_eq!(
+            start(&link_for_fetch(&new, Some(day(1, 3)), day(10, 9))),
+            Some(day(7, 16))
         );
         // No entry: 85 days before today.
         assert_eq!(

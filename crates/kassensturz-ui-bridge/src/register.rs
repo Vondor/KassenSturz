@@ -427,6 +427,15 @@ pub enum SortKey {
     /// By category, ignoring case; entries without come first when
     /// ascending.
     Category,
+    /// By the other party's IBAN, ignoring case and spaces; entries without
+    /// one (typed in by hand) come first when ascending (D-658).
+    OtherPartyIban,
+    /// By the purpose, ignoring case; entries without come first when
+    /// ascending.
+    Purpose,
+    /// By the value date, the earliest first when ascending; entries without
+    /// one come first.
+    ValueDate,
 }
 
 impl SortKey {
@@ -437,14 +446,30 @@ impl SortKey {
             Self::Amount => "amount",
             Self::OtherParty => "other-party",
             Self::Category => "category",
+            Self::OtherPartyIban => "other-party-iban",
+            Self::Purpose => "purpose",
+            Self::ValueDate => "value-date",
         }
     }
 
     /// The sort for a key from [`SortKey::key`].
     pub fn from_key(key: &str) -> Option<Self> {
-        [Self::Date, Self::Amount, Self::OtherParty, Self::Category]
-            .into_iter()
-            .find(|sort| sort.key() == key)
+        [
+            Self::Date,
+            Self::Amount,
+            Self::OtherParty,
+            Self::Category,
+            Self::OtherPartyIban,
+            Self::Purpose,
+            Self::ValueDate,
+        ]
+        .into_iter()
+        .find(|sort| sort.key() == key)
+    }
+
+    /// Whether the order depends on what a bank or file delivered.
+    pub fn needs_import(self) -> bool {
+        matches!(self, Self::OtherPartyIban | Self::Purpose | Self::ValueDate)
     }
 }
 
@@ -471,7 +496,24 @@ impl Sort {
     /// Sorts `entries` as asked. A tie keeps the date order, which is how
     /// they come from [`entries`]; so does sorting by date.
     pub fn apply(self, entries: &mut [Entry]) {
+        self.apply_with(entries, &HashMap::new());
+    }
+
+    /// Like [`Sort::apply`], with what was delivered for the entries, which
+    /// the orders by IBAN, purpose and value date need. An entry with no
+    /// delivery sorts as an empty one.
+    pub fn apply_with(
+        self,
+        entries: &mut [Entry],
+        imported: &HashMap<(TransactionId, Date), ImportedText>,
+    ) {
         let key = self.key;
+        let none = ImportedText::default();
+        let delivered = |entry: &Entry| {
+            imported
+                .get(&(entry.transaction, entry.date))
+                .unwrap_or(&none)
+        };
         entries.sort_by(|a, b| {
             let ordering = match key {
                 SortKey::Date => (a.date, a.transaction).cmp(&(b.date, b.transaction)),
@@ -481,6 +523,13 @@ impl Sort {
                     .to_lowercase()
                     .cmp(&b.other_party.to_lowercase()),
                 SortKey::Category => a.category.to_lowercase().cmp(&b.category.to_lowercase()),
+                SortKey::OtherPartyIban => compact(&delivered(a).other_party_iban)
+                    .cmp(&compact(&delivered(b).other_party_iban)),
+                SortKey::Purpose => delivered(a)
+                    .purpose
+                    .to_lowercase()
+                    .cmp(&delivered(b).purpose.to_lowercase()),
+                SortKey::ValueDate => delivered(a).value_day.cmp(&delivered(b).value_day),
             };
             if self.descending {
                 ordering.reverse()
@@ -491,6 +540,12 @@ impl Sort {
     }
 }
 
+/// `text` in lower case without its spaces, to compare IBANs written with
+/// and without them.
+fn compact(text: &str) -> String {
+    text.split_whitespace().collect::<String>().to_lowercase()
+}
+
 /// What a bank or file delivered for an entry, written as text for the
 /// register's detail columns (US1.19).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -499,8 +554,10 @@ pub struct ImportedText {
     pub other_party_iban: String,
     /// What the payment came with, on one line.
     pub purpose: String,
-    /// The day the money counts from or until.
+    /// The day the money counts from or until, as the locale writes dates.
     pub value_date: String,
+    /// The same day as a date, to sort by it exactly.
+    pub value_day: Option<Date>,
 }
 
 /// What a bank or file delivered for each entry of `account`, by the
@@ -530,6 +587,7 @@ pub fn imported_texts(
                     .value_date
                     .map(|date| locale.short_date(date))
                     .unwrap_or_default(),
+                value_day: imported.value_date,
             });
     }
     Ok(found)
@@ -576,13 +634,15 @@ pub fn register_view_with(
         .last()
         .map_or(Money::zero(details.currency), |entry| entry.balance);
     let (balance, owes) = writer.balance(now, details.kind);
-    sort.apply(&mut entries);
-    let balance_shown = sort.key == SortKey::Date && columns.shows(Column::Balance);
-    let imported = if columns.needs_import() {
+    // What was delivered is read only if a column shows it or the order
+    // needs it.
+    let imported = if columns.needs_import() || sort.key.needs_import() {
         imported_texts(book, account, locale)?
     } else {
         HashMap::new()
     };
+    sort.apply_with(&mut entries, &imported);
+    let balance_shown = sort.key == SortKey::Date && columns.shows(Column::Balance);
     let rows = entries
         .iter()
         .map(|entry| {
@@ -727,6 +787,9 @@ mod sort_tests {
             SortKey::Amount,
             SortKey::OtherParty,
             SortKey::Category,
+            SortKey::OtherPartyIban,
+            SortKey::Purpose,
+            SortKey::ValueDate,
         ] {
             assert_eq!(SortKey::from_key(key.key()), Some(key));
         }
@@ -961,6 +1024,96 @@ mod view_tests {
         let shown = view(&book, checking, Sort::default(), hidden);
         assert!(!shown.balance_shown);
         assert!(shown.rows.iter().all(|row| row.balance == Shown::default()));
+    }
+
+    #[test]
+    fn the_detail_columns_sort_by_what_the_bank_delivered_even_when_hidden() {
+        let (book, checking) = book_with_entries("Card payment");
+        let amounts = |key, descending| -> Vec<String> {
+            // The default columns show none of the details: the order still
+            // needs them.
+            view(&book, checking, by(key, descending), Columns::default())
+                .rows
+                .iter()
+                .map(|row| row.amount.exact.clone())
+                .collect()
+        };
+        for key in [
+            SortKey::OtherPartyIban,
+            SortKey::Purpose,
+            SortKey::ValueDate,
+        ] {
+            // Entries typed in by hand have nothing delivered: first when
+            // ascending, in date order; the delivered one last.
+            assert_eq!(
+                amounts(key, false),
+                ["100,00 €", "-9,00 €", "-53,20 €"],
+                "{key:?}"
+            );
+            assert_eq!(
+                amounts(key, true),
+                ["-53,20 €", "100,00 €", "-9,00 €"],
+                "{key:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_value_date_sorts_as_a_date_and_the_iban_ignores_case_and_spaces() {
+        let mut book = Book::create_in_memory().expect("book");
+        book.use_currency(eur()).expect("currency");
+        let checking = account(&mut book, "Checking", AccountKind::Asset);
+        let food = account(&mut book, "Food", AccountKind::Expense);
+        // Booked on days 5, 6 and 7 (amounts -0,05 to -0,07 €), but with value
+        // dates in another order, and IBANs written in different cases and
+        // with and without spaces.
+        for (day, iban, value_date) in [
+            (
+                5,
+                "de89 3704 0044 0532 0130 00",
+                Date::constant(2026, 11, 1),
+            ),
+            (
+                6,
+                "DE02 1203 0000 0000 2020 51",
+                Date::constant(2026, 10, 9),
+            ),
+            (7, "de02120300000000202051x", Date::constant(2026, 10, 30)),
+        ] {
+            let mut details = delivered("x");
+            details.other_party_iban = Some(iban.into());
+            details.value_date = Some(value_date);
+            let mut parts = vec![
+                Split::new(checking, money(-i64::from(day))),
+                Split::new(food, money(i64::from(day))),
+            ];
+            parts[0].imported = Some(details);
+            let transaction = Transaction::new(
+                TransactionId::generate(),
+                Date::constant(2026, 10, day),
+                None,
+                parts,
+            )
+            .expect("transaction");
+            book.add_transaction(&transaction).expect("added");
+        }
+        let amounts = |key| -> Vec<String> {
+            view(&book, checking, by(key, false), Columns::default())
+                .rows
+                .iter()
+                .map(|row| row.amount.exact.clone())
+                .collect()
+        };
+        assert_eq!(
+            amounts(SortKey::ValueDate),
+            ["-0,06 €", "-0,07 €", "-0,05 €"]
+        );
+        // "DE02 1203 ..." < "DE02 1203 ...x" < "DE89 ...", whatever the
+        // case and the spaces.
+        assert_eq!(
+            amounts(SortKey::OtherPartyIban),
+            ["-0,06 €", "-0,07 €", "-0,05 €"]
+        );
     }
 
     #[test]

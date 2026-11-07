@@ -141,12 +141,22 @@ RowLayout {
     }
 
     // The day the money counts from, if the book's column was chosen.
+    ColumnTitle {
+        Layout.preferredWidth: row.dateWidth
+        visible: row.ledger && row.header && row.showsColumn("value-date")
+        text: row.i18nContext.i18nc("@title:column the day the money counts from or until (German: Wertstellung)", "Value date")
+        sortKey: "value-date"
+        activeKey: row.sortKey
+        descending: row.descending
+        hint: row.sortHint("value-date")
+        onPicked: key => row.sortRequested(key)
+    }
+
     Controls.Label {
         textFormat: Text.PlainText
         Layout.preferredWidth: row.dateWidth
-        visible: row.ledger && row.showsColumn("value-date")
-        text: row.header ? row.i18nContext.i18nc("@title:column the day the money counts from or until (German: Wertstellung)", "Value date") : row.valueDate
-        font.bold: row.header
+        visible: row.ledger && !row.header && row.showsColumn("value-date")
+        text: row.valueDate
         elide: Text.ElideRight
     }
 
@@ -192,13 +202,36 @@ RowLayout {
 
     // What the bank delivered, if the book's columns were chosen. It is
     // text from outside, shown as plain text (AGENTS.md §8).
+    ColumnTitle {
+        Layout.preferredWidth: row.nameWidth
+        visible: row.ledger && row.header && row.showsColumn("other-party-iban")
+        text: row.i18nContext.i18nc("@title:column the IBAN of whom the money came from or went to", "Their IBAN")
+        sortKey: "other-party-iban"
+        activeKey: row.sortKey
+        descending: row.descending
+        hint: row.sortHint("other-party-iban")
+        onPicked: key => row.sortRequested(key)
+    }
+
     Controls.Label {
         textFormat: Text.PlainText
         Layout.preferredWidth: row.nameWidth
-        visible: row.ledger && row.showsColumn("other-party-iban")
-        text: row.header ? row.i18nContext.i18nc("@title:column the IBAN of whom the money came from or went to", "Their IBAN") : row.otherPartyIban
-        font.bold: row.header
+        visible: row.ledger && !row.header && row.showsColumn("other-party-iban")
+        text: row.otherPartyIban
         elide: Text.ElideRight
+    }
+
+    ColumnTitle {
+        Layout.fillWidth: true
+        Layout.preferredWidth: row.nameWidth
+        Layout.minimumWidth: 0
+        visible: row.ledger && row.header && row.showsColumn("purpose")
+        text: row.i18nContext.i18nc("@title:column what the payment came with (German: Verwendungszweck)", "Purpose")
+        sortKey: "purpose"
+        activeKey: row.sortKey
+        descending: row.descending
+        hint: row.sortHint("purpose")
+        onPicked: key => row.sortRequested(key)
     }
 
     Controls.Label {
@@ -206,9 +239,8 @@ RowLayout {
         Layout.fillWidth: true
         Layout.preferredWidth: row.nameWidth
         Layout.minimumWidth: 0
-        visible: row.ledger && row.showsColumn("purpose")
-        text: row.header ? row.i18nContext.i18nc("@title:column what the payment came with (German: Verwendungszweck)", "Purpose") : row.purpose
-        font.bold: row.header
+        visible: row.ledger && !row.header && row.showsColumn("purpose")
+        text: row.purpose
         elide: Text.ElideRight
     }
 

@@ -92,8 +92,9 @@ pub mod qobject {
         #[qinvokable]
         fn refresh(self: Pin<&mut AccountRegister>);
 
-        /// Sorts the rows by `key` (`date`, `amount`, `other-party` or
-        /// `category`), largest or latest first with `descending`.
+        /// Sorts the rows by `key` (a `SortKey::key`: `date`, `amount`,
+        /// `other-party`, `category`, `other-party-iban`, `purpose` or
+        /// `value-date`), largest or latest first with `descending`.
         #[qinvokable]
         #[cxx_name = "sortBy"]
         fn sort_by(self: Pin<&mut AccountRegister>, key: &QString, descending: bool);

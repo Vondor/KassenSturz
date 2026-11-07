@@ -98,6 +98,10 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@item:inmenu sort the transactions by whom the money came from or went to", "From or to");
         case "category":
             return i18nContext.i18nc("@item:inmenu sort the transactions by", "Category");
+        case "other-party-iban":
+        case "purpose":
+        case "value-date":
+            return columnName(key);
         default:
             return i18nContext.i18nc("@item:inmenu sort the transactions by", "Date");
         }

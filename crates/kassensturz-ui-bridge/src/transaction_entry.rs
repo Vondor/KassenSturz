@@ -729,29 +729,30 @@ mod tests {
         assert_eq!(
             sorted(SortKey::Amount, true),
             [
-                "|1000,00 €|1000,00 €",
-                "|-12,00 €|844,90 €",
-                "Corner Grocery|-53,20 €|946,80 €",
-                "example shoes|-89,90 €|856,90 €"
+                "|1000,00 €|",
+                "|-12,00 €|",
+                "Corner Grocery|-53,20 €|",
+                "example shoes|-89,90 €|"
             ]
         );
-        // Ignoring case; a tie keeps the date order.
+        // The balance after each entry comes only with date order (US1.18),
+        // so these have none. Ignoring case; a tie keeps the date order.
         assert_eq!(
             sorted(SortKey::OtherParty, false),
             [
-                "|1000,00 €|1000,00 €",
-                "|-12,00 €|844,90 €",
-                "Corner Grocery|-53,20 €|946,80 €",
-                "example shoes|-89,90 €|856,90 €"
+                "|1000,00 €|",
+                "|-12,00 €|",
+                "Corner Grocery|-53,20 €|",
+                "example shoes|-89,90 €|"
             ]
         );
         assert_eq!(
             sorted(SortKey::Category, true),
             [
-                "Corner Grocery|-53,20 €|946,80 €",
-                "example shoes|-89,90 €|856,90 €",
-                "|1000,00 €|1000,00 €",
-                "|-12,00 €|844,90 €"
+                "Corner Grocery|-53,20 €|",
+                "example shoes|-89,90 €|",
+                "|1000,00 €|",
+                "|-12,00 €|"
             ]
         );
         assert_eq!(SortKey::from_key("other-party"), Some(SortKey::OtherParty));

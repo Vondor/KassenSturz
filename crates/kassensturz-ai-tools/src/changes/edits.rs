@@ -28,9 +28,9 @@ use crate::error::ToolError;
 const ORDER: [&str; 16] = [
     "new_categories",
     "edit_categories",
-    "new_rules",
     "edit_rules",
     "delete_rules",
+    "new_rules",
     "move_rules",
     "categorize",
     "new_accounts",
@@ -200,10 +200,11 @@ pub enum EditError {
 
 impl From<ToolError> for EditError {
     fn from(error: ToolError) -> Self {
-        match error {
+        match error.without_item() {
             ToolError::BadArgument {
                 argument: "name" | "title" | "text",
             } => Self::Text,
+            ToolError::BadCondition { reason: "text", .. } => Self::Text,
             ToolError::NameTaken => Self::NameTaken,
             // The user picks a new category from the set, so a key that
             // isn't there any more was left out.

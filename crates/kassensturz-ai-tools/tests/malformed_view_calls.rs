@@ -49,7 +49,7 @@ fn space_colony() -> Book {
 
 /// The answer to a call, as the table writes it.
 fn answer(result: &Result<Proposal, ToolError>) -> String {
-    match result {
+    match result.as_ref().map_err(ToolError::kind) {
         Ok(_) => PREPARED.into(),
         Err(ToolError::BadArgument { argument }) => bad(argument),
         Err(ToolError::NotAllowed { argument }) => format!("not-allowed {argument}"),

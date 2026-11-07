@@ -127,7 +127,7 @@ impl ServerHandler for Server {
                     None,
                 ),
                 Err(Failure::Tool(error)) => {
-                    let report = error.report();
+                    let report = error.model_report();
                     (error_result(&report), Some(report.code))
                 }
                 // The app's answer is read from a file: its code stays out
@@ -324,10 +324,17 @@ fn error_result(report: &ErrorReport) -> CallToolResult {
     let mut value = Map::new();
     value.insert("error".into(), Value::from(report.code));
     // Only keywords, which come from KassenSturz's fixed lists, such as the
-    // name of a bad argument; never text.
+    // name of a bad argument, and counts, such as the place of an item in
+    // its list; never text.
     for (name, param) in &report.params {
-        if let ErrorParam::Keyword(keyword) = param {
-            value.insert((*name).into(), Value::from(*keyword));
+        match param {
+            ErrorParam::Keyword(keyword) => {
+                value.insert((*name).into(), Value::from(*keyword));
+            }
+            ErrorParam::Number(number) => {
+                value.insert((*name).into(), Value::from(*number));
+            }
+            _ => {}
         }
     }
     if let Some(cause) = &report.cause {
@@ -345,6 +352,18 @@ pub(crate) fn today() -> Date {
 mod tests {
     use super::*;
     use kassensturz_ai_tools::FUNCTIONS;
+
+    #[test]
+    fn a_refused_item_is_named_by_its_list_and_place() {
+        let report = ToolError::NameTaken.at("new_rules", 1).model_report();
+        let result = serde_json::to_value(error_result(&report)).expect("JSON");
+        let text = result["content"][0]["text"].as_str().expect("text");
+        let answer: Value = serde_json::from_str(text).expect("JSON text");
+        assert_eq!(
+            answer,
+            serde_json::json!({"error": "ai-tools.name-taken", "list": "new_rules", "item": 2})
+        );
+    }
 
     #[test]
     fn every_read_function_is_a_read_only_tool() {

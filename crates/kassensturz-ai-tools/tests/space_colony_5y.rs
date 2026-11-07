@@ -18,9 +18,9 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-use kassensturz_ai_tools::{ToolError, call, propose as propose_with};
+use kassensturz_ai_tools::{call, propose as propose_with};
+use kassensturz_core::Date;
 use kassensturz_core::ai_switch::Permissions;
-use kassensturz_core::{Date, Report};
 use kassensturz_import::{Imported, KmySqlite, Limits, import};
 use kassensturz_pipeline::{BookImportReport, fill_book_from};
 use kassensturz_store::Book;
@@ -112,7 +112,7 @@ fn refusal(book: &Book, transaction: &Value, category: &str) -> String {
     );
     match result {
         Ok(_) => "prepared".to_owned(),
-        Err(error) => ToolError::report(&error).code.to_string(),
+        Err(error) => error.model_report().code.to_string(),
     }
 }
 

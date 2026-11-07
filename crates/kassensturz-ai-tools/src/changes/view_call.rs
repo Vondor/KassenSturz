@@ -351,19 +351,21 @@ pub fn propose_view(
         });
     }
     let item = check(book, arguments, allowed)?;
-    prepare(book, &json!({ "new_views": [item] }), allowed).map_err(|error| match error {
-        // The schema's refusals name the argument of this function, not the
-        // item's key it was put under.
-        ToolError::BadArgument { argument } => ToolError::BadArgument {
-            argument: match argument {
-                "chart" => "show_as",
-                "dataset" => "data",
-                "grouping" => "group_by",
-                "new_views" => "arguments",
-                other => other,
+    prepare(book, &json!({ "new_views": [item] }), allowed).map_err(|error| {
+        match error.without_item() {
+            // The schema's refusals name the argument of this function, not the
+            // item's key it was put under.
+            ToolError::BadArgument { argument } => ToolError::BadArgument {
+                argument: match argument {
+                    "chart" => "show_as",
+                    "dataset" => "data",
+                    "grouping" => "group_by",
+                    "new_views" => "arguments",
+                    other => other,
+                },
             },
-        },
-        other => other,
+            other => other,
+        }
     })
 }
 

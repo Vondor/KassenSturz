@@ -18,7 +18,7 @@ fn today() -> kassensturz_core::Date {
 
 /// The code a call gives, with the argument a bad one names.
 fn view_code(result: Result<Proposal, ToolError>) -> String {
-    match result {
+    match result.map_err(ToolError::without_item) {
         Ok(_) => "prepared".into(),
         Err(ToolError::BadArgument { argument }) => format!("bad-argument {argument}"),
         Err(ToolError::NotAllowed { argument }) => format!("not-allowed {argument}"),

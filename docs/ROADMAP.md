@@ -264,7 +264,7 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **US1.11** · **later** · waits for: US1.10 merged and tried, then its own plain-words design. #519 point 3: a reserve target for an account (an amount or N months of a budget, at the month's lowest point). Why: a new idea for everyday users; US1.10 shows first how much is missing
 
-- **US1.12** · **todo** · thread F · needs: — · strong, high · D-644 to D-651 · [format]. #526 and #532: rolling periods, a salary month anchored to a day of the month (in a short month its last day) and "last N months" with "complete months only", as one shared period setting for charts, tables, formulas and budgets; the event anchor ("since the last booking in a category") stays later. Why: a fixed period goes stale; the base for US1.13, US1.16 and US1.17
+- **US1.12** · **in review** · thread F · needs: — · strong, high · D-644 to D-651 · [format]. #526 and #532: rolling periods, a salary month anchored to a day of the month (in a short month its last day) and "last N months" with "complete months only", as one shared period setting for charts, tables, formulas and budgets; the event anchor ("since the last booking in a category") stays later. Why: a fixed period goes stale; the base for US1.13, US1.16 and US1.17
 
 - **US1.13** · **todo** · thread F, after US1.12 · needs: US1.12, US1.14 · standard, high · D-644 to D-651 (shared in thread F). #531 and #533: "Show as: total or average per month (quarter, year)" for the category donut and table, with an explicit rounding rule and totals from exact amounts; in formulas a rolling period on a name, not a new function, since Calc has none (D-510). Why: averages had to be computed outside the app
 

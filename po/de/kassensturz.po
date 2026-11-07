@@ -17926,3 +17926,103 @@ msgstr ""
 "Das war das erste Mal für dieses Konto, deshalb hat KassenSturz Ihre Bank "
 "nach dem Zeitraum seit %1 gefragt. Ältere Umsätze kann Ihre Bank auf diesem "
 "Weg nicht liefern: Laden Sie dafür eine Datei von Ihrer Bank."
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:160
+#, kde-format
+msgctxt "@item:inlistbox a period of whole months that are over"
+msgid "The last complete month"
+msgid_plural "The last %1 complete months"
+msgstr[0] "Der letzte vollständige Monat"
+msgstr[1] "Die letzten %1 vollständigen Monate"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:161
+#, kde-format
+msgctxt "@item:inlistbox a period of months up to and with this one"
+msgid "This month"
+msgid_plural "The last %1 months"
+msgstr[0] "Dieser Monat"
+msgstr[1] "Die letzten %1 Monate"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:165
+#, kde-format
+msgctxt "@item:inlistbox a period; %1 is a day of the month, 1 to 31"
+msgid "The salary month before, from day %1"
+msgstr "Der vorige Gehaltsmonat, ab dem %1."
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:166
+#, kde-format
+msgctxt "@item:inlistbox a period; %1 is a day of the month, 1 to 31"
+msgid "The salary month from day %1"
+msgstr "Der Gehaltsmonat ab dem %1."
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:96
+#, kde-format
+msgctxt "@item:inlistbox a period of a number of months the user chooses"
+msgid "The last months…"
+msgstr "Die letzten Monate …"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:97
+#, kde-format
+msgctxt ""
+"@item:inlistbox a period from a day of the month the user chooses, such as "
+"payday, to the day before it in the next month"
+msgid "A salary month…"
+msgstr "Ein Gehaltsmonat …"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:127
+#, kde-format
+msgctxt "@label:spinbox how many months a period counts back"
+msgid "Months:"
+msgstr "Monate:"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:138
+#, kde-format
+msgctxt "@label:spinbox"
+msgid "How many months"
+msgstr "Wie viele Monate"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:152
+#, kde-format
+msgctxt "@option:check a period of months"
+msgid "Only complete months (leave out this month)"
+msgstr "Nur vollständige Monate (diesen Monat weglassen)"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:166
+#, kde-format
+msgctxt "@label:spinbox the day of the month a salary month starts on"
+msgid "Starts on day:"
+msgstr "Beginnt am Tag:"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:177
+#, kde-format
+msgctxt "@label:spinbox"
+msgid "The day of the month the salary month starts on"
+msgstr "Der Tag im Monat, an dem der Gehaltsmonat beginnt"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:191
+#, kde-format
+msgctxt "@item:inlistbox which salary month"
+msgid "The one running now"
+msgstr "Der laufende"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:192
+#, kde-format
+msgctxt "@item:inlistbox which salary month"
+msgid "The one before"
+msgstr "Der vorige"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:195
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Which salary month"
+msgstr "Welcher Gehaltsmonat"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml:209
+#, kde-format
+msgctxt "@info"
+msgid ""
+"From this day to the day before it in the next month, for example from your "
+"payday. In a month without this day, its last day counts."
+msgstr ""
+"Von diesem Tag bis zum Tag davor im nächsten Monat, zum Beispiel ab Ihrem "
+"Zahltag. In einem Monat ohne diesen Tag zählt sein letzter Tag."

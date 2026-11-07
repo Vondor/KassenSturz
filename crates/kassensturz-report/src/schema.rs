@@ -675,9 +675,12 @@ impl Property {
                 Ok(())
             }
             (Kind::Choice(_) | Kind::Grouping, Setting::Word(word)) => {
-                // A period can also be a typed range of days (D-332).
+                // A period can also be a rolling period (D-644) or a typed
+                // range of days (D-332).
                 if self.words(dataset).contains(&word.as_str())
-                    || (self.key == "period" && crate::read_range_word(word).is_some())
+                    || (self.key == "period"
+                        && (crate::Rolling::read(word).is_some()
+                            || crate::read_range_word(word).is_some()))
                 {
                     Ok(())
                 } else {

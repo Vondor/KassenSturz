@@ -123,7 +123,8 @@ impl Takes {
 /// or what the user chose there for now. An empty list narrows nothing.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Filters {
-    /// One of [`crate::PERIODS`] or a typed range (D-332), if chosen.
+    /// A period word ([`crate::is_period_word`]): a fixed name, a rolling
+    /// period (D-644) or a typed range (D-332), if chosen.
     pub period: Option<String>,
     /// The IDs of own accounts, written as text.
     pub accounts: Vec<String>,

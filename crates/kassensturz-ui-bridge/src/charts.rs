@@ -258,30 +258,29 @@ fn month_period(key: &str) -> Option<Period> {
     Period::new(first, first.last_of_month()).ok()
 }
 
-/// The period a request names (D-332): a fixed name, `today`, a month as
-/// `YYYY-MM` or a typed range of days, whose open start is the first day of
-/// the book.
+/// The period a request names (D-332): `today`, a month as `YYYY-MM`, or a
+/// stored period word ([`Period::named`]): a fixed name, a rolling period
+/// (D-644) or a typed range of days, whose open start is the first day of
+/// the book. Charts, tables, number cards, formulas and budgets all read
+/// their period here, so one word counts the same days everywhere.
 pub(crate) fn period(book: &Book, key: &str, today: Date) -> Result<Period, ChartsError> {
-    if key.contains("..") {
-        let earliest = book
-            .booking_date_range()
+    // The day itself: what the accounts hold today (D-370).
+    if key == "today" {
+        return Ok(Period::new(today, today)?);
+    }
+    if let Some(month) = month_period(key) {
+        return Ok(month);
+    }
+    let earliest = || {
+        book.booking_date_range()
             .ok()
             .flatten()
-            .map(|(first, _)| first);
-        return Period::from_range_word(key, today, earliest)
-            .ok_or(ChartsError::UnknownName("period"))?
-            .map_err(ChartsError::from);
-    }
-    Ok(match key {
-        // The day itself: what the accounts hold today (D-370).
-        "today" => Period::new(today, today)?,
-        "this-month" => Period::this_month(today)?,
-        "last-month" => Period::last_month(today)?,
-        "last-12-months" => Period::last_12_months(today)?,
-        "this-year" => Period::this_year(today)?,
-        "last-year" => Period::last_year(today)?,
-        _ => month_period(key).ok_or(ChartsError::UnknownName("period"))?,
-    })
+            .map(|(first, _)| first)
+    };
+    let earliest = if key.contains("..") { earliest() } else { None };
+    Period::named(key, today, earliest)
+        .ok_or(ChartsError::UnknownName("period"))?
+        .map_err(ChartsError::from)
 }
 
 /// Whether the dataset is made from the balances of the accounts, which the

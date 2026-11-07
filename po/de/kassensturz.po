@@ -10233,12 +10233,14 @@ msgstr ""
 #, kde-format
 msgctxt "@info %1 is the name of a category"
 msgid ""
-"%1 already has a budget for some of these days. A category has one budget at "
-"a time: change or stop the other one first, or start this one after it ends."
+"%1 already has a budget for some of these days that counts the same "
+"accounts. A category's money is in one budget at a time: change or stop the "
+"other one first, start this one after it ends, or count other accounts in it."
 msgstr ""
-"%1 hat für einige dieser Tage schon ein Budget. Eine Kategorie hat immer nur "
-"ein Budget: Ändern oder beenden Sie zuerst das andere, oder beginnen Sie "
-"dieses erst nach dessen Ende."
+"%1 hat für einige dieser Tage schon ein Budget, das dieselben Konten zählt. "
+"Das Geld einer Kategorie steht immer nur in einem Budget: Ändern oder beenden "
+"Sie zuerst das andere, beginnen Sie dieses erst nach dessen Ende, oder zählen "
+"Sie darin andere Konten."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:476
 #, kde-format
@@ -17926,3 +17928,99 @@ msgstr ""
 "Das war das erste Mal für dieses Konto, deshalb hat KassenSturz Ihre Bank "
 "nach dem Zeitraum seit %1 gefragt. Ältere Umsätze kann Ihre Bank auf diesem "
 "Weg nicht liefern: Laden Sie dafür eine Datei von Ihrer Bank."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetBars.qml
+#, kde-format
+msgctxt "@info %1 is a list of account names"
+msgid "Only money paid from %1"
+msgstr "Nur Geld, das von %1 bezahlt wurde"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml
+#, kde-format
+msgctxt "@option:check"
+msgid "Count more categories with it"
+msgstr "Weitere Kategorien mitzählen"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml
+#, kde-format
+msgctxt "@label"
+msgid "Also count:"
+msgstr "Auch zählen:"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml
+#, kde-format
+msgctxt "@label"
+msgid "Categories:"
+msgstr "Kategorien:"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml
+#, kde-format
+msgctxt "@label"
+msgid "Accounts:"
+msgstr "Konten:"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml
+#, kde-format
+msgctxt "@option:check"
+msgid "Only count money paid from some accounts"
+msgstr "Nur Geld zählen, das von bestimmten Konten bezahlt wurde"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Nothing ticked: money paid from every account counts."
+msgstr "Nichts angehakt: Geld von allen Konten zählt."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml
+#, kde-format
+msgctxt "@info"
+msgid "A budget needs a category for money you spend. Choose one."
+msgstr "Ein Budget braucht eine Kategorie für Ausgaben. Wählen Sie eine aus."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml
+#, kde-format
+msgctxt "@info"
+msgid "The categories of one budget need the same currency. Choose categories in one currency, or set a budget for each currency."
+msgstr "Die Kategorien eines Budgets brauchen dieselbe Währung. Wählen Sie Kategorien in einer Währung, oder legen Sie für jede Währung ein Budget fest."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml
+#, kde-format
+msgctxt "@info"
+msgid "A budget can only count money paid from your own accounts. Choose among your accounts."
+msgstr "Ein Budget kann nur Geld zählen, das von Ihren eigenen Konten bezahlt wurde. Wählen Sie unter Ihren Konten."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml
+#, kde-format
+msgctxt "@info"
+msgid "Each category and each account can be chosen once. Choose them again."
+msgstr "Jede Kategorie und jedes Konto kann nur einmal gewählt werden. Wählen Sie sie noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "A budget can count at most %1 categories. Choose fewer, or a category that has the others inside it."
+msgstr "Ein Budget kann höchstens %1 Kategorien zählen. Wählen Sie weniger, oder eine Kategorie, in der die anderen liegen."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "A budget can count at most %1 accounts. Choose fewer, or tick none to count every account."
+msgstr "Ein Budget kann höchstens %1 Konten zählen. Wählen Sie weniger, oder haken Sie keines an, um alle Konten zu zählen."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+#, kde-format
+msgctxt "@label which budgets the budget bars show"
+msgid "Which budgets"
+msgstr "Welche Budgets"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+#, kde-format
+msgctxt "@info"
+msgid "There are no budgets to pick yet. Set one on the page Budgets first."
+msgstr "Es gibt noch keine Budgets zum Auswählen. Legen Sie zuerst auf der Seite Budgets eines fest."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+#, kde-format
+msgctxt "@info"
+msgid "Nothing ticked: every budget is shown."
+msgstr "Nichts angehakt: Alle Budgets werden gezeigt."

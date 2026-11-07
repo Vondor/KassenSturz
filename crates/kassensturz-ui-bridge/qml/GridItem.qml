@@ -447,15 +447,19 @@ Item {
             readonly property bool failed: feed.view?.error !== undefined
             readonly property string period: cell.board.periodFor(cell.info)
             readonly property string only: cell.subject?.preview?.only ?? ""
+            // Which budgets (D-642); empty for every budget.
+            readonly property string chosen: cell.subject?.preview?.budgets ?? ""
             readonly property string scope: cell.info?.asked?.scope ?? ""
 
             function ask() {
                 feed.setScope(scope);
+                feed.setBudgets(chosen);
                 feed.show(period, only);
             }
 
             onPeriodChanged: ask()
             onOnlyChanged: ask()
+            onChosenChanged: ask()
             onScopeChanged: ask()
             Component.onCompleted: ask()
 

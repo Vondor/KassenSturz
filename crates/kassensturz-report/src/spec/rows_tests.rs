@@ -191,8 +191,9 @@ fn budget_rows_are_split_by_currency_and_keep_the_percent() {
     };
     let budget = |name: &str, currency, used| BudgetUtilization {
         budget: BudgetId::generate(),
-        category: kassensturz_core::AccountId::generate(),
-        path: vec!["Food".into(), name.into()],
+        categories: vec![kassensturz_core::AccountId::generate()],
+        paths: vec![vec!["Food".into(), name.into()]],
+        accounts: Vec::new(),
         every: BudgetEvery::Month,
         currency,
         periods: vec![period(used)],

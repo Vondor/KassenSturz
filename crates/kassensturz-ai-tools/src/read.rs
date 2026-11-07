@@ -992,7 +992,9 @@ fn condition_row(
 pub(crate) const MAX_BUDGETS: usize = 100;
 
 /// `list_budgets`: the budgets that run on `today` or start later, each
-/// with its category, how often it repeats, what it plans for its current
+/// with its categories, the IDs of the accounts it counts from if not all,
+/// how often
+/// it repeats, what it plans for its current
 /// (or first) period and whether it carries over (D-358, D-396). With
 /// `spending`, which needs the reading of Transactions as well, the
 /// current period's spent and left come with it, as `budget_utilization`
@@ -1025,6 +1027,7 @@ pub(crate) fn list_budgets(
             today,
             BudgetGrouping::Budget,
             &Filter::default(),
+            None,
         )
         .map_err(read_error)?
         .into_iter()
@@ -1037,15 +1040,40 @@ pub(crate) fn list_budgets(
     for budget in budgets.iter().take(MAX_BUDGETS) {
         let mut row = Map::new();
         row.insert("budget_id".into(), Value::String(budget.id.to_string()));
+        // Every category with everything inside it, and the accounts it
+        // counts from if it doesn't count them all (D-641): by ID only, as
+        // their names come with list_accounts and its own switch.
         row.insert(
-            "category_id".into(),
-            Value::String(budget.category.to_string()),
+            "category_ids".into(),
+            Value::Array(
+                budget
+                    .categories
+                    .iter()
+                    .map(|id| Value::String(id.to_string()))
+                    .collect(),
+            ),
         );
-        let path = paths
-            .get(&budget.category)
-            .map(|path| path.join(" › "))
-            .unwrap_or_default();
-        row.insert("category".into(), w.text(&path));
+        let mut categories = Vec::with_capacity(budget.categories.len());
+        for id in &budget.categories {
+            let path = paths
+                .get(id)
+                .map(|path| path.join(" › "))
+                .unwrap_or_default();
+            categories.push(w.text(&path));
+        }
+        row.insert("categories".into(), Value::Array(categories));
+        if !budget.accounts.is_empty() {
+            row.insert(
+                "account_ids".into(),
+                Value::Array(
+                    budget
+                        .accounts
+                        .iter()
+                        .map(|id| Value::String(id.to_string()))
+                        .collect(),
+                ),
+            );
+        }
         row.insert(
             "every".into(),
             Value::from(crate::changes::every_word(budget.every)),

@@ -52,7 +52,10 @@ pub mod qobject {
         #[cxx_name = "startChoices"]
         fn start_choices(self: &BudgetBook, every: &QString) -> QVariant;
 
-        /// Makes a budget. `first_day` is a start from `startChoices` as
+        /// Makes a budget for the categories in `categories` (IDs separated
+        /// by commas, at least one), counting only what was paid from the
+        /// accounts in `accounts` (IDs separated by commas; empty for every
+        /// account, D-639). `first_day` is a start from `startChoices` as
         /// `day`, empty for the current period, or for a range the typed
         /// first day; `last_day` is the typed last day of a range. Returns
         /// an empty map, or the error's `code` and its parameters.
@@ -60,7 +63,8 @@ pub mod qobject {
         #[cxx_name = "addBudget"]
         fn add_budget(
             self: Pin<&mut BudgetBook>,
-            category: &QString,
+            categories: &QString,
+            accounts: &QString,
             every: &QString,
             amount: &QString,
             carry_over: bool,
@@ -140,21 +144,27 @@ impl qobject::BudgetBook {
         }
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the sheet sends every field of a new budget"
+    )]
     fn add_budget(
         self: Pin<&mut Self>,
-        category: &QString,
+        categories: &QString,
+        accounts: &QString,
         every: &QString,
         amount: &QString,
         carry_over: bool,
         first_day: &QString,
         last_day: &QString,
     ) -> QVariant {
-        let (category, every, amount) =
-            (category.to_string(), every.to_string(), amount.to_string());
+        let (categories, accounts) = (id_list(categories), id_list(accounts));
+        let (every, amount) = (every.to_string(), amount.to_string());
         let (first_day, last_day) = (first_day.to_string(), last_day.to_string());
         let result = change(|book, locale| {
             let new = NewBudget {
-                category: &category,
+                categories: &categories,
+                accounts: &accounts,
                 every: &every,
                 amount: &amount,
                 carry_over,
@@ -216,13 +226,23 @@ fn change<T>(
     .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")))
 }
 
+/// IDs sent by QML separated by commas, without empty ones.
+fn id_list(ids: &QString) -> Vec<String> {
+    ids.to_string()
+        .split(',')
+        .filter(|id| !id.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
 /// A bar as QML reads it. Shared with the bars of the components
 /// (`budget_bars_model.rs`).
 pub fn bar_object(bar: &Bar) -> QVariant {
     map([
         ("budget", text(&bar.budget)),
-        ("category", text(&bar.category)),
+        ("categories", list(bar.categories.iter().map(|id| text(id)))),
         ("name", text(&bar.name)),
+        ("accounts", text(&bar.accounts)),
         ("every", text(bar.every)),
         ("currency", text(&bar.currency)),
         ("firstDay", text(&bar.first_day)),
@@ -263,8 +283,9 @@ fn choice_object(choice: &PeriodChoice) -> QVariant {
 fn row_object(row: &BudgetRow) -> QVariant {
     let mut entries = vec![
         ("id", text(&row.id)),
-        ("category", text(&row.category)),
+        ("categories", list(row.categories.iter().map(|id| text(id)))),
         ("name", text(&row.name)),
+        ("accounts", text(&row.accounts)),
         ("every", text(row.every)),
         ("currency", text(&row.currency)),
         ("amount", text(&row.amount)),
@@ -286,6 +307,14 @@ fn row_object(row: &BudgetRow) -> QVariant {
 fn view_object(view: &BudgetsView) -> QVariant {
     map([
         ("budgets", list(view.budgets.iter().map(row_object))),
+        (
+            "accounts",
+            list(
+                view.accounts
+                    .iter()
+                    .map(|(id, name)| map([("id", text(id)), ("name", text(name))])),
+            ),
+        ),
         (
             "categories",
             list(view.categories.iter().map(|row| {
@@ -351,7 +380,8 @@ mod tests {
         let food = make("Food");
         let rent = make("Rent");
         book.add_budget(
-            food,
+            &[food],
+            &[],
             BudgetEvery::Month,
             Date::new(2026, 9, 1).expect("a date"),
             None,
@@ -360,7 +390,8 @@ mod tests {
         )
         .expect("budget");
         book.add_budget(
-            rent,
+            &[rent],
+            &[],
             BudgetEvery::Year,
             Date::new(2027, 1, 1).expect("a date"),
             None,
@@ -390,18 +421,22 @@ mod tests {
     fn the_page_view_reads_back_the_way_qml_reads_it() {
         let book = book();
         let view = view_object(&budgets::view(&book, &TestLocale).expect("view"));
-        assert_eq!(keys(&view), ["budgets", "categories"]);
+        assert_eq!(keys(&view), ["accounts", "budgets", "categories"]);
+        let accounts = list_of(&view, "accounts");
+        assert_eq!(keys(&accounts[0]), ["id", "name"]);
+        assert_eq!(text_of(&accounts[0], "name"), "Checking");
         let rows = list_of(&view, "budgets");
         assert_eq!(rows.len(), 2);
         assert_eq!(
             keys(&rows[0]),
             [
+                "accounts",
                 "amount",
                 "amountInput",
                 "bar",
                 "canStop",
                 "carryOver",
-                "category",
+                "categories",
                 "changes",
                 "currency",
                 "every",
@@ -413,6 +448,9 @@ mod tests {
             ]
         );
         assert_eq!(text_of(&rows[0], "name"), "Food");
+        assert_eq!(list_of(&rows[0], "categories").len(), 1);
+        // It counts every account, so no account is named.
+        assert_eq!(text_of(&rows[0], "accounts"), "");
         assert_eq!(text_of(&rows[0], "every"), "month");
         assert_eq!(text_of(&rows[0], "state"), "running");
         assert_eq!(text_of(&rows[0], "amount"), "400,00 €");
@@ -451,10 +489,11 @@ mod tests {
         assert_eq!(
             keys(&bar),
             [
+                "accounts",
                 "available",
                 "budget",
                 "carriedIn",
-                "category",
+                "categories",
                 "countedTo",
                 "currency",
                 "every",

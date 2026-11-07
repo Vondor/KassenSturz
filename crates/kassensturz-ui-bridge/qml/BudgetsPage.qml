@@ -163,6 +163,17 @@ Kirigami.ScrollablePage {
                                 opacity: 0.8
                             }
 
+                            // Only some accounts counted (D-639).
+                            Controls.Label {
+                                Layout.fillWidth: true
+                                visible: (card.modelData.accounts ?? "") !== ""
+                                text: page.i18nContext.i18nc("@info %1 is a list of account names", "Only money paid from %1", card.modelData.accounts ?? "")
+                                textFormat: Text.PlainText
+                                wrapMode: Text.Wrap
+                                font: Kirigami.Theme.smallFont
+                                opacity: 0.8
+                            }
+
                             Controls.Label {
                                 Layout.fillWidth: true
                                 visible: text !== ""

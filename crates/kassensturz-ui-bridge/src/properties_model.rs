@@ -184,6 +184,7 @@ pub(crate) fn view_object(
                 ("grouping", text(preview.grouping)),
                 ("chosen", text(&preview.chosen)),
                 ("only", text(&preview.only)),
+                ("budgets", text(&preview.budgets)),
                 ("showHidden", QVariant::from(&preview.show_hidden)),
                 ("columns", text(&preview.columns)),
                 ("compare", text(&preview.compare)),
@@ -402,6 +403,7 @@ mod tests {
         assert_eq!(
             keys(&preview),
             [
+                "budgets",
                 "chart",
                 "chosen",
                 "columns",
@@ -651,6 +653,29 @@ mod tests {
         assert_eq!(series.ids, ["x", "y"]);
         // The groups of a spending chart are not offered here.
         assert!(!fields.iter().any(|field| field.key == "groups"));
+    }
+
+    #[test]
+    fn the_budget_bars_offer_which_budgets_and_the_preview_carries_them() {
+        let mut bars = component(
+            ComponentType::BudgetProgress,
+            kassensturz_report::BUDGET_UTILIZATION,
+        );
+        // Every budget until some are ticked (D-642).
+        let fields = properties::fields(&bars, NumberForm::DecimalComma);
+        let which = fields
+            .iter()
+            .find(|field| field.key == "budgets")
+            .expect("a field for the budgets");
+        assert_eq!(which.kind, "ids");
+        assert!(which.ids.is_empty());
+        assert_eq!(properties::preview(&bars).budgets, "");
+        bars.set("budgets", Setting::Ids(vec!["b1".into(), "b2".into()]))
+            .unwrap();
+        let view = view_object(Some(&bars), None, NumberForm::DecimalComma);
+        let preview = object_of(&view, "preview");
+        assert_eq!(text_of(&preview, "budgets"), "b1,b2");
+        assert_eq!(text_of(&preview, "shows"), "budget-progress");
     }
 
     fn keys_of_fields(component: &Component, form: NumberForm) -> Vec<String> {

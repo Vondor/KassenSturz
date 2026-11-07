@@ -159,8 +159,9 @@ pub enum StoreError {
     /// Only a spending category can have a budget: not an income category
     /// or an account (D-344).
     BudgetNotSpending(AccountId),
-    /// The category already has a budget for some of these days: a category
-    /// has one budget at a time (D-344).
+    /// The category already has a budget for some of these days that counts
+    /// from the same accounts: a category's money is in one budget at a
+    /// time (D-344, D-639).
     BudgetOverlap {
         /// The category.
         category: AccountId,
@@ -180,10 +181,19 @@ pub enum StoreError {
         /// What is wrong, as a keyword.
         reason: &'static str,
     },
+    /// A budget's categories or accounts can't be kept (D-639): `reason` is
+    /// `no-category` (none chosen), `category-twice`, `currencies` (the
+    /// categories aren't all in one currency), `account-twice` or
+    /// `not-own-account` (an account chosen is a category, not one of the
+    /// user's own accounts).
+    BudgetChoice {
+        /// What is wrong, as a keyword.
+        reason: &'static str,
+    },
     /// The book has as many budgets as it keeps, or the budget as many
-    /// amounts (D-345).
+    /// amounts, categories or accounts (D-345, D-639).
     TooManyBudgets {
-        /// What is full: `budgets` or `amounts`.
+        /// What is full: `budgets`, `amounts`, `categories` or `accounts`.
         limit: &'static str,
         /// The most it keeps.
         max: usize,
@@ -592,6 +602,9 @@ impl Report for StoreError {
             }
             Self::BudgetPeriod { reason } => {
                 new("store.budget-period").with("reason", P::Keyword(reason))
+            }
+            Self::BudgetChoice { reason } => {
+                new("store.budget-choice").with("reason", P::Keyword(reason))
             }
             Self::TooManyBudgets { limit, max } => new("store.budget-too-many")
                 .with("limit", P::Keyword(limit))

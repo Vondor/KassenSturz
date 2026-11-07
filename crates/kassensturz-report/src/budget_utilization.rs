@@ -15,6 +15,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use kassensturz_core::Transaction;
 use kassensturz_core::{AccountId, Budget, BudgetEvery, BudgetId, CurrencyCode, Date, Money};
 use kassensturz_store::{Corruption, StoreError};
 
@@ -99,9 +100,10 @@ pub struct BudgetPeriod {
     pub carried_in: Money,
     /// `planned` plus `carried_in`.
     pub available: Money,
-    /// What was booked to the category and every category inside it from
-    /// the first day to `counted_to`, in the category's currency; a refund
-    /// reduces it and can make it negative.
+    /// What was booked to the budget's categories and every category inside
+    /// them (each once, D-291) from the first day to `counted_to`, in the
+    /// categories' currency, from the budget's accounts if it has any
+    /// (D-639); a refund reduces it and can make it negative.
     pub spent: Money,
     /// `available` less `spent`; below zero the period is over by that
     /// much.
@@ -146,14 +148,16 @@ impl BudgetPeriod {
 pub struct BudgetUtilization {
     /// The budget.
     pub budget: BudgetId,
-    /// Its spending category.
-    pub category: AccountId,
-    /// The category's names from the top-level category down, e.g.
-    /// `["Food", "Groceries"]`.
-    pub path: Vec<String>,
+    /// Its spending categories, in the order the user chose them (D-639).
+    pub categories: Vec<AccountId>,
+    /// Each category's names from the top-level category down, e.g.
+    /// `["Food", "Groceries"]`, in the order of `categories`.
+    pub paths: Vec<Vec<String>>,
+    /// The user's own accounts it counts from, or empty for all (D-639).
+    pub accounts: Vec<AccountId>,
     /// How long one of its periods is.
     pub every: BudgetEvery,
-    /// The currency of every amount: the category's.
+    /// The currency of every amount: the categories'.
     pub currency: CurrencyCode,
     /// The periods shown, oldest first: one with the grouping `budget`.
     pub periods: Vec<BudgetPeriod>,
@@ -228,9 +232,9 @@ fn periods_from(budget: &Budget, start: Date, asked: Date) -> Vec<(Date, Date)> 
     periods
 }
 
-/// The spending of one category and everything inside it, by day.
+/// The spending one budget counts, by day.
 struct Spending {
-    /// Each part's day and amount in the category's currency, by day.
+    /// Each part's day and amount in the budget's currency, by day.
     parts: Vec<(Date, Money)>,
 }
 
@@ -254,26 +258,41 @@ impl Spending {
     }
 }
 
-/// The parts booked to each of `roots` and the categories inside it, each
-/// category once per root, in the root's currency as booked (D-043). A part
-/// in another currency than its category's that has no amount in it is a
-/// broken book, not a figure to guess.
+/// Whether `transaction` counts for a budget limited to `accounts`: it
+/// has a part on one of them (none chosen: every transaction). A
+/// transaction counts as a whole, as with the filters (D-350, D-639).
+fn from_accounts(transaction: &Transaction, accounts: &[AccountId]) -> bool {
+    accounts.is_empty()
+        || transaction.splits().iter().any(|split| {
+            split
+                .account
+                .is_some_and(|account| accounts.contains(&account))
+        })
+}
+
+/// The parts each of `budgets` counts: those booked to its categories and
+/// the categories inside them, each category once per budget however often
+/// it is reached (D-291), from its accounts if it has any (D-639), in its
+/// currency as booked (D-043). A part in another currency than the
+/// budget's that has no amount in it is a broken book, not a figure to
+/// guess.
 fn spending(
     source: &Source,
-    roots: &HashMap<AccountId, CurrencyCode>,
+    budgets: &[(&Budget, CurrencyCode)],
     covers: Period,
-) -> Result<HashMap<AccountId, Spending>, ReportError> {
-    // Which roots each category counts towards: a budget on a category and
-    // another inside it are separate figures (D-344).
-    let mut towards: HashMap<AccountId, Vec<AccountId>> = HashMap::new();
-    for &root in roots.keys() {
-        for category in source.inside(&HashSet::from([root])).into_keys() {
-            towards.entry(category).or_default().push(root);
+) -> Result<Vec<Spending>, ReportError> {
+    // Which budgets each category counts towards: a budget on a category
+    // and another inside it are separate figures (D-344).
+    let mut towards: HashMap<AccountId, Vec<usize>> = HashMap::new();
+    for (index, (budget, _)) in budgets.iter().enumerate() {
+        let roots: HashSet<AccountId> = budget.categories.iter().copied().collect();
+        for category in source.inside(&roots).into_keys() {
+            towards.entry(category).or_default().push(index);
         }
     }
-    let mut spent: HashMap<AccountId, Spending> = roots
-        .keys()
-        .map(|&root| (root, Spending { parts: Vec::new() }))
+    let mut spent: Vec<Spending> = budgets
+        .iter()
+        .map(|_| Spending { parts: Vec::new() })
         .collect();
     for transaction in source.transactions() {
         // By the transaction's booking date, as every dataset (D-122,
@@ -296,21 +315,23 @@ fn spending(
             if amount.is_zero() {
                 continue;
             }
-            for root in counted {
-                if roots.get(root) != Some(&amount.currency()) {
+            for &index in counted {
+                let (budget, currency) = budgets[index];
+                if !from_accounts(transaction, &budget.accounts) {
+                    continue;
+                }
+                if currency != amount.currency() {
                     return Err(ReportError::Store(StoreError::Corrupt(
                         Corruption::CurrencyMismatch {
                             transaction: transaction.id(),
                         },
                     )));
                 }
-                if let Some(spending) = spent.get_mut(root) {
-                    spending.parts.push((day, amount));
-                }
+                spent[index].parts.push((day, amount));
             }
         }
     }
-    for spending in spent.values_mut() {
+    for spending in &mut spent {
         spending.parts.sort_by_key(|(day, _)| *day);
     }
     Ok(spent)
@@ -324,11 +345,13 @@ fn spending(
 /// contains that day, and a budget that has not started or has ended by
 /// then is left out; with [`BudgetGrouping::Period`] each budget shows every
 /// one of its periods that `period` touches, up to that day. The budgets
-/// come in the order of the category tree, a category's budgets by their
-/// first day. `filter.categories` keeps the budgets whose category is one of
+/// come in the order of the category tree (by their first category), a
+/// category's budgets by their first day. `only` keeps the budgets it names
+/// (the bars' *Which budgets*, D-642), `None` all of them.
+/// `filter.categories` keeps the budgets with a category that is one of
 /// them or inside one; `filter.accounts` does not apply, since a budget
-/// counts its category's spending from every account (D-350: the shared
-/// filters do not apply accounts to it, and say so).
+/// counts the accounts it names itself, or every account (D-350, D-639:
+/// the shared filters do not apply accounts to it, and say so).
 ///
 /// The `Source` must be read with [`Source::read_with_budgets`] for
 /// `period` and `today`, else this fails with
@@ -339,6 +362,7 @@ pub fn budget_utilization(
     today: Date,
     grouping: BudgetGrouping,
     filter: &Filter,
+    only: Option<&[BudgetId]>,
 ) -> Result<Vec<BudgetUtilization>, ReportError> {
     source.require(period)?;
     let budgets = source.budgets()?;
@@ -351,13 +375,18 @@ pub fn budget_utilization(
             .into_keys()
             .collect()
     });
-    let mut shown: Vec<(&Budget, Date)> = Vec::new();
-    let mut roots: HashMap<AccountId, CurrencyCode> = HashMap::new();
+    let mut shown: Vec<(&Budget, CurrencyCode)> = Vec::new();
+    let mut starts: Vec<Date> = Vec::new();
     for budget in budgets {
-        if chosen
-            .as_ref()
-            .is_some_and(|chosen| !chosen.contains(&budget.category))
-        {
+        if only.is_some_and(|only| !only.contains(&budget.id)) {
+            continue;
+        }
+        if chosen.as_ref().is_some_and(|chosen| {
+            !budget
+                .categories
+                .iter()
+                .any(|category| chosen.contains(category))
+        }) {
             continue;
         }
         let Some(start) = first_needed(budget, period, asked) else {
@@ -366,14 +395,20 @@ pub fn budget_utilization(
         if start < covers.first() || asked > covers.last() {
             return Err(ReportError::PeriodNotRead);
         }
+        // The book keeps every category of a budget in its first one's
+        // currency.
+        let first = budget
+            .categories
+            .first()
+            .ok_or(StoreError::Corrupt(Corruption::BrokenReferences))?;
         let category = source
             .accounts()
-            .get(&budget.category)
-            .ok_or(StoreError::UnknownAccount(budget.category))?;
-        roots.insert(category.id, category.currency);
-        shown.push((budget, start));
+            .get(first)
+            .ok_or(StoreError::UnknownAccount(*first))?;
+        shown.push((budget, category.currency));
+        starts.push(start);
     }
-    let spent = spending(source, &roots, covers)?;
+    let spent = spending(source, &shown, covers)?;
     let position: HashMap<AccountId, usize> = source
         .tree()
         .iter()
@@ -382,9 +417,8 @@ pub fn budget_utilization(
         .collect();
 
     let mut results = Vec::new();
-    for (budget, start) in shown {
-        let currency = roots[&budget.category];
-        let spending = &spent[&budget.category];
+    for (((budget, currency), start), spending) in shown.iter().zip(starts).zip(&spent) {
+        let (budget, currency) = (*budget, *currency);
         let mut carried = Money::zero(currency);
         let mut periods = Vec::new();
         for (first_day, last_day) in periods_from(budget, start, asked) {
@@ -431,20 +465,22 @@ pub fn budget_utilization(
         if periods.is_empty() {
             continue;
         }
-        let path = source
-            .tree()
-            .get(
-                position
-                    .get(&budget.category)
-                    .copied()
-                    .unwrap_or(usize::MAX),
-            )
-            .map(|entry| entry.path.clone())
-            .unwrap_or_default();
+        let paths = budget
+            .categories
+            .iter()
+            .map(|category| {
+                source
+                    .tree()
+                    .get(position.get(category).copied().unwrap_or(usize::MAX))
+                    .map(|entry| entry.path.clone())
+                    .unwrap_or_default()
+            })
+            .collect();
         results.push(BudgetUtilization {
             budget: budget.id,
-            category: budget.category,
-            path,
+            categories: budget.categories.clone(),
+            paths,
+            accounts: budget.accounts.clone(),
             every: budget.every,
             currency,
             periods,
@@ -452,8 +488,10 @@ pub fn budget_utilization(
     }
     results.sort_by_key(|result| {
         (
-            position
-                .get(&result.category)
+            result
+                .categories
+                .first()
+                .and_then(|first| position.get(first))
                 .copied()
                 .unwrap_or(usize::MAX),
             result.periods.first().map(|shown| shown.first_day),
@@ -463,6 +501,17 @@ pub fn budget_utilization(
 }
 
 impl BudgetUtilization {
+    /// The budget's categories as one text: each path joined by
+    /// `separator`, the categories by a comma, e.g. `Home › Rent,
+    /// Electricity`.
+    pub fn categories_text(&self, separator: &str) -> String {
+        self.paths
+            .iter()
+            .map(|path| path.join(separator))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
     /// The result as a table of text with the columns `period`, `planned`,
     /// `carried_in`, `available`, `spent`, `left` and `used`. A share used
     /// without a value is an empty cell; the component says why in words

@@ -120,13 +120,27 @@ Kirigami.ApplicationWindow {
             window.check(adding.adding, "the sheet adds");
             adding.save();
             const added = () => fake.calls.filter(call => call.startsWith("addBudget:"));
-            window.check(added()[0] === "addBudget:c-food:month::false:2026-10-01:", "adding sends what was chosen, got " + added()[0]);
+            window.check(added()[0] === "addBudget:c-food::month::false:2026-10-01:", "adding sends what was chosen, got " + added()[0]);
             window.check(window.texts(adding, []).some(text => text.includes("amount")), "a refused amount says what to do");
             const amount = window.all(adding, "TextField", []).filter(field => field.placeholderText === "What you plan to spend");
             window.check(amount.length === 1, "one amount field, found " + amount.length);
             amount[0].text = "250,00";
             adding.save();
-            window.check(added()[1] === "addBudget:c-food:month:250,00:false:2026-10-01:", "adding sends the amount, got " + added()[1]);
+            window.check(added()[1] === "addBudget:c-food::month:250,00:false:2026-10-01:", "adding sends the amount, got " + added()[1]);
+
+            // More categories and some accounts are one deliberate tick away
+            // (D-639); nothing else is sent before they are ticked.
+            const boxes = () => window.all(adding, "CheckBox", []).filter(box => box.visible);
+            const box = text => boxes().find(candidate => candidate.text === text);
+            window.check(box("Rent") === undefined, "more categories wait for their tick");
+            box("Count more categories with it").toggle();
+            box("Rent").toggle();
+            box("Rent").toggled();
+            box("Only count money paid from some accounts").toggle();
+            box("Checking").toggle();
+            box("Checking").toggled();
+            adding.save();
+            window.check(added()[2] === "addBudget:c-food,c-rent:a-checking:month:250,00:false:2026-10-01:", "adding sends the categories and accounts, got " + added()[2]);
 
             // The sheet to change a budget sends the period it starts from.
             const changing = window.pageStack.push(sheet, {budgetId: "b-food"});
@@ -142,6 +156,7 @@ Kirigami.ApplicationWindow {
             window.check(drawn.includes("Food") && drawn.includes("Fun"), "a bar for each budget, got " + drawn);
             window.check(drawn.some(text => text.includes("150,00 €")), "the spent amount is shown");
             window.check(drawn.some(text => text.includes("50,00 €") && text.includes("over")), "the overspent bar says so, got " + drawn);
+            window.check(drawn.includes("Only money paid from Checking"), "a bar names the accounts it counts, got " + drawn);
             console.log(window.failed ? "budgets: FAILED" : "budgets: ok");
             Qt.exit(window.failed ? 1 : 0);
         }

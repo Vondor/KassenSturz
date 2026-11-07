@@ -47,8 +47,9 @@ pub const FORMAT: &str = "kassensturz-book";
 /// version 5 the bank links (M4.4a, D-148), version 6 the saved views and
 /// dashboards (M6a.L, D-278), version 7 the category groups and the hidden
 /// categories (M6b.L, D-290), version 8 the budgets (M6c.L, D-344,
-/// D-345).
-pub const VERSION: u64 = 8;
+/// D-345), version 9 a budget's several categories and its accounts
+/// (US1.10, D-640).
+pub const VERSION: u64 = 9;
 
 /// How deep Rules can sit inside each other in the file: a top-level Rule is
 /// at depth 1. Deeper trees are refused when writing and reading, so a file
@@ -377,7 +378,14 @@ impl BookWriter {
             .collect::<Result<_, ExportError>>()?;
         Ok(Json::Object(vec![
             ("id", Json::id(budget.id)),
-            ("category", Json::id(budget.category)),
+            (
+                "categories",
+                Json::List(budget.categories.iter().copied().map(Json::id).collect()),
+            ),
+            (
+                "accounts",
+                Json::List(budget.accounts.iter().copied().map(Json::id).collect()),
+            ),
             ("every", Json::text(name_of(&BUDGET_EVERY, budget.every))),
             ("first_day", Json::date(budget.first_day)),
             ("last_day", budget.last_day.map_or(Json::Null, Json::date)),

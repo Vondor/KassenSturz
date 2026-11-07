@@ -156,6 +156,8 @@ ColumnLayout {
             return i18nContext.i18nc("@label which accounts a component counts, whatever the filters of the page say", "Only count these accounts");
         case "series":
             return i18nContext.i18nc("@label which categories and groups a chart over time draws a line for", "Lines to draw");
+        case "budgets":
+            return i18nContext.i18nc("@label which budgets the budget bars show", "Which budgets");
         case "legend":
             return i18nContext.i18nc("@option:check", "Show the legend");
         case "grouping":
@@ -236,6 +238,10 @@ ColumnLayout {
         const book = choices?.view ?? ({});
         if (key === "accounts") {
             return (book.accounts ?? []).map(account => ({id: account.id, name: account.closed ? i18nContext.i18nc("@option:check %1 is the name of a closed account", "%1 (closed)", account.name) : account.name}));
+        }
+        // The budget bars' Which budgets (D-642).
+        if (key === "budgets") {
+            return (book.budgets ?? []).map(budget => ({id: budget.id, name: budget.name}));
         }
         // A budget belongs to a category, not to a group (D-357).
         const forBudgets = view.preview?.shows === "budget-progress" || view.dataset === "budget_utilization";
@@ -460,6 +466,8 @@ ColumnLayout {
                                 ? panel.i18nContext.i18nc("@info", "There are no categories to pick yet.")
                                 : row.modelData.key === "accounts"
                                 ? panel.i18nContext.i18nc("@info", "There are no accounts to pick yet.")
+                                : row.modelData.key === "budgets"
+                                ? panel.i18nContext.i18nc("@info", "There are no budgets to pick yet. Set one on the page Budgets first.")
                                 : panel.i18nContext.i18nc("@info", "There is nothing to pick yet. Make groups on the page My groups and hidden categories first.")
                         }
 
@@ -474,6 +482,17 @@ ColumnLayout {
                             font: Kirigami.Theme.smallFont
                             opacity: 0.75
                             text: panel.i18nContext.i18nc("@info", "Nothing ticked: this follows the filters of the page. Tick some to count only those, whatever the page says.")
+                        }
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                            visible: row.modelData.key === "budgets" && picker.options.length > 0
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            font: Kirigami.Theme.smallFont
+                            opacity: 0.75
+                            text: panel.i18nContext.i18nc("@info", "Nothing ticked: every budget is shown.")
                         }
 
                         Controls.ScrollView {

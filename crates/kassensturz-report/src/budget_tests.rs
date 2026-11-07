@@ -35,7 +35,7 @@ fn ask(
     filter: &Filter,
 ) -> Vec<BudgetUtilization> {
     let source = Source::read_with_budgets(book, shown, today).expect("read");
-    budget_utilization(&source, shown, today, grouping, filter).expect("budgets")
+    budget_utilization(&source, shown, today, grouping, filter, None).expect("budgets")
 }
 
 fn october() -> Period {
@@ -59,7 +59,8 @@ fn a_monthly_budget_with_carry_over_counts_its_category_and_what_is_inside() {
     let food = base
         .book
         .add_budget(
-            base.food,
+            &[base.food],
+            &[],
             BudgetEvery::Month,
             date(2026, 8, 1),
             None,
@@ -75,7 +76,7 @@ fn a_monthly_budget_with_carry_over_counts_its_category_and_what_is_inside() {
         &Filter::default(),
     );
     let shown = find(&results, food);
-    assert_eq!(shown.path, vec!["Food".to_owned()]);
+    assert_eq!(shown.paths, vec![vec!["Food".to_owned()]]);
     assert_eq!(shown.currency, EUR);
     let figures: Vec<_> = shown
         .periods
@@ -151,7 +152,8 @@ fn a_budget_inside_another_is_a_figure_of_its_own() {
     let food = base
         .book
         .add_budget(
-            base.food,
+            &[base.food],
+            &[],
             BudgetEvery::Quarter,
             date(2026, 7, 1),
             None,
@@ -162,7 +164,8 @@ fn a_budget_inside_another_is_a_figure_of_its_own() {
     let groceries = base
         .book
         .add_budget(
-            base.groceries,
+            &[base.groceries],
+            &[],
             BudgetEvery::Quarter,
             date(2026, 7, 1),
             None,
@@ -173,7 +176,8 @@ fn a_budget_inside_another_is_a_figure_of_its_own() {
     let rent = base
         .book
         .add_budget(
-            base.rent,
+            &[base.rent],
+            &[],
             BudgetEvery::Year,
             date(2026, 1, 1),
             None,
@@ -243,7 +247,8 @@ fn spending_is_counted_in_the_categorys_currency_as_booked() {
     let trip = base
         .book
         .add_budget(
-            base.travel,
+            &[base.travel],
+            &[],
             BudgetEvery::Range,
             date(2026, 10, 20),
             Some(date(2026, 10, 30)),
@@ -312,7 +317,8 @@ fn the_share_used_is_rounded_half_away_from_zero_whatever_the_book_says() {
     let budget = base
         .book
         .add_budget(
-            pets,
+            &[pets],
+            &[],
             BudgetEvery::Month,
             date(2026, 11, 1),
             None,
@@ -378,7 +384,8 @@ fn nothing_available_has_no_share_and_says_so() {
     let budget = base
         .book
         .add_budget(
-            base.groceries,
+            &[base.groceries],
+            &[],
             BudgetEvery::Month,
             date(2026, 8, 1),
             None,
@@ -462,7 +469,8 @@ fn a_changed_amount_and_the_switch_apply_from_one_period_on() {
     let budget = base
         .book
         .add_budget(
-            base.food,
+            &[base.food],
+            &[],
             BudgetEvery::Month,
             date(2026, 8, 1),
             None,
@@ -530,7 +538,8 @@ fn only_periods_up_to_the_day_asked_for_are_shown() {
     let budget = base
         .book
         .add_budget(
-            base.rent,
+            &[base.rent],
+            &[],
             BudgetEvery::Month,
             date(2026, 1, 1),
             None,
@@ -541,7 +550,8 @@ fn only_periods_up_to_the_day_asked_for_are_shown() {
     let later = base
         .book
         .add_budget(
-            base.groceries,
+            &[base.groceries],
+            &[],
             BudgetEvery::Month,
             date(2026, 11, 1),
             None,
@@ -573,7 +583,8 @@ fn a_source_without_the_budgets_or_their_days_is_refused() {
     let mut base = sample();
     base.book
         .add_budget(
-            base.food,
+            &[base.food],
+            &[],
             BudgetEvery::Month,
             date(2026, 8, 1),
             None,
@@ -588,7 +599,8 @@ fn a_source_without_the_budgets_or_their_days_is_refused() {
             october(),
             date(2026, 10, 31),
             BudgetGrouping::Budget,
-            &Filter::default()
+            &Filter::default(),
+            None
         ),
         Err(ReportError::PeriodNotRead)
     ));
@@ -606,7 +618,8 @@ fn a_source_without_the_budgets_or_their_days_is_refused() {
             october(),
             date(2026, 10, 31),
             BudgetGrouping::Budget,
-            &Filter::default()
+            &Filter::default(),
+            None
         ),
         Err(ReportError::PeriodNotRead)
     ));
@@ -653,7 +666,18 @@ fn the_dataset_and_its_component_are_offered_since_the_app_draws_them() {
         .iter()
         .map(|property| property.key)
         .collect();
-    assert_eq!(keys, vec!["categories", "title", "period"]);
+    assert_eq!(keys, vec!["budgets", "categories", "title", "period"]);
+    // Which budgets (D-642): budget IDs as text, empty for every budget.
+    let budgets = &kind.properties()[0];
+    assert_eq!(budgets.kind, Kind::Budgets);
+    assert_eq!(budgets.default_setting(info), Setting::Ids(Vec::new()));
+    let many = vec!["b".to_owned(); MAX_FILTER_IDS + 1];
+    assert!(budgets.check(info, &Setting::Ids(many)).is_err());
+    assert!(
+        budgets
+            .check(info, &Setting::Ids(vec!["b".to_owned()]))
+            .is_ok()
+    );
     let offered: Vec<&str> = kind.datasets().map(|dataset| dataset.id).collect();
     assert_eq!(offered, vec![BUDGET_UTILIZATION]);
     // No other component takes it: a budget has bars, not a chart yet. The
@@ -709,7 +733,8 @@ fn generated(plan: &[Month]) -> (Book, BudgetId, AccountId) {
     let (first_amount, first_carry, _) = &plan[0];
     let budget = book
         .add_budget(
-            category,
+            &[category],
+            &[],
             BudgetEvery::Month,
             month_start(0),
             None,
@@ -796,4 +821,128 @@ proptest! {
         prop_assert_eq!(&before[..from], &after[..from]);
         prop_assert_eq!(after[from].planned, money(amount));
     }
+}
+
+/// What one budget made of `categories` from `accounts` spent in the
+/// quarter July to September, asked for on 1 December; the budget is
+/// removed again, so the next one can count the same money.
+fn quarter_spent(book: &mut Book, categories: &[AccountId], accounts: &[AccountId]) -> Money {
+    let id = book
+        .add_budget(
+            categories,
+            accounts,
+            BudgetEvery::Quarter,
+            date(2026, 7, 1),
+            None,
+            money(10_000),
+            false,
+        )
+        .unwrap();
+    let results = ask(
+        book,
+        period(date(2026, 9, 1), date(2026, 9, 30)),
+        date(2026, 12, 1),
+        BudgetGrouping::Budget,
+        &Filter::default(),
+    );
+    let spent = find(&results, id).periods[0].spent;
+    book.remove_budget(id).unwrap();
+    spent
+}
+
+#[test]
+fn a_budget_of_several_categories_counts_each_once_and_only_its_accounts() {
+    let mut base = sample();
+    let (food_id, groceries_id, rent_id) = (base.food, base.groceries, base.rent);
+    let (checking_id, savings_id) = (base.checking, base.savings);
+    let book = &mut base.book;
+    let groceries = quarter_spent(book, &[groceries_id], &[]);
+    let rent = quarter_spent(book, &[rent_id], &[]);
+    let food = quarter_spent(book, &[food_id], &[]);
+    assert!(!groceries.is_zero() && !rent.is_zero());
+    // Categories from two branches of the tree add up.
+    let both = quarter_spent(book, &[rent_id, groceries_id], &[]);
+    assert_eq!(both, rent.checked_add(groceries).unwrap());
+    // A category and one inside it count the inner one once.
+    let food_twice = quarter_spent(book, &[groceries_id, food_id], &[]);
+    assert_eq!(food_twice, food);
+    // Limited to accounts, only their transactions count; every account
+    // together is the budget without accounts.
+    let checking = quarter_spent(book, &[rent_id, groceries_id], &[checking_id]);
+    let savings = quarter_spent(book, &[rent_id, groceries_id], &[savings_id]);
+    assert_eq!(checking.checked_add(savings).unwrap(), both);
+    let from_both = quarter_spent(book, &[rent_id, groceries_id], &[savings_id, checking_id]);
+    assert_eq!(from_both, both);
+
+    // The figures say which categories and accounts they are for.
+    let id = base
+        .book
+        .add_budget(
+            &[base.rent, base.groceries],
+            &[base.checking],
+            BudgetEvery::Quarter,
+            date(2026, 7, 1),
+            None,
+            money(10_000),
+            false,
+        )
+        .unwrap();
+    let results = ask(
+        &base.book,
+        period(date(2026, 9, 1), date(2026, 9, 30)),
+        date(2026, 12, 1),
+        BudgetGrouping::Budget,
+        &Filter::default(),
+    );
+    let shown = find(&results, id);
+    assert_eq!(shown.categories, [base.rent, base.groceries]);
+    assert_eq!(shown.accounts, [base.checking]);
+    assert_eq!(shown.paths.len(), 2);
+    assert_eq!(shown.paths[1].last().map(String::as_str), Some("Groceries"));
+    assert_eq!(
+        shown.categories_text(" › "),
+        format!(
+            "{}, {}",
+            shown.paths[0].join(" › "),
+            shown.paths[1].join(" › ")
+        )
+    );
+}
+
+#[test]
+fn only_the_named_budgets_are_shown() {
+    let mut base = sample();
+    let mut add = |category| {
+        base.book
+            .add_budget(
+                &[category],
+                &[],
+                BudgetEvery::Month,
+                date(2026, 9, 1),
+                None,
+                money(10_000),
+                false,
+            )
+            .unwrap()
+    };
+    let (food, rent) = (add(base.food), add(base.rent));
+    let source = Source::read_with_budgets(&base.book, october(), date(2026, 10, 31)).unwrap();
+    let shown = |only: Option<&[BudgetId]>| -> Vec<BudgetId> {
+        budget_utilization(
+            &source,
+            october(),
+            date(2026, 10, 31),
+            BudgetGrouping::Budget,
+            &Filter::default(),
+            only,
+        )
+        .unwrap()
+        .iter()
+        .map(|result| result.budget)
+        .collect()
+    };
+    assert_eq!(shown(None), [food, rent]);
+    assert_eq!(shown(Some(&[rent])), [rent]);
+    // A budget no longer in the book is simply not there.
+    assert_eq!(shown(Some(&[BudgetId::generate()])), Vec::<BudgetId>::new());
 }

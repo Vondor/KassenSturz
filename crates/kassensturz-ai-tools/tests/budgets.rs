@@ -73,7 +73,8 @@ fn an_amount_based_on_spending_uses_the_figures_a_budget_made_by_hand_shows() {
     // The same three months, as the dataset counts them for a budget the
     // user made by hand for them (it ends before the prepared one starts).
     book.add_budget(
-        category,
+        &[category],
+        &[],
         BudgetEvery::Month,
         basis.first_day,
         Some(basis.last_day),
@@ -89,6 +90,7 @@ fn an_amount_based_on_spending_uses_the_figures_a_budget_made_by_hand_shows() {
         basis.last_day,
         BudgetGrouping::Period,
         &Filter::default(),
+        None,
     )
     .expect("figures");
     let spent: i64 = rows[0]
@@ -98,7 +100,7 @@ fn an_amount_based_on_spending_uses_the_figures_a_budget_made_by_hand_shows() {
         .sum();
     assert_eq!(rows[0].periods.len(), 3);
     assert_eq!(basis.spent.minor_units(), spent);
-    assert!(spent > 0, "the Space Colony spends on {:?}", new.path);
+    assert!(spent > 0, "the Space Colony spends on {:?}", new.paths);
     // Rounded up to a multiple of 5.00, and never below the average.
     let amount = new.amount.minor_units();
     assert_eq!(amount % 500, 0);
@@ -125,7 +127,8 @@ fn list_budgets_reads_what_the_grid_allows_and_its_figures_come_from_the_dataset
     let category = a_spending_category(&book);
     let eur = book.account(category).expect("there").currency;
     book.add_budget(
-        category,
+        &[category],
+        &[],
         BudgetEvery::Month,
         Date::constant(2026, 1, 1),
         None,
@@ -146,7 +149,8 @@ fn list_budgets_reads_what_the_grid_allows_and_its_figures_come_from_the_dataset
         .category
         .id;
     book.add_budget(
-        other,
+        &[other],
+        &[],
         BudgetEvery::Year,
         Date::constant(2025, 1, 1),
         Some(Date::constant(2025, 12, 31)),
@@ -165,7 +169,12 @@ fn list_budgets_reads_what_the_grid_allows_and_its_figures_come_from_the_dataset
     let listed = read(&book, names).expect("read");
     let rows = listed["budgets"].as_array().expect("a list");
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0]["category_id"], category.to_string());
+    assert_eq!(rows[0]["category_ids"], json!([category.to_string()]));
+    assert_eq!(rows[0]["categories"].as_array().map(Vec::len), Some(1));
+    assert!(
+        rows[0].get("account_ids").is_none(),
+        "it counts every account"
+    );
     assert_eq!(rows[0]["every"], "month");
     assert_eq!(rows[0]["amount"], "400.00");
     assert_eq!(rows[0]["carry_over"], true);
@@ -187,6 +196,7 @@ fn list_budgets_reads_what_the_grid_allows_and_its_figures_come_from_the_dataset
         TODAY,
         BudgetGrouping::Budget,
         &Filter::default(),
+        None,
     )
     .expect("figures");
     let shown = &rows[0].periods[0];

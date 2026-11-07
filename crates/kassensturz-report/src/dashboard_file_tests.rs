@@ -266,6 +266,29 @@ fn a_list_of_only_gone_ids_is_left_out_of_the_filter_bar() {
 }
 
 #[test]
+fn the_budgets_a_tile_shows_stay_in_their_book() {
+    let sample = sample();
+    let text = format!(
+        r#"{{"format": "kassensturz-dashboard", "version": {VERSION}, "kind": "dashboard",
+            "name": "Plans", "components": [
+              {{"id": "c1", "type": "budget.progress", "dataset": "budget_utilization",
+               "params": {{"budgets": ["{GONE}"]}},
+               "frame": {{"col": 0, "row": 0, "cols": 6, "rows": 4}}}}]}}"#
+    );
+    let document = Document::read(&text).expect("reads");
+    let file = write(&sample, &document);
+    // Another book has budgets of its own: the bars there show every one
+    // (D-642).
+    assert_eq!((file.references, file.left_out), (0, 1));
+    assert!(!file.text.contains(GONE));
+    let value: Value = serde_json::from_str(&file.text).expect("JSON");
+    assert_eq!(
+        value["dashboard"]["components"][0]["params"]["budgets"],
+        serde_json::json!([])
+    );
+}
+
+#[test]
 fn the_built_in_overview_can_be_saved_without_references() {
     let sample = sample();
     let overview = Document::default_overview().expect("built in");

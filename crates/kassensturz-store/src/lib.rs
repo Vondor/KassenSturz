@@ -688,7 +688,7 @@ impl Book {
                 OR EXISTS (SELECT 1 FROM rule_conditions WHERE account_id = ?1)",
         )? {
             Ok(Some("rules"))
-        } else if used("SELECT EXISTS (SELECT 1 FROM budgets WHERE category_id = ?1)")? {
+        } else if used("SELECT EXISTS (SELECT 1 FROM budget_categories WHERE category_id = ?1)")? {
             Ok(Some("budgets"))
         } else {
             Ok(None)

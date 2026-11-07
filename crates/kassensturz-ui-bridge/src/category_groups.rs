@@ -77,6 +77,8 @@ pub struct GroupsView {
     pub categories: Vec<CategoryRow>,
     /// The IDs of the hidden categories as text.
     pub hidden: Vec<String>,
+    /// The budgets, for the budget bars' *Which budgets* (D-642).
+    pub budgets: Vec<crate::budgets::BudgetChoice>,
 }
 
 /// The groups, the categories and the hide list of `book`.
@@ -142,6 +144,7 @@ pub fn view(book: &Book) -> Result<GroupsView, StoreError> {
         groups,
         categories,
         hidden,
+        budgets: crate::budgets::choices(book)?,
     })
 }
 

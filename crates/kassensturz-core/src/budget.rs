@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Budgets: an amount the user plans to spend on one spending category in a
-//! stretch of time (D-344, D-345; layout 22). A budget is a way of looking
+//! Budgets: an amount the user plans to spend on one or more spending
+//! categories in a stretch of time, optionally counting only what was paid
+//! from chosen accounts (D-344, D-345, D-639; layout 25). A budget is a way of looking
 //! at the spending and nothing else: it never changes a booking, a balance
 //! or a total. How a budget counts is the reporting layer's job (D-346,
 //! D-347); this module only says what a budget is and which days its
@@ -97,14 +98,21 @@ pub struct BudgetAmount {
     pub carry_over: bool,
 }
 
-/// A budget as the book keeps it (D-344).
+/// A budget as the book keeps it (D-344, D-639).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Budget {
     /// The budget's ID.
     pub id: BudgetId,
-    /// The spending category it is for, counted with everything inside it
-    /// (D-291).
-    pub category: AccountId,
+    /// The spending categories it is for, at least one, in the order the
+    /// user chose them, each counted with everything inside it and every
+    /// category once however often it is reached (D-291, D-639). They share
+    /// one currency, the budget's.
+    pub categories: Vec<AccountId>,
+    /// The user's own accounts whose transactions it counts, or empty for
+    /// all of them (D-639). A transaction counts as a whole, as with the
+    /// filters (D-350): if it touches one of these accounts, its parts in
+    /// the categories count.
+    pub accounts: Vec<AccountId>,
     /// How long one period is.
     pub every: BudgetEvery,
     /// The first day of its first period.
@@ -128,6 +136,30 @@ impl Budget {
             // A range has one period: its own days.
             _ => Some((self.first_day, self.last_day.unwrap_or(day))),
         }
+    }
+
+    /// Whether this budget and `other` would count the same money on the
+    /// same day, which the book refuses (D-344, D-639): their days overlap,
+    /// they share a category, and they count from at least one account in
+    /// common (no accounts chosen means every account). Returns a category
+    /// they share. A budget on a category and another on a category inside
+    /// it are separate figures and are not checked against each other.
+    pub fn clashes_with(&self, other: &Self) -> Option<AccountId> {
+        let days_overlap = self.first_day <= other.last_day.unwrap_or(Date::MAX)
+            && other.first_day <= self.last_day.unwrap_or(Date::MAX);
+        let accounts_overlap = self.accounts.is_empty()
+            || other.accounts.is_empty()
+            || self
+                .accounts
+                .iter()
+                .any(|account| other.accounts.contains(account));
+        if !(days_overlap && accounts_overlap) {
+            return None;
+        }
+        self.categories
+            .iter()
+            .copied()
+            .find(|category| other.categories.contains(category))
     }
 
     /// What the budget plans for the period that starts on `period_start`:
@@ -217,7 +249,8 @@ mod tests {
     fn a_budget_finds_its_period_and_its_amount() {
         let budget = Budget {
             id: BudgetId::generate(),
-            category: AccountId::generate(),
+            categories: vec![AccountId::generate()],
+            accounts: Vec::new(),
             every: BudgetEvery::Month,
             first_day: day(2026, 9, 1),
             last_day: Some(day(2026, 12, 31)),
@@ -260,5 +293,48 @@ mod tests {
             trip.period_containing(day(2026, 7, 12)),
             Some((day(2026, 7, 10), day(2026, 7, 24)))
         );
+    }
+
+    #[test]
+    fn two_budgets_clash_only_on_shared_categories_accounts_and_days() {
+        let (rent, power, web) = (
+            AccountId::generate(),
+            AccountId::generate(),
+            AccountId::generate(),
+        );
+        let (shared, own) = (AccountId::generate(), AccountId::generate());
+        let budget = |categories: Vec<AccountId>, accounts: Vec<AccountId>, first, last| Budget {
+            id: BudgetId::generate(),
+            categories,
+            accounts,
+            every: BudgetEvery::Month,
+            first_day: first,
+            last_day: last,
+            amounts: Vec::new(),
+        };
+        let household = budget(vec![rent, power, web], vec![shared], day(2026, 11, 1), None);
+        // The same category from another account is a separate figure.
+        let mine = budget(vec![power], vec![own], day(2026, 11, 1), None);
+        assert_eq!(household.clashes_with(&mine), None);
+        // From every account it counts the shared account too.
+        let everywhere = budget(vec![web], Vec::new(), day(2026, 1, 1), None);
+        assert_eq!(household.clashes_with(&everywhere), Some(web));
+        assert_eq!(everywhere.clashes_with(&household), Some(web));
+        // Days that don't overlap never clash.
+        let before = budget(
+            vec![rent],
+            vec![shared],
+            day(2026, 1, 1),
+            Some(day(2026, 10, 31)),
+        );
+        assert_eq!(household.clashes_with(&before), None);
+        // Other categories never clash.
+        let other = budget(
+            vec![AccountId::generate()],
+            Vec::new(),
+            day(2026, 1, 1),
+            None,
+        );
+        assert_eq!(household.clashes_with(&other), None);
     }
 }

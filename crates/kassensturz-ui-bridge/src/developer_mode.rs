@@ -37,6 +37,7 @@ pub mod qobject {
         #[qml_element]
         #[qproperty(bool, on, READ, CONSTANT)]
         #[qproperty(bool, bank_log_on, cxx_name = "bankLogOn", READ, CONSTANT)]
+        #[qproperty(bool, bank_log_detailed, cxx_name = "bankLogDetailed", READ, CONSTANT)]
         type DeveloperMode = super::DeveloperModeRust;
     }
 
@@ -88,12 +89,14 @@ pub mod qobject {
 pub struct DeveloperModeRust {
     on: bool,
     bank_log_on: bool,
+    bank_log_detailed: bool,
 }
 
 impl cxx_qt::Initialize for qobject::DeveloperMode {
     fn initialize(mut self: Pin<&mut Self>) {
         self.as_mut().rust_mut().on = is_on();
         self.as_mut().rust_mut().bank_log_on = bank_log_is_on();
+        self.as_mut().rust_mut().bank_log_detailed = bank_log_is_detailed();
     }
 }
 
@@ -175,6 +178,15 @@ pub fn current_screen() -> Option<&'static str> {
 pub fn bank_log_is_on() -> bool {
     #[cfg(feature = "debug-log")]
     return kassensturz_core::bank_log::is_on();
+    #[cfg(not(feature = "debug-log"))]
+    false
+}
+
+/// Whether the bank log also keeps the bank's reply texts, redacted
+/// (level 2, D-619).
+pub fn bank_log_is_detailed() -> bool {
+    #[cfg(feature = "debug-log")]
+    return kassensturz_core::bank_log::is_detailed();
     #[cfg(not(feature = "debug-log"))]
     false
 }

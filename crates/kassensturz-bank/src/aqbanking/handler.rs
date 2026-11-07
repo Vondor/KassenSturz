@@ -229,6 +229,11 @@ impl SessionHandler for Handler {
             self.strong_auth |= code == 9075;
             self.pin_called_wrong |= matches!(code, 9931 | 9942);
             self.message_refused |= matches!(code, 9050 | 9160);
+            // Level 2 of the bank log (D-619) keeps the bank's text, redacted.
+            #[cfg(feature = "debug-log")]
+            if let Some(text) = message.trim().get(13..) {
+                kassensturz_core::bank_log::note_notice(code, text);
+            }
             if self.codes.len() < KEPT_CODES && !self.codes.contains(&code) {
                 self.codes.push(code);
             }

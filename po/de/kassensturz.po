@@ -12964,6 +12964,25 @@ msgstr ""
 "die Registrierungsnummer bleiben darin weg. Um ihn zu beenden, schließen "
 "Sie KassenSturz und starten es wie gewohnt."
 
+#: crates/kassensturz-ui-bridge/qml/Main.qml:831
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Developer mode for bank connections, detailed: KassenSturz is writing a log "
+"of how far each bank connection gets, which errors happen and the texts your "
+"bank sends with them. The texts are cut down to words, but a name written in "
+"words can remain: look through the log before you pass it on. It leaves out "
+"your account numbers, amounts, PIN, TANs and the registration number. To end "
+"it, close KassenSturz and start it the usual way."
+msgstr ""
+"Entwicklermodus für Bankverbindungen, ausführlich: KassenSturz schreibt ein "
+"Protokoll darüber, wie weit jede Bankverbindung kommt, welche Fehler "
+"auftreten und welche Texte Ihre Bank dazu schickt. Die Texte sind auf Wörter "
+"verkürzt, aber ein in Worten geschriebener Name kann darin bleiben: Sehen "
+"Sie das Protokoll durch, bevor Sie es weitergeben. Ihre Kontonummern, "
+"Beträge, Ihre PIN, TANs und die Registrierungsnummer bleiben darin weg. Um "
+"ihn zu beenden, schließen Sie KassenSturz und starten es wie gewohnt."
+
 #: crates/kassensturz-ui-bridge/qml/Main.qml:760
 #, kde-format
 msgctxt "@action:button opens the folder of the developer mode's log"

@@ -163,7 +163,7 @@ fn a_part_a_file_delivered_keeps_its_amount_and_account() {
             open(),
         )
         .expect_err("refused");
-        assert_eq!(error.report().code, "ai-tools.not-editable", "{key}");
+        assert_eq!(error.model_report().code, "ai-tools.not-editable", "{key}");
     }
 }
 
@@ -180,7 +180,7 @@ fn a_locked_field_is_refused_and_nothing_changes() {
             Permissions::all(),
         )
         .expect_err("refused");
-        assert_eq!(error.report().code, "ai-tools.field-locked", "{key}");
+        assert_eq!(error.model_report().code, "ai-tools.field-locked", "{key}");
     }
     // The note isn't locked by default.
     propose_with(

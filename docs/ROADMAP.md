@@ -250,7 +250,7 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **US1.4** · **later** · waits for: the next removal of a bank login in US1 Phase 3 (a line in the test plan). #505 (M6-B188): check that the kept keychain entry's password is empty, then close the issue. Why: #506 already explains it in the remove dialog; only the check is left
 
-- **US1.5** · **todo** · thread B · needs: — · standard, high · D-626 to D-628. #517 (M6-B191): the AI rule tools fail to replace a rule with one of the same name in one batch, refuse edits of imported rules without a reason, and name no item in errors. Why: bugs, and the errors are dead ends
+- **US1.5** · **in review** · thread B · needs: — · standard, high · D-626 to D-628. #517 (M6-B191): the AI rule tools fail to replace a rule with one of the same name in one batch, refuse edits of imported rules without a reason, and name no item in errors. Why: bugs, and the errors are dead ends. **Built (D-626):** edits and deletions come before new Rules so a same-name replacement works in one call, `not-changeable` says which argument and why, `bad-condition` names the condition, and every refusal from a list item carries `list` and `item`
 
 - **US1.6** · **todo** · thread B, after US1.5 · needs: US1.5; US1.7 if it changes the condition cap in the store · standard, high · D-626 to D-628 (shared with US1.5). #518: the AI rule tools get the app's condition cap, sub-rules (a parent in `new_rules`), `matches_pattern` (the tool text says capitals are ignored and lookahead is unsupported) and higher batch limits; every change stays one confirmed change set. Why: the tools forced split rules such as "Food (2)"
 

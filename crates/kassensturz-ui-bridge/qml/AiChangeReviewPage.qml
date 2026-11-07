@@ -618,6 +618,14 @@ Kirigami.ScrollablePage {
 
                     Controls.Label {
                         Layout.fillWidth: true
+                        visible: modelData.inside !== ""
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is the name of a Rule", "Inside the Rule “%1”: it is checked only when that Rule matched.", modelData.inside)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText
                         text: page.i18nContext.i18nc("@info %1 is the path of a category", "Books matching transactions to %1.", modelData.bookTo)

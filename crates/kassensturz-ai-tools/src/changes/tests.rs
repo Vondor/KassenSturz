@@ -477,7 +477,7 @@ fn calls_that_are_not_what_the_function_takes_are_refused() {
             "bad-condition 1 field",
         ),
         (
-            json!({"new_rules": [{"name": "A", "conditions": [{"field": "payee", "test": "matches_pattern", "text": ".*"}], "category_id": food}]}),
+            json!({"new_rules": [{"name": "A", "conditions": [{"field": "payee", "test": "like", "text": ".*"}], "category_id": food}]}),
             "bad-condition 1 test",
         ),
         (
@@ -1154,7 +1154,7 @@ fn a_model_is_offered_only_the_lists_the_user_allows() {
     let none_new =
         propose_spec(Permissions::all().with(Permission::NewCategories, false)).expect("offered");
     assert!(!none_new.parameters.contains("new_category"));
-    assert!(!none_new.parameters.contains("new_parent"));
+    assert!(!none_new.parameters.contains("\"new_parent\""));
     assert!(!none_new.parameters.contains("new_categories"));
 
     // One kind alone is still a complete, valid tool.
@@ -2952,4 +2952,5 @@ fn a_change_can_be_left_out_and_brought_back_as_the_ai_prepared_it() {
 }
 
 mod rule_batches;
+mod rule_tools;
 mod view_call;

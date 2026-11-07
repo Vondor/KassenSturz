@@ -55,7 +55,8 @@ ColumnLayout {
         { key: "contains", label: i18nContext.i18nc("@item:inlistbox a text has to", "contains") },
         { key: "equals", label: i18nContext.i18nc("@item:inlistbox a text has to", "is exactly") },
         { key: "starts_with", label: i18nContext.i18nc("@item:inlistbox a text has to", "starts with") },
-        { key: "ends_with", label: i18nContext.i18nc("@item:inlistbox a text has to", "ends with") }
+        { key: "ends_with", label: i18nContext.i18nc("@item:inlistbox a text has to", "ends with") },
+        { key: "matches_pattern", label: i18nContext.i18nc("@item:inlistbox a text has to", "matches the pattern") }
     ]
 
     function choiceIndex(list: var, item: var): int {

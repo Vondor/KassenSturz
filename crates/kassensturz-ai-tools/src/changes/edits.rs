@@ -209,7 +209,7 @@ impl From<ToolError> for EditError {
             // The user picks a new category from the set, so a key that
             // isn't there any more was left out.
             ToolError::BadArgument {
-                argument: "new_category" | "new_parent",
+                argument: "new_category" | "new_parent" | "new_parent_rule",
             } => Self::InUse,
             ToolError::NotAllowed { .. } => Self::NotAllowed,
             other => Self::Refused(other),

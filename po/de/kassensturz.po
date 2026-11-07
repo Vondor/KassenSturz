@@ -816,6 +816,7 @@ msgctxt ""
 msgid "Other party's IBAN"
 msgstr "IBAN des Zahlungspartners"
 
+#: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:59
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:150
 #, kde-format
 msgctxt "@item:inlistbox a text has to"
@@ -1156,6 +1157,12 @@ msgstr "Es wird wieder geöffnet."
 msgctxt "@title:group"
 msgid "New Rules"
 msgstr "Neue Regeln"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:624
+#, kde-format
+msgctxt "@info %1 is the name of a Rule"
+msgid "Inside the Rule “%1”: it is checked only when that Rule matched."
+msgstr "Innerhalb der Regel „%1“: Sie wird nur geprüft, wenn diese Regel gepasst hat."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:623
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:691
